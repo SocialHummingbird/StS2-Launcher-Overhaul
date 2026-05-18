@@ -42,6 +42,8 @@ logs.txt
 # Hidden directories
 .*
 !.gitignore
+!.github/
+!.github/**
 
 # IDE
 *.user
