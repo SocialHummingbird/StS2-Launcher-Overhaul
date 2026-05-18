@@ -18,10 +18,10 @@ This roadmap tracks the ongoing rewrite and stabilization effort.
 
 ## Phase 2 — Architecture cleanup
 
-- [ ] Split optional patches from required startup path
-- [ ] Introduce clearer service boundaries in launcher orchestration
-- [ ] Reduce global/static mutable state where feasible
-- [ ] Improve observability for recurring failure paths
+- [x] Split optional patches from required startup path
+- [x] Introduce clearer service boundaries in launcher orchestration
+- [x] Reduce global/static mutable state where feasible
+- [x] Improve observability for recurring failure paths
 
 ## Phase 3 — Validation and maintainability
 

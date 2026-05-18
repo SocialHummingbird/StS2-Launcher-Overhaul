@@ -2,10 +2,11 @@
 
 This file tracks what we are actively working on in the overhaul branch.
 
-## Current Focus (Phase 1 Reliability)
-- Cloud sync operations should never stall the launcher indefinitely
-- Reflection and method signature drift should not crash startup paths
-- Core startup/load lifecycle transitions should recover cleanly
+## Current Focus (Phase 2 Architecture Cleanup)
+- Isolate required startup patches from optional ones in one-shot orchestration
+- Reduce startup-time fragility by preventing one noncritical patch from disabling launcher fallback
+- Improve startup observability with grouped patch outcome summaries
+- Continue reducing global mutable state in startup control flow
 
 ## High-Impact Reliability Backlog
 
@@ -20,6 +21,7 @@ This file tracks what we are actively working on in the overhaul branch.
 - Add per-device reproducibility logs for pending issue paths
 - Publish a lightweight recurring status issue (monthly) with blockers and acceptance criteria
 - Add branch protection and release gating once CI is in place
+- Complete Phase 2 backlog items and publish next runbook in phase-3 planning
 
 ## Active Status Issue
 - https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/issues/2
