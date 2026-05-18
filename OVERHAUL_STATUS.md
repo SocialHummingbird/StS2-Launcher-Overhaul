@@ -3,8 +3,8 @@
 This file tracks what we are actively working on in the overhaul branch.
 
 ## Current Focus (Phase 7 Closure)
-- Close the phase transition artifact with a final status entry
-- Confirm `issue #2` closure path and release handoff
+- Confirmed: phase transition artifact completed
+- `issue #2` is closed
 - Keep monthly status checks visible and action-oriented
 
 ## High-Impact Reliability Backlog
@@ -20,11 +20,11 @@ This file tracks what we are actively working on in the overhaul branch.
 | P7 | Closure | CI artifact handling + phase transition hygiene | Reliability / Governance | Completed |
 
 ## Open Follow-up Tasks
-- Keep status issue cadence alive and perform periodic release review
 - Validate artifact publication strategy in next release cycle
+- Perform periodic release review
 
 ## Active Status Issue
-- https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/issues/2
+- (Closed) https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/issues/2
 
 ## Rollback Strategy
 - Keep each PR scoped to one logical change so labels and patches can be reverted independently.
