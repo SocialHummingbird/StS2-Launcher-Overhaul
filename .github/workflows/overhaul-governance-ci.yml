@@ -1,0 +1,45 @@
+name: Overhaul Governance CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  governance-smoke:
+    name: Governance Smoke Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Verify governance docs exist
+        run: |
+          test -f MIGRATION_CHECKLIST.md || { echo "Missing MIGRATION_CHECKLIST.md"; exit 1; }
+          test -f OVERHAUL_ROADMAP.md || { echo "Missing OVERHAUL_ROADMAP.md"; exit 1; }
+          test -f OVERHAUL_STATUS.md || { echo "Missing OVERHAUL_STATUS.md"; exit 1; }
+          test -f CONTRIBUTING.md || { echo "Missing CONTRIBUTING.md"; exit 1; }
+
+      - name: Validate repository diff hygiene
+        run: |
+          git diff --check
+          python - <<'PY'
+          from pathlib import Path
+
+          critical = [
+              "MIGRATION_CHECKLIST.md",
+              "OVERHAUL_ROADMAP.md",
+              "OVERHAUL_STATUS.md",
+              "CONTRIBUTING.md",
+          ]
+
+          for name in critical:
+              path = Path(name)
+              text = path.read_text(encoding="utf-8", errors="replace")
+              if not text.strip():
+                  raise SystemExit(f"{name} is unexpectedly empty")
+
+          print("Governance smoke checks passed.")
+          PY

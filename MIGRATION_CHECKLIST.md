@@ -15,7 +15,7 @@ This repo started as an independent copy of [Ekyso/StS2-Launcher](https://github
 
 - [x] Define branch naming conventions (suggested: `rewrite/<area>-<topic>`, `fix/<area>`, `chore/<topic>`)
 - [x] Protect `main` in GitHub settings (direct pushes disabled, PR-first workflow)
-- [ ] Add branch protection rules for required status checks once CI exists
+- [x] Add branch protection rules for required status checks once CI exists
 - [x] Keep a `compat/legacy` branch for rollback if needed
 
 ## 3) Contributor & PR Workflow (To Do)

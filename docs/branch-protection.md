@@ -33,7 +33,11 @@ gh api repos/SocialHummingbird/StS2-Launcher-Overhaul/branches/main/protection \
   --field required_pull_request_reviews='{\"required_approving_review_count\":1,"required_approving_review_count":1}'
 ```
 
-If CI is not yet available, set required status checks as a placeholder and switch them on when workflows are added.
+When CI is available, prefer required status checks:
+
+- `Governance Smoke Check` (job: `governance-smoke` in `.github/workflows/overhaul-governance-ci.yml`)
+
+If CI is not yet available, keep status-check enforcement off and switch it on when workflows are added.
 
 ## Rollback branch policy
 

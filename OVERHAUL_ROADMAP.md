@@ -36,3 +36,8 @@ This roadmap tracks the ongoing rewrite and stabilization effort.
 - [x] Establish rollback strategy branch (`compat/legacy`)
 - [x] Publish release/changelog strategy and backport policy
 - [x] Document branch protection expectations and deployment safety steps
+
+## Phase 5 — CI bootstrap and merge safety
+
+- [x] Add required-status-check workflow for governance/documentation safety
+- [x] Wire branch protection to require a deterministic CI check context

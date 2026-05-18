@@ -2,10 +2,10 @@
 
 This file tracks what we are actively working on in the overhaul branch.
 
-## Current Focus (Phase 4 Governance Completion)
-- Document enforced branch-protection expectations and merge safety
-- Track release/backport policy compliance for merged architecture changes
-- Keep rollback branch aligned with latest release baseline
+## Current Focus (Phase 5 CI Bootstrapping)
+- Add a minimal required status check workflow for PR merge safety
+- Align branch protection on `main` with the new CI context
+- Keep compatibility backlog visible while CI matures beyond governance checks
 - Keep monthly status checks visible and action-oriented
 
 ## High-Impact Reliability Backlog
@@ -18,8 +18,8 @@ This file tracks what we are actively working on in the overhaul branch.
 | P3 | Multiplayer | LAN beacon persistence and discovery stability | Reliability | Low |
 
 ## Open Follow-up Tasks
-- Add required status checks to `main` once CI is in place
 - Keep status issue cadence alive and close issue #2 on phase transition
+- Expand CI checks from governance-only to include build smoke targets when references are available
 - Complete remaining compatibility hardening and close remaining phase-2 backlog items
 
 ## Active Status Issue
