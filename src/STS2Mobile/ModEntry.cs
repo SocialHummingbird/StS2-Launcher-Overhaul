@@ -1,11 +1,12 @@
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Godot;
 using Godot.Bridge;
 using Godot.NativeInterop;
 using HarmonyLib;
 using STS2Mobile.Launcher;
-using STS2Mobile.Patches;
 
 namespace STS2Mobile;
 
@@ -13,8 +14,12 @@ namespace STS2Mobile;
 // patches, and falls back to standalone launcher mode if game files aren't present.
 public static class ModEntry
 {
-    private static Harmony _harmony;
-    private static bool _applied = false;
+    private const string HarmonyId = "com.sts2mobile";
+    private const int NotStarted = 0;
+    private const int InProgress = 1;
+    private const int Complete = 2;
+
+    private static int _applyState = NotStarted;
 
     // Bootstraps GodotSharp by setting up DLL import resolver, native interop,
     // and managed callbacks. Called from gd_mono.cpp before Apply().
@@ -28,9 +33,7 @@ public static class ModEntry
     {
         try
         {
-            DllImportResolver dllImportResolver = new GodotDllImportResolver(
-                godotDllHandle
-            ).OnResolveDllImport;
+            DllImportResolver dllImportResolver = new GodotDllImportResolver(godotDllHandle).OnResolveDllImport;
             var coreApiAssembly = typeof(GodotObject).Assembly;
             NativeLibrary.SetDllImportResolver(coreApiAssembly, dllImportResolver);
 
@@ -50,39 +53,54 @@ public static class ModEntry
     [UnmanagedCallersOnly]
     public static void Apply()
     {
-        if (_applied)
+        if (Interlocked.CompareExchange(ref _applyState, InProgress, NotStarted) != NotStarted)
+        {
+            PatchHelper.Log("Apply already running/completed; skipping duplicate invocation.");
             return;
-        _applied = true;
+        }
 
-        PatchHelper.Log("Initializing STS2Mobile...");
-
-        _harmony = new Harmony("com.sts2mobile");
-
-        // Game patches require sts2.dll; if missing, fall through to standalone launcher.
         try
         {
-            ModelDbInitPatch.Apply(_harmony);
-            PlatformPatches.Apply(_harmony);
-            SettingsPatches.Apply(_harmony);
-            UiScalePatches.Apply(_harmony);
-            MobileLayoutPatches.Apply(_harmony);
-            EventLayoutPatches.Apply(_harmony);
-            MerchantLayoutPatches.Apply(_harmony);
-            AppLifecyclePatches.Apply(_harmony);
-            TouchInputPatches.Apply(_harmony);
-            CardRewardPatches.Apply(_harmony);
-            EarlyAccessDisclaimerPatches.Apply(_harmony);
-            CombatBackgroundPatches.Apply(_harmony);
-            LanMultiplayerPatcher.Apply(_harmony);
-            ModLoaderPatches.Apply(_harmony);
-            LauncherPatches.Apply(_harmony);
-            SaveDiagnosticPatches.Apply(_harmony);
+            ApplyStartupPatches();
+        }
+        finally
+        {
+            _applyState = Complete;
+        }
+    }
 
-            PatchHelper.Log("All game patches applied.");
+    private static void ApplyStartupPatches()
+    {
+        PatchHelper.Log("Initializing STS2Mobile...");
+        try
+        {
+            var harmony = new Harmony(HarmonyId);
+            var patchResult = StartupPatchOrchestrator.Apply(harmony);
+
+            if (patchResult.CriticalFailed)
+            {
+                PatchHelper.Log("Critical startup patches failed; scheduling standalone launcher fallback.");
+                ScheduleStandaloneLauncher();
+                return;
+            }
+
+            if (patchResult.HasFailures)
+            {
+                PatchHelper.Log(
+                    $"Startup completed with {patchResult.FailedPatchCount} non-critical patch failures."
+                );
+            }
+
+            foreach (var failure in patchResult.FailureMessages().Take(10))
+            {
+                PatchHelper.Log($"[startup] {failure}");
+            }
+
+            PatchHelper.Log("Startup patch orchestration complete.");
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"Game patches skipped (files not present): {ex.Message}");
+            PatchHelper.Log($"Unexpected startup error: {ex.Message}");
             ScheduleStandaloneLauncher();
         }
     }

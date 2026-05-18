@@ -13,37 +13,38 @@ This repo started as an independent copy of [Ekyso/StS2-Launcher](https://github
 
 ## 2) Branching Strategy (To Do)
 
-- [ ] Define branch naming conventions (suggested: `rewrite/<area>-<topic>`, `fix/<area>`, `chore/<topic>`)
+- [x] Define branch naming conventions (suggested: `rewrite/<area>-<topic>`, `fix/<area>`, `chore/<topic>`)
 - [ ] Protect `main` in GitHub settings (direct pushes disabled, PR-first workflow)
 - [ ] Add branch protection rules for required status checks once CI exists
 - [ ] Keep a `compat/legacy` branch for rollback if needed
 
 ## 3) Contributor & PR Workflow (To Do)
 
-- [ ] Add contributor process docs (see [CONTRIBUTING.md](CONTRIBUTING.md))
-- [ ] Add `PULL_REQUEST_TEMPLATE.md` with:
+- [x] Add contributor process docs (see [CONTRIBUTING.md](CONTRIBUTING.md))
+- [x] Add `PULL_REQUEST_TEMPLATE.md` with:
   - scope + validation checklist
   - test plan + reproducibility notes
   - explicit risk/rollback note
-- [ ] Add issue templates for:
+- [x] Add issue templates for:
   - bug reports (device/log evidence required)
   - feature proposals (scope + acceptance criteria)
-- [ ] Add issue labels for severity and priority tracking
+- [x] Add issue labels for severity and priority tracking
 
 ## 4) Overhaul Tracking (To Do)
 
-- [ ] Add a dedicated roadmap file for active overhaul initiatives
-- [ ] Track high-impact reliability fixes from prior review separately from feature work
-- [ ] Publish a recurring "overhaul status" issue with current focus and blockers
+- [x] Add a dedicated roadmap file for active overhaul initiatives
+- [x] Track high-impact reliability fixes from prior review separately from feature work
+- [x] Publish a recurring "overhaul status" issue with current focus and blockers
+- [ ] Create and pin a recurring status issue template/guidance in the repo for monthly updates
 
 ## 5) Validation Flow (To Do)
 
-- [ ] Add explicit smoke-test matrix for:
+- [x] Add explicit smoke-test matrix for:
   - locale startup path
   - cloud sync push/pull
   - pause/resume and quit lifecycle
   - depot download + update flow
-- [ ] Add device log checklist for crash-path validation
+- [x] Add device log checklist for crash-path validation
 - [ ] Require manual verification step in each PR where full test automation is not possible
 
 ## 6) Tagging & Discovery (Done)

@@ -344,23 +344,16 @@ public class LauncherController
     {
         ShowConfirmation(
             "Push local saves to cloud?\nThis will overwrite your cloud saves.",
-            () =>
-            {
-                _view.Actions.SetPushPullDisabled(true);
-                _view.AppendLog("Pushing local saves to cloud...");
-                Task.Run(async () =>
-                {
-                    await CloudSyncCoordinator.ManualPushAllAsync(
+            () => _ = ExecuteCloudSyncOperationAsync(
+                () =>
+                    CloudSyncCoordinator.ManualPushAllAsync(
                         LauncherPatches.SavedAccountName,
                         LauncherPatches.SavedRefreshToken
-                    );
-                    _runOnMainThread(() =>
-                    {
-                        _view.AppendLog("Push complete.");
-                        _view.Actions.SetPushPullDisabled(false);
-                    });
-                });
-            }
+                    ),
+                "Push",
+                "Pushing local saves to cloud...",
+                "Push complete."
+            )
         );
     }
 
@@ -368,24 +361,57 @@ public class LauncherController
     {
         ShowConfirmation(
             "Pull cloud saves to local?\nThis will overwrite your local saves.",
-            () =>
-            {
-                _view.Actions.SetPushPullDisabled(true);
-                _view.AppendLog("Pulling cloud saves to local...");
-                Task.Run(async () =>
-                {
-                    await CloudSyncCoordinator.ManualPullAllAsync(
+            () => _ = ExecuteCloudSyncOperationAsync(
+                () =>
+                    CloudSyncCoordinator.ManualPullAllAsync(
                         LauncherPatches.SavedAccountName,
                         LauncherPatches.SavedRefreshToken
-                    );
-                    _runOnMainThread(() =>
-                    {
-                        _view.AppendLog("Pull complete.");
-                        _view.Actions.SetPushPullDisabled(false);
-                    });
-                });
-            }
+                    ),
+                "Pull",
+                "Pulling cloud saves to local...",
+                "Pull complete."
+            )
         );
+    }
+
+    private const int CloudSyncOperationTimeoutMs = 180_000;
+
+    private async Task ExecuteCloudSyncOperationAsync(
+        Func<Task> operation,
+        string operationName,
+        string startMessage,
+        string completeMessage
+    )
+    {
+        _runOnMainThread(() =>
+        {
+            _view.Actions.SetPushPullDisabled(true);
+            _view.AppendLog(startMessage);
+        });
+
+        try
+        {
+            var timeout = Task.Delay(CloudSyncOperationTimeoutMs);
+            var operationTask = operation();
+            if (await Task.WhenAny(operationTask, timeout) != operationTask)
+                throw new TimeoutException($"{operationName} timed out after {CloudSyncOperationTimeoutMs}ms");
+
+            await operationTask;
+            _runOnMainThread(() =>
+            {
+                _view.AppendLog(completeMessage);
+                _view.Actions.SetPushPullDisabled(false);
+            });
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Cloud] {operationName} sync failed: {ex.Message}");
+            _runOnMainThread(() =>
+            {
+                _view.AppendLog($"{operationName} failed: {ex.Message}");
+                _view.Actions.SetPushPullDisabled(false);
+            });
+        }
     }
 
     private void ShowConfirmation(string message, Action onConfirmed)
