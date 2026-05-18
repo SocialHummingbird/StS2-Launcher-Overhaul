@@ -72,9 +72,30 @@ jobs:
 
       - name: Run build smoke test
         if: steps.prerequisites.outputs.available == 'true'
-        run: dotnet build src/STS2Mobile/STS2Mobile.csproj
+        run: |
+          set -o pipefail
+          mkdir -p ci-smoke-artifacts
+          if dotnet build src/STS2Mobile/STS2Mobile.csproj | tee ci-smoke-artifacts/build.log; then
+            echo "BUILD_SMOKE=SUCCESS" > ci-smoke-artifacts/status.txt
+          else
+            echo "BUILD_SMOKE=FAILED" > ci-smoke-artifacts/status.txt
+            exit 1
+          fi
+          echo "REPO_REF=${{ github.sha }}" >> ci-smoke-artifacts/status.txt
 
       - name: Skip build when publishing artifacts are unavailable
         if: steps.prerequisites.outputs.available != 'true'
         run: |
           echo '::notice::Build smoke skipped: required publish artifacts are not available in this checkout.'
+          mkdir -p ci-smoke-artifacts
+          echo "BUILD_SMOKE=SKIPPED" > ci-smoke-artifacts/status.txt
+          echo "REASON=missing_prerequisites" >> ci-smoke-artifacts/status.txt
+
+      - name: Upload build smoke coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-smoke-coverage-${{ github.head_ref || github.ref_name }}
+          path: ci-smoke-artifacts
+          if-no-files-found: warn
+          retention-days: 14
