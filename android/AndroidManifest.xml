@@ -32,7 +32,7 @@
   <application
     android:label="StS2 Launcher"
     android:allowBackup="false"
-    android:icon="@mipmap/icon"
+    android:icon="@android:drawable/sym_def_app_icon"
     android:appCategory="game"
     android:isGame="true"
     android:hasFragileUserData="false"
