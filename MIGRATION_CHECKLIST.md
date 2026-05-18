@@ -14,9 +14,9 @@ This repo started as an independent copy of [Ekyso/StS2-Launcher](https://github
 ## 2) Branching Strategy (To Do)
 
 - [x] Define branch naming conventions (suggested: `rewrite/<area>-<topic>`, `fix/<area>`, `chore/<topic>`)
-- [ ] Protect `main` in GitHub settings (direct pushes disabled, PR-first workflow)
+- [x] Protect `main` in GitHub settings (direct pushes disabled, PR-first workflow)
 - [ ] Add branch protection rules for required status checks once CI exists
-- [ ] Keep a `compat/legacy` branch for rollback if needed
+- [x] Keep a `compat/legacy` branch for rollback if needed
 
 ## 3) Contributor & PR Workflow (To Do)
 
@@ -65,7 +65,7 @@ This repo started as an independent copy of [Ekyso/StS2-Launcher](https://github
 
 ## 6a) Long-Term Maintenance (To Do)
 
-- [ ] Add release notes / changelog strategy (milestones + tag-based release notes)
-- [ ] Define backport policy from upstream fixes:
+- [x] Add release notes / changelog strategy (milestones + tag-based release notes)
+- [x] Define backport policy from upstream fixes:
   - cherry-pick when compatible
   - rewrite/replace when architecture changed

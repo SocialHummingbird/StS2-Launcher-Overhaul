@@ -6,8 +6,8 @@ This roadmap tracks the ongoing rewrite and stabilization effort.
 
 - [x] Create independent project with clear provenance
 - [x] Baseline all branches from upstream lineage
-- [ ] Finish contributor process files and templates
-- [ ] Set branch protections / PR validation
+- [x] Finish contributor process files and templates
+- [x] Set branch protections / PR validation
 
 ## Phase 1 — Reliability hardening
 
@@ -29,3 +29,10 @@ This roadmap tracks the ongoing rewrite and stabilization effort.
 - [x] Add issue templates and issue triage labels
 - [x] Add recurring issue triage and status issue workflow
 - [x] Publish changelog for each tagged release
+
+## Phase 4 — Governance completion
+
+- [x] Enforce branch protection for `main` with PR-first workflow
+- [x] Establish rollback strategy branch (`compat/legacy`)
+- [x] Publish release/changelog strategy and backport policy
+- [x] Document branch protection expectations and deployment safety steps
