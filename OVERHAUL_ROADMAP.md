@@ -47,3 +47,10 @@ This roadmap tracks the ongoing rewrite and stabilization effort.
 - [x] Add optional artifact-aware build smoke job
 - [x] Keep build smoke non-blocking until artifacts are standardized
 - [x] Document required check expectations for both governance and build jobs
+
+## Phase 7 — Reliability closure and workflow hardening
+
+- [x] Close out P0–P3 backlog outcomes in the current status tracking
+- [x] Keep both required check contexts active (`Governance Smoke Check`, `Build Smoke Check`) in branch protection
+- [x] Normalize artifact coverage notes for environments without publish outputs
+- [x] Complete phase handoff cleanup and prepare final tracking issue closeout
