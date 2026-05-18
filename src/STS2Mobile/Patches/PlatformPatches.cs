@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -54,9 +55,8 @@ public static class PlatformPatches
             prefix: PatchHelper.Method(typeof(PlatformPatches), nameof(SkipPrefix))
         );
 
-        // Android 16 uses extended locale identifiers with Unicode extensions
-        // (e.g. "de-DE-u-mu-celsius") which .NET's CultureInfo cannot parse,
-        // crashing the localization system and preventing the game from loading.
+        // Android locale tags can include Unicode/private-use extensions that
+        // some .NET runtimes fail to parse directly.
         PatchGetThreeLetterLanguageCode(harmony);
     }
 
@@ -125,17 +125,26 @@ public static class PlatformPatches
         }
     }
 
-    // Strip Unicode extension subtags (e.g. "-u-mu-celsius") from the locale
-    // string before passing it to CultureInfo, which doesn't understand them.
+    // Keep locale resolution resilient across unusual BCP-47 tags and malformed data.
     public static bool GetThreeLetterLanguageCodePrefix(ref string __result)
     {
         try
         {
             var locale = Godot.OS.GetLocale(); // e.g. "de_DE_u_mu_celsius" or "de_DE"
-            var sanitized = StripUnicodeExtensions(locale.Replace('_', '-'));
-            PatchHelper.Log($"Locale fix: raw='{locale}' sanitized='{sanitized}'");
-            var culture = new CultureInfo(sanitized);
-            __result = culture.ThreeLetterISOLanguageName;
+            foreach (var cultureName in EnumerateLocaleCandidates(locale))
+            {
+                if (TryResolveThreeLetterCulture(cultureName, out var threeLetter))
+                {
+                    __result = threeLetter;
+                    PatchHelper.Log(
+                        $"Locale fix: resolved '{locale}' -> '{cultureName}' -> '{__result}'"
+                    );
+                    return false;
+                }
+            }
+
+            PatchHelper.Log("Locale fix: no locale candidates resolved, fallback to 'eng'");
+            __result = "eng";
         }
         catch (Exception ex)
         {
@@ -145,11 +154,60 @@ public static class PlatformPatches
         return false;
     }
 
-    // Strips Unicode BCP 47 extension subtags: everything from "-u-" onward.
-    // "de-DE-u-mu-celsius" → "de-DE", "en-US" → "en-US"
-    private static string StripUnicodeExtensions(string locale)
+    private static bool TryResolveThreeLetterCulture(string locale, out string threeLetter)
     {
-        var idx = locale.IndexOf("-u-", StringComparison.OrdinalIgnoreCase);
+        threeLetter = null;
+        var trimmed = locale?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+            return false;
+
+        try
+        {
+            var culture = new CultureInfo(trimmed);
+            threeLetter = culture.ThreeLetterISOLanguageName;
+            return !string.IsNullOrWhiteSpace(threeLetter);
+        }
+        catch (CultureNotFoundException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    // Generates candidate locale strings from most specific to broadest fallback.
+    private static IEnumerable<string> EnumerateLocaleCandidates(string locale)
+    {
+        var raw = (locale ?? string.Empty).Trim().Replace('_', '-');
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            yield return "eng";
+            yield break;
+        }
+
+        var sanitized = StripExtension(raw, "-u-");
+        sanitized = StripExtension(sanitized, "-x-");
+
+        yield return sanitized;
+
+        var firstToken = sanitized.Split('-')[0];
+        if (!string.IsNullOrWhiteSpace(firstToken) && !string.Equals(firstToken, sanitized))
+            yield return firstToken;
+
+        var tokens = sanitized.Split('-');
+        if (tokens.Length > 1)
+            yield return tokens[0];
+
+        yield return "eng";
+    }
+
+    // Strips BCP-47 extension subtags like "-u-" (Unicode) and "-x-" (private use).
+    private static string StripExtension(string locale, string extensionMarker)
+    {
+        var idx = locale.IndexOf(extensionMarker, StringComparison.OrdinalIgnoreCase);
         return idx >= 0 ? locale.Substring(0, idx) : locale;
     }
 }

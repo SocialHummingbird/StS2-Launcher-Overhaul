@@ -4,8 +4,8 @@ This file tracks what we are actively working on in the overhaul branch.
 
 ## Current Focus (Reliability Backlog Continuation)
 - Keep phase 6 CI checks enforced and documented
-- Prioritize `P1` cloud sync timeout handling and stalled-read handling
-- Prioritize `P2` downloader race-condition mitigation on resume/retry
+- Land `P0` startup crash-path hardening (`codex/p0-startup-crash-hardening`) in PR review
+- Next after merge: `P3` multiplayer LAN discovery/broadcast stability (current open gap)
 - Keep monthly status checks visible and action-oriented
 
 ## High-Impact Reliability Backlog
