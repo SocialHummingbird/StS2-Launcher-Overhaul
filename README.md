@@ -114,6 +114,34 @@ adb install -r android/build/outputs/apk/mono/release/StS2Launcher-v*.apk
 adb shell pm clear com.game.sts2launcher
 ```
 
+### Downloadable Android release
+
+GitHub Actions now builds Android APKs and publishes them to Releases.
+
+1. Open the repository **Releases** page.
+2. Download `StS2Launcher-vX.Y.Z.apk` for the latest release.
+3. Install on your phone:
+
+```bash
+adb install -r StS2Launcher-vX.Y.Z.apk
+```
+
+### Release workflow (for contributors)
+
+Maintainers can trigger the release workflow manually from the Actions tab or let it run automatically when pushing tags like `v1.2.3`.
+
+- Tag-based publish:
+  - Push `vX.Y.Z` to `main`.
+- Manual publish:
+  - `workflow_dispatch` input fields support overriding `release_tag`, version name/code, and whether to create the GitHub release.
+- Optional signing:
+  - Configure repository secrets:
+    - `ANDROID_RELEASE_KEYSTORE_BASE64`
+    - `ANDROID_RELEASE_KEYSTORE_PASSWORD`
+    - `ANDROID_RELEASE_KEY_ALIAS`
+
+If signing secrets are missing, the workflow still creates an unsigned release APK so download/testing can continue.
+
 ### Other build tasks
 
 ```bash
