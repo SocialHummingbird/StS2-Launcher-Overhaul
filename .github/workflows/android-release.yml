@@ -11,6 +11,10 @@ on:
         description: "Upstream release tag to source GodotSharp.dll when local artifacts are missing."
         required: false
         default: "0.2.0"
+      sts2_dll_source_url:
+        description: "Optional URL to a raw sts2.dll when the upstream release APK does not include it."
+        required: false
+        default: ""
       version_name:
         description: "Override APK version name (optional)."
         required: false
@@ -139,28 +143,56 @@ jobs:
             exit 1
           fi
 
-          python - "$TMP_APK" "${MISSING_DLLS[@]}" <<'PY'
-          import os
-          import sys
-          import zipfile
+          STS2_SOURCE="${{ github.event.inputs.sts2_dll_source_url }}"
 
-          if len(sys.argv) < 2:
-              raise SystemExit("No dependency DLLs were requested.")
+          if [[ " ${MISSING_DLLS[*]} " == *" sts2.dll "* && -n "${STS2_SOURCE}" ]]; then
+            if [[ "${STS2_SOURCE}" == http* ]]; then
+              echo "Fetching sts2.dll from provided URL."
+              if command -v curl >/dev/null 2>&1; then
+                curl -fsSL -o "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
+              elif command -v wget >/dev/null 2>&1; then
+                wget -qO "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
+              else
+                echo "::error::Neither curl nor wget available to fetch provided sts2.dll."
+                exit 1
+              fi
+            else
+              if [[ -f "$STS2_SOURCE" ]]; then
+                cp "$STS2_SOURCE" "$PUBLISH_DIR/sts2.dll"
+              else
+                echo "::error::Provided sts2_dll_source_url must be a URL or readable local path."
+                exit 1
+              fi
+            fi
+            for i in "${!MISSING_DLLS[@]}"; do
+              if [[ "${MISSING_DLLS[i]}" == "sts2.dll" ]]; then
+                unset "MISSING_DLLS[i]"
+              fi
+            done
+            MISSING_DLLS=("${MISSING_DLLS[@]}")
+          fi
 
-          apk_path = sys.argv[1]
-          missing_dlls = sys.argv[2:]
-          target_dir = os.path.abspath("upstream/godot-export/.godot/mono/publish/arm64")
+          if (( ${#MISSING_DLLS[@]} > 0 )); then
+            python - "$TMP_APK" "${MISSING_DLLS[@]}" <<'PY'
+            import os
+            import sys
+            import zipfile
 
-          with zipfile.ZipFile(apk_path) as zf:
+            apk_path = sys.argv[1]
+            missing_dlls = sys.argv[2:]
+            target_dir = os.path.abspath("upstream/godot-export/.godot/mono/publish/arm64")
+
+            with zipfile.ZipFile(apk_path) as zf:
               names = set(zf.namelist())
               for dll in missing_dlls:
-                  source = f"assets/dotnet_bcl/{dll}"
-                  if source not in names:
-                      raise SystemExit(f"Expected {source} not present in upstream APK.")
-                  target = os.path.join(target_dir, dll)
-                  with zf.open(source) as src, open(target, "wb") as dst:
-                      dst.write(src.read())
-          PY
+                source = f"assets/dotnet_bcl/{dll}"
+                if source not in names:
+                  raise SystemExit(f"Expected {source} not present in upstream APK.")
+                target = os.path.join(target_dir, dll)
+                with zf.open(source) as src, open(target, "wb") as dst:
+                  dst.write(src.read())
+            PY
+          fi
 
           echo "Recovered missing publish dependencies from upstream release: ${MISSING_DLLS[*]}"
 
