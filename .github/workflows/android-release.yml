@@ -7,6 +7,10 @@ on:
         description: "Release tag to use (optional, e.g. v0.2.1)."
         required: false
         default: ""
+      upstream_release_tag:
+        description: "Upstream release tag to source GodotSharp.dll when local artifacts are missing."
+        required: false
+        default: "0.2.0"
       version_name:
         description: "Override APK version name (optional)."
         required: false
@@ -94,16 +98,50 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          MISSING=()
-          if [[ ! -f upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll ]]; then
-            MISSING+=("upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll")
+          TARGET_DLL="upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll"
+          mkdir -p "$(dirname "$TARGET_DLL")"
+
+          if [[ -f "$TARGET_DLL" ]]; then
+            echo "Found local publish dependency: $TARGET_DLL"
+            exit 0
           fi
-          if [[ ${#MISSING[@]} -ne 0 ]]; then
-            echo "::error::Missing required publish-time prerequisites:"
-            printf '::error:: - %s\n' "${MISSING[@]}"
-            echo "Android release build requires missing publish artifacts. Upload or generate them before running this workflow."
+
+          echo "::warning::Local GodotSharp.dll is missing. Attempting to source from upstream release."
+          UPSTREAM_TAG="${{ github.event.inputs.upstream_release_tag }}"
+          UPSTREAM_APK="StS2Launcher-v${UPSTREAM_TAG}.apk"
+          UPSTREAM_URL="https://github.com/Ekyso/StS2-Launcher/releases/download/${UPSTREAM_TAG}/${UPSTREAM_APK}"
+          TMP_DIR="$(mktemp -d)"
+          TMP_APK="$TMP_DIR/$UPSTREAM_APK"
+
+          if command -v curl >/dev/null 2>&1; then
+            curl -fsSL -o "$TMP_APK" "$UPSTREAM_URL"
+          elif command -v wget >/dev/null 2>&1; then
+            wget -qO "$TMP_APK" "$UPSTREAM_URL"
+          else
+            echo "::error::Neither curl nor wget available to fetch upstream APK fallback."
             exit 1
           fi
+
+          if [[ ! -f "$TMP_APK" ]]; then
+            echo "::error::Failed to download upstream APK from $UPSTREAM_URL"
+            exit 1
+          fi
+
+          python - "$TMP_APK" "$TARGET_DLL" <<'PY'
+          import os
+          import sys
+          import zipfile
+
+          apk_path, target = sys.argv[1], sys.argv[2]
+          source = "assets/dotnet_bcl/GodotSharp.dll"
+          with zipfile.ZipFile(apk_path) as zf:
+              if source not in zf.namelist():
+                  raise SystemExit("Expected GodotSharp.dll not present in upstream APK.")
+              with zf.open(source) as src, open(target, "wb") as dst:
+                  dst.write(src.read())
+          PY
+
+          echo "Recovered missing publish dependency from upstream release: $TARGET_DLL"
 
       - name: Build patcher and stage Android assets
         shell: bash
