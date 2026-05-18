@@ -1,0 +1,57 @@
+name: Verify Android Release Assets
+
+on:
+  release:
+    types:
+      - published
+      - edited
+      - created
+
+permissions:
+  contents: read
+
+jobs:
+  verify-assets:
+    name: Verify Android release artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check APK and checksum assets
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.payload?.release?.tag_name;
+            if (!tag) {
+              core.setFailed("Release tag is missing from event payload.");
+              return;
+            }
+
+            const release = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag,
+            });
+
+            const assets = release.data.assets || [];
+            const apkAssets = assets.filter((asset) => asset.name && /^StS2Launcher-v.*\\.apk$/i.test(asset.name));
+            const shaAssets = assets.filter((asset) => asset.name && asset.name.endsWith(".sha256"));
+
+            console.log(`Release: ${release.data.html_url}`);
+            console.log(`APK assets found: ${apkAssets.length}`);
+            console.log(`SHA-256 assets found: ${shaAssets.length}`);
+
+            apkAssets.forEach((asset) => {
+              console.log(`- ${asset.name} (${asset.size} bytes)`);
+            });
+
+            if (apkAssets.length < 1) {
+              core.setFailed("No StS2Launcher-v*.apk asset found for this release.");
+              return;
+            }
+
+            if (apkAssets.length > 1) {
+              core.warning("Multiple APK assets found. This may be expected for multiple ABIs/build flavors.");
+            }
+
+            if (shaAssets.length < 1) {
+              core.warning("No SHA-256 checksum file found. Add checksum assets for stronger release validation.");
+            }
