@@ -13,6 +13,8 @@ public static class CloudSyncCoordinator
 {
     private const int MaxBackups = 50;
     private const int HistoryFileLimit = 100;
+    private const int ManualSyncPerPathTimeoutMs = 45_000;
+    private const int AutoSyncPerPathTimeoutMs = 30_000;
 
     internal static bool LocalBackupEnabled;
 
@@ -25,7 +27,11 @@ public static class CloudSyncCoordinator
 
         if (cloud.FileExists(path))
         {
-            string cloudContent = await cloud.ReadFileAsync(path);
+            string cloudContent = await WithTimeoutAsync(
+                cloud.ReadFileAsync(path),
+                $"ReadCloudFile {path}",
+                AutoSyncPerPathTimeoutMs
+            );
             if (content == cloudContent)
             {
                 PatchHelper.Log($"[Cloud] Push: skipping {path} (identical)");
@@ -43,7 +49,11 @@ public static class CloudSyncCoordinator
         if (!cloud.FileExists(path))
             return;
 
-        string cloudContent = await cloud.ReadFileAsync(path);
+        string cloudContent = await WithTimeoutAsync(
+            cloud.ReadFileAsync(path),
+            $"PullFile {path}",
+            AutoSyncPerPathTimeoutMs
+        );
 
         if (local.FileExists(path))
         {
@@ -57,7 +67,11 @@ public static class CloudSyncCoordinator
         }
 
         var pullTime = cloud.GetLastModifiedTime(path);
-        await local.WriteFileAsync(path, cloudContent);
+        await WithTimeoutAsync(
+            local.WriteFileAsync(path, cloudContent),
+            $"WriteLocalFile {path}",
+            AutoSyncPerPathTimeoutMs
+        );
         local.SetLastModifiedTime(path, pullTime);
         PatchHelper.Log($"[Cloud] Pull: downloaded {path}");
     }
@@ -75,14 +89,22 @@ public static class CloudSyncCoordinator
             if (cloudExists && localExists)
             {
                 string localContent = local.ReadFile(path);
-                string cloudContent = await cloud.ReadFileAsync(path);
+                string cloudContent = await WithTimeoutAsync(
+                    cloud.ReadFileAsync(path),
+                    $"ReadCloudFile {path}",
+                    AutoSyncPerPathTimeoutMs
+                );
 
                 if (IsCorrupt(localContent))
                 {
                     PatchHelper.Log($"[Cloud] Sync: local {path} is corrupt, pulling from cloud");
                     BackupProgressFile(local, path);
                     var cloudTime = cloud.GetLastModifiedTime(path);
-                    await local.WriteFileAsync(path, cloudContent);
+                    await WithTimeoutAsync(
+                        local.WriteFileAsync(path, cloudContent),
+                        $"WriteLocalFile {path}",
+                        AutoSyncPerPathTimeoutMs
+                    );
                     local.SetLastModifiedTime(path, cloudTime);
                     return;
                 }
@@ -100,7 +122,11 @@ public static class CloudSyncCoordinator
                     PatchHelper.Log($"[Cloud] Sync: cloud wins for {path}");
                     BackupProgressFile(local, path);
                     var cloudTime = cloud.GetLastModifiedTime(path);
-                    await local.WriteFileAsync(path, cloudContent);
+                    await WithTimeoutAsync(
+                        local.WriteFileAsync(path, cloudContent),
+                        $"WriteLocalFile {path}",
+                        AutoSyncPerPathTimeoutMs
+                    );
                     local.SetLastModifiedTime(path, cloudTime);
                 }
                 else if (result == CompareResult.LocalWins)
@@ -115,7 +141,11 @@ public static class CloudSyncCoordinator
                     PatchHelper.Log($"[Cloud] Sync: contents differ for {path}, cloud wins");
                     BackupProgressFile(local, path);
                     var cloudTime = cloud.GetLastModifiedTime(path);
-                    await local.WriteFileAsync(path, cloudContent);
+                    await WithTimeoutAsync(
+                        local.WriteFileAsync(path, cloudContent),
+                        $"WriteLocalFile {path}",
+                        AutoSyncPerPathTimeoutMs
+                    );
                     local.SetLastModifiedTime(path, cloudTime);
                 }
             }
@@ -153,7 +183,11 @@ public static class CloudSyncCoordinator
                     continue;
 
                 PatchHelper.Log($"[Cloud] Push: backing up cloud {path}");
-                var content = await cloudStore.ReadFileAsync(path);
+                var content = await WithTimeoutAsync(
+                    cloudStore.ReadFileAsync(path),
+                    $"ManualPush backup read {path}",
+                    ManualSyncPerPathTimeoutMs
+                );
                 BackupSaveContent(path, content, "cloud-pre-push");
                 backedUp++;
             }
@@ -231,8 +265,16 @@ public static class CloudSyncCoordinator
                 }
                 PatchHelper.Log($"[Cloud] Pull: downloading {path}");
                 var pullTime = cloudStore.GetLastModifiedTime(path);
-                string content = await cloudStore.ReadFileAsync(path);
-                await localStore.WriteFileAsync(path, content);
+                string content = await WithTimeoutAsync(
+                    cloudStore.ReadFileAsync(path),
+                    $"ManualPull download {path}",
+                    ManualSyncPerPathTimeoutMs
+                );
+                await WithTimeoutAsync(
+                    localStore.WriteFileAsync(path, content),
+                    $"ManualPull write-back {path}",
+                    ManualSyncPerPathTimeoutMs
+                );
                 localStore.SetLastModifiedTime(path, pullTime);
                 PatchHelper.Log($"[Cloud] Pull: wrote {path} ({content.Length} bytes)");
                 downloaded++;
@@ -427,5 +469,25 @@ public static class CloudSyncCoordinator
         {
             PatchHelper.Log($"[Cloud] Backup failed for {source} {path}: {ex.Message}");
         }
+    }
+
+    private static async Task<T> WithTimeoutAsync<T>(Task<T> task, string operation, int timeoutMs)
+    {
+        var timeout = Task.Delay(timeoutMs);
+        var winner = await Task.WhenAny(task, timeout).ConfigureAwait(false);
+        if (winner == task)
+            return await task.ConfigureAwait(false);
+
+        throw new TimeoutException($"{operation} timed out after {timeoutMs}ms");
+    }
+
+    private static async Task WithTimeoutAsync(Task task, string operation, int timeoutMs)
+    {
+        var timeout = Task.Delay(timeoutMs);
+        var winner = await Task.WhenAny(task, timeout).ConfigureAwait(false);
+        if (winner != task)
+            throw new TimeoutException($"{operation} timed out after {timeoutMs}ms");
+
+        await task.ConfigureAwait(false);
     }
 }

@@ -11,10 +11,10 @@ This roadmap tracks the ongoing rewrite and stabilization effort.
 
 ## Phase 1 — Reliability hardening
 
-- [ ] Stabilize background/cloud async flow with timeouts and structured cancellation
-- [ ] Fix lifecycle flushing correctness for cloud writes
-- [ ] Remove thread-safety issues in parallel download/token caches
-- [ ] Improve reflection patch hardening for version drift
+- [x] Stabilize background/cloud async flow with timeouts and structured cancellation
+- [x] Fix lifecycle flushing correctness for cloud writes
+- [x] Remove thread-safety issues in parallel download/token caches
+- [x] Improve reflection patch hardening for version drift
 
 ## Phase 2 — Architecture cleanup
 
@@ -26,6 +26,6 @@ This roadmap tracks the ongoing rewrite and stabilization effort.
 ## Phase 3 — Validation and maintainability
 
 - [ ] Add runbooks for representative device matrix
-- [ ] Add issue templates and issue triage labels
-- [ ] Establish release criteria for each milestone
-- [ ] Publish changelog for each tagged release
+- [x] Add issue templates and issue triage labels
+- [ ] Add recurring issue triage and status issue workflow
+- [x] Publish changelog for each tagged release

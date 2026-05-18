@@ -2,7 +2,7 @@
 name: Feature request
 about: Propose a focused architecture or reliability improvement
 title: "[FEATURE] "
-labels: ["enhancement", "needs-triage"]
+labels: ["enhancement", "needs-triage", "category: overhaul", "priority: p2"]
 assignees: []
 ---
 
@@ -26,6 +26,11 @@ State the reliability, maintainability, or user-facing benefit.
 - [ ] Risk and rollback are documented
 - [ ] Testing plan is defined
 - [ ] No unrelated behavior changes
+
+## Labels
+
+- [ ] severity: low/high/critical
+- [ ] priority: p1/p2/p3
 
 ## Notes
 

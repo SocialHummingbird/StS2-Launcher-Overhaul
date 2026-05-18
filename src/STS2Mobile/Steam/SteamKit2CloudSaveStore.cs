@@ -36,10 +36,30 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         Instance = this;
     }
 
-    public void Flush(int timeoutMs = 5000)
+    public bool Flush(int timeoutMs = 5000)
     {
-        _writeQueue.Flush(timeoutMs);
-        _connection.Flush();
+        var queueFlushed = true;
+        try
+        {
+            queueFlushed = _writeQueue.Flush(timeoutMs);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Cloud] Queue flush failed: {ex.Message}");
+            queueFlushed = false;
+        }
+
+        try
+        {
+            _connection.Flush();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Cloud] Connection flush failed: {ex.Message}");
+            return false;
+        }
+
+        return queueFlushed;
     }
 
     public void Dispose()

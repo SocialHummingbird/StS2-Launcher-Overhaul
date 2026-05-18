@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -38,9 +39,9 @@ public class DepotDownloader : IDisposable
 
     private IReadOnlyList<Server> _servers;
     private int _serverIndex;
-    private readonly Dictionary<(uint, string), string> _cdnAuthTokens = new();
-    private readonly Dictionary<uint, (ulong Code, DateTime Expiry)> _manifestRequestCodes = new();
-    private readonly Dictionary<
+    private readonly ConcurrentDictionary<(uint, string), string> _cdnAuthTokens = new();
+    private readonly ConcurrentDictionary<uint, (ulong Code, DateTime Expiry)> _manifestRequestCodes = new();
+    private readonly ConcurrentDictionary<
         uint,
         SteamApps.PICSProductInfoCallback.PICSProductInfo
     > _appInfoCache = new();

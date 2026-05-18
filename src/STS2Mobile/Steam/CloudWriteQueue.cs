@@ -4,52 +4,88 @@ using System.Threading;
 
 namespace STS2Mobile.Steam;
 
-// Background thread work queue for cloud write operations. Processes actions
-// sequentially to avoid mid-game stutters. Supports flush with timeout for
-// graceful shutdown on app background.
+// Background thread work queue for cloud write operations. Processes actions sequentially
+// to avoid mid-game stutters. Flush waits for queued and in-flight writes to complete.
 public class CloudWriteQueue : IDisposable
 {
     private readonly BlockingCollection<Action> _queue = new();
     private readonly Thread _thread;
+    private readonly ManualResetEventSlim _drainSignal = new(initialState: true);
+    private long _pendingWrites;
+    private bool _isDisposed;
 
     public int Count => _queue.Count;
 
     public CloudWriteQueue()
     {
-        _thread = new Thread(ProcessLoop) { IsBackground = true, Name = "CloudSaveWriter" };
+        _thread = new Thread(ProcessLoop)
+        {
+            IsBackground = true,
+            Name = "CloudSaveWriter",
+        };
         _thread.Start();
     }
 
     public void Enqueue(Action action)
     {
+        if (_isDisposed)
+        {
+            PatchHelper.Log("[Cloud] Write queue is disposed; dropping queued write action");
+            return;
+        }
+
+        _drainSignal.Reset();
         _queue.Add(action);
+        Interlocked.Increment(ref _pendingWrites);
     }
 
-    // Waits for pending work to complete, up to timeoutMs. Does not break the
-    // queue — new work can still be enqueued after flush returns.
-    public void Flush(int timeoutMs = 5000)
+    // Waits for pending work (queued + in-flight) to complete, up to timeoutMs.
+    public bool Flush(int timeoutMs = 5000)
     {
-        if (_queue.Count == 0)
-            return;
+        if (_isDisposed)
+            return true;
 
-        PatchHelper.Log($"[Cloud] Flushing {_queue.Count} pending writes...");
-        var deadline = Environment.TickCount64 + timeoutMs;
+        var pending = Volatile.Read(ref _pendingWrites);
+        if (pending <= 0 && _queue.Count == 0)
+            return true;
 
-        while (_queue.Count > 0 && Environment.TickCount64 < deadline)
-            Thread.Sleep(100);
+        // Ensure any race that added work between read and wait is handled.
+        if (Volatile.Read(ref _pendingWrites) == 0 && _queue.Count == 0)
+            return true;
 
-        if (_queue.Count > 0)
-            PatchHelper.Log($"[Cloud] Flush timed out, {_queue.Count} writes remaining");
-        else
+        PatchHelper.Log($"[Cloud] Flushing {pending} pending writes...");
+
+        if (_drainSignal.Wait(timeoutMs))
+        {
             PatchHelper.Log("[Cloud] Flush completed");
+            return true;
+        }
+
+        PatchHelper.Log(
+            $"[Cloud] Flush timed out, {_queue.Count} queued + {Volatile.Read(ref _pendingWrites)} total pending writes"
+        );
+        return false;
     }
 
     public void Dispose()
     {
-        Flush(5000);
+        if (_isDisposed)
+            return;
+
+        _isDisposed = true;
+
+        var completed = Flush(5000);
+        if (!completed)
+            PatchHelper.Log("[Cloud] Flush timed out during dispose");
+
         _queue.CompleteAdding();
-        _thread.Join(2000);
+        if (!_thread.Join(3000))
+            PatchHelper.Log("[Cloud] Cloud write thread did not stop in time");
+        else
+            PatchHelper.Log("[Cloud] Cloud write thread stopped");
+
         _queue.Dispose();
+        _drainSignal.Dispose();
     }
 
     private void ProcessLoop()
@@ -63,6 +99,13 @@ public class CloudWriteQueue : IDisposable
             catch (Exception ex)
             {
                 PatchHelper.Log($"[Cloud] Background write failed: {ex.Message}");
+            }
+            finally
+            {
+                if (Interlocked.Decrement(ref _pendingWrites) <= 0)
+                {
+                    _drainSignal.Set();
+                }
             }
         }
     }

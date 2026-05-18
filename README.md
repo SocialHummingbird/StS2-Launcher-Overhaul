@@ -10,6 +10,9 @@ The goal is a **drastic architecture and reliability overhaul** that is harder t
 - Migration checklist: [MIGRATION_CHECKLIST.md](MIGRATION_CHECKLIST.md)
 - Overhaul plan: [OVERHAUL_ROADMAP.md](OVERHAUL_ROADMAP.md)
 - Contribution process: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Overhaul status: [OVERHAUL_STATUS.md](OVERHAUL_STATUS.md)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- Device log checklist: [docs/device-log-checklist.md](docs/device-log-checklist.md)
 
 ### Suggested working remotes
 

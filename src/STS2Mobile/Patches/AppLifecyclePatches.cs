@@ -82,7 +82,9 @@ public static class AppLifecyclePatches
             // Flush pending cloud writes before the OS may kill the process
             try
             {
-                SteamKit2CloudSaveStore.Instance?.Flush(5000);
+                var cloudFlushed = SteamKit2CloudSaveStore.Instance?.Flush(5000) ?? true;
+                if (!cloudFlushed)
+                    PatchHelper.Log("Cloud flush on background timed out, continuing");
             }
             catch (Exception ex)
             {
@@ -244,7 +246,9 @@ public static class AppLifecyclePatches
         {
             try
             {
-                SteamKit2CloudSaveStore.Instance?.Flush(5000);
+                var cloudFlushed = SteamKit2CloudSaveStore.Instance?.Flush(5000) ?? true;
+                if (!cloudFlushed)
+                    PatchHelper.Log("Cloud flush on quit timed out, continuing");
             }
             catch { }
 
