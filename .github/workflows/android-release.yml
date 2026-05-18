@@ -302,13 +302,13 @@ jobs:
           gradle "${GRADLE_ARGS[@]}"
 
           RAW_APK_PATH="$(find build/outputs/apk/mono/release -type f -name "StS2Launcher-v${VERSION_NAME}*.apk" | head -n 1)"
-          APK_PATH="android/${RAW_APK_PATH}"
-          if [[ -z "${RAW_APK_PATH}" ]] || [[ ! -f "${APK_PATH}" ]]; then
+          if [[ -z "${RAW_APK_PATH}" ]] || [[ ! -f "${RAW_APK_PATH}" ]]; then
             echo "Files in build/outputs/apk/mono/release:"
             find build/outputs/apk/mono/release -type f
             echo "::error::Expected APK not found at ${APK_PATH}"
             exit 1
           fi
+          APK_PATH="android/${RAW_APK_PATH}"
 
           echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
           sha256sum "$APK_PATH" > "${APK_PATH}.sha256"
