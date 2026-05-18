@@ -98,15 +98,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TARGET_DLL="upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll"
-          mkdir -p "$(dirname "$TARGET_DLL")"
+          PUBLISH_DIR="upstream/godot-export/.godot/mono/publish/arm64"
+          mkdir -p "$PUBLISH_DIR"
+          REQUIRED_DLLS=(
+            "0Harmony.dll"
+            "GodotSharp.dll"
+            "sts2.dll"
+          )
+          MISSING_DLLS=()
 
-          if [[ -f "$TARGET_DLL" ]]; then
-            echo "Found local publish dependency: $TARGET_DLL"
+          for dll in "${REQUIRED_DLLS[@]}"; do
+            if [[ ! -f "$PUBLISH_DIR/$dll" ]]; then
+              MISSING_DLLS+=("$dll")
+            fi
+          done
+
+          if (( ${#MISSING_DLLS[@]} == 0 )); then
+            echo "Found local publish dependencies in ${PUBLISH_DIR}"
             exit 0
           fi
 
-          echo "::warning::Local GodotSharp.dll is missing. Attempting to source from upstream release."
+          echo "::warning::Missing publish dependencies: ${MISSING_DLLS[*]}. Attempting to source from upstream release."
           UPSTREAM_TAG="${{ github.event.inputs.upstream_release_tag }}"
           UPSTREAM_APK="StS2Launcher-v${UPSTREAM_TAG}.apk"
           UPSTREAM_URL="https://github.com/Ekyso/StS2-Launcher/releases/download/${UPSTREAM_TAG}/${UPSTREAM_APK}"
@@ -127,21 +139,30 @@ jobs:
             exit 1
           fi
 
-          python - "$TMP_APK" "$TARGET_DLL" <<'PY'
+          python - "$TMP_APK" "${MISSING_DLLS[@]}" <<'PY'
           import os
           import sys
           import zipfile
 
-          apk_path, target = sys.argv[1], sys.argv[2]
-          source = "assets/dotnet_bcl/GodotSharp.dll"
+          if len(sys.argv) < 2:
+              raise SystemExit("No dependency DLLs were requested.")
+
+          apk_path = sys.argv[1]
+          missing_dlls = sys.argv[2:]
+          target_dir = os.path.abspath("upstream/godot-export/.godot/mono/publish/arm64")
+
           with zipfile.ZipFile(apk_path) as zf:
-              if source not in zf.namelist():
-                  raise SystemExit("Expected GodotSharp.dll not present in upstream APK.")
-              with zf.open(source) as src, open(target, "wb") as dst:
-                  dst.write(src.read())
+              names = set(zf.namelist())
+              for dll in missing_dlls:
+                  source = f"assets/dotnet_bcl/{dll}"
+                  if source not in names:
+                      raise SystemExit(f"Expected {source} not present in upstream APK.")
+                  target = os.path.join(target_dir, dll)
+                  with zf.open(source) as src, open(target, "wb") as dst:
+                      dst.write(src.read())
           PY
 
-          echo "Recovered missing publish dependency from upstream release: $TARGET_DLL"
+          echo "Recovered missing publish dependencies from upstream release: ${MISSING_DLLS[*]}"
 
       - name: Build patcher and stage Android assets
         shell: bash
@@ -162,13 +183,15 @@ jobs:
 
           mkdir -p "$BCL_DIR"
           cp "$PUBLISH_DIR"/STS2Mobile.dll \
+             "$PUBLISH_DIR"/0Harmony.dll \
+             "$PUBLISH_DIR"/sts2.dll \
              "$PUBLISH_DIR"/SteamKit2.dll \
              "$PUBLISH_DIR"/protobuf-net.dll \
              "$PUBLISH_DIR"/protobuf-net.Core.dll \
              "$PUBLISH_DIR"/System.IO.Hashing.dll \
              "$PUBLISH_DIR"/ZstdSharp.dll \
+             "$PUBLISH_DIR"/GodotSharp.dll \
              "$BCL_DIR/"
-          cp "$ROOT_DIR/upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll" "$BCL_DIR/"
 
           CRYPTO_SO="$(find "$HOME/.nuget/packages/microsoft.netcore.app.runtime.mono.android-arm64" -path '*/runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so' 2>/dev/null | head -n 1 || true)"
           if [[ -n "${CRYPTO_SO}" ]]; then
