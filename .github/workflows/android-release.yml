@@ -145,25 +145,60 @@ jobs:
 
           STS2_SOURCE="${{ github.event.inputs.sts2_dll_source_url }}"
 
-          if [[ " ${MISSING_DLLS[*]} " == *" sts2.dll "* && -n "${STS2_SOURCE}" ]]; then
-            if [[ "${STS2_SOURCE}" == http* ]]; then
-              echo "Fetching sts2.dll from provided URL."
-              if command -v curl >/dev/null 2>&1; then
-                curl -fsSL -o "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
-              elif command -v wget >/dev/null 2>&1; then
-                wget -qO "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
+          if [[ " ${MISSING_DLLS[*]} " == *" sts2.dll "* ]]; then
+            if [[ -z "${STS2_SOURCE}" ]]; then
+              echo "No sts2.dll source provided; attempting to discover latest release asset."
+              TMP_RELEASE_JSON="$TMP_DIR/releases.json"
+              curl -fsSL -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=20" \
+                > "$TMP_RELEASE_JSON"
+              STS2_SOURCE="$(RELEASE_JSON_PATH="$TMP_RELEASE_JSON" python - <<'PY'
+import os
+import json
+
+path = os.environ["RELEASE_JSON_PATH"]
+url = ""
+
+with open(path, "r", encoding="utf-8") as f:
+    releases = json.load(f)
+
+for release in releases:
+    for asset in release.get("assets", []):
+        if asset.get("name") == "sts2.dll":
+            url = asset.get("browser_download_url", "")
+            break
+    if url:
+        break
+
+print(url, end="")
+PY
+)"
+            fi
+
+            if [[ -n "${STS2_SOURCE}" ]]; then
+              if [[ "${STS2_SOURCE}" == http* ]]; then
+                echo "Fetching sts2.dll from resolved source."
+                if command -v curl >/dev/null 2>&1; then
+                  curl -fsSL -o "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
+                elif command -v wget >/dev/null 2>&1; then
+                  wget -qO "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
+                else
+                  echo "::error::Neither curl nor wget available to fetch sts2.dll."
+                  exit 1
+                fi
               else
-                echo "::error::Neither curl nor wget available to fetch provided sts2.dll."
-                exit 1
+                if [[ -f "$STS2_SOURCE" ]]; then
+                  cp "$STS2_SOURCE" "$PUBLISH_DIR/sts2.dll"
+                else
+                  echo "::error::Provided sts2_dll_source_url must be a URL or readable local path."
+                  exit 1
+                fi
               fi
             else
-              if [[ -f "$STS2_SOURCE" ]]; then
-                cp "$STS2_SOURCE" "$PUBLISH_DIR/sts2.dll"
-              else
-                echo "::error::Provided sts2_dll_source_url must be a URL or readable local path."
-                exit 1
-              fi
+              echo "::error::Unable to resolve sts2.dll source."
+              exit 1
             fi
+
             for i in "${!MISSING_DLLS[@]}"; do
               if [[ "${MISSING_DLLS[i]}" == "sts2.dll" ]]; then
                 unset "MISSING_DLLS[i]"
