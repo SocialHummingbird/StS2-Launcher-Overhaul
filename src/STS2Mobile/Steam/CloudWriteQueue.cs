@@ -8,10 +8,17 @@ namespace STS2Mobile.Steam;
 // to avoid mid-game stutters. Flush waits for queued and in-flight writes to complete.
 public class CloudWriteQueue : IDisposable
 {
-    private readonly BlockingCollection<Action> _queue = new();
+    private const int MaxQueuedWrites = 256;
+    private const int EnqueueTimeoutMs = 2500;
+
+    private readonly BlockingCollection<Action> _queue = new BlockingCollection<Action>(
+        new ConcurrentQueue<Action>(),
+        MaxQueuedWrites
+    );
     private readonly Thread _thread;
     private readonly ManualResetEventSlim _drainSignal = new(initialState: true);
     private long _pendingWrites;
+    private long _droppedWrites;
     private bool _isDisposed;
 
     public int Count => _queue.Count;
@@ -34,8 +41,32 @@ public class CloudWriteQueue : IDisposable
             return;
         }
 
+        if (action == null)
+        {
+            PatchHelper.Log("[Cloud] Attempted to enqueue null write action; dropping");
+            return;
+        }
+
         _drainSignal.Reset();
-        _queue.Add(action);
+        try
+        {
+            if (!_queue.TryAdd(action, EnqueueTimeoutMs))
+            {
+                var dropped = Interlocked.Increment(ref _droppedWrites);
+                PatchHelper.Log(
+                    $"[Cloud] Write queue full ({MaxQueuedWrites}); dropped write action (total dropped: {dropped})"
+                );
+                if (Volatile.Read(ref _pendingWrites) == 0)
+                    _drainSignal.Set();
+                return;
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            PatchHelper.Log("[Cloud] Write queue closing; dropping write action");
+            return;
+        }
+
         Interlocked.Increment(ref _pendingWrites);
     }
 
@@ -64,6 +95,8 @@ public class CloudWriteQueue : IDisposable
         PatchHelper.Log(
             $"[Cloud] Flush timed out, {_queue.Count} queued + {Volatile.Read(ref _pendingWrites)} total pending writes"
         );
+        if (Volatile.Read(ref _droppedWrites) > 0)
+            PatchHelper.Log($"[Cloud] Flush warning: {_droppedWrites} actions were previously dropped");
         return false;
     }
 
@@ -83,6 +116,9 @@ public class CloudWriteQueue : IDisposable
             PatchHelper.Log("[Cloud] Cloud write thread did not stop in time");
         else
             PatchHelper.Log("[Cloud] Cloud write thread stopped");
+
+        if (Volatile.Read(ref _droppedWrites) > 0)
+            PatchHelper.Log($"[Cloud] Total dropped write actions: {_droppedWrites}");
 
         _queue.Dispose();
         _drainSignal.Dispose();
