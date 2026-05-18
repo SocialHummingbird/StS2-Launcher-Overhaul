@@ -15,7 +15,7 @@ public static class CloudSyncCoordinator
     private const int HistoryFileLimit = 100;
     private const int ManualSyncPerPathTimeoutMs = 45_000;
     private const int AutoSyncPerPathTimeoutMs = 30_000;
-
+    private const int ManualSyncOverallTimeoutMs = 180_000;
     internal static bool LocalBackupEnabled;
 
     public static async Task PushFileAsync(ISaveStore local, ICloudSaveStore cloud, string path)
@@ -28,7 +28,7 @@ public static class CloudSyncCoordinator
         if (cloud.FileExists(path))
         {
             string cloudContent = await WithTimeoutAsync(
-                cloud.ReadFileAsync(path),
+                () => cloud.ReadFileAsync(path),
                 $"ReadCloudFile {path}",
                 AutoSyncPerPathTimeoutMs
             );
@@ -50,7 +50,7 @@ public static class CloudSyncCoordinator
             return;
 
         string cloudContent = await WithTimeoutAsync(
-            cloud.ReadFileAsync(path),
+            () => cloud.ReadFileAsync(path),
             $"PullFile {path}",
             AutoSyncPerPathTimeoutMs
         );
@@ -68,9 +68,9 @@ public static class CloudSyncCoordinator
 
         var pullTime = cloud.GetLastModifiedTime(path);
         await WithTimeoutAsync(
-            local.WriteFileAsync(path, cloudContent),
-            $"WriteLocalFile {path}",
-            AutoSyncPerPathTimeoutMs
+            () => local.WriteFileAsync(path, cloudContent),
+                $"WriteLocalFile {path}",
+                AutoSyncPerPathTimeoutMs
         );
         local.SetLastModifiedTime(path, pullTime);
         PatchHelper.Log($"[Cloud] Pull: downloaded {path}");
@@ -90,7 +90,7 @@ public static class CloudSyncCoordinator
             {
                 string localContent = local.ReadFile(path);
                 string cloudContent = await WithTimeoutAsync(
-                    cloud.ReadFileAsync(path),
+                    () => cloud.ReadFileAsync(path),
                     $"ReadCloudFile {path}",
                     AutoSyncPerPathTimeoutMs
                 );
@@ -101,7 +101,7 @@ public static class CloudSyncCoordinator
                     BackupProgressFile(local, path);
                     var cloudTime = cloud.GetLastModifiedTime(path);
                     await WithTimeoutAsync(
-                        local.WriteFileAsync(path, cloudContent),
+                        () => local.WriteFileAsync(path, cloudContent),
                         $"WriteLocalFile {path}",
                         AutoSyncPerPathTimeoutMs
                     );
@@ -123,7 +123,7 @@ public static class CloudSyncCoordinator
                     BackupProgressFile(local, path);
                     var cloudTime = cloud.GetLastModifiedTime(path);
                     await WithTimeoutAsync(
-                        local.WriteFileAsync(path, cloudContent),
+                        () => local.WriteFileAsync(path, cloudContent),
                         $"WriteLocalFile {path}",
                         AutoSyncPerPathTimeoutMs
                     );
@@ -142,7 +142,7 @@ public static class CloudSyncCoordinator
                     BackupProgressFile(local, path);
                     var cloudTime = cloud.GetLastModifiedTime(path);
                     await WithTimeoutAsync(
-                        local.WriteFileAsync(path, cloudContent),
+                        () => local.WriteFileAsync(path, cloudContent),
                         $"WriteLocalFile {path}",
                         AutoSyncPerPathTimeoutMs
                     );
@@ -172,6 +172,7 @@ public static class CloudSyncCoordinator
             ?? new SteamKit2CloudSaveStore(accountName, refreshToken);
 
         var paths = GetSaveFilePaths(localStore);
+        var deadline = DateTime.UtcNow.AddMilliseconds(ManualSyncOverallTimeoutMs);
         PatchHelper.Log($"[Cloud] Push: starting ({paths.Count} files)");
 
         int backedUp = 0;
@@ -184,7 +185,7 @@ public static class CloudSyncCoordinator
 
                 PatchHelper.Log($"[Cloud] Push: backing up cloud {path}");
                 var content = await WithTimeoutAsync(
-                    cloudStore.ReadFileAsync(path),
+                    () => cloudStore.ReadFileAsync(path),
                     $"ManualPush backup read {path}",
                     ManualSyncPerPathTimeoutMs
                 );
@@ -210,6 +211,12 @@ public static class CloudSyncCoordinator
 
                 string content = localStore.ReadFile(path);
                 PatchHelper.Log($"[Cloud] Push: queuing {path} ({content.Length} bytes)");
+                if (DateTime.UtcNow > deadline)
+                {
+                    PatchHelper.Log("[Cloud] Manual push timeout: exceeded overall manual sync budget");
+                    break;
+                }
+
                 cloudStore.WriteFile(path, content);
                 count++;
             }
@@ -231,6 +238,7 @@ public static class CloudSyncCoordinator
             ?? new SteamKit2CloudSaveStore(accountName, refreshToken);
 
         var paths = GetSaveFilePaths(cloudStore);
+        var deadline = DateTime.UtcNow.AddMilliseconds(ManualSyncOverallTimeoutMs);
         PatchHelper.Log($"[Cloud] Pull: starting ({paths.Count} files)");
 
         int backedUp = 0;
@@ -266,12 +274,12 @@ public static class CloudSyncCoordinator
                 PatchHelper.Log($"[Cloud] Pull: downloading {path}");
                 var pullTime = cloudStore.GetLastModifiedTime(path);
                 string content = await WithTimeoutAsync(
-                    cloudStore.ReadFileAsync(path),
+                    () => cloudStore.ReadFileAsync(path),
                     $"ManualPull download {path}",
                     ManualSyncPerPathTimeoutMs
                 );
                 await WithTimeoutAsync(
-                    localStore.WriteFileAsync(path, content),
+                    () => localStore.WriteFileAsync(path, content),
                     $"ManualPull write-back {path}",
                     ManualSyncPerPathTimeoutMs
                 );
@@ -279,9 +287,19 @@ public static class CloudSyncCoordinator
                 PatchHelper.Log($"[Cloud] Pull: wrote {path} ({content.Length} bytes)");
                 downloaded++;
             }
+            catch (TimeoutException)
+            {
+                PatchHelper.Log($"[Cloud] Pull: timeout for {path}, skipping remaining operations for this file");
+            }
             catch (Exception ex)
             {
                 PatchHelper.Log($"[Cloud] Pull: failed for {path}: {ex.Message}");
+            }
+
+            if (DateTime.UtcNow > deadline)
+            {
+                PatchHelper.Log("[Cloud] Manual pull timeout: exceeded overall manual sync budget");
+                break;
             }
         }
 
@@ -471,23 +489,49 @@ public static class CloudSyncCoordinator
         }
     }
 
-    private static async Task<T> WithTimeoutAsync<T>(Task<T> task, string operation, int timeoutMs)
+    private static async Task<T> WithTimeoutAsync<T>(
+        Func<Task<T>> operationFactory,
+        string operation,
+        int timeoutMs
+    )
     {
+        var task = operationFactory();
         var timeout = Task.Delay(timeoutMs);
         var winner = await Task.WhenAny(task, timeout).ConfigureAwait(false);
         if (winner == task)
             return await task.ConfigureAwait(false);
 
+        _ = task.ContinueWith(
+            static t =>
+                PatchHelper.Log(
+                    $"[Cloud] Late completion after timeout for '{operation}', result: {t.Exception?.GetBaseException().Message}"
+                ),
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously
+        );
         throw new TimeoutException($"{operation} timed out after {timeoutMs}ms");
     }
 
-    private static async Task WithTimeoutAsync(Task task, string operation, int timeoutMs)
+    private static async Task WithTimeoutAsync(
+        Func<Task> operationFactory,
+        string operation,
+        int timeoutMs
+    )
     {
+        var task = operationFactory();
         var timeout = Task.Delay(timeoutMs);
         var winner = await Task.WhenAny(task, timeout).ConfigureAwait(false);
-        if (winner != task)
+        if (winner == task)
+            await task.ConfigureAwait(false);
+        else
+        {
+            _ = task.ContinueWith(
+                static t =>
+                    PatchHelper.Log(
+                        $"[Cloud] Late completion after timeout for '{operation}', result: {t.Exception?.GetBaseException().Message}"
+                    ),
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously
+            );
             throw new TimeoutException($"{operation} timed out after {timeoutMs}ms");
-
-        await task.ConfigureAwait(false);
+        }
     }
 }

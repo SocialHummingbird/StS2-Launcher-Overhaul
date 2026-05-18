@@ -76,4 +76,5 @@ jobs:
 
       - name: Skip build when publishing artifacts are unavailable
         if: steps.prerequisites.outputs.available != 'true'
-        run: echo "::notice::Build smoke skipped: required publish artifacts are not available in this checkout."
+        run: |
+          echo '::notice::Build smoke skipped: required publish artifacts are not available in this checkout.'
