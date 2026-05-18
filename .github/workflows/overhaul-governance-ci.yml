@@ -43,3 +43,37 @@ jobs:
 
           print("Governance smoke checks passed.")
           PY
+
+  build-smoke:
+    name: Build Smoke Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Check for project prerequisites
+        id: prerequisites
+        shell: bash
+        run: |
+          if [[ -f "upstream/godot-export/.godot/mono/publish/arm64/0Harmony.dll" \
+              && -f "upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll" \
+              && -f "upstream/godot-export/.godot/mono/publish/arm64/sts2.dll" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run build smoke test
+        if: steps.prerequisites.outputs.available == 'true'
+        run: dotnet build src/STS2Mobile/STS2Mobile.csproj
+
+      - name: Skip build when publishing artifacts are unavailable
+        if: steps.prerequisites.outputs.available != 'true'
+        run: echo "::notice::Build smoke skipped: required publish artifacts are not available in this checkout."

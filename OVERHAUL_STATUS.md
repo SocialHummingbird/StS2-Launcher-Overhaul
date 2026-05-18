@@ -2,10 +2,10 @@
 
 This file tracks what we are actively working on in the overhaul branch.
 
-## Current Focus (Phase 5 CI Bootstrapping)
-- Add a minimal required status check workflow for PR merge safety
-- Align branch protection on `main` with the new CI context
-- Keep compatibility backlog visible while CI matures beyond governance checks
+## Current Focus (Phase 6 CI Build Smoke Expansion)
+- Add repository-aware build-smoke coverage to the CI workflow
+- Keep merge safety checks required while build smoke remains advisory until publish artifacts are standardized
+- Track open prerequisites for reliable project-wide smoke compilation
 - Keep monthly status checks visible and action-oriented
 
 ## High-Impact Reliability Backlog
@@ -19,7 +19,7 @@ This file tracks what we are actively working on in the overhaul branch.
 
 ## Open Follow-up Tasks
 - Keep status issue cadence alive and close issue #2 on phase transition
-- Expand CI checks from governance-only to include build smoke targets when references are available
+- Expand CI checks from governance-only to include build smoke checks with artifact detection in place
 - Complete remaining compatibility hardening and close remaining phase-2 backlog items
 
 ## Active Status Issue
