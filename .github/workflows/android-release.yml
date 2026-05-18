@@ -173,25 +173,14 @@ jobs:
           fi
 
           if (( ${#MISSING_DLLS[@]} > 0 )); then
-            python - "$TMP_APK" "${MISSING_DLLS[@]}" <<'PY'
-            import os
-            import sys
-            import zipfile
-
-            apk_path = sys.argv[1]
-            missing_dlls = sys.argv[2:]
-            target_dir = os.path.abspath("upstream/godot-export/.godot/mono/publish/arm64")
-
-            with zipfile.ZipFile(apk_path) as zf:
-              names = set(zf.namelist())
-              for dll in missing_dlls:
-                source = f"assets/dotnet_bcl/{dll}"
-                if source not in names:
-                  raise SystemExit(f"Expected {source} not present in upstream APK.")
-                target = os.path.join(target_dir, dll)
-                with zf.open(source) as src, open(target, "wb") as dst:
-                  dst.write(src.read())
-            PY
+            for dll in "${MISSING_DLLS[@]}"; do
+              source="assets/dotnet_bcl/$dll"
+              if ! unzip -l "$TMP_APK" "$source" > /dev/null; then
+                echo "::error::Expected ${source} not present in upstream APK."
+                exit 1
+              fi
+              unzip -p "$TMP_APK" "$source" > "$PUBLISH_DIR/$dll"
+            done
           fi
 
           echo "Recovered missing publish dependencies from upstream release: ${MISSING_DLLS[*]}"
