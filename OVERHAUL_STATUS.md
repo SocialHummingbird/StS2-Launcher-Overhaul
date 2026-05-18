@@ -2,11 +2,11 @@
 
 This file tracks what we are actively working on in the overhaul branch.
 
-## Current Focus (Phase 3 Validation & Maintainability)
-- Add reproducible device validation runbooks for representative hardware classes
-- Run monthly stability check-ins via recurring status issue workflow
-- Keep PR validation consistent when automation cannot provide full coverage
-- Track blockers and acceptance criteria for unresolved high-impact issues
+## Current Focus (Phase 4 Governance Completion)
+- Document enforced branch-protection expectations and merge safety
+- Track release/backport policy compliance for merged architecture changes
+- Keep rollback branch aligned with latest release baseline
+- Keep monthly status checks visible and action-oriented
 
 ## High-Impact Reliability Backlog
 
@@ -18,8 +18,8 @@ This file tracks what we are actively working on in the overhaul branch.
 | P3 | Multiplayer | LAN beacon persistence and discovery stability | Reliability | Low |
 
 ## Open Follow-up Tasks
-- Publish/run recurring status issue check-ins using `overhaul_status` template
-- Add branch protection and release gating once CI is in place
+- Add required status checks to `main` once CI is in place
+- Keep status issue cadence alive and close issue #2 on phase transition
 - Complete remaining compatibility hardening and close remaining phase-2 backlog items
 
 ## Active Status Issue

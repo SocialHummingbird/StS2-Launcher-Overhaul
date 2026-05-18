@@ -1,0 +1,54 @@
+# Branch Protection and Release Readiness
+
+This document defines the repository workflow controls for `main` and release readiness.
+
+## Required state for PRs into `main`
+
+Before a PR is merged, require:
+
+- At least one approving review (or explicit maintainer bypass policy)
+- Branch is up to date with target
+- PR body includes:
+  - Validation steps run (or explicit blocker explanation)
+  - Manual verification note when automation is not available
+- Conflicts resolved and no unresolved review-blocking comments
+
+## Suggested GitHub branch protection rules
+
+Use one of:
+
+1. GitHub UI:
+   - Settings → Branches → Add rule for `main`
+   - Enable:
+     - `Require a pull request before merging`
+     - `Require approvals`
+     - `Require status checks to pass` (when CI exists)
+     - `Require linear history` (optional)
+     - `Restrict who can push` (owner/admin only)
+2. GitHub CLI (if your token has admin permission):
+
+```bash
+gh api repos/SocialHummingbird/StS2-Launcher-Overhaul/branches/main/protection \
+  --method PUT \
+  --field required_pull_request_reviews='{\"required_approving_review_count\":1,"required_approving_review_count":1}'
+```
+
+If CI is not yet available, set required status checks as a placeholder and switch them on when workflows are added.
+
+## Rollback branch policy
+
+Recommended long-term branch model:
+
+- `main`: stable integration branch
+- `compat/legacy`: optional fallback branch for emergency maintenance if a major rewrite regression appears
+- `rewrite/*`, `fix/*`, `chore/*`: short-lived feature/maintenance branches
+
+### How to create rollback branch
+
+```bash
+git fetch origin
+git switch -c compat/legacy origin/main
+git push origin compat/legacy
+```
+
+Keep `compat/legacy` aligned only via explicit, intentionally chosen rollback PRs.

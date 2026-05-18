@@ -7,6 +7,7 @@ This repository is an independent continuation of the original launcher with a s
 ## Branching
 
 - `main` is the stable base branch for the overhaul.
+- `compat/legacy` is maintained as a rollback/compatibility branch when needed.
 - Use short-lived feature branches:
   - `rewrite/<area>-<topic>`
   - `fix/<area>`
@@ -39,3 +40,9 @@ This repository is an independent continuation of the original launcher with a s
 
 - Keep discussion explicit: if behavior changed, state why and what risk remains.
 - If a fix is a workaround, label it clearly and include a follow-up task to remove it when feasible.
+
+## Governance and release process
+
+- `main` is PR-only and requires review-based merging.
+- The branch protection and rollback expectations are documented in [`docs/branch-protection.md`](docs/branch-protection.md).
+- Release cadence, tagging, and backport decisions from upstream are documented in [`docs/release-and-backport-policy.md`](docs/release-and-backport-policy.md).
