@@ -5,6 +5,22 @@
 This repository is a full copy of [Ekyso/StS2-Launcher](https://github.com/Ekyso/StS2-Launcher), created to continue and broaden development as a focused rewrite project.
 The goal is a **drastic architecture and reliability overhaul** that is harder to do in the upstream repo while maintaining compatibility and delivering incremental improvements back when possible.
 
+## Migration and governance
+
+- Migration checklist: [MIGRATION_CHECKLIST.md](MIGRATION_CHECKLIST.md)
+- Overhaul plan: [OVERHAUL_ROADMAP.md](OVERHAUL_ROADMAP.md)
+- Contribution process: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+### Suggested working remotes
+
+```bash
+git remote rename origin upstream
+git remote add origin https://github.com/SocialHummingbird/StS2-Launcher-Overhaul.git
+git remote set-url origin https://github.com/SocialHummingbird/StS2-Launcher-Overhaul.git
+git fetch origin
+git fetch upstream
+```
+
 An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine with .NET/Mono and Harmony runtime patching.
 
 > **Disclaimer**: This is an unofficial community project. Slay the Spire 2 is developed and published by Mega Crit Games. A valid Steam account that owns Slay the Spire 2 is required. Game files are downloaded directly from Steam after authentication. No game assets are included in this repository.
