@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Godot;
@@ -81,6 +82,18 @@ public static class ModEntry
                 PatchHelper.Log("Critical startup patches failed; scheduling standalone launcher fallback.");
                 ScheduleStandaloneLauncher();
                 return;
+            }
+
+            if (patchResult.HasFailures)
+            {
+                PatchHelper.Log(
+                    $"Startup completed with {patchResult.FailedPatchCount} non-critical patch failures."
+                );
+            }
+
+            foreach (var failure in patchResult.FailureMessages().Take(10))
+            {
+                PatchHelper.Log($"[startup] {failure}");
             }
 
             PatchHelper.Log("Startup patch orchestration complete.");

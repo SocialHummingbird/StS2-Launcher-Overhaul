@@ -7,6 +7,7 @@ This file tracks what we are actively working on in the overhaul branch.
 - Reduce startup-time fragility by preventing one noncritical patch from disabling launcher fallback
 - Improve startup observability with grouped patch outcome summaries via dedicated startup patch orchestrator
 - Continue reducing global mutable state in startup control flow
+- Complete phase-2 finish criteria by logging group timings and failure details from startup orchestration
 
 ## High-Impact Reliability Backlog
 
