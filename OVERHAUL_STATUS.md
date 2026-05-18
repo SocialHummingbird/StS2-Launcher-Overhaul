@@ -2,12 +2,11 @@
 
 This file tracks what we are actively working on in the overhaul branch.
 
-## Current Focus (Phase 2 Architecture Cleanup)
-- Isolate required startup patches from optional ones in one-shot orchestration
-- Reduce startup-time fragility by preventing one noncritical patch from disabling launcher fallback
-- Improve startup observability with grouped patch outcome summaries via dedicated startup patch orchestrator
-- Continue reducing global mutable state in startup control flow
-- Complete phase-2 finish criteria by logging group timings and failure details from startup orchestration
+## Current Focus (Phase 3 Validation & Maintainability)
+- Add reproducible device validation runbooks for representative hardware classes
+- Run monthly stability check-ins via recurring status issue workflow
+- Keep PR validation consistent when automation cannot provide full coverage
+- Track blockers and acceptance criteria for unresolved high-impact issues
 
 ## High-Impact Reliability Backlog
 
@@ -19,10 +18,9 @@ This file tracks what we are actively working on in the overhaul branch.
 | P3 | Multiplayer | LAN beacon persistence and discovery stability | Reliability | Low |
 
 ## Open Follow-up Tasks
-- Add per-device reproducibility logs for pending issue paths
-- Publish a lightweight recurring status issue (monthly) with blockers and acceptance criteria
+- Publish/run recurring status issue check-ins using `overhaul_status` template
 - Add branch protection and release gating once CI is in place
-- Complete Phase 2 backlog items and publish next runbook in phase-3 planning
+- Complete remaining compatibility hardening and close remaining phase-2 backlog items
 
 ## Active Status Issue
 - https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/issues/2
