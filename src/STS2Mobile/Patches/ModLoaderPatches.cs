@@ -86,7 +86,12 @@ public static class ModLoaderPatches
                 // rename wasLoaded or change the Mod type representation again.
                 var loadedMods = CreateLoadedModList(allMods, loadedModsField.FieldType);
                 if (loadedMods != null)
+                {
                     loadedModsField.SetValue(null, loadedMods);
+                    PatchHelper.Log(
+                        $"[Mods] External scan complete. Total loaded: {(loadedMods as System.Collections.ICollection)?.Count ?? 0}"
+                    );
+                }
                 else
                     PatchHelper.Log("[Mods] Failed to rebuild _loadedMods via reflection");
             }
@@ -94,10 +99,6 @@ public static class ModLoaderPatches
             {
                 PatchHelper.Log("[Mods] ModManager._mods was null; skipping loaded-mod rebuild");
             }
-
-            PatchHelper.Log(
-                $"[Mods] External scan complete. Total loaded: {ModManager.LoadedMods.Count}"
-            );
         }
         catch (Exception ex)
         {

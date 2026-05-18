@@ -36,21 +36,21 @@ internal static class StartupPatchOrchestrator
             .ToArray();
     }
 
-    private static readonly PatchGroup[] Groups = new[]
+    private static readonly PatchGroup[] Groups = new PatchGroup[]
     {
-        new(
-            "core",
-            true,
-            new[]
-            {
-                new PatchStep("Model DB bootstrap", ModelDbInitPatch.Apply),
-                new PatchStep("Platform compatibility", PlatformPatches.Apply),
-            }
-        ),
-        new(
+            new PatchGroup(
+                "core",
+                true,
+                new PatchStep[]
+                {
+                    new PatchStep("Model DB bootstrap", ModelDbInitPatch.Apply),
+                    new PatchStep("Platform compatibility", PlatformPatches.Apply),
+                }
+            ),
+        new PatchGroup(
             "gameplay",
             false,
-            new[]
+            new PatchStep[]
             {
                 new PatchStep("Settings compatibility", SettingsPatches.Apply),
                 new PatchStep("UI scaling", UiScalePatches.Apply),
@@ -64,10 +64,10 @@ internal static class StartupPatchOrchestrator
                 new PatchStep("Combat background", CombatBackgroundPatches.Apply),
             }
         ),
-        new(
+        new PatchGroup(
             "optional",
             false,
-            new[]
+            new PatchStep[]
             {
                 new PatchStep("LAN multiplayer", LanMultiplayerPatcher.Apply),
                 new PatchStep("Mod loader integration", ModLoaderPatches.Apply),
@@ -85,10 +85,10 @@ internal static class StartupPatchOrchestrator
 
         foreach (var group in Groups)
         {
-            var result = ApplyGroup(group, harmony);
-            results.Add(result);
+            var groupResult = ApplyGroup(group, harmony);
+            results.Add(groupResult);
 
-            if (group.Critical && result.Failures.Count > 0)
+            if (group.Critical && groupResult.Failed > 0)
             {
                 criticalFailed = true;
                 break;

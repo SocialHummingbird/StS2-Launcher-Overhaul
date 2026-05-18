@@ -502,7 +502,7 @@ public static class CloudSyncCoordinator
             return await task.ConfigureAwait(false);
 
         _ = task.ContinueWith(
-            static t =>
+            t =>
                 PatchHelper.Log(
                     $"[Cloud] Late completion after timeout for '{operation}', result: {t.Exception?.GetBaseException().Message}"
                 ),
@@ -525,7 +525,7 @@ public static class CloudSyncCoordinator
         else
         {
             _ = task.ContinueWith(
-                static t =>
+                t =>
                     PatchHelper.Log(
                         $"[Cloud] Late completion after timeout for '{operation}', result: {t.Exception?.GetBaseException().Message}"
                     ),
