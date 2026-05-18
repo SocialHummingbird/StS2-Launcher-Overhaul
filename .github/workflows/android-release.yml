@@ -301,11 +301,11 @@ jobs:
 
           gradle "${GRADLE_ARGS[@]}"
 
-          APK_PATH="build/outputs/apk/mono/release/StS2Launcher-v${VERSION_NAME}.apk"
-          if [[ ! -f "${APK_PATH}" ]]; then
-            echo "::error::Expected APK not found at ${APK_PATH}"
+          APK_PATH="$(find build/outputs/apk/mono/release -type f -name "StS2Launcher-v${VERSION_NAME}*.apk" | head -n 1)"
+          if [[ -z "${APK_PATH}" ]] || [[ ! -f "${APK_PATH}" ]]; then
             echo "Files in build/outputs/apk/mono/release:"
-            ls -la build/outputs/apk/mono/release
+            find build/outputs/apk/mono/release -type f
+            echo "::error::Expected APK not found at ${APK_PATH}"
             exit 1
           fi
 
