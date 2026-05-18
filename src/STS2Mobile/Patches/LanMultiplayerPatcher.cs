@@ -513,18 +513,35 @@ public static class LanMultiplayerPatcher
 
     private class LanBeacon
     {
+        private readonly object _stateLock = new();
         private volatile bool _running;
         private Thread _thread;
         private UdpClient _udpClient;
 
         public void Start()
         {
-            _running = true;
-            _udpClient = new UdpClient();
-            _udpClient.EnableBroadcast = true;
-            _thread = new Thread(SendLoop) { IsBackground = true, Name = "LanBeacon" };
-            _thread.Start();
-            PatchHelper.Log("LAN beacon started");
+            lock (_stateLock)
+            {
+                if (_running)
+                    return;
+
+                _running = true;
+                try
+                {
+                    _udpClient = new UdpClient();
+                    _udpClient.EnableBroadcast = true;
+                }
+                catch (Exception ex)
+                {
+                    _running = false;
+                    PatchHelper.Log($"LAN beacon failed to start: {ex.Message}");
+                    return;
+                }
+
+                _thread = new Thread(SendLoop) { IsBackground = true, Name = "LanBeacon" };
+                _thread.Start();
+                PatchHelper.Log("LAN beacon started");
+            }
         }
 
         private void SendLoop()
@@ -533,13 +550,20 @@ public static class LanMultiplayerPatcher
             var message = $"{BeaconPrefix}|{GetDeviceHostname()}|{GamePort}";
             var data = Encoding.UTF8.GetBytes(message);
 
-            while (_running)
+            while (true)
             {
+                if (!_running || _udpClient == null)
+                    break;
+
                 try
                 {
                     _udpClient.Send(data, data.Length, endpoint);
                 }
                 catch when (!_running)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
                 {
                     break;
                 }
@@ -555,7 +579,17 @@ public static class LanMultiplayerPatcher
 
         public void Stop()
         {
-            _running = false;
+            lock (_stateLock)
+            {
+                if (!_running)
+                {
+                    _udpClient = null;
+                    return;
+                }
+
+                _running = false;
+            }
+
             try
             {
                 _udpClient?.Close();
@@ -570,6 +604,7 @@ public static class LanMultiplayerPatcher
     private class LanDiscovery
     {
         private volatile bool _running;
+        private readonly object _stateLock = new();
         private Thread _listenThread;
         private UdpClient _udpClient;
         private readonly object _lock = new();
@@ -585,6 +620,14 @@ public static class LanMultiplayerPatcher
 
         public void Start(object screen, Control buttonContainer)
         {
+            lock (_stateLock)
+            {
+                if (_running)
+                    return;
+            }
+
+            Stop();
+
             _screen = screen;
             _buttonContainer = buttonContainer;
             _running = true;
@@ -598,8 +641,12 @@ public static class LanMultiplayerPatcher
                     SocketOptionName.ReuseAddress,
                     true
                 );
+                _udpClient.Client.SetSocketOption(
+                    SocketOptionLevel.Socket,
+                    SocketOptionName.Broadcast,
+                    true
+                );
                 _udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, BeaconPort));
-                _udpClient.EnableBroadcast = true;
             }
             catch (SocketException ex)
             {
@@ -624,8 +671,11 @@ public static class LanMultiplayerPatcher
         private void ListenLoop()
         {
             var ep = new IPEndPoint(IPAddress.Any, 0);
-            while (_running)
+            while (true)
             {
+                if (!_running || _udpClient == null)
+                    break;
+
                 try
                 {
                     var data = _udpClient.Receive(ref ep);
@@ -761,7 +811,16 @@ public static class LanMultiplayerPatcher
 
         public void Stop()
         {
-            _running = false;
+            lock (_stateLock)
+            {
+                if (!_running)
+                {
+                    _cleanupDiscoveryState();
+                    return;
+                }
+                _running = false;
+            }
+
             try
             {
                 _udpClient?.Close();
@@ -783,8 +842,20 @@ public static class LanMultiplayerPatcher
                     btn.QueueFree();
             }
             _hostButtons.Clear();
+            _cleanupDiscoveryState();
 
             PatchHelper.Log("LAN discovery stopped");
+        }
+
+        private void _cleanupDiscoveryState()
+        {
+            _running = false;
+            _udpClient = null;
+            _listenThread = null;
+            _screen = null;
+            _buttonContainer = null;
+            _localIps = null;
+            _contextDirty = false;
         }
     }
 }
