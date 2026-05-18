@@ -41,3 +41,9 @@ This roadmap tracks the ongoing rewrite and stabilization effort.
 
 - [x] Add required-status-check workflow for governance/documentation safety
 - [x] Wire branch protection to require a deterministic CI check context
+
+## Phase 6 — CI smoke check expansion
+
+- [x] Add optional artifact-aware build smoke job
+- [x] Keep build smoke non-blocking until artifacts are standardized
+- [x] Document required check expectations for both governance and build jobs
