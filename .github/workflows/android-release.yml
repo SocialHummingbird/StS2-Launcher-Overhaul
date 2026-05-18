@@ -152,27 +152,7 @@ jobs:
               curl -fsSL -H "Accept: application/vnd.github+json" \
                 "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=20" \
                 > "$TMP_RELEASE_JSON"
-              STS2_SOURCE="$(RELEASE_JSON_PATH="$TMP_RELEASE_JSON" python - <<'PY'
-              import os
-              import json
-
-              path = os.environ["RELEASE_JSON_PATH"]
-              url = ""
-
-              with open(path, "r", encoding="utf-8") as f:
-                  releases = json.load(f)
-
-              for release in releases:
-                  for asset in release.get("assets", []):
-                      if asset.get("name") == "sts2.dll":
-                          url = asset.get("browser_download_url", "")
-                          break
-                  if url:
-                      break
-
-              print(url, end="")
-              PY
-              )"
+              STS2_SOURCE="$(RELEASE_JSON_PATH="$TMP_RELEASE_JSON" python -c 'import json, os; print(next((asset.get("browser_download_url", "") for release in json.load(open(os.environ["RELEASE_JSON_PATH"], encoding="utf-8")) for asset in release.get("assets", []) if asset.get("name") == "sts2.dll"), ""), end="")')"
             fi
 
             if [[ -n "${STS2_SOURCE}" ]]; then
