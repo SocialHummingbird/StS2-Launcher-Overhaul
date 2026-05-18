@@ -1,6 +1,5 @@
 package com.game.sts2launcher;
 
-import org.godotengine.godot.Godot;
 import org.godotengine.godot.GodotActivity;
 
 import android.content.Intent;
@@ -31,15 +30,10 @@ import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.util.Base64;
 
-import org.fmod.FMOD;
-
-// Main activity for the mobile launcher. Handles FMOD initialization, .NET assembly
-// setup, PCK loading, LAN multicast, and Android Keystore encryption for credentials.
+// Main activity for the mobile launcher. Handles .NET assembly setup, PCK loading,
+// LAN multicast, and Android Keystore encryption for credentials.
 public class GodotApp extends GodotActivity {
 	static {
-		// FMOD must load before Godot's GDExtension or FMOD_JNI_GetEnv fails.
-		System.loadLibrary("fmod");
-		System.loadLibrary("fmodstudio");
 		// Required for TLS/SSL (SteamKit2 WebSocket, HTTPS).
 		System.loadLibrary("System.Security.Cryptography.Native.Android");
 	}
@@ -51,15 +45,6 @@ public class GodotApp extends GodotActivity {
 	private static final String KEYSTORE_ALIAS = "sts2mobile_credentials";
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
 
-	private final Runnable updateWindowAppearance = () -> {
-		Godot godot = getGodot();
-		if (godot != null) {
-			godot.enableImmersiveMode(true, true);
-			godot.enableEdgeToEdge(true, true);
-			godot.setSystemBarsAppearance();
-		}
-	};
-
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		instance = this;
@@ -67,9 +52,6 @@ public class GodotApp extends GodotActivity {
 
 		SplashScreen.installSplashScreen(this);
 		EdgeToEdge.enable(this);
-
-		// Must be called before any native FMOD calls.
-		FMOD.init(this);
 
 		setupAssemblies();
 		extractAssetFile("FMOD_LOGOS/FMOD Logo White - Transparent Background.png", "fmod_logo.png");
@@ -264,24 +246,11 @@ public class GodotApp extends GodotActivity {
 	}
 
 	@Override
-	public void onResume() {
-		super.onResume();
-		updateWindowAppearance.run();
-	}
-
-	@Override
-	public void onGodotMainLoopStarted() {
-		super.onGodotMainLoopStarted();
-		runOnUiThread(updateWindowAppearance);
-	}
-
-	@Override
 	protected void onDestroy() {
 		if (multicastLock != null && multicastLock.isHeld()) {
 			multicastLock.release();
 			Log.i(TAG, "WiFi MulticastLock released");
 		}
-		FMOD.close();
 		super.onDestroy();
 	}
 

@@ -47,6 +47,11 @@ dependencies {
         debugImplementation fileTree(dir: 'libs/debug', include: ['**/*.jar', '*.aar'])
         devImplementation fileTree(dir: 'libs/dev', include: ['**/*.jar', '*.aar'])
         releaseImplementation fileTree(dir: 'libs/release', include: ['**/*.jar', '*.aar'])
+
+        if (!file('libs/release/godot-lib.template_release.aar').exists()) {
+            // Fallback for clean CI runners: use a published Godot Android artifact.
+            implementation "org.godotengine:godot:4.5.1.stable"
+        }
     }
 
     // Godot user plugins remote dependencies
