@@ -2,10 +2,10 @@
 
 This file tracks what we are actively working on in the overhaul branch.
 
-## Current Focus (Phase 6 CI Build Smoke Expansion)
-- Add repository-aware build-smoke coverage to the CI workflow
-- Keep merge safety checks required while build smoke remains advisory until publish artifacts are standardized
-- Track open prerequisites for reliable project-wide smoke compilation
+## Current Focus (Reliability Backlog Continuation)
+- Keep phase 6 CI checks enforced and documented
+- Prioritize `P1` cloud sync timeout handling and stalled-read handling
+- Prioritize `P2` downloader race-condition mitigation on resume/retry
 - Keep monthly status checks visible and action-oriented
 
 ## High-Impact Reliability Backlog
@@ -19,7 +19,7 @@ This file tracks what we are actively working on in the overhaul branch.
 
 ## Open Follow-up Tasks
 - Keep status issue cadence alive and close issue #2 on phase transition
-- Expand CI checks from governance-only to include build smoke checks with artifact detection in place
+- Add actual publish artifacts to CI pipeline for full build validation coverage
 - Complete remaining compatibility hardening and close remaining phase-2 backlog items
 
 ## Active Status Issue

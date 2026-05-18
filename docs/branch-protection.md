@@ -36,6 +36,12 @@ gh api repos/SocialHummingbird/StS2-Launcher-Overhaul/branches/main/protection \
 When CI is available, prefer required status checks:
 
 - `Governance Smoke Check` (job: `governance-smoke` in `.github/workflows/overhaul-governance-ci.yml`)
+- `Build Smoke Check` (job: `build-smoke` in `.github/workflows/overhaul-governance-ci.yml`)
+
+Build smoke is intentionally safe-by-default:
+
+- it runs in advisory mode when publish artifacts are missing
+- it does not fail merge safety if the repo checkout does not include required assemblies yet
 
 If CI is not yet available, keep status-check enforcement off and switch it on when workflows are added.
 
