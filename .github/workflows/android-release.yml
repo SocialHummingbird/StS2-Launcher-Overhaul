@@ -305,13 +305,14 @@ jobs:
           if [[ -z "${RAW_APK_PATH}" ]] || [[ ! -f "${RAW_APK_PATH}" ]]; then
             echo "Files in build/outputs/apk/mono/release:"
             find build/outputs/apk/mono/release -type f
-            echo "::error::Expected APK not found at ${APK_PATH}"
+            echo "::error::Expected APK not found at ${RAW_APK_PATH}"
             exit 1
           fi
           APK_PATH="android/${RAW_APK_PATH}"
+          ABS_APK_PATH="$(pwd)/${RAW_APK_PATH}"
 
           echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
-          sha256sum "$APK_PATH" > "${APK_PATH}.sha256"
+          sha256sum "$ABS_APK_PATH" > "${ABS_APK_PATH}.sha256"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
