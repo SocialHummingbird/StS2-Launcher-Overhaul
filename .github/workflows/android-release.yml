@@ -1,0 +1,231 @@
+name: Android Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to use (optional, e.g. v0.2.1)."
+        required: false
+        default: ""
+      version_name:
+        description: "Override APK version name (optional)."
+        required: false
+        default: ""
+      version_code:
+        description: "Override APK version code (optional)."
+        required: false
+        default: ""
+      create_release:
+        description: "Create or update a GitHub release."
+        type: boolean
+        required: false
+        default: true
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-release:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
+      apk_path: ${{ steps.apk.outputs.path }}
+      signed: ${{ steps.signing.outputs.enabled }}
+      create_release: ${{ steps.version.outputs.create_release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Resolve release metadata
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            RELEASE_TAG="${{ github.event.inputs.release_tag }}"
+            CREATE_RELEASE="${{ github.event.inputs.create_release }}"
+          else
+            RELEASE_TAG="${GITHUB_REF_NAME}"
+            CREATE_RELEASE="true"
+          fi
+
+          if [[ -z "${RELEASE_TAG}" ]]; then
+            RELEASE_TAG="nightly-${GITHUB_SHA:0:7}"
+          fi
+
+          VERSION_NAME="${{ github.event.inputs.version_name }}"
+          if [[ -z "${VERSION_NAME}" ]]; then
+            VERSION_NAME="${RELEASE_TAG#v}"
+          fi
+
+          VERSION_CODE="${{ github.event.inputs.version_code }}"
+          if [[ -z "${VERSION_CODE}" ]]; then
+            VERSION_CODE="$(awk -F= '$1=="export_version_code" {print $2; exit}' android/gradle.properties)"
+          fi
+
+          if [[ -z "${VERSION_CODE}" ]]; then
+            VERSION_CODE="1"
+          fi
+
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "create_release=$CREATE_RELEASE" >> "$GITHUB_OUTPUT"
+
+      - name: Check Android build prerequisites
+        id: prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          MISSING=()
+          if [[ ! -f upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll ]]; then
+            MISSING+=("upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll")
+          fi
+          if [[ ${#MISSING[@]} -ne 0 ]]; then
+            echo "::error::Missing required publish-time prerequisites:"
+            printf '::error:: - %s\n' "${MISSING[@]}"
+            echo "Android release build requires missing publish artifacts. Upload or generate them before running this workflow."
+            exit 1
+          fi
+
+      - name: Build patcher and stage Android assets
+        shell: bash
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          set -euo pipefail
+
+          ROOT_DIR="$(pwd)"
+          PATCHER_DIR="$ROOT_DIR/src/STS2Mobile"
+          BUILD_DIR="$ROOT_DIR/android"
+          PUBLISH_DIR="$PATCHER_DIR/bin/Release/net9.0/publish"
+          BCL_DIR="$BUILD_DIR/assets/dotnet_bcl"
+
+          cd "$PATCHER_DIR"
+          dotnet publish -c Release
+
+          mkdir -p "$BCL_DIR"
+          cp "$PUBLISH_DIR"/STS2Mobile.dll \
+             "$PUBLISH_DIR"/SteamKit2.dll \
+             "$PUBLISH_DIR"/protobuf-net.dll \
+             "$PUBLISH_DIR"/protobuf-net.Core.dll \
+             "$PUBLISH_DIR"/System.IO.Hashing.dll \
+             "$PUBLISH_DIR"/ZstdSharp.dll \
+             "$BCL_DIR/"
+          cp "$ROOT_DIR/upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll" "$BCL_DIR/"
+
+          CRYPTO_SO="$(find "$HOME/.nuget/packages/microsoft.netcore.app.runtime.mono.android-arm64" -path '*/runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so' 2>/dev/null | head -n 1 || true)"
+          if [[ -n "${CRYPTO_SO}" ]]; then
+            mkdir -p "$BUILD_DIR/libs/release/arm64-v8a"
+            cp "$CRYPTO_SO" "$BUILD_DIR/libs/release/arm64-v8a/"
+          else
+            echo "::warning::Optional Android TLS .so was not found in NuGet cache."
+          fi
+
+      - name: Configure optional release signing
+        id: signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" && -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}" && -n "${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}" ]]; then
+            mkdir -p "$RUNNER_TEMP/android-signing"
+            echo "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/android-signing/sts2.keystore"
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "path=$RUNNER_TEMP/android-signing/sts2.keystore" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Signing secrets are not configured. Building an unsigned APK."
+          fi
+
+      - name: Build release APK
+        id: build
+        shell: bash
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+          SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
+          KEYSTORE_PATH: ${{ steps.signing.outputs.path }}
+        run: |
+          set -euo pipefail
+
+          cd android
+          GRADLE_ARGS=(
+            "assembleMonoRelease"
+            "-Pexport_version_name=${VERSION_NAME}"
+            "-Pexport_version_code=${VERSION_CODE}"
+            "-Pexport_build_type=release"
+            "-Pexport_edition=mono"
+          )
+
+          if [[ "${SIGNING_ENABLED}" == "true" ]]; then
+            GRADLE_ARGS+=(
+              "-Pperform_signing=true"
+              "-Prelease_keystore_file=${KEYSTORE_PATH}"
+              "-Prelease_keystore_password=${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}"
+              "-Prelease_keystore_alias=${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}"
+            )
+          else
+            GRADLE_ARGS+=("-Pperform_signing=false")
+          fi
+
+          ./gradlew "${GRADLE_ARGS[@]}"
+
+          APK_PATH="build/outputs/apk/mono/release/StS2Launcher-v${VERSION_NAME}.apk"
+          if [[ ! -f "${APK_PATH}" ]]; then
+            echo "::error::Expected APK not found at ${APK_PATH}"
+            echo "Files in build/outputs/apk/mono/release:"
+            ls -la build/outputs/apk/mono/release
+            exit 1
+          fi
+
+          echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          sha256sum "$APK_PATH" > "${APK_PATH}.sha256"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-${{ steps.version.outputs.release_tag }}
+          path: |
+            ${{ steps.build.outputs.path }}
+            ${{ steps.build.outputs.path }}.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-release:
+    name: Publish GitHub release
+    needs: build-android-release
+    runs-on: ubuntu-latest
+    if: needs.build-android-release.outputs.create_release == 'true'
+    steps:
+      - name: Download built APK
+        uses: actions/download-artifact@v4
+        with:
+          name: android-release-${{ needs.build-android-release.outputs.release_tag }}
+          path: release-artifacts
+
+      - name: Create GitHub release and attach APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build-android-release.outputs.release_tag }}
+          name: "StS2 Launcher ${{ needs.build-android-release.outputs.version_name }}"
+          files: release-artifacts/*.apk
+          generate_release_notes: true
