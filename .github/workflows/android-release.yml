@@ -198,21 +198,31 @@ jobs:
           BUILD_DIR="$ROOT_DIR/android"
           PUBLISH_DIR="$PATCHER_DIR/bin/Release/net9.0/publish"
           BCL_DIR="$BUILD_DIR/assets/dotnet_bcl"
+          UPSTREAM_DIR="$ROOT_DIR/upstream/godot-export/.godot/mono/publish/arm64"
 
           cd "$PATCHER_DIR"
           dotnet publish -c Release
 
           mkdir -p "$BCL_DIR"
-          cp "$PUBLISH_DIR"/STS2Mobile.dll \
-             "$PUBLISH_DIR"/0Harmony.dll \
-             "$PUBLISH_DIR"/sts2.dll \
-             "$PUBLISH_DIR"/SteamKit2.dll \
-             "$PUBLISH_DIR"/protobuf-net.dll \
-             "$PUBLISH_DIR"/protobuf-net.Core.dll \
-             "$PUBLISH_DIR"/System.IO.Hashing.dll \
-             "$PUBLISH_DIR"/ZstdSharp.dll \
-             "$PUBLISH_DIR"/GodotSharp.dll \
+          copy_dependency() {
+            local src_name="$1"
+            if [[ -f "$PUBLISH_DIR/$src_name" ]]; then
+              cp "$PUBLISH_DIR/$src_name" "$BCL_DIR/$src_name"
+            elif [[ -f "$UPSTREAM_DIR/$src_name" ]]; then
+              cp "$UPSTREAM_DIR/$src_name" "$BCL_DIR/$src_name"
+            else
+              echo "::error::Required dependency not found: $src_name"
+              exit 1
+            fi
+          }
+
+          cp "$PUBLISH_DIR"/STS2Mobile.dll "$PUBLISH_DIR"/SteamKit2.dll \
+             "$PUBLISH_DIR"/protobuf-net.dll "$PUBLISH_DIR"/protobuf-net.Core.dll \
+             "$PUBLISH_DIR"/System.IO.Hashing.dll "$PUBLISH_DIR"/ZstdSharp.dll \
              "$BCL_DIR/"
+          copy_dependency 0Harmony.dll
+          copy_dependency sts2.dll
+          copy_dependency GodotSharp.dll
 
           CRYPTO_SO="$(find "$HOME/.nuget/packages/microsoft.netcore.app.runtime.mono.android-arm64" -path '*/runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so' 2>/dev/null | head -n 1 || true)"
           if [[ -n "${CRYPTO_SO}" ]]; then
