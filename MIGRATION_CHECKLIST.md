@@ -35,7 +35,7 @@ This repo started as an independent copy of [Ekyso/StS2-Launcher](https://github
 - [x] Add a dedicated roadmap file for active overhaul initiatives
 - [x] Track high-impact reliability fixes from prior review separately from feature work
 - [x] Publish a recurring "overhaul status" issue with current focus and blockers
-- [ ] Create and pin a recurring status issue template/guidance in the repo for monthly updates
+- [x] Create and pin a recurring status issue template/guidance in the repo for monthly updates
 
 ## 5) Validation Flow (To Do)
 
@@ -45,7 +45,7 @@ This repo started as an independent copy of [Ekyso/StS2-Launcher](https://github
   - pause/resume and quit lifecycle
   - depot download + update flow
 - [x] Add device log checklist for crash-path validation
-- [ ] Require manual verification step in each PR where full test automation is not possible
+- [x] Require manual verification step in each PR where full test automation is not possible
 
 ## 6) Tagging & Discovery (Done)
 

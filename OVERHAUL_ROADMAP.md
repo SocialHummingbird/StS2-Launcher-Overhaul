@@ -25,7 +25,7 @@ This roadmap tracks the ongoing rewrite and stabilization effort.
 
 ## Phase 3 — Validation and maintainability
 
-- [ ] Add runbooks for representative device matrix
+- [x] Add runbooks for representative device matrix
 - [x] Add issue templates and issue triage labels
-- [ ] Add recurring issue triage and status issue workflow
+- [x] Add recurring issue triage and status issue workflow
 - [x] Publish changelog for each tagged release
