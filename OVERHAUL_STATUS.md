@@ -5,7 +5,7 @@ This file tracks what we are actively working on in the overhaul branch.
 ## Current Focus (Phase 2 Architecture Cleanup)
 - Isolate required startup patches from optional ones in one-shot orchestration
 - Reduce startup-time fragility by preventing one noncritical patch from disabling launcher fallback
-- Improve startup observability with grouped patch outcome summaries
+- Improve startup observability with grouped patch outcome summaries via dedicated startup patch orchestrator
 - Continue reducing global mutable state in startup control flow
 
 ## High-Impact Reliability Backlog
