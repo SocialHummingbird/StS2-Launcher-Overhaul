@@ -36,6 +36,8 @@ public class DepotDownloader : IDisposable
     private readonly string _stateDir;
     private readonly Client _cdnClient;
     private readonly DownloadProgress _progress = new();
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileWriteLocks =
+        new();
 
     private IReadOnlyList<Server> _servers;
     private int _serverIndex;
@@ -390,6 +392,7 @@ public class DepotDownloader : IDisposable
         // Determine which files need downloading: new/changed files from the
         // manifest diff, plus any existing files that fail on-disk SHA-1 verification.
         var filesToDownload = GetFilesNeedingDownload(oldManifest, manifest, isUpdate);
+        filesToDownload = DeduplicateDownloads(filesToDownload);
         var filesToDelete = GetFilesToDelete(oldManifest, manifest);
 
         foreach (var fileName in filesToDelete)
@@ -461,93 +464,67 @@ public class DepotDownloader : IDisposable
     )
     {
         var fileName = file.FileName.Replace('\\', '/');
-        _progress.CurrentFile = fileName;
-        ReportProgress();
-
-        if (file.Flags.HasFlag(EDepotFileFlag.Directory))
-        {
-            Directory.CreateDirectory(Path.Combine(_gameDir, fileName));
-            return;
-        }
-
         var filePath = Path.Combine(_gameDir, fileName);
         var fileDir = Path.GetDirectoryName(filePath);
         if (fileDir != null)
             Directory.CreateDirectory(fileDir);
 
-        // Validate existing file against manifest SHA-1 hash. A size-only check
-        // would miss corruption from interrupted writes (SetLength pre-allocates).
-        if (File.Exists(filePath) && VerifyFileHash(filePath, file))
-        {
-            Interlocked.Add(ref _progress.DownloadedBytes, (long)file.TotalSize);
-            ReportProgress();
-            return;
-        }
-
-        // Write to a temp file, verify hash, then move into place. This prevents
-        // a partially-written file from being mistaken as complete on retry.
         var tempPath = filePath + ".downloading";
+        var lockKey = Path.GetFullPath(filePath);
+        var writeLock = _fileWriteLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
 
-        using (var fs = File.Create(tempPath))
+        await writeLock.WaitAsync(ct);
+        try
         {
-            foreach (var chunk in file.Chunks.OrderBy(c => c.Offset))
+            _progress.CurrentFile = fileName;
+            ReportProgress();
+
+            if (file.Flags.HasFlag(EDepotFileFlag.Directory))
             {
-                ct.ThrowIfCancellationRequested();
+                Directory.CreateDirectory(filePath);
+                return;
+            }
 
-                var buffer = new byte[chunk.UncompressedLength];
-                int written = 0;
+            // Validate existing file against manifest SHA-1 hash. A size-only check
+            // would miss corruption from interrupted writes (SetLength pre-allocates).
+            if (File.Exists(filePath) && VerifyFileHash(filePath, file))
+            {
+                Interlocked.Add(ref _progress.DownloadedBytes, (long)file.TotalSize);
+                ReportProgress();
+                return;
+            }
 
-                for (int attempt = 0; attempt < MaxRetries; attempt++)
+            // Write to a temp file, verify hash, then move into place. This prevents
+            // a partially-written file from being mistaken as complete on retry.
+            DeleteQuietly(tempPath);
+
+            using (var fs = File.Create(tempPath))
+            {
+                foreach (var chunk in file.Chunks.OrderBy(c => c.Offset))
                 {
-                    var server = GetNextServer();
-                    try
-                    {
-                        written = await _cdnClient.DownloadDepotChunkAsync(
-                            depotId,
-                            chunk,
-                            server,
-                            buffer,
-                            depotKey
-                        );
+                    ct.ThrowIfCancellationRequested();
 
-                        if (!VerifyChunkHash(buffer, written, chunk))
-                        {
-                            if (attempt < MaxRetries - 1)
-                            {
-                                Log($"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying...");
-                                written = 0;
-                                continue;
-                            }
-                            throw new Exception(
-                                $"Chunk SHA-1 verification failed for {fileName} "
-                                    + $"at offset {chunk.Offset} after {MaxRetries} attempts"
-                            );
-                        }
+                    var buffer = new byte[chunk.UncompressedLength];
+                    int written = 0;
 
-                        break;
-                    }
-                    catch (SteamKitWebRequestException ex)
-                        when (ex.StatusCode == HttpStatusCode.Forbidden)
+                    for (int attempt = 0; attempt < MaxRetries; attempt++)
                     {
-                        var token = await GetCdnAuthToken(depotId, server);
-                        if (token != null)
+                        var server = GetNextServer();
+                        try
                         {
                             written = await _cdnClient.DownloadDepotChunkAsync(
                                 depotId,
                                 chunk,
                                 server,
                                 buffer,
-                                depotKey,
-                                cdnAuthToken: token
+                                depotKey
                             );
 
                             if (!VerifyChunkHash(buffer, written, chunk))
                             {
                                 if (attempt < MaxRetries - 1)
                                 {
-                                    Log(
-                                        $"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying..."
-                                    );
+                                    Log($"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying...");
                                     written = 0;
                                     continue;
                                 }
@@ -559,34 +536,103 @@ public class DepotDownloader : IDisposable
 
                             break;
                         }
+                        catch (SteamKitWebRequestException ex)
+                            when (ex.StatusCode == HttpStatusCode.Forbidden)
+                        {
+                            var token = await GetCdnAuthToken(depotId, server);
+                            if (token != null)
+                            {
+                                written = await _cdnClient.DownloadDepotChunkAsync(
+                                    depotId,
+                                    chunk,
+                                    server,
+                                    buffer,
+                                    depotKey,
+                                    cdnAuthToken: token
+                                );
+
+                                if (!VerifyChunkHash(buffer, written, chunk))
+                                {
+                                    if (attempt < MaxRetries - 1)
+                                    {
+                                        Log(
+                                            $"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying..."
+                                        );
+                                        written = 0;
+                                        continue;
+                                    }
+                                    throw new Exception(
+                                        $"Chunk SHA-1 verification failed for {fileName} "
+                                            + $"at offset {chunk.Offset} after {MaxRetries} attempts"
+                                    );
+                                }
+
+                                break;
+                            }
+                        }
+                        catch (Exception ex) when (attempt < MaxRetries - 1)
+                        {
+                            Log($"Chunk download failed (attempt {attempt + 1}): {ex.Message}");
+                        }
                     }
-                    catch (Exception ex) when (attempt < MaxRetries - 1)
-                    {
-                        Log($"Chunk download failed (attempt {attempt + 1}): {ex.Message}");
-                    }
+
+                    if (written == 0 && chunk.UncompressedLength > 0)
+                        throw new Exception(
+                            $"Failed to download chunk for {fileName} after {MaxRetries} attempts"
+                        );
+
+                    fs.Seek((long)chunk.Offset, SeekOrigin.Begin);
+                    fs.Write(buffer, 0, written);
+
+                    Interlocked.Add(ref _progress.DownloadedBytes, written);
+                    ReportProgress();
                 }
-
-                if (written == 0 && chunk.UncompressedLength > 0)
-                    throw new Exception(
-                        $"Failed to download chunk for {fileName} after {MaxRetries} attempts"
-                    );
-
-                fs.Seek((long)chunk.Offset, SeekOrigin.Begin);
-                fs.Write(buffer, 0, written);
-
-                Interlocked.Add(ref _progress.DownloadedBytes, written);
-                ReportProgress();
             }
-        }
 
-        // Verify the completed file before committing it.
-        if (!VerifyFileHash(tempPath, file))
+            // Verify the completed file before committing it.
+            if (!VerifyFileHash(tempPath, file))
+            {
+                DeleteQuietly(tempPath);
+                throw new Exception($"SHA-1 verification failed for {fileName} after download");
+            }
+
+            File.Move(tempPath, filePath, overwrite: true);
+        }
+        finally
         {
-            File.Delete(tempPath);
-            throw new Exception($"SHA-1 verification failed for {fileName} after download");
+            DeleteQuietly(tempPath);
+            writeLock.Release();
         }
+    }
 
-        File.Move(tempPath, filePath, overwrite: true);
+    private List<DepotManifest.FileData> DeduplicateDownloads(
+        List<DepotManifest.FileData> filesToDownload
+    )
+    {
+        if (filesToDownload.Count <= 1)
+            return filesToDownload;
+
+        var deduped = new Dictionary<string, DepotManifest.FileData>(StringComparer.Ordinal);
+        foreach (var file in filesToDownload)
+            deduped[file.FileName] = file;
+
+        if (deduped.Count == filesToDownload.Count)
+            return filesToDownload;
+
+        Log(
+            $"Deduplicated duplicate download queue entries: {filesToDownload.Count - deduped.Count}"
+        );
+        return deduped.Values.ToList();
+    }
+
+    private static void DeleteQuietly(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch { }
     }
 
     // Computes SHA-1 of a decompressed chunk and compares it to the manifest ChunkID.
