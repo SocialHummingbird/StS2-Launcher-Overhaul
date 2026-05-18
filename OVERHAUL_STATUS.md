@@ -20,8 +20,8 @@ This file tracks what we are actively working on in the overhaul branch.
 | P7 | Closure | CI artifact handling + phase transition hygiene | Reliability / Governance | Completed |
 
 ## Open Follow-up Tasks
-- Validate artifact publication strategy in next release cycle
-- Perform periodic release review
+- Validate artifact publication strategy in next release cycle (documented in [docs/android-release-validation.md](docs/android-release-validation.md))
+- Perform periodic release review (completed when following the checklist)
 
 ## Active Status Issue
 - (Closed) https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/issues/2

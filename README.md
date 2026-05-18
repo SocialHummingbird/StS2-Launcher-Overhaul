@@ -120,11 +120,41 @@ GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page.
 2. Download `StS2Launcher-vX.Y.Z.apk` for the latest release.
-3. Install on your phone:
+3. (Optional) Verify checksum:
+
+```bash
+sha256sum -c StS2Launcher-vX.Y.Z.apk.sha256
+```
+
+4. Install on your phone:
 
 ```bash
 adb install -r StS2Launcher-vX.Y.Z.apk
 ```
+
+Signed vs unsigned behavior:
+
+- Signed release (production): generated when repository signing secrets are configured.
+- Unsigned release (testing): generated when signing secrets are missing; install works for test devices only and may trigger OS security warnings on fresh devices.
+
+### Release install troubleshooting
+
+If installation fails:
+
+- `INSTALL_PARSE_FAILED_NO_CERTIFICATES` or signature errors:
+  - likely a partially downloaded APK or signing mismatch.
+  - re-download and re-run `sha256sum -c`.
+- `INSTALL_FAILED_UPDATE_INCOMPATIBLE`:
+  - remove previous app install first, then reinstall:
+  
+  ```bash
+  adb uninstall com.game.sts2launcher
+  adb install -r StS2Launcher-vX.Y.Z.apk
+  ```
+- `INSTALL_FAILED_OLDER_SDK`:
+  - your device is running an unsupported Android API level.
+- `INSTALL_FAILED_DEXOPT` or immediate crash:
+  - capture logs with `adb logcat` and open a release issue with stack trace.
 
 ### Release workflow (for contributors)
 
@@ -141,6 +171,8 @@ Maintainers can trigger the release workflow manually from the Actions tab or le
     - `ANDROID_RELEASE_KEY_ALIAS`
 
 If signing secrets are missing, the workflow still creates an unsigned release APK so download/testing can continue.
+
+Release validation checklist for every release is tracked in [docs/android-release-validation.md](docs/android-release-validation.md).
 
 ### Other build tasks
 

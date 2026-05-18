@@ -34,7 +34,7 @@ jobs:
     outputs:
       version_name: ${{ steps.version.outputs.version_name }}
       release_tag: ${{ steps.version.outputs.release_tag }}
-      apk_path: ${{ steps.apk.outputs.path }}
+      apk_path: ${{ steps.build.outputs.path }}
       signed: ${{ steps.signing.outputs.enabled }}
       create_release: ${{ steps.version.outputs.create_release }}
     steps:
