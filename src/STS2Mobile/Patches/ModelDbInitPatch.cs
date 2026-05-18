@@ -44,7 +44,18 @@ public static class ModelDbInitPatch
             "AllAbstractModelSubtypes",
             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
         );
+        if (allSubtypesProp == null)
+        {
+            PatchHelper.Log("ModelDb.Init fallback: AllAbstractModelSubtypes property missing");
+            return true;
+        }
+
         var types = (Type[])allSubtypesProp.GetValue(null);
+        if (types == null || types.Length == 0)
+        {
+            PatchHelper.Log("ModelDb.Init fallback: no model subtypes were exposed");
+            return true;
+        }
 
         var getIdMethod = modelDbType.GetMethod(
             "GetId",
@@ -53,15 +64,36 @@ public static class ModelDbInitPatch
             new[] { typeof(Type) },
             null
         );
+        if (getIdMethod == null)
+        {
+            PatchHelper.Log("ModelDb.Init fallback: GetId method missing");
+            return true;
+        }
 
         var contentByIdField = modelDbType.GetField(
             "_contentById",
             BindingFlags.NonPublic | BindingFlags.Static
         );
+        if (contentByIdField == null)
+        {
+            PatchHelper.Log("ModelDb.Init fallback: _contentById field missing");
+            return true;
+        }
+
         var contentById = contentByIdField.GetValue(null);
+        if (contentById == null)
+        {
+            PatchHelper.Log("ModelDb.Init fallback: _contentById is null");
+            return true;
+        }
 
         var dictType = contentById.GetType();
         var setItemMethod = dictType.GetMethod("set_Item");
+        if (setItemMethod == null)
+        {
+            PatchHelper.Log("ModelDb.Init fallback: _contentById.set_Item method missing");
+            return true;
+        }
 
         // Phase 1: Pre-populate dictionary with uninitialized objects
         PatchHelper.Log(
@@ -100,10 +132,20 @@ public static class ModelDbInitPatch
             new[] { typeof(Type) },
             null
         );
+        if (containsMethod == null)
+        {
+            PatchHelper.Log("ModelDb.Init fallback: Contains(Type) method missing");
+            return true;
+        }
         var containsPrefix = typeof(ModelDbInitPatch).GetMethod(
             nameof(ContainsPrefix),
             BindingFlags.Public | BindingFlags.Static
         );
+        if (containsPrefix == null)
+        {
+            PatchHelper.Log("ModelDb.Init fallback: ContainsPrefix method missing");
+            return true;
+        }
         harmony.Patch(containsMethod, new HarmonyMethod(containsPrefix));
 
         // Phase 2: Run constructors on pre-allocated objects
