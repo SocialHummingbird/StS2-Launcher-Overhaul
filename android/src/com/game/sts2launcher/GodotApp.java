@@ -127,6 +127,10 @@ public class GodotApp extends GodotActivity {
 		return true;
 	}
 
+	private boolean hasRequiredCacheFiles(File destDir) {
+		return hasRequiredCacheFiles(destDir, false);
+	}
+
 	private void markAssemblyCacheStateAsCurrent(int currentVersion) {
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		prefs.edit()
