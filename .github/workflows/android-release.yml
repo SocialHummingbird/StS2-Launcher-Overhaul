@@ -225,6 +225,17 @@ jobs:
 
           echo "Recovered missing publish dependencies from upstream release: ${MISSING_DLLS[*]}"
 
+      - name: Generate launcher bootstrap PCK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 scripts/make-bootstrap-pck.py
+          if [[ ! -f android/assets/bootstrap.pck ]]; then
+            echo "::error::bootstrap.pck generation failed."
+            exit 1
+          fi
+
       - name: Build patcher and stage Android assets
         shell: bash
         env:
@@ -264,12 +275,49 @@ jobs:
           copy_dependency sts2.dll
           copy_dependency GodotSharp.dll
 
-          CRYPTO_SO="$(find "$HOME/.nuget/packages/microsoft.netcore.app.runtime.mono.android-arm64" -path '*/runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so' 2>/dev/null | head -n 1 || true)"
-          if [[ -n "${CRYPTO_SO}" ]]; then
-            mkdir -p "$BUILD_DIR/libs/release/arm64-v8a"
-            cp "$CRYPTO_SO" "$BUILD_DIR/libs/release/arm64-v8a/"
-          else
-            echo "::warning::Optional Android TLS .so was not found in NuGet cache."
+          resolve_tls_so() {
+            local runtime_version
+            runtime_version="$(dotnet --list-runtimes | awk '/^Microsoft.NETCore.App / {print $2; exit}')"
+            if [[ -z "${runtime_version}" ]]; then
+              echo "::warning::Unable to detect Microsoft.NETCore.App runtime version."
+              return 1
+            fi
+
+            local packaged_dir="$HOME/.nuget/packages/microsoft.netcore.app.runtime.mono.android-arm64/${runtime_version}"
+            local local_so="$(find "$packaged_dir" -path '*/runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so' 2>/dev/null | head -n 1 || true)"
+            if [[ -n "${local_so}" ]]; then
+              cp "${local_so}" "$BUILD_DIR/libs/release/arm64-v8a/"
+              return 0
+            fi
+
+            local pkg_name="microsoft.netcore.app.runtime.mono.android-arm64"
+            local pkg_file="$RUNNER_TEMP/${pkg_name}.${runtime_version}.nupkg"
+            local pkg_url="https://api.nuget.org/v3-flatcontainer/${pkg_name}/${runtime_version}/${pkg_name}.${runtime_version}.nupkg"
+            if ! curl -fsSL -o "$pkg_file" "$pkg_url"; then
+              echo "::warning::Failed to download ${pkg_name} ${runtime_version} from NuGet."
+              return 1
+            fi
+
+            local extract_dir="$RUNNER_TEMP/${pkg_name}_extract"
+            mkdir -p "$extract_dir"
+            if ! unzip -q "$pkg_file" -d "$extract_dir"; then
+              echo "::warning::Failed to extract ${pkg_name} ${runtime_version} archive."
+              return 1
+            fi
+
+            local downloaded_so="$(find "$extract_dir" -path '*/runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so' 2>/dev/null | head -n 1 || true)"
+            if [[ -z "${downloaded_so}" ]]; then
+              echo "::warning::Downloaded ${pkg_name} ${runtime_version} but native TLS .so is missing."
+              return 1
+            fi
+
+            cp "${downloaded_so}" "$BUILD_DIR/libs/release/arm64-v8a/"
+          }
+
+          mkdir -p "$BUILD_DIR/libs/release/arm64-v8a"
+          if ! resolve_tls_so; then
+            echo "::error::Required Android TLS libSystem.Security.Cryptography.Native.Android.so could not be resolved."
+            exit 1
           fi
 
       - name: Configure optional release signing

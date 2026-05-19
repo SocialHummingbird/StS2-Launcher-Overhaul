@@ -33,15 +33,21 @@ import android.util.Base64;
 // Main activity for the mobile launcher. Handles .NET assembly setup, PCK loading,
 // LAN multicast, and Android Keystore encryption for credentials.
 public class GodotApp extends GodotActivity {
+	private static final String TAG = "STS2Mobile";
+
 	static {
-		// Required for TLS/SSL (SteamKit2 WebSocket, HTTPS).
-		System.loadLibrary("System.Security.Cryptography.Native.Android");
+		// Required for TLS/SSL (SteamKit2 WebSocket, HTTPS). Missing on some
+		// runners/devices, so this is non-fatal if unavailable.
+		try {
+			System.loadLibrary("System.Security.Cryptography.Native.Android");
+		} catch (UnsatisfiedLinkError error) {
+			Log.w(TAG, "Optional TLS native library unavailable: System.Security.Cryptography.Native.Android", error);
+		}
 	}
 
 	private static GodotApp instance;
 	private WifiManager.MulticastLock multicastLock;
 	private String gameDir;
-	private static final String TAG = "STS2Mobile";
 	private static final String KEYSTORE_ALIAS = "sts2mobile_credentials";
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
 	private static final String PREFS_NAME = "sts2mobile";
