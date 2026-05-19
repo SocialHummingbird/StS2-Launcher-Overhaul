@@ -252,14 +252,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          DEFAULT_KEY_ALIAS="androiddebugkey"
+          DEFAULT_KEY_PASSWORD="android"
+          DEFAULT_KEY_STORE_PASSWORD="android"
           if [[ -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" && -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}" && -n "${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}" ]]; then
             mkdir -p "$RUNNER_TEMP/android-signing"
             echo "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/android-signing/sts2.keystore"
             echo "enabled=true" >> "$GITHUB_OUTPUT"
             echo "path=$RUNNER_TEMP/android-signing/sts2.keystore" >> "$GITHUB_OUTPUT"
+            echo "password=${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}" >> "$GITHUB_OUTPUT"
+            echo "alias=${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}" >> "$GITHUB_OUTPUT"
           else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Signing secrets are not configured. Building an unsigned APK."
+            mkdir -p "$RUNNER_TEMP/android-signing"
+            keytool -genkeypair \
+              -alias "$DEFAULT_KEY_ALIAS" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -keystore "$RUNNER_TEMP/android-signing/sts2.keystore" \
+              -storepass "$DEFAULT_KEY_STORE_PASSWORD" \
+              -keypass "$DEFAULT_KEY_PASSWORD" \
+              -dname "CN=Android Debug, O=StS2 Launcher CI, C=US" \
+              -storetype PKCS12 \
+              -noprompt
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "path=$RUNNER_TEMP/android-signing/sts2.keystore" >> "$GITHUB_OUTPUT"
+            echo "password=$DEFAULT_KEY_STORE_PASSWORD" >> "$GITHUB_OUTPUT"
+            echo "alias=$DEFAULT_KEY_ALIAS" >> "$GITHUB_OUTPUT"
+            echo "::notice::Signing secrets are not configured. Building with a CI-generated debug key so the APK remains installable."
           fi
 
       - name: Setup Gradle
@@ -277,6 +297,8 @@ jobs:
           EXPORT_PACKAGE_NAME: "com.sts2launcher.overhaul"
           SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
           KEYSTORE_PATH: ${{ steps.signing.outputs.path }}
+          KEYSTORE_PASSWORD: ${{ steps.signing.outputs.password }}
+          KEYSTORE_ALIAS: ${{ steps.signing.outputs.alias }}
         run: |
           set -euo pipefail
 
@@ -294,8 +316,8 @@ jobs:
             GRADLE_ARGS+=(
               "-Pperform_signing=true"
               "-Prelease_keystore_file=${KEYSTORE_PATH}"
-              "-Prelease_keystore_password=${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}"
-              "-Prelease_keystore_alias=${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}"
+              "-Prelease_keystore_password=${KEYSTORE_PASSWORD}"
+              "-Prelease_keystore_alias=${KEYSTORE_ALIAS}"
             )
           else
             GRADLE_ARGS+=("-Pperform_signing=false")
