@@ -32,7 +32,7 @@
   <application
     android:label="StS2 Launcher Overhaul Fork Dev"
     android:allowBackup="false"
-    android:icon="@android:drawable/sym_def_app_icon"
+    android:icon="@drawable/ic_launcher"
     android:appCategory="game"
     android:isGame="true"
     android:hasFragileUserData="false"

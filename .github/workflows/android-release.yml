@@ -132,11 +132,11 @@ jobs:
           done
 
           if (( ${#MISSING_DLLS[@]} == 0 )); then
-            echo "Found local publish dependencies in ${PUBLISH_DIR}"
-            exit 0
+            echo "Found local publish dependencies in ${PUBLISH_DIR}; still staging upstream Mono Android runtime."
+          else
+            echo "::warning::Missing publish dependencies: ${MISSING_DLLS[*]}. Attempting to source from upstream release."
           fi
 
-          echo "::warning::Missing publish dependencies: ${MISSING_DLLS[*]}. Attempting to source from upstream release."
           UPSTREAM_TAG="${{ github.event.inputs.upstream_release_tag }}"
           UPSTREAM_APK="StS2Launcher-v${UPSTREAM_TAG}.apk"
           UPSTREAM_URL="https://github.com/Ekyso/StS2-Launcher/releases/download/${UPSTREAM_TAG}/${UPSTREAM_APK}"
@@ -156,6 +156,11 @@ jobs:
             echo "::error::Failed to download upstream APK from $UPSTREAM_URL"
             exit 1
           fi
+
+          echo "Staging upstream Mono native runtime and base class libraries."
+          mkdir -p android/libs/release/arm64-v8a android/assets/dotnet_bcl
+          unzip -jo "$TMP_APK" 'lib/arm64-v8a/*.so' -d android/libs/release/arm64-v8a
+          unzip -jo "$TMP_APK" 'assets/dotnet_bcl/*.dll' -d android/assets/dotnet_bcl
 
           STS2_SOURCE="${{ github.event.inputs.sts2_dll_source_url }}"
 

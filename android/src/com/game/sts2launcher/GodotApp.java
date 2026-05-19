@@ -51,6 +51,7 @@ public class GodotApp extends GodotActivity {
 		"protobuf-net.dll",
 		"protobuf-net.Core.dll",
 		"System.IO.Hashing.dll",
+		"System.Private.CoreLib.dll",
 		"ZstdSharp.dll",
 		"GodotSharp.dll"
 	};
@@ -60,6 +61,7 @@ public class GodotApp extends GodotActivity {
 	public void onCreate(Bundle savedInstanceState) {
 		instance = this;
 		gameDir = new File(getFilesDir(), "game").getAbsolutePath();
+		configureTempDirectory();
 
 		SplashScreen.installSplashScreen(this);
 		EdgeToEdge.enable(this);
@@ -75,8 +77,6 @@ public class GodotApp extends GodotActivity {
 				Log.e(TAG, "Assembly setup failed after recovery. Continuing with existing cache.", ex2);
 			}
 		}
-		extractAssetFile("FMOD_LOGOS/FMOD Logo White - Transparent Background.png", "fmod_logo.png");
-
 		super.onCreate(savedInstanceState);
 
 		// Android WiFi power saving drops broadcast packets without a MulticastLock.
@@ -176,6 +176,25 @@ public class GodotApp extends GodotActivity {
 		}
 		if (!target.delete()) {
 			Log.w(TAG, "Could not delete cached file: " + target.getAbsolutePath());
+		}
+	}
+
+	private void configureTempDirectory() {
+		File tempDir = new File(getFilesDir(), "tmp");
+		if (!tempDir.exists() && !tempDir.mkdirs()) {
+			Log.w(TAG, "Failed to create temp directory: " + tempDir.getAbsolutePath());
+			return;
+		}
+
+		String tempPath = tempDir.getAbsolutePath();
+		System.setProperty("java.io.tmpdir", tempPath);
+		try {
+			android.system.Os.setenv("TMPDIR", tempPath, true);
+			android.system.Os.setenv("TMP", tempPath, true);
+			android.system.Os.setenv("TEMP", tempPath, true);
+			Log.i(TAG, "Configured native temp directory: " + tempPath);
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to configure native temp directory", e);
 		}
 	}
 

@@ -115,7 +115,7 @@ android {
         applicationId getExportPackageName()
         versionCode getExportVersionCode()
         versionName getExportVersionName()
-        versionNameSuffix "-overhaul-fork-dev"
+        versionNameSuffix ""
         minSdkVersion getExportMinSdkVersion()
         targetSdkVersion getExportTargetSdkVersion()
 

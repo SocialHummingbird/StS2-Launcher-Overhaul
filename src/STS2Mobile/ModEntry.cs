@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -74,6 +75,7 @@ public static class ModEntry
         PatchHelper.Log("Initializing STS2Mobile...");
         try
         {
+            ConfigureWritableTempDirectory();
             var harmony = new Harmony(HarmonyId);
             var patchResult = StartupPatchOrchestrator.Apply(harmony);
 
@@ -97,12 +99,37 @@ public static class ModEntry
             }
 
             PatchHelper.Log("Startup patch orchestration complete.");
+            if (IsLauncherOnlyMode())
+            {
+                ScheduleStandaloneLauncher();
+            }
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"Unexpected startup error: {ex.Message}");
             ScheduleStandaloneLauncher();
         }
+    }
+
+    private static void ConfigureWritableTempDirectory()
+    {
+        var tempDir = ResolveManagedTempDirectory();
+        Directory.CreateDirectory(tempDir);
+
+        System.Environment.SetEnvironmentVariable("TMPDIR", tempDir);
+        System.Environment.SetEnvironmentVariable("TMP", tempDir);
+        System.Environment.SetEnvironmentVariable("TEMP", tempDir);
+        PatchHelper.Log($"Using writable temp directory: {tempDir}");
+    }
+
+    private static string ResolveManagedTempDirectory()
+    {
+        return "/data/data/com.sts2launcher.overhaul.fork.dev/files/tmp";
+    }
+
+    private static bool IsLauncherOnlyMode()
+    {
+        return !File.Exists("/data/data/com.sts2launcher.overhaul.fork.dev/files/game/SlayTheSpire2.pck");
     }
 
     private static void ScheduleStandaloneLauncher()

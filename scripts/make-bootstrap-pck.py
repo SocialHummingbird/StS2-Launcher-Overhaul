@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a minimal Godot 4.5 PCK containing just project.godot.
+"""Generate a minimal Godot 4.5 PCK containing the standalone launcher scene.
 
 This bootstrap PCK lets the engine initialize normally (project settings,
 .NET/Mono, GodotSharp) so the STS2Mobile launcher can run without game files.
@@ -43,6 +43,11 @@ window/handheld/orientation=4
 [dotnet]
 
 project/assembly_name="sts2"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
 """
 
 BOOTSTRAP_SCENE = """\
