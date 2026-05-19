@@ -274,6 +274,7 @@ jobs:
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+          EXPORT_PACKAGE_NAME: "com.sts2launcher.overhaul"
           SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
           KEYSTORE_PATH: ${{ steps.signing.outputs.path }}
         run: |
@@ -286,6 +287,7 @@ jobs:
             "-Pexport_version_code=${VERSION_CODE}"
             "-Pexport_build_type=release"
             "-Pexport_edition=mono"
+            "-Pexport_package_name=${EXPORT_PACKAGE_NAME}"
           )
 
           if [[ "${SIGNING_ENABLED}" == "true" ]]; then
