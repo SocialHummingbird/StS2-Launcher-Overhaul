@@ -48,7 +48,7 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_INSTALLED_VERSION_CODE = "installed_version_code";
 	private static final String KEY_INSTALLED_PACKAGE_NAME = "installed_package_name";
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
-	private static final int ASSEMBLY_CACHE_SCHEMA = 2;
+	private static final int ASSEMBLY_CACHE_SCHEMA = 3;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -58,7 +58,13 @@ public class GodotApp extends GodotActivity {
 		SplashScreen.installSplashScreen(this);
 		EdgeToEdge.enable(this);
 
-		setupAssemblies();
+		try {
+			setupAssemblies();
+		} catch (RuntimeException ex) {
+			Log.e(TAG, "Assembly setup failed, attempting one-time cache reset", ex);
+			resetAssemblyCacheState();
+			setupAssemblies();
+		}
 		extractAssetFile("FMOD_LOGOS/FMOD Logo White - Transparent Background.png", "fmod_logo.png");
 
 		super.onCreate(savedInstanceState);
@@ -81,24 +87,48 @@ public class GodotApp extends GodotActivity {
 		int lastVersion = prefs.getInt(KEY_INSTALLED_VERSION_CODE, -1);
 		int currentVersion = BuildConfig.VERSION_CODE;
 
-		if (lastSchema == ASSEMBLY_CACHE_SCHEMA && lastVersion == currentVersion && getPackageName().equals(prefs.getString(KEY_INSTALLED_PACKAGE_NAME, ""))) {
+		if (
+			lastSchema == ASSEMBLY_CACHE_SCHEMA &&
+			lastVersion == currentVersion &&
+			getPackageName().equals(prefs.getString(KEY_INSTALLED_PACKAGE_NAME, ""))
+		) {
+			File destDir = new File(getFilesDir(), ".godot/mono/publish/arm64");
+			return !hasRequiredCacheFiles(destDir);
+		}
+
+		return true;
+	}
+
+	private boolean hasRequiredCacheFiles(File destDir) {
+		if (destDir == null || !destDir.exists() || !destDir.isDirectory()) {
 			return false;
 		}
 
-		Log.i(
-			TAG,
-			"Cache refresh required: schema=" + lastSchema + "->" + ASSEMBLY_CACHE_SCHEMA + ", version="
-				+ lastVersion + "->" + currentVersion + ", package="
-				+ prefs.getString(KEY_INSTALLED_PACKAGE_NAME, "<none>") + "->" + getPackageName()
-		);
+		String[] required = { "STS2Mobile.dll", "0Harmony.dll", "GodotSharp.dll", "sts2.dll" };
+		for (String fileName : required) {
+			File file = new File(destDir, fileName);
+			if (!file.exists()) {
+				return false;
+			}
+		}
 
+		return true;
+	}
+
+	private void markAssemblyCacheStateAsCurrent(int currentVersion) {
+		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		prefs.edit()
 			.putInt(KEY_ASSEMBLY_CACHE_SCHEMA, ASSEMBLY_CACHE_SCHEMA)
 			.putInt(KEY_INSTALLED_VERSION_CODE, currentVersion)
 			.putString(KEY_INSTALLED_PACKAGE_NAME, getPackageName())
 			.apply();
+	}
 
-		return true;
+	private void resetAssemblyCacheState() {
+		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		prefs.edit().remove(KEY_ASSEMBLY_CACHE_SCHEMA).remove(KEY_INSTALLED_VERSION_CODE).remove(KEY_INSTALLED_PACKAGE_NAME).apply();
+		File destDir = new File(getFilesDir(), ".godot/mono/publish/arm64");
+		clearAssemblyCache(destDir);
 	}
 
 	private void clearAssemblyCache(File dir) {
@@ -137,6 +167,7 @@ public class GodotApp extends GodotActivity {
 	private void setupAssemblies() {
 		File srcDir = findAssembliesDir();
 		File destDir = new File(getFilesDir(), ".godot/mono/publish/arm64");
+		int currentVersion = BuildConfig.VERSION_CODE;
 
 		boolean refreshCache = shouldRefreshAssemblyCache();
 
@@ -144,6 +175,7 @@ public class GodotApp extends GodotActivity {
 		File sts2Marker = new File(destDir, "sts2.dll");
 		if (sts2Marker.exists() && patcherMarker.exists() && !refreshCache) {
 			Log.i(TAG, "Assemblies already set up at: " + destDir.getAbsolutePath());
+			markAssemblyCacheStateAsCurrent(currentVersion);
 			return;
 		}
 
@@ -180,28 +212,36 @@ public class GodotApp extends GodotActivity {
 		// CoreCLR versions that are incompatible with Android's Mono runtime.
 		if (!srcDir.exists() || !srcDir.isDirectory()) {
 			Log.w(TAG, "Game assemblies source dir not found: " + srcDir.getAbsolutePath());
-			return;
+		} else {
+			File[] files = srcDir.listFiles();
+			if (files != null) {
+				Log.i(TAG, "Copying game assemblies from " + srcDir + " to " + destDir);
+				int count = 0;
+				for (File src : files) {
+					if (src.isFile()) {
+						String name = src.getName();
+						if (name.endsWith(".so")) {
+							continue;
+						}
+						File dest = new File(destDir, name);
+						try {
+							copyFile(src, dest);
+							count++;
+						} catch (IOException e) {
+							Log.e(TAG, "Failed to copy: " + name, e);
+						}
+					}
+				}
+				Log.i(TAG, "Copied " + count + " game assembly files");
+			}
 		}
 
-		Log.i(TAG, "Copying game assemblies from " + srcDir + " to " + destDir);
-		File[] files = srcDir.listFiles();
-		if (files == null)
-			return;
+		if (!hasRequiredCacheFiles(destDir)) {
+			throw new RuntimeException("Missing required Mono/cache assemblies after copy.");
+		}
 
-		int count = 0;
-		for (File src : files) {
-			if (src.isFile()) {
-				String name = src.getName();
-				if (name.endsWith(".so")) {
-					continue;
-				}
-				File dest = new File(destDir, name);
-				try {
-					copyFile(src, dest);
-					count++;
-				} catch (IOException e) {
-					Log.e(TAG, "Failed to copy: " + name, e);
-				}
+		markAssemblyCacheStateAsCurrent(currentVersion);
+	}
 			}
 		}
 		Log.i(TAG, "Copied " + count + " game assembly files");
