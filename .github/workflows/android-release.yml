@@ -164,14 +164,14 @@ jobs:
 
           STS2_SOURCE="${{ github.event.inputs.sts2_dll_source_url }}"
 
-          if [[ " ${MISSING_DLLS[*]} " == *" sts2.dll "* ]]; then
-            if [[ -z "${STS2_SOURCE}" ]]; then
-              echo "No sts2.dll source provided; attempting to discover latest release asset."
-              TMP_RELEASE_JSON="$TMP_DIR/releases.json"
-              AUTH_HEADER=()
-              if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-                AUTH_HEADER=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
-              fi
+            if [[ " ${MISSING_DLLS[*]} " == *" sts2.dll "* ]]; then
+              if [[ -z "${STS2_SOURCE}" ]]; then
+                echo "No sts2.dll source provided; attempting to discover latest release asset or APK."
+                TMP_RELEASE_JSON="$TMP_DIR/releases.json"
+                AUTH_HEADER=()
+                if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+                  AUTH_HEADER=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+                fi
               if ! curl -fsSL "${AUTH_HEADER[@]}" -H "Accept: application/vnd.github+json" \
                 "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=20" \
                 > "$TMP_RELEASE_JSON"; then
@@ -179,26 +179,43 @@ jobs:
                 exit 1
               fi
               if ! command -v jq >/dev/null 2>&1; then
-                echo "::error::jq is unavailable in runner; provide sts2_dll_source_url explicitly."
-                exit 1
-              fi
-              STS2_SOURCE="$(jq -r '.[].assets[] | select(.name=="sts2.dll") | .browser_download_url' "$TMP_RELEASE_JSON" | head -n 1)"
-            fi
-
-            if [[ -n "${STS2_SOURCE}" ]]; then
-              if [[ "${STS2_SOURCE}" == http* ]]; then
-                echo "Fetching sts2.dll from resolved source."
-                if command -v curl >/dev/null 2>&1; then
-                  curl -fsSL -o "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
-                elif command -v wget >/dev/null 2>&1; then
-                  wget -qO "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
-                else
-                  echo "::error::Neither curl nor wget available to fetch sts2.dll."
+                  echo "::error::jq is unavailable in runner; provide sts2_dll_source_url explicitly."
                   exit 1
                 fi
-              else
-                if [[ -f "$STS2_SOURCE" ]]; then
-                  cp "$STS2_SOURCE" "$PUBLISH_DIR/sts2.dll"
+                STS2_SOURCE="$(jq -r '.[].assets[] | select(.name=="sts2.dll" or (.name | endswith(".apk"))) | .browser_download_url' "$TMP_RELEASE_JSON" | head -n 1)"
+              fi
+
+              if [[ -n "${STS2_SOURCE}" ]]; then
+                if [[ "${STS2_SOURCE}" == http* ]]; then
+                  if [[ "${STS2_SOURCE}" == *.apk ]]; then
+                    echo "Fetching prior APK and extracting sts2.dll from assets/dotnet_bcl."
+                    PRIOR_APK="$TMP_DIR/prior-release.apk"
+                    if command -v curl >/dev/null 2>&1; then
+                      curl -fsSL -o "$PRIOR_APK" "$STS2_SOURCE"
+                    elif command -v wget >/dev/null 2>&1; then
+                      wget -qO "$PRIOR_APK" "$STS2_SOURCE"
+                    else
+                      echo "::error::Neither curl nor wget available to fetch prior APK."
+                      exit 1
+                    fi
+                    if ! unzip -p "$PRIOR_APK" 'assets/dotnet_bcl/sts2.dll' > "$PUBLISH_DIR/sts2.dll"; then
+                      echo "::error::Resolved prior APK does not contain assets/dotnet_bcl/sts2.dll."
+                      exit 1
+                    fi
+                  else
+                    echo "Fetching sts2.dll from resolved source."
+                    if command -v curl >/dev/null 2>&1; then
+                      curl -fsSL -o "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
+                    elif command -v wget >/dev/null 2>&1; then
+                      wget -qO "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
+                    else
+                      echo "::error::Neither curl nor wget available to fetch sts2.dll."
+                      exit 1
+                    fi
+                  fi
+                else
+                  if [[ -f "$STS2_SOURCE" ]]; then
+                    cp "$STS2_SOURCE" "$PUBLISH_DIR/sts2.dll"
                 else
                   echo "::error::Provided sts2_dll_source_url must be a URL or readable local path."
                   exit 1
