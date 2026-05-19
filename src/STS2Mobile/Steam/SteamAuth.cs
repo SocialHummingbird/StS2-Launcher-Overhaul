@@ -18,6 +18,7 @@ public class SteamAuth : IDisposable
     private readonly SteamUser _steamUser;
     private Thread _callbackThread;
     private volatile bool _callbackRunning;
+    private volatile bool _connectStarted;
 
     private readonly ManualResetEventSlim _connectedGate = new(false);
     private bool _disposed;
@@ -56,6 +57,10 @@ public class SteamAuth : IDisposable
 
     public void Connect()
     {
+        if (_connectStarted && !_connectedGate.IsSet)
+            return;
+
+        _connectStarted = true;
         _connectedGate.Reset();
         StartCallbackThread();
         _client.Connect();
@@ -127,6 +132,7 @@ public class SteamAuth : IDisposable
             return;
         _disposed = true;
         _callbackRunning = false;
+        _connectStarted = false;
         try
         {
             _client?.Disconnect();
@@ -145,7 +151,21 @@ public class SteamAuth : IDisposable
         _callbackThread = new Thread(() =>
         {
             while (_callbackRunning)
-                _callbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+            {
+                try
+                {
+                    _callbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+                }
+                catch (ObjectDisposedException) when (!_callbackRunning)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Log($"Steam callback error: {ex.GetType().Name}: {ex.Message}");
+                    Thread.Sleep(500);
+                }
+            }
         })
         {
             IsBackground = true,

@@ -259,9 +259,19 @@ public class LauncherController
 
     private async void OnLoginPressed(string username, string password)
     {
-        _view.Login.SetDisabled(true);
-        _view.Login.ClearPassword();
-        await _model.LoginAsync(username, password);
+        try
+        {
+            _view.Login.SetDisabled(true);
+            _view.Login.ClearPassword();
+            await _model.LoginAsync(username, password);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Login handler failed: {ex.Message}");
+            _view.SetStatus($"Login failed: {ex.Message}");
+            _view.Login.Visible = true;
+            _view.Login.SetDisabled(false);
+        }
     }
 
     private void OnCodeSubmitPressed(string code)

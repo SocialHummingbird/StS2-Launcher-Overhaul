@@ -277,7 +277,22 @@ public class SteamConnection : IDisposable
         _callbackThread = new Thread(() =>
         {
             while (_callbackRunning)
-                _callbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+            {
+                try
+                {
+                    _callbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+                }
+                catch (ObjectDisposedException) when (!_callbackRunning)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    PatchHelper.Log($"[Connection] Steam callback error: {ex.GetType().Name}: {ex.Message}");
+                    EnterBackoff();
+                    Thread.Sleep(500);
+                }
+            }
         })
         {
             IsBackground = true,
