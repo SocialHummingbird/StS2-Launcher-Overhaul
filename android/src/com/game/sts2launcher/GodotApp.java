@@ -34,17 +34,6 @@ import android.util.Base64;
 // LAN multicast, and Android Keystore encryption for credentials.
 public class GodotApp extends GodotActivity {
 	private static final String TAG = "STS2Mobile";
-
-	static {
-		// Required for TLS/SSL (SteamKit2 WebSocket, HTTPS). Missing on some
-		// runners/devices, so this is non-fatal if unavailable.
-		try {
-			System.loadLibrary("System.Security.Cryptography.Native.Android");
-		} catch (UnsatisfiedLinkError error) {
-			Log.w(TAG, "Optional TLS native library unavailable: System.Security.Cryptography.Native.Android", error);
-		}
-	}
-
 	private static GodotApp instance;
 	private WifiManager.MulticastLock multicastLock;
 	private String gameDir;

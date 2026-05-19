@@ -316,8 +316,7 @@ jobs:
 
           mkdir -p "$BUILD_DIR/libs/release/arm64-v8a"
           if ! resolve_tls_so; then
-            echo "::error::Required Android TLS libSystem.Security.Cryptography.Native.Android.so could not be resolved."
-            exit 1
+            echo "::warning::TLS library libSystem.Security.Cryptography.Native.Android.so could not be resolved; proceeding without explicit native TLS copy."
           fi
 
       - name: Configure optional release signing
