@@ -97,7 +97,7 @@ android {
 
     assetPacks = [":assetPackInstallTime"]
 
-    namespace = 'com.game.sts2launcher'
+    namespace = 'com.sts2launcher.overhaul'
 
     defaultConfig {
         // The default ignore pattern for the 'assets' directory includes hidden files and directories which are used by Godot projects.
@@ -115,6 +115,7 @@ android {
         applicationId getExportPackageName()
         versionCode getExportVersionCode()
         versionName getExportVersionName()
+        versionNameSuffix "-overhaul"
         minSdkVersion getExportMinSdkVersion()
         targetSdkVersion getExportTargetSdkVersion()
 
