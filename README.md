@@ -111,15 +111,19 @@ Output: `android/build/outputs/apk/mono/release/StS2Launcher-v<version>.apk`
 adb install -r android/build/outputs/apk/mono/release/StS2Launcher-v*.apk
 
 # Fresh install (clear saved credentials + cached assemblies)
-adb shell pm clear com.game.sts2launcher
+adb shell pm clear com.sts2launcher.overhaul.fork
 ```
 
 ### Downloadable Android release
 
 GitHub Actions now builds Android APKs and publishes them to Releases.
 
-1. Open the repository **Releases** page.
+1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
 2. Download `StS2Launcher-vX.Y.Z.apk` for the latest release.
+    - Direct latest URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest
+    - Downloaded artifact names include:
+      - `StS2Launcher-v<version>.apk` (installable package)
+      - `StS2Launcher-v<version>.apk.sha256` (optional checksum)
 3. (Optional) Verify checksum:
 
 ```bash
@@ -145,10 +149,10 @@ If installation fails:
   - likely a partially downloaded APK or signing mismatch.
   - re-download and re-run `sha256sum -c`.
 - `INSTALL_FAILED_UPDATE_INCOMPATIBLE`:
-  - remove previous app install first, then reinstall:
+  - remove previous app install first, then reinstall (this fork now uses package `com.sts2launcher.overhaul.fork`):
   
   ```bash
-  adb uninstall com.game.sts2launcher
+  adb uninstall com.sts2launcher.overhaul.fork
   adb install -r StS2Launcher-vX.Y.Z.apk
   ```
 - `INSTALL_FAILED_OLDER_SDK`:
@@ -163,7 +167,7 @@ Maintainers can trigger the release workflow manually from the Actions tab or le
 - Tag-based publish:
   - Push `vX.Y.Z` to `main`.
 - Manual publish:
-  - `workflow_dispatch` input fields support overriding `release_tag`, version name/code, and whether to create the GitHub release.
+  - `workflow_dispatch` input fields support overriding `release_tag`, `package_name`, version name/code, and whether to create the GitHub release.
 - Optional signing:
   - Configure repository secrets:
     - `ANDROID_RELEASE_KEYSTORE_BASE64`

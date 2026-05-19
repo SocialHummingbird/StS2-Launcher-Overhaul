@@ -3,6 +3,10 @@ name: Android Release
 on:
   workflow_dispatch:
     inputs:
+      package_name:
+        description: "Android applicationId for generated APK."
+        required: false
+        default: "com.sts2launcher.overhaul.fork"
       release_tag:
         description: "Release tag to use (optional, e.g. v0.2.1)."
         required: false
@@ -41,6 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version_name: ${{ steps.version.outputs.version_name }}
+      package_name: ${{ steps.version.outputs.package_name }}
       release_tag: ${{ steps.version.outputs.release_tag }}
       apk_path: ${{ steps.build.outputs.path }}
       signed: ${{ steps.signing.outputs.enabled }}
@@ -83,15 +88,24 @@ jobs:
             VERSION_NAME="${RELEASE_TAG#v}"
           fi
 
+          PACKAGE_NAME="${{ github.event.inputs.package_name }}"
+          if [[ -z "${PACKAGE_NAME}" ]]; then
+            PACKAGE_NAME="com.sts2launcher.overhaul.fork"
+          fi
+
           VERSION_CODE="${{ github.event.inputs.version_code }}"
           if [[ -z "${VERSION_CODE}" ]]; then
             VERSION_CODE="$(awk -F= '$1=="export_version_code" {print $2; exit}' android/gradle.properties)"
           fi
 
-          if [[ -z "${VERSION_CODE}" ]]; then
+          if ! [[ "${VERSION_CODE}" =~ ^[0-9]+$ ]] || (( VERSION_CODE < 1 )); then
+            VERSION_CODE="${GITHUB_RUN_NUMBER}"
+          fi
+          if ! [[ "${VERSION_CODE}" =~ ^[0-9]+$ ]] || (( VERSION_CODE < 1 )); then
             VERSION_CODE="1"
           fi
 
+          echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
           echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
@@ -149,10 +163,21 @@ jobs:
             if [[ -z "${STS2_SOURCE}" ]]; then
               echo "No sts2.dll source provided; attempting to discover latest release asset."
               TMP_RELEASE_JSON="$TMP_DIR/releases.json"
-              curl -fsSL -H "Accept: application/vnd.github+json" \
+              AUTH_HEADER=()
+              if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+                AUTH_HEADER=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+              fi
+              if ! curl -fsSL "${AUTH_HEADER[@]}" -H "Accept: application/vnd.github+json" \
                 "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=20" \
-                > "$TMP_RELEASE_JSON"
-              STS2_SOURCE="$(RELEASE_JSON_PATH="$TMP_RELEASE_JSON" python -c 'import json, os; print(next((asset.get("browser_download_url", "") for release in json.load(open(os.environ["RELEASE_JSON_PATH"], encoding="utf-8")) for asset in release.get("assets", []) if asset.get("name") == "sts2.dll"), ""), end="")')"
+                > "$TMP_RELEASE_JSON"; then
+                echo "::error::Unable to fetch sts2.dll release metadata."
+                exit 1
+              fi
+              if ! command -v jq >/dev/null 2>&1; then
+                echo "::error::jq is unavailable in runner; provide sts2_dll_source_url explicitly."
+                exit 1
+              fi
+              STS2_SOURCE="$(jq -r '.[].assets[] | select(.name=="sts2.dll") | .browser_download_url' "$TMP_RELEASE_JSON" | head -n 1)"
             fi
 
             if [[ -n "${STS2_SOURCE}" ]]; then
@@ -294,7 +319,7 @@ jobs:
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
           RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
-          EXPORT_PACKAGE_NAME: "com.sts2launcher.overhaul"
+          EXPORT_PACKAGE_NAME: ${{ steps.version.outputs.package_name }}
           SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
           KEYSTORE_PATH: ${{ steps.signing.outputs.path }}
           KEYSTORE_PASSWORD: ${{ steps.signing.outputs.password }}

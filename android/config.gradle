@@ -27,7 +27,7 @@ ext.getExportPackageName = { ->
     }
     // Check if the app id is valid, otherwise use the default.
     if (appId == null || appId.isEmpty() || appId == "com.game.sts2launcher") {
-        appId = "com.sts2launcher.overhaul"
+        appId = "com.sts2launcher.overhaul.fork"
     }
     return appId
 }
