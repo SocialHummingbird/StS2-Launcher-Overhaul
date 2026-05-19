@@ -307,7 +307,7 @@ public class LauncherController
                 {
                     _view.AppendColoredLog(
                         $"Launcher update available: v{result.LatestVersion} — "
-                            + "download at https://github.com/Ekyso/StS2-Launcher/releases/latest",
+                        + $"download at {AppUpdateChecker.RepoReleasesPage}",
                         YellowLog
                     );
                     _view.SetStatus(

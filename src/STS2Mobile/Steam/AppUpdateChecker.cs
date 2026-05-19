@@ -1,4 +1,5 @@
 using System;
+using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Godot;
@@ -10,7 +11,9 @@ namespace STS2Mobile.Steam;
 public static class AppUpdateChecker
 {
     private const string ReleasesUrl =
-        "https://api.github.com/repos/Ekyso/StS2-Launcher/releases/latest";
+        "https://api.github.com/repos/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest";
+    public const string RepoReleasesPage =
+        "https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest";
 
     public static async Task<AppUpdateResult> CheckAsync()
     {
@@ -32,7 +35,10 @@ public static class AppUpdateChecker
         if (releaseName == null)
             return AppUpdateResult.None;
 
-        var latestVersion = NormalizeVersion(releaseName);
+            var releaseTag = root.TryGetProperty("tag_name", out var tagProp)
+                ? tagProp.GetString()
+                : null;
+            var latestVersion = NormalizeVersion(releaseTag ?? releaseName);
         var installedVersion = NormalizeVersion(currentVersion);
 
         if (latestVersion == null || installedVersion == null)
@@ -79,7 +85,8 @@ public static class AppUpdateChecker
     {
         if (string.IsNullOrEmpty(version))
             return null;
-        return version.TrimStart('v', 'V');
+        var match = Regex.Match(version, @"\d+(?:\.\d+)*(?:\.\d+)*");
+        return match.Success ? match.Value.TrimStart('v', 'V') : null;
     }
 
     private static int CompareVersions(string a, string b)
