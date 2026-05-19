@@ -6,7 +6,7 @@ on:
       package_name:
         description: "Android applicationId for generated APK."
         required: false
-        default: "com.sts2launcher.overhaul.fork"
+        default: "com.sts2launcher.overhaul.fork.dev"
       release_tag:
         description: "Release tag to use (optional, e.g. v0.2.1)."
         required: false
@@ -95,7 +95,7 @@ jobs:
 
           VERSION_CODE="${{ github.event.inputs.version_code }}"
           if [[ -z "${VERSION_CODE}" ]]; then
-            VERSION_CODE="$(awk -F= '$1=="export_version_code" {print $2; exit}' android/gradle.properties)"
+            VERSION_CODE="${GITHUB_RUN_NUMBER}"
           fi
 
           if ! [[ "${VERSION_CODE}" =~ ^[0-9]+$ ]] || (( VERSION_CODE < 1 )); then

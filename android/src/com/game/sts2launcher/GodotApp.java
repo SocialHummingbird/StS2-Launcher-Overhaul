@@ -48,7 +48,18 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_INSTALLED_VERSION_CODE = "installed_version_code";
 	private static final String KEY_INSTALLED_PACKAGE_NAME = "installed_package_name";
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
-	private static final int ASSEMBLY_CACHE_SCHEMA = 3;
+	private static final int ASSEMBLY_CACHE_SCHEMA = 4;
+	private static final String[] BOOTSTRAP_REQUIRED_ASSEMBLIES = {
+		"STS2Mobile.dll",
+		"SteamKit2.dll",
+		"0Harmony.dll",
+		"protobuf-net.dll",
+		"protobuf-net.Core.dll",
+		"System.IO.Hashing.dll",
+		"ZstdSharp.dll",
+		"GodotSharp.dll"
+	};
+	private static final String GAME_REQUIRED_ASSEMBLY = "sts2.dll";
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -108,15 +119,12 @@ public class GodotApp extends GodotActivity {
 			return false;
 		}
 
-		String[] required = { "STS2Mobile.dll", "0Harmony.dll", "GodotSharp.dll" };
+		ArrayList<String> required = new ArrayList<>(java.util.Arrays.asList(BOOTSTRAP_REQUIRED_ASSEMBLIES));
 		if (requireGameAssemblies) {
-			required = java.util.stream.Stream.concat(
-					java.util.Arrays.stream(required),
-					java.util.stream.Stream.of("sts2.dll")
-			).toArray(String[]::new);
+			required.add(GAME_REQUIRED_ASSEMBLY);
 		}
 
-		for (String fileName : required) {
+		for (String fileName : required.toArray(new String[0])) {
 			File file = new File(destDir, fileName);
 			if (!file.exists()) {
 				Log.w(TAG, "Missing required cache file: " + file.getAbsolutePath());
@@ -184,7 +192,7 @@ public class GodotApp extends GodotActivity {
 		File srcDir = findAssembliesDir();
 		File destDir = new File(getFilesDir(), ".godot/mono/publish/arm64");
 		int currentVersion = BuildConfig.VERSION_CODE;
-		boolean requiresGameAssemblies = srcDir != null && srcDir.exists() && srcDir.isDirectory();
+		boolean requiresGameAssemblies = hasGameAssemblies(srcDir);
 
 		boolean refreshCache = shouldRefreshAssemblyCache();
 
@@ -227,8 +235,8 @@ public class GodotApp extends GodotActivity {
 		// Only copy game assemblies that don't already exist in BCL. The depot has
 		// desktop
 		// CoreCLR versions that are incompatible with Android's Mono runtime.
-		if (!srcDir.exists() || !srcDir.isDirectory()) {
-			Log.w(TAG, "Game assemblies source dir not found: " + srcDir.getAbsolutePath());
+		if (srcDir == null || !srcDir.exists() || !srcDir.isDirectory()) {
+			Log.w(TAG, "Game assemblies source dir not found: " + (srcDir == null ? "<none>" : srcDir.getAbsolutePath()));
 		} else {
 			File[] files = srcDir.listFiles();
 			if (files != null) {
@@ -272,19 +280,36 @@ public class GodotApp extends GodotActivity {
 						String dirName = child.getName();
 						Log.i(TAG, "Found assemblies dir candidate: " + dirName);
 						if (dirName.contains("android")) {
-							return child;
+							if (containsAssemblies(child)) {
+								return child;
+							}
 						}
 						if (fallback == null) {
 							fallback = child;
 						}
 					}
 				}
-				if (fallback != null) {
+				if (fallback != null && containsAssemblies(fallback)) {
 					return fallback;
 				}
 			}
 		}
 		return null;
+	}
+
+	private boolean hasGameAssemblies(File srcDir) {
+		if (srcDir == null || !srcDir.exists() || !srcDir.isDirectory()) {
+			return false;
+		}
+		return new File(srcDir, GAME_REQUIRED_ASSEMBLY).exists();
+	}
+
+	private boolean containsAssemblies(File dir) {
+		if (dir == null || !dir.exists() || !dir.isDirectory()) {
+			return false;
+		}
+		File[] files = dir.listFiles((file, name) -> name.endsWith(".dll"));
+		return files != null && files.length > 0;
 	}
 
 	private void copyFile(File src, File dest) throws IOException {
