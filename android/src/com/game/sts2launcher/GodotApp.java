@@ -63,7 +63,11 @@ public class GodotApp extends GodotActivity {
 		} catch (RuntimeException ex) {
 			Log.e(TAG, "Assembly setup failed, attempting one-time cache reset", ex);
 			resetAssemblyCacheState();
-			setupAssemblies();
+			try {
+				setupAssemblies();
+			} catch (RuntimeException ex2) {
+				Log.e(TAG, "Assembly setup failed after recovery. Continuing with existing cache.", ex2);
+			}
 		}
 		extractAssetFile("FMOD_LOGOS/FMOD Logo White - Transparent Background.png", "fmod_logo.png");
 
@@ -99,15 +103,23 @@ public class GodotApp extends GodotActivity {
 		return true;
 	}
 
-	private boolean hasRequiredCacheFiles(File destDir) {
+	private boolean hasRequiredCacheFiles(File destDir, boolean requireGameAssemblies) {
 		if (destDir == null || !destDir.exists() || !destDir.isDirectory()) {
 			return false;
 		}
 
-		String[] required = { "STS2Mobile.dll", "0Harmony.dll", "GodotSharp.dll", "sts2.dll" };
+		String[] required = { "STS2Mobile.dll", "0Harmony.dll", "GodotSharp.dll" };
+		if (requireGameAssemblies) {
+			required = java.util.stream.Stream.concat(
+					java.util.Arrays.stream(required),
+					java.util.stream.Stream.of("sts2.dll")
+			).toArray(String[]::new);
+		}
+
 		for (String fileName : required) {
 			File file = new File(destDir, fileName);
 			if (!file.exists()) {
+				Log.w(TAG, "Missing required cache file: " + file.getAbsolutePath());
 				return false;
 			}
 		}
@@ -168,6 +180,7 @@ public class GodotApp extends GodotActivity {
 		File srcDir = findAssembliesDir();
 		File destDir = new File(getFilesDir(), ".godot/mono/publish/arm64");
 		int currentVersion = BuildConfig.VERSION_CODE;
+		boolean requiresGameAssemblies = srcDir != null && srcDir.exists() && srcDir.isDirectory();
 
 		boolean refreshCache = shouldRefreshAssemblyCache();
 
@@ -236,8 +249,9 @@ public class GodotApp extends GodotActivity {
 			}
 		}
 
-		if (!hasRequiredCacheFiles(destDir)) {
-			throw new RuntimeException("Missing required Mono/cache assemblies after copy.");
+		if (!hasRequiredCacheFiles(destDir, requiresGameAssemblies)) {
+			String mode = requiresGameAssemblies ? "game" : "launcher-only";
+			throw new RuntimeException("Missing required Mono/cache assemblies after copy for " + mode + " mode.");
 		}
 
 		markAssemblyCacheStateAsCurrent(currentVersion);
@@ -248,15 +262,25 @@ public class GodotApp extends GodotActivity {
 		if (gameDirFile.exists() && gameDirFile.isDirectory()) {
 			File[] children = gameDirFile.listFiles();
 			if (children != null) {
+				File fallback = null;
 				for (File child : children) {
 					if (child.isDirectory() && child.getName().startsWith("data_")) {
-						Log.i(TAG, "Found assemblies dir: " + child.getName());
-						return child;
+						String dirName = child.getName();
+						Log.i(TAG, "Found assemblies dir candidate: " + dirName);
+						if (dirName.contains("android")) {
+							return child;
+						}
+						if (fallback == null) {
+							fallback = child;
+						}
 					}
+				}
+				if (fallback != null) {
+					return fallback;
 				}
 			}
 		}
-		return new File(gameDir, "data_sts2_windows_x86_64");
+		return null;
 	}
 
 	private void copyFile(File src, File dest) throws IOException {
