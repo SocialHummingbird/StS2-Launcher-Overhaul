@@ -242,10 +242,6 @@ public class GodotApp extends GodotActivity {
 
 		markAssemblyCacheStateAsCurrent(currentVersion);
 	}
-			}
-		}
-		Log.i(TAG, "Copied " + count + " game assembly files");
-	}
 
 	private File findAssembliesDir() {
 		File gameDirFile = new File(gameDir);
