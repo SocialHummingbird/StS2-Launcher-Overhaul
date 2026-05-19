@@ -30,7 +30,7 @@ _custom_features="dotnet"
 
 config/name="sts2"
 config/features=PackedStringArray("4.5", "Forward Plus", "C#")
-run/main_scene=""
+run/main_scene="res://bootstrap.tscn"
 
 [display]
 
@@ -43,6 +43,12 @@ window/handheld/orientation=4
 [dotnet]
 
 project/assembly_name="sts2"
+"""
+
+BOOTSTRAP_SCENE = """\
+[gd_scene load_steps=2 format=3]
+
+[node name="BootstrapScene" type="Node"]
 """
 
 
@@ -61,26 +67,41 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output = os.path.join(script_dir, "..", "android", "assets", "bootstrap.pck")
 
-    file_data = PROJECT_GODOT.encode("utf-8")
-    file_path = "res://project.godot"
-    file_md5 = hashlib.md5(file_data).digest()
+    files = [
+        ("res://project.godot", PROJECT_GODOT.encode("utf-8")),
+        ("res://bootstrap.tscn", BOOTSTRAP_SCENE.encode("utf-8")),
+    ]
 
-    # Calculate layout
     file_base = align(HEADER_SIZE)  # file data starts after header, aligned
-    file_end = file_base + len(file_data)
-    dir_base = align(file_end)  # directory starts after file data, aligned
+    file_offsets = []
+    current_file_offset = file_base
+    file_payload = bytearray()
+    dir_entries = bytearray()
 
-    # Build directory entry
-    padded_len, path_bytes = pad_string_len(file_path)
-    dir_entry = struct.pack("<I", padded_len)
-    dir_entry += path_bytes + b"\x00" * (padded_len - len(path_bytes))
-    dir_entry += struct.pack("<Q", 0)  # offset relative to file_base
-    dir_entry += struct.pack("<Q", len(file_data))  # file size
-    dir_entry += file_md5  # 16 bytes MD5
-    dir_entry += struct.pack("<I", 0)  # flags (no encryption)
+    for file_path, file_data in files:
+        file_offsets.append((file_path, file_data, current_file_offset))
+        current_file_offset += len(file_data)
 
-    dir_section = struct.pack("<I", 1) + dir_entry  # 1 file
+    dir_base = align(current_file_offset)  # directory starts after file data, aligned
+    entry_count = len(files)
 
+    for file_path, file_data, absolute_offset in file_offsets:
+        file_md5 = hashlib.md5(file_data).digest()
+        padded_len, path_bytes = pad_string_len(file_path)
+        dir_entry = struct.pack("<I", padded_len)
+        dir_entry += path_bytes + b"\x00" * (padded_len - len(path_bytes))
+        dir_entry += struct.pack("<Q", absolute_offset - file_base)  # offset relative to file_base
+        dir_entry += struct.pack("<Q", len(file_data))  # file size
+        dir_entry += file_md5  # 16 bytes MD5
+        dir_entry += struct.pack("<I", 0)  # flags (no encryption)
+        dir_entries += dir_entry
+
+    for _, file_data, _ in file_offsets:
+        file_payload.extend(file_data)
+
+    dir_section = struct.pack("<I", entry_count) + dir_entries
+
+    # Build header
     # Build header
     header = struct.pack("<I", MAGIC)
     header += struct.pack("<I", FORMAT_VERSION)
@@ -99,7 +120,8 @@ def main():
     with open(output, "wb") as f:
         f.write(header)
         f.write(b"\x00" * (file_base - HEADER_SIZE))  # padding to alignment
-        f.write(file_data)
+        file_end = file_base + len(file_payload)
+        f.write(file_payload)
         f.write(b"\x00" * (dir_base - file_end))  # padding to alignment
         f.write(dir_section)
 
