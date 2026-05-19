@@ -44,6 +44,11 @@ public class GodotApp extends GodotActivity {
 	private static final String TAG = "STS2Mobile";
 	private static final String KEYSTORE_ALIAS = "sts2mobile_credentials";
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
+	private static final String PREFS_NAME = "sts2mobile";
+	private static final String KEY_INSTALLED_VERSION_CODE = "installed_version_code";
+	private static final String KEY_INSTALLED_PACKAGE_NAME = "installed_package_name";
+	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
+	private static final int ASSEMBLY_CACHE_SCHEMA = 2;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -70,16 +75,59 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
-	private boolean isNewVersion() {
-		SharedPreferences prefs = getSharedPreferences("sts2mobile", MODE_PRIVATE);
-		int lastVersion = prefs.getInt("installed_version_code", -1);
+	private boolean shouldRefreshAssemblyCache() {
+		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int lastSchema = prefs.getInt(KEY_ASSEMBLY_CACHE_SCHEMA, -1);
+		int lastVersion = prefs.getInt(KEY_INSTALLED_VERSION_CODE, -1);
 		int currentVersion = BuildConfig.VERSION_CODE;
-		if (lastVersion == currentVersion) {
+
+		if (lastSchema == ASSEMBLY_CACHE_SCHEMA && lastVersion == currentVersion && getPackageName().equals(prefs.getString(KEY_INSTALLED_PACKAGE_NAME, ""))) {
 			return false;
 		}
-		Log.i(TAG, "Version changed: " + lastVersion + " -> " + currentVersion);
-		prefs.edit().putInt("installed_version_code", currentVersion).apply();
+
+		Log.i(
+			TAG,
+			"Cache refresh required: schema=" + lastSchema + "->" + ASSEMBLY_CACHE_SCHEMA + ", version="
+				+ lastVersion + "->" + currentVersion + ", package="
+				+ prefs.getString(KEY_INSTALLED_PACKAGE_NAME, "<none>") + "->" + getPackageName()
+		);
+
+		prefs.edit()
+			.putInt(KEY_ASSEMBLY_CACHE_SCHEMA, ASSEMBLY_CACHE_SCHEMA)
+			.putInt(KEY_INSTALLED_VERSION_CODE, currentVersion)
+			.putString(KEY_INSTALLED_PACKAGE_NAME, getPackageName())
+			.apply();
+
 		return true;
+	}
+
+	private void clearAssemblyCache(File dir) {
+		if (dir == null || !dir.exists()) {
+			return;
+		}
+		File[] files = dir.listFiles();
+		if (files == null) {
+			return;
+		}
+		for (File file : files) {
+			deleteRecursive(file);
+		}
+		Log.i(TAG, "Cleared assembly cache: " + dir.getAbsolutePath());
+	}
+
+	private void deleteRecursive(File target) {
+		if (target == null || !target.exists()) {
+			return;
+		}
+		File[] children = target.listFiles();
+		if (children != null) {
+			for (File child : children) {
+				deleteRecursive(child);
+			}
+		}
+		if (!target.delete()) {
+			Log.w(TAG, "Could not delete cached file: " + target.getAbsolutePath());
+		}
 	}
 
 	// Copies .NET BCL from APK assets and game assemblies from the download
@@ -90,17 +138,18 @@ public class GodotApp extends GodotActivity {
 		File srcDir = findAssembliesDir();
 		File destDir = new File(getFilesDir(), ".godot/mono/publish/arm64");
 
-		boolean versionChanged = isNewVersion();
+		boolean refreshCache = shouldRefreshAssemblyCache();
 
 		File patcherMarker = new File(destDir, "STS2Mobile.dll");
 		File sts2Marker = new File(destDir, "sts2.dll");
-		if (sts2Marker.exists() && patcherMarker.exists() && !versionChanged) {
+		if (sts2Marker.exists() && patcherMarker.exists() && !refreshCache) {
 			Log.i(TAG, "Assemblies already set up at: " + destDir.getAbsolutePath());
 			return;
 		}
 
-		if (versionChanged) {
+		if (refreshCache) {
 			Log.i(TAG, "New version detected, re-copying all assemblies");
+			clearAssemblyCache(destDir);
 		}
 
 		destDir.mkdirs();
@@ -147,9 +196,6 @@ public class GodotApp extends GodotActivity {
 					continue;
 				}
 				File dest = new File(destDir, name);
-				if (dest.exists()) {
-					continue;
-				}
 				try {
 					copyFile(src, dest);
 					count++;
