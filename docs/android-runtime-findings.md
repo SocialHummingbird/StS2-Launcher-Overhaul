@@ -30,6 +30,10 @@ Use an `arm64-v8a` Android device/build as the proof target for actual game laun
   - supported ABIs,
   - downloaded PCK path,
   - downloaded PCK existence and byte size.
+- Android Godot/.NET assemblies are copied by Java to `files/.godot/mono/publish/<arch>` before native Godot starts.
+- The patched Godot engine now looks for Android .NET assemblies in that same app-private data path instead of `res://.godot/mono/publish/<arch>`.
+- Local builds and release APKs verify that `libgodot_android.so` contains the app-data assembly lookup marker and not the stale PCK lookup marker.
+- If Java cannot prepare the assembly cache after one recovery attempt, the app routes to `NativeFallbackActivity` with copyable diagnostics instead of continuing into the generic native `.NET assemblies not found` alert.
 
 ## Expected behavior by target
 
@@ -46,6 +50,40 @@ Use an `arm64-v8a` Android device/build as the proof target for actual game laun
 - This path still needs runtime proof on real ARM64 hardware.
 
 ## Local validation commands
+
+The current phone release is:
+
+- Release: `v0.2.88-apk-native-verify`
+- Phone asset: `StS2Launcher-v0.2.88-universal-phone.apk`
+- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.88-apk-native-verify
+
+Before installing, verify the uploaded GitHub release asset itself:
+
+```powershell
+.\scripts\verify-android-release-apk.ps1
+```
+
+Expected result:
+
+```text
+Release digest OK: 7ff0e7d03ec49ae079bf52d3f2d6b381cfd4f0e95220eb151cef46d51e848530
+Release APK verification passed: v0.2.88-apk-native-verify/StS2Launcher-v0.2.88-universal-phone.apk
+Verified ABIs: arm64-v8a, x86_64
+```
+
+Install the verified release APK to a connected phone and capture diagnostics in one run:
+
+```powershell
+.\scripts\install-android-release.ps1 -ClearAppData -Launch -CaptureDiagnostics
+```
+
+If the app is already installed and you only need fresh diagnostics:
+
+```powershell
+.\scripts\capture-android-diagnostics.ps1 -Launch -ClearLogcat -WaitSeconds 15
+```
+
+The diagnostic capture writes a timestamped `artifacts/android/phone-diagnostics-*` directory with device metadata, full logcat, filtered logcat, package state, and app-private assembly cache listings when `run-as` is available.
 
 For phone installs, use a universal APK when available. ABI-specific APKs are useful for debugging, but the `x86_64` APK is emulator-only and will be incompatible with ARM64 phones.
 

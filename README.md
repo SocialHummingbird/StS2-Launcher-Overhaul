@@ -188,6 +188,23 @@ GitHub Actions now builds Android APKs and publishes them to Releases.
       - `StS2Launcher-v<version>-universal.apk` or similar (recommended installable package for phones)
       - `StS2Launcher-v<version>-arm64-v8a.apk` or similar (ARM64-only test package)
       - `StS2Launcher-v<version>-x86_64.apk` or similar (emulator-only test package)
+
+Current verified phone release:
+
+```powershell
+.\scripts\verify-android-release-apk.ps1
+.\scripts\install-android-release.ps1 -ClearAppData -Launch -CaptureDiagnostics
+```
+
+Defaults:
+
+```text
+Release: v0.2.88-apk-native-verify
+Asset: StS2Launcher-v0.2.88-universal-phone.apk
+Package: com.sts2launcher.overhaul.fork.dev
+```
+
+The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms both `arm64-v8a` and `x86_64` native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.
       - `*.apk.sha256` (optional checksum)
 3. (Optional) Verify checksum:
 
