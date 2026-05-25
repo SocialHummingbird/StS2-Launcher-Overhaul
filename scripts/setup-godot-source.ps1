@@ -14,6 +14,44 @@ if ([System.IO.Path]::IsPathRooted($GodotDir)) {
 }
 $venvDir = Join-Path $root "venv"
 
+function Apply-GodotPatches {
+    param(
+        [string]$GodotDir,
+        [string]$Root
+    )
+
+    $patchDir = Join-Path $Root "patches\godot"
+    if (-not (Test-Path -LiteralPath $patchDir)) {
+        return
+    }
+
+    $patches = Get-ChildItem -LiteralPath $patchDir -Filter "*.patch" | Sort-Object Name
+    foreach ($patch in $patches) {
+        Push-Location $GodotDir
+        try {
+            & git apply --check --ignore-whitespace $patch.FullName *> $null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Applying Godot patch: $($patch.Name)"
+                & git apply --ignore-whitespace $patch.FullName
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Failed to apply Godot patch: $($patch.FullName)"
+                }
+                continue
+            }
+
+            & git apply --reverse --check --ignore-whitespace $patch.FullName *> $null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "Godot patch already applied: $($patch.Name)"
+                continue
+            }
+
+            throw "Godot patch cannot be applied cleanly: $($patch.FullName)"
+        } finally {
+            Pop-Location
+        }
+    }
+}
+
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $GodotDir) | Out-Null
 
 if (-not (Test-Path -LiteralPath (Join-Path $GodotDir ".git"))) {
@@ -22,6 +60,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $GodotDir ".git"))) {
 } else {
     Write-Host "Godot source already exists at $GodotDir"
 }
+
+Apply-GodotPatches -GodotDir $GodotDir -Root $root
 
 if (-not (Test-Path -LiteralPath $venvDir)) {
     python -m venv $venvDir
