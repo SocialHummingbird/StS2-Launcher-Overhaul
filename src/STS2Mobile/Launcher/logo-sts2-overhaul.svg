@@ -1,51 +1,70 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="StS2 Launcher hand drawn tower logo">
-  <title>StS2 Launcher hand drawn tower logo</title>
-  <desc>A rough MS Paint style stone tower with thick black outlines and uneven pixel-like shapes.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="StS2 Launcher jagged spire logo">
+  <title>StS2 Launcher jagged spire logo</title>
+  <desc>A rough MS Paint style black and crimson fantasy spire with crooked stone tiers, glowing red windows, and uneven hand-drawn outlines.</desc>
 
-  <rect width="1024" height="1024" rx="156" fill="#7fd6ff"/>
-  <path d="M0 720h1024v304H0z" fill="#6fc16b"/>
-  <path d="M68 751c82-34 126-26 202-9 74 17 133 1 199-18 89-25 163-5 232 15 86 25 158 17 255-12v297H68z" fill="#54a850"/>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#28142f"/>
+      <stop offset="0.55" stop-color="#5a1f25"/>
+      <stop offset="1" stop-color="#d45a25"/>
+    </linearGradient>
+    <linearGradient id="spire" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a3332"/>
+      <stop offset="0.45" stop-color="#1b1719"/>
+      <stop offset="1" stop-color="#5b2420"/>
+    </linearGradient>
+  </defs>
 
-  <g fill="none" stroke="#111111" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M128 159c30-21 72-20 99 7" stroke-width="19"/>
-    <path d="M782 157c42-25 89-14 113 25" stroke-width="18"/>
-    <path d="M818 218l30 27 41-7-20 39 20 35-42-6-31 27 8-43-34-24 42-8z" fill="#fff36d" stroke-width="11"/>
+  <rect width="1024" height="1024" rx="156" fill="url(#sky)"/>
+  <path d="M0 744c91-44 177-31 278-12 115 21 207-32 314-18 132 17 229 75 432-6v316H0z" fill="#1a0f14"/>
+  <path d="M0 806c114-29 206-8 315-1 93 6 169-46 281-30 124 18 236 53 428 3v246H0z" fill="#2a1512"/>
+
+  <g fill="none" stroke="#0b0809" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M105 228c37-28 85-28 121 0" stroke-width="20"/>
+    <path d="M760 216c53-34 108-20 144 27" stroke-width="18"/>
+    <path d="M142 279l26 24 36-8-15 35 20 31-39-3-23 29-6-38-35-13 33-20z" fill="#ffdc58" stroke-width="10"/>
+    <path d="M820 287l31 29 43-9-17 42 24 35-48-4-30 34-6-46-40-17 38-24z" fill="#ffbd35" stroke-width="11"/>
   </g>
 
-  <path d="M308 816 330 285 388 288 392 210 449 213 451 287 499 288 506 211 561 213 558 286 626 288 634 816z" fill="#d7d0c2" stroke="#101010" stroke-width="24" stroke-linejoin="round"/>
-  <path d="M345 318 612 326 615 390 339 384z" fill="#bdb4a7" stroke="#101010" stroke-width="13" stroke-linejoin="round"/>
-  <path d="M325 802c72 24 222 31 326-5l-11 55c-102 30-233 26-328-4z" fill="#8d8174" stroke="#101010" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M253 857 317 598 294 555 354 463 332 420 410 310 393 265 484 126 520 72 541 171 607 230 586 279 670 365 641 420 716 526 684 580 756 857z" fill="#130f12" stroke="#070506" stroke-width="30" stroke-linejoin="round"/>
+  <path d="M310 846 366 603 344 558 394 480 377 430 446 335 431 287 501 161 519 129 531 200 588 254 565 301 633 378 604 428 665 532 634 588 699 846z" fill="url(#spire)" stroke="#0a0708" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M449 332 507 183 523 285z" fill="#6d2a25" stroke="#0a0708" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M381 474 565 486 610 426 423 414z" fill="#241c1d" stroke="#0a0708" stroke-width="13" stroke-linejoin="round"/>
+  <path d="M355 606 649 619 684 579 367 563z" fill="#281d1c" stroke="#0a0708" stroke-width="15" stroke-linejoin="round"/>
+  <path d="M305 835c91 31 264 42 420-3l27 63c-147 47-337 42-476-5z" fill="#3c201a" stroke="#090607" stroke-width="20" stroke-linejoin="round"/>
 
-  <path d="M447 825V680c1-58 84-62 91-2v148z" fill="#4f3728" stroke="#101010" stroke-width="18"/>
-  <path d="M492 825V675" fill="none" stroke="#101010" stroke-width="8"/>
-  <circle cx="520" cy="752" r="9" fill="#f6d26a" stroke="#101010" stroke-width="5"/>
-
-  <g stroke="#101010" stroke-width="10" stroke-linejoin="round">
-    <path d="M381 450h55v70h-57z" fill="#5aa6d6"/>
-    <path d="M522 454h54v73h-58z" fill="#5aa6d6"/>
-    <path d="M371 585h48v42h-51z" fill="#5aa6d6"/>
-    <path d="M560 594h45v40h-49z" fill="#5aa6d6"/>
+  <g stroke="#080506" stroke-linejoin="round">
+    <path d="M483 767V646c3-68 78-68 90-4l10 126z" fill="#190f12" stroke-width="17"/>
+    <path d="M517 768l-5-126" fill="none" stroke-width="8"/>
+    <circle cx="554" cy="711" r="9" fill="#ffcf45" stroke-width="5"/>
   </g>
 
-  <g fill="#eee7d9" stroke="#101010" stroke-width="8" stroke-linejoin="round">
-    <path d="M350 405h72v33h-75z"/>
-    <path d="M455 407h77v32h-73z"/>
-    <path d="M559 410h54v31h-56z"/>
-    <path d="M337 541h84v31h-82z"/>
-    <path d="M456 548h61v29h-64z"/>
-    <path d="M548 552h70v30h-73z"/>
-    <path d="M339 646h61v30h-65z"/>
-    <path d="M553 655h69v28h-71z"/>
+  <g fill="#ff5b33" stroke="#080506" stroke-width="9" stroke-linejoin="round">
+    <path d="M431 367l43 13-8 62-48-12z"/>
+    <path d="M544 328l39 36-22 59-43-35z"/>
+    <path d="M416 526l51 10-11 55-54-12z"/>
+    <path d="M562 540l48 8-8 57-51-9z"/>
+    <path d="M391 681l43 7-6 52-49-8z"/>
+    <path d="M610 687l45 10-2 51-50-11z"/>
   </g>
 
-  <g fill="none" stroke="#111111" stroke-linecap="round">
-    <path d="M307 820c-38 16-59 39-72 72" stroke-width="18"/>
-    <path d="M641 817c42 14 73 38 92 76" stroke-width="18"/>
-    <path d="M265 889c110 26 298 30 474-3" stroke-width="14"/>
+  <g fill="#4d3c38" stroke="#090607" stroke-width="8" stroke-linejoin="round">
+    <path d="M381 623h76l-9 31h-75z"/>
+    <path d="M486 625h70l5 30h-78z"/>
+    <path d="M593 630h55l12 30h-61z"/>
+    <path d="M365 743h78l-6 31h-83z"/>
+    <path d="M472 751h65l5 29h-72z"/>
+    <path d="M578 751h88l17 30h-101z"/>
+  </g>
+
+  <g fill="none" stroke="#f08b42" stroke-linecap="round" stroke-linejoin="round" opacity="0.85">
+    <path d="M299 860c-59 14-100 48-129 94" stroke-width="18"/>
+    <path d="M724 853c64 18 111 52 144 98" stroke-width="18"/>
+    <path d="M230 932c161 38 383 45 596-5" stroke-width="13"/>
   </g>
 
   <g font-family="Comic Sans MS, Comic Sans, Trebuchet MS, sans-serif" font-weight="700" text-anchor="middle">
-    <text x="512" y="934" font-size="74" fill="#ffffff" stroke="#111111" stroke-width="9" paint-order="stroke">STS2</text>
-    <text x="512" y="986" font-size="39" fill="#111111">LAUNCHER</text>
+    <text x="512" y="938" font-size="78" fill="#ffe7bd" stroke="#090607" stroke-width="10" paint-order="stroke">STS2</text>
+    <text x="512" y="989" font-size="39" fill="#120b0b" stroke="#ffb45a" stroke-width="3" paint-order="stroke">LAUNCHER</text>
   </g>
 </svg>

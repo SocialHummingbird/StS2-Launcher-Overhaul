@@ -64,6 +64,9 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_INSTALLED_PACKAGE_NAME = "installed_package_name";
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
 	private static final int ASSEMBLY_CACHE_SCHEMA = 4;
+	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
+	private static final int MAX_BUFFERED_HTTP_RESPONSE_BYTES = 1024 * 1024;
+	private long lastHttpResponseCleanupAt;
 	private static final String[] BOOTSTRAP_REQUIRED_ASSEMBLIES = {
 		"STS2Mobile.dll",
 		"SteamKit2.dll",
@@ -82,6 +85,7 @@ public class GodotApp extends GodotActivity {
 		instance = this;
 		gameDir = new File(getFilesDir(), "game").getAbsolutePath();
 		configureTempDirectory();
+		cleanupStaleHttpResponseFiles();
 
 		SplashScreen.installSplashScreen(this);
 		EdgeToEdge.enable(this);
@@ -561,13 +565,18 @@ public class GodotApp extends GodotActivity {
 			connection.setReadTimeout(timeoutMs);
 			connection.setInstanceFollowRedirects(false);
 			connection.setUseCaches(false);
+			connection.setRequestProperty("Accept-Encoding", "identity");
 
 			if (headersJson != null && !headersJson.isEmpty()) {
 				JSONObject headers = new JSONObject(headersJson);
 				Iterator<String> keys = headers.keys();
 				while (keys.hasNext()) {
 					String name = keys.next();
-					if ("Content-Length".equalsIgnoreCase(name) || "Host".equalsIgnoreCase(name)) {
+					if (
+						"Content-Length".equalsIgnoreCase(name)
+							|| "Host".equalsIgnoreCase(name)
+							|| "Accept-Encoding".equalsIgnoreCase(name)
+					) {
 						continue;
 					}
 					JSONArray values = headers.optJSONArray(name);
@@ -592,32 +601,59 @@ public class GodotApp extends GodotActivity {
 
 			int status = connection.getResponseCode();
 			InputStream stream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
-			byte[] responseBody = stream == null ? new byte[0] : readFully(stream);
+			long contentLength = connection.getContentLengthLong();
 
 			JSONObject response = new JSONObject();
 			response.put("status", status);
 			response.put("reason", connection.getResponseMessage());
-			response.put("body", Base64.encodeToString(responseBody, Base64.NO_WRAP));
+
+			if (shouldStreamHttpResponseToFile(method, urlString, status, contentLength) && stream != null) {
+				File bodyFile = createHttpResponseTempFile();
+				try (InputStream in = stream; OutputStream out = new FileOutputStream(bodyFile)) {
+					copyStream(in, out);
+				} catch (IOException e) {
+					if (!bodyFile.delete()) {
+						Log.w(TAG, "Could not delete failed CDN response file: " + bodyFile.getAbsolutePath());
+					}
+					throw e;
+				}
+				response.put("bodyFile", bodyFile.getAbsolutePath());
+			} else {
+				byte[] responseBody;
+				if (stream == null) {
+					responseBody = new byte[0];
+				} else {
+					try (InputStream in = stream) {
+						responseBody = readFullyLimited(in, MAX_BUFFERED_HTTP_RESPONSE_BYTES);
+					}
+				}
+				response.put("body", Base64.encodeToString(responseBody, Base64.NO_WRAP));
+			}
 
 			JSONObject responseHeaders = new JSONObject();
-			for (Map.Entry<String, List<String>> entry : connection.getHeaderFields().entrySet()) {
-				if (entry.getKey() == null || entry.getValue() == null) {
-					continue;
+			Map<String, List<String>> headerFields = connection.getHeaderFields();
+			if (headerFields != null) {
+				for (Map.Entry<String, List<String>> entry : headerFields.entrySet()) {
+					if (entry == null || entry.getKey() == null || entry.getValue() == null) {
+						continue;
+					}
+					JSONArray values = new JSONArray();
+					for (String value : entry.getValue()) {
+						if (value != null) {
+							values.put(value);
+						}
+					}
+					responseHeaders.put(entry.getKey(), values);
 				}
-				JSONArray values = new JSONArray();
-				for (String value : entry.getValue()) {
-					values.put(value);
-				}
-				responseHeaders.put(entry.getKey(), values);
 			}
 			response.put("headers", responseHeaders);
 
 			return response.toString();
 		} catch (Exception e) {
-			Log.e(TAG, "HTTP bridge request failed", e);
+			Log.e(TAG, "HTTP bridge request failed: " + method + " " + sanitizeUrlForLog(urlString), e);
 			try {
 				JSONObject response = new JSONObject();
-				response.put("error", e.toString());
+				response.put("error", sanitizeErrorForBridge(e, urlString));
 				return response.toString();
 			} catch (Exception ignored) {
 				return "{\"error\":\"HTTP bridge request failed\"}";
@@ -629,15 +665,169 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
-	private byte[] readFully(InputStream stream) throws IOException {
-		try (InputStream in = stream; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+	private byte[] readFullyLimited(InputStream in, int maxBytes) throws IOException {
+		try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 			byte[] buffer = new byte[8192];
+			int total = 0;
 			int read;
 			while ((read = in.read(buffer)) != -1) {
+				if (read > maxBytes - total) {
+					throw new IOException("HTTP response body exceeds buffered limit: " + maxBytes);
+				}
+				total += read;
 				out.write(buffer, 0, read);
 			}
 			return out.toByteArray();
 		}
+	}
+
+	private String sanitizeUrlForLog(String urlString) {
+		if (urlString == null) {
+			return "<null>";
+		}
+
+		int queryIndex = urlString.indexOf('?');
+		int fragmentIndex = urlString.indexOf('#');
+		int cutIndex = -1;
+		if (queryIndex >= 0 && fragmentIndex >= 0) {
+			cutIndex = Math.min(queryIndex, fragmentIndex);
+		} else if (queryIndex >= 0) {
+			cutIndex = queryIndex;
+		} else if (fragmentIndex >= 0) {
+			cutIndex = fragmentIndex;
+		}
+
+		return cutIndex >= 0 ? urlString.substring(0, cutIndex) : urlString;
+	}
+
+	private String sanitizeErrorForBridge(Exception error, String urlString) {
+		String message = error == null ? "unknown" : error.toString();
+		if (urlString != null && !urlString.isEmpty()) {
+			message = message.replace(urlString, sanitizeUrlForLog(urlString));
+		}
+		return redactUrlSuffixes(message);
+	}
+
+	private String redactUrlSuffixes(String message) {
+		if (message == null || (message.indexOf('?') < 0 && message.indexOf('#') < 0)) {
+			return message;
+		}
+
+		StringBuilder builder = new StringBuilder(message.length());
+		int index = 0;
+		while (index < message.length()) {
+			char current = message.charAt(index);
+			if (current != '?' && current != '#') {
+				builder.append(current);
+				index++;
+				continue;
+			}
+			if (!isUrlLikeSuffixMarker(message, index)) {
+				builder.append(current);
+				index++;
+				continue;
+			}
+
+			builder.append(current).append("<redacted>");
+			index++;
+			while (index < message.length()) {
+				char suffix = message.charAt(index);
+				if (Character.isWhitespace(suffix) || suffix == '"' || suffix == '\'' || suffix == ')') {
+					break;
+				}
+				index++;
+			}
+			if (index < message.length()) {
+				builder.append(message.charAt(index));
+				index++;
+			}
+		}
+
+		return builder.toString();
+	}
+
+	private boolean isUrlLikeSuffixMarker(String message, int markerIndex) {
+		int tokenStart = markerIndex - 1;
+		while (tokenStart >= 0) {
+			char value = message.charAt(tokenStart);
+			if (Character.isWhitespace(value) || value == '"' || value == '\'' || value == '(' || value == ')') {
+				break;
+			}
+			tokenStart--;
+		}
+
+		String tokenPrefix = message.substring(tokenStart + 1, markerIndex);
+		return tokenPrefix.startsWith("/")
+			|| tokenPrefix.indexOf("://") >= 0
+			|| tokenPrefix.regionMatches(true, 0, "http://", 0, 7)
+			|| tokenPrefix.regionMatches(true, 0, "https://", 0, 8);
+	}
+
+	private void copyStream(InputStream in, OutputStream out) throws IOException {
+		byte[] buffer = new byte[65536];
+		int read;
+		while ((read = in.read(buffer)) != -1) {
+			out.write(buffer, 0, read);
+		}
+	}
+
+	private boolean shouldStreamHttpResponseToFile(String method, String urlString, int status, long contentLength) {
+		if (!"GET".equalsIgnoreCase(method) || urlString == null) {
+			return false;
+		}
+
+		return urlString.contains("/chunk/")
+			|| urlString.contains("/manifest/")
+			|| contentLength >= STREAM_HTTP_RESPONSE_THRESHOLD_BYTES;
+	}
+
+	private File createHttpResponseTempFile() throws IOException {
+		File cacheDir = getCacheDir();
+		File dir = cacheDir != null ? cacheDir : new File(getFilesDir(), "tmp");
+		if (!dir.exists() && !dir.mkdirs()) {
+			throw new IOException("Could not create HTTP response temp directory: " + dir.getAbsolutePath());
+		}
+		cleanupStaleHttpResponseFilesDuringDownload(dir);
+		return File.createTempFile("sts2_cdn_", ".bin", dir);
+	}
+
+	private void cleanupStaleHttpResponseFiles() {
+		cleanupStaleHttpResponseFiles(getCacheDir(), 60L * 60L * 1000L);
+		cleanupStaleHttpResponseFiles(new File(getFilesDir(), "tmp"), 60L * 60L * 1000L);
+	}
+
+	private void cleanupStaleHttpResponseFiles(File dir, long maxAgeMs) {
+		try {
+			File[] files = dir == null ? null : dir.listFiles();
+			if (files == null) {
+				return;
+			}
+
+			long cutoff = System.currentTimeMillis() - maxAgeMs;
+			for (File file : files) {
+				if (
+					file != null
+						&& file.isFile()
+						&& file.getName().startsWith("sts2_cdn_")
+						&& file.lastModified() < cutoff
+						&& !file.delete()
+				) {
+					Log.w(TAG, "Could not delete stale CDN response file: " + file.getAbsolutePath());
+				}
+			}
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to clean stale CDN response files", e);
+		}
+	}
+
+	private void cleanupStaleHttpResponseFilesDuringDownload(File dir) {
+		long now = System.currentTimeMillis();
+		if (now - lastHttpResponseCleanupAt < 60L * 1000L) {
+			return;
+		}
+
+		lastHttpResponseCleanupAt = now;
+		cleanupStaleHttpResponseFiles(dir, 5L * 60L * 1000L);
 	}
 
 	public String randomBytesBase64(int count) {
@@ -709,6 +899,21 @@ public class GodotApp extends GodotActivity {
 			return Base64.encodeToString(digest.digest(data), Base64.NO_WRAP);
 		} catch (Exception e) {
 			Log.e(TAG, "SHA-1 bridge failed", e);
+			return null;
+		}
+	}
+
+	public String sha1FileBase64(String path) {
+		try (InputStream in = new FileInputStream(new File(path))) {
+			MessageDigest digest = MessageDigest.getInstance("SHA-1");
+			byte[] buffer = new byte[65536];
+			int read;
+			while ((read = in.read(buffer)) != -1) {
+				digest.update(buffer, 0, read);
+			}
+			return Base64.encodeToString(digest.digest(), Base64.NO_WRAP);
+		} catch (Exception e) {
+			Log.e(TAG, "File SHA-1 bridge failed", e);
 			return null;
 		}
 	}

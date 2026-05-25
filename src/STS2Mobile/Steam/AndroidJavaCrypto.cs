@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using Godot;
@@ -163,6 +164,25 @@ internal static class AndroidJavaCrypto
         var encoded = (string)app.Call("sha1Base64", Convert.ToBase64String(source));
         if (string.IsNullOrEmpty(encoded))
             throw new InvalidOperationException("Android Java SHA-1 bridge returned an empty response");
+
+        return Convert.FromBase64String(encoded);
+    }
+
+    public static byte[] Sha1FileHashData(string path)
+    {
+        if (!OperatingSystem.IsAndroid())
+        {
+            using var fs = File.OpenRead(path);
+            return SHA1.HashData(fs);
+        }
+
+        var app = GetGodotApp();
+        if (app == null)
+            throw new InvalidOperationException("GodotApp Java bridge is unavailable for file SHA-1");
+
+        var encoded = (string)app.Call("sha1FileBase64", path);
+        if (string.IsNullOrEmpty(encoded))
+            throw new InvalidOperationException("Android Java file SHA-1 bridge returned an empty response");
 
         return Convert.FromBase64String(encoded);
     }

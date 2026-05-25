@@ -25,6 +25,7 @@ public class LauncherModel : IDisposable
     private TaskCompletionSource<string> _codeTcs;
     private SessionState _state = SessionState.Disconnected;
     private string _failReason;
+    private int _downloadRunning;
 
     public volatile bool OfflineMode;
     public volatile bool ConnectionResolved;
@@ -275,7 +276,14 @@ public class LauncherModel : IDisposable
         SetState(SessionState.Connecting);
         try
         {
-            await _connection.Apps.PICSGetAccessTokens(2868840, null);
+            var tokenResult = await _connection.Apps.PICSGetAccessTokens(2868840, null);
+            if (tokenResult.AppTokens != null && tokenResult.AppTokens.TryGetValue(2868840, out var token))
+                _connection.AppAccessToken = token;
+            else if (tokenResult.AppTokensDenied != null && tokenResult.AppTokensDenied.Contains(2868840))
+                throw new InvalidOperationException(
+                    "Steam denied app access token; ownership/session may be invalid"
+                );
+
             ConnectionResolved = true;
             OfflineMode = false;
             SetState(SessionState.LoggedIn);
@@ -288,33 +296,54 @@ public class LauncherModel : IDisposable
 
     public async Task StartDownloadAsync()
     {
-        await EnsureConnectedAsync();
-        if (_state != SessionState.LoggedIn || _connection == null)
+        if (Interlocked.Exchange(ref _downloadRunning, 1) == 1)
         {
-            DownloadFailed?.Invoke(null);
+            InvokeDownloadFailed("Download already running");
             return;
         }
 
-        _downloader?.Dispose();
-        _downloader = new DepotDownloader(_connection, _dataDir);
-        _downloader.LogMessage += msg => DownloadLogReceived?.Invoke(msg);
-        _downloader.ProgressChanged += p => DownloadProgressChanged?.Invoke(p);
-
-        _downloadCts = new CancellationTokenSource();
-
         try
         {
-            await Task.Run(() => _downloader.DownloadAsync(_downloadCts.Token));
-            DownloadCompleted?.Invoke();
+            await EnsureConnectedAsync();
+            if (_state != SessionState.LoggedIn || _connection == null)
+            {
+                InvokeDownloadFailed(null);
+                return;
+            }
+
+            _downloader?.Dispose();
+            _downloadCts?.Dispose();
+            _downloader = new DepotDownloader(_connection, _dataDir);
+            _downloader.LogMessage += InvokeDownloadLogReceived;
+            _downloader.ProgressChanged += InvokeDownloadProgressChanged;
+
+            _downloadCts = new CancellationTokenSource();
+
+            try
+            {
+                await _downloader.DownloadAsync(_downloadCts.Token).ConfigureAwait(false);
+                InvokeDownloadCompleted();
+            }
+            catch (OperationCanceledException)
+            {
+                InvokeDownloadCancelled();
+            }
+            catch (Exception ex)
+            {
+                InvokeDownloadFailed(ex.Message);
+                PatchHelper.Log($"[Launcher] Download error: {ex}");
+            }
+            finally
+            {
+                _downloader?.Dispose();
+                _downloader = null;
+                _downloadCts?.Dispose();
+                _downloadCts = null;
+            }
         }
-        catch (OperationCanceledException)
+        finally
         {
-            DownloadCancelled?.Invoke();
-        }
-        catch (Exception ex)
-        {
-            DownloadFailed?.Invoke(ex.Message);
-            PatchHelper.Log($"[Launcher] Download error: {ex}");
+            Interlocked.Exchange(ref _downloadRunning, 0);
         }
     }
 
@@ -329,26 +358,43 @@ public class LauncherModel : IDisposable
                 return;
             }
 
-            var downloader = new DepotDownloader(_connection, _dataDir);
-            downloader.LogMessage += msg => DownloadLogReceived?.Invoke(msg);
+            using var downloader = new DepotDownloader(_connection, _dataDir);
+            downloader.LogMessage += InvokeDownloadLogReceived;
 
-            bool hasUpdate = await Task.Run(() => downloader.CheckForUpdatesAsync());
-            downloader.Dispose();
+            bool hasUpdate = await downloader.CheckForUpdatesAsync().ConfigureAwait(false);
 
-            UpdateCheckCompleted?.Invoke(hasUpdate);
+            InvokeUpdateCheckCompleted(hasUpdate);
         }
         catch (Exception ex)
         {
-            UpdateCheckFailed?.Invoke(ex.Message);
+            InvokeUpdateCheckFailed(ex.Message);
         }
     }
 
     public FastPathResult Retry()
     {
-        _downloadCts?.Cancel();
-        _downloader?.Dispose();
-        _connection?.Dispose();
-        _connection = null;
+        var downloadActive = Interlocked.CompareExchange(ref _downloadRunning, 0, 0) == 1;
+
+        try
+        {
+            _downloadCts?.Cancel();
+        }
+        catch (ObjectDisposedException) { }
+
+        if (downloadActive)
+        {
+            PatchHelper.Log("[Launcher] Retry requested while download is active; cancellation requested");
+        }
+        else
+        {
+            _downloader?.Dispose();
+            _downloadCts?.Dispose();
+            _downloadCts = null;
+            _downloader = null;
+            _connection?.Dispose();
+            _connection = null;
+        }
+
         _auth?.Dispose();
         _auth = null;
         return StartSession();
@@ -375,8 +421,13 @@ public class LauncherModel : IDisposable
 
     public void Dispose()
     {
-        _downloadCts?.Cancel();
+        try
+        {
+            _downloadCts?.Cancel();
+        }
+        catch (ObjectDisposedException) { }
         _downloader?.Dispose();
+        _downloadCts?.Dispose();
         _auth?.Dispose();
         if (_launchTcs == null)
             _connection?.Dispose();
@@ -415,7 +466,98 @@ public class LauncherModel : IDisposable
     {
         _state = state;
         _failReason = failReason;
-        SessionStateChanged?.Invoke(state);
+        try
+        {
+            SessionStateChanged?.Invoke(state);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] SessionStateChanged callback failed: {ex.Message}");
+        }
+    }
+
+    private void InvokeDownloadCompleted()
+    {
+        try
+        {
+            DownloadCompleted?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] DownloadCompleted callback failed: {ex.Message}");
+        }
+    }
+
+    private void InvokeDownloadCancelled()
+    {
+        try
+        {
+            DownloadCancelled?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] DownloadCancelled callback failed: {ex.Message}");
+        }
+    }
+
+    private void InvokeDownloadFailed(string message)
+    {
+        try
+        {
+            DownloadFailed?.Invoke(message);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] DownloadFailed callback failed: {ex.Message}");
+        }
+    }
+
+    private void InvokeDownloadLogReceived(string message)
+    {
+        try
+        {
+            DownloadLogReceived?.Invoke(message);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] DownloadLogReceived callback failed: {ex.Message}");
+        }
+    }
+
+    private void InvokeDownloadProgressChanged(DownloadProgress progress)
+    {
+        try
+        {
+            DownloadProgressChanged?.Invoke(progress);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] DownloadProgressChanged callback failed: {ex.Message}");
+        }
+    }
+
+    private void InvokeUpdateCheckCompleted(bool hasUpdate)
+    {
+        try
+        {
+            UpdateCheckCompleted?.Invoke(hasUpdate);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] UpdateCheckCompleted callback failed: {ex.Message}");
+        }
+    }
+
+    private void InvokeUpdateCheckFailed(string message)
+    {
+        try
+        {
+            UpdateCheckFailed?.Invoke(message);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] UpdateCheckFailed callback failed: {ex.Message}");
+        }
     }
 
     public static bool GameFilesReady()
