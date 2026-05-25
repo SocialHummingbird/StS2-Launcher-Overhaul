@@ -28,6 +28,9 @@ import java.io.InputStream;
 public class NativeFallbackActivity extends Activity {
 	private static final String TAG = "STS2Mobile";
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
+	public static final String EXTRA_REASON_TITLE = "com.game.sts2launcher.REASON_TITLE";
+	public static final String EXTRA_REASON_MESSAGE = "com.game.sts2launcher.REASON_MESSAGE";
+	public static final String EXTRA_REASON_DIAGNOSTICS = "com.game.sts2launcher.REASON_DIAGNOSTICS";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +41,22 @@ public class NativeFallbackActivity extends Activity {
 
 	private ScrollView createContentView() {
 		String diagnostics = describeRuntimeState();
+		String extraDiagnostics = getIntent().getStringExtra(EXTRA_REASON_DIAGNOSTICS);
+		if (extraDiagnostics != null && !extraDiagnostics.isEmpty()) {
+			diagnostics += "\n\nFailure diagnostics:\n" + extraDiagnostics;
+		}
+		String reasonTitle = getIntent().getStringExtra(EXTRA_REASON_TITLE);
+		String reasonMessage = getIntent().getStringExtra(EXTRA_REASON_MESSAGE);
+		if (reasonTitle == null || reasonTitle.isEmpty()) {
+			reasonTitle = "StS2 Launcher";
+		}
+		if (reasonMessage == null || reasonMessage.isEmpty()) {
+			reasonMessage =
+				"Game files are downloaded.\n\n" +
+				"The Android x86 emulator cannot safely run the Godot/.NET game runtime. It crashes inside the Mono/GodotSharp native layer before the launcher can take over.\n\n" +
+				"Use an ARM64 Android device/build to test launching the game. The emulator remains useful for auth and download testing before this point.";
+		}
+		final String diagnosticsText = diagnostics;
 
 		ScrollView scroll = new ScrollView(this);
 		scroll.setFillViewport(true);
@@ -57,7 +76,7 @@ public class NativeFallbackActivity extends Activity {
 		));
 
 		TextView title = new TextView(this);
-		title.setText("StS2 Launcher");
+		title.setText(reasonTitle);
 		title.setTextColor(Color.rgb(245, 230, 190));
 		title.setTextSize(28);
 		title.setTypeface(Typeface.DEFAULT_BOLD);
@@ -68,12 +87,7 @@ public class NativeFallbackActivity extends Activity {
 		));
 
 		TextView message = new TextView(this);
-		message.setText(
-			"Game files are downloaded.\n\n" +
-			"The Android x86 emulator cannot safely run the Godot/.NET game runtime. It crashes inside the Mono/GodotSharp native layer before the launcher can take over.\n\n" +
-			"Use an ARM64 Android device/build to test launching the game. The emulator remains useful for auth and download testing before this point.\n\n" +
-			diagnostics
-		);
+		message.setText(reasonMessage + "\n\n" + diagnostics);
 		message.setTextColor(Color.rgb(220, 220, 210));
 		message.setTextSize(16);
 		message.setGravity(Gravity.CENTER);
@@ -85,7 +99,7 @@ public class NativeFallbackActivity extends Activity {
 
 		Button copyButton = new Button(this);
 		copyButton.setText("Copy diagnostics");
-		copyButton.setOnClickListener(v -> copyDiagnostics(diagnostics));
+		copyButton.setOnClickListener(v -> copyDiagnostics(diagnosticsText));
 		root.addView(copyButton, new LinearLayout.LayoutParams(
 			ViewGroup.LayoutParams.MATCH_PARENT,
 			ViewGroup.LayoutParams.WRAP_CONTENT
@@ -151,7 +165,56 @@ public class NativeFallbackActivity extends Activity {
 			state.append("\nPCK magic valid: ");
 			state.append(describePckMagicStatus(pck));
 		}
+		appendAssemblyCacheState(state);
 		return state.toString();
+	}
+
+	private void appendAssemblyCacheState(StringBuilder state) {
+		File assemblyDir = new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir());
+		state.append("\nAssembly cache: ");
+		state.append(assemblyDir.getAbsolutePath());
+		state.append("\nAssembly cache exists: ");
+		state.append(assemblyDir.exists() && assemblyDir.isDirectory() ? "yes" : "no");
+		appendFileState(state, assemblyDir, "STS2Mobile.dll");
+		appendFileState(state, assemblyDir, "GodotSharp.dll");
+		appendFileState(state, assemblyDir, "System.Private.CoreLib.dll");
+		appendFileState(state, assemblyDir, "sts2.dll");
+	}
+
+	private void appendFileState(StringBuilder state, File dir, String name) {
+		File file = new File(dir, name);
+		state.append("\nAssembly ");
+		state.append(name);
+		state.append(": ");
+		if (!file.exists() || !file.isFile()) {
+			state.append("missing");
+			return;
+		}
+		state.append(file.length());
+		state.append(" bytes");
+	}
+
+	private String getRuntimeGodotArchDir() {
+		String nativeLibraryDir = getApplicationInfo().nativeLibraryDir;
+		if (nativeLibraryDir != null) {
+			if (nativeLibraryDir.contains("x86_64")) {
+				return "x86_64";
+			}
+			if (nativeLibraryDir.contains("arm64")) {
+				return "arm64";
+			}
+		}
+
+		for (String abi : Build.SUPPORTED_ABIS) {
+			if ("x86_64".equals(abi)) {
+				return "x86_64";
+			}
+			if ("arm64-v8a".equals(abi)) {
+				return "arm64";
+			}
+		}
+
+		return "arm64";
 	}
 
 	private String describePckMagicStatus(File pck) {

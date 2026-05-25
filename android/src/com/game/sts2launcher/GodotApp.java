@@ -103,7 +103,13 @@ public class GodotApp extends GodotActivity {
 			try {
 				setupAssemblies();
 			} catch (RuntimeException ex2) {
-				Log.e(TAG, "Assembly setup failed after recovery. Continuing with existing cache.", ex2);
+				Log.e(TAG, "Assembly setup failed after recovery. Routing to native diagnostics instead of starting Godot.", ex2);
+				showNativeFailure(
+					"StS2 Launcher diagnostics",
+					"The launcher could not prepare the Android .NET assemblies required by native Godot.\n\nNative Godot was not started, because continuing would only trigger the generic '.NET assemblies not found' failure.",
+					Log.getStackTraceString(ex2)
+				);
+				return;
 			}
 		}
 		super.onCreate(savedInstanceState);
@@ -123,6 +129,16 @@ public class GodotApp extends GodotActivity {
 	private void configureMonoForEmulator() {
 		// Native x86_64 emulator builds should use the normal Mono execution mode.
 		// Forcing interpreter options here can destabilize Godot's Mono startup.
+	}
+
+	private void showNativeFailure(String title, String message, String diagnostics) {
+		Intent intent = new Intent(this, NativeFallbackActivity.class);
+		intent.putExtra(NativeFallbackActivity.EXTRA_REASON_TITLE, title);
+		intent.putExtra(NativeFallbackActivity.EXTRA_REASON_MESSAGE, message);
+		intent.putExtra(NativeFallbackActivity.EXTRA_REASON_DIAGNOSTICS, diagnostics);
+		intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+		startActivity(intent);
+		finish();
 	}
 
 	private boolean shouldRefreshAssemblyCache() {
