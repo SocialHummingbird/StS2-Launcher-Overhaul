@@ -206,6 +206,33 @@ public class GodotApp extends GodotActivity {
 		return hasRequiredCacheFiles(destDir, false);
 	}
 
+	private void logAssemblyCacheState(String phase, File destDir, File srcDir, boolean requireGameAssemblies, Set<String> packagedBclNames) {
+		StringBuilder sb = new StringBuilder();
+		sb.append("Assembly cache diagnostics [").append(phase).append("]");
+		sb.append(" arch=").append(getRuntimeGodotArchDir());
+		sb.append(" nativeLibraryDir=").append(getApplicationInfo().nativeLibraryDir);
+		sb.append(" filesDir=").append(getFilesDir().getAbsolutePath());
+		sb.append(" dest=").append(destDir == null ? "<none>" : destDir.getAbsolutePath());
+		sb.append(" destExists=").append(destDir != null && destDir.exists());
+		sb.append(" destIsDir=").append(destDir != null && destDir.isDirectory());
+		sb.append(" src=").append(srcDir == null ? "<none>" : srcDir.getAbsolutePath());
+		sb.append(" srcExists=").append(srcDir != null && srcDir.exists());
+		sb.append(" packagedBclCount=").append(packagedBclNames == null ? 0 : packagedBclNames.size());
+		sb.append(" requireGameAssemblies=").append(requireGameAssemblies);
+		Log.i(TAG, sb.toString());
+
+		ArrayList<String> required = new ArrayList<>(java.util.Arrays.asList(BOOTSTRAP_REQUIRED_ASSEMBLIES));
+		if (requireGameAssemblies) {
+			required.add(GAME_REQUIRED_ASSEMBLY);
+		}
+		for (String name : required.toArray(new String[0])) {
+			File file = destDir == null ? null : new File(destDir, name);
+			Log.i(TAG, "Assembly cache required file [" + phase + "]: " + name
+				+ " exists=" + (file != null && file.exists())
+				+ " bytes=" + (file != null && file.exists() ? file.length() : 0));
+		}
+	}
+
 	private void markAssemblyCacheStateAsCurrent(int currentVersion) {
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		prefs.edit()
@@ -283,6 +310,7 @@ public class GodotApp extends GodotActivity {
 		Set<String> packagedBclNames = getPackagedBclNames();
 
 		boolean refreshCache = shouldRefreshAssemblyCache();
+		logAssemblyCacheState("before-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
 
 		File patcherMarker = new File(destDir, "STS2Mobile.dll");
 		File sts2Marker = new File(destDir, "sts2.dll");
@@ -296,6 +324,7 @@ public class GodotApp extends GodotActivity {
 				&& (!requiresGameAssemblies || hasCachedGameAssemblies(destDir, srcDir, packagedBclNames))
 		) {
 			Log.i(TAG, "Assemblies already set up at: " + destDir.getAbsolutePath());
+			logAssemblyCacheState("cache-hit", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
 			markAssemblyCacheStateAsCurrent(currentVersion);
 			return;
 		}
@@ -306,6 +335,9 @@ public class GodotApp extends GodotActivity {
 		}
 
 		destDir.mkdirs();
+		if (!destDir.exists() || !destDir.isDirectory()) {
+			throw new RuntimeException("Failed to create Mono/cache assembly directory: " + destDir.getAbsolutePath());
+		}
 
 		try {
 			if (!packagedBclNames.isEmpty()) {
@@ -357,10 +389,12 @@ public class GodotApp extends GodotActivity {
 		}
 
 		if (!hasRequiredCacheFiles(destDir, requiresGameAssemblies)) {
+			logAssemblyCacheState("missing-after-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
 			String mode = requiresGameAssemblies ? "game" : "launcher-only";
 			throw new RuntimeException("Missing required Mono/cache assemblies after copy for " + mode + " mode.");
 		}
 
+		logAssemblyCacheState("after-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
 		markAssemblyCacheStateAsCurrent(currentVersion);
 	}
 
