@@ -6,6 +6,25 @@ on:
       - published
       - edited
       - created
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to verify."
+        required: true
+        default: "v0.2.88-apk-native-verify"
+      asset_name:
+        description: "Optional exact APK asset name. If empty, the workflow selects the preferred universal APK."
+        required: false
+        default: ""
+      abi:
+        description: "Expected APK ABI set."
+        type: choice
+        required: true
+        default: "universal"
+        options:
+          - universal
+          - arm64-v8a
+          - x86_64
 
 permissions:
   contents: read
@@ -23,9 +42,10 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const tag = context.payload?.release?.tag_name;
+            const tag = context.payload?.release?.tag_name || core.getInput("release_tag");
+            const requestedAsset = core.getInput("asset_name");
             if (!tag) {
-              core.setFailed("Release tag is missing from event payload.");
+              core.setFailed("Release tag is missing from event payload and workflow input.");
               return;
             }
 
@@ -60,7 +80,14 @@ jobs:
               core.warning("No SHA-256 checksum file found. Add checksum assets for stronger release validation.");
             }
 
-            const preferred = apkAssets.find((asset) => /universal-phone\.apk$/i.test(asset.name))
+            const exactMatch = requestedAsset ? apkAssets.find((asset) => asset.name === requestedAsset) : null;
+            if (requestedAsset && !exactMatch) {
+              core.setFailed(`Requested APK asset was not found: ${requestedAsset}`);
+              return;
+            }
+
+            const preferred = exactMatch
+              || apkAssets.find((asset) => /universal-phone\.apk$/i.test(asset.name))
               || apkAssets.find((asset) => /universal.*\.apk$/i.test(asset.name))
               || apkAssets[0];
             core.setOutput("release_tag", tag);
@@ -76,4 +103,4 @@ jobs:
             -Repo "${{ github.repository }}" `
             -ReleaseTag "${{ steps.assets.outputs.release_tag }}" `
             -AssetName "${{ steps.assets.outputs.apk_asset_name }}" `
-            -Abi universal
+            -Abi "${{ github.event.inputs.abi || 'universal' }}"
