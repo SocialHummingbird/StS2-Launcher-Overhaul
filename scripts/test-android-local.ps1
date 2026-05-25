@@ -84,6 +84,13 @@ function Resolve-ApkForAbi([string]$AbiList) {
         return (Resolve-Path $ApkPath).Path
     }
 
+    $universalApk = Get-ChildItem -LiteralPath $ArtifactsDir -Filter "*universal*.apk" |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+    if ($universalApk) {
+        return $universalApk.FullName
+    }
+
     if ($AbiList -match "x86_64") {
         $pattern = "*x86_64.apk"
     } elseif ($AbiList -match "arm64-v8a") {
