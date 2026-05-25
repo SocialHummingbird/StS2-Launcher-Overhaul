@@ -1,39 +1,51 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="STS2 Launcher logo">
-  <defs>
-    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#6f4fe8"/>
-      <stop offset="50%" stop-color="#ff6b35"/>
-      <stop offset="100%" stop-color="#f6c453"/>
-    </linearGradient>
-    <radialGradient id="core" cx="48%" cy="32%" r="70%">
-      <stop offset="0%" stop-color="#1f2330"/>
-      <stop offset="100%" stop-color="#0b0d13"/>
-    </radialGradient>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="16" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="StS2 Launcher hand drawn tower logo">
+  <title>StS2 Launcher hand drawn tower logo</title>
+  <desc>A rough MS Paint style stone tower with thick black outlines and uneven pixel-like shapes.</desc>
 
-  <rect width="1024" height="1024" rx="220" fill="none"/>
-  <g filter="url(#soft)">
-    <circle cx="512" cy="512" r="380" fill="url(#rim)"/>
-    <circle cx="512" cy="512" r="330" fill="#11131a"/>
-  </g>
-  <circle cx="512" cy="512" r="320" fill="url(#core)"/>
+  <rect width="1024" height="1024" rx="156" fill="#7fd6ff"/>
+  <path d="M0 720h1024v304H0z" fill="#6fc16b"/>
+  <path d="M68 751c82-34 126-26 202-9 74 17 133 1 199-18 89-25 163-5 232 15 86 25 158 17 255-12v297H68z" fill="#54a850"/>
 
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M332 285h256c96 0 175 78.5 175 175 0 95.5-79 173-175 173H360" stroke="#ffe7b8" stroke-width="44"/>
-    <path d="M360 463c66 0 140 46 140 140 0 95.5-80 173-175 173" stroke="#ffe7b8" stroke-width="44"/>
-    <path d="M332 738h286" stroke="#ff6b35" stroke-width="48"/>
-    <path d="M332 285l360 452" stroke="#e95f2f" stroke-width="34" opacity="0.45"/>
+  <g fill="none" stroke="#111111" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 159c30-21 72-20 99 7" stroke-width="19"/>
+    <path d="M782 157c42-25 89-14 113 25" stroke-width="18"/>
+    <path d="M818 218l30 27 41-7-20 39 20 35-42-6-31 27 8-43-34-24 42-8z" fill="#fff36d" stroke-width="11"/>
   </g>
 
-  <g>
-    <text x="512" y="870" text-anchor="middle" font-family="Verdana, Arial, Helvetica, sans-serif" font-size="74" fill="#f6f7ff" letter-spacing="2">OVERHAUL</text>
-    <text x="512" y="930" text-anchor="middle" font-family="Verdana, Arial, Helvetica, sans-serif" font-size="44" fill="#ffdfb7" letter-spacing="6">LAUNCHER</text>
+  <path d="M308 816 330 285 388 288 392 210 449 213 451 287 499 288 506 211 561 213 558 286 626 288 634 816z" fill="#d7d0c2" stroke="#101010" stroke-width="24" stroke-linejoin="round"/>
+  <path d="M345 318 612 326 615 390 339 384z" fill="#bdb4a7" stroke="#101010" stroke-width="13" stroke-linejoin="round"/>
+  <path d="M325 802c72 24 222 31 326-5l-11 55c-102 30-233 26-328-4z" fill="#8d8174" stroke="#101010" stroke-width="18" stroke-linejoin="round"/>
+
+  <path d="M447 825V680c1-58 84-62 91-2v148z" fill="#4f3728" stroke="#101010" stroke-width="18"/>
+  <path d="M492 825V675" fill="none" stroke="#101010" stroke-width="8"/>
+  <circle cx="520" cy="752" r="9" fill="#f6d26a" stroke="#101010" stroke-width="5"/>
+
+  <g stroke="#101010" stroke-width="10" stroke-linejoin="round">
+    <path d="M381 450h55v70h-57z" fill="#5aa6d6"/>
+    <path d="M522 454h54v73h-58z" fill="#5aa6d6"/>
+    <path d="M371 585h48v42h-51z" fill="#5aa6d6"/>
+    <path d="M560 594h45v40h-49z" fill="#5aa6d6"/>
+  </g>
+
+  <g fill="#eee7d9" stroke="#101010" stroke-width="8" stroke-linejoin="round">
+    <path d="M350 405h72v33h-75z"/>
+    <path d="M455 407h77v32h-73z"/>
+    <path d="M559 410h54v31h-56z"/>
+    <path d="M337 541h84v31h-82z"/>
+    <path d="M456 548h61v29h-64z"/>
+    <path d="M548 552h70v30h-73z"/>
+    <path d="M339 646h61v30h-65z"/>
+    <path d="M553 655h69v28h-71z"/>
+  </g>
+
+  <g fill="none" stroke="#111111" stroke-linecap="round">
+    <path d="M307 820c-38 16-59 39-72 72" stroke-width="18"/>
+    <path d="M641 817c42 14 73 38 92 76" stroke-width="18"/>
+    <path d="M265 889c110 26 298 30 474-3" stroke-width="14"/>
+  </g>
+
+  <g font-family="Comic Sans MS, Comic Sans, Trebuchet MS, sans-serif" font-weight="700" text-anchor="middle">
+    <text x="512" y="934" font-size="74" fill="#ffffff" stroke="#111111" stroke-width="9" paint-order="stroke">STS2</text>
+    <text x="512" y="986" font-size="39" fill="#111111">LAUNCHER</text>
   </g>
 </svg>
