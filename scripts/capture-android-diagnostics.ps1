@@ -10,6 +10,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -Scope Global -ErrorAction SilentlyContinue) {
+    $Global:PSNativeCommandUseErrorActionPreference = $false
+}
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 if (-not $ArtifactsDir) {
@@ -42,11 +45,17 @@ function Invoke-AdbCapture {
         [string[]]$Arguments
     )
 
-    if ($DeviceSerial) {
-        return @(& $AdbPath "-s" $DeviceSerial @Arguments 2>&1)
-    }
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        if ($DeviceSerial) {
+            return @(& $AdbPath "-s" $DeviceSerial @Arguments 2>&1)
+        }
 
-    return @(& $AdbPath @Arguments 2>&1)
+        return @(& $AdbPath @Arguments 2>&1)
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
 }
 
 function Find-TargetDevice {
@@ -106,7 +115,7 @@ if ($Launch) {
     Start-Sleep -Seconds $WaitSeconds
 }
 
-$patterns = "STS2Mobile|Assembly cache diagnostics|Assembly cache required file|\.NET:|\.NET assemblies not found|Unable to find the \.NET assemblies directory|api_assemblies_dir|Missing required cache file|Assembly setup failed|AndroidRuntime|FATAL|FORTIFY|Exception|crash"
+$patterns = "STS2Mobile|Routing to native x86 fallback|Showing native x86 fallback|Assembly cache diagnostics|Assembly cache required file|\.NET:|\.NET assemblies not found|Unable to find the \.NET assemblies directory|api_assemblies_dir|Missing required cache file|Assembly setup failed|AndroidRuntime|FATAL EXCEPTION|FORTIFY|F/libc|crash"
 
 Invoke-AdbCapture "devices" "-l" | Set-Content -LiteralPath (Join-Path $outDir "adb-devices.txt") -Encoding UTF8
 Invoke-AdbCapture "shell" "getprop" "ro.product.cpu.abilist" | Set-Content -LiteralPath (Join-Path $outDir "abi-list.txt") -Encoding UTF8
@@ -134,9 +143,11 @@ if ($filteredLog -match "\.NET assemblies not found|Unable to find the \.NET ass
     $result = ".NET assembly directory failure observed"
 } elseif ($filteredLog -match "Assembly setup failed|Missing required cache file") {
     $result = "Java assembly cache setup failure observed"
+} elseif ($filteredLog -match "Routing to native x86 fallback|Showing native x86 fallback") {
+    $result = "native x86 fallback route observed"
 } elseif ($filteredLog -match "Assembly cache diagnostics|Assembly cache required file") {
     $result = "assembly diagnostics captured"
-} elseif ($filteredLog -match "AndroidRuntime|FATAL|FORTIFY|Exception|crash") {
+} elseif ($filteredLog -match "AndroidRuntime|FATAL EXCEPTION|FORTIFY|F/libc|crash") {
     $result = "crash/error markers observed"
 } elseif ($filteredLog -match "STS2Mobile|\.NET:") {
     $result = "launcher/runtime logs captured without filtered crash markers"

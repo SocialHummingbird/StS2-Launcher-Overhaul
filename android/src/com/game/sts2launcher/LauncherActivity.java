@@ -22,9 +22,9 @@ public class LauncherActivity extends Activity {
 	}
 
 	private boolean shouldUseNativeX86Fallback() {
-		boolean fallback = isX86Runtime() && hasDownloadedGamePck();
+		boolean fallback = isX86Runtime();
 		if (fallback) {
-			Log.w(TAG, "Routing to native x86 fallback; downloaded game runtime crashes Android x86 emulator.");
+			Log.w(TAG, "Routing to native x86 fallback; Godot/.NET runtime crashes Android x86 emulator.");
 		}
 		return fallback;
 	}

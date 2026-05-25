@@ -2,7 +2,7 @@
 
 ## Current conclusion
 
-The Android `x86_64` emulator is a useful target for Steam authentication and game-file download testing, but it is not a reliable target for launching the downloaded Godot/.NET game runtime.
+The Android `x86_64` emulator is useful for install, routing, release packaging, and native diagnostic-screen validation, but it is not a reliable target for the Godot/.NET launcher or downloaded game runtime.
 
 Use an `arm64-v8a` Android device/build as the proof target for actual game launch.
 
@@ -20,7 +20,7 @@ Use an `arm64-v8a` Android device/build as the proof target for actual game laun
 
 - `LauncherActivity` is the exported Android launcher activity.
 - `LauncherActivity` starts `GodotApp` for normal operation.
-- On Android `x86_64`, if any non-empty downloaded `SlayTheSpire2.pck` exists, `LauncherActivity` routes to `NativeFallbackActivity` instead of starting Godot.
+- On Android `x86_64`, `LauncherActivity` routes to `NativeFallbackActivity` instead of starting Godot.
 - The fallback diagnostics report whether the PCK header has valid `GDPC` magic, so corrupt or partial downloads are visible without taking the unsafe Godot path.
 - `NativeFallbackActivity` is plain Android UI, not Godot. It avoids the emulator crash path entirely.
 - The native fallback shows and can copy diagnostics including:
@@ -39,8 +39,9 @@ Use an `arm64-v8a` Android device/build as the proof target for actual game laun
 
 ### Android x86_64 emulator
 
-- Before game files are downloaded: use the launcher path for Steam login and download testing.
-- After any non-empty game PCK is present: show the native x86 fallback screen instead of starting Godot.
+- Always show the native x86 fallback screen instead of starting Godot.
+- This validates APK installability, ABI routing, package metadata, and native diagnostic UI on a visible emulator.
+- It does not validate Steam login, download, or Godot/.NET launcher runtime.
 - This is expected and intentional.
 
 ### Android arm64-v8a device

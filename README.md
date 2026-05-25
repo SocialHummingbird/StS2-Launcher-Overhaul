@@ -133,7 +133,7 @@ Verify a local archived APK from `artifacts/android/`:
 sha256sum -c StS2Launcher-v0.2.0-local-arm64-arm64-v8a.apk.sha256
 ```
 
-The Android `x86_64` emulator is useful for Steam authentication and download testing, but it is not a valid proof target for launching the downloaded Godot/.NET game. Once a non-empty game PCK is present, `x86_64` routes to a native fallback screen instead of starting Godot, because the emulator path crashes inside the Mono/GodotSharp native runtime. The fallback diagnostics report whether the PCK header looks valid. Use an `arm64-v8a` Android device/build to test actual game launch.
+The Android `x86_64` emulator is useful for install, routing, release packaging, and native diagnostic-screen testing, but it is not a valid proof target for the Godot/.NET launcher or downloaded game. `x86_64` routes to a native fallback screen instead of starting Godot, because the emulator path crashes inside the Mono/GodotSharp native runtime. Use an `arm64-v8a` Android device/build to test Steam login, download, and actual game launch.
 
 ### Local Android smoke test
 

@@ -8,6 +8,7 @@ param(
     [string]$DeviceSerial = "",
     [int]$WaitForDeviceSeconds = 0,
     [int]$WaitSeconds = 15,
+    [switch]$UninstallFirst,
     [switch]$ClearAppData,
     [switch]$Launch,
     [switch]$CaptureDiagnostics
@@ -143,6 +144,15 @@ if ($digest -and $digest.StartsWith("sha256:")) {
     Write-Host "Release digest unavailable; local SHA256: $hash"
 }
 
+if ($UninstallFirst) {
+    Write-Host "Uninstalling existing $PackageName before install..."
+    if ($DeviceSerial) {
+        & $AdbPath "-s" $DeviceSerial "uninstall" $PackageName | Out-Host
+    } else {
+        & $AdbPath "uninstall" $PackageName | Out-Host
+    }
+}
+
 Write-Host "Installing $apkPath on $device..."
 Invoke-Adb "install" "-r" $apkPath
 
@@ -166,16 +176,16 @@ if ($CaptureDiagnostics) {
         throw "Diagnostics script not found: $diagnosticsScript"
     }
 
-    $diagnosticsArgs = @(
-        "-AdbPath", $AdbPath,
-        "-PackageName", $PackageName,
-        "-ArtifactsDir", $ArtifactsDir,
-        "-DeviceSerial", $DeviceSerial,
-        "-WaitSeconds", $WaitSeconds
-    )
+    $diagnosticsArgs = @{
+        AdbPath = $AdbPath
+        PackageName = $PackageName
+        ArtifactsDir = $ArtifactsDir
+        DeviceSerial = $DeviceSerial
+        WaitSeconds = $WaitSeconds
+    }
     if (-not $Launch) {
-        $diagnosticsArgs += "-Launch"
-        $diagnosticsArgs += "-ClearLogcat"
+        $diagnosticsArgs.Launch = $true
+        $diagnosticsArgs.ClearLogcat = $true
     }
 
     & $diagnosticsScript @diagnosticsArgs

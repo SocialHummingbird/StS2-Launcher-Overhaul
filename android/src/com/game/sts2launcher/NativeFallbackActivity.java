@@ -52,9 +52,8 @@ public class NativeFallbackActivity extends Activity {
 		}
 		if (reasonMessage == null || reasonMessage.isEmpty()) {
 			reasonMessage =
-				"Game files are downloaded.\n\n" +
-				"The Android x86 emulator cannot safely run the Godot/.NET game runtime. It crashes inside the Mono/GodotSharp native layer before the launcher can take over.\n\n" +
-				"Use an ARM64 Android device/build to test launching the game. The emulator remains useful for auth and download testing before this point.";
+				"This Android x86 emulator cannot safely run the Godot/.NET runtime. It crashes inside the Mono/GodotSharp native layer before the launcher can take over.\n\n" +
+				"Use an ARM64 Android device/build to test the launcher and game runtime. This screen is expected on x86 emulator builds.";
 		}
 		final String diagnosticsText = diagnostics;
 
