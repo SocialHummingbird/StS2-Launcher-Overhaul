@@ -192,7 +192,7 @@ ext.getExportEnabledABIs = { ->
         enabledABIs = "armeabi-v7a|arm64-v8a|x86|x86_64|"
     }
     Set<String> exportAbiFilter = []
-    for (String abi_name : enabledABIs.split(VALUE_SEPARATOR_REGEX)) {
+    for (String abi_name : enabledABIs.split("\\||,")) {
         if (!abi_name.trim().isEmpty()){
             exportAbiFilter.add(abi_name)
         }

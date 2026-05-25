@@ -113,6 +113,7 @@ For local Android testing, use the PowerShell build wrapper so the managed assem
 ```powershell
 .\scripts\build-android-local.ps1 -VersionName "0.2.0-local-x86" -VersionCode 200 -Abi x86_64
 .\scripts\build-android-local.ps1 -VersionName "0.2.0-local-arm64" -VersionCode 201 -Abi arm64-v8a
+.\scripts\build-android-local.ps1 -VersionName "0.2.0-local-universal" -VersionCode 202 -Abi universal
 ```
 
 The Gradle output directory only keeps the most recent mono release APK. The wrapper also archives every local build to `artifacts/android/` with the ABI in the filename, for example:
@@ -122,6 +123,8 @@ artifacts/android/StS2Launcher-v0.2.0-local-x86-x86_64.apk
 artifacts/android/StS2Launcher-v0.2.0-local-x86-x86_64.apk.sha256
 artifacts/android/StS2Launcher-v0.2.0-local-arm64-arm64-v8a.apk
 artifacts/android/StS2Launcher-v0.2.0-local-arm64-arm64-v8a.apk.sha256
+artifacts/android/StS2Launcher-v0.2.0-local-universal-universal.apk
+artifacts/android/StS2Launcher-v0.2.0-local-universal-universal.apk.sha256
 ```
 
 Verify a local archived APK from `artifacts/android/`:

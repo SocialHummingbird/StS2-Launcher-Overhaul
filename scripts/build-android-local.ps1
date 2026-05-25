@@ -8,7 +8,7 @@ param(
     [string]$KeystorePath = "tmp\localtest.keystore",
     [string]$KeystorePassword = "android",
     [string]$KeystoreAlias = "androiddebugkey",
-    [ValidateSet("arm64-v8a", "x86_64")]
+    [ValidateSet("arm64-v8a", "x86_64", "universal")]
     [string]$Abi = "arm64-v8a"
 )
 
@@ -19,7 +19,6 @@ $androidDir = Join-Path $root "android"
 $projectPath = Join-Path $root "src\STS2Mobile\STS2Mobile.csproj"
 $publishDir = Join-Path $root "src\STS2Mobile\bin\Release\net9.0\publish"
 $bclDir = Join-Path $androidDir "assets\dotnet_bcl"
-$nativeLibDir = Join-Path $androidDir "libs\release\$Abi"
 $upstreamPublishDir = Join-Path $root "upstream\godot-export\.godot\mono\publish\arm64"
 $patcherProject = Join-Path $root "tools\SteamKitAndroidPatch\SteamKitAndroidPatch.csproj"
 $patcherDll = Join-Path $root "tools\SteamKitAndroidPatch\bin\Release\net9.0\SteamKitAndroidPatch.dll"
@@ -52,7 +51,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 New-Item -ItemType Directory -Force $bclDir | Out-Null
-New-Item -ItemType Directory -Force $nativeLibDir | Out-Null
+function Get-TargetAbis {
+    if ($Abi -eq "universal") {
+        return @("arm64-v8a", "x86_64")
+    }
+
+    return @($Abi)
+}
 
 function Copy-ManagedDependency([string]$Name) {
     $publishPath = Join-Path $publishDir $Name
@@ -87,16 +92,16 @@ foreach ($dependency in $managedDependencies) {
     Copy-ManagedDependency $dependency
 }
 
-function Get-MonoRuntimePackageName {
-    if ($Abi -eq "x86_64") {
+function Get-MonoRuntimePackageName([string]$TargetAbi) {
+    if ($TargetAbi -eq "x86_64") {
         return "microsoft.netcore.app.runtime.mono.android-x64"
     }
 
     return "microsoft.netcore.app.runtime.mono.android-arm64"
 }
 
-function Resolve-NativeRuntimeLibrary([string]$LibraryName) {
-    $packageName = Get-MonoRuntimePackageName
+function Resolve-NativeRuntimeLibrary([string]$TargetAbi, [string]$LibraryName) {
+    $packageName = Get-MonoRuntimePackageName $TargetAbi
     $packageRoot = Join-Path $env:USERPROFILE ".nuget\packages\$packageName"
     $coreLibPath = Join-Path $bclDir "System.Private.CoreLib.dll"
     if (-not (Test-Path -LiteralPath $coreLibPath)) {
@@ -193,9 +198,14 @@ $nativeRuntimeLibraries = @(
     "libmonosgen-2.0.so"
 )
 
-foreach ($library in $nativeRuntimeLibraries) {
-    $nativeSo = Resolve-NativeRuntimeLibrary $library
-    Copy-Item -Force $nativeSo (Join-Path $nativeLibDir $library)
+foreach ($targetAbi in Get-TargetAbis) {
+    $nativeLibDir = Join-Path $androidDir "libs\release\$targetAbi"
+    New-Item -ItemType Directory -Force $nativeLibDir | Out-Null
+
+    foreach ($library in $nativeRuntimeLibraries) {
+        $nativeSo = Resolve-NativeRuntimeLibrary $targetAbi $library
+        Copy-Item -Force $nativeSo (Join-Path $nativeLibDir $library)
+    }
 }
 
 Write-Host "Building SteamKit Android patcher..."
@@ -211,6 +221,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $resolvedKeystore = (Resolve-Path $KeystorePath).Path
+$gradleAbiList = (Get-TargetAbis) -join ","
 
 Write-Host "Stopping existing Gradle daemons..."
 & $GradlePath "--stop" | Out-Null
@@ -222,7 +233,7 @@ Write-Host "Building Android APK..."
     "-Pexport_version_name=$VersionName" `
     "-Pexport_version_code=$VersionCode" `
     "-Pexport_package_name=$PackageName" `
-    "-Pexport_enabled_abis=$Abi" `
+    "-Pexport_enabled_abis=$gradleAbiList" `
     "-Prelease_keystore_file=$resolvedKeystore" `
     "-Prelease_keystore_password=$KeystorePassword" `
     "-Prelease_keystore_alias=$KeystoreAlias"
@@ -247,7 +258,8 @@ Write-Host "APK built: $($apk.FullName)"
 
 $artifactDir = Join-Path $root "artifacts\android"
 $safeVersionName = $VersionName -replace '[^A-Za-z0-9._-]', '_'
-$archivedApk = Join-Path $artifactDir "StS2Launcher-v$safeVersionName-$Abi.apk"
+$artifactAbiName = $Abi
+$archivedApk = Join-Path $artifactDir "StS2Launcher-v$safeVersionName-$artifactAbiName.apk"
 New-Item -ItemType Directory -Force $artifactDir | Out-Null
 Copy-Item -LiteralPath $apk.FullName -Destination $archivedApk -Force
 Write-Host "APK archived: $archivedApk"
