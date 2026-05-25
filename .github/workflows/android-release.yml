@@ -19,6 +19,10 @@ on:
         description: "Optional URL to a raw sts2.dll when the upstream release APK does not include it."
         required: false
         default: ""
+      patched_godot_apk_url:
+        description: "Optional APK URL to source patched arm64 libgodot_android.so from."
+        required: false
+        default: "https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.88-apk-native-verify/StS2Launcher-v0.2.88-universal-phone.apk"
       version_name:
         description: "Override APK version name (optional)."
         required: false
@@ -161,6 +165,25 @@ jobs:
           mkdir -p android/libs/release/arm64-v8a android/assets/dotnet_bcl
           unzip -jo "$TMP_APK" 'lib/arm64-v8a/*.so' -d android/libs/release/arm64-v8a
           unzip -jo "$TMP_APK" 'assets/dotnet_bcl/*.dll' -d android/assets/dotnet_bcl
+
+          PATCHED_GODOT_APK_URL="${{ github.event.inputs.patched_godot_apk_url }}"
+          if [[ -z "${PATCHED_GODOT_APK_URL}" ]]; then
+            PATCHED_GODOT_APK_URL="https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.88-apk-native-verify/StS2Launcher-v0.2.88-universal-phone.apk"
+          fi
+          PATCHED_GODOT_APK="$TMP_DIR/patched-godot-source.apk"
+          echo "Staging patched libgodot_android.so from ${PATCHED_GODOT_APK_URL}"
+          if command -v curl >/dev/null 2>&1; then
+            curl -fsSL -o "$PATCHED_GODOT_APK" "$PATCHED_GODOT_APK_URL"
+          elif command -v wget >/dev/null 2>&1; then
+            wget -qO "$PATCHED_GODOT_APK" "$PATCHED_GODOT_APK_URL"
+          else
+            echo "::error::Neither curl nor wget available to fetch patched Godot APK."
+            exit 1
+          fi
+          if ! unzip -p "$PATCHED_GODOT_APK" 'lib/arm64-v8a/libgodot_android.so' > android/libs/release/arm64-v8a/libgodot_android.so; then
+            echo "::error::Patched Godot APK does not contain lib/arm64-v8a/libgodot_android.so."
+            exit 1
+          fi
 
           STS2_SOURCE="${{ github.event.inputs.sts2_dll_source_url }}"
 
