@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using Godot;
 using STS2Mobile.Patches;
@@ -14,6 +16,7 @@ public class LauncherController
     private readonly LauncherView _view;
     private readonly Action<Action> _runOnMainThread;
     private volatile bool _checkingForUpdates;
+    private volatile bool _localLoginHandoffStarted;
 
     public LauncherController(
         LauncherModel model,
@@ -124,6 +127,84 @@ public class LauncherController
 
         var result = _model.StartSession();
         HandleFastPath(result);
+        StartLocalLoginHandoffWatcher();
+    }
+
+    private void StartLocalLoginHandoffWatcher()
+    {
+        if (_localLoginHandoffStarted || !OperatingSystem.IsAndroid())
+            return;
+
+        _localLoginHandoffStarted = true;
+        _ = Task.Run(WatchLocalLoginHandoffAsync);
+    }
+
+    private async Task WatchLocalLoginHandoffAsync()
+    {
+        while (!_model.ConnectionResolved)
+        {
+            var credentials = TryConsumeLocalLoginCredentials();
+            if (credentials != null)
+            {
+                PatchHelper.Log("[Launcher] Consumed local Steam credential file");
+                _runOnMainThread(() =>
+                {
+                    _view.Login.Visible = false;
+                    _view.Login.SetDisabled(true);
+                    _view.SetStatus("Authenticating...");
+                });
+
+                await _model.LoginAsync(credentials.Value.Username, credentials.Value.Password);
+                return;
+            }
+
+            await Task.Delay(500);
+        }
+    }
+
+    private static (string Username, string Password)? TryConsumeLocalLoginCredentials()
+    {
+        var path = GetLocalLoginCredentialsPath();
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+
+        try
+        {
+            var lines = File.ReadAllLines(path);
+            File.Delete(path);
+
+            if (lines.Length < 2)
+                throw new InvalidDataException("expected two base64 lines");
+
+            var username = Encoding.UTF8.GetString(Convert.FromBase64String(lines[0].Trim())).Trim();
+            var password = Encoding.UTF8.GetString(Convert.FromBase64String(lines[1].Trim()));
+
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
+                throw new InvalidDataException("username or password was empty");
+
+            return (username, password);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Ignored local Steam credential file: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static string GetLocalLoginCredentialsPath()
+    {
+        try
+        {
+            var godotApp = LauncherModel.GetGodotApp();
+            var dir = (string)godotApp?.Call("getExternalFilesDirPath");
+            return string.IsNullOrWhiteSpace(dir)
+                ? null
+                : Path.Combine(dir, "steam_login_credentials.txt");
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private void HandleFastPath(FastPathResult result)

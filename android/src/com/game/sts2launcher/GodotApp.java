@@ -17,24 +17,44 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
 import java.security.KeyStore;
+import java.security.KeyFactory;
+import java.security.MessageDigest;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.spec.GCMParameterSpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.security.spec.RSAPublicKeySpec;
 
 import android.content.Context;
 import android.net.wifi.WifiManager;
 import android.util.Base64;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 // Main activity for the mobile launcher. Handles .NET assembly setup, PCK loading,
 // LAN multicast, and Android Keystore encryption for credentials.
 public class GodotApp extends GodotActivity {
 	private static final String TAG = "STS2Mobile";
 	private static GodotApp instance;
+	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 	private WifiManager.MulticastLock multicastLock;
 	private String gameDir;
 	private static final String KEYSTORE_ALIAS = "sts2mobile_credentials";
@@ -487,6 +507,11 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
+	public String getExternalFilesDirPath() {
+		File dir = getExternalFilesDir(null);
+		return dir != null ? dir.getAbsolutePath() : null;
+	}
+
 	// Returns true if the app has permission to write to shared external storage.
 	public boolean hasStoragePermission() {
 		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
@@ -523,6 +548,215 @@ public class GodotApp extends GodotActivity {
 			keyStore.deleteEntry(KEYSTORE_ALIAS);
 		} catch (Exception e) {
 			Log.e(TAG, "Failed to delete keystore key", e);
+		}
+	}
+
+	public String httpRequest(String method, String urlString, String headersJson, String bodyBase64, int timeoutMs) {
+		HttpURLConnection connection = null;
+		try {
+			URL url = new URL(urlString);
+			connection = (HttpURLConnection) url.openConnection();
+			connection.setRequestMethod(method);
+			connection.setConnectTimeout(timeoutMs);
+			connection.setReadTimeout(timeoutMs);
+			connection.setInstanceFollowRedirects(false);
+			connection.setUseCaches(false);
+
+			if (headersJson != null && !headersJson.isEmpty()) {
+				JSONObject headers = new JSONObject(headersJson);
+				Iterator<String> keys = headers.keys();
+				while (keys.hasNext()) {
+					String name = keys.next();
+					if ("Content-Length".equalsIgnoreCase(name) || "Host".equalsIgnoreCase(name)) {
+						continue;
+					}
+					JSONArray values = headers.optJSONArray(name);
+					if (values == null) {
+						continue;
+					}
+					for (int i = 0; i < values.length(); i++) {
+						connection.addRequestProperty(name, values.optString(i, ""));
+					}
+				}
+			}
+
+			byte[] body = (bodyBase64 == null || bodyBase64.isEmpty())
+				? new byte[0]
+				: Base64.decode(bodyBase64, Base64.NO_WRAP);
+			if (body.length > 0) {
+				connection.setDoOutput(true);
+				try (OutputStream out = connection.getOutputStream()) {
+					out.write(body);
+				}
+			}
+
+			int status = connection.getResponseCode();
+			InputStream stream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
+			byte[] responseBody = stream == null ? new byte[0] : readFully(stream);
+
+			JSONObject response = new JSONObject();
+			response.put("status", status);
+			response.put("reason", connection.getResponseMessage());
+			response.put("body", Base64.encodeToString(responseBody, Base64.NO_WRAP));
+
+			JSONObject responseHeaders = new JSONObject();
+			for (Map.Entry<String, List<String>> entry : connection.getHeaderFields().entrySet()) {
+				if (entry.getKey() == null || entry.getValue() == null) {
+					continue;
+				}
+				JSONArray values = new JSONArray();
+				for (String value : entry.getValue()) {
+					values.put(value);
+				}
+				responseHeaders.put(entry.getKey(), values);
+			}
+			response.put("headers", responseHeaders);
+
+			return response.toString();
+		} catch (Exception e) {
+			Log.e(TAG, "HTTP bridge request failed", e);
+			try {
+				JSONObject response = new JSONObject();
+				response.put("error", e.toString());
+				return response.toString();
+			} catch (Exception ignored) {
+				return "{\"error\":\"HTTP bridge request failed\"}";
+			}
+		} finally {
+			if (connection != null) {
+				connection.disconnect();
+			}
+		}
+	}
+
+	private byte[] readFully(InputStream stream) throws IOException {
+		try (InputStream in = stream; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+			byte[] buffer = new byte[8192];
+			int read;
+			while ((read = in.read(buffer)) != -1) {
+				out.write(buffer, 0, read);
+			}
+			return out.toByteArray();
+		}
+	}
+
+	public String randomBytesBase64(int count) {
+		if (count < 0) {
+			throw new IllegalArgumentException("count must be non-negative");
+		}
+		byte[] bytes = new byte[count];
+		SECURE_RANDOM.nextBytes(bytes);
+		return Base64.encodeToString(bytes, Base64.NO_WRAP);
+	}
+
+	public String rsaEncryptBase64(
+			String publicKeyBase64,
+			String modulusBase64,
+			String exponentBase64,
+			String dataBase64,
+			String paddingName) {
+		try {
+			byte[] data = Base64.decode(dataBase64, Base64.NO_WRAP);
+			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+
+			PublicKey publicKey;
+			if (publicKeyBase64 != null && !publicKeyBase64.isEmpty()) {
+				byte[] publicKeyBytes = Base64.decode(publicKeyBase64, Base64.NO_WRAP);
+				publicKey = keyFactory.generatePublic(new X509EncodedKeySpec(publicKeyBytes));
+			} else {
+				byte[] modulus = Base64.decode(modulusBase64, Base64.NO_WRAP);
+				byte[] exponent = Base64.decode(exponentBase64, Base64.NO_WRAP);
+				publicKey = keyFactory.generatePublic(new RSAPublicKeySpec(
+					new BigInteger(1, modulus),
+					new BigInteger(1, exponent)));
+			}
+
+			String transformation;
+			if ("PKCS1".equals(paddingName)) {
+				transformation = "RSA/ECB/PKCS1Padding";
+			} else if ("OAEP-SHA1".equals(paddingName)) {
+				transformation = "RSA/ECB/OAEPWithSHA-1AndMGF1Padding";
+			} else {
+				throw new IllegalArgumentException("Unsupported RSA padding: " + paddingName);
+			}
+
+			Cipher cipher = Cipher.getInstance(transformation);
+			cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+			return Base64.encodeToString(cipher.doFinal(data), Base64.NO_WRAP);
+		} catch (Exception e) {
+			Log.e(TAG, "RSA bridge encryption failed", e);
+			return null;
+		}
+	}
+
+	public String hmacSha1Base64(String keyBase64, String dataBase64) {
+		try {
+			byte[] key = Base64.decode(keyBase64, Base64.NO_WRAP);
+			byte[] data = Base64.decode(dataBase64, Base64.NO_WRAP);
+			Mac mac = Mac.getInstance("HmacSHA1");
+			mac.init(new SecretKeySpec(key, "HmacSHA1"));
+			return Base64.encodeToString(mac.doFinal(data), Base64.NO_WRAP);
+		} catch (Exception e) {
+			Log.e(TAG, "HMAC-SHA1 bridge failed", e);
+			return null;
+		}
+	}
+
+	public String sha1Base64(String dataBase64) {
+		try {
+			byte[] data = Base64.decode(dataBase64, Base64.NO_WRAP);
+			MessageDigest digest = MessageDigest.getInstance("SHA-1");
+			return Base64.encodeToString(digest.digest(data), Base64.NO_WRAP);
+		} catch (Exception e) {
+			Log.e(TAG, "SHA-1 bridge failed", e);
+			return null;
+		}
+	}
+
+	public String aesCryptBase64(
+			String operation,
+			String mode,
+			String paddingName,
+			String keyBase64,
+			String ivBase64,
+			String dataBase64) {
+		try {
+			byte[] key = Base64.decode(keyBase64, Base64.NO_WRAP);
+			byte[] data = Base64.decode(dataBase64, Base64.NO_WRAP);
+			String padding;
+			if ("None".equals(paddingName)) {
+				padding = "NoPadding";
+			} else if ("PKCS7".equals(paddingName)) {
+				padding = "PKCS5Padding";
+			} else {
+				throw new IllegalArgumentException("Unsupported AES padding: " + paddingName);
+			}
+
+			String transformation = "AES/" + mode + "/" + padding;
+			Cipher cipher = Cipher.getInstance(transformation);
+			SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
+			int cipherMode;
+			if ("encrypt".equals(operation)) {
+				cipherMode = Cipher.ENCRYPT_MODE;
+			} else if ("decrypt".equals(operation)) {
+				cipherMode = Cipher.DECRYPT_MODE;
+			} else {
+				throw new IllegalArgumentException("Unsupported AES operation: " + operation);
+			}
+
+			if ("CBC".equals(mode)) {
+				byte[] iv = Base64.decode(ivBase64, Base64.NO_WRAP);
+				cipher.init(cipherMode, keySpec, new IvParameterSpec(iv));
+			} else if ("ECB".equals(mode)) {
+				cipher.init(cipherMode, keySpec);
+			} else {
+				throw new IllegalArgumentException("Unsupported AES mode: " + mode);
+			}
+
+			return Base64.encodeToString(cipher.doFinal(data), Base64.NO_WRAP);
+		} catch (Exception e) {
+			Log.e(TAG, "AES bridge failed", e);
+			return null;
 		}
 	}
 }

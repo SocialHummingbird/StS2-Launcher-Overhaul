@@ -297,6 +297,12 @@ jobs:
           copy_dependency sts2.dll
           copy_dependency GodotSharp.dll
 
+          echo "Patching SteamKit2 Android crypto calls."
+          dotnet build "$ROOT_DIR/tools/SteamKitAndroidPatch/SteamKitAndroidPatch.csproj" -c Release
+          dotnet "$ROOT_DIR/tools/SteamKitAndroidPatch/bin/Release/net9.0/SteamKitAndroidPatch.dll" \
+            "$BCL_DIR/SteamKit2.dll" \
+            "$BCL_DIR/STS2Mobile.dll"
+
           resolve_tls_so() {
             local runtime_version
             runtime_version="$(dotnet --list-runtimes | awk '/^Microsoft.NETCore.App / {print $2; exit}')"

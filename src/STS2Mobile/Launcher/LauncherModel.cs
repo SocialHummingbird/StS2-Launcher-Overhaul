@@ -142,7 +142,7 @@ public class LauncherModel : IDisposable
                 AwaitingCode = true;
                 CodeNeeded?.Invoke(wasIncorrect);
                 _codeTcs = new TaskCompletionSource<string>();
-                var code = await _codeTcs.Task;
+                var code = await WaitForSubmittedCodeAsync(_codeTcs.Task);
 
                 if (_auth.NeedsReconnectForAuth)
                     await _auth.ReconnectForAuthAsync();
@@ -178,6 +178,82 @@ public class LauncherModel : IDisposable
     }
 
     public void SubmitCode(string code) => _codeTcs?.TrySetResult(code);
+
+    private async Task<string> WaitForSubmittedCodeAsync(Task<string> uiCodeTask)
+    {
+        while (true)
+        {
+            if (uiCodeTask.IsCompleted)
+                return await uiCodeTask;
+
+            var localCode = TryConsumeLocalGuardCode();
+            if (!string.IsNullOrWhiteSpace(localCode))
+                return localCode;
+
+            await Task.Delay(500);
+        }
+    }
+
+    private static string TryConsumeLocalGuardCode()
+    {
+        if (!OperatingSystem.IsAndroid())
+            return null;
+
+        var path = GetLocalGuardCodePath();
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+
+        string code;
+        try
+        {
+            code = File.ReadAllText(path).Trim().ToUpperInvariant();
+            File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Auth] Failed to consume local Steam Guard code file: {ex.Message}");
+            return null;
+        }
+
+        if (!IsGuardCodeShape(code))
+        {
+            PatchHelper.Log("[Auth] Ignored local Steam Guard code file with invalid shape");
+            return null;
+        }
+
+        PatchHelper.Log("[Auth] Consumed local Steam Guard code file");
+        return code;
+    }
+
+    private static bool IsGuardCodeShape(string code)
+    {
+        if (code == null || code.Length != 5)
+            return false;
+
+        foreach (var ch in code)
+        {
+            if (!char.IsLetterOrDigit(ch))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static string GetLocalGuardCodePath()
+    {
+        try
+        {
+            var godotApp = GetGodotApp();
+            var dir = (string)godotApp?.Call("getExternalFilesDirPath");
+            return string.IsNullOrWhiteSpace(dir)
+                ? null
+                : Path.Combine(dir, "steam_guard_code.txt");
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     // Creates or reuses a SteamConnection for depot operations.
     public async Task EnsureConnectedAsync()
