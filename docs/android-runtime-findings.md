@@ -47,11 +47,14 @@ Use an `arm64-v8a` Android device/build as the proof target for actual game laun
 
 ## Local validation commands
 
+For phone installs, use a universal APK when available. ABI-specific APKs are useful for debugging, but the `x86_64` APK is emulator-only and will be incompatible with ARM64 phones.
+
 Build ABI-specific local artifacts:
 
 ```powershell
 .\scripts\build-android-local.ps1 -VersionName "0.2.0-local-x86" -VersionCode 200 -Abi x86_64
 .\scripts\build-android-local.ps1 -VersionName "0.2.0-local-arm64" -VersionCode 201 -Abi arm64-v8a
+.\scripts\build-android-local.ps1 -VersionName "0.2.0-local-universal" -VersionCode 202 -Abi universal
 ```
 
 Run the smoke test once ADB sees a device:

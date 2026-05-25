@@ -182,11 +182,13 @@ adb shell pm clear com.sts2launcher.overhaul.fork
 GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
-2. Download `StS2Launcher-vX.Y.Z.apk` for the latest release.
+2. Download the universal APK for the latest release. Prefer the asset with `universal` in the filename for phones.
     - Direct latest URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest
     - Downloaded artifact names include:
-      - `StS2Launcher-v<version>.apk` (installable package)
-      - `StS2Launcher-v<version>.apk.sha256` (optional checksum)
+      - `StS2Launcher-v<version>-universal.apk` or similar (recommended installable package for phones)
+      - `StS2Launcher-v<version>-arm64-v8a.apk` or similar (ARM64-only test package)
+      - `StS2Launcher-v<version>-x86_64.apk` or similar (emulator-only test package)
+      - `*.apk.sha256` (optional checksum)
 3. (Optional) Verify checksum:
 
 ```bash
@@ -220,6 +222,9 @@ If installation fails:
   ```
 - `INSTALL_FAILED_OLDER_SDK`:
   - your device is running an unsupported Android API level.
+- `INSTALL_FAILED_DEXOPT` or immediate crash:
+- `App isn't compatible with your phone`:
+  - make sure you downloaded the `universal` APK, not the `x86_64` emulator-only APK.
 - `INSTALL_FAILED_DEXOPT` or immediate crash:
   - capture logs with `adb logcat` and open a release issue with stack trace.
 
