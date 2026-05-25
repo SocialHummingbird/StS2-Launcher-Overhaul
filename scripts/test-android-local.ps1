@@ -156,7 +156,7 @@ Invoke-Adb "shell" "am" "start" "-n" $component
 
 Start-Sleep -Seconds $WaitSeconds
 
-$patterns = "STS2Mobile|Routing to native x86 fallback|Showing native x86 fallback|InitEngine|\.NET:|FORTIFY|FATAL|crash|AndroidRuntime|Exception"
+$patterns = "STS2Mobile|Routing to native x86 fallback|Showing native x86 fallback|InitEngine|\.NET:|\.NET assemblies not found|Unable to find the \.NET assemblies directory|api_assemblies_dir|Missing required cache file|Assembly setup failed|FORTIFY|FATAL|crash|AndroidRuntime|Exception"
 $fullLog = @(& $AdbPath "-s" $DeviceSerial logcat -d -v time)
 $fullLog | Set-Content -LiteralPath $fullLogPath -Encoding UTF8
 
@@ -169,7 +169,11 @@ Write-Host "Full logcat: $fullLogPath"
 Write-Host "Filtered logcat: $filteredLogPath"
 
 $log = $filteredLog
-if ($log -match "Routing to native x86 fallback|Showing native x86 fallback") {
+if ($log -match "\.NET assemblies not found|Unable to find the \.NET assemblies directory") {
+    $result = ".NET assembly directory failure observed; inspect filtered and full logcat"
+} elseif ($log -match "Assembly setup failed|Missing required cache file") {
+    $result = "Java assembly cache setup failure observed; inspect filtered and full logcat"
+} elseif ($log -match "Routing to native x86 fallback|Showing native x86 fallback") {
     $result = "native x86 fallback route observed"
 } elseif ($log -match "FORTIFY|FATAL|AndroidRuntime|crash") {
     $result = "crash/error markers observed; inspect filtered and full logcat"
