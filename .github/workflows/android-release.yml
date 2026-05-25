@@ -439,6 +439,8 @@ jobs:
           APK_PATH="android/${RENAMED_APK_PATH}"
           ABS_APK_PATH="$(pwd)/${RENAMED_APK_PATH}"
 
+          pwsh ../scripts/verify-android-apk.ps1 -ApkPath "$ABS_APK_PATH" -Abi arm64-v8a
+
           echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
           sha256sum "$ABS_APK_PATH" > "${ABS_APK_PATH}.sha256"
 
