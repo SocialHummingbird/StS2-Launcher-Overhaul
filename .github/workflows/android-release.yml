@@ -142,6 +142,9 @@ jobs:
           fi
 
           UPSTREAM_TAG="${{ github.event.inputs.upstream_release_tag }}"
+          if [[ -z "${UPSTREAM_TAG}" ]]; then
+            UPSTREAM_TAG="0.2.0"
+          fi
           UPSTREAM_APK="StS2Launcher-v${UPSTREAM_TAG}.apk"
           UPSTREAM_URL="https://github.com/Ekyso/StS2-Launcher/releases/download/${UPSTREAM_TAG}/${UPSTREAM_APK}"
           TMP_DIR="$(mktemp -d)"
