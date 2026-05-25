@@ -410,6 +410,7 @@ jobs:
             "-Pexport_build_type=release"
             "-Pexport_edition=mono"
             "-Pexport_package_name=${EXPORT_PACKAGE_NAME}"
+            "-Pexport_enabled_abis=arm64-v8a"
           )
 
           if [[ "${SIGNING_ENABLED}" == "true" ]]; then
@@ -432,8 +433,11 @@ jobs:
             echo "::error::Expected APK not found at ${RAW_APK_PATH}"
             exit 1
           fi
-          APK_PATH="android/${RAW_APK_PATH}"
           ABS_APK_PATH="$(pwd)/${RAW_APK_PATH}"
+          RENAMED_APK_PATH="$(dirname "${RAW_APK_PATH}")/StS2Launcher-v${VERSION_NAME}-arm64-v8a.apk"
+          mv "$RAW_APK_PATH" "$RENAMED_APK_PATH"
+          APK_PATH="android/${RENAMED_APK_PATH}"
+          ABS_APK_PATH="$(pwd)/${RENAMED_APK_PATH}"
 
           echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
           sha256sum "$ABS_APK_PATH" > "${ABS_APK_PATH}.sha256"
@@ -465,5 +469,7 @@ jobs:
         with:
           tag_name: ${{ needs.build-android-release.outputs.release_tag }}
           name: "StS2 Launcher ${{ needs.build-android-release.outputs.version_name }}"
-          files: release-artifacts/*.apk
+          files: |
+            release-artifacts/**/*.apk
+            release-artifacts/**/*.sha256
           generate_release_notes: true

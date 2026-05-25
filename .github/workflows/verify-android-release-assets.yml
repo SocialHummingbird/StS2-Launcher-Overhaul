@@ -20,8 +20,9 @@ on:
         description: "Expected APK ABI set."
         type: choice
         required: true
-        default: "universal"
+        default: "auto"
         options:
+          - auto
           - universal
           - arm64-v8a
           - x86_64
@@ -93,9 +94,16 @@ jobs:
               || apkAssets.find((asset) => /universal-phone\.apk$/i.test(asset.name))
               || apkAssets.find((asset) => /universal.*\.apk$/i.test(asset.name))
               || apkAssets[0];
+            const inferredAbi = /universal/i.test(preferred.name)
+              ? "universal"
+              : /x86_64/i.test(preferred.name)
+                ? "x86_64"
+                : "arm64-v8a";
             core.setOutput("release_tag", tag);
             core.setOutput("apk_asset_name", preferred.name);
+            core.setOutput("inferred_abi", inferredAbi);
             console.log(`Selected APK for structural verification: ${preferred.name}`);
+            console.log(`Inferred expected ABI: ${inferredAbi}`);
 
       - name: Verify uploaded APK structure and native Godot patch
         shell: pwsh
@@ -106,4 +114,4 @@ jobs:
             -Repo "${{ github.repository }}" `
             -ReleaseTag "${{ steps.assets.outputs.release_tag }}" `
             -AssetName "${{ steps.assets.outputs.apk_asset_name }}" `
-            -Abi "${{ github.event.inputs.abi || 'universal' }}"
+            -Abi "${{ github.event.inputs.abi == 'auto' && steps.assets.outputs.inferred_abi || github.event.inputs.abi || steps.assets.outputs.inferred_abi }}"
