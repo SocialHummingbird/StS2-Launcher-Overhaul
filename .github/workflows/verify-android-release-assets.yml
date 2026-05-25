@@ -59,7 +59,7 @@ jobs:
             });
 
             const assets = release.data.assets || [];
-            const apkAssets = assets.filter((asset) => asset.name && /^StS2Launcher-v.*\\.apk$/i.test(asset.name));
+            const apkAssets = assets.filter((asset) => asset.name && /^StS2Launcher-v.*\.apk$/i.test(asset.name));
             const shaAssets = assets.filter((asset) => asset.name && asset.name.endsWith(".sha256"));
 
             console.log(`Release: ${release.data.html_url}`);
