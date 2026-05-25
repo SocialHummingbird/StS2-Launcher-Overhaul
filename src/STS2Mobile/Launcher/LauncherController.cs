@@ -373,12 +373,24 @@ public class LauncherController
         _view.Actions.SetUpdateButtonDisabled(true);
         _view.Actions.SetUpdateButtonText("Checking...");
 
-        // Check for launcher (APK) updates from GitHub in parallel with game file updates.
-        var appUpdateTask = CheckAppUpdateAsync();
-        await _model.CheckForUpdatesAsync();
-        await appUpdateTask;
-
-        _checkingForUpdates = false;
+        try
+        {
+            // Check for launcher (APK) updates from GitHub in parallel with game file updates.
+            var appUpdateTask = CheckAppUpdateAsync();
+            await _model.CheckForUpdatesAsync();
+            await appUpdateTask;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Check for updates failed: {ex}");
+            _view.AppendLog($"Update check failed: {ex.Message}");
+            _view.Actions.SetUpdateButtonText("CHECK FAILED");
+        }
+        finally
+        {
+            _checkingForUpdates = false;
+            _view.Actions.SetUpdateButtonDisabled(false);
+        }
     }
 
     private static readonly Color YellowLog = new(1f, 0.85f, 0.2f);

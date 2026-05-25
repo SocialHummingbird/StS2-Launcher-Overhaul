@@ -13,6 +13,7 @@ The goal is a **drastic architecture and reliability overhaul** that is harder t
 - Overhaul status: [OVERHAUL_STATUS.md](OVERHAUL_STATUS.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - Device log checklist: [docs/device-log-checklist.md](docs/device-log-checklist.md)
+- Android runtime findings: [docs/android-runtime-findings.md](docs/android-runtime-findings.md)
 
 ### Suggested working remotes
 
@@ -105,12 +106,71 @@ This runs the full pipeline:
 
 Output: `android/build/outputs/apk/mono/release/StS2Launcher-v<version>.apk`
 
+### Local Android ABI builds
+
+For local Android testing, use the PowerShell build wrapper so the managed assemblies, patched SteamKit dependency, Mono Android runtime libraries, and native ABI selection stay in sync:
+
+```powershell
+.\scripts\build-android-local.ps1 -VersionName "0.2.0-local-x86" -VersionCode 200 -Abi x86_64
+.\scripts\build-android-local.ps1 -VersionName "0.2.0-local-arm64" -VersionCode 201 -Abi arm64-v8a
+```
+
+The Gradle output directory only keeps the most recent mono release APK. The wrapper also archives every local build to `artifacts/android/` with the ABI in the filename, for example:
+
+```text
+artifacts/android/StS2Launcher-v0.2.0-local-x86-x86_64.apk
+artifacts/android/StS2Launcher-v0.2.0-local-x86-x86_64.apk.sha256
+artifacts/android/StS2Launcher-v0.2.0-local-arm64-arm64-v8a.apk
+artifacts/android/StS2Launcher-v0.2.0-local-arm64-arm64-v8a.apk.sha256
+```
+
+Verify a local archived APK from `artifacts/android/`:
+
+```bash
+sha256sum -c StS2Launcher-v0.2.0-local-arm64-arm64-v8a.apk.sha256
+```
+
+The Android `x86_64` emulator is useful for Steam authentication and download testing, but it is not a valid proof target for launching the downloaded Godot/.NET game. Once a non-empty game PCK is present, `x86_64` routes to a native fallback screen instead of starting Godot, because the emulator path crashes inside the Mono/GodotSharp native runtime. The fallback diagnostics report whether the PCK header looks valid. Use an `arm64-v8a` Android device/build to test actual game launch.
+
+### Local Android smoke test
+
+Once `adb devices` shows exactly one attached device or emulator, run:
+
+```powershell
+.\scripts\test-android-local.ps1
+```
+
+The smoke-test script selects the newest archived APK matching the attached device ABI, installs it, launches `LauncherActivity`, captures logcat to `artifacts/android/logcat-smoke-*-full.txt`, writes a focused subset to `artifacts/android/logcat-smoke-*-filtered.txt`, writes a handoff summary to `artifacts/android/logcat-smoke-*-summary.txt`, and reports whether it saw the native x86 fallback route or crash markers.
+If the selected APK has a `.sha256` sidecar, the script verifies it before install and stops on mismatch.
+By default, local builds and the smoke-test script use package `com.sts2launcher.overhaul.fork.dev`.
+
+For a clean app-data run:
+
+```powershell
+.\scripts\test-android-local.ps1 -ClearAppData
+```
+
+If the emulator is still booting or ADB is slow to attach, wait before failing:
+
+```powershell
+.\scripts\test-android-local.ps1 -WaitForDeviceSeconds 60
+```
+
+If more than one device/emulator is attached, pass the target serial:
+
+```powershell
+.\scripts\test-android-local.ps1 -DeviceSerial emulator-5554
+```
+
 ### Installing
 
 ```bash
 adb install -r android/build/outputs/apk/mono/release/StS2Launcher-v*.apk
 
-# Fresh install (clear saved credentials + cached assemblies)
+# Fresh install for local build wrapper default package
+adb shell pm clear com.sts2launcher.overhaul.fork.dev
+
+# Fresh install for production/release package
 adb shell pm clear com.sts2launcher.overhaul.fork
 ```
 
@@ -185,11 +245,18 @@ Release validation checklist for every release is tracked in [docs/android-relea
 python3 scripts/make-bootstrap-pck.py
 
 # Rebuild Godot engine (only if engine source changes)
+bash scripts/setup-godot-source.sh
 bash scripts/build-godot.sh
+
+# Windows PowerShell equivalent
+.\scripts\setup-godot-source.ps1
+.\scripts\build-godot.ps1
 
 # Rebuild native stubs (requires Android NDK)
 bash src/stubs/build_stubs.sh
 ```
+
+`scripts/setup-godot-source.sh` or `scripts/setup-godot-source.ps1` restores `vendor/godot` and the Python/SCons virtualenv needed by the matching build script. By default it checks out upstream Godot `4.5.1-stable`; set `GODOT_REPO` and `GODOT_REF` if you have the original patched engine fork. Emulator `x86_64` testing requires `arm64-v8a` and `x86_64` `libgodot_android.so` to be built from the same engine checkout.
 
 ## LAN Multiplayer
 

@@ -17,6 +17,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.io.ByteArrayOutputStream;
 import java.security.KeyStore;
 import java.security.KeyFactory;
@@ -25,9 +26,11 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -63,7 +66,8 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_INSTALLED_VERSION_CODE = "installed_version_code";
 	private static final String KEY_INSTALLED_PACKAGE_NAME = "installed_package_name";
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
-	private static final int ASSEMBLY_CACHE_SCHEMA = 4;
+	private static final int ASSEMBLY_CACHE_SCHEMA = 9;
+	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v26";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
 	private static final int MAX_BUFFERED_HTTP_RESPONSE_BYTES = 1024 * 1024;
 	private long lastHttpResponseCleanupAt;
@@ -85,6 +89,7 @@ public class GodotApp extends GodotActivity {
 		instance = this;
 		gameDir = new File(getFilesDir(), "game").getAbsolutePath();
 		configureTempDirectory();
+		configureMonoForEmulator();
 		cleanupStaleHttpResponseFiles();
 
 		SplashScreen.installSplashScreen(this);
@@ -115,6 +120,11 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
+	private void configureMonoForEmulator() {
+		// Native x86_64 emulator builds should use the normal Mono execution mode.
+		// Forcing interpreter options here can destabilize Godot's Mono startup.
+	}
+
 	private boolean shouldRefreshAssemblyCache() {
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		int lastSchema = prefs.getInt(KEY_ASSEMBLY_CACHE_SCHEMA, -1);
@@ -126,11 +136,49 @@ public class GodotApp extends GodotActivity {
 			lastVersion == currentVersion &&
 			getPackageName().equals(prefs.getString(KEY_INSTALLED_PACKAGE_NAME, ""))
 		) {
-			File destDir = new File(getFilesDir(), ".godot/mono/publish/arm64");
+			File destDir = new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir());
 			return !hasRequiredCacheFiles(destDir);
 		}
 
 		return true;
+	}
+
+	private String getRuntimeGodotArchDir() {
+		String nativeLibraryDir = getApplicationInfo().nativeLibraryDir;
+		if (nativeLibraryDir != null) {
+			if (nativeLibraryDir.contains("x86_64")) {
+				return "x86_64";
+			}
+			if (nativeLibraryDir.contains("arm64")) {
+				return "arm64";
+			}
+		}
+
+		for (String abi : android.os.Build.SUPPORTED_ABIS) {
+			if ("x86_64".equals(abi)) {
+				return "x86_64";
+			}
+			if ("arm64-v8a".equals(abi)) {
+				return "arm64";
+			}
+		}
+
+		return "arm64";
+	}
+
+	private boolean isX86Runtime() {
+		String nativeLibraryDir = getApplicationInfo().nativeLibraryDir;
+		if (nativeLibraryDir != null) {
+			return nativeLibraryDir.contains("x86_64");
+		}
+
+		for (String abi : android.os.Build.SUPPORTED_ABIS) {
+			if (abi != null && abi.contains("x86")) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private boolean hasRequiredCacheFiles(File destDir, boolean requireGameAssemblies) {
@@ -170,7 +218,7 @@ public class GodotApp extends GodotActivity {
 	private void resetAssemblyCacheState() {
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		prefs.edit().remove(KEY_ASSEMBLY_CACHE_SCHEMA).remove(KEY_INSTALLED_VERSION_CODE).remove(KEY_INSTALLED_PACKAGE_NAME).apply();
-		File destDir = new File(getFilesDir(), ".godot/mono/publish/arm64");
+		File destDir = new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir());
 		clearAssemblyCache(destDir);
 	}
 
@@ -228,15 +276,25 @@ public class GodotApp extends GodotActivity {
 	// changed.
 	private void setupAssemblies() {
 		File srcDir = findAssembliesDir();
-		File destDir = new File(getFilesDir(), ".godot/mono/publish/arm64");
+		File destDir = new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir());
 		int currentVersion = BuildConfig.VERSION_CODE;
-		boolean requiresGameAssemblies = hasGameAssemblies(srcDir);
+		boolean gameReady = isGamePckReady();
+		boolean requiresGameAssemblies = gameReady && hasGameAssemblies(srcDir);
+		Set<String> packagedBclNames = getPackagedBclNames();
 
 		boolean refreshCache = shouldRefreshAssemblyCache();
 
 		File patcherMarker = new File(destDir, "STS2Mobile.dll");
 		File sts2Marker = new File(destDir, "sts2.dll");
-		if (sts2Marker.exists() && patcherMarker.exists() && !refreshCache) {
+		if (!gameReady && sts2Marker.exists()) {
+			Log.w(TAG, "Game PCK is not ready; clearing stale game assembly cache");
+			refreshCache = true;
+		}
+		if (
+			!refreshCache
+				&& hasRequiredCacheFiles(destDir, requiresGameAssemblies)
+				&& (!requiresGameAssemblies || hasCachedGameAssemblies(destDir, srcDir, packagedBclNames))
+		) {
 			Log.i(TAG, "Assemblies already set up at: " + destDir.getAbsolutePath());
 			markAssemblyCacheStateAsCurrent(currentVersion);
 			return;
@@ -250,10 +308,9 @@ public class GodotApp extends GodotActivity {
 		destDir.mkdirs();
 
 		try {
-			String[] bclFiles = getAssets().list("dotnet_bcl");
-			if (bclFiles != null) {
+			if (!packagedBclNames.isEmpty()) {
 				int count = 0;
-				for (String name : bclFiles) {
+				for (String name : packagedBclNames) {
 					try (InputStream in = getAssets().open("dotnet_bcl/" + name);
 							OutputStream out = new FileOutputStream(new File(destDir, name))) {
 						byte[] buf = new byte[8192];
@@ -283,7 +340,7 @@ public class GodotApp extends GodotActivity {
 				for (File src : files) {
 					if (src.isFile()) {
 						String name = src.getName();
-						if (name.endsWith(".so")) {
+						if (!shouldCopyGameAssemblyFile(name, packagedBclNames)) {
 							continue;
 						}
 						File dest = new File(destDir, name);
@@ -307,7 +364,65 @@ public class GodotApp extends GodotActivity {
 		markAssemblyCacheStateAsCurrent(currentVersion);
 	}
 
+	private Set<String> getPackagedBclNames() {
+		Set<String> names = new HashSet<>();
+		try {
+			String[] bclFiles = getAssets().list("dotnet_bcl");
+			if (bclFiles != null) {
+				for (String name : bclFiles) {
+					names.add(name);
+				}
+			}
+		} catch (IOException e) {
+			Log.e(TAG, "Failed to list packaged BCL assemblies", e);
+		}
+		return names;
+	}
+
+	private boolean shouldCopyGameAssemblyFile(String name, Set<String> packagedBclNames) {
+		if (name == null || packagedBclNames.contains(name)) {
+			return false;
+		}
+
+		String lower = name.toLowerCase(java.util.Locale.ROOT);
+		if (!lower.endsWith(".dll") && !lower.endsWith(".json")) {
+			return false;
+		}
+
+		if (lower.equals("coreclr.dll")
+			|| lower.equals("clrjit.dll")
+			|| lower.equals("clrgc.dll")
+			|| lower.equals("clrgcexp.dll")
+			|| lower.equals("clretwrc.dll")
+			|| lower.equals("createdump.exe")
+			|| lower.equals("hostfxr.dll")
+			|| lower.equals("hostpolicy.dll")
+			|| lower.equals("mscordaccore.dll")
+			|| lower.equals("mscordbi.dll")
+			|| lower.equals("mscorrc.dll")
+			|| lower.equals("msquic.dll")
+			|| lower.equals("steam_api64.dll")
+			|| lower.equals("steamworks.net.dll")
+			|| lower.equals("sentry.dll")
+			|| lower.equals("sharpgen.runtime.dll")
+			|| lower.equals("sharpgen.runtime.com.dll")
+			|| lower.equals("system.io.compression.native.dll")
+			|| lower.equals("vortice.directx.dll")
+			|| lower.equals("vortice.dxgi.dll")
+			|| lower.equals("vortice.mathematics.dll")
+			|| lower.startsWith("mscordaccore_")
+			|| lower.startsWith("microsoft.diasymreader.native.")) {
+			return false;
+		}
+
+		return true;
+	}
+
 	private File findAssembliesDir() {
+		if (!isGamePckReady()) {
+			return null;
+		}
+
 		File gameDirFile = new File(gameDir);
 		if (gameDirFile.exists() && gameDirFile.isDirectory()) {
 			File[] children = gameDirFile.listFiles();
@@ -350,6 +465,48 @@ public class GodotApp extends GodotActivity {
 		return files != null && files.length > 0;
 	}
 
+	private boolean hasCachedGameAssemblies(File destDir, File srcDir, Set<String> packagedBclNames) {
+		if (destDir == null || srcDir == null || !srcDir.exists() || !srcDir.isDirectory()) {
+			return false;
+		}
+
+		File[] files = srcDir.listFiles((file, name) -> name.endsWith(".dll"));
+		if (files == null || files.length == 0) {
+			return false;
+		}
+
+		for (File src : files) {
+			if (packagedBclNames.contains(src.getName())) {
+				continue;
+			}
+			File dest = new File(destDir, src.getName());
+			if (!dest.exists() || dest.length() != src.length()) {
+				Log.i(TAG, "Game assembly cache is incomplete: " + src.getName());
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private boolean isGamePckReady() {
+		File pck = new File(gameDir, PCK_FILE);
+		if (!pck.exists() || !pck.isFile() || pck.length() < 4) {
+			return false;
+		}
+
+		try (InputStream in = new FileInputStream(pck)) {
+			byte[] magic = new byte[4];
+			if (in.read(magic) != magic.length) {
+				return false;
+			}
+			return magic[0] == 0x47 && magic[1] == 0x44 && magic[2] == 0x50 && magic[3] == 0x43;
+		} catch (IOException e) {
+			Log.w(TAG, "Failed to inspect game PCK", e);
+			return false;
+		}
+	}
+
 	private void copyFile(File src, File dest) throws IOException {
 		try (InputStream in = new FileInputStream(src);
 				OutputStream out = new FileOutputStream(dest)) {
@@ -383,8 +540,21 @@ public class GodotApp extends GodotActivity {
 		List<String> commands = new ArrayList<>(super.getCommandLine());
 		File pckFile = new File(gameDir, PCK_FILE);
 		if (pckFile.exists()) {
+			patchGamePckForAndroid(pckFile);
+			commands.add("--rendering-driver");
+			commands.add("opengl3");
+			commands.add("--rendering-method");
+			commands.add("gl_compatibility");
+			commands.add("--verbose");
+			Log.i(TAG, "Enabled verbose Godot logging for downloaded game");
+			if (isX86Runtime()) {
+				commands.add("--audio-driver");
+				commands.add("Dummy");
+				Log.i(TAG, "Using dummy audio driver for x86 emulator");
+			}
 			commands.add("--main-pack");
 			commands.add(pckFile.getAbsolutePath());
+			Log.i(TAG, "Forcing OpenGL compatibility renderer for downloaded game");
 			Log.i(TAG, "Loading PCK from: " + pckFile.getAbsolutePath());
 		} else {
 			// No game files yet; use bootstrap PCK so Godot can initialize for the
@@ -399,11 +569,277 @@ public class GodotApp extends GodotActivity {
 		return commands;
 	}
 
+	private void patchGamePckForAndroid(File pckFile) {
+		File marker = new File(gameDir, PCK_ANDROID_PATCH_MARKER);
+		if (marker.exists() && marker.lastModified() >= pckFile.lastModified()) {
+			return;
+		}
+
+		try (RandomAccessFile raf = new RandomAccessFile(pckFile, "rw")) {
+			long magic = readUInt32LE(raf);
+			if (magic != 0x43504447L) {
+				return;
+			}
+
+			readUInt32LE(raf); // format version
+			readUInt32LE(raf); // major
+			readUInt32LE(raf); // minor
+			readUInt32LE(raf); // patch
+			long flags = readUInt32LE(raf);
+			long fileBase = readLongLE(raf);
+			long dirBase = readLongLE(raf);
+			raf.seek(raf.getFilePointer() + 16L * 4L);
+
+			boolean relativeOffsets = (flags & 0x02L) != 0;
+			raf.seek(dirBase);
+			long fileCount = readUInt32LE(raf);
+			boolean patched = false;
+
+			for (long i = 0; i < fileCount; i++) {
+				long pathLen = readUInt32LE(raf);
+				if (pathLen <= 0 || pathLen > 8192) {
+					Log.w(TAG, "PCK startup patch skipped: invalid path length " + pathLen);
+					return;
+				}
+
+				byte[] pathBytes = new byte[(int)pathLen];
+				raf.readFully(pathBytes);
+				String path = new String(pathBytes, "UTF-8").replace("\u0000", "");
+				long offset = readLongLE(raf);
+				long size = readLongLE(raf);
+				byte[] md5 = new byte[16];
+				raf.readFully(md5);
+				readUInt32LE(raf); // entry flags
+
+				long absOffset = relativeOffsets ? fileBase + offset : offset;
+				if (isPckPath(path, "project.binary")) {
+					patched |= patchPckBinaryProjectEntry(raf, absOffset, size);
+				} else if (isPckPath(path, "project.godot")) {
+					patched |= patchPckTextEntry(raf, absOffset, size, new String[] {
+						"SentryInit=\"*res://addons/sentry/SentryInit.gd\"",
+						"FmodManager=\"*res://addons/fmod/FmodManager.gd\""
+					});
+				} else if (isPckPath(path, ".godot/extension_list.cfg")) {
+					if (isX86Runtime()) {
+						patched |= patchPckTextEntry(raf, absOffset, size, new String[] {
+							"res://addons/fmod/fmod.gdextension",
+							"res://addons/sentry/sentry.gdextension",
+							"res://addons/spine/spine_godot_extension.gdextension"
+						});
+					} else {
+						patched |= patchPckTextEntry(raf, absOffset, size, new String[] {
+							"res://addons/fmod/fmod.gdextension",
+							"res://addons/sentry/sentry.gdextension"
+						});
+					}
+				} else if (isPckPath(path, "scenes/game.tscn")) {
+					patched |= patchPckTextEntry(raf, absOffset, size, new String[] {
+						"[ext_resource type=\"Script\" uid=\"uid://c6blhu0io0iwp\" path=\"res://src/gdscript/audio_manager_proxy.gd\" id=\"3_xfu11\"]",
+						"[node name=\"FmodBankLoader\" type=\"FmodBankLoader\" parent=\".\"]",
+						"bank_paths = [\"res://banks/desktop/Master.strings.bank\", \"res://banks/desktop/Master.bank\", \"res://banks/desktop/sfx.bank\", \"res://banks/desktop/temp_sfx.bank\", \"res://banks/desktop/ambience.bank\"]",
+						"script = ExtResource(\"3_xfu11\")",
+						"[node name=\"FmodListener2D\" type=\"FmodListener2D\" parent=\"AudioManager\"]"
+					});
+				}
+			}
+
+			if (patched) {
+				Log.i(TAG, "Patched game PCK startup data for Android");
+			}
+		} catch (Exception e) {
+			Log.w(TAG, "PCK startup patch failed", e);
+		}
+
+		try {
+			if (!marker.exists()) {
+				marker.createNewFile();
+			}
+			marker.setLastModified(System.currentTimeMillis());
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to write PCK Android patch marker", e);
+		}
+	}
+
+	private boolean isPckPath(String path, String expected) {
+		return expected.equals(path) || ("res://" + expected).equals(path);
+	}
+
+	private boolean patchPckBinaryProjectEntry(RandomAccessFile raf, long offset, long size) throws IOException {
+		if (offset < 0 || size < 0 || size > 8L * 1024L * 1024L || offset + size > raf.length()) {
+			return false;
+		}
+
+		long saved = raf.getFilePointer();
+		raf.seek(offset);
+		byte[] content = new byte[(int)size];
+		raf.readFully(content);
+
+		boolean patched = false;
+		patched |= replacePckEntryBytes(content, "autoload/SentryInit", "disabled/SentryInit");
+		patched |= replacePckEntryBytes(content, "autoload/FmodManager", "disabled/FmodManager");
+
+		if (patched) {
+			raf.seek(offset);
+			raf.write(content);
+		}
+
+		raf.seek(saved);
+		return patched;
+	}
+
+	private void patchRawPckReferences(File pckFile, String[] references) {
+		try (RandomAccessFile raf = new RandomAccessFile(pckFile, "rw")) {
+			boolean patched = false;
+			for (String reference : references) {
+				patched |= overwriteRawBytes(raf, reference.getBytes("UTF-8"));
+				raf.seek(0);
+			}
+
+			if (patched) {
+				Log.i(TAG, "Raw-patched Android-incompatible PCK plugin references");
+			}
+		} catch (Exception e) {
+			Log.w(TAG, "Raw PCK reference patch failed", e);
+		}
+	}
+
+	private boolean overwriteRawBytes(RandomAccessFile raf, byte[] needle) throws IOException {
+		if (needle.length == 0) {
+			return false;
+		}
+
+		final int chunkSize = 1024 * 1024;
+		final int overlap = needle.length - 1;
+		byte[] buffer = new byte[chunkSize + overlap];
+		long position = 0;
+		int carried = 0;
+		boolean patched = false;
+
+		while (position < raf.length()) {
+			raf.seek(position);
+			int read = raf.read(buffer, carried, chunkSize);
+			if (read <= 0) {
+				break;
+			}
+
+			int limit = carried + read;
+			for (int i = 0; i <= limit - needle.length; i++) {
+				boolean match = true;
+				for (int j = 0; j < needle.length; j++) {
+					if (buffer[i + j] != needle[j]) {
+						match = false;
+						break;
+					}
+				}
+				if (match) {
+					long absolute = position - carried + i;
+					raf.seek(absolute);
+					for (int j = 0; j < needle.length; j++) {
+						raf.writeByte(' ');
+					}
+					patched = true;
+				}
+			}
+
+			carried = Math.min(overlap, limit);
+			if (carried > 0) {
+				System.arraycopy(buffer, limit - carried, buffer, 0, carried);
+			}
+			position += read;
+		}
+
+		return patched;
+	}
+
+	private boolean patchPckTextEntry(RandomAccessFile raf, long offset, long size, String[] needles) throws IOException {
+		if (offset < 0 || size < 0 || size > 8L * 1024L * 1024L || offset + size > raf.length()) {
+			return false;
+		}
+
+		long saved = raf.getFilePointer();
+		raf.seek(offset);
+		byte[] content = new byte[(int)size];
+		raf.readFully(content);
+		boolean patched = false;
+
+		for (String needle : needles) {
+			byte[] search = needle.getBytes("UTF-8");
+			int idx = indexOf(content, search);
+			if (idx < 0) {
+				continue;
+			}
+
+			if (needle.indexOf("://") >= 0 && !needle.endsWith(".gd\"")) {
+				for (int i = 0; i < search.length; i++) {
+					content[idx + i] = (byte)' ';
+				}
+			} else {
+				content[idx] = (byte)';';
+			}
+			patched = true;
+		}
+
+		if (patched) {
+			raf.seek(offset);
+			raf.write(content);
+		}
+
+		raf.seek(saved);
+		return patched;
+	}
+
+	private boolean replacePckEntryBytes(byte[] content, String searchText, String replacementText) throws IOException {
+		byte[] search = searchText.getBytes("UTF-8");
+		byte[] replacement = replacementText.getBytes("UTF-8");
+		if (search.length != replacement.length) {
+			throw new IOException("PCK replacement length mismatch for " + searchText);
+		}
+
+		boolean patched = false;
+		int idx = indexOf(content, search);
+		while (idx >= 0) {
+			System.arraycopy(replacement, 0, content, idx, replacement.length);
+			patched = true;
+			idx = indexOf(content, search);
+		}
+
+		return patched;
+	}
+
+	private int indexOf(byte[] haystack, byte[] needle) {
+		for (int i = 0; i <= haystack.length - needle.length; i++) {
+			boolean match = true;
+			for (int j = 0; j < needle.length; j++) {
+				if (haystack[i + j] != needle[j]) {
+					match = false;
+					break;
+				}
+			}
+			if (match) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	private long readUInt32LE(RandomAccessFile raf) throws IOException {
+		long b0 = raf.readUnsignedByte();
+		long b1 = raf.readUnsignedByte();
+		long b2 = raf.readUnsignedByte();
+		long b3 = raf.readUnsignedByte();
+		return b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
+	}
+
+	private long readLongLE(RandomAccessFile raf) throws IOException {
+		long value = 0;
+		for (int i = 0; i < 8; i++) {
+			value |= ((long)raf.readUnsignedByte()) << (8 * i);
+		}
+		return value;
+	}
+
 	private String extractBootstrapPck() {
 		File dest = new File(getFilesDir(), "bootstrap.pck");
-		if (dest.exists()) {
-			return dest.getAbsolutePath();
-		}
 		try (InputStream in = getAssets().open("bootstrap.pck");
 				OutputStream out = new FileOutputStream(dest)) {
 			byte[] buf = new byte[4096];
@@ -514,6 +950,23 @@ public class GodotApp extends GodotActivity {
 	public String getExternalFilesDirPath() {
 		File dir = getExternalFilesDir(null);
 		return dir != null ? dir.getAbsolutePath() : null;
+	}
+
+	public long getUsableSpaceBytes(String path) {
+		try {
+			File target = (path == null || path.isEmpty()) ? getFilesDir() : new File(path);
+			File probe = target;
+			while (probe != null && !probe.exists()) {
+				probe = probe.getParentFile();
+			}
+			if (probe == null) {
+				probe = getFilesDir();
+			}
+			return probe.getUsableSpace();
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to query usable space for " + path, e);
+			return -1L;
+		}
 	}
 
 	// Returns true if the app has permission to write to shared external storage.

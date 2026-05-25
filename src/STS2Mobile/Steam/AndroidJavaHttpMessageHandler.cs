@@ -274,10 +274,9 @@ internal sealed class AndroidJavaHttpMessageHandler : HttpMessageHandler
             return new FileStream(
                 path,
                 FileMode.Open,
-                FileAccess.Read,
+                System.IO.FileAccess.Read,
                 FileShare.Read,
-                64 * 1024,
-                FileOptions.None
+                64 * 1024
             );
         }
 
@@ -358,8 +357,8 @@ internal sealed class AndroidJavaHttpMessageHandler : HttpMessageHandler
         if (uri.IsAbsoluteUri)
         {
             var path = uri.GetLeftPart(UriPartial.Path);
-            var fragmentIndex = path.IndexOf('#');
-            return fragmentIndex >= 0 ? path[..fragmentIndex] : path;
+            var absoluteFragmentIndex = path.IndexOf('#');
+            return absoluteFragmentIndex >= 0 ? path[..absoluteFragmentIndex] : path;
         }
 
         var raw = uri.ToString();

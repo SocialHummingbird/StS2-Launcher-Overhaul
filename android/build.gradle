@@ -76,7 +76,8 @@ dependencies {
 
     // .NET dependencies — JAR provides Java-side crypto bindings for the native .so
     String jar = '../vendor/godot/modules/mono/thirdparty/libSystem.Security.Cryptography.Native.Android.jar'
-    if (file(jar).exists()) {
+    String localCryptoBridge = 'src/main/java/net/dot/android/crypto/DotnetProxyTrustManager.java'
+    if (file(jar).exists() && !file(localCryptoBridge).exists()) {
         monoImplementation files(jar)
     }
 }

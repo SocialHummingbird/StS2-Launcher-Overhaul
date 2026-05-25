@@ -41,12 +41,10 @@ public static class ModEntry
             NativeFuncs.Initialize(unmanagedCallbacks, unmanagedCallbacksSize);
             ManagedCallbacks.Create(outManagedCallbacks);
 
-            Console.Error.WriteLine("[STS2Mobile] GodotSharp bootstrapped successfully");
             return 1;
         }
-        catch (Exception e)
+        catch
         {
-            Console.Error.WriteLine($"[STS2Mobile] GodotSharp bootstrap failed: {e}");
             return 0;
         }
     }
@@ -54,8 +52,69 @@ public static class ModEntry
     [UnmanagedCallersOnly]
     public static void Apply()
     {
+        ApplyInternal();
+    }
+
+    [UnmanagedCallersOnly]
+    public static int ApplyFromGodot()
+    {
+        try
+        {
+            BootstrapTrace.Log("ApplyFromGodot entered");
+            var applyInternal = typeof(ModEntry).GetMethod(
+                "ApplyInternal",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic
+            );
+            if (applyInternal == null)
+            {
+                BootstrapTrace.Log("ApplyInternal reflection lookup failed");
+                return -2;
+            }
+
+            applyInternal.Invoke(null, null);
+            BootstrapTrace.Log("ApplyFromGodot completed");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            BootstrapTrace.Log($"Unhandled bootstrap failure: {ex}");
+            return -1;
+        }
+    }
+
+    [UnmanagedCallersOnly]
+    public static int BootstrapProbe()
+    {
+        return 1729;
+    }
+
+    [UnmanagedCallersOnly]
+    public static int HarmonyConstructorProbe()
+    {
+        _ = new Harmony(HarmonyId);
+        return 1730;
+    }
+
+    [UnmanagedCallersOnly]
+    public static int ShowLauncherOnly()
+    {
+        try
+        {
+            ScheduleStandaloneLauncher();
+            return 1;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static void ApplyInternal()
+    {
+        BootstrapTrace.Log("ApplyInternal entered");
         if (Interlocked.CompareExchange(ref _applyState, InProgress, NotStarted) != NotStarted)
         {
+            BootstrapTrace.Log("ApplyInternal duplicate invocation skipped");
             PatchHelper.Log("Apply already running/completed; skipping duplicate invocation.");
             return;
         }
@@ -72,12 +131,15 @@ public static class ModEntry
 
     private static void ApplyStartupPatches()
     {
+        BootstrapTrace.Log("Initializing STS2Mobile");
         PatchHelper.Log("Initializing STS2Mobile...");
         try
         {
             ConfigureWritableTempDirectory();
             var harmony = new Harmony(HarmonyId);
+            BootstrapTrace.Log("Starting startup patch orchestration");
             var patchResult = StartupPatchOrchestrator.Apply(harmony);
+            BootstrapTrace.Log("Finished startup patch orchestration");
 
             if (patchResult.CriticalFailed)
             {

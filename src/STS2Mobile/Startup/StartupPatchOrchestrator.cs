@@ -50,11 +50,12 @@ internal static class StartupPatchOrchestrator
         new PatchGroup(
             "gameplay",
             false,
-            new PatchStep[]
-            {
-                new PatchStep("Settings compatibility", SettingsPatches.Apply),
-                new PatchStep("UI scaling", UiScalePatches.Apply),
-                new PatchStep("Mobile layout", MobileLayoutPatches.Apply),
+                new PatchStep[]
+                {
+                    new PatchStep("Settings compatibility", SettingsPatches.Apply),
+                    new PatchStep("Font substitution", FontSubstitutionPatches.Apply),
+                    new PatchStep("UI scaling", UiScalePatches.Apply),
+                    new PatchStep("Mobile layout", MobileLayoutPatches.Apply),
                 new PatchStep("Event layout", EventLayoutPatches.Apply),
                 new PatchStep("Merchant layout", MerchantLayoutPatches.Apply),
                 new PatchStep("App lifecycle", AppLifecyclePatches.Apply),
@@ -85,7 +86,11 @@ internal static class StartupPatchOrchestrator
 
         foreach (var group in Groups)
         {
+            BootstrapTrace.Log($"Starting patch group: {group.Name}");
             var groupResult = ApplyGroup(group, harmony);
+            BootstrapTrace.Log(
+                $"Finished patch group: {group.Name} applied={groupResult.Applied}/{groupResult.Total} failed={groupResult.Failed}"
+            );
             results.Add(groupResult);
 
             if (group.Critical && groupResult.Failed > 0)
@@ -117,12 +122,15 @@ internal static class StartupPatchOrchestrator
             var patchStopwatch = Stopwatch.StartNew();
             try
             {
+                BootstrapTrace.Log($"Starting patch step: {group.Name}/{step.Name}");
                 step.Apply(harmony);
+                BootstrapTrace.Log($"Finished patch step: {group.Name}/{step.Name}");
                 attempts.Add(new PatchAttempt(step.Name, true, patchStopwatch.Elapsed, null));
             }
             catch (Exception ex)
             {
                 var failure = $"{ex.GetType().Name}: {ex.Message}";
+                BootstrapTrace.Log($"Failed patch step: {group.Name}/{step.Name}: {failure}");
                 attempts.Add(new PatchAttempt(step.Name, false, patchStopwatch.Elapsed, failure));
                 PatchHelper.Log($"[{group.Name}] {step.Name} failed: {failure}");
             }
