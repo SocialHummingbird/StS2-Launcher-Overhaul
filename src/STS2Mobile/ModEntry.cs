@@ -191,7 +191,43 @@ public static class ModEntry
 
     private static bool IsLauncherOnlyMode()
     {
-        return !File.Exists("/data/data/com.sts2launcher.overhaul.fork.dev/files/game/SlayTheSpire2.pck");
+        return !IsGamePckStructurallyReady(
+            "/data/data/com.sts2launcher.overhaul.fork.dev/files/game/SlayTheSpire2.pck"
+        );
+    }
+
+    private static bool IsGamePckStructurallyReady(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+                return false;
+
+            using var fs = File.OpenRead(path);
+            using var reader = new BinaryReader(fs);
+            if (fs.Length < 96)
+                return false;
+
+            if (reader.ReadUInt32() != 0x43504447)
+                return false;
+
+            reader.ReadUInt32(); // format version
+            reader.ReadUInt32(); // major
+            reader.ReadUInt32(); // minor
+            reader.ReadUInt32(); // patch
+            reader.ReadUInt32(); // flags
+            reader.ReadInt64(); // file base
+            var dirBase = reader.ReadInt64();
+            if (dirBase <= 0 || dirBase + 4 > fs.Length)
+                return false;
+
+            fs.Position = dirBase;
+            return reader.ReadUInt32() > 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static void ScheduleStandaloneLauncher()

@@ -566,11 +566,25 @@ public class LauncherModel : IDisposable
         try
         {
             using var fs = File.OpenRead(pckPath);
-            if (fs.Length < 4)
+            using var reader = new BinaryReader(fs);
+            if (fs.Length < 96)
                 return false;
-            Span<byte> magic = stackalloc byte[4];
-            fs.ReadExactly(magic);
-            return magic[0] == 0x47 && magic[1] == 0x44 && magic[2] == 0x50 && magic[3] == 0x43;
+
+            if (reader.ReadUInt32() != 0x43504447)
+                return false;
+
+            reader.ReadUInt32(); // format version
+            reader.ReadUInt32(); // major
+            reader.ReadUInt32(); // minor
+            reader.ReadUInt32(); // patch
+            reader.ReadUInt32(); // flags
+            reader.ReadInt64(); // file base
+            var dirBase = reader.ReadInt64();
+            if (dirBase <= 0 || dirBase + 4 > fs.Length)
+                return false;
+
+            fs.Position = dirBase;
+            return reader.ReadUInt32() > 0;
         }
         catch
         {

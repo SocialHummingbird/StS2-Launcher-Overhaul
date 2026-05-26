@@ -541,16 +541,36 @@ public class GodotApp extends GodotActivity {
 
 	private boolean isGamePckReady() {
 		File pck = new File(gameDir, PCK_FILE);
-		if (!pck.exists() || !pck.isFile() || pck.length() < 4) {
+		if (!pck.exists() || !pck.isFile() || pck.length() < 96) {
 			return false;
 		}
 
-		try (InputStream in = new FileInputStream(pck)) {
-			byte[] magic = new byte[4];
-			if (in.read(magic) != magic.length) {
+		try (RandomAccessFile raf = new RandomAccessFile(pck, "r")) {
+			long magic = readUInt32LE(raf);
+			if (magic != 0x43504447L) {
 				return false;
 			}
-			return magic[0] == 0x47 && magic[1] == 0x44 && magic[2] == 0x50 && magic[3] == 0x43;
+
+			readUInt32LE(raf); // format version
+			readUInt32LE(raf); // major
+			readUInt32LE(raf); // minor
+			readUInt32LE(raf); // patch
+			readUInt32LE(raf); // flags
+			readLongLE(raf); // file base
+			long dirBase = readLongLE(raf);
+			if (dirBase <= 0 || dirBase + 4 > raf.length()) {
+				Log.w(TAG, "Game PCK is not structurally ready: dirBase=" + dirBase + " fileSize=" + raf.length());
+				return false;
+			}
+
+			raf.seek(dirBase);
+			long fileCount = readUInt32LE(raf);
+			if (fileCount <= 0) {
+				Log.w(TAG, "Game PCK is not structurally ready: fileCount=" + fileCount);
+				return false;
+			}
+
+			return true;
 		} catch (IOException e) {
 			Log.w(TAG, "Failed to inspect game PCK", e);
 			return false;
@@ -589,7 +609,7 @@ public class GodotApp extends GodotActivity {
 	public List<String> getCommandLine() {
 		List<String> commands = new ArrayList<>(super.getCommandLine());
 		File pckFile = new File(gameDir, PCK_FILE);
-		if (pckFile.exists()) {
+		if (isGamePckReady()) {
 			patchGamePckForAndroid(pckFile);
 			commands.add("--rendering-driver");
 			commands.add("opengl3");
