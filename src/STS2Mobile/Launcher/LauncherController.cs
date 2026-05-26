@@ -118,6 +118,7 @@ public class LauncherController
         _view.Actions.CloudPullPressed += OnCloudPullPressed;
         _view.Actions.CheckForUpdatesPressed += OnCheckForUpdatesPressed;
         _view.Actions.RedownloadPressed += OnRedownloadPressed;
+        _view.Actions.DiagnosticsPressed += OnDiagnosticsPressed;
 
         var localBackupPref = LauncherModel.LoadLocalBackupPref();
         _view.Actions.SetLocalBackupChecked(localBackupPref);
@@ -556,6 +557,21 @@ public class LauncherController
                 _view.AppendLog("Game files were deleted for a clean redownload.");
             }
         );
+    }
+
+    private void OnDiagnosticsPressed()
+    {
+        try
+        {
+            var path = _model.WriteDiagnosticsReport();
+            _view.SetStatus("Diagnostics exported.");
+            _view.AppendLog($"Diagnostics exported: {path}");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Diagnostics export failed: {ex}");
+            _view.SetStatus($"Diagnostics export failed: {ex.Message}");
+        }
     }
 
     private void OnLaunchPressed() => _model.Launch();

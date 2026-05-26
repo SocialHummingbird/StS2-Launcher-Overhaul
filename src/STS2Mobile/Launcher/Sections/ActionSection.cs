@@ -14,6 +14,7 @@ public class ActionSection : VBoxContainer
     public event Action CloudPullPressed;
     public event Action CheckForUpdatesPressed;
     public event Action RedownloadPressed;
+    public event Action DiagnosticsPressed;
 
     private readonly Button _launchButton;
     private readonly Button _retryButton;
@@ -23,6 +24,7 @@ public class ActionSection : VBoxContainer
     private readonly Button _pullButton;
     private readonly Button _updateButton;
     private readonly Button _redownloadButton;
+    private readonly Button _diagnosticsButton;
     private readonly StyleBoxFlat _offStyle;
     private readonly StyleBoxFlat _onStyle;
 
@@ -88,6 +90,11 @@ public class ActionSection : VBoxContainer
         _redownloadButton.Pressed += () => RedownloadPressed?.Invoke();
         AddChild(_redownloadButton);
 
+        _diagnosticsButton = new StyledButton("EXPORT DIAGNOSTICS", scale, fontSize: 14, height: 44);
+        _diagnosticsButton.Visible = false;
+        _diagnosticsButton.Pressed += () => DiagnosticsPressed?.Invoke();
+        AddChild(_diagnosticsButton);
+
         _launchButton = new StyledButton("LAUNCH", scale, fontSize: 16, height: 48);
         _launchButton.Visible = false;
         _launchButton.Pressed += () => LaunchPressed?.Invoke();
@@ -130,6 +137,7 @@ public class ActionSection : VBoxContainer
         _updateButton.Disabled = false;
         _updateButton.Text = "CHECK FOR UPDATES";
         _redownloadButton.Visible = true;
+        _diagnosticsButton.Visible = true;
         _retryButton.Visible = false;
     }
 
@@ -142,6 +150,7 @@ public class ActionSection : VBoxContainer
         PushPullRow.Visible = false;
         _updateButton.Visible = false;
         _redownloadButton.Visible = false;
+        _diagnosticsButton.Visible = false;
     }
 
     public void HideAll()
@@ -153,6 +162,7 @@ public class ActionSection : VBoxContainer
         PushPullRow.Visible = false;
         _updateButton.Visible = false;
         _redownloadButton.Visible = false;
+        _diagnosticsButton.Visible = false;
     }
 
     public void SetPushPullDisabled(bool disabled)

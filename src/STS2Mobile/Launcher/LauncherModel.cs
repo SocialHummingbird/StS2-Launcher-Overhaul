@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Godot;
@@ -433,6 +435,143 @@ public class LauncherModel : IDisposable
         DeleteDirectoryQuietly(Path.Combine(_dataDir, "download_state"));
         DeleteFileQuietly(Path.Combine(_dataDir, "last_game_start_incomplete"));
         PatchHelper.Log("[Launcher] Deleted downloaded game files and download state");
+    }
+
+    public string WriteDiagnosticsReport()
+    {
+        var report = BuildDiagnosticsReport();
+        var fileName = $"sts2-launcher-diagnostics-{DateTime.UtcNow:yyyyMMdd-HHmmss}.txt";
+        var externalPath = TryGetExternalDiagnosticsPath(fileName);
+        var targetPath = externalPath ?? Path.Combine(_dataDir, fileName);
+
+        var parent = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrWhiteSpace(parent))
+            Directory.CreateDirectory(parent);
+
+        File.WriteAllText(targetPath, report);
+        PatchHelper.Log($"[Launcher] Diagnostics written to {targetPath}");
+        return targetPath;
+    }
+
+    private string BuildDiagnosticsReport()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("STS2 Launcher diagnostics");
+        sb.AppendLine($"Generated UTC: {DateTime.UtcNow:O}");
+        sb.AppendLine($"Data dir: {_dataDir}");
+        sb.AppendLine($"Account: {_credentialStore.AccountName ?? "<none>"}");
+        sb.AppendLine($"Has saved credentials: {_credentialStore.HasCredentials}");
+        sb.AppendLine($"Session state: {_state}");
+        sb.AppendLine($"Fail reason: {_failReason ?? "<none>"}");
+        sb.AppendLine($"Game files ready: {GameFilesReady()}");
+        sb.AppendLine($"Cloud sync pref: {LoadCloudSyncPref()}");
+        sb.AppendLine($"Local backup pref: {LoadLocalBackupPref()}");
+
+        if (PreviousGameLaunchIncomplete(out var phase))
+            sb.AppendLine($"Previous launch incomplete phase: {phase ?? "<unknown>"}");
+        else
+            sb.AppendLine("Previous launch incomplete phase: <none>");
+
+        AppendFileInfo(sb, "Startup marker", Path.Combine(_dataDir, "last_game_start_incomplete"));
+        AppendFileInfo(sb, "Game PCK", Path.Combine(_dataDir, "game", "SlayTheSpire2.pck"));
+        AppendDirectoryListing(sb, "Game directory", Path.Combine(_dataDir, "game"), maxDepth: 2);
+        AppendDirectoryListing(sb, "Download state", Path.Combine(_dataDir, "download_state"), maxDepth: 1);
+        AppendDirectoryListing(sb, "Mono publish root", Path.Combine(_dataDir, ".godot", "mono", "publish"), maxDepth: 2);
+
+        try
+        {
+            var godotApp = GetGodotApp();
+            sb.AppendLine($"Android app version: {(string)godotApp?.Call("getVersionName") ?? "<unknown>"}");
+            sb.AppendLine($"External files dir: {(string)godotApp?.Call("getExternalFilesDirPath") ?? "<none>"}");
+            sb.AppendLine($"Usable data bytes: {(long)(godotApp?.Call("getUsableSpaceBytes", _dataDir) ?? -1L)}");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"Android bridge diagnostics failed: {ex.Message}");
+        }
+
+        return sb.ToString();
+    }
+
+    private static string TryGetExternalDiagnosticsPath(string fileName)
+    {
+        try
+        {
+            var godotApp = GetGodotApp();
+            var externalDir = (string)godotApp?.Call("getExternalFilesDirPath");
+            if (string.IsNullOrWhiteSpace(externalDir))
+                return null;
+
+            return Path.Combine(externalDir, "diagnostics", fileName);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void AppendFileInfo(StringBuilder sb, string label, string path)
+    {
+        try
+        {
+            var file = new FileInfo(path);
+            sb.AppendLine($"{label}: {path}");
+            sb.AppendLine($"  exists={file.Exists}");
+            if (file.Exists)
+            {
+                sb.AppendLine($"  bytes={file.Length}");
+                sb.AppendLine($"  modifiedUtc={file.LastWriteTimeUtc:O}");
+                if (file.Length <= 4096)
+                    sb.AppendLine($"  contents={File.ReadAllText(path).Replace('\n', ' ').Replace('\r', ' ')}");
+            }
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"{label}: failed to inspect {path}: {ex.Message}");
+        }
+    }
+
+    private static void AppendDirectoryListing(StringBuilder sb, string label, string path, int maxDepth)
+    {
+        sb.AppendLine($"{label}: {path}");
+        try
+        {
+            if (!Directory.Exists(path))
+            {
+                sb.AppendLine("  exists=false");
+                return;
+            }
+
+            AppendDirectoryListingRecursive(sb, path, depth: 0, maxDepth);
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"  failed={ex.Message}");
+        }
+    }
+
+    private static void AppendDirectoryListingRecursive(
+        StringBuilder sb,
+        string path,
+        int depth,
+        int maxDepth
+    )
+    {
+        if (depth > maxDepth)
+            return;
+
+        var indent = new string(' ', 2 + depth * 2);
+        foreach (var dir in Directory.GetDirectories(path).OrderBy(p => p).Take(40))
+        {
+            sb.AppendLine($"{indent}[dir] {Path.GetFileName(dir)}");
+            AppendDirectoryListingRecursive(sb, dir, depth + 1, maxDepth);
+        }
+
+        foreach (var filePath in Directory.GetFiles(path).OrderBy(p => p).Take(80))
+        {
+            var file = new FileInfo(filePath);
+            sb.AppendLine($"{indent}{file.Name} bytes={file.Length} modifiedUtc={file.LastWriteTimeUtc:O}");
+        }
     }
 
     private static void DeleteDirectoryQuietly(string path)
