@@ -196,7 +196,7 @@ public static class LauncherPatches
 
             await startupTask;
             PatchHelper.Log("NGame.GameStartup completed");
-            ClearStartupMarker();
+            WriteStartupMarker("game startup completed");
             startupStatus?.QueueFree();
         }
         catch (TargetInvocationException ex)

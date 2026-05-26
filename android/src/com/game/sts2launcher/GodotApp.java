@@ -19,6 +19,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.security.KeyStore;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
@@ -611,11 +613,16 @@ public class GodotApp extends GodotActivity {
 		List<String> commands = new ArrayList<>(super.getCommandLine());
 		File pckFile = new File(gameDir, PCK_FILE);
 		if (isGamePckReady() && consumeGameLaunchRequest()) {
+			boolean useDefaultRenderer = previousStartupPhaseWas("game startup completed");
 			patchGamePckForAndroid(pckFile);
-			commands.add("--rendering-driver");
-			commands.add("opengl3");
-			commands.add("--rendering-method");
-			commands.add("gl_compatibility");
+			if (!useDefaultRenderer) {
+				commands.add("--rendering-driver");
+				commands.add("opengl3");
+				commands.add("--rendering-method");
+				commands.add("gl_compatibility");
+			} else {
+				Log.i(TAG, "Using default renderer because previous game startup completed but did not produce a usable screen");
+			}
 			commands.add("--verbose");
 			Log.i(TAG, "Enabled verbose Godot logging for downloaded game");
 			if (isX86Runtime()) {
@@ -625,7 +632,9 @@ public class GodotApp extends GodotActivity {
 			}
 			commands.add("--main-pack");
 			commands.add(pckFile.getAbsolutePath());
-			Log.i(TAG, "Forcing OpenGL compatibility renderer for downloaded game");
+			if (!useDefaultRenderer) {
+				Log.i(TAG, "Forcing OpenGL compatibility renderer for downloaded game");
+			}
 			Log.i(TAG, "Loading PCK from: " + pckFile.getAbsolutePath());
 		} else {
 			// Start in the launcher unless a one-shot game launch was requested; use bootstrap PCK so Godot can initialize for the
@@ -638,6 +647,22 @@ public class GodotApp extends GodotActivity {
 			}
 		}
 		return commands;
+	}
+
+	private boolean previousStartupPhaseWas(String expectedPhase) {
+		File marker = new File(getFilesDir(), "last_game_start_incomplete");
+		if (!marker.exists() || expectedPhase == null) {
+			return false;
+		}
+
+		try (BufferedReader reader = new BufferedReader(new FileReader(marker))) {
+			reader.readLine();
+			String phase = reader.readLine();
+			return expectedPhase.equalsIgnoreCase(phase == null ? "" : phase.trim());
+		} catch (IOException e) {
+			Log.w(TAG, "Failed to read previous startup marker", e);
+			return false;
+		}
 	}
 
 	private boolean consumeGameLaunchRequest() {
