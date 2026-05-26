@@ -213,6 +213,7 @@ public class LauncherController
         {
             case FastPathResult.ReadyToLaunch:
                 _view.SetStatus($"Welcome back, {_model.AccountName}");
+                ShowPreviousLaunchWarningIfNeeded();
                 var text = _model.InGameMode ? "PLAY" : "START GAME";
                 _view.Actions.ShowLaunch(text, showCloudSync: true, showUpdate: true);
                 break;
@@ -313,6 +314,7 @@ public class LauncherController
                 _view.SetStatus($"Logged in as {_model.AccountName}");
                 if (LauncherModel.GameFilesReady())
                 {
+                    ShowPreviousLaunchWarningIfNeeded();
                     var text = _model.InGameMode ? "PLAY" : "START GAME";
                     _view.Actions.ShowLaunch(text, showCloudSync: true, showUpdate: true);
                 }
@@ -353,6 +355,17 @@ public class LauncherController
             _view.Login.Visible = true;
             _view.Login.SetDisabled(false);
         }
+    }
+
+    private void ShowPreviousLaunchWarningIfNeeded()
+    {
+        if (!LauncherModel.PreviousGameLaunchIncomplete(out var phase))
+            return;
+
+        var suffix = string.IsNullOrWhiteSpace(phase) ? "" : $" Last phase: {phase}.";
+        _view.SetStatus("Previous game launch did not finish.");
+        _view.AppendLog("Previous game launch did not finish." + suffix);
+        _view.AppendLog("The launcher is staying available so you are not trapped on a black screen.");
     }
 
     private void OnCodeSubmitPressed(string code)

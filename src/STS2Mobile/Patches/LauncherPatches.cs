@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using Godot;
@@ -113,6 +114,7 @@ public static class LauncherPatches
 
         await launcher.WaitForLaunch();
         var startupStatus = CreateStartupStatusLabel(gameNode);
+        WriteStartupMarker("launch requested");
         SetStartupStatus(startupStatus, "Starting game...");
         PatchHelper.Log("User launched game, proceeding to startup...");
 
@@ -127,10 +129,12 @@ public static class LauncherPatches
         }
 
         launcher.QueueFree();
+        WriteStartupMarker("launcher closed");
         SetStartupStatus(startupStatus, "Launcher closed. Preparing game startup...");
 
         if (ShaderWarmupScreen.NeedsWarmup())
         {
+            WriteStartupMarker("shader warmup");
             SetStartupStatus(startupStatus, "Warming shaders...");
             PatchHelper.Log("Shader warmup starting");
             var warmup = new ShaderWarmupScreen();
@@ -141,6 +145,7 @@ public static class LauncherPatches
             PatchHelper.Log("Shader warmup complete");
         }
 
+        WriteStartupMarker("settings and saves");
         SetStartupStatus(startupStatus, "Loading settings and saves...");
         PatchHelper.Log("Initializing settings and save manager");
         SaveManager.Instance.InitSettingsData();
@@ -150,6 +155,7 @@ public static class LauncherPatches
 
         try
         {
+            WriteStartupMarker("game startup");
             SetStartupStatus(startupStatus, "Starting game scene...");
             PatchHelper.Log("Invoking NGame.GameStartup");
             var startupTask = (Task)gameStartup.Invoke(game, null);
@@ -167,6 +173,7 @@ public static class LauncherPatches
 
             await startupTask;
             PatchHelper.Log("NGame.GameStartup completed");
+            ClearStartupMarker();
             startupStatus?.QueueFree();
         }
         catch (TargetInvocationException ex)
@@ -174,6 +181,37 @@ public static class LauncherPatches
             SetStartupStatus(startupStatus, $"Game startup failed: {ex.InnerException?.Message}");
             PatchHelper.Log($"Game startup failed: {ex.InnerException?.Message}");
             throw ex.InnerException ?? ex;
+        }
+    }
+
+    private static string StartupMarkerPath =>
+        Path.Combine(OS.GetDataDir(), "last_game_start_incomplete");
+
+    private static void WriteStartupMarker(string phase)
+    {
+        try
+        {
+            File.WriteAllText(
+                StartupMarkerPath,
+                $"{DateTime.UtcNow:O}\n{phase}\n"
+            );
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Failed to write startup marker: {ex.Message}");
+        }
+    }
+
+    private static void ClearStartupMarker()
+    {
+        try
+        {
+            if (File.Exists(StartupMarkerPath))
+                File.Delete(StartupMarkerPath);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Failed to clear startup marker: {ex.Message}");
         }
     }
 

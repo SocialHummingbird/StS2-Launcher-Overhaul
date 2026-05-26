@@ -596,6 +596,25 @@ public class LauncherModel : IDisposable
         }
     }
 
+    public static bool PreviousGameLaunchIncomplete(out string phase)
+    {
+        phase = null;
+        var markerPath = Path.Combine(OS.GetDataDir(), "last_game_start_incomplete");
+        try
+        {
+            if (!File.Exists(markerPath))
+                return false;
+
+            var lines = File.ReadAllLines(markerPath);
+            phase = lines.Length >= 2 ? lines[1].Trim() : null;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public static string FormatSize(long bytes)
     {
         if (bytes >= 1024L * 1024 * 1024)
