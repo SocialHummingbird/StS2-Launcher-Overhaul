@@ -115,14 +115,19 @@ public static class LauncherPatches
         await launcher.WaitForLaunch();
         var startupStatus = CreateStartupStatusLabel(gameNode);
         var previousIncompletePhase = ReadStartupMarkerPhase();
+        var manualSafeLaunch = ConsumeManualSafeLaunchMarker();
         var forceLocalSaves =
-            string.Equals(previousIncompletePhase, "settings and saves", StringComparison.OrdinalIgnoreCase)
+            manualSafeLaunch
+            || string.Equals(previousIncompletePhase, "manual safe launch", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(previousIncompletePhase, "settings and saves", StringComparison.OrdinalIgnoreCase)
             || string.Equals(previousIncompletePhase, "game startup", StringComparison.OrdinalIgnoreCase);
         if (forceLocalSaves)
         {
             CloudSyncEnabled = false;
             PatchHelper.Log(
-                $"Disabling cloud save injection for this launch because previous launch stalled at {previousIncompletePhase}"
+                manualSafeLaunch
+                    ? "Disabling cloud save injection for manual safe launch"
+                    : $"Disabling cloud save injection for this launch because previous launch stalled at {previousIncompletePhase}"
             );
         }
         WriteStartupMarker("launch requested");
@@ -144,7 +149,9 @@ public static class LauncherPatches
         SetStartupStatus(startupStatus, "Launcher closed. Preparing game startup...");
 
         var skipShaderWarmup =
-            string.Equals(previousIncompletePhase, "shader warmup", StringComparison.OrdinalIgnoreCase);
+            manualSafeLaunch
+            || string.Equals(previousIncompletePhase, "manual safe launch", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(previousIncompletePhase, "shader warmup", StringComparison.OrdinalIgnoreCase);
         if (ShaderWarmupScreen.NeedsWarmup() && !skipShaderWarmup)
         {
             WriteStartupMarker("shader warmup");
@@ -159,8 +166,17 @@ public static class LauncherPatches
         }
         else if (skipShaderWarmup)
         {
-            PatchHelper.Log("Skipping shader warmup because the previous launch stalled there");
-            SetStartupStatus(startupStatus, "Skipping shader warmup after previous stall...");
+            PatchHelper.Log(
+                manualSafeLaunch
+                    ? "Skipping shader warmup for manual safe launch"
+                    : "Skipping shader warmup because the previous launch stalled there"
+            );
+            SetStartupStatus(
+                startupStatus,
+                manualSafeLaunch
+                    ? "Skipping shader warmup for safe launch..."
+                    : "Skipping shader warmup after previous stall..."
+            );
         }
 
         WriteStartupMarker("settings and saves");
@@ -239,6 +255,24 @@ public static class LauncherPatches
         {
             PatchHelper.Log($"Failed to read startup marker: {ex.Message}");
             return null;
+        }
+    }
+
+    private static bool ConsumeManualSafeLaunchMarker()
+    {
+        try
+        {
+            if (!File.Exists(LauncherModel.ManualSafeLaunchPath))
+                return false;
+
+            File.Delete(LauncherModel.ManualSafeLaunchPath);
+            PatchHelper.Log("Manual safe launch marker consumed");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Failed to consume manual safe launch marker: {ex.Message}");
+            return true;
         }
     }
 

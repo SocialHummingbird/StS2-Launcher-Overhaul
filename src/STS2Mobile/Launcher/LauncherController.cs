@@ -119,6 +119,7 @@ public class LauncherController
         _view.Actions.CheckForUpdatesPressed += OnCheckForUpdatesPressed;
         _view.Actions.RedownloadPressed += OnRedownloadPressed;
         _view.Actions.DiagnosticsPressed += OnDiagnosticsPressed;
+        _view.Actions.SafeLaunchPressed += OnSafeLaunchPressed;
 
         var localBackupPref = LauncherModel.LoadLocalBackupPref();
         _view.Actions.SetLocalBackupChecked(localBackupPref);
@@ -580,4 +581,10 @@ public class LauncherController
     }
 
     private void OnLaunchPressed() => _model.Launch();
+
+    private void OnSafeLaunchPressed()
+    {
+        _view.AppendLog("Safe launch requested: default renderer, no shader warmup, local saves only for one run.");
+        _model.LaunchSafe();
+    }
 }

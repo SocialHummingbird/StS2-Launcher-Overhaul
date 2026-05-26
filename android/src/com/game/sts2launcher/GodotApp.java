@@ -71,6 +71,7 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_INSTALLED_PACKAGE_NAME = "installed_package_name";
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
 	private static final String KEY_LAUNCH_GAME_ON_NEXT_START = "launch_game_on_next_start";
+	private static final String KEY_SAFE_LAUNCH_ON_NEXT_START = "safe_launch_on_next_start";
 	private static final int ASSEMBLY_CACHE_SCHEMA = 9;
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v26";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
@@ -615,7 +616,8 @@ public class GodotApp extends GodotActivity {
 		List<String> commands = new ArrayList<>(super.getCommandLine());
 		File pckFile = new File(gameDir, PCK_FILE);
 		if (isGamePckReady() && consumeGameLaunchRequest()) {
-			boolean useDefaultRenderer = previousStartupPhaseWas("game startup completed");
+			boolean safeLaunch = consumeSafeGameLaunchRequest();
+			boolean useDefaultRenderer = safeLaunch || previousStartupPhaseWas("game startup completed");
 			patchGamePckForAndroid(pckFile);
 			if (!useDefaultRenderer) {
 				commands.add("--rendering-driver");
@@ -623,7 +625,9 @@ public class GodotApp extends GodotActivity {
 				commands.add("--rendering-method");
 				commands.add("gl_compatibility");
 			} else {
-				Log.i(TAG, "Using default renderer because previous game startup completed but did not produce a usable screen");
+				Log.i(TAG, safeLaunch
+					? "Using default renderer for manual safe launch"
+					: "Using default renderer because previous game startup completed but did not produce a usable screen");
 			}
 			commands.add("--verbose");
 			Log.i(TAG, "Enabled verbose Godot logging for downloaded game");
@@ -679,6 +683,19 @@ public class GodotApp extends GodotActivity {
 		Log.i(TAG, "Consuming one-shot game launch request");
 		return true;
 	}
+
+	private boolean consumeSafeGameLaunchRequest() {
+		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		boolean requested = prefs.getBoolean(KEY_SAFE_LAUNCH_ON_NEXT_START, false);
+		if (!requested) {
+			return false;
+		}
+
+		prefs.edit().remove(KEY_SAFE_LAUNCH_ON_NEXT_START).apply();
+		Log.i(TAG, "Consuming one-shot safe launch request");
+		return true;
+	}
+
 	private void patchGamePckForAndroid(File pckFile) {
 		File marker = new File(gameDir, PCK_ANDROID_PATCH_MARKER);
 		if (marker.exists() && marker.lastModified() >= pckFile.lastModified()) {
@@ -993,6 +1010,17 @@ public class GodotApp extends GodotActivity {
 			.apply();
 		restartApp();
 	}
+
+	public void launchGameSafelyOnRestart() {
+		Log.i(TAG, "Scheduling one-shot safe game launch on restart");
+		getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+			.edit()
+			.putBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, true)
+			.putBoolean(KEY_SAFE_LAUNCH_ON_NEXT_START, true)
+			.apply();
+		restartApp();
+	}
+
 	public void restartApp() {
 		Log.i(TAG, "Restarting app...");
 		Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());

@@ -15,8 +15,10 @@ public class ActionSection : VBoxContainer
     public event Action CheckForUpdatesPressed;
     public event Action RedownloadPressed;
     public event Action DiagnosticsPressed;
+    public event Action SafeLaunchPressed;
 
     private readonly Button _launchButton;
+    private readonly Button _safeLaunchButton;
     private readonly Button _retryButton;
     private readonly StyledButton _localBackupToggle;
     private readonly StyledButton _cloudSyncToggle;
@@ -95,6 +97,11 @@ public class ActionSection : VBoxContainer
         _diagnosticsButton.Pressed += () => DiagnosticsPressed?.Invoke();
         AddChild(_diagnosticsButton);
 
+        _safeLaunchButton = new StyledButton("SAFE LAUNCH", scale, fontSize: 14, height: 44);
+        _safeLaunchButton.Visible = false;
+        _safeLaunchButton.Pressed += () => SafeLaunchPressed?.Invoke();
+        AddChild(_safeLaunchButton);
+
         _launchButton = new StyledButton("LAUNCH", scale, fontSize: 16, height: 48);
         _launchButton.Visible = false;
         _launchButton.Pressed += () => LaunchPressed?.Invoke();
@@ -138,6 +145,7 @@ public class ActionSection : VBoxContainer
         _updateButton.Text = "CHECK FOR UPDATES";
         _redownloadButton.Visible = true;
         _diagnosticsButton.Visible = true;
+        _safeLaunchButton.Visible = true;
         _retryButton.Visible = false;
     }
 
@@ -145,6 +153,7 @@ public class ActionSection : VBoxContainer
     {
         _retryButton.Visible = true;
         _launchButton.Visible = false;
+        _safeLaunchButton.Visible = false;
         _localBackupToggle.Visible = false;
         _cloudSyncToggle.Visible = false;
         PushPullRow.Visible = false;
@@ -156,6 +165,7 @@ public class ActionSection : VBoxContainer
     public void HideAll()
     {
         _launchButton.Visible = false;
+        _safeLaunchButton.Visible = false;
         _retryButton.Visible = false;
         _localBackupToggle.Visible = false;
         _cloudSyncToggle.Visible = false;

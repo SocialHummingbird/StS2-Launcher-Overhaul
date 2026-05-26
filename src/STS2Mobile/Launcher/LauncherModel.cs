@@ -423,6 +423,29 @@ public class LauncherModel : IDisposable
         }
     }
 
+    public void LaunchSafe()
+    {
+        SaveManualSafeLaunchMarker();
+
+        if (_credentialStore.HasCredentials)
+        {
+            LauncherPatches.SavedAccountName = _credentialStore.AccountName;
+            LauncherPatches.SavedRefreshToken = _credentialStore.RefreshToken;
+        }
+
+        if (_launchTcs != null)
+            _launchTcs.TrySetResult(true);
+        else
+        {
+            PatchHelper.Log("[Launcher] Restarting app for safe game launch");
+            var godotApp = GetGodotApp();
+            if (GameFilesReady())
+                godotApp?.Call("launchGameSafelyOnRestart");
+            else
+                godotApp?.Call("restartApp");
+        }
+    }
+
     public void ResetGameFilesForRedownload()
     {
         _downloadCts?.Cancel();
@@ -473,6 +496,7 @@ public class LauncherModel : IDisposable
             sb.AppendLine("Previous launch incomplete phase: <none>");
 
         AppendFileInfo(sb, "Startup marker", Path.Combine(_dataDir, "last_game_start_incomplete"));
+        AppendFileInfo(sb, "Manual safe launch marker", ManualSafeLaunchPath);
         AppendFileInfo(sb, "Game PCK", Path.Combine(_dataDir, "game", "SlayTheSpire2.pck"));
         AppendDirectoryListing(sb, "Game directory", Path.Combine(_dataDir, "game"), maxDepth: 2);
         AppendDirectoryListing(sb, "Download state", Path.Combine(_dataDir, "download_state"), maxDepth: 1);
@@ -849,6 +873,21 @@ public class LauncherModel : IDisposable
             File.WriteAllText(CloudSyncPrefPath, enabled ? "true" : "false");
         }
         catch { }
+    }
+
+    public static string ManualSafeLaunchPath =>
+        Path.Combine(OS.GetDataDir(), "manual_safe_launch");
+
+    private static void SaveManualSafeLaunchMarker()
+    {
+        try
+        {
+            File.WriteAllText(ManualSafeLaunchPath, $"{DateTime.UtcNow:O}\n");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Failed to write manual safe launch marker: {ex.Message}");
+        }
     }
 
     public static GodotObject GetGodotApp()
