@@ -484,6 +484,9 @@ public class LauncherModel : IDisposable
             sb.AppendLine($"Android app version: {(string)godotApp?.Call("getVersionName") ?? "<unknown>"}");
             sb.AppendLine($"External files dir: {(string)godotApp?.Call("getExternalFilesDirPath") ?? "<none>"}");
             sb.AppendLine($"Usable data bytes: {(long)(godotApp?.Call("getUsableSpaceBytes", _dataDir) ?? -1L)}");
+            sb.AppendLine();
+            sb.AppendLine("Android logcat tail:");
+            sb.AppendLine((string)godotApp?.Call("getLogcatTail", 500) ?? "<unavailable>");
         }
         catch (Exception ex)
         {

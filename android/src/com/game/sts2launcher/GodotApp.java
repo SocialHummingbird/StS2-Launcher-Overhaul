@@ -1096,6 +1096,58 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
+	public String getLogcatTail(int lineCount) {
+		int boundedLineCount = Math.max(50, Math.min(lineCount, 800));
+		Process process = null;
+		try {
+			String[] command = new String[] {
+				"logcat",
+				"-d",
+				"-t",
+				String.valueOf(boundedLineCount),
+				"-v",
+				"time",
+				"STS2Mobile:I",
+				"Godot:I",
+				"godot:I",
+				"Mono:I",
+				"mono-rt:E",
+				"AndroidRuntime:E",
+				"*:S"
+			};
+			process = Runtime.getRuntime().exec(command);
+
+			StringBuilder output = new StringBuilder();
+			try (BufferedReader reader = new BufferedReader(new java.io.InputStreamReader(process.getInputStream()))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					output.append(line).append('\n');
+				}
+			}
+
+			try (BufferedReader reader = new BufferedReader(new java.io.InputStreamReader(process.getErrorStream()))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					output.append("[stderr] ").append(line).append('\n');
+				}
+			}
+
+			int exitCode = process.waitFor();
+			if (exitCode != 0) {
+				output.append("[logcat exited ").append(exitCode).append("]\n");
+			}
+
+			return output.length() == 0 ? "<empty>" : output.toString();
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to collect logcat tail", e);
+			return "Failed to collect logcat tail: " + e;
+		} finally {
+			if (process != null) {
+				process.destroy();
+			}
+		}
+	}
+
 	public long getUsableSpaceBytes(String path) {
 		try {
 			File target = (path == null || path.isEmpty()) ? getFilesDir() : new File(path);
