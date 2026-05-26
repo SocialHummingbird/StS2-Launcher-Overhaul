@@ -63,7 +63,7 @@ public class LauncherController
                 if (LauncherModel.GameFilesReady())
                 {
                     var text = _model.InGameMode ? "PLAY" : "START GAME";
-                    _view.Actions.ShowLaunch(text, showCloudSync: false, showUpdate: false);
+                    _view.Actions.ShowLaunch(text, showCloudSync: true, showUpdate: false);
                 }
                 else
                     _view.Actions.ShowRetry();
