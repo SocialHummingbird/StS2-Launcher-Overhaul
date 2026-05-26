@@ -95,7 +95,7 @@ public class LauncherModel : IDisposable
             $"[Launcher] Fast path: creds={_credentialStore.HasCredentials}, marker={hasMarker}"
         );
 
-        if (_credentialStore.HasCredentials && hasMarker)
+        if (_credentialStore.HasCredentials && hasMarker && GameFilesReady())
             return FastPathResult.ReadyToLaunch;
 
         if (_credentialStore.HasCredentials)
@@ -418,6 +418,46 @@ public class LauncherModel : IDisposable
                 godotApp?.Call("launchGameOnRestart");
             else
                 godotApp?.Call("restartApp");
+        }
+    }
+
+    public void ResetGameFilesForRedownload()
+    {
+        _downloadCts?.Cancel();
+        _downloader?.Dispose();
+        _downloader = null;
+        _downloadCts?.Dispose();
+        _downloadCts = null;
+
+        DeleteDirectoryQuietly(Path.Combine(_dataDir, "game"));
+        DeleteDirectoryQuietly(Path.Combine(_dataDir, "download_state"));
+        DeleteFileQuietly(Path.Combine(_dataDir, "last_game_start_incomplete"));
+        PatchHelper.Log("[Launcher] Deleted downloaded game files and download state");
+    }
+
+    private static void DeleteDirectoryQuietly(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+                Directory.Delete(path, recursive: true);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Failed to delete directory {path}: {ex.Message}");
+        }
+    }
+
+    private static void DeleteFileQuietly(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Failed to delete file {path}: {ex.Message}");
         }
     }
 

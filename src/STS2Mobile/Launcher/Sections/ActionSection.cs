@@ -13,6 +13,7 @@ public class ActionSection : VBoxContainer
     public event Action CloudPushPressed;
     public event Action CloudPullPressed;
     public event Action CheckForUpdatesPressed;
+    public event Action RedownloadPressed;
 
     private readonly Button _launchButton;
     private readonly Button _retryButton;
@@ -21,6 +22,7 @@ public class ActionSection : VBoxContainer
     private readonly Button _pushButton;
     private readonly Button _pullButton;
     private readonly Button _updateButton;
+    private readonly Button _redownloadButton;
     private readonly StyleBoxFlat _offStyle;
     private readonly StyleBoxFlat _onStyle;
 
@@ -81,6 +83,11 @@ public class ActionSection : VBoxContainer
         _updateButton.Pressed += () => CheckForUpdatesPressed?.Invoke();
         AddChild(_updateButton);
 
+        _redownloadButton = new StyledButton("REDOWNLOAD GAME FILES", scale, fontSize: 14, height: 44);
+        _redownloadButton.Visible = false;
+        _redownloadButton.Pressed += () => RedownloadPressed?.Invoke();
+        AddChild(_redownloadButton);
+
         _launchButton = new StyledButton("LAUNCH", scale, fontSize: 16, height: 48);
         _launchButton.Visible = false;
         _launchButton.Pressed += () => LaunchPressed?.Invoke();
@@ -122,6 +129,7 @@ public class ActionSection : VBoxContainer
         _updateButton.Visible = showUpdate;
         _updateButton.Disabled = false;
         _updateButton.Text = "CHECK FOR UPDATES";
+        _redownloadButton.Visible = true;
         _retryButton.Visible = false;
     }
 
@@ -133,6 +141,7 @@ public class ActionSection : VBoxContainer
         _cloudSyncToggle.Visible = false;
         PushPullRow.Visible = false;
         _updateButton.Visible = false;
+        _redownloadButton.Visible = false;
     }
 
     public void HideAll()
@@ -143,6 +152,7 @@ public class ActionSection : VBoxContainer
         _cloudSyncToggle.Visible = false;
         PushPullRow.Visible = false;
         _updateButton.Visible = false;
+        _redownloadButton.Visible = false;
     }
 
     public void SetPushPullDisabled(bool disabled)

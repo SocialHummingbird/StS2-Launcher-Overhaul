@@ -117,6 +117,7 @@ public class LauncherController
         _view.Actions.CloudPushPressed += OnCloudPushPressed;
         _view.Actions.CloudPullPressed += OnCloudPullPressed;
         _view.Actions.CheckForUpdatesPressed += OnCheckForUpdatesPressed;
+        _view.Actions.RedownloadPressed += OnRedownloadPressed;
 
         var localBackupPref = LauncherModel.LoadLocalBackupPref();
         _view.Actions.SetLocalBackupChecked(localBackupPref);
@@ -539,6 +540,22 @@ public class LauncherController
     {
         var result = _model.Retry();
         HandleFastPath(result);
+    }
+
+    private void OnRedownloadPressed()
+    {
+        ShowConfirmation(
+            "Redownload game files?\nThis keeps your Steam login but deletes downloaded game files.",
+            () =>
+            {
+                _model.ResetGameFilesForRedownload();
+                _view.Actions.HideAll();
+                _view.Download.Visible = true;
+                _view.Download.Reset("DOWNLOAD GAME FILES");
+                _view.SetStatus("Game files deleted. Download again to rebuild them.");
+                _view.AppendLog("Game files were deleted for a clean redownload.");
+            }
+        );
     }
 
     private void OnLaunchPressed() => _model.Launch();
