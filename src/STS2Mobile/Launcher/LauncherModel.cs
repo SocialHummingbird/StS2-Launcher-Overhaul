@@ -412,8 +412,12 @@ public class LauncherModel : IDisposable
             _launchTcs.TrySetResult(true);
         else
         {
-            PatchHelper.Log("[Launcher] Restarting app to load game files");
-            GetGodotApp()?.Call("restartApp");
+            PatchHelper.Log("[Launcher] Restarting app to launch game files");
+            var godotApp = GetGodotApp();
+            if (GameFilesReady())
+                godotApp?.Call("launchGameOnRestart");
+            else
+                godotApp?.Call("restartApp");
         }
     }
 

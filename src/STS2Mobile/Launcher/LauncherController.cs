@@ -57,11 +57,11 @@ public class LauncherController
         _model.DownloadCompleted += () =>
             _runOnMainThread(() =>
             {
-                _view.SetStatus("Download complete! Restart to play.");
+                _view.SetStatus("Download complete! Start game when ready.");
                 _view.Download.Visible = false;
                 if (LauncherModel.GameFilesReady())
                 {
-                    var text = _model.InGameMode ? "PLAY" : "RESTART APP";
+                    var text = _model.InGameMode ? "PLAY" : "START GAME";
                     _view.Actions.ShowLaunch(text, showCloudSync: false, showUpdate: false);
                 }
                 else
@@ -213,7 +213,7 @@ public class LauncherController
         {
             case FastPathResult.ReadyToLaunch:
                 _view.SetStatus($"Welcome back, {_model.AccountName}");
-                var text = _model.InGameMode ? "PLAY" : "RESTART APP";
+                var text = _model.InGameMode ? "PLAY" : "START GAME";
                 _view.Actions.ShowLaunch(text, showCloudSync: true, showUpdate: true);
                 break;
 
@@ -251,7 +251,7 @@ public class LauncherController
                 {
                     _view.SetStatus("No connection — saved credentials will be used");
                     _view.AppendLog("Connection timed out. Valid ownership marker found.");
-                    var text = _model.InGameMode ? "PLAY" : "RESTART APP";
+                    var text = _model.InGameMode ? "PLAY" : "START GAME";
                     _view.Actions.ShowLaunch(text, showCloudSync: true, showUpdate: false);
                 });
             }
@@ -313,7 +313,7 @@ public class LauncherController
                 _view.SetStatus($"Logged in as {_model.AccountName}");
                 if (LauncherModel.GameFilesReady())
                 {
-                    var text = _model.InGameMode ? "PLAY" : "RESTART APP";
+                    var text = _model.InGameMode ? "PLAY" : "START GAME";
                     _view.Actions.ShowLaunch(text, showCloudSync: true, showUpdate: true);
                 }
                 else

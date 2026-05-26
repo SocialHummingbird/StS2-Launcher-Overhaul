@@ -66,6 +66,7 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_INSTALLED_VERSION_CODE = "installed_version_code";
 	private static final String KEY_INSTALLED_PACKAGE_NAME = "installed_package_name";
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
+	private static final String KEY_LAUNCH_GAME_ON_NEXT_START = "launch_game_on_next_start";
 	private static final int ASSEMBLY_CACHE_SCHEMA = 9;
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v26";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
@@ -609,7 +610,7 @@ public class GodotApp extends GodotActivity {
 	public List<String> getCommandLine() {
 		List<String> commands = new ArrayList<>(super.getCommandLine());
 		File pckFile = new File(gameDir, PCK_FILE);
-		if (isGamePckReady()) {
+		if (isGamePckReady() && consumeGameLaunchRequest()) {
 			patchGamePckForAndroid(pckFile);
 			commands.add("--rendering-driver");
 			commands.add("opengl3");
@@ -627,7 +628,7 @@ public class GodotApp extends GodotActivity {
 			Log.i(TAG, "Forcing OpenGL compatibility renderer for downloaded game");
 			Log.i(TAG, "Loading PCK from: " + pckFile.getAbsolutePath());
 		} else {
-			// No game files yet; use bootstrap PCK so Godot can initialize for the
+			// Start in the launcher unless a one-shot game launch was requested; use bootstrap PCK so Godot can initialize for the
 			// launcher.
 			String bootstrapPck = extractBootstrapPck();
 			if (bootstrapPck != null) {
@@ -639,6 +640,18 @@ public class GodotApp extends GodotActivity {
 		return commands;
 	}
 
+	private boolean consumeGameLaunchRequest() {
+		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		boolean requested = prefs.getBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, false);
+		if (!requested) {
+			Log.i(TAG, "Downloaded game is ready; starting launcher first. Press PLAY to boot the game.");
+			return false;
+		}
+
+		prefs.edit().remove(KEY_LAUNCH_GAME_ON_NEXT_START).apply();
+		Log.i(TAG, "Consuming one-shot game launch request");
+		return true;
+	}
 	private void patchGamePckForAndroid(File pckFile) {
 		File marker = new File(gameDir, PCK_ANDROID_PATCH_MARKER);
 		if (marker.exists() && marker.lastModified() >= pckFile.lastModified()) {
@@ -945,6 +958,14 @@ public class GodotApp extends GodotActivity {
 		return BuildConfig.VERSION_NAME;
 	}
 
+	public void launchGameOnRestart() {
+		Log.i(TAG, "Scheduling one-shot game launch on restart");
+		getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+			.edit()
+			.putBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, true)
+			.apply();
+		restartApp();
+	}
 	public void restartApp() {
 		Log.i(TAG, "Restarting app...");
 		Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
