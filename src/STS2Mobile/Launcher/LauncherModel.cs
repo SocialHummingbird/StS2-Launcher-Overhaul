@@ -504,6 +504,7 @@ public class LauncherModel : IDisposable
 
         AppendFileInfo(sb, "Startup marker", Path.Combine(_dataDir, "last_game_start_incomplete"));
         AppendFileInfo(sb, "Manual safe launch marker", ManualSafeLaunchPath);
+        AppendFileInfo(sb, "Bootstrap trace", BootstrapTrace.TracePath);
         AppendFileInfo(sb, "Game PCK", Path.Combine(_dataDir, "game", "SlayTheSpire2.pck"));
         AppendDirectoryListing(sb, "Game directory", Path.Combine(_dataDir, "game"), maxDepth: 2);
         AppendDirectoryListing(sb, "Download state", Path.Combine(_dataDir, "download_state"), maxDepth: 1);
