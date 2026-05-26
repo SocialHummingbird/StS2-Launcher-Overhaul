@@ -115,6 +115,16 @@ public static class LauncherPatches
         await launcher.WaitForLaunch();
         var startupStatus = CreateStartupStatusLabel(gameNode);
         var previousIncompletePhase = ReadStartupMarkerPhase();
+        var forceLocalSaves =
+            string.Equals(previousIncompletePhase, "settings and saves", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(previousIncompletePhase, "game startup", StringComparison.OrdinalIgnoreCase);
+        if (forceLocalSaves)
+        {
+            CloudSyncEnabled = false;
+            PatchHelper.Log(
+                $"Disabling cloud save injection for this launch because previous launch stalled at {previousIncompletePhase}"
+            );
+        }
         WriteStartupMarker("launch requested");
         SetStartupStatus(startupStatus, "Starting game...");
         PatchHelper.Log("User launched game, proceeding to startup...");
@@ -154,7 +164,12 @@ public static class LauncherPatches
         }
 
         WriteStartupMarker("settings and saves");
-        SetStartupStatus(startupStatus, "Loading settings and saves...");
+        SetStartupStatus(
+            startupStatus,
+            forceLocalSaves
+                ? "Loading settings and saves in local-only safe mode..."
+                : "Loading settings and saves..."
+        );
         PatchHelper.Log("Initializing settings and save manager");
         SaveManager.Instance.InitSettingsData();
 
