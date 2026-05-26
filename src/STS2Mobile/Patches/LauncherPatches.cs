@@ -114,6 +114,7 @@ public static class LauncherPatches
 
         await launcher.WaitForLaunch();
         var startupStatus = CreateStartupStatusLabel(gameNode);
+        var previousIncompletePhase = ReadStartupMarkerPhase();
         WriteStartupMarker("launch requested");
         SetStartupStatus(startupStatus, "Starting game...");
         PatchHelper.Log("User launched game, proceeding to startup...");
@@ -132,7 +133,9 @@ public static class LauncherPatches
         WriteStartupMarker("launcher closed");
         SetStartupStatus(startupStatus, "Launcher closed. Preparing game startup...");
 
-        if (ShaderWarmupScreen.NeedsWarmup())
+        var skipShaderWarmup =
+            string.Equals(previousIncompletePhase, "shader warmup", StringComparison.OrdinalIgnoreCase);
+        if (ShaderWarmupScreen.NeedsWarmup() && !skipShaderWarmup)
         {
             WriteStartupMarker("shader warmup");
             SetStartupStatus(startupStatus, "Warming shaders...");
@@ -143,6 +146,11 @@ public static class LauncherPatches
             await warmup.WaitForCompletion();
             warmup.QueueFree();
             PatchHelper.Log("Shader warmup complete");
+        }
+        else if (skipShaderWarmup)
+        {
+            PatchHelper.Log("Skipping shader warmup because the previous launch stalled there");
+            SetStartupStatus(startupStatus, "Skipping shader warmup after previous stall...");
         }
 
         WriteStartupMarker("settings and saves");
@@ -199,6 +207,23 @@ public static class LauncherPatches
         catch (Exception ex)
         {
             PatchHelper.Log($"Failed to write startup marker: {ex.Message}");
+        }
+    }
+
+    private static string ReadStartupMarkerPhase()
+    {
+        try
+        {
+            if (!File.Exists(StartupMarkerPath))
+                return null;
+
+            var lines = File.ReadAllLines(StartupMarkerPath);
+            return lines.Length >= 2 ? lines[1].Trim() : null;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Failed to read startup marker: {ex.Message}");
+            return null;
         }
     }
 
