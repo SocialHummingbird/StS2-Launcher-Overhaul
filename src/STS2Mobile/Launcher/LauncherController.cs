@@ -566,6 +566,11 @@ public class LauncherController
             var path = _model.WriteDiagnosticsReport();
             _view.SetStatus("Diagnostics exported.");
             _view.AppendLog($"Diagnostics exported: {path}");
+            if (OperatingSystem.IsAndroid())
+            {
+                var shared = (bool)(LauncherModel.GetGodotApp()?.Call("shareTextFile", path) ?? false);
+                _view.AppendLog(shared ? "Android share sheet opened." : "Could not open Android share sheet.");
+            }
         }
         catch (Exception ex)
         {

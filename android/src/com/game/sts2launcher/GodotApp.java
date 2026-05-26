@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.util.Log;
 
 import androidx.activity.EdgeToEdge;
+import androidx.core.content.FileProvider;
 import androidx.core.splashscreen.SplashScreen;
 
 import android.content.SharedPreferences;
@@ -45,6 +46,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 
 import android.content.Context;
+import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.util.Base64;
 
@@ -1066,6 +1068,32 @@ public class GodotApp extends GodotActivity {
 	public String getExternalFilesDirPath() {
 		File dir = getExternalFilesDir(null);
 		return dir != null ? dir.getAbsolutePath() : null;
+	}
+
+	public boolean shareTextFile(String path) {
+		try {
+			if (path == null || path.isEmpty()) {
+				return false;
+			}
+
+			File file = new File(path);
+			if (!file.exists() || !file.isFile()) {
+				Log.w(TAG, "Diagnostics file does not exist for sharing: " + path);
+				return false;
+			}
+
+			Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
+			Intent intent = new Intent(Intent.ACTION_SEND);
+			intent.setType("text/plain");
+			intent.putExtra(Intent.EXTRA_STREAM, uri);
+			intent.putExtra(Intent.EXTRA_SUBJECT, "StS2 Launcher diagnostics");
+			intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+			startActivity(Intent.createChooser(intent, "Share diagnostics"));
+			return true;
+		} catch (Exception e) {
+			Log.e(TAG, "Failed to share diagnostics file", e);
+			return false;
+		}
 	}
 
 	public long getUsableSpaceBytes(String path) {
