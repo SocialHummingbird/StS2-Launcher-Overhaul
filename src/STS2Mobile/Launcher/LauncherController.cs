@@ -17,6 +17,7 @@ public class LauncherController
     private readonly Action<Action> _runOnMainThread;
     private volatile bool _checkingForUpdates;
     private volatile bool _localLoginHandoffStarted;
+    private bool _autoDiagnosticsWritten;
 
     public LauncherController(
         LauncherModel model,
@@ -369,6 +370,24 @@ public class LauncherController
         _view.SetStatus("Previous game launch did not finish.");
         _view.AppendLog("Previous game launch did not finish." + suffix);
         _view.AppendLog("The launcher is staying available so you are not trapped on a black screen.");
+        WriteAutomaticDiagnosticsSnapshot();
+    }
+
+    private void WriteAutomaticDiagnosticsSnapshot()
+    {
+        if (_autoDiagnosticsWritten)
+            return;
+
+        _autoDiagnosticsWritten = true;
+        try
+        {
+            var path = _model.WriteDiagnosticsReport();
+            _view.AppendLog($"Automatic diagnostics snapshot: {path}");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Automatic diagnostics snapshot failed: {ex.Message}");
+        }
     }
 
     private void OnCodeSubmitPressed(string code)
