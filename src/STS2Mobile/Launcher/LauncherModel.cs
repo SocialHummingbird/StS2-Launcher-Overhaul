@@ -433,6 +433,13 @@ public class LauncherModel : IDisposable
             LauncherPatches.SavedRefreshToken = _credentialStore.RefreshToken;
         }
 
+        if (OperatingSystem.IsAndroid() && GameFilesReady())
+        {
+            PatchHelper.Log("[Launcher] Restarting app for safe game launch");
+            GetGodotApp()?.Call("launchGameSafelyOnRestart");
+            return;
+        }
+
         if (_launchTcs != null)
             _launchTcs.TrySetResult(true);
         else
