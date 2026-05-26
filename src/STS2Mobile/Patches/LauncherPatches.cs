@@ -15,6 +15,7 @@ namespace STS2Mobile.Patches;
 // and delegates sync logic to CloudSyncCoordinator.
 public static class LauncherPatches
 {
+    private const int StartupWatchdogMs = 60_000;
     internal static bool CloudSyncEnabled = true;
     internal static string SavedAccountName;
     internal static string SavedRefreshToken;
@@ -111,6 +112,8 @@ public static class LauncherPatches
         PatchHelper.Log("Launcher UI displayed");
 
         await launcher.WaitForLaunch();
+        var startupStatus = CreateStartupStatusLabel(gameNode);
+        SetStartupStatus(startupStatus, "Starting game...");
         PatchHelper.Log("User launched game, proceeding to startup...");
 
         var instanceField = typeof(SaveManager).GetField(
@@ -124,16 +127,22 @@ public static class LauncherPatches
         }
 
         launcher.QueueFree();
+        SetStartupStatus(startupStatus, "Launcher closed. Preparing game startup...");
 
         if (ShaderWarmupScreen.NeedsWarmup())
         {
+            SetStartupStatus(startupStatus, "Warming shaders...");
+            PatchHelper.Log("Shader warmup starting");
             var warmup = new ShaderWarmupScreen();
             gameNode.AddChild(warmup);
             warmup.Initialize();
             await warmup.WaitForCompletion();
             warmup.QueueFree();
+            PatchHelper.Log("Shader warmup complete");
         }
 
+        SetStartupStatus(startupStatus, "Loading settings and saves...");
+        PatchHelper.Log("Initializing settings and save manager");
         SaveManager.Instance.InitSettingsData();
 
         var gameStartup = game.GetType()
@@ -141,12 +150,68 @@ public static class LauncherPatches
 
         try
         {
-            await (Task)gameStartup.Invoke(game, null);
+            SetStartupStatus(startupStatus, "Starting game scene...");
+            PatchHelper.Log("Invoking NGame.GameStartup");
+            var startupTask = (Task)gameStartup.Invoke(game, null);
+            var watchdogTask = Task.Delay(StartupWatchdogMs);
+            if (await Task.WhenAny(startupTask, watchdogTask) == watchdogTask)
+            {
+                SetStartupStatus(
+                    startupStatus,
+                    "Game startup is still running. If this stays black, capture diagnostics."
+                );
+                PatchHelper.Log(
+                    $"Game startup watchdog fired after {StartupWatchdogMs}ms; startup task still running"
+                );
+            }
+
+            await startupTask;
+            PatchHelper.Log("NGame.GameStartup completed");
+            startupStatus?.QueueFree();
         }
         catch (TargetInvocationException ex)
         {
+            SetStartupStatus(startupStatus, $"Game startup failed: {ex.InnerException?.Message}");
             PatchHelper.Log($"Game startup failed: {ex.InnerException?.Message}");
             throw ex.InnerException ?? ex;
+        }
+    }
+
+    private static Label CreateStartupStatusLabel(Node parent)
+    {
+        try
+        {
+            var label = new Label
+            {
+                Name = "STS2MobileStartupStatus",
+                Position = new Vector2(24, 24),
+                ZIndex = 4096,
+            };
+            label.AddThemeFontSizeOverride("font_size", 22);
+            label.AddThemeColorOverride("font_color", new Color(0.55f, 0.85f, 1f));
+            parent.AddChild(label);
+            return label;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Startup status label creation failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static void SetStartupStatus(Label label, string message)
+    {
+        PatchHelper.Log($"[Startup] {message}");
+        if (label == null)
+            return;
+
+        try
+        {
+            label.Text = message;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Startup status label update failed: {ex.Message}");
         }
     }
 }
