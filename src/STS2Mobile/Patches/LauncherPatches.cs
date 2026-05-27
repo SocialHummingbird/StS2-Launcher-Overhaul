@@ -274,11 +274,34 @@ public static class LauncherPatches
                 WriteSceneSnapshot(gameNode, "game startup watchdog");
                 SetStartupStatus(
                     startupStatus,
-                    "Game startup stalled. Use the recovery buttons below."
+                    "Game startup stalled. Attempting main menu recovery..."
                 );
                 PatchHelper.Log(
                     $"Game startup watchdog fired after {StartupWatchdogMs}ms; startup task still running"
                 );
+
+                var recovered = await EnsureMainMenuAfterStartup(game, startupStatus);
+                WriteSceneSnapshot(
+                    gameNode,
+                    recovered ? "main menu recovered after watchdog" : "main menu recovery failed after watchdog"
+                );
+                if (recovered)
+                {
+                    WriteStartupMarker("main menu recovered after watchdog");
+                    SetStartupStatus(
+                        startupStatus,
+                        "Main menu recovered after startup stall. Recovery controls remain briefly."
+                    );
+                    SchedulePostStartupRecoveryCleanup(recoveryControls, startupStatus);
+                    return;
+                }
+
+                WriteStartupMarker("main menu recovery failed after watchdog");
+                SetStartupStatus(
+                    startupStatus,
+                    "Game startup stalled and main menu recovery failed. Use recovery controls below."
+                );
+                ShowStartupRecoveryControls(gameNode);
                 return;
             }
 
