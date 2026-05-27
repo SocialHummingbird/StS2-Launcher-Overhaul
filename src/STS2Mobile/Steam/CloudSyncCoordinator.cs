@@ -330,6 +330,12 @@ public static class CloudSyncCoordinator
         Func<string, bool> dirExists
     )
     {
+        if (OperatingSystem.IsAndroid())
+        {
+            AddFallbackProfilePaths(paths, getFiles, dirExists);
+            return;
+        }
+
         try
         {
             CollectProfilePaths(paths, getFiles, dirExists);
