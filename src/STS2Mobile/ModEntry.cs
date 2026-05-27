@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Godot;
 using Godot.Bridge;
 using Godot.NativeInterop;
@@ -21,6 +22,7 @@ public static class ModEntry
     private const int Complete = 2;
 
     private static int _applyState = NotStarted;
+    private static int _exceptionHandlersInstalled;
 
     // Bootstraps GodotSharp by setting up DLL import resolver, native interop,
     // and managed callbacks. Called from gd_mono.cpp before Apply().
@@ -112,6 +114,7 @@ public static class ModEntry
     private static void ApplyInternal()
     {
         BootstrapTrace.Log("ApplyInternal entered");
+        InstallManagedExceptionHandlers();
         if (Interlocked.CompareExchange(ref _applyState, InProgress, NotStarted) != NotStarted)
         {
             BootstrapTrace.Log("ApplyInternal duplicate invocation skipped");
@@ -171,6 +174,32 @@ public static class ModEntry
             PatchHelper.Log($"Unexpected startup error: {ex.Message}");
             ScheduleStandaloneLauncher();
         }
+    }
+
+    private static void InstallManagedExceptionHandlers()
+    {
+        if (Interlocked.Exchange(ref _exceptionHandlersInstalled, 1) == 1)
+            return;
+
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            try
+            {
+                BootstrapTrace.Log($"Unhandled managed exception: {args.ExceptionObject}");
+            }
+            catch { }
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            try
+            {
+                BootstrapTrace.Log($"Unobserved task exception: {args.Exception}");
+            }
+            catch { }
+        };
+
+        BootstrapTrace.Log("Managed exception handlers installed");
     }
 
     private static void ConfigureWritableTempDirectory()

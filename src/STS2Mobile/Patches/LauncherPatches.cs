@@ -17,6 +17,7 @@ namespace STS2Mobile.Patches;
 public static class LauncherPatches
 {
     private const int StartupWatchdogMs = 60_000;
+    private const int PostStartupRecoveryMs = 30_000;
     internal static bool CloudSyncEnabled = true;
     internal static string SavedAccountName;
     internal static string SavedRefreshToken;
@@ -229,9 +230,12 @@ public static class LauncherPatches
 
             await startupTask;
             PatchHelper.Log("NGame.GameStartup completed");
-            ClearStartupMarker();
-            recoveryControls?.QueueFree();
-            startupStatus?.QueueFree();
+            WriteStartupMarker("post-startup observation");
+            SetStartupStatus(
+                startupStatus,
+                "Game startup returned. Recovery controls remain briefly."
+            );
+            SchedulePostStartupRecoveryCleanup(recoveryControls, startupStatus);
         }
         catch (TargetInvocationException ex)
         {
@@ -252,6 +256,25 @@ public static class LauncherPatches
         SetStartupStatus(startupStatus, $"Game startup failed: {message}");
         PatchHelper.Log($"Game startup failed: {ex}");
         ShowStartupRecoveryControls(gameNode);
+    }
+
+    private static async void SchedulePostStartupRecoveryCleanup(
+        CanvasLayer recoveryControls,
+        Label startupStatus
+    )
+    {
+        try
+        {
+            await Task.Delay(PostStartupRecoveryMs);
+            ClearStartupMarker();
+            recoveryControls?.QueueFree();
+            startupStatus?.QueueFree();
+            PatchHelper.Log("Post-startup recovery controls cleared");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Post-startup recovery cleanup failed: {ex.Message}");
+        }
     }
 
     private static string StartupMarkerPath =>
