@@ -19,6 +19,7 @@ public static class LauncherPatches
 {
     private const int StartupWatchdogMs = 60_000;
     private const int PostStartupRecoveryMs = 30_000;
+    private const int MainMenuForceTimeoutMs = 15_000;
     internal static bool CloudSyncEnabled = true;
     internal static string SavedAccountName;
     internal static string SavedRefreshToken;
@@ -283,6 +284,7 @@ public static class LauncherPatches
 
             await startupTask;
             PatchHelper.Log("NGame.GameStartup completed");
+            await EnsureMainMenuAfterStartup(game, startupStatus);
             WriteStartupMarker("post-startup observation");
             WriteSceneSnapshot(gameNode, "after NGame.GameStartup returned");
             SetStartupStatus(
@@ -329,6 +331,93 @@ public static class LauncherPatches
         catch (Exception ex)
         {
             PatchHelper.Log($"Post-startup recovery cleanup failed: {ex.Message}");
+        }
+    }
+
+    private static async Task<bool> EnsureMainMenuAfterStartup(object game, Label startupStatus)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return true;
+
+        try
+        {
+            if (CurrentSceneLooksLikeMainMenu(game, out var sceneName))
+            {
+                PatchHelper.Log($"Main menu present after startup: {sceneName}");
+                return true;
+            }
+
+            PatchHelper.Log($"Main menu missing after startup; current scene={sceneName ?? "<none>"}. Forcing LoadMainMenu.");
+            SetStartupStatus(startupStatus, "Startup returned without main menu. Forcing main menu...");
+
+            var loadMainMenu = game.GetType().GetMethod(
+                "LoadMainMenu",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
+            );
+            if (loadMainMenu == null)
+            {
+                PatchHelper.Log("Cannot force main menu: NGame.LoadMainMenu not found");
+                return false;
+            }
+
+            var task = loadMainMenu.Invoke(game, new object[] { false }) as Task;
+            if (task == null)
+            {
+                PatchHelper.Log("Cannot force main menu: NGame.LoadMainMenu did not return Task");
+                return false;
+            }
+
+            var timeout = Task.Delay(MainMenuForceTimeoutMs);
+            if (await Task.WhenAny(task, timeout) != task)
+            {
+                PatchHelper.Log($"Forced LoadMainMenu timed out after {MainMenuForceTimeoutMs}ms");
+                SetStartupStatus(startupStatus, "Forced main menu load timed out.");
+                return false;
+            }
+
+            await task;
+            var ok = CurrentSceneLooksLikeMainMenu(game, out sceneName);
+            PatchHelper.Log(ok
+                ? $"Forced main menu load succeeded: {sceneName}"
+                : $"Forced main menu load returned but current scene is {sceneName ?? "<none>"}");
+            SetStartupStatus(
+                startupStatus,
+                ok ? "Main menu loaded." : "Main menu force returned, but scene is still not main menu."
+            );
+            return ok;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"EnsureMainMenuAfterStartup failed: {ex}");
+            SetStartupStatus(startupStatus, $"Main menu guard failed: {ex.GetBaseException().Message}");
+            return false;
+        }
+    }
+
+    private static bool CurrentSceneLooksLikeMainMenu(object game, out string sceneName)
+    {
+        sceneName = null;
+        try
+        {
+            var rootSceneContainer = game.GetType()
+                .GetProperty("RootSceneContainer", BindingFlags.Public | BindingFlags.Instance)
+                ?.GetValue(game);
+            if (rootSceneContainer == null)
+                return false;
+
+            var currentScene = rootSceneContainer.GetType()
+                .GetProperty("CurrentScene", BindingFlags.Public | BindingFlags.Instance)
+                ?.GetValue(rootSceneContainer);
+            if (currentScene == null)
+                return false;
+
+            sceneName = $"{currentScene.GetType().FullName} name={((Node)currentScene).Name}";
+            return currentScene.GetType().FullName?.Contains("NMainMenu", StringComparison.Ordinal) == true;
+        }
+        catch (Exception ex)
+        {
+            sceneName = $"<inspect failed: {ex.Message}>";
+            return false;
         }
     }
 
