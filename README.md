@@ -272,6 +272,12 @@ Use the helper script to configure GitHub from a stable release keystore:
   -KeyAlias "<alias>"
 ```
 
+Check whether GitHub is ready to publish update-compatible APKs:
+
+```powershell
+.\scripts\check-android-release-readiness.ps1
+```
+
 The release workflow also verifies the built APK against a previous GitHub release APK before upload. It fails if the package name changes, the signing certificate changes, or `versionCode` does not increase. If the current public APK was signed with a temporary key, create one explicit stable-signing baseline release with `allow_update_baseline_reset=true`; direct update from the temporary-key APK is impossible, but later GitHub releases will be pinned to the stable signer.
 
 Release validation checklist for every release is tracked in [docs/android-release-validation.md](docs/android-release-validation.md).

@@ -19,7 +19,13 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
    - `ANDROID_RELEASE_KEYSTORE_PASSWORD`
    - `ANDROID_RELEASE_KEY_ALIAS`
 2. Confirm repository variable `ANDROID_RELEASE_SIGNER_SHA256` is configured to the stable release certificate SHA-256 fingerprint.
-3. If these are missing or stale, configure them from the stable release keystore:
+3. Audit the current repository setup:
+
+```powershell
+.\scripts\check-android-release-readiness.ps1
+```
+
+4. If these are missing or stale, configure them from the stable release keystore:
 
 ```powershell
 .\scripts\configure-android-release-signing.ps1 `
@@ -28,10 +34,10 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
   -KeyAlias "<alias>"
 ```
 
-4. Confirm the compatibility step reports the same package name as the installed release package.
-5. Confirm the compatibility step reports the same signer SHA-256 as `ANDROID_RELEASE_SIGNER_SHA256`.
-6. Confirm the compatibility step reports a higher `versionCode` than the baseline APK.
-7. Do not announce the APK as update-compatible if the run used `allow_update_baseline_reset=true`; that mode creates a new stable baseline and cannot update APKs signed by a different previous key.
+5. Confirm the compatibility step reports the same package name as the installed release package.
+6. Confirm the compatibility step reports the same signer SHA-256 as `ANDROID_RELEASE_SIGNER_SHA256`.
+7. Confirm the compatibility step reports a higher `versionCode` than the baseline APK.
+8. Do not announce the APK as update-compatible if the run used `allow_update_baseline_reset=true`; that mode creates a new stable baseline and cannot update APKs signed by a different previous key.
 
 ## 3) Verify published release assets
 
