@@ -705,10 +705,8 @@ public static class LauncherPatches
 
     private static string WriteStartupRecoveryDiagnosticsReport()
     {
-        var path = Path.Combine(
-            OS.GetDataDir(),
-            $"sts2-startup-recovery-diagnostics-{DateTime.UtcNow:yyyyMMdd-HHmmss}.txt"
-        );
+        var fileName = $"sts2-startup-recovery-diagnostics-{DateTime.UtcNow:yyyyMMdd-HHmmss}.txt";
+        var path = GetStartupRecoveryDiagnosticsPath(fileName);
 
         var sb = new StringBuilder();
         sb.AppendLine("STS2 startup recovery diagnostics");
@@ -732,6 +730,26 @@ public static class LauncherPatches
 
         File.WriteAllText(path, sb.ToString());
         return path;
+    }
+
+    private static string GetStartupRecoveryDiagnosticsPath(string fileName)
+    {
+        try
+        {
+            var externalDir = (string)LauncherModel.GetGodotApp()?.Call("getExternalFilesDirPath");
+            if (!string.IsNullOrWhiteSpace(externalDir))
+            {
+                var dir = Path.Combine(externalDir, "diagnostics");
+                Directory.CreateDirectory(dir);
+                return Path.Combine(dir, fileName);
+            }
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Startup recovery external diagnostics path unavailable: {ex.Message}");
+        }
+
+        return Path.Combine(OS.GetDataDir(), fileName);
     }
 
     private static void AppendDiagnosticFile(StringBuilder sb, string label, string path)
