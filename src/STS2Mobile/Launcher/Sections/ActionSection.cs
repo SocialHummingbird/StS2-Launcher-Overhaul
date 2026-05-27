@@ -15,6 +15,7 @@ public class ActionSection : VBoxContainer
     public event Action CheckForUpdatesPressed;
     public event Action RedownloadPressed;
     public event Action DiagnosticsPressed;
+    public event Action ShowLastErrorPressed;
     public event Action SafeLaunchPressed;
 
     private readonly Button _launchButton;
@@ -27,6 +28,7 @@ public class ActionSection : VBoxContainer
     private readonly Button _updateButton;
     private readonly Button _redownloadButton;
     private readonly Button _diagnosticsButton;
+    private readonly Button _showLastErrorButton;
     private readonly StyleBoxFlat _offStyle;
     private readonly StyleBoxFlat _onStyle;
 
@@ -97,6 +99,11 @@ public class ActionSection : VBoxContainer
         _diagnosticsButton.Pressed += () => DiagnosticsPressed?.Invoke();
         AddChild(_diagnosticsButton);
 
+        _showLastErrorButton = new StyledButton("SHOW LAST ERROR", scale, fontSize: 14, height: 44);
+        _showLastErrorButton.Visible = false;
+        _showLastErrorButton.Pressed += () => ShowLastErrorPressed?.Invoke();
+        AddChild(_showLastErrorButton);
+
         _safeLaunchButton = new StyledButton("SAFE LAUNCH", scale, fontSize: 14, height: 44);
         _safeLaunchButton.Visible = false;
         _safeLaunchButton.Pressed += () => SafeLaunchPressed?.Invoke();
@@ -145,6 +152,7 @@ public class ActionSection : VBoxContainer
         _updateButton.Text = "CHECK FOR UPDATES";
         _redownloadButton.Visible = true;
         _diagnosticsButton.Visible = true;
+        _showLastErrorButton.Visible = true;
         _safeLaunchButton.Visible = true;
         _retryButton.Visible = false;
     }
@@ -160,6 +168,7 @@ public class ActionSection : VBoxContainer
         _updateButton.Visible = false;
         _redownloadButton.Visible = false;
         _diagnosticsButton.Visible = false;
+        _showLastErrorButton.Visible = false;
     }
 
     public void HideAll()
@@ -173,6 +182,7 @@ public class ActionSection : VBoxContainer
         _updateButton.Visible = false;
         _redownloadButton.Visible = false;
         _diagnosticsButton.Visible = false;
+        _showLastErrorButton.Visible = false;
     }
 
     public void SetPushPullDisabled(bool disabled)

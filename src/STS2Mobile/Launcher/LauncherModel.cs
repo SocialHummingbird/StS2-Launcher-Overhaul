@@ -483,6 +483,150 @@ public class LauncherModel : IDisposable
         return targetPath;
     }
 
+    public string BuildDiagnosticsSummaryForDisplay()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("=== LAST ERROR SUMMARY ===");
+        sb.AppendLine($"UTC: {DateTime.UtcNow:O}");
+        sb.AppendLine($"Game files ready: {GameFilesReady()}");
+        sb.AppendLine($"Session state: {_state}");
+
+        if (PreviousGameLaunchIncomplete(out var phase))
+            sb.AppendLine($"Previous launch phase: {phase ?? "<unknown>"}");
+        else
+            sb.AppendLine("Previous launch phase: <none>");
+
+        AppendSmallFileSummary(sb, "Startup marker", Path.Combine(_dataDir, "last_game_start_incomplete"), 2048);
+        AppendSmallFileSummary(sb, "Android uncaught exception", Path.Combine(_dataDir, "last_android_uncaught_exception.txt"), 4096);
+        AppendInterestingFileTail(sb, "Bootstrap trace", BootstrapTrace.TracePath, 80);
+        AppendInterestingFileTail(sb, "Startup scene snapshot", Path.Combine(_dataDir, "last_game_start_scene_tree.txt"), 80);
+        AppendLogcatErrorSummary(sb);
+        sb.AppendLine("=== END LAST ERROR SUMMARY ===");
+        return sb.ToString();
+    }
+
+    private static void AppendSmallFileSummary(
+        StringBuilder sb,
+        string label,
+        string path,
+        int maxChars
+    )
+    {
+        sb.AppendLine();
+        sb.AppendLine($"{label}: {path}");
+        try
+        {
+            if (!File.Exists(path))
+            {
+                sb.AppendLine("  <missing>");
+                return;
+            }
+
+            var text = File.ReadAllText(path);
+            sb.AppendLine(TruncateForDisplay(text, maxChars));
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"  <failed to read: {ex.Message}>");
+        }
+    }
+
+    private static void AppendInterestingFileTail(
+        StringBuilder sb,
+        string label,
+        string path,
+        int maxLines
+    )
+    {
+        sb.AppendLine();
+        sb.AppendLine($"{label}: {path}");
+        try
+        {
+            if (!File.Exists(path))
+            {
+                sb.AppendLine("  <missing>");
+                return;
+            }
+
+            var lines = File.ReadAllLines(path);
+            foreach (var line in SelectInterestingLines(lines, maxLines))
+                sb.AppendLine(line);
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"  <failed to read: {ex.Message}>");
+        }
+    }
+
+    private static void AppendLogcatErrorSummary(StringBuilder sb)
+    {
+        sb.AppendLine();
+        sb.AppendLine("Android logcat error lines:");
+        try
+        {
+            var godotApp = GetGodotApp();
+            var logcat = (string)godotApp?.Call("getLogcatTail", 800);
+            if (string.IsNullOrWhiteSpace(logcat))
+            {
+                sb.AppendLine("  <unavailable>");
+                return;
+            }
+
+            var lines = logcat.Replace("\r\n", "\n").Split('\n');
+            foreach (var line in SelectInterestingLines(lines, 120))
+                sb.AppendLine(line);
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"  <failed to collect logcat: {ex.Message}>");
+        }
+    }
+
+    private static string[] SelectInterestingLines(string[] lines, int maxLines)
+    {
+        var selected = lines
+            .Where(IsInterestingDiagnosticLine)
+            .TakeLast(maxLines)
+            .ToArray();
+
+        if (selected.Length > 0)
+            return selected;
+
+        return lines
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .TakeLast(Math.Min(maxLines, 40))
+            .ToArray();
+    }
+
+    private static bool IsInterestingDiagnosticLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return false;
+
+        var lower = line.ToLowerInvariant();
+        return lower.Contains("error")
+            || lower.Contains("exception")
+            || lower.Contains("failed")
+            || lower.Contains("fatal")
+            || lower.Contains("crash")
+            || lower.Contains("watchdog")
+            || lower.Contains("stalled")
+            || lower.Contains("platformutil")
+            || lower.Contains("main menu")
+            || lower.Contains("startup")
+            || lower.Contains("godot")
+            || lower.Contains("mono")
+            || lower.Contains("sts2mobile");
+    }
+
+    private static string TruncateForDisplay(string text, int maxChars)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= maxChars)
+            return text ?? string.Empty;
+
+        return text.Substring(0, maxChars) + "\n<truncated>";
+    }
+
     private string BuildDiagnosticsReport()
     {
         var sb = new StringBuilder();

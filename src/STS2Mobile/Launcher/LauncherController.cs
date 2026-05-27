@@ -120,6 +120,7 @@ public class LauncherController
         _view.Actions.CheckForUpdatesPressed += OnCheckForUpdatesPressed;
         _view.Actions.RedownloadPressed += OnRedownloadPressed;
         _view.Actions.DiagnosticsPressed += OnDiagnosticsPressed;
+        _view.Actions.ShowLastErrorPressed += OnShowLastErrorPressed;
         _view.Actions.SafeLaunchPressed += OnSafeLaunchPressed;
 
         var localBackupPref = LauncherModel.LoadLocalBackupPref();
@@ -372,6 +373,7 @@ public class LauncherController
         _view.SetStatus("Previous game launch did not finish.");
         _view.AppendLog("Previous game launch did not finish." + suffix);
         _view.AppendLog("The launcher is staying available so you are not trapped on a black screen.");
+        _view.AppendLog("Tap SHOW LAST ERROR to print the failure summary here, or EXPORT DIAGNOSTICS to share the full report.");
         WriteAutomaticDiagnosticsSnapshot();
     }
 
@@ -598,6 +600,21 @@ public class LauncherController
         {
             PatchHelper.Log($"[Launcher] Diagnostics export failed: {ex}");
             _view.SetStatus($"Diagnostics export failed: {ex.Message}");
+        }
+    }
+
+    private void OnShowLastErrorPressed()
+    {
+        try
+        {
+            var summary = _model.BuildDiagnosticsSummaryForDisplay();
+            _view.SetStatus("Last error summary printed in console.");
+            _view.AppendLog(summary);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Error summary failed: {ex}");
+            _view.SetStatus($"Error summary failed: {ex.Message}");
         }
     }
 
