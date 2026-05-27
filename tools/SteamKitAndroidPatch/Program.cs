@@ -1,18 +1,21 @@
 ﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
 
-if (args.Length != 2)
+if (args.Length < 2 || args.Length > 3)
 {
-    Console.Error.WriteLine("Usage: SteamKitPatch <SteamKit2.dll> <STS2Mobile.dll>");
+    Console.Error.WriteLine("Usage: SteamKitPatch <SteamKit2.dll> <STS2Mobile.dll> [sts2.dll]");
     Environment.Exit(2);
 }
 
 var steamKitPath = args[0];
 var helperPath = args[1];
+var gamePath = args.Length == 3 ? args[2] : null;
 
 var resolver = new DefaultAssemblyResolver();
 resolver.AddSearchDirectory(Path.GetDirectoryName(Path.GetFullPath(steamKitPath))!);
 resolver.AddSearchDirectory(Path.GetDirectoryName(Path.GetFullPath(helperPath))!);
+if (!string.IsNullOrWhiteSpace(gamePath))
+    resolver.AddSearchDirectory(Path.GetDirectoryName(Path.GetFullPath(gamePath))!);
 
 var reader = new ReaderParameters { AssemblyResolver = resolver, ReadWrite = false };
 var steamKit = ModuleDefinition.ReadModule(steamKitPath, reader);
@@ -421,6 +424,9 @@ File.Copy(tmpPath, steamKitPath, true);
 File.Delete(tmpPath);
 Console.WriteLine($"Patched SteamKit2.dll: rng={randomPatched}, fill={fillRandomPatched}, spki={spkiPatched}, parameters={parametersPatched}, rsaEncrypt={rsaEncryptPatched}, createRsa={createRsaPatched}, hmacSha1Bytes={hmacSha1BytesPatched}, hmacSha1Span={hmacSha1SpanPatched}, hmacSha1SpanDestination={hmacSha1SpanDestinationPatched}, sha1Bytes={sha1BytesPatched}, createAes={createAesPatched}, aesEncryptEcb={aesEncryptEcbPatched}, aesEncryptCbc={aesEncryptCbcPatched}, aesDecryptEcb={aesDecryptEcbPatched}, aesDecryptCbcSpanDestination={aesDecryptCbcSpanDestinationPatched}, aesDecryptCbc={aesDecryptCbcPatched}");
 
+if (!string.IsNullOrWhiteSpace(gamePath))
+    PatchGamePlatformUtil(gamePath, resolver);
+
 MethodDefinition FindHelper(string name, string returnType, params string[] parameters)
 {
     return helperType.Methods.FirstOrDefault(m =>
@@ -521,5 +527,70 @@ static bool IsForbiddenCryptoCallsite(MethodReference mr)
     }
 
     return false;
+}
+
+static void PatchGamePlatformUtil(string gamePath, IAssemblyResolver resolver)
+{
+    var reader = new ReaderParameters { AssemblyResolver = resolver, ReadWrite = false };
+    var game = ModuleDefinition.ReadModule(gamePath, reader);
+    var platformUtil = game.GetType("MegaCrit.Sts2.Core.Platform.PlatformUtil")
+        ?? throw new InvalidOperationException("Could not find PlatformUtil in sts2.dll");
+    var nullStrategy = game.GetType("MegaCrit.Sts2.Core.Platform.NullPlatformUtilStrategy")
+        ?? throw new InvalidOperationException("Could not find NullPlatformUtilStrategy in sts2.dll");
+    var nullStrategyCtor = nullStrategy.Methods.FirstOrDefault(m => m.IsConstructor && !m.IsStatic && m.Parameters.Count == 0)
+        ?? throw new InvalidOperationException("Could not find NullPlatformUtilStrategy constructor in sts2.dll");
+    var nullField = platformUtil.Fields.FirstOrDefault(f => f.Name == "_null")
+        ?? throw new InvalidOperationException("Could not find PlatformUtil._null field in sts2.dll");
+    var steamField = platformUtil.Fields.FirstOrDefault(f => f.Name == "_steam");
+
+    var staticCtor = platformUtil.Methods.FirstOrDefault(m => m.IsConstructor && m.IsStatic)
+        ?? throw new InvalidOperationException("Could not find PlatformUtil static constructor in sts2.dll");
+    ReplaceBody(staticCtor, il =>
+    {
+        il.Append(il.Create(OpCodes.Newobj, nullStrategyCtor));
+        il.Append(il.Create(OpCodes.Stsfld, nullField));
+        if (steamField != null)
+        {
+            il.Append(il.Create(OpCodes.Ldnull));
+            il.Append(il.Create(OpCodes.Stsfld, steamField));
+        }
+        il.Append(il.Create(OpCodes.Ret));
+    });
+
+    var primaryPlatform = platformUtil.Methods.FirstOrDefault(m => m.Name == "get_PrimaryPlatform" && m.Parameters.Count == 0)
+        ?? throw new InvalidOperationException("Could not find PlatformUtil.PrimaryPlatform getter in sts2.dll");
+    ReplaceBody(primaryPlatform, il =>
+    {
+        il.Append(il.Create(OpCodes.Ldc_I4_0));
+        il.Append(il.Create(OpCodes.Ret));
+    });
+
+    var getPlatformUtil = platformUtil.Methods.FirstOrDefault(m => m.Name == "GetPlatformUtil" && m.Parameters.Count == 1)
+        ?? throw new InvalidOperationException("Could not find PlatformUtil.GetPlatformUtil in sts2.dll");
+    ReplaceBody(getPlatformUtil, il =>
+    {
+        il.Append(il.Create(OpCodes.Ldsfld, nullField));
+        il.Append(il.Create(OpCodes.Ret));
+    });
+
+    var tmpPath = gamePath + ".patched";
+    game.Write(tmpPath);
+    game.Dispose();
+    File.Copy(tmpPath, gamePath, true);
+    File.Delete(tmpPath);
+    Console.WriteLine("Patched sts2.dll PlatformUtil: static constructor uses NullPlatformUtilStrategy, PrimaryPlatform=None, GetPlatformUtil returns _null");
+}
+
+static void ReplaceBody(MethodDefinition method, Action<ILProcessor> emit)
+{
+    if (!method.HasBody)
+        method.Body = new MethodBody(method);
+
+    method.Body.ExceptionHandlers.Clear();
+    method.Body.Variables.Clear();
+    method.Body.Instructions.Clear();
+    method.Body.InitLocals = false;
+    method.Body.MaxStackSize = 8;
+    emit(method.Body.GetILProcessor());
 }
 

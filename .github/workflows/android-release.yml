@@ -327,7 +327,8 @@ jobs:
           dotnet build "$ROOT_DIR/tools/SteamKitAndroidPatch/SteamKitAndroidPatch.csproj" -c Release
           dotnet "$ROOT_DIR/tools/SteamKitAndroidPatch/bin/Release/net9.0/SteamKitAndroidPatch.dll" \
             "$BCL_DIR/SteamKit2.dll" \
-            "$BCL_DIR/STS2Mobile.dll"
+            "$BCL_DIR/STS2Mobile.dll" \
+            "$BCL_DIR/sts2.dll"
 
           resolve_tls_so() {
             local runtime_version
