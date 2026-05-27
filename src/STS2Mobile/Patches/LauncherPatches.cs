@@ -686,11 +686,15 @@ public static class LauncherPatches
                 {
                     var path = WriteStartupRecoveryDiagnosticsReport();
                     PatchHelper.Log($"Startup recovery diagnostics written: {path}");
-                    LauncherModel.GetGodotApp()?.Call("shareTextFile", path);
+                    var shared = (bool)(LauncherModel.GetGodotApp()?.Call("shareTextFile", path) ?? false);
+                    detail.Text = shared
+                        ? $"Diagnostics exported and share sheet opened.\n\nSaved at:\n{path}"
+                        : $"Diagnostics exported, but the share sheet did not open.\n\nSaved at:\n{path}";
                 }
                 catch (Exception ex)
                 {
                     PatchHelper.Log($"Startup recovery diagnostics export failed: {ex}");
+                    detail.Text = $"Diagnostics export failed:\n{ex.GetBaseException().Message}";
                 }
             };
             box.AddChild(diagnosticsButton);
