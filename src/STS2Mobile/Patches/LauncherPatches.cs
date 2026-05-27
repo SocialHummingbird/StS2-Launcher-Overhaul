@@ -189,7 +189,18 @@ public static class LauncherPatches
                 : "Loading settings and saves..."
         );
         PatchHelper.Log("Initializing settings and save manager");
-        SaveManager.Instance.InitSettingsData();
+        try
+        {
+            SaveManager.Instance.InitSettingsData();
+        }
+        catch (Exception ex)
+        {
+            WriteStartupMarker("settings and saves failed");
+            SetStartupStatus(startupStatus, $"Settings/save init failed: {ex.GetBaseException().Message}");
+            PatchHelper.Log($"Settings/save init failed: {ex}");
+            ShowStartupRecoveryControls(gameNode);
+            return;
+        }
 
         var gameStartup = game.GetType()
             .GetMethod("GameStartup", BindingFlags.NonPublic | BindingFlags.Instance);
