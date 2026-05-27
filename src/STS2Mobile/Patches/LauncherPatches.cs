@@ -284,7 +284,19 @@ public static class LauncherPatches
 
             await startupTask;
             PatchHelper.Log("NGame.GameStartup completed");
-            await EnsureMainMenuAfterStartup(game, startupStatus);
+            var mainMenuReady = await EnsureMainMenuAfterStartup(game, startupStatus);
+            if (!mainMenuReady)
+            {
+                WriteStartupMarker("main menu guard failed");
+                WriteSceneSnapshot(gameNode, "main menu guard failed");
+                SetStartupStatus(
+                    startupStatus,
+                    "Main menu did not load. Use recovery controls below."
+                );
+                ShowStartupRecoveryControls(gameNode);
+                return;
+            }
+
             WriteStartupMarker("post-startup observation");
             WriteSceneSnapshot(gameNode, "after NGame.GameStartup returned");
             SetStartupStatus(
