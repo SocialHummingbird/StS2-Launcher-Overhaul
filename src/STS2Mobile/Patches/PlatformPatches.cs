@@ -127,6 +127,23 @@ public static class PlatformPatches
                 PatchHelper.Log("Patched PlatformUtil.PrimaryPlatform");
             }
 
+            var getPlatformUtil = typeof(PlatformUtil).GetMethod(
+                "GetPlatformUtil",
+                BindingFlags.Public | BindingFlags.Static
+            );
+            if (getPlatformUtil != null)
+            {
+                harmony.Patch(
+                    getPlatformUtil,
+                    prefix: new HarmonyMethod(
+                        typeof(PlatformPatches).GetMethod(
+                            nameof(GetPlatformUtilPrefix),
+                            BindingFlags.Public | BindingFlags.Static
+                        )
+                    )
+                );
+                PatchHelper.Log("Patched PlatformUtil.GetPlatformUtil");
+            }
         }
         catch (Exception ex)
         {
@@ -155,6 +172,12 @@ public static class PlatformPatches
     public static bool PrimaryPlatformPrefix(ref PlatformType __result)
     {
         __result = PlatformType.None;
+        return false;
+    }
+
+    public static bool GetPlatformUtilPrefix(ref object __result)
+    {
+        __result = GetAndroidNullStrategy();
         return false;
     }
 
