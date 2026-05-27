@@ -18,7 +18,7 @@ namespace STS2Mobile.Patches;
 public static class LauncherPatches
 {
     private const int StartupWatchdogMs = 60_000;
-    private const int PostStartupRecoveryMs = 30_000;
+    private const int PostStartupRecoveryMs = 180_000;
     private const int MainMenuForceTimeoutMs = 15_000;
     internal static bool CloudSyncEnabled = true;
     internal static string SavedAccountName;
@@ -640,7 +640,7 @@ public static class LauncherPatches
 
             var detail = new Label
             {
-                Text = "If this screen does not change, return to the launcher to export diagnostics or restart with safe launch.",
+                Text = "If this screen does not change, export diagnostics or restart with safe launch. These controls stay visible for several minutes.",
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
             };
             detail.AddThemeFontSizeOverride("font_size", 18);
@@ -698,6 +698,14 @@ public static class LauncherPatches
                 }
             };
             box.AddChild(diagnosticsButton);
+
+            var hideButton = new Button
+            {
+                Text = "HIDE RECOVERY CONTROLS",
+                CustomMinimumSize = new Vector2(420, 56),
+            };
+            hideButton.Pressed += () => layer.QueueFree();
+            box.AddChild(hideButton);
             return layer;
         }
         catch (Exception ex)
