@@ -477,6 +477,52 @@ jobs:
           echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
           sha256sum "$ABS_APK_PATH" > "${ABS_APK_PATH}.sha256"
 
+      - name: Verify release update compatibility
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_APK_PATH: ${{ steps.build.outputs.path }}
+          EXPECTED_PACKAGE_NAME: ${{ steps.version.outputs.package_name }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          PREVIOUS_DIR="$RUNNER_TEMP/previous-android-release"
+          RELEASES_JSON="$PREVIOUS_DIR/releases.json"
+          PREVIOUS_INFO="$PREVIOUS_DIR/previous.tsv"
+          mkdir -p "$PREVIOUS_DIR"
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$RELEASES_JSON"
+          jq -r --arg current "$RELEASE_TAG" '
+            [.[] |
+              select(.draft | not) |
+              select(.tag_name != $current) |
+              . as $release |
+              $release.assets[]? |
+              select(.name | test("^StS2Launcher-v.*\\.apk$"; "i")) |
+              [$release.tag_name, .name] |
+              @tsv
+            ][0] // empty
+          ' "$RELEASES_JSON" > "$PREVIOUS_INFO"
+
+          if [[ ! -s "$PREVIOUS_INFO" ]]; then
+            echo "::error::No previous GitHub release APK found. Refusing to publish without an update baseline."
+            exit 1
+          fi
+
+          IFS=$'\t' read -r PREVIOUS_TAG PREVIOUS_ASSET < "$PREVIOUS_INFO"
+          echo "Checking update compatibility against ${PREVIOUS_TAG}/${PREVIOUS_ASSET}"
+          gh release download "$PREVIOUS_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "$PREVIOUS_ASSET" \
+            --dir "$PREVIOUS_DIR" \
+            --clobber
+
+          pwsh scripts/verify-android-update-compat.ps1 \
+            -ApkPath "$CURRENT_APK_PATH" \
+            -PreviousApkPath "$PREVIOUS_DIR/$PREVIOUS_ASSET" \
+            -ExpectedPackageName "$EXPECTED_PACKAGE_NAME"
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
