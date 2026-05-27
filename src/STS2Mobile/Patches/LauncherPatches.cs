@@ -45,6 +45,20 @@ public static class LauncherPatches
             "SyncCloudToLocal",
             prefix: PatchHelper.Method(typeof(LauncherPatches), nameof(SyncCloudToLocalPrefix))
         );
+
+        PatchHelper.PatchCritical(
+            harmony,
+            typeof(SaveManager),
+            "TryFirstTimeCloudSync",
+            prefix: PatchHelper.Method(typeof(LauncherPatches), nameof(TryFirstTimeCloudSyncPrefix))
+        );
+
+        PatchHelper.PatchCritical(
+            harmony,
+            typeof(SaveManager),
+            "SyncCloudToLocal",
+            prefix: PatchHelper.Method(typeof(LauncherPatches), nameof(SaveManagerSyncCloudToLocalPrefix))
+        );
     }
 
     public static bool GameStartupWrapperPrefix(object __instance, ref Task __result)
@@ -103,6 +117,26 @@ public static class LauncherPatches
             __instance.CloudStore,
             path
         );
+        return false;
+    }
+
+    public static bool TryFirstTimeCloudSyncPrefix(ref Task<bool> __result)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return true;
+
+        __result = Task.FromResult(false);
+        PatchHelper.Log("[Cloud] Skipping upstream first-time cloud sync on Android");
+        return false;
+    }
+
+    public static bool SaveManagerSyncCloudToLocalPrefix(ref Task __result)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return true;
+
+        __result = Task.CompletedTask;
+        PatchHelper.Log("[Cloud] Skipping upstream startup cloud sync on Android");
         return false;
     }
 
