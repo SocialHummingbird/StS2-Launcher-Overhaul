@@ -59,6 +59,13 @@ public static class LauncherPatches
             "SyncCloudToLocal",
             prefix: PatchHelper.Method(typeof(LauncherPatches), nameof(SaveManagerSyncCloudToLocalPrefix))
         );
+
+        PatchHelper.PatchGetter(
+            harmony,
+            typeof(NGame),
+            "StartOnMainMenu",
+            prefix: PatchHelper.Method(typeof(LauncherPatches), nameof(StartOnMainMenuPrefix))
+        );
     }
 
     public static bool GameStartupWrapperPrefix(object __instance, ref Task __result)
@@ -137,6 +144,15 @@ public static class LauncherPatches
 
         __result = Task.CompletedTask;
         PatchHelper.Log("[Cloud] Skipping upstream startup cloud sync on Android");
+        return false;
+    }
+
+    public static bool StartOnMainMenuPrefix(ref bool __result)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return true;
+
+        __result = true;
         return false;
     }
 
