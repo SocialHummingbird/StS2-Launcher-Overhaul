@@ -8,6 +8,7 @@ using MegaCrit.Sts2.Core.Debug;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Platform;
 using MegaCrit.Sts2.Core.Platform.Null;
+using MegaCrit.Sts2.Core.Platform.Steam;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Patches;
@@ -57,6 +58,20 @@ public static class PlatformPatches
         PatchHelper.Patch(
             harmony,
             typeof(SentryService),
+            "Initialize",
+            prefix: PatchHelper.Method(typeof(PlatformPatches), nameof(SkipPrefix))
+        );
+
+        PatchHelper.Patch(
+            harmony,
+            typeof(SentryService),
+            "AfterGameInit",
+            prefix: PatchHelper.Method(typeof(PlatformPatches), nameof(SkipPrefix))
+        );
+
+        PatchHelper.Patch(
+            harmony,
+            typeof(SteamStatsManager),
             "Initialize",
             prefix: PatchHelper.Method(typeof(PlatformPatches), nameof(SkipPrefix))
         );
