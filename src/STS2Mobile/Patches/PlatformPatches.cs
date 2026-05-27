@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Debug;
 using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Platform;
+using MegaCrit.Sts2.Core.Platform.Null;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Patches;
@@ -14,6 +16,8 @@ namespace STS2Mobile.Patches;
 // Steam initialization, Sentry crash reporting, system info logging, and telemetry opt-in.
 public static class PlatformPatches
 {
+    private static IPlatformUtilStrategy _androidNullStrategy;
+
     public static void Apply(Harmony harmony)
     {
         PatchHelper.Patch(
@@ -45,6 +49,8 @@ public static class PlatformPatches
             "CreateDirectory",
             prefix: PatchHelper.Method(typeof(PlatformPatches), nameof(CreateDirectoryPrefix))
         );
+
+        PatchPlatformUtil(harmony);
 
         // Skip Sentry crash reporting. Not useful for our mobile port and the
         // Sentry GDExtension is not bundled in the Android build.
@@ -82,6 +88,102 @@ public static class PlatformPatches
         if (!fullPath.Contains("://"))
             return false;
         return true;
+    }
+
+    private static void PatchPlatformUtil(Harmony harmony)
+    {
+        try
+        {
+            var staticConstructor = typeof(PlatformUtil).TypeInitializer;
+            if (staticConstructor != null)
+            {
+                harmony.Patch(
+                    staticConstructor,
+                    prefix: new HarmonyMethod(
+                        typeof(PlatformPatches).GetMethod(
+                            nameof(PlatformUtilStaticConstructorPrefix),
+                            BindingFlags.Public | BindingFlags.Static
+                        )
+                    )
+                );
+                PatchHelper.Log("Patched PlatformUtil static constructor");
+            }
+
+            var primaryGetter = typeof(PlatformUtil).GetProperty(
+                nameof(PlatformUtil.PrimaryPlatform),
+                BindingFlags.Public | BindingFlags.Static
+            )?.GetGetMethod();
+            if (primaryGetter != null)
+            {
+                harmony.Patch(
+                    primaryGetter,
+                    prefix: new HarmonyMethod(
+                        typeof(PlatformPatches).GetMethod(
+                            nameof(PrimaryPlatformPrefix),
+                            BindingFlags.Public | BindingFlags.Static
+                        )
+                    )
+                );
+                PatchHelper.Log("Patched PlatformUtil.PrimaryPlatform");
+            }
+
+            var getPlatformUtil = typeof(PlatformUtil).GetMethod(
+                nameof(PlatformUtil.GetPlatformUtil),
+                BindingFlags.Public | BindingFlags.Static
+            );
+            if (getPlatformUtil != null)
+            {
+                harmony.Patch(
+                    getPlatformUtil,
+                    prefix: new HarmonyMethod(
+                        typeof(PlatformPatches).GetMethod(
+                            nameof(GetPlatformUtilPrefix),
+                            BindingFlags.Public | BindingFlags.Static
+                        )
+                    )
+                );
+                PatchHelper.Log("Patched PlatformUtil.GetPlatformUtil");
+            }
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"PlatformUtil patch failed: {ex.Message}");
+        }
+    }
+
+    public static bool PlatformUtilStaticConstructorPrefix()
+    {
+        try
+        {
+            var strategy = GetAndroidNullStrategy();
+            typeof(PlatformUtil)
+                .GetField("_null", BindingFlags.NonPublic | BindingFlags.Static)
+                ?.SetValue(null, strategy);
+            PatchHelper.Log("Skipped PlatformUtil desktop static initialization on Android");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"PlatformUtil static constructor replacement failed: {ex.Message}");
+        }
+
+        return false;
+    }
+
+    public static bool PrimaryPlatformPrefix(ref PlatformType __result)
+    {
+        __result = PlatformType.None;
+        return false;
+    }
+
+    public static bool GetPlatformUtilPrefix(ref IPlatformUtilStrategy __result)
+    {
+        __result = GetAndroidNullStrategy();
+        return false;
+    }
+
+    private static IPlatformUtilStrategy GetAndroidNullStrategy()
+    {
+        return _androidNullStrategy ??= new NullPlatformUtilStrategy();
     }
 
     private static void PatchGetThreeLetterLanguageCode(Harmony harmony)
