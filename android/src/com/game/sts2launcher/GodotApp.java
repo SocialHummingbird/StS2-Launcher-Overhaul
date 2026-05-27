@@ -74,8 +74,10 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_SAFE_LAUNCH_ON_NEXT_START = "safe_launch_on_next_start";
 	private static final int ASSEMBLY_CACHE_SCHEMA = 9;
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v26";
+	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
 	private static final int MAX_BUFFERED_HTTP_RESPONSE_BYTES = 1024 * 1024;
+	private static boolean exceptionHandlerInstalled;
 	private long lastHttpResponseCleanupAt;
 	private static final String[] BOOTSTRAP_REQUIRED_ASSEMBLIES = {
 		"STS2Mobile.dll",
@@ -93,6 +95,7 @@ public class GodotApp extends GodotActivity {
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		instance = this;
+		installAndroidExceptionHandler();
 		gameDir = new File(getFilesDir(), "game").getAbsolutePath();
 		configureTempDirectory();
 		configureMonoForEmulator();
@@ -129,6 +132,40 @@ public class GodotApp extends GodotActivity {
 			Log.i(TAG, "WiFi MulticastLock acquired for LAN discovery");
 		} catch (Exception e) {
 			Log.w(TAG, "Failed to acquire MulticastLock", e);
+		}
+	}
+
+	private void installAndroidExceptionHandler() {
+		if (exceptionHandlerInstalled) {
+			return;
+		}
+		exceptionHandlerInstalled = true;
+
+		final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+		Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+			String text =
+				"UTC millis: " + System.currentTimeMillis() + "\n" +
+				"Thread: " + (thread != null ? thread.getName() : "<unknown>") + "\n" +
+				"Package: " + getPackageName() + "\n" +
+				"Version: " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")\n\n" +
+				Log.getStackTraceString(throwable);
+			writeInternalTextFile(LAST_ANDROID_EXCEPTION_FILE, text);
+			Log.e(TAG, "Uncaught Android exception persisted", throwable);
+
+			if (previous != null) {
+				previous.uncaughtException(thread, throwable);
+			} else {
+				Runtime.getRuntime().exit(2);
+			}
+		});
+		Log.i(TAG, "Android uncaught exception handler installed");
+	}
+
+	private void writeInternalTextFile(String name, String text) {
+		try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), name))) {
+			out.write(text.getBytes("UTF-8"));
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to write " + name, e);
 		}
 	}
 
@@ -1128,6 +1165,14 @@ public class GodotApp extends GodotActivity {
 		int boundedLineCount = Math.max(50, Math.min(lineCount, 800));
 		Process process = null;
 		try {
+			StringBuilder output = new StringBuilder();
+			File lastAndroidException = new File(getFilesDir(), LAST_ANDROID_EXCEPTION_FILE);
+			if (lastAndroidException.exists() && lastAndroidException.isFile()) {
+				output.append("Last persisted Android uncaught exception:\n");
+				output.append(readSmallTextFile(lastAndroidException, 32 * 1024));
+				output.append("\n\n");
+			}
+
 			String[] command = new String[] {
 				"logcat",
 				"-d",
@@ -1141,11 +1186,13 @@ public class GodotApp extends GodotActivity {
 				"Mono:I",
 				"mono-rt:E",
 				"AndroidRuntime:E",
+				"crash_dump64:E",
+				"libc:F",
+				"DEBUG:E",
 				"*:S"
 			};
 			process = Runtime.getRuntime().exec(command);
 
-			StringBuilder output = new StringBuilder();
 			try (BufferedReader reader = new BufferedReader(new java.io.InputStreamReader(process.getInputStream()))) {
 				String line;
 				while ((line = reader.readLine()) != null) {
@@ -1171,8 +1218,30 @@ public class GodotApp extends GodotActivity {
 			return "Failed to collect logcat tail: " + e;
 		} finally {
 			if (process != null) {
-				process.destroy();
+			process.destroy();
 			}
+		}
+	}
+
+	private String readSmallTextFile(File file, int maxBytes) {
+		try (FileInputStream in = new FileInputStream(file)) {
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			byte[] buffer = new byte[4096];
+			int remaining = maxBytes;
+			while (remaining > 0) {
+				int read = in.read(buffer, 0, Math.min(buffer.length, remaining));
+				if (read <= 0) {
+					break;
+				}
+				out.write(buffer, 0, read);
+				remaining -= read;
+			}
+			if (in.read() >= 0) {
+				out.write("\n[truncated]\n".getBytes("UTF-8"));
+			}
+			return out.toString("UTF-8");
+		} catch (Exception e) {
+			return "Failed to read " + file.getAbsolutePath() + ": " + e;
 		}
 	}
 
