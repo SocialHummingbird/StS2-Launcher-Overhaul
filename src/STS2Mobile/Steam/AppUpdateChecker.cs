@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Godot;
+using SteamKit2;
 
 namespace STS2Mobile.Steam;
 
@@ -21,7 +22,10 @@ public static class AppUpdateChecker
         if (currentVersion == null)
             return AppUpdateResult.None;
 
-        using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        using var http = OperatingSystem.IsAndroid()
+            ? AndroidJavaHttpMessageHandler.CreateClient(HttpClientPurpose.CDN)
+            : new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        http.Timeout = TimeSpan.FromSeconds(15);
         http.DefaultRequestHeaders.Add("User-Agent", "StS2-Launcher");
 
         var response = await http.GetStringAsync(ReleasesUrl).ConfigureAwait(false);

@@ -41,7 +41,7 @@ public class CodeSection : VBoxContainer
 
     private void OnSubmit()
     {
-        var code = _codeField.Text.Trim();
+        var code = _codeField.Text.Trim().ToUpperInvariant();
         if (string.IsNullOrEmpty(code))
             return;
 

@@ -25,6 +25,13 @@ public static class SettingsPatches
             postfix: PatchHelper.Method(typeof(SettingsPatches), nameof(InitSettingsDataPostfix))
         );
 
+        PatchHelper.PatchGetter(
+            harmony,
+            typeof(SettingsSave),
+            "SkipIntroLogo",
+            prefix: PatchHelper.Method(typeof(SettingsPatches), nameof(SkipIntroLogoPrefix))
+        );
+
         // Fix swapped Off/On labels in the VSync settings UI (upstream bug).
         var vsyncPaginatorType = typeof(NGame).Assembly.GetType(
             "MegaCrit.Sts2.Core.Nodes.Screens.Settings.NVSyncPaginator"
@@ -56,11 +63,12 @@ public static class SettingsPatches
             settings.VSync = VSyncType.On;
             settings.AspectRatioSetting = AspectRatioSetting.Auto;
             settings.Msaa = 0;
+            settings.SkipIntroLogo = true;
             SaveManager.Instance.SaveSettings();
 
             File.WriteAllText(markerPath, "1");
             PatchHelper.Log(
-                "Applied mobile default settings (first launch): VSync=On, AspectRatio=Auto, Msaa=None"
+                "Applied mobile default settings (first launch): VSync=On, AspectRatio=Auto, Msaa=None, SkipIntroLogo=True"
             );
         }
         catch (Exception ex)
@@ -95,6 +103,15 @@ public static class SettingsPatches
             PatchHelper.Log($"GetVSyncStringPrefix failed: {ex.Message}");
             __result = "On";
         }
+        return false;
+    }
+
+    public static bool SkipIntroLogoPrefix(ref bool __result)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return true;
+
+        __result = true;
         return false;
     }
 }

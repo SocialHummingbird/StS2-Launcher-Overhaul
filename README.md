@@ -13,6 +13,7 @@ The goal is a **drastic architecture and reliability overhaul** that is harder t
 - Overhaul status: [OVERHAUL_STATUS.md](OVERHAUL_STATUS.md)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - Device log checklist: [docs/device-log-checklist.md](docs/device-log-checklist.md)
+- Android runtime findings: [docs/android-runtime-findings.md](docs/android-runtime-findings.md)
 
 ### Suggested working remotes
 
@@ -105,12 +106,74 @@ This runs the full pipeline:
 
 Output: `android/build/outputs/apk/mono/release/StS2Launcher-v<version>.apk`
 
+### Local Android ABI builds
+
+For local Android testing, use the PowerShell build wrapper so the managed assemblies, patched SteamKit dependency, Mono Android runtime libraries, and native ABI selection stay in sync:
+
+```powershell
+.\scripts\build-android-local.ps1 -VersionName "0.2.0-local-x86" -VersionCode 200 -Abi x86_64
+.\scripts\build-android-local.ps1 -VersionName "0.2.0-local-arm64" -VersionCode 201 -Abi arm64-v8a
+.\scripts\build-android-local.ps1 -VersionName "0.2.0-local-universal" -VersionCode 202 -Abi universal
+```
+
+The Gradle output directory only keeps the most recent mono release APK. The wrapper also archives every local build to `artifacts/android/` with the ABI in the filename, for example:
+
+```text
+artifacts/android/StS2Launcher-v0.2.0-local-x86-x86_64.apk
+artifacts/android/StS2Launcher-v0.2.0-local-x86-x86_64.apk.sha256
+artifacts/android/StS2Launcher-v0.2.0-local-arm64-arm64-v8a.apk
+artifacts/android/StS2Launcher-v0.2.0-local-arm64-arm64-v8a.apk.sha256
+artifacts/android/StS2Launcher-v0.2.0-local-universal-universal.apk
+artifacts/android/StS2Launcher-v0.2.0-local-universal-universal.apk.sha256
+```
+
+Verify a local archived APK from `artifacts/android/`:
+
+```bash
+sha256sum -c StS2Launcher-v0.2.0-local-arm64-arm64-v8a.apk.sha256
+```
+
+The Android `x86_64` emulator is useful for install, routing, release packaging, and native diagnostic-screen testing, but it is not a valid proof target for the Godot/.NET launcher or downloaded game. `x86_64` routes to a native fallback screen instead of starting Godot, because the emulator path crashes inside the Mono/GodotSharp native runtime. Use an `arm64-v8a` Android device/build to test Steam login, download, and actual game launch.
+
+### Local Android smoke test
+
+Once `adb devices` shows exactly one attached device or emulator, run:
+
+```powershell
+.\scripts\test-android-local.ps1
+```
+
+The smoke-test script selects the newest archived APK matching the attached device ABI, installs it, launches `LauncherActivity`, captures logcat to `artifacts/android/logcat-smoke-*-full.txt`, writes a focused subset to `artifacts/android/logcat-smoke-*-filtered.txt`, writes a handoff summary to `artifacts/android/logcat-smoke-*-summary.txt`, and reports whether it saw the native x86 fallback route or crash markers.
+If the selected APK has a `.sha256` sidecar, the script verifies it before install and stops on mismatch.
+By default, local builds and the smoke-test script use package `com.sts2launcher.overhaul.fork.dev`.
+
+For a clean app-data run:
+
+```powershell
+.\scripts\test-android-local.ps1 -ClearAppData
+```
+
+If the emulator is still booting or ADB is slow to attach, wait before failing:
+
+```powershell
+.\scripts\test-android-local.ps1 -WaitForDeviceSeconds 60
+```
+
+If more than one device/emulator is attached, pass the target serial:
+
+```powershell
+.\scripts\test-android-local.ps1 -DeviceSerial emulator-5554
+```
+
 ### Installing
 
 ```bash
 adb install -r android/build/outputs/apk/mono/release/StS2Launcher-v*.apk
 
-# Fresh install (clear saved credentials + cached assemblies)
+# Fresh install for local build wrapper default package
+adb shell pm clear com.sts2launcher.overhaul.fork.dev
+
+# Fresh install for production/release package
 adb shell pm clear com.sts2launcher.overhaul.fork
 ```
 
@@ -119,11 +182,30 @@ adb shell pm clear com.sts2launcher.overhaul.fork
 GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
-2. Download `StS2Launcher-vX.Y.Z.apk` for the latest release.
+2. Download the universal APK for the latest release. Prefer the asset with `universal` in the filename for phones.
     - Direct latest URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest
     - Downloaded artifact names include:
-      - `StS2Launcher-v<version>.apk` (installable package)
-      - `StS2Launcher-v<version>.apk.sha256` (optional checksum)
+      - `StS2Launcher-v<version>-universal.apk` or similar (recommended installable package for phones)
+      - `StS2Launcher-v<version>-arm64-v8a.apk` or similar (ARM64-only test package)
+      - `StS2Launcher-v<version>-x86_64.apk` or similar (emulator-only test package)
+
+Current verified phone release:
+
+```powershell
+.\scripts\verify-android-release-apk.ps1
+.\scripts\install-android-release.ps1 -ClearAppData -Launch -CaptureDiagnostics
+```
+
+Defaults:
+
+```text
+Release: v0.2.88-apk-native-verify
+Asset: StS2Launcher-v0.2.88-universal-phone.apk
+Package: com.sts2launcher.overhaul.fork.dev
+```
+
+The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms both `arm64-v8a` and `x86_64` native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.
+      - `*.apk.sha256` (optional checksum)
 3. (Optional) Verify checksum:
 
 ```bash
@@ -158,6 +240,9 @@ If installation fails:
 - `INSTALL_FAILED_OLDER_SDK`:
   - your device is running an unsupported Android API level.
 - `INSTALL_FAILED_DEXOPT` or immediate crash:
+- `App isn't compatible with your phone`:
+  - make sure you downloaded the `universal` APK, not the `x86_64` emulator-only APK.
+- `INSTALL_FAILED_DEXOPT` or immediate crash:
   - capture logs with `adb logcat` and open a release issue with stack trace.
 
 ### Release workflow (for contributors)
@@ -168,13 +253,32 @@ Maintainers can trigger the release workflow manually from the Actions tab or le
   - Push `vX.Y.Z` to `main`.
 - Manual publish:
   - `workflow_dispatch` input fields support overriding `release_tag`, `package_name`, version name/code, and whether to create the GitHub release.
-- Optional signing:
+- Required release signing:
   - Configure repository secrets:
     - `ANDROID_RELEASE_KEYSTORE_BASE64`
     - `ANDROID_RELEASE_KEYSTORE_PASSWORD`
     - `ANDROID_RELEASE_KEY_ALIAS`
+  - Configure repository variable:
+    - `ANDROID_RELEASE_SIGNER_SHA256`
 
-If signing secrets are missing, the workflow still creates an unsigned release APK so download/testing can continue.
+If signing secrets or `ANDROID_RELEASE_SIGNER_SHA256` are missing, the workflow refuses to publish. This prevents GitHub from creating APKs that cannot update the installed app.
+
+Use the helper script to configure GitHub from a stable release keystore:
+
+```powershell
+.\scripts\configure-android-release-signing.ps1 `
+  -KeystorePath C:\path\to\release.keystore `
+  -KeystorePassword "<password>" `
+  -KeyAlias "<alias>"
+```
+
+Check whether GitHub is ready to publish update-compatible APKs:
+
+```powershell
+.\scripts\check-android-release-readiness.ps1
+```
+
+The release workflow also verifies the built APK against a previous GitHub release APK before upload. It fails if the package name changes, the signing certificate changes, or `versionCode` does not increase. If the current public APK was signed with a temporary key, create one explicit stable-signing baseline release with `allow_update_baseline_reset=true`; direct update from the temporary-key APK is impossible, but later GitHub releases will be pinned to the stable signer.
 
 Release validation checklist for every release is tracked in [docs/android-release-validation.md](docs/android-release-validation.md).
 
@@ -185,11 +289,18 @@ Release validation checklist for every release is tracked in [docs/android-relea
 python3 scripts/make-bootstrap-pck.py
 
 # Rebuild Godot engine (only if engine source changes)
+bash scripts/setup-godot-source.sh
 bash scripts/build-godot.sh
+
+# Windows PowerShell equivalent
+.\scripts\setup-godot-source.ps1
+.\scripts\build-godot.ps1
 
 # Rebuild native stubs (requires Android NDK)
 bash src/stubs/build_stubs.sh
 ```
+
+`scripts/setup-godot-source.sh` or `scripts/setup-godot-source.ps1` restores `vendor/godot` and the Python/SCons virtualenv needed by the matching build script. By default it checks out upstream Godot `4.5.1-stable`; set `GODOT_REPO` and `GODOT_REF` if you have the original patched engine fork. Emulator `x86_64` testing requires `arm64-v8a` and `x86_64` `libgodot_android.so` to be built from the same engine checkout.
 
 ## LAN Multiplayer
 

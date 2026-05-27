@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Debug;
 using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Platform;
+using MegaCrit.Sts2.Core.Platform.Null;
+using MegaCrit.Sts2.Core.Platform.Steam;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Patches;
@@ -14,6 +17,8 @@ namespace STS2Mobile.Patches;
 // Steam initialization, Sentry crash reporting, system info logging, and telemetry opt-in.
 public static class PlatformPatches
 {
+    private static object _androidNullStrategy;
+
     public static void Apply(Harmony harmony)
     {
         PatchHelper.Patch(
@@ -46,11 +51,27 @@ public static class PlatformPatches
             prefix: PatchHelper.Method(typeof(PlatformPatches), nameof(CreateDirectoryPrefix))
         );
 
+        PatchPlatformUtil(harmony);
+
         // Skip Sentry crash reporting. Not useful for our mobile port and the
         // Sentry GDExtension is not bundled in the Android build.
         PatchHelper.Patch(
             harmony,
             typeof(SentryService),
+            "Initialize",
+            prefix: PatchHelper.Method(typeof(PlatformPatches), nameof(SkipPrefix))
+        );
+
+        PatchHelper.Patch(
+            harmony,
+            typeof(SentryService),
+            "AfterGameInit",
+            prefix: PatchHelper.Method(typeof(PlatformPatches), nameof(SkipPrefix))
+        );
+
+        PatchHelper.Patch(
+            harmony,
+            typeof(SteamStatsManager),
             "Initialize",
             prefix: PatchHelper.Method(typeof(PlatformPatches), nameof(SkipPrefix))
         );
@@ -82,6 +103,183 @@ public static class PlatformPatches
         if (!fullPath.Contains("://"))
             return false;
         return true;
+    }
+
+    private static void PatchPlatformUtil(Harmony harmony)
+    {
+        try
+        {
+            var staticConstructor = typeof(PlatformUtil).TypeInitializer;
+            if (staticConstructor != null)
+            {
+                harmony.Patch(
+                    staticConstructor,
+                    prefix: new HarmonyMethod(
+                        typeof(PlatformPatches).GetMethod(
+                            nameof(PlatformUtilStaticConstructorPrefix),
+                            BindingFlags.Public | BindingFlags.Static
+                        )
+                    )
+                );
+                PatchHelper.Log("Patched PlatformUtil static constructor");
+            }
+
+            var primaryGetter = typeof(PlatformUtil).GetProperty(
+                nameof(PlatformUtil.PrimaryPlatform),
+                BindingFlags.Public | BindingFlags.Static
+            )?.GetGetMethod();
+            if (primaryGetter != null)
+            {
+                harmony.Patch(
+                    primaryGetter,
+                    prefix: new HarmonyMethod(
+                        typeof(PlatformPatches).GetMethod(
+                            nameof(PrimaryPlatformPrefix),
+                            BindingFlags.Public | BindingFlags.Static
+                        )
+                    )
+                );
+                PatchHelper.Log("Patched PlatformUtil.PrimaryPlatform");
+            }
+
+            var getPlatformUtil = typeof(PlatformUtil).GetMethod(
+                "GetPlatformUtil",
+                BindingFlags.Public | BindingFlags.Static
+            );
+            if (getPlatformUtil != null)
+            {
+                harmony.Patch(
+                    getPlatformUtil,
+                    prefix: new HarmonyMethod(
+                        typeof(PlatformPatches).GetMethod(
+                            nameof(GetPlatformUtilPrefix),
+                            BindingFlags.Public | BindingFlags.Static
+                        )
+                    )
+                );
+                PatchHelper.Log("Patched PlatformUtil.GetPlatformUtil");
+            }
+
+            PatchPlatformUtilMethod(harmony, "GetPlatformBranch", nameof(ReturnEmptyStringPrefix));
+            PatchPlatformUtilMethod(harmony, "GetThreeLetterLanguageCode", nameof(GetThreeLetterLanguageCodePrefix));
+            PatchPlatformUtilMethod(harmony, "GetRawLanguage", nameof(GetRawLanguagePrefix));
+            PatchPlatformUtilMethod(harmony, "GetSupportedWindowMode", nameof(GetSupportedWindowModePrefix));
+            PatchPlatformUtilMethod(harmony, "IsPlatformOverlayOpen", nameof(ReturnFalsePrefix));
+            PatchPlatformUtilMethod(harmony, "SupportsInviteDialog", nameof(ReturnFalsePrefix));
+            PatchPlatformUtilMethod(harmony, "OpenUrl", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "OpenVirtualKeyboard", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "CloseVirtualKeyboard", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "SetRichPresence", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "SetRichPresenceValue", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "ClearRichPresence", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "GetPlayerName", nameof(GetPlayerNamePrefix));
+            PatchPlatformUtilMethod(harmony, "GetLocalPlayerId", nameof(GetLocalPlayerIdPrefix));
+            PatchPlatformUtilMethod(harmony, "GetFriendsWithOpenLobbies", nameof(GetFriendsWithOpenLobbiesPrefix));
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"PlatformUtil patch failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    private static void PatchPlatformUtilMethod(Harmony harmony, string methodName, string prefixName)
+    {
+        var method = typeof(PlatformUtil).GetMethod(
+            methodName,
+            BindingFlags.Public | BindingFlags.Static
+        );
+        var prefix = typeof(PlatformPatches).GetMethod(
+            prefixName,
+            BindingFlags.Public | BindingFlags.Static
+        );
+        if (method == null || prefix == null)
+        {
+            PatchHelper.Log($"PlatformUtil.{methodName} patch skipped");
+            return;
+        }
+
+        harmony.Patch(method, prefix: new HarmonyMethod(prefix));
+        PatchHelper.Log($"Patched PlatformUtil.{methodName}");
+    }
+
+    public static bool PlatformUtilStaticConstructorPrefix()
+    {
+        try
+        {
+            var strategy = GetAndroidNullStrategy();
+            typeof(PlatformUtil)
+                .GetField("_null", BindingFlags.NonPublic | BindingFlags.Static)
+                ?.SetValue(null, strategy);
+            PatchHelper.Log("Skipped PlatformUtil desktop static initialization on Android");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"PlatformUtil static constructor replacement failed: {ex.Message}");
+        }
+
+        return false;
+    }
+
+    public static bool PrimaryPlatformPrefix(ref PlatformType __result)
+    {
+        __result = PlatformType.None;
+        return false;
+    }
+
+    public static bool GetPlatformUtilPrefix(ref object __result)
+    {
+        __result = GetAndroidNullStrategy();
+        return false;
+    }
+
+    public static bool ReturnEmptyStringPrefix(ref string __result)
+    {
+        __result = string.Empty;
+        return false;
+    }
+
+    public static bool GetRawLanguagePrefix(ref string __result)
+    {
+        __result = Godot.OS.GetLocale();
+        return false;
+    }
+
+    public static bool GetSupportedWindowModePrefix(ref SupportedWindowMode __result)
+    {
+        __result = SupportedWindowMode.FullscreenOnly;
+        return false;
+    }
+
+    public static bool GetPlayerNamePrefix(ref string __result)
+    {
+        __result = "Player";
+        return false;
+    }
+
+    public static bool GetLocalPlayerIdPrefix(ref ulong __result)
+    {
+        __result = 0;
+        return false;
+    }
+
+    public static bool GetFriendsWithOpenLobbiesPrefix(ref Task<IEnumerable<ulong>> __result)
+    {
+        __result = Task.FromResult<IEnumerable<ulong>>(Array.Empty<ulong>());
+        return false;
+    }
+
+    private static object GetAndroidNullStrategy()
+    {
+        try
+        {
+            return _androidNullStrategy ??= new NullPlatformUtilStrategy();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"NullPlatformUtilStrategy unavailable on Android: {ex.Message}");
+            return null;
+        }
     }
 
     private static void PatchGetThreeLetterLanguageCode(Harmony harmony)

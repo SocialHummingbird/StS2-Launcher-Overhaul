@@ -13,6 +13,10 @@ src/patcher/bin/
 src/patcher/obj/
 src/STS2Mobile/bin/
 src/STS2Mobile/obj/
+tools/**/bin/
+tools/**/obj/
+tmp/
+tmp-*/
 
 # Large binary files
 *.tar.gz

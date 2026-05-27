@@ -42,7 +42,7 @@
     <profileable android:shell="true" android:enabled="true" tools:targetApi="29" />
 
     <activity
-      android:name=".GodotApp"
+      android:name=".LauncherActivity"
       android:label="StS2 Launcher Overhaul Fork Dev"
       android:theme="@style/GodotAppSplashTheme"
       android:launchMode="singleInstancePerTask"
@@ -60,5 +60,41 @@
         <category android:name="android.intent.category.LAUNCHER" />
       </intent-filter>
     </activity>
+    <activity
+      android:name=".GodotApp"
+      android:label="StS2 Launcher Overhaul Fork Dev"
+      android:theme="@style/GodotAppSplashTheme"
+      android:launchMode="singleInstancePerTask"
+      android:excludeFromRecents="false"
+      android:exported="false"
+      android:screenOrientation="landscape"
+      android:windowSoftInputMode="adjustResize"
+      android:configChanges="layoutDirection|locale|orientation|keyboardHidden|screenSize|smallestScreenSize|density|keyboard|navigation|screenLayout|uiMode"
+      android:resizeableActivity="false"
+      tools:ignore="UnusedAttribute"
+    />
+    <activity
+      android:name=".NativeFallbackActivity"
+      android:label="StS2 Launcher Overhaul Fork Dev"
+      android:theme="@style/GodotAppSplashTheme"
+      android:launchMode="singleInstancePerTask"
+      android:excludeFromRecents="false"
+      android:exported="false"
+      android:screenOrientation="landscape"
+      android:resizeableActivity="false"
+      tools:ignore="UnusedAttribute"
+    />
+    <provider
+      android:name="androidx.core.content.FileProvider"
+      android:authorities="${applicationId}.fileprovider"
+      android:exported="false"
+      android:grantUriPermissions="true"
+    >
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/file_paths"
+        tools:replace="android:resource"
+      />
+    </provider>
   </application>
 </manifest>

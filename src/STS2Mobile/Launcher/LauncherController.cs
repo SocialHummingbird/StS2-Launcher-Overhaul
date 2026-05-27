@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using Godot;
 using STS2Mobile.Patches;
@@ -14,6 +16,8 @@ public class LauncherController
     private readonly LauncherView _view;
     private readonly Action<Action> _runOnMainThread;
     private volatile bool _checkingForUpdates;
+    private volatile bool _localLoginHandoffStarted;
+    private bool _autoDiagnosticsWritten;
 
     public LauncherController(
         LauncherModel model,
@@ -54,12 +58,12 @@ public class LauncherController
         _model.DownloadCompleted += () =>
             _runOnMainThread(() =>
             {
-                _view.SetStatus("Download complete! Restart to play.");
+                _view.SetStatus("Download complete! Start game when ready.");
                 _view.Download.Visible = false;
                 if (LauncherModel.GameFilesReady())
                 {
-                    var text = _model.InGameMode ? "PLAY" : "RESTART APP";
-                    _view.Actions.ShowLaunch(text, showCloudSync: false, showUpdate: false);
+                    var text = _model.InGameMode ? "PLAY" : "START GAME";
+                    _view.Actions.ShowLaunch(text, showCloudSync: true, showUpdate: false);
                 }
                 else
                     _view.Actions.ShowRetry();
@@ -114,16 +118,100 @@ public class LauncherController
         _view.Actions.CloudPushPressed += OnCloudPushPressed;
         _view.Actions.CloudPullPressed += OnCloudPullPressed;
         _view.Actions.CheckForUpdatesPressed += OnCheckForUpdatesPressed;
+        _view.Actions.RedownloadPressed += OnRedownloadPressed;
+        _view.Actions.DiagnosticsPressed += OnDiagnosticsPressed;
+        _view.Actions.ShowLastErrorPressed += OnShowLastErrorPressed;
+        _view.Actions.SafeLaunchPressed += OnSafeLaunchPressed;
 
         var localBackupPref = LauncherModel.LoadLocalBackupPref();
         _view.Actions.SetLocalBackupChecked(localBackupPref);
         CloudSyncCoordinator.LocalBackupEnabled = localBackupPref;
         if (localBackupPref)
             AppPaths.EnsureExternalDirectories();
-        _view.Actions.SetCloudSyncChecked(LauncherModel.LoadCloudSyncPref());
+        var cloudSyncPref = LauncherModel.LoadCloudSyncPref();
+        _view.Actions.SetCloudSyncChecked(cloudSyncPref);
+        LauncherPatches.CloudSyncEnabled = cloudSyncPref;
 
         var result = _model.StartSession();
         HandleFastPath(result);
+        StartLocalLoginHandoffWatcher();
+    }
+
+    private void StartLocalLoginHandoffWatcher()
+    {
+        if (_localLoginHandoffStarted || !OperatingSystem.IsAndroid())
+            return;
+
+        _localLoginHandoffStarted = true;
+        _ = Task.Run(WatchLocalLoginHandoffAsync);
+    }
+
+    private async Task WatchLocalLoginHandoffAsync()
+    {
+        while (!_model.ConnectionResolved)
+        {
+            var credentials = TryConsumeLocalLoginCredentials();
+            if (credentials != null)
+            {
+                PatchHelper.Log("[Launcher] Consumed local Steam credential file");
+                _runOnMainThread(() =>
+                {
+                    _view.Login.Visible = false;
+                    _view.Login.SetDisabled(true);
+                    _view.SetStatus("Authenticating...");
+                });
+
+                await _model.LoginAsync(credentials.Value.Username, credentials.Value.Password);
+                return;
+            }
+
+            await Task.Delay(500);
+        }
+    }
+
+    private static (string Username, string Password)? TryConsumeLocalLoginCredentials()
+    {
+        var path = GetLocalLoginCredentialsPath();
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+
+        try
+        {
+            var lines = File.ReadAllLines(path);
+            File.Delete(path);
+
+            if (lines.Length < 2)
+                throw new InvalidDataException("expected two base64 lines");
+
+            var username = Encoding.UTF8.GetString(Convert.FromBase64String(lines[0].Trim())).Trim();
+            var password = Encoding.UTF8.GetString(Convert.FromBase64String(lines[1].Trim()));
+
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
+                throw new InvalidDataException("username or password was empty");
+
+            return (username, password);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Ignored local Steam credential file: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static string GetLocalLoginCredentialsPath()
+    {
+        try
+        {
+            var godotApp = LauncherModel.GetGodotApp();
+            var dir = (string)godotApp?.Call("getExternalFilesDirPath");
+            return string.IsNullOrWhiteSpace(dir)
+                ? null
+                : Path.Combine(dir, "steam_login_credentials.txt");
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private void HandleFastPath(FastPathResult result)
@@ -132,7 +220,8 @@ public class LauncherController
         {
             case FastPathResult.ReadyToLaunch:
                 _view.SetStatus($"Welcome back, {_model.AccountName}");
-                var text = _model.InGameMode ? "PLAY" : "RESTART APP";
+                ShowPreviousLaunchWarningIfNeeded();
+                var text = _model.InGameMode ? "PLAY" : "START GAME";
                 _view.Actions.ShowLaunch(text, showCloudSync: true, showUpdate: true);
                 break;
 
@@ -170,7 +259,7 @@ public class LauncherController
                 {
                     _view.SetStatus("No connection — saved credentials will be used");
                     _view.AppendLog("Connection timed out. Valid ownership marker found.");
-                    var text = _model.InGameMode ? "PLAY" : "RESTART APP";
+                    var text = _model.InGameMode ? "PLAY" : "START GAME";
                     _view.Actions.ShowLaunch(text, showCloudSync: true, showUpdate: false);
                 });
             }
@@ -232,7 +321,8 @@ public class LauncherController
                 _view.SetStatus($"Logged in as {_model.AccountName}");
                 if (LauncherModel.GameFilesReady())
                 {
-                    var text = _model.InGameMode ? "PLAY" : "RESTART APP";
+                    ShowPreviousLaunchWarningIfNeeded();
+                    var text = _model.InGameMode ? "PLAY" : "START GAME";
                     _view.Actions.ShowLaunch(text, showCloudSync: true, showUpdate: true);
                 }
                 else
@@ -274,6 +364,36 @@ public class LauncherController
         }
     }
 
+    private void ShowPreviousLaunchWarningIfNeeded()
+    {
+        if (!LauncherModel.PreviousGameLaunchIncomplete(out var phase))
+            return;
+
+        var suffix = string.IsNullOrWhiteSpace(phase) ? "" : $" Last phase: {phase}.";
+        _view.SetStatus("Previous game launch did not finish.");
+        _view.AppendLog("Previous game launch did not finish." + suffix);
+        _view.AppendLog("The launcher is staying available so you are not trapped on a black screen.");
+        _view.AppendLog("Tap SHOW LAST ERROR to print the failure summary here, or EXPORT DIAGNOSTICS to share the full report.");
+        WriteAutomaticDiagnosticsSnapshot();
+    }
+
+    private void WriteAutomaticDiagnosticsSnapshot()
+    {
+        if (_autoDiagnosticsWritten)
+            return;
+
+        _autoDiagnosticsWritten = true;
+        try
+        {
+            var path = _model.WriteDiagnosticsReport();
+            _view.AppendLog($"Automatic diagnostics snapshot: {path}");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Automatic diagnostics snapshot failed: {ex.Message}");
+        }
+    }
+
     private void OnCodeSubmitPressed(string code)
     {
         _view.SetStatus("Verifying code...");
@@ -292,12 +412,24 @@ public class LauncherController
         _view.Actions.SetUpdateButtonDisabled(true);
         _view.Actions.SetUpdateButtonText("Checking...");
 
-        // Check for launcher (APK) updates from GitHub in parallel with game file updates.
-        var appUpdateTask = CheckAppUpdateAsync();
-        await _model.CheckForUpdatesAsync();
-        await appUpdateTask;
-
-        _checkingForUpdates = false;
+        try
+        {
+            // Check for launcher (APK) updates from GitHub in parallel with game file updates.
+            var appUpdateTask = CheckAppUpdateAsync();
+            await _model.CheckForUpdatesAsync();
+            await appUpdateTask;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Check for updates failed: {ex}");
+            _view.AppendLog($"Update check failed: {ex.Message}");
+            _view.Actions.SetUpdateButtonText("CHECK FAILED");
+        }
+        finally
+        {
+            _checkingForUpdates = false;
+            _view.Actions.SetUpdateButtonDisabled(false);
+        }
     }
 
     private static readonly Color YellowLog = new(1f, 0.85f, 0.2f);
@@ -435,5 +567,62 @@ public class LauncherController
         HandleFastPath(result);
     }
 
+    private void OnRedownloadPressed()
+    {
+        ShowConfirmation(
+            "Redownload game files?\nThis keeps your Steam login but deletes downloaded game files.",
+            () =>
+            {
+                _model.ResetGameFilesForRedownload();
+                _view.Actions.HideAll();
+                _view.Download.Visible = true;
+                _view.Download.Reset("DOWNLOAD GAME FILES");
+                _view.SetStatus("Game files deleted. Download again to rebuild them.");
+                _view.AppendLog("Game files were deleted for a clean redownload.");
+            }
+        );
+    }
+
+    private void OnDiagnosticsPressed()
+    {
+        try
+        {
+            var path = _model.WriteDiagnosticsReport();
+            _view.SetStatus("Diagnostics exported.");
+            _view.AppendLog($"Diagnostics exported: {path}");
+            if (OperatingSystem.IsAndroid())
+            {
+                var shared = (bool)(LauncherModel.GetGodotApp()?.Call("shareTextFile", path) ?? false);
+                _view.AppendLog(shared ? "Android share sheet opened." : "Could not open Android share sheet.");
+            }
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Diagnostics export failed: {ex}");
+            _view.SetStatus($"Diagnostics export failed: {ex.Message}");
+        }
+    }
+
+    private void OnShowLastErrorPressed()
+    {
+        try
+        {
+            var summary = _model.BuildDiagnosticsSummaryForDisplay();
+            _view.SetStatus("Last error summary printed in console.");
+            _view.AppendLog(summary);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Error summary failed: {ex}");
+            _view.SetStatus($"Error summary failed: {ex.Message}");
+        }
+    }
+
     private void OnLaunchPressed() => _model.Launch();
+
+    private void OnSafeLaunchPressed()
+    {
+        _view.AppendLog("Safe launch requested: default renderer, no shader warmup, local saves only for one run.");
+        _model.LaunchSafe();
+    }
 }

@@ -87,7 +87,18 @@ public class SteamConnection : IDisposable
         _refreshToken = refreshToken;
         _defaultIdleTimeoutMs = idleTimeoutMs;
 
-        var config = SteamConfiguration.Create(b => b.WithProtocolTypes(ProtocolTypes.WebSocket));
+        AndroidJavaHttpMessageHandler.Prime();
+        var config = SteamConfiguration.Create(b =>
+        {
+            b.WithProtocolTypes(OperatingSystem.IsAndroid() ? ProtocolTypes.Tcp : ProtocolTypes.WebSocket);
+            if (OperatingSystem.IsAndroid())
+            {
+                b.WithHttpClientFactory(AndroidJavaHttpMessageHandler.CreateClient);
+                b.WithMachineInfoProvider(new AndroidMachineInfoProvider());
+            }
+        }
+        );
+        SteamKitAndroidMachineIdPatch.Apply(config);
         _client = new SteamClient(config);
         _callbackManager = new CallbackManager(_client);
         _steamUser = _client.GetHandler<SteamUser>();

@@ -102,7 +102,7 @@ public static class PatchHelper
 
     public static void Log(string msg)
     {
-        Console.Error.WriteLine($"[STS2Mobile] {msg}");
+        BootstrapTrace.Log(msg);
         LogEmitted?.Invoke(msg);
     }
 }

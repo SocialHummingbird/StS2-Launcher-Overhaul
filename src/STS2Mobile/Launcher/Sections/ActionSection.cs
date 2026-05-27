@@ -13,14 +13,22 @@ public class ActionSection : VBoxContainer
     public event Action CloudPushPressed;
     public event Action CloudPullPressed;
     public event Action CheckForUpdatesPressed;
+    public event Action RedownloadPressed;
+    public event Action DiagnosticsPressed;
+    public event Action ShowLastErrorPressed;
+    public event Action SafeLaunchPressed;
 
     private readonly Button _launchButton;
+    private readonly Button _safeLaunchButton;
     private readonly Button _retryButton;
     private readonly StyledButton _localBackupToggle;
     private readonly StyledButton _cloudSyncToggle;
     private readonly Button _pushButton;
     private readonly Button _pullButton;
     private readonly Button _updateButton;
+    private readonly Button _redownloadButton;
+    private readonly Button _diagnosticsButton;
+    private readonly Button _showLastErrorButton;
     private readonly StyleBoxFlat _offStyle;
     private readonly StyleBoxFlat _onStyle;
 
@@ -81,6 +89,26 @@ public class ActionSection : VBoxContainer
         _updateButton.Pressed += () => CheckForUpdatesPressed?.Invoke();
         AddChild(_updateButton);
 
+        _redownloadButton = new StyledButton("REDOWNLOAD GAME FILES", scale, fontSize: 14, height: 44);
+        _redownloadButton.Visible = false;
+        _redownloadButton.Pressed += () => RedownloadPressed?.Invoke();
+        AddChild(_redownloadButton);
+
+        _diagnosticsButton = new StyledButton("EXPORT DIAGNOSTICS", scale, fontSize: 14, height: 44);
+        _diagnosticsButton.Visible = false;
+        _diagnosticsButton.Pressed += () => DiagnosticsPressed?.Invoke();
+        AddChild(_diagnosticsButton);
+
+        _showLastErrorButton = new StyledButton("SHOW LAST ERROR", scale, fontSize: 14, height: 44);
+        _showLastErrorButton.Visible = false;
+        _showLastErrorButton.Pressed += () => ShowLastErrorPressed?.Invoke();
+        AddChild(_showLastErrorButton);
+
+        _safeLaunchButton = new StyledButton("SAFE LAUNCH", scale, fontSize: 14, height: 44);
+        _safeLaunchButton.Visible = false;
+        _safeLaunchButton.Pressed += () => SafeLaunchPressed?.Invoke();
+        AddChild(_safeLaunchButton);
+
         _launchButton = new StyledButton("LAUNCH", scale, fontSize: 16, height: 48);
         _launchButton.Visible = false;
         _launchButton.Pressed += () => LaunchPressed?.Invoke();
@@ -122,6 +150,10 @@ public class ActionSection : VBoxContainer
         _updateButton.Visible = showUpdate;
         _updateButton.Disabled = false;
         _updateButton.Text = "CHECK FOR UPDATES";
+        _redownloadButton.Visible = true;
+        _diagnosticsButton.Visible = true;
+        _showLastErrorButton.Visible = true;
+        _safeLaunchButton.Visible = true;
         _retryButton.Visible = false;
     }
 
@@ -129,20 +161,28 @@ public class ActionSection : VBoxContainer
     {
         _retryButton.Visible = true;
         _launchButton.Visible = false;
+        _safeLaunchButton.Visible = false;
         _localBackupToggle.Visible = false;
         _cloudSyncToggle.Visible = false;
         PushPullRow.Visible = false;
         _updateButton.Visible = false;
+        _redownloadButton.Visible = false;
+        _diagnosticsButton.Visible = false;
+        _showLastErrorButton.Visible = false;
     }
 
     public void HideAll()
     {
         _launchButton.Visible = false;
+        _safeLaunchButton.Visible = false;
         _retryButton.Visible = false;
         _localBackupToggle.Visible = false;
         _cloudSyncToggle.Visible = false;
         PushPullRow.Visible = false;
         _updateButton.Visible = false;
+        _redownloadButton.Visible = false;
+        _diagnosticsButton.Visible = false;
+        _showLastErrorButton.Visible = false;
     }
 
     public void SetPushPullDisabled(bool disabled)
