@@ -127,7 +127,9 @@ public class LauncherController
         CloudSyncCoordinator.LocalBackupEnabled = localBackupPref;
         if (localBackupPref)
             AppPaths.EnsureExternalDirectories();
-        _view.Actions.SetCloudSyncChecked(LauncherModel.LoadCloudSyncPref());
+        var cloudSyncPref = LauncherModel.LoadCloudSyncPref();
+        _view.Actions.SetCloudSyncChecked(cloudSyncPref);
+        LauncherPatches.CloudSyncEnabled = cloudSyncPref;
 
         var result = _model.StartSession();
         HandleFastPath(result);

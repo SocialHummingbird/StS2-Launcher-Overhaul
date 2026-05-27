@@ -118,6 +118,7 @@ public static class LauncherPatches
         var startupStatus = CreateStartupStatusLabel(gameNode);
         var previousIncompletePhase = ReadStartupMarkerPhase();
         var manualSafeLaunch = ConsumeManualSafeLaunchMarker();
+        CloudSyncEnabled = LauncherModel.LoadCloudSyncPref();
         var forceLocalSaves =
             manualSafeLaunch
             || string.Equals(previousIncompletePhase, "manual safe launch", StringComparison.OrdinalIgnoreCase)

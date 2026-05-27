@@ -871,7 +871,7 @@ public class LauncherModel : IDisposable
                 return File.ReadAllText(CloudSyncPrefPath).Trim() == "true";
         }
         catch { }
-        return true;
+        return !OperatingSystem.IsAndroid();
     }
 
     public static void SaveCloudSyncPref(bool enabled)
