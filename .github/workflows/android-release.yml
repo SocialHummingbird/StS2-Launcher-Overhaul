@@ -323,6 +323,18 @@ jobs:
           copy_dependency sts2.dll
           copy_dependency GodotSharp.dll
 
+          if [[ ! -f "$BCL_DIR/Sentry.dll" ]]; then
+            echo "Staging Sentry.dll required by sts2.dll metadata."
+            SENTRY_VERSION="5.0.0"
+            SENTRY_PACKAGE="$RUNNER_TEMP/sentry.${SENTRY_VERSION}.nupkg"
+            SENTRY_URL="https://api.nuget.org/v3-flatcontainer/sentry/${SENTRY_VERSION}/sentry.${SENTRY_VERSION}.nupkg"
+            curl -fsSL -o "$SENTRY_PACKAGE" "$SENTRY_URL"
+            if ! unzip -p "$SENTRY_PACKAGE" 'lib/netstandard2.0/Sentry.dll' > "$BCL_DIR/Sentry.dll"; then
+              echo "::error::Downloaded Sentry ${SENTRY_VERSION}, but lib/netstandard2.0/Sentry.dll was not found."
+              exit 1
+            fi
+          fi
+
           echo "Patching SteamKit2 Android crypto calls."
           dotnet build "$ROOT_DIR/tools/SteamKitAndroidPatch/SteamKitAndroidPatch.csproj" -c Release
           dotnet "$ROOT_DIR/tools/SteamKitAndroidPatch/bin/Release/net9.0/SteamKitAndroidPatch.dll" \
