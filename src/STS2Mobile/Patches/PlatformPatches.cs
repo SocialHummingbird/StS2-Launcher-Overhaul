@@ -144,11 +144,46 @@ public static class PlatformPatches
                 );
                 PatchHelper.Log("Patched PlatformUtil.GetPlatformUtil");
             }
+
+            PatchPlatformUtilMethod(harmony, "GetPlatformBranch", nameof(ReturnEmptyStringPrefix));
+            PatchPlatformUtilMethod(harmony, "GetThreeLetterLanguageCode", nameof(GetThreeLetterLanguageCodePrefix));
+            PatchPlatformUtilMethod(harmony, "GetRawLanguage", nameof(GetRawLanguagePrefix));
+            PatchPlatformUtilMethod(harmony, "IsPlatformOverlayOpen", nameof(ReturnFalsePrefix));
+            PatchPlatformUtilMethod(harmony, "SupportsInviteDialog", nameof(ReturnFalsePrefix));
+            PatchPlatformUtilMethod(harmony, "OpenUrl", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "OpenVirtualKeyboard", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "CloseVirtualKeyboard", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "SetRichPresence", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "SetRichPresenceValue", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "ClearRichPresence", nameof(SkipPrefix));
+            PatchPlatformUtilMethod(harmony, "GetPlayerName", nameof(GetPlayerNamePrefix));
+            PatchPlatformUtilMethod(harmony, "GetLocalPlayerId", nameof(GetLocalPlayerIdPrefix));
+            PatchPlatformUtilMethod(harmony, "GetFriendsWithOpenLobbies", nameof(GetFriendsWithOpenLobbiesPrefix));
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"PlatformUtil patch failed: {ex.Message}");
         }
+    }
+
+    private static void PatchPlatformUtilMethod(Harmony harmony, string methodName, string prefixName)
+    {
+        var method = typeof(PlatformUtil).GetMethod(
+            methodName,
+            BindingFlags.Public | BindingFlags.Static
+        );
+        var prefix = typeof(PlatformPatches).GetMethod(
+            prefixName,
+            BindingFlags.Public | BindingFlags.Static
+        );
+        if (method == null || prefix == null)
+        {
+            PatchHelper.Log($"PlatformUtil.{methodName} patch skipped");
+            return;
+        }
+
+        harmony.Patch(method, prefix: new HarmonyMethod(prefix));
+        PatchHelper.Log($"Patched PlatformUtil.{methodName}");
     }
 
     public static bool PlatformUtilStaticConstructorPrefix()
@@ -178,6 +213,36 @@ public static class PlatformPatches
     public static bool GetPlatformUtilPrefix(ref object __result)
     {
         __result = GetAndroidNullStrategy();
+        return false;
+    }
+
+    public static bool ReturnEmptyStringPrefix(ref string __result)
+    {
+        __result = string.Empty;
+        return false;
+    }
+
+    public static bool GetRawLanguagePrefix(ref string __result)
+    {
+        __result = Godot.OS.GetLocale();
+        return false;
+    }
+
+    public static bool GetPlayerNamePrefix(ref string __result)
+    {
+        __result = "Player";
+        return false;
+    }
+
+    public static bool GetLocalPlayerIdPrefix(ref ulong __result)
+    {
+        __result = 0;
+        return false;
+    }
+
+    public static bool GetFriendsWithOpenLobbiesPrefix(ref Task<IEnumerable<ulong>> __result)
+    {
+        __result = Task.FromResult<IEnumerable<ulong>>(Array.Empty<ulong>());
         return false;
     }
 
