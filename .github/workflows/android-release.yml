@@ -96,6 +96,10 @@ jobs:
           if [[ -z "${PACKAGE_NAME}" ]]; then
             PACKAGE_NAME="com.sts2launcher.overhaul.fork"
           fi
+          if [[ "${PACKAGE_NAME}" == *".local" || "${PACKAGE_NAME}" == *".emulator" ]]; then
+            echo "::error::Release workflow cannot publish local/emulator package name: ${PACKAGE_NAME}"
+            exit 1
+          fi
 
           VERSION_CODE="${{ github.event.inputs.version_code }}"
           if [[ -z "${VERSION_CODE}" ]]; then
@@ -391,9 +395,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          DEFAULT_KEY_ALIAS="androiddebugkey"
-          DEFAULT_KEY_PASSWORD="android"
-          DEFAULT_KEY_STORE_PASSWORD="android"
           if [[ -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" && -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}" && -n "${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}" ]]; then
             mkdir -p "$RUNNER_TEMP/android-signing"
             echo "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/android-signing/sts2.keystore"
@@ -402,23 +403,8 @@ jobs:
             echo "password=${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}" >> "$GITHUB_OUTPUT"
             echo "alias=${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}" >> "$GITHUB_OUTPUT"
           else
-            mkdir -p "$RUNNER_TEMP/android-signing"
-            keytool -genkeypair \
-              -alias "$DEFAULT_KEY_ALIAS" \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -keystore "$RUNNER_TEMP/android-signing/sts2.keystore" \
-              -storepass "$DEFAULT_KEY_STORE_PASSWORD" \
-              -keypass "$DEFAULT_KEY_PASSWORD" \
-              -dname "CN=Android Debug, O=StS2 Launcher CI, C=US" \
-              -storetype PKCS12 \
-              -noprompt
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "path=$RUNNER_TEMP/android-signing/sts2.keystore" >> "$GITHUB_OUTPUT"
-            echo "password=$DEFAULT_KEY_STORE_PASSWORD" >> "$GITHUB_OUTPUT"
-            echo "alias=$DEFAULT_KEY_ALIAS" >> "$GITHUB_OUTPUT"
-            echo "::notice::Signing secrets are not configured. Building with a CI-generated debug key so the APK remains installable."
+            echo "::error::Release signing secrets are not configured. Refusing to publish an APK with a fresh throwaway key because it will be incompatible with previous installs."
+            exit 1
           fi
 
       - name: Setup Gradle
@@ -480,6 +466,14 @@ jobs:
 
           pwsh ../scripts/verify-android-apk.ps1 -ApkPath "$ABS_APK_PATH" -Abi arm64-v8a
 
+          {
+            echo "version_name=${VERSION_NAME}"
+            echo "version_code=${VERSION_CODE}"
+            echo "package_name=${EXPORT_PACKAGE_NAME}"
+            echo "signing_channel=release"
+            echo "release_tag=${RELEASE_TAG}"
+          } > "${ABS_APK_PATH}.build-info.txt"
+
           echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
           sha256sum "$ABS_APK_PATH" > "${ABS_APK_PATH}.sha256"
 
@@ -490,6 +484,7 @@ jobs:
           path: |
             ${{ steps.build.outputs.path }}
             ${{ steps.build.outputs.path }}.sha256
+            ${{ steps.build.outputs.path }}.build-info.txt
           if-no-files-found: error
           retention-days: 30
 
@@ -513,4 +508,5 @@ jobs:
           files: |
             release-artifacts/**/*.apk
             release-artifacts/**/*.sha256
+            release-artifacts/**/*.build-info.txt
           generate_release_notes: true

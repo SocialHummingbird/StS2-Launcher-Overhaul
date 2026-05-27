@@ -1,7 +1,7 @@
 param(
     [string]$VersionName = "0.2.0-local",
     [int]$VersionCode = 200000,
-    [string]$PackageName = "com.sts2launcher.overhaul.fork.dev",
+    [string]$PackageName = "com.sts2launcher.overhaul.fork.local",
     [string]$AndroidHome = "C:\Users\ap010\.w40k-android-toolchain\android-sdk",
     [string]$JavaHome = "C:\Users\ap010\.w40k-android-toolchain\jdk-17",
     [string]$GradlePath = "C:\Users\ap010\.gradle\wrapper\dists\gradle-8.14.3-all\10utluxaxniiv4wxiphsi49nj\gradle-8.14.3\bin\gradle.bat",
@@ -37,6 +37,10 @@ if (-not (Test-Path -LiteralPath $GradlePath)) {
 
 if (-not (Test-Path -LiteralPath $KeystorePath)) {
     throw "Keystore not found: $KeystorePath"
+}
+
+if ($PackageName -eq "com.sts2launcher.overhaul.fork.dev" -and (Split-Path -Leaf $KeystorePath) -eq "localtest.keystore") {
+    throw "Refusing to build a locally signed APK with the release/dev package name. Use the default local package name or pass a release keystore intentionally."
 }
 
 $env:ANDROID_HOME = $AndroidHome
@@ -366,6 +370,8 @@ $metadata = [ordered]@{
     versionName = $VersionName
     versionCode = $VersionCode
     packageName = $PackageName
+    signingChannel = "local"
+    keystore = (Split-Path -Leaf $resolvedKeystore)
     abi = $Abi
     apk = (Split-Path -Leaf $archivedApk)
     sha256 = $hash.Hash.ToLowerInvariant()
