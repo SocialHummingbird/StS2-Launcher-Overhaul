@@ -163,6 +163,7 @@ public static class PlatformPatches
         catch (Exception ex)
         {
             PatchHelper.Log($"PlatformUtil patch failed: {ex.Message}");
+            throw;
         }
     }
 
