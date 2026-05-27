@@ -145,6 +145,7 @@ public static class LauncherPatches
         }
 
         launcher.QueueFree();
+        var recoveryControls = ShowStartupRecoveryControls(gameNode);
         WriteStartupMarker("launcher closed");
         SetStartupStatus(startupStatus, "Launcher closed. Preparing game startup...");
 
@@ -209,13 +210,13 @@ public static class LauncherPatches
                 PatchHelper.Log(
                     $"Game startup watchdog fired after {StartupWatchdogMs}ms; startup task still running"
                 );
-                ShowStartupRecoveryControls(gameNode);
                 return;
             }
 
             await startupTask;
             PatchHelper.Log("NGame.GameStartup completed");
             WriteStartupMarker("game startup completed");
+            recoveryControls?.QueueFree();
             startupStatus?.QueueFree();
         }
         catch (TargetInvocationException ex)
@@ -330,10 +331,13 @@ public static class LauncherPatches
         }
     }
 
-    private static void ShowStartupRecoveryControls(Node parent)
+    private static CanvasLayer ShowStartupRecoveryControls(Node parent)
     {
         try
         {
+            if (parent.HasNode("STS2MobileStartupRecovery"))
+                return parent.GetNode<CanvasLayer>("STS2MobileStartupRecovery");
+
             var layer = new CanvasLayer
             {
                 Name = "STS2MobileStartupRecovery",
@@ -351,7 +355,7 @@ public static class LauncherPatches
 
             var title = new Label
             {
-                Text = "Game startup stalled before the first scene loaded.",
+                Text = "Game is starting.",
             };
             title.AddThemeFontSizeOverride("font_size", 24);
             title.AddThemeColorOverride("font_color", new Color(0.55f, 0.85f, 1f));
@@ -359,7 +363,7 @@ public static class LauncherPatches
 
             var detail = new Label
             {
-                Text = "Reopen the launcher to export diagnostics, or try safe launch with default renderer, no shader warmup, and local saves only.",
+                Text = "If this screen does not change, return to the launcher to export diagnostics or restart with safe launch.",
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
             };
             detail.AddThemeFontSizeOverride("font_size", 18);
@@ -393,10 +397,12 @@ public static class LauncherPatches
                 LauncherModel.GetGodotApp()?.Call("launchGameSafelyOnRestart");
             };
             box.AddChild(safeButton);
+            return layer;
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"Startup recovery controls failed: {ex.Message}");
+            return null;
         }
     }
 }
