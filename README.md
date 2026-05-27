@@ -253,13 +253,17 @@ Maintainers can trigger the release workflow manually from the Actions tab or le
   - Push `vX.Y.Z` to `main`.
 - Manual publish:
   - `workflow_dispatch` input fields support overriding `release_tag`, `package_name`, version name/code, and whether to create the GitHub release.
-- Optional signing:
+- Required release signing:
   - Configure repository secrets:
     - `ANDROID_RELEASE_KEYSTORE_BASE64`
     - `ANDROID_RELEASE_KEYSTORE_PASSWORD`
     - `ANDROID_RELEASE_KEY_ALIAS`
+  - Configure repository variable:
+    - `ANDROID_RELEASE_SIGNER_SHA256`
 
-If signing secrets are missing, the workflow still creates an unsigned release APK so download/testing can continue.
+If signing secrets or `ANDROID_RELEASE_SIGNER_SHA256` are missing, the workflow refuses to publish. This prevents GitHub from creating APKs that cannot update the installed app.
+
+The release workflow also verifies the built APK against a previous GitHub release APK before upload. It fails if the package name changes, the signing certificate changes, or `versionCode` does not increase. If the current public APK was signed with a temporary key, create one explicit stable-signing baseline release with `allow_update_baseline_reset=true`; direct update from the temporary-key APK is impossible, but later GitHub releases will be pinned to the stable signer.
 
 Release validation checklist for every release is tracked in [docs/android-release-validation.md](docs/android-release-validation.md).
 

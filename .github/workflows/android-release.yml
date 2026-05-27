@@ -31,6 +31,15 @@ on:
         description: "Override APK version code (optional)."
         required: false
         default: ""
+      update_baseline_tag:
+        description: "Optional previous GitHub release tag whose APK this release must update. Defaults to latest prior APK release."
+        required: false
+        default: ""
+      allow_update_baseline_reset:
+        description: "Allow publishing the first stable signing baseline without proving update compatibility with the prior public APK."
+        type: boolean
+        required: false
+        default: false
       create_release:
         description: "Create or update a GitHub release."
         type: boolean
@@ -483,7 +492,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CURRENT_APK_PATH: ${{ steps.build.outputs.path }}
           EXPECTED_PACKAGE_NAME: ${{ steps.version.outputs.package_name }}
+          EXPECTED_SIGNER_SHA256: ${{ vars.ANDROID_RELEASE_SIGNER_SHA256 }}
           RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+          UPDATE_BASELINE_TAG: ${{ github.event.inputs.update_baseline_tag }}
+          ALLOW_UPDATE_BASELINE_RESET: ${{ github.event.inputs.allow_update_baseline_reset }}
         run: |
           set -euo pipefail
 
@@ -492,8 +504,26 @@ jobs:
           PREVIOUS_INFO="$PREVIOUS_DIR/previous.tsv"
           mkdir -p "$PREVIOUS_DIR"
 
+          if [[ -z "${EXPECTED_SIGNER_SHA256}" ]]; then
+            echo "::error::Repository variable ANDROID_RELEASE_SIGNER_SHA256 is not configured. Refusing to publish because the release key cannot be pinned."
+            exit 1
+          fi
+
           gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$RELEASES_JSON"
-          jq -r --arg current "$RELEASE_TAG" '
+
+          if [[ -n "${UPDATE_BASELINE_TAG}" ]]; then
+            jq -r --arg baseline "$UPDATE_BASELINE_TAG" '
+              [.[] |
+                select(.tag_name == $baseline) |
+                . as $release |
+                $release.assets[]? |
+                select(.name | test("^StS2Launcher-v.*\\.apk$"; "i")) |
+                [$release.tag_name, .name] |
+                @tsv
+              ][0] // empty
+            ' "$RELEASES_JSON" > "$PREVIOUS_INFO"
+          else
+            jq -r --arg current "$RELEASE_TAG" '
             [.[] |
               select(.draft | not) |
               select(.tag_name != $current) |
@@ -503,10 +533,20 @@ jobs:
               [$release.tag_name, .name] |
               @tsv
             ][0] // empty
-          ' "$RELEASES_JSON" > "$PREVIOUS_INFO"
+            ' "$RELEASES_JSON" > "$PREVIOUS_INFO"
+          fi
 
           if [[ ! -s "$PREVIOUS_INFO" ]]; then
-            echo "::error::No previous GitHub release APK found. Refusing to publish without an update baseline."
+            if [[ "${ALLOW_UPDATE_BASELINE_RESET}" == "true" ]]; then
+              echo "::warning::No previous release APK baseline found. Verifying only package and pinned signer because allow_update_baseline_reset=true."
+              pwsh scripts/verify-android-update-compat.ps1 \
+                -ApkPath "$CURRENT_APK_PATH" \
+                -ExpectedPackageName "$EXPECTED_PACKAGE_NAME" \
+                -ExpectedSignerSha256 "$EXPECTED_SIGNER_SHA256"
+              exit 0
+            fi
+
+            echo "::error::No previous GitHub release APK found. Refusing to publish without an update baseline. If this is the first stable signing baseline, rerun with allow_update_baseline_reset=true after setting ANDROID_RELEASE_SIGNER_SHA256."
             exit 1
           fi
 
@@ -521,7 +561,8 @@ jobs:
           pwsh scripts/verify-android-update-compat.ps1 \
             -ApkPath "$CURRENT_APK_PATH" \
             -PreviousApkPath "$PREVIOUS_DIR/$PREVIOUS_ASSET" \
-            -ExpectedPackageName "$EXPECTED_PACKAGE_NAME"
+            -ExpectedPackageName "$EXPECTED_PACKAGE_NAME" \
+            -ExpectedSignerSha256 "$EXPECTED_SIGNER_SHA256"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
