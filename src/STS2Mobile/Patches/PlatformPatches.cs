@@ -16,7 +16,7 @@ namespace STS2Mobile.Patches;
 // Steam initialization, Sentry crash reporting, system info logging, and telemetry opt-in.
 public static class PlatformPatches
 {
-    private static IPlatformUtilStrategy _androidNullStrategy;
+    private static object _androidNullStrategy;
 
     public static void Apply(Harmony harmony)
     {
@@ -127,23 +127,6 @@ public static class PlatformPatches
                 PatchHelper.Log("Patched PlatformUtil.PrimaryPlatform");
             }
 
-            var getPlatformUtil = typeof(PlatformUtil).GetMethod(
-                nameof(PlatformUtil.GetPlatformUtil),
-                BindingFlags.Public | BindingFlags.Static
-            );
-            if (getPlatformUtil != null)
-            {
-                harmony.Patch(
-                    getPlatformUtil,
-                    prefix: new HarmonyMethod(
-                        typeof(PlatformPatches).GetMethod(
-                            nameof(GetPlatformUtilPrefix),
-                            BindingFlags.Public | BindingFlags.Static
-                        )
-                    )
-                );
-                PatchHelper.Log("Patched PlatformUtil.GetPlatformUtil");
-            }
         }
         catch (Exception ex)
         {
@@ -175,13 +158,7 @@ public static class PlatformPatches
         return false;
     }
 
-    public static bool GetPlatformUtilPrefix(ref IPlatformUtilStrategy __result)
-    {
-        __result = GetAndroidNullStrategy();
-        return false;
-    }
-
-    private static IPlatformUtilStrategy GetAndroidNullStrategy()
+    private static object GetAndroidNullStrategy()
     {
         return _androidNullStrategy ??= new NullPlatformUtilStrategy();
     }
