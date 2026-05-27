@@ -22,17 +22,28 @@ public sealed class AndroidLocalSaveStore : ISaveStore
 
     public void WriteFile(string path, string content)
     {
+        WriteFile(path, System.Text.Encoding.UTF8.GetBytes(content));
+    }
+
+    public void WriteFile(string path, byte[] bytes)
+    {
         var fullPath = GetFullPath(path);
         var parent = Path.GetDirectoryName(fullPath);
         if (!string.IsNullOrWhiteSpace(parent))
             Directory.CreateDirectory(parent);
 
-        File.WriteAllText(fullPath, content);
+        File.WriteAllBytes(fullPath, bytes);
     }
 
     public Task WriteFileAsync(string path, string content)
     {
         WriteFile(path, content);
+        return Task.CompletedTask;
+    }
+
+    public Task WriteFileAsync(string path, byte[] bytes)
+    {
+        WriteFile(path, bytes);
         return Task.CompletedTask;
     }
 
