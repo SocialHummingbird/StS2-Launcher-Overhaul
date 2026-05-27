@@ -43,8 +43,8 @@ internal static class StartupPatchOrchestrator
                 true,
                 new PatchStep[]
                 {
-                    new PatchStep("Model DB bootstrap", ModelDbInitPatch.Apply),
                     new PatchStep("Platform compatibility", PlatformPatches.Apply),
+                    new PatchStep("Model DB bootstrap", ModelDbInitPatch.Apply),
                 }
             ),
         new PatchGroup(
