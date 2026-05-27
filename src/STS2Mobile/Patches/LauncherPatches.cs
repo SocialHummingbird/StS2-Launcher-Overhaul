@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 using Godot;
 using HarmonyLib;
@@ -213,11 +214,13 @@ public static class LauncherPatches
             SetStartupStatus(startupStatus, "Starting game scene...");
             PatchHelper.Log("Invoking NGame.GameStartup");
             var recoveryControls = ShowStartupRecoveryControls(gameNode);
+            WriteSceneSnapshot(gameNode, "before NGame.GameStartup");
             var startupTask = (Task)gameStartup.Invoke(game, null);
             var watchdogTask = Task.Delay(StartupWatchdogMs);
             if (await Task.WhenAny(startupTask, watchdogTask) == watchdogTask)
             {
                 WriteStartupMarker("game startup watchdog");
+                WriteSceneSnapshot(gameNode, "game startup watchdog");
                 SetStartupStatus(
                     startupStatus,
                     "Game startup stalled. Use the recovery buttons below."
@@ -231,6 +234,7 @@ public static class LauncherPatches
             await startupTask;
             PatchHelper.Log("NGame.GameStartup completed");
             WriteStartupMarker("post-startup observation");
+            WriteSceneSnapshot(gameNode, "after NGame.GameStartup returned");
             SetStartupStatus(
                 startupStatus,
                 "Game startup returned. Recovery controls remain briefly."
@@ -253,6 +257,7 @@ public static class LauncherPatches
         var root = ex.GetBaseException();
         var message = $"{root.GetType().Name}: {root.Message}";
         WriteStartupMarker($"game startup failed: {message}");
+        WriteSceneSnapshot(gameNode, $"game startup failed: {message}");
         SetStartupStatus(startupStatus, $"Game startup failed: {message}");
         PatchHelper.Log($"Game startup failed: {ex}");
         ShowStartupRecoveryControls(gameNode);
@@ -269,7 +274,7 @@ public static class LauncherPatches
             ClearStartupMarker();
             recoveryControls?.QueueFree();
             startupStatus?.QueueFree();
-            PatchHelper.Log("Post-startup recovery controls cleared");
+            PatchHelper.Log("Post-startup recovery controls cleared; scene snapshot retained");
         }
         catch (Exception ex)
         {
@@ -279,6 +284,9 @@ public static class LauncherPatches
 
     private static string StartupMarkerPath =>
         Path.Combine(OS.GetDataDir(), "last_game_start_incomplete");
+
+    private static string StartupSceneSnapshotPath =>
+        Path.Combine(OS.GetDataDir(), "last_game_start_scene_tree.txt");
 
     private static void WriteStartupMarker(string phase)
     {
@@ -341,6 +349,51 @@ public static class LauncherPatches
         {
             PatchHelper.Log($"Failed to clear startup marker: {ex.Message}");
         }
+    }
+
+    private static void WriteSceneSnapshot(Node root, string reason)
+    {
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("STS2 startup scene snapshot");
+            sb.AppendLine($"UTC: {DateTime.UtcNow:O}");
+            sb.AppendLine($"Reason: {reason}");
+            sb.AppendLine();
+            AppendNodeSnapshot(sb, root, depth: 0, maxDepth: 6);
+            File.WriteAllText(StartupSceneSnapshotPath, sb.ToString());
+            PatchHelper.Log($"Startup scene snapshot written: {reason}");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Startup scene snapshot failed: {ex.Message}");
+        }
+    }
+
+    private static void AppendNodeSnapshot(StringBuilder sb, Node node, int depth, int maxDepth)
+    {
+        if (node == null)
+            return;
+
+        var indent = new string(' ', depth * 2);
+        sb.Append(indent)
+            .Append(node.GetType().FullName)
+            .Append(" name=")
+            .Append(node.Name)
+            .Append(" children=")
+            .Append(node.GetChildCount())
+            .AppendLine();
+
+        if (depth >= maxDepth)
+            return;
+
+        var childCount = node.GetChildCount();
+        var limit = Math.Min(childCount, 40);
+        for (var i = 0; i < limit; i++)
+            AppendNodeSnapshot(sb, node.GetChild(i), depth + 1, maxDepth);
+
+        if (childCount > limit)
+            sb.Append(indent).Append("  ... ").Append(childCount - limit).AppendLine(" more children");
     }
 
     private static Label CreateStartupStatusLabel(Node parent)

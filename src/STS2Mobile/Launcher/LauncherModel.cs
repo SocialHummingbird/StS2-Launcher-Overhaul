@@ -503,6 +503,7 @@ public class LauncherModel : IDisposable
             sb.AppendLine("Previous launch incomplete phase: <none>");
 
         AppendFileInfo(sb, "Startup marker", Path.Combine(_dataDir, "last_game_start_incomplete"));
+        AppendFileInfo(sb, "Startup scene snapshot", Path.Combine(_dataDir, "last_game_start_scene_tree.txt"));
         AppendFileInfo(sb, "Manual safe launch marker", ManualSafeLaunchPath);
         AppendFileInfo(sb, "Bootstrap trace", BootstrapTrace.TracePath);
         AppendFileInfo(sb, "Game PCK", Path.Combine(_dataDir, "game", "SlayTheSpire2.pck"));
