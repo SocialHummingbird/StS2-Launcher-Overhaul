@@ -166,7 +166,9 @@ public static class CloudSyncCoordinator
 
     public static async Task ManualPushAllAsync(string accountName, string refreshToken)
     {
-        var localStore = new GodotFileIo(UserDataPathProvider.GetAccountScopedBasePath(null));
+        ISaveStore localStore = OperatingSystem.IsAndroid()
+            ? new AndroidLocalSaveStore()
+            : new GodotFileIo(UserDataPathProvider.GetAccountScopedBasePath(null));
         var cloudStore =
             SteamKit2CloudSaveStore.Instance
             ?? new SteamKit2CloudSaveStore(accountName, refreshToken);
@@ -232,7 +234,9 @@ public static class CloudSyncCoordinator
 
     public static async Task ManualPullAllAsync(string accountName, string refreshToken)
     {
-        var localStore = new GodotFileIo(UserDataPathProvider.GetAccountScopedBasePath(null));
+        ISaveStore localStore = OperatingSystem.IsAndroid()
+            ? new AndroidLocalSaveStore()
+            : new GodotFileIo(UserDataPathProvider.GetAccountScopedBasePath(null));
         var cloudStore =
             SteamKit2CloudSaveStore.Instance
             ?? new SteamKit2CloudSaveStore(accountName, refreshToken);
@@ -309,15 +313,37 @@ public static class CloudSyncCoordinator
     public static List<string> GetSaveFilePaths(ISaveStore store)
     {
         var paths = new List<string>();
-        CollectProfilePaths(paths, store.GetFilesInDirectory, store.DirectoryExists);
+        CollectProfilePathsSafe(paths, store.GetFilesInDirectory, store.DirectoryExists);
         return paths;
     }
 
     public static List<string> GetSaveFilePaths(ICloudSaveStore store)
     {
         var paths = new List<string>();
-        CollectProfilePaths(paths, store.GetFilesInDirectory, store.DirectoryExists);
+        CollectProfilePathsSafe(paths, store.GetFilesInDirectory, store.DirectoryExists);
         return paths;
+    }
+
+    private static void CollectProfilePathsSafe(
+        List<string> paths,
+        Func<string, string[]> getFiles,
+        Func<string, bool> dirExists
+    )
+    {
+        try
+        {
+            CollectProfilePaths(paths, getFiles, dirExists);
+        }
+        catch (TypeInitializationException ex)
+        {
+            PatchHelper.Log($"[Cloud] Save path manager failed, using Android fallback paths: {ex.Message}");
+            AddFallbackProfilePaths(paths, getFiles, dirExists);
+        }
+        catch (Exception ex) when (OperatingSystem.IsAndroid())
+        {
+            PatchHelper.Log($"[Cloud] Save path manager failed, using Android fallback paths: {ex.Message}");
+            AddFallbackProfilePaths(paths, getFiles, dirExists);
+        }
     }
 
     // Collects save paths for both vanilla and modded profile directories.
@@ -367,6 +393,35 @@ public static class CloudSyncCoordinator
 
         foreach (var file in runFiles)
             paths.Add($"{historyDir}/{file}");
+    }
+
+    private static void AddFallbackProfilePaths(
+        List<string> paths,
+        Func<string, string[]> getFiles,
+        Func<string, bool> dirExists
+    )
+    {
+        foreach (var prefix in new[] { "", "modded/" })
+        {
+            for (int i = 1; i <= 3; i++)
+            {
+                var profile = $"{prefix}profile{i}";
+                paths.Add($"{profile}/progress.save");
+                paths.Add($"{profile}/current_run.save");
+                paths.Add($"{profile}/current_run_mp.save");
+                paths.Add($"{profile}/prefs");
+                paths.Add($"{profile}/prefs.save");
+
+                foreach (var historyDir in new[] { $"{profile}/runs", $"{profile}/run_history", $"{profile}/history" })
+                {
+                    if (!dirExists(historyDir))
+                        continue;
+
+                    foreach (var file in getFiles(historyDir).Where(f => f.EndsWith(".run")).Take(HistoryFileLimit))
+                        paths.Add($"{historyDir}/{file}");
+                }
+            }
+        }
     }
 
     // Save files are JSON; a non-JSON opener indicates corruption (e.g., unencrypted write).

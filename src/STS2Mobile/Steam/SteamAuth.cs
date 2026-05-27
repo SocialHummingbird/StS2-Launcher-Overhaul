@@ -41,7 +41,10 @@ public class SteamAuth : IDisposable
         {
             b.WithProtocolTypes(OperatingSystem.IsAndroid() ? ProtocolTypes.Tcp : ProtocolTypes.WebSocket);
             if (OperatingSystem.IsAndroid())
+            {
                 b.WithHttpClientFactory(AndroidJavaHttpMessageHandler.CreateClient);
+                b.WithMachineInfoProvider(new AndroidMachineInfoProvider());
+            }
         }
         );
         SteamKitAndroidMachineIdPatch.Apply(config);

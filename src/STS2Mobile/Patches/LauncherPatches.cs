@@ -71,7 +71,9 @@ public static class LauncherPatches
 
         try
         {
-            var localStore = new GodotFileIo(UserDataPathProvider.GetAccountScopedBasePath(null));
+            ISaveStore localStore = OperatingSystem.IsAndroid()
+                ? new AndroidLocalSaveStore()
+                : new GodotFileIo(UserDataPathProvider.GetAccountScopedBasePath(null));
             var cloudStore = new SteamKit2CloudSaveStore(SavedAccountName, SavedRefreshToken);
             var wrappedStore = new CloudSaveStore(localStore, cloudStore);
 
