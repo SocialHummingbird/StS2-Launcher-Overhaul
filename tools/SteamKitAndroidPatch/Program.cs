@@ -541,9 +541,17 @@ static void PatchGamePlatformUtil(string gamePath, IAssemblyResolver resolver)
         ?? throw new InvalidOperationException("Could not find NullPlatformUtilStrategy in sts2.dll");
     var nullStrategyCtor = nullStrategy.Methods.FirstOrDefault(m => m.IsConstructor && !m.IsStatic && m.Parameters.Count == 0)
         ?? throw new InvalidOperationException("Could not find NullPlatformUtilStrategy constructor in sts2.dll");
+    var objectCtor = game.ImportReference(typeof(object).GetConstructor(Type.EmptyTypes)!);
     var nullField = platformUtil.Fields.FirstOrDefault(f => f.Name == "_null")
         ?? throw new InvalidOperationException("Could not find PlatformUtil._null field in sts2.dll");
     var steamField = platformUtil.Fields.FirstOrDefault(f => f.Name == "_steam");
+
+    ReplaceBody(nullStrategyCtor, il =>
+    {
+        il.Append(il.Create(OpCodes.Ldarg_0));
+        il.Append(il.Create(OpCodes.Call, objectCtor));
+        il.Append(il.Create(OpCodes.Ret));
+    });
 
     var staticCtor = platformUtil.Methods.FirstOrDefault(m => m.IsConstructor && m.IsStatic)
         ?? throw new InvalidOperationException("Could not find PlatformUtil static constructor in sts2.dll");
@@ -580,7 +588,7 @@ static void PatchGamePlatformUtil(string gamePath, IAssemblyResolver resolver)
     game.Dispose();
     File.Copy(tmpPath, gamePath, true);
     File.Delete(tmpPath);
-    Console.WriteLine("Patched sts2.dll PlatformUtil: static constructor uses NullPlatformUtilStrategy, PrimaryPlatform=None, GetPlatformUtil returns _null");
+    Console.WriteLine("Patched sts2.dll PlatformUtil: NullPlatformUtilStrategy constructor no-op, static constructor uses NullPlatformUtilStrategy, PrimaryPlatform=None, GetPlatformUtil returns _null");
 }
 
 static void ReplaceBody(MethodDefinition method, Action<ILProcessor> emit)

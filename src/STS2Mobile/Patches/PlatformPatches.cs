@@ -271,7 +271,15 @@ public static class PlatformPatches
 
     private static object GetAndroidNullStrategy()
     {
-        return _androidNullStrategy ??= new NullPlatformUtilStrategy();
+        try
+        {
+            return _androidNullStrategy ??= new NullPlatformUtilStrategy();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"NullPlatformUtilStrategy unavailable on Android: {ex.Message}");
+            return null;
+        }
     }
 
     private static void PatchGetThreeLetterLanguageCode(Harmony harmony)
