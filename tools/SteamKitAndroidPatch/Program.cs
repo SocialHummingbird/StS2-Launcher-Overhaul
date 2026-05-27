@@ -535,7 +535,9 @@ static void PatchGamePlatformUtil(string gamePath, IAssemblyResolver resolver)
     var game = ModuleDefinition.ReadModule(gamePath, reader);
     var platformUtil = game.GetType("MegaCrit.Sts2.Core.Platform.PlatformUtil")
         ?? throw new InvalidOperationException("Could not find PlatformUtil in sts2.dll");
-    var nullStrategy = game.GetType("MegaCrit.Sts2.Core.Platform.NullPlatformUtilStrategy")
+    var nullStrategy = game.Types
+        .SelectMany(WalkTypes)
+        .FirstOrDefault(t => t.Name == "NullPlatformUtilStrategy")
         ?? throw new InvalidOperationException("Could not find NullPlatformUtilStrategy in sts2.dll");
     var nullStrategyCtor = nullStrategy.Methods.FirstOrDefault(m => m.IsConstructor && !m.IsStatic && m.Parameters.Count == 0)
         ?? throw new InvalidOperationException("Could not find NullPlatformUtilStrategy constructor in sts2.dll");
