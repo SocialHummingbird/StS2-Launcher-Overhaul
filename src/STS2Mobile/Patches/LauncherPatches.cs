@@ -145,7 +145,6 @@ public static class LauncherPatches
         }
 
         launcher.QueueFree();
-        var recoveryControls = ShowStartupRecoveryControls(gameNode);
         WriteStartupMarker("launcher closed");
         SetStartupStatus(startupStatus, "Launcher closed. Preparing game startup...");
 
@@ -198,6 +197,7 @@ public static class LauncherPatches
             WriteStartupMarker("game startup");
             SetStartupStatus(startupStatus, "Starting game scene...");
             PatchHelper.Log("Invoking NGame.GameStartup");
+            var recoveryControls = ShowStartupRecoveryControls(gameNode);
             var startupTask = (Task)gameStartup.Invoke(game, null);
             var watchdogTask = Task.Delay(StartupWatchdogMs);
             if (await Task.WhenAny(startupTask, watchdogTask) == watchdogTask)
