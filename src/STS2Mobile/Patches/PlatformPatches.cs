@@ -163,6 +163,7 @@ public static class PlatformPatches
             PatchPlatformUtilMethod(harmony, "GetPlatformBranch", nameof(ReturnEmptyStringPrefix));
             PatchPlatformUtilMethod(harmony, "GetThreeLetterLanguageCode", nameof(GetThreeLetterLanguageCodePrefix));
             PatchPlatformUtilMethod(harmony, "GetRawLanguage", nameof(GetRawLanguagePrefix));
+            PatchPlatformUtilMethod(harmony, "GetSupportedWindowMode", nameof(GetSupportedWindowModePrefix));
             PatchPlatformUtilMethod(harmony, "IsPlatformOverlayOpen", nameof(ReturnFalsePrefix));
             PatchPlatformUtilMethod(harmony, "SupportsInviteDialog", nameof(ReturnFalsePrefix));
             PatchPlatformUtilMethod(harmony, "OpenUrl", nameof(SkipPrefix));
@@ -241,6 +242,12 @@ public static class PlatformPatches
     public static bool GetRawLanguagePrefix(ref string __result)
     {
         __result = Godot.OS.GetLocale();
+        return false;
+    }
+
+    public static bool GetSupportedWindowModePrefix(ref SupportedWindowMode __result)
+    {
+        __result = SupportedWindowMode.FullscreenOnly;
         return false;
     }
 
