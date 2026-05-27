@@ -59,27 +59,23 @@ foreach ($variable in $requiredVariables) {
     }
 }
 
-$releaseJson = gh release list --repo $Repo --limit 20 --json tagName,isDraft,isPrerelease,createdAt 2>&1
+$releaseJson = gh api "repos/$Repo/releases?per_page=100" 2>&1
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to list GitHub releases for $Repo.`n$($releaseJson -join "`n")"
 }
 
-$releases = @($releaseJson | ConvertFrom-Json)
+$parsedReleases = ($releaseJson -join "`n") | ConvertFrom-Json
+$releases = @($parsedReleases)
 $baselineFound = $false
 foreach ($release in $releases) {
-    if ($release.isDraft) {
+    if ($release.draft) {
         continue
     }
 
-    $assetJson = gh release view $release.tagName --repo $Repo --json assets 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to read release assets for $($release.tagName).`n$($assetJson -join "`n")"
-    }
-
-    $assets = @((($assetJson | ConvertFrom-Json).assets) | Where-Object { $_.name -match "^StS2Launcher-v.*\.apk$" })
+    $assets = @($release.assets | Where-Object { $_.name -match "^StS2Launcher-v.*\.apk$" })
     if ($assets.Count -gt 0) {
         $baselineFound = $true
-        Write-Host "OK previous APK baseline found: $($release.tagName)/$($assets[0].name)"
+        Write-Host "OK previous APK baseline found: $($release.tag_name)/$($assets[0].name)"
         break
     }
 }
