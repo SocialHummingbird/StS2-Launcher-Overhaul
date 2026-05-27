@@ -229,16 +229,29 @@ public static class LauncherPatches
 
             await startupTask;
             PatchHelper.Log("NGame.GameStartup completed");
-            WriteStartupMarker("game startup completed");
+            ClearStartupMarker();
             recoveryControls?.QueueFree();
             startupStatus?.QueueFree();
         }
         catch (TargetInvocationException ex)
         {
-            SetStartupStatus(startupStatus, $"Game startup failed: {ex.InnerException?.Message}");
-            PatchHelper.Log($"Game startup failed: {ex.InnerException?.Message}");
-            throw ex.InnerException ?? ex;
+            var root = ex.InnerException ?? ex;
+            HandleGameStartupFailure(gameNode, startupStatus, root);
         }
+        catch (Exception ex)
+        {
+            HandleGameStartupFailure(gameNode, startupStatus, ex);
+        }
+    }
+
+    private static void HandleGameStartupFailure(Node gameNode, Label startupStatus, Exception ex)
+    {
+        var root = ex.GetBaseException();
+        var message = $"{root.GetType().Name}: {root.Message}";
+        WriteStartupMarker($"game startup failed: {message}");
+        SetStartupStatus(startupStatus, $"Game startup failed: {message}");
+        PatchHelper.Log($"Game startup failed: {ex}");
+        ShowStartupRecoveryControls(gameNode);
     }
 
     private static string StartupMarkerPath =>
