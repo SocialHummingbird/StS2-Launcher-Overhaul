@@ -263,6 +263,15 @@ Maintainers can trigger the release workflow manually from the Actions tab or le
 
 If signing secrets or `ANDROID_RELEASE_SIGNER_SHA256` are missing, the workflow refuses to publish. This prevents GitHub from creating APKs that cannot update the installed app.
 
+Use the helper script to configure GitHub from a stable release keystore:
+
+```powershell
+.\scripts\configure-android-release-signing.ps1 `
+  -KeystorePath C:\path\to\release.keystore `
+  -KeystorePassword "<password>" `
+  -KeyAlias "<alias>"
+```
+
 The release workflow also verifies the built APK against a previous GitHub release APK before upload. It fails if the package name changes, the signing certificate changes, or `versionCode` does not increase. If the current public APK was signed with a temporary key, create one explicit stable-signing baseline release with `allow_update_baseline_reset=true`; direct update from the temporary-key APK is impossible, but later GitHub releases will be pinned to the stable signer.
 
 Release validation checklist for every release is tracked in [docs/android-release-validation.md](docs/android-release-validation.md).
