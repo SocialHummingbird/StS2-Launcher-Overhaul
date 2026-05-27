@@ -674,6 +674,26 @@ public static class LauncherPatches
                 LauncherModel.GetGodotApp()?.Call("launchGameSafelyOnRestart");
             };
             box.AddChild(safeButton);
+
+            var diagnosticsButton = new Button
+            {
+                Text = "EXPORT STARTUP DIAGNOSTICS",
+                CustomMinimumSize = new Vector2(420, 56),
+            };
+            diagnosticsButton.Pressed += () =>
+            {
+                try
+                {
+                    var path = WriteStartupRecoveryDiagnosticsReport();
+                    PatchHelper.Log($"Startup recovery diagnostics written: {path}");
+                    LauncherModel.GetGodotApp()?.Call("shareTextFile", path);
+                }
+                catch (Exception ex)
+                {
+                    PatchHelper.Log($"Startup recovery diagnostics export failed: {ex}");
+                }
+            };
+            box.AddChild(diagnosticsButton);
             return layer;
         }
         catch (Exception ex)
@@ -681,5 +701,61 @@ public static class LauncherPatches
             PatchHelper.Log($"Startup recovery controls failed: {ex.Message}");
             return null;
         }
+    }
+
+    private static string WriteStartupRecoveryDiagnosticsReport()
+    {
+        var path = Path.Combine(
+            OS.GetDataDir(),
+            $"sts2-startup-recovery-diagnostics-{DateTime.UtcNow:yyyyMMdd-HHmmss}.txt"
+        );
+
+        var sb = new StringBuilder();
+        sb.AppendLine("STS2 startup recovery diagnostics");
+        sb.AppendLine($"Generated UTC: {DateTime.UtcNow:O}");
+        sb.AppendLine($"Data dir: {OS.GetDataDir()}");
+        sb.AppendLine();
+
+        AppendDiagnosticFile(sb, "Startup marker", StartupMarkerPath);
+        AppendDiagnosticFile(sb, "Startup scene snapshot", StartupSceneSnapshotPath);
+        AppendDiagnosticFile(sb, "Bootstrap trace", BootstrapTrace.TracePath);
+
+        sb.AppendLine("Android logcat tail:");
+        try
+        {
+            sb.AppendLine((string)LauncherModel.GetGodotApp()?.Call("getLogcatTail", 500) ?? "<unavailable>");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"<logcat unavailable: {ex.Message}>");
+        }
+
+        File.WriteAllText(path, sb.ToString());
+        return path;
+    }
+
+    private static void AppendDiagnosticFile(StringBuilder sb, string label, string path)
+    {
+        sb.AppendLine($"{label}: {path}");
+        try
+        {
+            if (!File.Exists(path))
+            {
+                sb.AppendLine("  exists=false");
+                sb.AppendLine();
+                return;
+            }
+
+            var file = new FileInfo(path);
+            sb.AppendLine($"  exists=true bytes={file.Length} modifiedUtc={file.LastWriteTimeUtc:O}");
+            sb.AppendLine("  contents:");
+            sb.AppendLine(File.ReadAllText(path));
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"  failed={ex.Message}");
+        }
+
+        sb.AppendLine();
     }
 }
