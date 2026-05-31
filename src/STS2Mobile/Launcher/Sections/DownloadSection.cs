@@ -1,23 +1,33 @@
 using System;
 using Godot;
+using STS2Mobile.Launcher;
 using STS2Mobile.Launcher.Components;
 
 namespace STS2Mobile.Launcher.Sections;
 
-public class DownloadSection : VBoxContainer
+internal sealed class DownloadSection : VBoxContainer
 {
-    public event Action DownloadRequested;
+    private const string DefaultDownloadButtonText = "DOWNLOAD GAME FILES";
+
+    internal event Action DownloadRequested;
 
     private readonly Button _downloadButton;
     private readonly ProgressBar _progressBar;
     private readonly Label _progressLabel;
 
-    public DownloadSection(float scale)
+    internal DownloadSection(float scale)
     {
-        AddThemeConstantOverride("separation", (int)(6 * scale));
+        AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.SectionSeparation, scale)
+        );
         Visible = false;
 
-        _downloadButton = new StyledButton("DOWNLOAD GAME FILES", scale, height: 48);
+        _downloadButton = new StyledButton(
+            DefaultDownloadButtonText,
+            scale,
+            height: LauncherSectionMetrics.DownloadButtonHeight
+        );
         _downloadButton.Pressed += () => DownloadRequested?.Invoke();
         AddChild(_downloadButton);
 
@@ -25,45 +35,51 @@ public class DownloadSection : VBoxContainer
         _progressBar.Visible = false;
         AddChild(_progressBar);
 
-        _progressLabel = new StyledLabel("", scale, fontSize: 12);
-        _progressLabel.AddThemeColorOverride("font_color", new Color(0.6f, 0.6f, 0.65f));
+        _progressLabel = new StyledLabel(
+            "",
+            scale,
+            fontSize: LauncherSectionMetrics.ProgressFontSize
+        );
+        _progressLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherViewLayoutMetrics.LogTitleColor
+        );
         _progressLabel.Visible = false;
         AddChild(_progressLabel);
     }
 
-    public void SetProgress(double pct, string text)
+    internal void SetProgress(double pct, string text)
+    {
+        ShowProgress(pct, text);
+    }
+
+    internal void ShowProgress(string text)
+    {
+        _downloadButton.Disabled = true;
+        ShowProgress(0, text);
+    }
+
+    internal void HideProgress()
+    {
+        _progressBar.Visible = false;
+        _progressLabel.Visible = false;
+    }
+
+    internal void SetButtonDisabled(bool disabled) => _downloadButton.Disabled = disabled;
+
+    internal void Reset(string buttonText = DefaultDownloadButtonText)
+    {
+        _downloadButton.Disabled = false;
+        _downloadButton.Text = buttonText;
+        HideProgress();
+        _progressBar.Value = 0;
+    }
+
+    private void ShowProgress(double pct, string text)
     {
         _progressBar.Visible = true;
         _progressBar.Value = pct;
         _progressLabel.Visible = true;
         _progressLabel.Text = text;
-    }
-
-    public void ShowProgress(string text)
-    {
-        _downloadButton.Disabled = true;
-        _progressBar.Visible = true;
-        _progressBar.Value = 0;
-        _progressLabel.Visible = true;
-        _progressLabel.Text = text;
-    }
-
-    public void HideProgress()
-    {
-        _progressBar.Visible = false;
-        _progressLabel.Visible = false;
-    }
-
-    public void SetButtonDisabled(bool disabled) => _downloadButton.Disabled = disabled;
-
-    public void SetButtonText(string text) => _downloadButton.Text = text;
-
-    public void Reset(string buttonText = "DOWNLOAD GAME FILES")
-    {
-        _downloadButton.Disabled = false;
-        _downloadButton.Text = buttonText;
-        _progressBar.Visible = false;
-        _progressBar.Value = 0;
-        _progressLabel.Visible = false;
     }
 }

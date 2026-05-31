@@ -19,61 +19,55 @@ ext.versions = [
 
 ]
 
+ext.getProjectStringProperty = { String propertyName, String defaultValue ->
+    String value = project.hasProperty(propertyName) ? project.property(propertyName) : ""
+    if (value != null) {
+        value = value.trim()
+    }
+    return value == null || value.isEmpty() ? defaultValue : value
+}
+
+ext.getProjectIntProperty = { String propertyName, int defaultValue ->
+    String value = getProjectStringProperty(propertyName, "")
+    if (value.isEmpty()) {
+        return defaultValue
+    }
+
+    try {
+        return Integer.parseInt(value)
+    } catch (NumberFormatException ignored) {
+        return defaultValue
+    }
+}
+
+ext.getProjectBooleanProperty = { String propertyName, String defaultValue ->
+    return Boolean.parseBoolean(getProjectStringProperty(propertyName, defaultValue))
+}
+
 ext.getExportPackageName = { ->
     // Retrieve the app id from the project property set by the Godot build command.
-    String appId = project.hasProperty("export_package_name") ? project.property("export_package_name") : ""
-    if (appId != null) {
-        appId = appId.trim()
-    }
+    String appId = getProjectStringProperty("export_package_name", "")
     // Check if the app id is valid, otherwise use the default.
-    if (appId == null || appId.isEmpty() || appId == "com.game.sts2launcher") {
+    if (appId.isEmpty() || appId == "com.game.sts2launcher") {
         appId = "com.sts2launcher.overhaul.fork"
     }
     return appId
 }
 
 ext.getExportVersionCode = { ->
-    String versionCode = project.hasProperty("export_version_code") ? project.property("export_version_code") : ""
-    if (versionCode == null || versionCode.isEmpty()) {
-        versionCode = "1"
-    }
-    try {
-        return Integer.parseInt(versionCode)
-    } catch (NumberFormatException ignored) {
-        return 1
-    }
+    return getProjectIntProperty("export_version_code", 1)
 }
 
 ext.getExportVersionName = { ->
-    String versionName = project.hasProperty("export_version_name") ? project.property("export_version_name") : ""
-    if (versionName == null || versionName.isEmpty()) {
-        versionName = "1.0"
-    }
-    return versionName
+    return getProjectStringProperty("export_version_name", "1.0")
 }
 
 ext.getExportMinSdkVersion = { ->
-    String minSdkVersion = project.hasProperty("export_version_min_sdk") ? project.property("export_version_min_sdk") : ""
-    if (minSdkVersion == null || minSdkVersion.isEmpty()) {
-        minSdkVersion = "$versions.minSdk"
-    }
-    try {
-        return Integer.parseInt(minSdkVersion)
-    } catch (NumberFormatException ignored) {
-        return versions.minSdk
-    }
+    return getProjectIntProperty("export_version_min_sdk", versions.minSdk)
 }
 
 ext.getExportTargetSdkVersion = { ->
-    String targetSdkVersion = project.hasProperty("export_version_target_sdk") ? project.property("export_version_target_sdk") : ""
-    if (targetSdkVersion == null || targetSdkVersion.isEmpty()) {
-        targetSdkVersion = "$versions.targetSdk"
-    }
-    try {
-        return Integer.parseInt(targetSdkVersion)
-    } catch (NumberFormatException ignored) {
-        return versions.targetSdk
-    }
+    return getProjectIntProperty("export_version_target_sdk", versions.targetSdk)
 }
 
 ext.getGodotLibraryVersionCode = { ->
@@ -201,43 +195,23 @@ ext.getExportEnabledABIs = { ->
 }
 
 ext.getExportPath = {
-    String exportPath = project.hasProperty("export_path") ? project.property("export_path") : ""
-    if (exportPath == null || exportPath.isEmpty()) {
-        exportPath = "."
-    }
-    return exportPath
+    return getProjectStringProperty("export_path", ".")
 }
 
 ext.getExportFilename = {
-    String exportFilename = project.hasProperty("export_filename") ? project.property("export_filename") : ""
-    if (exportFilename == null || exportFilename.isEmpty()) {
-        exportFilename = "godot_android"
-    }
-    return exportFilename
+    return getProjectStringProperty("export_filename", "godot_android")
 }
 
 ext.getExportEdition = {
-    String exportEdition = project.hasProperty("export_edition") ? project.property("export_edition") : ""
-    if (exportEdition == null || exportEdition.isEmpty()) {
-        exportEdition = "standard"
-    }
-    return exportEdition
+    return getProjectStringProperty("export_edition", "standard")
 }
 
 ext.getExportBuildType = {
-    String exportBuildType = project.hasProperty("export_build_type") ? project.property("export_build_type") : ""
-    if (exportBuildType == null || exportBuildType.isEmpty()) {
-        exportBuildType = "debug"
-    }
-    return exportBuildType
+    return getProjectStringProperty("export_build_type", "debug")
 }
 
 ext.getExportFormat = {
-    String exportFormat = project.hasProperty("export_format") ? project.property("export_format") : ""
-    if (exportFormat == null || exportFormat.isEmpty()) {
-        exportFormat = "apk"
-    }
-    return exportFormat
+    return getProjectStringProperty("export_format", "apk")
 }
 
 /**
@@ -300,11 +274,7 @@ ext.getGodotPluginsLocalBinaries = { ->
 }
 
 ext.getDebugKeystoreFile = { ->
-    String keystoreFile = project.hasProperty("debug_keystore_file") ? project.property("debug_keystore_file") : ""
-    if (keystoreFile == null || keystoreFile.isEmpty()) {
-        keystoreFile = "."
-    }
-    return keystoreFile
+    return getProjectStringProperty("debug_keystore_file", ".")
 }
 
 ext.hasCustomDebugKeystore = { ->
@@ -313,37 +283,23 @@ ext.hasCustomDebugKeystore = { ->
 }
 
 ext.getDebugKeystorePassword = { ->
-    String keystorePassword = project.hasProperty("debug_keystore_password") ? project.property("debug_keystore_password") : ""
-    if (keystorePassword == null || keystorePassword.isEmpty()) {
-        keystorePassword = "android"
-    }
-    return keystorePassword
+    return getProjectStringProperty("debug_keystore_password", "android")
 }
 
 ext.getDebugKeyAlias = { ->
-    String keyAlias = project.hasProperty("debug_keystore_alias") ? project.property("debug_keystore_alias") : ""
-    if (keyAlias == null || keyAlias.isEmpty()) {
-        keyAlias = "androiddebugkey"
-    }
-    return keyAlias
+    return getProjectStringProperty("debug_keystore_alias", "androiddebugkey")
 }
 
 ext.getReleaseKeystoreFile = { ->
-    String keystoreFile = project.hasProperty("release_keystore_file") ? project.property("release_keystore_file") : ""
-    if (keystoreFile == null || keystoreFile.isEmpty()) {
-        keystoreFile = "."
-    }
-    return keystoreFile
+    return getProjectStringProperty("release_keystore_file", ".")
 }
 
 ext.getReleaseKeystorePassword = { ->
-    String keystorePassword = project.hasProperty("release_keystore_password") ? project.property("release_keystore_password") : ""
-    return keystorePassword
+    return getProjectStringProperty("release_keystore_password", "")
 }
 
 ext.getReleaseKeyAlias = { ->
-    String keyAlias = project.hasProperty("release_keystore_alias") ? project.property("release_keystore_alias") : ""
-    return keyAlias
+    return getProjectStringProperty("release_keystore_alias", "")
 }
 
 ext.isAndroidStudio = { ->
@@ -351,27 +307,11 @@ ext.isAndroidStudio = { ->
 }
 
 ext.shouldZipAlign = { ->
-    String zipAlignFlag = project.hasProperty("perform_zipalign") ? project.property("perform_zipalign") : ""
-    if (zipAlignFlag == null || zipAlignFlag.isEmpty()) {
-        if (isAndroidStudio()) {
-            zipAlignFlag = "true"
-        } else {
-            zipAlignFlag = "false"
-        }
-    }
-    return Boolean.parseBoolean(zipAlignFlag)
+    return getProjectBooleanProperty("perform_zipalign", isAndroidStudio() ? "true" : "false")
 }
 
 ext.shouldSign = { ->
-    String signFlag = project.hasProperty("perform_signing") ? project.property("perform_signing") : ""
-    if (signFlag == null || signFlag.isEmpty()) {
-        if (isAndroidStudio()) {
-            signFlag = "true"
-        } else {
-            signFlag = "false"
-        }
-    }
-    return Boolean.parseBoolean(signFlag)
+    return getProjectBooleanProperty("perform_signing", isAndroidStudio() ? "true" : "false")
 }
 
 ext.shouldNotStrip = { ->
@@ -402,6 +342,5 @@ ext.shouldUseLegacyPackaging = { ->
 }
 
 ext.getAddonsDirectory = { ->
-    String addonsDirectory = project.hasProperty("addons_directory") ? project.property("addons_directory") : ""
-    return addonsDirectory
+    return getProjectStringProperty("addons_directory", "")
 }

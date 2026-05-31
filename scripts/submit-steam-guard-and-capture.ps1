@@ -11,57 +11,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "steam-login-utils.ps1")
+
 if (-not (Test-Path -LiteralPath $AdbPath)) {
     throw "adb not found: $AdbPath"
-}
-
-function Read-HiddenText([string]$Prompt) {
-    $secure = Read-Host $Prompt -AsSecureString
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    try {
-        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-    } finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-    }
-}
-
-function Send-AdbText([string]$Text) {
-    $escaped = $Text `
-        -replace ' ', '%s' `
-        -replace '&', '\&' `
-        -replace '<', '\<' `
-        -replace '>', '\>' `
-        -replace '\|', '\|' `
-        -replace ';', '\;'
-    & $AdbPath shell input text $escaped | Out-Null
-}
-
-function Send-AdbKeyCodeText([string]$Text) {
-    foreach ($char in $Text.ToCharArray()) {
-        if ($char -match '[A-Z]') {
-            $keyCode = "KEYCODE_$char"
-        } elseif ($char -match '[0-9]') {
-            $keyCode = "KEYCODE_$char"
-        } else {
-            throw "Unsupported Steam Guard character: $char"
-        }
-
-        & $AdbPath shell input keyevent $keyCode | Out-Null
-        Start-Sleep -Milliseconds 120
-    }
-}
-
-function Write-GuardCodeFile([string]$Code) {
-    $deviceDir = "/sdcard/Android/data/$PackageName/files"
-    $devicePath = "$deviceDir/steam_guard_code.txt"
-    $tempPath = [System.IO.Path]::GetTempFileName()
-    try {
-        Set-Content -LiteralPath $tempPath -Value $Code -NoNewline -Encoding ASCII
-        & $AdbPath shell mkdir -p $deviceDir | Out-Null
-        & $AdbPath push $tempPath $devicePath | Out-Null
-    } finally {
-        Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
-    }
 }
 
 function Read-GuardCodeGui() {
@@ -123,7 +76,7 @@ function Read-GuardCodeGui() {
             throw "Steam Guard code entry cancelled."
         }
 
-        if ($candidate -match '^[A-Z0-9]{5}$') {
+        if ($candidate -match $SteamGuardCodePattern) {
             return $candidate
         }
 
@@ -138,12 +91,7 @@ function Read-GuardCodeGui() {
 
 function Read-GuardCode() {
     if (-not [string]::IsNullOrWhiteSpace($GuardCode)) {
-        $candidate = $GuardCode.Trim().ToUpperInvariant()
-        if ($candidate -match '^[A-Z0-9]{5}$') {
-            return $candidate
-        }
-
-        throw "Steam Guard code must be exactly 5 letters or digits."
+        return Normalize-SteamGuardCode $GuardCode
     }
 
     if ($GuiPrompt) {
@@ -157,12 +105,11 @@ function Read-GuardCode() {
     Write-Host ""
 
     while ($true) {
-        $candidate = (Read-HiddenText "Steam Guard code").Trim().ToUpperInvariant()
-        if ($candidate -match '^[A-Z0-9]{5}$') {
-            return $candidate
+        try {
+            return Normalize-SteamGuardCode (Read-HiddenText "Steam Guard code")
+        } catch {
+            Write-Warning "$($_.Exception.Message) Try again."
         }
-
-        Write-Warning "Steam Guard code must be exactly 5 letters or digits. Try again."
     }
 }
 
@@ -173,37 +120,10 @@ New-Item -ItemType Directory -Force (Split-Path -Parent $OutputScreenshotPath) |
 
 & $AdbPath logcat -c
 
-Write-GuardCodeFile $guardCode
+Write-SteamGuardCodeFile -AdbPath $AdbPath -PackageName $PackageName -Code $guardCode
 
 Write-Host "Wrote local Steam Guard handoff file for $PackageName. Waiting up to $PostGuardResultTimeoutSeconds seconds for auth/ownership success or a crash signature..."
-
-$crashPatterns = @(
-    "FATAL EXCEPTION",
-    "Fatal signal",
-    "BUG: Unreferenced static string",
-    "CryptoNative",
-    "Interop+Crypto",
-    "AndroidCryptoNative_",
-    "SafeEvpCipherCtxHandle",
-    "SafeSslHandle"
-)
-
-$deadline = (Get-Date).AddSeconds($PostGuardResultTimeoutSeconds)
-while ((Get-Date) -lt $deadline) {
-    Start-Sleep -Seconds $PostGuardPollSeconds
-    $currentLog = (& $AdbPath logcat -d -v time | Out-String)
-
-    if ($currentLog -like "*[Auth] Authentication successful*" -or $currentLog -like "*[Launcher] Ownership verified*") {
-        Write-Host "Detected post-2FA success signal."
-        break
-    }
-
-    $matchedCrash = $crashPatterns | Where-Object { $currentLog -like "*$_*" } | Select-Object -First 1
-    if ($matchedCrash) {
-        Write-Host "Detected crash signature: $matchedCrash"
-        break
-    }
-}
+Wait-SteamLoginPostGuardResult -AdbPath $AdbPath -TimeoutSeconds $PostGuardResultTimeoutSeconds -PollSeconds $PostGuardPollSeconds
 
 & $AdbPath logcat -d -v time > $OutputLogcatPath
 & $AdbPath shell screencap -p /sdcard/sts2-login-boundary-post-2fa.png | Out-Null

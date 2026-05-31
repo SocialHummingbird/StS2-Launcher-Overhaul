@@ -8,70 +8,49 @@ namespace STS2Mobile.Patches;
 // Adjusts the merchant shop open animation for shorter viewports. When UI scale
 // reduces the effective viewport height below 1080px, the inventory panel's
 // target position is shifted up so it remains fully visible.
-public static class MerchantLayoutPatches
+internal static class MerchantLayoutPatches
 {
-    public static void Apply(Harmony harmony)
+    private const double BackstopDuration = 1.0;
+    private const double SlotsDuration = 0.7;
+    private const float BackstopAlpha = 0.8f;
+    private const float BaseOpenY = 80f;
+    private const float BaseViewportHeight = 1080f;
+    private const float LostHeightOffsetMultiplier = 0.5f;
+    private const string BackstopAlphaProperty = "modulate:a";
+    private const string BackstopField = "_backstop";
+    private const string DoOpenAnimationMethod = "DoOpenAnimation";
+    private const string InventoryTweenField = "_inventoryTween";
+    private const string InventoryTypeName =
+        "MegaCrit.Sts2.Core.Nodes.Screens.Shops.NMerchantInventory";
+    private const string SlotsContainerField = "_slotsContainer";
+    private const string SlotsYProperty = "position:y";
+
+    internal static void Apply(Harmony harmony)
     {
         var sts2Asm = typeof(MegaCrit.Sts2.Core.Nodes.NGame).Assembly;
+        var merchantInvType = sts2Asm.GetType(InventoryTypeName);
+        if (merchantInvType == null)
+            return;
 
-        var merchantInvType = sts2Asm.GetType(
-            "MegaCrit.Sts2.Core.Nodes.Screens.Shops.NMerchantInventory"
+        PatchHelper.Patch(
+            harmony,
+            merchantInvType,
+            DoOpenAnimationMethod,
+            prefix: PatchHelper.Method(
+                typeof(MerchantLayoutPatches),
+                nameof(MerchantOpenPrefix)
+            )
         );
-        if (merchantInvType != null)
-        {
-            PatchHelper.Patch(
-                harmony,
-                merchantInvType,
-                "DoOpenAnimation",
-                prefix: PatchHelper.Method(
-                    typeof(MerchantLayoutPatches),
-                    nameof(MerchantOpenPrefix)
-                )
-            );
-        }
     }
 
-    public static bool MerchantOpenPrefix(object __instance, ref Task __result)
+    private static bool MerchantOpenPrefix(object __instance, ref Task __result)
     {
-        UiScalePatches.EnsureUiScaleLoaded();
         try
         {
-            var node = (Node)__instance;
-            var window = node.GetTree().Root;
-            float scaledHeight = (float)window.ContentScaleSize.Y;
-
-            if (scaledHeight >= 1080f)
+            if (!TryStartScaledOpenAnimation(__instance, out var result))
                 return true;
 
-            var instType = __instance.GetType();
-            var slotsContainer = (Control)
-                AccessTools.Field(instType, "_slotsContainer").GetValue(__instance);
-            var backstop = (Node)AccessTools.Field(instType, "_backstop").GetValue(__instance);
-
-            float lostHeight = 1080f - scaledHeight;
-            float scaledOpenPos = 80f - lostHeight * 0.5f;
-
-            var existingTween =
-                AccessTools.Field(instType, "_inventoryTween")?.GetValue(__instance) as Tween;
-            existingTween?.Kill();
-
-            var tween = ((Node)__instance).CreateTween().SetParallel();
-            tween
-                .TweenProperty(backstop, "modulate:a", 0.8f, 1.0)
-                .SetEase(Tween.EaseType.InOut)
-                .SetTrans(Tween.TransitionType.Sine)
-                .FromCurrent();
-            tween
-                .TweenProperty(slotsContainer, "position:y", scaledOpenPos, 0.7)
-                .SetEase(Tween.EaseType.Out)
-                .SetTrans(Tween.TransitionType.Quint)
-                .FromCurrent();
-
-            AccessTools.Field(instType, "_inventoryTween")?.SetValue(__instance, tween);
-
-            PatchHelper.Log($"Merchant open: y={scaledOpenPos} (viewport height: {scaledHeight})");
-
-            __result = Task.CompletedTask;
+            __result = result;
             return false;
         }
         catch (Exception ex)
@@ -79,5 +58,62 @@ public static class MerchantLayoutPatches
             PatchHelper.Log($"MerchantOpenPrefix failed: {ex.Message}");
             return true;
         }
+    }
+
+    private static bool TryStartScaledOpenAnimation(object instance, out Task result)
+    {
+        result = null;
+        UiScalePatches.EnsureUiScaleLoaded();
+
+        var node = (Node)instance;
+        var window = node.GetTree().Root;
+        float scaledHeight = window.ContentScaleSize.Y;
+        if (scaledHeight >= BaseViewportHeight)
+            return false;
+
+        var instType = instance.GetType();
+        var slotsContainer = (Control)
+            AccessTools.Field(instType, SlotsContainerField).GetValue(instance);
+        var backstop = (Node)AccessTools
+            .Field(instType, BackstopField)
+            .GetValue(instance);
+
+        var existingTween =
+            AccessTools.Field(instType, InventoryTweenField)?.GetValue(instance)
+                as Tween;
+        float scaledOpenPos =
+            BaseOpenY - (BaseViewportHeight - scaledHeight) * LostHeightOffsetMultiplier;
+        var tween = StartOpenTween(node, backstop, slotsContainer, existingTween, scaledOpenPos);
+
+        AccessTools.Field(instType, InventoryTweenField)?.SetValue(instance, tween);
+
+        PatchHelper.Log($"Merchant open: y={scaledOpenPos} (viewport height: {scaledHeight})");
+
+        result = Task.CompletedTask;
+        return true;
+    }
+
+    private static Tween StartOpenTween(
+        Node node,
+        Node backstop,
+        Control slotsContainer,
+        Tween existingTween,
+        float openY)
+    {
+        existingTween?.Kill();
+
+        var tween = node.CreateTween().SetParallel();
+        tween
+            .TweenProperty(backstop, BackstopAlphaProperty, BackstopAlpha, BackstopDuration)
+            .SetEase(Tween.EaseType.InOut)
+            .SetTrans(Tween.TransitionType.Sine)
+            .FromCurrent();
+        tween
+            .TweenProperty(slotsContainer, SlotsYProperty, openY, SlotsDuration)
+            .SetEase(Tween.EaseType.Out)
+            .SetTrans(Tween.TransitionType.Quint)
+            .FromCurrent();
+
+        return tween;
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Reflection;
 using Godot;
 using HarmonyLib;
@@ -9,76 +10,99 @@ namespace STS2Mobile.Patches;
 // Persists the scale percentage to user://ui_scale.cfg and applies it by adjusting
 // the window's ContentScaleSize. Also intercepts window change handlers to maintain
 // the correct scale when the viewport resizes.
-public static class UiScalePatches
+internal static class UiScalePatches
 {
-    public static int UiScalePercent { get; private set; } = 100;
-    public static event Action UiScaleChanged;
+    private const int BaseHeight = 1080;
+    private const int BaseWidth = 1680;
+    private const string ConfigPath = "user://ui_scale.cfg";
+    private const int MaxPercent = 200;
+    private const int MinPercent = 100;
+
+    internal static int UiScalePercent { get; private set; } = 100;
+    internal static event Action UiScaleChanged;
     private static bool _uiScaleLoaded = false;
 
-    public static void Apply(Harmony harmony)
+    internal static void Apply(Harmony harmony)
     {
         var sts2Asm = typeof(MegaCrit.Sts2.Core.Nodes.NGame).Assembly;
 
+        PatchResolutionDropdown(harmony, sts2Asm);
+        PatchResolutionDropdownItem(harmony, sts2Asm);
+        PatchSettingsScreen(harmony, sts2Asm);
+        PatchWindowChangeHandlers(harmony, sts2Asm);
+    }
+
+    private static void PatchResolutionDropdown(Harmony harmony, Assembly sts2Asm)
+    {
         var resDropdownType = sts2Asm.GetType(
             "MegaCrit.Sts2.Core.Nodes.Screens.Settings.NResolutionDropdown"
         );
-        if (resDropdownType != null)
-        {
-            PatchHelper.Patch(
-                harmony,
-                resDropdownType,
-                "RefreshEnabled",
-                prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(RefreshEnabledPrefix))
-            );
+        if (resDropdownType == null)
+            return;
 
-            PatchHelper.Patch(
-                harmony,
-                resDropdownType,
-                "PopulateDropdownItems",
-                prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(PopulateScaleItemsPrefix))
-            );
+        PatchHelper.Patch(
+            harmony,
+            resDropdownType,
+            "RefreshEnabled",
+            prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(RefreshEnabledPrefix))
+        );
 
-            PatchHelper.Patch(
-                harmony,
-                resDropdownType,
-                "RefreshCurrentlySelectedResolution",
-                prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(RefreshScaleLabelPrefix))
-            );
+        PatchHelper.Patch(
+            harmony,
+            resDropdownType,
+            "PopulateDropdownItems",
+            prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(PopulateScaleItemsPrefix))
+        );
 
-            PatchHelper.Patch(
-                harmony,
-                resDropdownType,
-                "OnDropdownItemSelected",
-                prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(ScaleItemSelectedPrefix))
-            );
-        }
+        PatchHelper.Patch(
+            harmony,
+            resDropdownType,
+            "RefreshCurrentlySelectedResolution",
+            prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(RefreshScaleLabelPrefix))
+        );
 
+        PatchHelper.Patch(
+            harmony,
+            resDropdownType,
+            "OnDropdownItemSelected",
+            prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(ScaleItemSelectedPrefix))
+        );
+    }
+
+    private static void PatchResolutionDropdownItem(Harmony harmony, Assembly sts2Asm)
+    {
         var resItemType = sts2Asm.GetType(
             "MegaCrit.Sts2.Core.Nodes.Screens.Settings.NResolutionDropdownItem"
         );
-        if (resItemType != null)
-        {
-            PatchHelper.Patch(
-                harmony,
-                resItemType,
-                "Init",
-                prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(ResolutionItemInitPrefix))
-            );
-        }
+        if (resItemType == null)
+            return;
 
+        PatchHelper.Patch(
+            harmony,
+            resItemType,
+            "Init",
+            prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(ResolutionItemInitPrefix))
+        );
+    }
+
+    private static void PatchSettingsScreen(Harmony harmony, Assembly sts2Asm)
+    {
         var settingsScreenType = sts2Asm.GetType(
             "MegaCrit.Sts2.Core.Nodes.Screens.Settings.NSettingsScreen"
         );
-        if (settingsScreenType != null)
-        {
-            PatchHelper.Patch(
-                harmony,
-                settingsScreenType,
-                "LocalizeLabels",
-                postfix: PatchHelper.Method(typeof(UiScalePatches), nameof(LocalizeLabelsPostfix))
-            );
-        }
+        if (settingsScreenType == null)
+            return;
 
+        PatchHelper.Patch(
+            harmony,
+            settingsScreenType,
+            "LocalizeLabels",
+            postfix: PatchHelper.Method(typeof(UiScalePatches), nameof(LocalizeLabelsPostfix))
+        );
+    }
+
+    private static void PatchWindowChangeHandlers(Harmony harmony, Assembly sts2Asm)
+    {
         var globalUiType = sts2Asm.GetType("MegaCrit.Sts2.Core.Nodes.CommonUi.NGlobalUi");
         if (globalUiType != null)
         {
@@ -86,10 +110,7 @@ public static class UiScalePatches
                 harmony,
                 globalUiType,
                 "OnWindowChange",
-                prefix: PatchHelper.Method(
-                    typeof(UiScalePatches),
-                    nameof(GlobalUiWindowChangePrefix)
-                )
+                prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(GlobalUiWindowChangePrefix))
             );
         }
 
@@ -100,73 +121,80 @@ public static class UiScalePatches
                 harmony,
                 mainMenuType,
                 "OnWindowChange",
-                prefix: PatchHelper.Method(
-                    typeof(UiScalePatches),
-                    nameof(MainMenuWindowChangePrefix)
-                )
+                prefix: PatchHelper.Method(typeof(UiScalePatches), nameof(MainMenuWindowChangePrefix))
             );
         }
     }
 
-    public static void EnsureUiScaleLoaded()
+    internal static void EnsureUiScaleLoaded()
     {
         if (_uiScaleLoaded)
             return;
         _uiScaleLoaded = true;
-        try
-        {
-            var path = ProjectSettings.GlobalizePath("user://ui_scale.cfg");
-            if (System.IO.File.Exists(path))
-            {
-                if (
-                    int.TryParse(System.IO.File.ReadAllText(path).Trim(), out int val)
-                    && val >= 100
-                    && val <= 200
-                )
-                    UiScalePercent = val;
-            }
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"{ex.GetType().Name}: {ex.Message}");
-        }
+        UiScalePercent = LoadUiScalePercent(UiScalePercent);
     }
 
     private static void SaveUiScale()
     {
-        try
-        {
-            var path = ProjectSettings.GlobalizePath("user://ui_scale.cfg");
-            System.IO.File.WriteAllText(path, UiScalePercent.ToString());
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"{ex.GetType().Name}: {ex.Message}");
-        }
+        SaveUiScalePercent(UiScalePercent);
     }
 
-    public static void ApplyScaledContentSize(Window window)
+    internal static void ApplyScaledContentSize(Window window)
     {
         float scale = UiScalePercent / 100f;
 
         // Expand mode fills any screen ratio including near-square foldable displays.
         window.ContentScaleAspect = Window.ContentScaleAspectEnum.Expand;
         window.ContentScaleSize = new Vector2I(
-            (int)Math.Round(1680.0 / scale),
-            (int)Math.Round(1080.0 / scale)
+            (int)Math.Round(BaseWidth / scale),
+            (int)Math.Round(BaseHeight / scale)
         );
     }
 
-    public static void ApplyUiScale()
+    private static int LoadUiScalePercent(int fallback)
+    {
+        try
+        {
+            var path = ProjectSettings.GlobalizePath(ConfigPath);
+            if (!File.Exists(path))
+                return fallback;
+
+            if (
+                int.TryParse(File.ReadAllText(path).Trim(), out int value)
+                && value >= MinPercent
+                && value <= MaxPercent
+            )
+                return value;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"UI scale settings load failed: {ex.GetType().Name}: {ex.Message}");
+        }
+
+        return fallback;
+    }
+
+    private static void SaveUiScalePercent(int percent)
+    {
+        try
+        {
+            var path = ProjectSettings.GlobalizePath(ConfigPath);
+            File.WriteAllText(path, percent.ToString());
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"UI scale settings save failed: {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    internal static void ApplyUiScale()
     {
         EnsureUiScaleLoaded();
         try
         {
             var window = ((SceneTree)Engine.GetMainLoop()).Root;
             ApplyScaledContentSize(window);
-            PatchHelper.Log(
-                $"UI Scale: {UiScalePercent}% -> ContentScaleSize {window.ContentScaleSize}"
-            );
+            PatchHelper.Log($"UI Scale: {UiScalePercent}% -> ContentScaleSize {window.ContentScaleSize}");
             UiScaleChanged?.Invoke();
         }
         catch (Exception ex)
@@ -176,7 +204,7 @@ public static class UiScalePatches
     }
 
     // Always enable the dropdown since mobile has no windowed/fullscreen toggle.
-    public static bool RefreshEnabledPrefix(object __instance)
+    private static bool RefreshEnabledPrefix(object __instance)
     {
         try
         {
@@ -185,13 +213,13 @@ public static class UiScalePatches
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"{ex.GetType().Name}: {ex.Message}");
+            PatchHelper.Log($"RefreshEnabledPrefix failed: {ex.GetType().Name}: {ex.Message}");
         }
         return false;
     }
 
     // Replaces resolution entries with scale percentage options (100% to 150%).
-    public static bool PopulateScaleItemsPrefix(object __instance)
+    private static bool PopulateScaleItemsPrefix(object __instance)
     {
         try
         {
@@ -225,7 +253,7 @@ public static class UiScalePatches
     }
 
     // Shows the current scale percentage in the dropdown label.
-    public static bool RefreshScaleLabelPrefix(object __instance)
+    private static bool RefreshScaleLabelPrefix(object __instance)
     {
         EnsureUiScaleLoaded();
         try
@@ -236,13 +264,13 @@ public static class UiScalePatches
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"{ex.GetType().Name}: {ex.Message}");
+            PatchHelper.Log($"RefreshScaleLabelPrefix failed: {ex.GetType().Name}: {ex.Message}");
         }
         return false;
     }
 
     // Applies the selected scale, saves it, and updates the label.
-    public static bool ScaleItemSelectedPrefix(object __instance, object nDropdownItem)
+    private static bool ScaleItemSelectedPrefix(object __instance, object nDropdownItem)
     {
         try
         {
@@ -273,7 +301,7 @@ public static class UiScalePatches
     }
 
     // Initializes dropdown items with scale percentage text instead of resolution.
-    public static bool ResolutionItemInitPrefix(object __instance, Vector2I setResolution)
+    private static bool ResolutionItemInitPrefix(object __instance, Vector2I setResolution)
     {
         if (setResolution.Y != 0)
             return true;
@@ -289,13 +317,13 @@ public static class UiScalePatches
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"{ex.GetType().Name}: {ex.Message}");
+            PatchHelper.Log($"ResolutionItemInitPrefix failed: {ex.GetType().Name}: {ex.Message}");
         }
         return false;
     }
 
     // Renames the "Resolution" label to "UI Scale" in the settings screen.
-    public static void LocalizeLabelsPostfix(object __instance)
+    private static void LocalizeLabelsPostfix(object __instance)
     {
         try
         {
@@ -313,7 +341,7 @@ public static class UiScalePatches
     }
 
     // Reapplies the scaled content size when the window changes (e.g. rotation).
-    public static bool GlobalUiWindowChangePrefix(object __instance)
+    private static bool GlobalUiWindowChangePrefix(object __instance)
     {
         if (
             MegaCrit.Sts2.Core.Saves.SaveManager.Instance.SettingsSave.AspectRatioSetting
@@ -330,13 +358,13 @@ public static class UiScalePatches
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"{ex.GetType().Name}: {ex.Message}");
+            PatchHelper.Log($"GlobalUiWindowChangePrefix failed: {ex.GetType().Name}: {ex.Message}");
         }
         return false;
     }
 
     // Handles window change on the main menu screen specifically.
-    public static bool MainMenuWindowChangePrefix(object __instance, bool isAspectRatioAuto)
+    private static bool MainMenuWindowChangePrefix(object __instance, bool isAspectRatioAuto)
     {
         if (!isAspectRatioAuto)
             return false;
@@ -349,7 +377,7 @@ public static class UiScalePatches
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"{ex.GetType().Name}: {ex.Message}");
+            PatchHelper.Log($"MainMenuWindowChangePrefix failed: {ex.GetType().Name}: {ex.Message}");
         }
         return false;
     }

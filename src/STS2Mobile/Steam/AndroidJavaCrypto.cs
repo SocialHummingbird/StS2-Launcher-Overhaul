@@ -12,24 +12,26 @@ internal static class AndroidJavaCrypto
     private static readonly object AppLock = new();
     private static GodotObject _godotApp;
     private static readonly ConditionalWeakTable<RSA, RsaPublicKey> RsaPublicKeys = new();
+    private const string AesCryptBase64BridgeMethod = "aesCryptBase64";
+    private const string HmacSha1Base64BridgeMethod = "hmacSha1Base64";
+    private const string RandomBytesBase64BridgeMethod = "randomBytesBase64";
+    private const string RsaEncryptBase64BridgeMethod = "rsaEncryptBase64";
+    private const string Sha1Base64BridgeMethod = "sha1Base64";
+    private const string Sha1FileBase64BridgeMethod = "sha1FileBase64";
 
-    public static byte[] GetRandomBytes(int count)
+    internal static byte[] GetRandomBytes(int count)
     {
         if (!OperatingSystem.IsAndroid())
             return System.Security.Cryptography.RandomNumberGenerator.GetBytes(count);
 
-        var app = GetGodotApp();
-        if (app == null)
-            throw new InvalidOperationException("GodotApp Java bridge is unavailable for random bytes");
-
-        var encoded = (string)app.Call("randomBytesBase64", count);
-        if (string.IsNullOrEmpty(encoded))
-            throw new InvalidOperationException("Android Java random byte bridge returned an empty response");
-
-        return Convert.FromBase64String(encoded);
+        return CallBase64Bridge(
+            "random bytes",
+            RandomBytesBase64BridgeMethod,
+            "Android Java random byte bridge returned an empty response",
+            count);
     }
 
-    public static void FillRandom(Span<byte> destination)
+    internal static void FillRandom(Span<byte> destination)
     {
         if (!OperatingSystem.IsAndroid())
         {
@@ -40,7 +42,7 @@ internal static class AndroidJavaCrypto
         GetRandomBytes(destination.Length).CopyTo(destination);
     }
 
-    public static void ImportSubjectPublicKeyInfo(
+    internal static void ImportSubjectPublicKeyInfo(
         AsymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> source,
         out int bytesRead
@@ -60,7 +62,7 @@ internal static class AndroidJavaCrypto
         bytesRead = source.Length;
     }
 
-    public static void ImportParameters(RSA rsa, RSAParameters parameters)
+    internal static void ImportParameters(RSA rsa, RSAParameters parameters)
     {
         if (!OperatingSystem.IsAndroid())
         {
@@ -77,7 +79,7 @@ internal static class AndroidJavaCrypto
             androidRsa.SetPublicKeySize(parameters.Modulus.Length * 8);
     }
 
-    public static RSA CreateRsa()
+    internal static RSA CreateRsa()
     {
         if (!OperatingSystem.IsAndroid())
             return RSA.Create();
@@ -85,29 +87,20 @@ internal static class AndroidJavaCrypto
         return new AndroidRsa();
     }
 
-    public static byte[] RsaEncrypt(RSA rsa, byte[] data, RSAEncryptionPadding padding)
+    internal static byte[] RsaEncrypt(RSA rsa, byte[] data, RSAEncryptionPadding padding)
     {
         if (!OperatingSystem.IsAndroid())
             return rsa.Encrypt(data, padding);
 
-        var paddingName = padding == RSAEncryptionPadding.Pkcs1
-            ? "PKCS1"
-            : padding == RSAEncryptionPadding.OaepSHA1
-                ? "OAEP-SHA1"
-                : null;
-
-        if (paddingName == null)
-            throw new NotSupportedException($"Unsupported RSA padding: {padding}");
+        var paddingName = RsaPaddingName(padding);
 
         if (!RsaPublicKeys.TryGetValue(rsa, out var key))
             throw new InvalidOperationException("RSA public key was not imported before encryption");
 
-        var app = GetGodotApp();
-        if (app == null)
-            throw new InvalidOperationException("GodotApp Java bridge is unavailable for RSA encryption");
-
-        var encoded = (string)app.Call(
-            "rsaEncryptBase64",
+        return CallBase64Bridge(
+            "RSA encryption",
+            RsaEncryptBase64BridgeMethod,
+            "Android Java RSA bridge returned an empty response",
             key.SubjectPublicKeyInfo == null
                 ? string.Empty
                 : Convert.ToBase64String(key.SubjectPublicKeyInfo),
@@ -116,14 +109,9 @@ internal static class AndroidJavaCrypto
             Convert.ToBase64String(data),
             paddingName
         );
-
-        if (string.IsNullOrEmpty(encoded))
-            throw new InvalidOperationException("Android Java RSA bridge returned an empty response");
-
-        return Convert.FromBase64String(encoded);
     }
 
-    public static byte[] HmacSha1HashData(byte[] key, byte[] source)
+    internal static byte[] HmacSha1HashData(byte[] key, byte[] source)
     {
         if (!OperatingSystem.IsAndroid())
             return HMACSHA1.HashData(key, source);
@@ -131,7 +119,7 @@ internal static class AndroidJavaCrypto
         return HmacSha1HashDataAndroid(key, source);
     }
 
-    public static byte[] HmacSha1HashData(ReadOnlySpan<byte> key, ReadOnlySpan<byte> source)
+    internal static byte[] HmacSha1HashData(ReadOnlySpan<byte> key, ReadOnlySpan<byte> source)
     {
         if (!OperatingSystem.IsAndroid())
             return HMACSHA1.HashData(key, source);
@@ -139,36 +127,28 @@ internal static class AndroidJavaCrypto
         return HmacSha1HashDataAndroid(key.ToArray(), source.ToArray());
     }
 
-    public static int HmacSha1HashData(ReadOnlySpan<byte> key, ReadOnlySpan<byte> source, Span<byte> destination)
+    internal static int HmacSha1HashData(ReadOnlySpan<byte> key, ReadOnlySpan<byte> source, Span<byte> destination)
     {
         if (!OperatingSystem.IsAndroid())
             return HMACSHA1.HashData(key, source, destination);
 
         var hash = HmacSha1HashDataAndroid(key.ToArray(), source.ToArray());
-        if (destination.Length < hash.Length)
-            throw new ArgumentException("Destination is too short for HMAC-SHA1 output", nameof(destination));
-
-        hash.CopyTo(destination);
-        return hash.Length;
+        return CopyToDestination(hash, destination, "Destination is too short for HMAC-SHA1 output");
     }
 
-    public static byte[] Sha1HashData(byte[] source)
+    internal static byte[] Sha1HashData(byte[] source)
     {
         if (!OperatingSystem.IsAndroid())
             return SHA1.HashData(source);
 
-        var app = GetGodotApp();
-        if (app == null)
-            throw new InvalidOperationException("GodotApp Java bridge is unavailable for SHA-1");
-
-        var encoded = (string)app.Call("sha1Base64", Convert.ToBase64String(source));
-        if (string.IsNullOrEmpty(encoded))
-            throw new InvalidOperationException("Android Java SHA-1 bridge returned an empty response");
-
-        return Convert.FromBase64String(encoded);
+        return CallBase64Bridge(
+            "SHA-1",
+            Sha1Base64BridgeMethod,
+            "Android Java SHA-1 bridge returned an empty response",
+            Convert.ToBase64String(source));
     }
 
-    public static byte[] Sha1FileHashData(string path)
+    internal static byte[] Sha1FileHashData(string path)
     {
         if (!OperatingSystem.IsAndroid())
         {
@@ -176,18 +156,14 @@ internal static class AndroidJavaCrypto
             return SHA1.HashData(fs);
         }
 
-        var app = GetGodotApp();
-        if (app == null)
-            throw new InvalidOperationException("GodotApp Java bridge is unavailable for file SHA-1");
-
-        var encoded = (string)app.Call("sha1FileBase64", path);
-        if (string.IsNullOrEmpty(encoded))
-            throw new InvalidOperationException("Android Java file SHA-1 bridge returned an empty response");
-
-        return Convert.FromBase64String(encoded);
+        return CallBase64Bridge(
+            "file SHA-1",
+            Sha1FileBase64BridgeMethod,
+            "Android Java file SHA-1 bridge returned an empty response",
+            path);
     }
 
-    public static Aes CreateAes()
+    internal static Aes CreateAes()
     {
         if (!OperatingSystem.IsAndroid())
             return Aes.Create();
@@ -197,20 +173,13 @@ internal static class AndroidJavaCrypto
 
     private static byte[] HmacSha1HashDataAndroid(byte[] key, byte[] source)
     {
-        var app = GetGodotApp();
-        if (app == null)
-            throw new InvalidOperationException("GodotApp Java bridge is unavailable for HMAC-SHA1");
-
-        var encoded = (string)app.Call(
-            "hmacSha1Base64",
+        return CallBase64Bridge(
+            "HMAC-SHA1",
+            HmacSha1Base64BridgeMethod,
+            "Android Java HMAC-SHA1 bridge returned an empty response",
             Convert.ToBase64String(key),
             Convert.ToBase64String(source)
         );
-
-        if (string.IsNullOrEmpty(encoded))
-            throw new InvalidOperationException("Android Java HMAC-SHA1 bridge returned an empty response");
-
-        return Convert.FromBase64String(encoded);
     }
 
     private static int EstimateSubjectPublicKeyInfoSize(ReadOnlySpan<byte> source)
@@ -254,7 +223,7 @@ internal static class AndroidJavaCrypto
         return 2048;
     }
 
-    public static int AesEncryptEcb(
+    internal static int AesEncryptEcb(
         SymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> plaintext,
         Span<byte> destination,
@@ -265,14 +234,10 @@ internal static class AndroidJavaCrypto
             return algorithm.EncryptEcb(plaintext, destination, paddingMode);
 
         var output = AesCryptAndroid("encrypt", "ECB", paddingMode, algorithm.Key, ReadOnlySpan<byte>.Empty, plaintext);
-        if (destination.Length < output.Length)
-            throw new ArgumentException("Destination is too short for AES output", nameof(destination));
-
-        output.CopyTo(destination);
-        return output.Length;
+        return CopyToDestination(output, destination, "Destination is too short for AES output");
     }
 
-    public static int AesEncryptCbc(
+    internal static int AesEncryptCbc(
         SymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> plaintext,
         ReadOnlySpan<byte> iv,
@@ -284,14 +249,10 @@ internal static class AndroidJavaCrypto
             return algorithm.EncryptCbc(plaintext, iv, destination, paddingMode);
 
         var output = AesCryptAndroid("encrypt", "CBC", paddingMode, algorithm.Key, iv, plaintext);
-        if (destination.Length < output.Length)
-            throw new ArgumentException("Destination is too short for AES output", nameof(destination));
-
-        output.CopyTo(destination);
-        return output.Length;
+        return CopyToDestination(output, destination, "Destination is too short for AES output");
     }
 
-    public static int AesDecryptEcb(
+    internal static int AesDecryptEcb(
         SymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> ciphertext,
         Span<byte> destination,
@@ -302,14 +263,10 @@ internal static class AndroidJavaCrypto
             return algorithm.DecryptEcb(ciphertext, destination, paddingMode);
 
         var output = AesCryptAndroid("decrypt", "ECB", paddingMode, algorithm.Key, ReadOnlySpan<byte>.Empty, ciphertext);
-        if (destination.Length < output.Length)
-            throw new ArgumentException("Destination is too short for AES output", nameof(destination));
-
-        output.CopyTo(destination);
-        return output.Length;
+        return CopyToDestination(output, destination, "Destination is too short for AES output");
     }
 
-    public static int AesDecryptCbc(
+    internal static int AesDecryptCbc(
         SymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> ciphertext,
         ReadOnlySpan<byte> iv,
@@ -321,14 +278,10 @@ internal static class AndroidJavaCrypto
             return algorithm.DecryptCbc(ciphertext, iv, destination, paddingMode);
 
         var output = AesCryptAndroid("decrypt", "CBC", paddingMode, algorithm.Key, iv, ciphertext);
-        if (destination.Length < output.Length)
-            throw new ArgumentException("Destination is too short for AES output", nameof(destination));
-
-        output.CopyTo(destination);
-        return output.Length;
+        return CopyToDestination(output, destination, "Destination is too short for AES output");
     }
 
-    public static byte[] AesDecryptCbc(
+    internal static byte[] AesDecryptCbc(
         SymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> ciphertext,
         ReadOnlySpan<byte> iv,
@@ -350,21 +303,12 @@ internal static class AndroidJavaCrypto
         ReadOnlySpan<byte> data
     )
     {
-        var app = GetGodotApp();
-        if (app == null)
-            throw new InvalidOperationException("GodotApp Java bridge is unavailable for AES");
+        var paddingName = AesPaddingName(paddingMode);
 
-        var paddingName = paddingMode == PaddingMode.None
-            ? "None"
-            : paddingMode == PaddingMode.PKCS7
-                ? "PKCS7"
-                : null;
-
-        if (paddingName == null)
-            throw new NotSupportedException($"Unsupported AES padding: {paddingMode}");
-
-        var encoded = (string)app.Call(
-            "aesCryptBase64",
+        return CallBase64Bridge(
+            "AES",
+            AesCryptBase64BridgeMethod,
+            "Android Java AES bridge returned an empty response",
             operation,
             mode,
             paddingName,
@@ -372,9 +316,52 @@ internal static class AndroidJavaCrypto
             iv.IsEmpty ? string.Empty : Convert.ToBase64String(iv),
             Convert.ToBase64String(data)
         );
+    }
 
+    private static int CopyToDestination(byte[] source, Span<byte> destination, string tooShortMessage)
+    {
+        if (destination.Length < source.Length)
+            throw new ArgumentException(tooShortMessage, nameof(destination));
+
+        source.CopyTo(destination);
+        return source.Length;
+    }
+
+    private static string RsaPaddingName(RSAEncryptionPadding padding)
+    {
+        if (padding == RSAEncryptionPadding.Pkcs1)
+            return "PKCS1";
+
+        if (padding == RSAEncryptionPadding.OaepSHA1)
+            return "OAEP-SHA1";
+
+        throw new NotSupportedException($"Unsupported RSA padding: {padding}");
+    }
+
+    private static string AesPaddingName(PaddingMode paddingMode)
+    {
+        return paddingMode switch
+        {
+            PaddingMode.None => "None",
+            PaddingMode.PKCS7 => "PKCS7",
+            _ => throw new NotSupportedException($"Unsupported AES padding: {paddingMode}"),
+        };
+    }
+
+    private static byte[] CallBase64Bridge(
+        string operationName,
+        string methodName,
+        string emptyResponseMessage,
+        params Variant[] arguments
+    )
+    {
+        var app = GetGodotApp();
+        if (app == null)
+            throw new InvalidOperationException($"GodotApp Java bridge is unavailable for {operationName}");
+
+        var encoded = (string)app.Call(methodName, arguments);
         if (string.IsNullOrEmpty(encoded))
-            throw new InvalidOperationException("Android Java AES bridge returned an empty response");
+            throw new InvalidOperationException(emptyResponseMessage);
 
         return Convert.FromBase64String(encoded);
     }
@@ -388,9 +375,9 @@ internal static class AndroidJavaCrypto
 
             try
             {
-                var jcw = Engine.GetSingleton("JavaClassWrapper");
-                var wrapper = (GodotObject)jcw.Call("wrap", "com.game.sts2launcher.GodotApp");
-                _godotApp = (GodotObject)wrapper.Call("getInstance");
+                if (!AndroidGodotAppBridge.TryGetInstance(out _godotApp))
+                    return null;
+
                 return _godotApp;
             }
             catch (Exception ex)
@@ -403,31 +390,31 @@ internal static class AndroidJavaCrypto
 
     private sealed class RsaPublicKey
     {
-        public RsaPublicKey(byte[] subjectPublicKeyInfo)
+        private RsaPublicKey(byte[] subjectPublicKeyInfo)
         {
             SubjectPublicKeyInfo = subjectPublicKeyInfo;
         }
 
-        public RsaPublicKey(byte[] modulus, byte[] exponent)
+        private RsaPublicKey(byte[] modulus, byte[] exponent)
         {
             Modulus = modulus;
             Exponent = exponent;
         }
 
-        public byte[] SubjectPublicKeyInfo { get; }
-        public byte[] Modulus { get; }
-        public byte[] Exponent { get; }
+        private byte[] SubjectPublicKeyInfo { get; }
+        private byte[] Modulus { get; }
+        private byte[] Exponent { get; }
     }
 
     private sealed class AndroidRsa : RSA
     {
-        public AndroidRsa()
+        private AndroidRsa()
         {
             LegalKeySizesValue = new[] { new KeySizes(384, 16384, 8) };
             KeySizeValue = 2048;
         }
 
-        public void SetPublicKeySize(int bits)
+        private void SetPublicKeySize(int bits)
         {
             KeySizeValue = bits;
         }
@@ -484,7 +471,7 @@ internal static class AndroidJavaCrypto
 
     private sealed class AndroidAes : Aes
     {
-        public AndroidAes()
+        private AndroidAes()
         {
             LegalBlockSizesValue = new[] { new KeySizes(128, 128, 0) };
             LegalKeySizesValue = new[] { new KeySizes(128, 256, 64) };

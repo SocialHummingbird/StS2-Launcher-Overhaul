@@ -10,12 +10,14 @@ namespace STS2Mobile.Patches;
 
 // Extends ModManager to scan an external mods directory on Android so users
 // can sideload mods to /storage/emulated/0/StS2Launcher/Mods/ without root.
-public static class ModLoaderPatches
+internal static class ModLoaderPatches
 {
     private static readonly BindingFlags AllStatic =
         BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+    private const BindingFlags LoadedMarkerFlags =
+        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
-    public static void Apply(Harmony harmony)
+    internal static void Apply(Harmony harmony)
     {
         PatchHelper.Patch(
             harmony,
@@ -27,78 +29,33 @@ public static class ModLoaderPatches
 
     // Runs after the original Initialize() to pick up mods from external storage.
     // Temporarily clears _initialized so TryLoadModFromPck accepts new entries.
-    public static void InitializePostfix()
+    private static void InitializePostfix()
     {
-        var modManagerType = typeof(ModManager);
-
         try
         {
             using var dirAccess = DirAccess.Open(AppPaths.ExternalModsDir);
             if (dirAccess == null)
             {
                 PatchHelper.Log(
-                    $"[Mods] External mods directory not found: {AppPaths.ExternalModsDir} "
-                        + $"(error: {DirAccess.GetOpenError()})"
+                    $"[Mods] External mods directory not found: {AppPaths.ExternalModsDir} (error: {DirAccess.GetOpenError()})"
                 );
                 return;
             }
 
             PatchHelper.Log($"[Mods] Scanning external mods: {AppPaths.ExternalModsDir}");
 
-            var initializedField = modManagerType.GetField("_initialized", AllStatic);
-            if (initializedField == null)
+            if (!TryLoadModManagerAccess(
+                    out var initializedField,
+                    out var loadModsInDirRecursive,
+                    out var modsField,
+                    out var loadedModsField
+                ))
             {
-                PatchHelper.Log("[Mods] Failed to locate ModManager._initialized");
                 return;
             }
 
-            var loadMethod = modManagerType.GetMethod("LoadModsInDirRecursive", AllStatic);
-            if (loadMethod == null)
-            {
-                PatchHelper.Log("[Mods] Failed to locate ModManager.LoadModsInDirRecursive");
-                return;
-            }
-
-            var modsField = modManagerType.GetField("_mods", AllStatic);
-            var loadedModsField = modManagerType.GetField("_loadedMods", AllStatic);
-            if (modsField == null || loadedModsField == null)
-            {
-                PatchHelper.Log("[Mods] Failed to locate ModManager mod caches (_mods or _loadedMods)");
-                return;
-            }
-
-            var previousInitialized = initializedField.GetValue(null);
-            initializedField.SetValue(null, false);
-            try
-            {
-                loadMethod.Invoke(null, new object[] { dirAccess, ModSource.ModsDirectory });
-            }
-            finally
-            {
-                initializedField.SetValue(null, previousInitialized);
-            }
-
-            // Rebuild _loadedMods to include anything new
-            var allMods = modsField.GetValue(null) as IEnumerable;
-            if (allMods != null)
-            {
-                // Build a list using reflection only, so this keeps working if ModManager internals
-                // rename wasLoaded or change the Mod type representation again.
-                var loadedMods = CreateLoadedModList(allMods, loadedModsField.FieldType);
-                if (loadedMods != null)
-                {
-                    loadedModsField.SetValue(null, loadedMods);
-                    PatchHelper.Log(
-                        $"[Mods] External scan complete. Total loaded: {(loadedMods as System.Collections.ICollection)?.Count ?? 0}"
-                    );
-                }
-                else
-                    PatchHelper.Log("[Mods] Failed to rebuild _loadedMods via reflection");
-            }
-            else
-            {
-                PatchHelper.Log("[Mods] ModManager._mods was null; skipping loaded-mod rebuild");
-            }
+            LoadExternalMods(dirAccess, initializedField, loadModsInDirRecursive);
+            RebuildLoadedModsCache(modsField, loadedModsField);
         }
         catch (Exception ex)
         {
@@ -106,14 +63,95 @@ public static class ModLoaderPatches
         }
     }
 
-    private static object CreateLoadedModList(IEnumerable allMods, Type targetListType)
+    private static bool TryLoadModManagerAccess(
+        out FieldInfo initializedField,
+        out MethodInfo loadModsInDirRecursive,
+        out FieldInfo modsField,
+        out FieldInfo loadedModsField
+    )
+    {
+        var modManagerType = typeof(ModManager);
+
+        initializedField = modManagerType.GetField("_initialized", AllStatic);
+        if (initializedField == null)
+        {
+            PatchHelper.Log("[Mods] Failed to locate ModManager._initialized");
+            loadModsInDirRecursive = null;
+            modsField = null;
+            loadedModsField = null;
+            return false;
+        }
+
+        loadModsInDirRecursive = modManagerType.GetMethod("LoadModsInDirRecursive", AllStatic);
+        if (loadModsInDirRecursive == null)
+        {
+            PatchHelper.Log("[Mods] Failed to locate ModManager.LoadModsInDirRecursive");
+            modsField = null;
+            loadedModsField = null;
+            return false;
+        }
+
+        modsField = modManagerType.GetField("_mods", AllStatic);
+        loadedModsField = modManagerType.GetField("_loadedMods", AllStatic);
+        if (modsField == null || loadedModsField == null)
+        {
+            PatchHelper.Log("[Mods] Failed to locate ModManager mod caches (_mods or _loadedMods)");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void LoadExternalMods(
+        DirAccess dirAccess,
+        FieldInfo initializedField,
+        MethodInfo loadModsInDirRecursive
+    )
+    {
+        var previousInitialized = initializedField.GetValue(null);
+        initializedField.SetValue(null, false);
+        try
+        {
+            loadModsInDirRecursive.Invoke(null, new object[] { dirAccess, ModSource.ModsDirectory });
+        }
+        finally
+        {
+            initializedField.SetValue(null, previousInitialized);
+        }
+    }
+
+    private static void RebuildLoadedModsCache(FieldInfo modsField, FieldInfo loadedModsField)
+    {
+        var allMods = modsField.GetValue(null) as IEnumerable;
+        if (allMods == null)
+        {
+            PatchHelper.Log("[Mods] ModManager._mods was null; skipping loaded-mod rebuild");
+            return;
+        }
+
+        // Build a list using reflection only, so this keeps working if ModManager internals
+        // rename wasLoaded or change the Mod type representation again.
+        var loadedMods = CreateLoadedModsList(allMods, loadedModsField.FieldType);
+        if (loadedMods == null)
+        {
+            PatchHelper.Log("[Mods] Failed to rebuild _loadedMods via reflection");
+            return;
+        }
+
+        loadedModsField.SetValue(null, loadedMods);
+        PatchHelper.Log(
+            $"[Mods] External scan complete. Total loaded: {(loadedMods as ICollection)?.Count ?? 0}"
+        );
+    }
+
+    private static object CreateLoadedModsList(IEnumerable allMods, Type targetListType)
     {
         try
         {
-            if (!typeof(System.Collections.IEnumerable).IsAssignableFrom(targetListType))
+            if (!typeof(IEnumerable).IsAssignableFrom(targetListType))
                 return null;
 
-            if (Activator.CreateInstance(targetListType) is not System.Collections.IList targetList)
+            if (Activator.CreateInstance(targetListType) is not IList targetList)
             {
                 PatchHelper.Log("[Mods] _loadedMods field is not a concrete IList");
                 return null;
@@ -121,7 +159,7 @@ public static class ModLoaderPatches
 
             foreach (var mod in allMods)
             {
-                if (mod == null || !IsLoadedMod(mod))
+                if (mod == null || !IsLoaded(mod))
                     continue;
 
                 targetList.Add(mod);
@@ -136,26 +174,9 @@ public static class ModLoaderPatches
         }
     }
 
-    private static bool IsLoadedMod(object mod)
+    private static bool IsLoaded(object mod)
     {
-        if (mod == null)
-            return false;
-
-        var modType = mod.GetType();
-        const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-        var candidates = new List<MemberInfo>
-        {
-            modType.GetField("wasLoaded", flags),
-            modType.GetField("WasLoaded", flags),
-            modType.GetField("isLoaded", flags),
-            modType.GetField("IsLoaded", flags),
-            modType.GetProperty("wasLoaded", flags),
-            modType.GetProperty("WasLoaded", flags),
-            modType.GetProperty("isLoaded", flags),
-            modType.GetProperty("IsLoaded", flags),
-        };
-
-        foreach (var member in candidates)
+        foreach (var member in LoadedMarkerCandidates(mod.GetType()))
         {
             if (member is null)
                 continue;
@@ -173,5 +194,17 @@ public static class ModLoaderPatches
 
         // Without a reliable marker, assume loaded to avoid dropping mods.
         return true;
+    }
+
+    private static IEnumerable<MemberInfo> LoadedMarkerCandidates(Type modType)
+    {
+        yield return modType.GetField("wasLoaded", LoadedMarkerFlags);
+        yield return modType.GetField("WasLoaded", LoadedMarkerFlags);
+        yield return modType.GetField("isLoaded", LoadedMarkerFlags);
+        yield return modType.GetField("IsLoaded", LoadedMarkerFlags);
+        yield return modType.GetProperty("wasLoaded", LoadedMarkerFlags);
+        yield return modType.GetProperty("WasLoaded", LoadedMarkerFlags);
+        yield return modType.GetProperty("isLoaded", LoadedMarkerFlags);
+        yield return modType.GetProperty("IsLoaded", LoadedMarkerFlags);
     }
 }

@@ -8,33 +8,25 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "steam-login-utils.ps1")
+
 function Fail($Message) {
     Write-Error $Message
     exit 1
-}
-
-function Read-HiddenText([string] $Prompt) {
-    $secure = Read-Host $Prompt -AsSecureString
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    try {
-        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-    } finally {
-        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-    }
 }
 
 if (-not (Test-Path -LiteralPath $CredentialsPath)) {
     Fail "Credentials file not found: $CredentialsPath"
 }
 
-if ([string]::IsNullOrWhiteSpace($GuardCode)) {
-    $GuardCode = Read-HiddenText "Enter current Steam Guard code"
-}
+try {
+    if ([string]::IsNullOrWhiteSpace($GuardCode)) {
+        $GuardCode = Read-HiddenText "Enter current Steam Guard code"
+    }
 
-$GuardCode = $GuardCode.Trim().ToUpperInvariant()
-
-if ($GuardCode -notmatch '^[A-Z0-9]{5}$') {
-    Fail "Steam Guard code must be exactly 5 letters or digits."
+    $GuardCode = Normalize-SteamGuardCode $GuardCode
+} catch {
+    Fail $_.Exception.Message
 }
 
 $credentials = Get-Content -LiteralPath $CredentialsPath -Raw | ConvertFrom-Json

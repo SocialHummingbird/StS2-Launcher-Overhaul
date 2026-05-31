@@ -6,66 +6,101 @@ namespace STS2Mobile;
 
 internal static class BootstrapTrace
 {
-    private const int AndroidLogInfo = 4;
-    private const long MaxTraceBytes = 256L * 1024L;
+    private const string AndroidLogTag = "STS2Mobile";
+    private const int AndroidLogInfoPriority = 4;
+    private const string FileName = "sts2_bootstrap_trace.log";
+    private const string FallbackPath =
+        "/data/data/com.sts2launcher.overhaul.fork.dev/files/sts2_bootstrap_trace.log";
+    private const long MaxBytes = 256L * 1024L;
     private static readonly object Lock = new();
 
-    public static string TracePath
-    {
-        get
-        {
-            try
-            {
-                return Path.Combine(Godot.OS.GetDataDir(), "sts2_bootstrap_trace.log");
-            }
-            catch
-            {
-                return "/data/data/com.sts2launcher.overhaul.fork.dev/files/sts2_bootstrap_trace.log";
-            }
-        }
-    }
+    internal static string TracePath => GetTracePath();
 
-    public static void Log(string message)
+    internal static void Log(string message)
     {
         if (string.IsNullOrWhiteSpace(message))
             return;
 
-        var line = $"{DateTime.UtcNow:O} {message}{Environment.NewLine}";
-        try
-        {
-            __android_log_write(AndroidLogInfo, "STS2Mobile", message);
-        }
-        catch { }
+        var line = FormatLine(message);
+        var androidFailure = TryWriteAndroidLog(message);
+        if (androidFailure != null)
+            TryAppendTraceFile(FormatLine($"Bootstrap trace Android log sink failed: {androidFailure.Message}"));
 
-        try
-        {
-            lock (Lock)
-            {
-                var path = TracePath;
-                var dir = Path.GetDirectoryName(path);
-                if (!string.IsNullOrWhiteSpace(dir))
-                    Directory.CreateDirectory(dir);
-
-                TrimIfNeeded(path);
-                File.AppendAllText(path, line);
-            }
-        }
-        catch { }
+        var fileFailure = TryAppendTraceFile(line);
+        if (fileFailure != null)
+            TryWriteAndroidLog($"Bootstrap trace file sink failed: {fileFailure.Message}");
     }
 
-    private static void TrimIfNeeded(string path)
+    private static string GetTracePath()
+    {
+        try
+        {
+            return Path.Combine(Godot.OS.GetDataDir(), FileName);
+        }
+        catch
+        {
+            return FallbackPath;
+        }
+    }
+
+    private static string FormatLine(string message) =>
+        $"{DateTime.UtcNow:O} {message}{Environment.NewLine}";
+
+    private static Exception TryWriteAndroidLog(string message)
+    {
+        try
+        {
+            __android_log_write(AndroidLogInfoPriority, AndroidLogTag, message);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return ex;
+        }
+    }
+
+    private static Exception TryAppendTraceFile(string line)
+    {
+        try
+        {
+            AppendTraceFile(line);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return ex;
+        }
+    }
+
+    private static void AppendTraceFile(string line)
+    {
+        lock (Lock)
+        {
+            var path = TracePath;
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrWhiteSpace(dir))
+                Directory.CreateDirectory(dir);
+
+            TrimTraceFileIfNeeded(path);
+            File.AppendAllText(path, line);
+        }
+    }
+
+    private static void TrimTraceFileIfNeeded(string path)
     {
         try
         {
             var file = new FileInfo(path);
-            if (!file.Exists || file.Length < MaxTraceBytes)
+            if (!file.Exists || file.Length < MaxBytes)
                 return;
 
             var text = File.ReadAllText(path);
-            var keepLength = (int)Math.Min(text.Length, MaxTraceBytes / 2);
+            var keepLength = (int)Math.Min(text.Length, MaxBytes / 2);
             File.WriteAllText(path, text.Substring(text.Length - keepLength));
         }
-        catch { }
+        catch
+        {
+        }
     }
 
     [DllImport("liblog.so")]

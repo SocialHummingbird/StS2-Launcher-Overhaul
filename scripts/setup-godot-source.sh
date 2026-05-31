@@ -6,6 +6,8 @@ GODOT_DIR="${GODOT_DIR:-$ROOT/vendor/godot}"
 GODOT_REPO="${GODOT_REPO:-https://github.com/godotengine/godot.git}"
 GODOT_REF="${GODOT_REF:-4.5.1-stable}"
 
+source "$ROOT/scripts/godot-source-utils.sh"
+
 mkdir -p "$(dirname "$GODOT_DIR")"
 
 if [ ! -d "$GODOT_DIR/.git" ]; then
@@ -14,6 +16,8 @@ if [ ! -d "$GODOT_DIR/.git" ]; then
 else
     echo "Godot source already exists at $GODOT_DIR"
 fi
+
+apply_godot_patches "$GODOT_DIR" "$ROOT"
 
 if [ ! -d "$ROOT/venv" ]; then
     python3 -m venv "$ROOT/venv"

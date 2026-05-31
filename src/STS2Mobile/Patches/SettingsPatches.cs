@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Reflection;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Nodes;
@@ -11,50 +10,69 @@ namespace STS2Mobile.Patches;
 
 // Applies mobile-friendly default settings on first launch and fixes the VSync
 // toggle label bug where the Off and On display values are swapped.
-public static class SettingsPatches
+internal static class SettingsPatches
 {
+    private const string GetVSyncStringMethod = "GetVSyncString";
+    private const string InitSettingsDataMethod = "InitSettingsData";
+    private const string MarkerContent = "1";
+    private const string MarkerFileName = ".mobile_defaults_applied";
+    private const string SkipIntroLogoProperty = "SkipIntroLogo";
+    private const string SettingsTable = "settings_ui";
+    private const string VSyncAdaptiveKey = "VSYNC_ADAPTIVE";
+    private const string VSyncOffKey = "VSYNC_OFF";
+    private const string VSyncOnKey = "VSYNC_ON";
+    private const string VSyncPaginatorType =
+        "MegaCrit.Sts2.Core.Nodes.Screens.Settings.NVSyncPaginator";
+    private const string LocStringTypeName = "MegaCrit.Sts2.Core.Localization.LocString";
+
     private static bool _mobileDefaultsChecked;
 
-    public static void Apply(Harmony harmony)
+    internal static void Apply(Harmony harmony)
     {
         // Apply mobile defaults on first launch; user preferences are respected after that.
         PatchHelper.Patch(
             harmony,
             typeof(SaveManager),
-            "InitSettingsData",
+            InitSettingsDataMethod,
             postfix: PatchHelper.Method(typeof(SettingsPatches), nameof(InitSettingsDataPostfix))
         );
 
         PatchHelper.PatchGetter(
             harmony,
             typeof(SettingsSave),
-            "SkipIntroLogo",
+            SkipIntroLogoProperty,
             prefix: PatchHelper.Method(typeof(SettingsPatches), nameof(SkipIntroLogoPrefix))
         );
 
-        // Fix swapped Off/On labels in the VSync settings UI (upstream bug).
-        var vsyncPaginatorType = typeof(NGame).Assembly.GetType(
-            "MegaCrit.Sts2.Core.Nodes.Screens.Settings.NVSyncPaginator"
-        );
-        if (vsyncPaginatorType != null)
-        {
-            PatchHelper.Patch(
-                harmony,
-                vsyncPaginatorType,
-                "GetVSyncString",
-                prefix: PatchHelper.Method(typeof(SettingsPatches), nameof(GetVSyncStringPrefix))
-            );
-        }
+        PatchVSyncString(harmony);
     }
 
-    public static void InitSettingsDataPostfix()
+    private static void PatchVSyncString(Harmony harmony)
+    {
+        var vsyncPaginatorType = typeof(NGame).Assembly.GetType(VSyncPaginatorType);
+        if (vsyncPaginatorType == null)
+            return;
+
+        PatchHelper.Patch(
+            harmony,
+            vsyncPaginatorType,
+            GetVSyncStringMethod,
+            prefix: PatchHelper.Method(typeof(SettingsPatches), nameof(GetVSyncStringPrefix))
+        );
+    }
+
+    private static void InitSettingsDataPostfix()
     {
         if (_mobileDefaultsChecked)
             return;
         _mobileDefaultsChecked = true;
 
-        var markerPath = Path.Combine(OS.GetUserDataDir(), ".mobile_defaults_applied");
-        if (File.Exists(markerPath))
+        ApplyMobileDefaultsIfNeeded();
+    }
+
+    private static void ApplyMobileDefaultsIfNeeded()
+    {
+        if (File.Exists(MobileDefaultsMarkerPath()))
             return;
 
         try
@@ -64,9 +82,10 @@ public static class SettingsPatches
             settings.AspectRatioSetting = AspectRatioSetting.Auto;
             settings.Msaa = 0;
             settings.SkipIntroLogo = true;
+
             SaveManager.Instance.SaveSettings();
 
-            File.WriteAllText(markerPath, "1");
+            File.WriteAllText(MobileDefaultsMarkerPath(), MarkerContent);
             PatchHelper.Log(
                 "Applied mobile default settings (first launch): VSync=On, AspectRatio=Auto, Msaa=None, SkipIntroLogo=True"
             );
@@ -77,26 +96,11 @@ public static class SettingsPatches
         }
     }
 
-    public static bool GetVSyncStringPrefix(object vsyncType, ref string __result)
+    private static bool GetVSyncStringPrefix(object vsyncType, ref string __result)
     {
         try
         {
-            int val = (int)vsyncType;
-            var sts2Asm = typeof(NGame).Assembly;
-            var locStringType = sts2Asm.GetType("MegaCrit.Sts2.Core.Localization.LocString");
-            var ctor = locStringType.GetConstructor(new[] { typeof(string), typeof(string) });
-            var getTextMethod = locStringType.GetMethod("GetFormattedText", Type.EmptyTypes);
-
-            string key = val switch
-            {
-                1 => "VSYNC_OFF",
-                2 => "VSYNC_ON",
-                3 => "VSYNC_ADAPTIVE",
-                _ => "VSYNC_ADAPTIVE",
-            };
-
-            var locStr = ctor.Invoke(new object[] { "settings_ui", key });
-            __result = (string)getTextMethod.Invoke(locStr, null);
+            __result = GetVSyncText(vsyncType);
         }
         catch (Exception ex)
         {
@@ -106,7 +110,30 @@ public static class SettingsPatches
         return false;
     }
 
-    public static bool SkipIntroLogoPrefix(ref bool __result)
+    private static string GetVSyncText(object vsyncType)
+    {
+        var locStringType = typeof(NGame).Assembly.GetType(LocStringTypeName);
+        var ctor = locStringType.GetConstructor(new[] { typeof(string), typeof(string) });
+        var locString = ctor.Invoke(new object[] { SettingsTable, VSyncKeyFor(vsyncType) });
+        var getTextMethod = locStringType.GetMethod("GetFormattedText", Type.EmptyTypes);
+        return (string)getTextMethod.Invoke(locString, null);
+    }
+
+    private static string VSyncKeyFor(object vsyncType)
+    {
+        return (int)vsyncType switch
+        {
+            1 => VSyncOffKey,
+            2 => VSyncOnKey,
+            3 => VSyncAdaptiveKey,
+            _ => VSyncAdaptiveKey,
+        };
+    }
+
+    private static string MobileDefaultsMarkerPath()
+        => Path.Combine(OS.GetUserDataDir(), MarkerFileName);
+
+    private static bool SkipIntroLogoPrefix(ref bool __result)
     {
         if (!OperatingSystem.IsAndroid())
             return true;

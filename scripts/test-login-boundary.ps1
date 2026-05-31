@@ -18,6 +18,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "steam-login-utils.ps1")
+
 if (-not (Test-Path -LiteralPath $AdbPath)) {
     throw "adb not found: $AdbPath"
 }
@@ -75,33 +77,7 @@ Write-Host "Installing APK: $ApkPath"
 
 if ($WaitForPostGuardResult) {
     Write-Host "Waiting up to $PostGuardResultTimeoutSeconds seconds for auth/ownership success or a crash signature. If Steam Guard is required, use scripts\submit-steam-guard-and-capture.ps1 or enter the code in the emulator."
-    $deadline = (Get-Date).AddSeconds($PostGuardResultTimeoutSeconds)
-    $crashPatterns = @(
-        "FATAL EXCEPTION",
-        "Fatal signal",
-        "BUG: Unreferenced static string",
-        "CryptoNative",
-        "Interop+Crypto",
-        "AndroidCryptoNative_",
-        "SafeEvpCipherCtxHandle",
-        "SafeSslHandle"
-    )
-
-    while ((Get-Date) -lt $deadline) {
-        Start-Sleep -Seconds $PostGuardPollSeconds
-        $currentLog = (& $AdbPath logcat -d -v time | Out-String)
-
-        if ($currentLog -like "*[Auth] Authentication successful*" -or $currentLog -like "*[Launcher] Ownership verified*") {
-            Write-Host "Detected post-2FA success signal."
-            break
-        }
-
-        $matchedCrash = $crashPatterns | Where-Object { $currentLog -like "*$_*" } | Select-Object -First 1
-        if ($matchedCrash) {
-            Write-Host "Detected crash signature: $matchedCrash"
-            break
-        }
-    }
+    Wait-SteamLoginPostGuardResult -AdbPath $AdbPath -TimeoutSeconds $PostGuardResultTimeoutSeconds -PollSeconds $PostGuardPollSeconds
 } elseif ($WaitForManualGuardSubmit) {
     Read-Host "Enter the Steam Guard code directly in the emulator, submit it, then press Enter here to capture post-2FA evidence"
     Start-Sleep -Seconds $PostLoginWaitSeconds

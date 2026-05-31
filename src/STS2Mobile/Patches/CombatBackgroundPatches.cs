@@ -10,43 +10,50 @@ namespace STS2Mobile.Patches;
 // Scales combat room backgrounds and creature positions for non-standard aspect ratios.
 // On taller screens the background container is scaled up so no black bars appear
 // behind the combat scene.
-public static class CombatBackgroundPatches
+internal static class CombatBackgroundPatches
 {
-    public static void Apply(Harmony harmony)
+    private const string AdjustCreatureScaleForAspectRatioMethod =
+        "AdjustCreatureScaleForAspectRatio";
+    private const float BackgroundRatio = 2764.8f / 1296f;
+    private const string BgContainerNode = "%BgContainer";
+    private const string ReadyMethod = "_Ready";
+    private const string RoomTypeName = "MegaCrit.Sts2.Core.Nodes.Rooms.NCombatRoom";
+    private const string SetUpBackgroundMethod = "SetUpBackground";
+
+    internal static void Apply(Harmony harmony)
     {
         var sts2Asm = typeof(MegaCrit.Sts2.Core.Nodes.NGame).Assembly;
+        var combatRoomType = sts2Asm.GetType(RoomTypeName);
+        if (combatRoomType == null)
+            return;
 
-        var combatRoomType = sts2Asm.GetType("MegaCrit.Sts2.Core.Nodes.Rooms.NCombatRoom");
-        if (combatRoomType != null)
-        {
-            PatchHelper.Patch(
-                harmony,
-                combatRoomType,
-                "SetUpBackground",
-                postfix: PatchHelper.Method(
-                    typeof(CombatBackgroundPatches),
-                    nameof(SetUpBackgroundPostfix)
-                )
-            );
+        PatchHelper.Patch(
+            harmony,
+            combatRoomType,
+            SetUpBackgroundMethod,
+            postfix: PatchHelper.Method(
+                typeof(CombatBackgroundPatches),
+                nameof(SetUpBackgroundPostfix)
+            )
+        );
 
-            PatchHelper.Patch(
-                harmony,
-                combatRoomType,
-                "_Ready",
-                postfix: PatchHelper.Method(
-                    typeof(CombatBackgroundPatches),
-                    nameof(CombatRoomReadyPostfix)
-                )
-            );
-        }
+        PatchHelper.Patch(
+            harmony,
+            combatRoomType,
+            ReadyMethod,
+            postfix: PatchHelper.Method(
+                typeof(CombatBackgroundPatches),
+                nameof(CombatRoomReadyPostfix)
+            )
+        );
     }
 
-    public static void SetUpBackgroundPostfix(object __instance)
+    private static void SetUpBackgroundPostfix(object __instance)
     {
         try
         {
             var room = (Control)__instance;
-            ApplyBgScale(room);
+            ScaleBackground(room);
         }
         catch (Exception ex)
         {
@@ -54,33 +61,12 @@ public static class CombatBackgroundPatches
         }
     }
 
-    public static void CombatRoomReadyPostfix(object __instance)
+    private static void CombatRoomReadyPostfix(object __instance)
     {
         try
         {
             var room = (Control)__instance;
-            var adjustMethod = AccessTools.Method(
-                __instance.GetType(),
-                "AdjustCreatureScaleForAspectRatio"
-            );
-
-            // Deferred so layout dimensions are finalized before adjusting.
-            DeferAdjust(room, adjustMethod);
-
-            // Re-apply when UI scale changes mid-combat.
-            UiScalePatches.UiScaleChanged += OnScaleChanged;
-
-            void OnScaleChanged()
-            {
-                if (!GodotObject.IsInstanceValid(room) || !room.IsInsideTree())
-                {
-                    UiScalePatches.UiScaleChanged -= OnScaleChanged;
-                    return;
-                }
-
-                ApplyBgScale(room);
-                DeferAdjust(room, adjustMethod);
-            }
+            AttachScaleRefresh(room, __instance.GetType());
         }
         catch (Exception ex)
         {
@@ -88,7 +74,7 @@ public static class CombatBackgroundPatches
         }
     }
 
-    private static void ApplyBgScale(Control room)
+    private static void ScaleBackground(Control room)
     {
         if (SaveManager.Instance.SettingsSave.AspectRatioSetting != AspectRatioSetting.Auto)
             return;
@@ -97,24 +83,47 @@ public static class CombatBackgroundPatches
         var vpSize = window.GetVisibleRect().Size;
         float vpRatio = vpSize.X / vpSize.Y;
 
-        // Background images are ~2.14:1 (2764x1296). Scale up on taller screens.
-        const float bgRatio = 2764.8f / 1296f;
-
-        var bgContainer = room.GetNodeOrNull<Control>("%BgContainer");
+        var bgContainer = room.GetNodeOrNull<Control>(BgContainerNode);
         if (bgContainer == null)
             return;
 
-        if (vpRatio >= bgRatio)
+        var scaleNeeded = vpRatio >= BackgroundRatio ? 1f : BackgroundRatio / vpRatio;
+        if (scaleNeeded <= 1f)
         {
             bgContainer.Scale = Vector2.One;
             return;
         }
 
-        float scaleNeeded = bgRatio / vpRatio;
         bgContainer.Scale = new Vector2(scaleNeeded, scaleNeeded);
         PatchHelper.Log(
             $"[CombatBg] Scaled BgContainer by {scaleNeeded:F3} for viewport ratio {vpRatio:F2}"
         );
+    }
+
+    private static void AttachScaleRefresh(Control room, Type roomType)
+    {
+        var adjustMethod = AccessTools.Method(
+            roomType,
+            AdjustCreatureScaleForAspectRatioMethod
+        );
+
+        // Deferred so layout dimensions are finalized before adjusting.
+        DeferAdjust(room, adjustMethod);
+
+        // Re-apply when UI scale changes mid-combat.
+        UiScalePatches.UiScaleChanged += OnScaleChanged;
+
+        void OnScaleChanged()
+        {
+            if (!GodotObject.IsInstanceValid(room) || !room.IsInsideTree())
+            {
+                UiScalePatches.UiScaleChanged -= OnScaleChanged;
+                return;
+            }
+
+            ScaleBackground(room);
+            DeferAdjust(room, adjustMethod);
+        }
     }
 
     private static void DeferAdjust(Control room, MethodInfo adjustMethod)
@@ -138,3 +147,4 @@ public static class CombatBackgroundPatches
             .CallDeferred();
     }
 }
+

@@ -12,52 +12,12 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-if ([System.IO.Path]::IsPathRooted($GodotDir)) {
-    $GodotDir = [System.IO.Path]::GetFullPath($GodotDir)
-} else {
-    $GodotDir = [System.IO.Path]::GetFullPath((Join-Path $root $GodotDir))
-}
+. (Join-Path $PSScriptRoot "godot-source-utils.ps1")
+
+$GodotDir = Resolve-GodotSourceDirectory -GodotDir $GodotDir -Root $root
 $androidLibs = Join-Path $root "android\libs\release"
 $venvPython = Join-Path $root "venv\Scripts\python.exe"
 $scons = Join-Path $root "venv\Scripts\scons.exe"
-
-function Apply-GodotPatches {
-    param(
-        [string]$GodotDir,
-        [string]$Root
-    )
-
-    $patchDir = Join-Path $Root "patches\godot"
-    if (-not (Test-Path -LiteralPath $patchDir)) {
-        return
-    }
-
-    $patches = Get-ChildItem -LiteralPath $patchDir -Filter "*.patch" | Sort-Object Name
-    foreach ($patch in $patches) {
-        Push-Location $GodotDir
-        try {
-            & git apply --check --ignore-whitespace $patch.FullName *> $null
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "Applying Godot patch: $($patch.Name)"
-                & git apply --ignore-whitespace $patch.FullName
-                if ($LASTEXITCODE -ne 0) {
-                    throw "Failed to apply Godot patch: $($patch.FullName)"
-                }
-                continue
-            }
-
-            & git apply --reverse --check --ignore-whitespace $patch.FullName *> $null
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "Godot patch already applied: $($patch.Name)"
-                continue
-            }
-
-            throw "Godot patch cannot be applied cleanly: $($patch.FullName)"
-        } finally {
-            Pop-Location
-        }
-    }
-}
 
 if (-not (Test-Path -LiteralPath $GodotDir)) {
     throw "Expected Godot source checkout at $GodotDir. Run .\scripts\setup-godot-source.ps1, or set GODOT_DIR to the custom patched Godot checkout."

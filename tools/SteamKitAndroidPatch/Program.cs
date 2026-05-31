@@ -1,4 +1,4 @@
-﻿using Mono.Cecil;
+using Mono.Cecil;
 using Mono.Cecil.Cil;
 
 if (args.Length < 2 || args.Length > 3)
@@ -10,13 +10,7 @@ if (args.Length < 2 || args.Length > 3)
 var steamKitPath = args[0];
 var helperPath = args[1];
 var gamePath = args.Length == 3 ? args[2] : null;
-
-var resolver = new DefaultAssemblyResolver();
-resolver.AddSearchDirectory(Path.GetDirectoryName(Path.GetFullPath(steamKitPath))!);
-resolver.AddSearchDirectory(Path.GetDirectoryName(Path.GetFullPath(helperPath))!);
-if (!string.IsNullOrWhiteSpace(gamePath))
-    resolver.AddSearchDirectory(Path.GetDirectoryName(Path.GetFullPath(gamePath))!);
-
+var resolver = CreateResolver(steamKitPath, helperPath, gamePath);
 var reader = new ReaderParameters { AssemblyResolver = resolver, ReadWrite = false };
 var steamKit = ModuleDefinition.ReadModule(steamKitPath, reader);
 var helper = ModuleDefinition.ReadModule(helperPath, reader);
@@ -24,417 +18,248 @@ var helper = ModuleDefinition.ReadModule(helperPath, reader);
 var helperType = helper.GetType("STS2Mobile.Steam.AndroidJavaCrypto")
     ?? throw new InvalidOperationException("Could not find AndroidJavaCrypto helper type");
 
-var randomHelper = FindHelper("GetRandomBytes", "System.Byte[]", "System.Int32");
-var fillRandomHelper = FindHelper("FillRandom", "System.Void", "System.Span`1<System.Byte>");
-var importSpkiHelper = FindHelper(
-    "ImportSubjectPublicKeyInfo",
-    "System.Void",
-    "System.Security.Cryptography.AsymmetricAlgorithm",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.Int32&"
-);
-var importParametersHelper = FindHelper(
-    "ImportParameters",
-    "System.Void",
-    "System.Security.Cryptography.RSA",
-    "System.Security.Cryptography.RSAParameters"
-);
-var rsaEncryptHelper = FindHelper(
-    "RsaEncrypt",
-    "System.Byte[]",
-    "System.Security.Cryptography.RSA",
-    "System.Byte[]",
-    "System.Security.Cryptography.RSAEncryptionPadding"
-);
-var createRsaHelper = FindHelper(
-    "CreateRsa",
-    "System.Security.Cryptography.RSA"
-);
-var hmacSha1BytesHelper = FindHelper(
-    "HmacSha1HashData",
-    "System.Byte[]",
-    "System.Byte[]",
-    "System.Byte[]"
-);
-var hmacSha1SpanHelper = FindHelper(
-    "HmacSha1HashData",
-    "System.Byte[]",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.ReadOnlySpan`1<System.Byte>"
-);
-var hmacSha1SpanDestinationHelper = FindHelper(
-    "HmacSha1HashData",
-    "System.Int32",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.Span`1<System.Byte>"
-);
-var sha1BytesHelper = FindHelper(
-    "Sha1HashData",
-    "System.Byte[]",
-    "System.Byte[]"
-);
-var createAesHelper = FindHelper(
-    "CreateAes",
-    "System.Security.Cryptography.Aes"
-);
-var aesEncryptEcbHelper = FindHelper(
-    "AesEncryptEcb",
-    "System.Int32",
-    "System.Security.Cryptography.SymmetricAlgorithm",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.Span`1<System.Byte>",
-    "System.Security.Cryptography.PaddingMode"
-);
-var aesEncryptCbcHelper = FindHelper(
-    "AesEncryptCbc",
-    "System.Int32",
-    "System.Security.Cryptography.SymmetricAlgorithm",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.Span`1<System.Byte>",
-    "System.Security.Cryptography.PaddingMode"
-);
-var aesDecryptEcbHelper = FindHelper(
-    "AesDecryptEcb",
-    "System.Int32",
-    "System.Security.Cryptography.SymmetricAlgorithm",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.Span`1<System.Byte>",
-    "System.Security.Cryptography.PaddingMode"
-);
-var aesDecryptCbcSpanDestinationHelper = FindHelper(
-    "AesDecryptCbc",
-    "System.Int32",
-    "System.Security.Cryptography.SymmetricAlgorithm",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.Span`1<System.Byte>",
-    "System.Security.Cryptography.PaddingMode"
-);
-var aesDecryptCbcHelper = FindHelper(
-    "AesDecryptCbc",
-    "System.Byte[]",
-    "System.Security.Cryptography.SymmetricAlgorithm",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.ReadOnlySpan`1<System.Byte>",
-    "System.Security.Cryptography.PaddingMode"
-);
-
-var importedRandomHelper = steamKit.ImportReference(randomHelper);
-var importedFillRandomHelper = steamKit.ImportReference(fillRandomHelper);
-var importedImportSpkiHelper = steamKit.ImportReference(importSpkiHelper);
-var importedImportParametersHelper = steamKit.ImportReference(importParametersHelper);
-var importedRsaEncryptHelper = steamKit.ImportReference(rsaEncryptHelper);
-var importedCreateRsaHelper = steamKit.ImportReference(createRsaHelper);
-var importedHmacSha1BytesHelper = steamKit.ImportReference(hmacSha1BytesHelper);
-var importedHmacSha1SpanHelper = steamKit.ImportReference(hmacSha1SpanHelper);
-var importedHmacSha1SpanDestinationHelper = steamKit.ImportReference(hmacSha1SpanDestinationHelper);
-var importedSha1BytesHelper = steamKit.ImportReference(sha1BytesHelper);
-var importedCreateAesHelper = steamKit.ImportReference(createAesHelper);
-var importedAesEncryptEcbHelper = steamKit.ImportReference(aesEncryptEcbHelper);
-var importedAesEncryptCbcHelper = steamKit.ImportReference(aesEncryptCbcHelper);
-var importedAesDecryptEcbHelper = steamKit.ImportReference(aesDecryptEcbHelper);
-var importedAesDecryptCbcSpanDestinationHelper = steamKit.ImportReference(aesDecryptCbcSpanDestinationHelper);
-var importedAesDecryptCbcHelper = steamKit.ImportReference(aesDecryptCbcHelper);
-
-var randomPatched = 0;
-var fillRandomPatched = 0;
-var spkiPatched = 0;
-var parametersPatched = 0;
-var rsaEncryptPatched = 0;
-var createRsaPatched = 0;
-var hmacSha1BytesPatched = 0;
-var hmacSha1SpanPatched = 0;
-var hmacSha1SpanDestinationPatched = 0;
-var sha1BytesPatched = 0;
-var createAesPatched = 0;
-var aesEncryptEcbPatched = 0;
-var aesEncryptCbcPatched = 0;
-var aesDecryptEcbPatched = 0;
-var aesDecryptCbcSpanDestinationPatched = 0;
-var aesDecryptCbcPatched = 0;
-
-foreach (var type in steamKit.Types.SelectMany(WalkTypes))
-{
-    foreach (var method in type.Methods)
-    {
-        if (!method.HasBody)
-            continue;
-
-        foreach (var instruction in method.Body.Instructions)
-        {
-            if (instruction.Operand is not MethodReference mr)
-                continue;
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.RandomNumberGenerator" &&
-                mr.Name == "GetBytes" &&
-                mr.Parameters.Count == 1 &&
-                mr.Parameters[0].ParameterType.FullName == "System.Int32" &&
-                mr.ReturnType.FullName == "System.Byte[]")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedRandomHelper;
-                randomPatched++;
-                continue;
-            }
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.RandomNumberGenerator" &&
-                mr.Name == "Fill" &&
-                mr.Parameters.Count == 1 &&
-                mr.Parameters[0].ParameterType.FullName == "System.Span`1<System.Byte>" &&
-                mr.ReturnType.FullName == "System.Void")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedFillRandomHelper;
-                fillRandomPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.AsymmetricAlgorithm" &&
-                mr.Name == "ImportSubjectPublicKeyInfo" &&
-                mr.Parameters.Count == 2 &&
-                mr.Parameters[0].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[1].ParameterType.FullName == "System.Int32&" &&
-                mr.ReturnType.FullName == "System.Void")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedImportSpkiHelper;
-                spkiPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.RSA" &&
-                mr.Name == "ImportParameters" &&
-                mr.Parameters.Count == 1 &&
-                mr.Parameters[0].ParameterType.FullName == "System.Security.Cryptography.RSAParameters" &&
-                mr.ReturnType.FullName == "System.Void")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedImportParametersHelper;
-                parametersPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.RSA" &&
-                mr.Name == "Encrypt" &&
-                mr.Parameters.Count == 2 &&
-                mr.Parameters[0].ParameterType.FullName == "System.Byte[]" &&
-                mr.Parameters[1].ParameterType.FullName == "System.Security.Cryptography.RSAEncryptionPadding" &&
-                mr.ReturnType.FullName == "System.Byte[]")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedRsaEncryptHelper;
-                rsaEncryptPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.RSA" &&
-                mr.Name == "Create" &&
-                mr.Parameters.Count == 0 &&
-                mr.ReturnType.FullName == "System.Security.Cryptography.RSA")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedCreateRsaHelper;
-                createRsaPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.HMACSHA1" &&
-                mr.Name == "HashData" &&
-                mr.Parameters.Count == 2 &&
-                mr.Parameters[0].ParameterType.FullName == "System.Byte[]" &&
-                mr.Parameters[1].ParameterType.FullName == "System.Byte[]" &&
-                mr.ReturnType.FullName == "System.Byte[]")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedHmacSha1BytesHelper;
-                hmacSha1BytesPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.HMACSHA1" &&
-                mr.Name == "HashData" &&
-                mr.Parameters.Count == 2 &&
-                mr.Parameters[0].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[1].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.ReturnType.FullName == "System.Byte[]")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedHmacSha1SpanHelper;
-                hmacSha1SpanPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.HMACSHA1" &&
-                mr.Name == "HashData" &&
-                mr.Parameters.Count == 3 &&
-                mr.Parameters[0].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[1].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[2].ParameterType.FullName == "System.Span`1<System.Byte>" &&
-                mr.ReturnType.FullName == "System.Int32")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedHmacSha1SpanDestinationHelper;
-                hmacSha1SpanDestinationPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.SHA1" &&
-                mr.Name == "HashData" &&
-                mr.Parameters.Count == 1 &&
-                mr.Parameters[0].ParameterType.FullName == "System.Byte[]" &&
-                mr.ReturnType.FullName == "System.Byte[]")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedSha1BytesHelper;
-                sha1BytesPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.DeclaringType.FullName == "System.Security.Cryptography.Aes" &&
-                mr.Name == "Create" &&
-                mr.Parameters.Count == 0 &&
-                mr.ReturnType.FullName == "System.Security.Cryptography.Aes")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedCreateAesHelper;
-                createAesPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.Name == "EncryptEcb" &&
-                mr.Parameters.Count == 3 &&
-                mr.Parameters[0].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[1].ParameterType.FullName == "System.Span`1<System.Byte>" &&
-                mr.Parameters[2].ParameterType.FullName == "System.Security.Cryptography.PaddingMode" &&
-                mr.ReturnType.FullName == "System.Int32")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedAesEncryptEcbHelper;
-                aesEncryptEcbPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.Name == "EncryptCbc" &&
-                mr.Parameters.Count == 4 &&
-                mr.Parameters[0].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[1].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[2].ParameterType.FullName == "System.Span`1<System.Byte>" &&
-                mr.Parameters[3].ParameterType.FullName == "System.Security.Cryptography.PaddingMode" &&
-                mr.ReturnType.FullName == "System.Int32")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedAesEncryptCbcHelper;
-                aesEncryptCbcPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.Name == "DecryptEcb" &&
-                mr.Parameters.Count == 3 &&
-                mr.Parameters[0].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[1].ParameterType.FullName == "System.Span`1<System.Byte>" &&
-                mr.Parameters[2].ParameterType.FullName == "System.Security.Cryptography.PaddingMode" &&
-                mr.ReturnType.FullName == "System.Int32")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedAesDecryptEcbHelper;
-                aesDecryptEcbPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.Name == "DecryptCbc" &&
-                mr.Parameters.Count == 4 &&
-                mr.Parameters[0].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[1].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[2].ParameterType.FullName == "System.Span`1<System.Byte>" &&
-                mr.Parameters[3].ParameterType.FullName == "System.Security.Cryptography.PaddingMode" &&
-                mr.ReturnType.FullName == "System.Int32")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedAesDecryptCbcSpanDestinationHelper;
-                aesDecryptCbcSpanDestinationPatched++;
-                continue;
-            }
-
-            if ((instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt) &&
-                mr.Name == "DecryptCbc" &&
-                mr.Parameters.Count == 3 &&
-                mr.Parameters[0].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[1].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
-                mr.Parameters[2].ParameterType.FullName == "System.Security.Cryptography.PaddingMode" &&
-                mr.ReturnType.FullName == "System.Byte[]")
-            {
-                instruction.OpCode = OpCodes.Call;
-                instruction.Operand = importedAesDecryptCbcHelper;
-                aesDecryptCbcPatched++;
-            }
-        }
-    }
-}
-
-if (randomPatched == 0)
-    throw new InvalidOperationException("No RandomNumberGenerator.GetBytes(int) calls were patched");
-if (fillRandomPatched == 0)
-    throw new InvalidOperationException("No RandomNumberGenerator.Fill(Span<byte>) calls were patched");
-if (spkiPatched == 0)
-    throw new InvalidOperationException("No AsymmetricAlgorithm.ImportSubjectPublicKeyInfo calls were patched");
-if (parametersPatched == 0)
-    throw new InvalidOperationException("No RSA.ImportParameters calls were patched");
-if (rsaEncryptPatched == 0)
-    throw new InvalidOperationException("No RSA.Encrypt calls were patched");
-if (createRsaPatched == 0)
-    throw new InvalidOperationException("No RSA.Create() calls were patched");
-if (hmacSha1BytesPatched + hmacSha1SpanPatched + hmacSha1SpanDestinationPatched == 0)
-    throw new InvalidOperationException("No HMACSHA1.HashData calls were patched");
-if (sha1BytesPatched == 0)
-    throw new InvalidOperationException("No SHA1.HashData(byte[]) calls were patched");
-if (createAesPatched == 0)
-    throw new InvalidOperationException("No Aes.Create() calls were patched");
-if (aesEncryptEcbPatched == 0)
-    throw new InvalidOperationException("No AES EncryptEcb calls were patched");
-if (aesEncryptCbcPatched == 0)
-    throw new InvalidOperationException("No AES EncryptCbc calls were patched");
-if (aesDecryptEcbPatched == 0)
-    throw new InvalidOperationException("No AES DecryptEcb calls were patched");
-if (aesDecryptCbcPatched + aesDecryptCbcSpanDestinationPatched == 0)
-    throw new InvalidOperationException("No AES DecryptCbc calls were patched");
-
+var cryptoPatchRules = CreateCryptoPatchRules(helperType, steamKit);
+var cryptoPatchCounts = PatchCryptoCalls(steamKit, cryptoPatchRules);
+AssertRequiredCryptoPatches(cryptoPatchCounts);
 AssertNoForbiddenCryptoCallsites(steamKit);
 
-var tmpPath = steamKitPath + ".patched";
-steamKit.Write(tmpPath);
-steamKit.Dispose();
+WriteModuleOverOriginal(steamKit, steamKitPath);
 helper.Dispose();
-File.Copy(tmpPath, steamKitPath, true);
-File.Delete(tmpPath);
-Console.WriteLine($"Patched SteamKit2.dll: rng={randomPatched}, fill={fillRandomPatched}, spki={spkiPatched}, parameters={parametersPatched}, rsaEncrypt={rsaEncryptPatched}, createRsa={createRsaPatched}, hmacSha1Bytes={hmacSha1BytesPatched}, hmacSha1Span={hmacSha1SpanPatched}, hmacSha1SpanDestination={hmacSha1SpanDestinationPatched}, sha1Bytes={sha1BytesPatched}, createAes={createAesPatched}, aesEncryptEcb={aesEncryptEcbPatched}, aesEncryptCbc={aesEncryptCbcPatched}, aesDecryptEcb={aesDecryptEcbPatched}, aesDecryptCbcSpanDestination={aesDecryptCbcSpanDestinationPatched}, aesDecryptCbc={aesDecryptCbcPatched}");
+Console.WriteLine(FormatCryptoPatchSummary(cryptoPatchCounts));
 
 if (!string.IsNullOrWhiteSpace(gamePath))
     PatchGamePlatformUtil(gamePath, resolver);
 
-MethodDefinition FindHelper(string name, string returnType, params string[] parameters)
+static DefaultAssemblyResolver CreateResolver(params string?[] assemblyPaths)
 {
-    return helperType.Methods.FirstOrDefault(m =>
-        m.Name == name &&
-        m.ReturnType.FullName == returnType &&
-        m.Parameters.Count == parameters.Length &&
-        m.Parameters.Select(p => p.ParameterType.FullName).SequenceEqual(parameters))
-        ?? throw new InvalidOperationException($"Could not find AndroidJavaCrypto.{name}");
+    var resolver = new DefaultAssemblyResolver();
+    foreach (var assemblyPath in assemblyPaths)
+    {
+        if (string.IsNullOrWhiteSpace(assemblyPath))
+            continue;
+
+        resolver.AddSearchDirectory(Path.GetDirectoryName(Path.GetFullPath(assemblyPath))!);
+    }
+
+    return resolver;
+}
+
+static IReadOnlyList<CryptoPatchRule> CreateCryptoPatchRules(TypeDefinition helperType, ModuleDefinition targetModule)
+{
+    var ruleSpecs = new CryptoPatchRuleSpec[]
+    {
+        new(
+            "rng",
+            "System.Security.Cryptography.RandomNumberGenerator",
+            new("GetBytes", "System.Byte[]", "System.Int32"),
+            new("GetRandomBytes", "System.Byte[]", "System.Int32")
+        ),
+        new(
+            "fill",
+            "System.Security.Cryptography.RandomNumberGenerator",
+            new("Fill", "System.Void", "System.Span`1<System.Byte>"),
+            new("FillRandom", "System.Void", "System.Span`1<System.Byte>")
+        ),
+        new(
+            "spki",
+            "System.Security.Cryptography.AsymmetricAlgorithm",
+            new("ImportSubjectPublicKeyInfo", "System.Void", "System.ReadOnlySpan`1<System.Byte>", "System.Int32&"),
+            new("ImportSubjectPublicKeyInfo", "System.Void", "System.Security.Cryptography.AsymmetricAlgorithm", "System.ReadOnlySpan`1<System.Byte>", "System.Int32&")
+        ),
+        new(
+            "parameters",
+            "System.Security.Cryptography.RSA",
+            new("ImportParameters", "System.Void", "System.Security.Cryptography.RSAParameters"),
+            new("ImportParameters", "System.Void", "System.Security.Cryptography.RSA", "System.Security.Cryptography.RSAParameters")
+        ),
+        new(
+            "rsaEncrypt",
+            "System.Security.Cryptography.RSA",
+            new("Encrypt", "System.Byte[]", "System.Byte[]", "System.Security.Cryptography.RSAEncryptionPadding"),
+            new("RsaEncrypt", "System.Byte[]", "System.Security.Cryptography.RSA", "System.Byte[]", "System.Security.Cryptography.RSAEncryptionPadding")
+        ),
+        new(
+            "createRsa",
+            "System.Security.Cryptography.RSA",
+            new("Create", "System.Security.Cryptography.RSA"),
+            new("CreateRsa", "System.Security.Cryptography.RSA")
+        ),
+        new(
+            "hmacSha1Bytes",
+            "System.Security.Cryptography.HMACSHA1",
+            new("HashData", "System.Byte[]", "System.Byte[]", "System.Byte[]"),
+            new("HmacSha1HashData", "System.Byte[]", "System.Byte[]", "System.Byte[]")
+        ),
+        new(
+            "hmacSha1Span",
+            "System.Security.Cryptography.HMACSHA1",
+            new("HashData", "System.Byte[]", "System.ReadOnlySpan`1<System.Byte>", "System.ReadOnlySpan`1<System.Byte>"),
+            new("HmacSha1HashData", "System.Byte[]", "System.ReadOnlySpan`1<System.Byte>", "System.ReadOnlySpan`1<System.Byte>")
+        ),
+        new(
+            "hmacSha1SpanDestination",
+            "System.Security.Cryptography.HMACSHA1",
+            new("HashData", "System.Int32", "System.ReadOnlySpan`1<System.Byte>", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>"),
+            new("HmacSha1HashData", "System.Int32", "System.ReadOnlySpan`1<System.Byte>", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>")
+        ),
+        new(
+            "sha1Bytes",
+            "System.Security.Cryptography.SHA1",
+            new("HashData", "System.Byte[]", "System.Byte[]"),
+            new("Sha1HashData", "System.Byte[]", "System.Byte[]")
+        ),
+        new(
+            "createAes",
+            "System.Security.Cryptography.Aes",
+            new("Create", "System.Security.Cryptography.Aes"),
+            new("CreateAes", "System.Security.Cryptography.Aes")
+        ),
+        new(
+            "aesEncryptEcb",
+            null,
+            new("EncryptEcb", "System.Int32", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>", "System.Security.Cryptography.PaddingMode"),
+            new("AesEncryptEcb", "System.Int32", "System.Security.Cryptography.SymmetricAlgorithm", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>", "System.Security.Cryptography.PaddingMode")
+        ),
+        new(
+            "aesEncryptCbc",
+            null,
+            new("EncryptCbc", "System.Int32", "System.ReadOnlySpan`1<System.Byte>", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>", "System.Security.Cryptography.PaddingMode"),
+            new("AesEncryptCbc", "System.Int32", "System.Security.Cryptography.SymmetricAlgorithm", "System.ReadOnlySpan`1<System.Byte>", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>", "System.Security.Cryptography.PaddingMode")
+        ),
+        new(
+            "aesDecryptEcb",
+            null,
+            new("DecryptEcb", "System.Int32", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>", "System.Security.Cryptography.PaddingMode"),
+            new("AesDecryptEcb", "System.Int32", "System.Security.Cryptography.SymmetricAlgorithm", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>", "System.Security.Cryptography.PaddingMode")
+        ),
+        new(
+            "aesDecryptCbcSpanDestination",
+            null,
+            new("DecryptCbc", "System.Int32", "System.ReadOnlySpan`1<System.Byte>", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>", "System.Security.Cryptography.PaddingMode"),
+            new("AesDecryptCbc", "System.Int32", "System.Security.Cryptography.SymmetricAlgorithm", "System.ReadOnlySpan`1<System.Byte>", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>", "System.Security.Cryptography.PaddingMode")
+        ),
+        new(
+            "aesDecryptCbc",
+            null,
+            new("DecryptCbc", "System.Byte[]", "System.ReadOnlySpan`1<System.Byte>", "System.ReadOnlySpan`1<System.Byte>", "System.Security.Cryptography.PaddingMode"),
+            new("AesDecryptCbc", "System.Byte[]", "System.Security.Cryptography.SymmetricAlgorithm", "System.ReadOnlySpan`1<System.Byte>", "System.ReadOnlySpan`1<System.Byte>", "System.Security.Cryptography.PaddingMode")
+        ),
+    };
+
+    return ruleSpecs
+        .Select(spec => new CryptoPatchRule(
+            spec.CountName,
+            spec.DeclaringType,
+            spec.Target,
+            targetModule.ImportReference(FindHelper(helperType, spec.Helper))
+        ))
+        .ToArray();
+}
+
+static Dictionary<string, int> PatchCryptoCalls(ModuleDefinition module, IReadOnlyList<CryptoPatchRule> rules)
+{
+    var counts = rules.ToDictionary(rule => rule.CountName, _ => 0);
+
+    foreach (var type in module.Types.SelectMany(WalkTypes))
+    {
+        foreach (var method in type.Methods)
+        {
+            if (!method.HasBody)
+                continue;
+
+            foreach (var instruction in method.Body.Instructions)
+            {
+                if (!IsCallInstruction(instruction) || instruction.Operand is not MethodReference methodReference)
+                    continue;
+
+                var matchingRule = rules.FirstOrDefault(rule => rule.Matches(methodReference));
+                if (matchingRule is null)
+                    continue;
+
+                instruction.OpCode = OpCodes.Call;
+                instruction.Operand = matchingRule.ImportedHelper;
+                counts[matchingRule.CountName]++;
+            }
+        }
+    }
+
+    return counts;
+}
+
+static void AssertRequiredCryptoPatches(IReadOnlyDictionary<string, int> counts)
+{
+    RequirePatch(counts, "rng", "No RandomNumberGenerator.GetBytes(int) calls were patched");
+    RequirePatch(counts, "fill", "No RandomNumberGenerator.Fill(Span<byte>) calls were patched");
+    RequirePatch(counts, "spki", "No AsymmetricAlgorithm.ImportSubjectPublicKeyInfo calls were patched");
+    RequirePatch(counts, "parameters", "No RSA.ImportParameters calls were patched");
+    RequirePatch(counts, "rsaEncrypt", "No RSA.Encrypt calls were patched");
+    RequirePatch(counts, "createRsa", "No RSA.Create() calls were patched");
+    RequirePatch(counts, "sha1Bytes", "No SHA1.HashData(byte[]) calls were patched");
+    RequirePatch(counts, "createAes", "No Aes.Create() calls were patched");
+    RequirePatch(counts, "aesEncryptEcb", "No AES EncryptEcb calls were patched");
+    RequirePatch(counts, "aesEncryptCbc", "No AES EncryptCbc calls were patched");
+    RequirePatch(counts, "aesDecryptEcb", "No AES DecryptEcb calls were patched");
+
+    if (Sum(counts, "hmacSha1Bytes", "hmacSha1Span", "hmacSha1SpanDestination") == 0)
+        throw new InvalidOperationException("No HMACSHA1.HashData calls were patched");
+    if (Sum(counts, "aesDecryptCbc", "aesDecryptCbcSpanDestination") == 0)
+        throw new InvalidOperationException("No AES DecryptCbc calls were patched");
+}
+
+static string FormatCryptoPatchSummary(IReadOnlyDictionary<string, int> counts)
+{
+    var orderedNames = new[]
+    {
+        "rng",
+        "fill",
+        "spki",
+        "parameters",
+        "rsaEncrypt",
+        "createRsa",
+        "hmacSha1Bytes",
+        "hmacSha1Span",
+        "hmacSha1SpanDestination",
+        "sha1Bytes",
+        "createAes",
+        "aesEncryptEcb",
+        "aesEncryptCbc",
+        "aesDecryptEcb",
+        "aesDecryptCbcSpanDestination",
+        "aesDecryptCbc"
+    };
+
+    return "Patched SteamKit2.dll: " + string.Join(", ", orderedNames.Select(name => $"{name}={counts[name]}"));
+}
+
+static MethodDefinition FindHelper(TypeDefinition helperType, MethodSignature signature)
+{
+    return helperType.Methods.FirstOrDefault(signature.Matches)
+        ?? throw new InvalidOperationException($"Could not find AndroidJavaCrypto.{signature.Name}");
+}
+
+static void RequirePatch(IReadOnlyDictionary<string, int> counts, string name, string message)
+{
+    if (counts[name] == 0)
+        throw new InvalidOperationException(message);
+}
+
+static int Sum(IReadOnlyDictionary<string, int> counts, params string[] names)
+{
+    return names.Sum(name => counts[name]);
+}
+
+static bool IsCallInstruction(Instruction instruction)
+{
+    return instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt;
+}
+
+static void WriteModuleOverOriginal(ModuleDefinition module, string path)
+{
+    var tmpPath = path + ".patched";
+    module.Write(tmpPath);
+    module.Dispose();
+    File.Copy(tmpPath, path, true);
+    File.Delete(tmpPath);
 }
 
 static IEnumerable<TypeDefinition> WalkTypes(TypeDefinition type)
@@ -583,11 +408,7 @@ static void PatchGamePlatformUtil(string gamePath, IAssemblyResolver resolver)
         il.Append(il.Create(OpCodes.Ret));
     });
 
-    var tmpPath = gamePath + ".patched";
-    game.Write(tmpPath);
-    game.Dispose();
-    File.Copy(tmpPath, gamePath, true);
-    File.Delete(tmpPath);
+    WriteModuleOverOriginal(game, gamePath);
     Console.WriteLine("Patched sts2.dll PlatformUtil: NullPlatformUtilStrategy constructor no-op, static constructor uses NullPlatformUtilStrategy, PrimaryPlatform=None, GetPlatformUtil returns _null");
 }
 
@@ -604,3 +425,33 @@ static void ReplaceBody(MethodDefinition method, Action<ILProcessor> emit)
     emit(method.Body.GetILProcessor());
 }
 
+sealed record MethodSignature(string Name, string ReturnType, params string[] ParameterTypes)
+{
+    public bool Matches(MethodReference method)
+    {
+        return method.Name == Name &&
+            method.ReturnType.FullName == ReturnType &&
+            method.Parameters.Count == ParameterTypes.Length &&
+            method.Parameters.Select(parameter => parameter.ParameterType.FullName).SequenceEqual(ParameterTypes);
+    }
+}
+
+sealed record CryptoPatchRuleSpec(
+    string CountName,
+    string? DeclaringType,
+    MethodSignature Target,
+    MethodSignature Helper
+);
+
+sealed record CryptoPatchRule(
+    string CountName,
+    string? DeclaringType,
+    MethodSignature Target,
+    MethodReference ImportedHelper
+)
+{
+    public bool Matches(MethodReference method)
+    {
+        return (DeclaringType is null || method.DeclaringType.FullName == DeclaringType) && Target.Matches(method);
+    }
+}

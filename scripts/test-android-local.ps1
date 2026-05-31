@@ -11,70 +11,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "android-adb-utils.ps1")
+
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 if (-not $ArtifactsDir) {
     $ArtifactsDir = Join-Path $root "artifacts\android"
 }
 
-if (-not (Test-Path -LiteralPath $AdbPath)) {
-    throw "ADB not found: $AdbPath"
-}
-
-function Invoke-Adb {
-    param(
-        [Parameter(ValueFromRemainingArguments = $true)]
-        [string[]]$Arguments
-    )
-
-    if ($DeviceSerial) {
-        & $AdbPath "-s" $DeviceSerial @Arguments
-    } else {
-        & $AdbPath @Arguments
-    }
-    if ($LASTEXITCODE -ne 0) {
-        throw "adb $($Arguments -join ' ') failed"
-    }
-}
-
-function Get-TargetDevice() {
-    $deadline = (Get-Date).AddSeconds($WaitForDeviceSeconds)
-
-    while ($true) {
-        $device = Find-TargetDevice
-        if ($device) {
-            return $device
-        }
-
-        if ((Get-Date) -ge $deadline) {
-            if ($DeviceSerial) {
-                throw "Requested Android device/emulator is not attached or not in 'device' state: $DeviceSerial"
-            }
-            throw "No attached Android device/emulator."
-        }
-
-        Start-Sleep -Seconds 1
-    }
-}
-
-function Find-TargetDevice() {
-    if ($DeviceSerial) {
-        $matchingLine = @(& $AdbPath devices | Select-Object -Skip 1 | Where-Object { $_ -match "^$([regex]::Escape($DeviceSerial))\s+device$" })
-        if ($matchingLine.Count -eq 0) {
-            return $null
-        }
-        return $DeviceSerial
-    }
-
-    $deviceLines = @(& $AdbPath devices | Select-Object -Skip 1 | Where-Object { $_ -match "\tdevice$" })
-    if ($deviceLines.Count -eq 0) {
-        return $null
-    }
-    if ($deviceLines.Count -gt 1) {
-        $serials = $deviceLines | ForEach-Object { ($_ -split "\s+")[0] }
-        throw "Multiple Android devices/emulators attached. Pass -DeviceSerial with one of: $($serials -join ', ')"
-    }
-    return ($deviceLines[0] -split "\s+")[0]
-}
+Assert-AndroidAdbPath -AdbPath $AdbPath
 
 function Resolve-ApkForAbi([string]$AbiList) {
     if ($ApkPath) {
@@ -130,11 +74,11 @@ function Test-ApkChecksum([string]$Path) {
     Write-Host "Checksum OK: $checksumPath"
 }
 
-$device = Get-TargetDevice
+$device = Resolve-AndroidTargetDevice -AdbPath $AdbPath -DeviceSerial $DeviceSerial -WaitForDeviceSeconds $WaitForDeviceSeconds
 $DeviceSerial = $device
-$abiList = (& $AdbPath "-s" $DeviceSerial shell getprop ro.product.cpu.abilist).Trim()
+$abiList = (Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", "ro.product.cpu.abilist") | Out-String).Trim()
 $apk = Resolve-ApkForAbi $abiList
-$component = "$PackageName/com.game.sts2launcher.LauncherActivity"
+$component = Get-AndroidLauncherComponent -PackageName $PackageName
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $fullLogPath = Join-Path $ArtifactsDir "logcat-smoke-$timestamp-full.txt"
 $filteredLogPath = Join-Path $ArtifactsDir "logcat-smoke-$timestamp-filtered.txt"
@@ -145,19 +89,19 @@ Write-Host "ABI list: $abiList"
 Write-Host "APK: $apk"
 Test-ApkChecksum $apk
 
-Invoke-Adb "install" "-r" $apk
+Invoke-AndroidAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("install", "-r", $apk)
 if ($ClearAppData) {
-    Invoke-Adb "shell" "pm" "clear" $PackageName
+    Invoke-AndroidAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "pm", "clear", $PackageName)
 }
 
-Invoke-Adb "logcat" "-c"
-Invoke-Adb "shell" "am" "force-stop" $PackageName
-Invoke-Adb "shell" "am" "start" "-n" $component
+Invoke-AndroidAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("logcat", "-c")
+Invoke-AndroidAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "am", "force-stop", $PackageName)
+Invoke-AndroidAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "am", "start", "-n", $component)
 
 Start-Sleep -Seconds $WaitSeconds
 
 $patterns = "STS2Mobile|Routing to native x86 fallback|Showing native x86 fallback|InitEngine|\.NET:|\.NET assemblies not found|Unable to find the \.NET assemblies directory|api_assemblies_dir|Missing required cache file|Assembly setup failed|FORTIFY|FATAL|crash|AndroidRuntime|Exception"
-$fullLog = @(& $AdbPath "-s" $DeviceSerial logcat -d -v time)
+$fullLog = Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("logcat", "-d", "-v", "time")
 $fullLog | Set-Content -LiteralPath $fullLogPath -Encoding UTF8
 
 $filteredLog = @($fullLog |

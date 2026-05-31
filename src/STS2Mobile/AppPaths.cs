@@ -1,40 +1,43 @@
 using System;
 using System.IO;
-using Godot;
 
 namespace STS2Mobile;
 
 // Shared path constants for external storage directories and permission helpers.
-public static class AppPaths
+internal static class AppPaths
 {
-    private const string ExternalRoot = "/storage/emulated/0/StS2Launcher";
-    public const string ExternalModsDir = ExternalRoot + "/Mods";
-    public const string ExternalSaveBackupsDir = ExternalRoot + "/Saves";
+    private const string ExternalStorageRoot = "/storage/emulated/0/StS2Launcher";
+    private const string HasPermissionBridgeMethod = "hasStoragePermission";
+    private const string RequestPermissionBridgeMethod = "requestStoragePermission";
+
+    internal const string ExternalModsDir = ExternalStorageRoot + "/Mods";
+    internal const string ExternalSaveBackupsDir = ExternalStorageRoot + "/Saves";
 
     // Returns true if the app has permission to write to shared external storage.
-    public static bool HasStoragePermission()
+    internal static bool HasStoragePermission()
     {
         try
         {
-            var godotApp = GetGodotApp();
-            if (godotApp == null)
+            if (!AndroidGodotAppBridge.TryGetInstance(out var godotApp))
                 return false;
-            return (bool)godotApp.Call("hasStoragePermission");
+
+            return (bool)godotApp.Call(HasPermissionBridgeMethod);
         }
-        catch
+        catch (Exception ex)
         {
+            PatchHelper.Log($"Failed to check storage permission: {ex.Message}");
             return false;
         }
     }
 
     // Requests external storage permission. On Android 11+, opens the system
     // settings page. On older versions, shows the runtime permission dialog.
-    public static void RequestStoragePermission()
+    internal static void RequestStoragePermission()
     {
         try
         {
-            var godotApp = GetGodotApp();
-            godotApp?.Call("requestStoragePermission");
+            if (AndroidGodotAppBridge.TryGetInstance(out var godotApp))
+                godotApp.Call(RequestPermissionBridgeMethod);
         }
         catch (Exception ex)
         {
@@ -43,34 +46,24 @@ public static class AppPaths
     }
 
     // Creates the external Mods and Saves directories if storage permission is granted.
-    public static void EnsureExternalDirectories()
+    internal static void EnsureExternalDirectories()
     {
         if (!HasStoragePermission())
             return;
 
-        try
-        {
-            Directory.CreateDirectory(ExternalModsDir);
-        }
-        catch { }
-        try
-        {
-            Directory.CreateDirectory(ExternalSaveBackupsDir);
-        }
-        catch { }
+        EnsureExternalDirectory(ExternalModsDir);
+        EnsureExternalDirectory(ExternalSaveBackupsDir);
     }
 
-    private static GodotObject GetGodotApp()
+    private static void EnsureExternalDirectory(string path)
     {
         try
         {
-            var jcw = Engine.GetSingleton("JavaClassWrapper");
-            var wrapper = (GodotObject)jcw.Call("wrap", "com.game.sts2launcher.GodotApp");
-            return (GodotObject)wrapper.Call("getInstance");
+            Directory.CreateDirectory(path);
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            PatchHelper.Log($"[Storage] Failed to create external directory {path}: {ex.Message}");
         }
     }
 }

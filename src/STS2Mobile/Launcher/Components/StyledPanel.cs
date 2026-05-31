@@ -3,11 +3,14 @@ using Godot;
 
 namespace STS2Mobile.Launcher.Components;
 
-public class StyledPanel : CenterContainer
+internal sealed class StyledPanel : CenterContainer
 {
-    public VBoxContainer Content { get; }
+    private const float MaxWidth = 1400f;
+    private const float MaxHeight = 800f;
 
-    public StyledPanel(float scale, float widthRatio = 0.7f)
+    internal VBoxContainer Content { get; }
+
+    internal StyledPanel(float scale, float widthRatio = 0.7f)
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
 
@@ -15,19 +18,15 @@ public class StyledPanel : CenterContainer
         var panelContainer = new PanelContainer();
         panelContainer.CustomMinimumSize = new Vector2(vpSize.X * widthRatio, 0);
 
-        var style = new StyleBoxFlat();
-        style.BgColor = new Color(0.12f, 0.12f, 0.15f);
-        style.SetCornerRadiusAll(S(scale, 8));
-        style.ContentMarginLeft = S(scale, 28);
-        style.ContentMarginRight = S(scale, 28);
-        style.ContentMarginTop = S(scale, 24);
-        style.ContentMarginBottom = S(scale, 24);
-        panelContainer.AddThemeStyleboxOverride("panel", style);
+        panelContainer.AddThemeStyleboxOverride(
+            LauncherComponentTheme.Panel,
+            BuildStyle(scale)
+        );
         AddChild(panelContainer);
 
         Content = new VBoxContainer();
-        Content.SizeFlagsVertical = SizeFlags.ExpandFill;
-        Content.AddThemeConstantOverride("separation", S(scale, 10));
+        Content.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        Content.AddThemeConstantOverride("separation", (int)(10 * scale));
         panelContainer.AddChild(Content);
 
         // Defer viewport-based sizing until in tree
@@ -35,19 +34,26 @@ public class StyledPanel : CenterContainer
         _widthRatio = widthRatio;
     }
 
-    public PanelContainer Panel => _panelContainer;
+    internal PanelContainer Panel => _panelContainer;
     private readonly PanelContainer _panelContainer;
     private readonly float _widthRatio;
 
-    private const float MaxWidth = 1400f;
-    private const float MaxHeight = 800f;
+    internal void UpdateSizeFromViewport(Vector2 vpSize)
+        => _panelContainer.CustomMinimumSize = new Vector2(
+            Math.Min(vpSize.X * _widthRatio, MaxWidth),
+            Math.Min(vpSize.Y * 0.85f, MaxHeight)
+        );
 
-    public void UpdateSizeFromViewport(Vector2 vpSize)
+    private static StyleBoxFlat BuildStyle(float scale)
     {
-        var w = Math.Min(vpSize.X * _widthRatio, MaxWidth);
-        var h = Math.Min(vpSize.Y * 0.85f, MaxHeight);
-        _panelContainer.CustomMinimumSize = new Vector2(w, h);
+        var style = LauncherStyleBoxes.MakeFilled(
+            LauncherComponentTheme.PanelBackground,
+            LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.PanelRadius)
+        );
+        style.ContentMarginLeft = LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.PanelHorizontalMargin);
+        style.ContentMarginRight = LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.PanelHorizontalMargin);
+        style.ContentMarginTop = LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.PanelTopMargin);
+        style.ContentMarginBottom = LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.PanelBottomMargin);
+        return style;
     }
-
-    private static int S(float scale, int v) => (int)(v * scale);
 }

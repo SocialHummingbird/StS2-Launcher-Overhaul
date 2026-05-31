@@ -2,11 +2,11 @@ using Godot;
 
 namespace STS2Mobile.Launcher.Components;
 
-public class ScreenBackground : ColorRect
+internal sealed class ScreenBackground : ColorRect
 {
-    public ScreenBackground()
+    internal ScreenBackground()
     {
-        Color = new Color(0.08f, 0.08f, 0.1f);
+        Color = LauncherComponentTheme.ScreenBackground;
         SetAnchorsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Stop;
     }

@@ -7,6 +7,8 @@ ANDROID_LIBS="$ROOT/android/libs/release"
 ARCHES="${ARCHES:-arm64 x86_64}"
 EXPECTED_GODOT_VERSION="${EXPECTED_GODOT_VERSION:-4.5.1-stable}"
 
+source "$ROOT/scripts/godot-source-utils.sh"
+
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 if [ -z "${ANDROID_NDK_ROOT:-}" ]; then
     LATEST_NDK=$(ls -1 "$ANDROID_HOME/ndk" | sort -V | tail -1)
@@ -18,6 +20,8 @@ if [ ! -d "$GODOT_DIR" ]; then
     echo "Run scripts/setup-godot-source.sh, or set GODOT_DIR to the custom patched Godot checkout."
     exit 1
 fi
+
+apply_godot_patches "$GODOT_DIR" "$ROOT"
 
 if [ ! -f "$ROOT/venv/bin/activate" ]; then
     echo "ERROR: Expected Python virtualenv at $ROOT/venv"

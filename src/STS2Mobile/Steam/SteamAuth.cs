@@ -6,18 +6,18 @@ using SteamKit2.Authentication;
 
 namespace STS2Mobile.Steam;
 
-public record AuthResult(string AccountName, string RefreshToken, string GuardData);
 
 // Handles one-time interactive Steam login (password + 2FA). Creates a temporary
 // SteamClient for the auth flow, returns credentials, then disposes. Does NOT
 // call SteamUser.LogOn — callers use the returned refresh token with SteamConnection.
-public class SteamAuth : IDisposable
+internal sealed class SteamAuth : IDisposable
 {
+    internal sealed record AuthResult(string AccountName, string RefreshToken, string GuardData);
+
     private readonly SteamClient _client;
     private readonly CallbackManager _callbackManager;
     private readonly SteamUser _steamUser;
-    private Thread _callbackThread;
-    private volatile bool _callbackRunning;
+    private readonly SteamCallbackPump _callbackPump;
     private volatile bool _connectStarted;
     private volatile bool _mobileConfirmationRequested;
     private volatile bool _forceSteamGuardCodeEntry;
@@ -27,29 +27,18 @@ public class SteamAuth : IDisposable
 
     // Set by the caller before LoginWithCredentialsAsync. The bool indicates
     // whether the previous code was incorrect.
-    public Func<bool, Task<string>> CodeProvider { get; set; }
+    internal Func<bool, Task<string>> CodeProvider { get; set; }
 
     // Set when the WebSocket drops during 2FA wait (e.g. user backgrounds app).
     internal volatile bool NeedsReconnectForAuth;
 
-    public event Action<string> LogMessage;
+    internal event Action<string> LogMessage;
 
-    public SteamAuth()
+    internal SteamAuth()
     {
-        AndroidJavaHttpMessageHandler.Prime();
-        var config = SteamConfiguration.Create(b =>
-        {
-            b.WithProtocolTypes(OperatingSystem.IsAndroid() ? ProtocolTypes.Tcp : ProtocolTypes.WebSocket);
-            if (OperatingSystem.IsAndroid())
-            {
-                b.WithHttpClientFactory(AndroidJavaHttpMessageHandler.CreateClient);
-                b.WithMachineInfoProvider(new AndroidMachineInfoProvider());
-            }
-        }
-        );
-        SteamKitAndroidMachineIdPatch.Apply(config);
-        _client = new SteamClient(config);
+        _client = new SteamClient(SteamConnectionConfigurationFactory.Create());
         _callbackManager = new CallbackManager(_client);
+        _callbackPump = new SteamCallbackPump(_callbackManager, "SteamAuthCallbacks", Log);
         _steamUser = _client.GetHandler<SteamUser>();
 
         _callbackManager.Subscribe<SteamClient.ConnectedCallback>(_ =>
@@ -69,7 +58,7 @@ public class SteamAuth : IDisposable
         });
     }
 
-    public void Connect()
+    internal void Connect()
     {
         if (_connectStarted && !_connectedGate.IsSet)
             return;
@@ -81,7 +70,7 @@ public class SteamAuth : IDisposable
         Log("Connecting to Steam...");
     }
 
-    public async Task<bool> WaitForConnectAsync(int timeoutMs = 10_000)
+    internal async Task<bool> WaitForConnectAsync(int timeoutMs = 10_000)
     {
         for (int i = 0; i < timeoutMs / 100; i++)
         {
@@ -92,7 +81,7 @@ public class SteamAuth : IDisposable
         return _connectedGate.IsSet;
     }
 
-    public async Task<AuthResult> LoginWithCredentialsAsync(
+    internal async Task<AuthResult> LoginWithCredentialsAsync(
         string username,
         string password,
         string guardData
@@ -174,52 +163,31 @@ public class SteamAuth : IDisposable
             Log("Reconnect timed out — auth code submission may fail");
     }
 
-    public void Dispose()
+    void IDisposable.Dispose()
+        => Dispose();
+
+    internal void Dispose()
     {
         if (_disposed)
             return;
         _disposed = true;
-        _callbackRunning = false;
         _connectStarted = false;
         try
         {
             _client?.Disconnect();
         }
-        catch { }
-        _callbackThread?.Join(2000);
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Auth] Disconnect failed during dispose: {ex.Message}");
+        }
+
+        _callbackPump.Stop(2000);
         _connectedGate.Dispose();
     }
 
     private void StartCallbackThread()
     {
-        if (_callbackThread != null && _callbackThread.IsAlive)
-            return;
-
-        _callbackRunning = true;
-        _callbackThread = new Thread(() =>
-        {
-            while (_callbackRunning)
-            {
-                try
-                {
-                    _callbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
-                }
-                catch (ObjectDisposedException) when (!_callbackRunning)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Log($"Steam callback error: {ex.GetType().Name}: {ex.Message}");
-                    Thread.Sleep(500);
-                }
-            }
-        })
-        {
-            IsBackground = true,
-            Name = "SteamAuthCallbacks",
-        };
-        _callbackThread.Start();
+        _callbackPump.Start();
     }
 
     private void Log(string msg)
@@ -228,38 +196,28 @@ public class SteamAuth : IDisposable
         LogMessage?.Invoke(msg);
     }
 
-    private class AuthAuthenticator : IAuthenticator
+    private sealed class AuthAuthenticator : IAuthenticator
     {
         private readonly SteamAuth _auth;
 
-        public AuthAuthenticator(SteamAuth auth) => _auth = auth;
+        private AuthAuthenticator(SteamAuth auth) => _auth = auth;
 
         public async Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
         {
-            _auth.Log(
-                previousCodeWasIncorrect
-                    ? "Previous 2FA code was incorrect, requesting new code"
-                    : "Steam Guard 2FA code required"
+            return await _auth.RequestCodeAsync(
+                previousCodeWasIncorrect,
+                "Previous 2FA code was incorrect, requesting new code",
+                "Steam Guard 2FA code required"
             );
-
-            if (_auth.CodeProvider == null)
-                throw new AuthenticationException("No code provider configured");
-
-            return await _auth.CodeProvider(previousCodeWasIncorrect);
         }
 
         public async Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
         {
-            _auth.Log(
-                previousCodeWasIncorrect
-                    ? "Previous email code was incorrect, requesting new code"
-                    : $"Steam Guard email code sent to {email}"
+            return await _auth.RequestCodeAsync(
+                previousCodeWasIncorrect,
+                "Previous email code was incorrect, requesting new code",
+                $"Steam Guard email code sent to {email}"
             );
-
-            if (_auth.CodeProvider == null)
-                throw new AuthenticationException("No code provider configured");
-
-            return await _auth.CodeProvider(previousCodeWasIncorrect);
         }
 
         public Task<bool> AcceptDeviceConfirmationAsync()
@@ -274,5 +232,19 @@ public class SteamAuth : IDisposable
             _auth.Log("Steam mobile app confirmation requested; waiting for approval");
             return Task.FromResult(true);
         }
+    }
+
+    private async Task<string> RequestCodeAsync(
+        bool previousCodeWasIncorrect,
+        string retryMessage,
+        string initialMessage
+    )
+    {
+        Log(previousCodeWasIncorrect ? retryMessage : initialMessage);
+
+        if (CodeProvider == null)
+            throw new AuthenticationException("No code provider configured");
+
+        return await CodeProvider(previousCodeWasIncorrect);
     }
 }

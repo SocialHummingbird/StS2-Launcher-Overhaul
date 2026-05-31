@@ -8,65 +8,63 @@ namespace STS2Mobile.Patches;
 // Cancels card play when the touch is released outside the play zone.
 // The desktop game relies on mouse-up position, but on mobile the drag target
 // can drift below the play zone threshold during a swipe.
-public static class TouchInputPatches
+internal static class TouchInputPatches
 {
-    public static void Apply(Harmony harmony)
+    internal static void Apply(Harmony harmony)
     {
         var mouseCardPlayType = typeof(MegaCrit.Sts2.Core.Nodes.NGame).Assembly.GetType(
             "MegaCrit.Sts2.Core.Nodes.Combat.NMouseCardPlay"
         );
-        if (mouseCardPlayType != null)
-        {
-            PatchHelper.Patch(
-                harmony,
-                mouseCardPlayType,
-                "_Input",
-                postfix: PatchHelper.Method(
-                    typeof(TouchInputPatches),
-                    nameof(MouseCardPlayInputPostfix)
-                )
-            );
-        }
+        if (mouseCardPlayType == null)
+            return;
+
+        PatchHelper.Patch(
+            harmony,
+            mouseCardPlayType,
+            "_Input",
+            postfix: PatchHelper.Method(
+                typeof(TouchInputPatches),
+                nameof(MouseCardPlayInputPostfix)
+            )
+        );
     }
 
     // On left mouse button release, check if the card is still in the play zone.
     // If not, cancel the card play to prevent accidental plays from imprecise touches.
-    public static void MouseCardPlayInputPostfix(object __instance, object inputEvent)
+    private static void MouseCardPlayInputPostfix(object __instance, object inputEvent)
     {
         try
         {
-            var inputEvt = (InputEvent)inputEvent;
-            if (
-                inputEvt is InputEventMouseButton mouseBtn
-                && mouseBtn.ButtonIndex == MouseButton.Left
-                && mouseBtn.IsReleased()
-            )
-            {
-                var instanceType = __instance.GetType();
-
-                var isInPlayZone = instanceType.GetMethod(
-                    "IsCardInPlayZone",
-                    BindingFlags.NonPublic | BindingFlags.Instance
-                );
-                if (isInPlayZone == null)
-                    return;
-
-                bool inPlayZone = (bool)isInPlayZone.Invoke(__instance, null);
-
-                if (!inPlayZone)
-                {
-                    var cancelMethod = instanceType.GetMethod(
-                        "CancelPlayCard",
-                        BindingFlags.Public | BindingFlags.Instance
-                    );
-                    cancelMethod?.Invoke(__instance, null);
-                    PatchHelper.Log("Card play cancelled: touch released below play zone");
-                }
-            }
+            CancelIfReleasedOutsidePlayZone(__instance, inputEvent);
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"MouseCardPlayInputPostfix: {ex.GetType().Name}: {ex.Message}");
         }
+    }
+
+    private static void CancelIfReleasedOutsidePlayZone(object cardPlay, object inputEvent)
+    {
+        if (
+            inputEvent is not InputEventMouseButton mouseButton
+            || mouseButton.ButtonIndex != MouseButton.Left
+            || !mouseButton.IsReleased()
+        )
+            return;
+
+        var instanceType = cardPlay.GetType();
+        var isInPlayZone = instanceType.GetMethod(
+            "IsCardInPlayZone",
+            BindingFlags.NonPublic | BindingFlags.Instance
+        );
+        if (isInPlayZone == null || (bool)isInPlayZone.Invoke(cardPlay, null))
+            return;
+
+        var cancel = instanceType.GetMethod(
+            "CancelPlayCard",
+            BindingFlags.Public | BindingFlags.Instance
+        );
+        cancel?.Invoke(cardPlay, null);
+        PatchHelper.Log("Card play cancelled: touch released below play zone");
     }
 }

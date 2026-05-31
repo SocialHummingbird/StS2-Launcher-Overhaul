@@ -3,10 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 using Godot;
-using Godot.Bridge;
-using Godot.NativeInterop;
 using HarmonyLib;
 using STS2Mobile.Launcher;
 
@@ -16,12 +13,28 @@ namespace STS2Mobile;
 // patches, and falls back to standalone launcher mode if game files aren't present.
 public static class ModEntry
 {
+    private const int ApplyComplete = 2;
+    private const int ApplyInProgress = 1;
+    private const int ApplyNotStarted = 0;
+    private const int BootstrapProbeCode = 1729;
     private const string HarmonyId = "com.sts2mobile";
-    private const int NotStarted = 0;
-    private const int InProgress = 1;
-    private const int Complete = 2;
-
-    private static int _applyState = NotStarted;
+    private const int HarmonyConstructorProbeCode = 1730;
+    private const int ProbeFailure = -1;
+    private const int ProbeSuccess = 0;
+    private const int ProbeSuccessWithValue = 1;
+    private const uint GodotPckMagic = 0x43504447;
+    private const string GamePckPath =
+        "/data/data/com.sts2launcher.overhaul.fork.dev/files/game/SlayTheSpire2.pck";
+    private const int MinimumPckHeaderLength = 96;
+    private const string ManagedTempDirectory =
+        "/data/data/com.sts2launcher.overhaul.fork.dev/files/tmp";
+    private static readonly string[] TempVariableNames =
+    {
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+    };
+    private static int _applyState = ApplyNotStarted;
     private static int _exceptionHandlersInstalled;
 
     // Bootstraps GodotSharp by setting up DLL import resolver, native interop,
@@ -36,13 +49,12 @@ public static class ModEntry
     {
         try
         {
-            DllImportResolver dllImportResolver = new GodotDllImportResolver(godotDllHandle).OnResolveDllImport;
-            var coreApiAssembly = typeof(GodotObject).Assembly;
-            NativeLibrary.SetDllImportResolver(coreApiAssembly, dllImportResolver);
-
-            NativeFuncs.Initialize(unmanagedCallbacks, unmanagedCallbacksSize);
-            ManagedCallbacks.Create(outManagedCallbacks);
-
+            GodotSharpBootstrap.Initialize(
+                godotDllHandle,
+                outManagedCallbacks,
+                unmanagedCallbacks,
+                unmanagedCallbacksSize
+            );
             return 1;
         }
         catch
@@ -63,38 +75,28 @@ public static class ModEntry
         try
         {
             BootstrapTrace.Log("ApplyFromGodot entered");
-            var applyInternal = typeof(ModEntry).GetMethod(
-                "ApplyInternal",
-                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic
-            );
-            if (applyInternal == null)
-            {
-                BootstrapTrace.Log("ApplyInternal reflection lookup failed");
-                return -2;
-            }
-
-            applyInternal.Invoke(null, null);
+            ApplyInternal();
             BootstrapTrace.Log("ApplyFromGodot completed");
-            return 0;
+            return ProbeSuccess;
         }
         catch (Exception ex)
         {
             BootstrapTrace.Log($"Unhandled bootstrap failure: {ex}");
-            return -1;
+            return ProbeFailure;
         }
     }
 
     [UnmanagedCallersOnly]
     public static int BootstrapProbe()
     {
-        return 1729;
+        return BootstrapProbeCode;
     }
 
     [UnmanagedCallersOnly]
     public static int HarmonyConstructorProbe()
     {
         _ = new Harmony(HarmonyId);
-        return 1730;
+        return HarmonyConstructorProbeCode;
     }
 
     [UnmanagedCallersOnly]
@@ -103,11 +105,11 @@ public static class ModEntry
         try
         {
             ScheduleStandaloneLauncher();
-            return 1;
+            return ProbeSuccessWithValue;
         }
         catch
         {
-            return 0;
+            return ProbeSuccess;
         }
     }
 
@@ -115,7 +117,7 @@ public static class ModEntry
     {
         BootstrapTrace.Log("ApplyInternal entered");
         InstallManagedExceptionHandlers();
-        if (Interlocked.CompareExchange(ref _applyState, InProgress, NotStarted) != NotStarted)
+        if (!TryBeginApply())
         {
             BootstrapTrace.Log("ApplyInternal duplicate invocation skipped");
             PatchHelper.Log("Apply already running/completed; skipping duplicate invocation.");
@@ -128,7 +130,7 @@ public static class ModEntry
         }
         finally
         {
-            _applyState = Complete;
+            CompleteApply();
         }
     }
 
@@ -164,7 +166,7 @@ public static class ModEntry
             }
 
             PatchHelper.Log("Startup patch orchestration complete.");
-            if (IsLauncherOnlyMode())
+            if (IsStandaloneLauncherRequired())
             {
                 ScheduleStandaloneLauncher();
             }
@@ -175,6 +177,9 @@ public static class ModEntry
             ScheduleStandaloneLauncher();
         }
     }
+
+    private static bool IsStandaloneLauncherRequired()
+        => !IsGamePckStructurallyReady(GamePckPath);
 
     private static void InstallManagedExceptionHandlers()
     {
@@ -187,7 +192,10 @@ public static class ModEntry
             {
                 BootstrapTrace.Log($"Unhandled managed exception: {args.ExceptionObject}");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                BootstrapTrace.Log($"Managed exception handler logging failed: {ex.Message}");
+            }
         };
 
         TaskScheduler.UnobservedTaskException += (_, args) =>
@@ -196,7 +204,10 @@ public static class ModEntry
             {
                 BootstrapTrace.Log($"Unobserved task exception: {args.Exception}");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                BootstrapTrace.Log($"Managed exception handler logging failed: {ex.Message}");
+            }
         };
 
         BootstrapTrace.Log("Managed exception handlers installed");
@@ -204,25 +215,12 @@ public static class ModEntry
 
     private static void ConfigureWritableTempDirectory()
     {
-        var tempDir = ResolveManagedTempDirectory();
-        Directory.CreateDirectory(tempDir);
+        Directory.CreateDirectory(ManagedTempDirectory);
 
-        System.Environment.SetEnvironmentVariable("TMPDIR", tempDir);
-        System.Environment.SetEnvironmentVariable("TMP", tempDir);
-        System.Environment.SetEnvironmentVariable("TEMP", tempDir);
-        PatchHelper.Log($"Using writable temp directory: {tempDir}");
-    }
+        foreach (var variable in TempVariableNames)
+            Environment.SetEnvironmentVariable(variable, ManagedTempDirectory);
 
-    private static string ResolveManagedTempDirectory()
-    {
-        return "/data/data/com.sts2launcher.overhaul.fork.dev/files/tmp";
-    }
-
-    private static bool IsLauncherOnlyMode()
-    {
-        return !IsGamePckStructurallyReady(
-            "/data/data/com.sts2launcher.overhaul.fork.dev/files/game/SlayTheSpire2.pck"
-        );
+        PatchHelper.Log($"Using writable temp directory: {ManagedTempDirectory}");
     }
 
     private static bool IsGamePckStructurallyReady(string path)
@@ -234,20 +232,7 @@ public static class ModEntry
 
             using var fs = File.OpenRead(path);
             using var reader = new BinaryReader(fs);
-            if (fs.Length < 96)
-                return false;
-
-            if (reader.ReadUInt32() != 0x43504447)
-                return false;
-
-            reader.ReadUInt32(); // format version
-            reader.ReadUInt32(); // major
-            reader.ReadUInt32(); // minor
-            reader.ReadUInt32(); // patch
-            reader.ReadUInt32(); // flags
-            reader.ReadInt64(); // file base
-            var dirBase = reader.ReadInt64();
-            if (dirBase <= 0 || dirBase + 4 > fs.Length)
+            if (!TryReadPckDirectoryBase(reader, fs.Length, out var dirBase))
                 return false;
 
             fs.Position = dirBase;
@@ -257,6 +242,25 @@ public static class ModEntry
         {
             return false;
         }
+    }
+
+    private static bool TryReadPckDirectoryBase(BinaryReader reader, long fileLength, out long dirBase)
+    {
+        dirBase = 0;
+        if (fileLength < MinimumPckHeaderLength)
+            return false;
+
+        if (reader.ReadUInt32() != GodotPckMagic)
+            return false;
+
+        reader.ReadUInt32();
+        reader.ReadUInt32();
+        reader.ReadUInt32();
+        reader.ReadUInt32();
+        reader.ReadUInt32();
+        reader.ReadInt64();
+        dirBase = reader.ReadInt64();
+        return dirBase > 0 && dirBase + 4 <= fileLength;
     }
 
     private static void ScheduleStandaloneLauncher()
@@ -277,5 +281,15 @@ public static class ModEntry
         tree.Root.AddChild(launcher);
         launcher.Initialize();
         PatchHelper.Log("Standalone launcher displayed");
+    }
+
+    private static bool TryBeginApply()
+    {
+        return Interlocked.CompareExchange(ref _applyState, ApplyInProgress, ApplyNotStarted) == ApplyNotStarted;
+    }
+
+    private static void CompleteApply()
+    {
+        _applyState = ApplyComplete;
     }
 }

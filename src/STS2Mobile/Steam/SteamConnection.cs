@@ -6,14 +6,6 @@ using SteamKit2.Internal;
 
 namespace STS2Mobile.Steam;
 
-public enum ConnectionState
-{
-    Idle,
-    Connecting,
-    Connected,
-    Draining,
-    Backoff,
-}
 
 // General-purpose on-demand Steam connection. Connects when a handler is accessed,
 // auto-disconnects after idle timeout, reconnects with exponential backoff on failure.
@@ -30,8 +22,17 @@ public enum ConnectionState
 //   Draining → Idle         : Pending RPCs complete
 //   Backoff → Connecting    : Backoff expires, work pending
 //   Backoff → Idle          : Backoff expires, no work pending
-public class SteamConnection : IDisposable
+internal sealed class SteamConnection : IDisposable
 {
+    private enum ConnectionState
+    {
+        Idle,
+        Connecting,
+        Connected,
+        Draining,
+        Backoff,
+    }
+
     private const int MaxBackoffMs = 32_000;
     private const int ConnectTimeoutMs = 15_000;
 
@@ -46,8 +47,7 @@ public class SteamConnection : IDisposable
     private readonly SteamContent _steamContent;
     private readonly SteamUnifiedMessages _unifiedMessages;
 
-    private Thread _callbackThread;
-    private volatile bool _callbackRunning;
+    private readonly SteamCallbackPump _callbackPump;
 
     private readonly object _stateLock = new();
     private readonly SemaphoreSlim _sendLock = new(1, 1);
@@ -57,13 +57,13 @@ public class SteamConnection : IDisposable
     private Exception _connectError;
     private volatile int _idleSuspendCount;
 
-    public ConnectionState State { get; private set; } = ConnectionState.Idle;
-    public ulong AppAccessToken { get; set; }
+    private ConnectionState State { get; set; } = ConnectionState.Idle;
+    internal ulong AppAccessToken { get; set; }
 
-    public SteamClient Client => _client;
-    public SteamConfiguration Configuration => _client.Configuration;
+    internal SteamClient Client => _client;
+    internal SteamConfiguration Configuration => _client.Configuration;
 
-    public SteamApps Apps
+    internal SteamApps Apps
     {
         get
         {
@@ -72,7 +72,7 @@ public class SteamConnection : IDisposable
         }
     }
 
-    public SteamContent Content
+    internal SteamContent Content
     {
         get
         {
@@ -81,24 +81,13 @@ public class SteamConnection : IDisposable
         }
     }
 
-    public SteamConnection(string accountName, string refreshToken, int idleTimeoutMs = 30_000)
+    internal SteamConnection(string accountName, string refreshToken, int idleTimeoutMs = 30_000)
     {
         _accountName = accountName;
         _refreshToken = refreshToken;
         _defaultIdleTimeoutMs = idleTimeoutMs;
 
-        AndroidJavaHttpMessageHandler.Prime();
-        var config = SteamConfiguration.Create(b =>
-        {
-            b.WithProtocolTypes(OperatingSystem.IsAndroid() ? ProtocolTypes.Tcp : ProtocolTypes.WebSocket);
-            if (OperatingSystem.IsAndroid())
-            {
-                b.WithHttpClientFactory(AndroidJavaHttpMessageHandler.CreateClient);
-                b.WithMachineInfoProvider(new AndroidMachineInfoProvider());
-            }
-        }
-        );
-        SteamKitAndroidMachineIdPatch.Apply(config);
+        var config = SteamConnectionConfigurationFactory.Create();
         _client = new SteamClient(config);
         _callbackManager = new CallbackManager(_client);
         _steamUser = _client.GetHandler<SteamUser>();
@@ -106,17 +95,20 @@ public class SteamConnection : IDisposable
         _steamContent = _client.GetHandler<SteamContent>();
         _unifiedMessages = _client.GetHandler<SteamUnifiedMessages>();
         _unifiedMessages.CreateService<Cloud>();
+        _callbackPump = new SteamCallbackPump(
+            _callbackManager,
+            "SteamConnectionCallbacks",
+            msg => PatchHelper.Log($"[Connection] {msg}"),
+            EnterBackoff);
 
         _callbackManager.Subscribe<SteamClient.ConnectedCallback>(_ =>
         {
-            _steamUser.LogOn(
-                new SteamUser.LogOnDetails
-                {
-                    Username = _accountName,
-                    AccessToken = _refreshToken,
-                    ShouldRememberPassword = true,
-                }
-            );
+            _steamUser.LogOn(new SteamUser.LogOnDetails
+            {
+                Username = _accountName,
+                AccessToken = _refreshToken,
+                ShouldRememberPassword = true,
+            });
         });
 
         _callbackManager.Subscribe<SteamClient.DisconnectedCallback>(_ =>
@@ -131,18 +123,19 @@ public class SteamConnection : IDisposable
         _callbackManager.Subscribe<SteamUser.LoggedOnCallback>(cb =>
         {
             if (cb.Result == EResult.OK)
-                _connectedGate.Set();
-            else
             {
-                _connectError = new InvalidOperationException($"Login failed: {cb.Result}");
                 _connectedGate.Set();
+                return;
             }
+
+            _connectError = new InvalidOperationException($"Login failed: {cb.Result}");
+            _connectedGate.Set();
         });
     }
 
     // Sends a CCloud RPC. Connects on demand, resets idle timer, retries on
     // transient connection failure.
-    public async Task<TResult> SendCloud<TRequest, TResult>(string method, TRequest request)
+    internal async Task<TResult> SendCloud<TRequest, TResult>(string method, TRequest request)
         where TRequest : ProtoBuf.IExtensible, new()
         where TResult : ProtoBuf.IExtensible, new()
     {
@@ -164,14 +157,14 @@ public class SteamConnection : IDisposable
         }
     }
 
-    public void SuspendIdleTimeout()
+    internal void SuspendIdleTimeout()
     {
         Interlocked.Increment(ref _idleSuspendCount);
         _idleTimer?.Dispose();
         _idleTimer = null;
     }
 
-    public void ResumeIdleTimeout()
+    internal void ResumeIdleTimeout()
     {
         if (Interlocked.Decrement(ref _idleSuspendCount) <= 0)
         {
@@ -182,7 +175,7 @@ public class SteamConnection : IDisposable
     }
 
     // Enters Draining state: waits for pending RPCs to complete, then disconnects.
-    public void Flush()
+    internal void Flush()
     {
         lock (_stateLock)
         {
@@ -210,7 +203,10 @@ public class SteamConnection : IDisposable
         }
     }
 
-    public void Dispose()
+    void IDisposable.Dispose()
+        => Dispose();
+
+    internal void Dispose()
     {
         Flush();
         _sendLock.Dispose();
@@ -281,52 +277,30 @@ public class SteamConnection : IDisposable
 
     private void StartCallbackThread()
     {
-        if (_callbackThread != null && _callbackThread.IsAlive)
-            return;
-
-        _callbackRunning = true;
-        _callbackThread = new Thread(() =>
-        {
-            while (_callbackRunning)
-            {
-                try
-                {
-                    _callbackManager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
-                }
-                catch (ObjectDisposedException) when (!_callbackRunning)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    PatchHelper.Log($"[Connection] Steam callback error: {ex.GetType().Name}: {ex.Message}");
-                    EnterBackoff();
-                    Thread.Sleep(500);
-                }
-            }
-        })
-        {
-            IsBackground = true,
-            Name = "SteamConnectionCallbacks",
-        };
-        _callbackThread.Start();
+        _callbackPump.Start();
     }
 
     private void Teardown()
     {
-        _callbackRunning = false;
         try
         {
             _steamUser?.LogOff();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Connection] LogOff failed during teardown: {ex.Message}");
+        }
+
         try
         {
             _client?.Disconnect();
         }
-        catch { }
-        _callbackThread?.Join(2000);
-        _callbackThread = null;
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Connection] Disconnect failed during teardown: {ex.Message}");
+        }
+
+        _callbackPump.Stop(2000, clearThread: true);
     }
 
     private void EnterBackoff()

@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
@@ -12,31 +13,28 @@ using SteamKit2.CDN;
 
 namespace STS2Mobile.Steam;
 
-public class DownloadProgress
-{
-    public long TotalBytes;
-    public long DownloadedBytes;
-    public int TotalFiles;
-    public int CompletedFiles;
-    public string CurrentFile;
-
-    public double Percentage => TotalBytes > 0 ? (double)DownloadedBytes / TotalBytes * 100.0 : 0;
-}
-
 // Downloads game files from Steam CDN using SteamKit2. Supports delta updates
 // by comparing manifests, concurrent chunk downloads, and server rotation with
 // retry logic. Also patches the PCK to disable Android-incompatible plugin startup.
-public class DepotDownloader : IDisposable
+internal sealed class DepotDownloader : IDisposable
 {
-    private const uint AppId = 2868840;
+    internal sealed class DownloadProgress
+    {
+        internal long TotalBytes;
+        internal long DownloadedBytes;
+        internal int TotalFiles;
+        internal int CompletedFiles;
+        internal string CurrentFile;
+
+        internal double Percentage => TotalBytes > 0 ? (double)DownloadedBytes / TotalBytes * 100.0 : 0;
+    }
+
     private const int MaxRetries = 5;
     private const int DesktopMaxConcurrentDownloads = 8;
     private const int AndroidMaxConcurrentDownloads = 1;
     private const long AndroidMinimumFreeSpaceBytes = 256L * 1024L * 1024L;
-    private const long MaxPatchablePckEntryBytes = 8L * 1024L * 1024L;
     private const long MaxDepotChunkBytes = 64L * 1024L * 1024L;
     private const long MaxDepotFileBytes = 32L * 1024L * 1024L * 1024L;
-    private const uint MaxPckPathBytes = 4096;
     private static readonly TimeSpan CdnAuthTokenTtl = TimeSpan.FromMinutes(20);
 
     private readonly SteamConnection _connection;
@@ -60,10 +58,10 @@ public class DepotDownloader : IDisposable
         SteamApps.PICSProductInfoCallback.PICSProductInfo
     > _appInfoCache = new();
 
-    public event Action<DownloadProgress> ProgressChanged;
-    public event Action<string> LogMessage;
+    internal event Action<DownloadProgress> ProgressChanged;
+    internal event Action<string> LogMessage;
 
-    public DepotDownloader(SteamConnection connection, string dataDir)
+    internal DepotDownloader(SteamConnection connection, string dataDir)
     {
         _connection = connection;
         _gameDir = Path.Combine(dataDir, "game");
@@ -72,7 +70,7 @@ public class DepotDownloader : IDisposable
     }
 
     // Returns true if any depot has a newer manifest than what's cached locally.
-    public async Task<bool> CheckForUpdatesAsync(CancellationToken ct = default)
+    internal async Task<bool> CheckForUpdatesAsync(CancellationToken ct = default)
     {
         _connection.SuspendIdleTimeout();
         try
@@ -82,14 +80,14 @@ public class DepotDownloader : IDisposable
 
             ulong accessToken = await GetAppAccessTokenAsync();
             var infoResult = await _connection.Apps.PICSGetProductInfo(
-                new[] { new SteamApps.PICSRequest(AppId, accessToken) },
+                new[] { new SteamApps.PICSRequest(SteamCloudApp.AppId, accessToken) },
                 Enumerable.Empty<SteamApps.PICSRequest>()
             );
 
             SteamApps.PICSProductInfoCallback.PICSProductInfo appInfo = null;
             foreach (var cb in infoResult.Results)
             {
-                if (cb.Apps.TryGetValue(AppId, out var info))
+                if (cb.Apps.TryGetValue(SteamCloudApp.AppId, out var info))
                 {
                     appInfo = info;
                     break;
@@ -99,8 +97,8 @@ public class DepotDownloader : IDisposable
             if (appInfo == null)
                 throw new Exception("Failed to get app info from Steam");
 
-            _appInfoCache[AppId] = appInfo;
-            var depots = await ParseDepotsAsync(GetDepotsSection(appInfo, AppId));
+            _appInfoCache[SteamCloudApp.AppId] = appInfo;
+            var depots = await ParseDepotsAsync(GetDepotsSection(appInfo, SteamCloudApp.AppId));
 
             foreach (var (depotId, manifestId) in depots)
             {
@@ -121,7 +119,7 @@ public class DepotDownloader : IDisposable
         }
     }
 
-    public async Task DownloadAsync(CancellationToken ct = default)
+    internal async Task DownloadAsync(CancellationToken ct = default)
     {
         _connection.SuspendIdleTimeout();
         try
@@ -138,14 +136,14 @@ public class DepotDownloader : IDisposable
 
             ulong accessToken = await GetAppAccessTokenAsync();
             var infoResult = await _connection.Apps.PICSGetProductInfo(
-                new[] { new SteamApps.PICSRequest(AppId, accessToken) },
+                new[] { new SteamApps.PICSRequest(SteamCloudApp.AppId, accessToken) },
                 Enumerable.Empty<SteamApps.PICSRequest>()
             );
 
             SteamApps.PICSProductInfoCallback.PICSProductInfo appInfo = null;
             foreach (var cb in infoResult.Results)
             {
-                if (cb.Apps.TryGetValue(AppId, out var info))
+                if (cb.Apps.TryGetValue(SteamCloudApp.AppId, out var info))
                 {
                     appInfo = info;
                     break;
@@ -155,8 +153,8 @@ public class DepotDownloader : IDisposable
             if (appInfo == null)
                 throw new Exception("Failed to get app info from Steam");
 
-            _appInfoCache[AppId] = appInfo;
-            var depotSection = GetDepotsSection(appInfo, AppId);
+            _appInfoCache[SteamCloudApp.AppId] = appInfo;
+            var depotSection = GetDepotsSection(appInfo, SteamCloudApp.AppId);
             var depots = await ParseDepotsAsync(depotSection);
             if (depots.Count == 0)
                 throw new Exception("No downloadable depots found");
@@ -322,21 +320,21 @@ public class DepotDownloader : IDisposable
             return _connection.AppAccessToken;
 
         var tokenResult = await _connection.Apps.PICSGetAccessTokens(
-            new[] { AppId },
+            new[] { SteamCloudApp.AppId },
             Enumerable.Empty<uint>()
         );
-        if (tokenResult.AppTokens != null && tokenResult.AppTokens.TryGetValue(AppId, out var token))
+        if (tokenResult.AppTokens != null && tokenResult.AppTokens.TryGetValue(SteamCloudApp.AppId, out var token))
         {
             _connection.AppAccessToken = token;
             return token;
         }
 
-        if (tokenResult.AppTokensDenied != null && tokenResult.AppTokensDenied.Contains(AppId))
+        if (tokenResult.AppTokensDenied != null && tokenResult.AppTokensDenied.Contains(SteamCloudApp.AppId))
             throw new InvalidOperationException(
-                $"Steam denied app access token for {AppId}; ownership/session may be invalid"
+                $"Steam denied app access token for {SteamCloudApp.Name} ({SteamCloudApp.AppId}); ownership/session may be invalid"
             );
 
-        Log($"Steam returned no app access token for {AppId}; continuing with public token 0");
+        Log($"Steam returned no app access token for {SteamCloudApp.Name} ({SteamCloudApp.AppId}); continuing with public token 0");
         return _connection.AppAccessToken;
     }
 
@@ -370,7 +368,7 @@ public class DepotDownloader : IDisposable
             _cdnAuthTokens.TryRemove(key, out _);
         }
 
-        var result = await _connection.Content.GetCDNAuthToken(AppId, depotId, server.Host);
+        var result = await _connection.Content.GetCDNAuthToken(SteamCloudApp.AppId, depotId, server.Host);
         if (result.Result == EResult.OK)
         {
             _cdnAuthTokens[key] = (result.Token, DateTime.UtcNow.Add(CdnAuthTokenTtl));
@@ -399,7 +397,7 @@ public class DepotDownloader : IDisposable
 
         var code = await _connection.Content.GetManifestRequestCode(
             depotId,
-            AppId,
+            SteamCloudApp.AppId,
             manifestId,
             "public"
         );
@@ -419,7 +417,7 @@ public class DepotDownloader : IDisposable
 
         bool isUpdate = LoadCachedManifestId(depotId) != manifestId;
 
-        var keyResult = await _connection.Apps.GetDepotDecryptionKey(depotId, AppId);
+        var keyResult = await _connection.Apps.GetDepotDecryptionKey(depotId, SteamCloudApp.AppId);
         if (keyResult.Result != EResult.OK)
             throw new Exception($"Failed to get depot key for {depotId}: {keyResult.Result}");
         var depotKey = keyResult.DepotKey;
@@ -546,7 +544,7 @@ public class DepotDownloader : IDisposable
         else
         {
             Log(
-                $"Downloading {filesToDownload.Count} files ({FormatSize(_progress.TotalBytes)}) with {MaxConcurrentDownloads} threads..."
+                $"Downloading {filesToDownload.Count} files ({FormatBytes(_progress.TotalBytes)}) with {MaxConcurrentDownloads} threads..."
             );
 
             var workerCount = Math.Min(MaxConcurrentDownloads, filesToDownload.Count);
@@ -931,22 +929,17 @@ public class DepotDownloader : IDisposable
         if (availableFreeSpace < required)
         {
             throw new IOException(
-                $"Not enough storage for {fileName}: need {FormatSize(required)}, "
-                    + $"available {FormatSize(availableFreeSpace)}"
+                $"Not enough storage for {fileName}: need {FormatBytes(required)}, "
+                    + $"available {FormatBytes(availableFreeSpace)}"
             );
         }
     }
 
     private static long GetAndroidAvailableFreeSpace(string directory)
     {
-        var app = GetGodotApp();
-        if (app != null)
-        {
-            var usableBytes = app.Call("getUsableSpaceBytes", directory);
-            var value = (long)usableBytes;
-            if (value > 0)
-                return value;
-        }
+        var usableBytes = AndroidGodotAppBridge.GetUsableSpaceBytes(directory);
+        if (usableBytes > 0)
+            return usableBytes;
 
         var root = Path.GetPathRoot(Path.GetFullPath(directory));
         if (string.IsNullOrWhiteSpace(root))
@@ -956,20 +949,6 @@ public class DepotDownloader : IDisposable
         return drive.AvailableFreeSpace;
     }
 
-    private static Godot.GodotObject? GetGodotApp()
-    {
-        try
-        {
-            var jcw = Godot.Engine.GetSingleton("JavaClassWrapper");
-            var wrapper = (Godot.GodotObject)jcw.Call("wrap", "com.game.sts2launcher.GodotApp");
-            return (Godot.GodotObject)wrapper.Call("getInstance");
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     private static void DeleteQuietly(string path)
     {
         try
@@ -977,7 +956,10 @@ public class DepotDownloader : IDisposable
             if (File.Exists(path))
                 File.Delete(path);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Depot] Failed to delete temporary file {path}: {ex.Message}");
+        }
     }
 
     // Computes SHA-1 of a decompressed chunk and compares it to the manifest ChunkID.
@@ -1065,7 +1047,7 @@ public class DepotDownloader : IDisposable
 
     // Builds the list of files that need downloading. For manifest changes, uses
     // the hash diff. For all files in the target manifest, verifies the on-disk
-    // copy against the expected SHA-1 — catching corruption from interrupted
+    // copy against the expected SHA-1 ??? catching corruption from interrupted
     // writes, disk errors, or missing files.
     private List<DepotManifest.FileData> GetFilesNeedingDownload(
         DepotManifest? oldManifest,
@@ -1090,7 +1072,7 @@ public class DepotDownloader : IDisposable
             if (file.Flags.HasFlag(EDepotFileFlag.Directory))
                 continue;
 
-            // Manifest changed for this file — always re-download.
+            // Manifest changed for this file ??? always re-download.
             if (isUpdate)
             {
                 if (
@@ -1349,21 +1331,36 @@ public class DepotDownloader : IDisposable
         };
     }
 
-    private static string FormatSize(long bytes)
+    private static string FormatBytes(long bytes)
     {
-        if (bytes >= 1024L * 1024 * 1024)
-            return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
-        if (bytes >= 1024L * 1024)
-            return $"{bytes / (1024.0 * 1024):F1} MB";
-        if (bytes >= 1024)
-            return $"{bytes / 1024.0:F1} KB";
+        const long kilobyte = 1024L;
+        const long megabyte = kilobyte * 1024L;
+        const long gigabyte = megabyte * 1024L;
+
+        if (bytes >= gigabyte)
+            return $"{bytes / (double)gigabyte:F1} GB";
+
+        if (bytes >= megabyte)
+            return $"{bytes / (double)megabyte:F1} MB";
+
+        if (bytes >= kilobyte)
+            return $"{bytes / (double)kilobyte:F1} KB";
+
         return $"{bytes} B";
     }
 
-    // Patches the PCK in-place to disable autoload and GDExtension entries that
-    // have no compatible android.arm64 runtime.
-    public static void PatchGamePck(string pckPath)
+    void IDisposable.Dispose()
+        => Dispose();
+
+    internal void Dispose()
     {
+        _cdnClient?.Dispose();
+    }
+
+    private static void PatchGamePck(string pckPath)
+    {
+        const uint maxPckPathBytes = 4096;
+
         if (!File.Exists(pckPath))
             return;
 
@@ -1376,7 +1373,7 @@ public class DepotDownloader : IDisposable
             if (magic != 0x43504447) // "GDPC"
                 return;
 
-            uint formatVersion = reader.ReadUInt32();
+            reader.ReadUInt32(); // format version
             reader.ReadUInt32(); // major
             reader.ReadUInt32(); // minor
             reader.ReadUInt32(); // patch
@@ -1394,14 +1391,14 @@ public class DepotDownloader : IDisposable
             for (uint i = 0; i < fileCount; i++)
             {
                 uint pathLen = reader.ReadUInt32();
-                if (pathLen == 0 || pathLen > MaxPckPathBytes)
+                if (pathLen == 0 || pathLen > maxPckPathBytes)
                 {
                     PatchHelper.Log($"PCK patching skipped: invalid path length {pathLen}");
                     return;
                 }
 
                 byte[] pathBytes = reader.ReadBytes((int)pathLen);
-                string path = System.Text.Encoding.UTF8.GetString(pathBytes).TrimEnd('\0');
+                string path = Encoding.UTF8.GetString(pathBytes).TrimEnd('\0');
                 long offset = reader.ReadInt64();
                 long size = reader.ReadInt64();
                 reader.ReadBytes(16); // MD5
@@ -1409,14 +1406,7 @@ public class DepotDownloader : IDisposable
 
                 long absOffset = relativeOffsets ? fileBase + offset : offset;
 
-                if (IsPckPath(path, "project.binary"))
-                    patched |= PatchProjectBinary(fs, absOffset, size);
-                else if (IsPckPath(path, "project.godot"))
-                    patched |= PatchProjectGodot(fs, absOffset, size);
-                else if (IsPckPath(path, ".godot/extension_list.cfg"))
-                    patched |= PatchExtensionList(fs, absOffset, size);
-                else if (IsPckPath(path, "scenes/game.tscn"))
-                    patched |= PatchGameScene(fs, absOffset, size);
+                patched |= PatchPckEntry(path, fs, absOffset, size);
             }
 
             if (patched)
@@ -1426,7 +1416,6 @@ public class DepotDownloader : IDisposable
         {
             PatchHelper.Log($"PCK patching failed (non-fatal): {ex.Message}");
         }
-
     }
 
     private static bool IsPckPath(string path, string expected)
@@ -1434,117 +1423,118 @@ public class DepotDownloader : IDisposable
         return path == expected || path == $"res://{expected}";
     }
 
-    private static bool PatchProjectGodot(FileStream fs, long offset, long size)
+    private static bool PatchPckEntry(string path, FileStream fs, long offset, long size)
     {
-        if (!CanPatchPckEntry(fs, offset, size, "project.godot"))
-            return false;
+        if (IsPckPath(path, "project.binary"))
+            return PatchProjectBinary(fs, offset, size);
+        if (IsPckPath(path, "project.godot"))
+            return PatchProjectGodot(fs, offset, size);
+        if (IsPckPath(path, ".godot/extension_list.cfg"))
+            return PatchExtensionList(fs, offset, size);
+        if (IsPckPath(path, "scenes/game.tscn"))
+            return PatchGameScene(fs, offset, size);
 
-        long savedPos = fs.Position;
-        fs.Position = offset;
-        var content = new byte[(int)size];
-        fs.ReadExactly(content, 0, (int)size);
-
-        var patched = false;
-        patched |= CommentOutProjectSetting(
-            content,
-            "SentryInit=\"*res://addons/sentry/SentryInit.gd\""
-        );
-        patched |= CommentOutProjectSetting(
-            content,
-            "FmodManager=\"*res://addons/fmod/FmodManager.gd\""
-        );
-        if (!patched)
-        {
-            fs.Position = savedPos;
-            return false;
-        }
-
-        fs.Position = offset;
-        fs.Write(content, 0, content.Length);
-        fs.Position = savedPos;
-        return true;
+        return false;
     }
+
+    private static bool PatchProjectGodot(FileStream fs, long offset, long size)
+        => ApplyPckEntryPatch(fs, offset, size, "project.godot", content =>
+        {
+            var patched = false;
+            patched |= CommentOutProjectSetting(
+                content,
+                "SentryInit=\"*res://addons/sentry/SentryInit.gd\""
+            );
+            patched |= CommentOutProjectSetting(
+                content,
+                "FmodManager=\"*res://addons/fmod/FmodManager.gd\""
+            );
+            return patched;
+        });
 
     private static bool PatchExtensionList(FileStream fs, long offset, long size)
-    {
-        if (!CanPatchPckEntry(fs, offset, size, "extension_list.cfg"))
-            return false;
-
-        long savedPos = fs.Position;
-        fs.Position = offset;
-        var content = new byte[(int)size];
-        fs.ReadExactly(content, 0, (int)size);
-
-        var patched = false;
-        patched |= OverwriteEntryBytes(content, "res://addons/fmod/fmod.gdextension");
-        patched |= OverwriteEntryBytes(content, "res://addons/sentry/sentry.gdextension");
-        if (!patched)
+        => ApplyPckEntryPatch(fs, offset, size, "extension_list.cfg", content =>
         {
-            fs.Position = savedPos;
-            return false;
-        }
-
-        fs.Position = offset;
-        fs.Write(content, 0, content.Length);
-        fs.Position = savedPos;
-        return true;
-    }
+            var patched = false;
+            patched |= OverwriteEntryBytes(
+                content,
+                "res://addons/fmod/fmod.gdextension"
+            );
+            patched |= OverwriteEntryBytes(
+                content,
+                "res://addons/sentry/sentry.gdextension"
+            );
+            return patched;
+        });
 
     private static bool PatchProjectBinary(FileStream fs, long offset, long size)
-    {
-        if (!CanPatchPckEntry(fs, offset, size, "project.binary"))
-            return false;
-
-        long savedPos = fs.Position;
-        fs.Position = offset;
-        var content = new byte[(int)size];
-        fs.ReadExactly(content, 0, (int)size);
-
-        var patched = false;
-        patched |= ReplaceEntryBytes(content, "autoload/SentryInit", "disabled/SentryInit");
-        patched |= ReplaceEntryBytes(content, "autoload/FmodManager", "disabled/FmodManager");
-        if (!patched)
+        => ApplyPckEntryPatch(fs, offset, size, "project.binary", content =>
         {
-            fs.Position = savedPos;
+            var patched = false;
+            patched |= ReplaceEntryBytes(
+                content,
+                "autoload/SentryInit",
+                "disabled/SentryInit"
+            );
+            patched |= ReplaceEntryBytes(
+                content,
+                "autoload/FmodManager",
+                "disabled/FmodManager"
+            );
+            return patched;
+        });
+
+    private static bool PatchGameScene(FileStream fs, long offset, long size)
+        => ApplyPckEntryPatch(fs, offset, size, "scenes/game.tscn", content =>
+        {
+            var patched = false;
+            patched |= CommentOutProjectSetting(
+                content,
+                "[ext_resource type=\"Script\" uid=\"uid://c6blhu0io0iwp\" path=\"res://src/gdscript/audio_manager_proxy.gd\" id=\"3_xfu11\"]"
+            );
+            patched |= CommentOutProjectSetting(
+                content,
+                "[node name=\"FmodBankLoader\" type=\"FmodBankLoader\" parent=\".\"]"
+            );
+            patched |= CommentOutProjectSetting(
+                content,
+                "bank_paths = [\"res://banks/desktop/Master.strings.bank\", \"res://banks/desktop/Master.bank\", \"res://banks/desktop/sfx.bank\", \"res://banks/desktop/temp_sfx.bank\", \"res://banks/desktop/ambience.bank\"]"
+            );
+            patched |= CommentOutProjectSetting(
+                content,
+                "script = ExtResource(\"3_xfu11\")"
+            );
+            patched |= CommentOutProjectSetting(
+                content,
+                "[node name=\"FmodListener2D\" type=\"FmodListener2D\" parent=\"AudioManager\"]"
+            );
+            return patched;
+        });
+
+    private static bool ApplyPckEntryPatch(
+        FileStream fs,
+        long offset,
+        long size,
+        string label,
+        Func<byte[], bool> patch
+    )
+    {
+        const long maxPatchablePckEntryBytes = 8L * 1024L * 1024L;
+
+        if (offset < 0 || size < 0 || size > maxPatchablePckEntryBytes || offset + size > fs.Length)
+        {
+            PatchHelper.Log(
+                $"PCK patching skipped for {label}: offset={offset}, size={size}, fileSize={fs.Length}"
+            );
             return false;
         }
 
-        fs.Position = offset;
-        fs.Write(content, 0, content.Length);
-        fs.Position = savedPos;
-        return true;
-    }
-
-    private static bool PatchGameScene(FileStream fs, long offset, long size)
-    {
-        if (!CanPatchPckEntry(fs, offset, size, "scenes/game.tscn"))
-            return false;
-
         long savedPos = fs.Position;
         fs.Position = offset;
         var content = new byte[(int)size];
         fs.ReadExactly(content, 0, (int)size);
 
-        var patched = false;
-        patched |= CommentOutProjectSetting(
-            content,
-            "[ext_resource type=\"Script\" uid=\"uid://c6blhu0io0iwp\" path=\"res://src/gdscript/audio_manager_proxy.gd\" id=\"3_xfu11\"]"
-        );
-        patched |= CommentOutProjectSetting(
-            content,
-            "[node name=\"FmodBankLoader\" type=\"FmodBankLoader\" parent=\".\"]"
-        );
-        patched |= CommentOutProjectSetting(
-            content,
-            "bank_paths = [\"res://banks/desktop/Master.strings.bank\", \"res://banks/desktop/Master.bank\", \"res://banks/desktop/sfx.bank\", \"res://banks/desktop/temp_sfx.bank\", \"res://banks/desktop/ambience.bank\"]"
-        );
-        patched |= CommentOutProjectSetting(content, "script = ExtResource(\"3_xfu11\")");
-        patched |= CommentOutProjectSetting(
-            content,
-            "[node name=\"FmodListener2D\" type=\"FmodListener2D\" parent=\"AudioManager\"]"
-        );
-
-        if (!patched)
+        if (!patch(content))
         {
             fs.Position = savedPos;
             return false;
@@ -1558,20 +1548,19 @@ public class DepotDownloader : IDisposable
 
     private static bool OverwriteEntryBytes(byte[] content, string entry)
     {
-        var search = System.Text.Encoding.UTF8.GetBytes(entry);
+        var search = Encode(entry);
         int idx = FindBytes(content, search);
         if (idx < 0)
             return false;
 
-        for (int i = 0; i < search.Length; i++)
-            content[idx + i] = (byte)' ';
+        Fill(content, idx, search.Length, (byte)' ');
         return true;
     }
 
     private static bool ReplaceEntryBytes(byte[] content, string searchText, string replacementText)
     {
-        var search = System.Text.Encoding.UTF8.GetBytes(searchText);
-        var replacement = System.Text.Encoding.UTF8.GetBytes(replacementText);
+        var search = Encode(searchText);
+        var replacement = Encode(replacementText);
         if (search.Length != replacement.Length)
             throw new InvalidOperationException($"PCK replacement length mismatch for {searchText}");
 
@@ -1586,17 +1575,23 @@ public class DepotDownloader : IDisposable
         return patched;
     }
 
-    private static bool CanPatchPckEntry(FileStream fs, long offset, long size, string label)
+    private static bool CommentOutProjectSetting(byte[] content, string setting)
     {
-        if (offset < 0 || size < 0 || size > MaxPatchablePckEntryBytes || offset + size > fs.Length)
-        {
-            PatchHelper.Log(
-                $"PCK patching skipped for {label}: offset={offset}, size={size}, fileSize={fs.Length}"
-            );
+        var search = Encode(setting);
+        int idx = FindBytes(content, search);
+        if (idx < 0)
             return false;
-        }
 
+        content[idx] = (byte)';';
         return true;
+    }
+
+    private static byte[] Encode(string value) => Encoding.UTF8.GetBytes(value);
+
+    private static void Fill(byte[] content, int offset, int length, byte value)
+    {
+        for (var i = 0; i < length; i++)
+            content[offset + i] = value;
     }
 
     private static int FindBytes(byte[] haystack, byte[] needle)
@@ -1617,93 +1612,8 @@ public class DepotDownloader : IDisposable
         }
         return -1;
     }
-
-    private static bool CommentOutProjectSetting(byte[] content, string setting)
-    {
-        var search = System.Text.Encoding.UTF8.GetBytes(setting);
-        int idx = FindBytes(content, search);
-        if (idx < 0)
-            return false;
-
-        content[idx] = (byte)';';
-        return true;
-    }
-
-    private static void PatchRawPckReferences(string pckPath, params string[] references)
-    {
-        try
-        {
-            using var fs = new FileStream(pckPath, FileMode.Open, FileAccess.ReadWrite);
-            var patched = false;
-            foreach (var reference in references)
-            {
-                patched |= OverwriteRawBytes(fs, System.Text.Encoding.UTF8.GetBytes(reference));
-                fs.Position = 0;
-            }
-
-            if (patched)
-                PatchHelper.Log("Raw-patched Android-incompatible PCK plugin references");
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"Raw PCK reference patch failed (non-fatal): {ex.Message}");
-        }
-    }
-
-    private static bool OverwriteRawBytes(FileStream fs, byte[] needle)
-    {
-        if (needle.Length == 0)
-            return false;
-
-        const int chunkSize = 1024 * 1024;
-        var overlap = needle.Length - 1;
-        var buffer = new byte[chunkSize + overlap];
-        long position = 0;
-        var carried = 0;
-        var patched = false;
-
-        while (position < fs.Length)
-        {
-            fs.Position = position;
-            var read = fs.Read(buffer, carried, chunkSize);
-            if (read <= 0)
-                break;
-
-            var limit = carried + read;
-            for (var i = 0; i <= limit - needle.Length; i++)
-            {
-                var match = true;
-                for (var j = 0; j < needle.Length; j++)
-                {
-                    if (buffer[i + j] != needle[j])
-                    {
-                        match = false;
-                        break;
-                    }
-                }
-
-                if (!match)
-                    continue;
-
-                var absolute = position - carried + i;
-                fs.Position = absolute;
-                for (var j = 0; j < needle.Length; j++)
-                    fs.WriteByte((byte)' ');
-                patched = true;
-            }
-
-            carried = Math.Min(overlap, limit);
-            if (carried > 0)
-                Array.Copy(buffer, limit - carried, buffer, 0, carried);
-
-            position += read;
-        }
-
-        return patched;
-    }
-
-    public void Dispose()
-    {
-        _cdnClient?.Dispose();
-    }
 }
+
+
+
+

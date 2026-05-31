@@ -1,41 +1,50 @@
 using System;
 using Godot;
+using STS2Mobile.Launcher;
 using STS2Mobile.Launcher.Components;
 
 namespace STS2Mobile.Launcher.Sections;
 
-public class CodeSection : VBoxContainer
+internal sealed class CodeSection : VBoxContainer
 {
-    public event Action<string> CodeSubmitted;
+    private const string DefaultPrompt = "Enter Steam Guard code";
+    private const string IncorrectPrompt = "Code was incorrect. Enter new code:";
 
-    private readonly Label _codeLabel;
+    internal event Action<string> CodeSubmitted;
+
     private readonly LineEdit _codeField;
+    private readonly Label _codeLabel;
 
-    public CodeSection(float scale)
+    internal CodeSection(float scale)
     {
-        AddThemeConstantOverride("separation", (int)(6 * scale));
+        AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.SectionSeparation, scale)
+        );
         Visible = false;
 
-        _codeLabel = new StyledLabel("Enter Steam Guard code", scale, fontSize: 14);
+        _codeLabel = new StyledLabel(
+            "Enter Steam Guard code",
+            scale,
+            fontSize: LauncherSectionMetrics.PromptFontSize
+        );
         AddChild(_codeLabel);
 
         _codeField = new StyledLineEdit("Code", scale);
-        _codeField.MaxLength = 10;
-        _codeField.TextSubmitted += _ => OnSubmit();
+        _codeField.MaxLength = LauncherSectionMetrics.CodeMaxLength;
         AddChild(_codeField);
 
         var submitButton = new StyledButton("SUBMIT", scale);
+        _codeField.TextSubmitted += _ => OnSubmit();
         submitButton.Pressed += OnSubmit;
         AddChild(submitButton);
     }
 
-    public void Show(bool wasIncorrect)
+    internal void Show(bool wasIncorrect)
     {
         Visible = true;
         _codeField.Text = "";
-        _codeLabel.Text = wasIncorrect
-            ? "Code was incorrect. Enter new code:"
-            : "Enter Steam Guard code";
+        _codeLabel.Text = wasIncorrect ? IncorrectPrompt : DefaultPrompt;
         _codeField.GrabFocus();
     }
 

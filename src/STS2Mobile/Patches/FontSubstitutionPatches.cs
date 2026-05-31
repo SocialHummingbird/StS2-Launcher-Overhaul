@@ -10,43 +10,54 @@ namespace STS2Mobile.Patches;
 // exception escapes _Ready(), the UI fails to finish building and the user sees
 // a black screen. The finalizer suppresses that failure and lets labels fall
 // back to the default theme font.
-public static class FontSubstitutionPatches
+internal static class FontSubstitutionPatches
 {
+    private const BindingFlags FinalizerBindingFlags =
+        BindingFlags.NonPublic | BindingFlags.Static;
+    private const string MethodName = "ApplyLocaleFontSubstitution";
+    private const string TypeName = "MegaCrit.Sts2.Core.Localization.Fonts.FontControlUtils";
+
+    private const BindingFlags TargetBindingFlags =
+        BindingFlags.Public
+            | BindingFlags.NonPublic
+            | BindingFlags.Static
+            | BindingFlags.Instance;
+
     private static bool _loggedFirstSwallow;
 
-    public static void Apply(Harmony harmony)
+    internal static void Apply(Harmony harmony)
+    {
+        var target = FindTarget();
+        if (target == null)
+            return;
+
+        var finalizer = typeof(FontSubstitutionPatches).GetMethod(
+            nameof(ApplyLocaleFontSubstitutionFinalizer),
+            FinalizerBindingFlags
+        );
+        harmony.Patch(target, finalizer: new HarmonyMethod(finalizer));
+        PatchHelper.Log("Patched FontControlUtils.ApplyLocaleFontSubstitution finalizer");
+    }
+
+    private static MethodInfo FindTarget()
     {
         var sts2Asm = typeof(NGame).Assembly;
-        var fontUtilsType = sts2Asm.GetType(
-            "MegaCrit.Sts2.Core.Localization.Fonts.FontControlUtils"
-        );
+        var fontUtilsType = sts2Asm.GetType(TypeName);
         if (fontUtilsType == null)
         {
             PatchHelper.Log("FontSubstitutionPatches: FontControlUtils type not found; skipping");
-            return;
+            return null;
         }
 
-        var target = fontUtilsType.GetMethod(
-            "ApplyLocaleFontSubstitution",
-            BindingFlags.Public
-                | BindingFlags.NonPublic
-                | BindingFlags.Static
-                | BindingFlags.Instance
-        );
+        var target = fontUtilsType.GetMethod(MethodName, TargetBindingFlags);
         if (target == null)
         {
             PatchHelper.Log(
                 "FontSubstitutionPatches: ApplyLocaleFontSubstitution method not found; skipping"
             );
-            return;
         }
 
-        var finalizer = typeof(FontSubstitutionPatches).GetMethod(
-            nameof(ApplyLocaleFontSubstitutionFinalizer),
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-        harmony.Patch(target, finalizer: new HarmonyMethod(finalizer));
-        PatchHelper.Log("Patched FontControlUtils.ApplyLocaleFontSubstitution finalizer");
+        return target;
     }
 
     private static Exception ApplyLocaleFontSubstitutionFinalizer(Exception __exception)
@@ -66,4 +77,3 @@ public static class FontSubstitutionPatches
         return null;
     }
 }
-
