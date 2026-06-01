@@ -5,7 +5,7 @@ namespace STS2Mobile.Steam;
 
 internal static partial class SteamConnectionConfigurationFactory
 {
-    private const ProtocolTypes AndroidProtocolTypes = ProtocolTypes.Tcp | ProtocolTypes.WebSocket;
+    private const ProtocolTypes AndroidProtocolTypes = ProtocolTypes.WebSocket;
 
     internal static SteamConfiguration Create()
     {

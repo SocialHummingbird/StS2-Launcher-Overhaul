@@ -19,6 +19,18 @@ internal sealed partial class LauncherController
     private const string ReleaseTagNameProperty = "tag_name";
     private static readonly TimeSpan LauncherUpdateTimeout = TimeSpan.FromSeconds(15);
 
+    private readonly struct ReleaseMetadata
+    {
+        internal ReleaseMetadata(string? name, string? tag)
+        {
+            Name = name;
+            Tag = tag;
+        }
+
+        internal string? Name { get; }
+        internal string? Tag { get; }
+    }
+
     private static async Task<string?> CheckLatestLauncherVersionAsync()
     {
         var currentVersion = GetInstalledLauncherVersion();
@@ -63,7 +75,7 @@ internal sealed partial class LauncherController
         }
     }
 
-    private static (string? Name, string? Tag) ParseReleaseMetadata(string json)
+    private static ReleaseMetadata ParseReleaseMetadata(string json)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
@@ -75,7 +87,7 @@ internal sealed partial class LauncherController
             ? tagProp.GetString()
             : null;
 
-        return (Name: releaseName, Tag: releaseTag);
+        return new ReleaseMetadata(releaseName, releaseTag);
     }
 
     private static string? NormalizeVersion(string version)

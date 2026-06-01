@@ -12,7 +12,7 @@ internal sealed partial class DepotDownloader
         byte[] buffer,
         byte[] depotKey,
         string fileName,
-        (Server Server, int Index) attempt
+        CdnServerAttempt attempt
     )
     {
         return await RunCdnAuthRetryAsync<int?>(

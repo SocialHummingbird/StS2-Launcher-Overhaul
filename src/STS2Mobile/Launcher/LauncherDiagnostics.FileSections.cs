@@ -8,7 +8,7 @@ internal static partial class LauncherDiagnostics
 {
     private static void AppendFileSummary(
         StringBuilder sb,
-        (string Label, string Path) file,
+        DiagnosticFile file,
         long inlineContentLimit
     )
     {
@@ -16,9 +16,9 @@ internal static partial class LauncherDiagnostics
         {
             var read = ReadFileText(file.Path);
             sb.AppendLine($"{file.Label}: {file.Path}");
-            if (read.Text == null)
+            if (!read.HasText)
             {
-                AppendFileReadStatus(sb, read.Error);
+                AppendFileReadStatus(sb, read);
                 return;
             }
 
@@ -37,7 +37,7 @@ internal static partial class LauncherDiagnostics
 
     private static void AppendFileContentsSection(
         StringBuilder sb,
-        (string Label, string Path) file
+        DiagnosticFile file
     )
     {
         sb.AppendLine(Header(file.Label, file.Path));
@@ -45,9 +45,9 @@ internal static partial class LauncherDiagnostics
         try
         {
             var read = ReadFileText(file.Path);
-            if (read.Text == null)
+            if (!read.HasText)
             {
-                AppendFileReadStatus(sb, read.Error);
+                AppendFileReadStatus(sb, read);
                 sb.AppendLine();
                 return;
             }
@@ -70,10 +70,10 @@ internal static partial class LauncherDiagnostics
     private static string SingleLine(string text)
         => text.Replace('\n', ' ').Replace('\r', ' ');
 
-    private static void AppendFileReadStatus(StringBuilder sb, string? error)
+    private static void AppendFileReadStatus(StringBuilder sb, FileReadResult read)
         => sb.AppendLine(
-            error == null
+            read.IsMissing
                 ? "  exists=False"
-                : $"  failed={error}"
+                : $"  failed={read.Error}"
         );
 }

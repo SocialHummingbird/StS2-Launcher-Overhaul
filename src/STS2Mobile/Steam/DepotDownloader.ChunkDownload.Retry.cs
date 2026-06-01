@@ -18,7 +18,7 @@ internal sealed partial class DepotDownloader
     {
         for (int attemptIndex = 0; attemptIndex < MaxRetries; attemptIndex++)
         {
-            var attempt = (Server: GetCurrentServer(), Index: attemptIndex);
+            var attempt = new CdnServerAttempt(GetCurrentServer(), attemptIndex);
             try
             {
                 var written = await _cdnClient.DownloadDepotChunkAsync(
@@ -45,7 +45,7 @@ internal sealed partial class DepotDownloader
                 if (written.HasValue)
                     return written.Value;
             }
-            catch (Exception ex) when (HasRetryRemaining(attempt))
+            catch (Exception ex) when (attempt.HasRetryRemaining)
             {
                 HandleDownloadRetryFailure(attempt, "Chunk download", ex);
             }
@@ -59,13 +59,13 @@ internal sealed partial class DepotDownloader
         DepotManifest.ChunkData chunk,
         byte[] buffer,
         int written,
-        (Server Server, int Index) attempt
+        CdnServerAttempt attempt
     )
     {
         if (VerifyChunkHash(buffer, written, chunk))
             return true;
 
-        if (HasRetryRemaining(attempt))
+        if (attempt.HasRetryRemaining)
         {
             Log($"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying...");
             return false;

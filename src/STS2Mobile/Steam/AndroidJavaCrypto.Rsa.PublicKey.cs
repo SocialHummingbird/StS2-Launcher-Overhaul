@@ -4,19 +4,19 @@ internal static partial class AndroidJavaCrypto
 {
     private sealed class RsaPublicKey
     {
-        public RsaPublicKey(byte[] subjectPublicKeyInfo)
+        internal RsaPublicKey(byte[] subjectPublicKeyInfo)
         {
             SubjectPublicKeyInfo = subjectPublicKeyInfo;
         }
 
-        public RsaPublicKey(byte[] modulus, byte[] exponent)
+        internal RsaPublicKey(byte[] modulus, byte[] exponent)
         {
             Modulus = modulus;
             Exponent = exponent;
         }
 
-        public byte[] SubjectPublicKeyInfo { get; }
-        public byte[] Modulus { get; }
-        public byte[] Exponent { get; }
+        internal byte[] SubjectPublicKeyInfo { get; }
+        internal byte[] Modulus { get; }
+        internal byte[] Exponent { get; }
     }
 }

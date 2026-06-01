@@ -7,30 +7,25 @@ internal sealed partial class DepotDownloader
 {
     // Returns true if any depot has a newer manifest than what's cached locally.
     internal async Task<bool> CheckForUpdatesAsync(CancellationToken ct = default)
+        => await RunWithSuspendedIdleTimeoutAsync(() => CheckForUpdatesCoreAsync(ct));
+
+    private async Task<bool> CheckForUpdatesCoreAsync(CancellationToken ct)
     {
-        _connection.SuspendIdleTimeout();
-        try
+        _stateStore.Prepare();
+
+        var depots = await GetMainAppDepotsAsync();
+
+        foreach (var depot in depots)
         {
-            _stateStore.Prepare();
-
-            var depots = await GetMainAppDepotsAsync();
-
-            foreach (var depot in depots)
+            ct.ThrowIfCancellationRequested();
+            if (_stateStore.LoadManifestId(depot.DepotId) != depot.ManifestId)
             {
-                ct.ThrowIfCancellationRequested();
-                if (_stateStore.LoadManifestId(depot.DepotId) != depot.ManifestId)
-                {
-                    Log($"Update available: depot {depot.DepotId} manifest changed");
-                    return true;
-                }
+                Log($"Update available: depot {depot.DepotId} manifest changed");
+                return true;
             }
+        }
 
-            Log("Game is up to date");
-            return false;
-        }
-        finally
-        {
-            _connection.ResumeIdleTimeout();
-        }
+        Log("Game is up to date");
+        return false;
     }
 }

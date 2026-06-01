@@ -1,7 +1,6 @@
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
-using Godot;
 using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
@@ -15,9 +14,9 @@ internal static partial class LauncherStartupFlow
             startup.SetPhase(PhaseGameStartup, "Starting game scene...");
             PatchHelper.Log("Invoking NGame.GameStartup");
 
-            var recoveryControls = LauncherStartupRecoveryControlPanel.Show(startup.GameNode);
-            LauncherDiagnostics.WriteStartupSceneSnapshot(startup.GameNode, "before NGame.GameStartup");
-            var startupTask = StartGameStartupAsync(startup.Game);
+            var recoveryControls = startup.ShowRecoveryControls();
+            startup.WriteSceneSnapshot("before NGame.GameStartup");
+            var startupTask = startup.StartGameStartupAsync();
             if (await RecoverIfWatchdogTimedOutAsync(
                     startupTask,
                     startup,
@@ -29,27 +28,19 @@ internal static partial class LauncherStartupFlow
 
             await startupTask;
             PatchHelper.Log("NGame.GameStartup completed");
-            if (!await LauncherGameStartupRecovery.EnsureMainMenuReadyAsync(
-                    startup.Game,
-                    startup.GameNode,
-                    startup.Status
-                ))
+            if (!await startup.EnsureMainMenuReadyAsync())
                 return;
 
-            LauncherGameStartupRecovery.MarkStartupObserved(
-                recoveryControls,
-                startup.Status,
-                startup.GameNode
-            );
+            startup.MarkStartupObserved(recoveryControls);
         }
         catch (TargetInvocationException ex)
         {
             var root = ex.InnerException ?? ex;
-            LauncherGameStartupRecovery.HandleFailure(startup.GameNode, startup.Status, root);
+            startup.HandleFailure(root);
         }
         catch (Exception ex)
         {
-            LauncherGameStartupRecovery.HandleFailure(startup.GameNode, startup.Status, ex);
+            startup.HandleFailure(ex);
         }
     }
 }

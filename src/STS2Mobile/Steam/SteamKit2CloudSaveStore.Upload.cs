@@ -6,6 +6,33 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
+    private readonly struct CloudUploadMetadata
+    {
+        internal CloudUploadMetadata(
+            string path,
+            int uploadSize,
+            uint rawSize,
+            byte[] fileHash,
+            ulong batchId,
+            DateTimeOffset? timestamp
+        )
+        {
+            Path = path;
+            UploadSize = uploadSize;
+            RawSize = rawSize;
+            FileHash = fileHash;
+            BatchId = batchId;
+            Timestamp = timestamp;
+        }
+
+        internal string Path { get; }
+        internal int UploadSize { get; }
+        internal uint RawSize { get; }
+        internal byte[] FileHash { get; }
+        internal ulong BatchId { get; }
+        internal DateTimeOffset? Timestamp { get; }
+    }
+
     private async Task UploadFileAsync(
         string canonPath,
         byte[] bytes,
@@ -16,20 +43,18 @@ internal sealed partial class SteamKit2CloudSaveStore
         var fileHash = SHA1.HashData(bytes);
         var rawSize = (uint)bytes.Length;
         var upload = CompressCloudFile(bytes);
-
-        if (upload.Compressed)
-            PatchHelper.Log(Compressed(canonPath, rawSize, upload.Data.Length));
-        else
-            PatchHelper.Log(UploadingUncompressed(canonPath, rawSize));
-
-        var beginResult = await BeginFileUploadAsync(
+        var metadata = new CloudUploadMetadata(
             canonPath,
-            upload.Data.Length,
+            upload.UploadSize,
             rawSize,
             fileHash,
             batchId,
             timestamp
-        ).ConfigureAwait(false);
+        );
+
+        upload.LogUploadStart(metadata.Path, metadata.RawSize);
+
+        var beginResult = await BeginFileUploadAsync(metadata).ConfigureAwait(false);
         if (beginResult == null)
             return;
 
@@ -41,12 +66,12 @@ internal sealed partial class SteamKit2CloudSaveStore
         }
         finally
         {
-            await CommitFileUploadAsync(canonPath, fileHash, uploadSucceeded).ConfigureAwait(false);
+            await CommitFileUploadAsync(metadata, uploadSucceeded).ConfigureAwait(false);
         }
 
         if (!uploadSucceeded)
-            throw new InvalidOperationException($"Cloud upload failed for {canonPath}");
+            throw new InvalidOperationException($"Cloud upload failed for {metadata.Path}");
 
-        PatchHelper.Log(Wrote(canonPath, bytes.Length, upload.Compressed));
+        PatchHelper.Log(Wrote(metadata.Path, bytes.Length, upload.Compressed));
     }
 }

@@ -7,13 +7,41 @@ internal sealed partial class SteamKit2CloudSaveStore
 {
     private const string CloudZipDataEntryName = "data";
 
-    private static (byte[] Data, bool Compressed) CompressCloudFile(byte[] raw)
+    private readonly struct CloudUploadPayload
+    {
+        private CloudUploadPayload(byte[] data, bool compressed)
+        {
+            Data = data;
+            Compressed = compressed;
+        }
+
+        internal byte[] Data { get; }
+        internal bool Compressed { get; }
+        internal int UploadSize => Data.Length;
+
+        internal static CloudUploadPayload Raw(byte[] data)
+            => new(data, compressed: false);
+
+        internal static CloudUploadPayload CompressedData(byte[] data)
+            => new(data, compressed: true);
+
+        internal void LogUploadStart(string path, uint rawSize)
+        {
+            PatchHelper.Log(
+                Compressed
+                    ? SteamKit2CloudSaveStore.Compressed(path, rawSize, UploadSize)
+                    : UploadingUncompressed(path, rawSize)
+            );
+        }
+    }
+
+    private static CloudUploadPayload CompressCloudFile(byte[] raw)
     {
         var zipped = CreateSingleEntryCloudZip(raw);
         if (zipped.Length >= raw.Length)
-            return (Data: raw, Compressed: false);
+            return CloudUploadPayload.Raw(raw);
 
-        return (Data: zipped, Compressed: true);
+        return CloudUploadPayload.CompressedData(zipped);
     }
 
     private static byte[] DecompressCloudFile(byte[] zipData)

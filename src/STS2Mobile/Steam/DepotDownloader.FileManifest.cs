@@ -5,10 +5,22 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private (
-        List<DepotManifest.FileData> Downloads,
-        List<string> Deletes
-    ) BuildDepotFileLists(
+    private readonly struct DepotFilePlan
+    {
+        internal DepotFilePlan(
+            List<DepotManifest.FileData> downloads,
+            List<string> deletes
+        )
+        {
+            Downloads = downloads;
+            Deletes = deletes;
+        }
+
+        internal List<DepotManifest.FileData> Downloads { get; }
+        internal List<string> Deletes { get; }
+    }
+
+    private DepotFilePlan BuildDepotFileLists(
         DepotManifest? oldManifest,
         DepotManifest newManifest,
         bool isUpdate
@@ -20,6 +32,6 @@ internal sealed partial class DepotDownloader
         downloads = DeduplicateDownloads(downloads);
         ValidateDownloadFileSizes(downloads);
 
-        return (Downloads: downloads, Deletes: GetFilesToDelete(oldManifest, newManifest));
+        return new DepotFilePlan(downloads, GetFilesToDelete(oldManifest, newManifest));
     }
 }

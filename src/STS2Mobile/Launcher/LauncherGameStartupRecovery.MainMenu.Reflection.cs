@@ -8,6 +8,27 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherGameStartupRecovery
 {
+    private readonly struct CurrentSceneInfo
+    {
+        private CurrentSceneInfo(bool isMainMenu, string? sceneName)
+        {
+            IsMainMenu = isMainMenu;
+            SceneName = sceneName;
+        }
+
+        internal bool IsMainMenu { get; }
+        internal string? SceneName { get; }
+
+        internal static CurrentSceneInfo Missing()
+            => new(isMainMenu: false, sceneName: null);
+
+        internal static CurrentSceneInfo Found(bool isMainMenu, string sceneName)
+            => new(isMainMenu, sceneName);
+
+        internal static CurrentSceneInfo Failed(Exception ex)
+            => new(isMainMenu: false, sceneName: $"<inspect failed: {ex.Message}>");
+    }
+
     private static Task LoadMainMenuAsync(object game)
     {
         var loadMainMenu = game.GetType()
@@ -35,7 +56,7 @@ internal static partial class LauncherGameStartupRecovery
         }
     }
 
-    private static (bool IsMainMenu, string? SceneName) InspectCurrentScene(object game)
+    private static CurrentSceneInfo InspectCurrentScene(object game)
     {
         try
         {
@@ -46,16 +67,17 @@ internal static partial class LauncherGameStartupRecovery
                 .GetProperty("CurrentScene", BindingFlags.Public | BindingFlags.Instance)
                 ?.GetValue(rootSceneContainer);
             if (currentScene == null)
-                return (IsMainMenu: false, SceneName: null);
+                return CurrentSceneInfo.Missing();
 
             var sceneName = $"{currentScene.GetType().FullName} name={((Node)currentScene).Name}";
-            return currentScene.GetType().FullName?.Contains("NMainMenu", StringComparison.Ordinal) == true
-                ? (IsMainMenu: true, SceneName: sceneName)
-                : (IsMainMenu: false, SceneName: sceneName);
+            return CurrentSceneInfo.Found(
+                currentScene.GetType().FullName?.Contains("NMainMenu", StringComparison.Ordinal) == true,
+                sceneName
+            );
         }
         catch (Exception ex)
         {
-            return (IsMainMenu: false, SceneName: $"<inspect failed: {ex.Message}>");
+            return CurrentSceneInfo.Failed(ex);
         }
     }
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Reflection;
-using Godot;
 using MegaCrit.Sts2.Core.Saves;
 using STS2Mobile.Patches;
 
@@ -25,7 +24,7 @@ internal static partial class LauncherStartupFlow
     {
         startup.SetPhase(
             PhaseSettingsAndSaves,
-            startup.Mode.ForceLocalSaves
+            startup.ForceLocalSaves
                 ? "Loading settings and saves in local-only safe mode..."
                 : "Loading settings and saves..."
         );
@@ -37,11 +36,7 @@ internal static partial class LauncherStartupFlow
         }
         catch (Exception ex)
         {
-            LauncherGameStartupRecovery.HandleSettingsAndSavesFailure(
-                startup.GameNode,
-                startup.Status,
-                ex
-            );
+            startup.HandleSettingsAndSavesFailure(ex);
             return false;
         }
     }

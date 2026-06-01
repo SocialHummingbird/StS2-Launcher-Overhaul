@@ -17,13 +17,7 @@ internal static partial class LauncherStartupFlow
             return false;
         }
 
-        await LauncherGameStartupRecovery.HandleWatchdogAsync(
-            startup.Game,
-            startup.GameNode,
-            startup.Status,
-            recoveryControls,
-            StartupWatchdogMs
-        );
+        await startup.HandleWatchdogAsync(recoveryControls);
         return true;
     }
 }

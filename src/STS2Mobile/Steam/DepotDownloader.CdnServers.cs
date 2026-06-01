@@ -9,6 +9,20 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private readonly struct CdnServerAttempt
+    {
+        internal CdnServerAttempt(Server server, int index)
+        {
+            Server = server;
+            Index = index;
+        }
+
+        internal Server Server { get; }
+        private int Index { get; }
+        internal int DisplayNumber => Index + 1;
+        internal bool HasRetryRemaining => Index < MaxRetries - 1;
+    }
+
     private IReadOnlyList<Server> _servers = Array.Empty<Server>();
     private int _serverIndex;
 
@@ -51,18 +65,12 @@ internal sealed partial class DepotDownloader
     }
 
     private void HandleDownloadRetryFailure(
-        (Server Server, int Index) attempt,
+        CdnServerAttempt attempt,
         string operation,
         Exception ex
     )
     {
-        Log($"{operation} failed (attempt {DisplayNumber(attempt)}): {ex.Message}");
+        Log($"{operation} failed (attempt {attempt.DisplayNumber}): {ex.Message}");
         MarkServerFailed(attempt.Server);
     }
-
-    private static int DisplayNumber((Server Server, int Index) attempt)
-        => attempt.Index + 1;
-
-    private static bool HasRetryRemaining((Server Server, int Index) attempt)
-        => attempt.Index < MaxRetries - 1;
 }

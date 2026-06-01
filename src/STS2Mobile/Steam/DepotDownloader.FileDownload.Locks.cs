@@ -8,14 +8,6 @@ internal sealed partial class DepotDownloader
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileWriteLocks =
         new();
 
-    private static SemaphoreSlim GetDepotFileWriteLock(
-        (
-            string FileName,
-            string FilePath,
-            string? FileDir,
-            string TempPath,
-            string LockKey
-        ) target
-    )
+    private static SemaphoreSlim GetDepotFileWriteLock(DepotFileTarget target)
         => _fileWriteLocks.GetOrAdd(target.LockKey, _ => new SemaphoreSlim(1, 1));
 }

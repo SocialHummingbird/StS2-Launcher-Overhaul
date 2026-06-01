@@ -12,36 +12,56 @@ internal static partial class CloudSyncCoordinator
         private const string BackupSourceLocalPrePull = "local-pre-pull";
         private const string ManualPushBackupReadOperation = "ManualPush backup read";
 
-        public static Task<int> CloudBeforeManualPushAsync(
+        private readonly struct ManualBackupPlan
+        {
+            internal ManualBackupPlan(
+                string source,
+                Func<ManualSyncContext, string, ValueTask<string?>> readContentAsync,
+                Action<string, Exception> logFailure
+            )
+            {
+                Source = source;
+                ReadContentAsync = readContentAsync;
+                LogFailure = logFailure;
+            }
+
+            internal string Source { get; }
+            internal Func<ManualSyncContext, string, ValueTask<string?>> ReadContentAsync { get; }
+            internal Action<string, Exception> LogFailure { get; }
+        }
+
+        internal static Task<int> CloudBeforeManualPushAsync(
             ManualSyncContext sync,
             IEnumerable<string> paths
         )
             => RunManualBackupsAsync(
                 sync,
                 paths,
-                BackupSourceCloudPrePush,
-                ReadCloudPrePushContentAsync,
-                (path, ex) => PatchHelper.Log(PushCloudBackupFailed(path, ex))
+                new ManualBackupPlan(
+                    BackupSourceCloudPrePush,
+                    ReadCloudPrePushContentAsync,
+                    (path, ex) => PatchHelper.Log(PushCloudBackupFailed(path, ex))
+                )
             );
 
-        public static Task<int> LocalBeforeManualPullAsync(
+        internal static Task<int> LocalBeforeManualPullAsync(
             ManualSyncContext sync,
             IEnumerable<string> paths
         )
             => RunManualBackupsAsync(
                 sync,
                 paths,
-                BackupSourceLocalPrePull,
-                ReadLocalPrePullContentAsync,
-                (path, ex) => PatchHelper.Log(PullLocalBackupFailed(path, ex))
+                new ManualBackupPlan(
+                    BackupSourceLocalPrePull,
+                    ReadLocalPrePullContentAsync,
+                    (path, ex) => PatchHelper.Log(PullLocalBackupFailed(path, ex))
+                )
             );
 
         private static async Task<int> RunManualBackupsAsync(
             ManualSyncContext sync,
             IEnumerable<string> paths,
-            string source,
-            Func<ManualSyncContext, string, Task<string?>> readContentAsync,
-            Action<string, Exception> logFailure
+            ManualBackupPlan plan
         )
         {
             var backedUp = 0;
@@ -49,23 +69,23 @@ internal static partial class CloudSyncCoordinator
             {
                 try
                 {
-                    var read = await readContentAsync(sync, path);
+                    var read = await plan.ReadContentAsync(sync, path);
                     if (read == null)
                         continue;
 
-                    if (SaveContent(path, read, source))
+                    if (SaveContent(path, read, plan.Source))
                         backedUp++;
                 }
                 catch (Exception ex)
                 {
-                    logFailure(path, ex);
+                    plan.LogFailure(path, ex);
                 }
             }
 
             return backedUp;
         }
 
-        private static async Task<string?> ReadCloudPrePushContentAsync(
+        private static async ValueTask<string?> ReadCloudPrePushContentAsync(
             ManualSyncContext sync,
             string path
         )
@@ -77,11 +97,11 @@ internal static partial class CloudSyncCoordinator
             return await sync.ReadCloudContentAsync(path, ManualPushBackupReadOperation);
         }
 
-        private static Task<string?> ReadLocalPrePullContentAsync(
+        private static ValueTask<string?> ReadLocalPrePullContentAsync(
             ManualSyncContext sync,
             string path
         )
-            => Task.FromResult(sync.ReadLocalFile(path));
+            => new(sync.ReadLocalFile(path));
 
         private static bool IsImportantSave(string path)
         {

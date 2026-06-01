@@ -11,6 +11,20 @@ internal static partial class LauncherDiagnostics
     private const int MaxReportDirectoriesPerDirectory = 40;
     private const int MaxReportFilesPerDirectory = 80;
 
+    private readonly struct DiagnosticDirectory
+    {
+        internal DiagnosticDirectory(string label, string path, int maxDepth)
+        {
+            Label = label;
+            Path = path;
+            MaxDepth = maxDepth;
+        }
+
+        internal string Label { get; }
+        internal string Path { get; }
+        internal int MaxDepth { get; }
+    }
+
     private static void AppendFullReportDiagnostics(StringBuilder sb, string dataDir)
     {
         AppendDiagnosticReportFiles(sb, dataDir);
@@ -32,7 +46,7 @@ internal static partial class LauncherDiagnostics
             AppendDirectoryListing(sb, directory);
     }
 
-    private static IEnumerable<(string Label, string Path)> DiagnosticReportFiles(string dataDir)
+    private static IEnumerable<DiagnosticFile> DiagnosticReportFiles(string dataDir)
     {
         yield return StartupMarker(dataDir);
         yield return StartupSceneSnapshot(dataDir);
@@ -41,21 +55,21 @@ internal static partial class LauncherDiagnostics
         yield return GamePck(dataDir);
     }
 
-    private static IEnumerable<(string Label, string Path, int MaxDepth)> DiagnosticReportDirectories(
+    private static IEnumerable<DiagnosticDirectory> DiagnosticReportDirectories(
         string dataDir
     )
     {
-        yield return (
+        yield return new DiagnosticDirectory(
             "Game directory",
             Path.Combine(dataDir, LauncherStorageNames.GameDirectory),
             2
         );
-        yield return (
+        yield return new DiagnosticDirectory(
             "Download state",
             Path.Combine(dataDir, LauncherStorageNames.DownloadStateDirectory),
             1
         );
-        yield return (
+        yield return new DiagnosticDirectory(
             "Mono publish root",
             Path.Combine(
                 dataDir,
@@ -69,7 +83,7 @@ internal static partial class LauncherDiagnostics
 
     private static void AppendDirectoryListing(
         StringBuilder sb,
-        (string Label, string Path, int MaxDepth) directory
+        DiagnosticDirectory directory
     )
     {
         sb.AppendLine($"{directory.Label}: {directory.Path}");

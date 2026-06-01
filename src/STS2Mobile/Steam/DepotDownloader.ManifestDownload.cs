@@ -17,7 +17,7 @@ internal sealed partial class DepotDownloader
         Log($"Downloading manifest for depot {depotId}...");
         for (int attemptIndex = 0; attemptIndex < MaxRetries; attemptIndex++)
         {
-            var attempt = (Server: GetCurrentServer(), Index: attemptIndex);
+            var attempt = new CdnServerAttempt(GetCurrentServer(), attemptIndex);
             try
             {
                 return await _cdnClient.DownloadManifestAsync(
@@ -40,7 +40,7 @@ internal sealed partial class DepotDownloader
                 if (manifest != null)
                     return manifest;
             }
-            catch (Exception ex) when (HasRetryRemaining(attempt))
+            catch (Exception ex) when (attempt.HasRetryRemaining)
             {
                 HandleDownloadRetryFailure(attempt, "Manifest download", ex);
             }

@@ -33,7 +33,7 @@ internal sealed partial class SteamKit2CloudSaveStore
                 foreach (var file in result.files)
                 {
                     var key = CacheKey(file.filename);
-                    _files[key] = (
+                    _files[key] = new CloudFileInfo(
                         (int)file.file_size,
                         DateTimeOffset.FromUnixTimeSeconds((long)file.timestamp)
                     );

@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using STS2Mobile.Patches;
 
@@ -8,29 +9,25 @@ internal partial class LauncherModel
     // Connects on-demand and verifies ownership. Used when we have saved
     // credentials but no ownership marker.
     internal async Task ConnectAsync()
-    {
-        var attemptId = BeginSessionAttempt(SessionState.Connecting);
-
-        var error = await _steamSession.ConnectSavedCredentialsAndVerifyAsync(
-            () => BeginOwnershipVerification(attemptId)
+        => await RunConnectionAttemptAsync(
+            SessionState.Connecting,
+            attemptId => _steamSession.ConnectSavedCredentialsAndVerifyAsync(
+                () => BeginOwnershipVerification(attemptId)
+            )
         );
-        CompleteConnectionAttempt(attemptId, error);
-    }
 
     // Performs interactive login, then verifies ownership.
     internal async Task LoginAsync(string username, string password)
-    {
-        var attemptId = BeginSessionAttempt(SessionState.Authenticating);
-
-        var error = await _steamSession.LoginAndVerifyAsync(
-            username,
-            password,
-            RaiseLogReceived,
-            RaiseCodeNeeded,
-            () => BeginOwnershipVerification(attemptId)
+        => await RunConnectionAttemptAsync(
+            SessionState.Authenticating,
+            attemptId => _steamSession.LoginAndVerifyAsync(
+                username,
+                password,
+                RaiseLogReceived,
+                RaiseCodeNeeded,
+                () => BeginOwnershipVerification(attemptId)
+            )
         );
-        CompleteConnectionAttempt(attemptId, error);
-    }
 
     internal void SubmitCode(string code) => _steamSession.SubmitCode(code);
 
@@ -40,9 +37,19 @@ internal partial class LauncherModel
         if (IsLoggedIn && _steamSession.Connection != null)
             return;
 
-        var attemptId = BeginSessionAttempt(SessionState.Connecting);
+        await RunConnectionAttemptAsync(
+            SessionState.Connecting,
+            _ => _steamSession.EnsureConnectedAsync()
+        );
+    }
 
-        var error = await _steamSession.EnsureConnectedAsync();
+    private async Task RunConnectionAttemptAsync(
+        SessionState state,
+        Func<int, Task<string>> run
+    )
+    {
+        var attemptId = BeginSessionAttempt(state);
+        var error = await run(attemptId);
         CompleteConnectionAttempt(attemptId, error);
     }
 

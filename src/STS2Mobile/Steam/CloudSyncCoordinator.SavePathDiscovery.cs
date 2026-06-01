@@ -12,7 +12,7 @@ internal static partial class CloudSyncCoordinator
         private const int LastProfileId = 3;
         private const int RunHistoryLimit = 100;
 
-        public static List<string> Get(ISaveStore store)
+        internal static List<string> Get(ISaveStore store)
         {
             var paths = new List<string>();
             CollectProfilePathsSafe(paths, store);

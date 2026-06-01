@@ -15,7 +15,7 @@ internal static partial class CloudSyncCoordinator
             DiscoveredActsProperty,
         };
 
-        private static (bool CloudWins, bool LocalWins) CompareProgress(string local, string cloud)
+        private static SaveWinner CompareProgress(string local, string cloud)
         {
             using var localDoc = JsonDocument.Parse(local);
             using var cloudDoc = JsonDocument.Parse(cloud);
@@ -23,13 +23,13 @@ internal static partial class CloudSyncCoordinator
             var cloudRoot = cloudDoc.RootElement;
 
             return FirstNumericWinner(
-                (
+                NumericComparison.Of(
                     GetInt(localRoot, FloorsClimbedProperty),
                     GetInt(cloudRoot, FloorsClimbedProperty)
                 ),
-                (SumCharacterGames(localRoot), SumCharacterGames(cloudRoot)),
-                (CountDiscovered(localRoot), CountDiscovered(cloudRoot)),
-                (
+                NumericComparison.Of(SumCharacterGames(localRoot), SumCharacterGames(cloudRoot)),
+                NumericComparison.Of(CountDiscovered(localRoot), CountDiscovered(cloudRoot)),
+                NumericComparison.Of(
                     GetInt(localRoot, TotalPlaytimeProperty),
                     GetInt(cloudRoot, TotalPlaytimeProperty)
                 )

@@ -46,15 +46,10 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
         string? raw = CallHttpRequestBridge(app, request, bodyBytes, requestDescription);
 
         ThrowIfCancelledWithRawResponseCleanup(raw, cancellationToken);
-        var bridgeResponse = RequireBridgeResponse(raw, requestDescription);
-
-        using var doc = ParseBridgeResponse(bridgeResponse, requestDescription);
-        ThrowIfBridgeError(doc.RootElement, request.RequestUri, requestDescription);
-        var status = ReadStatusCode(doc.RootElement, requestDescription);
+        using var bridgeResponse = ReadBridgeResponse(raw, request.RequestUri, requestDescription);
         return CreateBridgeResponseWithContent(
             request,
-            doc.RootElement,
-            status,
+            bridgeResponse,
             requestDescription,
             cancellationToken
         );
@@ -82,37 +77,23 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
         cancellationToken.ThrowIfCancellationRequested();
     }
 
-    private static string RequireBridgeResponse(
-        string? raw,
-        string requestDescription
-    )
-    {
-        if (!string.IsNullOrEmpty(raw))
-            return raw;
-
-        throw new HttpRequestException(
-            $"Android Java HTTP bridge returned an empty response for {requestDescription}"
-        );
-    }
-
     private static HttpResponseMessage CreateBridgeResponseWithContent(
         HttpRequestMessage request,
-        JsonElement root,
-        int status,
+        ParsedBridgeResponse bridgeResponse,
         string requestDescription,
         CancellationToken cancellationToken
     )
     {
-        var response = CreateBridgeResponse(request, root, status);
+        var response = CreateBridgeResponse(request, bridgeResponse.Root, bridgeResponse.Status);
         try
         {
             response.Content = CreateResponseContent(
-                root,
-                status,
+                bridgeResponse.Root,
+                bridgeResponse.Status,
                 requestDescription,
                 cancellationToken
             );
-            ApplyBridgeHeaders(response, root);
+            ApplyBridgeHeaders(response, bridgeResponse.Root);
 
             return response;
         }

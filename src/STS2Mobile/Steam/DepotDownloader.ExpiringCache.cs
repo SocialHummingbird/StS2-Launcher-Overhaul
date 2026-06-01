@@ -9,16 +9,26 @@ internal sealed partial class DepotDownloader
     private sealed class ExpiringCache<TKey, TValue>
         where TKey : notnull
     {
-        private readonly ConcurrentDictionary<
-            TKey,
-            (TValue Value, DateTime Expiry)
-        > _entries = new();
+        private readonly struct CacheEntry
+        {
+            internal CacheEntry(TValue value, DateTime expiry)
+            {
+                Value = value;
+                Expiry = expiry;
+            }
+
+            internal TValue Value { get; }
+            internal DateTime Expiry { get; }
+            internal bool Fresh => DateTime.UtcNow < Expiry;
+        }
+
+        private readonly ConcurrentDictionary<TKey, CacheEntry> _entries = new();
 
         private bool TryGetFresh(TKey key, out TValue value)
         {
             if (_entries.TryGetValue(key, out var entry))
             {
-                if (DateTime.UtcNow < entry.Expiry)
+                if (entry.Fresh)
                 {
                     value = entry.Value;
                     return true;
@@ -32,9 +42,9 @@ internal sealed partial class DepotDownloader
         }
 
         private void SetFor(TKey key, TValue value, TimeSpan ttl)
-            => _entries[key] = (value, DateTime.UtcNow.Add(ttl));
+            => _entries[key] = new CacheEntry(value, DateTime.UtcNow.Add(ttl));
 
-        public async Task<TValue> GetOrAddAsync(
+        internal async Task<TValue> GetOrAddAsync(
             TKey key,
             TimeSpan ttl,
             Func<Task<TValue>> fetch,
@@ -50,7 +60,7 @@ internal sealed partial class DepotDownloader
             return value;
         }
 
-        public void Invalidate(TKey key)
+        internal void Invalidate(TKey key)
             => _entries.TryRemove(key, out _);
     }
 }

@@ -6,13 +6,31 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
-    private static (
-        StyledLabel StatusLabel,
-        LoginSection Login,
-        CodeSection Code,
-        DownloadSection Download,
-        ActionSection Actions
-    ) BuildPrimaryColumn(float scale, HBoxContainer hbox)
+    private readonly struct PrimaryColumnControls
+    {
+        internal PrimaryColumnControls(
+            StyledLabel statusLabel,
+            LoginSection login,
+            CodeSection code,
+            DownloadSection download,
+            ActionSection actions
+        )
+        {
+            StatusLabel = statusLabel;
+            Login = login;
+            Code = code;
+            Download = download;
+            Actions = actions;
+        }
+
+        internal StyledLabel StatusLabel { get; }
+        internal LoginSection Login { get; }
+        internal CodeSection Code { get; }
+        internal DownloadSection Download { get; }
+        internal ActionSection Actions { get; }
+    }
+
+    private static PrimaryColumnControls BuildPrimaryColumn(float scale, HBoxContainer hbox)
     {
         var leftCenter = new CenterContainer();
         leftCenter.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -53,12 +71,6 @@ internal sealed partial class LauncherView
 
         left.AddChild(BuildFmodAttributionSection(scale));
 
-        return (
-            StatusLabel: statusLabel,
-            Login: login,
-            Code: code,
-            Download: download,
-            Actions: actions
-        );
+        return new PrimaryColumnControls(statusLabel, login, code, download, actions);
     }
 }

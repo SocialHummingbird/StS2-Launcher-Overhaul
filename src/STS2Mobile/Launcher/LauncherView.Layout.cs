@@ -6,7 +6,19 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
-    private static (StyledPanel Panel, HBoxContainer RootColumns) BuildShell(
+    private readonly struct LauncherShell
+    {
+        internal LauncherShell(StyledPanel panel, HBoxContainer rootColumns)
+        {
+            Panel = panel;
+            RootColumns = rootColumns;
+        }
+
+        internal StyledPanel Panel { get; }
+        internal HBoxContainer RootColumns { get; }
+    }
+
+    private static LauncherShell BuildShell(
         Control parent,
         float scale,
         Action<InputEvent> dismissKeyboard
@@ -34,6 +46,6 @@ internal sealed partial class LauncherView
         );
         panel.Content.AddChild(rootColumns);
 
-        return (Panel: panel, RootColumns: rootColumns);
+        return new LauncherShell(panel, rootColumns);
     }
 }

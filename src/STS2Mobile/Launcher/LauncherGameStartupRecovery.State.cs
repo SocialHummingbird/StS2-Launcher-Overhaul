@@ -14,32 +14,47 @@ internal static partial class LauncherGameStartupRecovery
     private const string WatchdogStalledReason = "game startup watchdog";
     private const string WatchdogRecoveredReason = "main menu recovered after watchdog";
 
+    private readonly struct RecoveryStateUpdate
+    {
+        internal RecoveryStateUpdate(
+            string reason,
+            string statusMessage,
+            string? snapshotReason = null
+        )
+        {
+            Reason = reason;
+            StatusMessage = statusMessage;
+            SnapshotReason = snapshotReason;
+        }
+
+        internal string Reason { get; }
+        internal string StatusMessage { get; }
+        internal string? SnapshotReason { get; }
+        internal string EffectiveSnapshotReason => SnapshotReason ?? Reason;
+    }
+
     private static void ShowFailure(
         Node gameNode,
         Label startupStatus,
-        string reason,
-        string statusMessage,
-        string? snapshotReason = null
+        RecoveryStateUpdate update
     )
     {
-        RecordStartupState(gameNode, startupStatus, reason, statusMessage, snapshotReason);
+        RecordStartupState(gameNode, startupStatus, update);
         LauncherStartupRecoveryControlPanel.Show(gameNode);
     }
 
     private static void RecordStartupState(
         Node gameNode,
         Label startupStatus,
-        string reason,
-        string statusMessage,
-        string? snapshotReason = null
+        RecoveryStateUpdate update
     )
     {
-        LauncherLaunchMarkers.WriteStartupPhase(reason);
+        LauncherLaunchMarkers.WriteStartupPhase(update.Reason);
         LauncherDiagnostics.WriteStartupSceneSnapshot(
             gameNode,
-            snapshotReason ?? reason
+            update.EffectiveSnapshotReason
         );
-        LauncherStartupStatus.Set(startupStatus, statusMessage);
+        LauncherStartupStatus.Set(startupStatus, update.StatusMessage);
     }
 
     private static void SetRecoveryStatus(Label startupStatus, string status)
@@ -51,12 +66,10 @@ internal static partial class LauncherGameStartupRecovery
         CanvasLayer recoveryControls,
         Label startupStatus,
         Node gameNode,
-        string reason,
-        string statusMessage,
-        string? snapshotReason = null
+        RecoveryStateUpdate update
     )
     {
-        RecordStartupState(gameNode, startupStatus, reason, statusMessage, snapshotReason);
+        RecordStartupState(gameNode, startupStatus, update);
         ScheduleCleanup(recoveryControls, startupStatus);
     }
 

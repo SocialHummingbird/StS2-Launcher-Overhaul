@@ -10,30 +10,42 @@ internal static partial class CloudSyncCoordinator
     private const string PullCloudFileOperation = "PullFile";
     private const string ReadCloudFileOperation = "ReadCloudFile";
 
+    private readonly struct AutoSyncPresence
+    {
+        internal AutoSyncPresence(bool local, bool cloud)
+        {
+            Local = local;
+            Cloud = cloud;
+        }
+
+        internal bool Local { get; }
+        internal bool Cloud { get; }
+    }
+
     private readonly struct AutoSyncContext
     {
         private readonly ISaveStore _local;
         private readonly ICloudSaveStore _cloud;
 
-        public AutoSyncContext(ISaveStore local, ICloudSaveStore cloud, string path)
+        internal AutoSyncContext(ISaveStore local, ICloudSaveStore cloud, string path)
         {
             _local = local;
             _cloud = cloud;
             Path = path;
         }
 
-        public string Path { get; }
+        internal string Path { get; }
 
-        public (bool Local, bool Cloud) GetPresence()
-            => (Local: _local.FileExists(Path), Cloud: _cloud.FileExists(Path));
+        internal AutoSyncPresence GetPresence()
+            => new(_local.FileExists(Path), _cloud.FileExists(Path));
 
-        public bool CloudFileExists()
+        internal bool CloudFileExists()
             => _cloud.FileExists(Path);
 
-        public string? ReadLocalContent()
+        internal string? ReadLocalContent()
             => _local.FileExists(Path) ? _local.ReadFile(Path) : null;
 
-        public Task<string> ReadCloudContentAsync(string operation)
+        internal Task<string> ReadCloudContentAsync(string operation)
             => CloudSyncCoordinator.ReadCloudContentAsync(
                 _cloud,
                 Path,
@@ -41,8 +53,8 @@ internal static partial class CloudSyncCoordinator
                 AutoSyncPerPathTimeoutMs
             );
 
-        private Task WriteCloudContentAsync(string content)
-            => CloudSyncCoordinator.WriteCloudContentAsync(
+        private Task WriteLocalContentFromCloudAsync(string content)
+            => CloudSyncCoordinator.WriteLocalContentFromCloudAsync(
                 _local,
                 _cloud,
                 Path,
@@ -53,7 +65,7 @@ internal static partial class CloudSyncCoordinator
         private void WriteCloudFile(string content)
             => _cloud.WriteFile(Path, content);
 
-        public async Task PullCloudContentAsync(
+        internal async Task PullCloudContentAsync(
             string content,
             string message,
             bool backUpLocal
@@ -62,10 +74,10 @@ internal static partial class CloudSyncCoordinator
             PatchHelper.Log(message);
             if (backUpLocal)
                 BackUpLocalProgress();
-            await WriteCloudContentAsync(content);
+            await WriteLocalContentFromCloudAsync(content);
         }
 
-        public void PushLocalContent(string localContent, string? cloudContent, string message)
+        internal void PushLocalContent(string localContent, string? cloudContent, string message)
         {
             PatchHelper.Log(message);
             if (cloudContent != null)

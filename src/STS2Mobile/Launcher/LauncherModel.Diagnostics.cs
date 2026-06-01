@@ -1,22 +1,18 @@
-using System;
-
 namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
     internal string WriteDiagnosticsReport()
-        => BuildDiagnosticsOutput(LauncherDiagnostics.WriteLauncherDiagnosticsReport);
+        => LauncherDiagnostics.WriteLauncherDiagnosticsReport(CreateDiagnosticsSnapshot());
 
     internal string BuildDiagnosticsSummaryForDisplay()
-        => BuildDiagnosticsOutput(LauncherDiagnostics.BuildLauncherDiagnosticsSummary);
+        => LauncherDiagnostics.BuildLauncherDiagnosticsSummary(CreateDiagnosticsSnapshot());
 
     internal string BuildRawErrorLogForClipboard()
-        => BuildDiagnosticsOutput(LauncherDiagnostics.BuildLauncherRawErrorLog);
+        => LauncherDiagnostics.BuildLauncherRawErrorLog(CreateDiagnosticsSnapshot());
 
-    private string BuildDiagnosticsOutput(
-        Func<string, string, bool, bool, string, string, string> build
-    )
-        => build(
+    private LauncherDiagnostics.Snapshot CreateDiagnosticsSnapshot()
+        => new(
             _dataDir,
             _credentialStore.AccountName,
             _credentialStore.HasCredentials,

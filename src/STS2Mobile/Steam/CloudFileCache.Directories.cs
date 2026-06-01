@@ -6,26 +6,26 @@ internal sealed partial class SteamKit2CloudSaveStore
 {
     private sealed partial class CloudFileCache
     {
-        public string[] GetFilesInDirectory(string directoryPath)
+        internal string[] GetFilesInDirectory(string directoryPath)
         {
             EnsureLoaded();
             var result = new List<string>();
 
-            foreach (var remainder in EnumerateDirectoryEntries(_files.Keys, directoryPath))
+            foreach (var remainder in EnumerateDirectoryEntries(directoryPath))
             {
-                if (!remainder.Contains('/') && !remainder.Contains('\\'))
+                if (!remainder.Contains('/'))
                     result.Add(remainder);
             }
 
             return result.ToArray();
         }
 
-        public string[] GetDirectoriesInDirectory(string directoryPath)
+        internal string[] GetDirectoriesInDirectory(string directoryPath)
         {
             EnsureLoaded();
             var dirs = new HashSet<string>();
 
-            foreach (var remainder in EnumerateDirectoryEntries(_files.Keys, directoryPath))
+            foreach (var remainder in EnumerateDirectoryEntries(directoryPath))
             {
                 var slashIndex = remainder.IndexOf('/');
                 if (slashIndex >= 0)
@@ -35,21 +35,18 @@ internal sealed partial class SteamKit2CloudSaveStore
             return [.. dirs];
         }
 
-        private static IEnumerable<string> EnumerateDirectoryEntries(
-            IEnumerable<string> paths,
-            string directoryPath
-        )
+        private IEnumerable<string> EnumerateDirectoryEntries(string directoryPath)
         {
             var normalizedDirectory = CacheKey(directoryPath);
             var prefix = normalizedDirectory.Length > 0 ? normalizedDirectory + "/" : "";
 
-            foreach (var key in paths)
+            foreach (var key in _files.Keys)
             {
-                var normalizedKey = CacheKey(key);
-                if (!normalizedKey.StartsWith(prefix) || normalizedKey.Length <= prefix.Length)
+                if (!key.StartsWith(prefix, System.StringComparison.Ordinal)
+                    || key.Length <= prefix.Length)
                     continue;
 
-                yield return normalizedKey.Substring(prefix.Length);
+                yield return key.Substring(prefix.Length);
             }
         }
     }

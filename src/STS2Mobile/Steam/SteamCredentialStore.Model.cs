@@ -6,13 +6,25 @@ internal sealed partial class SteamCredentialStore
 {
     private sealed class SteamCredentials
     {
-        [JsonInclude]
-        public string AccountName { get; set; }
+        internal static SteamCredentials Create(
+            string accountName,
+            string refreshToken,
+            string guardData
+        )
+            => new()
+            {
+                AccountName = accountName,
+                RefreshToken = refreshToken,
+                GuardData = guardData,
+            };
 
         [JsonInclude]
-        public string RefreshToken { get; set; }
+        public string AccountName { get; private set; }
 
         [JsonInclude]
-        public string GuardData { get; set; }
+        public string RefreshToken { get; private set; }
+
+        [JsonInclude]
+        public string GuardData { get; private set; }
     }
 }

@@ -7,17 +7,29 @@ namespace STS2Mobile.Launcher;
 
 internal static class LauncherCloudSaveState
 {
+    private readonly struct CloudSyncCredentials
+    {
+        internal CloudSyncCredentials(string accountName, string refreshToken)
+        {
+            AccountName = accountName;
+            RefreshToken = refreshToken;
+        }
+
+        internal string AccountName { get; }
+        internal string RefreshToken { get; }
+    }
+
     private static bool _cloudSyncEnabled = true;
-    private static (string AccountName, string RefreshToken) _savedCredentials;
+    private static CloudSyncCredentials? _savedCredentials;
 
     internal static string StatusSummary
         => $"HasToken={HasSavedCredentials}, CloudSync={_cloudSyncEnabled}";
 
     private static bool HasSavedCredentials
-        => _savedCredentials.AccountName != null && _savedCredentials.RefreshToken != null;
+        => _savedCredentials.HasValue;
 
-    private static (string AccountName, string RefreshToken)? GetSavedCredentials()
-        => HasSavedCredentials ? _savedCredentials : null;
+    private static CloudSyncCredentials? GetSavedCredentials()
+        => _savedCredentials;
 
     internal static bool TryCreateEnabledSaveManager(
         out SaveManager saveManager
@@ -49,7 +61,7 @@ internal static class LauncherCloudSaveState
         }
     }
 
-    private static (string AccountName, string RefreshToken)? GetCloudSyncCredentials()
+    private static CloudSyncCredentials? GetCloudSyncCredentials()
     {
         if (!_cloudSyncEnabled)
         {
@@ -88,10 +100,10 @@ internal static class LauncherCloudSaveState
         if (string.IsNullOrWhiteSpace(accountName))
             return;
 
-        _savedCredentials = (AccountName: accountName, RefreshToken: refreshToken);
+        _savedCredentials = new CloudSyncCredentials(accountName, refreshToken);
     }
 
-    private static (string AccountName, string RefreshToken) RequireSavedCredentials()
+    private static CloudSyncCredentials RequireSavedCredentials()
     {
         var credentials = GetSavedCredentials();
         if (!credentials.HasValue)

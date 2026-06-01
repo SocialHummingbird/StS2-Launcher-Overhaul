@@ -5,16 +5,7 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private void CommitVerifiedDepotFile(
-        DepotManifest.FileData file,
-        (
-            string FileName,
-            string FilePath,
-            string? FileDir,
-            string TempPath,
-            string LockKey
-        ) target
-    )
+    private void CommitVerifiedDepotFile(DepotManifest.FileData file, DepotFileTarget target)
     {
         if (!VerifyFileHash(target.TempPath, file))
         {

@@ -35,11 +35,7 @@ internal sealed partial class LauncherSteamSession
         {
             AndroidEncryptedJsonFile.Save(
                 OwnershipMarkerPath,
-                new OwnershipMarker
-                {
-                    Account = accountName,
-                    VerifiedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                }
+                OwnershipMarker.Create(accountName, DateTimeOffset.UtcNow.ToUnixTimeSeconds())
             );
         }
         catch (Exception ex)
@@ -50,10 +46,17 @@ internal sealed partial class LauncherSteamSession
 
     private sealed class OwnershipMarker
     {
-        [JsonInclude]
-        public string Account { get; set; }
+        internal static OwnershipMarker Create(string account, long verifiedAt)
+            => new()
+            {
+                Account = account,
+                VerifiedAt = verifiedAt,
+            };
 
         [JsonInclude]
-        public long VerifiedAt { get; set; }
+        public string Account { get; private set; }
+
+        [JsonInclude]
+        public long VerifiedAt { get; private set; }
     }
 }

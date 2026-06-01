@@ -26,6 +26,25 @@ internal static partial class LauncherDiagnostics
     };
     private const int RawLogcatTailLines = 1200;
 
+    private readonly struct LogcatCapture
+    {
+        private LogcatCapture(string? text, string? fallbackText)
+        {
+            Text = text;
+            FallbackText = fallbackText;
+        }
+
+        internal string? Text { get; }
+        internal string? FallbackText { get; }
+        internal bool HasText => Text != null;
+
+        internal static LogcatCapture Captured(string text)
+            => new(text, fallbackText: null);
+
+        internal static LogcatCapture Unavailable(string fallbackText)
+            => new(text: null, fallbackText);
+    }
+
     private static void AppendLogcatTail(
         StringBuilder sb,
         string heading,
@@ -98,18 +117,18 @@ internal static partial class LauncherDiagnostics
     private static string[] Tail(IEnumerable<string> lines, int maxLines) =>
         lines.TakeLast(maxLines).ToArray();
 
-    private static (string? Text, string? FallbackText, bool HasText) CaptureLogcat(int lineCount)
+    private static LogcatCapture CaptureLogcat(int lineCount)
     {
         try
         {
             var text = AndroidGodotAppBridge.GetLogcatTail(lineCount);
             return string.IsNullOrWhiteSpace(text)
-                ? (Text: null, FallbackText: Unavailable, HasText: false)
-                : (Text: text, FallbackText: null, HasText: true);
+                ? LogcatCapture.Unavailable(Unavailable)
+                : LogcatCapture.Captured(text);
         }
         catch (Exception ex)
         {
-            return (Text: null, FallbackText: LogcatCollectionFailed(ex), HasText: false);
+            return LogcatCapture.Unavailable(LogcatCollectionFailed(ex));
         }
     }
 

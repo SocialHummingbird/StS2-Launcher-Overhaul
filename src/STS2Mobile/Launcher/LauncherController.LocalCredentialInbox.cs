@@ -7,9 +7,21 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
+    private readonly struct LocalSteamCredentials
+    {
+        internal LocalSteamCredentials(string username, string password)
+        {
+            Username = username;
+            Password = password;
+        }
+
+        internal string Username { get; }
+        internal string Password { get; }
+    }
+
     private const string LocalSteamCredentialFileName = "steam_login_credentials.txt";
 
-    private static (string Username, string Password)? ConsumeLocalSteamCredentials()
+    private static LocalSteamCredentials? ConsumeLocalSteamCredentials()
     {
         var lines = LauncherExternalFileInbox.ConsumeLines(
             LocalSteamCredentialFileName,
@@ -29,7 +41,7 @@ internal sealed partial class LauncherController
         }
     }
 
-    private static (string Username, string Password) DecodeLocalSteamCredentials(string[] lines)
+    private static LocalSteamCredentials DecodeLocalSteamCredentials(string[] lines)
     {
         if (lines.Length < 2)
             throw new InvalidDataException("expected two base64 lines");
@@ -40,6 +52,6 @@ internal sealed partial class LauncherController
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
             throw new InvalidDataException("username or password was empty");
 
-        return (Username: username, Password: password);
+        return new LocalSteamCredentials(username, password);
     }
 }

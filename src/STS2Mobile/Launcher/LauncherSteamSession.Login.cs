@@ -42,7 +42,7 @@ internal sealed partial class LauncherSteamSession
         }
     }
 
-    private void SaveLoginCredentials((string AccountName, string RefreshToken, string GuardData) result)
+    private void SaveLoginCredentials(SteamAuth.LoginCredentials result)
     {
         _credentialStore.Save(result.AccountName, result.RefreshToken, result.GuardData);
         LauncherCloudSaveState.SaveCredentials(_credentialStore);

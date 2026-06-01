@@ -6,11 +6,23 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private async Task<List<(uint DepotId, ulong ManifestId)>> ParseDepotsAsync(
+    private readonly struct DepotManifestReference
+    {
+        internal DepotManifestReference(uint depotId, ulong manifestId)
+        {
+            DepotId = depotId;
+            ManifestId = manifestId;
+        }
+
+        internal uint DepotId { get; }
+        internal ulong ManifestId { get; }
+    }
+
+    private async Task<List<DepotManifestReference>> ParseDepotsAsync(
         KeyValue depotSection
     )
     {
-        var result = new List<(uint DepotId, ulong ManifestId)>();
+        var result = new List<DepotManifestReference>();
 
         foreach (var depot in depotSection.Children)
         {
@@ -25,7 +37,7 @@ internal sealed partial class DepotDownloader
                 continue;
 
             Log($"Found depot {depotId} manifest {manifestId.Value}");
-            result.Add((DepotId: depotId, ManifestId: manifestId.Value));
+            result.Add(new DepotManifestReference(depotId, manifestId.Value));
         }
 
         return result;

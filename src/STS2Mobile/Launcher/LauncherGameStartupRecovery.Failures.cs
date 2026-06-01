@@ -14,8 +14,10 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            $"game startup failed: {message}",
-            $"Game startup failed: {message}"
+            new RecoveryStateUpdate(
+                $"game startup failed: {message}",
+                $"Game startup failed: {message}"
+            )
         );
     }
 
@@ -29,8 +31,10 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            "settings and saves failed",
-            $"Settings/save init failed: {ex.GetBaseException().Message}"
+            new RecoveryStateUpdate(
+                "settings and saves failed",
+                $"Settings/save init failed: {ex.GetBaseException().Message}"
+            )
         );
     }
 
@@ -39,8 +43,10 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            MainMenuGuardFailureReason,
-            "Main menu did not load. Use recovery controls below."
+            new RecoveryStateUpdate(
+                MainMenuGuardFailureReason,
+                "Main menu did not load. Use recovery controls below."
+            )
         );
         return false;
     }

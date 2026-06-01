@@ -6,6 +6,51 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveComparison
     {
+        internal readonly struct SaveWinner
+        {
+            private enum Winner
+            {
+                None,
+                Cloud,
+                Local,
+            }
+
+            private readonly Winner _winner;
+
+            private SaveWinner(Winner winner)
+            {
+                _winner = winner;
+            }
+
+            internal bool CloudWins => _winner == Winner.Cloud;
+            internal bool LocalWins => _winner == Winner.Local;
+            internal bool HasWinner => _winner != Winner.None;
+
+            internal static SaveWinner Cloud()
+                => new(Winner.Cloud);
+
+            internal static SaveWinner Local()
+                => new(Winner.Local);
+
+            internal static SaveWinner None()
+                => new(Winner.None);
+        }
+
+        private readonly struct NumericComparison
+        {
+            private NumericComparison(int local, int cloud)
+            {
+                Local = local;
+                Cloud = cloud;
+            }
+
+            internal int Local { get; }
+            internal int Cloud { get; }
+
+            internal static NumericComparison Of(int local, int cloud)
+                => new(local, cloud);
+        }
+
         private const string ActsProperty = "acts";
         private const string CharacterStatsProperty = "character_stats";
         private const string CurrentRunPathToken = "current_run";
@@ -22,14 +67,14 @@ internal static partial class CloudSyncCoordinator
         private const string TotalPlaytimeProperty = "total_playtime";
         private const string TotalWinsProperty = "total_wins";
 
-        public static (bool CloudWins, bool LocalWins) GetExplicitWinner(
+        internal static SaveWinner GetExplicitWinner(
             string path,
             string localContent,
             string cloudContent
         )
             => Compare(path, localContent, cloudContent);
 
-        private static (bool CloudWins, bool LocalWins) Compare(
+        private static SaveWinner Compare(
             string path,
             string localContent,
             string cloudContent
@@ -45,50 +90,36 @@ internal static partial class CloudSyncCoordinator
                     return CompareCurrentRun(localContent, cloudContent);
 
                 // History files have unique filenames; prefs have no progress concept.
-                return NoWinner();
+                return SaveWinner.None();
             }
             catch (Exception ex)
             {
                 PatchHelper.Log(ProgressComparisonFailed(path, ex));
-                return NoWinner();
+                return SaveWinner.None();
             }
         }
 
-        private static (bool CloudWins, bool LocalWins) CompareNumeric(
+        private static SaveWinner CompareNumeric(
             int localValue,
             int cloudValue
         )
         {
             if (localValue == cloudValue)
-                return NoWinner();
+                return SaveWinner.None();
 
-            return localValue > cloudValue ? LocalWins() : CloudWins();
+            return localValue > cloudValue ? SaveWinner.Local() : SaveWinner.Cloud();
         }
 
-        private static (bool CloudWins, bool LocalWins) FirstNumericWinner(
-            params (int Local, int Cloud)[] comparisons
-        )
+        private static SaveWinner FirstNumericWinner(params NumericComparison[] comparisons)
         {
             foreach (var comparison in comparisons)
             {
                 var winner = CompareNumeric(comparison.Local, comparison.Cloud);
-                if (HasWinner(winner))
+                if (winner.HasWinner)
                     return winner;
             }
 
-            return NoWinner();
+            return SaveWinner.None();
         }
-
-        private static bool HasWinner((bool CloudWins, bool LocalWins) winner)
-            => winner.CloudWins || winner.LocalWins;
-
-        private static (bool CloudWins, bool LocalWins) CloudWins()
-            => (CloudWins: true, LocalWins: false);
-
-        private static (bool CloudWins, bool LocalWins) LocalWins()
-            => (CloudWins: false, LocalWins: true);
-
-        private static (bool CloudWins, bool LocalWins) NoWinner()
-            => (CloudWins: false, LocalWins: false);
     }
 }

@@ -1,5 +1,3 @@
-using STS2Mobile.Patches;
-
 namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherStartupFlow
@@ -7,10 +5,10 @@ internal static partial class LauncherStartupFlow
     private static void ApplyStartupSaveMode(StartupContext startup)
     {
         LauncherPreferences.LoadAndApplyCloudSyncEnabled();
-        if (!startup.Mode.ForceLocalSaves)
+        if (!startup.ForceLocalSaves)
             return;
 
         LauncherCloudSaveState.DisableCloudSyncForLaunch();
-        PatchHelper.Log(startup.Mode.LocalSavesReasonLog);
+        startup.LogLocalSavesReason();
     }
 }

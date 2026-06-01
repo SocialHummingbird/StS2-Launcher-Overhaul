@@ -14,13 +14,7 @@ internal sealed partial class DepotDownloader
         DepotManifest.FileData file,
         uint depotId,
         byte[] depotKey,
-        (
-            string FileName,
-            string FilePath,
-            string? FileDir,
-            string TempPath,
-            string LockKey
-        ) target,
+        DepotFileTarget target,
         CancellationToken ct
     )
     {
@@ -79,5 +73,4 @@ internal sealed partial class DepotDownloader
                 + $"{chunk.UncompressedLength} bytes"
         );
     }
-
 }

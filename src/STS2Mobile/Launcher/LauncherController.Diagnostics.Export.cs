@@ -7,9 +7,10 @@ internal sealed partial class LauncherController
 {
     private void DiagnosticsPressed()
     {
-        var path = WriteDiagnosticsReportOrNull(
+        var path = TryRunDiagnosticsAction(
             "Diagnostics export failed",
             logFullException: true,
+            _model.WriteDiagnosticsReport,
             message => _view.SetStatus($"Diagnostics export failed: {message}")
         );
         if (path == null)
@@ -29,23 +30,5 @@ internal sealed partial class LauncherController
         _view.AppendLog(
             shared ? "Android share sheet opened." : "Could not open Android share sheet."
         );
-    }
-
-    private string? WriteDiagnosticsReportOrNull(
-        string failureContext,
-        bool logFullException,
-        Action<string>? onFailure = null
-    )
-    {
-        try
-        {
-            return _model.WriteDiagnosticsReport();
-        }
-        catch (Exception ex)
-        {
-            LogDiagnosticsFailure(failureContext, ex, logFullException);
-            onFailure?.Invoke(ex.Message);
-            return null;
-        }
     }
 }

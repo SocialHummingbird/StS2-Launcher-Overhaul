@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using SteamKit2.Authentication;
 
@@ -39,34 +40,74 @@ internal sealed partial class SteamAuth
     {
         Log(previousCodeWasIncorrect ? retryMessage : initialMessage);
 
-        return await WaitForCodeAndMaintainAuthConnectionAsync(
-            _codeProvider(previousCodeWasIncorrect)
-        );
+        _waitingForAuthCode = true;
+        try
+        {
+            var code = await WaitForTaskAndMaintainAuthConnectionAsync(
+                _codeProvider(previousCodeWasIncorrect),
+                () => NeedsAuthReconnect,
+                "Steam auth reconnect did not complete yet; will retry while waiting for code"
+            );
+            await ReconnectBeforeCodeSubmitAsync();
+            return code;
+        }
+        finally
+        {
+            _waitingForAuthCode = false;
+        }
     }
 
-    private async Task<string> WaitForCodeAndMaintainAuthConnectionAsync(Task<string> codeTask)
+    private async Task<T> WaitForTaskAndMaintainAuthConnectionAsync<T>(
+        Task<T> task,
+        Func<bool> shouldReconnect,
+        string reconnectRetryMessage
+    )
     {
         while (true)
         {
-            if (codeTask.IsCompleted)
+            if (task.IsCompleted)
+                return await task;
+
+            if (shouldReconnect())
             {
-                var code = await codeTask;
-                await ReconnectBeforeCodeSubmitAsync();
-                return code;
+                if (RequiresPersistentAuthConnection)
+                {
+                    if (!await TryReconnectForAuthAsync())
+                        Log(reconnectRetryMessage);
+                }
+                else
+                {
+                    LogAndroidAuthConnectionLossOnce();
+                }
             }
 
-            if (NeedsAuthReconnect && !await TryReconnectForAuthAsync())
-                Log("Steam auth reconnect did not complete yet; will retry while waiting for code");
-
-            await Task.WhenAny(codeTask, Task.Delay(AuthReconnectPollDelayMs));
+            await Task.WhenAny(task, Task.Delay(AuthReconnectPollDelayMs));
         }
     }
 
     private async Task ReconnectBeforeCodeSubmitAsync()
     {
-        if (NeedsAuthReconnect)
-            await ReconnectForAuthAsync();
+        if (!NeedsAuthReconnect)
+            return;
+
+        if (!RequiresPersistentAuthConnection)
+        {
+            LogAndroidAuthConnectionLossOnce();
+            Log("Submitting Steam Guard code through Steam WebAPI without CM reconnect");
+            return;
+        }
+
+        await ReconnectForAuthAsync();
     }
 
     private bool NeedsAuthReconnect => _needsReconnectForAuth || !_connectedGate.IsSet;
+
+    private void LogAndroidAuthConnectionLossOnce()
+    {
+        if (_androidAuthConnectionLossLogged)
+            return;
+
+        _androidAuthConnectionLossLogged = true;
+        Log("Steam CM connection unavailable during Android WebAPI auth; continuing credential flow");
+    }
 }

@@ -8,7 +8,7 @@ internal static partial class LauncherStartupFlow
     {
         private readonly string _previousIncompletePhase;
 
-        public static StartupMode CreateFromMarkers()
+        internal static StartupMode CreateFromMarkers()
             => new(
                 LauncherLaunchMarkers.ReadStartupPhase(),
                 LauncherLaunchMarkers.ConsumeManualSafeLaunchMarker()
@@ -20,30 +20,30 @@ internal static partial class LauncherStartupFlow
             ManualSafeLaunch = manualSafeLaunch;
         }
 
-        public bool ManualSafeLaunch { get; }
+        private bool ManualSafeLaunch { get; }
 
-        public bool SafeLaunchRequested
+        private bool SafeLaunchRequested
             => ManualSafeLaunch || IsPreviousPhase(PhaseManualSafeLaunch);
 
-        public bool ForceLocalSaves
+        internal bool ForceLocalSaves
             => SafeLaunchRequested
                 || IsPreviousPhase(PhaseSettingsAndSaves)
                 || IsPreviousPhase(PhaseGameStartup);
 
-        public bool SkipShaderWarmup
+        internal bool SkipShaderWarmup
             => SafeLaunchRequested || IsPreviousPhase(PhaseShaderWarmup);
 
-        public string LocalSavesReasonLog
+        internal string LocalSavesReasonLog
             => ManualSafeLaunch
                 ? "Disabling cloud save injection for manual safe launch"
                 : $"Disabling cloud save injection for this launch because previous launch stalled at {_previousIncompletePhase}";
 
-        public string ShaderWarmupSkipLog
+        internal string ShaderWarmupSkipLog
             => ManualSafeLaunch
                 ? "Skipping shader warmup for manual safe launch"
                 : "Skipping shader warmup because the previous launch stalled there";
 
-        public string ShaderWarmupSkipStatus
+        internal string ShaderWarmupSkipStatus
             => ManualSafeLaunch
                 ? "Skipping shader warmup for safe launch..."
                 : "Skipping shader warmup after previous stall...";

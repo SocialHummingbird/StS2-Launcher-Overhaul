@@ -14,7 +14,7 @@ internal static partial class CloudSyncCoordinator
         _localBackupEnabled = enabled;
     }
 
-    private static async Task WriteCloudContentAsync(
+    private static async Task WriteLocalContentFromCloudAsync(
         ISaveStore local,
         ICloudSaveStore cloud,
         string path,

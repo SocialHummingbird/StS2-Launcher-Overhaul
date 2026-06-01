@@ -6,59 +6,78 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
+    private readonly struct CloudSyncRequest
+    {
+        internal CloudSyncRequest(
+            string confirmationMessage,
+            Func<Task> run,
+            string name,
+            string startMessage,
+            string completeMessage
+        )
+        {
+            ConfirmationMessage = confirmationMessage;
+            Run = run;
+            Name = name;
+            StartMessage = startMessage;
+            CompleteMessage = completeMessage;
+        }
+
+        internal string ConfirmationMessage { get; }
+        internal Func<Task> Run { get; }
+        internal string Name { get; }
+        internal string StartMessage { get; }
+        internal string CompleteMessage { get; }
+    }
+
     private void CloudSyncToggled(bool pressed)
         => LauncherPreferences.SaveCloudSyncEnabled(pressed);
 
     private void CloudPushPressed()
         => RequestCloudSync(
-            "Push local saves to cloud?\nThis will overwrite your cloud saves.",
-            LauncherCloudSaveState.ManualPushAllAsync,
-            "Push",
-            "Pushing local saves to cloud...",
-            "Push complete."
+            new CloudSyncRequest(
+                "Push local saves to cloud?\nThis will overwrite your cloud saves.",
+                LauncherCloudSaveState.ManualPushAllAsync,
+                "Push",
+                "Pushing local saves to cloud...",
+                "Push complete."
+            )
         );
 
     private void CloudPullPressed()
         => RequestCloudSync(
-            "Pull cloud saves to local?\nThis will overwrite your local saves.",
-            LauncherCloudSaveState.ManualPullAllAsync,
-            "Pull",
-            "Pulling cloud saves to local...",
-            "Pull complete."
+            new CloudSyncRequest(
+                "Pull cloud saves to local?\nThis will overwrite your local saves.",
+                LauncherCloudSaveState.ManualPullAllAsync,
+                "Pull",
+                "Pulling cloud saves to local...",
+                "Pull complete."
+            )
         );
 
-    private void RequestCloudSync(
-        string confirmationMessage,
-        Func<Task> run,
-        string name,
-        string startMessage,
-        string completeMessage
-    )
+    private void RequestCloudSync(CloudSyncRequest request)
     {
         _view.ShowConfirmation(
-            confirmationMessage,
-            () => _ = ExecuteCloudSyncAsync(run, name, startMessage, completeMessage)
+            request.ConfirmationMessage,
+            () => _ = ExecuteCloudSyncAsync(request)
         );
     }
 
-    private async Task ExecuteCloudSyncAsync(
-        Func<Task> run,
-        string name,
-        string startMessage,
-        string completeMessage
-    )
+    private async Task ExecuteCloudSyncAsync(CloudSyncRequest request)
     {
-        SetCloudSyncBusy(startMessage);
+        SetCloudSyncBusy(request.StartMessage);
 
         try
         {
-            await RunCloudSyncWithTimeoutAsync(run, name);
-            _runOnMainThread(() => _view.AppendLog(completeMessage));
+            await RunCloudSyncWithTimeoutAsync(request.Run, request.Name);
+            _runOnMainThread(() => _view.AppendLog(request.CompleteMessage));
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"[Cloud] {name} sync failed: {ex.Message}");
-            _runOnMainThread(() => _view.AppendLog($"{name} failed: {ex.Message}"));
+            PatchHelper.Log($"[Cloud] {request.Name} sync failed: {ex.Message}");
+            _runOnMainThread(() =>
+                _view.AppendLog($"{request.Name} failed: {ex.Message}")
+            );
         }
         finally
         {

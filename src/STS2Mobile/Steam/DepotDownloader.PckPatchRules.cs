@@ -4,6 +4,18 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private readonly struct PckTextReplacement
+    {
+        internal PckTextReplacement(string search, string replacement)
+        {
+            Search = search;
+            Replacement = replacement;
+        }
+
+        internal string Search { get; }
+        internal string Replacement { get; }
+    }
+
     private static readonly string[] ProjectGodotSettingsToComment =
     {
         "SentryInit=\"*res://addons/sentry/SentryInit.gd\"",
@@ -16,10 +28,10 @@ internal sealed partial class DepotDownloader
         "res://addons/sentry/sentry.gdextension",
     };
 
-    private static readonly (string Search, string Replacement)[] ProjectBinaryReplacements =
+    private static readonly PckTextReplacement[] ProjectBinaryReplacements =
     {
-        (Search: "autoload/SentryInit", Replacement: "disabled/SentryInit"),
-        (Search: "autoload/FmodManager", Replacement: "disabled/FmodManager"),
+        new("autoload/SentryInit", "disabled/SentryInit"),
+        new("autoload/FmodManager", "disabled/FmodManager"),
     };
 
     private static readonly string[] GameSceneSettingsToComment =

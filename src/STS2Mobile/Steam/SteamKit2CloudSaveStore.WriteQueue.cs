@@ -22,7 +22,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         private bool _isDisposed;
         private long _pendingWrites;
 
-        public CloudWriteQueue()
+        internal CloudWriteQueue()
         {
             _thread = new Thread(ProcessLoop)
             {
@@ -36,7 +36,7 @@ internal sealed partial class SteamKit2CloudSaveStore
 
         private long PendingWrites => Volatile.Read(ref _pendingWrites);
 
-        public void Enqueue(Action action)
+        internal void Enqueue(Action action)
         {
             if (_isDisposed)
             {
@@ -67,7 +67,7 @@ internal sealed partial class SteamKit2CloudSaveStore
             }
         }
 
-        public bool Flush(int timeoutMs = 5000)
+        internal bool Flush(int timeoutMs = 5000)
         {
             if (_isDisposed)
                 return true;
@@ -101,7 +101,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         void IDisposable.Dispose()
             => Dispose();
 
-        public void Dispose()
+        internal void Dispose()
         {
             if (_isDisposed)
                 return;

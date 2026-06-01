@@ -6,11 +6,24 @@ namespace STS2Mobile.Steam;
 
 internal static partial class SteamConnectionConfigurationFactory
 {
-    private static (Type? MachineIdType, FieldInfo? TableField) LoadSteamKitMachineIdReflection()
+    private readonly struct MachineIdReflection
+    {
+        internal MachineIdReflection(Type? machineIdType, FieldInfo? tableField)
+        {
+            MachineIdType = machineIdType;
+            TableField = tableField;
+        }
+
+        internal Type? MachineIdType { get; }
+        internal FieldInfo? TableField { get; }
+        internal bool Available => MachineIdType != null && TableField != null;
+    }
+
+    private static MachineIdReflection LoadSteamKitMachineIdReflection()
     {
         var type = Type.GetType(HardwareUtilsTypeName);
 
-        return (
+        return new MachineIdReflection(
             type?.GetNestedType(MachineIdTypeName, BindingFlags.NonPublic),
             type?.GetField(
                 GenerationTableFieldName,
@@ -19,10 +32,8 @@ internal static partial class SteamConnectionConfigurationFactory
         );
     }
 
-    private static bool MachineIdReflectionAvailable(
-        (Type? MachineIdType, FieldInfo? TableField) reflection
-    )
-        => reflection.MachineIdType != null && reflection.TableField != null;
+    private static bool MachineIdReflectionAvailable(MachineIdReflection reflection)
+        => reflection.Available;
 
     private static object CreateMachineIdTask(Type machineIdType)
     {

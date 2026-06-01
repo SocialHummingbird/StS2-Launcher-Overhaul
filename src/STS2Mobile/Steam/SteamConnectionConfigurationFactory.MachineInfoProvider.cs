@@ -20,7 +20,7 @@ internal static partial class SteamConnectionConfigurationFactory
             0x41,
         };
 
-        public AndroidMachineInfoProvider() { }
+        internal AndroidMachineInfoProvider() { }
 
         public byte[] GetMachineGuid() => Encoding.ASCII.GetBytes("sts2launcher-android-machine-guid");
 

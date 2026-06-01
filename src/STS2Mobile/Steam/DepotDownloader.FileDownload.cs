@@ -18,7 +18,7 @@ internal sealed partial class DepotDownloader
         if (fileName == null)
             return;
 
-        var target = CreateDepotFilePaths(fileName);
+        var target = CreateDepotFileTarget(fileName);
         var writeLock = GetDepotFileWriteLock(target);
 
         await writeLock.WaitAsync(ct);
@@ -46,13 +46,7 @@ internal sealed partial class DepotDownloader
 
     private bool TryHandleDirectoryTarget(
         DepotManifest.FileData file,
-        (
-            string FileName,
-            string FilePath,
-            string? FileDir,
-            string TempPath,
-            string LockKey
-        ) target
+        DepotFileTarget target
     )
     {
         if (!file.Flags.HasFlag(EDepotFileFlag.Directory))
@@ -64,13 +58,7 @@ internal sealed partial class DepotDownloader
 
     private bool TryUseExistingFile(
         DepotManifest.FileData file,
-        (
-            string FileName,
-            string FilePath,
-            string? FileDir,
-            string TempPath,
-            string LockKey
-        ) target
+        DepotFileTarget target
     )
     {
         // Validate existing file against manifest SHA-1 hash. A size-only check
@@ -85,13 +73,7 @@ internal sealed partial class DepotDownloader
 
     private void PrepareDepotFileDownload(
         DepotManifest.FileData file,
-        (
-            string FileName,
-            string FilePath,
-            string? FileDir,
-            string TempPath,
-            string LockKey
-        ) target
+        DepotFileTarget target
     )
     {
         var fileSize = checked((long)file.TotalSize);

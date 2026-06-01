@@ -6,7 +6,28 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private static async Task<(int Downloaded, int Skipped)> RunManualPullDownloadsAsync(
+    private readonly struct ManualPullResult
+    {
+        private ManualPullResult(int downloaded, int skipped)
+        {
+            Downloaded = downloaded;
+            Skipped = skipped;
+        }
+
+        internal int Downloaded { get; }
+        internal int Skipped { get; }
+
+        internal static ManualPullResult DownloadedOne()
+            => new(downloaded: 1, skipped: 0);
+
+        internal static ManualPullResult SkippedOne()
+            => new(downloaded: 0, skipped: 1);
+
+        internal static ManualPullResult Failed()
+            => new(downloaded: 0, skipped: 0);
+    }
+
+    private static async Task<ManualPullResult> RunManualPullDownloadsAsync(
         ManualSyncContext sync,
         IEnumerable<string> paths
     )
@@ -23,10 +44,10 @@ internal static partial class CloudSyncCoordinator
                 break;
         }
 
-        return (downloaded, skipped);
+        return new ManualPullResult(downloaded, skipped);
     }
 
-    private static async Task<(int Downloaded, int Skipped)> PullManualPathAsync(
+    private static async Task<ManualPullResult> PullManualPathAsync(
         ManualSyncContext sync,
         string path
     )
@@ -34,13 +55,13 @@ internal static partial class CloudSyncCoordinator
         try
         {
             if (!sync.CloudFileExists(path))
-                return (Downloaded: 0, Skipped: 1);
+                return ManualPullResult.SkippedOne();
 
             PatchHelper.Log(PullDownloading(path));
             string content = await sync.ReadCloudContentAsync(path, ManualPullDownloadOperation);
-            await sync.WriteCloudContentAsync(path, content);
+            await sync.WriteLocalContentFromCloudAsync(path, content);
             PatchHelper.Log(PullWrote(path, content.Length));
-            return (Downloaded: 1, Skipped: 0);
+            return ManualPullResult.DownloadedOne();
         }
         catch (TimeoutException)
         {
@@ -51,6 +72,6 @@ internal static partial class CloudSyncCoordinator
             PatchHelper.Log(PullFailed(path, ex));
         }
 
-        return (Downloaded: 0, Skipped: 0);
+        return ManualPullResult.Failed();
     }
 }

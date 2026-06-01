@@ -32,35 +32,56 @@ internal sealed partial class DepotDownloader : IDisposable
     }
 
     internal async Task DownloadAsync(CancellationToken ct = default)
+        => await RunWithSuspendedIdleTimeoutAsync(() => DownloadCoreAsync(ct));
+
+    private async Task DownloadCoreAsync(CancellationToken ct)
+    {
+        Directory.CreateDirectory(_gameDir);
+        _stateStore.Prepare();
+
+        Log(
+            $"Downloader mode: android={OperatingSystem.IsAndroid()}, "
+                + $"maxConcurrency={MaxConcurrentDownloads}"
+        );
+        Log("Fetching app info...");
+
+        var depots = await GetMainAppDepotsAsync();
+        if (depots.Count == 0)
+            throw new Exception("No downloadable depots found");
+
+        _servers = await LoadCdnServersAsync(ct);
+
+        foreach (var depot in depots)
+        {
+            ct.ThrowIfCancellationRequested();
+            await DownloadDepotAsync(depot.DepotId, depot.ManifestId, ct);
+        }
+
+        Log("All game files downloaded!");
+
+        // Remove Sentry plugin references (no android.arm64 build exists).
+        PatchGamePck(Path.Combine(_gameDir, "SlayTheSpire2.pck"));
+    }
+
+    private async Task RunWithSuspendedIdleTimeoutAsync(Func<Task> action)
     {
         _connection.SuspendIdleTimeout();
         try
         {
-            Directory.CreateDirectory(_gameDir);
-            _stateStore.Prepare();
+            await action();
+        }
+        finally
+        {
+            _connection.ResumeIdleTimeout();
+        }
+    }
 
-            Log(
-                $"Downloader mode: android={OperatingSystem.IsAndroid()}, "
-                    + $"maxConcurrency={MaxConcurrentDownloads}"
-            );
-            Log("Fetching app info...");
-
-            var depots = await GetMainAppDepotsAsync();
-            if (depots.Count == 0)
-                throw new Exception("No downloadable depots found");
-
-            _servers = await LoadCdnServersAsync(ct);
-
-            foreach (var depot in depots)
-            {
-                ct.ThrowIfCancellationRequested();
-                await DownloadDepotAsync(depot.DepotId, depot.ManifestId, ct);
-            }
-
-            Log("All game files downloaded!");
-
-            // Remove Sentry plugin references (no android.arm64 build exists).
-            PatchGamePck(Path.Combine(_gameDir, "SlayTheSpire2.pck"));
+    private async Task<T> RunWithSuspendedIdleTimeoutAsync<T>(Func<Task<T>> action)
+    {
+        _connection.SuspendIdleTimeout();
+        try
+        {
+            return await action();
         }
         finally
         {

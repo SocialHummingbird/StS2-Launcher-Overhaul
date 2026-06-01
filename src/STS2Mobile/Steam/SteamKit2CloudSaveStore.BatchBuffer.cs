@@ -4,8 +4,20 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
+    private readonly struct SaveBatchFile
+    {
+        internal SaveBatchFile(string canonPath, byte[] bytes)
+        {
+            CanonPath = canonPath;
+            Bytes = bytes;
+        }
+
+        internal string CanonPath { get; }
+        internal byte[] Bytes { get; }
+    }
+
     private readonly object _saveBatchLock = new();
-    private readonly List<(string CanonPath, byte[] Bytes)> _saveBatchFiles = new();
+    private readonly List<SaveBatchFile> _saveBatchFiles = new();
     private bool _saveBatchCollecting;
 
     private void BeginCollectingSaveBatch()
@@ -24,21 +36,21 @@ internal sealed partial class SteamKit2CloudSaveStore
             if (!_saveBatchCollecting)
                 return false;
 
-            _saveBatchFiles.Add((CanonPath: canonPath, Bytes: bytes));
+            _saveBatchFiles.Add(new SaveBatchFile(canonPath, bytes));
             return true;
         }
     }
 
-    private List<(string CanonPath, byte[] Bytes)> EndCollectingSaveBatch()
+    private List<SaveBatchFile> EndCollectingSaveBatch()
     {
         lock (_saveBatchLock)
         {
             _saveBatchCollecting = false;
 
             if (_saveBatchFiles.Count == 0)
-                return new List<(string CanonPath, byte[] Bytes)>();
+                return new List<SaveBatchFile>();
 
-            var files = new List<(string CanonPath, byte[] Bytes)>(_saveBatchFiles);
+            var files = new List<SaveBatchFile>(_saveBatchFiles);
             _saveBatchFiles.Clear();
             return files;
         }

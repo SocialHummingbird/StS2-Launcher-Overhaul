@@ -11,6 +11,18 @@ internal sealed partial class ShaderWarmupScreen : Control
 {
     private const int WarmupVersion = 5;
 
+    private readonly struct WarmupMaterial
+    {
+        internal WarmupMaterial(string path, Material material)
+        {
+            Path = path;
+            Material = material;
+        }
+
+        internal string Path { get; }
+        internal Material Material { get; }
+    }
+
     private TaskCompletionSource<bool> _tcs;
     private Label _statusLabel;
     private Label _detailLabel;

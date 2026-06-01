@@ -11,7 +11,7 @@ internal sealed partial class DepotDownloader
         ulong manifestId,
         ulong manifestRequestCode,
         byte[] depotKey,
-        (Server Server, int Index) attempt
+        CdnServerAttempt attempt
     )
     {
         return await RunCdnAuthRetryAsync<DepotManifest?>(

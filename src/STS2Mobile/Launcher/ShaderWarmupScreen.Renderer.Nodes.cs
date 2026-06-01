@@ -11,7 +11,7 @@ internal sealed partial class ShaderWarmupScreen
         private static List<Node> AddBatchNodes(
             SubViewport viewport,
             ImageTexture whiteTexture,
-            List<(string Path, Material Material)> materials,
+            List<WarmupMaterial> materials,
             int start,
             int end
         )

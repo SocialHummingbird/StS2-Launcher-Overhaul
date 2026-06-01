@@ -6,6 +6,59 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class AndroidJavaHttpMessageHandler
 {
+    private sealed class ParsedBridgeResponse : IDisposable
+    {
+        private readonly JsonDocument _document;
+
+        internal ParsedBridgeResponse(JsonDocument document, int status)
+        {
+            _document = document;
+            Status = status;
+        }
+
+        internal JsonElement Root => _document.RootElement;
+        internal int Status { get; }
+
+        public void Dispose()
+            => _document.Dispose();
+    }
+
+    private static ParsedBridgeResponse ReadBridgeResponse(
+        string? raw,
+        Uri? requestUri,
+        string requestDescription
+    )
+    {
+        var bridgeResponse = RequireBridgeResponse(raw, requestDescription);
+        var doc = ParseBridgeResponse(bridgeResponse, requestDescription);
+        try
+        {
+            ThrowIfBridgeError(doc.RootElement, requestUri, requestDescription);
+            return new ParsedBridgeResponse(
+                doc,
+                ReadStatusCode(doc.RootElement, requestDescription)
+            );
+        }
+        catch
+        {
+            doc.Dispose();
+            throw;
+        }
+    }
+
+    private static string RequireBridgeResponse(
+        string? raw,
+        string requestDescription
+    )
+    {
+        if (!string.IsNullOrEmpty(raw))
+            return raw;
+
+        throw new HttpRequestException(
+            $"Android Java HTTP bridge returned an empty response for {requestDescription}"
+        );
+    }
+
     private static JsonDocument ParseBridgeResponse(string raw, string requestDescription)
     {
         try

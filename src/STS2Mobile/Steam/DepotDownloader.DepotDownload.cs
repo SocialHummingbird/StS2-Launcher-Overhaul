@@ -5,13 +5,28 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private readonly struct DepotAccess
+    {
+        private DepotAccess(byte[] key, ulong manifestRequestCode)
+        {
+            Key = key;
+            ManifestRequestCode = manifestRequestCode;
+        }
+
+        internal byte[] Key { get; }
+        internal ulong ManifestRequestCode { get; }
+
+        internal static DepotAccess WithManifest(byte[] key, ulong manifestRequestCode)
+            => new(key, manifestRequestCode);
+    }
+
     private async Task DownloadDepotAsync(uint depotId, ulong manifestId, CancellationToken ct)
     {
         Log($"Processing depot {depotId}...");
 
         bool isUpdate = _stateStore.LoadManifestId(depotId) != manifestId;
 
-        var access = await GetDepotKeyAndManifestRequestCodeAsync(depotId, manifestId);
+        var access = await GetDepotAccessAsync(depotId, manifestId);
 
         var manifest = await DownloadManifestWithRetriesAsync(
             depotId,
@@ -46,15 +61,9 @@ internal sealed partial class DepotDownloader
         Log($"Depot {depotId} complete");
     }
 
-    private async Task<(
-        byte[] Key,
-        ulong ManifestRequestCode
-    )> GetDepotKeyAndManifestRequestCodeAsync(
-        uint depotId,
-        ulong manifestId
-    )
-        => (
-            Key: await _connection.GetDepotDecryptionKeyAsync(depotId),
-            ManifestRequestCode: await GetManifestRequestCodeAsync(depotId, manifestId)
+    private async Task<DepotAccess> GetDepotAccessAsync(uint depotId, ulong manifestId)
+        => DepotAccess.WithManifest(
+            await _connection.GetDepotDecryptionKeyAsync(depotId),
+            await GetManifestRequestCodeAsync(depotId, manifestId)
         );
 }

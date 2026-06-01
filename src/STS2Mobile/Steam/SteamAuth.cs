@@ -11,6 +11,20 @@ namespace STS2Mobile.Steam;
 // call SteamUser.LogOn - callers use the returned refresh token with SteamConnection.
 internal sealed partial class SteamAuth : IDisposable, IAuthenticator
 {
+    internal readonly struct LoginCredentials
+    {
+        internal LoginCredentials(string accountName, string refreshToken, string guardData)
+        {
+            AccountName = accountName;
+            RefreshToken = refreshToken;
+            GuardData = guardData;
+        }
+
+        internal string AccountName { get; }
+        internal string RefreshToken { get; }
+        internal string GuardData { get; }
+    }
+
     private readonly SteamClient _client;
     private readonly CallbackManager _callbackManager;
     private readonly SteamUser _steamUser;
@@ -18,6 +32,8 @@ internal sealed partial class SteamAuth : IDisposable, IAuthenticator
     private volatile bool _connectStarted;
     private volatile bool _credentialAuthStarted;
     private volatile bool _needsReconnectForAuth;
+    private volatile bool _waitingForAuthCode;
+    private volatile bool _androidAuthConnectionLossLogged;
     private readonly Func<bool, Task<string>> _codeProvider;
 
     private readonly ManualResetEventSlim _connectedGate = new(false);
@@ -41,4 +57,7 @@ internal sealed partial class SteamAuth : IDisposable, IAuthenticator
         PatchHelper.Log($"[Auth] {msg}");
         LogMessage?.Invoke(msg);
     }
+
+    private static bool RequiresPersistentAuthConnection
+        => !OperatingSystem.IsAndroid();
 }

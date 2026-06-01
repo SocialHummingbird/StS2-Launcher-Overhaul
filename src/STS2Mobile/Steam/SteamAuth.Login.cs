@@ -10,11 +10,7 @@ internal sealed partial class SteamAuth
 {
     private const int CredentialAuthRetryCount = 3;
 
-    internal async Task<(
-        string AccountName,
-        string RefreshToken,
-        string GuardData
-    )> LoginWithCredentialsAsync(
+    internal async Task<LoginCredentials> LoginWithCredentialsAsync(
         string username,
         string password,
         string guardData
@@ -31,27 +27,12 @@ internal sealed partial class SteamAuth
             {
                 try
                 {
-                    var authSession = await BeginCredentialAuthSessionAsync(
-                        username,
-                        password,
-                        guardData
-                    );
-
-                    var pollResponse = await authSession.PollingWaitForResultAsync();
-                    string newGuardData = pollResponse.NewGuardData ?? guardData;
-
-                    Log($"Authentication successful for '{pollResponse.AccountName}'");
-
-                    return (
-                        AccountName: pollResponse.AccountName,
-                        RefreshToken: pollResponse.RefreshToken,
-                        GuardData: newGuardData
-                    );
+                    return await AuthenticateCredentialsOnceAsync(username, password, guardData);
                 }
                 catch (Exception ex) when (CanRetryAuthAfterTransientFailure(ex, attempt))
                 {
                     Log($"Steam authentication interrupted ({ex.Message}); retrying auth session");
-                    await ReconnectForAuthAsync();
+                    await PrepareForAuthRetryAsync();
                 }
             }
 
@@ -63,11 +44,57 @@ internal sealed partial class SteamAuth
         }
     }
 
+    private async Task<LoginCredentials> AuthenticateCredentialsOnceAsync(
+        string username,
+        string password,
+        string guardData
+    )
+    {
+        var authSession = await BeginCredentialAuthSessionAsync(
+            username,
+            password,
+            guardData
+        );
+
+        var pollResponse = await PollForAuthResultAndMaintainConnectionAsync(authSession);
+        Log($"Authentication successful for '{pollResponse.AccountName}'");
+
+        return new LoginCredentials(
+            pollResponse.AccountName,
+            pollResponse.RefreshToken,
+            pollResponse.NewGuardData ?? guardData
+        );
+    }
+
+    private async Task<AuthPollResult> PollForAuthResultAndMaintainConnectionAsync(
+        CredentialsAuthSession authSession
+    )
+        => await WaitForTaskAndMaintainAuthConnectionAsync(
+            authSession.PollingWaitForResultAsync(),
+            () => ShouldReconnectWhilePolling,
+            "Steam auth reconnect did not complete yet; will retry while polling auth result"
+        );
+
+    private bool ShouldReconnectWhilePolling => NeedsAuthReconnect && !_waitingForAuthCode;
+
     private bool CanRetryAuthAfterTransientFailure(Exception ex, int attempt)
         => attempt < CredentialAuthRetryCount
             && (AuthConnectionWasLost || IsTransientAndroidAuthFailure(ex));
 
-    private bool AuthConnectionWasLost => _needsReconnectForAuth || !_connectedGate.IsSet;
+    private bool AuthConnectionWasLost
+        => RequiresPersistentAuthConnection && (_needsReconnectForAuth || !_connectedGate.IsSet);
+
+    private async Task PrepareForAuthRetryAsync()
+    {
+        if (RequiresPersistentAuthConnection)
+        {
+            await ReconnectForAuthAsync();
+            return;
+        }
+
+        LogAndroidAuthConnectionLossOnce();
+        Log("Retrying Android WebAPI credential auth without CM reconnect");
+    }
 
     private static bool IsTransientAndroidAuthFailure(Exception ex)
     {

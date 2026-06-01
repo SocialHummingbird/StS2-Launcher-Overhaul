@@ -8,13 +8,13 @@ internal static partial class LauncherStartupFlow
 {
     private static async Task RunShaderWarmupIfNeededAsync(StartupContext startup)
     {
-        if (ShaderWarmupScreen.NeedsWarmup() && !startup.Mode.SkipShaderWarmup)
+        if (ShaderWarmupScreen.NeedsWarmup() && !startup.SkipShaderWarmup)
         {
             startup.SetPhase(PhaseShaderWarmup, "Warming shaders...");
             PatchHelper.Log("Shader warmup starting");
 
             var warmup = new ShaderWarmupScreen();
-            startup.GameNode.AddChild(warmup);
+            startup.AddChild(warmup);
             try
             {
                 await warmup.RunAsync();
@@ -26,10 +26,10 @@ internal static partial class LauncherStartupFlow
 
             PatchHelper.Log("Shader warmup complete");
         }
-        else if (startup.Mode.SkipShaderWarmup)
+        else if (startup.SkipShaderWarmup)
         {
-            PatchHelper.Log(startup.Mode.ShaderWarmupSkipLog);
-            startup.SetStatus(startup.Mode.ShaderWarmupSkipStatus);
+            startup.LogShaderWarmupSkip();
+            startup.SetShaderWarmupSkipStatus();
         }
     }
 }

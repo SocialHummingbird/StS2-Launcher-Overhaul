@@ -10,49 +10,77 @@ internal static partial class LauncherDiagnostics
     private const int LargeAttachmentMaxChars = 256 * 1024;
     private const int SmallAttachmentMaxChars = 64 * 1024;
 
+    private readonly struct DiagnosticAttachment
+    {
+        internal DiagnosticAttachment(DiagnosticFile file, int limit)
+        {
+            File = file;
+            Limit = limit;
+        }
+
+        internal DiagnosticFile File { get; }
+        internal int Limit { get; }
+        internal string Label => File.Label;
+        internal string Path => File.Path;
+    }
+
+    private readonly struct FileReadResult
+    {
+        private FileReadResult(string? text, string? error)
+        {
+            Text = text;
+            Error = error;
+        }
+
+        internal string? Text { get; }
+        internal string? Error { get; }
+        internal bool HasText => Text != null;
+        internal bool IsMissing => Text == null && Error == null;
+
+        internal static FileReadResult Read(string text)
+            => new(text, error: null);
+
+        internal static FileReadResult Missing()
+            => new(text: null, error: null);
+
+        internal static FileReadResult Failed(string error)
+            => new(text: null, error);
+    }
+
     private static void AppendSummaryErrorDiagnostics(StringBuilder sb, string dataDir)
     {
-        AppendSummarySmallFileAttachments(sb, dataDir);
-        AppendSummaryInterestingFileTails(sb, dataDir);
-        AppendLogcatErrorSummary(sb);
-    }
-
-    private static void AppendRawErrorDiagnostics(StringBuilder sb, string dataDir)
-    {
-        AppendRawErrorLogAttachments(sb, dataDir);
-        AppendRawLogcatTail(sb);
-    }
-
-    private static void AppendSummarySmallFileAttachments(StringBuilder sb, string dataDir)
-        => AppendAttachments(
+        AppendAttachments(
             sb,
             SummarySmallFiles(dataDir),
             SummaryFileStatusPrefix,
             SummaryFileStatusPrefix
         );
 
-    private static void AppendSummaryInterestingFileTails(StringBuilder sb, string dataDir)
-    {
         foreach (var tail in SummaryInterestingTails(dataDir))
             AppendInterestingFileTail(sb, tail);
+
+        AppendLogcatErrorSummary(sb);
     }
 
-    private static void AppendRawErrorLogAttachments(StringBuilder sb, string dataDir)
-        => AppendAttachments(sb, RawErrorLogFiles(dataDir));
+    private static void AppendRawErrorDiagnostics(StringBuilder sb, string dataDir)
+    {
+        AppendAttachments(sb, RawErrorLogFiles(dataDir));
+        AppendRawLogcatTail(sb);
+    }
 
-    private static IEnumerable<(string Label, string Path, int Limit)> SummarySmallFiles(string dataDir)
+    private static IEnumerable<DiagnosticAttachment> SummarySmallFiles(string dataDir)
     {
         yield return Attachment(StartupMarker(dataDir), 2048);
         yield return Attachment(AndroidUncaughtException(dataDir), 4096);
     }
 
-    private static IEnumerable<(string Label, string Path, int Limit)> SummaryInterestingTails(string dataDir)
+    private static IEnumerable<DiagnosticAttachment> SummaryInterestingTails(string dataDir)
     {
         yield return Attachment(BootstrapTrace(), 80);
         yield return Attachment(StartupSceneSnapshot(dataDir), 80);
     }
 
-    private static IEnumerable<(string Label, string Path, int Limit)> RawErrorLogFiles(string dataDir)
+    private static IEnumerable<DiagnosticAttachment> RawErrorLogFiles(string dataDir)
     {
         yield return Attachment(
             StartupMarker(dataDir),
@@ -69,15 +97,12 @@ internal static partial class LauncherDiagnostics
         );
     }
 
-    private static (string Label, string Path, int Limit) Attachment(
-        (string Label, string Path) file,
-        int limit
-    )
-        => (file.Label, file.Path, limit);
+    private static DiagnosticAttachment Attachment(DiagnosticFile file, int limit)
+        => new(file, limit);
 
     private static void AppendAttachments(
         StringBuilder sb,
-        IEnumerable<(string Label, string Path, int Limit)> files,
+        IEnumerable<DiagnosticAttachment> files,
         string missingPrefix = "",
         string failedPrefix = ""
     )
@@ -97,15 +122,15 @@ internal static partial class LauncherDiagnostics
 
     private static void AppendInterestingFileTail(
         StringBuilder sb,
-        (string Label, string Path, int Limit) file
+        DiagnosticAttachment file
     )
     {
         sb.AppendLine();
         sb.AppendLine(Header(file.Label, file.Path));
         var read = ReadFileText(file.Path);
-        if (read.Text == null)
+        if (!read.HasText)
         {
-            sb.AppendLine(ReadStatus(read.Error));
+            sb.AppendLine(ReadStatus(read));
             return;
         }
 
@@ -116,33 +141,33 @@ internal static partial class LauncherDiagnostics
 
     private static void AppendTruncatedFile(
         StringBuilder sb,
-        (string Label, string Path, int Limit) file,
+        DiagnosticAttachment file,
         string missingPrefix = "",
         string failedPrefix = ""
     )
     {
         var read = ReadFileText(file.Path);
-        if (read.Text != null)
+        if (read.HasText)
         {
             sb.AppendLine(TruncateForDisplay(read.Text, file.Limit));
             return;
         }
 
-        sb.AppendLine(ReadStatus(read.Error, missingPrefix, failedPrefix));
+        sb.AppendLine(ReadStatus(read, missingPrefix, failedPrefix));
     }
 
-    private static (string? Text, string? Error) ReadFileText(string path)
+    private static FileReadResult ReadFileText(string path)
     {
         try
         {
             if (!File.Exists(path))
-                return (Text: null, Error: null);
+                return FileReadResult.Missing();
 
-            return (Text: File.ReadAllText(path), Error: null);
+            return FileReadResult.Read(File.ReadAllText(path));
         }
         catch (Exception ex)
         {
-            return (Text: null, Error: ex.Message);
+            return FileReadResult.Failed(ex.Message);
         }
     }
 
@@ -155,11 +180,11 @@ internal static partial class LauncherDiagnostics
     }
 
     private static string ReadStatus(
-        string? error,
+        FileReadResult read,
         string missingPrefix = "",
         string failedPrefix = ""
     )
-        => error == null
+        => read.IsMissing
             ? $"{missingPrefix}<missing>"
-            : $"{failedPrefix}<failed to read: {error}>";
+            : $"{failedPrefix}<failed to read: {read.Error}>";
 }

@@ -33,22 +33,71 @@ internal sealed partial class LauncherController
             }
         );
 
-    private void RunDiagnosticsAction(string failureContext, Action action)
+    private bool RunDiagnosticsAction(string failureContext, Action action)
+        => TryRunDiagnosticsAction(
+            failureContext,
+            logFullException: true,
+            action,
+            message => _view.SetStatus($"{failureContext}: {message}")
+        );
+
+    private bool TryRunDiagnosticsAction(
+        string failureContext,
+        bool logFullException,
+        Action action,
+        Action<string>? onFailure = null
+    )
     {
         try
         {
             action();
+            return true;
         }
         catch (Exception ex)
         {
-            ShowDiagnosticsActionFailure(failureContext, ex);
+            HandleDiagnosticsActionFailure(
+                failureContext,
+                ex,
+                logFullException,
+                onFailure
+            );
+            return false;
         }
     }
 
-    private void ShowDiagnosticsActionFailure(string failureContext, Exception ex)
+    private T? TryRunDiagnosticsAction<T>(
+        string failureContext,
+        bool logFullException,
+        Func<T> action,
+        Action<string>? onFailure = null
+    )
+        where T : class
     {
-        LogDiagnosticsFailure(failureContext, ex, logFullException: true);
-        _view.SetStatus($"{failureContext}: {ex.Message}");
+        try
+        {
+            return action();
+        }
+        catch (Exception ex)
+        {
+            HandleDiagnosticsActionFailure(
+                failureContext,
+                ex,
+                logFullException,
+                onFailure
+            );
+            return default;
+        }
+    }
+
+    private static void HandleDiagnosticsActionFailure(
+        string failureContext,
+        Exception ex,
+        bool logFullException,
+        Action<string>? onFailure
+    )
+    {
+        LogDiagnosticsFailure(failureContext, ex, logFullException);
+        onFailure?.Invoke(ex.Message);
     }
 
     private static void LogDiagnosticsFailure(

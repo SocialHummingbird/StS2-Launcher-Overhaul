@@ -17,8 +17,10 @@ internal static partial class LauncherGameStartupRecovery
         RecordStartupState(
             gameNode,
             startupStatus,
-            WatchdogStalledReason,
-            "Game startup stalled. Attempting main menu recovery..."
+            new RecoveryStateUpdate(
+                WatchdogStalledReason,
+                "Game startup stalled. Attempting main menu recovery..."
+            )
         );
         PatchHelper.Log(
             $"Game startup watchdog fired after {watchdogMs}ms; startup task still running"
@@ -35,8 +37,10 @@ internal static partial class LauncherGameStartupRecovery
                 recoveryControls,
                 startupStatus,
                 gameNode,
-                WatchdogRecoveredReason,
-                "Main menu recovered after startup stall. Recovery controls remain briefly."
+                new RecoveryStateUpdate(
+                    WatchdogRecoveredReason,
+                    "Main menu recovered after startup stall. Recovery controls remain briefly."
+                )
             );
             return;
         }
@@ -44,8 +48,10 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            MainMenuRecoveryFailureReason,
-            "Game startup stalled and main menu recovery failed. Use recovery controls below."
+            new RecoveryStateUpdate(
+                MainMenuRecoveryFailureReason,
+                "Game startup stalled and main menu recovery failed. Use recovery controls below."
+            )
         );
     }
 }

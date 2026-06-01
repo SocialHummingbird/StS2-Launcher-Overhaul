@@ -10,9 +10,27 @@ internal sealed partial class SteamAuth
         if (_connectedGate.IsSet)
             return;
 
+        if (!RequiresPersistentAuthConnection)
+        {
+            TryStartBestEffortAuthConnection();
+            return;
+        }
+
         if (!await ConnectWithRetriesAsync())
             throw new TimeoutException(
                 "Could not establish a Steam auth connection. Check Steam status and try again."
             );
+    }
+
+    private void TryStartBestEffortAuthConnection()
+    {
+        try
+        {
+            Connect();
+        }
+        catch (Exception ex)
+        {
+            Log($"Steam CM connection unavailable before Android WebAPI auth: {ex.Message}");
+        }
     }
 }

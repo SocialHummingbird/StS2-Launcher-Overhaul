@@ -6,22 +6,16 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
-    private void UploadSaveBatch(IReadOnlyList<(string CanonPath, byte[] Bytes)> files)
+    private void UploadSaveBatch(IReadOnlyList<SaveBatchFile> files)
     {
         var batchId = BeginUploadBatchOrNull(files);
-        if (!batchId.HasValue)
-        {
-            UploadBatchFilesIndividually(files);
-            return;
-        }
+        UploadBatchFiles(files, batchId);
 
-        foreach (var file in files)
-            UploadWithRetry(file.CanonPath, file.Bytes, batchId.Value);
-
-        CompleteUploadBatch(batchId.Value);
+        if (batchId.HasValue)
+            CompleteUploadBatch(batchId.Value);
     }
 
-    private ulong? BeginUploadBatchOrNull(IReadOnlyList<(string CanonPath, byte[] Bytes)> files)
+    private ulong? BeginUploadBatchOrNull(IReadOnlyList<SaveBatchFile> files)
     {
         try
         {
@@ -34,7 +28,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         }
     }
 
-    private ulong BeginUploadBatch(IReadOnlyList<(string CanonPath, byte[] Bytes)> files)
+    private ulong BeginUploadBatch(IReadOnlyList<SaveBatchFile> files)
     {
         var request = new CCloud_BeginAppUploadBatch_Request
         {
@@ -51,10 +45,10 @@ internal sealed partial class SteamKit2CloudSaveStore
         return result.batch_id;
     }
 
-    private void UploadBatchFilesIndividually(IReadOnlyList<(string CanonPath, byte[] Bytes)> files)
+    private void UploadBatchFiles(IReadOnlyList<SaveBatchFile> files, ulong? batchId)
     {
         foreach (var file in files)
-            UploadWithRetry(file.CanonPath, file.Bytes);
+            UploadWithRetry(file.CanonPath, file.Bytes, batchId.GetValueOrDefault());
     }
 
     private void CompleteUploadBatch(ulong batchId)
