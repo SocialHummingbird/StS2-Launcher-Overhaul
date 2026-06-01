@@ -25,17 +25,17 @@ $resolvedKeystore = (Resolve-Path -LiteralPath $KeystorePath).Path
 $signerSha256 = Get-KeystoreSignerSha256 -KeystorePath $resolvedKeystore -KeystorePassword $KeystorePassword -KeyAlias $KeyAlias -KeytoolPath $KeytoolPath
 $keystoreBase64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($resolvedKeystore))
 
-$keystoreBase64 | gh secret set ANDROID_RELEASE_KEYSTORE_BASE64 --repo $Repo
+gh secret set ANDROID_RELEASE_KEYSTORE_BASE64 --repo $Repo --body $keystoreBase64
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to set ANDROID_RELEASE_KEYSTORE_BASE64"
 }
 
-$KeystorePassword | gh secret set ANDROID_RELEASE_KEYSTORE_PASSWORD --repo $Repo
+gh secret set ANDROID_RELEASE_KEYSTORE_PASSWORD --repo $Repo --body $KeystorePassword
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to set ANDROID_RELEASE_KEYSTORE_PASSWORD"
 }
 
-$KeyAlias | gh secret set ANDROID_RELEASE_KEY_ALIAS --repo $Repo
+gh secret set ANDROID_RELEASE_KEY_ALIAS --repo $Repo --body $KeyAlias
 if ($LASTEXITCODE -ne 0) {
     throw "Failed to set ANDROID_RELEASE_KEY_ALIAS"
 }
