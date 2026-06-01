@@ -27,10 +27,10 @@ internal sealed partial class LauncherSteamSession
             var result = await auth.LoginWithCredentialsAsync(
                 username,
                 password,
-                _credentialStore.GuardData
+                _credentialStore.GuardDataOrEmpty()
             );
             SaveLoginCredentials(result);
-            _connection = new SteamConnection(result.AccountName, result.RefreshToken);
+            _connection = result.CreateConnection();
             ResetAuth();
             return await VerifyOwnershipForSessionAsync(_connection, verifyingOwnership);
         }
@@ -44,7 +44,7 @@ internal sealed partial class LauncherSteamSession
 
     private void SaveLoginCredentials(SteamAuth.LoginCredentials result)
     {
-        _credentialStore.Save(result.AccountName, result.RefreshToken, result.GuardData);
+        result.SaveTo(_credentialStore);
         LauncherCloudSaveState.SaveCredentials(_credentialStore);
     }
 }

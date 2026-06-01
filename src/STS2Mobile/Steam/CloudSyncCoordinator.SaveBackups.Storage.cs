@@ -7,11 +7,32 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveBackups
     {
+        private readonly struct BackupWriteResult
+        {
+            private BackupWriteResult(string? path)
+            {
+                Path = path;
+            }
+
+            internal string? Path { get; }
+            internal bool Written => Path != null;
+
+            internal static BackupWriteResult Skipped()
+                => new(path: null);
+
+            internal static BackupWriteResult WrittenTo(string path)
+                => new(path);
+
+            internal string PathOrThrow()
+                => Path
+                    ?? throw new InvalidOperationException("Backup was not written");
+        }
+
         private static bool SaveContent(string path, string content, string source)
         {
             try
             {
-                if (TryWriteBackup(path, content, source, null) == null)
+                if (!TryWriteBackup(path, content, source, null).Written)
                     return false;
 
                 PatchHelper.Log(SaveBackedUp(source, path));
@@ -24,7 +45,7 @@ internal static partial class CloudSyncCoordinator
             }
         }
 
-        private static string TryWriteBackup(
+        private static BackupWriteResult TryWriteBackup(
             string path,
             string content,
             string source,
@@ -32,7 +53,7 @@ internal static partial class CloudSyncCoordinator
         )
         {
             if (ShouldSkipBackup(content))
-                return null;
+                return BackupWriteResult.Skipped();
 
             var canonPath = NormalizeSavePath(path);
             var backupPath = BuildBackupPath(
@@ -42,7 +63,7 @@ internal static partial class CloudSyncCoordinator
             );
 
             File.WriteAllText(backupPath, content);
-            return backupPath;
+            return BackupWriteResult.WrittenTo(backupPath);
         }
 
         private static bool HasBackupAccess()

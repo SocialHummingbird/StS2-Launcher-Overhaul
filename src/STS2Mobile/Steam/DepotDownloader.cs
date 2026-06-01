@@ -54,7 +54,7 @@ internal sealed partial class DepotDownloader : IDisposable
         foreach (var depot in depots)
         {
             ct.ThrowIfCancellationRequested();
-            await DownloadDepotAsync(depot.DepotId, depot.ManifestId, ct);
+            await depot.DownloadAsync(this, ct);
         }
 
         Log("All game files downloaded!");

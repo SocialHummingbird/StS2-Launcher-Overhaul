@@ -34,7 +34,7 @@ internal static partial class LauncherGameStartupRecovery
             recoveryControls,
             startupStatus,
             gameNode,
-            new RecoveryStateUpdate(
+            RecoveryStateUpdate.Create(
                 StartupObservationReason,
                 "Game startup returned. Recovery controls remain briefly.",
                 "after NGame.GameStartup returned"

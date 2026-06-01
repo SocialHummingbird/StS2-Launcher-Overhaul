@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using SessionState = STS2Mobile.Launcher.LauncherModel.SessionState;
 
 namespace STS2Mobile.Launcher;
 
@@ -20,7 +19,7 @@ internal sealed partial class LauncherController
     {
         await Task.Delay(SteamConnectionTimeoutMs);
 
-        if (ShouldIgnoreConnectionTimeout(sessionAttemptId))
+        if (_model.ShouldIgnoreConnectionTimeout(sessionAttemptId))
             return;
 
         if (CanUseOfflineLaunch())
@@ -30,22 +29,6 @@ internal sealed partial class LauncherController
         }
 
         _runOnMainThread(ShowFirstLaunchFailure);
-    }
-
-    private bool ShouldIgnoreConnectionTimeout(int sessionAttemptId)
-    {
-        if (_model.SessionAttemptId != sessionAttemptId || _model.AwaitingCode)
-            return true;
-
-        if (_model.ConnectionResolved)
-            return true;
-
-        return _model.CurrentSessionState
-            is not (
-                SessionState.Connecting
-                or SessionState.Authenticating
-                or SessionState.VerifyingOwnership
-            );
     }
 
     private bool CanUseOfflineLaunch()
@@ -61,6 +44,6 @@ internal sealed partial class LauncherController
     private void ShowFirstLaunchFailure()
     {
         _view.SetStatus(FirstLaunchConnectionFailed);
-        _view.Actions.ShowRetry();
+        _view.ShowRetry();
     }
 }

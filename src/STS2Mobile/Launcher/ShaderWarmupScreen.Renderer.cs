@@ -10,7 +10,6 @@ internal sealed partial class ShaderWarmupScreen
     private sealed partial class ShaderWarmupRenderer
     {
         private const int BatchSize = 8;
-        private const int ParticleAmount = 1;
         private const int TextureHeight = 1;
         private const int TextureWidth = 1;
         private const int ViewportHeight = 64;

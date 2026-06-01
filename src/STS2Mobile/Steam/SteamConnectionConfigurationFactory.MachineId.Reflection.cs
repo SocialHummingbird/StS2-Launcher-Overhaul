@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
+using SteamKit2;
 
 namespace STS2Mobile.Steam;
 
@@ -8,22 +9,47 @@ internal static partial class SteamConnectionConfigurationFactory
 {
     private readonly struct MachineIdReflection
     {
-        internal MachineIdReflection(Type? machineIdType, FieldInfo? tableField)
+        private MachineIdReflection(Type? machineIdType, FieldInfo? tableField)
         {
             MachineIdType = machineIdType;
             TableField = tableField;
         }
 
-        internal Type? MachineIdType { get; }
-        internal FieldInfo? TableField { get; }
-        internal bool Available => MachineIdType != null && TableField != null;
+        private Type? MachineIdType { get; }
+        private FieldInfo? TableField { get; }
+        private bool Available => MachineIdType != null && TableField != null;
+
+        internal static MachineIdReflection Create(Type? machineIdType, FieldInfo? tableField)
+            => new(machineIdType, tableField);
+
+        internal bool TrySeed(SteamConfiguration configuration)
+        {
+            if (!Available)
+            {
+                PatchHelper.Log(MachineIdPatchUnavailableLogMessage);
+                return false;
+            }
+
+            var task = CreateMachineIdTask(MachineIdType!);
+            var table = TableField!.GetValue(null);
+            var provider = configuration.MachineInfoProvider;
+
+            if (task == null || table == null || provider == null)
+            {
+                PatchHelper.Log(MachineIdSeedUnavailableLogMessage);
+                return false;
+            }
+
+            AddMachineIdGenerationTableEntry(table, provider, task);
+            return true;
+        }
     }
 
     private static MachineIdReflection LoadSteamKitMachineIdReflection()
     {
         var type = Type.GetType(HardwareUtilsTypeName);
 
-        return new MachineIdReflection(
+        return MachineIdReflection.Create(
             type?.GetNestedType(MachineIdTypeName, BindingFlags.NonPublic),
             type?.GetField(
                 GenerationTableFieldName,
@@ -31,9 +57,6 @@ internal static partial class SteamConnectionConfigurationFactory
             )
         );
     }
-
-    private static bool MachineIdReflectionAvailable(MachineIdReflection reflection)
-        => reflection.Available;
 
     private static object CreateMachineIdTask(Type machineIdType)
     {

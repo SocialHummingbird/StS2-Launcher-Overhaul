@@ -12,11 +12,14 @@ internal sealed partial class DepotDownloader
             Replacement = replacement;
         }
 
-        internal string Search { get; }
-        internal string Replacement { get; }
+        private string Search { get; }
+        private string Replacement { get; }
 
         internal static PckTextReplacement Create(string search, string replacement)
             => new(search, replacement);
+
+        internal bool Apply(byte[] content)
+            => ReplaceEntryBytes(content, Search, Replacement);
     }
 
     private static readonly string[] ProjectGodotSettingsToComment =

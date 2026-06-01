@@ -11,6 +11,14 @@ internal static partial class CloudSyncCoordinator
         private const int FirstProfileId = 1;
         private const int LastProfileId = 3;
         private const int RunHistoryLimit = 100;
+        private const string BackupExtension = ".backup";
+        private const string CurrentMultiplayerRunSaveFile = "current_run_mp.save";
+        private const string CurrentRunSaveFile = "current_run.save";
+        private const string PrefsFile = "prefs";
+        private const string PrefsSaveFile = "prefs.save";
+        private const string ProgressSaveFile = "progress.save";
+        private const string RunHistoryExtension = ".run";
+        private const string TempExtension = ".tmp";
 
         internal static List<string> Get(ISaveStore store)
         {

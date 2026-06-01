@@ -19,15 +19,13 @@ internal static partial class LauncherGameStartupRecovery
         try
         {
             var scene = InspectCurrentScene(game);
-            if (scene.IsMainMenu)
+            if (scene.IsMainMenuReady())
             {
-                PatchHelper.Log($"Main menu present after startup: {scene.SceneName}");
+                PatchHelper.Log(scene.MainMenuPresentMessage());
                 return true;
             }
 
-            PatchHelper.Log(
-                $"Main menu missing after startup; current scene={scene.SceneName ?? "<none>"}. Forcing LoadMainMenu."
-            );
+            PatchHelper.Log(scene.MainMenuMissingMessage());
             SetRecoveryStatus(
                 startupStatus,
                 "Startup returned without main menu. Forcing main menu..."

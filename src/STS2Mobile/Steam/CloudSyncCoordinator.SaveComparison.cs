@@ -22,9 +22,9 @@ internal static partial class CloudSyncCoordinator
                 _winner = winner;
             }
 
+            private bool HasWinner => _winner != Winner.None;
             internal bool CloudWins => _winner == Winner.Cloud;
             internal bool LocalWins => _winner == Winner.Local;
-            internal bool HasWinner => _winner != Winner.None;
 
             private static SaveWinner Cloud()
                 => new(Winner.Cloud);
@@ -49,6 +49,13 @@ internal static partial class CloudSyncCoordinator
 
             private static NumericComparison Of(int local, int cloud)
                 => new(local, cloud);
+        }
+
+        private enum SaveKind
+        {
+            Other,
+            Progress,
+            CurrentRun,
         }
 
         private const string ActsProperty = "acts";
@@ -82,21 +89,33 @@ internal static partial class CloudSyncCoordinator
         {
             try
             {
-                var canonPath = CloudSavePath.Canonicalize(path).ToLowerInvariant();
-                if (canonPath.Contains(ProgressPathToken) && canonPath.EndsWith(SaveExtension))
-                    return CompareProgress(localContent, cloudContent);
-
-                if (canonPath.Contains(CurrentRunPathToken) && canonPath.EndsWith(SaveExtension))
-                    return CompareCurrentRun(localContent, cloudContent);
-
-                // History files have unique filenames; prefs have no progress concept.
-                return SaveWinner.None();
+                return GetSaveKind(path) switch
+                {
+                    SaveKind.Progress => CompareProgress(localContent, cloudContent),
+                    SaveKind.CurrentRun => CompareCurrentRun(localContent, cloudContent),
+                    // History files have unique filenames; prefs have no progress concept.
+                    _ => SaveWinner.None(),
+                };
             }
             catch (Exception ex)
             {
                 PatchHelper.Log(ProgressComparisonFailed(path, ex));
                 return SaveWinner.None();
             }
+        }
+
+        private static SaveKind GetSaveKind(string path)
+        {
+            var canonPath = CloudSavePath.Canonicalize(path).ToLowerInvariant();
+            if (!canonPath.EndsWith(SaveExtension))
+                return SaveKind.Other;
+
+            if (canonPath.Contains(ProgressPathToken))
+                return SaveKind.Progress;
+
+            return canonPath.Contains(CurrentRunPathToken)
+                ? SaveKind.CurrentRun
+                : SaveKind.Other;
         }
 
         private static SaveWinner CompareNumeric(

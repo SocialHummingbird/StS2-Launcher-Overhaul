@@ -25,20 +25,55 @@ internal static partial class LauncherDiagnostics
             ModifiedUtc = modifiedUtc;
         }
 
-        internal FileReadResult Read { get; }
-        internal long Bytes { get; }
-        internal DateTime ModifiedUtc { get; }
-        internal bool HasText => Read.HasText;
-        internal string Text => Read.Content;
+        private FileReadResult Read { get; }
+        private long Bytes { get; }
+        private DateTime ModifiedUtc { get; }
+        private bool HasText => Read.HasContent();
+        private string Text => Read.ContentText();
 
         internal static DiagnosticFileSnapshot From(DiagnosticFile file)
         {
-            var read = ReadFileText(file.Path);
-            if (!read.HasText)
+            var read = file.Read();
+            if (!read.HasContent())
                 return new DiagnosticFileSnapshot(read, bytes: 0, modifiedUtc: default);
 
-            var info = new FileInfo(file.Path);
+            var info = file.Info();
             return new DiagnosticFileSnapshot(read, info.Length, info.LastWriteTimeUtc);
+        }
+
+        internal void AppendContents(StringBuilder sb)
+        {
+            sb.AppendLine(Text);
+        }
+
+        internal void AppendInlineContentsIfSmall(StringBuilder sb, long inlineContentLimit)
+        {
+            if (Bytes <= inlineContentLimit)
+                sb.AppendLine($"  contents={SingleLine(Text)}");
+        }
+
+        internal void AppendMetadata(StringBuilder sb, DiagnosticFileMetadataStyle style)
+        {
+            if (style == DiagnosticFileMetadataStyle.Inline)
+            {
+                sb.AppendLine(
+                    $"  exists=True bytes={Bytes} modifiedUtc={ModifiedUtc:O}"
+                );
+                return;
+            }
+
+            sb.AppendLine("  exists=True");
+            sb.AppendLine($"  bytes={Bytes}");
+            sb.AppendLine($"  modifiedUtc={ModifiedUtc:O}");
+        }
+
+        internal bool AppendReadStatusIfNoText(StringBuilder sb)
+        {
+            if (HasText)
+                return false;
+
+            Read.AppendFileStatus(sb);
+            return true;
         }
     }
 
@@ -51,18 +86,14 @@ internal static partial class LauncherDiagnostics
             file,
             snapshot =>
             {
-                sb.AppendLine($"{file.Label}: {file.Path}");
-                if (!snapshot.HasText)
-                {
-                    AppendFileReadStatus(sb, snapshot.Read);
+                sb.AppendLine(file.SummaryLine());
+                if (snapshot.AppendReadStatusIfNoText(sb))
                     return;
-                }
 
-                AppendFileMetadata(sb, snapshot, DiagnosticFileMetadataStyle.MultiLine);
-                if (snapshot.Bytes <= inlineContentLimit)
-                    sb.AppendLine($"  contents={SingleLine(snapshot.Text)}");
+                snapshot.AppendMetadata(sb, DiagnosticFileMetadataStyle.MultiLine);
+                snapshot.AppendInlineContentsIfSmall(sb, inlineContentLimit);
             },
-            ex => sb.AppendLine($"{file.Label}: failed to inspect {file.Path}: {ex.Message}")
+            ex => sb.AppendLine(file.InspectFailedMessage(ex))
         );
 
     private static void AppendFileContentsSection(
@@ -70,22 +101,21 @@ internal static partial class LauncherDiagnostics
         DiagnosticFile file
     )
     {
-        sb.AppendLine(Header(file.Label, file.Path));
+        file.AppendHeader(sb);
 
         AppendInspectedFile(
             file,
             snapshot =>
             {
-                if (!snapshot.HasText)
+                if (snapshot.AppendReadStatusIfNoText(sb))
                 {
-                    AppendFileReadStatus(sb, snapshot.Read);
                     sb.AppendLine();
                     return;
                 }
 
-                AppendFileMetadata(sb, snapshot, DiagnosticFileMetadataStyle.Inline);
+                snapshot.AppendMetadata(sb, DiagnosticFileMetadataStyle.Inline);
                 sb.AppendLine("  contents:");
-                sb.AppendLine(snapshot.Text);
+                snapshot.AppendContents(sb);
                 sb.AppendLine();
             },
             ex =>
@@ -112,32 +142,7 @@ internal static partial class LauncherDiagnostics
         }
     }
 
-    private static void AppendFileMetadata(
-        StringBuilder sb,
-        DiagnosticFileSnapshot snapshot,
-        DiagnosticFileMetadataStyle style
-    )
-    {
-        if (style == DiagnosticFileMetadataStyle.Inline)
-        {
-            sb.AppendLine(
-                $"  exists=True bytes={snapshot.Bytes} modifiedUtc={snapshot.ModifiedUtc:O}"
-            );
-            return;
-        }
-
-        sb.AppendLine("  exists=True");
-        sb.AppendLine($"  bytes={snapshot.Bytes}");
-        sb.AppendLine($"  modifiedUtc={snapshot.ModifiedUtc:O}");
-    }
-
     private static string SingleLine(string text)
         => text.Replace('\n', ' ').Replace('\r', ' ');
 
-    private static void AppendFileReadStatus(StringBuilder sb, FileReadResult read)
-        => sb.AppendLine(
-            read.IsMissing
-                ? "  exists=False"
-                : $"  failed={read.Error}"
-        );
 }

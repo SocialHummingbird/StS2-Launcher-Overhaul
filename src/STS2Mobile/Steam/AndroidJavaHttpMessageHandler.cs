@@ -47,9 +47,8 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
 
         ThrowIfCancelledWithRawResponseCleanup(raw, cancellationToken);
         using var bridgeResponse = ReadBridgeResponse(raw, request.RequestUri, requestDescription);
-        return CreateBridgeResponseWithContent(
+        return bridgeResponse.CreateResponseWithContent(
             request,
-            bridgeResponse,
             requestDescription,
             cancellationToken
         );
@@ -75,33 +74,6 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
 
         DeleteBodyFileFromRawResponse(raw);
         cancellationToken.ThrowIfCancellationRequested();
-    }
-
-    private static HttpResponseMessage CreateBridgeResponseWithContent(
-        HttpRequestMessage request,
-        ParsedBridgeResponse bridgeResponse,
-        string requestDescription,
-        CancellationToken cancellationToken
-    )
-    {
-        var response = CreateBridgeResponse(request, bridgeResponse.Root, bridgeResponse.Status);
-        try
-        {
-            response.Content = CreateResponseContent(
-                bridgeResponse.Root,
-                bridgeResponse.Status,
-                requestDescription,
-                cancellationToken
-            );
-            ApplyBridgeHeaders(response, bridgeResponse.Root);
-
-            return response;
-        }
-        catch
-        {
-            response.Dispose();
-            throw;
-        }
     }
 
     private static string? GetBridgeString(JsonElement element)

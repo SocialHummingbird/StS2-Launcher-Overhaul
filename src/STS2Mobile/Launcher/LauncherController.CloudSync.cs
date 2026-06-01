@@ -58,16 +58,14 @@ internal sealed partial class LauncherController
         => RequestCloudSync(CloudSyncRequest.Pull());
 
     private void RequestCloudSync(CloudSyncRequest request)
-    {
-        _view.ShowConfirmation(
+        => _view.ShowConfirmation(
             request.ConfirmationMessage,
             () => _ = ExecuteCloudSyncAsync(request)
         );
-    }
 
     private async Task ExecuteCloudSyncAsync(CloudSyncRequest request)
     {
-        SetCloudSyncBusy(request.StartMessage);
+        SetCloudSyncBusy(request);
 
         try
         {
@@ -83,16 +81,14 @@ internal sealed partial class LauncherController
         }
         finally
         {
-            _runOnMainThread(() => _view.Actions.SetPushPullDisabled(false));
+            _runOnMainThread(() => _view.SetPushPullDisabled(false));
         }
     }
 
-    private void SetCloudSyncBusy(string startMessage)
-    {
-        _runOnMainThread(() =>
+    private void SetCloudSyncBusy(CloudSyncRequest request)
+        => _runOnMainThread(() =>
         {
-            _view.Actions.SetPushPullDisabled(true);
-            _view.AppendLog(startMessage);
+            _view.SetPushPullDisabled(true);
+            _view.AppendLog(request.StartMessage);
         });
-    }
 }

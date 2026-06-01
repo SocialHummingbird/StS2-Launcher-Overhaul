@@ -14,7 +14,7 @@ internal static partial class LauncherPreferences
     {
         try
         {
-            var path = Path.Combine(OS.GetDataDir(), fileName);
+            var path = PreferencePath(fileName);
             if (File.Exists(path))
                 return File.ReadAllText(path).Trim() == TrueValue;
         }
@@ -30,16 +30,23 @@ internal static partial class LauncherPreferences
     {
         try
         {
-            var path = Path.Combine(OS.GetDataDir(), fileName);
-            var parent = Path.GetDirectoryName(path);
-            if (!string.IsNullOrWhiteSpace(parent))
-                Directory.CreateDirectory(parent);
-
+            var path = PreferencePath(fileName);
+            EnsurePreferenceDirectory(path);
             File.WriteAllText(path, enabled ? TrueValue : FalseValue);
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"[Launcher] Preference save failed for {fileName}: {ex.Message}");
         }
+    }
+
+    private static string PreferencePath(string fileName)
+        => Path.Combine(OS.GetDataDir(), fileName);
+
+    private static void EnsurePreferenceDirectory(string path)
+    {
+        var parent = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(parent))
+            Directory.CreateDirectory(parent);
     }
 }

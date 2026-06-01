@@ -23,11 +23,11 @@ internal sealed partial class LauncherSteamSession
 
     internal async Task<string> EnsureConnectedAsync()
     {
-        if (!_credentialStore.HasCredentials)
+        if (!_credentialStore.TryCreateConnection(out var savedConnection))
             return "No saved credentials";
 
         var connection = _connection
-            ?? CreateSavedCredentialConnection();
+            ?? savedConnection;
 
         try
         {
@@ -43,5 +43,10 @@ internal sealed partial class LauncherSteamSession
     }
 
     private SteamConnection CreateSavedCredentialConnection()
-        => new(_credentialStore.AccountName, _credentialStore.RefreshToken);
+    {
+        if (_credentialStore.TryCreateConnection(out var connection))
+            return connection;
+
+        throw new InvalidOperationException("No saved credentials");
+    }
 }

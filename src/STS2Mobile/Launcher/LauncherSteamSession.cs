@@ -19,8 +19,14 @@ internal sealed partial class LauncherSteamSession : IDisposable
         _credentialStore = credentialStore;
     }
 
-    internal SteamConnection Connection => _connection;
-    internal bool AwaitingCode => _awaitingCode;
+    internal bool IsAwaitingCode()
+        => _awaitingCode;
+
+    internal bool TryGetConnection(out SteamConnection connection)
+    {
+        connection = _connection;
+        return connection != null;
+    }
 
     internal void Retry(bool downloadActive)
     {

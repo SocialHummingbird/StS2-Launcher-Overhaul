@@ -8,10 +8,10 @@ namespace STS2Mobile.Launcher;
 // Owns launcher view references and UI behavior.
 internal sealed partial class LauncherView
 {
-    internal LoginSection Login { get; }
-    internal CodeSection Code { get; }
-    internal DownloadSection Download { get; }
-    internal ActionSection Actions { get; }
+    private LoginSection Login { get; }
+    private CodeSection Code { get; }
+    private DownloadSection Download { get; }
+    private ActionSection Actions { get; }
     private RichTextLabel Log { get; }
 
     private readonly Control _parent;
@@ -25,16 +25,16 @@ internal sealed partial class LauncherView
         var dismissKeyboard = new Action<InputEvent>(DismissKeyboard);
         var shell = BuildShell(parent, scale, dismissKeyboard);
         _parent = parent;
-        _panel = shell.Panel;
-        _panelBaseY = shell.Panel.Position.Y;
+        _panel = shell.PanelControl();
+        _panelBaseY = shell.PanelBaseY();
         _scale = scale;
-        var primary = BuildPrimaryColumn(scale, shell.RootColumns);
-        _statusLabel = primary.StatusLabel;
-        Login = primary.Login;
-        Code = primary.Code;
-        Download = primary.Download;
-        Actions = primary.Actions;
-        Log = BuildLogColumn(scale, shell.RootColumns, dismissKeyboard);
+        var primary = shell.BuildPrimaryColumn(scale);
+        _statusLabel = primary.Status();
+        Login = primary.LoginSection();
+        Code = primary.CodeSection();
+        Download = primary.DownloadSection();
+        Actions = primary.ActionSection();
+        Log = shell.BuildLogColumn(scale, dismissKeyboard);
     }
 
     internal void SetStatus(string text) => _statusLabel.Text = text;

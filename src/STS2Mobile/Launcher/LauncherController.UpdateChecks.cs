@@ -44,29 +44,25 @@ internal sealed partial class LauncherController
     }
 
     private void SetUpdateCheckBusy(bool busy)
-    {
-        _view.Actions.SetUpdateButtonDisabled(busy);
-        if (busy)
-            _view.Actions.SetUpdateButtonText("Checking...");
-    }
+        => _view.SetUpdateCheckBusy(busy);
 
     private void ShowUpdateCheckFailed(string message)
     {
         _view.AppendLog($"Update check failed: {message}");
-        _view.Actions.SetUpdateButtonText("CHECK FAILED");
+        _view.SetUpdateButtonText("CHECK FAILED");
     }
 
     private void CompleteUpdateCheck(bool hasUpdate)
     {
         if (hasUpdate)
         {
-            _view.Actions.HideAll();
+            _view.HideActions();
             ShowDownloadAction("UPDATE GAME FILES");
             _view.SetStatus("Update available!");
         }
         else
         {
-            _view.Actions.SetUpdateButtonText("UP TO DATE");
+            _view.SetUpdateButtonText("UP TO DATE");
         }
     }
 

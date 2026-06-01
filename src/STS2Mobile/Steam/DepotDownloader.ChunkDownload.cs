@@ -18,16 +18,15 @@ internal sealed partial class DepotDownloader
         CancellationToken ct
     )
     {
-        using var fs = File.Create(target.TempPath);
+        using var fs = target.CreateTempFile();
         foreach (var chunk in file.Chunks.OrderBy(c => c.Offset))
         {
             ct.ThrowIfCancellationRequested();
             if (file.TotalSize == 0 && chunk.Offset == 0 && chunk.UncompressedLength == 0)
                 continue;
 
-            ValidateChunkBounds(target.FileName, file.TotalSize, chunk);
-            ValidateChunkSize(target.FileName, chunk);
-            await DownloadAndWriteChunkAsync(fs, depotId, chunk, depotKey, target.FileName);
+            target.ValidateChunk(file, chunk);
+            await target.WriteChunkAsync(this, fs, depotId, chunk, depotKey);
         }
     }
 

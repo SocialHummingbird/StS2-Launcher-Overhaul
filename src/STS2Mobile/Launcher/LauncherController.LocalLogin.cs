@@ -34,7 +34,7 @@ internal sealed partial class LauncherController
 
     private async Task WatchLocalLoginHandoffAsync()
     {
-        while (!_model.ConnectionResolved)
+        while (_model.IsConnectionPending())
         {
             var localLogin = ConsumeLocalSteamCredentials();
             if (localLogin.HasValue)
@@ -51,5 +51,5 @@ internal sealed partial class LauncherController
     }
 
     private Task LoginWithLocalCredentialsAsync(LocalSteamCredentials credentials)
-        => _model.LoginAsync(credentials.Username, credentials.Password);
+        => credentials.LoginAsync(_model);
 }

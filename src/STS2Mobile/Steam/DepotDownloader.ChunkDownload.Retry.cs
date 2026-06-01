@@ -20,10 +20,10 @@ internal sealed partial class DepotDownloader
         {
             try
             {
-                var written = await _cdnClient.DownloadDepotChunkAsync(
+                var written = await attempt.DownloadChunkAsync(
+                    this,
                     depotId,
                     chunk,
-                    attempt.Server,
                     buffer,
                     depotKey
                 );
@@ -44,9 +44,9 @@ internal sealed partial class DepotDownloader
                 if (written.HasValue)
                     return written.Value;
             }
-            catch (Exception ex) when (attempt.HasRetryRemaining)
+            catch (Exception ex) when (attempt.CanRetryAfter(ex))
             {
-                HandleDownloadRetryFailure(attempt, "Chunk download", ex);
+                attempt.HandleDownloadRetryFailure(this, "Chunk download", ex);
             }
         }
 
@@ -64,7 +64,7 @@ internal sealed partial class DepotDownloader
         if (VerifyChunkHash(buffer, written, chunk))
             return true;
 
-        if (attempt.HasRetryRemaining)
+        if (attempt.ShouldRetryChunkHash())
         {
             Log($"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying...");
             return false;

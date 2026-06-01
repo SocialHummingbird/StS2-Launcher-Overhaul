@@ -17,12 +17,12 @@ internal partial class LauncherModel
         Failed,
     }
 
-    internal bool ConnectionResolved => _connectionResolved;
-    internal bool AwaitingCode => _steamSession.AwaitingCode;
-    internal int SessionAttemptId => Volatile.Read(ref _sessionAttemptId);
-    internal string AccountName => _credentialStore.AccountName;
-    internal string FailReason => _failReason;
-    internal SessionState CurrentSessionState => _sessionState;
+    private bool ConnectionResolved => _connectionResolved;
+    private bool AwaitingCode => _steamSession.IsAwaitingCode();
+    private int SessionAttemptId => Volatile.Read(ref _sessionAttemptId);
+    private string AccountName => _credentialStore.AccountNameOrEmpty();
+    private string FailReason => _failReason;
+    private SessionState CurrentSessionState => _sessionState;
 
     internal event Action<SessionState> SessionStateChanged;
     internal event Action<string> LogReceived;
@@ -31,6 +31,53 @@ internal partial class LauncherModel
     internal void MarkConnectionResolved()
     {
         _connectionResolved = true;
+    }
+
+    internal string LoggedInStatus()
+        => $"Logged in as {AccountName}";
+
+    internal string WelcomeBackStatus()
+        => $"Welcome back, {AccountName}";
+
+    internal string FailureStatus()
+        => $"Error: {FailReason}";
+
+    internal bool IsConnectionPending()
+        => !ConnectionResolved;
+
+    internal void StartConnectionTimeout(Action<int> startTimeout)
+        => startTimeout(SessionAttemptId);
+
+    internal bool ShouldIgnoreConnectionTimeout(int sessionAttemptId)
+    {
+        if (SessionAttemptId != sessionAttemptId || AwaitingCode)
+            return true;
+
+        if (ConnectionResolved)
+            return true;
+
+        return CurrentSessionState
+            is not (
+                SessionState.Connecting
+                or SessionState.Authenticating
+                or SessionState.VerifyingOwnership
+            );
+    }
+
+    internal bool ShouldSuppressSessionUpdate(SessionState state, bool updateCheckRunning)
+    {
+        if (
+            AwaitingCode
+            && state
+                is SessionState.Connecting
+                    or SessionState.Authenticating
+        )
+            return true;
+
+        if (updateCheckRunning)
+            return true;
+
+        return state == SessionState.Disconnected && ConnectionResolved;
     }
 
     private bool IsLoggedIn => _sessionState == SessionState.LoggedIn;

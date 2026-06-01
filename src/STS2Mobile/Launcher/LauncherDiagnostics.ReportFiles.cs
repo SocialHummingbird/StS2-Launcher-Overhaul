@@ -13,16 +13,47 @@ internal static partial class LauncherDiagnostics
 
     private readonly struct DiagnosticDirectory
     {
-        internal DiagnosticDirectory(string label, string path, int maxDepth)
+        private DiagnosticDirectory(string label, string path, int maxDepth)
         {
             Label = label;
             Path = path;
             MaxDepth = maxDepth;
         }
 
-        internal string Label { get; }
-        internal string Path { get; }
-        internal int MaxDepth { get; }
+        private string Label { get; }
+        private string Path { get; }
+        private int MaxDepth { get; }
+
+        internal static DiagnosticDirectory Create(
+            string label,
+            string path,
+            int maxDepth
+        )
+            => new(label, path, maxDepth);
+
+        internal void AppendListing(StringBuilder sb)
+        {
+            sb.AppendLine($"{Label}: {Path}");
+            try
+            {
+                if (!Directory.Exists(Path))
+                {
+                    sb.AppendLine("  exists=False");
+                    return;
+                }
+
+                AppendDirectoryTree(
+                    sb,
+                    Path,
+                    depth: 0,
+                    maxDepth: MaxDepth
+                );
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"  failed={ex.Message}");
+            }
+        }
     }
 
     private static void AppendFullReportDiagnostics(StringBuilder sb, string dataDir)
@@ -59,17 +90,17 @@ internal static partial class LauncherDiagnostics
         string dataDir
     )
     {
-        yield return new DiagnosticDirectory(
+        yield return DiagnosticDirectory.Create(
             "Game directory",
             Path.Combine(dataDir, LauncherStorageNames.GameDirectory),
             2
         );
-        yield return new DiagnosticDirectory(
+        yield return DiagnosticDirectory.Create(
             "Download state",
             Path.Combine(dataDir, LauncherStorageNames.DownloadStateDirectory),
             1
         );
-        yield return new DiagnosticDirectory(
+        yield return DiagnosticDirectory.Create(
             "Mono publish root",
             Path.Combine(
                 dataDir,
@@ -85,28 +116,7 @@ internal static partial class LauncherDiagnostics
         StringBuilder sb,
         DiagnosticDirectory directory
     )
-    {
-        sb.AppendLine($"{directory.Label}: {directory.Path}");
-        try
-        {
-            if (!Directory.Exists(directory.Path))
-            {
-                sb.AppendLine("  exists=False");
-                return;
-            }
-
-            AppendDirectoryTree(
-                sb,
-                directory.Path,
-                depth: 0,
-                maxDepth: directory.MaxDepth
-            );
-        }
-        catch (Exception ex)
-        {
-            sb.AppendLine($"  failed={ex.Message}");
-        }
-    }
+        => directory.AppendListing(sb);
 
     private static void AppendDirectoryTree(
         StringBuilder sb,

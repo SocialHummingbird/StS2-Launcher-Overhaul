@@ -12,10 +12,10 @@ internal partial class LauncherModel
         => LauncherDiagnostics.BuildLauncherRawErrorLog(CreateDiagnosticsSnapshot());
 
     private LauncherDiagnostics.Snapshot CreateDiagnosticsSnapshot()
-        => new(
+        => LauncherDiagnostics.Snapshot.Create(
             _dataDir,
-            _credentialStore.AccountName,
-            _credentialStore.HasCredentials,
+            _credentialStore.AccountNameOrEmpty(),
+            _credentialStore.HasUsableCredentials(),
             LauncherGameFiles.Ready(_dataDir),
             _sessionState.ToString(),
             _failReason

@@ -18,13 +18,13 @@ internal sealed partial class DepotDownloader
             depotId,
             attempt,
             "Manifest",
-            token => _cdnClient.DownloadManifestAsync(
+            token => attempt.DownloadManifestAsync(
+                this,
                 depotId,
                 manifestId,
                 manifestRequestCode,
-                attempt.Server,
                 depotKey,
-                cdnAuthToken: token
+                token
             ),
             failed: null
         );

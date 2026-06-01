@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
 
@@ -14,11 +15,20 @@ internal sealed partial class DepotDownloader
             ManifestId = manifestId;
         }
 
-        internal uint DepotId { get; }
-        internal ulong ManifestId { get; }
+        private uint DepotId { get; }
+        private ulong ManifestId { get; }
 
         internal static DepotManifestReference Create(uint depotId, ulong manifestId)
             => new(depotId, manifestId);
+
+        internal Task DownloadAsync(DepotDownloader owner, CancellationToken ct)
+            => owner.DownloadDepotAsync(DepotId, ManifestId, ct);
+
+        internal bool HasManifestChanged(DepotDownloader owner)
+            => owner._stateStore.LoadManifestId(DepotId) != ManifestId;
+
+        internal void LogManifestChanged(DepotDownloader owner)
+            => owner.Log($"Update available: depot {DepotId} manifest changed");
     }
 
     private async Task<List<DepotManifestReference>> ParseDepotsAsync(

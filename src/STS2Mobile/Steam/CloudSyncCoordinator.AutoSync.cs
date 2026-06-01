@@ -10,21 +10,6 @@ internal static partial class CloudSyncCoordinator
     private const string PullCloudFileOperation = "PullFile";
     private const string ReadCloudFileOperation = "ReadCloudFile";
 
-    private readonly struct AutoSyncPresence
-    {
-        private AutoSyncPresence(bool local, bool cloud)
-        {
-            Local = local;
-            Cloud = cloud;
-        }
-
-        internal bool Local { get; }
-        internal bool Cloud { get; }
-
-        internal static AutoSyncPresence Of(bool local, bool cloud)
-            => new(local, cloud);
-    }
-
     private readonly struct AutoSyncContext
     {
         private readonly ISaveStore _local;
@@ -37,19 +22,16 @@ internal static partial class CloudSyncCoordinator
             Path = path;
         }
 
-        internal string Path { get; }
+        private string Path { get; }
 
         internal static AutoSyncContext Create(ISaveStore local, ICloudSaveStore cloud, string path)
             => new(local, cloud, path);
-
-        internal AutoSyncPresence GetPresence()
-            => AutoSyncPresence.Of(_local.FileExists(Path), _cloud.FileExists(Path));
 
         internal bool CloudFileExists()
             => _cloud.FileExists(Path);
 
         internal string? ReadLocalContent()
-            => _local.FileExists(Path) ? _local.ReadFile(Path) : null;
+            => LocalFileExists() ? _local.ReadFile(Path) : null;
 
         internal Task<string> ReadCloudContentAsync(string operation)
             => CloudSyncCoordinator.ReadCloudContentAsync(
@@ -71,21 +53,37 @@ internal static partial class CloudSyncCoordinator
         private void WriteCloudFile(string content)
             => _cloud.WriteFile(Path, content);
 
+        internal SaveComparison.SaveWinner GetExplicitWinner(
+            string localContent,
+            string cloudContent
+        )
+            => SaveComparison.GetExplicitWinner(Path, localContent, cloudContent);
+
+        internal void Log(Func<string, string> message)
+            => PatchHelper.Log(message(Path));
+
+        internal void LogSyncFailed(Exception ex)
+            => PatchHelper.Log(SyncFailed(Path, ex));
+
         internal async Task PullCloudContentAsync(
             string content,
-            string message,
+            Func<string, string> message,
             bool backUpLocal
         )
         {
-            PatchHelper.Log(message);
+            Log(message);
             if (backUpLocal)
                 BackUpLocalProgress();
             await WriteLocalContentFromCloudAsync(content);
         }
 
-        internal void PushLocalContent(string localContent, string? cloudContent, string message)
+        internal void PushLocalContent(
+            string localContent,
+            string? cloudContent,
+            Func<string, string> message
+        )
         {
-            PatchHelper.Log(message);
+            Log(message);
             if (cloudContent != null)
                 BackUpCloudProgress(cloudContent);
             WriteCloudFile(localContent);
@@ -96,6 +94,30 @@ internal static partial class CloudSyncCoordinator
 
         private void BackUpCloudProgress(string content)
             => SaveBackups.CloudProgressContent(Path, content);
+
+        private bool LocalFileExists()
+            => _local.FileExists(Path);
+
+        internal async Task RunAsync()
+        {
+            var local = LocalFileExists();
+            var cloud = CloudFileExists();
+
+            if (cloud && local)
+            {
+                await SyncExistingFileAsync(this);
+                return;
+            }
+
+            if (cloud)
+            {
+                await PullFileAsync(this);
+                return;
+            }
+
+            if (local)
+                await PushFileAsync(this);
+        }
     }
 
     // Uses content comparison only because timestamps are unreliable on mobile.
@@ -105,26 +127,11 @@ internal static partial class CloudSyncCoordinator
         var sync = AutoSyncContext.Create(local, cloud, path);
         try
         {
-            var presence = sync.GetPresence();
-
-            if (presence.Cloud && presence.Local)
-            {
-                await SyncExistingFileAsync(sync);
-                return;
-            }
-
-            if (presence.Cloud)
-            {
-                await PullFileAsync(sync);
-                return;
-            }
-
-            if (presence.Local)
-                await PushFileAsync(sync);
+            await sync.RunAsync();
         }
         catch (Exception ex)
         {
-            PatchHelper.Log(SyncFailed(sync.Path, ex));
+            sync.LogSyncFailed(ex);
         }
     }
 }

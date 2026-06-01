@@ -26,17 +26,8 @@ internal static partial class LauncherGameStartupRecovery
 
         await loadMainMenu;
         var scene = InspectCurrentScene(game);
-        PatchHelper.Log(
-            scene.IsMainMenu
-                ? $"Forced main menu load succeeded: {scene.SceneName}"
-                : $"Forced main menu load returned but current scene is {scene.SceneName ?? "<none>"}"
-        );
-        SetRecoveryStatus(
-            startupStatus,
-            scene.IsMainMenu
-                ? "Main menu loaded."
-                : "Main menu force returned, but scene is still not main menu."
-        );
-        return scene.IsMainMenu;
+        PatchHelper.Log(scene.ForcedLoadResultMessage());
+        SetRecoveryStatus(startupStatus, scene.ForcedLoadStatus());
+        return scene.IsMainMenuReady();
     }
 }

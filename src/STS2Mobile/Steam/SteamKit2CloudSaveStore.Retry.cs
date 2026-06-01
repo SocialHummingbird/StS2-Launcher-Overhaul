@@ -24,10 +24,10 @@ internal sealed partial class SteamKit2CloudSaveStore
             Run = run;
         }
 
-        internal string Name { get; }
-        internal string Path { get; }
-        internal Func<int, int> ThrottleDelayMs { get; }
-        internal Action Run { get; }
+        private string Name { get; }
+        private string Path { get; }
+        private Func<int, int> ThrottleDelayMs { get; }
+        private Action Run { get; }
 
         internal static CloudRetryOperation Upload(string path, Action run)
             => new(
@@ -44,6 +44,30 @@ internal sealed partial class SteamKit2CloudSaveStore
                 _ => DeleteThrottleDelayMs,
                 run
             );
+
+        internal void RunWithRetry()
+        {
+            for (var attempt = 0; attempt < MaxCloudOperationAttempts; attempt++)
+            {
+                try
+                {
+                    Run();
+                    return;
+                }
+                catch (InvalidOperationException ex)
+                    when (IsTooManyPending(ex) && HasCloudOperationRetryRemaining(attempt))
+                {
+                    var delayMs = ThrottleDelayMs(attempt);
+                    PatchHelper.Log(OperationThrottled(Name, Path, delayMs));
+                    Thread.Sleep(delayMs);
+                }
+                catch (Exception ex)
+                {
+                    PatchHelper.Log(OperationFailed(Name, Path, ex));
+                    return;
+                }
+            }
+        }
     }
 
     private void UploadWithRetry(
@@ -67,28 +91,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         );
 
     private static void RunCloudOperationWithRetry(CloudRetryOperation operation)
-    {
-        for (var attempt = 0; attempt < MaxCloudOperationAttempts; attempt++)
-        {
-            try
-            {
-                operation.Run();
-                return;
-            }
-            catch (InvalidOperationException ex)
-                when (IsTooManyPending(ex) && HasCloudOperationRetryRemaining(attempt))
-            {
-                var delayMs = operation.ThrottleDelayMs(attempt);
-                PatchHelper.Log(OperationThrottled(operation.Name, operation.Path, delayMs));
-                Thread.Sleep(delayMs);
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log(OperationFailed(operation.Name, operation.Path, ex));
-                return;
-            }
-        }
-    }
+        => operation.RunWithRetry();
 
     private static bool HasCloudOperationRetryRemaining(int attempt)
         => attempt < MaxCloudOperationAttempts - 1;

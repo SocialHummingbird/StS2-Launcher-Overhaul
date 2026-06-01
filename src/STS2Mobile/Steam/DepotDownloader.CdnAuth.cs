@@ -35,15 +35,6 @@ internal sealed partial class DepotDownloader
         );
     }
 
-    private async Task<string?> GetCdnAuthTokenForRetryAsync(uint depotId, Server server)
-    {
-        var token = await GetCdnAuthToken(depotId, server);
-        if (token == null)
-            MarkServerFailed(server);
-
-        return token;
-    }
-
     private async Task<T> RunCdnAuthRetryAsync<T>(
         uint depotId,
         CdnServerAttempt attempt,
@@ -52,7 +43,7 @@ internal sealed partial class DepotDownloader
         T failed
     )
     {
-        var token = await GetCdnAuthTokenForRetryAsync(depotId, attempt.Server);
+        var token = await attempt.GetAuthTokenForRetryAsync(this, depotId);
         if (token == null)
             return failed;
 
@@ -60,9 +51,9 @@ internal sealed partial class DepotDownloader
         {
             return await retryAsync(token);
         }
-        catch (Exception ex) when (attempt.HasRetryRemaining)
+        catch (Exception ex) when (attempt.CanRetryAfter(ex))
         {
-            HandleCdnAuthRetryFailure(depotId, attempt, operation, ex);
+            attempt.HandleAuthRetryFailure(this, depotId, operation, ex);
             return failed;
         }
     }
@@ -73,17 +64,4 @@ internal sealed partial class DepotDownloader
             _cdnAuthTokens.Invalidate(CdnAuthTokenKey.ForServer(depotId, server));
     }
 
-    private void HandleCdnAuthRetryFailure(
-        uint depotId,
-        CdnServerAttempt attempt,
-        string operation,
-        Exception ex
-    )
-    {
-        Log(
-            $"{operation} CDN auth retry failed (attempt {attempt.DisplayNumber}): {ex.Message}"
-        );
-        InvalidateCdnAuthToken(depotId, attempt.Server);
-        MarkServerFailed(attempt.Server);
-    }
 }

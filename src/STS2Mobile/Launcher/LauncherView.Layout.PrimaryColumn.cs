@@ -8,7 +8,7 @@ internal sealed partial class LauncherView
 {
     private readonly struct PrimaryColumnControls
     {
-        internal PrimaryColumnControls(
+        private PrimaryColumnControls(
             StyledLabel statusLabel,
             LoginSection login,
             CodeSection code,
@@ -23,11 +23,35 @@ internal sealed partial class LauncherView
             Actions = actions;
         }
 
-        internal StyledLabel StatusLabel { get; }
-        internal LoginSection Login { get; }
-        internal CodeSection Code { get; }
-        internal DownloadSection Download { get; }
-        internal ActionSection Actions { get; }
+        private StyledLabel StatusLabel { get; }
+        private LoginSection Login { get; }
+        private CodeSection Code { get; }
+        private DownloadSection Download { get; }
+        private ActionSection Actions { get; }
+
+        internal static PrimaryColumnControls Create(
+            StyledLabel statusLabel,
+            LoginSection login,
+            CodeSection code,
+            DownloadSection download,
+            ActionSection actions
+        )
+            => new(statusLabel, login, code, download, actions);
+
+        internal StyledLabel Status()
+            => StatusLabel;
+
+        internal LoginSection LoginSection()
+            => Login;
+
+        internal CodeSection CodeSection()
+            => Code;
+
+        internal DownloadSection DownloadSection()
+            => Download;
+
+        internal ActionSection ActionSection()
+            => Actions;
     }
 
     private static PrimaryColumnControls BuildPrimaryColumn(float scale, HBoxContainer hbox)
@@ -71,6 +95,6 @@ internal sealed partial class LauncherView
 
         left.AddChild(BuildFmodAttributionSection(scale));
 
-        return new PrimaryColumnControls(statusLabel, login, code, download, actions);
+        return PrimaryColumnControls.Create(statusLabel, login, code, download, actions);
     }
 }

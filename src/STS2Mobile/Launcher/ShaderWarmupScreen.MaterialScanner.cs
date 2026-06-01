@@ -31,7 +31,7 @@ internal sealed partial class ShaderWarmupScreen
             foreach (var (path, mat) in materials)
             {
                 var shaderKey = GetShaderKey(mat);
-                unique.TryAdd(shaderKey, new WarmupMaterial(path, mat));
+                unique.TryAdd(shaderKey, WarmupMaterial.Create(path, mat));
             }
 
             PatchHelper.Log(Message.UniqueShaders(materials.Count, unique.Count));

@@ -16,7 +16,7 @@ internal static partial class LauncherGameStartupRecovery
 
     private readonly struct RecoveryStateUpdate
     {
-        internal RecoveryStateUpdate(
+        private RecoveryStateUpdate(
             string reason,
             string statusMessage,
             string? snapshotReason = null
@@ -27,10 +27,27 @@ internal static partial class LauncherGameStartupRecovery
             SnapshotReason = snapshotReason;
         }
 
-        internal string Reason { get; }
-        internal string StatusMessage { get; }
-        internal string? SnapshotReason { get; }
-        internal string EffectiveSnapshotReason => SnapshotReason ?? Reason;
+        private string Reason { get; }
+        private string StatusMessage { get; }
+        private string? SnapshotReason { get; }
+        private string EffectiveSnapshotReason => SnapshotReason ?? Reason;
+
+        internal static RecoveryStateUpdate Create(
+            string reason,
+            string statusMessage,
+            string? snapshotReason = null
+        )
+            => new(reason, statusMessage, snapshotReason);
+
+        internal void Apply(Node gameNode, Label startupStatus)
+        {
+            LauncherLaunchMarkers.WriteStartupPhase(Reason);
+            LauncherDiagnostics.WriteStartupSceneSnapshot(
+                gameNode,
+                EffectiveSnapshotReason
+            );
+            LauncherStartupStatus.Set(startupStatus, StatusMessage);
+        }
     }
 
     private static void ShowFailure(
@@ -49,12 +66,7 @@ internal static partial class LauncherGameStartupRecovery
         RecoveryStateUpdate update
     )
     {
-        LauncherLaunchMarkers.WriteStartupPhase(update.Reason);
-        LauncherDiagnostics.WriteStartupSceneSnapshot(
-            gameNode,
-            update.EffectiveSnapshotReason
-        );
-        LauncherStartupStatus.Set(startupStatus, update.StatusMessage);
+        update.Apply(gameNode, startupStatus);
     }
 
     private static void SetRecoveryStatus(Label startupStatus, string status)

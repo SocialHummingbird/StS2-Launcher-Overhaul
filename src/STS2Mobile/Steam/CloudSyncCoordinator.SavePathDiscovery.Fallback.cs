@@ -17,11 +17,11 @@ internal static partial class CloudSyncCoordinator
 
         private static readonly string[] FallbackProfileFiles =
         {
-            "progress.save",
-            "current_run.save",
-            "current_run_mp.save",
-            "prefs",
-            "prefs.save",
+            ProgressSaveFile,
+            CurrentRunSaveFile,
+            CurrentMultiplayerRunSaveFile,
+            PrefsFile,
+            PrefsSaveFile,
         };
 
         private static readonly string[] FallbackProfilePrefixes =
@@ -62,7 +62,7 @@ internal static partial class CloudSyncCoordinator
                 paths,
                 historyDir,
                 GetHistoryFiles(historyDir, store)
-                    .Where(f => f.EndsWith(".run"))
+                    .Where(f => f.EndsWith(RunHistoryExtension))
                     .Take(RunHistoryLimit)
             );
         }

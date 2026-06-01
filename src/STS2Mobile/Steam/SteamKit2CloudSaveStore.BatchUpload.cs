@@ -6,25 +6,49 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
-    private void UploadSaveBatch(IReadOnlyList<SaveBatchFile> files)
+    private readonly struct UploadBatchSession
     {
-        var batchId = BeginUploadBatchOrNull(files);
-        UploadBatchFiles(files, batchId);
+        private UploadBatchSession(ulong id)
+        {
+            Id = id;
+        }
 
-        if (batchId.HasValue)
-            CompleteUploadBatch(batchId.Value);
+        private ulong Id { get; }
+        private bool HasId => Id != 0;
+
+        internal static UploadBatchSession Started(ulong id)
+            => new(id);
+
+        internal static UploadBatchSession NotStarted()
+            => new(id: 0);
+
+        internal void Complete(SteamKit2CloudSaveStore store)
+        {
+            if (HasId)
+                store.CompleteUploadBatch(Id);
+        }
+
+        internal void Upload(SteamKit2CloudSaveStore store, SaveBatchFile file)
+            => file.Upload(store, Id);
     }
 
-    private ulong? BeginUploadBatchOrNull(IReadOnlyList<SaveBatchFile> files)
+    private void UploadSaveBatch(IReadOnlyList<SaveBatchFile> files)
+    {
+        var session = BeginUploadBatchOrNone(files);
+        UploadBatchFiles(files, session);
+        session.Complete(this);
+    }
+
+    private UploadBatchSession BeginUploadBatchOrNone(IReadOnlyList<SaveBatchFile> files)
     {
         try
         {
-            return BeginUploadBatch(files);
+            return UploadBatchSession.Started(BeginUploadBatch(files));
         }
         catch (Exception ex)
         {
             PatchHelper.Log(BeginSaveBatchFailed(ex));
-            return null;
+            return UploadBatchSession.NotStarted();
         }
     }
 
@@ -36,7 +60,7 @@ internal sealed partial class SteamKit2CloudSaveStore
             machine_name = "android",
         };
         foreach (var file in files)
-            request.files_to_upload.Add(file.CanonPath);
+            file.AddTo(request);
 
         var result = SendCloudBlocking<
             CCloud_BeginAppUploadBatch_Request,
@@ -45,10 +69,13 @@ internal sealed partial class SteamKit2CloudSaveStore
         return result.batch_id;
     }
 
-    private void UploadBatchFiles(IReadOnlyList<SaveBatchFile> files, ulong? batchId)
+    private void UploadBatchFiles(
+        IReadOnlyList<SaveBatchFile> files,
+        UploadBatchSession session
+    )
     {
         foreach (var file in files)
-            UploadWithRetry(file.CanonPath, file.Bytes, batchId.GetValueOrDefault());
+            session.Upload(this, file);
     }
 
     private void CompleteUploadBatch(ulong batchId)

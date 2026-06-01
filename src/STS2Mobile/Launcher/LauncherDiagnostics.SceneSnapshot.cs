@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Text;
 using Godot;
 
@@ -12,10 +11,10 @@ internal static partial class LauncherDiagnostics
 
     internal static void WriteStartupSceneSnapshot(Node root, string reason)
     {
-        var path = StartupSceneSnapshot(OS.GetDataDir()).Path;
+        var snapshot = StartupSceneSnapshot(OS.GetDataDir());
         try
         {
-            File.WriteAllText(path, BuildStartupSceneSnapshot(root, reason));
+            snapshot.WriteAllText(BuildStartupSceneSnapshot(root, reason));
             PatchHelper.Log($"Startup scene snapshot written: {reason}");
         }
         catch (Exception ex)

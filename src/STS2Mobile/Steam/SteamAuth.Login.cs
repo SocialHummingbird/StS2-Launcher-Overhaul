@@ -59,7 +59,7 @@ internal sealed partial class SteamAuth
         var pollResponse = await PollForAuthResultAndMaintainConnectionAsync(authSession);
         Log($"Authentication successful for '{pollResponse.AccountName}'");
 
-        return new LoginCredentials(
+        return LoginCredentials.Create(
             pollResponse.AccountName,
             pollResponse.RefreshToken,
             pollResponse.NewGuardData ?? guardData

@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
@@ -24,9 +25,9 @@ internal static partial class CloudSyncCoordinator
         }
 
         private readonly Action _action;
-        internal bool ShouldTransfer => _action == Action.Transfer;
-        internal string? ExistingContentToBackUp { get; }
-        internal bool BackUpExisting { get; }
+        private bool ShouldTransfer => _action == Action.Transfer;
+        private string? ExistingContentToBackUp { get; }
+        private bool BackUpExisting { get; }
 
         internal static TransferDecision Transfer(
             string? existingContentToBackUp = null,
@@ -36,6 +37,34 @@ internal static partial class CloudSyncCoordinator
 
         internal static TransferDecision Skip()
             => new(Action.Skip, existingContentToBackUp: null, backUpExisting: false);
+
+        internal async Task ApplyPullAsync(
+            AutoSyncContext sync,
+            string cloudContent,
+            Func<string, string> message
+        )
+        {
+            if (!ShouldTransfer)
+                return;
+
+            await sync.PullCloudContentAsync(
+                cloudContent,
+                message,
+                BackUpExisting
+            );
+        }
+
+        internal void ApplyPush(
+            AutoSyncContext sync,
+            string localContent,
+            Func<string, string> message
+        )
+        {
+            if (!ShouldTransfer)
+                return;
+
+            sync.PushLocalContent(localContent, ExistingContentToBackUp, message);
+        }
     }
 
     private static async Task PushFileAsync(AutoSyncContext sync)
@@ -45,10 +74,7 @@ internal static partial class CloudSyncCoordinator
             return;
 
         var push = await GetPushDecisionAsync(sync, local);
-        if (!push.ShouldTransfer)
-            return;
-
-        sync.PushLocalContent(local, push.ExistingContentToBackUp, PushUploaded(sync.Path));
+        push.ApplyPush(sync, local, PushUploaded);
     }
 
     private static async Task PullFileAsync(AutoSyncContext sync)
@@ -59,14 +85,7 @@ internal static partial class CloudSyncCoordinator
         string cloudContent = await sync.ReadCloudContentAsync(PullCloudFileOperation);
 
         var pull = GetPullDecision(sync, cloudContent);
-        if (!pull.ShouldTransfer)
-            return;
-
-        await sync.PullCloudContentAsync(
-            cloudContent,
-            PullDownloaded(sync.Path),
-            pull.BackUpExisting
-        );
+        await pull.ApplyPullAsync(sync, cloudContent, PullDownloaded);
     }
 
     private static async Task<TransferDecision> GetPushDecisionAsync(
@@ -80,7 +99,7 @@ internal static partial class CloudSyncCoordinator
         string cloudContent = await sync.ReadCloudContentAsync(ReadCloudFileOperation);
         if (localContent == cloudContent)
         {
-            PatchHelper.Log(PushSkippingIdentical(sync.Path));
+            sync.Log(PushSkippingIdentical);
             return TransferDecision.Skip();
         }
 
@@ -98,7 +117,7 @@ internal static partial class CloudSyncCoordinator
 
         if (local == cloudContent)
         {
-            PatchHelper.Log(PullSkippingIdentical(sync.Path));
+            sync.Log(PullSkippingIdentical);
             return TransferDecision.Skip();
         }
 

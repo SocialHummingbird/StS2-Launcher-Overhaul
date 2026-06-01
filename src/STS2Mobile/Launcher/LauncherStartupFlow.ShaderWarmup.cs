@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using Godot;
 using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
@@ -8,28 +7,35 @@ internal static partial class LauncherStartupFlow
 {
     private static async Task RunShaderWarmupIfNeededAsync(StartupContext startup)
     {
-        if (ShaderWarmupScreen.NeedsWarmup() && !startup.SkipShaderWarmup)
+        var needsWarmup = ShaderWarmupScreen.NeedsWarmup();
+        var skipWarmup = startup.ShouldSkipShaderWarmup();
+
+        if (needsWarmup && !skipWarmup)
         {
             startup.SetPhase(PhaseShaderWarmup, "Warming shaders...");
             PatchHelper.Log("Shader warmup starting");
 
-            var warmup = new ShaderWarmupScreen();
-            startup.AddChild(warmup);
-            try
-            {
-                await warmup.RunAsync();
-            }
-            finally
-            {
-                warmup.QueueFree();
-            }
-
+            await RunShaderWarmupAsync(startup);
             PatchHelper.Log("Shader warmup complete");
         }
-        else if (startup.SkipShaderWarmup)
+        else if (skipWarmup)
         {
             startup.LogShaderWarmupSkip();
             startup.SetShaderWarmupSkipStatus();
+        }
+    }
+
+    private static async Task RunShaderWarmupAsync(StartupContext startup)
+    {
+        var warmup = new ShaderWarmupScreen();
+        startup.AddChild(warmup);
+        try
+        {
+            await warmup.RunAsync();
+        }
+        finally
+        {
+            warmup.QueueFree();
         }
     }
 }

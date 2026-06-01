@@ -34,17 +34,31 @@ internal static partial class LauncherDiagnostics
             FallbackText = fallbackText;
         }
 
-        internal string? Text { get; }
-        internal string? FallbackText { get; }
-        internal bool HasText => Text != null;
-        internal string Content => Text ?? FallbackText ?? string.Empty;
-        internal string[] Lines => Content.Replace("\r\n", "\n").Split('\n');
+        private string? Text { get; }
+        private string? FallbackText { get; }
+        private bool HasText => Text != null;
+        private string ContentText => Text ?? FallbackText ?? string.Empty;
 
         internal static LogcatCapture Captured(string text)
             => new(text, fallbackText: null);
 
         internal static LogcatCapture Unavailable(string fallbackText)
             => new(text: null, fallbackText);
+
+        internal void AppendContent(StringBuilder sb)
+            => sb.AppendLine(ContentText);
+
+        internal string Content()
+            => ContentText;
+
+        internal bool HasContent()
+            => HasText;
+
+        internal IEnumerable<string> InterestingLines(int maxLines)
+            => SelectInterestingDiagnosticLines(ContentLines(), maxLines);
+
+        private string[] ContentLines()
+            => ContentText.Replace("\r\n", "\n").Split('\n');
     }
 
     private static void AppendLogcatTail(
@@ -62,7 +76,7 @@ internal static partial class LauncherDiagnostics
     }
 
     private static string CaptureLogcatContent(int lineCount)
-        => CaptureLogcat(lineCount).Content;
+        => CaptureLogcat(lineCount).Content();
 
     private static void AppendRawLogcatTail(StringBuilder sb)
         => AppendLogcatTail(
@@ -77,16 +91,13 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine();
         sb.AppendLine(LogcatErrorLines);
         var logcat = CaptureLogcat(ErrorSummaryCaptureLines);
-        if (!logcat.HasText)
+        if (!logcat.HasContent())
         {
-            sb.AppendLine(logcat.Content);
+            logcat.AppendContent(sb);
             return;
         }
 
-        foreach (var line in SelectInterestingDiagnosticLines(
-            logcat.Lines,
-            ErrorSummaryInterestingLines
-        ))
+        foreach (var line in logcat.InterestingLines(ErrorSummaryInterestingLines))
             sb.AppendLine(line);
     }
 

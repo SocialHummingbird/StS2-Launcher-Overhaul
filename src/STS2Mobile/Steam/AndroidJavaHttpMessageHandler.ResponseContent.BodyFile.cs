@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Net.Http;
-using System.Text.Json;
 using System.Threading;
 
 namespace STS2Mobile.Steam;
@@ -9,13 +8,12 @@ namespace STS2Mobile.Steam;
 internal sealed partial class AndroidJavaHttpMessageHandler
 {
     private static HttpContent CreateResponseContentFromBodyFile(
-        JsonElement bodyFileElement,
+        string? bodyFile,
         int status,
         string requestDescription,
         CancellationToken cancellationToken
     )
     {
-        var bodyFile = GetBridgeString(bodyFileElement);
         var safeBodyFile = RequireExistingSafeBodyFile(bodyFile, requestDescription);
         ThrowIfCancelledWithBodyFileCleanup(safeBodyFile, cancellationToken);
 

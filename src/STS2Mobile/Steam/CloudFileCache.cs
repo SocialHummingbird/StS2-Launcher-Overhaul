@@ -17,11 +17,17 @@ internal sealed partial class SteamKit2CloudSaveStore
                 Timestamp = timestamp;
             }
 
-            internal int Size { get; }
-            internal DateTimeOffset Timestamp { get; }
+            private int Size { get; }
+            private DateTimeOffset Timestamp { get; }
 
             internal static CloudFileInfo Create(int size, DateTimeOffset timestamp)
                 => new(size, timestamp);
+
+            internal int SizeOrDefault()
+                => Size;
+
+            internal DateTimeOffset TimestampOrDefault()
+                => Timestamp;
         }
 
         private readonly ConcurrentDictionary<
@@ -42,12 +48,12 @@ internal sealed partial class SteamKit2CloudSaveStore
 
         internal DateTimeOffset GetLastModifiedTime(string path)
         {
-            return GetFileInfo(path)?.Timestamp ?? DateTimeOffset.MinValue;
+            return GetFileInfo(path)?.TimestampOrDefault() ?? DateTimeOffset.MinValue;
         }
 
         internal int GetFileSize(string path)
         {
-            return GetFileInfo(path)?.Size ?? 0;
+            return GetFileInfo(path)?.SizeOrDefault() ?? 0;
         }
 
         internal bool HasCloudFiles()

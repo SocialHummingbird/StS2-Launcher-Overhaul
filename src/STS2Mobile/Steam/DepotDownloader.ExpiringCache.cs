@@ -11,18 +11,30 @@ internal sealed partial class DepotDownloader
     {
         private readonly struct CacheEntry
         {
-            internal CacheEntry(TValue value, DateTime expiry)
+            private CacheEntry(TValue value, DateTime expiry)
             {
                 Value = value;
                 Expiry = expiry;
             }
 
-            internal TValue Value { get; }
-            internal DateTime Expiry { get; }
-            internal bool Fresh => DateTime.UtcNow < Expiry;
+            private TValue Value { get; }
+            private DateTime Expiry { get; }
+            private bool Fresh => DateTime.UtcNow < Expiry;
 
             internal static CacheEntry Create(TValue value, DateTime expiry)
                 => new(value, expiry);
+
+            internal bool TryGetFresh(out TValue value)
+            {
+                if (Fresh)
+                {
+                    value = Value;
+                    return true;
+                }
+
+                value = default!;
+                return false;
+            }
         }
 
         private readonly ConcurrentDictionary<TKey, CacheEntry> _entries = new();
@@ -31,11 +43,8 @@ internal sealed partial class DepotDownloader
         {
             if (_entries.TryGetValue(key, out var entry))
             {
-                if (entry.Fresh)
-                {
-                    value = entry.Value;
+                if (entry.TryGetFresh(out value))
                     return true;
-                }
 
                 _entries.TryRemove(key, out _);
             }

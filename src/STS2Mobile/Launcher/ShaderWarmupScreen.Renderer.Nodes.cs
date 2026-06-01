@@ -22,7 +22,7 @@ internal sealed partial class ShaderWarmupScreen
                 var material = materials[i];
                 try
                 {
-                    Node node = CreateNode(material.Material, whiteTexture);
+                    Node node = material.CreateNode(whiteTexture);
                     if (node != null)
                     {
                         viewport.AddChild(node);
@@ -31,27 +31,11 @@ internal sealed partial class ShaderWarmupScreen
                 }
                 catch (Exception ex)
                 {
-                    PatchHelper.Log($"[ShaderWarmup] Failed to create node for {material.Path}: {ex.Message}");
+                    material.LogNodeCreationFailed(ex);
                 }
             }
 
             return batchNodes;
         }
-
-        private static Node CreateNode(Material mat, ImageTexture whiteTexture)
-            => mat is ParticleProcessMaterial particleMat
-                ? new GpuParticles2D
-                {
-                    ProcessMaterial = particleMat,
-                    Amount = ParticleAmount,
-                    Emitting = true,
-                    OneShot = false,
-                    Texture = whiteTexture,
-                }
-                : new Sprite2D
-                {
-                    Texture = whiteTexture,
-                    Material = mat,
-                };
     }
 }

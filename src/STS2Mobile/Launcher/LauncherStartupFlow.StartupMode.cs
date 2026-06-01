@@ -25,12 +25,12 @@ internal static partial class LauncherStartupFlow
         private bool SafeLaunchRequested
             => ManualSafeLaunch || IsPreviousPhase(PhaseManualSafeLaunch);
 
-        internal bool ForceLocalSaves
+        internal bool ShouldForceLocalSaves()
             => SafeLaunchRequested
                 || IsPreviousPhase(PhaseSettingsAndSaves)
                 || IsPreviousPhase(PhaseGameStartup);
 
-        internal bool SkipShaderWarmup
+        internal bool ShouldSkipShaderWarmup()
             => SafeLaunchRequested || IsPreviousPhase(PhaseShaderWarmup);
 
         internal string LocalSavesReasonLog

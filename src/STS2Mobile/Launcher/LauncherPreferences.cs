@@ -21,7 +21,7 @@ internal static partial class LauncherPreferences
 
     private readonly struct BooleanPreference
     {
-        private BooleanPreference(
+        internal BooleanPreference(
             string key,
             Func<bool> defaultValue,
             Action<bool> apply,
@@ -34,46 +34,46 @@ internal static partial class LauncherPreferences
             BeforeSave = beforeSave;
         }
 
-        internal string Key { get; }
-        internal Func<bool> DefaultValue { get; }
-        internal Action<bool> Apply { get; }
-        internal Action<bool>? BeforeSave { get; }
+        private string Key { get; }
+        private Func<bool> DefaultValue { get; }
+        private Action<bool> Apply { get; }
+        private Action<bool>? BeforeSave { get; }
+
+        internal bool Read()
+            => LoadBoolean(Key, DefaultValue());
+
+        internal bool LoadAndApply()
+        {
+            var enabled = Read();
+            Apply(enabled);
+            return enabled;
+        }
+
+        internal void Save(bool enabled)
+        {
+            BeforeSave?.Invoke(enabled);
+            Apply(enabled);
+            SaveBoolean(Key, enabled);
+        }
     }
 
     internal static bool ReadLocalBackupEnabled()
-        => ReadBooleanPreference(LocalBackupPreference);
+        => LocalBackupPreference.Read();
 
     internal static bool LoadAndApplyLocalBackupEnabled()
-        => LoadAndApplyBooleanPreference(LocalBackupPreference);
+        => LocalBackupPreference.LoadAndApply();
 
     internal static void SaveLocalBackupEnabled(bool enabled)
-        => SaveBooleanPreference(LocalBackupPreference, enabled);
+        => LocalBackupPreference.Save(enabled);
 
     internal static bool ReadCloudSyncEnabled()
-        => ReadBooleanPreference(CloudSyncPreference);
+        => CloudSyncPreference.Read();
 
     internal static bool LoadAndApplyCloudSyncEnabled()
-        => LoadAndApplyBooleanPreference(CloudSyncPreference);
+        => CloudSyncPreference.LoadAndApply();
 
     internal static void SaveCloudSyncEnabled(bool enabled)
-        => SaveBooleanPreference(CloudSyncPreference, enabled);
-
-    private static bool ReadBooleanPreference(BooleanPreference preference)
-        => LoadBoolean(preference.Key, preference.DefaultValue());
-
-    private static bool LoadAndApplyBooleanPreference(BooleanPreference preference)
-    {
-        var enabled = ReadBooleanPreference(preference);
-        preference.Apply(enabled);
-        return enabled;
-    }
-
-    private static void SaveBooleanPreference(BooleanPreference preference, bool enabled)
-    {
-        preference.BeforeSave?.Invoke(enabled);
-        preference.Apply(enabled);
-        SaveBoolean(preference.Key, enabled);
-    }
+        => CloudSyncPreference.Save(enabled);
 
     private static void RequestStoragePermissionForLocalBackup(bool enabled)
     {

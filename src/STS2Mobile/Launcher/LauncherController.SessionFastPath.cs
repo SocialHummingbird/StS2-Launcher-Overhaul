@@ -12,7 +12,7 @@ internal sealed partial class LauncherController
         {
             case LauncherModel.FastPathResult.ReadyToLaunch:
                 ShowReadyToLaunch(
-                    $"Welcome back, {_model.AccountName}",
+                    _model.WelcomeBackStatus(),
                     showUpdate: true
                 );
                 break;
@@ -33,7 +33,7 @@ internal sealed partial class LauncherController
     private async Task RunAutoConnectAsync()
     {
         var connectTask = _model.ConnectAsync();
-        StartConnectionTimeout(_model.SessionAttemptId);
+        _model.StartConnectionTimeout(StartConnectionTimeout);
 
         try
         {

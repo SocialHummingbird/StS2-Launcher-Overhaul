@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using SteamKit2;
 using SteamKit2.CDN;
 
 namespace STS2Mobile.Steam;
@@ -17,13 +18,92 @@ internal sealed partial class DepotDownloader
             Index = index;
         }
 
-        internal Server Server { get; }
+        private Server Server { get; }
         private int Index { get; }
-        internal int DisplayNumber => Index + 1;
-        internal bool HasRetryRemaining => Index < MaxRetries - 1;
+        private int DisplayNumber => Index + 1;
+        private bool HasRetryRemaining => Index < MaxRetries - 1;
 
         internal static CdnServerAttempt Create(Server server, int index)
             => new(server, index);
+
+        internal Task<int> DownloadChunkAsync(
+            DepotDownloader owner,
+            uint depotId,
+            DepotManifest.ChunkData chunk,
+            byte[] buffer,
+            byte[] depotKey,
+            string? cdnAuthToken = null
+        )
+            => owner._cdnClient.DownloadDepotChunkAsync(
+                depotId,
+                chunk,
+                Server,
+                buffer,
+                depotKey,
+                cdnAuthToken: cdnAuthToken
+            );
+
+        internal Task<DepotManifest> DownloadManifestAsync(
+            DepotDownloader owner,
+            uint depotId,
+            ulong manifestId,
+            ulong manifestRequestCode,
+            byte[] depotKey,
+            string? cdnAuthToken = null
+        )
+            => owner._cdnClient.DownloadManifestAsync(
+                depotId,
+                manifestId,
+                manifestRequestCode,
+                Server,
+                depotKey,
+                cdnAuthToken: cdnAuthToken
+            );
+
+        internal async Task<string?> GetAuthTokenForRetryAsync(
+            DepotDownloader owner,
+            uint depotId
+        )
+        {
+            var token = await owner.GetCdnAuthToken(depotId, Server);
+            if (token == null)
+                MarkFailed(owner);
+
+            return token;
+        }
+
+        internal bool CanRetryAfter(Exception _)
+            => HasRetryRemaining;
+
+        internal void HandleAuthRetryFailure(
+            DepotDownloader owner,
+            uint depotId,
+            string operation,
+            Exception ex
+        )
+        {
+            owner.Log(
+                $"{operation} CDN auth retry failed (attempt {DisplayNumber}): {ex.Message}"
+            );
+            owner.InvalidateCdnAuthToken(depotId, Server);
+            MarkFailed(owner);
+        }
+
+        internal void HandleDownloadRetryFailure(
+            DepotDownloader owner,
+            string operation,
+            Exception ex
+        )
+        {
+            owner.Log($"{operation} failed (attempt {DisplayNumber}): {ex.Message}");
+            MarkFailed(owner);
+        }
+
+        internal bool ShouldRetryChunkHash()
+            => HasRetryRemaining;
+
+        private void MarkFailed(DepotDownloader owner)
+            => owner.MarkServerFailed(Server);
     }
 
     private IReadOnlyList<Server> _servers = Array.Empty<Server>();
@@ -73,13 +153,4 @@ internal sealed partial class DepotDownloader
             Interlocked.Increment(ref _serverIndex);
     }
 
-    private void HandleDownloadRetryFailure(
-        CdnServerAttempt attempt,
-        string operation,
-        Exception ex
-    )
-    {
-        Log($"{operation} failed (attempt {attempt.DisplayNumber}): {ex.Message}");
-        MarkServerFailed(attempt.Server);
-    }
 }

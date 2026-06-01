@@ -20,17 +20,17 @@ internal sealed partial class ShaderWarmupScreen
         AddChild(panel);
 
         _statusLabel = new StyledLabel("Compiling shaders...", scale, fontSize: 20);
-        panel.Content.AddChild(_statusLabel);
+        panel.AddContent(_statusLabel);
 
         _progressBar = new StyledProgressBar(scale);
         _progressBar.MinValue = 0;
         _progressBar.MaxValue = 100;
         _progressBar.Value = 0;
         _progressBar.ShowPercentage = true;
-        panel.Content.AddChild(_progressBar);
+        panel.AddContent(_progressBar);
 
         _detailLabel = new StyledLabel("Enumerating resources...", scale, fontSize: 12);
         _detailLabel.Modulate = new Color(0.7f, 0.7f, 0.7f);
-        panel.Content.AddChild(_detailLabel);
+        panel.AddContent(_detailLabel);
     }
 }

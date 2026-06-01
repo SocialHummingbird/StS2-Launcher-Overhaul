@@ -22,9 +22,9 @@ internal sealed partial class SteamConnection
         }
 
         private readonly TokenState _state;
-        internal ulong Token { get; }
-        internal bool HasToken => _state == TokenState.Found;
-        internal bool IsDenied => _state == TokenState.Denied;
+        private ulong Token { get; }
+        private bool HasToken => _state == TokenState.Found;
+        private bool IsDenied => _state == TokenState.Denied;
 
         internal static AppAccessTokenResult Found(ulong token)
             => new(TokenState.Found, token);
@@ -34,28 +34,39 @@ internal sealed partial class SteamConnection
 
         internal static AppAccessTokenResult Public()
             => new(TokenState.Public, 0);
+
+        internal bool HasUsableToken()
+            => HasToken;
+
+        internal void ThrowIfDenied(string deniedMessage)
+        {
+            if (IsDenied)
+                throw new InvalidOperationException(deniedMessage);
+        }
+
+        internal ulong TokenOrPublic(string deniedMessage)
+        {
+            if (HasToken)
+                return Token;
+
+            ThrowIfDenied(deniedMessage);
+            return 0;
+        }
     }
 
     internal async Task<bool> HasAppAccessTokenAsync(uint appId)
-        => (await GetAppAccessTokenAsync(appId)).HasToken;
+        => (await GetAppAccessTokenAsync(appId)).HasUsableToken();
 
     internal async Task EnsureAppAccessTokenNotDeniedAsync(uint appId, string deniedMessage)
     {
         var tokenResult = await GetAppAccessTokenAsync(appId);
-        if (tokenResult.IsDenied)
-            throw new InvalidOperationException(deniedMessage);
+        tokenResult.ThrowIfDenied(deniedMessage);
     }
 
     internal async Task<ulong> GetAppAccessTokenOrPublicAsync(uint appId, string deniedMessage)
     {
         var tokenResult = await GetAppAccessTokenAsync(appId);
-        if (tokenResult.HasToken)
-            return tokenResult.Token;
-
-        if (tokenResult.IsDenied)
-            throw new InvalidOperationException(deniedMessage);
-
-        return 0;
+        return tokenResult.TokenOrPublic(deniedMessage);
     }
 
     private async Task<AppAccessTokenResult> GetAppAccessTokenAsync(uint appId)

@@ -4,8 +4,10 @@ internal sealed partial class LauncherController
 {
     private void InitializeActionPreferences()
     {
-        _view.Actions.SetLocalBackupChecked(LauncherPreferences.LoadAndApplyLocalBackupEnabled());
-        _view.Actions.SetCloudSyncChecked(LauncherPreferences.LoadAndApplyCloudSyncEnabled());
+        _view.SetActionPreferences(
+            LauncherPreferences.LoadAndApplyLocalBackupEnabled(),
+            LauncherPreferences.LoadAndApplyCloudSyncEnabled()
+        );
     }
 
     private void StartSessionFlow()

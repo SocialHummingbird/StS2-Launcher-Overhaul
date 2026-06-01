@@ -8,14 +8,32 @@ internal sealed partial class LauncherView
 {
     private readonly struct LauncherShell
     {
-        internal LauncherShell(StyledPanel panel, HBoxContainer rootColumns)
+        private LauncherShell(StyledPanel panel, HBoxContainer rootColumns)
         {
             Panel = panel;
             RootColumns = rootColumns;
         }
 
-        internal StyledPanel Panel { get; }
-        internal HBoxContainer RootColumns { get; }
+        private StyledPanel Panel { get; }
+        private HBoxContainer RootColumns { get; }
+
+        internal static LauncherShell Create(StyledPanel panel, HBoxContainer rootColumns)
+            => new(panel, rootColumns);
+
+        internal StyledPanel PanelControl()
+            => Panel;
+
+        internal float PanelBaseY()
+            => Panel.Position.Y;
+
+        internal PrimaryColumnControls BuildPrimaryColumn(float scale)
+            => LauncherView.BuildPrimaryColumn(scale, RootColumns);
+
+        internal RichTextLabel BuildLogColumn(
+            float scale,
+            Action<InputEvent> dismissKeyboard
+        )
+            => LauncherView.BuildLogColumn(scale, RootColumns, dismissKeyboard);
     }
 
     private static LauncherShell BuildShell(
@@ -34,7 +52,7 @@ internal sealed partial class LauncherView
         panel.UpdateSizeFromViewport(
             parent.GetViewport()?.GetVisibleRect().Size ?? new Vector2(1920, 1080)
         );
-        panel.Panel.GuiInput += input => dismissKeyboard(input);
+        panel.OnPanelGuiInput(dismissKeyboard);
         parent.AddChild(panel);
 
         var rootColumns = new HBoxContainer();
@@ -44,8 +62,8 @@ internal sealed partial class LauncherView
             LauncherViewLayoutMetrics.ThemeSeparation,
             LauncherViewLayoutMetrics.ScaleInt(LauncherViewLayoutMetrics.RootColumnSeparation, scale)
         );
-        panel.Content.AddChild(rootColumns);
+        panel.AddContent(rootColumns);
 
-        return new LauncherShell(panel, rootColumns);
+        return LauncherShell.Create(panel, rootColumns);
     }
 }

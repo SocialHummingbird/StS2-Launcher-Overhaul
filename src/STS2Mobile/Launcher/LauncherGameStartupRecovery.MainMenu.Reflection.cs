@@ -16,8 +16,8 @@ internal static partial class LauncherGameStartupRecovery
             SceneName = sceneName;
         }
 
-        internal bool IsMainMenu { get; }
-        internal string? SceneName { get; }
+        private bool IsMainMenu { get; }
+        private string? SceneName { get; }
 
         internal static CurrentSceneInfo Missing()
             => new(isMainMenu: false, sceneName: null);
@@ -27,6 +27,25 @@ internal static partial class LauncherGameStartupRecovery
 
         internal static CurrentSceneInfo Failed(Exception ex)
             => new(isMainMenu: false, sceneName: $"<inspect failed: {ex.Message}>");
+
+        internal bool IsMainMenuReady()
+            => IsMainMenu;
+
+        internal string MainMenuPresentMessage()
+            => $"Main menu present after startup: {SceneName}";
+
+        internal string MainMenuMissingMessage()
+            => $"Main menu missing after startup; current scene={SceneName ?? "<none>"}. Forcing LoadMainMenu.";
+
+        internal string ForcedLoadResultMessage()
+            => IsMainMenu
+                ? $"Forced main menu load succeeded: {SceneName}"
+                : $"Forced main menu load returned but current scene is {SceneName ?? "<none>"}";
+
+        internal string ForcedLoadStatus()
+            => IsMainMenu
+                ? "Main menu loaded."
+                : "Main menu force returned, but scene is still not main menu.";
     }
 
     private static Task LoadMainMenuAsync(object game)

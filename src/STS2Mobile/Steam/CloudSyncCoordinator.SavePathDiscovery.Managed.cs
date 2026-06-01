@@ -9,9 +9,6 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SavePathDiscovery
     {
-        private const string CurrentRunSaveFile = "current_run.save";
-        private const string CurrentMultiplayerRunSaveFile = "current_run_mp.save";
-
         private static void CollectProfilePaths(
             List<string> paths,
             ISaveStore store
@@ -75,7 +72,11 @@ internal static partial class CloudSyncCoordinator
 
         private static IEnumerable<string> SelectManagedRunHistoryFiles(IEnumerable<string> files)
             => files
-                .Where(f => f.EndsWith(".run") && !f.EndsWith(".backup") && !f.EndsWith(".tmp"))
+                .Where(f =>
+                    f.EndsWith(RunHistoryExtension)
+                    && !f.EndsWith(BackupExtension)
+                    && !f.EndsWith(TempExtension)
+                )
                 .OrderByDescending(f => f)
                 .Take(RunHistoryLimit);
     }

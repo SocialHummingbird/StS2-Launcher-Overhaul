@@ -16,12 +16,12 @@ internal sealed partial class LauncherSteamSession
     )
     {
         verifyingOwnership?.Invoke();
-        if (_credentialStore.AccountName == null)
+        if (!_credentialStore.TryGetAccountName(out var accountName))
             throw new InvalidOperationException("Cannot verify ownership without an account");
 
         var owns = await connection.HasAppAccessTokenAsync(SteamCloudApp.AppId);
         if (owns)
-            SaveOwnershipMarker(_credentialStore.AccountName);
+            SaveOwnershipMarker(accountName);
 
         PatchHelper.Log(owns ? "[Launcher] Ownership verified" : "[Launcher] Ownership denied");
 

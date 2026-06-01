@@ -1,10 +1,17 @@
+using System;
+using System.Collections.Concurrent;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using SteamKit2;
 
 namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileWriteLocks =
+        new();
+
     private readonly struct DepotFileTarget
     {
         private DepotFileTarget(
@@ -22,11 +29,11 @@ internal sealed partial class DepotDownloader
             LockKey = lockKey;
         }
 
-        internal string FileName { get; }
-        internal string FilePath { get; }
-        internal string? FileDir { get; }
-        internal string TempPath { get; }
-        internal string LockKey { get; }
+        private string FileName { get; }
+        private string FilePath { get; }
+        private string? FileDir { get; }
+        private string TempPath { get; }
+        private string LockKey { get; }
 
         internal static DepotFileTarget Create(
             string fileName,
@@ -36,6 +43,64 @@ internal sealed partial class DepotDownloader
             string lockKey
         )
             => new(fileName, filePath, fileDir, tempPath, lockKey);
+
+        internal SemaphoreSlim GetWriteLock()
+            => _fileWriteLocks.GetOrAdd(LockKey, _ => new SemaphoreSlim(1, 1));
+
+        internal void SetCurrentDownloadFile(Action<string> setCurrentFile)
+            => setCurrentFile(FileName);
+
+        internal bool TryCreateDirectoryTarget(DepotManifest.FileData file)
+        {
+            if (!file.Flags.HasFlag(EDepotFileFlag.Directory))
+                return false;
+
+            Directory.CreateDirectory(FilePath);
+            return true;
+        }
+
+        internal bool ExistingFileMatches(DepotManifest.FileData file)
+            => File.Exists(FilePath) && VerifyFileHash(FilePath, file);
+
+        internal void PrepareDownload(DepotDownloader owner, DepotManifest.FileData file)
+        {
+            var fileSize = checked((long)file.TotalSize);
+            owner.EnsureEnoughFreeSpaceForFile(FileDir ?? owner._gameDir, fileSize, FileName);
+            ValidateFileChunks(FileName, file);
+            DeleteTempFile();
+        }
+
+        internal FileStream CreateTempFile()
+            => System.IO.File.Create(TempPath);
+
+        internal void DeleteTempFile()
+            => DeleteQuietly(TempPath);
+
+        internal void ValidateChunk(DepotManifest.FileData file, DepotManifest.ChunkData chunk)
+        {
+            ValidateChunkBounds(FileName, file.TotalSize, chunk);
+            ValidateChunkSize(FileName, chunk);
+        }
+
+        internal Task WriteChunkAsync(
+            DepotDownloader owner,
+            FileStream stream,
+            uint depotId,
+            DepotManifest.ChunkData chunk,
+            byte[] depotKey
+        )
+            => owner.DownloadAndWriteChunkAsync(stream, depotId, chunk, depotKey, FileName);
+
+        internal void CommitVerified(DepotDownloader owner, DepotManifest.FileData file)
+        {
+            if (!VerifyFileHash(TempPath, file))
+            {
+                DeleteTempFile();
+                throw new IOException($"SHA-1 verification failed for {FileName} after download");
+            }
+
+            owner.CommitDownloadedFile(TempPath, FilePath, FileName);
+        }
     }
 
     private string? GetManifestFileName(DepotManifest.FileData file)

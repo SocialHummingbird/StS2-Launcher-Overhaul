@@ -36,24 +36,7 @@ internal static partial class SteamConnectionConfigurationFactory
         try
         {
             var reflection = LoadSteamKitMachineIdReflection();
-            if (!MachineIdReflectionAvailable(reflection))
-            {
-                PatchHelper.Log(MachineIdPatchUnavailableLogMessage);
-                return false;
-            }
-
-            var task = CreateMachineIdTask(reflection.MachineIdType!);
-            var table = reflection.TableField!.GetValue(null);
-            var provider = configuration.MachineInfoProvider;
-
-            if (task == null || table == null || provider == null)
-            {
-                PatchHelper.Log(MachineIdSeedUnavailableLogMessage);
-                return false;
-            }
-
-            AddMachineIdGenerationTableEntry(table, provider, task);
-            return true;
+            return reflection.TrySeed(configuration);
         }
         catch (Exception ex)
         {

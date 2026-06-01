@@ -1,5 +1,7 @@
+using System;
 using System.IO;
 using System.IO.Compression;
+using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
@@ -15,9 +17,8 @@ internal sealed partial class SteamKit2CloudSaveStore
             Compressed = compressed;
         }
 
-        internal byte[] Data { get; }
-        internal bool Compressed { get; }
-        internal int UploadSize => Data.Length;
+        private byte[] Data { get; }
+        private bool Compressed { get; }
 
         internal static CloudUploadPayload Raw(byte[] data)
             => new(data, compressed: false);
@@ -29,10 +30,19 @@ internal sealed partial class SteamKit2CloudSaveStore
         {
             PatchHelper.Log(
                 Compressed
-                    ? SteamKit2CloudSaveStore.Compressed(path, rawSize, UploadSize)
+                    ? SteamKit2CloudSaveStore.Compressed(path, rawSize, UploadSize())
                     : UploadingUncompressed(path, rawSize)
             );
         }
+
+        internal void LogUploadComplete(string path, int rawBytes)
+            => PatchHelper.Log(Wrote(path, rawBytes, Compressed));
+
+        internal Task SendBlocksAsync(Func<byte[], Task> sendBlocks)
+            => sendBlocks(Data);
+
+        internal int UploadSize()
+            => Data.Length;
     }
 
     private static CloudUploadPayload CompressCloudFile(byte[] raw)

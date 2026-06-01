@@ -16,8 +16,8 @@ internal sealed partial class SteamAuth
             InitialMessage = initialMessage;
         }
 
-        internal string RetryMessage { get; }
-        internal string InitialMessage { get; }
+        private string RetryMessage { get; }
+        private string InitialMessage { get; }
 
         internal static AuthCodeRequest Device()
             => new(
@@ -30,6 +30,9 @@ internal sealed partial class SteamAuth
                 "Previous email code was incorrect, requesting new code",
                 $"Steam Guard email code sent to {email}"
             );
+
+        internal void Log(SteamAuth auth, bool previousCodeWasIncorrect)
+            => auth.Log(previousCodeWasIncorrect ? RetryMessage : InitialMessage);
     }
 
     Task<string> IAuthenticator.GetDeviceCodeAsync(bool previousCodeWasIncorrect)
@@ -49,7 +52,7 @@ internal sealed partial class SteamAuth
         AuthCodeRequest request
     )
     {
-        Log(previousCodeWasIncorrect ? request.RetryMessage : request.InitialMessage);
+        request.Log(this, previousCodeWasIncorrect);
 
         _waitingForAuthCode = true;
         try

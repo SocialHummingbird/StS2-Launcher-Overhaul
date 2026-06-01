@@ -45,7 +45,7 @@ internal sealed partial class DepotDownloader
 
     private DownloadProgress SnapshotProgress()
     {
-        return new DownloadProgress(
+        return DownloadProgress.Create(
             Interlocked.Read(ref _totalDownloadBytes),
             Interlocked.Read(ref _downloadedBytes),
             _currentDownloadFile

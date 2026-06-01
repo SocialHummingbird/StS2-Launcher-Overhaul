@@ -74,6 +74,8 @@ internal partial class LauncherModel
     private async Task<SteamConnection> GetDepotConnectionAsync()
     {
         await EnsureConnectedAsync();
-        return IsLoggedIn ? _steamSession.Connection : null;
+        return IsLoggedIn && _steamSession.TryGetConnection(out var connection)
+            ? connection
+            : null;
     }
 }

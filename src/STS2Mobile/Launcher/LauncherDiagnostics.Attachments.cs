@@ -12,16 +12,29 @@ internal static partial class LauncherDiagnostics
 
     private readonly struct DiagnosticAttachment
     {
-        internal DiagnosticAttachment(DiagnosticFile file, int limit)
+        private DiagnosticAttachment(DiagnosticFile file, int limit)
         {
             File = file;
             Limit = limit;
         }
 
-        internal DiagnosticFile File { get; }
-        internal int Limit { get; }
-        internal string Label => File.Label;
-        internal string Path => File.Path;
+        private DiagnosticFile File { get; }
+        private int Limit { get; }
+
+        internal static DiagnosticAttachment Create(DiagnosticFile file, int limit)
+            => new(file, limit);
+
+        internal void AppendHeader(StringBuilder sb)
+            => File.AppendHeader(sb);
+
+        internal IEnumerable<string> InterestingLines(FileReadResult read)
+            => SelectInterestingDiagnosticLines(read.ContentLines(), Limit);
+
+        internal FileReadResult Read()
+            => File.Read();
+
+        internal string TruncatedContent(FileReadResult read)
+            => TruncateForDisplay(read.ContentText(), Limit);
     }
 
     private readonly struct FileReadResult
@@ -32,12 +45,11 @@ internal static partial class LauncherDiagnostics
             Error = error;
         }
 
-        internal string? Text { get; }
-        internal string? Error { get; }
-        internal bool HasText => Text != null;
-        internal bool IsMissing => Text == null && Error == null;
-        internal string Content => Text ?? string.Empty;
-        internal string[] Lines => Content.Replace("\r\n", "\n").Split('\n');
+        private string? Text { get; }
+        private string? Error { get; }
+        private bool HasText => Text != null;
+        private bool IsMissing => Text == null && Error == null;
+        private string TextOrEmpty => Text ?? string.Empty;
 
         internal static FileReadResult Read(string text)
             => new(text, error: null);
@@ -48,7 +60,26 @@ internal static partial class LauncherDiagnostics
         internal static FileReadResult Failed(string error)
             => new(text: null, error);
 
-        internal string Status(string missingPrefix = "", string failedPrefix = "")
+        internal void AppendFileStatus(StringBuilder sb)
+            => sb.AppendLine(IsMissing ? "  exists=False" : $"  failed={Error}");
+
+        internal void AppendStatus(
+            StringBuilder sb,
+            string missingPrefix = "",
+            string failedPrefix = ""
+        )
+            => sb.AppendLine(Status(missingPrefix, failedPrefix));
+
+        internal string ContentText()
+            => TextOrEmpty;
+
+        internal bool HasContent()
+            => HasText;
+
+        internal string[] ContentLines()
+            => TextOrEmpty.Replace("\r\n", "\n").Split('\n');
+
+        private string Status(string missingPrefix = "", string failedPrefix = "")
             => IsMissing
                 ? $"{missingPrefix}<missing>"
                 : $"{failedPrefix}<failed to read: {Error}>";
@@ -105,7 +136,7 @@ internal static partial class LauncherDiagnostics
     }
 
     private static DiagnosticAttachment Attachment(DiagnosticFile file, int limit)
-        => new(file, limit);
+        => DiagnosticAttachment.Create(file, limit);
 
     private static void AppendAttachments(
         StringBuilder sb,
@@ -117,7 +148,7 @@ internal static partial class LauncherDiagnostics
         foreach (var file in files)
         {
             sb.AppendLine();
-            sb.AppendLine(Header(file.Label, file.Path));
+            file.AppendHeader(sb);
             AppendTruncatedFile(
                 sb,
                 file,
@@ -133,15 +164,15 @@ internal static partial class LauncherDiagnostics
     )
     {
         sb.AppendLine();
-        sb.AppendLine(Header(file.Label, file.Path));
-        var read = ReadFileText(file.Path);
-        if (!read.HasText)
+        file.AppendHeader(sb);
+        var read = file.Read();
+        if (!read.HasContent())
         {
-            sb.AppendLine(read.Status());
+            read.AppendStatus(sb);
             return;
         }
 
-        foreach (var line in SelectInterestingDiagnosticLines(read.Lines, file.Limit))
+        foreach (var line in file.InterestingLines(read))
             sb.AppendLine(line);
     }
 
@@ -152,24 +183,24 @@ internal static partial class LauncherDiagnostics
         string failedPrefix = ""
     )
     {
-        var read = ReadFileText(file.Path);
-        if (read.HasText)
+        var read = file.Read();
+        if (read.HasContent())
         {
-            sb.AppendLine(TruncateForDisplay(read.Content, file.Limit));
+            sb.AppendLine(file.TruncatedContent(read));
             return;
         }
 
-        sb.AppendLine(read.Status(missingPrefix, failedPrefix));
+        read.AppendStatus(sb, missingPrefix, failedPrefix);
     }
 
     private static FileReadResult ReadFileText(string path)
     {
         try
         {
-            if (!File.Exists(path))
+            if (!System.IO.File.Exists(path))
                 return FileReadResult.Missing();
 
-            return FileReadResult.Read(File.ReadAllText(path));
+            return FileReadResult.Read(System.IO.File.ReadAllText(path));
         }
         catch (Exception ex)
         {

@@ -25,9 +25,9 @@ internal static partial class CloudSyncCoordinator
                 LogFailure = logFailure;
             }
 
-            internal string Source { get; }
-            internal Func<ManualSyncContext, string, ValueTask<string?>> ReadContentAsync { get; }
-            internal Action<string, Exception> LogFailure { get; }
+            private string Source { get; }
+            private Func<ManualSyncContext, string, ValueTask<string?>> ReadContentAsync { get; }
+            private Action<string, Exception> LogFailure { get; }
 
             internal static ManualBackupPlan Create(
                 string source,
@@ -35,6 +35,20 @@ internal static partial class CloudSyncCoordinator
                 Action<string, Exception> logFailure
             )
                 => new(source, readContentAsync, logFailure);
+
+            internal async Task<bool> TryBackUpAsync(ManualSyncContext sync, string path)
+            {
+                try
+                {
+                    var read = await ReadContentAsync(sync, path);
+                    return read != null && SaveContent(path, read, Source);
+                }
+                catch (Exception ex)
+                {
+                    LogFailure(path, ex);
+                    return false;
+                }
+            }
         }
 
         internal static Task<int> CloudBeforeManualPushAsync(
@@ -74,19 +88,8 @@ internal static partial class CloudSyncCoordinator
             var backedUp = 0;
             foreach (var path in paths)
             {
-                try
-                {
-                    var read = await plan.ReadContentAsync(sync, path);
-                    if (read == null)
-                        continue;
-
-                    if (SaveContent(path, read, plan.Source))
-                        backedUp++;
-                }
-                catch (Exception ex)
-                {
-                    plan.LogFailure(path, ex);
-                }
+                if (await plan.TryBackUpAsync(sync, path))
+                    backedUp++;
             }
 
             return backedUp;

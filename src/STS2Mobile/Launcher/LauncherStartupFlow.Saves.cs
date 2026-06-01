@@ -22,12 +22,7 @@ internal static partial class LauncherStartupFlow
 
     private static bool InitializeSettingsAndSaves(StartupContext startup)
     {
-        startup.SetPhase(
-            PhaseSettingsAndSaves,
-            startup.ForceLocalSaves
-                ? "Loading settings and saves in local-only safe mode..."
-                : "Loading settings and saves..."
-        );
+        startup.SetSettingsAndSavesPhase();
         PatchHelper.Log("Initializing settings and save manager");
         try
         {

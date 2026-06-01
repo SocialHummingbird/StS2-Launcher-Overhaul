@@ -30,12 +30,12 @@ internal static partial class CloudSyncCoordinator
             CompleteMessage = completeMessage;
         }
 
-        internal Func<ManualSyncContext, IReadOnlyCollection<string>> DiscoverPaths { get; }
-        internal Func<int, string> StartingMessage { get; }
-        internal Func<ManualSyncContext, IReadOnlyCollection<string>, Task<int>> BackUpAsync { get; }
-        internal Func<int, string> BackedUpMessage { get; }
-        internal Func<ManualSyncContext, IReadOnlyCollection<string>, Task<TResult>> TransferAsync { get; }
-        internal Func<TResult, string> CompleteMessage { get; }
+        private Func<ManualSyncContext, IReadOnlyCollection<string>> DiscoverPaths { get; }
+        private Func<int, string> StartingMessage { get; }
+        private Func<ManualSyncContext, IReadOnlyCollection<string>, Task<int>> BackUpAsync { get; }
+        private Func<int, string> BackedUpMessage { get; }
+        private Func<ManualSyncContext, IReadOnlyCollection<string>, Task<TResult>> TransferAsync { get; }
+        private Func<TResult, string> CompleteMessage { get; }
 
         internal static ManualSyncPlan<TResult> Create(
             Func<ManualSyncContext, IReadOnlyCollection<string>> discoverPaths,
@@ -53,6 +53,19 @@ internal static partial class CloudSyncCoordinator
                 transferAsync,
                 completeMessage
             );
+
+        internal async Task RunAsync(ManualSyncContext sync)
+        {
+            var paths = DiscoverPaths(sync);
+            PatchHelper.Log(StartingMessage(paths.Count));
+
+            var backedUp = await BackUpAsync(sync, paths);
+            if (backedUp > 0)
+                PatchHelper.Log(BackedUpMessage(backedUp));
+
+            var result = await TransferAsync(sync, paths);
+            PatchHelper.Log(CompleteMessage(result));
+        }
     }
 
     private readonly struct ManualSyncContext
@@ -173,7 +186,7 @@ internal static partial class CloudSyncCoordinator
                 (sync, paths) => SaveBackups.LocalBeforeManualPullAsync(sync, paths),
                 PullBackedUpLocalFiles,
                 RunManualPullDownloadsAsync,
-                result => PullComplete(result.Downloaded, result.Skipped)
+                result => result.CompleteMessage()
             )
         );
 
@@ -184,14 +197,6 @@ internal static partial class CloudSyncCoordinator
     )
     {
         var sync = CreateManualSyncContext(accountName, refreshToken);
-        var paths = plan.DiscoverPaths(sync);
-        PatchHelper.Log(plan.StartingMessage(paths.Count));
-
-        var backedUp = await plan.BackUpAsync(sync, paths);
-        if (backedUp > 0)
-            PatchHelper.Log(plan.BackedUpMessage(backedUp));
-
-        var result = await plan.TransferAsync(sync, paths);
-        PatchHelper.Log(plan.CompleteMessage(result));
+        await plan.RunAsync(sync);
     }
 }

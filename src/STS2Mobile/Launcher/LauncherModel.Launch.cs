@@ -22,6 +22,9 @@ internal partial class LauncherModel
         }
     }
 
+    internal string LaunchButtonText()
+        => InGameMode ? "PLAY" : "START GAME";
+
     internal Task WaitForLaunch()
     {
         _launchTcs ??= new TaskCompletionSource<bool>();

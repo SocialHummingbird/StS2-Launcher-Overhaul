@@ -19,11 +19,9 @@ internal static partial class AndroidJavaCrypto
             "RSA encryption",
             RsaEncryptBase64BridgeMethod,
             "Android Java RSA bridge returned an empty response",
-            key.SubjectPublicKeyInfo == null
-                ? string.Empty
-                : Convert.ToBase64String(key.SubjectPublicKeyInfo),
-            key.Modulus == null ? string.Empty : Convert.ToBase64String(key.Modulus),
-            key.Exponent == null ? string.Empty : Convert.ToBase64String(key.Exponent),
+            key.EncodedSubjectPublicKeyInfo(),
+            key.EncodedModulus(),
+            key.EncodedExponent(),
             Convert.ToBase64String(data),
             paddingName
         );

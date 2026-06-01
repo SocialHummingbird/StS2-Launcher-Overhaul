@@ -21,13 +21,13 @@ internal sealed partial class DepotDownloader
             "Chunk",
             async token =>
             {
-                var written = await _cdnClient.DownloadDepotChunkAsync(
+                var written = await attempt.DownloadChunkAsync(
+                    this,
                     depotId,
                     chunk,
-                    attempt.Server,
                     buffer,
                     depotKey,
-                    cdnAuthToken: token
+                    token
                 );
 
                 return ChunkHashVerifiedOrRetry(fileName, chunk, buffer, written, attempt)

@@ -19,11 +19,11 @@ internal sealed partial class DepotDownloader
         {
             try
             {
-                return await _cdnClient.DownloadManifestAsync(
+                return await attempt.DownloadManifestAsync(
+                    this,
                     depotId,
                     manifestId,
                     manifestRequestCode,
-                    attempt.Server,
                     depotKey
                 );
             }
@@ -39,9 +39,9 @@ internal sealed partial class DepotDownloader
                 if (manifest != null)
                     return manifest;
             }
-            catch (Exception ex) when (attempt.HasRetryRemaining)
+            catch (Exception ex) when (attempt.CanRetryAfter(ex))
             {
-                HandleDownloadRetryFailure(attempt, "Manifest download", ex);
+                attempt.HandleDownloadRetryFailure(this, "Manifest download", ex);
             }
         }
 

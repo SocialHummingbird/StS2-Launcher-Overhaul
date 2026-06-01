@@ -19,7 +19,7 @@ internal partial class LauncherModel
         _credentialStore.Load();
         LauncherCloudSaveState.SaveCredentials(_credentialStore);
 
-        var hasCredentials = _credentialStore.HasCredentials;
+        var hasCredentials = _credentialStore.HasUsableCredentials();
         var hasOwnershipMarker = _steamSession.HasOwnershipMarker();
         var gameFilesReady = LauncherGameFiles.Ready(_dataDir);
         PatchHelper.Log(

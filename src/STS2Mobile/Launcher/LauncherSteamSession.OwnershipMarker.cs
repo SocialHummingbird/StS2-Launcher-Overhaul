@@ -17,11 +17,11 @@ internal sealed partial class LauncherSteamSession
     {
         try
         {
-            if (_credentialStore.AccountName == null || !File.Exists(OwnershipMarkerPath))
+            if (!_credentialStore.HasAccount() || !File.Exists(OwnershipMarkerPath))
                 return false;
 
             var marker = AndroidEncryptedJsonFile.Load<OwnershipMarker>(OwnershipMarkerPath);
-            return marker != null && marker.Account == _credentialStore.AccountName;
+            return marker != null && _credentialStore.IsAccount(marker.Account);
         }
         catch
         {

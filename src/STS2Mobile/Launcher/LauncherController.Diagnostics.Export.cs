@@ -7,7 +7,7 @@ internal sealed partial class LauncherController
 {
     private void DiagnosticsPressed()
     {
-        var path = TryRunDiagnosticsAction(
+        var path = TryGetDiagnosticsResult(
             "Diagnostics export failed",
             logFullException: true,
             _model.WriteDiagnosticsReport,

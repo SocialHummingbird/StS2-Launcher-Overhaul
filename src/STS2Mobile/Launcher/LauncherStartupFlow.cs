@@ -35,9 +35,19 @@ internal static partial class LauncherStartupFlow
         private Label Status { get; }
         private StartupMode Mode { get; }
 
-        internal bool ForceLocalSaves => Mode.ForceLocalSaves;
+        internal bool ShouldForceLocalSaves()
+            => Mode.ShouldForceLocalSaves();
 
-        internal bool SkipShaderWarmup => Mode.SkipShaderWarmup;
+        internal bool ShouldSkipShaderWarmup()
+            => Mode.ShouldSkipShaderWarmup();
+
+        internal void SetSettingsAndSavesPhase()
+            => SetPhase(
+                PhaseSettingsAndSaves,
+                ShouldForceLocalSaves()
+                    ? "Loading settings and saves in local-only safe mode..."
+                    : "Loading settings and saves..."
+            );
 
         internal void SetPhase(string phase, string status)
         {

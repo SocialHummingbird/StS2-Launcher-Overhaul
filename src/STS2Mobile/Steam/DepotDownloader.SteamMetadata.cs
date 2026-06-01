@@ -48,9 +48,10 @@ internal sealed partial class DepotDownloader
         uint appId
     )
     {
+        var app = ProductInfoApp.Create(appId);
         var appInfo = await GetAppInfoAsync(appId);
         if (appInfo == null)
-            throw new Exception("Failed to get app info from Steam");
+            throw new Exception(app.AppInfoUnavailable());
 
         return appInfo;
     }
@@ -60,9 +61,10 @@ internal sealed partial class DepotDownloader
         uint appId
     )
     {
+        var app = ProductInfoApp.Create(appId);
         var depots = appInfo?.KeyValues?["depots"];
         if (depots == null || depots == KeyValue.Invalid)
-            throw new InvalidOperationException($"Steam app info for {appId} has no depots section");
+            throw new InvalidOperationException(app.MissingDepotsSection());
 
         return depots;
     }

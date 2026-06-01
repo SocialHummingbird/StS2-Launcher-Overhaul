@@ -8,91 +8,108 @@ internal static partial class CloudSyncCoordinator
         "[Cloud] Manual push timeout: exceeded overall manual sync budget";
     private const string ManualPullBudgetExceeded =
         "[Cloud] Manual pull timeout: exceeded overall manual sync budget";
+    private const string CloudLogPrefix = "[Cloud]";
 
     private static string SyncLocalCorruptPulling(string path) =>
-        $"[Cloud] Sync: local {path} is corrupt, pulling from cloud";
+        CloudOperationMessage("Sync", $"local {path} is corrupt, pulling from cloud");
 
     private static string SyncIdenticalSkipping(string path) =>
-        $"[Cloud] Sync: {path} identical, skipping";
+        CloudOperationMessage("Sync", $"{path} identical, skipping");
 
     private static string SyncCloudWins(string path) =>
-        $"[Cloud] Sync: cloud wins for {path}";
+        CloudOperationMessage("Sync", $"cloud wins for {path}");
 
     private static string SyncLocalWinsUploading(string path) =>
-        $"[Cloud] Sync: local wins for {path}, uploading";
+        CloudOperationMessage("Sync", $"local wins for {path}, uploading");
 
     private static string SyncContentsDifferCloudWins(string path) =>
-        $"[Cloud] Sync: contents differ for {path}, cloud wins";
+        CloudOperationMessage("Sync", $"contents differ for {path}, cloud wins");
 
     private static string SyncFailed(string path, Exception ex) =>
-        $"[Cloud] Sync failed for {path}: {ex.Message}";
+        CloudMessage($"Sync failed for {path}: {ex.Message}");
 
     private static string ProgressComparisonFailed(string path, Exception ex) =>
-        $"[Cloud] Progress comparison failed for {path}: {ex.Message}";
+        CloudMessage($"Progress comparison failed for {path}: {ex.Message}");
 
     private static string PushSkippingIdentical(string path) =>
-        $"[Cloud] Push: skipping {path} (identical)";
+        CloudOperationMessage("Push", $"skipping {path} (identical)");
 
     private static string PushUploaded(string path) =>
-        $"[Cloud] Push: uploaded {path}";
+        CloudOperationMessage("Push", $"uploaded {path}");
 
     private static string PushStarting(int fileCount) =>
-        $"[Cloud] Push: starting ({fileCount} files)";
+        CloudOperationMessage("Push", $"starting ({fileCount} files)");
 
     private static string PushBackedUpCloudFiles(int backedUp) =>
-        $"[Cloud] Push: backed up {backedUp} cloud files";
+        CloudOperationMessage("Push", $"backed up {backedUp} cloud files");
 
     private static string PushQueuing(string path, int bytes) =>
-        $"[Cloud] Push: queuing {path} ({bytes} bytes)";
+        CloudOperationMessage("Push", $"queuing {path} ({bytes} bytes)");
 
     private static string PushFailed(string path, Exception ex) =>
-        $"[Cloud] Push: failed for {path}: {ex.Message}";
+        CloudFailureMessage("Push", path, ex);
 
     private static string PushComplete(int count) =>
-        $"[Cloud] Push complete: {count} files batched for upload";
+        CloudMessage($"Push complete: {count} files batched for upload");
 
     private static string PushBackingUpCloud(string path) =>
-        $"[Cloud] Push: backing up cloud {path}";
+        CloudOperationMessage("Push", $"backing up cloud {path}");
 
     private static string PushCloudBackupFailed(string path, Exception ex) =>
-        $"[Cloud] Push: backup failed for cloud {path}: {ex.Message}";
+        CloudOperationMessage("Push", $"backup failed for cloud {path}: {ex.Message}");
 
     private static string PullSkippingIdentical(string path) =>
-        $"[Cloud] Pull: skipping {path} (identical)";
+        CloudOperationMessage("Pull", $"skipping {path} (identical)");
 
     private static string PullDownloaded(string path) =>
-        $"[Cloud] Pull: downloaded {path}";
+        CloudOperationMessage("Pull", $"downloaded {path}");
 
     private static string PullStarting(int fileCount) =>
-        $"[Cloud] Pull: starting ({fileCount} files)";
+        CloudOperationMessage("Pull", $"starting ({fileCount} files)");
 
     private static string PullBackedUpLocalFiles(int backedUp) =>
-        $"[Cloud] Pull: backed up {backedUp} local files";
+        CloudOperationMessage("Pull", $"backed up {backedUp} local files");
 
     private static string PullDownloading(string path) =>
-        $"[Cloud] Pull: downloading {path}";
+        CloudOperationMessage("Pull", $"downloading {path}");
 
     private static string PullWrote(string path, int bytes) =>
-        $"[Cloud] Pull: wrote {path} ({bytes} bytes)";
+        CloudOperationMessage("Pull", $"wrote {path} ({bytes} bytes)");
 
     private static string PullPathTimedOut(string path) =>
-        $"[Cloud] Pull: timeout for {path}, skipping remaining operations for this file";
+        CloudOperationMessage(
+            "Pull",
+            $"timeout for {path}, skipping remaining operations for this file"
+        );
 
     private static string PullFailed(string path, Exception ex) =>
-        $"[Cloud] Pull: failed for {path}: {ex.Message}";
+        CloudFailureMessage("Pull", path, ex);
 
     private static string PullComplete(int downloaded, int skipped) =>
-        $"[Cloud] Pull complete: {downloaded} downloaded, {skipped} not in cloud";
+        CloudMessage($"Pull complete: {downloaded} downloaded, {skipped} not in cloud");
 
     private static string PullLocalBackupFailed(string path, Exception ex) =>
-        $"[Cloud] Pull: backup failed for local {path}: {ex.Message}";
+        CloudOperationMessage("Pull", $"backup failed for local {path}: {ex.Message}");
 
     private static string SaveBackedUp(string source, string path) =>
-        $"[Cloud] Backed up {source} {path}";
+        CloudMessage($"Backed up {source} {path}");
 
     private static string SaveBackedUpTo(string source, string path, string backupPath) =>
-        $"[Cloud] Backed up {source} {path} -> {backupPath}";
+        CloudMessage($"Backed up {source} {path} -> {backupPath}");
 
     private static string BackupFailed(string source, string path, Exception ex) =>
-        $"[Cloud] Backup failed for {source} {path}: {ex.Message}";
+        CloudMessage($"Backup failed for {source} {path}: {ex.Message}");
+
+    private static string CloudFailureMessage(
+        string operation,
+        string path,
+        Exception ex
+    )
+        => CloudOperationMessage(operation, $"failed for {path}: {ex.Message}");
+
+    private static string CloudOperationMessage(string operation, string message)
+        => CloudMessage($"{operation}: {message}");
+
+    private static string CloudMessage(string message)
+        => $"{CloudLogPrefix} {message}";
 }

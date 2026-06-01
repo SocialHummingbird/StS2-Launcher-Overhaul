@@ -21,14 +21,20 @@ internal sealed partial class LauncherController
 
     private readonly struct ReleaseMetadata
     {
-        internal ReleaseMetadata(string? name, string? tag)
+        private ReleaseMetadata(string? name, string? tag)
         {
             Name = name;
             Tag = tag;
         }
 
-        internal string? Name { get; }
-        internal string? Tag { get; }
+        private string? Name { get; }
+        private string? Tag { get; }
+
+        internal static ReleaseMetadata Create(string? name, string? tag)
+            => new(name, tag);
+
+        internal string? NormalizeVersion()
+            => Name == null ? null : LauncherController.NormalizeVersion(Tag ?? Name);
     }
 
     private static async Task<string?> CheckLatestLauncherVersionAsync()
@@ -45,10 +51,7 @@ internal sealed partial class LauncherController
 
         var response = await http.GetStringAsync(LatestLauncherReleaseApiUrl).ConfigureAwait(false);
         var release = ParseReleaseMetadata(response);
-        if (release.Name == null)
-            return null;
-
-        var latestVersion = NormalizeVersion(release.Tag ?? release.Name);
+        var latestVersion = release.NormalizeVersion();
         var installedVersion = NormalizeVersion(currentVersion);
 
         if (latestVersion == null || installedVersion == null)
@@ -87,7 +90,7 @@ internal sealed partial class LauncherController
             ? tagProp.GetString()
             : null;
 
-        return new ReleaseMetadata(releaseName, releaseTag);
+        return ReleaseMetadata.Create(releaseName, releaseTag);
     }
 
     private static string? NormalizeVersion(string version)

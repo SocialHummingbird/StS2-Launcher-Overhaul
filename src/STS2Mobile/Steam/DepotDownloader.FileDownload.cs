@@ -19,41 +19,29 @@ internal sealed partial class DepotDownloader
             return;
 
         var target = CreateDepotFileTarget(fileName);
-        var writeLock = GetDepotFileWriteLock(target);
+        var writeLock = target.GetWriteLock();
 
         await writeLock.WaitAsync(ct);
         try
         {
-            _currentDownloadFile = target.FileName;
+            target.SetCurrentDownloadFile(file => _currentDownloadFile = file);
             ForceReportProgress();
 
-            if (TryHandleDirectoryTarget(file, target))
+            if (target.TryCreateDirectoryTarget(file))
                 return;
 
             if (TryUseExistingFile(file, target))
                 return;
 
-            PrepareDepotFileDownload(file, target);
+            target.PrepareDownload(this, file);
             await WriteDepotFileChunksAsync(file, depotId, depotKey, target, ct);
-            CommitVerifiedDepotFile(file, target);
+            target.CommitVerified(this, file);
         }
         finally
         {
-            DeleteQuietly(target.TempPath);
+            target.DeleteTempFile();
             writeLock.Release();
         }
-    }
-
-    private bool TryHandleDirectoryTarget(
-        DepotManifest.FileData file,
-        DepotFileTarget target
-    )
-    {
-        if (!file.Flags.HasFlag(EDepotFileFlag.Directory))
-            return false;
-
-        Directory.CreateDirectory(target.FilePath);
-        return true;
     }
 
     private bool TryUseExistingFile(
@@ -63,25 +51,11 @@ internal sealed partial class DepotDownloader
     {
         // Validate existing file against manifest SHA-1 hash. A size-only check
         // would miss corruption from interrupted writes (SetLength pre-allocates).
-        if (!File.Exists(target.FilePath) || !VerifyFileHash(target.FilePath, file))
+        if (!target.ExistingFileMatches(file))
             return false;
 
         Interlocked.Add(ref _downloadedBytes, (long)file.TotalSize);
         ForceReportProgress();
         return true;
-    }
-
-    private void PrepareDepotFileDownload(
-        DepotManifest.FileData file,
-        DepotFileTarget target
-    )
-    {
-        var fileSize = checked((long)file.TotalSize);
-        EnsureEnoughFreeSpaceForFile(target.FileDir ?? _gameDir, fileSize, target.FileName);
-        ValidateFileChunks(target.FileName, file);
-
-        // Write to a temp file, verify hash, then move into place. This prevents
-        // a partially-written file from being mistaken as complete on retry.
-        DeleteQuietly(target.TempPath);
     }
 }

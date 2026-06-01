@@ -19,7 +19,7 @@ internal static partial class CloudSyncCoordinator
         {
             await sync.PullCloudContentAsync(
                 cloudContent,
-                SyncLocalCorruptPulling(sync.Path),
+                SyncLocalCorruptPulling,
                 backUpLocal: true
             );
             return;
@@ -27,7 +27,7 @@ internal static partial class CloudSyncCoordinator
 
         if (local == cloudContent)
         {
-            PatchHelper.Log(SyncIdenticalSkipping(sync.Path));
+            sync.Log(SyncIdenticalSkipping);
             return;
         }
 
@@ -40,12 +40,12 @@ internal static partial class CloudSyncCoordinator
         string cloudContent
     )
     {
-        var winner = SaveComparison.GetExplicitWinner(sync.Path, localContent, cloudContent);
+        var winner = sync.GetExplicitWinner(localContent, cloudContent);
         if (winner.CloudWins)
         {
             await sync.PullCloudContentAsync(
                 cloudContent,
-                SyncCloudWins(sync.Path),
+                SyncCloudWins,
                 backUpLocal: true
             );
             return;
@@ -53,14 +53,18 @@ internal static partial class CloudSyncCoordinator
 
         if (winner.LocalWins)
         {
-            sync.PushLocalContent(localContent, cloudContent, SyncLocalWinsUploading(sync.Path));
+            sync.PushLocalContent(
+                localContent,
+                cloudContent,
+                SyncLocalWinsUploading
+            );
             return;
         }
 
         // Cloud wins on equal progress or non-progress files to preserve PC as primary.
         await sync.PullCloudContentAsync(
             cloudContent,
-            SyncContentsDifferCloudWins(sync.Path),
+            SyncContentsDifferCloudWins,
             backUpLocal: true
         );
     }

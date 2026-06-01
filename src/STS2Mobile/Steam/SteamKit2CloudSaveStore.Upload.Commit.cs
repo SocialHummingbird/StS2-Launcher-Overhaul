@@ -19,22 +19,16 @@ internal sealed partial class SteamKit2CloudSaveStore
                     CCloud_ClientCommitFileUpload_Response
                 >(
                     "ClientCommitFileUpload",
-                    new CCloud_ClientCommitFileUpload_Request
-                    {
-                        transfer_succeeded = uploadSucceeded,
-                        appid = SteamCloudApp.AppId,
-                        file_sha = upload.FileHash,
-                        filename = upload.Path,
-                    }
+                    upload.CreateCommitRequest(uploadSucceeded)
                 )
                 .ConfigureAwait(false);
 
             if (uploadSucceeded && !commitResult.file_committed)
-                PatchHelper.Log(CommitReturnedFalse(upload.Path));
+                upload.LogCommitReturnedFalse();
         }
         catch (Exception ex)
         {
-            PatchHelper.Log(CommitFailed(upload.Path, ex));
+            upload.LogCommitFailed(ex);
         }
     }
 }

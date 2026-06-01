@@ -8,17 +8,26 @@ internal static partial class CloudSyncCoordinator
 {
     private readonly struct ManualPullResult
     {
-        internal ManualPullResult(int downloaded, int skipped)
+        private ManualPullResult(int downloaded, int skipped)
         {
             Downloaded = downloaded;
             Skipped = skipped;
         }
 
-        internal int Downloaded { get; }
-        internal int Skipped { get; }
+        private int Downloaded { get; }
+        private int Skipped { get; }
+
+        internal string CompleteMessage()
+            => PullComplete(Downloaded, Skipped);
+
+        internal ManualPullResult Add(ManualPullResult result)
+            => new(Downloaded + result.Downloaded, Skipped + result.Skipped);
 
         internal static ManualPullResult DownloadedOne()
             => new(downloaded: 1, skipped: 0);
+
+        internal static ManualPullResult Empty()
+            => new(downloaded: 0, skipped: 0);
 
         internal static ManualPullResult SkippedOne()
             => new(downloaded: 0, skipped: 1);
@@ -32,19 +41,17 @@ internal static partial class CloudSyncCoordinator
         IEnumerable<string> paths
     )
     {
-        int downloaded = 0;
-        int skipped = 0;
+        var total = ManualPullResult.Empty();
         foreach (var path in paths)
         {
             var result = await PullManualPathAsync(sync, path);
-            downloaded += result.Downloaded;
-            skipped += result.Skipped;
+            total = total.Add(result);
 
             if (sync.BudgetExceeded(ManualPullBudgetExceeded))
                 break;
         }
 
-        return new ManualPullResult(downloaded, skipped);
+        return total;
     }
 
     private static async Task<ManualPullResult> PullManualPathAsync(

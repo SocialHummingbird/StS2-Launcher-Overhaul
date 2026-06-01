@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
@@ -9,14 +10,20 @@ internal sealed partial class LauncherController
 {
     private readonly struct LocalSteamCredentials
     {
-        internal LocalSteamCredentials(string username, string password)
+        private LocalSteamCredentials(string username, string password)
         {
             Username = username;
             Password = password;
         }
 
-        internal string Username { get; }
-        internal string Password { get; }
+        private string Username { get; }
+        private string Password { get; }
+
+        internal static LocalSteamCredentials Create(string username, string password)
+            => new(username, password);
+
+        internal Task LoginAsync(LauncherModel model)
+            => model.LoginAsync(Username, Password);
     }
 
     private const string LocalSteamCredentialFileName = "steam_login_credentials.txt";
@@ -52,6 +59,6 @@ internal sealed partial class LauncherController
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
             throw new InvalidDataException("username or password was empty");
 
-        return new LocalSteamCredentials(username, password);
+        return LocalSteamCredentials.Create(username, password);
     }
 }

@@ -17,7 +17,7 @@ internal static partial class LauncherGameStartupRecovery
         RecordStartupState(
             gameNode,
             startupStatus,
-            new RecoveryStateUpdate(
+            RecoveryStateUpdate.Create(
                 WatchdogStalledReason,
                 "Game startup stalled. Attempting main menu recovery..."
             )
@@ -37,7 +37,7 @@ internal static partial class LauncherGameStartupRecovery
                 recoveryControls,
                 startupStatus,
                 gameNode,
-                new RecoveryStateUpdate(
+                RecoveryStateUpdate.Create(
                     WatchdogRecoveredReason,
                     "Main menu recovered after startup stall. Recovery controls remain briefly."
                 )
@@ -48,7 +48,7 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            new RecoveryStateUpdate(
+            RecoveryStateUpdate.Create(
                 MainMenuRecoveryFailureReason,
                 "Game startup stalled and main menu recovery failed. Use recovery controls below."
             )

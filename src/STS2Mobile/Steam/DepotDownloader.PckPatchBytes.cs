@@ -66,7 +66,7 @@ internal sealed partial class DepotDownloader
     {
         var patched = false;
         foreach (var replacement in replacements)
-            patched |= ReplaceEntryBytes(content, replacement.Search, replacement.Replacement);
+            patched |= replacement.Apply(content);
 
         return patched;
     }

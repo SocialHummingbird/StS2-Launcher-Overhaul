@@ -14,7 +14,7 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            new RecoveryStateUpdate(
+            RecoveryStateUpdate.Create(
                 $"game startup failed: {message}",
                 $"Game startup failed: {message}"
             )
@@ -31,7 +31,7 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            new RecoveryStateUpdate(
+            RecoveryStateUpdate.Create(
                 "settings and saves failed",
                 $"Settings/save init failed: {ex.GetBaseException().Message}"
             )
@@ -43,7 +43,7 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            new RecoveryStateUpdate(
+            RecoveryStateUpdate.Create(
                 MainMenuGuardFailureReason,
                 "Main menu did not load. Use recovery controls below."
             )

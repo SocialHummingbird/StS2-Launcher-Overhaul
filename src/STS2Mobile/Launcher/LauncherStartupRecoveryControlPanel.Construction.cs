@@ -15,11 +15,22 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
             Run = run;
         }
 
-        internal string Label { get; }
-        internal Action Run { get; }
+        private string Label { get; }
+        private Action Run { get; }
 
         internal static RecoveryButton Create(string label, Action run)
             => new(label, run);
+
+        internal Button CreateControl()
+        {
+            var button = new Button
+            {
+                Text = Label,
+                CustomMinimumSize = ButtonMinimumSize,
+            };
+            button.Pressed += Run;
+            return button;
+        }
     }
 
     private LauncherStartupRecoveryControlPanel()
@@ -99,13 +110,5 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     }
 
     private static void AddButton(VBoxContainer box, RecoveryButton action)
-    {
-        var button = new Button
-        {
-            Text = action.Label,
-            CustomMinimumSize = ButtonMinimumSize,
-        };
-        button.Pressed += action.Run;
-        box.AddChild(button);
-    }
+        => box.AddChild(action.CreateControl());
 }

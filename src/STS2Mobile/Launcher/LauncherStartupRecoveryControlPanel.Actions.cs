@@ -22,20 +22,18 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private string ExportDiagnosticsCore()
     {
-        var path = LauncherDiagnostics.WriteStartupRecoveryDiagnosticsReport(OS.GetDataDir());
+        var path = LauncherDiagnostics.WriteStartupRecoveryDiagnosticsReport(DataDir());
         PatchHelper.Log($"Startup recovery diagnostics written: {path}");
         var shared = AndroidGodotAppBridge.ShareTextFile(path);
-        return shared
-            ? $"Diagnostics exported and share sheet opened.\n\nSaved at:\n{path}"
-            : $"Diagnostics exported, but the share sheet did not open.\n\nSaved at:\n{path}";
+        return ExportDiagnosticsMessage(path, shared);
     }
 
     private string CopyRawErrorLogCore()
     {
-        var text = LauncherDiagnostics.BuildStartupRecoveryReport(OS.GetDataDir());
+        var text = LauncherDiagnostics.BuildStartupRecoveryReport(DataDir());
         DisplayServer.ClipboardSet(text);
         PatchHelper.Log($"Startup recovery raw error log copied ({text.Length:N0} chars)");
-        return $"Raw error log copied to clipboard.\n\nLength: {text.Length:N0} characters";
+        return RawErrorLogCopiedMessage(text.Length);
     }
 
     private void RunAction(string logAction, string failureTitle, Func<string> action)
@@ -55,4 +53,15 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         PatchHelper.Log($"Startup recovery {logAction} failed: {ex}");
         _detail.Text = $"{failureTitle}:\n{ex.GetBaseException().Message}";
     }
+
+    private static string DataDir()
+        => OS.GetDataDir();
+
+    private static string ExportDiagnosticsMessage(string path, bool shared)
+        => shared
+            ? $"Diagnostics exported and share sheet opened.\n\nSaved at:\n{path}"
+            : $"Diagnostics exported, but the share sheet did not open.\n\nSaved at:\n{path}";
+
+    private static string RawErrorLogCopiedMessage(int length)
+        => $"Raw error log copied to clipboard.\n\nLength: {length:N0} characters";
 }

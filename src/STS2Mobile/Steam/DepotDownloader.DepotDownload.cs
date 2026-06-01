@@ -13,11 +13,31 @@ internal sealed partial class DepotDownloader
             ManifestRequestCode = manifestRequestCode;
         }
 
-        internal byte[] Key { get; }
-        internal ulong ManifestRequestCode { get; }
+        private byte[] Key { get; }
+        private ulong ManifestRequestCode { get; }
 
         internal static DepotAccess WithManifest(byte[] key, ulong manifestRequestCode)
             => new(key, manifestRequestCode);
+
+        internal Task<SteamKit2.DepotManifest> DownloadManifestAsync(
+            DepotDownloader owner,
+            uint depotId,
+            ulong manifestId
+        )
+            => owner.DownloadManifestWithRetriesAsync(
+                depotId,
+                manifestId,
+                ManifestRequestCode,
+                Key
+            );
+
+        internal Task DownloadFilesAsync(
+            DepotDownloader owner,
+            DepotFilePlan filePlan,
+            uint depotId,
+            CancellationToken ct
+        )
+            => filePlan.DownloadAsync(owner, depotId, Key, ct);
     }
 
     private async Task DownloadDepotAsync(uint depotId, ulong manifestId, CancellationToken ct)
@@ -28,12 +48,7 @@ internal sealed partial class DepotDownloader
 
         var access = await GetDepotAccessAsync(depotId, manifestId);
 
-        var manifest = await DownloadManifestWithRetriesAsync(
-            depotId,
-            manifestId,
-            access.ManifestRequestCode,
-            access.Key
-        );
+        var manifest = await access.DownloadManifestAsync(this, depotId, manifestId);
 
         var oldManifest = _stateStore.LoadManifest(depotId);
 
@@ -41,21 +56,9 @@ internal sealed partial class DepotDownloader
 
         var filePlan = BuildDepotFileLists(oldManifest, manifest, isUpdate);
 
-        DeleteObsoleteFiles(filePlan.Deletes);
-        ResetDepotProgress(filePlan.Downloads);
-
-        if (filePlan.Downloads.Count == 0)
-        {
-            Log($"Depot {depotId}: already up to date");
-        }
-        else
-        {
-            Log(
-                $"Downloading {filePlan.Downloads.Count} files ({FormatBytes(_totalDownloadBytes)}) with {MaxConcurrentDownloads} threads..."
-            );
-
-            await DownloadDepotFilesAsync(filePlan.Downloads, depotId, access.Key, ct);
-        }
+        filePlan.ApplyDeletes(this);
+        filePlan.ResetProgress(this);
+        await access.DownloadFilesAsync(this, filePlan, depotId, ct);
 
         _stateStore.SaveManifest(depotId, manifest, manifestId);
         Log($"Depot {depotId} complete");

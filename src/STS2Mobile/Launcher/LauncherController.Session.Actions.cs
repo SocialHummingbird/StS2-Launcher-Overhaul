@@ -7,19 +7,19 @@ internal sealed partial class LauncherController
         _model.MarkConnectionResolved();
         if (LauncherGameFiles.Ready())
         {
-            ShowReadyToLaunch($"Logged in as {_model.AccountName}", showUpdate: true);
+            ShowReadyToLaunch(_model.LoggedInStatus(), showUpdate: true);
             return;
         }
 
-        _view.SetStatus($"Logged in as {_model.AccountName}");
-        _view.Download.Visible = true;
-        _view.Download.SetButtonDisabled(false);
+        _view.SetStatus(_model.LoggedInStatus());
+        _view.ShowDownloadAction("DOWNLOAD GAME FILES");
+        _view.SetDownloadButtonDisabled(false);
     }
 
     private void ShowFailed()
     {
         _model.MarkConnectionResolved();
-        _view.SetStatus($"Error: {_model.FailReason}");
+        _view.SetStatus(_model.FailureStatus());
         SetLoginFormVisible(true, disabled: false);
     }
 
@@ -32,8 +32,8 @@ internal sealed partial class LauncherController
 
     private void ShowLaunchActions(bool showUpdate)
     {
-        _view.Actions.ShowLaunch(
-            _model.InGameMode ? "PLAY" : "START GAME",
+        _view.ShowLaunchActions(
+            _model.LaunchButtonText(),
             showCloudSync: true,
             showUpdate
         );

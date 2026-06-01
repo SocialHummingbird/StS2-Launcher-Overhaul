@@ -34,9 +34,8 @@ internal sealed partial class SteamConnection
 
         PatchHelper.Log("[Connection] Draining...");
 
-        if (_sendLock.Wait(5000))
+        if (WaitForDrain())
         {
-            _sendLock.Release();
             DisconnectToIdle("[Connection] Drain complete, disconnected");
         }
         else
@@ -44,6 +43,15 @@ internal sealed partial class SteamConnection
             PatchHelper.Log("[Connection] Drain timed out, forcing disconnect");
             DisconnectToIdle();
         }
+    }
+
+    private bool WaitForDrain()
+    {
+        if (!_sendLock.Wait(5000))
+            return false;
+
+        _sendLock.Release();
+        return true;
     }
 
     private void DisconnectToIdle(string completionMessage = null)

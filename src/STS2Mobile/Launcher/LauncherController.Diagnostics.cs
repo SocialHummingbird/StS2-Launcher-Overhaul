@@ -33,39 +33,24 @@ internal sealed partial class LauncherController
             }
         );
 
-    private bool RunDiagnosticsAction(string failureContext, Action action)
-        => TryRunDiagnosticsAction(
-            failureContext,
-            logFullException: true,
-            action,
-            message => _view.SetStatus($"{failureContext}: {message}")
-        );
-
-    private bool TryRunDiagnosticsAction(
-        string failureContext,
-        bool logFullException,
-        Action action,
-        Action<string>? onFailure = null
-    )
+    private void RunDiagnosticsAction(string failureContext, Action action)
     {
         try
         {
             action();
-            return true;
         }
         catch (Exception ex)
         {
             HandleDiagnosticsActionFailure(
                 failureContext,
                 ex,
-                logFullException,
-                onFailure
+                logFullException: true,
+                message => _view.SetStatus($"{failureContext}: {message}")
             );
-            return false;
         }
     }
 
-    private T? TryRunDiagnosticsAction<T>(
+    private T? TryGetDiagnosticsResult<T>(
         string failureContext,
         bool logFullException,
         Func<T> action,

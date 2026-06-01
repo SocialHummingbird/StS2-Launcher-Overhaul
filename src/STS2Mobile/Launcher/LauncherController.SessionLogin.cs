@@ -19,8 +19,7 @@ internal sealed partial class LauncherController
     {
         try
         {
-            _view.Login.SetDisabled(true);
-            _view.Login.ClearPassword();
+            _view.ClearLoginPasswordAndDisable();
             await _model.LoginAsync(username, password);
         }
         catch (Exception ex)
@@ -33,7 +32,7 @@ internal sealed partial class LauncherController
     private void ShowCodePrompt(bool wasIncorrect)
     {
         SetLoginFormVisible(false, disabled: true);
-        _view.Code.Show(wasIncorrect);
+        _view.ShowCodePrompt(wasIncorrect);
     }
 
     private void ShowLogin()
@@ -46,8 +45,5 @@ internal sealed partial class LauncherController
     }
 
     private void SetLoginFormVisible(bool visible, bool disabled)
-    {
-        _view.Login.Visible = visible;
-        _view.Login.SetDisabled(disabled);
-    }
+        => _view.SetLoginFormVisible(visible, disabled);
 }

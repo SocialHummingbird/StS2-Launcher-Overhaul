@@ -17,7 +17,7 @@ internal sealed partial class LauncherController
             () =>
             {
                 _model.ResetGameFilesForRedownload();
-                _view.Actions.HideAll();
+                _view.HideActions();
                 ShowDownloadAction("DOWNLOAD GAME FILES");
                 _view.SetStatus("Game files deleted. Download again to rebuild them.");
                 _view.AppendLog("Game files were deleted for a clean redownload.");
@@ -29,7 +29,7 @@ internal sealed partial class LauncherController
     {
         try
         {
-            _view.Download.ShowProgress("Connecting to Steam...");
+            _view.ShowDownloadProgress("Connecting to Steam...");
             await _model.StartDownloadAsync();
         }
         catch (Exception ex)
@@ -40,34 +40,19 @@ internal sealed partial class LauncherController
     }
 
     private void UpdateDownloadProgress(DepotDownloader.DownloadProgress progress)
-    {
-        _view.Download.SetProgress(
-            progress.Percentage,
-            $"{FormatDownloadSize(progress.DownloadedBytes)} / {FormatDownloadSize(progress.TotalBytes)} ({progress.Percentage:F1}%)"
-        );
-        _view.AppendLog(progress.CurrentFile);
-    }
-
-    private static string FormatDownloadSize(long bytes)
-    {
-        if (bytes >= 1024L * 1024 * 1024)
-            return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
-        if (bytes >= 1024L * 1024)
-            return $"{bytes / (1024.0 * 1024):F1} MB";
-        return $"{bytes / 1024.0:F0} KB";
-    }
+        => progress.ApplyTo(_view.SetDownloadProgress, _view.AppendLog);
 
     private void CompleteDownload()
     {
         _view.SetStatus("Download complete! Start game when ready.");
-        _view.Download.Visible = false;
+        _view.HideDownload();
         if (LauncherGameFiles.Ready())
         {
             ShowLaunchActions(showUpdate: false);
         }
         else
         {
-            _view.Actions.ShowRetry();
+            _view.ShowRetry();
         }
     }
 
@@ -75,23 +60,20 @@ internal sealed partial class LauncherController
     {
         if (message == null)
         {
-            _view.Download.Reset();
+            _view.ResetDownload();
             return;
         }
 
         _view.SetStatus($"Download failed: {message}");
-        _view.Download.Reset("RETRY DOWNLOAD");
+        _view.ResetDownload("RETRY DOWNLOAD");
     }
 
     private void CancelDownload()
     {
         _view.SetStatus("Download cancelled");
-        _view.Download.SetButtonDisabled(false);
+        _view.SetDownloadButtonDisabled(false);
     }
 
     private void ShowDownloadAction(string buttonText)
-    {
-        _view.Download.Visible = true;
-        _view.Download.Reset(buttonText);
-    }
+        => _view.ShowDownloadAction(buttonText);
 }

@@ -32,7 +32,7 @@ internal sealed partial class LauncherController
             return;
 
         _automaticDiagnosticsWritten = true;
-        var path = TryRunDiagnosticsAction(
+        var path = TryGetDiagnosticsResult(
             "Automatic diagnostics snapshot failed",
             logFullException: false,
             _model.WriteDiagnosticsReport

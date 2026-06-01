@@ -8,7 +8,7 @@ internal sealed class StyledPanel : CenterContainer
     private const float MaxWidth = 1400f;
     private const float MaxHeight = 800f;
 
-    internal VBoxContainer Content { get; }
+    private VBoxContainer Content { get; }
 
     internal StyledPanel(float scale, float widthRatio = 0.7f)
     {
@@ -34,9 +34,14 @@ internal sealed class StyledPanel : CenterContainer
         _widthRatio = widthRatio;
     }
 
-    internal PanelContainer Panel => _panelContainer;
     private readonly PanelContainer _panelContainer;
     private readonly float _widthRatio;
+
+    internal void AddContent(Control control)
+        => Content.AddChild(control);
+
+    internal void OnPanelGuiInput(Action<InputEvent> handler)
+        => _panelContainer.GuiInput += input => handler(input);
 
     internal void UpdateSizeFromViewport(Vector2 vpSize)
         => _panelContainer.CustomMinimumSize = new Vector2(

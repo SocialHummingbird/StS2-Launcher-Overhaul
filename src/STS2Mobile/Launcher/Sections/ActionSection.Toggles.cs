@@ -18,9 +18,9 @@ internal sealed partial class ActionSection
             NotifyChanged = notifyChanged;
         }
 
-        internal Button Button { get; }
-        internal Func<bool, string> Text { get; }
-        internal Action<bool> NotifyChanged { get; }
+        private Button Button { get; }
+        private Func<bool, string> Text { get; }
+        private Action<bool> NotifyChanged { get; }
 
         internal static ToggleControl Create(
             Button button,
@@ -28,50 +28,60 @@ internal sealed partial class ActionSection
             Action<bool> notifyChanged
         )
             => new(button, text, notifyChanged);
+
+        internal void Configure(ActionSection section)
+        {
+            var button = Button;
+            var text = Text;
+            var notifyChanged = NotifyChanged;
+
+            Button.ToggleMode = true;
+            section.ApplyToggle(button, false, text(false));
+            Button.Toggled += pressed =>
+            {
+                section.ApplyToggle(button, pressed, text(pressed));
+                notifyChanged(pressed);
+            };
+        }
+
+        internal void SetChecked(ActionSection section, bool value)
+        {
+            Button.ButtonPressed = value;
+            section.ApplyToggle(Button, value, Text(value));
+        }
     }
 
     private void ConfigureLocalBackupToggle()
-        => ConfigureToggle(LocalBackupToggle());
+        => LocalBackupToggle().Configure(this);
 
     private void ConfigureCloudSyncToggle()
-        => ConfigureToggle(CloudSyncToggle());
+        => CloudSyncToggle().Configure(this);
 
     private ToggleControl LocalBackupToggle()
         => ToggleControl.Create(
             _localBackupToggle,
             LocalBackupText,
-            pressed => LocalBackupToggled?.Invoke(pressed)
+            NotifyLocalBackupToggled
         );
 
     private ToggleControl CloudSyncToggle()
         => ToggleControl.Create(
             _cloudSyncToggle,
             CloudSyncText,
-            pressed => CloudSyncToggled?.Invoke(pressed)
+            NotifyCloudSyncToggled
         );
 
-    private void ConfigureToggle(ToggleControl toggle)
-    {
-        toggle.Button.ToggleMode = true;
-        ApplyToggle(toggle.Button, false, toggle.Text(false));
-        toggle.Button.Toggled += pressed =>
-        {
-            ApplyToggle(toggle.Button, pressed, toggle.Text(pressed));
-            toggle.NotifyChanged(pressed);
-        };
-    }
+    private void NotifyLocalBackupToggled(bool pressed)
+        => LocalBackupToggled?.Invoke(pressed);
+
+    private void NotifyCloudSyncToggled(bool pressed)
+        => CloudSyncToggled?.Invoke(pressed);
 
     private void ApplyLocalBackupToggle(bool value)
-        => SetToggleChecked(LocalBackupToggle(), value);
+        => LocalBackupToggle().SetChecked(this, value);
 
     private void ApplyCloudSyncToggle(bool value)
-        => SetToggleChecked(CloudSyncToggle(), value);
-
-    private void SetToggleChecked(ToggleControl toggle, bool value)
-    {
-        toggle.Button.ButtonPressed = value;
-        ApplyToggle(toggle.Button, value, toggle.Text(value));
-    }
+        => CloudSyncToggle().SetChecked(this, value);
 
     private void ApplyToggle(Button button, bool value, string text)
     {
@@ -83,7 +93,9 @@ internal sealed partial class ActionSection
         button.AddThemeStyleboxOverride("disabled", style);
     }
 
-    private static string LocalBackupText(bool value) => value ? "Local Backup: ON" : "Local Backup: OFF";
+    private static string LocalBackupText(bool value)
+        => value ? "Local Backup: ON" : "Local Backup: OFF";
 
-    private static string CloudSyncText(bool value) => value ? "Auto Sync: ON" : "Auto Sync: OFF";
+    private static string CloudSyncText(bool value)
+        => value ? "Auto Sync: ON" : "Auto Sync: OFF";
 }

@@ -5,7 +5,7 @@ internal static partial class LauncherStartupFlow
     private static void ApplyStartupSaveMode(StartupContext startup)
     {
         LauncherPreferences.LoadAndApplyCloudSyncEnabled();
-        if (!startup.ForceLocalSaves)
+        if (!startup.ShouldForceLocalSaves())
             return;
 
         LauncherCloudSaveState.DisableCloudSyncForLaunch();
