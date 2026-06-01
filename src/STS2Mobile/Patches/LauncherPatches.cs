@@ -102,17 +102,7 @@ internal static class LauncherPatches
     {
         PatchHelper.Log($"[Cloud] ConstructDefaultPrefix called. {LauncherCloudSaveState.StatusSummary}");
 
-        if (!LauncherCloudSaveState.TryGetEnabledCredentials(
-                out var accountName,
-                out var refreshToken,
-                out var unavailableReason
-            ))
-        {
-            PatchHelper.Log(unavailableReason);
-            return true;
-        }
-
-        if (!TryCreateCloudSaveManager(accountName, refreshToken, out var saveManager))
+        if (!LauncherCloudSaveState.TryCreateEnabledSaveManager(out var saveManager))
             return true;
 
         __result = saveManager;
@@ -153,35 +143,4 @@ internal static class LauncherPatches
         return false;
     }
 
-    private static bool TryCreateCloudSaveManager(
-        string accountName,
-        string refreshToken,
-        out SaveManager saveManager
-    )
-    {
-        saveManager = null;
-
-        try
-        {
-            ISaveStore localStore = OperatingSystem.IsAndroid()
-                ? new AndroidLocalSaveStore()
-                : new GodotFileIo(UserDataPathProvider.GetAccountScopedBasePath(null));
-            var cloudStore = new SteamKit2CloudSaveStore(
-                accountName,
-                refreshToken
-            );
-            var wrappedStore = new CloudSaveStore(localStore, cloudStore);
-
-            saveManager = new SaveManager(wrappedStore);
-            PatchHelper.Log("[Cloud] Created SaveManager with SteamKit2 cloud store");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log(
-                $"[Cloud] Cloud store injection failed, falling back to local: {ex.Message}"
-            );
-            return false;
-        }
-    }
 }

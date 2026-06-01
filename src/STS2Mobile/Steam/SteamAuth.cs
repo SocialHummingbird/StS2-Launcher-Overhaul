@@ -2,17 +2,27 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
-using SteamKit2.Authentication;
 
 namespace STS2Mobile.Steam;
 
-
 // Handles one-time interactive Steam login (password + 2FA). Creates a temporary
 // SteamClient for the auth flow, returns credentials, then disposes. Does NOT
-// call SteamUser.LogOn — callers use the returned refresh token with SteamConnection.
-internal sealed class SteamAuth : IDisposable
+// call SteamUser.LogOn - callers use the returned refresh token with SteamConnection.
+internal sealed partial class SteamAuth : IDisposable
 {
-    internal sealed record AuthResult(string AccountName, string RefreshToken, string GuardData);
+    internal readonly struct AuthResult
+    {
+        private AuthResult(string accountName, string refreshToken, string guardData)
+        {
+            AccountName = accountName;
+            RefreshToken = refreshToken;
+            GuardData = guardData;
+        }
+
+        internal string AccountName { get; }
+        internal string RefreshToken { get; }
+        internal string GuardData { get; }
+    }
 
     private readonly SteamClient _client;
     private readonly CallbackManager _callbackManager;
@@ -21,230 +31,28 @@ internal sealed class SteamAuth : IDisposable
     private volatile bool _connectStarted;
     private volatile bool _mobileConfirmationRequested;
     private volatile bool _forceSteamGuardCodeEntry;
+    private volatile bool _needsReconnectForAuth;
+    private readonly Func<bool, Task<string>> _codeProvider;
 
     private readonly ManualResetEventSlim _connectedGate = new(false);
     private bool _disposed;
 
-    // Set by the caller before LoginWithCredentialsAsync. The bool indicates
-    // whether the previous code was incorrect.
-    internal Func<bool, Task<string>> CodeProvider { get; set; }
-
-    // Set when the WebSocket drops during 2FA wait (e.g. user backgrounds app).
-    internal volatile bool NeedsReconnectForAuth;
-
     internal event Action<string> LogMessage;
 
-    internal SteamAuth()
+    // The bool indicates whether the previous code was incorrect.
+    internal SteamAuth(Func<bool, Task<string>> codeProvider)
     {
+        _codeProvider = codeProvider ?? throw new ArgumentNullException(nameof(codeProvider));
         _client = new SteamClient(SteamConnectionConfigurationFactory.Create());
         _callbackManager = new CallbackManager(_client);
         _callbackPump = new SteamCallbackPump(_callbackManager, "SteamAuthCallbacks", Log);
         _steamUser = _client.GetHandler<SteamUser>();
-
-        _callbackManager.Subscribe<SteamClient.ConnectedCallback>(_ =>
-        {
-            Log("Connected to Steam");
-            _connectedGate.Set();
-        });
-
-        _callbackManager.Subscribe<SteamClient.DisconnectedCallback>(cb =>
-        {
-            _connectedGate.Reset();
-            if (!cb.UserInitiated)
-            {
-                NeedsReconnectForAuth = true;
-                Log("Connection lost during authentication - will reconnect on code submit");
-            }
-        });
-    }
-
-    internal void Connect()
-    {
-        if (_connectStarted && !_connectedGate.IsSet)
-            return;
-
-        _connectStarted = true;
-        _connectedGate.Reset();
-        StartCallbackThread();
-        _client.Connect();
-        Log("Connecting to Steam...");
-    }
-
-    internal async Task<bool> WaitForConnectAsync(int timeoutMs = 10_000)
-    {
-        for (int i = 0; i < timeoutMs / 100; i++)
-        {
-            if (_connectedGate.IsSet)
-                return true;
-            await Task.Delay(100);
-        }
-        return _connectedGate.IsSet;
-    }
-
-    internal async Task<AuthResult> LoginWithCredentialsAsync(
-        string username,
-        string password,
-        string guardData
-    )
-    {
-        if (!_connectedGate.IsSet)
-        {
-            Connect();
-            if (!await WaitForConnectAsync())
-                throw new TimeoutException(
-                    "Could not connect to Steam. Check your internet connection."
-                );
-        }
-
-        Log($"Authenticating as '{username}'...");
-
-        _forceSteamGuardCodeEntry = false;
-        bool retriedAfterMobileConfirmationFailure = false;
-
-        while (true)
-        {
-            _mobileConfirmationRequested = false;
-
-            var authSession = await _client.Authentication.BeginAuthSessionViaCredentialsAsync(
-                new AuthSessionDetails
-                {
-                    Username = username,
-                    Password = password,
-                    IsPersistentSession = true,
-                    GuardData = guardData,
-                    Authenticator = new AuthAuthenticator(this),
-                }
-            );
-
-            try
-            {
-                var pollResponse = await authSession.PollingWaitForResultAsync();
-                string newGuardData = pollResponse.NewGuardData ?? guardData;
-
-                Log($"Authentication successful for '{pollResponse.AccountName}'");
-
-                return new AuthResult(
-                    pollResponse.AccountName,
-                    pollResponse.RefreshToken,
-                    newGuardData
-                );
-            }
-            catch (AsyncJobFailedException)
-                when (_mobileConfirmationRequested && !retriedAfterMobileConfirmationFailure)
-            {
-                retriedAfterMobileConfirmationFailure = true;
-                _forceSteamGuardCodeEntry = true;
-                Log("Steam mobile app confirmation did not complete; falling back to Steam Guard code entry");
-
-                if (NeedsReconnectForAuth || !_connectedGate.IsSet)
-                    await ReconnectForAuthAsync();
-            }
-            catch (TaskCanceledException)
-                when (_mobileConfirmationRequested && !retriedAfterMobileConfirmationFailure)
-            {
-                retriedAfterMobileConfirmationFailure = true;
-                _forceSteamGuardCodeEntry = true;
-                Log("Steam mobile app confirmation was canceled; falling back to Steam Guard code entry");
-
-                if (NeedsReconnectForAuth || !_connectedGate.IsSet)
-                    await ReconnectForAuthAsync();
-            }
-        }
-    }
-
-    internal async Task ReconnectForAuthAsync()
-    {
-        Log("Reconnecting for auth code submission...");
-        NeedsReconnectForAuth = false;
-        _connectedGate.Reset();
-        _client.Connect();
-
-        if (!await WaitForConnectAsync())
-            Log("Reconnect timed out — auth code submission may fail");
-    }
-
-    void IDisposable.Dispose()
-        => Dispose();
-
-    internal void Dispose()
-    {
-        if (_disposed)
-            return;
-        _disposed = true;
-        _connectStarted = false;
-        try
-        {
-            _client?.Disconnect();
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Auth] Disconnect failed during dispose: {ex.Message}");
-        }
-
-        _callbackPump.Stop(2000);
-        _connectedGate.Dispose();
-    }
-
-    private void StartCallbackThread()
-    {
-        _callbackPump.Start();
+        RegisterConnectionCallbacks();
     }
 
     private void Log(string msg)
     {
         PatchHelper.Log($"[Auth] {msg}");
         LogMessage?.Invoke(msg);
-    }
-
-    private sealed class AuthAuthenticator : IAuthenticator
-    {
-        private readonly SteamAuth _auth;
-
-        private AuthAuthenticator(SteamAuth auth) => _auth = auth;
-
-        public async Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
-        {
-            return await _auth.RequestCodeAsync(
-                previousCodeWasIncorrect,
-                "Previous 2FA code was incorrect, requesting new code",
-                "Steam Guard 2FA code required"
-            );
-        }
-
-        public async Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
-        {
-            return await _auth.RequestCodeAsync(
-                previousCodeWasIncorrect,
-                "Previous email code was incorrect, requesting new code",
-                $"Steam Guard email code sent to {email}"
-            );
-        }
-
-        public Task<bool> AcceptDeviceConfirmationAsync()
-        {
-            if (_auth._forceSteamGuardCodeEntry)
-            {
-                _auth.Log("Steam mobile app confirmation requested; using Steam Guard code entry");
-                return Task.FromResult(false);
-            }
-
-            _auth._mobileConfirmationRequested = true;
-            _auth.Log("Steam mobile app confirmation requested; waiting for approval");
-            return Task.FromResult(true);
-        }
-    }
-
-    private async Task<string> RequestCodeAsync(
-        bool previousCodeWasIncorrect,
-        string retryMessage,
-        string initialMessage
-    )
-    {
-        Log(previousCodeWasIncorrect ? retryMessage : initialMessage);
-
-        if (CodeProvider == null)
-            throw new AuthenticationException("No code provider configured");
-
-        return await CodeProvider(previousCodeWasIncorrect);
     }
 }

@@ -89,7 +89,7 @@ internal static class EventLayoutPatches
         }
     }
 
-    internal static void ApplyLayout(Control layout)
+    private static void ApplyLayout(Control layout)
     {
         UiScalePatches.EnsureUiScaleLoaded();
 
@@ -120,7 +120,7 @@ internal static class EventLayoutPatches
         vbox.OffsetRight = half;
     }
 
-    internal static void ApplyButtonSizes(Control layout)
+    private static void ApplyButtonSizes(Control layout)
     {
         UiScalePatches.EnsureUiScaleLoaded();
 

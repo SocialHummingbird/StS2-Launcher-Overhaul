@@ -1,0 +1,47 @@
+using System;
+using System.Threading.Tasks;
+using STS2Mobile.Patches;
+using STS2Mobile.Steam;
+
+namespace STS2Mobile.Launcher;
+
+internal sealed partial class LauncherSteamSession
+{
+    internal async Task<string> ConnectSavedCredentialsAndVerifyAsync(Action verifyingOwnership)
+    {
+        try
+        {
+            _connection = CreateSavedCredentialConnection();
+            return await VerifyOwnershipForSessionAsync(_connection, verifyingOwnership);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Connection failed: {ex.Message}");
+            return "Could not connect to Steam. Check your internet connection.";
+        }
+    }
+
+    internal async Task<string> EnsureConnectedAsync()
+    {
+        if (!_credentialStore.HasCredentials)
+            return "No saved credentials";
+
+        var connection = _connection
+            ?? CreateSavedCredentialConnection();
+
+        try
+        {
+            await EnsureAppAccessTokenNotDeniedAsync(connection);
+            _connection = connection;
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _connection = connection;
+            return $"Connection failed: {ex.Message}";
+        }
+    }
+
+    private SteamConnection CreateSavedCredentialConnection()
+        => new(_credentialStore.AccountName, _credentialStore.RefreshToken);
+}

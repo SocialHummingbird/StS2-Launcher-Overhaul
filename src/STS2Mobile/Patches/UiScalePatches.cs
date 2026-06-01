@@ -139,7 +139,7 @@ internal static class UiScalePatches
         SaveUiScalePercent(UiScalePercent);
     }
 
-    internal static void ApplyScaledContentSize(Window window)
+    private static void ApplyScaledContentSize(Window window)
     {
         float scale = UiScalePercent / 100f;
 
@@ -187,7 +187,7 @@ internal static class UiScalePatches
         }
     }
 
-    internal static void ApplyUiScale()
+    private static void ApplyUiScale()
     {
         EnsureUiScaleLoaded();
         try
@@ -349,17 +349,7 @@ internal static class UiScalePatches
         )
             return true; // let the original handle non-Auto settings
 
-        EnsureUiScaleLoaded();
-        try
-        {
-            var window = (Window)
-                AccessTools.Field(__instance.GetType(), "_window").GetValue(__instance);
-            ApplyScaledContentSize(window);
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"GlobalUiWindowChangePrefix failed: {ex.GetType().Name}: {ex.Message}");
-        }
+        ApplyWindowScaleFromField(__instance, nameof(GlobalUiWindowChangePrefix));
         return false;
     }
 
@@ -368,17 +358,23 @@ internal static class UiScalePatches
     {
         if (!isAspectRatioAuto)
             return false;
+
+        ApplyWindowScaleFromField(__instance, nameof(MainMenuWindowChangePrefix));
+        return false;
+    }
+
+    private static void ApplyWindowScaleFromField(object instance, string context)
+    {
         EnsureUiScaleLoaded();
         try
         {
             var window = (Window)
-                AccessTools.Field(__instance.GetType(), "_window").GetValue(__instance);
+                AccessTools.Field(instance.GetType(), "_window").GetValue(instance);
             ApplyScaledContentSize(window);
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"MainMenuWindowChangePrefix failed: {ex.GetType().Name}: {ex.Message}");
+            PatchHelper.Log($"{context} failed: {ex.GetType().Name}: {ex.Message}");
         }
-        return false;
     }
 }
