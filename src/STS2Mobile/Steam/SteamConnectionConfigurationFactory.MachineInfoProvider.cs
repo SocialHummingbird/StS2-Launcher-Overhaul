@@ -23,7 +23,7 @@ internal static partial class SteamConnectionConfigurationFactory
             0x41,
         };
 
-        private AndroidMachineInfoProvider() { }
+        internal AndroidMachineInfoProvider() { }
 
         public byte[] GetMachineGuid() => Encoding.ASCII.GetBytes(MachineGuid);
 

@@ -9,7 +9,7 @@ internal static class LauncherCloudSaveState
 {
     private readonly struct CloudSyncCredentials
     {
-        private CloudSyncCredentials(string accountName, string refreshToken)
+        internal CloudSyncCredentials(string accountName, string refreshToken)
         {
             AccountName = accountName;
             RefreshToken = refreshToken;
@@ -18,12 +18,12 @@ internal static class LauncherCloudSaveState
         private string AccountName { get; }
         private string RefreshToken { get; }
 
-        private SaveManager CreateSaveManager()
+        internal SaveManager CreateSaveManager()
             => new(
                 CloudSaveStoreFactory.CreateCloudSaveStore(AccountName, RefreshToken)
             );
 
-        private Task RunManualSyncAsync(Func<string, string, Task> sync)
+        internal Task RunManualSyncAsync(Func<string, string, Task> sync)
             => sync(AccountName, RefreshToken);
     }
 
