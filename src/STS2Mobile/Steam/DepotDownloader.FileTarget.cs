@@ -5,53 +5,37 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private sealed class DepotFileTarget
+    private string? GetManifestFileName(DepotManifest.FileData file)
     {
-        internal DepotFileTarget(
-            string fileName,
-            string filePath,
-            string? fileDir,
-            string tempPath,
-            string lockKey
-        )
+        var fileName = NormalizeManifestPath(file.FileName);
+        if (string.IsNullOrWhiteSpace(fileName))
         {
-            FileName = fileName;
-            FilePath = filePath;
-            FileDir = fileDir;
-            TempPath = tempPath;
-            LockKey = lockKey;
+            Log("Skipping depot file with an empty manifest path");
+            return null;
         }
 
-        internal string FileName { get; }
-        internal string FilePath { get; }
-        internal string? FileDir { get; }
-        internal string TempPath { get; }
-        internal string LockKey { get; }
+        return fileName;
     }
 
-    private bool TryGetManifestFileName(DepotManifest.FileData file, out string fileName)
-    {
-        fileName = NormalizeManifestPath(file.FileName);
-        if (!string.IsNullOrWhiteSpace(fileName))
-            return true;
-
-        Log("Skipping depot file with an empty manifest path");
-        return false;
-    }
-
-    private DepotFileTarget CreateDepotFileTarget(string fileName)
+    private (
+        string FileName,
+        string FilePath,
+        string? FileDir,
+        string TempPath,
+        string LockKey
+    ) CreateDepotFilePaths(string fileName)
     {
         var filePath = ResolveGamePath(fileName);
         var fileDir = Path.GetDirectoryName(filePath);
         if (fileDir != null)
             Directory.CreateDirectory(fileDir);
 
-        return new DepotFileTarget(
-            fileName,
-            filePath,
-            fileDir,
-            filePath + ".downloading",
-            Path.GetFullPath(filePath)
+        return (
+            FileName: fileName,
+            FilePath: filePath,
+            FileDir: fileDir,
+            TempPath: filePath + ".downloading",
+            LockKey: Path.GetFullPath(filePath)
         );
     }
 }

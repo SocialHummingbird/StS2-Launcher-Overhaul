@@ -14,13 +14,14 @@ internal static partial class LauncherGameFiles
             using var fs = File.OpenRead(path);
             using var reader = new BinaryReader(fs);
 
-            if (!TryReadPckDirectoryOffset(reader, fs.Length, out var directoryOffset))
+            var directoryOffset = ReadPckDirectoryOffset(reader, fs.Length);
+            if (!directoryOffset.HasValue)
                 return false;
 
-            if (directoryOffset <= 0 || directoryOffset + 4 > fs.Length)
+            if (directoryOffset.Value <= 0 || directoryOffset.Value + 4 > fs.Length)
                 return false;
 
-            fs.Position = directoryOffset;
+            fs.Position = directoryOffset.Value;
             return reader.ReadUInt32() > 0;
         }
         catch
@@ -29,19 +30,16 @@ internal static partial class LauncherGameFiles
         }
     }
 
-    private static bool TryReadPckDirectoryOffset(
+    private static long? ReadPckDirectoryOffset(
         BinaryReader reader,
-        long fileLength,
-        out long directoryOffset
+        long fileLength
     )
     {
-        directoryOffset = 0;
-
         if (fileLength < MinimumPckHeaderBytes)
-            return false;
+            return null;
 
         if (reader.ReadUInt32() != PckMagic)
-            return false;
+            return null;
 
         reader.ReadUInt32(); // format version
         reader.ReadUInt32(); // major
@@ -50,7 +48,6 @@ internal static partial class LauncherGameFiles
         reader.ReadUInt32(); // flags
         reader.ReadInt64(); // file base
 
-        directoryOffset = reader.ReadInt64();
-        return true;
+        return reader.ReadInt64();
     }
 }

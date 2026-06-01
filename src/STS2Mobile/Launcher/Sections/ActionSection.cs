@@ -49,7 +49,6 @@ internal sealed partial class ActionSection : VBoxContainer
     internal void ShowLaunch(string text, bool showCloudSync, bool showUpdate)
     {
         _launchButton.Text = text;
-        _launchButton.Visible = true;
         SetCloudControlsVisible(showCloudSync);
         ShowLaunchButtons(showUpdate);
         _retryButton.Visible = false;

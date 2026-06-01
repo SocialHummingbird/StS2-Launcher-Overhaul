@@ -5,60 +5,63 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
+    private const int MaxCloudOperationAttempts = 3;
+
     private void UploadWithRetry(
         string canonPath,
         byte[] bytes,
         ulong batchId = 0,
         DateTimeOffset? timestamp = null
     )
+        => RunCloudOperationWithRetry(
+            "Upload",
+            canonPath,
+            attempt => (attempt + 1) * 2000,
+            () =>
+                UploadFileAsync(canonPath, bytes, batchId, timestamp)
+                    .GetAwaiter()
+                    .GetResult()
+        );
+
+    private void DeleteCloudFileWithRetry(string path)
+        => RunCloudOperationWithRetry(
+            "Delete",
+            path,
+            _ => 1000,
+            () => DeleteCloudFile(path)
+        );
+
+    private static void RunCloudOperationWithRetry(
+        string operationName,
+        string path,
+        Func<int, int> throttleDelayMs,
+        Action run
+    )
     {
-        for (var attempt = 0; attempt < 3; attempt++)
+        for (var attempt = 0; attempt < MaxCloudOperationAttempts; attempt++)
         {
             try
             {
-                UploadFileAsync(canonPath, bytes, batchId, timestamp)
-                    .GetAwaiter()
-                    .GetResult();
+                run();
                 return;
             }
             catch (InvalidOperationException ex)
-                when (IsTooManyPending(ex) && attempt < 2)
+                when (IsTooManyPending(ex) && HasCloudOperationRetryRemaining(attempt))
             {
-                var delayMs = (attempt + 1) * 2000;
-                PatchHelper.Log(StoreMessage.OperationThrottled("Upload", canonPath, delayMs));
+                var delayMs = throttleDelayMs(attempt);
+                PatchHelper.Log(OperationThrottled(operationName, path, delayMs));
                 Thread.Sleep(delayMs);
             }
             catch (Exception ex)
             {
-                PatchHelper.Log(StoreMessage.OperationFailed("Upload", canonPath, ex));
+                PatchHelper.Log(OperationFailed(operationName, path, ex));
                 return;
             }
         }
     }
 
-    private void DeleteCloudFileWithRetry(string path)
-    {
-        for (var attempt = 0; attempt < 3; attempt++)
-        {
-            try
-            {
-                DeleteCloudFile(path);
-                return;
-            }
-            catch (InvalidOperationException ex)
-                when (IsTooManyPending(ex) && attempt < 2)
-            {
-                const int delayMs = 1000;
-                PatchHelper.Log(StoreMessage.OperationThrottled("Delete", path, delayMs));
-                Thread.Sleep(delayMs);
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log(StoreMessage.OperationFailed("Delete", path, ex));
-                return;
-            }
-        }
-    }
+    private static bool HasCloudOperationRetryRemaining(int attempt)
+        => attempt < MaxCloudOperationAttempts - 1;
 
     private static bool IsTooManyPending(InvalidOperationException ex)
         => ex.Message.Contains("TooManyPending");

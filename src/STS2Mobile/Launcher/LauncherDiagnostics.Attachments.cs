@@ -10,41 +10,6 @@ internal static partial class LauncherDiagnostics
     private const int LargeAttachmentMaxChars = 256 * 1024;
     private const int SmallAttachmentMaxChars = 64 * 1024;
 
-    private readonly struct DiagnosticAttachment
-    {
-        internal DiagnosticAttachment(string label, string path, int limit)
-        {
-            Label = label;
-            Path = path;
-            Limit = limit;
-        }
-
-        internal string Label { get; }
-        internal string Path { get; }
-        internal int Limit { get; }
-    }
-
-    private readonly struct DiagnosticFileText
-    {
-        internal DiagnosticFileText(string text, string error)
-        {
-            Text = text;
-            Error = error;
-        }
-
-        internal string Text { get; }
-        internal string Error { get; }
-
-        internal static DiagnosticFileText Missing()
-            => new(null, null);
-
-        internal static DiagnosticFileText Read(string text)
-            => new(text, null);
-
-        internal static DiagnosticFileText Failed(string error)
-            => new(null, error);
-    }
-
     private static void AppendSummaryErrorDiagnostics(StringBuilder sb, string dataDir)
     {
         AppendSummarySmallFileAttachments(sb, dataDir);
@@ -69,25 +34,25 @@ internal static partial class LauncherDiagnostics
     private static void AppendSummaryInterestingFileTails(StringBuilder sb, string dataDir)
     {
         foreach (var tail in SummaryInterestingTails(dataDir))
-            AppendInterestingFileTail(sb, tail.Label, tail.Path, tail.Limit);
+            AppendInterestingFileTail(sb, tail);
     }
 
     private static void AppendRawErrorLogAttachments(StringBuilder sb, string dataDir)
         => AppendAttachments(sb, RawErrorLogFiles(dataDir));
 
-    private static IEnumerable<DiagnosticAttachment> SummarySmallFiles(string dataDir)
+    private static IEnumerable<(string Label, string Path, int Limit)> SummarySmallFiles(string dataDir)
     {
         yield return Attachment(StartupMarker(dataDir), 2048);
         yield return Attachment(AndroidUncaughtException(dataDir), 4096);
     }
 
-    private static IEnumerable<DiagnosticAttachment> SummaryInterestingTails(string dataDir)
+    private static IEnumerable<(string Label, string Path, int Limit)> SummaryInterestingTails(string dataDir)
     {
         yield return Attachment(BootstrapTrace(), 80);
         yield return Attachment(StartupSceneSnapshot(dataDir), 80);
     }
 
-    private static IEnumerable<DiagnosticAttachment> RawErrorLogFiles(string dataDir)
+    private static IEnumerable<(string Label, string Path, int Limit)> RawErrorLogFiles(string dataDir)
     {
         yield return Attachment(
             StartupMarker(dataDir),
@@ -104,12 +69,15 @@ internal static partial class LauncherDiagnostics
         );
     }
 
-    private static DiagnosticAttachment Attachment(FileReference file, int limit)
-        => new(file.Label, file.Path, limit);
+    private static (string Label, string Path, int Limit) Attachment(
+        (string Label, string Path) file,
+        int limit
+    )
+        => (file.Label, file.Path, limit);
 
     private static void AppendAttachments(
         StringBuilder sb,
-        IEnumerable<DiagnosticAttachment> files,
+        IEnumerable<(string Label, string Path, int Limit)> files,
         string missingPrefix = "",
         string failedPrefix = ""
     )
@@ -120,8 +88,7 @@ internal static partial class LauncherDiagnostics
             sb.AppendLine(Header(file.Label, file.Path));
             AppendTruncatedFile(
                 sb,
-                file.Path,
-                file.Limit,
+                file,
                 missingPrefix,
                 failedPrefix
             );
@@ -130,14 +97,12 @@ internal static partial class LauncherDiagnostics
 
     private static void AppendInterestingFileTail(
         StringBuilder sb,
-        string label,
-        string path,
-        int maxLines
+        (string Label, string Path, int Limit) file
     )
     {
         sb.AppendLine();
-        sb.AppendLine(Header(label, path));
-        var read = ReadFileText(path);
+        sb.AppendLine(Header(file.Label, file.Path));
+        var read = ReadFileText(file.Path);
         if (read.Text == null)
         {
             sb.AppendLine(ReadStatus(read.Error));
@@ -145,40 +110,39 @@ internal static partial class LauncherDiagnostics
         }
 
         var lines = read.Text.Replace("\r\n", "\n").Split('\n');
-        foreach (var line in SelectInterestingDiagnosticLines(lines, maxLines))
+        foreach (var line in SelectInterestingDiagnosticLines(lines, file.Limit))
             sb.AppendLine(line);
     }
 
     private static void AppendTruncatedFile(
         StringBuilder sb,
-        string path,
-        int maxChars,
+        (string Label, string Path, int Limit) file,
         string missingPrefix = "",
         string failedPrefix = ""
     )
     {
-        var read = ReadFileText(path);
+        var read = ReadFileText(file.Path);
         if (read.Text != null)
         {
-            sb.AppendLine(TruncateForDisplay(read.Text, maxChars));
+            sb.AppendLine(TruncateForDisplay(read.Text, file.Limit));
             return;
         }
 
         sb.AppendLine(ReadStatus(read.Error, missingPrefix, failedPrefix));
     }
 
-    private static DiagnosticFileText ReadFileText(string path)
+    private static (string? Text, string? Error) ReadFileText(string path)
     {
         try
         {
             if (!File.Exists(path))
-                return DiagnosticFileText.Missing();
+                return (Text: null, Error: null);
 
-            return DiagnosticFileText.Read(File.ReadAllText(path));
+            return (Text: File.ReadAllText(path), Error: null);
         }
         catch (Exception ex)
         {
-            return DiagnosticFileText.Failed(ex.Message);
+            return (Text: null, Error: ex.Message);
         }
     }
 
@@ -191,7 +155,7 @@ internal static partial class LauncherDiagnostics
     }
 
     private static string ReadStatus(
-        string error,
+        string? error,
         string missingPrefix = "",
         string failedPrefix = ""
     )

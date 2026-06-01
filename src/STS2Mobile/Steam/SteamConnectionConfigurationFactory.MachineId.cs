@@ -35,14 +35,15 @@ internal static partial class SteamConnectionConfigurationFactory
     {
         try
         {
-            if (!TryLoadSteamKitMachineIdInternals(out var machineIdType, out var tableField))
+            var reflection = LoadSteamKitMachineIdReflection();
+            if (!MachineIdReflectionAvailable(reflection))
             {
                 PatchHelper.Log(MachineIdPatchUnavailableLogMessage);
                 return false;
             }
 
-            var task = CreateMachineIdTask(machineIdType);
-            var table = tableField.GetValue(null);
+            var task = CreateMachineIdTask(reflection.MachineIdType!);
+            var table = reflection.TableField!.GetValue(null);
             var provider = configuration.MachineInfoProvider;
 
             if (task == null || table == null || provider == null)

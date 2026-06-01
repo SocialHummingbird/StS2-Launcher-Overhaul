@@ -1,5 +1,4 @@
 using Godot;
-using System;
 using System.Threading.Tasks;
 using STS2Mobile.Patches;
 
@@ -13,45 +12,31 @@ internal static partial class LauncherGameStartupRecovery
         int forceTimeoutMs
     )
     {
-        if (!TryStartLoadMainMenu(game, out var task))
+        var loadMainMenu = StartLoadMainMenu(game);
+        if (loadMainMenu == null)
             return false;
 
         var timeout = Task.Delay(forceTimeoutMs);
-        if (await Task.WhenAny(task, timeout) != task)
+        if (await Task.WhenAny(loadMainMenu, timeout) != loadMainMenu)
         {
             PatchHelper.Log($"Forced LoadMainMenu timed out after {forceTimeoutMs}ms");
-            LauncherStartupStatus.Set(startupStatus, "Forced main menu load timed out.");
+            SetRecoveryStatus(startupStatus, "Forced main menu load timed out.");
             return false;
         }
 
-        await task;
-        var ok = CurrentSceneLooksLikeMainMenu(game, out var sceneName);
+        await loadMainMenu;
+        var scene = InspectCurrentScene(game);
         PatchHelper.Log(
-            ok
-                ? $"Forced main menu load succeeded: {sceneName}"
-                : $"Forced main menu load returned but current scene is {sceneName ?? "<none>"}"
+            scene.IsMainMenu
+                ? $"Forced main menu load succeeded: {scene.SceneName}"
+                : $"Forced main menu load returned but current scene is {scene.SceneName ?? "<none>"}"
         );
-        LauncherStartupStatus.Set(
+        SetRecoveryStatus(
             startupStatus,
-            ok
+            scene.IsMainMenu
                 ? "Main menu loaded."
                 : "Main menu force returned, but scene is still not main menu."
         );
-        return ok;
-    }
-
-    private static bool TryStartLoadMainMenu(object game, out Task task)
-    {
-        try
-        {
-            task = LoadMainMenuAsync(game);
-            return true;
-        }
-        catch (Exception ex) when (ex is MissingMethodException or InvalidOperationException)
-        {
-            PatchHelper.Log($"Cannot force main menu: {ex.Message}");
-            task = Task.CompletedTask;
-            return false;
-        }
+        return scene.IsMainMenu;
     }
 }

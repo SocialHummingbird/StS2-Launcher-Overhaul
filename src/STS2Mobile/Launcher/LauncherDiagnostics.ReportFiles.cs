@@ -23,24 +23,16 @@ internal static partial class LauncherDiagnostics
         {
             AppendFileSummary(
                 sb,
-                file.Label,
-                file.Path,
+                file,
                 inlineContentLimit: 4096
             );
         }
 
         foreach (var directory in DiagnosticReportDirectories(dataDir))
-        {
-            AppendDirectoryListing(
-                sb,
-                directory.Label,
-                directory.Path,
-                directory.MaxDepth
-            );
-        }
+            AppendDirectoryListing(sb, directory);
     }
 
-    private static IEnumerable<FileReference> DiagnosticReportFiles(string dataDir)
+    private static IEnumerable<(string Label, string Path)> DiagnosticReportFiles(string dataDir)
     {
         yield return StartupMarker(dataDir);
         yield return StartupSceneSnapshot(dataDir);
@@ -53,8 +45,16 @@ internal static partial class LauncherDiagnostics
         string dataDir
     )
     {
-        yield return ("Game directory", Path.Combine(dataDir, LauncherStorageNames.GameDirectory), 2);
-        yield return ("Download state", Path.Combine(dataDir, LauncherStorageNames.DownloadStateDirectory), 1);
+        yield return (
+            "Game directory",
+            Path.Combine(dataDir, LauncherStorageNames.GameDirectory),
+            2
+        );
+        yield return (
+            "Download state",
+            Path.Combine(dataDir, LauncherStorageNames.DownloadStateDirectory),
+            1
+        );
         yield return (
             "Mono publish root",
             Path.Combine(
@@ -67,12 +67,15 @@ internal static partial class LauncherDiagnostics
         );
     }
 
-    private static void AppendDirectoryListing(StringBuilder sb, string label, string path, int maxDepth)
+    private static void AppendDirectoryListing(
+        StringBuilder sb,
+        (string Label, string Path, int MaxDepth) directory
+    )
     {
-        sb.AppendLine($"{label}: {path}");
+        sb.AppendLine($"{directory.Label}: {directory.Path}");
         try
         {
-            if (!Directory.Exists(path))
+            if (!Directory.Exists(directory.Path))
             {
                 sb.AppendLine("  exists=False");
                 return;
@@ -80,9 +83,9 @@ internal static partial class LauncherDiagnostics
 
             AppendDirectoryTree(
                 sb,
-                path,
+                directory.Path,
                 depth: 0,
-                maxDepth
+                maxDepth: directory.MaxDepth
             );
         }
         catch (Exception ex)

@@ -23,7 +23,7 @@ internal sealed partial class LauncherView
 
     internal void ShowConfirmation(string message, Action onConfirmed)
     {
-        _parent.AddChild(new StyledDialog(message, _scale, onConfirmed));
+        _parent.AddChild(BuildConfirmationDialog(message, _scale, onConfirmed));
     }
 
     private void DismissKeyboard(InputEvent ev)

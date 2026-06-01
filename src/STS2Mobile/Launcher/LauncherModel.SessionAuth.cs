@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
 
@@ -8,27 +9,27 @@ internal partial class LauncherModel
     // credentials but no ownership marker.
     internal async Task ConnectAsync()
     {
-        SetSessionState(SessionState.Connecting);
+        var attemptId = BeginSessionAttempt(SessionState.Connecting);
 
         var error = await _steamSession.ConnectSavedCredentialsAndVerifyAsync(
-            BeginOwnershipVerification
+            () => BeginOwnershipVerification(attemptId)
         );
-        CompleteConnectionAttempt(error);
+        CompleteConnectionAttempt(attemptId, error);
     }
 
     // Performs interactive login, then verifies ownership.
     internal async Task LoginAsync(string username, string password)
     {
-        SetSessionState(SessionState.Authenticating);
+        var attemptId = BeginSessionAttempt(SessionState.Authenticating);
 
         var error = await _steamSession.LoginAndVerifyAsync(
             username,
             password,
             RaiseLogReceived,
             RaiseCodeNeeded,
-            BeginOwnershipVerification
+            () => BeginOwnershipVerification(attemptId)
         );
-        CompleteConnectionAttempt(error);
+        CompleteConnectionAttempt(attemptId, error);
     }
 
     internal void SubmitCode(string code) => _steamSession.SubmitCode(code);
@@ -39,19 +40,29 @@ internal partial class LauncherModel
         if (IsLoggedIn && _steamSession.Connection != null)
             return;
 
-        SetSessionState(SessionState.Connecting);
+        var attemptId = BeginSessionAttempt(SessionState.Connecting);
 
         var error = await _steamSession.EnsureConnectedAsync();
-        CompleteConnectionAttempt(error);
+        CompleteConnectionAttempt(attemptId, error);
     }
 
-    private void BeginOwnershipVerification()
+    private void BeginOwnershipVerification(int attemptId)
     {
+        if (!IsCurrentSessionAttempt(attemptId))
+            return;
+
         SetSessionState(SessionState.VerifyingOwnership);
     }
 
-    private void CompleteConnectionAttempt(string error)
+    private void CompleteConnectionAttempt(int attemptId, string error)
     {
+        if (!IsCurrentSessionAttempt(attemptId))
+        {
+            if (error != null)
+                PatchHelper.Log($"[Launcher] Ignored stale session failure: {error}");
+            return;
+        }
+
         if (error == null)
         {
             _connectionResolved = true;

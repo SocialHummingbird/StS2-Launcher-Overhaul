@@ -5,61 +5,47 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private static class ManualPushBatch
+    private static int RunManualPushUploads(ManualSyncContext sync, IEnumerable<string> paths)
+        => sync.RunCloudBatch(() => QueueManualPushPaths(sync, paths));
+
+    private static int QueueManualPushPaths(ManualSyncContext sync, IEnumerable<string> paths)
     {
-        private enum QueuePathResult
+        int count = 0;
+        foreach (var path in paths)
         {
-            Skipped,
-            Queued,
-            Stop,
+            var result = QueueManualPushPath(sync, path);
+            if (result.Stop)
+                return count;
+
+            if (result.Queued)
+                count++;
         }
 
-        internal static int Run(ManualSyncContext sync, IEnumerable<string> paths)
-        {
-            sync.BeginCloudBatch();
-            int count = 0;
-            try
-            {
-                foreach (var path in paths)
-                {
-                    switch (QueuePath(sync, path))
-                    {
-                        case QueuePathResult.Queued:
-                            count++;
-                            break;
-                        case QueuePathResult.Stop:
-                            return count;
-                    }
-                }
-            }
-            finally
-            {
-                sync.EndCloudBatch();
-            }
+        return count;
+    }
 
-            return count;
+    private static (bool Queued, bool Stop) QueueManualPushPath(
+        ManualSyncContext sync,
+        string path
+    )
+    {
+        try
+        {
+            var local = sync.ReadLocalFile(path);
+            if (local == null)
+                return (Queued: false, Stop: false);
+
+            PatchHelper.Log(PushQueuing(path, local.Length));
+            if (sync.BudgetExceeded(ManualPushBudgetExceeded))
+                return (Queued: false, Stop: true);
+
+            sync.WriteCloudFile(path, local);
+            return (Queued: true, Stop: false);
         }
-
-        private static QueuePathResult QueuePath(ManualSyncContext sync, string path)
+        catch (Exception ex)
         {
-            try
-            {
-                if (!sync.LocalFileExists(path))
-                    return QueuePathResult.Skipped;
-
-                string content = sync.ReadLocalFile(path);
-                PatchHelper.Log(PushQueuing(path, content.Length));
-                if (sync.BudgetExceeded(ManualPushBudgetExceeded))
-                    return QueuePathResult.Stop;
-
-                sync.WriteCloudFile(path, content);
-                return QueuePathResult.Queued;
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log(PushFailed(path, ex));
-                return QueuePathResult.Skipped;
-            }
+            PatchHelper.Log(PushFailed(path, ex));
+            return (Queued: false, Stop: false);
         }
     }
 }

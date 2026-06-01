@@ -6,14 +6,15 @@ internal static partial class CloudSyncCoordinator
 {
     private static async Task PushFileAsync(AutoSyncContext sync)
     {
-        if (!TryReadLocalContent(sync, out var content))
+        var local = sync.ReadLocalContent();
+        if (local == null)
             return;
 
-        if (await ShouldSkipPushAsync(sync, content))
+        var push = await GetPushDecisionAsync(sync, local);
+        if (push.Skip)
             return;
 
-        sync.WriteCloudFile(content);
-        PatchHelper.Log(PushUploaded(sync.Path));
+        sync.PushLocalContent(local, push.CloudContentToBackUp, PushUploaded(sync.Path));
     }
 
     private static async Task PullFileAsync(AutoSyncContext sync)
@@ -21,56 +22,52 @@ internal static partial class CloudSyncCoordinator
         if (!sync.CloudFileExists())
             return;
 
-        string cloudContent = await sync.ReadCloudContentAsync("PullFile");
+        string cloudContent = await sync.ReadCloudContentAsync(PullCloudFileOperation);
 
-        if (ShouldSkipPull(sync, cloudContent))
+        var pull = GetPullDecision(sync, cloudContent);
+        if (pull.Skip)
             return;
 
-        await sync.WriteCloudContentAsync(cloudContent);
-        PatchHelper.Log(PullDownloaded(sync.Path));
+        await sync.PullCloudContentAsync(
+            cloudContent,
+            PullDownloaded(sync.Path),
+            pull.BackUpLocal
+        );
     }
 
-    private static bool TryReadLocalContent(AutoSyncContext sync, out string content)
-    {
-        content = string.Empty;
-        if (!sync.LocalFileExists())
-            return false;
-
-        content = sync.ReadLocalFile();
-        return true;
-    }
-
-    private static async Task<bool> ShouldSkipPushAsync(
+    private static async Task<(bool Skip, string? CloudContentToBackUp)> GetPushDecisionAsync(
         AutoSyncContext sync,
         string localContent
     )
     {
         if (!sync.CloudFileExists())
-            return false;
+            return (Skip: false, CloudContentToBackUp: null);
 
-        string cloudContent = await sync.ReadCloudContentAsync("ReadCloudFile");
+        string cloudContent = await sync.ReadCloudContentAsync(ReadCloudFileOperation);
         if (localContent == cloudContent)
         {
             PatchHelper.Log(PushSkippingIdentical(sync.Path));
-            return true;
+            return (Skip: true, CloudContentToBackUp: null);
         }
 
-        sync.BackUpCloudProgress(cloudContent);
-        return false;
+        return (Skip: false, CloudContentToBackUp: cloudContent);
     }
 
-    private static bool ShouldSkipPull(AutoSyncContext sync, string cloudContent)
+    private static (bool Skip, bool BackUpLocal) GetPullDecision(
+        AutoSyncContext sync,
+        string cloudContent
+    )
     {
-        if (!TryReadLocalContent(sync, out var localContent))
-            return false;
+        var local = sync.ReadLocalContent();
+        if (local == null)
+            return (Skip: false, BackUpLocal: false);
 
-        if (localContent == cloudContent)
+        if (local == cloudContent)
         {
             PatchHelper.Log(PullSkippingIdentical(sync.Path));
-            return true;
+            return (Skip: true, BackUpLocal: false);
         }
 
-        sync.BackUpLocalProgress();
-        return false;
+        return (Skip: false, BackUpLocal: true);
     }
 }

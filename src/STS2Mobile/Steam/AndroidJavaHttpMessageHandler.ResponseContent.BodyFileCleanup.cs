@@ -5,11 +5,10 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class AndroidJavaHttpMessageHandler
 {
-    private static bool TryGetSafeBodyFilePath(string? path, out string safePath)
+    private static string? GetSafeBodyFilePath(string? path)
     {
-        safePath = string.Empty;
         if (string.IsNullOrWhiteSpace(path))
-            return false;
+            return null;
 
         try
         {
@@ -21,7 +20,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
                 || !fileName.EndsWith(".bin", StringComparison.Ordinal)
             )
             {
-                return false;
+                return null;
             }
 
             if (
@@ -29,21 +28,21 @@ internal sealed partial class AndroidJavaHttpMessageHandler
                 && !normalized.Contains("/files/tmp/sts2_cdn_", StringComparison.Ordinal)
             )
             {
-                return false;
+                return null;
             }
 
-            safePath = fullPath;
-            return true;
+            return fullPath;
         }
         catch
         {
-            return false;
+            return null;
         }
     }
 
     private static void DeleteBodyFileIfSafe(string? path)
     {
-        if (TryGetSafeBodyFilePath(path, out var safePath))
+        var safePath = GetSafeBodyFilePath(path);
+        if (safePath != null)
             DeleteFileQuietly(safePath);
     }
 

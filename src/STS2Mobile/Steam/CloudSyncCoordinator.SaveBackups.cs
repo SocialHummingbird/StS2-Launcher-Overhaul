@@ -9,10 +9,10 @@ internal static partial class CloudSyncCoordinator
         private const string BackupSourceCloud = "cloud";
         private const string BackupSourceLocal = "local";
 
-        internal static void CloudProgressContent(string path, string content)
+        public static void CloudProgressContent(string path, string content)
             => ProgressContent(path, content, BackupSourceCloud);
 
-        internal static void LocalProgressFile(ISaveStore local, string path)
+        public static void LocalProgressFile(ISaveStore local, string path)
         {
             if (!IsProgressSave(path))
                 return;

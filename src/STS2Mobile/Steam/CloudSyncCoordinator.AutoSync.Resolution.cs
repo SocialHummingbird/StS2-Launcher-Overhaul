@@ -10,9 +10,7 @@ internal static partial class CloudSyncCoordinator
         string message
     )
     {
-        PatchHelper.Log(message);
-        sync.BackUpLocalProgress();
-        await sync.WriteCloudContentAsync(cloudContent);
+        await sync.PullCloudContentAsync(cloudContent, message, backUpLocal: true);
     }
 
     private static void ApplyLocalWins(
@@ -22,8 +20,6 @@ internal static partial class CloudSyncCoordinator
         string message
     )
     {
-        PatchHelper.Log(message);
-        sync.BackUpCloudProgress(cloudContent);
-        sync.WriteCloudFile(localContent);
+        sync.PushLocalContent(localContent, cloudContent, message);
     }
 }

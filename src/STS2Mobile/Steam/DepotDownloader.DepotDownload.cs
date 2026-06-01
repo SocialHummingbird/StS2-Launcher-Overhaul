@@ -5,25 +5,13 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private readonly struct DepotAccess
-    {
-        internal DepotAccess(byte[] key, ulong manifestRequestCode)
-        {
-            Key = key;
-            ManifestRequestCode = manifestRequestCode;
-        }
-
-        internal byte[] Key { get; }
-        internal ulong ManifestRequestCode { get; }
-    }
-
     private async Task DownloadDepotAsync(uint depotId, ulong manifestId, CancellationToken ct)
     {
         Log($"Processing depot {depotId}...");
 
         bool isUpdate = _stateStore.LoadManifestId(depotId) != manifestId;
 
-        var access = await GetDepotAccessAsync(depotId, manifestId);
+        var access = await GetDepotKeyAndManifestRequestCodeAsync(depotId, manifestId);
 
         var manifest = await DownloadManifestWithRetriesAsync(
             depotId,
@@ -36,7 +24,7 @@ internal sealed partial class DepotDownloader
 
         CleanupStaleDownloadTemps();
 
-        var filePlan = BuildDepotFilePlan(oldManifest, manifest, isUpdate);
+        var filePlan = BuildDepotFileLists(oldManifest, manifest, isUpdate);
 
         DeleteObsoleteFiles(filePlan.Deletes);
         ResetDepotProgress(filePlan.Downloads);
@@ -48,7 +36,7 @@ internal sealed partial class DepotDownloader
         else
         {
             Log(
-                $"Downloading {filePlan.Downloads.Count} files ({FormatBytes(_progress.TotalBytes)}) with {MaxConcurrentDownloads} threads..."
+                $"Downloading {filePlan.Downloads.Count} files ({FormatBytes(_totalDownloadBytes)}) with {MaxConcurrentDownloads} threads..."
             );
 
             await DownloadDepotFilesAsync(filePlan.Downloads, depotId, access.Key, ct);
@@ -58,9 +46,15 @@ internal sealed partial class DepotDownloader
         Log($"Depot {depotId} complete");
     }
 
-    private async Task<DepotAccess> GetDepotAccessAsync(uint depotId, ulong manifestId)
-        => new(
-            await _connection.GetDepotDecryptionKeyAsync(depotId),
-            await GetManifestRequestCodeAsync(depotId, manifestId)
+    private async Task<(
+        byte[] Key,
+        ulong ManifestRequestCode
+    )> GetDepotKeyAndManifestRequestCodeAsync(
+        uint depotId,
+        ulong manifestId
+    )
+        => (
+            Key: await _connection.GetDepotDecryptionKeyAsync(depotId),
+            ManifestRequestCode: await GetManifestRequestCodeAsync(depotId, manifestId)
         );
 }

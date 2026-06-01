@@ -7,31 +7,32 @@ namespace STS2Mobile.Steam;
 internal sealed partial class SteamConnection
 {
     internal async Task<bool> HasAppAccessTokenAsync(uint appId)
-        => (await GetAppAccessTokenAsync(appId)).Found;
+        => (await GetAppAccessTokenAsync(appId)).Token != 0;
 
     internal async Task EnsureAppAccessTokenNotDeniedAsync(uint appId, string deniedMessage)
     {
         var tokenResult = await GetAppAccessTokenAsync(appId);
-        if (!tokenResult.Found && tokenResult.Denied)
+        if (tokenResult.IsDenied)
             throw new InvalidOperationException(deniedMessage);
     }
 
     internal async Task<ulong> GetAppAccessTokenOrPublicAsync(uint appId, string deniedMessage)
     {
         var tokenResult = await GetAppAccessTokenAsync(appId);
-        if (tokenResult.Found)
+        if (tokenResult.Token != 0)
             return tokenResult.Token;
 
-        if (tokenResult.Denied)
+        if (tokenResult.IsDenied)
             throw new InvalidOperationException(deniedMessage);
 
         return 0;
     }
 
-    private async Task<AppAccessTokenResult> GetAppAccessTokenAsync(uint appId)
+    private async Task<(ulong Token, bool IsDenied)> GetAppAccessTokenAsync(uint appId)
     {
-        if (TryGetCachedAppAccessToken(appId, out var cachedToken))
-            return AppAccessTokenResult.FromToken(cachedToken);
+        var cachedToken = GetCachedAppAccessToken(appId);
+        if (cachedToken.HasValue)
+            return FoundAppAccessToken(cachedToken.Value);
 
         EnsureConnected();
 
@@ -43,44 +44,21 @@ internal sealed partial class SteamConnection
             return RememberAppAccessToken(appId, token);
 
         return tokenResult.AppTokensDenied?.Contains(appId) == true
-            ? AppAccessTokenResult.FromDenied()
-            : AppAccessTokenResult.FromMissing();
+            ? (Token: 0UL, IsDenied: true)
+            : (Token: 0UL, IsDenied: false);
     }
 
-    private bool TryGetCachedAppAccessToken(uint appId, out ulong token)
-    {
-        token = _appAccessToken;
-        return appId == SteamCloudApp.AppId && token != 0;
-    }
+    private ulong? GetCachedAppAccessToken(uint appId)
+        => appId == SteamCloudApp.AppId && _appAccessToken != 0 ? _appAccessToken : null;
 
-    private AppAccessTokenResult RememberAppAccessToken(uint appId, ulong token)
+    private (ulong Token, bool IsDenied) RememberAppAccessToken(uint appId, ulong token)
     {
         if (appId == SteamCloudApp.AppId)
             _appAccessToken = token;
 
-        return AppAccessTokenResult.FromToken(token);
+        return FoundAppAccessToken(token);
     }
 
-    private readonly struct AppAccessTokenResult
-    {
-        internal AppAccessTokenResult(bool found, bool denied, ulong token)
-        {
-            Found = found;
-            Denied = denied;
-            Token = token;
-        }
-
-        internal bool Found { get; }
-        internal bool Denied { get; }
-        internal ulong Token { get; }
-
-        internal static AppAccessTokenResult FromToken(ulong token)
-            => new(found: true, denied: false, token);
-
-        internal static AppAccessTokenResult FromDenied()
-            => new(found: false, denied: true, token: 0);
-
-        internal static AppAccessTokenResult FromMissing()
-            => new(found: false, denied: false, token: 0);
-    }
+    private static (ulong Token, bool IsDenied) FoundAppAccessToken(ulong token)
+        => (token, IsDenied: false);
 }

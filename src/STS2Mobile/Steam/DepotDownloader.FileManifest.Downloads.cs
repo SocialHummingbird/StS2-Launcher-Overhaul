@@ -27,13 +27,22 @@ internal sealed partial class DepotDownloader
                 oldFiles,
                 isUpdate
             );
-            if (decision.VerifiedExisting)
-                verified++;
-            if (decision.CorruptExisting)
-                corrupt++;
 
-            if (decision.ShouldDownload)
-                result.Add(file);
+            switch (decision)
+            {
+                case ManifestFileDownloadDecision.Download:
+                    result.Add(file);
+                    break;
+
+                case ManifestFileDownloadDecision.Verified:
+                    verified++;
+                    break;
+
+                case ManifestFileDownloadDecision.Corrupt:
+                    corrupt++;
+                    result.Add(file);
+                    break;
+            }
         }
 
         if (verified > 0)

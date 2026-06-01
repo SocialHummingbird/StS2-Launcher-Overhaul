@@ -11,7 +11,7 @@ internal sealed partial class ShaderWarmupScreen
         private static List<Node> AddBatchNodes(
             SubViewport viewport,
             ImageTexture whiteTexture,
-            List<(string path, Material mat)> materials,
+            List<(string Path, Material Material)> materials,
             int start,
             int end
         )
@@ -19,10 +19,10 @@ internal sealed partial class ShaderWarmupScreen
             var batchNodes = new List<Node>();
             for (int i = start; i < end; i++)
             {
-                var (path, mat) = materials[i];
+                var material = materials[i];
                 try
                 {
-                    Node node = CreateNode(mat, whiteTexture);
+                    Node node = CreateNode(material.Material, whiteTexture);
                     if (node != null)
                     {
                         viewport.AddChild(node);
@@ -31,7 +31,7 @@ internal sealed partial class ShaderWarmupScreen
                 }
                 catch (Exception ex)
                 {
-                    PatchHelper.Log($"[ShaderWarmup] Failed to create node for {path}: {ex.Message}");
+                    PatchHelper.Log($"[ShaderWarmup] Failed to create node for {material.Path}: {ex.Message}");
                 }
             }
 

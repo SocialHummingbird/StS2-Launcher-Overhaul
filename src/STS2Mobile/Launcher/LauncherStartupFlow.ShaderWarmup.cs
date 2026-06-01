@@ -10,7 +10,7 @@ internal static partial class LauncherStartupFlow
     {
         if (ShaderWarmupScreen.NeedsWarmup() && !startup.Mode.SkipShaderWarmup)
         {
-            SetStartupPhase(startup, "shader warmup", "Warming shaders...");
+            startup.SetPhase(PhaseShaderWarmup, "Warming shaders...");
             PatchHelper.Log("Shader warmup starting");
 
             var warmup = new ShaderWarmupScreen();
@@ -29,7 +29,7 @@ internal static partial class LauncherStartupFlow
         else if (startup.Mode.SkipShaderWarmup)
         {
             PatchHelper.Log(startup.Mode.ShaderWarmupSkipLog);
-            LauncherStartupStatus.Set(startup.Status, startup.Mode.ShaderWarmupSkipStatus);
+            startup.SetStatus(startup.Mode.ShaderWarmupSkipStatus);
         }
     }
 }

@@ -4,7 +4,7 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    internal sealed class DownloadProgress
+    internal readonly struct DownloadProgress
     {
         internal DownloadProgress(
             long totalBytes,
@@ -24,16 +24,9 @@ internal sealed partial class DepotDownloader
         internal double Percentage => TotalBytes > 0 ? (double)DownloadedBytes / TotalBytes * 100.0 : 0;
     }
 
-    private sealed class DownloadProgressState
-    {
-        internal DownloadProgressState() { }
-
-        internal long TotalBytes;
-        internal long DownloadedBytes;
-        internal string CurrentFile;
-    }
-
-    private readonly DownloadProgressState _progress = new();
+    private long _totalDownloadBytes;
+    private long _downloadedBytes;
+    private string _currentDownloadFile;
 
     internal event Action<DownloadProgress> ProgressChanged;
     internal event Action<string> LogMessage;

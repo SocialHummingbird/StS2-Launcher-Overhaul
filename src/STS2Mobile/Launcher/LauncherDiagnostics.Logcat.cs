@@ -41,17 +41,9 @@ internal static partial class LauncherDiagnostics
     }
 
     private static string CaptureLogcatContent(int lineCount)
-        => LogcatSnapshot.Capture(lineCount).Content;
-
-    private static bool TryCaptureLogcatText(
-        int lineCount,
-        out string text,
-        out string fallbackText
-    )
     {
-        var logcat = LogcatSnapshot.Capture(lineCount);
-        fallbackText = logcat.Content;
-        return logcat.TryGetText(out text);
+        var logcat = CaptureLogcat(lineCount);
+        return logcat.HasText ? logcat.Text! : logcat.FallbackText ?? string.Empty;
     }
 
     private static void AppendRawLogcatTail(StringBuilder sb)
@@ -66,17 +58,14 @@ internal static partial class LauncherDiagnostics
     {
         sb.AppendLine();
         sb.AppendLine(LogcatErrorLines);
-        if (!TryCaptureLogcatText(
-                ErrorSummaryCaptureLines,
-                out var text,
-                out var fallbackText
-            ))
+        var logcat = CaptureLogcat(ErrorSummaryCaptureLines);
+        if (!logcat.HasText)
         {
-            sb.AppendLine(fallbackText);
+            sb.AppendLine(logcat.FallbackText);
             return;
         }
 
-        var lines = text.Replace("\r\n", "\n").Split('\n');
+        var lines = logcat.Text!.Replace("\r\n", "\n").Split('\n');
         foreach (var line in SelectInterestingDiagnosticLines(
             lines,
             ErrorSummaryInterestingLines
@@ -109,40 +98,19 @@ internal static partial class LauncherDiagnostics
     private static string[] Tail(IEnumerable<string> lines, int maxLines) =>
         lines.TakeLast(maxLines).ToArray();
 
-    private sealed class LogcatSnapshot
+    private static (string? Text, string? FallbackText, bool HasText) CaptureLogcat(int lineCount)
     {
-        private readonly string _fallbackText;
-        private readonly string _text;
-
-        internal LogcatSnapshot(string text, string fallbackText)
+        try
         {
-            _text = text;
-            _fallbackText = fallbackText;
+            var text = AndroidGodotAppBridge.GetLogcatTail(lineCount);
+            return string.IsNullOrWhiteSpace(text)
+                ? (Text: null, FallbackText: Unavailable, HasText: false)
+                : (Text: text, FallbackText: null, HasText: true);
         }
-
-        internal string Content => HasText ? _text : _fallbackText;
-
-        private bool HasText => !string.IsNullOrWhiteSpace(_text);
-
-        internal bool TryGetText(out string text)
+        catch (Exception ex)
         {
-            text = _text;
-            return HasText;
-        }
-
-        internal static LogcatSnapshot Capture(int lineCount)
-        {
-            try
-            {
-                var text = AndroidGodotAppBridge.GetLogcatTail(lineCount);
-                return string.IsNullOrWhiteSpace(text)
-                    ? new LogcatSnapshot(null, Unavailable)
-                    : new LogcatSnapshot(text, null);
-            }
-            catch (Exception ex)
-            {
-                return new LogcatSnapshot(null, LogcatCollectionFailed(ex));
-            }
+            return (Text: null, FallbackText: LogcatCollectionFailed(ex), HasText: false);
         }
     }
+
 }

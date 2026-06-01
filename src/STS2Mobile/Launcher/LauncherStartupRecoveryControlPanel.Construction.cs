@@ -6,52 +6,74 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private LauncherStartupRecoveryControlPanel(string nodeName)
+    private LauncherStartupRecoveryControlPanel()
     {
-        Layer = new CanvasLayer
+        Layer = CreateLayer();
+
+        var box = CreateContainer();
+        Layer.AddChild(box);
+
+        box.AddChild(CreateTitle());
+        _detail = CreateDetail();
+        box.AddChild(_detail);
+
+        AddRecoveryActions(box);
+    }
+
+    private static CanvasLayer CreateLayer()
+        => new()
         {
-            Name = nodeName,
+            Name = NodeName,
             Layer = CanvasLayerIndex,
         };
 
+    private static VBoxContainer CreateContainer()
+    {
         var box = new VBoxContainer
         {
             Position = ContainerPosition,
             CustomMinimumSize = ContainerMinimumSize,
         };
         box.AddThemeConstantOverride(ThemeSeparation, ContainerSeparation);
-        Layer.AddChild(box);
+        return box;
+    }
 
+    private static Label CreateTitle()
+    {
         var title = new Label
         {
             Text = "Game is starting.",
         };
         title.AddThemeFontSizeOverride(ThemeFontSize, TitleFontSize);
         title.AddThemeColorOverride(ThemeFontColor, TitleColor);
-        box.AddChild(title);
+        return title;
+    }
 
-        _detail = new Label
+    private static Label CreateDetail()
+    {
+        var detail = new Label
         {
             Text = "If this screen does not change, copy the raw error log, export diagnostics, or restart with safe launch. These controls stay visible for several minutes.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        _detail.AddThemeFontSizeOverride(ThemeFontSize, DetailFontSize);
-        _detail.AddThemeColorOverride(ThemeFontColor, DetailColor);
-        box.AddChild(_detail);
+        detail.AddThemeFontSizeOverride(ThemeFontSize, DetailFontSize);
+        detail.AddThemeColorOverride(ThemeFontColor, DetailColor);
+        return detail;
+    }
 
+    private void AddRecoveryActions(VBoxContainer box)
+    {
         AddButton(box, "RETURN TO LAUNCHER", AndroidGodotAppBridge.RestartApp);
-        AddButton(
-            box,
-            "RESTART WITH SAFE LAUNCH",
-            () =>
-            {
-                LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
-                AndroidGodotAppBridge.LaunchGameSafelyOnRestart();
-            }
-        );
+        AddButton(box, "RESTART WITH SAFE LAUNCH", RestartWithSafeLaunch);
         AddButton(box, "EXPORT STARTUP DIAGNOSTICS", ExportDiagnostics);
         AddButton(box, "COPY RAW ERROR LOG", CopyRawErrorLog);
         AddButton(box, "HIDE RECOVERY CONTROLS", () => Layer.QueueFree());
+    }
+
+    private static void RestartWithSafeLaunch()
+    {
+        LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
+        AndroidGodotAppBridge.LaunchGameSafelyOnRestart();
     }
 
     private static void AddButton(VBoxContainer box, string label, Action run)

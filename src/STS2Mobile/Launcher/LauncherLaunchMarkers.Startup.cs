@@ -6,80 +6,55 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherLaunchMarkers
 {
-    internal static bool PreviousGameLaunchIncomplete(out string phase)
-    {
-        return TryReadStartupPhaseQuietly(out phase);
-    }
+    internal static string? ReadPreviousLaunchPhase()
+        => ReadStartupPhaseQuietly();
 
     internal static void WriteStartupPhase(string phase)
-    {
-        try
-        {
-            File.WriteAllText(
-                StartupMarkerPath,
-                $"{DateTime.UtcNow:O}\n{phase}\n"
-            );
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"Failed to write startup marker: {ex.Message}");
-        }
-    }
+        => TryWriteMarker(
+            StartupMarkerPath,
+            $"{DateTime.UtcNow:O}\n{phase}\n",
+            "Failed to write startup marker"
+        );
 
-    internal static string ReadStartupPhase()
+    internal static string? ReadStartupPhase()
     {
-        TryReadStartupPhaseWithLogging(out var phase);
-        return phase;
+        return ReadStartupPhaseWithLogging();
     }
 
     internal static void ClearStartupMarker()
+        => TryDeleteMarker(
+            StartupMarkerPath,
+            "Failed to clear startup marker",
+            out _
+        );
+
+    private static string? ReadStartupPhaseQuietly()
+        => ReadStartupPhase(failureMessage: null);
+
+    private static string? ReadStartupPhaseWithLogging()
+        => ReadStartupPhase("Failed to read startup marker");
+
+    private static string? ReadStartupPhase(string? failureMessage)
     {
         try
         {
-            if (File.Exists(StartupMarkerPath))
-                File.Delete(StartupMarkerPath);
+            return ReadStartupPhaseFile();
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"Failed to clear startup marker: {ex.Message}");
+            if (failureMessage != null)
+                PatchHelper.Log($"{failureMessage}: {ex.Message}");
+            return null;
         }
     }
 
-    private static bool TryReadStartupPhaseQuietly(out string phase)
+    private static string? ReadStartupPhaseFile()
     {
-        try
-        {
-            return TryReadStartupPhaseFile(out phase);
-        }
-        catch
-        {
-            phase = null;
-            return false;
-        }
-    }
-
-    private static bool TryReadStartupPhaseWithLogging(out string phase)
-    {
-        try
-        {
-            return TryReadStartupPhaseFile(out phase);
-        }
-        catch (Exception ex)
-        {
-            phase = null;
-            PatchHelper.Log($"Failed to read startup marker: {ex.Message}");
-            return false;
-        }
-    }
-
-    private static bool TryReadStartupPhaseFile(out string phase)
-    {
-        phase = null;
         if (!File.Exists(StartupMarkerPath))
-            return false;
+            return null;
 
         var lines = File.ReadAllLines(StartupMarkerPath);
-        phase = lines.Length >= 2 ? lines[1].Trim() : null;
-        return true;
+        var phase = lines.Length >= 2 ? lines[1].Trim() : null;
+        return string.IsNullOrWhiteSpace(phase) ? null : phase;
     }
 }

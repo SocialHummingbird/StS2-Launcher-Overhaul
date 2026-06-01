@@ -34,6 +34,6 @@ internal sealed partial class LauncherView
         );
         panel.Content.AddChild(rootColumns);
 
-        return (panel, rootColumns);
+        return (Panel: panel, RootColumns: rootColumns);
     }
 }

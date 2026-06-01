@@ -6,11 +6,14 @@ internal sealed partial class LauncherController
 {
     private void ShowPreviousLaunchWarningIfNeeded()
     {
-        if (!LauncherLaunchMarkers.PreviousGameLaunchIncomplete(out var phase))
+        var previousLaunchPhase = LauncherLaunchMarkers.ReadPreviousLaunchPhase();
+        if (previousLaunchPhase == null)
             return;
 
         const string status = "Previous game launch did not finish.";
-        var phaseSuffix = string.IsNullOrWhiteSpace(phase) ? "" : $" Last phase: {phase}.";
+        var phaseSuffix = string.IsNullOrWhiteSpace(previousLaunchPhase)
+            ? ""
+            : $" Last phase: {previousLaunchPhase}.";
 
         _view.SetStatus(status);
         _view.AppendLog(status + phaseSuffix);
@@ -29,12 +32,11 @@ internal sealed partial class LauncherController
             return;
 
         _automaticDiagnosticsWritten = true;
-        if (TryWriteDiagnosticsReport(
+        var path = WriteDiagnosticsReportOrNull(
             "Automatic diagnostics snapshot failed",
-            logFullException: false,
-            out var path,
-            out _
-        ))
+            logFullException: false
+        );
+        if (path != null)
             _view.AppendLog($"Automatic diagnostics snapshot: {path}");
     }
 }

@@ -7,13 +7,13 @@ internal static partial class AndroidJavaCrypto
 {
     private sealed class AndroidRsa : RSA
     {
-        internal AndroidRsa()
+        public AndroidRsa()
         {
             LegalKeySizesValue = new[] { new KeySizes(384, 16384, 8) };
             KeySizeValue = 2048;
         }
 
-        internal void SetPublicKeySize(int bits)
+        public void SetPublicKeySize(int bits)
         {
             KeySizeValue = bits;
         }

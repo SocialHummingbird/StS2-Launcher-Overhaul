@@ -5,42 +5,30 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamAuth
 {
-    private sealed class AuthAuthenticator : IAuthenticator
+    private const int AuthReconnectPollDelayMs = 250;
+
+    Task<string> IAuthenticator.GetDeviceCodeAsync(bool previousCodeWasIncorrect)
     {
-        private readonly SteamAuth _auth;
+        return RequestCodeAsync(
+            previousCodeWasIncorrect,
+            "Previous 2FA code was incorrect, requesting new code",
+            "Steam Guard 2FA code required"
+        );
+    }
 
-        internal AuthAuthenticator(SteamAuth auth) => _auth = auth;
+    Task<string> IAuthenticator.GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
+    {
+        return RequestCodeAsync(
+            previousCodeWasIncorrect,
+            "Previous email code was incorrect, requesting new code",
+            $"Steam Guard email code sent to {email}"
+        );
+    }
 
-        public Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
-        {
-            return _auth.RequestCodeAsync(
-                previousCodeWasIncorrect,
-                "Previous 2FA code was incorrect, requesting new code",
-                "Steam Guard 2FA code required"
-            );
-        }
-
-        public Task<string> GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
-        {
-            return _auth.RequestCodeAsync(
-                previousCodeWasIncorrect,
-                "Previous email code was incorrect, requesting new code",
-                $"Steam Guard email code sent to {email}"
-            );
-        }
-
-        public Task<bool> AcceptDeviceConfirmationAsync()
-        {
-            if (_auth._forceSteamGuardCodeEntry)
-            {
-                _auth.Log("Steam mobile app confirmation requested; using Steam Guard code entry");
-                return Task.FromResult(false);
-            }
-
-            _auth._mobileConfirmationRequested = true;
-            _auth.Log("Steam mobile app confirmation requested; waiting for approval");
-            return Task.FromResult(true);
-        }
+    Task<bool> IAuthenticator.AcceptDeviceConfirmationAsync()
+    {
+        Log("Steam mobile app confirmation requested; using Steam Guard code entry");
+        return Task.FromResult(false);
     }
 
     private async Task<string> RequestCodeAsync(
@@ -51,10 +39,34 @@ internal sealed partial class SteamAuth
     {
         Log(previousCodeWasIncorrect ? retryMessage : initialMessage);
 
-        var code = await _codeProvider(previousCodeWasIncorrect);
-        if (_needsReconnectForAuth)
-            await ReconnectForAuthAsync();
-
-        return code;
+        return await WaitForCodeAndMaintainAuthConnectionAsync(
+            _codeProvider(previousCodeWasIncorrect)
+        );
     }
+
+    private async Task<string> WaitForCodeAndMaintainAuthConnectionAsync(Task<string> codeTask)
+    {
+        while (true)
+        {
+            if (codeTask.IsCompleted)
+            {
+                var code = await codeTask;
+                await ReconnectBeforeCodeSubmitAsync();
+                return code;
+            }
+
+            if (NeedsAuthReconnect && !await TryReconnectForAuthAsync())
+                Log("Steam auth reconnect did not complete yet; will retry while waiting for code");
+
+            await Task.WhenAny(codeTask, Task.Delay(AuthReconnectPollDelayMs));
+        }
+    }
+
+    private async Task ReconnectBeforeCodeSubmitAsync()
+    {
+        if (NeedsAuthReconnect)
+            await ReconnectForAuthAsync();
+    }
+
+    private bool NeedsAuthReconnect => _needsReconnectForAuth || !_connectedGate.IsSet;
 }

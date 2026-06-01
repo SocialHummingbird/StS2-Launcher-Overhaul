@@ -18,18 +18,6 @@ internal static partial class LauncherDiagnostics
     private const string Unavailable = "<unavailable>";
     private const string Unknown = "<unknown>";
 
-    private readonly struct FileReference
-    {
-        internal FileReference(string label, string path)
-        {
-            Label = label;
-            Path = path;
-        }
-
-        internal string Label { get; }
-        internal string Path { get; }
-    }
-
     private static string AndroidAppVersion(string versionName)
         => $"Android app version: {versionName ?? Unknown}";
 

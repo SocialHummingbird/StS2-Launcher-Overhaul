@@ -51,13 +51,18 @@ internal sealed partial class DepotDownloader
     }
 
     private void HandleDownloadRetryFailure(
-        Server server,
+        (Server Server, int Index) attempt,
         string operation,
-        int attempt,
         Exception ex
     )
     {
-        Log($"{operation} failed (attempt {attempt + 1}): {ex.Message}");
-        MarkServerFailed(server);
+        Log($"{operation} failed (attempt {DisplayNumber(attempt)}): {ex.Message}");
+        MarkServerFailed(attempt.Server);
     }
+
+    private static int DisplayNumber((Server Server, int Index) attempt)
+        => attempt.Index + 1;
+
+    private static bool HasRetryRemaining((Server Server, int Index) attempt)
+        => attempt.Index < MaxRetries - 1;
 }

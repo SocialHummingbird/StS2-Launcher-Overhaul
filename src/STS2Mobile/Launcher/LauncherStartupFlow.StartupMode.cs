@@ -8,42 +8,42 @@ internal static partial class LauncherStartupFlow
     {
         private readonly string _previousIncompletePhase;
 
-        internal static StartupMode CreateFromMarkers()
+        public static StartupMode CreateFromMarkers()
             => new(
                 LauncherLaunchMarkers.ReadStartupPhase(),
                 LauncherLaunchMarkers.ConsumeManualSafeLaunchMarker()
             );
 
-        internal StartupMode(string previousIncompletePhase, bool manualSafeLaunch)
+        private StartupMode(string previousIncompletePhase, bool manualSafeLaunch)
         {
             _previousIncompletePhase = previousIncompletePhase;
             ManualSafeLaunch = manualSafeLaunch;
         }
 
-        private bool ManualSafeLaunch { get; }
+        public bool ManualSafeLaunch { get; }
 
-        private bool SafeLaunchRequested
-            => ManualSafeLaunch || IsPreviousPhase("manual safe launch");
+        public bool SafeLaunchRequested
+            => ManualSafeLaunch || IsPreviousPhase(PhaseManualSafeLaunch);
 
-        internal bool ForceLocalSaves
+        public bool ForceLocalSaves
             => SafeLaunchRequested
-                || IsPreviousPhase("settings and saves")
-                || IsPreviousPhase("game startup");
+                || IsPreviousPhase(PhaseSettingsAndSaves)
+                || IsPreviousPhase(PhaseGameStartup);
 
-        internal bool SkipShaderWarmup
-            => SafeLaunchRequested || IsPreviousPhase("shader warmup");
+        public bool SkipShaderWarmup
+            => SafeLaunchRequested || IsPreviousPhase(PhaseShaderWarmup);
 
-        internal string LocalSavesReasonLog
+        public string LocalSavesReasonLog
             => ManualSafeLaunch
                 ? "Disabling cloud save injection for manual safe launch"
                 : $"Disabling cloud save injection for this launch because previous launch stalled at {_previousIncompletePhase}";
 
-        internal string ShaderWarmupSkipLog
+        public string ShaderWarmupSkipLog
             => ManualSafeLaunch
                 ? "Skipping shader warmup for manual safe launch"
                 : "Skipping shader warmup because the previous launch stalled there";
 
-        internal string ShaderWarmupSkipStatus
+        public string ShaderWarmupSkipStatus
             => ManualSafeLaunch
                 ? "Skipping shader warmup for safe launch..."
                 : "Skipping shader warmup after previous stall...";

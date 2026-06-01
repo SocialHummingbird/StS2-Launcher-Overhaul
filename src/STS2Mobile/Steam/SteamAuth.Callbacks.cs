@@ -9,17 +9,25 @@ internal sealed partial class SteamAuth
         _callbackManager.Subscribe<SteamClient.ConnectedCallback>(_ =>
         {
             Log("Connected to Steam");
+            _needsReconnectForAuth = false;
             _connectedGate.Set();
         });
 
         _callbackManager.Subscribe<SteamClient.DisconnectedCallback>(cb =>
         {
+            _connectStarted = false;
             _connectedGate.Reset();
-            if (!cb.UserInitiated)
+            if (cb.UserInitiated)
+                return;
+
+            if (_credentialAuthStarted)
             {
                 _needsReconnectForAuth = true;
-                Log("Connection lost during authentication - will reconnect on code submit");
+                Log("Connection lost during authentication - reconnecting to keep auth session alive");
+                return;
             }
+
+            Log("Connection lost before authentication completed - retrying");
         });
     }
 }

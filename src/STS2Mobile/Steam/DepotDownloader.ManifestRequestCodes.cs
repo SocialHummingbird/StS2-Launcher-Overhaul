@@ -13,14 +13,20 @@ internal sealed partial class DepotDownloader
 
     private async Task<ulong> GetManifestRequestCodeAsync(uint depotId, ulong manifestId)
     {
-        var key = (depotId, manifestId, PublicDepotBranch);
-        if (_manifestRequestCodes.TryGetFresh(key, out var cached))
-            return cached;
-
-        var code = await _connection.GetManifestRequestCodeAsync(
-            depotId,
-            manifestId,
-            PublicDepotBranch
+        var key = (
+            DepotId: depotId,
+            ManifestId: manifestId,
+            Branch: PublicDepotBranch
+        );
+        var code = await _manifestRequestCodes.GetOrAddAsync(
+            key,
+            ManifestRequestCodeTtl,
+            () => _connection.GetManifestRequestCodeAsync(
+                depotId,
+                manifestId,
+                PublicDepotBranch
+            ),
+            code => code != 0
         );
         if (code == 0)
             throw new Exception(
@@ -28,7 +34,6 @@ internal sealed partial class DepotDownloader
                     + "Ensure the account owns this app."
             );
 
-        _manifestRequestCodes.SetFor(key, code, ManifestRequestCodeTtl);
         return code;
     }
 }

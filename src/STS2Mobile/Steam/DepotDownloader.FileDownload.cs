@@ -14,16 +14,17 @@ internal sealed partial class DepotDownloader
         CancellationToken ct
     )
     {
-        if (!TryGetManifestFileName(file, out var fileName))
+        var fileName = GetManifestFileName(file);
+        if (fileName == null)
             return;
 
-        var target = CreateDepotFileTarget(fileName);
+        var target = CreateDepotFilePaths(fileName);
         var writeLock = GetDepotFileWriteLock(target);
 
         await writeLock.WaitAsync(ct);
         try
         {
-            _progress.CurrentFile = target.FileName;
+            _currentDownloadFile = target.FileName;
             ForceReportProgress();
 
             if (TryHandleDirectoryTarget(file, target))
@@ -45,7 +46,13 @@ internal sealed partial class DepotDownloader
 
     private bool TryHandleDirectoryTarget(
         DepotManifest.FileData file,
-        DepotFileTarget target
+        (
+            string FileName,
+            string FilePath,
+            string? FileDir,
+            string TempPath,
+            string LockKey
+        ) target
     )
     {
         if (!file.Flags.HasFlag(EDepotFileFlag.Directory))
@@ -55,21 +62,36 @@ internal sealed partial class DepotDownloader
         return true;
     }
 
-    private bool TryUseExistingFile(DepotManifest.FileData file, DepotFileTarget target)
+    private bool TryUseExistingFile(
+        DepotManifest.FileData file,
+        (
+            string FileName,
+            string FilePath,
+            string? FileDir,
+            string TempPath,
+            string LockKey
+        ) target
+    )
     {
         // Validate existing file against manifest SHA-1 hash. A size-only check
         // would miss corruption from interrupted writes (SetLength pre-allocates).
         if (!File.Exists(target.FilePath) || !VerifyFileHash(target.FilePath, file))
             return false;
 
-        Interlocked.Add(ref _progress.DownloadedBytes, (long)file.TotalSize);
+        Interlocked.Add(ref _downloadedBytes, (long)file.TotalSize);
         ForceReportProgress();
         return true;
     }
 
     private void PrepareDepotFileDownload(
         DepotManifest.FileData file,
-        DepotFileTarget target
+        (
+            string FileName,
+            string FilePath,
+            string? FileDir,
+            string TempPath,
+            string LockKey
+        ) target
     )
     {
         var fileSize = checked((long)file.TotalSize);

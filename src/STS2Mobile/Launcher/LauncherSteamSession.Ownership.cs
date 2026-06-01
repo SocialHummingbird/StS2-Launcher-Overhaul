@@ -8,7 +8,7 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class LauncherSteamSession
 {
     internal bool HasOwnershipMarker()
-        => _credentialStore.AccountName != null && CurrentOwnershipMarkerStore().HasMarker();
+        => HasOwnershipMarkerForCurrentAccount();
 
     private async Task<string> VerifyOwnershipForSessionAsync(
         SteamConnection connection,
@@ -19,10 +19,9 @@ internal sealed partial class LauncherSteamSession
         if (_credentialStore.AccountName == null)
             throw new InvalidOperationException("Cannot verify ownership without an account");
 
-        var ownershipMarker = CurrentOwnershipMarkerStore();
         var owns = await connection.HasAppAccessTokenAsync(SteamCloudApp.AppId);
         if (owns)
-            ownershipMarker.Save();
+            SaveOwnershipMarker(_credentialStore.AccountName);
 
         PatchHelper.Log(owns ? "[Launcher] Ownership verified" : "[Launcher] Ownership denied");
 
@@ -37,6 +36,4 @@ internal sealed partial class LauncherSteamSession
         );
     }
 
-    private OwnershipMarkerStore CurrentOwnershipMarkerStore()
-        => new(_dataDir, _credentialStore.AccountName);
 }

@@ -7,13 +7,13 @@ internal sealed partial class SteamKit2CloudSaveStore
 {
     private const string CloudZipDataEntryName = "data";
 
-    private static (byte[] data, bool compressed) CompressCloudFile(byte[] raw)
+    private static (byte[] Data, bool Compressed) CompressCloudFile(byte[] raw)
     {
         var zipped = CreateSingleEntryCloudZip(raw);
         if (zipped.Length >= raw.Length)
-            return (raw, false);
+            return (Data: raw, Compressed: false);
 
-        return (zipped, true);
+        return (Data: zipped, Compressed: true);
     }
 
     private static byte[] DecompressCloudFile(byte[] zipData)

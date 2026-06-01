@@ -7,89 +7,56 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherGameStartupRecovery
 {
-    private readonly struct StartupRecoveryState
-    {
-        internal StartupRecoveryState(
-            string reason,
-            string statusMessage,
-            string? snapshotReason = null
-        )
-        {
-            Reason = reason;
-            StatusMessage = statusMessage;
-            SnapshotReason = snapshotReason;
-        }
-
-        internal string Reason { get; }
-        internal string StatusMessage { get; }
-        internal string? SnapshotReason { get; }
-
-        internal static StartupRecoveryState WatchdogStalled() =>
-            new(
-                "game startup watchdog",
-                "Game startup stalled. Attempting main menu recovery..."
-            );
-
-        internal static StartupRecoveryState WatchdogRecovered() =>
-            new(
-                "main menu recovered after watchdog",
-                "Main menu recovered after startup stall. Recovery controls remain briefly."
-            );
-
-        internal static StartupRecoveryState StartupObserved() =>
-            new(
-                "post-startup observation",
-                "Game startup returned. Recovery controls remain briefly.",
-                "after NGame.GameStartup returned"
-            );
-    }
+    private const string MainMenuGuardFailureReason = "main menu guard failed";
+    private const string MainMenuRecoveryFailureReason =
+        "main menu recovery failed after watchdog";
+    private const string StartupObservationReason = "post-startup observation";
+    private const string WatchdogStalledReason = "game startup watchdog";
+    private const string WatchdogRecoveredReason = "main menu recovered after watchdog";
 
     private static void ShowFailure(
         Node gameNode,
         Label startupStatus,
         string reason,
-        string statusMessage
+        string statusMessage,
+        string? snapshotReason = null
     )
     {
-        ShowFailure(
-            gameNode,
-            startupStatus,
-            new StartupRecoveryState(reason, statusMessage)
-        );
-    }
-
-    private static void ShowFailure(
-        Node gameNode,
-        Label startupStatus,
-        StartupRecoveryState state
-    )
-    {
-        RecordStartupState(gameNode, startupStatus, state);
+        RecordStartupState(gameNode, startupStatus, reason, statusMessage, snapshotReason);
         LauncherStartupRecoveryControlPanel.Show(gameNode);
     }
 
     private static void RecordStartupState(
         Node gameNode,
         Label startupStatus,
-        StartupRecoveryState state
+        string reason,
+        string statusMessage,
+        string? snapshotReason = null
     )
     {
-        LauncherLaunchMarkers.WriteStartupPhase(state.Reason);
+        LauncherLaunchMarkers.WriteStartupPhase(reason);
         LauncherDiagnostics.WriteStartupSceneSnapshot(
             gameNode,
-            state.SnapshotReason ?? state.Reason
+            snapshotReason ?? reason
         );
-        LauncherStartupStatus.Set(startupStatus, state.StatusMessage);
+        LauncherStartupStatus.Set(startupStatus, statusMessage);
+    }
+
+    private static void SetRecoveryStatus(Label startupStatus, string status)
+    {
+        LauncherStartupStatus.Set(startupStatus, status);
     }
 
     private static void MarkRecoveredStartup(
         CanvasLayer recoveryControls,
         Label startupStatus,
         Node gameNode,
-        StartupRecoveryState state
+        string reason,
+        string statusMessage,
+        string? snapshotReason = null
     )
     {
-        RecordStartupState(gameNode, startupStatus, state);
+        RecordStartupState(gameNode, startupStatus, reason, statusMessage, snapshotReason);
         ScheduleCleanup(recoveryControls, startupStatus);
     }
 

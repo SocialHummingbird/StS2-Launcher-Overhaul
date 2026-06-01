@@ -32,11 +32,12 @@ internal sealed partial class SteamKit2CloudSaveStore
 
                 foreach (var file in result.files)
                 {
-                    _files[CacheKey(file.filename)] = new CloudFileInfo
-                    {
-                        Size = (int)file.file_size,
-                        Timestamp = DateTimeOffset.FromUnixTimeSeconds((long)file.timestamp),
-                    };
+                    var key = CacheKey(file.filename);
+                    _files[key] = (
+                        (int)file.file_size,
+                        DateTimeOffset.FromUnixTimeSeconds((long)file.timestamp)
+                    );
+                    _persistedFiles[key] = 0;
                 }
 
                 startIndex += (uint)result.files.Count;

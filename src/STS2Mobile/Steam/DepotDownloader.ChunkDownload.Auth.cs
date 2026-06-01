@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using SteamKit2;
 using SteamKit2.CDN;
@@ -13,33 +12,29 @@ internal sealed partial class DepotDownloader
         byte[] buffer,
         byte[] depotKey,
         string fileName,
-        Server server,
-        int attempt
+        (Server Server, int Index) attempt
     )
     {
-        var token = await GetCdnAuthTokenForRetryAsync(depotId, server);
-        if (token == null)
-            return null;
+        return await RunCdnAuthRetryAsync<int?>(
+            depotId,
+            attempt,
+            "Chunk",
+            async token =>
+            {
+                var written = await _cdnClient.DownloadDepotChunkAsync(
+                    depotId,
+                    chunk,
+                    attempt.Server,
+                    buffer,
+                    depotKey,
+                    cdnAuthToken: token
+                );
 
-        try
-        {
-            var written = await _cdnClient.DownloadDepotChunkAsync(
-                depotId,
-                chunk,
-                server,
-                buffer,
-                depotKey,
-                cdnAuthToken: token
-            );
-
-            return ChunkHashVerifiedOrRetry(fileName, chunk, buffer, written, attempt)
-                ? written
-                : null;
-        }
-        catch (Exception tokenEx) when (attempt < MaxRetries - 1)
-        {
-            HandleCdnAuthRetryFailure(depotId, server, "Chunk", attempt, tokenEx);
-            return null;
-        }
+                return ChunkHashVerifiedOrRetry(fileName, chunk, buffer, written, attempt)
+                    ? written
+                    : null;
+            },
+            failed: null
+        );
     }
 }

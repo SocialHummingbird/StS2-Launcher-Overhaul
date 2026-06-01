@@ -11,7 +11,34 @@ internal static partial class LauncherDiagnostics
     private const string DiagnosticsDirectory = "diagnostics";
     private const string MissingDiagnosticValue = "<none>";
 
-    internal static string BuildLauncherDiagnosticsReport(
+    private readonly struct Snapshot
+    {
+        public Snapshot(
+            string dataDir,
+            string accountName,
+            bool hasSavedCredentials,
+            bool gameFilesReady,
+            string sessionState,
+            string failReason
+        )
+        {
+            DataDir = dataDir;
+            AccountName = accountName;
+            HasSavedCredentials = hasSavedCredentials;
+            GameFilesReady = gameFilesReady;
+            SessionState = sessionState;
+            FailReason = failReason;
+        }
+
+        public string DataDir { get; }
+        public string AccountName { get; }
+        public bool HasSavedCredentials { get; }
+        public bool GameFilesReady { get; }
+        public string SessionState { get; }
+        public string FailReason { get; }
+    }
+
+    internal static string WriteLauncherDiagnosticsReport(
         string dataDir,
         string accountName,
         bool hasSavedCredentials,
@@ -19,35 +46,35 @@ internal static partial class LauncherDiagnostics
         string sessionState,
         string failReason
     )
-    {
-        var sb = StartTimestampedText("STS2 Launcher diagnostics", "Generated UTC");
-        AppendDetailedLauncherState(
-            sb,
-            dataDir,
-            accountName,
-            hasSavedCredentials,
-            gameFilesReady,
-            sessionState,
-            failReason
+        => WriteLauncherDiagnosticsReport(
+            CreateLauncherSnapshot(
+                dataDir,
+                accountName,
+                hasSavedCredentials,
+                gameFilesReady,
+                sessionState,
+                failReason
+            )
         );
-        AppendLauncherPreferences(sb);
-        AppendFullReportDiagnostics(sb, dataDir);
-        return sb.ToString();
-    }
 
     internal static string BuildLauncherDiagnosticsSummary(
         string dataDir,
+        string accountName,
+        bool hasSavedCredentials,
         bool gameFilesReady,
-        string sessionState
+        string sessionState,
+        string failReason
     )
-    {
-        var sb = StartTimestampedText("=== LAST ERROR SUMMARY ===", "UTC");
-        AppendCompactLauncherState(sb, gameFilesReady, sessionState);
-        AppendPreviousLaunchPhase(sb, "Previous launch phase");
-        AppendSummaryErrorDiagnostics(sb, dataDir);
-        sb.AppendLine("=== END LAST ERROR SUMMARY ===");
-        return sb.ToString();
-    }
+        => BuildLauncherDiagnosticsSummary(
+            CreateLauncherSnapshot(
+                dataDir,
+                accountName,
+                hasSavedCredentials,
+                gameFilesReady,
+                sessionState,
+                failReason
+            )
+        );
 
     internal static string BuildLauncherRawErrorLog(
         string dataDir,
@@ -57,10 +84,26 @@ internal static partial class LauncherDiagnostics
         string sessionState,
         string failReason
     )
-    {
-        var sb = StartTimestampedText("=== RAW ERROR LOG ===", "UTC");
-        AppendDetailedLauncherState(
-            sb,
+        => BuildLauncherRawErrorLog(
+            CreateLauncherSnapshot(
+                dataDir,
+                accountName,
+                hasSavedCredentials,
+                gameFilesReady,
+                sessionState,
+                failReason
+            )
+        );
+
+    private static Snapshot CreateLauncherSnapshot(
+        string dataDir,
+        string accountName,
+        bool hasSavedCredentials,
+        bool gameFilesReady,
+        string sessionState,
+        string failReason
+    )
+        => new(
             dataDir,
             accountName,
             hasSavedCredentials,
@@ -68,31 +111,78 @@ internal static partial class LauncherDiagnostics
             sessionState,
             failReason
         );
-        AppendPreviousLaunchPhase(sb, "Previous launch phase");
-        AppendRawErrorDiagnostics(sb, dataDir);
-        sb.AppendLine("=== END RAW ERROR LOG ===");
+
+    private static string BuildLauncherDiagnosticsReport(Snapshot snapshot)
+        => BuildReportText(
+            "STS2 Launcher diagnostics",
+            "Generated UTC",
+            AppendFullLauncherDiagnostics,
+            snapshot
+        );
+
+    private static string BuildLauncherDiagnosticsSummary(Snapshot snapshot)
+        => BuildLauncherErrorReport(
+            snapshot,
+            "=== LAST ERROR SUMMARY ===",
+            AppendCompactLauncherState,
+            AppendSummaryErrorDiagnostics,
+            "=== END LAST ERROR SUMMARY ==="
+        );
+
+    private static string BuildLauncherRawErrorLog(Snapshot snapshot)
+        => BuildLauncherErrorReport(
+            snapshot,
+            "=== RAW ERROR LOG ===",
+            AppendDetailedLauncherState,
+            AppendRawErrorDiagnostics,
+            "=== END RAW ERROR LOG ==="
+        );
+
+    private static string BuildLauncherErrorReport(
+        Snapshot snapshot,
+        string title,
+        Action<StringBuilder, Snapshot> appendState,
+        Action<StringBuilder, string> appendDiagnostics,
+        string endMarker
+    )
+        => BuildReportText(
+            title,
+            "UTC",
+            (sb, current) => AppendLauncherErrorReport(
+                sb,
+                current,
+                appendState,
+                appendDiagnostics,
+                endMarker
+            ),
+            snapshot
+        );
+
+    private static string BuildReportText<TContext>(
+        string title,
+        string generatedAtLabel,
+        Action<StringBuilder, TContext> appendBody,
+        TContext context
+    )
+    {
+        var sb = StartTimestampedText(title, generatedAtLabel);
+        appendBody(sb, context);
         return sb.ToString();
     }
 
-    private static StringBuilder StartTimestampedText(
-        string title,
-        string generatedAtLabel
-    )
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine(title);
-        sb.AppendLine($"{generatedAtLabel}: {DateTime.UtcNow:O}");
-        return sb;
-    }
-
-    internal static string WriteLauncherDiagnosticsReport(string dataDir, string report)
-        => WriteTimestampedReport("sts2-launcher-diagnostics", dataDir, report);
+    private static string WriteLauncherDiagnosticsReport(Snapshot snapshot)
+        => WriteTimestampedReport(
+            "sts2-launcher-diagnostics",
+            snapshot.DataDir,
+            BuildLauncherDiagnosticsReport(snapshot)
+        );
 
     internal static string WriteStartupRecoveryDiagnosticsReport(string dataDir)
-        => WriteStartupRecoveryDiagnosticsReport(dataDir, BuildStartupRecoveryReport(dataDir));
-
-    private static string WriteStartupRecoveryDiagnosticsReport(string dataDir, string report)
-        => WriteTimestampedReport("sts2-startup-recovery-diagnostics", dataDir, report);
+        => WriteTimestampedReport(
+            "sts2-startup-recovery-diagnostics",
+            dataDir,
+            BuildStartupRecoveryReport(dataDir)
+        );
 
     private static string WriteTimestampedReport(
         string fileNamePrefix,
@@ -113,37 +203,58 @@ internal static partial class LauncherDiagnostics
     }
 
     internal static string BuildStartupRecoveryReport(string dataDir)
-    {
-        var sb = StartTimestampedText("STS2 startup recovery diagnostics", "Generated UTC");
-        AppendStartupRecoveryDiagnostics(sb, dataDir);
-        return sb.ToString();
-    }
+        => BuildReportText(
+            "STS2 startup recovery diagnostics",
+            "Generated UTC",
+            AppendStartupRecoveryDiagnostics,
+            dataDir
+        );
 
-    private static void AppendCompactLauncherState(
-        StringBuilder sb,
-        bool gameFilesReady,
-        string sessionState
+    private static StringBuilder StartTimestampedText(
+        string title,
+        string generatedAtLabel
     )
     {
-        sb.AppendLine($"Game files ready: {gameFilesReady}");
-        sb.AppendLine($"Session state: {ValueOrMissing(sessionState)}");
+        var sb = new StringBuilder();
+        sb.AppendLine(title);
+        sb.AppendLine($"{generatedAtLabel}: {DateTime.UtcNow:O}");
+        return sb;
     }
 
-    private static void AppendDetailedLauncherState(
+    private static void AppendFullLauncherDiagnostics(StringBuilder sb, Snapshot snapshot)
+    {
+        AppendDetailedLauncherState(sb, snapshot);
+        AppendLauncherPreferences(sb);
+        AppendFullReportDiagnostics(sb, snapshot.DataDir);
+    }
+
+    private static void AppendLauncherErrorReport(
         StringBuilder sb,
-        string dataDir,
-        string accountName,
-        bool hasSavedCredentials,
-        bool gameFilesReady,
-        string sessionState,
-        string failReason
+        Snapshot snapshot,
+        Action<StringBuilder, Snapshot> appendState,
+        Action<StringBuilder, string> appendDiagnostics,
+        string endMarker
     )
     {
-        sb.AppendLine($"Data dir: {ValueOrMissing(dataDir)}");
-        sb.AppendLine($"Account: {ValueOrMissing(accountName)}");
-        sb.AppendLine($"Has saved credentials: {hasSavedCredentials}");
-        AppendCompactLauncherState(sb, gameFilesReady, sessionState);
-        sb.AppendLine($"Fail reason: {ValueOrMissing(failReason)}");
+        appendState(sb, snapshot);
+        AppendPreviousLaunchPhase(sb, "Previous launch phase");
+        appendDiagnostics(sb, snapshot.DataDir);
+        sb.AppendLine(endMarker);
+    }
+
+    private static void AppendCompactLauncherState(StringBuilder sb, Snapshot snapshot)
+    {
+        sb.AppendLine($"Game files ready: {snapshot.GameFilesReady}");
+        sb.AppendLine($"Session state: {ValueOrMissing(snapshot.SessionState)}");
+    }
+
+    private static void AppendDetailedLauncherState(StringBuilder sb, Snapshot snapshot)
+    {
+        sb.AppendLine($"Data dir: {ValueOrMissing(snapshot.DataDir)}");
+        sb.AppendLine($"Account: {ValueOrMissing(snapshot.AccountName)}");
+        sb.AppendLine($"Has saved credentials: {snapshot.HasSavedCredentials}");
+        AppendCompactLauncherState(sb, snapshot);
+        sb.AppendLine($"Fail reason: {ValueOrMissing(snapshot.FailReason)}");
     }
 
     private static void AppendLauncherPreferences(StringBuilder sb)
@@ -177,7 +288,7 @@ internal static partial class LauncherDiagnostics
         );
     }
 
-    private static IEnumerable<FileReference> StartupRecoveryFiles(string dataDir)
+    private static IEnumerable<(string Label, string Path)> StartupRecoveryFiles(string dataDir)
     {
         yield return StartupMarker(dataDir);
         yield return StartupSceneSnapshot(dataDir);

@@ -7,8 +7,8 @@ internal sealed partial class DepotDownloader
 {
     private void ResetDepotProgress(IReadOnlyCollection<DepotManifest.FileData> filesToDownload)
     {
-        _progress.TotalBytes = ComputeTotalDownloadBytes(filesToDownload);
-        _progress.DownloadedBytes = 0;
+        _totalDownloadBytes = ComputeTotalDownloadBytes(filesToDownload);
+        _downloadedBytes = 0;
         ForceReportProgress();
     }
 }

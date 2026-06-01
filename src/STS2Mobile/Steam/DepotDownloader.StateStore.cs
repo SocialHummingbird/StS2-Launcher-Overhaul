@@ -11,13 +11,13 @@ internal sealed partial class DepotDownloader
         private readonly DepotDownloader _owner;
         private readonly string _stateDir;
 
-        internal DownloadStateStore(DepotDownloader owner, string stateDir)
+        public DownloadStateStore(DepotDownloader owner, string stateDir)
         {
             _owner = owner;
             _stateDir = stateDir;
         }
 
-        internal ulong LoadManifestId(uint depotId)
+        public ulong LoadManifestId(uint depotId)
         {
             var path = Path.Combine(_stateDir, $"{depotId}.id");
             if (!File.Exists(path))
@@ -40,7 +40,7 @@ internal sealed partial class DepotDownloader
             }
         }
 
-        internal DepotManifest? LoadManifest(uint depotId)
+        public DepotManifest? LoadManifest(uint depotId)
         {
             var path = Path.Combine(_stateDir, $"{depotId}.manifest");
             if (!File.Exists(path))
@@ -59,7 +59,7 @@ internal sealed partial class DepotDownloader
             }
         }
 
-        internal void SaveManifest(uint depotId, DepotManifest manifest, ulong manifestId)
+        public void SaveManifest(uint depotId, DepotManifest manifest, ulong manifestId)
         {
             var manifestPath = Path.Combine(_stateDir, $"{depotId}.manifest");
             var manifestTempPath = manifestPath + ".tmp";
@@ -78,7 +78,7 @@ internal sealed partial class DepotDownloader
             DeleteQuietly(idPath + ".bad");
         }
 
-        internal void Prepare()
+        public void Prepare()
         {
             Directory.CreateDirectory(_stateDir);
             CleanupTempFiles();

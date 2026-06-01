@@ -15,11 +15,12 @@ internal static partial class CloudSyncCoordinator
 
             try
             {
-                if (!TryWriteBackup(canonPath, content, source, "progress.save", out var savedPath))
+                var backupPath = TryWriteBackup(canonPath, content, source, "progress.save");
+                if (backupPath == null)
                     return;
 
-                var backupDir = Path.GetDirectoryName(savedPath) ?? AppPaths.ExternalSaveBackupsDir;
-                PatchHelper.Log(SaveBackedUpTo(source, path, savedPath));
+                var backupDir = Path.GetDirectoryName(backupPath) ?? AppPaths.ExternalSaveBackupsDir;
+                PatchHelper.Log(SaveBackedUpTo(source, path, backupPath));
                 PruneProgressBackups(backupDir);
             }
             catch (Exception ex)

@@ -34,7 +34,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("DuplicateRequest"))
         {
-            PatchHelper.Log(StoreMessage.UploadSkippedAlreadyUpToDate(path));
+            PatchHelper.Log(UploadSkippedAlreadyUpToDate(path));
             return null;
         }
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
@@ -8,9 +9,12 @@ internal sealed partial class DepotDownloader
     private sealed class ExpiringCache<TKey, TValue>
         where TKey : notnull
     {
-        private readonly ConcurrentDictionary<TKey, Entry> _entries = new();
+        private readonly ConcurrentDictionary<
+            TKey,
+            (TValue Value, DateTime Expiry)
+        > _entries = new();
 
-        internal bool TryGetFresh(TKey key, out TValue value)
+        private bool TryGetFresh(TKey key, out TValue value)
         {
             if (_entries.TryGetValue(key, out var entry))
             {
@@ -27,22 +31,26 @@ internal sealed partial class DepotDownloader
             return false;
         }
 
-        internal void SetFor(TKey key, TValue value, TimeSpan ttl)
-            => _entries[key] = new Entry(value, DateTime.UtcNow.Add(ttl));
+        private void SetFor(TKey key, TValue value, TimeSpan ttl)
+            => _entries[key] = (value, DateTime.UtcNow.Add(ttl));
 
-        internal void Invalidate(TKey key)
-            => _entries.TryRemove(key, out _);
-
-        private readonly struct Entry
+        public async Task<TValue> GetOrAddAsync(
+            TKey key,
+            TimeSpan ttl,
+            Func<Task<TValue>> fetch,
+            Func<TValue, bool>? shouldCache = null
+        )
         {
-            internal Entry(TValue value, DateTime expiry)
-            {
-                Value = value;
-                Expiry = expiry;
-            }
+            if (TryGetFresh(key, out var cached))
+                return cached;
 
-            internal TValue Value { get; }
-            internal DateTime Expiry { get; }
+            var value = await fetch();
+            if (shouldCache?.Invoke(value) != false)
+                SetFor(key, value, ttl);
+            return value;
         }
+
+        public void Invalidate(TKey key)
+            => _entries.TryRemove(key, out _);
     }
 }

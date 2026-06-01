@@ -15,16 +15,16 @@ internal sealed partial class DepotDownloader
     )
     {
         Log($"Downloading manifest for depot {depotId}...");
-        for (int attempt = 0; attempt < MaxRetries; attempt++)
+        for (int attemptIndex = 0; attemptIndex < MaxRetries; attemptIndex++)
         {
-            var server = GetCurrentServer();
+            var attempt = (Server: GetCurrentServer(), Index: attemptIndex);
             try
             {
                 return await _cdnClient.DownloadManifestAsync(
                     depotId,
                     manifestId,
                     manifestRequestCode,
-                    server,
+                    attempt.Server,
                     depotKey
                 );
             }
@@ -35,15 +35,14 @@ internal sealed partial class DepotDownloader
                     manifestId,
                     manifestRequestCode,
                     depotKey,
-                    server,
                     attempt
                 );
                 if (manifest != null)
                     return manifest;
             }
-            catch (Exception ex) when (attempt < MaxRetries - 1)
+            catch (Exception ex) when (HasRetryRemaining(attempt))
             {
-                HandleDownloadRetryFailure(server, "Manifest download", attempt, ex);
+                HandleDownloadRetryFailure(attempt, "Manifest download", ex);
             }
         }
 

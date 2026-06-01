@@ -15,34 +15,25 @@ internal static partial class CloudSyncCoordinator
             DiscoveredActsProperty,
         };
 
-        private static Result CompareProgress(string local, string cloud)
+        private static (bool CloudWins, bool LocalWins) CompareProgress(string local, string cloud)
         {
             using var localDoc = JsonDocument.Parse(local);
             using var cloudDoc = JsonDocument.Parse(cloud);
             var localRoot = localDoc.RootElement;
             var cloudRoot = cloudDoc.RootElement;
 
-            int localFloors = GetInt(localRoot, FloorsClimbedProperty);
-            int cloudFloors = GetInt(cloudRoot, FloorsClimbedProperty);
-            if (TryCompareNumeric(localFloors, cloudFloors, out var result))
-                return result;
-
-            int localGames = SumCharacterGames(localRoot);
-            int cloudGames = SumCharacterGames(cloudRoot);
-            if (TryCompareNumeric(localGames, cloudGames, out result))
-                return result;
-
-            int localDiscovered = CountDiscovered(localRoot);
-            int cloudDiscovered = CountDiscovered(cloudRoot);
-            if (TryCompareNumeric(localDiscovered, cloudDiscovered, out result))
-                return result;
-
-            int localPlaytime = GetInt(localRoot, TotalPlaytimeProperty);
-            int cloudPlaytime = GetInt(cloudRoot, TotalPlaytimeProperty);
-            if (TryCompareNumeric(localPlaytime, cloudPlaytime, out result))
-                return result;
-
-            return Result.Equal;
+            return FirstNumericWinner(
+                (
+                    GetInt(localRoot, FloorsClimbedProperty),
+                    GetInt(cloudRoot, FloorsClimbedProperty)
+                ),
+                (SumCharacterGames(localRoot), SumCharacterGames(cloudRoot)),
+                (CountDiscovered(localRoot), CountDiscovered(cloudRoot)),
+                (
+                    GetInt(localRoot, TotalPlaytimeProperty),
+                    GetInt(cloudRoot, TotalPlaytimeProperty)
+                )
+            );
         }
 
         private static int SumCharacterGames(JsonElement root)

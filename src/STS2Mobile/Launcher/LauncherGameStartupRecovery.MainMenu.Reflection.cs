@@ -2,6 +2,7 @@ using Godot;
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
+using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
 
@@ -21,9 +22,21 @@ internal static partial class LauncherGameStartupRecovery
         return task;
     }
 
-    private static bool CurrentSceneLooksLikeMainMenu(object game, out string sceneName)
+    private static Task StartLoadMainMenu(object game)
     {
-        sceneName = null;
+        try
+        {
+            return LoadMainMenuAsync(game);
+        }
+        catch (Exception ex) when (ex is MissingMethodException or InvalidOperationException)
+        {
+            PatchHelper.Log($"Cannot force main menu: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static (bool IsMainMenu, string? SceneName) InspectCurrentScene(object game)
+    {
         try
         {
             var rootSceneContainer = game.GetType()
@@ -33,15 +46,16 @@ internal static partial class LauncherGameStartupRecovery
                 .GetProperty("CurrentScene", BindingFlags.Public | BindingFlags.Instance)
                 ?.GetValue(rootSceneContainer);
             if (currentScene == null)
-                return false;
+                return (IsMainMenu: false, SceneName: null);
 
-            sceneName = $"{currentScene.GetType().FullName} name={((Node)currentScene).Name}";
-            return currentScene.GetType().FullName?.Contains("NMainMenu", StringComparison.Ordinal) == true;
+            var sceneName = $"{currentScene.GetType().FullName} name={((Node)currentScene).Name}";
+            return currentScene.GetType().FullName?.Contains("NMainMenu", StringComparison.Ordinal) == true
+                ? (IsMainMenu: true, SceneName: sceneName)
+                : (IsMainMenu: false, SceneName: sceneName);
         }
         catch (Exception ex)
         {
-            sceneName = $"<inspect failed: {ex.Message}>";
-            return false;
+            return (IsMainMenu: false, SceneName: $"<inspect failed: {ex.Message}>");
         }
     }
 }

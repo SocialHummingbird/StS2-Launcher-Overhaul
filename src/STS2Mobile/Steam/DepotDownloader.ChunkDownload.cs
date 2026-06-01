@@ -14,7 +14,13 @@ internal sealed partial class DepotDownloader
         DepotManifest.FileData file,
         uint depotId,
         byte[] depotKey,
-        DepotFileTarget target,
+        (
+            string FileName,
+            string FilePath,
+            string? FileDir,
+            string TempPath,
+            string LockKey
+        ) target,
         CancellationToken ct
     )
     {
@@ -54,7 +60,7 @@ internal sealed partial class DepotDownloader
             fs.Seek((long)chunk.Offset, SeekOrigin.Begin);
             fs.Write(buffer, 0, written);
 
-            Interlocked.Add(ref _progress.DownloadedBytes, written);
+            Interlocked.Add(ref _downloadedBytes, written);
             ReportProgress();
         }
         finally

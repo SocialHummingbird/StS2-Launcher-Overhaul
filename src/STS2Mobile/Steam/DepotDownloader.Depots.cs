@@ -6,11 +6,11 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private async Task<List<DepotReference>> ParseDepotsAsync(
+    private async Task<List<(uint DepotId, ulong ManifestId)>> ParseDepotsAsync(
         KeyValue depotSection
     )
     {
-        var result = new List<DepotReference>();
+        var result = new List<(uint DepotId, ulong ManifestId)>();
 
         foreach (var depot in depotSection.Children)
         {
@@ -25,7 +25,7 @@ internal sealed partial class DepotDownloader
                 continue;
 
             Log($"Found depot {depotId} manifest {manifestId.Value}");
-            result.Add(DepotReference.Create(depotId, manifestId.Value));
+            result.Add((DepotId: depotId, ManifestId: manifestId.Value));
         }
 
         return result;
@@ -51,17 +51,16 @@ internal sealed partial class DepotDownloader
         if (manifests == KeyValue.Invalid)
             return null;
 
-        return TryGetPublicManifestId(manifests, out var manifestId)
-            ? manifestId
-            : null;
+        return GetPublicManifestId(manifests);
     }
 
-    private static bool TryGetPublicManifestId(KeyValue manifests, out ulong manifestId)
+    private static ulong? GetPublicManifestId(KeyValue manifests)
     {
-        manifestId = 0;
         var gidNode = manifests[PublicDepotBranch]["gid"];
         return gidNode != KeyValue.Invalid
             && gidNode.Value != null
-            && ulong.TryParse(gidNode.Value, out manifestId);
+            && ulong.TryParse(gidNode.Value, out var manifestId)
+            ? manifestId
+            : null;
     }
 }

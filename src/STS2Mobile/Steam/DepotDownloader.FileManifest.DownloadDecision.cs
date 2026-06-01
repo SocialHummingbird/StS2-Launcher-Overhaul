@@ -6,34 +6,12 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private readonly struct ManifestFileDownloadDecision
+    private enum ManifestFileDownloadDecision
     {
-        internal ManifestFileDownloadDecision(
-            bool shouldDownload,
-            bool verifiedExisting,
-            bool corruptExisting
-        )
-        {
-            ShouldDownload = shouldDownload;
-            VerifiedExisting = verifiedExisting;
-            CorruptExisting = corruptExisting;
-        }
-
-        internal bool ShouldDownload { get; }
-        internal bool VerifiedExisting { get; }
-        internal bool CorruptExisting { get; }
-
-        internal static ManifestFileDownloadDecision Skip =>
-            new(shouldDownload: false, verifiedExisting: false, corruptExisting: false);
-
-        internal static ManifestFileDownloadDecision Download =>
-            new(shouldDownload: true, verifiedExisting: false, corruptExisting: false);
-
-        internal static ManifestFileDownloadDecision Verified =>
-            new(shouldDownload: false, verifiedExisting: true, corruptExisting: false);
-
-        internal static ManifestFileDownloadDecision Corrupt =>
-            new(shouldDownload: true, verifiedExisting: false, corruptExisting: true);
+        Skipped,
+        Download,
+        Verified,
+        Corrupt,
     }
 
     private ManifestFileDownloadDecision GetManifestFileDownloadDecision(
@@ -42,8 +20,9 @@ internal sealed partial class DepotDownloader
         bool isUpdate
     )
     {
-        if (!TryGetDownloadFileName(file, out var fileName))
-            return ManifestFileDownloadDecision.Skip;
+        var fileName = GetDownloadFileName(file);
+        if (fileName == null)
+            return ManifestFileDownloadDecision.Skipped;
 
         if (ManifestEntryChanged(file, oldFiles, fileName, isUpdate))
             return ManifestFileDownloadDecision.Download;
@@ -63,12 +42,13 @@ internal sealed partial class DepotDownloader
         return ManifestFileDownloadDecision.Download;
     }
 
-    private bool TryGetDownloadFileName(DepotManifest.FileData file, out string fileName)
+    private string? GetDownloadFileName(DepotManifest.FileData file)
     {
-        if (!TryGetManifestFileName(file, out fileName))
-            return false;
+        var fileName = GetManifestFileName(file);
+        if (fileName == null)
+            return null;
 
-        return !file.Flags.HasFlag(EDepotFileFlag.Directory);
+        return file.Flags.HasFlag(EDepotFileFlag.Directory) ? null : fileName;
     }
 
     private static bool ManifestEntryChanged(

@@ -9,6 +9,7 @@ internal static partial class CloudSyncCoordinator
 {
     private const int ManualSyncPerPathTimeoutMs = 45_000;
     private const int ManualSyncOverallTimeoutMs = 180_000;
+    private const string ManualPullDownloadOperation = "ManualPull download";
 
     private readonly struct ManualSyncContext
     {
@@ -16,7 +17,7 @@ internal static partial class CloudSyncCoordinator
         private readonly ICloudSaveStore _cloud;
         private readonly DateTime _deadline;
 
-        internal ManualSyncContext(
+        public ManualSyncContext(
             ISaveStore local,
             ICloudSaveStore cloud,
             DateTime deadline
@@ -27,37 +28,24 @@ internal static partial class CloudSyncCoordinator
             _deadline = deadline;
         }
 
-        internal IReadOnlyCollection<string> DiscoverLocalPaths()
+        public IReadOnlyCollection<string> DiscoverLocalPaths()
             => SavePathDiscovery.Get(_local);
 
-        internal IReadOnlyCollection<string> DiscoverCloudPaths()
+        public IReadOnlyCollection<string> DiscoverCloudPaths()
             => SavePathDiscovery.Get(_cloud);
 
-        internal void BeginCloudBatch()
-        {
-            _cloud.BeginSaveBatch();
-        }
-
-        internal void EndCloudBatch()
-        {
-            _cloud.EndSaveBatch();
-        }
-
-        internal bool LocalFileExists(string path)
-            => _local.FileExists(path);
-
-        internal bool CloudFileExists(string path)
+        public bool CloudFileExists(string path)
             => _cloud.FileExists(path);
 
-        internal string ReadLocalFile(string path)
-            => _local.ReadFile(path);
+        public string? ReadLocalFile(string path)
+            => _local.FileExists(path) ? _local.ReadFile(path) : null;
 
-        internal void WriteCloudFile(string path, string content)
+        public void WriteCloudFile(string path, string content)
         {
             _cloud.WriteFile(path, content);
         }
 
-        internal Task<string> ReadCloudContentAsync(string path, string operation)
+        public Task<string> ReadCloudContentAsync(string path, string operation)
             => CloudSyncCoordinator.ReadCloudContentAsync(
                 _cloud,
                 path,
@@ -65,7 +53,7 @@ internal static partial class CloudSyncCoordinator
                 ManualSyncPerPathTimeoutMs
             );
 
-        internal Task WriteCloudContentAsync(string path, string content)
+        public Task WriteCloudContentAsync(string path, string content)
             => CloudSyncCoordinator.WriteCloudContentAsync(
                 _local,
                 _cloud,
@@ -74,7 +62,7 @@ internal static partial class CloudSyncCoordinator
                 ManualSyncPerPathTimeoutMs
             );
 
-        internal bool BudgetExceeded(string message)
+        public bool BudgetExceeded(string message)
         {
             if (DateTime.UtcNow <= _deadline)
                 return false;
@@ -82,18 +70,19 @@ internal static partial class CloudSyncCoordinator
             PatchHelper.Log(message);
             return true;
         }
-    }
 
-    private readonly struct ManualPullCounts
-    {
-        internal ManualPullCounts(int downloaded, int skipped)
+        public int RunCloudBatch(Func<int> run)
         {
-            Downloaded = downloaded;
-            Skipped = skipped;
+            _cloud.BeginSaveBatch();
+            try
+            {
+                return run();
+            }
+            finally
+            {
+                _cloud.EndSaveBatch();
+            }
         }
-
-        internal int Downloaded { get; }
-        internal int Skipped { get; }
     }
 
     private static ManualSyncContext CreateManualSyncContext(
@@ -112,43 +101,46 @@ internal static partial class CloudSyncCoordinator
     internal static async Task ManualPushAllAsync(string accountName, string refreshToken)
     {
         var sync = CreateManualSyncContext(accountName, refreshToken);
-        var paths = await PrepareManualPushAsync(sync);
+        var paths = await PrepareManualSyncAsync(
+            sync.DiscoverLocalPaths(),
+            PushStarting,
+            SaveBackups.CloudBeforeManualPushAsync,
+            PushBackedUpCloudFiles,
+            sync
+        );
 
-        var count = ManualPushBatch.Run(sync, paths);
+        var count = RunManualPushUploads(sync, paths);
         PatchHelper.Log(PushComplete(count));
     }
 
     internal static async Task ManualPullAllAsync(string accountName, string refreshToken)
     {
         var sync = CreateManualSyncContext(accountName, refreshToken);
-        var paths = PrepareManualPull(sync);
+        var paths = await PrepareManualSyncAsync(
+            sync.DiscoverCloudPaths(),
+            PullStarting,
+            SaveBackups.LocalBeforeManualPullAsync,
+            PullBackedUpLocalFiles,
+            sync
+        );
 
-        var counts = await ManualPullBatch.RunAsync(sync, paths);
+        var counts = await RunManualPullDownloadsAsync(sync, paths);
         PatchHelper.Log(PullComplete(counts.Downloaded, counts.Skipped));
     }
 
-    private static async Task<IReadOnlyCollection<string>> PrepareManualPushAsync(
+    private static async Task<IReadOnlyCollection<string>> PrepareManualSyncAsync(
+        IReadOnlyCollection<string> paths,
+        Func<int, string> startingMessage,
+        Func<ManualSyncContext, IReadOnlyCollection<string>, Task<int>> backupAsync,
+        Func<int, string> backedUpMessage,
         ManualSyncContext sync
     )
     {
-        var paths = sync.DiscoverLocalPaths();
-        PatchHelper.Log(PushStarting(paths.Count));
+        PatchHelper.Log(startingMessage(paths.Count));
 
-        var backedUp = await SaveBackups.CloudBeforeManualPushAsync(sync, paths);
+        var backedUp = await backupAsync(sync, paths);
         if (backedUp > 0)
-            PatchHelper.Log(PushBackedUpCloudFiles(backedUp));
-
-        return paths;
-    }
-
-    private static IReadOnlyCollection<string> PrepareManualPull(ManualSyncContext sync)
-    {
-        var paths = sync.DiscoverCloudPaths();
-        PatchHelper.Log(PullStarting(paths.Count));
-
-        var backedUp = SaveBackups.LocalBeforeManualPull(sync, paths);
-        if (backedUp > 0)
-            PatchHelper.Log(PullBackedUpLocalFiles(backedUp));
+            PatchHelper.Log(backedUpMessage(backedUp));
 
         return paths;
     }

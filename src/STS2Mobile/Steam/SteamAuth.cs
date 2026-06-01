@@ -2,35 +2,21 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
+using SteamKit2.Authentication;
 
 namespace STS2Mobile.Steam;
 
 // Handles one-time interactive Steam login (password + 2FA). Creates a temporary
 // SteamClient for the auth flow, returns credentials, then disposes. Does NOT
 // call SteamUser.LogOn - callers use the returned refresh token with SteamConnection.
-internal sealed partial class SteamAuth : IDisposable
+internal sealed partial class SteamAuth : IDisposable, IAuthenticator
 {
-    internal readonly struct AuthResult
-    {
-        internal AuthResult(string accountName, string refreshToken, string guardData)
-        {
-            AccountName = accountName;
-            RefreshToken = refreshToken;
-            GuardData = guardData;
-        }
-
-        internal string AccountName { get; }
-        internal string RefreshToken { get; }
-        internal string GuardData { get; }
-    }
-
     private readonly SteamClient _client;
     private readonly CallbackManager _callbackManager;
     private readonly SteamUser _steamUser;
     private readonly SteamCallbackPump _callbackPump;
     private volatile bool _connectStarted;
-    private volatile bool _mobileConfirmationRequested;
-    private volatile bool _forceSteamGuardCodeEntry;
+    private volatile bool _credentialAuthStarted;
     private volatile bool _needsReconnectForAuth;
     private readonly Func<bool, Task<string>> _codeProvider;
 

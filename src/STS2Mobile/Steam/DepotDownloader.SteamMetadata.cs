@@ -13,7 +13,7 @@ internal sealed partial class DepotDownloader
         SteamApps.PICSProductInfoCallback.PICSProductInfo
     > _appInfoCache = new();
 
-    private async Task<List<DepotReference>> GetMainAppDepotsAsync()
+    private async Task<List<(uint DepotId, ulong ManifestId)>> GetMainAppDepotsAsync()
     {
         var appInfo = await GetRequiredAppInfoAsync(SteamCloudApp.AppId);
         var depotSection = GetDepotsSection(appInfo, SteamCloudApp.AppId);
@@ -24,7 +24,7 @@ internal sealed partial class DepotDownloader
         uint appId
     )
     {
-        if (TryGetCachedAppInfo(appId, out var cached))
+        if (_appInfoCache.TryGetValue(appId, out var cached))
             return cached;
 
         var appInfo = await FetchAppInfoAsync(appId);
@@ -33,12 +33,6 @@ internal sealed partial class DepotDownloader
 
         return appInfo;
     }
-
-    private bool TryGetCachedAppInfo(
-        uint appId,
-        out SteamApps.PICSProductInfoCallback.PICSProductInfo appInfo
-    )
-        => _appInfoCache.TryGetValue(appId, out appInfo);
 
     private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> FetchAppInfoAsync(
         uint appId

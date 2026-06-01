@@ -1,79 +1,46 @@
-﻿namespace STS2Mobile.Launcher;
+using System;
+using System.Threading.Tasks;
+using MegaCrit.Sts2.Core.Saves;
+using STS2Mobile.Steam;
+
+namespace STS2Mobile.Launcher;
 
 internal static class LauncherCloudSaveState
 {
-    private readonly struct Credentials
-    {
-        internal Credentials(string accountName, string refreshToken)
-        {
-            AccountName = accountName;
-            RefreshToken = refreshToken;
-        }
-
-        internal string AccountName { get; }
-        internal string RefreshToken { get; }
-
-        internal bool IsAvailable => AccountName != null && RefreshToken != null;
-    }
-
     private static bool _cloudSyncEnabled = true;
-    private static Credentials _savedCredentials;
+    private static (string AccountName, string RefreshToken) _savedCredentials;
 
     internal static string StatusSummary
-        => $"HasToken={_savedCredentials.IsAvailable}, CloudSync={_cloudSyncEnabled}";
+        => $"HasToken={HasSavedCredentials}, CloudSync={_cloudSyncEnabled}";
 
-    private static bool TryGetSavedCredentials(out Credentials credentials)
-    {
-        credentials = _savedCredentials;
-        return credentials.IsAvailable;
-    }
+    private static bool HasSavedCredentials
+        => _savedCredentials.AccountName != null && _savedCredentials.RefreshToken != null;
 
-    private static bool TryGetEnabledCredentials(
-        out Credentials credentials,
-        out string unavailableReason
-    )
-    {
-        if (!_cloudSyncEnabled)
-        {
-            credentials = default;
-            unavailableReason = "[Cloud] Cloud sync disabled by user - using local-only SaveManager";
-            return false;
-        }
-
-        if (!TryGetSavedCredentials(out credentials))
-        {
-            unavailableReason = "[Cloud] No saved credentials - using local-only SaveManager";
-            return false;
-        }
-
-        unavailableReason = null;
-        return true;
-    }
+    private static (string AccountName, string RefreshToken)? GetSavedCredentials()
+        => HasSavedCredentials ? _savedCredentials : null;
 
     internal static bool TryCreateEnabledSaveManager(
-        out MegaCrit.Sts2.Core.Saves.SaveManager saveManager
+        out SaveManager saveManager
     )
     {
         saveManager = null;
 
-        if (!TryGetEnabledCredentials(out var credentials, out var unavailableReason))
-        {
-            PatchHelper.Log(unavailableReason);
+        var credentials = GetCloudSyncCredentials();
+        if (!credentials.HasValue)
             return false;
-        }
 
         try
         {
-            saveManager = new MegaCrit.Sts2.Core.Saves.SaveManager(
-                STS2Mobile.Steam.CloudSaveStoreFactory.CreateCloudSaveStore(
-                    credentials.AccountName,
-                    credentials.RefreshToken
+            saveManager = new SaveManager(
+                CloudSaveStoreFactory.CreateCloudSaveStore(
+                    credentials.Value.AccountName,
+                    credentials.Value.RefreshToken
                 )
             );
             PatchHelper.Log("[Cloud] Created SaveManager with SteamKit2 cloud store");
             return true;
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             PatchHelper.Log(
                 $"[Cloud] Cloud store injection failed, falling back to local: {ex.Message}"
@@ -82,23 +49,29 @@ internal static class LauncherCloudSaveState
         }
     }
 
-    internal static System.Threading.Tasks.Task ManualPushAllAsync()
+    private static (string AccountName, string RefreshToken)? GetCloudSyncCredentials()
     {
-        var credentials = RequireSavedCredentials();
-        return STS2Mobile.Steam.CloudSyncCoordinator.ManualPushAllAsync(
-            credentials.AccountName,
-            credentials.RefreshToken
-        );
+        if (!_cloudSyncEnabled)
+        {
+            PatchHelper.Log("[Cloud] Cloud sync disabled by user - using local-only SaveManager");
+            return null;
+        }
+
+        var credentials = GetSavedCredentials();
+        if (!credentials.HasValue)
+        {
+            PatchHelper.Log("[Cloud] No saved credentials - using local-only SaveManager");
+            return null;
+        }
+
+        return credentials;
     }
 
-    internal static System.Threading.Tasks.Task ManualPullAllAsync()
-    {
-        var credentials = RequireSavedCredentials();
-        return STS2Mobile.Steam.CloudSyncCoordinator.ManualPullAllAsync(
-            credentials.AccountName,
-            credentials.RefreshToken
-        );
-    }
+    internal static Task ManualPushAllAsync()
+        => RunManualSyncAsync(CloudSyncCoordinator.ManualPushAllAsync);
+
+    internal static Task ManualPullAllAsync()
+        => RunManualSyncAsync(CloudSyncCoordinator.ManualPullAllAsync);
 
     internal static void SetCloudSyncEnabled(bool enabled)
     {
@@ -115,18 +88,25 @@ internal static class LauncherCloudSaveState
         if (string.IsNullOrWhiteSpace(accountName))
             return;
 
-        _savedCredentials = new Credentials(accountName, refreshToken);
+        _savedCredentials = (AccountName: accountName, RefreshToken: refreshToken);
     }
 
-    private static Credentials RequireSavedCredentials()
+    private static (string AccountName, string RefreshToken) RequireSavedCredentials()
     {
-        if (!TryGetSavedCredentials(out var credentials))
-            throw new System.InvalidOperationException("No saved Steam credentials");
+        var credentials = GetSavedCredentials();
+        if (!credentials.HasValue)
+            throw new InvalidOperationException("No saved Steam credentials");
 
-        return credentials;
+        return credentials.Value;
     }
 
-    internal static void SaveCredentials(STS2Mobile.Steam.SteamCredentialStore credentialStore)
+    private static Task RunManualSyncAsync(Func<string, string, Task> sync)
+    {
+        var credentials = RequireSavedCredentials();
+        return sync(credentials.AccountName, credentials.RefreshToken);
+    }
+
+    internal static void SaveCredentials(SteamCredentialStore credentialStore)
     {
         if (!credentialStore.HasCredentials)
             return;
@@ -134,4 +114,3 @@ internal static class LauncherCloudSaveState
         SaveCredentials(credentialStore.AccountName, credentialStore.RefreshToken);
     }
 }
-

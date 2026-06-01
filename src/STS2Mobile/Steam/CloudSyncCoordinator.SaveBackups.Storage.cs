@@ -11,7 +11,7 @@ internal static partial class CloudSyncCoordinator
         {
             try
             {
-                if (!TryWriteBackup(path, content, source, null, out _))
+                if (TryWriteBackup(path, content, source, null) == null)
                     return false;
 
                 PatchHelper.Log(SaveBackedUp(source, path));
@@ -24,27 +24,25 @@ internal static partial class CloudSyncCoordinator
             }
         }
 
-        private static bool TryWriteBackup(
+        private static string TryWriteBackup(
             string path,
             string content,
             string source,
-            string? fileNameOverride,
-            out string backupPath
+            string? fileNameOverride
         )
         {
-            backupPath = string.Empty;
             if (ShouldSkipBackup(content))
-                return false;
+                return null;
 
             var canonPath = NormalizeSavePath(path);
-            backupPath = BuildBackupPath(
+            var backupPath = BuildBackupPath(
                 GetProfileDir(canonPath),
                 fileNameOverride ?? Path.GetFileName(canonPath),
                 source
             );
 
             File.WriteAllText(backupPath, content);
-            return true;
+            return backupPath;
         }
 
         private static bool HasBackupAccess()

@@ -6,11 +6,17 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherStartupFlow
 {
+    private const string PhaseGameStartup = "game startup";
+    private const string PhaseLaunchRequested = "launch requested";
+    private const string PhaseLauncherClosed = "launcher closed";
+    private const string PhaseManualSafeLaunch = "manual safe launch";
+    private const string PhaseSettingsAndSaves = "settings and saves";
+    private const string PhaseShaderWarmup = "shader warmup";
     private const int StartupWatchdogMs = 60_000;
 
     private readonly struct StartupContext
     {
-        internal StartupContext(
+        public StartupContext(
             object game,
             Node gameNode,
             Label status,
@@ -23,16 +29,48 @@ internal static partial class LauncherStartupFlow
             Mode = mode;
         }
 
-        internal object Game { get; }
-        internal Node GameNode { get; }
-        internal Label Status { get; }
-        internal StartupMode Mode { get; }
+        public object Game { get; }
+        public Node GameNode { get; }
+        public Label Status { get; }
+        public StartupMode Mode { get; }
+
+        public void SetPhase(string phase, string status)
+        {
+            LauncherLaunchMarkers.WriteStartupPhase(phase);
+            LauncherStartupStatus.Set(Status, status);
+        }
+
+        public void SetStatus(string status)
+        {
+            LauncherStartupStatus.Set(Status, status);
+        }
     }
 
     internal static async Task RunAsync(object game)
     {
         var gameNode = (Node)game;
 
+        var launcher = await ShowLauncherAndWaitForLaunchAsync(gameNode);
+        var startup = CreateStartupContext(game, gameNode);
+        ApplyStartupSaveMode(startup);
+
+        startup.SetPhase(PhaseLaunchRequested, "Starting game...");
+        PatchHelper.Log("User launched game, proceeding to startup...");
+
+        ResetSaveManagerInstance();
+
+        launcher.QueueFree();
+        startup.SetPhase(PhaseLauncherClosed, "Launcher closed. Preparing game startup...");
+
+        await RunShaderWarmupIfNeededAsync(startup);
+        if (!InitializeSettingsAndSaves(startup))
+            return;
+
+        await RunGameStartupAsync(startup);
+    }
+
+    private static async Task<LauncherUI> ShowLauncherAndWaitForLaunchAsync(Node gameNode)
+    {
         var launcher = new LauncherUI();
         launcher.SetGameMode(true);
         launcher.Initialize();
@@ -40,23 +78,13 @@ internal static partial class LauncherStartupFlow
         PatchHelper.Log("Launcher UI displayed");
         await launcher.WaitForLaunch();
 
+        return launcher;
+    }
+
+    private static StartupContext CreateStartupContext(object game, Node gameNode)
+    {
         var startupStatus = LauncherStartupStatus.CreateLabel(gameNode);
         var startupMode = StartupMode.CreateFromMarkers();
-        var startup = new StartupContext(game, gameNode, startupStatus, startupMode);
-        ApplyStartupSaveMode(startup);
-
-        SetStartupPhase(startup, "launch requested", "Starting game...");
-        PatchHelper.Log("User launched game, proceeding to startup...");
-
-        ResetSaveManagerInstance();
-
-        launcher.QueueFree();
-        SetStartupPhase(startup, "launcher closed", "Launcher closed. Preparing game startup...");
-
-        await RunShaderWarmupIfNeededAsync(startup);
-        if (!InitializeSettingsAndSaves(startup))
-            return;
-
-        await RunGameStartupAsync(startup);
+        return new StartupContext(game, gameNode, startupStatus, startupMode);
     }
 }

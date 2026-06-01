@@ -9,6 +9,9 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SavePathDiscovery
     {
+        private const string CurrentRunSaveFile = "current_run.save";
+        private const string CurrentMultiplayerRunSaveFile = "current_run_mp.save";
+
         private static void CollectProfilePaths(
             List<string> paths,
             ISaveStore store
@@ -17,23 +20,43 @@ internal static partial class CloudSyncCoordinator
             var wasModded = UserDataPathProvider.IsRunningModded;
             try
             {
-                foreach (bool modded in new[] { false, true })
-                {
-                    UserDataPathProvider.IsRunningModded = modded;
-                    for (int i = 1; i <= 3; i++)
-                    {
-                        paths.Add(ProgressSaveManager.GetProgressPathForProfile(i));
-                        paths.Add(RunSaveManager.GetRunSavePath(i, "current_run.save"));
-                        paths.Add(RunSaveManager.GetRunSavePath(i, "current_run_mp.save"));
-                        paths.Add(PrefsSaveManager.GetPrefsPath(i));
-                        AddHistoryFiles(paths, store, i);
-                    }
-                }
+                foreach (bool modded in ManagedSaveModes())
+                    CollectProfilePathsForMode(paths, store, modded);
             }
             finally
             {
                 UserDataPathProvider.IsRunningModded = wasModded;
             }
+        }
+
+        private static IEnumerable<bool> ManagedSaveModes()
+        {
+            yield return false;
+            yield return true;
+        }
+
+        private static void CollectProfilePathsForMode(
+            List<string> paths,
+            ISaveStore store,
+            bool modded
+        )
+        {
+            UserDataPathProvider.IsRunningModded = modded;
+            foreach (var profileId in ProfileIds())
+                AddManagedProfilePaths(paths, store, profileId);
+        }
+
+        private static void AddManagedProfilePaths(
+            List<string> paths,
+            ISaveStore store,
+            int profileId
+        )
+        {
+            paths.Add(ProgressSaveManager.GetProgressPathForProfile(profileId));
+            paths.Add(RunSaveManager.GetRunSavePath(profileId, CurrentRunSaveFile));
+            paths.Add(RunSaveManager.GetRunSavePath(profileId, CurrentMultiplayerRunSaveFile));
+            paths.Add(PrefsSaveManager.GetPrefsPath(profileId));
+            AddHistoryFiles(paths, store, profileId);
         }
 
         private static void AddHistoryFiles(

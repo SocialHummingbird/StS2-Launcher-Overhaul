@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace STS2Mobile.Launcher;
 
@@ -18,6 +19,7 @@ internal partial class LauncherModel
 
     internal bool ConnectionResolved => _connectionResolved;
     internal bool AwaitingCode => _steamSession.AwaitingCode;
+    internal int SessionAttemptId => Volatile.Read(ref _sessionAttemptId);
     internal string AccountName => _credentialStore.AccountName;
     internal string FailReason => _failReason;
     internal SessionState CurrentSessionState => _sessionState;
@@ -32,6 +34,16 @@ internal partial class LauncherModel
     }
 
     private bool IsLoggedIn => _sessionState == SessionState.LoggedIn;
+
+    private int BeginSessionAttempt(SessionState state)
+    {
+        var attemptId = Interlocked.Increment(ref _sessionAttemptId);
+        SetSessionState(state);
+        return attemptId;
+    }
+
+    private bool IsCurrentSessionAttempt(int attemptId)
+        => SessionAttemptId == attemptId;
 
     private void SetSessionState(SessionState state, string failReason = null)
     {

@@ -6,26 +6,31 @@ internal sealed partial class DepotDownloader
 {
     private async Task<ulong> GetProductInfoAccessTokenAsync(uint appId)
     {
-        string deniedMessage;
-        string publicTokenMessage;
-        if (appId == SteamCloudApp.AppId)
-        {
-            deniedMessage =
-                $"Steam denied app access token for {SteamCloudApp.Name} ({SteamCloudApp.AppId}); ownership/session may be invalid";
-            publicTokenMessage =
-                $"Steam returned no app access token for {SteamCloudApp.Name} ({SteamCloudApp.AppId}); continuing with public token 0";
-        }
-        else
-        {
-            deniedMessage = $"Steam denied app access token for referenced app {appId}";
-            publicTokenMessage =
-                $"Steam returned no app access token for referenced app {appId}; continuing with public token 0";
-        }
-
-        var token = await _connection.GetAppAccessTokenOrPublicAsync(appId, deniedMessage);
+        var token = await _connection.GetAppAccessTokenOrPublicAsync(
+            appId,
+            ProductInfoAccessTokenDenied(appId)
+        );
         if (token == 0)
-            Log(publicTokenMessage);
+            Log(ProductInfoPublicAccessTokenFallback(appId));
 
         return token;
     }
+
+    private static string ProductInfoAccessTokenDenied(uint appId)
+        => $"Steam denied app access token for {ProductInfoAppName(appId)}"
+            + ProductInfoOwnershipHint(appId);
+
+    private static string ProductInfoPublicAccessTokenFallback(uint appId)
+        => $"Steam returned no app access token for {ProductInfoAppName(appId)}; "
+            + "continuing with public token 0";
+
+    private static string ProductInfoAppName(uint appId)
+        => appId == SteamCloudApp.AppId
+            ? $"{SteamCloudApp.Name} ({SteamCloudApp.AppId})"
+            : $"referenced app {appId}";
+
+    private static string ProductInfoOwnershipHint(uint appId)
+        => appId == SteamCloudApp.AppId
+            ? "; ownership/session may be invalid"
+            : "";
 }

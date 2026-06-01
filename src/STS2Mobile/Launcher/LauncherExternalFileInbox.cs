@@ -7,59 +7,51 @@ namespace STS2Mobile.Launcher;
 
 internal static class LauncherExternalFileInbox
 {
-    internal static bool TryConsumeLines(
+    internal static string[]? ConsumeLines(
+        string fileName,
+        string failureMessage
+    )
+        => ConsumeFile(fileName, failureMessage, File.ReadAllLines);
+
+    internal static string? ConsumeText(
+        string fileName,
+        string failureMessage
+    )
+        => ConsumeFile(fileName, failureMessage, File.ReadAllText);
+
+    private static T? ConsumeFile<T>(
         string fileName,
         string failureMessage,
-        out string[] lines
+        Func<string, T> read
     )
+        where T : class
     {
-        lines = null;
-        if (!TryGetExistingInboxPath(fileName, out var path))
-            return false;
+        var path = GetExistingInboxPath(fileName);
+        if (path == null)
+            return null;
 
         try
         {
-            lines = File.ReadAllLines(path);
+            var content = read(path);
             File.Delete(path);
-            return true;
+            return content;
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"{failureMessage}: {ex.Message}");
-            return false;
+            return null;
         }
     }
 
-    internal static bool TryConsumeText(
-        string fileName,
-        string failureMessage,
-        out string text
-    )
+    private static string? GetExistingInboxPath(string fileName)
     {
-        text = null;
-        if (!TryGetExistingInboxPath(fileName, out var path))
-            return false;
-
-        try
-        {
-            text = File.ReadAllText(path);
-            File.Delete(path);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"{failureMessage}: {ex.Message}");
-            return false;
-        }
+        var path = GetPath(fileName);
+        return !string.IsNullOrWhiteSpace(path) && File.Exists(path)
+            ? path
+            : null;
     }
 
-    private static bool TryGetExistingInboxPath(string fileName, out string path)
-    {
-        path = GetPath(fileName);
-        return !string.IsNullOrWhiteSpace(path) && File.Exists(path);
-    }
-
-    private static string GetPath(string fileName)
+    private static string? GetPath(string fileName)
     {
         try
         {

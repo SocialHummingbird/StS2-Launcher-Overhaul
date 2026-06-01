@@ -36,17 +36,20 @@ internal sealed partial class LauncherController
     {
         while (!_model.ConnectionResolved)
         {
-            var credentials = LocalSteamCredentialInbox.TryConsume();
-            if (credentials != null)
+            var localLogin = ConsumeLocalSteamCredentials();
+            if (localLogin.HasValue)
             {
                 PatchHelper.Log("[Launcher] Consumed local Steam credential file");
                 _runOnMainThread(() => ShowSessionState(LauncherModel.SessionState.Authenticating));
 
-                await _model.LoginAsync(credentials.Value.Username, credentials.Value.Password);
+                await LoginWithLocalCredentialsAsync(localLogin.Value);
                 return;
             }
 
             await Task.Delay(LocalLoginPollDelayMs);
         }
     }
+
+    private Task LoginWithLocalCredentialsAsync((string Username, string Password) credentials)
+        => _model.LoginAsync(credentials.Username, credentials.Password);
 }

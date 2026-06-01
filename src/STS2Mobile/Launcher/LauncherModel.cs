@@ -19,6 +19,7 @@ internal partial class LauncherModel : IDisposable
     private readonly string _dataDir;
     private readonly SteamCredentialStore _credentialStore;
     private readonly LauncherSteamSession _steamSession;
+    private int _sessionAttemptId;
     private string _failReason;
     private SessionState _sessionState = SessionState.Disconnected;
 

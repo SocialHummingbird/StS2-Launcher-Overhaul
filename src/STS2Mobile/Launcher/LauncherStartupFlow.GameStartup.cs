@@ -12,7 +12,7 @@ internal static partial class LauncherStartupFlow
     {
         try
         {
-            SetStartupPhase(startup, "game startup", "Starting game scene...");
+            startup.SetPhase(PhaseGameStartup, "Starting game scene...");
             PatchHelper.Log("Invoking NGame.GameStartup");
 
             var recoveryControls = LauncherStartupRecoveryControlPanel.Show(startup.GameNode);

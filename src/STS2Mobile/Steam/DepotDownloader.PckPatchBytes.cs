@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -5,20 +6,12 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private enum PckPatchOperation
-    {
-        ProjectGodot,
-        ExtensionList,
-        ProjectBinary,
-        GameScene,
-    }
-
     private static bool ApplyPckEntryPatch(
         FileStream fs,
         long offset,
         long size,
         string label,
-        PckPatchOperation operation
+        Func<byte[], bool> applyPatch
     )
     {
         const long maxPatchablePckEntryBytes = 8L * 1024L * 1024L;
@@ -36,7 +29,7 @@ internal sealed partial class DepotDownloader
         var content = new byte[(int)size];
         fs.ReadExactly(content, 0, (int)size);
 
-        if (!ApplyPckPatchOperation(content, operation))
+        if (!applyPatch(content))
         {
             fs.Position = savedPos;
             return false;
@@ -47,20 +40,6 @@ internal sealed partial class DepotDownloader
         fs.Position = savedPos;
         return true;
     }
-
-    private static bool ApplyPckPatchOperation(byte[] content, PckPatchOperation operation)
-        => operation switch
-        {
-            PckPatchOperation.ProjectGodot =>
-                ApplyProjectSettingComments(content, ProjectGodotSettingsToComment),
-            PckPatchOperation.ExtensionList =>
-                ApplyEntryOverwrites(content, ExtensionListEntriesToOverwrite),
-            PckPatchOperation.ProjectBinary =>
-                ApplyReplacementPatches(content, ProjectBinaryReplacements),
-            PckPatchOperation.GameScene =>
-                ApplyProjectSettingComments(content, GameSceneSettingsToComment),
-            _ => false,
-        };
 
     private static bool ApplyProjectSettingComments(byte[] content, IEnumerable<string> settings)
     {

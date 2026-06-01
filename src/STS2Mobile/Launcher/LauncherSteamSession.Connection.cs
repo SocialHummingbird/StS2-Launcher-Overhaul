@@ -17,7 +17,7 @@ internal sealed partial class LauncherSteamSession
         catch (Exception ex)
         {
             PatchHelper.Log($"[Launcher] Connection failed: {ex.Message}");
-            return "Could not connect to Steam. Check your internet connection.";
+            return $"Could not connect to Steam: {ex.Message}";
         }
     }
 

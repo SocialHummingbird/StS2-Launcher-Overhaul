@@ -51,10 +51,8 @@ internal sealed partial class AndroidJavaHttpMessageHandler
         string requestDescription
     )
     {
-        if (
-            TryGetSafeBodyFilePath(bodyFile, out var safeBodyFile)
-            && File.Exists(safeBodyFile)
-        )
+        var safeBodyFile = GetSafeBodyFilePath(bodyFile);
+        if (safeBodyFile != null && File.Exists(safeBodyFile))
         {
             return safeBodyFile;
         }

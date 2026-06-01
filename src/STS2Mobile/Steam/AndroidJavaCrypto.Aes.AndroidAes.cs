@@ -7,7 +7,7 @@ internal static partial class AndroidJavaCrypto
 {
     private sealed class AndroidAes : Aes
     {
-        internal AndroidAes()
+        public AndroidAes()
         {
             LegalBlockSizesValue = new[] { new KeySizes(128, 128, 0) };
             LegalKeySizesValue = new[] { new KeySizes(128, 256, 64) };

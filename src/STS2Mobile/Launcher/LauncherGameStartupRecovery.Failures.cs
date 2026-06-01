@@ -39,7 +39,7 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            "main menu guard failed",
+            MainMenuGuardFailureReason,
             "Main menu did not load. Use recovery controls below."
         );
         return false;

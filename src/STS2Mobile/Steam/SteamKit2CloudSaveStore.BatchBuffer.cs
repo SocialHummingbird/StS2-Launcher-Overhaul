@@ -4,46 +4,43 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
-    private sealed class SaveBatchBuffer
+    private readonly object _saveBatchLock = new();
+    private readonly List<(string CanonPath, byte[] Bytes)> _saveBatchFiles = new();
+    private bool _saveBatchCollecting;
+
+    private void BeginCollectingSaveBatch()
     {
-        private readonly object _lock = new();
-        private readonly List<(string canonPath, byte[] bytes)> _files = new();
-        private bool _isCollecting;
-
-        internal void BeginCollecting()
+        lock (_saveBatchLock)
         {
-            lock (_lock)
-            {
-                _isCollecting = true;
-                _files.Clear();
-            }
+            _saveBatchCollecting = true;
+            _saveBatchFiles.Clear();
         }
+    }
 
-        internal bool TryCollect(string canonPath, byte[] bytes)
+    private bool TryCollectSaveBatch(string canonPath, byte[] bytes)
+    {
+        lock (_saveBatchLock)
         {
-            lock (_lock)
-            {
-                if (!_isCollecting)
-                    return false;
+            if (!_saveBatchCollecting)
+                return false;
 
-                _files.Add((canonPath, bytes));
-                return true;
-            }
+            _saveBatchFiles.Add((CanonPath: canonPath, Bytes: bytes));
+            return true;
         }
+    }
 
-        internal List<(string canonPath, byte[] bytes)> EndCollecting()
+    private List<(string CanonPath, byte[] Bytes)> EndCollectingSaveBatch()
+    {
+        lock (_saveBatchLock)
         {
-            lock (_lock)
-            {
-                _isCollecting = false;
+            _saveBatchCollecting = false;
 
-                if (_files.Count == 0)
-                    return new List<(string canonPath, byte[] bytes)>();
+            if (_saveBatchFiles.Count == 0)
+                return new List<(string CanonPath, byte[] Bytes)>();
 
-                var files = new List<(string canonPath, byte[] bytes)>(_files);
-                _files.Clear();
-                return files;
-            }
+            var files = new List<(string CanonPath, byte[] Bytes)>(_saveBatchFiles);
+            _saveBatchFiles.Clear();
+            return files;
         }
     }
 }

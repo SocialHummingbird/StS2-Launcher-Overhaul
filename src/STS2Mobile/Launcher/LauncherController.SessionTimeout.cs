@@ -13,14 +13,14 @@ internal sealed partial class LauncherController
         "No connection - saved credentials will be used";
     private const int SteamConnectionTimeoutMs = 10_000;
 
-    private void StartConnectionTimeout()
-        => _ = RunConnectionTimeoutAsync();
+    private void StartConnectionTimeout(int sessionAttemptId)
+        => _ = RunConnectionTimeoutAsync(sessionAttemptId);
 
-    private async Task RunConnectionTimeoutAsync()
+    private async Task RunConnectionTimeoutAsync(int sessionAttemptId)
     {
         await Task.Delay(SteamConnectionTimeoutMs);
 
-        if (ShouldIgnoreConnectionTimeout())
+        if (ShouldIgnoreConnectionTimeout(sessionAttemptId))
             return;
 
         if (CanUseOfflineLaunch())
@@ -32,8 +32,11 @@ internal sealed partial class LauncherController
         _runOnMainThread(ShowFirstLaunchFailure);
     }
 
-    private bool ShouldIgnoreConnectionTimeout()
+    private bool ShouldIgnoreConnectionTimeout(int sessionAttemptId)
     {
+        if (_model.SessionAttemptId != sessionAttemptId || _model.AwaitingCode)
+            return true;
+
         if (_model.ConnectionResolved)
             return true;
 

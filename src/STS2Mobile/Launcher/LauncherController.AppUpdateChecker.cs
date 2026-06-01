@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -18,19 +19,7 @@ internal sealed partial class LauncherController
     private const string ReleaseTagNameProperty = "tag_name";
     private static readonly TimeSpan LauncherUpdateTimeout = TimeSpan.FromSeconds(15);
 
-    private readonly struct GitHubRelease
-    {
-        internal GitHubRelease(string name, string tag)
-        {
-            Name = name;
-            Tag = tag;
-        }
-
-        internal string Name { get; }
-        internal string Tag { get; }
-    }
-
-    private static async Task<string> CheckLatestLauncherVersionAsync()
+    private static async Task<string?> CheckLatestLauncherVersionAsync()
     {
         var currentVersion = GetInstalledLauncherVersion();
         if (currentVersion == null)
@@ -38,12 +27,12 @@ internal sealed partial class LauncherController
 
         using var http = OperatingSystem.IsAndroid()
             ? AndroidJavaHttpMessageHandler.CreateClient(HttpClientPurpose.CDN)
-            : new System.Net.Http.HttpClient { Timeout = LauncherUpdateTimeout };
+            : new HttpClient { Timeout = LauncherUpdateTimeout };
         http.Timeout = LauncherUpdateTimeout;
         http.DefaultRequestHeaders.Add("User-Agent", LauncherUpdateUserAgent);
 
         var response = await http.GetStringAsync(LatestLauncherReleaseApiUrl).ConfigureAwait(false);
-        var release = ParseGitHubRelease(response);
+        var release = ParseReleaseMetadata(response);
         if (release.Name == null)
             return null;
 
@@ -59,7 +48,7 @@ internal sealed partial class LauncherController
         return latestVersion;
     }
 
-    private static string GetInstalledLauncherVersion()
+    private static string? GetInstalledLauncherVersion()
     {
         try
         {
@@ -74,7 +63,7 @@ internal sealed partial class LauncherController
         }
     }
 
-    private static GitHubRelease ParseGitHubRelease(string json)
+    private static (string? Name, string? Tag) ParseReleaseMetadata(string json)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
@@ -86,10 +75,10 @@ internal sealed partial class LauncherController
             ? tagProp.GetString()
             : null;
 
-        return new GitHubRelease(releaseName, releaseTag);
+        return (Name: releaseName, Tag: releaseTag);
     }
 
-    private static string NormalizeVersion(string version)
+    private static string? NormalizeVersion(string version)
     {
         if (string.IsNullOrEmpty(version))
             return null;

@@ -7,42 +7,39 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
-    private static class LocalSteamCredentialInbox
+    private const string LocalSteamCredentialFileName = "steam_login_credentials.txt";
+
+    private static (string Username, string Password)? ConsumeLocalSteamCredentials()
     {
-        private const string FileName = "steam_login_credentials.txt";
+        var lines = LauncherExternalFileInbox.ConsumeLines(
+            LocalSteamCredentialFileName,
+            "[Launcher] Ignored local Steam credential file"
+        );
+        if (lines == null)
+            return null;
 
-        internal static (string Username, string Password)? TryConsume()
+        try
         {
-            if (!LauncherExternalFileInbox.TryConsumeLines(
-                    FileName,
-                    "[Launcher] Ignored local Steam credential file",
-                    out var lines
-                ))
-                return null;
-
-            try
-            {
-                return Decode(lines);
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Launcher] Ignored local Steam credential file: {ex.Message}");
-                return null;
-            }
+            return DecodeLocalSteamCredentials(lines);
         }
-
-        private static (string Username, string Password) Decode(string[] lines)
+        catch (Exception ex)
         {
-            if (lines.Length < 2)
-                throw new InvalidDataException("expected two base64 lines");
-
-            var username = Encoding.UTF8.GetString(Convert.FromBase64String(lines[0].Trim())).Trim();
-            var password = Encoding.UTF8.GetString(Convert.FromBase64String(lines[1].Trim()));
-
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
-                throw new InvalidDataException("username or password was empty");
-
-            return (username, password);
+            PatchHelper.Log($"[Launcher] Ignored local Steam credential file: {ex.Message}");
+            return null;
         }
+    }
+
+    private static (string Username, string Password) DecodeLocalSteamCredentials(string[] lines)
+    {
+        if (lines.Length < 2)
+            throw new InvalidDataException("expected two base64 lines");
+
+        var username = Encoding.UTF8.GetString(Convert.FromBase64String(lines[0].Trim())).Trim();
+        var password = Encoding.UTF8.GetString(Convert.FromBase64String(lines[1].Trim()));
+
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
+            throw new InvalidDataException("username or password was empty");
+
+        return (Username: username, Password: password);
     }
 }

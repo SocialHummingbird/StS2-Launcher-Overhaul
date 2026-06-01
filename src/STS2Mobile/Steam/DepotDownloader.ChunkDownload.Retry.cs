@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Threading.Tasks;
 using SteamKit2;
+using SteamKit2.CDN;
 
 namespace STS2Mobile.Steam;
 
@@ -15,15 +16,15 @@ internal sealed partial class DepotDownloader
         string fileName
     )
     {
-        for (int attempt = 0; attempt < MaxRetries; attempt++)
+        for (int attemptIndex = 0; attemptIndex < MaxRetries; attemptIndex++)
         {
-            var server = GetCurrentServer();
+            var attempt = (Server: GetCurrentServer(), Index: attemptIndex);
             try
             {
                 var written = await _cdnClient.DownloadDepotChunkAsync(
                     depotId,
                     chunk,
-                    server,
+                    attempt.Server,
                     buffer,
                     depotKey
                 );
@@ -39,15 +40,14 @@ internal sealed partial class DepotDownloader
                     buffer,
                     depotKey,
                     fileName,
-                    server,
                     attempt
                 );
                 if (written.HasValue)
                     return written.Value;
             }
-            catch (Exception ex) when (attempt < MaxRetries - 1)
+            catch (Exception ex) when (HasRetryRemaining(attempt))
             {
-                HandleDownloadRetryFailure(server, "Chunk download", attempt, ex);
+                HandleDownloadRetryFailure(attempt, "Chunk download", ex);
             }
         }
 
@@ -59,13 +59,13 @@ internal sealed partial class DepotDownloader
         DepotManifest.ChunkData chunk,
         byte[] buffer,
         int written,
-        int attempt
+        (Server Server, int Index) attempt
     )
     {
         if (VerifyChunkHash(buffer, written, chunk))
             return true;
 
-        if (attempt < MaxRetries - 1)
+        if (HasRetryRemaining(attempt))
         {
             Log($"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying...");
             return false;

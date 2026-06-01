@@ -9,31 +9,39 @@ internal sealed partial class LauncherController
     private bool _automaticDiagnosticsWritten;
 
     private void ShowLastErrorPressed()
-    {
-        try
-        {
-            var summary = _model.BuildDiagnosticsSummaryForDisplay();
-            _view.SetStatus("Last error summary printed in console.");
-            _view.AppendLog(summary);
-        }
-        catch (Exception ex)
-        {
-            ShowDiagnosticsActionFailure("Error summary failed", ex);
-        }
-    }
+        => RunDiagnosticsAction(
+            "Error summary failed",
+            () =>
+            {
+                var summary = _model.BuildDiagnosticsSummaryForDisplay();
+                _view.SetStatus("Last error summary printed in console.");
+                _view.AppendLog(summary);
+            }
+        );
 
     private void CopyRawLogPressed()
+        => RunDiagnosticsAction(
+            "Raw error log copy failed",
+            () =>
+            {
+                var rawLog = _model.BuildRawErrorLogForClipboard();
+                DisplayServer.ClipboardSet(rawLog);
+                _view.SetStatus("Raw error log copied.");
+                _view.AppendLog(
+                    $"Raw error log copied to clipboard ({rawLog.Length:N0} chars)."
+                );
+            }
+        );
+
+    private void RunDiagnosticsAction(string failureContext, Action action)
     {
         try
         {
-            var rawLog = _model.BuildRawErrorLogForClipboard();
-            DisplayServer.ClipboardSet(rawLog);
-            _view.SetStatus("Raw error log copied.");
-            _view.AppendLog($"Raw error log copied to clipboard ({rawLog.Length:N0} chars).");
+            action();
         }
         catch (Exception ex)
         {
-            ShowDiagnosticsActionFailure("Raw error log copy failed", ex);
+            ShowDiagnosticsActionFailure(failureContext, ex);
         }
     }
 

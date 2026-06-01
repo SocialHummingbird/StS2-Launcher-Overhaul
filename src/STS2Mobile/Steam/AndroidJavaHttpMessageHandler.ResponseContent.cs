@@ -14,13 +14,27 @@ internal sealed partial class AndroidJavaHttpMessageHandler
         CancellationToken cancellationToken
     )
     {
-        if (root.TryGetProperty(BodyFileProperty, out var bodyFileElement))
-            return CreateResponseContentFromBodyFile(bodyFileElement, status, requestDescription, cancellationToken);
+        var bodyFileElement = GetBodyFileElement(root);
+        if (bodyFileElement.HasValue)
+            return CreateResponseContentFromBodyFile(
+                bodyFileElement.Value,
+                status,
+                requestDescription,
+                cancellationToken
+            );
 
         return CreateResponseContentFromBase64Body(root, requestDescription);
     }
 
-    private static HttpContent CreateResponseContentFromBase64Body(JsonElement root, string requestDescription)
+    private static JsonElement? GetBodyFileElement(JsonElement root)
+        => root.TryGetProperty(BodyFileProperty, out var bodyFileElement)
+            ? bodyFileElement
+            : null;
+
+    private static HttpContent CreateResponseContentFromBase64Body(
+        JsonElement root,
+        string requestDescription
+    )
     {
         try
         {
@@ -52,8 +66,9 @@ internal sealed partial class AndroidJavaHttpMessageHandler
         try
         {
             using var doc = JsonDocument.Parse(raw);
-            if (doc.RootElement.TryGetProperty(BodyFileProperty, out var bodyFileElement))
-                DeleteBodyFileIfSafe(bodyFileElement.GetString());
+            var bodyFileElement = GetBodyFileElement(doc.RootElement);
+            if (bodyFileElement.HasValue)
+                DeleteBodyFileIfSafe(bodyFileElement.Value.GetString());
         }
         catch
         {

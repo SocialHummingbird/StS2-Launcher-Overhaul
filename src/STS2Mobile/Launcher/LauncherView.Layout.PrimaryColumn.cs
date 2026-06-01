@@ -51,8 +51,14 @@ internal sealed partial class LauncherView
         var actions = new ActionSection(scale);
         left.AddChild(actions);
 
-        left.AddChild(new FmodAttributionSection(scale));
+        left.AddChild(BuildFmodAttributionSection(scale));
 
-        return (statusLabel, login, code, download, actions);
+        return (
+            StatusLabel: statusLabel,
+            Login: login,
+            Code: code,
+            Download: download,
+            Actions: actions
+        );
     }
 }

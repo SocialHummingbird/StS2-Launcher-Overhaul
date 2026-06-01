@@ -1,29 +1,22 @@
+using System;
+
 namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
     internal string WriteDiagnosticsReport()
-    {
-        var report = LauncherDiagnostics.BuildLauncherDiagnosticsReport(
-            _dataDir,
-            _credentialStore.AccountName,
-            _credentialStore.HasCredentials,
-            LauncherGameFiles.Ready(_dataDir),
-            _sessionState.ToString(),
-            _failReason
-        );
-        return LauncherDiagnostics.WriteLauncherDiagnosticsReport(_dataDir, report);
-    }
+        => BuildDiagnosticsOutput(LauncherDiagnostics.WriteLauncherDiagnosticsReport);
 
     internal string BuildDiagnosticsSummaryForDisplay()
-        => LauncherDiagnostics.BuildLauncherDiagnosticsSummary(
-            _dataDir,
-            LauncherGameFiles.Ready(_dataDir),
-            _sessionState.ToString()
-        );
+        => BuildDiagnosticsOutput(LauncherDiagnostics.BuildLauncherDiagnosticsSummary);
 
     internal string BuildRawErrorLogForClipboard()
-        => LauncherDiagnostics.BuildLauncherRawErrorLog(
+        => BuildDiagnosticsOutput(LauncherDiagnostics.BuildLauncherRawErrorLog);
+
+    private string BuildDiagnosticsOutput(
+        Func<string, string, bool, bool, string, string, string> build
+    )
+        => build(
             _dataDir,
             _credentialStore.AccountName,
             _credentialStore.HasCredentials,

@@ -8,59 +8,52 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherSteamSession
 {
-    private sealed class OwnershipMarkerStore
+    private const string OwnershipMarkerFileName = "ownership_verified.enc";
+
+    private string OwnershipMarkerPath
+        => Path.Combine(_dataDir, OwnershipMarkerFileName);
+
+    private bool HasOwnershipMarkerForCurrentAccount()
     {
-        private readonly string _accountName;
-        private readonly string _markerPath;
-
-        internal OwnershipMarkerStore(string dataDir, string accountName)
+        try
         {
-            _markerPath = Path.Combine(dataDir, "ownership_verified.enc");
-            _accountName = accountName;
-        }
-
-        internal bool HasMarker()
-        {
-            try
-            {
-                if (!File.Exists(_markerPath))
-                    return false;
-
-                var marker = AndroidEncryptedJsonFile.Load<OwnershipMarker>(_markerPath);
-                return marker != null && marker.Account == _accountName;
-            }
-            catch
-            {
+            if (_credentialStore.AccountName == null || !File.Exists(OwnershipMarkerPath))
                 return false;
-            }
-        }
 
-        internal void Save()
+            var marker = AndroidEncryptedJsonFile.Load<OwnershipMarker>(OwnershipMarkerPath);
+            return marker != null && marker.Account == _credentialStore.AccountName;
+        }
+        catch
         {
-            try
-            {
-                AndroidEncryptedJsonFile.Save(
-                    _markerPath,
-                    new OwnershipMarker
-                    {
-                        Account = _accountName,
-                        VerifiedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                    }
-                );
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Ownership] Failed to save marker: {ex.Message}");
-            }
+            return false;
         }
+    }
 
-        private sealed class OwnershipMarker
+    private void SaveOwnershipMarker(string accountName)
+    {
+        try
         {
-            [JsonInclude]
-            public string Account { get; internal set; }
-
-            [JsonInclude]
-            public long VerifiedAt { get; internal set; }
+            AndroidEncryptedJsonFile.Save(
+                OwnershipMarkerPath,
+                new OwnershipMarker
+                {
+                    Account = accountName,
+                    VerifiedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                }
+            );
         }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Ownership] Failed to save marker: {ex.Message}");
+        }
+    }
+
+    private sealed class OwnershipMarker
+    {
+        [JsonInclude]
+        public string Account { get; set; }
+
+        [JsonInclude]
+        public long VerifiedAt { get; set; }
     }
 }

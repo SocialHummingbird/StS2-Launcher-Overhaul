@@ -27,11 +27,11 @@ internal sealed partial class SteamKit2CloudSaveStore
                 .ConfigureAwait(false);
 
             if (uploadSucceeded && !commitResult.file_committed)
-                PatchHelper.Log(StoreMessage.CommitReturnedFalse(path));
+                PatchHelper.Log(CommitReturnedFalse(path));
         }
         catch (Exception ex)
         {
-            PatchHelper.Log(StoreMessage.CommitFailed(path, ex));
+            PatchHelper.Log(CommitFailed(path, ex));
         }
     }
 }

@@ -33,7 +33,7 @@ internal sealed partial class LauncherController
     private async Task RunAutoConnectAsync()
     {
         var connectTask = _model.ConnectAsync();
-        StartConnectionTimeout();
+        StartConnectionTimeout(_model.SessionAttemptId);
 
         try
         {

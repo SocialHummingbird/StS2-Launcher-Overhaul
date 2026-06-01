@@ -36,7 +36,7 @@ internal sealed partial class LauncherSteamSession
             if (uiCodeTask.IsCompleted)
                 return await uiCodeTask;
 
-            var localCode = SteamGuardCodeInbox.TryConsume();
+            var localCode = TryConsumeSteamGuardCode();
             if (!string.IsNullOrWhiteSpace(localCode))
                 return localCode;
 

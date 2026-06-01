@@ -31,7 +31,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
             if (parent.HasNode(NodeName))
                 return parent.GetNode<CanvasLayer>(NodeName);
 
-            var panel = new LauncherStartupRecoveryControlPanel(NodeName);
+            var panel = new LauncherStartupRecoveryControlPanel();
             parent.AddChild(panel.Layer);
             return panel.Layer;
         }

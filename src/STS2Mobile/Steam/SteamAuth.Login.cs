@@ -1,12 +1,20 @@
 using System;
+using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
-using SteamKit2;
+using SteamKit2.Authentication;
 
 namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamAuth
 {
-    internal async Task<AuthResult> LoginWithCredentialsAsync(
+    private const int CredentialAuthRetryCount = 3;
+
+    internal async Task<(
+        string AccountName,
+        string RefreshToken,
+        string GuardData
+    )> LoginWithCredentialsAsync(
         string username,
         string password,
         string guardData
@@ -14,58 +22,66 @@ internal sealed partial class SteamAuth
     {
         await EnsureConnectedForLoginAsync();
 
-        Log($"Authenticating as '{username}'...");
-
-        _forceSteamGuardCodeEntry = false;
-        bool retriedAfterMobileConfirmationFailure = false;
-
-        while (true)
+        _credentialAuthStarted = true;
+        try
         {
-            _mobileConfirmationRequested = false;
+            Log($"Authenticating as '{username}'...");
 
-            var authSession = await BeginCredentialAuthSessionAsync(
-                username,
-                password,
-                guardData
-            );
-
-            try
+            for (int attempt = 1; attempt <= CredentialAuthRetryCount; attempt++)
             {
-                var pollResponse = await authSession.PollingWaitForResultAsync();
-                string newGuardData = pollResponse.NewGuardData ?? guardData;
+                try
+                {
+                    var authSession = await BeginCredentialAuthSessionAsync(
+                        username,
+                        password,
+                        guardData
+                    );
 
-                Log($"Authentication successful for '{pollResponse.AccountName}'");
+                    var pollResponse = await authSession.PollingWaitForResultAsync();
+                    string newGuardData = pollResponse.NewGuardData ?? guardData;
 
-                return new AuthResult(
-                    pollResponse.AccountName,
-                    pollResponse.RefreshToken,
-                    newGuardData
-                );
+                    Log($"Authentication successful for '{pollResponse.AccountName}'");
+
+                    return (
+                        AccountName: pollResponse.AccountName,
+                        RefreshToken: pollResponse.RefreshToken,
+                        GuardData: newGuardData
+                    );
+                }
+                catch (Exception ex) when (CanRetryAuthAfterTransientFailure(ex, attempt))
+                {
+                    Log($"Steam authentication interrupted ({ex.Message}); retrying auth session");
+                    await ReconnectForAuthAsync();
+                }
             }
-            catch (Exception ex) when (CanFallbackToSteamGuardCode(ex, retriedAfterMobileConfirmationFailure))
-            {
-                retriedAfterMobileConfirmationFailure = true;
-                await FallbackToSteamGuardCodeAsync(MobileConfirmationFailureMessage(ex));
-            }
+
+            throw new TimeoutException("Steam authentication did not complete.");
+        }
+        finally
+        {
+            _credentialAuthStarted = false;
         }
     }
 
-    private bool CanFallbackToSteamGuardCode(Exception ex, bool alreadyRetried)
-        => _mobileConfirmationRequested
-            && !alreadyRetried
-            && ex is AsyncJobFailedException or TaskCanceledException;
+    private bool CanRetryAuthAfterTransientFailure(Exception ex, int attempt)
+        => attempt < CredentialAuthRetryCount
+            && (AuthConnectionWasLost || IsTransientAndroidAuthFailure(ex));
 
-    private static string MobileConfirmationFailureMessage(Exception ex)
-        => ex is TaskCanceledException
-            ? "Steam mobile app confirmation was canceled; falling back to Steam Guard code entry"
-            : "Steam mobile app confirmation did not complete; falling back to Steam Guard code entry";
+    private bool AuthConnectionWasLost => _needsReconnectForAuth || !_connectedGate.IsSet;
 
-    private async Task FallbackToSteamGuardCodeAsync(string message)
+    private static bool IsTransientAndroidAuthFailure(Exception ex)
     {
-        _forceSteamGuardCodeEntry = true;
-        Log(message);
+        if (!OperatingSystem.IsAndroid() || ex is AuthenticationException)
+            return false;
 
-        if (_needsReconnectForAuth || !_connectedGate.IsSet)
-            await ReconnectForAuthAsync();
+        return (ex is TimeoutException
+            or TaskCanceledException
+            or HttpRequestException
+            or IOException)
+            || IsSteamConnectionInvalidOperation(ex);
     }
+
+    private static bool IsSteamConnectionInvalidOperation(Exception ex)
+        => ex is InvalidOperationException
+            && ex.Message.IndexOf("connect", StringComparison.OrdinalIgnoreCase) >= 0;
 }

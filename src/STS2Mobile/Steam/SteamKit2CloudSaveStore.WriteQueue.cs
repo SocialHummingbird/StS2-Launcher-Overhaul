@@ -8,6 +8,7 @@ internal sealed partial class SteamKit2CloudSaveStore
 {
     private sealed class CloudWriteQueue : IDisposable
     {
+        private const int DisposeFlushTimeoutMs = 5000;
         private const int EnqueueTimeoutMs = 2500;
         private const int MaxQueuedWrites = 256;
 
@@ -21,7 +22,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         private bool _isDisposed;
         private long _pendingWrites;
 
-        internal CloudWriteQueue()
+        public CloudWriteQueue()
         {
             _thread = new Thread(ProcessLoop)
             {
@@ -31,21 +32,21 @@ internal sealed partial class SteamKit2CloudSaveStore
             _thread.Start();
         }
 
-        internal long DroppedWrites => Volatile.Read(ref _droppedWrites);
+        private long DroppedWrites => Volatile.Read(ref _droppedWrites);
 
-        internal long PendingWrites => Volatile.Read(ref _pendingWrites);
+        private long PendingWrites => Volatile.Read(ref _pendingWrites);
 
-        internal void Enqueue(Action action)
+        public void Enqueue(Action action)
         {
             if (_isDisposed)
             {
-                PatchHelper.Log(StoreMessage.WriteQueueDisposedDrop);
+                PatchHelper.Log(WriteQueueDisposedDrop);
                 return;
             }
 
             if (action == null)
             {
-                PatchHelper.Log(StoreMessage.WriteQueueNullActionDrop);
+                PatchHelper.Log(WriteQueueNullActionDrop);
                 return;
             }
 
@@ -55,27 +56,22 @@ internal sealed partial class SteamKit2CloudSaveStore
                 if (!_queue.TryAdd(action, EnqueueTimeoutMs))
                 {
                     var dropped = MarkDroppedQueuedWrite();
-                    PatchHelper.Log(StoreMessage.WriteQueueFull(MaxQueuedWrites, dropped));
+                    PatchHelper.Log(WriteQueueFull(MaxQueuedWrites, dropped));
                     return;
                 }
             }
             catch (InvalidOperationException)
             {
-                PatchHelper.Log(StoreMessage.WriteQueueClosingDrop);
+                PatchHelper.Log(WriteQueueClosingDrop);
                 MarkDroppedQueuedWrite();
             }
         }
 
-        internal bool Flush(int timeoutMs = 5000)
+        public bool Flush(int timeoutMs = 5000)
         {
             if (_isDisposed)
                 return true;
 
-            return WaitForDrain(timeoutMs);
-        }
-
-        private bool FlushDuringDispose(int timeoutMs)
-        {
             return WaitForDrain(timeoutMs);
         }
 
@@ -88,42 +84,42 @@ internal sealed partial class SteamKit2CloudSaveStore
             if (!HasPendingWrites(pending))
                 return true;
 
-            PatchHelper.Log(StoreMessage.FlushingPendingWrites(pending));
+            PatchHelper.Log(FlushingPendingWrites(pending));
 
             if (_drainSignal.Wait(timeoutMs))
             {
-                PatchHelper.Log(StoreMessage.FlushCompleted);
+                PatchHelper.Log(FlushCompleted);
                 return true;
             }
 
-            PatchHelper.Log(StoreMessage.FlushTimedOut(_queue.Count, PendingWrites));
+            PatchHelper.Log(FlushTimedOut(_queue.Count, PendingWrites));
             if (DroppedWrites > 0)
-                PatchHelper.Log(StoreMessage.FlushDroppedWriteWarning(DroppedWrites));
+                PatchHelper.Log(FlushDroppedWriteWarning(DroppedWrites));
             return false;
         }
 
         void IDisposable.Dispose()
             => Dispose();
 
-        internal void Dispose()
+        public void Dispose()
         {
             if (_isDisposed)
                 return;
 
             _isDisposed = true;
 
-            var completed = FlushDuringDispose(5000);
+            var completed = WaitForDrain(DisposeFlushTimeoutMs);
             if (!completed)
-                PatchHelper.Log(StoreMessage.FlushTimedOutDuringDispose);
+                PatchHelper.Log(FlushTimedOutDuringDispose);
 
             _queue.CompleteAdding();
             if (!_thread.Join(3000))
-                PatchHelper.Log(StoreMessage.WriteThreadStopTimedOut);
+                PatchHelper.Log(WriteThreadStopTimedOut);
             else
-                PatchHelper.Log(StoreMessage.WriteThreadStopped);
+                PatchHelper.Log(WriteThreadStopped);
 
             if (DroppedWrites > 0)
-                PatchHelper.Log(StoreMessage.TotalDroppedWrites(DroppedWrites));
+                PatchHelper.Log(TotalDroppedWrites(DroppedWrites));
 
             _queue.Dispose();
             _drainSignal.Dispose();
@@ -158,7 +154,7 @@ internal sealed partial class SteamKit2CloudSaveStore
                 }
                 catch (Exception ex)
                 {
-                    PatchHelper.Log(StoreMessage.BackgroundWriteFailed(ex));
+                    PatchHelper.Log(BackgroundWriteFailed(ex));
                 }
                 finally
                 {

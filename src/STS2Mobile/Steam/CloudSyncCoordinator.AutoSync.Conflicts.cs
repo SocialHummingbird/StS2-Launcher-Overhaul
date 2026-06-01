@@ -6,10 +6,16 @@ internal static partial class CloudSyncCoordinator
 {
     private static async Task SyncExistingFileAsync(AutoSyncContext sync)
     {
-        string localContent = sync.ReadLocalFile();
-        string cloudContent = await sync.ReadCloudContentAsync("ReadCloudFile");
+        var local = sync.ReadLocalContent();
+        if (local == null)
+        {
+            await PullFileAsync(sync);
+            return;
+        }
 
-        if (IsCorrupt(localContent))
+        string cloudContent = await sync.ReadCloudContentAsync(ReadCloudFileOperation);
+
+        if (IsCorrupt(local))
         {
             await ApplyCloudWinsAsync(
                 sync,
@@ -19,13 +25,13 @@ internal static partial class CloudSyncCoordinator
             return;
         }
 
-        if (localContent == cloudContent)
+        if (local == cloudContent)
         {
             PatchHelper.Log(SyncIdenticalSkipping(sync.Path));
             return;
         }
 
-        await ResolveContentConflictAsync(sync, localContent, cloudContent);
+        await ResolveContentConflictAsync(sync, local, cloudContent);
     }
 
     private static async Task ResolveContentConflictAsync(
@@ -34,24 +40,26 @@ internal static partial class CloudSyncCoordinator
         string cloudContent
     )
     {
-        switch (SaveComparison.GetExplicitWinner(sync.Path, localContent, cloudContent))
+        var winner = SaveComparison.GetExplicitWinner(sync.Path, localContent, cloudContent);
+        if (winner.CloudWins)
         {
-            case SaveComparison.Result.CloudWins:
-                await ApplyCloudWinsAsync(
-                    sync,
-                    cloudContent,
-                    SyncCloudWins(sync.Path)
-                );
-                return;
+            await ApplyCloudWinsAsync(
+                sync,
+                cloudContent,
+                SyncCloudWins(sync.Path)
+            );
+            return;
+        }
 
-            case SaveComparison.Result.LocalWins:
-                ApplyLocalWins(
-                    sync,
-                    localContent,
-                    cloudContent,
-                    SyncLocalWinsUploading(sync.Path)
-                );
-                return;
+        if (winner.LocalWins)
+        {
+            ApplyLocalWins(
+                sync,
+                localContent,
+                cloudContent,
+                SyncLocalWinsUploading(sync.Path)
+            );
+            return;
         }
 
         // Cloud wins on equal progress or non-progress files to preserve PC as primary.

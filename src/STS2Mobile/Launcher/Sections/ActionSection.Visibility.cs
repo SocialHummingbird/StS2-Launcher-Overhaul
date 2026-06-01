@@ -10,29 +10,44 @@ internal sealed partial class ActionSection
     }
 
     private void ShowLaunchButtons(bool showUpdate)
-    {
-        ShowUpdateButton(showUpdate);
-        _redownloadButton.Visible = true;
-        SetSupportButtonsVisible(true);
-        _safeLaunchButton.Visible = true;
-    }
+        => SetSecondaryButtonsVisible(
+            showUpdate,
+            showRedownload: true,
+            showSupport: true,
+            showSafeLaunch: true
+        );
 
     private void ShowRetryButtons()
-    {
-        ShowUpdateButton(false);
-        _redownloadButton.Visible = false;
-        SetSupportButtonsVisible(true);
-        _safeLaunchButton.Visible = false;
-        _launchButton.Visible = false;
-    }
+        => SetSecondaryButtonsVisible(
+            showUpdate: false,
+            showRedownload: false,
+            showSupport: true,
+            showSafeLaunch: false,
+            showLaunch: false
+        );
 
     private void HideSecondaryButtons()
+        => SetSecondaryButtonsVisible(
+            showUpdate: false,
+            showRedownload: false,
+            showSupport: false,
+            showSafeLaunch: false,
+            showLaunch: false
+        );
+
+    private void SetSecondaryButtonsVisible(
+        bool showUpdate,
+        bool showRedownload,
+        bool showSupport,
+        bool showSafeLaunch,
+        bool showLaunch = true
+    )
     {
-        ShowUpdateButton(false);
-        _redownloadButton.Visible = false;
-        SetSupportButtonsVisible(false);
-        _safeLaunchButton.Visible = false;
-        _launchButton.Visible = false;
+        ShowUpdateButton(showUpdate);
+        _redownloadButton.Visible = showRedownload;
+        SetSupportButtonsVisible(showSupport);
+        _safeLaunchButton.Visible = showSafeLaunch;
+        _launchButton.Visible = showLaunch;
     }
 
     private void ShowUpdateButton(bool visible)

@@ -15,16 +15,16 @@ internal sealed partial class SteamKit2CloudSaveStore
     {
         var fileHash = SHA1.HashData(bytes);
         var rawSize = (uint)bytes.Length;
-        var (uploadBytes, compressed) = CompressCloudFile(bytes);
+        var upload = CompressCloudFile(bytes);
 
-        if (compressed)
-            PatchHelper.Log(StoreMessage.Compressed(canonPath, rawSize, uploadBytes.Length));
+        if (upload.Compressed)
+            PatchHelper.Log(Compressed(canonPath, rawSize, upload.Data.Length));
         else
-            PatchHelper.Log(StoreMessage.UploadingUncompressed(canonPath, rawSize));
+            PatchHelper.Log(UploadingUncompressed(canonPath, rawSize));
 
         var beginResult = await BeginFileUploadAsync(
             canonPath,
-            uploadBytes.Length,
+            upload.Data.Length,
             rawSize,
             fileHash,
             batchId,
@@ -36,7 +36,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         bool uploadSucceeded = false;
         try
         {
-            await SendUploadBlocksAsync(beginResult, uploadBytes).ConfigureAwait(false);
+            await SendUploadBlocksAsync(beginResult, upload.Data).ConfigureAwait(false);
             uploadSucceeded = true;
         }
         finally
@@ -47,6 +47,6 @@ internal sealed partial class SteamKit2CloudSaveStore
         if (!uploadSucceeded)
             throw new InvalidOperationException($"Cloud upload failed for {canonPath}");
 
-        PatchHelper.Log(StoreMessage.Wrote(canonPath, bytes.Length, compressed));
+        PatchHelper.Log(Wrote(canonPath, bytes.Length, upload.Compressed));
     }
 }

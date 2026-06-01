@@ -45,7 +45,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         catch (Exception ex)
         {
             PatchHelper.Log(
-                StoreMessage.RenameDeleteFailed(
+                RenameDeleteFailed(
                     CloudSavePath.Canonicalize(sourcePath),
                     ex
                 )
@@ -64,7 +64,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         );
         _cache.Set(canonPath, bytes.Length, truncatedNow);
 
-        if (_saveBatch.TryCollect(canonPath, bytes))
+        if (TryCollectSaveBatch(canonPath, bytes))
             return;
 
         var ts = truncatedNow;

@@ -8,9 +8,11 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SavePathDiscovery
     {
+        private const int FirstProfileId = 1;
+        private const int LastProfileId = 3;
         private const int RunHistoryLimit = 100;
 
-        internal static List<string> Get(ISaveStore store)
+        public static List<string> Get(ISaveStore store)
         {
             var paths = new List<string>();
             CollectProfilePathsSafe(paths, store);
@@ -37,20 +39,21 @@ internal static partial class CloudSyncCoordinator
                 PatchHelper.Log(SavePathManagerFallback(ex));
                 AddFallbackProfilePaths(paths, store);
             }
-            catch (Exception ex) when (OperatingSystem.IsAndroid())
-            {
-                PatchHelper.Log(SavePathManagerFallback(ex));
-                AddFallbackProfilePaths(paths, store);
-            }
         }
 
         private static string SavePathManagerFallback(Exception ex) =>
             $"[Cloud] Save path manager failed, using Android fallback paths: {ex.Message}";
 
+        private static IEnumerable<int> ProfileIds()
+        {
+            for (var profileId = FirstProfileId; profileId <= LastProfileId; profileId++)
+                yield return profileId;
+        }
+
         private static IEnumerable<string> GetHistoryFiles(string historyDir, ISaveStore store)
         {
             if (!store.DirectoryExists(historyDir))
-                return System.Array.Empty<string>();
+                return Array.Empty<string>();
 
             return store.GetFilesInDirectory(historyDir);
         }

@@ -8,39 +8,37 @@ internal static partial class LauncherDiagnostics
 {
     private static void AppendFileSummary(
         StringBuilder sb,
-        string label,
-        string path,
+        (string Label, string Path) file,
         long inlineContentLimit
     )
     {
         try
         {
-            var read = ReadFileText(path);
-            sb.AppendLine($"{label}: {path}");
+            var read = ReadFileText(file.Path);
+            sb.AppendLine($"{file.Label}: {file.Path}");
             if (read.Text == null)
             {
-                sb.AppendLine(
-                    read.Error == null
-                        ? "  exists=False"
-                        : $"  failed={read.Error}"
-                );
+                AppendFileReadStatus(sb, read.Error);
                 return;
             }
 
-            var file = new FileInfo(path);
+            var info = new FileInfo(file.Path);
             sb.AppendLine("  exists=True");
-            sb.AppendLine($"  bytes={file.Length}");
-            sb.AppendLine($"  modifiedUtc={file.LastWriteTimeUtc:O}");
-            if (file.Length <= inlineContentLimit)
+            sb.AppendLine($"  bytes={info.Length}");
+            sb.AppendLine($"  modifiedUtc={info.LastWriteTimeUtc:O}");
+            if (info.Length <= inlineContentLimit)
                 sb.AppendLine($"  contents={SingleLine(read.Text)}");
         }
         catch (Exception ex)
         {
-            sb.AppendLine($"{label}: failed to inspect {path}: {ex.Message}");
+            sb.AppendLine($"{file.Label}: failed to inspect {file.Path}: {ex.Message}");
         }
     }
 
-    private static void AppendFileContentsSection(StringBuilder sb, FileReference file)
+    private static void AppendFileContentsSection(
+        StringBuilder sb,
+        (string Label, string Path) file
+    )
     {
         sb.AppendLine(Header(file.Label, file.Path));
 
@@ -49,11 +47,7 @@ internal static partial class LauncherDiagnostics
             var read = ReadFileText(file.Path);
             if (read.Text == null)
             {
-                sb.AppendLine(
-                    read.Error == null
-                        ? "  exists=False"
-                        : $"  failed={read.Error}"
-                );
+                AppendFileReadStatus(sb, read.Error);
                 sb.AppendLine();
                 return;
             }
@@ -75,4 +69,11 @@ internal static partial class LauncherDiagnostics
 
     private static string SingleLine(string text)
         => text.Replace('\n', ' ').Replace('\r', ' ');
+
+    private static void AppendFileReadStatus(StringBuilder sb, string? error)
+        => sb.AppendLine(
+            error == null
+                ? "  exists=False"
+                : $"  failed={error}"
+        );
 }

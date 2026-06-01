@@ -18,8 +18,8 @@ internal sealed partial class DepotDownloader
 
     private static readonly (string Search, string Replacement)[] ProjectBinaryReplacements =
     {
-        ("autoload/SentryInit", "disabled/SentryInit"),
-        ("autoload/FmodManager", "disabled/FmodManager"),
+        (Search: "autoload/SentryInit", Replacement: "disabled/SentryInit"),
+        (Search: "autoload/FmodManager", Replacement: "disabled/FmodManager"),
     };
 
     private static readonly string[] GameSceneSettingsToComment =
@@ -37,7 +37,7 @@ internal sealed partial class DepotDownloader
             offset,
             size,
             "project.godot",
-            PckPatchOperation.ProjectGodot
+            content => ApplyProjectSettingComments(content, ProjectGodotSettingsToComment)
         );
 
     private static bool PatchExtensionList(FileStream fs, long offset, long size)
@@ -46,7 +46,7 @@ internal sealed partial class DepotDownloader
             offset,
             size,
             "extension_list.cfg",
-            PckPatchOperation.ExtensionList
+            content => ApplyEntryOverwrites(content, ExtensionListEntriesToOverwrite)
         );
 
     private static bool PatchProjectBinary(FileStream fs, long offset, long size)
@@ -55,7 +55,7 @@ internal sealed partial class DepotDownloader
             offset,
             size,
             "project.binary",
-            PckPatchOperation.ProjectBinary
+            content => ApplyReplacementPatches(content, ProjectBinaryReplacements)
         );
 
     private static bool PatchGameScene(FileStream fs, long offset, long size)
@@ -64,6 +64,6 @@ internal sealed partial class DepotDownloader
             offset,
             size,
             "scenes/game.tscn",
-            PckPatchOperation.GameScene
+            content => ApplyProjectSettingComments(content, GameSceneSettingsToComment)
         );
 }

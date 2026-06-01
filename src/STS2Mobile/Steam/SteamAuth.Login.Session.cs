@@ -17,7 +17,7 @@ internal sealed partial class SteamAuth
                 Password = password,
                 IsPersistentSession = true,
                 GuardData = guardData,
-                Authenticator = new AuthAuthenticator(this),
+                Authenticator = this,
             }
         );
 }

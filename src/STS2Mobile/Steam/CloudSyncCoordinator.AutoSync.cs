@@ -7,31 +7,33 @@ namespace STS2Mobile.Steam;
 internal static partial class CloudSyncCoordinator
 {
     private const int AutoSyncPerPathTimeoutMs = 30_000;
+    private const string PullCloudFileOperation = "PullFile";
+    private const string ReadCloudFileOperation = "ReadCloudFile";
 
     private readonly struct AutoSyncContext
     {
         private readonly ISaveStore _local;
         private readonly ICloudSaveStore _cloud;
 
-        internal AutoSyncContext(ISaveStore local, ICloudSaveStore cloud, string path)
+        public AutoSyncContext(ISaveStore local, ICloudSaveStore cloud, string path)
         {
             _local = local;
             _cloud = cloud;
             Path = path;
         }
 
-        internal string Path { get; }
+        public string Path { get; }
 
-        internal bool CloudFileExists()
+        public (bool Local, bool Cloud) GetPresence()
+            => (Local: _local.FileExists(Path), Cloud: _cloud.FileExists(Path));
+
+        public bool CloudFileExists()
             => _cloud.FileExists(Path);
 
-        internal bool LocalFileExists()
-            => _local.FileExists(Path);
+        public string? ReadLocalContent()
+            => _local.FileExists(Path) ? _local.ReadFile(Path) : null;
 
-        internal string ReadLocalFile()
-            => _local.ReadFile(Path);
-
-        internal Task<string> ReadCloudContentAsync(string operation)
+        public Task<string> ReadCloudContentAsync(string operation)
             => CloudSyncCoordinator.ReadCloudContentAsync(
                 _cloud,
                 Path,
@@ -39,7 +41,7 @@ internal static partial class CloudSyncCoordinator
                 AutoSyncPerPathTimeoutMs
             );
 
-        internal Task WriteCloudContentAsync(string content)
+        private Task WriteCloudContentAsync(string content)
             => CloudSyncCoordinator.WriteCloudContentAsync(
                 _local,
                 _cloud,
@@ -48,13 +50,33 @@ internal static partial class CloudSyncCoordinator
                 AutoSyncPerPathTimeoutMs
             );
 
-        internal void WriteCloudFile(string content)
+        private void WriteCloudFile(string content)
             => _cloud.WriteFile(Path, content);
 
-        internal void BackUpLocalProgress()
+        public async Task PullCloudContentAsync(
+            string content,
+            string message,
+            bool backUpLocal
+        )
+        {
+            PatchHelper.Log(message);
+            if (backUpLocal)
+                BackUpLocalProgress();
+            await WriteCloudContentAsync(content);
+        }
+
+        public void PushLocalContent(string localContent, string? cloudContent, string message)
+        {
+            PatchHelper.Log(message);
+            if (cloudContent != null)
+                BackUpCloudProgress(cloudContent);
+            WriteCloudFile(localContent);
+        }
+
+        private void BackUpLocalProgress()
             => SaveBackups.LocalProgressFile(_local, Path);
 
-        internal void BackUpCloudProgress(string content)
+        private void BackUpCloudProgress(string content)
             => SaveBackups.CloudProgressContent(Path, content);
     }
 
@@ -65,22 +87,21 @@ internal static partial class CloudSyncCoordinator
         var sync = new AutoSyncContext(local, cloud, path);
         try
         {
-            bool cloudExists = sync.CloudFileExists();
-            bool localExists = sync.LocalFileExists();
+            var presence = sync.GetPresence();
 
-            if (cloudExists && localExists)
+            if (presence.Cloud && presence.Local)
             {
                 await SyncExistingFileAsync(sync);
                 return;
             }
 
-            if (cloudExists)
+            if (presence.Cloud)
             {
                 await PullFileAsync(sync);
                 return;
             }
 
-            if (localExists)
+            if (presence.Local)
                 await PushFileAsync(sync);
         }
         catch (Exception ex)

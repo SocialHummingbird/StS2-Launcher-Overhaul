@@ -37,9 +37,9 @@ internal static partial class CloudSyncCoordinator
         {
             foreach (var prefix in FallbackProfilePrefixes)
             {
-                for (int i = 1; i <= 3; i++)
+                foreach (var profileId in ProfileIds())
                 {
-                    var profile = $"{prefix}profile{i}";
+                    var profile = $"{prefix}profile{profileId}";
                     foreach (var file in FallbackProfileFiles)
                         paths.Add($"{profile}/{file}");
 

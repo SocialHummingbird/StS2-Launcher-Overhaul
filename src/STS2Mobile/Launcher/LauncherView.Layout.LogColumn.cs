@@ -6,7 +6,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
-    private static LogView BuildLogColumn(
+    private static RichTextLabel BuildLogColumn(
         float scale,
         HBoxContainer hbox,
         Action<InputEvent> dismissKeyboard
@@ -28,7 +28,7 @@ internal sealed partial class LauncherView
         );
         right.AddChild(logTitle);
 
-        var log = new LogView(scale);
+        var log = BuildLogView(scale);
         log.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         log.GuiInput += input => dismissKeyboard(input);
         right.AddChild(log);

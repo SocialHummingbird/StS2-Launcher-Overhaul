@@ -6,47 +6,43 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
-    private void UploadSaveBatch(List<(string canonPath, byte[] bytes)> files)
+    private void UploadSaveBatch(IReadOnlyList<(string CanonPath, byte[] Bytes)> files)
     {
-        if (!TryBeginUploadBatch(files, out var batchId))
+        var batchId = BeginUploadBatchOrNull(files);
+        if (!batchId.HasValue)
         {
             UploadBatchFilesIndividually(files);
             return;
         }
 
-        foreach (var (canonPath, bytes) in files)
-            UploadWithRetry(canonPath, bytes, batchId);
+        foreach (var file in files)
+            UploadWithRetry(file.CanonPath, file.Bytes, batchId.Value);
 
-        CompleteUploadBatch(batchId);
+        CompleteUploadBatch(batchId.Value);
     }
 
-    private bool TryBeginUploadBatch(
-        List<(string canonPath, byte[] bytes)> files,
-        out ulong batchId
-    )
+    private ulong? BeginUploadBatchOrNull(IReadOnlyList<(string CanonPath, byte[] Bytes)> files)
     {
         try
         {
-            batchId = BeginUploadBatch(files);
-            return true;
+            return BeginUploadBatch(files);
         }
         catch (Exception ex)
         {
-            PatchHelper.Log(StoreMessage.BeginSaveBatchFailed(ex));
-            batchId = 0;
-            return false;
+            PatchHelper.Log(BeginSaveBatchFailed(ex));
+            return null;
         }
     }
 
-    private ulong BeginUploadBatch(List<(string canonPath, byte[] bytes)> files)
+    private ulong BeginUploadBatch(IReadOnlyList<(string CanonPath, byte[] Bytes)> files)
     {
         var request = new CCloud_BeginAppUploadBatch_Request
         {
             appid = SteamCloudApp.AppId,
             machine_name = "android",
         };
-        foreach (var (canonPath, _) in files)
-            request.files_to_upload.Add(canonPath);
+        foreach (var file in files)
+            request.files_to_upload.Add(file.CanonPath);
 
         var result = SendCloudBlocking<
             CCloud_BeginAppUploadBatch_Request,
@@ -55,10 +51,10 @@ internal sealed partial class SteamKit2CloudSaveStore
         return result.batch_id;
     }
 
-    private void UploadBatchFilesIndividually(List<(string canonPath, byte[] bytes)> files)
+    private void UploadBatchFilesIndividually(IReadOnlyList<(string CanonPath, byte[] Bytes)> files)
     {
-        foreach (var (canonPath, bytes) in files)
-            UploadWithRetry(canonPath, bytes);
+        foreach (var file in files)
+            UploadWithRetry(file.CanonPath, file.Bytes);
     }
 
     private void CompleteUploadBatch(ulong batchId)
@@ -80,7 +76,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         }
         catch (Exception ex)
         {
-            PatchHelper.Log(StoreMessage.EndSaveBatchFailed(ex));
+            PatchHelper.Log(EndSaveBatchFailed(ex));
         }
     }
 }

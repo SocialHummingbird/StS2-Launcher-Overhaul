@@ -7,22 +7,17 @@ namespace STS2Mobile.Steam;
 internal sealed partial class DepotDownloader
 {
     private static readonly TimeSpan CdnAuthTokenTtl = TimeSpan.FromMinutes(20);
-    private readonly ExpiringCache<(uint DepotId, string Host), string> _cdnAuthTokens = new();
+    private readonly ExpiringCache<(uint DepotId, string Host), string?> _cdnAuthTokens = new();
 
     private async Task<string?> GetCdnAuthToken(uint depotId, Server server)
     {
         var key = (DepotId: depotId, Host: server.Host);
-        if (_cdnAuthTokens.TryGetFresh(key, out var cached))
-            return cached;
-
-        var token = await _connection.GetCdnAuthTokenAsync(depotId, server.Host);
-        if (token != null)
-        {
-            _cdnAuthTokens.SetFor(key, token, CdnAuthTokenTtl);
-            return token;
-        }
-
-        return null;
+        return await _cdnAuthTokens.GetOrAddAsync(
+            key,
+            CdnAuthTokenTtl,
+            () => _connection.GetCdnAuthTokenAsync(depotId, server.Host),
+            token => token != null
+        );
     }
 
     private async Task<string?> GetCdnAuthTokenForRetryAsync(uint depotId, Server server)
@@ -34,22 +29,46 @@ internal sealed partial class DepotDownloader
         return token;
     }
 
+    private async Task<T> RunCdnAuthRetryAsync<T>(
+        uint depotId,
+        (Server Server, int Index) attempt,
+        string operation,
+        Func<string, Task<T>> retryAsync,
+        T failed
+    )
+    {
+        var token = await GetCdnAuthTokenForRetryAsync(depotId, attempt.Server);
+        if (token == null)
+            return failed;
+
+        try
+        {
+            return await retryAsync(token);
+        }
+        catch (Exception ex) when (HasRetryRemaining(attempt))
+        {
+            HandleCdnAuthRetryFailure(depotId, attempt, operation, ex);
+            return failed;
+        }
+    }
+
     private void InvalidateCdnAuthToken(uint depotId, Server server)
     {
         if (server != null)
-            _cdnAuthTokens.Invalidate((depotId, server.Host));
+            _cdnAuthTokens.Invalidate((DepotId: depotId, Host: server.Host));
     }
 
     private void HandleCdnAuthRetryFailure(
         uint depotId,
-        Server server,
+        (Server Server, int Index) attempt,
         string operation,
-        int attempt,
         Exception ex
     )
     {
-        Log($"{operation} CDN auth retry failed (attempt {attempt + 1}): {ex.Message}");
-        InvalidateCdnAuthToken(depotId, server);
-        MarkServerFailed(server);
+        Log(
+            $"{operation} CDN auth retry failed (attempt {DisplayNumber(attempt)}): {ex.Message}"
+        );
+        InvalidateCdnAuthToken(depotId, attempt.Server);
+        MarkServerFailed(attempt.Server);
     }
 }

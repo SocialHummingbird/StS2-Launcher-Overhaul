@@ -6,12 +6,11 @@ namespace STS2Mobile.Steam;
 // ICloudSaveStore backed by SteamKit2 CCloud unified messages.
 internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
 {
-    private static SteamKit2CloudSaveStore Instance { get; set; }
+    private static SteamKit2CloudSaveStore _instance;
 
     private readonly SteamConnection _connection;
     private readonly CloudFileCache _cache;
     private readonly CloudWriteQueue _writeQueue;
-    private readonly SaveBatchBuffer _saveBatch = new();
 
     private SteamKit2CloudSaveStore(string accountName, string refreshToken)
     {
@@ -19,14 +18,14 @@ internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveSt
         _cache = new CloudFileCache(_connection);
         _writeQueue = new CloudWriteQueue();
 
-        Instance = this;
+        _instance = this;
     }
 
     internal static ICloudSaveStore GetOrCreate(string accountName, string refreshToken)
-        => Instance ?? new SteamKit2CloudSaveStore(accountName, refreshToken);
+        => _instance ?? new SteamKit2CloudSaveStore(accountName, refreshToken);
 
     internal static bool FlushActive(int timeoutMs)
-        => Instance?.Flush(timeoutMs) ?? true;
+        => _instance?.Flush(timeoutMs) ?? true;
 
     private bool Flush(int timeoutMs = 5000)
     {
@@ -42,7 +41,7 @@ internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveSt
         }
         catch (Exception ex)
         {
-            PatchHelper.Log(StoreMessage.QueueFlushFailed(ex));
+            PatchHelper.Log(QueueFlushFailed(ex));
             return false;
         }
     }
@@ -56,7 +55,7 @@ internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveSt
         }
         catch (Exception ex)
         {
-            PatchHelper.Log(StoreMessage.ConnectionFlushFailed(ex));
+            PatchHelper.Log(ConnectionFlushFailed(ex));
             return false;
         }
     }
@@ -69,7 +68,7 @@ internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveSt
         _writeQueue.Dispose();
         _connection.Dispose();
         _http.Dispose();
-        if (Instance == this)
-            Instance = null;
+        if (_instance == this)
+            _instance = null;
     }
 }

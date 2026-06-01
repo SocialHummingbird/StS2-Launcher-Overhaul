@@ -12,7 +12,7 @@ internal sealed partial class LauncherView
     internal CodeSection Code { get; }
     internal DownloadSection Download { get; }
     internal ActionSection Actions { get; }
-    private LogView Log { get; }
+    private RichTextLabel Log { get; }
 
     private readonly Control _parent;
     private readonly StyledPanel _panel;
@@ -23,23 +23,26 @@ internal sealed partial class LauncherView
     internal LauncherView(Control parent, float scale)
     {
         var dismissKeyboard = new Action<InputEvent>(DismissKeyboard);
-        var (panel, rootColumns) = BuildShell(parent, scale, dismissKeyboard);
+        var shell = BuildShell(parent, scale, dismissKeyboard);
         _parent = parent;
-        _panel = panel;
-        _panelBaseY = panel.Position.Y;
+        _panel = shell.Panel;
+        _panelBaseY = shell.Panel.Position.Y;
         _scale = scale;
-        (_statusLabel, Login, Code, Download, Actions) = BuildPrimaryColumn(
-            scale,
-            rootColumns
-        );
-        Log = BuildLogColumn(scale, rootColumns, dismissKeyboard);
+        var primary = BuildPrimaryColumn(scale, shell.RootColumns);
+        _statusLabel = primary.StatusLabel;
+        Login = primary.Login;
+        Code = primary.Code;
+        Download = primary.Download;
+        Actions = primary.Actions;
+        Log = BuildLogColumn(scale, shell.RootColumns, dismissKeyboard);
     }
 
     internal void SetStatus(string text) => _statusLabel.Text = text;
 
-    internal void AppendLog(string msg) => Log.AppendLog(msg);
+    internal void AppendLog(string msg) => AppendLogLine(Log, msg);
 
-    internal void AppendColoredLog(string msg, Godot.Color color) => Log.AppendColoredLog(msg, color);
+    internal void AppendColoredLog(string msg, Godot.Color color)
+        => AppendColoredLogLine(Log, msg, color);
 
     internal void HideAllSections()
     {

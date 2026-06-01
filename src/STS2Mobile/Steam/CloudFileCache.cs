@@ -9,29 +9,33 @@ internal sealed partial class SteamKit2CloudSaveStore
     // Loaded lazily from Steam on first access with exponential backoff on failure.
     private sealed partial class CloudFileCache
     {
-        private readonly ConcurrentDictionary<string, CloudFileInfo> _files = new();
+        private readonly ConcurrentDictionary<
+            string,
+            (int Size, DateTimeOffset Timestamp)
+        > _files = new();
+        private readonly ConcurrentDictionary<string, byte> _persistedFiles = new();
 
-        internal CloudFileCache(SteamConnection connection)
+        public CloudFileCache(SteamConnection connection)
         {
             _connection = connection;
         }
 
-        internal bool FileExists(string path)
+        public bool FileExists(string path)
         {
-            return TryGetFileInfo(path, out _);
+            return GetFileInfo(path).HasValue;
         }
 
-        internal DateTimeOffset GetLastModifiedTime(string path)
+        public DateTimeOffset GetLastModifiedTime(string path)
         {
-            return TryGetFileInfo(path, out var info) ? info.Timestamp : DateTimeOffset.MinValue;
+            return GetFileInfo(path)?.Timestamp ?? DateTimeOffset.MinValue;
         }
 
-        internal int GetFileSize(string path)
+        public int GetFileSize(string path)
         {
-            return TryGetFileInfo(path, out var info) ? info.Size : 0;
+            return GetFileInfo(path)?.Size ?? 0;
         }
 
-        internal bool HasCloudFiles()
+        public bool HasCloudFiles()
         {
             EnsureLoaded();
             if (!_loaded)
@@ -39,43 +43,45 @@ internal sealed partial class SteamKit2CloudSaveStore
             return _files.Count > 0;
         }
 
-        internal void ForgetFile(string path)
+        public void ForgetFile(string path)
         {
-            if (TryGetFileInfo(path, out var info))
-                info.Persisted = false;
+            var key = CacheKey(path);
+            if (GetFileInfoByKey(key).HasValue)
+                _persistedFiles.TryRemove(key, out _);
         }
 
-        internal bool IsFilePersisted(string path)
+        public bool IsFilePersisted(string path)
         {
-            return TryGetFileInfo(path, out var info) && info.Persisted;
+            var key = CacheKey(path);
+            return GetFileInfoByKey(key).HasValue && _persistedFiles.ContainsKey(key);
         }
 
-        internal void Set(string path, int size, DateTimeOffset timestamp)
+        public void Set(string path, int size, DateTimeOffset timestamp)
         {
-            _files[CacheKey(path)] = new CloudFileInfo { Size = size, Timestamp = timestamp };
+            var key = CacheKey(path);
+            _files[key] = (size, timestamp);
+            _persistedFiles[key] = 0;
         }
 
-        internal void Remove(string path)
+        public void Remove(string path)
         {
-            _files.TryRemove(CacheKey(path), out _);
+            var key = CacheKey(path);
+            _files.TryRemove(key, out _);
+            _persistedFiles.TryRemove(key, out _);
         }
 
-        private bool TryGetFileInfo(string path, out CloudFileInfo info)
+        private (int Size, DateTimeOffset Timestamp)? GetFileInfo(string path)
+            => GetFileInfoByKey(CacheKey(path));
+
+        private (int Size, DateTimeOffset Timestamp)? GetFileInfoByKey(string key)
         {
             EnsureLoaded();
-            return _files.TryGetValue(CacheKey(path), out info);
+            return _files.TryGetValue(key, out var info)
+                ? info
+                : null;
         }
 
         private static string CacheKey(string path)
             => CloudSavePath.Canonicalize(path);
-
-        private sealed class CloudFileInfo
-        {
-            internal CloudFileInfo() { }
-
-            internal int Size;
-            internal DateTimeOffset Timestamp;
-            internal volatile bool Persisted = true;
-        }
     }
 }

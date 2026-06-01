@@ -7,7 +7,13 @@ internal sealed partial class DepotDownloader
 {
     private void CommitVerifiedDepotFile(
         DepotManifest.FileData file,
-        DepotFileTarget target
+        (
+            string FileName,
+            string FilePath,
+            string? FileDir,
+            string TempPath,
+            string LockKey
+        ) target
     )
     {
         if (!VerifyFileHash(target.TempPath, file))

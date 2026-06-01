@@ -10,10 +10,9 @@ internal sealed partial class SteamAuth
         if (_connectedGate.IsSet)
             return;
 
-        Connect();
-        if (!await WaitForConnectAsync())
+        if (!await ConnectWithRetriesAsync())
             throw new TimeoutException(
-                "Could not connect to Steam. Check your internet connection."
+                "Could not establish a Steam auth connection. Check Steam status and try again."
             );
     }
 }

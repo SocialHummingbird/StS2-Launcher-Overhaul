@@ -17,7 +17,7 @@ internal sealed partial class ShaderWarmupScreen
         private const string SceneRoot = "res://scenes";
         private const string TresExtension = ".tres";
 
-        internal static async Task<List<(string path, Material mat)>> CollectAsync(
+        public static async Task<List<(string Path, Material Material)>> CollectAsync(
             SceneTree tree,
             ShaderWarmupProgress progress
         )
@@ -27,11 +27,11 @@ internal sealed partial class ShaderWarmupScreen
             await ScanLooseMaterialsAsync(materials, tree, progress);
             await ScanScenesAsync(materials, tree, progress);
 
-            var unique = new Dictionary<string, (string path, Material mat)>();
+            var unique = new Dictionary<string, (string Path, Material Material)>();
             foreach (var (path, mat) in materials)
             {
                 var shaderKey = GetShaderKey(mat);
-                unique.TryAdd(shaderKey, (path, mat));
+                unique.TryAdd(shaderKey, (Path: path, Material: mat));
             }
 
             PatchHelper.Log(Message.UniqueShaders(materials.Count, unique.Count));

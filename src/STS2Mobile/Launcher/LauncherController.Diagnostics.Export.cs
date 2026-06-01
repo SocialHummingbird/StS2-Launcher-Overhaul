@@ -7,16 +7,13 @@ internal sealed partial class LauncherController
 {
     private void DiagnosticsPressed()
     {
-        if (!TryWriteDiagnosticsReport(
+        var path = WriteDiagnosticsReportOrNull(
             "Diagnostics export failed",
             logFullException: true,
-            out var path,
-            out var failureMessage
-        ))
-        {
-            _view.SetStatus($"Diagnostics export failed: {failureMessage}");
+            message => _view.SetStatus($"Diagnostics export failed: {message}")
+        );
+        if (path == null)
             return;
-        }
 
         _view.SetStatus("Diagnostics exported.");
         _view.AppendLog($"Diagnostics exported: {path}");
@@ -34,25 +31,21 @@ internal sealed partial class LauncherController
         );
     }
 
-    private bool TryWriteDiagnosticsReport(
+    private string? WriteDiagnosticsReportOrNull(
         string failureContext,
         bool logFullException,
-        out string path,
-        out string failureMessage
+        Action<string>? onFailure = null
     )
     {
         try
         {
-            path = _model.WriteDiagnosticsReport();
-            failureMessage = null;
-            return true;
+            return _model.WriteDiagnosticsReport();
         }
         catch (Exception ex)
         {
             LogDiagnosticsFailure(failureContext, ex, logFullException);
-            path = null;
-            failureMessage = ex.Message;
-            return false;
+            onFailure?.Invoke(ex.Message);
+            return null;
         }
     }
 }

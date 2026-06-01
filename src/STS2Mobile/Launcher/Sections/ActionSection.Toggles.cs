@@ -1,28 +1,36 @@
 using Godot;
+using System;
 
 namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection
 {
     private void ConfigureLocalBackupToggle()
-    {
-        _localBackupToggle.ToggleMode = true;
-        ApplyLocalBackupToggle(false);
-        _localBackupToggle.Toggled += pressed =>
-        {
-            ApplyLocalBackupToggle(pressed);
-            LocalBackupToggled?.Invoke(pressed);
-        };
-    }
+        => ConfigureToggle(
+            _localBackupToggle,
+            ApplyLocalBackupToggle,
+            pressed => LocalBackupToggled?.Invoke(pressed)
+        );
 
     private void ConfigureCloudSyncToggle()
+        => ConfigureToggle(
+            _cloudSyncToggle,
+            ApplyCloudSyncToggle,
+            pressed => CloudSyncToggled?.Invoke(pressed)
+        );
+
+    private static void ConfigureToggle(
+        Button button,
+        Action<bool> applyState,
+        Action<bool> notifyChanged
+    )
     {
-        _cloudSyncToggle.ToggleMode = true;
-        ApplyCloudSyncToggle(false);
-        _cloudSyncToggle.Toggled += pressed =>
+        button.ToggleMode = true;
+        applyState(false);
+        button.Toggled += pressed =>
         {
-            ApplyCloudSyncToggle(pressed);
-            CloudSyncToggled?.Invoke(pressed);
+            applyState(pressed);
+            notifyChanged(pressed);
         };
     }
 

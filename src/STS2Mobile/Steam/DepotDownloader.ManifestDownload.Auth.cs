@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using SteamKit2;
 using SteamKit2.CDN;
@@ -12,29 +11,22 @@ internal sealed partial class DepotDownloader
         ulong manifestId,
         ulong manifestRequestCode,
         byte[] depotKey,
-        Server server,
-        int attempt
+        (Server Server, int Index) attempt
     )
     {
-        var token = await GetCdnAuthTokenForRetryAsync(depotId, server);
-        if (token == null)
-            return null;
-
-        try
-        {
-            return await _cdnClient.DownloadManifestAsync(
+        return await RunCdnAuthRetryAsync<DepotManifest?>(
+            depotId,
+            attempt,
+            "Manifest",
+            token => _cdnClient.DownloadManifestAsync(
                 depotId,
                 manifestId,
                 manifestRequestCode,
-                server,
+                attempt.Server,
                 depotKey,
                 cdnAuthToken: token
-            );
-        }
-        catch (Exception tokenEx) when (attempt < MaxRetries - 1)
-        {
-            HandleCdnAuthRetryFailure(depotId, server, "Manifest", attempt, tokenEx);
-            return null;
-        }
+            ),
+            failed: null
+        );
     }
 }

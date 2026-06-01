@@ -5,57 +5,60 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
-    private sealed class LogView : RichTextLabel
+    private static RichTextLabel BuildLogView(float scale)
     {
-        internal LogView(float scale)
+        var log = new RichTextLabel
         {
             CustomMinimumSize = new Vector2(
                 0,
                 LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LogHeight)
-            );
-            ScrollFollowing = true;
-            BbcodeEnabled = true;
-            AddThemeFontSizeOverride(
-                LauncherComponentTheme.NormalFontSize,
-                LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LogFontSize)
-            );
-            AddThemeColorOverride(LauncherComponentTheme.DefaultColor, LauncherComponentTheme.LogText);
-            AddThemeStyleboxOverride(LauncherComponentTheme.StateNormal, BuildStyle(scale));
-        }
+            ),
+            ScrollFollowing = true,
+            BbcodeEnabled = true,
+        };
 
-        internal void AppendLog(string msg) => AddText(msg + "\n");
+        log.AddThemeFontSizeOverride(
+            LauncherComponentTheme.NormalFontSize,
+            LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LogFontSize)
+        );
+        log.AddThemeColorOverride(LauncherComponentTheme.DefaultColor, LauncherComponentTheme.LogText);
+        log.AddThemeStyleboxOverride(LauncherComponentTheme.StateNormal, BuildLogStyle(scale));
+        return log;
+    }
 
-        internal void AppendColoredLog(string msg, Color color)
-        {
-            PushColor(color);
-            AddText(msg + "\n");
-            Pop();
-        }
+    private static void AppendLogLine(RichTextLabel log, string msg)
+        => log.AddText(msg + "\n");
 
-        private static StyleBoxFlat BuildStyle(float scale)
-        {
-            var background = new StyleBoxFlat();
-            background.BgColor = LauncherComponentTheme.LogBackground;
-            background.SetCornerRadiusAll(
-                LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LogRadius)
-            );
-            background.ContentMarginLeft = LauncherComponentTheme.ScaleInt(
-                scale,
-                LauncherComponentTheme.LogMarginHorizontal
-            );
-            background.ContentMarginRight = LauncherComponentTheme.ScaleInt(
-                scale,
-                LauncherComponentTheme.LogMarginHorizontal
-            );
-            background.ContentMarginTop = LauncherComponentTheme.ScaleInt(
-                scale,
-                LauncherComponentTheme.LogMarginVertical
-            );
-            background.ContentMarginBottom = LauncherComponentTheme.ScaleInt(
-                scale,
-                LauncherComponentTheme.LogMarginVertical
-            );
-            return background;
-        }
+    private static void AppendColoredLogLine(RichTextLabel log, string msg, Color color)
+    {
+        log.PushColor(color);
+        log.AddText(msg + "\n");
+        log.Pop();
+    }
+
+    private static StyleBoxFlat BuildLogStyle(float scale)
+    {
+        var background = new StyleBoxFlat();
+        background.BgColor = LauncherComponentTheme.LogBackground;
+        background.SetCornerRadiusAll(
+            LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LogRadius)
+        );
+        background.ContentMarginLeft = LauncherComponentTheme.ScaleInt(
+            scale,
+            LauncherComponentTheme.LogMarginHorizontal
+        );
+        background.ContentMarginRight = LauncherComponentTheme.ScaleInt(
+            scale,
+            LauncherComponentTheme.LogMarginHorizontal
+        );
+        background.ContentMarginTop = LauncherComponentTheme.ScaleInt(
+            scale,
+            LauncherComponentTheme.LogMarginVertical
+        );
+        background.ContentMarginBottom = LauncherComponentTheme.ScaleInt(
+            scale,
+            LauncherComponentTheme.LogMarginVertical
+        );
+        return background;
     }
 }

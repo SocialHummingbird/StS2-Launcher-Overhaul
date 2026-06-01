@@ -5,10 +5,11 @@ namespace STS2Mobile.Steam;
 
 internal static partial class SteamConnectionConfigurationFactory
 {
+    private static readonly IMachineInfoProvider AndroidMachineInfo =
+        new AndroidMachineInfoProvider();
+
     private sealed class AndroidMachineInfoProvider : IMachineInfoProvider
     {
-        internal AndroidMachineInfoProvider() { }
-
         private static readonly byte[] MacAddress =
         {
             0x02,
@@ -18,6 +19,8 @@ internal static partial class SteamConnectionConfigurationFactory
             0x32,
             0x41,
         };
+
+        public AndroidMachineInfoProvider() { }
 
         public byte[] GetMachineGuid() => Encoding.ASCII.GetBytes("sts2launcher-android-machine-guid");
 

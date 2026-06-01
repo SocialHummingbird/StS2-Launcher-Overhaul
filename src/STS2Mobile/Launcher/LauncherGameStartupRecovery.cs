@@ -24,13 +24,19 @@ internal static partial class LauncherGameStartupRecovery
             : HandleMainMenuGuardFailure(gameNode, startupStatus);
     }
 
-    internal static void MarkStartupObserved(CanvasLayer recoveryControls, Label startupStatus, Node gameNode)
+    internal static void MarkStartupObserved(
+        CanvasLayer recoveryControls,
+        Label startupStatus,
+        Node gameNode
+    )
     {
         MarkRecoveredStartup(
             recoveryControls,
             startupStatus,
             gameNode,
-            StartupRecoveryState.StartupObserved()
+            StartupObservationReason,
+            "Game startup returned. Recovery controls remain briefly.",
+            "after NGame.GameStartup returned"
         );
     }
 }

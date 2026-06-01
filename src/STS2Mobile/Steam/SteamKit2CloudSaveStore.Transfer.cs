@@ -34,43 +34,62 @@ internal sealed partial class SteamKit2CloudSaveStore
         var result = await _connection
             .SendCloud<CCloud_ClientFileDownload_Request, CCloud_ClientFileDownload_Response>(
                 "ClientFileDownload",
-                new CCloud_ClientFileDownload_Request { appid = SteamCloudApp.AppId, filename = path }
+                CreateFileDownloadRequest(path)
             )
             .ConfigureAwait(false);
 
         if (result.appid != SteamCloudApp.AppId || string.IsNullOrEmpty(result.url_host))
             throw new InvalidOperationException($"Cloud download failed for {path}");
 
-        using var httpRequest = new HttpRequestMessage(
-            HttpMethod.Get,
-            CloudHttpUrl(result.use_https, result.url_host, result.url_path));
-        foreach (var header in result.request_headers)
-            httpRequest.Headers.TryAddWithoutValidation(header.name, header.value);
-
+        using var httpRequest = CreateFileDownloadHttpRequest(result);
         var data = await ReadCloudHttpBytesAsync(httpRequest).ConfigureAwait(false);
-        PatchHelper.Log(StoreMessage.Downloaded(
+        PatchHelper.Log(Downloaded(
             path,
             data.Length,
             result.encrypted,
             result.file_size,
             result.raw_file_size));
 
-        // Only decompress if ZIP magic header present (PK\x03\x04).
-        if (
-            result.raw_file_size > 0
-            && result.raw_file_size != result.file_size
-            && data.Length >= 4
-            && data[0] == 0x50
-            && data[1] == 0x4B
-            && data[2] == 0x03
-            && data[3] == 0x04
-        )
+        if (ShouldDecompressDownloadedFile(result, data))
         {
             var compressedSize = data.Length;
             data = DecompressCloudFile(data);
-            PatchHelper.Log(StoreMessage.Unzipped(path, compressedSize, data.Length));
+            PatchHelper.Log(Unzipped(path, compressedSize, data.Length));
         }
 
         return Encoding.UTF8.GetString(data);
     }
+
+    private static CCloud_ClientFileDownload_Request CreateFileDownloadRequest(string path)
+        => new() { appid = SteamCloudApp.AppId, filename = path };
+
+    private static HttpRequestMessage CreateFileDownloadHttpRequest(
+        CCloud_ClientFileDownload_Response result
+    )
+    {
+        var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            CloudHttpUrl(result.use_https, result.url_host, result.url_path)
+        );
+
+        foreach (var header in result.request_headers)
+            request.Headers.TryAddWithoutValidation(header.name, header.value);
+
+        return request;
+    }
+
+    private static bool ShouldDecompressDownloadedFile(
+        CCloud_ClientFileDownload_Response result,
+        byte[] data
+    )
+        => result.raw_file_size > 0
+            && result.raw_file_size != result.file_size
+            && HasZipMagic(data);
+
+    private static bool HasZipMagic(byte[] data)
+        => data.Length >= 4
+            && data[0] == 0x50
+            && data[1] == 0x4B
+            && data[2] == 0x03
+            && data[3] == 0x04;
 }
