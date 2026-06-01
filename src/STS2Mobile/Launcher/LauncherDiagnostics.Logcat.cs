@@ -114,23 +114,23 @@ internal static partial class LauncherDiagnostics
         private readonly string _fallbackText;
         private readonly string _text;
 
-        private LogcatSnapshot(string text, string fallbackText)
+        internal LogcatSnapshot(string text, string fallbackText)
         {
             _text = text;
             _fallbackText = fallbackText;
         }
 
-        private string Content => HasText ? _text : _fallbackText;
+        internal string Content => HasText ? _text : _fallbackText;
 
         private bool HasText => !string.IsNullOrWhiteSpace(_text);
 
-        private bool TryGetText(out string text)
+        internal bool TryGetText(out string text)
         {
             text = _text;
             return HasText;
         }
 
-        private static LogcatSnapshot Capture(int lineCount)
+        internal static LogcatSnapshot Capture(int lineCount)
         {
             try
             {

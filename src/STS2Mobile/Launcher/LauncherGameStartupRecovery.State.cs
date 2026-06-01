@@ -9,7 +9,7 @@ internal static partial class LauncherGameStartupRecovery
 {
     private readonly struct StartupRecoveryState
     {
-        private StartupRecoveryState(
+        internal StartupRecoveryState(
             string reason,
             string statusMessage,
             string? snapshotReason = null
@@ -20,23 +20,23 @@ internal static partial class LauncherGameStartupRecovery
             SnapshotReason = snapshotReason;
         }
 
-        private string Reason { get; }
-        private string StatusMessage { get; }
-        private string? SnapshotReason { get; }
+        internal string Reason { get; }
+        internal string StatusMessage { get; }
+        internal string? SnapshotReason { get; }
 
-        private static StartupRecoveryState WatchdogStalled() =>
+        internal static StartupRecoveryState WatchdogStalled() =>
             new(
                 "game startup watchdog",
                 "Game startup stalled. Attempting main menu recovery..."
             );
 
-        private static StartupRecoveryState WatchdogRecovered() =>
+        internal static StartupRecoveryState WatchdogRecovered() =>
             new(
                 "main menu recovered after watchdog",
                 "Main menu recovered after startup stall. Recovery controls remain briefly."
             );
 
-        private static StartupRecoveryState StartupObserved() =>
+        internal static StartupRecoveryState StartupObserved() =>
             new(
                 "post-startup observation",
                 "Game startup returned. Recovery controls remain briefly.",

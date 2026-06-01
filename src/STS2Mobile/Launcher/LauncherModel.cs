@@ -8,18 +8,6 @@ namespace STS2Mobile.Launcher;
 // Events fire from background threads; the controller marshals them to the main thread.
 internal partial class LauncherModel : IDisposable
 {
-    // Represents the current stage of the launcher's Steam connection and
-    // authentication flow. Drives the launcher UI state machine.
-    internal enum SessionState
-    {
-        Disconnected,
-        Connecting,
-        Authenticating,
-        VerifyingOwnership,
-        LoggedIn,
-        Failed,
-    }
-
     internal enum FastPathResult
     {
         ShowLogin,

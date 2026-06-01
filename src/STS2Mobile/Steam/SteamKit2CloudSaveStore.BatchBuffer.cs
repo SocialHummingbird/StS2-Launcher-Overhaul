@@ -10,7 +10,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         private readonly List<(string canonPath, byte[] bytes)> _files = new();
         private bool _isCollecting;
 
-        private void BeginCollecting()
+        internal void BeginCollecting()
         {
             lock (_lock)
             {
@@ -19,7 +19,7 @@ internal sealed partial class SteamKit2CloudSaveStore
             }
         }
 
-        private bool TryCollect(string canonPath, byte[] bytes)
+        internal bool TryCollect(string canonPath, byte[] bytes)
         {
             lock (_lock)
             {
@@ -31,7 +31,7 @@ internal sealed partial class SteamKit2CloudSaveStore
             }
         }
 
-        private List<(string canonPath, byte[] bytes)> EndCollecting()
+        internal List<(string canonPath, byte[] bytes)> EndCollecting()
         {
             lock (_lock)
             {

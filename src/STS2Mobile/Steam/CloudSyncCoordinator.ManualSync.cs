@@ -16,7 +16,7 @@ internal static partial class CloudSyncCoordinator
         private readonly ICloudSaveStore _cloud;
         private readonly DateTime _deadline;
 
-        private ManualSyncContext(
+        internal ManualSyncContext(
             ISaveStore local,
             ICloudSaveStore cloud,
             DateTime deadline
@@ -27,37 +27,37 @@ internal static partial class CloudSyncCoordinator
             _deadline = deadline;
         }
 
-        private IReadOnlyCollection<string> DiscoverLocalPaths()
+        internal IReadOnlyCollection<string> DiscoverLocalPaths()
             => SavePathDiscovery.Get(_local);
 
-        private IReadOnlyCollection<string> DiscoverCloudPaths()
+        internal IReadOnlyCollection<string> DiscoverCloudPaths()
             => SavePathDiscovery.Get(_cloud);
 
-        private void BeginCloudBatch()
+        internal void BeginCloudBatch()
         {
             _cloud.BeginSaveBatch();
         }
 
-        private void EndCloudBatch()
+        internal void EndCloudBatch()
         {
             _cloud.EndSaveBatch();
         }
 
-        private bool LocalFileExists(string path)
+        internal bool LocalFileExists(string path)
             => _local.FileExists(path);
 
-        private bool CloudFileExists(string path)
+        internal bool CloudFileExists(string path)
             => _cloud.FileExists(path);
 
-        private string ReadLocalFile(string path)
+        internal string ReadLocalFile(string path)
             => _local.ReadFile(path);
 
-        private void WriteCloudFile(string path, string content)
+        internal void WriteCloudFile(string path, string content)
         {
             _cloud.WriteFile(path, content);
         }
 
-        private Task<string> ReadCloudContentAsync(string path, string operation)
+        internal Task<string> ReadCloudContentAsync(string path, string operation)
             => CloudSyncCoordinator.ReadCloudContentAsync(
                 _cloud,
                 path,
@@ -65,7 +65,7 @@ internal static partial class CloudSyncCoordinator
                 ManualSyncPerPathTimeoutMs
             );
 
-        private Task WriteCloudContentAsync(string path, string content)
+        internal Task WriteCloudContentAsync(string path, string content)
             => CloudSyncCoordinator.WriteCloudContentAsync(
                 _local,
                 _cloud,
@@ -74,7 +74,7 @@ internal static partial class CloudSyncCoordinator
                 ManualSyncPerPathTimeoutMs
             );
 
-        private bool BudgetExceeded(string message)
+        internal bool BudgetExceeded(string message)
         {
             if (DateTime.UtcNow <= _deadline)
                 return false;
@@ -86,14 +86,14 @@ internal static partial class CloudSyncCoordinator
 
     private readonly struct ManualPullCounts
     {
-        private ManualPullCounts(int downloaded, int skipped)
+        internal ManualPullCounts(int downloaded, int skipped)
         {
             Downloaded = downloaded;
             Skipped = skipped;
         }
 
-        private int Downloaded { get; }
-        private int Skipped { get; }
+        internal int Downloaded { get; }
+        internal int Skipped { get; }
     }
 
     private static ManualSyncContext CreateManualSyncContext(

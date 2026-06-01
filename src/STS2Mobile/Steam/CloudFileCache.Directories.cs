@@ -6,7 +6,7 @@ internal sealed partial class SteamKit2CloudSaveStore
 {
     private sealed partial class CloudFileCache
     {
-        private string[] GetFilesInDirectory(string directoryPath)
+        internal string[] GetFilesInDirectory(string directoryPath)
         {
             EnsureLoaded();
             var result = new List<string>();
@@ -20,7 +20,7 @@ internal sealed partial class SteamKit2CloudSaveStore
             return result.ToArray();
         }
 
-        private string[] GetDirectoriesInDirectory(string directoryPath)
+        internal string[] GetDirectoriesInDirectory(string directoryPath)
         {
             EnsureLoaded();
             var dirs = new HashSet<string>();

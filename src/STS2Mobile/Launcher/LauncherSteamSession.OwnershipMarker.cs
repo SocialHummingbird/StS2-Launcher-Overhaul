@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json.Serialization;
 using STS2Mobile.Patches;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -12,13 +13,13 @@ internal sealed partial class LauncherSteamSession
         private readonly string _accountName;
         private readonly string _markerPath;
 
-        private OwnershipMarkerStore(string dataDir, string accountName)
+        internal OwnershipMarkerStore(string dataDir, string accountName)
         {
             _markerPath = Path.Combine(dataDir, "ownership_verified.enc");
             _accountName = accountName;
         }
 
-        private bool HasMarker()
+        internal bool HasMarker()
         {
             try
             {
@@ -34,7 +35,7 @@ internal sealed partial class LauncherSteamSession
             }
         }
 
-        private void Save()
+        internal void Save()
         {
             try
             {
@@ -56,10 +57,10 @@ internal sealed partial class LauncherSteamSession
         private sealed class OwnershipMarker
         {
             [JsonInclude]
-            public string Account { get; private set; }
+            public string Account { get; internal set; }
 
             [JsonInclude]
-            public long VerifiedAt { get; private set; }
+            public long VerifiedAt { get; internal set; }
         }
     }
 }

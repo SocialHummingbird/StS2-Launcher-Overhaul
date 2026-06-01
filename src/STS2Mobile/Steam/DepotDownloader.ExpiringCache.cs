@@ -10,7 +10,7 @@ internal sealed partial class DepotDownloader
     {
         private readonly ConcurrentDictionary<TKey, Entry> _entries = new();
 
-        private bool TryGetFresh(TKey key, out TValue value)
+        internal bool TryGetFresh(TKey key, out TValue value)
         {
             if (_entries.TryGetValue(key, out var entry))
             {
@@ -27,22 +27,22 @@ internal sealed partial class DepotDownloader
             return false;
         }
 
-        private void SetFor(TKey key, TValue value, TimeSpan ttl)
+        internal void SetFor(TKey key, TValue value, TimeSpan ttl)
             => _entries[key] = new Entry(value, DateTime.UtcNow.Add(ttl));
 
-        private void Invalidate(TKey key)
+        internal void Invalidate(TKey key)
             => _entries.TryRemove(key, out _);
 
         private readonly struct Entry
         {
-            private Entry(TValue value, DateTime expiry)
+            internal Entry(TValue value, DateTime expiry)
             {
                 Value = value;
                 Expiry = expiry;
             }
 
-            private TValue Value { get; }
-            private DateTime Expiry { get; }
+            internal TValue Value { get; }
+            internal DateTime Expiry { get; }
         }
     }
 }

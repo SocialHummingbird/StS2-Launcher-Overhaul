@@ -8,7 +8,7 @@ internal sealed partial class LauncherView
 {
     private sealed class StyledDialog : ColorRect
     {
-        private StyledDialog(string message, float scale, Action onConfirmed)
+        internal StyledDialog(string message, float scale, Action onConfirmed)
         {
             SetAnchorsPreset(Control.LayoutPreset.FullRect);
             Color = LauncherComponentTheme.DialogOverlay;

@@ -4,11 +4,23 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
+    // Represents the current stage of the launcher's Steam connection and
+    // authentication flow. Drives the launcher UI state machine.
+    internal enum SessionState
+    {
+        Disconnected,
+        Connecting,
+        Authenticating,
+        VerifyingOwnership,
+        LoggedIn,
+        Failed,
+    }
+
     internal bool ConnectionResolved => _connectionResolved;
     internal bool AwaitingCode => _steamSession.AwaitingCode;
     internal string AccountName => _credentialStore.AccountName;
     internal string FailReason => _failReason;
-    internal SessionState SessionState => _sessionState;
+    internal SessionState CurrentSessionState => _sessionState;
 
     internal event Action<SessionState> SessionStateChanged;
     internal event Action<string> LogReceived;

@@ -8,13 +8,13 @@ internal static partial class LauncherStartupFlow
     {
         private readonly string _previousIncompletePhase;
 
-        private static StartupMode CreateFromMarkers()
+        internal static StartupMode CreateFromMarkers()
             => new(
                 LauncherLaunchMarkers.ReadStartupPhase(),
                 LauncherLaunchMarkers.ConsumeManualSafeLaunchMarker()
             );
 
-        private StartupMode(string previousIncompletePhase, bool manualSafeLaunch)
+        internal StartupMode(string previousIncompletePhase, bool manualSafeLaunch)
         {
             _previousIncompletePhase = previousIncompletePhase;
             ManualSafeLaunch = manualSafeLaunch;
@@ -25,25 +25,25 @@ internal static partial class LauncherStartupFlow
         private bool SafeLaunchRequested
             => ManualSafeLaunch || IsPreviousPhase("manual safe launch");
 
-        private bool ForceLocalSaves
+        internal bool ForceLocalSaves
             => SafeLaunchRequested
                 || IsPreviousPhase("settings and saves")
                 || IsPreviousPhase("game startup");
 
-        private bool SkipShaderWarmup
+        internal bool SkipShaderWarmup
             => SafeLaunchRequested || IsPreviousPhase("shader warmup");
 
-        private string LocalSavesReasonLog
+        internal string LocalSavesReasonLog
             => ManualSafeLaunch
                 ? "Disabling cloud save injection for manual safe launch"
                 : $"Disabling cloud save injection for this launch because previous launch stalled at {_previousIncompletePhase}";
 
-        private string ShaderWarmupSkipLog
+        internal string ShaderWarmupSkipLog
             => ManualSafeLaunch
                 ? "Skipping shader warmup for manual safe launch"
                 : "Skipping shader warmup because the previous launch stalled there";
 
-        private string ShaderWarmupSkipStatus
+        internal string ShaderWarmupSkipStatus
             => ManualSafeLaunch
                 ? "Skipping shader warmup for safe launch..."
                 : "Skipping shader warmup after previous stall...";

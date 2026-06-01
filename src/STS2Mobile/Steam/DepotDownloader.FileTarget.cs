@@ -7,7 +7,7 @@ internal sealed partial class DepotDownloader
 {
     private sealed class DepotFileTarget
     {
-        private DepotFileTarget(
+        internal DepotFileTarget(
             string fileName,
             string filePath,
             string? fileDir,
@@ -22,11 +22,11 @@ internal sealed partial class DepotDownloader
             LockKey = lockKey;
         }
 
-        private string FileName { get; }
-        private string FilePath { get; }
-        private string? FileDir { get; }
-        private string TempPath { get; }
-        private string LockKey { get; }
+        internal string FileName { get; }
+        internal string FilePath { get; }
+        internal string? FileDir { get; }
+        internal string TempPath { get; }
+        internal string LockKey { get; }
     }
 
     private bool TryGetManifestFileName(DepotManifest.FileData file, out string fileName)

@@ -7,7 +7,7 @@ internal static partial class SteamConnectionConfigurationFactory
 {
     private sealed class AndroidMachineInfoProvider : IMachineInfoProvider
     {
-        private AndroidMachineInfoProvider() { }
+        internal AndroidMachineInfoProvider() { }
 
         private static readonly byte[] MacAddress =
         {

@@ -2,6 +2,7 @@ using System;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using SteamKit2;
 using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
@@ -19,14 +20,14 @@ internal sealed partial class LauncherController
 
     private readonly struct GitHubRelease
     {
-        private GitHubRelease(string name, string tag)
+        internal GitHubRelease(string name, string tag)
         {
             Name = name;
             Tag = tag;
         }
 
-        private string Name { get; }
-        private string Tag { get; }
+        internal string Name { get; }
+        internal string Tag { get; }
     }
 
     private static async Task<string> CheckLatestLauncherVersionAsync()

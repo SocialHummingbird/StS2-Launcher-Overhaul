@@ -7,12 +7,12 @@ internal sealed partial class SteamCredentialStore
     private sealed class SteamCredentials
     {
         [JsonInclude]
-        public string AccountName { get; private set; }
+        public string AccountName { get; internal set; }
 
         [JsonInclude]
-        public string RefreshToken { get; private set; }
+        public string RefreshToken { get; internal set; }
 
         [JsonInclude]
-        public string GuardData { get; private set; }
+        public string GuardData { get; internal set; }
     }
 }

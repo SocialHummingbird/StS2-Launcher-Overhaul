@@ -1,5 +1,5 @@
 using System.IO;
-using BootstrapTraceFile = STS2Mobile.Patches.BootstrapTrace;
+using BootstrapTraceFile = STS2Mobile.BootstrapTrace;
 
 namespace STS2Mobile.Launcher;
 

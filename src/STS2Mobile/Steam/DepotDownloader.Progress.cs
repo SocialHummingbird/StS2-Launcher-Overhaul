@@ -26,11 +26,11 @@ internal sealed partial class DepotDownloader
 
     private sealed class DownloadProgressState
     {
-        private DownloadProgressState() { }
+        internal DownloadProgressState() { }
 
-        private long TotalBytes;
-        private long DownloadedBytes;
-        private string CurrentFile;
+        internal long TotalBytes;
+        internal long DownloadedBytes;
+        internal string CurrentFile;
     }
 
     private readonly DownloadProgressState _progress = new();

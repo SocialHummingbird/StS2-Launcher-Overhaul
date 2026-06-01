@@ -7,7 +7,7 @@ internal sealed partial class DepotDownloader
 {
     private sealed class DepotFilePlan
     {
-        private DepotFilePlan(
+        internal DepotFilePlan(
             List<DepotManifest.FileData> downloads,
             List<string> deletes
         )
@@ -16,8 +16,8 @@ internal sealed partial class DepotDownloader
             Deletes = deletes;
         }
 
-        private List<DepotManifest.FileData> Downloads { get; }
-        private List<string> Deletes { get; }
+        internal List<DepotManifest.FileData> Downloads { get; }
+        internal List<string> Deletes { get; }
     }
 
     private DepotFilePlan BuildDepotFilePlan(

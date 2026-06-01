@@ -146,14 +146,14 @@ internal static class StartupPatchOrchestrator
         IReadOnlyList<PatchStep> Steps
     );
 
-    private sealed record PatchAttempt(
+    internal sealed record PatchAttempt(
         string Name,
         bool Success,
         TimeSpan Elapsed,
         string? Failure
     );
 
-    private sealed record PatchGroupResult(
+    internal sealed record PatchGroupResult(
         string Name,
         bool Critical,
         TimeSpan Elapsed,
@@ -174,7 +174,7 @@ internal static class StartupPatchOrchestrator
     {
         private readonly IReadOnlyList<PatchGroupResult> _groupResults;
 
-        private StartupPatchResult(
+        internal StartupPatchResult(
             IReadOnlyList<PatchGroupResult> groupResults,
             bool criticalFailed,
             TimeSpan duration

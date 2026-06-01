@@ -15,14 +15,14 @@ internal sealed partial class LauncherView
         parent.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 
         var background = new ScreenBackground();
-        background.GuiInput += dismissKeyboard;
+        background.GuiInput += input => dismissKeyboard(input);
         parent.AddChild(background);
 
         var panel = new StyledPanel(scale, widthRatio: 0.9f);
         panel.UpdateSizeFromViewport(
             parent.GetViewport()?.GetVisibleRect().Size ?? new Vector2(1920, 1080)
         );
-        panel.Panel.GuiInput += dismissKeyboard;
+        panel.Panel.GuiInput += input => dismissKeyboard(input);
         parent.AddChild(panel);
 
         var rootColumns = new HBoxContainer();

@@ -12,36 +12,36 @@ internal static partial class LauncherDiagnostics
 
     private readonly struct DiagnosticAttachment
     {
-        private DiagnosticAttachment(string label, string path, int limit)
+        internal DiagnosticAttachment(string label, string path, int limit)
         {
             Label = label;
             Path = path;
             Limit = limit;
         }
 
-        private string Label { get; }
-        private string Path { get; }
-        private int Limit { get; }
+        internal string Label { get; }
+        internal string Path { get; }
+        internal int Limit { get; }
     }
 
     private readonly struct DiagnosticFileText
     {
-        private DiagnosticFileText(string text, string error)
+        internal DiagnosticFileText(string text, string error)
         {
             Text = text;
             Error = error;
         }
 
-        private string Text { get; }
-        private string Error { get; }
+        internal string Text { get; }
+        internal string Error { get; }
 
-        private static DiagnosticFileText Missing()
+        internal static DiagnosticFileText Missing()
             => new(null, null);
 
-        private static DiagnosticFileText Read(string text)
+        internal static DiagnosticFileText Read(string text)
             => new(text, null);
 
-        private static DiagnosticFileText Failed(string error)
+        internal static DiagnosticFileText Failed(string error)
             => new(null, error);
     }
 

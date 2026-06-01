@@ -29,13 +29,13 @@ internal sealed partial class LauncherController
             CompleteMessage = completeMessage;
         }
 
-        private string ConfirmationMessage { get; }
+        internal string ConfirmationMessage { get; }
         private CloudSyncOperation Operation { get; }
-        private string OperationName { get; }
-        private string StartMessage { get; }
-        private string CompleteMessage { get; }
+        internal string OperationName { get; }
+        internal string StartMessage { get; }
+        internal string CompleteMessage { get; }
 
-        private static CloudSyncRequest Push => new(
+        internal static CloudSyncRequest Push => new(
             "Push local saves to cloud?\nThis will overwrite your cloud saves.",
             CloudSyncOperation.Push,
             "Push",
@@ -43,7 +43,7 @@ internal sealed partial class LauncherController
             "Push complete."
         );
 
-        private static CloudSyncRequest Pull => new(
+        internal static CloudSyncRequest Pull => new(
             "Pull cloud saves to local?\nThis will overwrite your local saves.",
             CloudSyncOperation.Pull,
             "Pull",
@@ -51,7 +51,7 @@ internal sealed partial class LauncherController
             "Pull complete."
         );
 
-        private async Task RunAsync()
+        internal async Task RunAsync()
         {
             var operationTask = RunOperationAsync();
             var timeout = Task.Delay(OperationTimeoutMs);

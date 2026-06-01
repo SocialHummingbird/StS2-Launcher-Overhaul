@@ -63,24 +63,24 @@ internal sealed partial class SteamConnection
 
     private readonly struct AppAccessTokenResult
     {
-        private AppAccessTokenResult(bool found, bool denied, ulong token)
+        internal AppAccessTokenResult(bool found, bool denied, ulong token)
         {
             Found = found;
             Denied = denied;
             Token = token;
         }
 
-        private bool Found { get; }
-        private bool Denied { get; }
-        private ulong Token { get; }
+        internal bool Found { get; }
+        internal bool Denied { get; }
+        internal ulong Token { get; }
 
-        private static AppAccessTokenResult FromToken(ulong token)
+        internal static AppAccessTokenResult FromToken(ulong token)
             => new(found: true, denied: false, token);
 
-        private static AppAccessTokenResult FromDenied()
+        internal static AppAccessTokenResult FromDenied()
             => new(found: false, denied: true, token: 0);
 
-        private static AppAccessTokenResult FromMissing()
+        internal static AppAccessTokenResult FromMissing()
             => new(found: false, denied: false, token: 0);
     }
 }

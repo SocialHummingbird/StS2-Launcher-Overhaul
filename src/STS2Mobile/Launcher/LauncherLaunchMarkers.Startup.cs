@@ -8,7 +8,7 @@ internal static partial class LauncherLaunchMarkers
 {
     internal static bool PreviousGameLaunchIncomplete(out string phase)
     {
-        return TryReadStartupPhase(logFailure: false, out phase);
+        return TryReadStartupPhaseQuietly(out phase);
     }
 
     internal static void WriteStartupPhase(string phase)
@@ -28,7 +28,7 @@ internal static partial class LauncherLaunchMarkers
 
     internal static string ReadStartupPhase()
     {
-        TryReadStartupPhase(logFailure: true, out var phase);
+        TryReadStartupPhaseWithLogging(out var phase);
         return phase;
     }
 
@@ -45,24 +45,41 @@ internal static partial class LauncherLaunchMarkers
         }
     }
 
-    private static bool TryReadStartupPhase(bool logFailure, out string phase)
+    private static bool TryReadStartupPhaseQuietly(out string phase)
     {
-        phase = null;
         try
         {
-            if (!File.Exists(StartupMarkerPath))
-                return false;
+            return TryReadStartupPhaseFile(out phase);
+        }
+        catch
+        {
+            phase = null;
+            return false;
+        }
+    }
 
-            var lines = File.ReadAllLines(StartupMarkerPath);
-            phase = lines.Length >= 2 ? lines[1].Trim() : null;
-            return true;
+    private static bool TryReadStartupPhaseWithLogging(out string phase)
+    {
+        try
+        {
+            return TryReadStartupPhaseFile(out phase);
         }
         catch (Exception ex)
         {
-            if (logFailure)
-                PatchHelper.Log($"Failed to read startup marker: {ex.Message}");
-
+            phase = null;
+            PatchHelper.Log($"Failed to read startup marker: {ex.Message}");
             return false;
         }
+    }
+
+    private static bool TryReadStartupPhaseFile(out string phase)
+    {
+        phase = null;
+        if (!File.Exists(StartupMarkerPath))
+            return false;
+
+        var lines = File.ReadAllLines(StartupMarkerPath);
+        phase = lines.Length >= 2 ? lines[1].Trim() : null;
+        return true;
     }
 }

@@ -13,25 +13,25 @@ internal static partial class CloudSyncCoordinator
         private readonly ISaveStore _local;
         private readonly ICloudSaveStore _cloud;
 
-        private AutoSyncContext(ISaveStore local, ICloudSaveStore cloud, string path)
+        internal AutoSyncContext(ISaveStore local, ICloudSaveStore cloud, string path)
         {
             _local = local;
             _cloud = cloud;
             Path = path;
         }
 
-        private string Path { get; }
+        internal string Path { get; }
 
-        private bool CloudFileExists()
+        internal bool CloudFileExists()
             => _cloud.FileExists(Path);
 
-        private bool LocalFileExists()
+        internal bool LocalFileExists()
             => _local.FileExists(Path);
 
-        private string ReadLocalFile()
+        internal string ReadLocalFile()
             => _local.ReadFile(Path);
 
-        private Task<string> ReadCloudContentAsync(string operation)
+        internal Task<string> ReadCloudContentAsync(string operation)
             => CloudSyncCoordinator.ReadCloudContentAsync(
                 _cloud,
                 Path,
@@ -39,7 +39,7 @@ internal static partial class CloudSyncCoordinator
                 AutoSyncPerPathTimeoutMs
             );
 
-        private Task WriteCloudContentAsync(string content)
+        internal Task WriteCloudContentAsync(string content)
             => CloudSyncCoordinator.WriteCloudContentAsync(
                 _local,
                 _cloud,
@@ -48,13 +48,13 @@ internal static partial class CloudSyncCoordinator
                 AutoSyncPerPathTimeoutMs
             );
 
-        private void WriteCloudFile(string content)
+        internal void WriteCloudFile(string content)
             => _cloud.WriteFile(Path, content);
 
-        private void BackUpLocalProgress()
+        internal void BackUpLocalProgress()
             => SaveBackups.LocalProgressFile(_local, Path);
 
-        private void BackUpCloudProgress(string content)
+        internal void BackUpCloudProgress(string content)
             => SaveBackups.CloudProgressContent(Path, content);
     }
 

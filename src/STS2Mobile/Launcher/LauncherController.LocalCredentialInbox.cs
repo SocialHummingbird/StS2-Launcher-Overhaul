@@ -11,7 +11,7 @@ internal sealed partial class LauncherController
     {
         private const string FileName = "steam_login_credentials.txt";
 
-        private static (string Username, string Password)? TryConsume()
+        internal static (string Username, string Password)? TryConsume()
         {
             if (!LauncherExternalFileInbox.TryConsumeLines(
                     FileName,

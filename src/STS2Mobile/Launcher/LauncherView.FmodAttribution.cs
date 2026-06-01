@@ -17,7 +17,7 @@ internal sealed partial class LauncherView
         private const int LogoWidth = 120;
         private static readonly Color CreditColor = new(0.5f, 0.5f, 0.55f);
 
-        private FmodAttributionSection(float scale)
+        internal FmodAttributionSection(float scale)
         {
             SizeFlagsVertical = Control.SizeFlags.ExpandFill;
             Alignment = BoxContainer.AlignmentMode.End;

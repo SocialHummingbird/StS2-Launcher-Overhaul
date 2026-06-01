@@ -8,7 +8,7 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct ManifestFileDownloadDecision
     {
-        private ManifestFileDownloadDecision(
+        internal ManifestFileDownloadDecision(
             bool shouldDownload,
             bool verifiedExisting,
             bool corruptExisting
@@ -19,20 +19,20 @@ internal sealed partial class DepotDownloader
             CorruptExisting = corruptExisting;
         }
 
-        private bool ShouldDownload { get; }
-        private bool VerifiedExisting { get; }
-        private bool CorruptExisting { get; }
+        internal bool ShouldDownload { get; }
+        internal bool VerifiedExisting { get; }
+        internal bool CorruptExisting { get; }
 
-        private static ManifestFileDownloadDecision Skip =>
+        internal static ManifestFileDownloadDecision Skip =>
             new(shouldDownload: false, verifiedExisting: false, corruptExisting: false);
 
-        private static ManifestFileDownloadDecision Download =>
+        internal static ManifestFileDownloadDecision Download =>
             new(shouldDownload: true, verifiedExisting: false, corruptExisting: false);
 
-        private static ManifestFileDownloadDecision Verified =>
+        internal static ManifestFileDownloadDecision Verified =>
             new(shouldDownload: false, verifiedExisting: true, corruptExisting: false);
 
-        private static ManifestFileDownloadDecision Corrupt =>
+        internal static ManifestFileDownloadDecision Corrupt =>
             new(shouldDownload: true, verifiedExisting: false, corruptExisting: true);
     }
 

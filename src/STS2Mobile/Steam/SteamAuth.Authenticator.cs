@@ -9,7 +9,7 @@ internal sealed partial class SteamAuth
     {
         private readonly SteamAuth _auth;
 
-        private AuthAuthenticator(SteamAuth auth) => _auth = auth;
+        internal AuthAuthenticator(SteamAuth auth) => _auth = auth;
 
         public Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
         {

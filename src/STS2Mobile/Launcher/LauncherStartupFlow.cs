@@ -10,7 +10,7 @@ internal static partial class LauncherStartupFlow
 
     private readonly struct StartupContext
     {
-        private StartupContext(
+        internal StartupContext(
             object game,
             Node gameNode,
             Label status,
@@ -23,10 +23,10 @@ internal static partial class LauncherStartupFlow
             Mode = mode;
         }
 
-        private object Game { get; }
-        private Node GameNode { get; }
-        private Label Status { get; }
-        private StartupMode Mode { get; }
+        internal object Game { get; }
+        internal Node GameNode { get; }
+        internal Label Status { get; }
+        internal StartupMode Mode { get; }
     }
 
     internal static async Task RunAsync(object game)

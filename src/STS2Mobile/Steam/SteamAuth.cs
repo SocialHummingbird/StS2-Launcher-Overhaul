@@ -12,7 +12,7 @@ internal sealed partial class SteamAuth : IDisposable
 {
     internal readonly struct AuthResult
     {
-        private AuthResult(string accountName, string refreshToken, string guardData)
+        internal AuthResult(string accountName, string refreshToken, string guardData)
         {
             AccountName = accountName;
             RefreshToken = refreshToken;

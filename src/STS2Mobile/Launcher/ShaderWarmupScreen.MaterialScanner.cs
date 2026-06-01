@@ -17,7 +17,7 @@ internal sealed partial class ShaderWarmupScreen
         private const string SceneRoot = "res://scenes";
         private const string TresExtension = ".tres";
 
-        private static async Task<List<(string path, Material mat)>> CollectAsync(
+        internal static async Task<List<(string path, Material mat)>> CollectAsync(
             SceneTree tree,
             ShaderWarmupProgress progress
         )

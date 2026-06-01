@@ -7,14 +7,14 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct DepotAccess
     {
-        private DepotAccess(byte[] key, ulong manifestRequestCode)
+        internal DepotAccess(byte[] key, ulong manifestRequestCode)
         {
             Key = key;
             ManifestRequestCode = manifestRequestCode;
         }
 
-        private byte[] Key { get; }
-        private ulong ManifestRequestCode { get; }
+        internal byte[] Key { get; }
+        internal ulong ManifestRequestCode { get; }
     }
 
     private async Task DownloadDepotAsync(uint depotId, ulong manifestId, CancellationToken ct)

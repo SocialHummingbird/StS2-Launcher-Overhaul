@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
 

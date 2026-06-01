@@ -30,7 +30,7 @@ internal sealed partial class LauncherView
 
         var log = new LogView(scale);
         log.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-        log.GuiInput += dismissKeyboard;
+        log.GuiInput += input => dismissKeyboard(input);
         right.AddChild(log);
         return log;
     }

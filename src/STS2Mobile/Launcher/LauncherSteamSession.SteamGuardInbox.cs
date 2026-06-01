@@ -9,7 +9,7 @@ internal sealed partial class LauncherSteamSession
     {
         private const string FileName = "steam_guard_code.txt";
 
-        private static string TryConsume()
+        internal static string TryConsume()
         {
             if (!OperatingSystem.IsAndroid())
                 return null;

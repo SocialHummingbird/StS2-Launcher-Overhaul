@@ -20,14 +20,14 @@ internal static partial class LauncherDiagnostics
 
     private readonly struct FileReference
     {
-        private FileReference(string label, string path)
+        internal FileReference(string label, string path)
         {
             Label = label;
             Path = path;
         }
 
-        private string Label { get; }
-        private string Path { get; }
+        internal string Label { get; }
+        internal string Path { get; }
     }
 
     private static string AndroidAppVersion(string versionName)

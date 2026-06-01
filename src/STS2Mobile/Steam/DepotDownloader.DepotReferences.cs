@@ -9,16 +9,16 @@ internal sealed partial class DepotDownloader
 
     private readonly struct DepotReference
     {
-        private DepotReference(uint depotId, ulong manifestId)
+        internal DepotReference(uint depotId, ulong manifestId)
         {
             DepotId = depotId;
             ManifestId = manifestId;
         }
 
-        private uint DepotId { get; }
-        private ulong ManifestId { get; }
+        internal uint DepotId { get; }
+        internal ulong ManifestId { get; }
 
-        private static DepotReference Create(uint depotId, ulong manifestId)
+        internal static DepotReference Create(uint depotId, ulong manifestId)
             => new(depotId, manifestId);
     }
 

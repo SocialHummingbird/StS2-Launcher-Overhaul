@@ -552,7 +552,7 @@ internal static class LanMultiplayerPatcher
         private Thread _thread;
         private UdpClient _udpClient;
 
-        private void Start()
+        internal void Start()
         {
             lock (_stateLock)
             {
@@ -627,7 +627,7 @@ internal static class LanMultiplayerPatcher
             }
         }
 
-        private void Stop()
+        internal void Stop()
         {
             lock (_stateLock)
             {
@@ -673,7 +673,7 @@ internal static class LanMultiplayerPatcher
         private bool _contextDirty;
         private bool _visibilityUpdateFailureLogged;
 
-        private void Start(object screen, Control buttonContainer)
+        internal void Start(object screen, Control buttonContainer)
         {
             lock (_stateLock)
             {
@@ -896,7 +896,7 @@ internal static class LanMultiplayerPatcher
             return ips;
         }
 
-        private void Stop()
+        internal void Stop()
         {
             lock (_stateLock)
             {

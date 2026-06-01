@@ -37,7 +37,7 @@ internal sealed partial class LauncherController
         if (_model.ConnectionResolved)
             return true;
 
-        return _model.SessionState
+        return _model.CurrentSessionState
             is not (
                 SessionState.Connecting
                 or SessionState.Authenticating

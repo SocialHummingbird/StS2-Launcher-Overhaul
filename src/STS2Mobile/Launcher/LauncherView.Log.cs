@@ -7,7 +7,7 @@ internal sealed partial class LauncherView
 {
     private sealed class LogView : RichTextLabel
     {
-        private LogView(float scale)
+        internal LogView(float scale)
         {
             CustomMinimumSize = new Vector2(
                 0,
@@ -23,9 +23,9 @@ internal sealed partial class LauncherView
             AddThemeStyleboxOverride(LauncherComponentTheme.StateNormal, BuildStyle(scale));
         }
 
-        private void AppendLog(string msg) => AddText(msg + "\n");
+        internal void AppendLog(string msg) => AddText(msg + "\n");
 
-        private void AppendColoredLog(string msg, Color color)
+        internal void AppendColoredLog(string msg, Color color)
         {
             PushColor(color);
             AddText(msg + "\n");

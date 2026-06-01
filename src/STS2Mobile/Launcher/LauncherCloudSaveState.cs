@@ -4,16 +4,16 @@ internal static class LauncherCloudSaveState
 {
     private readonly struct Credentials
     {
-        private Credentials(string accountName, string refreshToken)
+        internal Credentials(string accountName, string refreshToken)
         {
             AccountName = accountName;
             RefreshToken = refreshToken;
         }
 
-        private string AccountName { get; }
-        private string RefreshToken { get; }
+        internal string AccountName { get; }
+        internal string RefreshToken { get; }
 
-        private bool IsAvailable => AccountName != null && RefreshToken != null;
+        internal bool IsAvailable => AccountName != null && RefreshToken != null;
     }
 
     private static bool _cloudSyncEnabled = true;

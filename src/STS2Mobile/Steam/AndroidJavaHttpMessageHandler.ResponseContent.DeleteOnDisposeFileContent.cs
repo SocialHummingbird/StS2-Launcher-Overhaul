@@ -10,7 +10,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
         private readonly string _path;
         private readonly long _length;
 
-        private DeleteOnDisposeFileContent(string path)
+        internal DeleteOnDisposeFileContent(string path)
             : this(path, OpenResponseFile(path)) { }
 
         private DeleteOnDisposeFileContent(string path, FileStream stream)

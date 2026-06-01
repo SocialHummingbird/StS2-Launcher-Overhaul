@@ -6,7 +6,7 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveComparison
     {
-        private enum Result
+        internal enum Result
         {
             CloudWins,
             LocalWins,
@@ -29,17 +29,12 @@ internal static partial class CloudSyncCoordinator
         private const string TotalPlaytimeProperty = "total_playtime";
         private const string TotalWinsProperty = "total_wins";
 
-        private static bool TryGetExplicitWinner(
+        internal static Result GetExplicitWinner(
             string path,
             string localContent,
-            string cloudContent,
-            out bool cloudWins
+            string cloudContent
         )
-        {
-            var result = Compare(path, localContent, cloudContent);
-            cloudWins = result == Result.CloudWins;
-            return result != Result.Equal;
-        }
+            => Compare(path, localContent, cloudContent);
 
         private static Result Compare(string path, string localContent, string cloudContent)
         {

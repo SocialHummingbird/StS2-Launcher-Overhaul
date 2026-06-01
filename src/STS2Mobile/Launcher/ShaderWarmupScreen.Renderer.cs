@@ -20,7 +20,7 @@ internal sealed partial class ShaderWarmupScreen
         private readonly SceneTree _tree;
         private readonly ShaderWarmupProgress _progress;
 
-        private ShaderWarmupRenderer(
+        internal ShaderWarmupRenderer(
             Control parent,
             SceneTree tree,
             ShaderWarmupProgress progress
@@ -31,7 +31,7 @@ internal sealed partial class ShaderWarmupScreen
             _progress = progress;
         }
 
-        private async Task RenderAsync(List<(string path, Material mat)> materials)
+        internal async Task RenderAsync(List<(string path, Material mat)> materials)
         {
             var viewport = CreateViewport();
             _parent.AddChild(viewport);

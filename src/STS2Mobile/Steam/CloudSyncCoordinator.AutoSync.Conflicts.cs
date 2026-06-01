@@ -34,31 +34,24 @@ internal static partial class CloudSyncCoordinator
         string cloudContent
     )
     {
-        if (SaveComparison.TryGetExplicitWinner(
-                sync.Path,
-                localContent,
-                cloudContent,
-                out var cloudWins
-            ))
+        switch (SaveComparison.GetExplicitWinner(sync.Path, localContent, cloudContent))
         {
-            if (cloudWins)
-            {
+            case SaveComparison.Result.CloudWins:
                 await ApplyCloudWinsAsync(
                     sync,
                     cloudContent,
                     SyncCloudWins(sync.Path)
                 );
-            }
-            else
-            {
+                return;
+
+            case SaveComparison.Result.LocalWins:
                 ApplyLocalWins(
                     sync,
                     localContent,
                     cloudContent,
                     SyncLocalWinsUploading(sync.Path)
                 );
-            }
-            return;
+                return;
         }
 
         // Cloud wins on equal progress or non-progress files to preserve PC as primary.

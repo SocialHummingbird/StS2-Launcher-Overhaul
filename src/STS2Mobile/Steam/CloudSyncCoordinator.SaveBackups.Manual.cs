@@ -10,7 +10,7 @@ internal static partial class CloudSyncCoordinator
         private const string BackupSourceCloudPrePush = "cloud-pre-push";
         private const string BackupSourceLocalPrePull = "local-pre-pull";
 
-        private static async Task<int> CloudBeforeManualPushAsync(
+        internal static async Task<int> CloudBeforeManualPushAsync(
             ManualSyncContext sync,
             IEnumerable<string> paths
         )
@@ -37,7 +37,7 @@ internal static partial class CloudSyncCoordinator
             return backedUp;
         }
 
-        private static int LocalBeforeManualPull(
+        internal static int LocalBeforeManualPull(
             ManualSyncContext sync,
             IEnumerable<string> paths
         )

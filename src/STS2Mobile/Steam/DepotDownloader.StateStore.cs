@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using SteamKit2;
 
 namespace STS2Mobile.Steam;
 
@@ -10,13 +11,13 @@ internal sealed partial class DepotDownloader
         private readonly DepotDownloader _owner;
         private readonly string _stateDir;
 
-        private DownloadStateStore(DepotDownloader owner, string stateDir)
+        internal DownloadStateStore(DepotDownloader owner, string stateDir)
         {
             _owner = owner;
             _stateDir = stateDir;
         }
 
-        private ulong LoadManifestId(uint depotId)
+        internal ulong LoadManifestId(uint depotId)
         {
             var path = Path.Combine(_stateDir, $"{depotId}.id");
             if (!File.Exists(path))
@@ -39,7 +40,7 @@ internal sealed partial class DepotDownloader
             }
         }
 
-        private DepotManifest? LoadManifest(uint depotId)
+        internal DepotManifest? LoadManifest(uint depotId)
         {
             var path = Path.Combine(_stateDir, $"{depotId}.manifest");
             if (!File.Exists(path))
@@ -58,7 +59,7 @@ internal sealed partial class DepotDownloader
             }
         }
 
-        private void SaveManifest(uint depotId, DepotManifest manifest, ulong manifestId)
+        internal void SaveManifest(uint depotId, DepotManifest manifest, ulong manifestId)
         {
             var manifestPath = Path.Combine(_stateDir, $"{depotId}.manifest");
             var manifestTempPath = manifestPath + ".tmp";
@@ -77,7 +78,7 @@ internal sealed partial class DepotDownloader
             DeleteQuietly(idPath + ".bad");
         }
 
-        private void Prepare()
+        internal void Prepare()
         {
             Directory.CreateDirectory(_stateDir);
             CleanupTempFiles();

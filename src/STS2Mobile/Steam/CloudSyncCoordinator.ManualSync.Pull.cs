@@ -8,7 +8,7 @@ internal static partial class CloudSyncCoordinator
 {
     private static class ManualPullBatch
     {
-        private static async Task<ManualPullCounts> RunAsync(
+        internal static async Task<ManualPullCounts> RunAsync(
             ManualSyncContext sync,
             IEnumerable<string> paths
         )

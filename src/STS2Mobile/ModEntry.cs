@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Godot;
 using HarmonyLib;
 using STS2Mobile.Launcher;
@@ -218,7 +219,7 @@ public static class ModEntry
         Directory.CreateDirectory(ManagedTempDirectory);
 
         foreach (var variable in TempVariableNames)
-            Environment.SetEnvironmentVariable(variable, ManagedTempDirectory);
+            System.Environment.SetEnvironmentVariable(variable, ManagedTempDirectory);
 
         PatchHelper.Log($"Using writable temp directory: {ManagedTempDirectory}");
     }

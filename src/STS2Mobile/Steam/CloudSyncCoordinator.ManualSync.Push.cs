@@ -14,7 +14,7 @@ internal static partial class CloudSyncCoordinator
             Stop,
         }
 
-        private static int Run(ManualSyncContext sync, IEnumerable<string> paths)
+        internal static int Run(ManualSyncContext sync, IEnumerable<string> paths)
         {
             sync.BeginCloudBatch();
             int count = 0;
