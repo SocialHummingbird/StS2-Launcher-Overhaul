@@ -1,92 +1,125 @@
-using System;
-using System.Reflection;
-using System.Threading.Tasks;
-using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Saves;
 using STS2Mobile.Launcher;
 using STS2Mobile.Steam;
+using System;
+using System.Threading.Tasks;
 
 namespace STS2Mobile.Patches;
 
-// Core patches for the mobile launcher flow. Intercepts GameStartupWrapper to show
-// the Steam login UI before the game starts, injects cloud save support via SteamKit2,
-// and delegates sync logic to CloudSyncCoordinator.
-public static class LauncherPatches
+// Installs Harmony hooks for the mobile launcher, cloud-save bridge, and Android startup behavior.
+internal static class LauncherPatches
 {
-    internal static bool CloudSyncEnabled = true;
-    internal static string SavedAccountName;
-    internal static string SavedRefreshToken;
+    internal static void Apply(Harmony harmony)
+    {
+        ApplyGamePatches(harmony);
+        ApplyCloudSavePatches(harmony);
+    }
 
-    public static void Apply(Harmony harmony)
+    private static void ApplyGamePatches(Harmony harmony)
     {
         PatchHelper.PatchCritical(
             harmony,
             typeof(NGame),
             "GameStartupWrapper",
-            prefix: PatchHelper.Method(typeof(LauncherPatches), nameof(GameStartupWrapperPrefix))
+            prefix: PatchHelper.Method(
+                typeof(LauncherPatches),
+                nameof(GameStartupWrapper)
+            )
         );
 
+        PatchHelper.PatchGetter(
+            harmony,
+            typeof(NGame),
+            "StartOnMainMenu",
+            prefix: PatchHelper.Method(
+                typeof(LauncherPatches),
+                nameof(StartOnMainMenu)
+            )
+        );
+    }
+
+    private static void ApplyCloudSavePatches(Harmony harmony)
+    {
         PatchHelper.Patch(
             harmony,
             typeof(SaveManager),
             "ConstructDefault",
-            prefix: PatchHelper.Method(typeof(LauncherPatches), nameof(ConstructDefaultPrefix))
+            prefix: PatchHelper.Method(
+                typeof(LauncherPatches),
+                nameof(ConstructDefault)
+            )
         );
 
         PatchHelper.PatchCritical(
             harmony,
             typeof(CloudSaveStore),
             "SyncCloudToLocal",
-            prefix: PatchHelper.Method(typeof(LauncherPatches), nameof(SyncCloudToLocalPrefix))
+            prefix: PatchHelper.Method(
+                typeof(LauncherPatches),
+                nameof(SyncCloudToLocal)
+            )
+        );
+
+        PatchHelper.PatchCritical(
+            harmony,
+            typeof(SaveManager),
+            "TryFirstTimeCloudSync",
+            prefix: PatchHelper.Method(
+                typeof(LauncherPatches),
+                nameof(TryFirstTimeCloudSync)
+            )
+        );
+
+        PatchHelper.PatchCritical(
+            harmony,
+            typeof(SaveManager),
+            "SyncCloudToLocal",
+            prefix: PatchHelper.Method(
+                typeof(LauncherPatches),
+                nameof(SaveManagerSyncCloudToLocal)
+            )
         );
     }
 
-    public static bool GameStartupWrapperPrefix(object __instance, ref Task __result)
+    private static bool GameStartupWrapper(object __instance, ref Task __result)
     {
-        __result = RunLauncherThenGame(__instance);
+        __result = LauncherStartupFlow.RunAsync(__instance);
         return false;
     }
 
-    public static bool ConstructDefaultPrefix(ref SaveManager __result)
+    private static bool StartOnMainMenu(ref bool __result)
     {
-        PatchHelper.Log(
-            $"[Cloud] ConstructDefaultPrefix called. HasToken={SavedRefreshToken != null}, CloudSync={CloudSyncEnabled}"
-        );
-
-        if (!CloudSyncEnabled)
-        {
-            PatchHelper.Log("[Cloud] Cloud sync disabled by user — using local-only SaveManager");
+        if (!OperatingSystem.IsAndroid())
             return true;
-        }
 
-        if (SavedAccountName == null || SavedRefreshToken == null)
-        {
-            PatchHelper.Log("[Cloud] No saved credentials — using local-only SaveManager");
-            return true;
-        }
-
-        try
-        {
-            var localStore = new GodotFileIo(UserDataPathProvider.GetAccountScopedBasePath(null));
-            var cloudStore = new SteamKit2CloudSaveStore(SavedAccountName, SavedRefreshToken);
-            var wrappedStore = new CloudSaveStore(localStore, cloudStore);
-
-            __result = new SaveManager(wrappedStore);
-            PatchHelper.Log("[Cloud] Created SaveManager with SteamKit2 cloud store");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log(
-                $"[Cloud] Cloud store injection failed, falling back to local: {ex.Message}"
-            );
-            return true;
-        }
+        __result = true;
+        return false;
     }
 
-    public static bool SyncCloudToLocalPrefix(
+    private static bool ConstructDefault(ref SaveManager __result)
+    {
+        PatchHelper.Log($"[Cloud] ConstructDefaultPrefix called. {LauncherCloudSaveState.StatusSummary}");
+
+        if (!LauncherCloudSaveState.TryGetEnabledCredentials(
+                out var accountName,
+                out var refreshToken,
+                out var unavailableReason
+            ))
+        {
+            PatchHelper.Log(unavailableReason);
+            return true;
+        }
+
+        if (!TryCreateCloudSaveManager(accountName, refreshToken, out var saveManager))
+            return true;
+
+        __result = saveManager;
+        return false;
+    }
+
+    private static bool SyncCloudToLocal(
         CloudSaveStore __instance,
         string path,
         ref Task __result
@@ -100,53 +133,55 @@ public static class LauncherPatches
         return false;
     }
 
-    private static async Task RunLauncherThenGame(object game)
+    private static bool TryFirstTimeCloudSync(ref Task<bool> __result)
     {
-        var gameNode = (Node)game;
+        if (!OperatingSystem.IsAndroid())
+            return true;
 
-        var launcher = new LauncherUI();
-        gameNode.AddChild(launcher);
-        launcher.SetGameMode(true);
-        launcher.Initialize();
-        PatchHelper.Log("Launcher UI displayed");
+        __result = Task.FromResult(false);
+        PatchHelper.Log("[Cloud] Skipping upstream first-time cloud sync on Android");
+        return false;
+    }
 
-        await launcher.WaitForLaunch();
-        PatchHelper.Log("User launched game, proceeding to startup...");
+    private static bool SaveManagerSyncCloudToLocal(ref Task __result)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return true;
 
-        var instanceField = typeof(SaveManager).GetField(
-            "_instance",
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-        if (instanceField != null)
-        {
-            instanceField.SetValue(null, null);
-            PatchHelper.Log("[Cloud] Reset SaveManager._instance for cloud store re-injection");
-        }
+        __result = Task.CompletedTask;
+        PatchHelper.Log("[Cloud] Skipping upstream startup cloud sync on Android");
+        return false;
+    }
 
-        launcher.QueueFree();
-
-        if (ShaderWarmupScreen.NeedsWarmup())
-        {
-            var warmup = new ShaderWarmupScreen();
-            gameNode.AddChild(warmup);
-            warmup.Initialize();
-            await warmup.WaitForCompletion();
-            warmup.QueueFree();
-        }
-
-        SaveManager.Instance.InitSettingsData();
-
-        var gameStartup = game.GetType()
-            .GetMethod("GameStartup", BindingFlags.NonPublic | BindingFlags.Instance);
+    private static bool TryCreateCloudSaveManager(
+        string accountName,
+        string refreshToken,
+        out SaveManager saveManager
+    )
+    {
+        saveManager = null;
 
         try
         {
-            await (Task)gameStartup.Invoke(game, null);
+            ISaveStore localStore = OperatingSystem.IsAndroid()
+                ? new AndroidLocalSaveStore()
+                : new GodotFileIo(UserDataPathProvider.GetAccountScopedBasePath(null));
+            var cloudStore = new SteamKit2CloudSaveStore(
+                accountName,
+                refreshToken
+            );
+            var wrappedStore = new CloudSaveStore(localStore, cloudStore);
+
+            saveManager = new SaveManager(wrappedStore);
+            PatchHelper.Log("[Cloud] Created SaveManager with SteamKit2 cloud store");
+            return true;
         }
-        catch (TargetInvocationException ex)
+        catch (Exception ex)
         {
-            PatchHelper.Log($"Game startup failed: {ex.InnerException?.Message}");
-            throw ex.InnerException ?? ex;
+            PatchHelper.Log(
+                $"[Cloud] Cloud store injection failed, falling back to local: {ex.Message}"
+            );
+            return false;
         }
     }
 }

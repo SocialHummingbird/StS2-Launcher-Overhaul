@@ -1,13 +1,25 @@
 #!/bin/bash
 set -e
 
-NDK=~/Android/Sdk/ndk/28.1.13356709
-CC=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
-OUT=out/arm64-v8a
+NDK_ROOT="${ANDROID_NDK_ROOT:-$HOME/Android/Sdk/ndk/28.1.13356709}"
+TARGET_API="24"
+TARGET_ABI="arm64-v8a"
+TOOLCHAIN_HOST="linux-x86_64"
 
-mkdir -p $OUT
+CC="$NDK_ROOT/toolchains/llvm/prebuilt/$TOOLCHAIN_HOST/bin/aarch64-linux-android$TARGET_API-clang"
+OUT="out/$TARGET_ABI"
 
-$CC -shared -o $OUT/libsteam_api.so steam_stub.c steam_stub_auto.c -Wl,-soname,libsteam_api.so
-$CC -shared -o "$OUT/libsentry.so" sentry_stub.c
+build_shared() {
+    local output="$1"
+    local soname="$2"
+    shift 2
 
-ls -lh $OUT/
+    "$CC" -shared -o "$output" "$@" -Wl,-soname,"$soname"
+}
+
+mkdir -p "$OUT"
+
+build_shared "$OUT/libsteam_api.so" "libsteam_api.so" steam_stub.c steam_stub_auto.c
+build_shared "$OUT/libsentry.so" "libsentry.so" sentry_stub.c
+
+ls -lh "$OUT/"

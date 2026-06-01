@@ -9,72 +9,11 @@ namespace STS2Mobile;
 
 internal static class StartupPatchOrchestrator
 {
-    private readonly record struct PatchStep(string Name, Action<Harmony> Apply);
-    private readonly record struct PatchGroup(string Name, bool Critical, IReadOnlyList<PatchStep> Steps);
-
-    internal sealed record PatchAttempt(
-        string Name,
-        bool Success,
-        TimeSpan Elapsed,
-        string? Failure
-    );
-
-    internal sealed record PatchGroupResult(
-        string Name,
-        bool Critical,
-        TimeSpan Elapsed,
-        IReadOnlyList<PatchAttempt> Attempts
-    )
-    {
-        public int Applied => Attempts.Count(x => x.Success);
-        public int Total => Attempts.Count;
-        public int Failed => Total - Applied;
-
-        public IReadOnlyList<string> FailureMessages => Attempts
-            .Where(x => !x.Success && !string.IsNullOrWhiteSpace(x.Failure))
-            .Select(x => $"{x.Name}: {x.Failure}")
-            .ToArray();
-    }
-
     private static readonly PatchGroup[] Groups = new PatchGroup[]
     {
-            new PatchGroup(
-                "core",
-                true,
-                new PatchStep[]
-                {
-                    new PatchStep("Model DB bootstrap", ModelDbInitPatch.Apply),
-                    new PatchStep("Platform compatibility", PlatformPatches.Apply),
-                }
-            ),
-        new PatchGroup(
-            "gameplay",
-            false,
-            new PatchStep[]
-            {
-                new PatchStep("Settings compatibility", SettingsPatches.Apply),
-                new PatchStep("UI scaling", UiScalePatches.Apply),
-                new PatchStep("Mobile layout", MobileLayoutPatches.Apply),
-                new PatchStep("Event layout", EventLayoutPatches.Apply),
-                new PatchStep("Merchant layout", MerchantLayoutPatches.Apply),
-                new PatchStep("App lifecycle", AppLifecyclePatches.Apply),
-                new PatchStep("Touch input", TouchInputPatches.Apply),
-                new PatchStep("Card reward", CardRewardPatches.Apply),
-                new PatchStep("Early access disclaimer", EarlyAccessDisclaimerPatches.Apply),
-                new PatchStep("Combat background", CombatBackgroundPatches.Apply),
-            }
-        ),
-        new PatchGroup(
-            "optional",
-            false,
-            new PatchStep[]
-            {
-                new PatchStep("LAN multiplayer", LanMultiplayerPatcher.Apply),
-                new PatchStep("Mod loader integration", ModLoaderPatches.Apply),
-                new PatchStep("Launcher UI", LauncherPatches.Apply),
-                new PatchStep("Save diagnostics", SaveDiagnosticPatches.Apply),
-            }
-        )
+        Core(),
+        Gameplay(),
+        Optional()
     };
 
     internal static StartupPatchResult Apply(Harmony harmony)
@@ -85,7 +24,11 @@ internal static class StartupPatchOrchestrator
 
         foreach (var group in Groups)
         {
+            BootstrapTrace.Log($"Starting patch group: {group.Name}");
             var groupResult = ApplyGroup(group, harmony);
+            BootstrapTrace.Log(
+                $"Finished patch group: {group.Name} applied={groupResult.Applied}/{groupResult.Total} failed={groupResult.Failed}"
+            );
             results.Add(groupResult);
 
             if (group.Critical && groupResult.Failed > 0)
@@ -106,31 +49,57 @@ internal static class StartupPatchOrchestrator
         return result;
     }
 
+    private static PatchGroup Core()
+        => new(
+            "core",
+            true,
+            new PatchStep[]
+            {
+                new("Platform compatibility", PlatformPatches.Apply),
+                new("Model DB bootstrap", ModelDbInitPatch.Apply),
+            }
+        );
+
+    private static PatchGroup Gameplay()
+        => new(
+            "gameplay",
+            false,
+            new PatchStep[]
+            {
+                new("Settings compatibility", SettingsPatches.Apply),
+                new("Font substitution", FontSubstitutionPatches.Apply),
+                new("UI scaling", UiScalePatches.Apply),
+                new("Mobile layout", MobileLayoutPatches.Apply),
+                new("Event layout", EventLayoutPatches.Apply),
+                new("Merchant layout", MerchantLayoutPatches.Apply),
+                new("App lifecycle", AppLifecyclePatches.Apply),
+                new("Touch input", TouchInputPatches.Apply),
+                new("Card reward", CardRewardPatches.Apply),
+                new("Early access disclaimer", EarlyAccessDisclaimerPatches.Apply),
+                new("Combat background", CombatBackgroundPatches.Apply),
+            }
+        );
+
+    private static PatchGroup Optional()
+        => new(
+            "optional",
+            false,
+            new PatchStep[]
+            {
+                new("LAN multiplayer", LanMultiplayerPatcher.Apply),
+                new("Mod loader integration", ModLoaderPatches.Apply),
+                new("Launcher UI", LauncherPatches.Apply),
+                new("Save diagnostics", SaveDiagnosticPatches.Apply),
+            }
+        );
+
     private static PatchGroupResult ApplyGroup(PatchGroup group, Harmony harmony)
     {
         var groupStopwatch = Stopwatch.StartNew();
         var attempts = new List<PatchAttempt>();
 
         for (var i = 0; i < group.Steps.Count; i++)
-        {
-            var step = group.Steps[i];
-            var patchStopwatch = Stopwatch.StartNew();
-            try
-            {
-                step.Apply(harmony);
-                attempts.Add(new PatchAttempt(step.Name, true, patchStopwatch.Elapsed, null));
-            }
-            catch (Exception ex)
-            {
-                var failure = $"{ex.GetType().Name}: {ex.Message}";
-                attempts.Add(new PatchAttempt(step.Name, false, patchStopwatch.Elapsed, failure));
-                PatchHelper.Log($"[{group.Name}] {step.Name} failed: {failure}");
-            }
-            finally
-            {
-                patchStopwatch.Stop();
-            }
-        }
+            attempts.Add(ApplyStep(group, group.Steps[i], harmony));
 
         groupStopwatch.Stop();
         var failed = attempts.Count(x => !x.Success);
@@ -146,19 +115,87 @@ internal static class StartupPatchOrchestrator
         return result;
     }
 
-    public sealed record StartupPatchResult(
-        IReadOnlyList<PatchGroupResult> GroupResults,
-        bool CriticalFailed,
-        TimeSpan Duration
+    private static PatchAttempt ApplyStep(PatchGroup group, PatchStep step, Harmony harmony)
+    {
+        var patchStopwatch = Stopwatch.StartNew();
+        try
+        {
+            BootstrapTrace.Log($"Starting patch step: {group.Name}/{step.Name}");
+            step.Apply(harmony);
+            BootstrapTrace.Log($"Finished patch step: {group.Name}/{step.Name}");
+            return new PatchAttempt(step.Name, true, patchStopwatch.Elapsed, null);
+        }
+        catch (Exception ex)
+        {
+            var failure = $"{ex.GetType().Name}: {ex.Message}";
+            BootstrapTrace.Log($"Failed patch step: {group.Name}/{step.Name}: {failure}");
+            PatchHelper.Log($"[{group.Name}] {step.Name} failed: {failure}");
+            return new PatchAttempt(step.Name, false, patchStopwatch.Elapsed, failure);
+        }
+        finally
+        {
+            patchStopwatch.Stop();
+        }
+    }
+
+    private readonly record struct PatchStep(string Name, Action<Harmony> Apply);
+
+    private readonly record struct PatchGroup(
+        string Name,
+        bool Critical,
+        IReadOnlyList<PatchStep> Steps
+    );
+
+    private sealed record PatchAttempt(
+        string Name,
+        bool Success,
+        TimeSpan Elapsed,
+        string? Failure
+    );
+
+    private sealed record PatchGroupResult(
+        string Name,
+        bool Critical,
+        TimeSpan Elapsed,
+        IReadOnlyList<PatchAttempt> Attempts
     )
     {
-        public int TotalPatchCount => GroupResults.Sum(x => x.Total);
-        public int AppliedPatchCount => GroupResults.Sum(x => x.Applied);
-        public int FailedPatchCount => GroupResults.Sum(x => x.Failed);
+        internal int Applied => Attempts.Count(x => x.Success);
+        internal int Total => Attempts.Count;
+        internal int Failed => Total - Applied;
 
-        public IEnumerable<string> FailureMessages()
+        internal IReadOnlyList<string> FailureMessages => Attempts
+            .Where(x => !x.Success && !string.IsNullOrWhiteSpace(x.Failure))
+            .Select(x => $"{x.Name}: {x.Failure}")
+            .ToArray();
+    }
+
+    internal sealed class StartupPatchResult
+    {
+        private readonly IReadOnlyList<PatchGroupResult> _groupResults;
+
+        private StartupPatchResult(
+            IReadOnlyList<PatchGroupResult> groupResults,
+            bool criticalFailed,
+            TimeSpan duration
+        )
         {
-            foreach (var group in GroupResults)
+            _groupResults = groupResults;
+            CriticalFailed = criticalFailed;
+            Duration = duration;
+        }
+
+        internal bool CriticalFailed { get; }
+
+        internal TimeSpan Duration { get; }
+
+        internal int TotalPatchCount => _groupResults.Sum(x => x.Total);
+        internal int AppliedPatchCount => _groupResults.Sum(x => x.Applied);
+        internal int FailedPatchCount => _groupResults.Sum(x => x.Failed);
+
+        internal IEnumerable<string> FailureMessages()
+        {
+            foreach (var group in _groupResults)
             {
                 foreach (var failure in group.FailureMessages)
                 {
@@ -167,6 +204,6 @@ internal static class StartupPatchOrchestrator
             }
         }
 
-        public bool HasFailures => FailedPatchCount > 0;
-    };
+        internal bool HasFailures => FailedPatchCount > 0;
+    }
 }

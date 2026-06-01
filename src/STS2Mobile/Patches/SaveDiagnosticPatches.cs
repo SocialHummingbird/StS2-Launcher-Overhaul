@@ -11,75 +11,43 @@ namespace STS2Mobile.Patches;
 
 // Injects diagnostic logging into ProgressSaveManager.LoadProgress() via transpiler
 // to trace why the game creates a fresh default save instead of loading the pulled one.
-public static class SaveDiagnosticPatches
+internal static class SaveDiagnosticPatches
 {
-    public static void Apply(Harmony harmony)
+    private const string CreateDefaultMethod = "CreateDefault";
+    private const string LoadSaveMethod = "LoadSave";
+
+    internal static void Apply(Harmony harmony)
     {
         PatchHelper.Patch(
             harmony,
             typeof(ProgressSaveManager),
             "LoadProgress",
-            transpiler: PatchHelper.Method(
-                typeof(SaveDiagnosticPatches),
-                nameof(LoadProgressTranspiler)
-            )
+            transpiler: PatchHelper.Method(typeof(SaveDiagnosticPatches), nameof(TranspileLoadProgress))
         );
     }
 
-    public static IEnumerable<CodeInstruction> LoadProgressTranspiler(
-        IEnumerable<CodeInstruction> instructions
-    )
+    private static IEnumerable<CodeInstruction> TranspileLoadProgress(IEnumerable<CodeInstruction> instructions)
     {
         var codes = new List<CodeInstruction>(instructions);
-        bool injectedLoadSave = false;
-        bool injectedCreateDefault = false;
+        var injectedLoadSave = false;
+        var injectedCreateDefault = false;
 
-        for (int i = 0; i < codes.Count; i++)
+        for (var i = 0; i < codes.Count; i++)
         {
             var ci = codes[i];
 
-            // Match callvirt MigrationManager::LoadSave<SerializableProgress>.
-            // DeclaringType check uses Name to handle generic type resolution differences.
-            if (
-                !injectedLoadSave
-                && (ci.opcode == OpCodes.Call || ci.opcode == OpCodes.Callvirt)
-                && ci.operand is MethodInfo loadMethod
-                && loadMethod.Name == "LoadSave"
-                && loadMethod.DeclaringType?.Name == nameof(MigrationManager)
-            )
+            if (!injectedLoadSave && IsLoadSaveCall(ci))
             {
                 codes.Insert(i + 1, new CodeInstruction(OpCodes.Dup));
-                codes.Insert(
-                    i + 2,
-                    new CodeInstruction(
-                        OpCodes.Call,
-                        AccessTools.Method(typeof(SaveDiagnosticPatches), nameof(LogLoadResult))
-                    )
-                );
+                codes.Insert(i + 2, Call(nameof(LogLoadResult)));
                 PatchHelper.Log($"[Diag] Injected LoadSave logger at IL[{i}]");
                 injectedLoadSave = true;
                 i += 2;
             }
 
-            // Match call ProgressState::CreateDefault.
-            if (
-                !injectedCreateDefault
-                && (ci.opcode == OpCodes.Call || ci.opcode == OpCodes.Callvirt)
-                && ci.operand is MethodInfo createMethod
-                && createMethod.Name == "CreateDefault"
-                && createMethod.DeclaringType?.Name == nameof(ProgressState)
-            )
+            if (!injectedCreateDefault && IsCreateDefaultCall(ci))
             {
-                codes.Insert(
-                    i,
-                    new CodeInstruction(
-                        OpCodes.Call,
-                        AccessTools.Method(
-                            typeof(SaveDiagnosticPatches),
-                            nameof(LogCreatingDefault)
-                        )
-                    )
-                );
+                codes.Insert(i, Call(nameof(LogCreatingDefault)));
                 PatchHelper.Log($"[Diag] Injected CreateDefault logger at IL[{i}]");
                 injectedCreateDefault = true;
                 i++;
@@ -94,19 +62,18 @@ public static class SaveDiagnosticPatches
         return codes;
     }
 
-    public static void LogLoadResult(object result)
+    private static void LogLoadResult(object result)
     {
         try
         {
             var type = result.GetType();
             var status = type.GetProperty("Status")?.GetValue(result);
             var success = type.GetProperty("Success")?.GetValue(result);
-            var saveData = type.GetProperty("SaveData")?.GetValue(result);
+            var hasData = type.GetProperty("SaveData")?.GetValue(result) != null;
             var error = type.GetProperty("ErrorMessage")?.GetValue(result);
-
             PatchHelper.Log(
                 $"[Diag] LoadProgress result: Status={status}, "
-                    + $"Success={success}, HasData={saveData != null}, "
+                    + $"Success={success}, HasData={hasData}, "
                     + $"Error={error ?? "none"}"
             );
         }
@@ -116,10 +83,37 @@ public static class SaveDiagnosticPatches
         }
     }
 
-    public static void LogCreatingDefault()
+    private static void LogCreatingDefault()
     {
         PatchHelper.Log(
             "[Diag] LoadProgress: creating default empty progress (load failed or file missing)"
         );
     }
+
+    private static bool IsLoadSaveCall(CodeInstruction instruction)
+    {
+        return IsCall(instruction)
+            && instruction.operand is MethodInfo method
+            && method.Name == LoadSaveMethod
+            && method.DeclaringType?.Name == nameof(MigrationManager);
+    }
+
+    private static bool IsCreateDefaultCall(CodeInstruction instruction)
+    {
+        return IsCall(instruction)
+            && instruction.operand is MethodInfo method
+            && method.Name == CreateDefaultMethod
+            && method.DeclaringType?.Name == nameof(ProgressState);
+    }
+
+    private static bool IsCall(CodeInstruction instruction)
+    {
+        return instruction.opcode == OpCodes.Call || instruction.opcode == OpCodes.Callvirt;
+    }
+
+    private static CodeInstruction Call(string methodName) =>
+        new(
+            OpCodes.Call,
+            AccessTools.Method(typeof(SaveDiagnosticPatches), methodName)
+        );
 }

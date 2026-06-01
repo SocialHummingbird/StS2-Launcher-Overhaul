@@ -4,154 +4,302 @@ using STS2Mobile.Launcher.Components;
 
 namespace STS2Mobile.Launcher.Sections;
 
-public class ActionSection : VBoxContainer
+internal sealed class ActionSection : VBoxContainer
 {
-    public event Action LaunchPressed;
-    public event Action RetryPressed;
-    public event Action<bool> LocalBackupToggled;
-    public event Action<bool> CloudSyncToggled;
-    public event Action CloudPushPressed;
-    public event Action CloudPullPressed;
-    public event Action CheckForUpdatesPressed;
+    internal event Action LaunchPressed;
+    internal event Action RetryPressed;
+    internal event Action<bool> LocalBackupToggled;
+    internal event Action<bool> CloudSyncToggled;
+    internal event Action CloudPushPressed;
+    internal event Action CloudPullPressed;
+    internal event Action CheckForUpdatesPressed;
+    internal event Action RedownloadPressed;
+    internal event Action DiagnosticsPressed;
+    internal event Action ShowLastErrorPressed;
+    internal event Action CopyRawLogPressed;
+    internal event Action SafeLaunchPressed;
 
     private readonly Button _launchButton;
+    private readonly Button _safeLaunchButton;
     private readonly Button _retryButton;
-    private readonly StyledButton _localBackupToggle;
-    private readonly StyledButton _cloudSyncToggle;
+    private readonly Button _localBackupToggle;
+    private readonly Button _cloudSyncToggle;
     private readonly Button _pushButton;
     private readonly Button _pullButton;
     private readonly Button _updateButton;
-    private readonly StyleBoxFlat _offStyle;
-    private readonly StyleBoxFlat _onStyle;
+    private readonly Button _redownloadButton;
+    private readonly Button _diagnosticsButton;
+    private readonly Button _showLastErrorButton;
+    private readonly Button _copyRawLogButton;
+    private readonly HBoxContainer _pushPullRow;
+    private readonly StyleBoxFlat _toggleOffStyle;
+    private readonly StyleBoxFlat _toggleOnStyle;
 
-    public ActionSection(float scale)
+    internal ActionSection(float scale)
     {
-        _retryButton = new StyledButton("RETRY", scale);
+        var toggleRadius = (int)(4 * scale);
+        var toggleBorderWidth = Math.Max(1, (int)(2 * scale));
+        _toggleOffStyle = LauncherStyleBoxes.MakeOutline(
+            new Color(0.7f, 0.25f, 0.25f),
+            toggleRadius,
+            toggleBorderWidth
+        );
+        _toggleOnStyle = LauncherStyleBoxes.MakeOutline(
+            new Color(0.25f, 0.65f, 0.3f),
+            toggleRadius,
+            toggleBorderWidth
+        );
+
+        _retryButton = AddHiddenButton(
+            "RETRY",
+            scale,
+            LauncherSectionMetrics.PrimaryButtonFontSize,
+            LauncherSectionMetrics.PrimaryButtonHeight,
+            () => RetryPressed?.Invoke()
+        );
+
+        _localBackupToggle = AddSecondaryHiddenButton("Local Backup: OFF", scale, null);
+        _cloudSyncToggle = AddSecondaryHiddenButton("Auto Sync: OFF", scale, null);
+        ConfigureToggle(
+            _localBackupToggle,
+            LocalBackupText,
+            pressed => LocalBackupToggled?.Invoke(pressed)
+        );
+        ConfigureToggle(
+            _cloudSyncToggle,
+            CloudSyncText,
+            pressed => CloudSyncToggled?.Invoke(pressed)
+        );
+
+        _pushPullRow = new HBoxContainer();
+        _pushPullRow.Visible = false;
+        _pushPullRow.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.PushPullRowSeparation, scale)
+        );
+        _pushButton = AddPushPullButton(
+            _pushPullRow,
+            "Push to Cloud",
+            scale,
+            () => CloudPushPressed?.Invoke()
+        );
+        _pullButton = AddPushPullButton(
+            _pushPullRow,
+            "Pull from Cloud",
+            scale,
+            () => CloudPullPressed?.Invoke()
+        );
+        AddChild(_pushPullRow);
+
+        _updateButton = AddPrimaryHiddenButton(
+            "CHECK FOR UPDATES",
+            scale,
+            () => CheckForUpdatesPressed?.Invoke()
+        );
+        _redownloadButton = AddSecondaryHiddenButton(
+            "REDOWNLOAD GAME FILES",
+            scale,
+            () => RedownloadPressed?.Invoke()
+        );
+        _diagnosticsButton = AddSecondaryHiddenButton(
+            "EXPORT DIAGNOSTICS",
+            scale,
+            () => DiagnosticsPressed?.Invoke()
+        );
+        _showLastErrorButton = AddSecondaryHiddenButton(
+            "SHOW LAST ERROR",
+            scale,
+            () => ShowLastErrorPressed?.Invoke()
+        );
+        _copyRawLogButton = AddSecondaryHiddenButton(
+            "COPY RAW ERROR LOG",
+            scale,
+            () => CopyRawLogPressed?.Invoke()
+        );
+        _safeLaunchButton = AddSecondaryHiddenButton(
+            "SAFE LAUNCH",
+            scale,
+            () => SafeLaunchPressed?.Invoke()
+        );
+        _launchButton = AddPrimaryHiddenButton(
+            "LAUNCH",
+            scale,
+            () => LaunchPressed?.Invoke()
+        );
+    }
+
+    internal void SetLocalBackupChecked(bool value)
+    {
+        SetToggleChecked(_localBackupToggle, value, LocalBackupText);
+    }
+
+    internal void SetCloudSyncChecked(bool value)
+    {
+        SetToggleChecked(_cloudSyncToggle, value, CloudSyncText);
+    }
+
+    internal void ShowLaunch(string text, bool showCloudSync, bool showUpdate)
+    {
+        _launchButton.Text = text;
+        _launchButton.Visible = true;
+        SetCloudControlsVisible(showCloudSync);
+        ShowLaunchButtons(showUpdate);
         _retryButton.Visible = false;
-        _retryButton.Pressed += () => RetryPressed?.Invoke();
-        AddChild(_retryButton);
+    }
 
-        var r = (int)(4 * scale);
-        var bw = System.Math.Max(1, (int)(2 * scale));
-        _offStyle = StyledButton.MakeOutline(new Color(0.7f, 0.25f, 0.25f), r, bw);
-        _onStyle = StyledButton.MakeOutline(new Color(0.25f, 0.65f, 0.3f), r, bw);
+    internal void ShowRetry()
+    {
+        _retryButton.Visible = true;
+        SetCloudControlsVisible(false);
+        ShowRetryButtons();
+    }
 
-        _localBackupToggle = new StyledButton("Local Backup: OFF", scale, fontSize: 14, height: 44);
-        _localBackupToggle.ToggleMode = true;
-        _localBackupToggle.Visible = false;
-        ApplyToggleStyle(_localBackupToggle, false);
-        _localBackupToggle.Toggled += pressed =>
-        {
-            _localBackupToggle.Text = pressed ? "Local Backup: ON" : "Local Backup: OFF";
-            ApplyToggleStyle(_localBackupToggle, pressed);
-            LocalBackupToggled?.Invoke(pressed);
-        };
-        AddChild(_localBackupToggle);
+    internal void HideAll()
+    {
+        _retryButton.Visible = false;
+        SetCloudControlsVisible(false);
+        HideSecondaryButtons();
+    }
 
-        _cloudSyncToggle = new StyledButton("Auto Sync: OFF", scale, fontSize: 14, height: 44);
-        _cloudSyncToggle.ToggleMode = true;
-        _cloudSyncToggle.Visible = false;
-        ApplyToggleStyle(_cloudSyncToggle, false);
-        _cloudSyncToggle.Toggled += pressed =>
-        {
-            _cloudSyncToggle.Text = pressed ? "Auto Sync: ON" : "Auto Sync: OFF";
-            ApplyToggleStyle(_cloudSyncToggle, pressed);
-            CloudSyncToggled?.Invoke(pressed);
-        };
-        AddChild(_cloudSyncToggle);
+    internal void SetPushPullDisabled(bool disabled)
+    {
+        _pushButton.Disabled = disabled;
+        _pullButton.Disabled = disabled;
+    }
 
-        var pushPullRow = new HBoxContainer();
-        pushPullRow.Visible = false;
-        pushPullRow.AddThemeConstantOverride("separation", (int)(6 * scale));
+    internal void SetUpdateButtonText(string text) => _updateButton.Text = text;
 
-        _pushButton = new StyledButton("Push to Cloud", scale, fontSize: 14, height: 44);
-        _pushButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        _pushButton.Pressed += () => CloudPushPressed?.Invoke();
-        pushPullRow.AddChild(_pushButton);
+    internal void SetUpdateButtonDisabled(bool disabled) => _updateButton.Disabled = disabled;
 
-        _pullButton = new StyledButton("Pull from Cloud", scale, fontSize: 14, height: 44);
-        _pullButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        _pullButton.Pressed += () => CloudPullPressed?.Invoke();
-        pushPullRow.AddChild(_pullButton);
+    private void SetCloudControlsVisible(bool visible)
+    {
+        _localBackupToggle.Visible = visible;
+        _cloudSyncToggle.Visible = visible;
+        _pushPullRow.Visible = visible;
+    }
 
-        AddChild(pushPullRow);
+    private void ShowLaunchButtons(bool showUpdate)
+    {
+        ShowUpdateButton(showUpdate);
+        _redownloadButton.Visible = true;
+        SetSupportButtonsVisible(true);
+        _safeLaunchButton.Visible = true;
+    }
 
-        _updateButton = new StyledButton("CHECK FOR UPDATES", scale, fontSize: 16, height: 48);
-        _updateButton.Visible = false;
-        _updateButton.Pressed += () => CheckForUpdatesPressed?.Invoke();
-        AddChild(_updateButton);
-
-        _launchButton = new StyledButton("LAUNCH", scale, fontSize: 16, height: 48);
+    private void ShowRetryButtons()
+    {
+        ShowUpdateButton(false);
+        _redownloadButton.Visible = false;
+        SetSupportButtonsVisible(true);
+        _safeLaunchButton.Visible = false;
         _launchButton.Visible = false;
-        _launchButton.Pressed += () => LaunchPressed?.Invoke();
-        AddChild(_launchButton);
     }
 
-    public void SetLocalBackupChecked(bool value)
+    private void HideSecondaryButtons()
     {
-        _localBackupToggle.ButtonPressed = value;
-        _localBackupToggle.Text = value ? "Local Backup: ON" : "Local Backup: OFF";
-        ApplyToggleStyle(_localBackupToggle, value);
+        ShowUpdateButton(false);
+        _redownloadButton.Visible = false;
+        SetSupportButtonsVisible(false);
+        _safeLaunchButton.Visible = false;
+        _launchButton.Visible = false;
     }
 
-    public void SetCloudSyncChecked(bool value)
+    private void ShowUpdateButton(bool visible)
     {
-        _cloudSyncToggle.ButtonPressed = value;
-        _cloudSyncToggle.Text = value ? "Auto Sync: ON" : "Auto Sync: OFF";
-        ApplyToggleStyle(_cloudSyncToggle, value);
+        _updateButton.Visible = visible;
+        _updateButton.Disabled = false;
+        _updateButton.Text = "CHECK FOR UPDATES";
     }
 
-    private void ApplyToggleStyle(Button button, bool on)
+    private void SetSupportButtonsVisible(bool visible)
     {
-        var style = on ? _onStyle : _offStyle;
+        _diagnosticsButton.Visible = visible;
+        _showLastErrorButton.Visible = visible;
+        _copyRawLogButton.Visible = visible;
+    }
+
+    private Button AddPrimaryHiddenButton(string text, float scale, Action pressed)
+        => AddHiddenButton(
+            text,
+            scale,
+            LauncherSectionMetrics.PrimaryButtonFontSize,
+            LauncherSectionMetrics.PrimaryButtonHeight,
+            pressed
+        );
+
+    private Button AddSecondaryHiddenButton(string text, float scale, Action pressed)
+        => AddHiddenButton(
+            text,
+            scale,
+            LauncherSectionMetrics.SecondaryButtonFontSize,
+            LauncherSectionMetrics.SecondaryButtonHeight,
+            pressed
+        );
+
+    private Button AddHiddenButton(
+        string text,
+        float scale,
+        int fontSize,
+        int height,
+        Action pressed
+    )
+    {
+        var button = new StyledButton(text, scale, fontSize: fontSize, height: height);
+        button.Visible = false;
+        if (pressed != null)
+            button.Pressed += pressed;
+        AddChild(button);
+        return button;
+    }
+
+    private static Button AddPushPullButton(
+        HBoxContainer row,
+        string text,
+        float scale,
+        Action pressed
+    )
+    {
+        var button = new StyledButton(
+            text,
+            scale,
+            LauncherSectionMetrics.SecondaryButtonFontSize,
+            LauncherSectionMetrics.SecondaryButtonHeight
+        );
+        button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        if (pressed != null)
+            button.Pressed += pressed;
+        row.AddChild(button);
+        return button;
+    }
+
+    private void ConfigureToggle(Button button, Func<bool, string> text, Action<bool> toggled)
+    {
+        button.ToggleMode = true;
+        ApplyToggle(button, false, text);
+        button.Toggled += pressed =>
+        {
+            ApplyToggle(button, pressed, text);
+            toggled?.Invoke(pressed);
+        };
+    }
+
+    private void SetToggleChecked(Button button, bool value, Func<bool, string> text)
+    {
+        button.ButtonPressed = value;
+        ApplyToggle(button, value, text);
+    }
+
+    private void ApplyToggle(Button button, bool value, Func<bool, string> text)
+    {
+        button.Text = text(value);
+        var style = value ? _toggleOnStyle : _toggleOffStyle;
         button.AddThemeStyleboxOverride("normal", style);
         button.AddThemeStyleboxOverride("hover", style);
         button.AddThemeStyleboxOverride("pressed", style);
         button.AddThemeStyleboxOverride("disabled", style);
     }
 
-    private HBoxContainer PushPullRow => (HBoxContainer)_pushButton.GetParent();
+    private static string LocalBackupText(bool value) => value ? "Local Backup: ON" : "Local Backup: OFF";
 
-    public void ShowLaunch(string text, bool showCloudSync, bool showUpdate)
-    {
-        _launchButton.Text = text;
-        _launchButton.Visible = true;
-        _localBackupToggle.Visible = showCloudSync;
-        _cloudSyncToggle.Visible = showCloudSync;
-        PushPullRow.Visible = showCloudSync;
-        _updateButton.Visible = showUpdate;
-        _updateButton.Disabled = false;
-        _updateButton.Text = "CHECK FOR UPDATES";
-        _retryButton.Visible = false;
-    }
-
-    public void ShowRetry()
-    {
-        _retryButton.Visible = true;
-        _launchButton.Visible = false;
-        _localBackupToggle.Visible = false;
-        _cloudSyncToggle.Visible = false;
-        PushPullRow.Visible = false;
-        _updateButton.Visible = false;
-    }
-
-    public void HideAll()
-    {
-        _launchButton.Visible = false;
-        _retryButton.Visible = false;
-        _localBackupToggle.Visible = false;
-        _cloudSyncToggle.Visible = false;
-        PushPullRow.Visible = false;
-        _updateButton.Visible = false;
-    }
-
-    public void SetPushPullDisabled(bool disabled)
-    {
-        _pushButton.Disabled = disabled;
-        _pullButton.Disabled = disabled;
-    }
-
-    public void SetUpdateButtonText(string text) => _updateButton.Text = text;
-
-    public void SetUpdateButtonDisabled(bool disabled) => _updateButton.Disabled = disabled;
+    private static string CloudSyncText(bool value) => value ? "Auto Sync: ON" : "Auto Sync: OFF";
 }

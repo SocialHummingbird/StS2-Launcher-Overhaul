@@ -2,25 +2,29 @@ using Godot;
 
 namespace STS2Mobile.Launcher.Components;
 
-public class StyledLineEdit : LineEdit
+internal sealed class StyledLineEdit : LineEdit
 {
-    public StyledLineEdit(string placeholder, float scale, bool secret = false)
+    internal StyledLineEdit(string placeholder, float scale, bool secret = false)
     {
         PlaceholderText = placeholder;
         Secret = secret;
-        CustomMinimumSize = new Vector2(0, (int)(38 * scale));
-        AddThemeFontSizeOverride("font_size", (int)(14 * scale));
+        CustomMinimumSize = new Vector2(
+            0,
+            LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LineEditHeight)
+        );
+        AddThemeFontSizeOverride(
+            LauncherComponentTheme.FontSize,
+            LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LineEditFontSize)
+        );
         ContextMenuEnabled = true;
         ShortcutKeysEnabled = true;
         SelectAllOnFocus = true;
         FocusEntered += ShowAndroidKeyboard;
-        GuiInput += OnGuiInput;
-    }
-
-    private void OnGuiInput(InputEvent inputEvent)
-    {
-        if (inputEvent is InputEventMouseButton { Pressed: true } or InputEventScreenTouch { Pressed: true })
-            ShowAndroidKeyboard();
+        GuiInput += inputEvent =>
+        {
+            if (ShouldShowKeyboard(inputEvent))
+                ShowAndroidKeyboard();
+        };
     }
 
     private void ShowAndroidKeyboard()
@@ -41,4 +45,9 @@ public class StyledLineEdit : LineEdit
             // Some desktop/editor backends do not expose a virtual keyboard.
         }
     }
+
+    private static bool ShouldShowKeyboard(InputEvent inputEvent)
+        => inputEvent
+            is InputEventMouseButton { Pressed: true }
+                or InputEventScreenTouch { Pressed: true };
 }

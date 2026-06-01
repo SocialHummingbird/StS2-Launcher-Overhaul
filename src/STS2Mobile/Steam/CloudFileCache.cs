@@ -7,35 +7,34 @@ namespace STS2Mobile.Steam;
 
 // In-memory cache of cloud file metadata (size, timestamp, persistence flag).
 // Loaded lazily from Steam on first access with exponential backoff on failure.
-public class CloudFileCache
+internal sealed class CloudFileCache
 {
-    private const uint AppId = 2868840;
-    private const int MaxRetries = 5;
+    private const int MaxLoadRetries = 5;
 
     private readonly SteamConnection _connection;
     private readonly ConcurrentDictionary<string, CloudFileInfo> _files = new();
     private volatile bool _loaded;
-    private int _retries;
-    private DateTimeOffset _nextRetryTime = DateTimeOffset.MinValue;
     private readonly object _loadLock = new();
+    private int _loadRetries;
+    private DateTimeOffset _nextLoadRetryTime = DateTimeOffset.MinValue;
 
-    public CloudFileCache(SteamConnection connection)
+    internal CloudFileCache(SteamConnection connection)
     {
         _connection = connection;
     }
 
-    public static string CanonicalizePath(string path)
+    internal static string CanonicalizePath(string path)
     {
         return path.Replace("user://", "").Replace("\\", "/");
     }
 
-    public bool FileExists(string path)
+    internal bool FileExists(string path)
     {
         EnsureLoaded();
         return _files.ContainsKey(CanonicalizePath(path));
     }
 
-    public DateTimeOffset GetLastModifiedTime(string path)
+    internal DateTimeOffset GetLastModifiedTime(string path)
     {
         EnsureLoaded();
         return _files.TryGetValue(CanonicalizePath(path), out var info)
@@ -43,13 +42,13 @@ public class CloudFileCache
             : DateTimeOffset.MinValue;
     }
 
-    public int GetFileSize(string path)
+    internal int GetFileSize(string path)
     {
         EnsureLoaded();
         return _files.TryGetValue(CanonicalizePath(path), out var info) ? info.Size : 0;
     }
 
-    public bool HasCloudFiles()
+    internal bool HasCloudFiles()
     {
         EnsureLoaded();
         if (!_loaded)
@@ -57,76 +56,64 @@ public class CloudFileCache
         return _files.Count > 0;
     }
 
-    public void ForgetFile(string path)
+    internal void ForgetFile(string path)
     {
         if (_files.TryGetValue(CanonicalizePath(path), out var info))
             info.Persisted = false;
     }
 
-    public bool IsFilePersisted(string path)
+    internal bool IsFilePersisted(string path)
     {
         return _files.TryGetValue(CanonicalizePath(path), out var info) && info.Persisted;
     }
 
-    public void Set(string path, int size, DateTimeOffset timestamp)
+    internal void Set(string path, int size, DateTimeOffset timestamp)
     {
         _files[CanonicalizePath(path)] = new CloudFileInfo { Size = size, Timestamp = timestamp };
     }
 
-    public void Remove(string path)
+    internal void Remove(string path)
     {
         _files.TryRemove(CanonicalizePath(path), out _);
     }
 
-    public string[] GetFilesInDirectory(string directoryPath)
+    internal string[] GetFilesInDirectory(string directoryPath)
     {
         directoryPath = CanonicalizePath(directoryPath);
         EnsureLoaded();
-
-        var prefix = directoryPath.Length > 0 ? directoryPath + "/" : "";
         var result = new List<string>();
 
-        foreach (var key in _files.Keys)
+        foreach (var remainder in EnumerateDirectoryEntries(_files.Keys, directoryPath))
         {
-            if (key.StartsWith(prefix) && key.Length > prefix.Length)
-            {
-                var remainder = key.Substring(prefix.Length);
-                if (!remainder.Contains('/') && !remainder.Contains('\\'))
-                    result.Add(remainder);
-            }
+            if (!remainder.Contains('/') && !remainder.Contains('\\'))
+                result.Add(remainder);
         }
 
         return result.ToArray();
     }
 
-    public string[] GetDirectoriesInDirectory(string directoryPath)
+    internal string[] GetDirectoriesInDirectory(string directoryPath)
     {
         directoryPath = CanonicalizePath(directoryPath);
         EnsureLoaded();
-
-        var prefix = directoryPath.Length > 0 ? directoryPath + "/" : "";
         var dirs = new HashSet<string>();
 
-        foreach (var key in _files.Keys)
+        foreach (var remainder in EnumerateDirectoryEntries(_files.Keys, directoryPath))
         {
-            if (key.StartsWith(prefix) && key.Length > prefix.Length)
-            {
-                var remainder = key.Substring(prefix.Length);
-                var slashIndex = remainder.IndexOf('/');
-                if (slashIndex >= 0)
-                    dirs.Add(remainder.Substring(0, slashIndex));
-            }
+            var slashIndex = remainder.IndexOf('/');
+            if (slashIndex >= 0)
+                dirs.Add(remainder.Substring(0, slashIndex));
         }
 
         return [.. dirs];
     }
 
-    public void Refresh()
+    internal void Refresh()
     {
         _files.Clear();
         _loaded = false;
-        _retries = 0;
-        _nextRetryTime = DateTimeOffset.MinValue;
+        _loadRetries = 0;
+        _nextLoadRetryTime = DateTimeOffset.MinValue;
         EnsureLoaded();
     }
 
@@ -134,16 +121,12 @@ public class CloudFileCache
     {
         if (_loaded)
             return;
-        if (_retries >= MaxRetries)
-            return;
-        if (_retries > 0 && DateTimeOffset.UtcNow < _nextRetryTime)
+        if (!CanAttemptLoad(DateTimeOffset.UtcNow))
             return;
 
         lock (_loadLock)
         {
-            if (_loaded || _retries >= MaxRetries)
-                return;
-            if (_retries > 0 && DateTimeOffset.UtcNow < _nextRetryTime)
+            if (_loaded || !CanAttemptLoad(DateTimeOffset.UtcNow))
                 return;
 
             try
@@ -153,19 +136,28 @@ public class CloudFileCache
             }
             catch (Exception ex)
             {
-                _retries++;
-                var backoffSeconds = Math.Pow(2, _retries);
-                _nextRetryTime = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
-                PatchHelper.Log(
-                    $"[Cloud] Failed to enumerate cloud files (attempt {_retries}/{MaxRetries}): {ex.Message}"
-                );
-
-                if (_retries >= MaxRetries)
-                    PatchHelper.Log(
-                        "[Cloud] Max retries reached for cloud file enumeration this session."
-                    );
+                RecordLoadFailure(ex);
             }
         }
+    }
+
+    private bool CanAttemptLoad(DateTimeOffset now)
+    {
+        if (_loadRetries >= MaxLoadRetries)
+            return false;
+
+        return _loadRetries == 0 || now >= _nextLoadRetryTime;
+    }
+
+    private void RecordLoadFailure(Exception ex)
+    {
+        _loadRetries++;
+        var backoffSeconds = Math.Pow(2, _loadRetries);
+        _nextLoadRetryTime = DateTimeOffset.UtcNow.AddSeconds(backoffSeconds);
+        PatchHelper.Log(CloudRuntimeMessage.FileEnumerationFailed(_loadRetries, MaxLoadRetries, ex));
+
+        if (_loadRetries >= MaxLoadRetries)
+            PatchHelper.Log(CloudRuntimeMessage.FileEnumerationMaxRetriesReached);
     }
 
     private void LoadFileList()
@@ -180,7 +172,7 @@ public class CloudFileCache
                     "EnumerateUserFiles",
                     new CCloud_EnumerateUserFiles_Request
                     {
-                        appid = AppId,
+                        appid = SteamCloudApp.AppId,
                         start_index = startIndex,
                         count = pageSize,
                     }
@@ -205,13 +197,32 @@ public class CloudFileCache
                 break;
         }
 
-        PatchHelper.Log($"[Cloud] Enumerated {_files.Count} cloud files");
+        PatchHelper.Log(CloudRuntimeMessage.FilesEnumerated(_files.Count));
     }
 
-    private class CloudFileInfo
+    private static IEnumerable<string> EnumerateDirectoryEntries(
+        IEnumerable<string> paths,
+        string directoryPath
+    )
     {
-        public int Size;
-        public DateTimeOffset Timestamp;
-        public volatile bool Persisted = true;
+        var normalizedDirectory = CanonicalizePath(directoryPath);
+        var prefix = normalizedDirectory.Length > 0 ? normalizedDirectory + "/" : "";
+
+        foreach (var key in paths)
+        {
+            var normalizedKey = CanonicalizePath(key);
+            if (!normalizedKey.StartsWith(prefix) || normalizedKey.Length <= prefix.Length)
+                continue;
+
+            yield return normalizedKey.Substring(prefix.Length);
+        }
+    }
+
+    private sealed class CloudFileInfo
+    {
+        private int Size;
+        private DateTimeOffset Timestamp;
+        private volatile bool Persisted = true;
     }
 }
+

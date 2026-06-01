@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
@@ -12,22 +14,21 @@ using SteamKit2.Internal;
 namespace STS2Mobile.Steam;
 
 // ICloudSaveStore backed by SteamKit2 CCloud unified messages.
-public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
+internal sealed class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
 {
-    private const uint AppId = 2868840;
+    private const string CloudZipDataEntryName = "data";
 
-    internal static SteamKit2CloudSaveStore Instance { get; private set; }
+    private static SteamKit2CloudSaveStore Instance { get; set; }
 
     private readonly SteamConnection _connection;
     private readonly CloudFileCache _cache;
     private readonly CloudWriteQueue _writeQueue;
-    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
-
-    private volatile bool _collectingBatch;
-    private readonly List<(string path, byte[] bytes)> _batchPendingFiles = new();
     private readonly object _batchLock = new();
+    private readonly List<(string path, byte[] bytes)> _pendingBatchFiles = new();
+    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private bool _collectingBatch;
 
-    public SteamKit2CloudSaveStore(string accountName, string refreshToken)
+    internal SteamKit2CloudSaveStore(string accountName, string refreshToken)
     {
         _connection = new SteamConnection(accountName, refreshToken);
         _cache = new CloudFileCache(_connection);
@@ -36,7 +37,13 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         Instance = this;
     }
 
-    public bool Flush(int timeoutMs = 5000)
+    internal static SteamKit2CloudSaveStore GetOrCreate(string accountName, string refreshToken)
+        => Instance ?? new SteamKit2CloudSaveStore(accountName, refreshToken);
+
+    internal static bool FlushActive(int timeoutMs)
+        => Instance?.Flush(timeoutMs) ?? true;
+
+    internal bool Flush(int timeoutMs = 5000)
     {
         var queueFlushed = true;
         try
@@ -45,7 +52,7 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"[Cloud] Queue flush failed: {ex.Message}");
+            PatchHelper.Log(CloudRuntimeMessage.QueueFlushFailed(ex));
             queueFlushed = false;
         }
 
@@ -55,14 +62,17 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"[Cloud] Connection flush failed: {ex.Message}");
+            PatchHelper.Log(CloudRuntimeMessage.ConnectionFlushFailed(ex));
             return false;
         }
 
         return queueFlushed;
     }
 
-    public void Dispose()
+    void IDisposable.Dispose()
+        => Dispose();
+
+    internal void Dispose()
     {
         _writeQueue.Dispose();
         _connection.Dispose();
@@ -89,11 +99,11 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         var result = await _connection
             .SendCloud<CCloud_ClientFileDownload_Request, CCloud_ClientFileDownload_Response>(
                 "ClientFileDownload",
-                new CCloud_ClientFileDownload_Request { appid = AppId, filename = path }
+                new CCloud_ClientFileDownload_Request { appid = SteamCloudApp.AppId, filename = path }
             )
             .ConfigureAwait(false);
 
-        if (result.appid != AppId || string.IsNullOrEmpty(result.url_host))
+        if (result.appid != SteamCloudApp.AppId || string.IsNullOrEmpty(result.url_host))
             throw new InvalidOperationException($"Cloud download failed for {path}");
 
         var scheme = result.use_https ? "https" : "http";
@@ -107,10 +117,12 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         var httpResponse = await _http.SendAsync(httpRequest, cts.Token).ConfigureAwait(false);
         httpResponse.EnsureSuccessStatusCode();
         var data = await httpResponse.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-        PatchHelper.Log(
-            $"[Cloud] Downloaded {path} ({data.Length} bytes, encrypted={result.encrypted}, "
-                + $"file_size={result.file_size}, raw_file_size={result.raw_file_size})"
-        );
+        PatchHelper.Log(CloudRuntimeMessage.Downloaded(
+            path,
+            data.Length,
+            result.encrypted,
+            result.file_size,
+            result.raw_file_size));
 
         // Only decompress if ZIP magic header present (PK\x03\x04).
         if (
@@ -124,8 +136,8 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         )
         {
             var compressedSize = data.Length;
-            data = CloudCompression.Decompress(data);
-            PatchHelper.Log($"[Cloud] Unzipped {path} ({compressedSize} → {data.Length} bytes)");
+            data = DecompressCloudFile(data);
+            PatchHelper.Log(CloudRuntimeMessage.Unzipped(path, compressedSize, data.Length));
         }
 
         return Encoding.UTF8.GetString(data);
@@ -144,14 +156,8 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         );
         _cache.Set(canonPath, bytes.Length, truncatedNow);
 
-        lock (_batchLock)
-        {
-            if (_collectingBatch)
-            {
-                _batchPendingFiles.Add((path, bytes));
-                return;
-            }
-        }
+        if (TryAddToSaveBatch(path, bytes))
+            return;
 
         var ts = truncatedNow;
         _writeQueue.Enqueue(() => UploadWithRetry(path, bytes, timestamp: ts));
@@ -180,10 +186,12 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
 
         _writeQueue.Enqueue(() =>
         {
-            for (int attempt = 0; attempt < 3; attempt++)
-            {
-                try
-                {
+            RunWithTooManyPendingRetry(
+                "Delete",
+                canonPath,
+                maxAttempts: 3,
+                _ => 1000,
+                _ =>
                     _connection
                         .SendCloud<
                             CCloud_ClientDeleteFile_Request,
@@ -192,26 +200,13 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
                             "ClientDeleteFile",
                             new CCloud_ClientDeleteFile_Request
                             {
-                                appid = AppId,
+                                appid = SteamCloudApp.AppId,
                                 filename = canonPath,
                             }
                         )
                         .GetAwaiter()
-                        .GetResult();
-                    break;
-                }
-                catch (InvalidOperationException ex)
-                    when (ex.Message.Contains("TooManyPending") && attempt < 2)
-                {
-                    PatchHelper.Log($"[Cloud] Delete throttled for {canonPath}, retrying...");
-                    Thread.Sleep(1000);
-                }
-                catch (Exception ex)
-                {
-                    PatchHelper.Log($"[Cloud] Delete failed for {canonPath}: {ex.Message}");
-                    break;
-                }
-            }
+                        .GetResult()
+            );
         });
     }
 
@@ -225,10 +220,9 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         }
         catch (Exception ex)
         {
-            PatchHelper.Log(
-                $"[Cloud] RenameFile: delete of {CloudFileCache.CanonicalizePath(sourcePath)} "
-                    + $"failed (duplicate may exist): {ex.Message}"
-            );
+            PatchHelper.Log(CloudRuntimeMessage.RenameDeleteFailed(
+                CloudFileCache.CanonicalizePath(sourcePath),
+                ex));
         }
     }
 
@@ -264,80 +258,90 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         lock (_batchLock)
         {
             _collectingBatch = true;
-            _batchPendingFiles.Clear();
+            _pendingBatchFiles.Clear();
         }
     }
 
     public void EndSaveBatch()
     {
-        List<(string path, byte[] bytes)> files;
-        lock (_batchLock)
-        {
-            _collectingBatch = false;
-
-            if (_batchPendingFiles.Count == 0)
-                return;
-
-            files = new List<(string path, byte[] bytes)>(_batchPendingFiles);
-            _batchPendingFiles.Clear();
-        }
+        var files = EndSaveBatchBuffer();
+        if (files.Count == 0)
+            return;
 
         _writeQueue.Enqueue(() =>
+            UploadSaveBatch(files));
+    }
+
+    private void UploadSaveBatch(List<(string path, byte[] bytes)> files)
+    {
+        ulong batchId;
+        try
         {
-            ulong batchId = 0;
-            try
-            {
-                var request = new CCloud_BeginAppUploadBatch_Request
-                {
-                    appid = AppId,
-                    machine_name = "android",
-                };
-                foreach (var (path, _) in files)
-                    request.files_to_upload.Add(CloudFileCache.CanonicalizePath(path));
+            batchId = BeginUploadBatch(files);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log(CloudRuntimeMessage.BeginSaveBatchFailed(ex));
+            UploadBatchFilesIndividually(files);
+            return;
+        }
 
-                var result = _connection
-                    .SendCloud<
-                        CCloud_BeginAppUploadBatch_Request,
-                        CCloud_BeginAppUploadBatch_Response
-                    >("BeginAppUploadBatch", request)
-                    .GetAwaiter()
-                    .GetResult();
-                batchId = result.batch_id;
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Cloud] BeginSaveBatch failed: {ex.Message}");
-                foreach (var (path, bytes) in files)
-                    UploadWithRetry(path, bytes);
-                return;
-            }
+        foreach (var (path, bytes) in files)
+            UploadWithRetry(path, bytes, batchId);
 
-            foreach (var (path, bytes) in files)
-                UploadWithRetry(path, bytes, batchId);
+        CompleteUploadBatch(batchId);
+    }
 
-            try
-            {
-                _connection
-                    .SendCloud<
-                        CCloud_CompleteAppUploadBatch_Request,
-                        CCloud_CompleteAppUploadBatch_Response
-                    >(
-                        "CompleteAppUploadBatchBlocking",
-                        new CCloud_CompleteAppUploadBatch_Request
-                        {
-                            appid = AppId,
-                            batch_id = batchId,
-                            batch_eresult = (uint)SteamKit2.EResult.OK,
-                        }
-                    )
-                    .GetAwaiter()
-                    .GetResult();
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Cloud] EndSaveBatch failed: {ex.Message}");
-            }
-        });
+    private ulong BeginUploadBatch(List<(string path, byte[] bytes)> files)
+    {
+        var request = new CCloud_BeginAppUploadBatch_Request
+        {
+            appid = SteamCloudApp.AppId,
+            machine_name = "android",
+        };
+        foreach (var (path, _) in files)
+            request.files_to_upload.Add(CloudFileCache.CanonicalizePath(path));
+
+        var result = _connection
+            .SendCloud<
+                CCloud_BeginAppUploadBatch_Request,
+                CCloud_BeginAppUploadBatch_Response
+            >("BeginAppUploadBatch", request)
+            .GetAwaiter()
+            .GetResult();
+        return result.batch_id;
+    }
+
+    private void UploadBatchFilesIndividually(List<(string path, byte[] bytes)> files)
+    {
+        foreach (var (path, bytes) in files)
+            UploadWithRetry(path, bytes);
+    }
+
+    private void CompleteUploadBatch(ulong batchId)
+    {
+        try
+        {
+            _connection
+                .SendCloud<
+                    CCloud_CompleteAppUploadBatch_Request,
+                    CCloud_CompleteAppUploadBatch_Response
+                >(
+                    "CompleteAppUploadBatchBlocking",
+                    new CCloud_CompleteAppUploadBatch_Request
+                    {
+                        appid = SteamCloudApp.AppId,
+                        batch_id = batchId,
+                        batch_eresult = (uint)SteamKit2.EResult.OK,
+                    }
+                )
+                .GetAwaiter()
+                .GetResult();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log(CloudRuntimeMessage.EndSaveBatchFailed(ex));
+        }
     }
 
     private void UploadWithRetry(
@@ -347,27 +351,67 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         DateTimeOffset? timestamp = null
     )
     {
-        for (int attempt = 0; attempt < 3; attempt++)
+        RunWithTooManyPendingRetry(
+            "Upload",
+            CloudFileCache.CanonicalizePath(path),
+            maxAttempts: 3,
+            attempt => (attempt + 1) * 2000,
+            attempt => UploadFileAsync(path, bytes, batchId, timestamp).GetAwaiter().GetResult()
+        );
+    }
+
+    private bool TryAddToSaveBatch(string path, byte[] bytes)
+    {
+        lock (_batchLock)
+        {
+            if (!_collectingBatch)
+                return false;
+
+            _pendingBatchFiles.Add((path, bytes));
+            return true;
+        }
+    }
+
+    private List<(string path, byte[] bytes)> EndSaveBatchBuffer()
+    {
+        lock (_batchLock)
+        {
+            _collectingBatch = false;
+
+            if (_pendingBatchFiles.Count == 0)
+                return new List<(string path, byte[] bytes)>();
+
+            var files = new List<(string path, byte[] bytes)>(_pendingBatchFiles);
+            _pendingBatchFiles.Clear();
+            return files;
+        }
+    }
+
+    private static void RunWithTooManyPendingRetry(
+        string operationName,
+        string path,
+        int maxAttempts,
+        Func<int, int> retryDelayMs,
+        Action<int> action
+    )
+    {
+        for (var attempt = 0; attempt < maxAttempts; attempt++)
         {
             try
             {
-                UploadFileAsync(path, bytes, batchId, timestamp).GetAwaiter().GetResult();
+                action(attempt);
                 return;
             }
             catch (InvalidOperationException ex)
-                when (ex.Message.Contains("TooManyPending") && attempt < 2)
+                when (ex.Message.Contains("TooManyPending") && attempt < maxAttempts - 1)
             {
-                PatchHelper.Log(
-                    $"[Cloud] Upload throttled for {CloudFileCache.CanonicalizePath(path)}, "
-                        + $"retrying in {(attempt + 1) * 2}s..."
-                );
-                Thread.Sleep((attempt + 1) * 2000);
+                var delayMs = retryDelayMs(attempt);
+                PatchHelper.Log(CloudRuntimeMessage.OperationThrottled(operationName, path, delayMs));
+                System.Threading.Thread.Sleep(delayMs);
             }
             catch (Exception ex)
             {
-                PatchHelper.Log(
-                    $"[Cloud] Upload failed for {CloudFileCache.CanonicalizePath(path)}: {ex.Message}"
-                );
+                PatchHelper.Log(CloudRuntimeMessage.OperationFailed(operationName, path, ex));
                 return;
             }
         }
@@ -384,12 +428,12 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
 
         var fileHash = SHA1.HashData(bytes);
         var rawSize = (uint)bytes.Length;
-        var (uploadBytes, compressed) = CloudCompression.Compress(bytes);
+        var (uploadBytes, compressed) = CompressCloudFile(bytes);
 
         if (compressed)
-            PatchHelper.Log($"[Cloud] Compressed {path} ({rawSize} → {uploadBytes.Length} bytes)");
+            PatchHelper.Log(CloudRuntimeMessage.Compressed(path, rawSize, uploadBytes.Length));
         else
-            PatchHelper.Log($"[Cloud] Uploading {path} uncompressed ({rawSize} bytes)");
+            PatchHelper.Log(CloudRuntimeMessage.UploadingUncompressed(path, rawSize));
 
         var uploadTimestamp = timestamp.HasValue
             ? (ulong)timestamp.Value.ToUnixTimeSeconds()
@@ -397,7 +441,7 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
 
         var beginRequest = new CCloud_ClientBeginFileUpload_Request
         {
-            appid = AppId,
+            appid = SteamCloudApp.AppId,
             filename = path,
             file_size = (uint)uploadBytes.Length,
             raw_file_size = rawSize,
@@ -422,7 +466,7 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("DuplicateRequest"))
         {
-            PatchHelper.Log($"[Cloud] Skipped upload for {path} (already up to date)");
+            PatchHelper.Log(CloudRuntimeMessage.UploadSkippedAlreadyUpToDate(path));
             return;
         }
 
@@ -474,7 +518,7 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
                         new CCloud_ClientCommitFileUpload_Request
                         {
                             transfer_succeeded = uploadSucceeded,
-                            appid = AppId,
+                            appid = SteamCloudApp.AppId,
                             file_sha = fileHash,
                             filename = path,
                         }
@@ -482,17 +526,205 @@ public class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
                     .ConfigureAwait(false);
 
                 if (uploadSucceeded && !commitResult.file_committed)
-                    PatchHelper.Log($"[Cloud] Commit returned file_committed=false for {path}");
+                    PatchHelper.Log(CloudRuntimeMessage.CommitReturnedFalse(path));
             }
             catch (Exception ex)
             {
-                PatchHelper.Log($"[Cloud] Commit failed for {path}: {ex.Message}");
+                PatchHelper.Log(CloudRuntimeMessage.CommitFailed(path, ex));
             }
         }
 
         if (!uploadSucceeded)
             throw new InvalidOperationException($"Cloud upload failed for {path}");
 
-        PatchHelper.Log($"[Cloud] Wrote {bytes.Length} bytes to {path} (compressed={compressed})");
+        PatchHelper.Log(CloudRuntimeMessage.Wrote(path, bytes.Length, compressed));
+    }
+
+    private static (byte[] data, bool compressed) CompressCloudFile(byte[] raw)
+    {
+        var zipped = CreateSingleEntryCloudZip(raw);
+        if (zipped.Length >= raw.Length)
+            return (raw, false);
+
+        return (zipped, true);
+    }
+
+    private static byte[] DecompressCloudFile(byte[] zipData)
+    {
+        using var archive = new ZipArchive(new MemoryStream(zipData), ZipArchiveMode.Read);
+        if (archive.Entries.Count == 0)
+            throw new InvalidDataException("Cloud ZIP archive contains no entries");
+
+        var entry = archive.Entries[0];
+        using var stream = entry.Open();
+        using var output = new MemoryStream();
+        stream.CopyTo(output);
+        return output.ToArray();
+    }
+
+    private static byte[] CreateSingleEntryCloudZip(byte[] raw)
+    {
+        using var ms = new MemoryStream();
+        using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var entry = archive.CreateEntry(CloudZipDataEntryName, CompressionLevel.Optimal);
+            using var entryStream = entry.Open();
+            entryStream.Write(raw, 0, raw.Length);
+        }
+
+        return ms.ToArray();
+    }
+
+    private sealed class CloudWriteQueue : IDisposable
+    {
+        private const int EnqueueTimeoutMs = 2500;
+        private const int MaxQueuedWrites = 256;
+
+        private readonly BlockingCollection<Action> _queue = new(
+            new ConcurrentQueue<Action>(),
+            MaxQueuedWrites
+        );
+        private readonly ManualResetEventSlim _drainSignal = new(initialState: true);
+        private readonly Thread _thread;
+        private long _droppedWrites;
+        private bool _isDisposed;
+        private long _pendingWrites;
+
+        private CloudWriteQueue()
+        {
+            _thread = new Thread(ProcessLoop)
+            {
+                IsBackground = true,
+                Name = "CloudSaveWriter",
+            };
+            _thread.Start();
+        }
+
+        private void Enqueue(Action action)
+        {
+            if (_isDisposed)
+            {
+                PatchHelper.Log(CloudRuntimeMessage.WriteQueueDisposedDrop);
+                return;
+            }
+
+            if (action == null)
+            {
+                PatchHelper.Log(CloudRuntimeMessage.WriteQueueNullActionDrop);
+                return;
+            }
+
+            MarkQueued();
+            try
+            {
+                if (!_queue.TryAdd(action, EnqueueTimeoutMs))
+                {
+                    var dropped = MarkDroppedQueuedWrite();
+                    PatchHelper.Log(CloudRuntimeMessage.WriteQueueFull(MaxQueuedWrites, dropped));
+                    return;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                PatchHelper.Log(CloudRuntimeMessage.WriteQueueClosingDrop);
+                MarkDroppedQueuedWrite();
+            }
+        }
+
+        private bool Flush(int timeoutMs = 5000)
+        {
+            if (_isDisposed)
+                return true;
+
+            var pending = PendingWrites;
+            if (pending <= 0 && _queue.Count == 0)
+                return true;
+
+            if (PendingWrites == 0 && _queue.Count == 0)
+                return true;
+
+            PatchHelper.Log(CloudRuntimeMessage.FlushingPendingWrites(pending));
+
+            if (_drainSignal.Wait(timeoutMs))
+            {
+                PatchHelper.Log(CloudRuntimeMessage.FlushCompleted);
+                return true;
+            }
+
+            PatchHelper.Log(CloudRuntimeMessage.FlushTimedOut(_queue.Count, PendingWrites));
+            if (DroppedWrites > 0)
+                PatchHelper.Log(CloudRuntimeMessage.FlushDroppedWriteWarning(DroppedWrites));
+            return false;
+        }
+
+        void IDisposable.Dispose()
+            => Dispose();
+
+        private void Dispose()
+        {
+            if (_isDisposed)
+                return;
+
+            _isDisposed = true;
+
+            var completed = Flush(5000);
+            if (!completed)
+                PatchHelper.Log(CloudRuntimeMessage.FlushTimedOutDuringDispose);
+
+            _queue.CompleteAdding();
+            if (!_thread.Join(3000))
+                PatchHelper.Log(CloudRuntimeMessage.WriteThreadStopTimedOut);
+            else
+                PatchHelper.Log(CloudRuntimeMessage.WriteThreadStopped);
+
+            if (DroppedWrites > 0)
+                PatchHelper.Log(CloudRuntimeMessage.TotalDroppedWrites(DroppedWrites));
+
+            _queue.Dispose();
+            _drainSignal.Dispose();
+        }
+
+        private long DroppedWrites => Volatile.Read(ref _droppedWrites);
+
+        private long PendingWrites => Volatile.Read(ref _pendingWrites);
+
+        private void MarkQueued()
+        {
+            _drainSignal.Reset();
+            Interlocked.Increment(ref _pendingWrites);
+        }
+
+        private void MarkCompleted()
+        {
+            if (Interlocked.Decrement(ref _pendingWrites) <= 0)
+                _drainSignal.Set();
+        }
+
+        private long MarkDroppedQueuedWrite()
+        {
+            var dropped = Interlocked.Increment(ref _droppedWrites);
+            MarkCompleted();
+            return dropped;
+        }
+
+        private void ProcessLoop()
+        {
+            foreach (var action in _queue.GetConsumingEnumerable())
+            {
+                try
+                {
+                    action();
+                }
+                catch (Exception ex)
+                {
+                    PatchHelper.Log(CloudRuntimeMessage.BackgroundWriteFailed(ex));
+                }
+                finally
+                {
+                    MarkCompleted();
+                }
+            }
+        }
     }
 }
+

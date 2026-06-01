@@ -15,11 +15,24 @@ namespace STS2Mobile.Patches;
 // Enables LAN multiplayer by replacing the Steam friends list with UDP broadcast
 // discovery. Hosts advertise via a beacon on port 33770, clients discover them
 // automatically or connect manually by IP address.
-public static class LanMultiplayerPatcher
+internal static class LanMultiplayerPatcher
 {
     private const int BeaconPort = 33770;
-    private const int GamePort = 33771;
+    private const int BeaconChecksPerSendInterval = 20;
+    private const int BeaconSendLoopSleepMs = 100;
     private const string BeaconPrefix = "STS2LAN";
+    private const int ContainerSeparation = 10;
+    private const int EntryFontSize = 28;
+    private const int GamePort = 33771;
+    private const ulong HostPlayerId = 1uL;
+    private const string LastIpConfigPath = "user://lan_last_ip.cfg";
+    private const string LastIpKey = "last_ip";
+    private const string LastIpSection = "lan";
+    private const int MaxPort = 65535;
+    private const int MinPort = 1;
+    private const ulong Player2Id = 1000uL;
+    private const ulong Player3Id = 1001uL;
+    private const ulong Player4Id = 1002uL;
 
     private static FieldInfo _buttonContainerField;
     private static FieldInfo _loadingOverlayField;
@@ -33,12 +46,13 @@ public static class LanMultiplayerPatcher
     private static PropertyInfo _activeScreenContextInstance;
     private static MethodInfo _activeScreenContextUpdate;
 
-    private static LanBeacon _beacon;
-    private static LanDiscovery _discovery;
     private static LineEdit _ipLineEdit;
+    private static LanDiscovery _discovery;
+    private static LanBeacon _hostBeacon;
     private static bool _joinInProgress;
+    private static bool _screenContextUpdateFailureLogged;
 
-    public static void Apply(Harmony harmony)
+    internal static void Apply(Harmony harmony)
     {
         try
         {
@@ -229,67 +243,17 @@ public static class LanMultiplayerPatcher
         }
     }
 
-    public static void JoinScreenReadyPostfix(object __instance)
+    private static void JoinScreenReadyPostfix(object __instance)
     {
         try
         {
             var screen = (Node)__instance;
 
-            var titleLabel = screen.GetNode("TitleLabel");
-            _setTextAutoSize?.Invoke(titleLabel, new object[] { "JOIN LAN GAME" });
-
             var noFriendsLabel = _noFriendsLabelField?.GetValue(__instance);
-            if (noFriendsLabel != null)
-                _setTextAutoSize?.Invoke(
-                    noFriendsLabel,
-                    new object[] { "Searching for LAN hosts..." }
-                );
-
-            // Manual IP entry row at the bottom of the screen.
-            var ipContainer = new HBoxContainer();
-            ipContainer.Name = "LanIpEntry";
-            ipContainer.AddThemeConstantOverride("separation", 10);
-
-            var ipEdit = new LineEdit();
-            ipEdit.PlaceholderText = "Enter host IP address";
-            ipEdit.Text = LoadLastIp();
-            ipEdit.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-            ipEdit.AddThemeFontSizeOverride("font_size", 28);
-            _ipLineEdit = ipEdit;
-
-            var joinBtn = new Button();
-            joinBtn.Text = "JOIN";
-            joinBtn.CustomMinimumSize = new Vector2(100, 0);
-            joinBtn.AddThemeFontSizeOverride("font_size", 28);
-
-            ipContainer.AddChild(ipEdit);
-            ipContainer.AddChild(joinBtn);
-
-            ipContainer.AnchorLeft = 0.15f;
-            ipContainer.AnchorRight = 0.85f;
-            ipContainer.AnchorTop = 1.0f;
-            ipContainer.AnchorBottom = 1.0f;
-            ipContainer.OffsetTop = -100;
-            ipContainer.OffsetBottom = -20;
-
-            screen.AddChild(ipContainer);
-
-            joinBtn.Connect(
-                "pressed",
-                Callable.From(() =>
-                {
-                    OnManualJoinPressed(__instance);
-                })
-            );
-
-            ipEdit.Connect(
-                "text_submitted",
-                Callable.From<string>(
-                    (_) =>
-                    {
-                        OnManualJoinPressed(__instance);
-                    }
-                )
+            _ipLineEdit = ApplyJoinScreenUi(
+                screen,
+                noFriendsLabel,
+                () => OnManualJoinPressed(__instance)
             );
 
             PatchHelper.Log("Join screen UI patched for LAN");
@@ -300,29 +264,12 @@ public static class LanMultiplayerPatcher
         }
     }
 
-    public static bool OnSubmenuOpenedPrefix(object __instance)
+    private static bool OnSubmenuOpenedPrefix(object __instance)
     {
         try
         {
             _joinInProgress = false;
-
-            var loadingOverlay = (Control)_loadingOverlayField.GetValue(__instance);
-            loadingOverlay.Visible = false;
-
-            var buttonContainer = (Control)_buttonContainerField.GetValue(__instance);
-
-            foreach (var child in buttonContainer.GetChildren())
-                child.QueueFree();
-
-            var loadingIndicator = (Control)_loadingIndicatorField.GetValue(__instance);
-            loadingIndicator.Visible = true;
-
-            var noFriendsLabel = (Control)_noFriendsLabelField.GetValue(__instance);
-            noFriendsLabel.Visible = false;
-
-            _discovery?.Stop();
-            _discovery = new LanDiscovery();
-            _discovery.Start(__instance, buttonContainer);
+            OpenDiscovery(__instance);
         }
         catch (Exception ex)
         {
@@ -331,13 +278,12 @@ public static class LanMultiplayerPatcher
         return false;
     }
 
-    public static void JoinScreenClosedPostfix()
+    private static void JoinScreenClosedPostfix()
     {
         try
         {
             _joinInProgress = false;
-            _discovery?.Stop();
-            _discovery = null;
+            CloseDiscovery();
         }
         catch (Exception ex)
         {
@@ -345,16 +291,16 @@ public static class LanMultiplayerPatcher
         }
     }
 
-    public static void StartENetHostPostfix(object __result)
+    private static void StartENetHostPostfix(object __result)
     {
         try
         {
             if (__result != null)
                 return;
 
-            _beacon?.Stop();
-            _beacon = new LanBeacon();
-            _beacon.Start();
+            StopHostBeacon();
+            _hostBeacon = new LanBeacon();
+            _hostBeacon.Start();
         }
         catch (Exception ex)
         {
@@ -362,12 +308,11 @@ public static class LanMultiplayerPatcher
         }
     }
 
-    public static void DisconnectPostfix()
+    private static void DisconnectPostfix()
     {
         try
         {
-            _beacon?.Stop();
-            _beacon = null;
+            StopHostBeacon();
         }
         catch (Exception ex)
         {
@@ -375,30 +320,109 @@ public static class LanMultiplayerPatcher
         }
     }
 
-    public static bool GetPlayerNamePrefix(ulong playerId, ref string __result)
+    private static bool GetPlayerNamePrefix(ulong playerId, ref string __result)
     {
         try
         {
             __result = playerId switch
             {
-                1uL => "Player1 (Host)",
-                1000uL => "Player2",
-                1001uL => "Player3",
-                1002uL => "Player4",
+                HostPlayerId => "Player1 (Host)",
+                Player2Id => "Player2",
+                Player3Id => "Player3",
+                Player4Id => "Player4",
                 _ => $"Player{playerId}",
             };
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+            PatchHelper.Log($"LAN player name fallback to original failed path: {ex.Message}");
             return true; // fall through to original on error
         }
+    }
+
+    private static void StopHostBeacon()
+    {
+        _hostBeacon?.Stop();
+        _hostBeacon = null;
+    }
+
+    private static LineEdit ApplyJoinScreenUi(
+        Node screen,
+        object noFriendsLabel,
+        Action onManualJoinPressed)
+    {
+        var titleLabel = screen.GetNode("TitleLabel");
+        _setTextAutoSize?.Invoke(titleLabel, new object[] { "JOIN LAN GAME" });
+
+        if (noFriendsLabel != null)
+            _setTextAutoSize?.Invoke(
+                noFriendsLabel,
+                new object[] { "Searching for LAN hosts..." }
+            );
+
+        var ipEdit = CreateIpEdit();
+        var joinButton = CreateJoinButton();
+        var ipContainer = CreateIpContainer(ipEdit, joinButton);
+
+        screen.AddChild(ipContainer);
+        ConnectJoinActions(ipEdit, joinButton, onManualJoinPressed);
+
+        return ipEdit;
+    }
+
+    private static LineEdit CreateIpEdit()
+    {
+        var ipEdit = new LineEdit();
+        ipEdit.PlaceholderText = "Enter host IP address";
+        ipEdit.Text = LoadLastIp();
+        ipEdit.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        ipEdit.AddThemeFontSizeOverride("font_size", EntryFontSize);
+        return ipEdit;
+    }
+
+    private static Button CreateJoinButton()
+    {
+        var joinButton = new Button();
+        joinButton.Text = "JOIN";
+        joinButton.CustomMinimumSize = new Vector2(100, 0);
+        joinButton.AddThemeFontSizeOverride("font_size", EntryFontSize);
+        return joinButton;
+    }
+
+    private static HBoxContainer CreateIpContainer(LineEdit ipEdit, Button joinButton)
+    {
+        var ipContainer = new HBoxContainer();
+        ipContainer.Name = "LanIpEntry";
+        ipContainer.AddThemeConstantOverride("separation", ContainerSeparation);
+        ipContainer.AnchorLeft = 0.15f;
+        ipContainer.AnchorRight = 0.85f;
+        ipContainer.AnchorTop = 1.0f;
+        ipContainer.AnchorBottom = 1.0f;
+        ipContainer.OffsetTop = -100;
+        ipContainer.OffsetBottom = -20;
+        ipContainer.AddChild(ipEdit);
+        ipContainer.AddChild(joinButton);
+        return ipContainer;
+    }
+
+    private static void ConnectJoinActions(
+        LineEdit ipEdit,
+        Button joinButton,
+        Action onManualJoinPressed)
+    {
+        joinButton.Connect("pressed", Callable.From(onManualJoinPressed));
+        ipEdit.Connect(
+            "text_submitted",
+            Callable.From<string>(_ => onManualJoinPressed())
+        );
     }
 
     private static void OnManualJoinPressed(object screen)
     {
         if (_ipLineEdit == null || !GodotObject.IsInstanceValid(_ipLineEdit))
             return;
+
         var raw = _ipLineEdit.Text.Trim();
         if (string.IsNullOrEmpty(raw))
             return;
@@ -408,31 +432,42 @@ public static class LanMultiplayerPatcher
         JoinViaIp(screen, ip, port);
     }
 
-    private static (string ip, int port) ParseIpPort(string input)
+    private static void OpenDiscovery(object screen)
     {
-        if (input.Contains(':'))
-        {
-            var parts = input.Split(':');
-            if (
-                parts.Length == 2
-                && int.TryParse(parts[1], out int port)
-                && port > 0
-                && port <= 65535
-            )
-                return (parts[0], port);
-        }
-        return (input, GamePort);
+        var loadingOverlay = (Control)_loadingOverlayField.GetValue(screen);
+        loadingOverlay.Visible = false;
+
+        var buttonContainer = (Control)_buttonContainerField.GetValue(screen);
+        foreach (var child in buttonContainer.GetChildren())
+            child.QueueFree();
+
+        var loadingIndicator = (Control)_loadingIndicatorField.GetValue(screen);
+        loadingIndicator.Visible = true;
+
+        var noFriendsLabel = (Control)_noFriendsLabelField.GetValue(screen);
+        noFriendsLabel.Visible = false;
+
+        CloseDiscovery();
+        _discovery = new LanDiscovery();
+        _discovery.Start(screen, buttonContainer);
+    }
+
+    private static void CloseDiscovery()
+    {
+        _discovery?.Stop();
+        _discovery = null;
     }
 
     private static void JoinViaIp(object screen, string ip, int port)
     {
         if (_joinInProgress)
             return;
+
         _joinInProgress = true;
         try
         {
             var connInit = _eNetClientConnInitCtor.Invoke(
-                new object[] { 1000UL, ip, (ushort)port }
+                new object[] { Player2Id, ip, (ushort)port }
             );
             var task = _joinGameAsyncMethod.Invoke(screen, new object[] { connInit });
             _taskHelperRunSafely?.Invoke(null, new object[] { task });
@@ -446,14 +481,21 @@ public static class LanMultiplayerPatcher
         }
     }
 
-    private static void UpdateScreenContext()
+    private static (string ip, int port) ParseIpPort(string input)
     {
-        try
+        if (input.Contains(':'))
         {
-            var instance = _activeScreenContextInstance?.GetValue(null);
-            _activeScreenContextUpdate?.Invoke(instance, null);
+            var parts = input.Split(':');
+            if (
+                parts.Length == 2
+                && int.TryParse(parts[1], out int port)
+                && port >= MinPort
+                && port <= MaxPort
+            )
+                return (parts[0], port);
         }
-        catch { }
+
+        return (input, GamePort);
     }
 
     private static string LoadLastIp()
@@ -461,10 +503,14 @@ public static class LanMultiplayerPatcher
         try
         {
             var config = new ConfigFile();
-            if (config.Load("user://lan_last_ip.cfg") == Error.Ok)
-                return (string)config.GetValue("lan", "last_ip", "");
+            if (config.Load(LastIpConfigPath) == Error.Ok)
+                return (string)config.GetValue(LastIpSection, LastIpKey, "");
         }
-        catch { }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Failed to load LAN last IP config: {ex.Message}");
+        }
+
         return "";
     }
 
@@ -473,52 +519,40 @@ public static class LanMultiplayerPatcher
         try
         {
             var config = new ConfigFile();
-            config.SetValue("lan", "last_ip", ip);
-            config.Save("user://lan_last_ip.cfg");
+            config.SetValue(LastIpSection, LastIpKey, ip);
+            config.Save(LastIpConfigPath);
         }
-        catch { }
-    }
-
-    private static string GetDeviceHostname()
-    {
-        try
+        catch (Exception ex)
         {
-            return Dns.GetHostName();
-        }
-        catch
-        {
-            return "Android";
+            PatchHelper.Log($"Failed to save LAN last IP config: {ex.Message}");
         }
     }
 
-    private static HashSet<string> GetLocalIps()
+    private static void UpdateScreenContext()
     {
-        var ips = new HashSet<string>();
         try
         {
-            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            var instance = _activeScreenContextInstance?.GetValue(null);
+            _activeScreenContextUpdate?.Invoke(instance, null);
+        }
+        catch (Exception ex)
+        {
+            if (!_screenContextUpdateFailureLogged)
             {
-                if (ni.OperationalStatus != OperationalStatus.Up)
-                    continue;
-                foreach (var addr in ni.GetIPProperties().UnicastAddresses)
-                {
-                    if (addr.Address.AddressFamily == AddressFamily.InterNetwork)
-                        ips.Add(addr.Address.ToString());
-                }
+                _screenContextUpdateFailureLogged = true;
+                PatchHelper.Log($"LAN screen context update failed: {ex.Message}");
             }
         }
-        catch { }
-        return ips;
     }
 
-    private class LanBeacon
+    private sealed class LanBeacon
     {
         private readonly object _stateLock = new();
         private volatile bool _running;
         private Thread _thread;
         private UdpClient _udpClient;
 
-        public void Start()
+        private void Start()
         {
             lock (_stateLock)
             {
@@ -538,7 +572,11 @@ public static class LanMultiplayerPatcher
                     return;
                 }
 
-                _thread = new Thread(SendLoop) { IsBackground = true, Name = "LanBeacon" };
+                _thread = new Thread(SendLoop)
+                {
+                    IsBackground = true,
+                    Name = "LanBeacon",
+                };
                 _thread.Start();
                 PatchHelper.Log("LAN beacon started");
             }
@@ -548,7 +586,7 @@ public static class LanMultiplayerPatcher
         {
             var endpoint = new IPEndPoint(IPAddress.Broadcast, BeaconPort);
             var message = $"{BeaconPrefix}|{GetDeviceHostname()}|{GamePort}";
-            var data = Encoding.UTF8.GetBytes(message);
+            var packet = Encoding.UTF8.GetBytes(message);
 
             while (true)
             {
@@ -557,7 +595,7 @@ public static class LanMultiplayerPatcher
 
                 try
                 {
-                    _udpClient.Send(data, data.Length, endpoint);
+                    _udpClient.Send(packet, packet.Length, endpoint);
                 }
                 catch when (!_running)
                 {
@@ -572,12 +610,24 @@ public static class LanMultiplayerPatcher
                     PatchHelper.Log($"Beacon send error: {ex.Message}");
                 }
 
-                for (int i = 0; i < 20 && _running; i++)
-                    Thread.Sleep(100);
+                for (var i = 0; i < BeaconChecksPerSendInterval && _running; i++)
+                    Thread.Sleep(BeaconSendLoopSleepMs);
             }
         }
 
-        public void Stop()
+        private static string GetDeviceHostname()
+        {
+            try
+            {
+                return Dns.GetHostName();
+            }
+            catch
+            {
+                return "Android";
+            }
+        }
+
+        private void Stop()
         {
             lock (_stateLock)
             {
@@ -594,14 +644,18 @@ public static class LanMultiplayerPatcher
             {
                 _udpClient?.Close();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"LAN beacon close failed: {ex.Message}");
+            }
             _udpClient = null;
             _thread?.Join(500);
             PatchHelper.Log("LAN beacon stopped");
         }
     }
 
-    private class LanDiscovery
+
+    private sealed class LanDiscovery
     {
         private volatile bool _running;
         private readonly object _stateLock = new();
@@ -617,8 +671,9 @@ public static class LanMultiplayerPatcher
         private readonly Dictionary<string, Node> _hostButtons = new();
         private HashSet<string> _localIps;
         private bool _contextDirty;
+        private bool _visibilityUpdateFailureLogged;
 
-        public void Start(object screen, Control buttonContainer)
+        private void Start(object screen, Control buttonContainer)
         {
             lock (_stateLock)
             {
@@ -765,7 +820,14 @@ public static class LanMultiplayerPatcher
                 var noFriendsLabel = (Control)_noFriendsLabelField.GetValue(_screen);
                 noFriendsLabel.Visible = _buttonContainer.GetChildCount() == 0;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                if (!_visibilityUpdateFailureLogged)
+                {
+                    _visibilityUpdateFailureLogged = true;
+                    PatchHelper.Log($"LAN discovery visibility update failed: {ex.Message}");
+                }
+            }
 
             if (_contextDirty)
                 UpdateScreenContext();
@@ -809,7 +871,32 @@ public static class LanMultiplayerPatcher
             }
         }
 
-        public void Stop()
+        private static HashSet<string> GetLocalIps()
+        {
+            var ips = new HashSet<string>();
+            try
+            {
+                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni.OperationalStatus != OperationalStatus.Up)
+                        continue;
+
+                    foreach (var addr in ni.GetIPProperties().UnicastAddresses)
+                    {
+                        if (addr.Address.AddressFamily == AddressFamily.InterNetwork)
+                            ips.Add(addr.Address.ToString());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"LAN local IP enumeration failed: {ex.Message}");
+            }
+
+            return ips;
+        }
+
+        private void Stop()
         {
             lock (_stateLock)
             {
@@ -825,7 +912,11 @@ public static class LanMultiplayerPatcher
             {
                 _udpClient?.Close();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"LAN discovery UDP close failed: {ex.Message}");
+            }
+
             _udpClient = null;
             _listenThread?.Join(500);
 
@@ -859,3 +950,6 @@ public static class LanMultiplayerPatcher
         }
     }
 }
+
+
+

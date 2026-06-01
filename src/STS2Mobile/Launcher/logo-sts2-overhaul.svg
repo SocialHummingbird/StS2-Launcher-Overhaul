@@ -1,39 +1,70 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="STS2 Launcher logo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="StS2 Launcher jagged spire logo">
+  <title>StS2 Launcher jagged spire logo</title>
+  <desc>A rough MS Paint style black and crimson fantasy spire with crooked stone tiers, glowing red windows, and uneven hand-drawn outlines.</desc>
+
   <defs>
-    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#6f4fe8"/>
-      <stop offset="50%" stop-color="#ff6b35"/>
-      <stop offset="100%" stop-color="#f6c453"/>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#28142f"/>
+      <stop offset="0.55" stop-color="#5a1f25"/>
+      <stop offset="1" stop-color="#d45a25"/>
     </linearGradient>
-    <radialGradient id="core" cx="48%" cy="32%" r="70%">
-      <stop offset="0%" stop-color="#1f2330"/>
-      <stop offset="100%" stop-color="#0b0d13"/>
-    </radialGradient>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="16" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <linearGradient id="spire" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a3332"/>
+      <stop offset="0.45" stop-color="#1b1719"/>
+      <stop offset="1" stop-color="#5b2420"/>
+    </linearGradient>
   </defs>
 
-  <rect width="1024" height="1024" rx="220" fill="none"/>
-  <g filter="url(#soft)">
-    <circle cx="512" cy="512" r="380" fill="url(#rim)"/>
-    <circle cx="512" cy="512" r="330" fill="#11131a"/>
-  </g>
-  <circle cx="512" cy="512" r="320" fill="url(#core)"/>
+  <rect width="1024" height="1024" rx="156" fill="url(#sky)"/>
+  <path d="M0 744c91-44 177-31 278-12 115 21 207-32 314-18 132 17 229 75 432-6v316H0z" fill="#1a0f14"/>
+  <path d="M0 806c114-29 206-8 315-1 93 6 169-46 281-30 124 18 236 53 428 3v246H0z" fill="#2a1512"/>
 
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M332 285h256c96 0 175 78.5 175 175 0 95.5-79 173-175 173H360" stroke="#ffe7b8" stroke-width="44"/>
-    <path d="M360 463c66 0 140 46 140 140 0 95.5-80 173-175 173" stroke="#ffe7b8" stroke-width="44"/>
-    <path d="M332 738h286" stroke="#ff6b35" stroke-width="48"/>
-    <path d="M332 285l360 452" stroke="#e95f2f" stroke-width="34" opacity="0.45"/>
+  <g fill="none" stroke="#0b0809" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M105 228c37-28 85-28 121 0" stroke-width="20"/>
+    <path d="M760 216c53-34 108-20 144 27" stroke-width="18"/>
+    <path d="M142 279l26 24 36-8-15 35 20 31-39-3-23 29-6-38-35-13 33-20z" fill="#ffdc58" stroke-width="10"/>
+    <path d="M820 287l31 29 43-9-17 42 24 35-48-4-30 34-6-46-40-17 38-24z" fill="#ffbd35" stroke-width="11"/>
   </g>
 
-  <g>
-    <text x="512" y="870" text-anchor="middle" font-family="Verdana, Arial, Helvetica, sans-serif" font-size="74" fill="#f6f7ff" letter-spacing="2">OVERHAUL</text>
-    <text x="512" y="930" text-anchor="middle" font-family="Verdana, Arial, Helvetica, sans-serif" font-size="44" fill="#ffdfb7" letter-spacing="6">LAUNCHER</text>
+  <path d="M253 857 317 598 294 555 354 463 332 420 410 310 393 265 484 126 520 72 541 171 607 230 586 279 670 365 641 420 716 526 684 580 756 857z" fill="#130f12" stroke="#070506" stroke-width="30" stroke-linejoin="round"/>
+  <path d="M310 846 366 603 344 558 394 480 377 430 446 335 431 287 501 161 519 129 531 200 588 254 565 301 633 378 604 428 665 532 634 588 699 846z" fill="url(#spire)" stroke="#0a0708" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M449 332 507 183 523 285z" fill="#6d2a25" stroke="#0a0708" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M381 474 565 486 610 426 423 414z" fill="#241c1d" stroke="#0a0708" stroke-width="13" stroke-linejoin="round"/>
+  <path d="M355 606 649 619 684 579 367 563z" fill="#281d1c" stroke="#0a0708" stroke-width="15" stroke-linejoin="round"/>
+  <path d="M305 835c91 31 264 42 420-3l27 63c-147 47-337 42-476-5z" fill="#3c201a" stroke="#090607" stroke-width="20" stroke-linejoin="round"/>
+
+  <g stroke="#080506" stroke-linejoin="round">
+    <path d="M483 767V646c3-68 78-68 90-4l10 126z" fill="#190f12" stroke-width="17"/>
+    <path d="M517 768l-5-126" fill="none" stroke-width="8"/>
+    <circle cx="554" cy="711" r="9" fill="#ffcf45" stroke-width="5"/>
+  </g>
+
+  <g fill="#ff5b33" stroke="#080506" stroke-width="9" stroke-linejoin="round">
+    <path d="M431 367l43 13-8 62-48-12z"/>
+    <path d="M544 328l39 36-22 59-43-35z"/>
+    <path d="M416 526l51 10-11 55-54-12z"/>
+    <path d="M562 540l48 8-8 57-51-9z"/>
+    <path d="M391 681l43 7-6 52-49-8z"/>
+    <path d="M610 687l45 10-2 51-50-11z"/>
+  </g>
+
+  <g fill="#4d3c38" stroke="#090607" stroke-width="8" stroke-linejoin="round">
+    <path d="M381 623h76l-9 31h-75z"/>
+    <path d="M486 625h70l5 30h-78z"/>
+    <path d="M593 630h55l12 30h-61z"/>
+    <path d="M365 743h78l-6 31h-83z"/>
+    <path d="M472 751h65l5 29h-72z"/>
+    <path d="M578 751h88l17 30h-101z"/>
+  </g>
+
+  <g fill="none" stroke="#f08b42" stroke-linecap="round" stroke-linejoin="round" opacity="0.85">
+    <path d="M299 860c-59 14-100 48-129 94" stroke-width="18"/>
+    <path d="M724 853c64 18 111 52 144 98" stroke-width="18"/>
+    <path d="M230 932c161 38 383 45 596-5" stroke-width="13"/>
+  </g>
+
+  <g font-family="Comic Sans MS, Comic Sans, Trebuchet MS, sans-serif" font-weight="700" text-anchor="middle">
+    <text x="512" y="938" font-size="78" fill="#ffe7bd" stroke="#090607" stroke-width="10" paint-order="stroke">STS2</text>
+    <text x="512" y="989" font-size="39" fill="#120b0b" stroke="#ffb45a" stroke-width="3" paint-order="stroke">LAUNCHER</text>
   </g>
 </svg>

@@ -27,23 +27,42 @@ Run at least one device from each row for patch-level changes:
 
 ## Standard Procedure
 
-1. Install/update test build on target device.
-2. Capture baseline metadata:
+1. Verify the current published phone APK:
+
+```powershell
+.\scripts\verify-android-release-apk.ps1
+```
+
+2. Install/update the verified APK on target device. For the current published phone release:
+
+```powershell
+.\scripts\install-android-release.ps1 -ClearAppData -Launch -CaptureDiagnostics
+```
+
+3. If the APK is already installed and only runtime evidence is needed:
+
+```powershell
+.\scripts\capture-android-diagnostics.ps1 -Launch -ClearLogcat -WaitSeconds 15
+```
+
+4. Capture baseline metadata.
+
+The scripts above write the metadata to `artifacts/android/phone-diagnostics-*`; if collecting manually, include:
    - Device model
    - Android version / security patch
    - Locale + region settings
    - App branch + commit hash
-3. Start log capture:
+5. Start log capture if not using the scripts:
 
 ```bash
 adb logcat > sts2launcher-<device>-<date>.log
 ```
 
-4. Repro the target flow once only (avoid duplicate noise):
+6. Repro the target flow once only (avoid duplicate noise):
    - Launch app from home screen
    - Open launcher
    - Trigger patch area (where applicable): cloud sync, locale switch, multiplayer join, etc.
-5. Stop log capture and collect:
+7. Stop log capture and collect:
    - First 300 lines around first failure
    - Final 120 lines of session
    - Any black-screen/retry overlay screenshots
@@ -53,6 +72,8 @@ adb logcat > sts2launcher-<device>-<date>.log
 ### Startup path
 
 - [ ] Launcher opens without immediate dev/command overlay
+- [ ] No `.NET assemblies not found` alert
+- [ ] `Assembly cache diagnostics` shows `arm64` and required DLLs present on ARM64 phone
 - [ ] Game logo/menu appears within expected window for device class
 - [ ] No repeated `NullReferenceException` or locale parsing loop
 - [ ] No crash stack repeatedly referencing startup patch entry points

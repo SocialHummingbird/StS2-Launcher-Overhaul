@@ -1,9 +1,11 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
@@ -11,47 +13,55 @@ using SteamKit2.CDN;
 
 namespace STS2Mobile.Steam;
 
-public class DownloadProgress
-{
-    public long TotalBytes;
-    public long DownloadedBytes;
-    public int TotalFiles;
-    public int CompletedFiles;
-    public string CurrentFile;
-
-    public double Percentage => TotalBytes > 0 ? (double)DownloadedBytes / TotalBytes * 100.0 : 0;
-}
-
 // Downloads game files from Steam CDN using SteamKit2. Supports delta updates
 // by comparing manifests, concurrent chunk downloads, and server rotation with
-// retry logic. Also patches the PCK to remove the Sentry plugin (no ARM64 build).
-public class DepotDownloader : IDisposable
+// retry logic. Also patches the PCK to disable Android-incompatible plugin startup.
+internal sealed class DepotDownloader : IDisposable
 {
-    private const uint AppId = 2868840;
+    internal sealed class DownloadProgress
+    {
+        internal long TotalBytes;
+        internal long DownloadedBytes;
+        internal int TotalFiles;
+        internal int CompletedFiles;
+        internal string CurrentFile;
+
+        internal double Percentage => TotalBytes > 0 ? (double)DownloadedBytes / TotalBytes * 100.0 : 0;
+    }
+
     private const int MaxRetries = 5;
-    private const int MaxConcurrentDownloads = 8;
+    private const int DesktopMaxConcurrentDownloads = 8;
+    private const int AndroidMaxConcurrentDownloads = 1;
+    private const long AndroidMinimumFreeSpaceBytes = 256L * 1024L * 1024L;
+    private const long MaxDepotChunkBytes = 64L * 1024L * 1024L;
+    private const long MaxDepotFileBytes = 32L * 1024L * 1024L * 1024L;
+    private static readonly TimeSpan CdnAuthTokenTtl = TimeSpan.FromMinutes(20);
 
     private readonly SteamConnection _connection;
     private readonly string _gameDir;
     private readonly string _stateDir;
     private readonly Client _cdnClient;
     private readonly DownloadProgress _progress = new();
+    private long _lastProgressReportTicks;
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _fileWriteLocks =
         new();
 
     private IReadOnlyList<Server> _servers;
     private int _serverIndex;
-    private readonly ConcurrentDictionary<(uint, string), string> _cdnAuthTokens = new();
-    private readonly ConcurrentDictionary<uint, (ulong Code, DateTime Expiry)> _manifestRequestCodes = new();
+    private readonly ConcurrentDictionary<(uint, string), (string Token, DateTime Expiry)> _cdnAuthTokens = new();
+    private readonly ConcurrentDictionary<
+        (uint DepotId, ulong ManifestId, string Branch),
+        (ulong Code, DateTime Expiry)
+    > _manifestRequestCodes = new();
     private readonly ConcurrentDictionary<
         uint,
         SteamApps.PICSProductInfoCallback.PICSProductInfo
     > _appInfoCache = new();
 
-    public event Action<DownloadProgress> ProgressChanged;
-    public event Action<string> LogMessage;
+    internal event Action<DownloadProgress> ProgressChanged;
+    internal event Action<string> LogMessage;
 
-    public DepotDownloader(SteamConnection connection, string dataDir)
+    internal DepotDownloader(SteamConnection connection, string dataDir)
     {
         _connection = connection;
         _gameDir = Path.Combine(dataDir, "game");
@@ -60,23 +70,24 @@ public class DepotDownloader : IDisposable
     }
 
     // Returns true if any depot has a newer manifest than what's cached locally.
-    public async Task<bool> CheckForUpdatesAsync(CancellationToken ct = default)
+    internal async Task<bool> CheckForUpdatesAsync(CancellationToken ct = default)
     {
         _connection.SuspendIdleTimeout();
         try
         {
             Directory.CreateDirectory(_stateDir);
+            CleanupStateTempFiles();
 
-            ulong accessToken = _connection.AppAccessToken;
+            ulong accessToken = await GetAppAccessTokenAsync();
             var infoResult = await _connection.Apps.PICSGetProductInfo(
-                new[] { new SteamApps.PICSRequest(AppId, accessToken) },
+                new[] { new SteamApps.PICSRequest(SteamCloudApp.AppId, accessToken) },
                 Enumerable.Empty<SteamApps.PICSRequest>()
             );
 
             SteamApps.PICSProductInfoCallback.PICSProductInfo appInfo = null;
             foreach (var cb in infoResult.Results)
             {
-                if (cb.Apps.TryGetValue(AppId, out var info))
+                if (cb.Apps.TryGetValue(SteamCloudApp.AppId, out var info))
                 {
                     appInfo = info;
                     break;
@@ -86,8 +97,8 @@ public class DepotDownloader : IDisposable
             if (appInfo == null)
                 throw new Exception("Failed to get app info from Steam");
 
-            _appInfoCache[AppId] = appInfo;
-            var depots = await ParseDepotsAsync(appInfo.KeyValues["depots"]);
+            _appInfoCache[SteamCloudApp.AppId] = appInfo;
+            var depots = await ParseDepotsAsync(GetDepotsSection(appInfo, SteamCloudApp.AppId));
 
             foreach (var (depotId, manifestId) in depots)
             {
@@ -108,26 +119,31 @@ public class DepotDownloader : IDisposable
         }
     }
 
-    public async Task DownloadAsync(CancellationToken ct = default)
+    internal async Task DownloadAsync(CancellationToken ct = default)
     {
         _connection.SuspendIdleTimeout();
         try
         {
             Directory.CreateDirectory(_gameDir);
             Directory.CreateDirectory(_stateDir);
+            CleanupStateTempFiles();
 
+            Log(
+                $"Downloader mode: android={OperatingSystem.IsAndroid()}, "
+                    + $"maxConcurrency={MaxConcurrentDownloads}"
+            );
             Log("Fetching app info...");
 
-            ulong accessToken = _connection.AppAccessToken;
+            ulong accessToken = await GetAppAccessTokenAsync();
             var infoResult = await _connection.Apps.PICSGetProductInfo(
-                new[] { new SteamApps.PICSRequest(AppId, accessToken) },
+                new[] { new SteamApps.PICSRequest(SteamCloudApp.AppId, accessToken) },
                 Enumerable.Empty<SteamApps.PICSRequest>()
             );
 
             SteamApps.PICSProductInfoCallback.PICSProductInfo appInfo = null;
             foreach (var cb in infoResult.Results)
             {
-                if (cb.Apps.TryGetValue(AppId, out var info))
+                if (cb.Apps.TryGetValue(SteamCloudApp.AppId, out var info))
                 {
                     appInfo = info;
                     break;
@@ -137,8 +153,8 @@ public class DepotDownloader : IDisposable
             if (appInfo == null)
                 throw new Exception("Failed to get app info from Steam");
 
-            _appInfoCache[AppId] = appInfo;
-            var depotSection = appInfo.KeyValues["depots"];
+            _appInfoCache[SteamCloudApp.AppId] = appInfo;
+            var depotSection = GetDepotsSection(appInfo, SteamCloudApp.AppId);
             var depots = await ParseDepotsAsync(depotSection);
             if (depots.Count == 0)
                 throw new Exception("No downloadable depots found");
@@ -217,7 +233,7 @@ public class DepotDownloader : IDisposable
                     var otherAppInfo = await GetAppInfoAsync(otherAppId);
                     if (otherAppInfo != null)
                     {
-                        var otherDepots = otherAppInfo.KeyValues["depots"];
+                        var otherDepots = GetDepotsSection(otherAppInfo, otherAppId);
                         var otherDepot = otherDepots[depotId.ToString()];
                         if (otherDepot != KeyValue.Invalid)
                             manifests = otherDepot["manifests"];
@@ -254,7 +270,20 @@ public class DepotDownloader : IDisposable
             Enumerable.Empty<uint>()
         );
         ulong token = 0;
-        tokenResult.AppTokens?.TryGetValue(appId, out token);
+        if (tokenResult.AppTokens != null && tokenResult.AppTokens.TryGetValue(appId, out var appToken))
+        {
+            token = appToken;
+        }
+        else if (tokenResult.AppTokensDenied != null && tokenResult.AppTokensDenied.Contains(appId))
+        {
+            throw new InvalidOperationException(
+                $"Steam denied app access token for referenced app {appId}"
+            );
+        }
+        else
+        {
+            Log($"Steam returned no app access token for referenced app {appId}; continuing with public token 0");
+        }
 
         var infoResult = await _connection.Apps.PICSGetProductInfo(
             new[] { new SteamApps.PICSRequest(appId, token) },
@@ -273,32 +302,93 @@ public class DepotDownloader : IDisposable
         return null;
     }
 
-    private Server GetNextServer()
+    private static KeyValue GetDepotsSection(
+        SteamApps.PICSProductInfoCallback.PICSProductInfo appInfo,
+        uint appId
+    )
     {
-        var idx = Interlocked.Increment(ref _serverIndex);
+        var depots = appInfo?.KeyValues?["depots"];
+        if (depots == null || depots == KeyValue.Invalid)
+            throw new InvalidOperationException($"Steam app info for {appId} has no depots section");
+
+        return depots;
+    }
+
+    private async Task<ulong> GetAppAccessTokenAsync()
+    {
+        if (_connection.AppAccessToken != 0)
+            return _connection.AppAccessToken;
+
+        var tokenResult = await _connection.Apps.PICSGetAccessTokens(
+            new[] { SteamCloudApp.AppId },
+            Enumerable.Empty<uint>()
+        );
+        if (tokenResult.AppTokens != null && tokenResult.AppTokens.TryGetValue(SteamCloudApp.AppId, out var token))
+        {
+            _connection.AppAccessToken = token;
+            return token;
+        }
+
+        if (tokenResult.AppTokensDenied != null && tokenResult.AppTokensDenied.Contains(SteamCloudApp.AppId))
+            throw new InvalidOperationException(
+                $"Steam denied app access token for {SteamCloudApp.Name} ({SteamCloudApp.AppId}); ownership/session may be invalid"
+            );
+
+        Log($"Steam returned no app access token for {SteamCloudApp.Name} ({SteamCloudApp.AppId}); continuing with public token 0");
+        return _connection.AppAccessToken;
+    }
+
+    private static int MaxConcurrentDownloads =>
+        OperatingSystem.IsAndroid() ? AndroidMaxConcurrentDownloads : DesktopMaxConcurrentDownloads;
+
+    private Server GetCurrentServer()
+    {
+        var idx = Volatile.Read(ref _serverIndex);
         return _servers[((idx % _servers.Count) + _servers.Count) % _servers.Count];
+    }
+
+    private void MarkServerFailed(Server server)
+    {
+        if (_servers == null || _servers.Count <= 1 || server == null)
+            return;
+
+        var current = GetCurrentServer();
+        if (string.Equals(current.Host, server.Host, StringComparison.OrdinalIgnoreCase))
+            Interlocked.Increment(ref _serverIndex);
     }
 
     private async Task<string> GetCdnAuthToken(uint depotId, Server server)
     {
         var key = (depotId, server.Host);
         if (_cdnAuthTokens.TryGetValue(key, out var cached))
-            return cached;
+        {
+            if (DateTime.UtcNow < cached.Expiry)
+                return cached.Token;
 
-        var result = await _connection.Content.GetCDNAuthToken(AppId, depotId, server.Host);
+            _cdnAuthTokens.TryRemove(key, out _);
+        }
+
+        var result = await _connection.Content.GetCDNAuthToken(SteamCloudApp.AppId, depotId, server.Host);
         if (result.Result == EResult.OK)
         {
-            _cdnAuthTokens[key] = result.Token;
+            _cdnAuthTokens[key] = (result.Token, DateTime.UtcNow.Add(CdnAuthTokenTtl));
             return result.Token;
         }
 
         return null;
     }
 
+    private void InvalidateCdnAuthToken(uint depotId, Server server)
+    {
+        if (server != null)
+            _cdnAuthTokens.TryRemove((depotId, server.Host), out _);
+    }
+
     private async Task<ulong> GetManifestRequestCodeAsync(uint depotId, ulong manifestId)
     {
+        var key = (depotId, manifestId, "public");
         if (
-            _manifestRequestCodes.TryGetValue(depotId, out var cached)
+            _manifestRequestCodes.TryGetValue(key, out var cached)
             && DateTime.UtcNow < cached.Expiry
         )
         {
@@ -307,7 +397,7 @@ public class DepotDownloader : IDisposable
 
         var code = await _connection.Content.GetManifestRequestCode(
             depotId,
-            AppId,
+            SteamCloudApp.AppId,
             manifestId,
             "public"
         );
@@ -317,7 +407,7 @@ public class DepotDownloader : IDisposable
                     + "Ensure the account owns this app."
             );
 
-        _manifestRequestCodes[depotId] = (code, DateTime.UtcNow.AddMinutes(5));
+        _manifestRequestCodes[key] = (code, DateTime.UtcNow.AddMinutes(5));
         return code;
     }
 
@@ -327,7 +417,7 @@ public class DepotDownloader : IDisposable
 
         bool isUpdate = LoadCachedManifestId(depotId) != manifestId;
 
-        var keyResult = await _connection.Apps.GetDepotDecryptionKey(depotId, AppId);
+        var keyResult = await _connection.Apps.GetDepotDecryptionKey(depotId, SteamCloudApp.AppId);
         if (keyResult.Result != EResult.OK)
             throw new Exception($"Failed to get depot key for {depotId}: {keyResult.Result}");
         var depotKey = keyResult.DepotKey;
@@ -335,10 +425,10 @@ public class DepotDownloader : IDisposable
         var manifestRequestCode = await GetManifestRequestCodeAsync(depotId, manifestId);
 
         Log($"Downloading manifest for depot {depotId}...");
-        DepotManifest manifest = null;
+        DepotManifest? manifest = null;
         for (int attempt = 0; attempt < MaxRetries && manifest == null; attempt++)
         {
-            var server = GetNextServer();
+            var server = GetCurrentServer();
             try
             {
                 manifest = await _cdnClient.DownloadManifestAsync(
@@ -354,19 +444,36 @@ public class DepotDownloader : IDisposable
                 var token = await GetCdnAuthToken(depotId, server);
                 if (token != null)
                 {
-                    manifest = await _cdnClient.DownloadManifestAsync(
-                        depotId,
-                        manifestId,
-                        manifestRequestCode,
-                        server,
-                        depotKey,
-                        cdnAuthToken: token
-                    );
+                    try
+                    {
+                        manifest = await _cdnClient.DownloadManifestAsync(
+                            depotId,
+                            manifestId,
+                            manifestRequestCode,
+                            server,
+                            depotKey,
+                            cdnAuthToken: token
+                        );
+                    }
+                    catch (Exception tokenEx) when (attempt < MaxRetries - 1)
+                    {
+                        Log(
+                            $"Manifest CDN auth retry failed (attempt {attempt + 1}): "
+                                + tokenEx.Message
+                        );
+                        InvalidateCdnAuthToken(depotId, server);
+                        MarkServerFailed(server);
+                    }
+                }
+                else
+                {
+                    MarkServerFailed(server);
                 }
             }
             catch (Exception ex) when (attempt < MaxRetries - 1)
             {
                 Log($"Manifest download failed (attempt {attempt + 1}): {ex.Message}");
+                MarkServerFailed(server);
             }
         }
 
@@ -378,38 +485,57 @@ public class DepotDownloader : IDisposable
         var oldManifest = LoadCachedManifest(depotId);
 
         // Clean up temp files from interrupted previous downloads.
-        foreach (
-            var temp in Directory.GetFiles(_gameDir, "*.downloading", SearchOption.AllDirectories)
-        )
+        foreach (var temp in EnumerateDownloadingTempFiles())
         {
             try
             {
                 File.Delete(temp);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Log($"Could not delete stale temp file {temp}: {ex.Message}");
+            }
         }
 
         // Determine which files need downloading: new/changed files from the
         // manifest diff, plus any existing files that fail on-disk SHA-1 verification.
         var filesToDownload = GetFilesNeedingDownload(oldManifest, manifest, isUpdate);
         filesToDownload = DeduplicateDownloads(filesToDownload);
+        ValidateDownloadFileSizes(filesToDownload);
         var filesToDelete = GetFilesToDelete(oldManifest, manifest);
 
         foreach (var fileName in filesToDelete)
         {
-            var path = Path.Combine(_gameDir, fileName.Replace('\\', '/'));
+            string path;
+            try
+            {
+                path = ResolveGamePath(fileName);
+            }
+            catch (Exception ex)
+            {
+                Log($"Skipping obsolete file with invalid cached path {fileName}: {ex.Message}");
+                continue;
+            }
+
             if (File.Exists(path))
             {
-                File.Delete(path);
-                Log($"Deleted: {fileName}");
+                try
+                {
+                    File.Delete(path);
+                    Log($"Deleted: {fileName}");
+                }
+                catch (Exception ex)
+                {
+                    Log($"Could not delete obsolete file {fileName}: {ex.Message}");
+                }
             }
         }
 
         _progress.TotalFiles = filesToDownload.Count;
         _progress.CompletedFiles = 0;
-        _progress.TotalBytes = filesToDownload.Sum(f => (long)f.TotalSize);
-        _progress.DownloadedBytes = 0;
-        ReportProgress();
+        _progress.TotalBytes = ComputeTotalDownloadBytes(filesToDownload);
+            _progress.DownloadedBytes = 0;
+            ForceReportProgress();
 
         if (filesToDownload.Count == 0)
         {
@@ -418,38 +544,41 @@ public class DepotDownloader : IDisposable
         else
         {
             Log(
-                $"Downloading {filesToDownload.Count} files ({FormatSize(_progress.TotalBytes)}) with {MaxConcurrentDownloads} threads..."
+                $"Downloading {filesToDownload.Count} files ({FormatBytes(_progress.TotalBytes)}) with {MaxConcurrentDownloads} threads..."
             );
 
-            using var semaphore = new SemaphoreSlim(MaxConcurrentDownloads);
-            var tasks = new List<Task>();
-
-            foreach (var file in filesToDownload)
-            {
-                ct.ThrowIfCancellationRequested();
-                await semaphore.WaitAsync(ct);
-
-                tasks.Add(
-                    Task.Run(
-                        async () =>
-                        {
-                            try
+            var workerCount = Math.Min(MaxConcurrentDownloads, filesToDownload.Count);
+            var nextFileIndex = -1;
+            var workers = Enumerable
+                .Range(0, workerCount)
+                .Select(
+                    _ =>
+                        Task.Run(
+                            async () =>
                             {
-                                await DownloadFileAsync(file, depotId, depotKey, ct);
-                                Interlocked.Increment(ref _progress.CompletedFiles);
-                                ReportProgress();
-                            }
-                            finally
-                            {
-                                semaphore.Release();
-                            }
-                        },
-                        ct
-                    )
-                );
-            }
+                                while (true)
+                                {
+                                    ct.ThrowIfCancellationRequested();
+                                    var index = Interlocked.Increment(ref nextFileIndex);
+                                    if (index >= filesToDownload.Count)
+                                        break;
 
-            await Task.WhenAll(tasks);
+                                    await DownloadFileAsync(
+                                        filesToDownload[index],
+                                        depotId,
+                                        depotKey,
+                                        ct
+                                    );
+                                    Interlocked.Increment(ref _progress.CompletedFiles);
+                                    ForceReportProgress();
+                                }
+                            },
+                            ct
+                        )
+                )
+                .ToArray();
+
+            await Task.WhenAll(workers);
         }
 
         SaveManifest(depotId, manifest, manifestId);
@@ -463,8 +592,14 @@ public class DepotDownloader : IDisposable
         CancellationToken ct
     )
     {
-        var fileName = file.FileName.Replace('\\', '/');
-        var filePath = Path.Combine(_gameDir, fileName);
+        if (string.IsNullOrWhiteSpace(file.FileName))
+        {
+            Log("Skipping depot file with an empty manifest path");
+            return;
+        }
+
+        var fileName = NormalizeManifestPath(file.FileName);
+        var filePath = ResolveGamePath(fileName);
         var fileDir = Path.GetDirectoryName(filePath);
         if (fileDir != null)
             Directory.CreateDirectory(fileDir);
@@ -477,7 +612,7 @@ public class DepotDownloader : IDisposable
         try
         {
             _progress.CurrentFile = fileName;
-            ReportProgress();
+            ForceReportProgress();
 
             if (file.Flags.HasFlag(EDepotFileFlag.Directory))
             {
@@ -490,9 +625,13 @@ public class DepotDownloader : IDisposable
             if (File.Exists(filePath) && VerifyFileHash(filePath, file))
             {
                 Interlocked.Add(ref _progress.DownloadedBytes, (long)file.TotalSize);
-                ReportProgress();
+                ForceReportProgress();
                 return;
             }
+
+            var fileSize = checked((long)file.TotalSize);
+            EnsureEnoughFreeSpaceForFile(fileDir ?? _gameDir, fileSize, fileName);
+            ValidateFileChunks(fileName, file);
 
             // Write to a temp file, verify hash, then move into place. This prevents
             // a partially-written file from being mistaken as complete on retry.
@@ -503,61 +642,45 @@ public class DepotDownloader : IDisposable
                 foreach (var chunk in file.Chunks.OrderBy(c => c.Offset))
                 {
                     ct.ThrowIfCancellationRequested();
-
-                    var buffer = new byte[chunk.UncompressedLength];
-                    int written = 0;
-
-                    for (int attempt = 0; attempt < MaxRetries; attempt++)
+                    if (file.TotalSize == 0 && chunk.Offset == 0 && chunk.UncompressedLength == 0)
                     {
-                        var server = GetNextServer();
-                        try
-                        {
-                            written = await _cdnClient.DownloadDepotChunkAsync(
-                                depotId,
-                                chunk,
-                                server,
-                                buffer,
-                                depotKey
-                            );
+                        continue;
+                    }
 
-                            if (!VerifyChunkHash(buffer, written, chunk))
-                            {
-                                if (attempt < MaxRetries - 1)
-                                {
-                                    Log($"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying...");
-                                    written = 0;
-                                    continue;
-                                }
-                                throw new Exception(
-                                    $"Chunk SHA-1 verification failed for {fileName} "
-                                        + $"at offset {chunk.Offset} after {MaxRetries} attempts"
-                                );
-                            }
+                    ValidateChunkBounds(fileName, file.TotalSize, chunk);
 
-                            break;
-                        }
-                        catch (SteamKitWebRequestException ex)
-                            when (ex.StatusCode == HttpStatusCode.Forbidden)
+                    if (chunk.UncompressedLength > (ulong)MaxDepotChunkBytes)
+                    {
+                        throw new IOException(
+                            $"Depot chunk is unexpectedly large for {fileName}: "
+                                + $"{chunk.UncompressedLength} bytes"
+                        );
+                    }
+
+                    var chunkLength = checked((int)chunk.UncompressedLength);
+                    var buffer = ArrayPool<byte>.Shared.Rent(chunkLength);
+                    try
+                    {
+                        int written = 0;
+
+                        for (int attempt = 0; attempt < MaxRetries; attempt++)
                         {
-                            var token = await GetCdnAuthToken(depotId, server);
-                            if (token != null)
+                            var server = GetCurrentServer();
+                            try
                             {
                                 written = await _cdnClient.DownloadDepotChunkAsync(
                                     depotId,
                                     chunk,
                                     server,
                                     buffer,
-                                    depotKey,
-                                    cdnAuthToken: token
+                                    depotKey
                                 );
 
                                 if (!VerifyChunkHash(buffer, written, chunk))
                                 {
                                     if (attempt < MaxRetries - 1)
                                     {
-                                        Log(
-                                            $"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying..."
-                                        );
+                                        Log($"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying...");
                                         written = 0;
                                         continue;
                                     }
@@ -569,23 +692,79 @@ public class DepotDownloader : IDisposable
 
                                 break;
                             }
+                            catch (SteamKitWebRequestException ex)
+                                when (ex.StatusCode == HttpStatusCode.Forbidden)
+                            {
+                                var token = await GetCdnAuthToken(depotId, server);
+                                if (token != null)
+                                {
+                                    try
+                                    {
+                                        written = await _cdnClient.DownloadDepotChunkAsync(
+                                            depotId,
+                                            chunk,
+                                            server,
+                                            buffer,
+                                            depotKey,
+                                            cdnAuthToken: token
+                                        );
+
+                                        if (!VerifyChunkHash(buffer, written, chunk))
+                                        {
+                                            if (attempt < MaxRetries - 1)
+                                            {
+                                                Log(
+                                                    $"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying..."
+                                                );
+                                                written = 0;
+                                                continue;
+                                            }
+                                            throw new Exception(
+                                                $"Chunk SHA-1 verification failed for {fileName} "
+                                                    + $"at offset {chunk.Offset} after {MaxRetries} attempts"
+                                            );
+                                        }
+
+                                        break;
+                                    }
+                                    catch (Exception tokenEx) when (attempt < MaxRetries - 1)
+                                    {
+                                        written = 0;
+                                        Log(
+                                            $"Chunk CDN auth retry failed (attempt {attempt + 1}): "
+                                                + tokenEx.Message
+                                        );
+                                        InvalidateCdnAuthToken(depotId, server);
+                                        MarkServerFailed(server);
+                                    }
+                                }
+                                else
+                                {
+                                    MarkServerFailed(server);
+                                }
+                            }
+                            catch (Exception ex) when (attempt < MaxRetries - 1)
+                            {
+                                Log($"Chunk download failed (attempt {attempt + 1}): {ex.Message}");
+                                MarkServerFailed(server);
+                            }
                         }
-                        catch (Exception ex) when (attempt < MaxRetries - 1)
-                        {
-                            Log($"Chunk download failed (attempt {attempt + 1}): {ex.Message}");
-                        }
+
+                        if (written == 0 && chunk.UncompressedLength > 0)
+                            throw new Exception(
+                                $"Failed to download chunk for {fileName} after {MaxRetries} attempts"
+                            );
+
+                        fs.Seek((long)chunk.Offset, SeekOrigin.Begin);
+                        fs.Write(buffer, 0, written);
+
+                        Interlocked.Add(ref _progress.DownloadedBytes, written);
+                        ReportProgress();
                     }
-
-                    if (written == 0 && chunk.UncompressedLength > 0)
-                        throw new Exception(
-                            $"Failed to download chunk for {fileName} after {MaxRetries} attempts"
-                        );
-
-                    fs.Seek((long)chunk.Offset, SeekOrigin.Begin);
-                    fs.Write(buffer, 0, written);
-
-                    Interlocked.Add(ref _progress.DownloadedBytes, written);
-                    ReportProgress();
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(buffer);
+                    }
                 }
             }
 
@@ -596,7 +775,7 @@ public class DepotDownloader : IDisposable
                 throw new Exception($"SHA-1 verification failed for {fileName} after download");
             }
 
-            File.Move(tempPath, filePath, overwrite: true);
+            CommitDownloadedFile(tempPath, filePath, fileName);
         }
         finally
         {
@@ -625,6 +804,151 @@ public class DepotDownloader : IDisposable
         return deduped.Values.ToList();
     }
 
+    private static void ValidateDownloadFileSizes(IEnumerable<DepotManifest.FileData> files)
+    {
+        foreach (var file in files)
+        {
+            if (file.TotalSize > (ulong)MaxDepotFileBytes)
+            {
+                throw new IOException(
+                    $"Depot file is unexpectedly large for {file.FileName}: "
+                        + $"{file.TotalSize} bytes"
+                );
+            }
+        }
+    }
+
+    private static long ComputeTotalDownloadBytes(IEnumerable<DepotManifest.FileData> files)
+    {
+        long total = 0;
+        foreach (var file in files)
+        {
+            try
+            {
+                total = checked(total + (long)file.TotalSize);
+            }
+            catch (OverflowException ex)
+            {
+                throw new IOException(
+                    $"Depot download size is too large while adding {file.FileName}: "
+                        + $"{file.TotalSize} bytes",
+                    ex
+                );
+            }
+        }
+
+        return total;
+    }
+
+    private IEnumerable<string> EnumerateDownloadingTempFiles()
+    {
+        try
+        {
+            return Directory.GetFiles(_gameDir, "*.downloading", SearchOption.AllDirectories);
+        }
+        catch (Exception ex)
+        {
+            Log($"Could not enumerate stale temp downloads: {ex.Message}");
+            return Array.Empty<string>();
+        }
+    }
+
+    private string ResolveGamePath(string manifestPath)
+    {
+        if (string.IsNullOrWhiteSpace(manifestPath))
+        {
+            throw new IOException("Depot manifest contained an empty file path");
+        }
+
+        var normalized = NormalizeManifestPath(manifestPath)
+            .Replace('\\', Path.DirectorySeparatorChar)
+            .Replace('/', Path.DirectorySeparatorChar);
+        var root = Path.GetFullPath(_gameDir);
+        var fullPath = Path.GetFullPath(Path.Combine(root, normalized));
+        var rootWithSeparator = root.EndsWith(Path.DirectorySeparatorChar.ToString())
+            ? root
+            : root + Path.DirectorySeparatorChar;
+
+        if (
+            !string.Equals(fullPath, root, StringComparison.Ordinal)
+            && !fullPath.StartsWith(rootWithSeparator, StringComparison.Ordinal)
+        )
+        {
+            throw new IOException($"Depot path escapes game directory: {manifestPath}");
+        }
+
+        return fullPath;
+    }
+
+    private void CommitDownloadedFile(string tempPath, string filePath, string fileName)
+    {
+        try
+        {
+            File.Move(tempPath, filePath, overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            throw new IOException($"Failed to commit downloaded file {fileName}: {ex.Message}", ex);
+        }
+    }
+
+    private static string NormalizeManifestPath(string manifestPath)
+    {
+        if (manifestPath == null)
+        {
+            return string.Empty;
+        }
+
+        var nullIndex = manifestPath.IndexOf('\0');
+        if (nullIndex >= 0)
+        {
+            manifestPath = manifestPath[..nullIndex];
+        }
+
+        return manifestPath.Replace('\\', '/');
+    }
+
+    private void EnsureEnoughFreeSpaceForFile(string directory, long fileSize, string fileName)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return;
+
+        long availableFreeSpace;
+        try
+        {
+            Directory.CreateDirectory(directory);
+            availableFreeSpace = GetAndroidAvailableFreeSpace(directory);
+        }
+        catch (Exception ex)
+        {
+            Log($"Could not check free space for {fileName}: {ex.Message}");
+            return;
+        }
+
+        var required = fileSize + AndroidMinimumFreeSpaceBytes;
+        if (availableFreeSpace < required)
+        {
+            throw new IOException(
+                $"Not enough storage for {fileName}: need {FormatBytes(required)}, "
+                    + $"available {FormatBytes(availableFreeSpace)}"
+            );
+        }
+    }
+
+    private static long GetAndroidAvailableFreeSpace(string directory)
+    {
+        var usableBytes = AndroidGodotAppBridge.GetUsableSpaceBytes(directory);
+        if (usableBytes > 0)
+            return usableBytes;
+
+        var root = Path.GetPathRoot(Path.GetFullPath(directory));
+        if (string.IsNullOrWhiteSpace(root))
+            return long.MaxValue;
+
+        var drive = new DriveInfo(root);
+        return drive.AvailableFreeSpace;
+    }
+
     private static void DeleteQuietly(string path)
     {
         try
@@ -632,17 +956,53 @@ public class DepotDownloader : IDisposable
             if (File.Exists(path))
                 File.Delete(path);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Depot] Failed to delete temporary file {path}: {ex.Message}");
+        }
     }
 
     // Computes SHA-1 of a decompressed chunk and compares it to the manifest ChunkID.
     private static bool VerifyChunkHash(byte[] buffer, int length, DepotManifest.ChunkData chunk)
     {
         if (chunk.ChunkID == null || chunk.ChunkID.Length == 0)
-            return true;
+            return false;
 
-        var hash = System.Security.Cryptography.SHA1.HashData(buffer.AsSpan(0, length));
-        return hash.AsSpan().SequenceEqual(chunk.ChunkID);
+        var hash = ComputeSha1(buffer.AsSpan(0, length));
+        return HashesEqual(hash, chunk.ChunkID);
+    }
+
+    private static void ValidateChunkBounds(
+        string fileName,
+        ulong fileSize,
+        DepotManifest.ChunkData chunk
+    )
+    {
+        if (chunk.UncompressedLength == 0)
+        {
+            throw new IOException($"Depot chunk has zero length for {fileName} at offset {chunk.Offset}");
+        }
+
+        if (chunk.Offset > fileSize || chunk.UncompressedLength > fileSize - chunk.Offset)
+        {
+            throw new IOException(
+                $"Depot chunk is outside file bounds for {fileName}: "
+                    + $"offset={chunk.Offset}, length={chunk.UncompressedLength}, fileSize={fileSize}"
+            );
+        }
+    }
+
+    private static void ValidateFileChunks(string fileName, DepotManifest.FileData file)
+    {
+        if (file.TotalSize == 0)
+        {
+            return;
+        }
+
+        if (file.Chunks == null || !file.Chunks.Any())
+        {
+            throw new IOException($"Depot file has no chunks: {fileName}");
+        }
     }
 
     // Computes SHA-1 of a file on disk and compares it to the manifest hash.
@@ -654,9 +1014,11 @@ public class DepotDownloader : IDisposable
             if (info.Length != (long)file.TotalSize)
                 return false;
 
-            using var fs = File.OpenRead(path);
-            var hash = System.Security.Cryptography.SHA1.HashData(fs);
-            return hash.AsSpan().SequenceEqual(file.FileHash);
+            if (file.FileHash == null || file.FileHash.Length == 0)
+                return file.TotalSize == 0;
+
+            var hash = ComputeFileSha1(path);
+            return HashesEqual(hash, file.FileHash);
         }
         catch
         {
@@ -664,32 +1026,58 @@ public class DepotDownloader : IDisposable
         }
     }
 
+    private static byte[] ComputeSha1(ReadOnlySpan<byte> data)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return System.Security.Cryptography.SHA1.HashData(data);
+
+        return AndroidJavaCrypto.Sha1HashData(data.ToArray());
+    }
+
+    private static byte[] ComputeFileSha1(string path)
+    {
+        if (!OperatingSystem.IsAndroid())
+        {
+            using var fs = File.OpenRead(path);
+            return System.Security.Cryptography.SHA1.HashData(fs);
+        }
+
+        return AndroidJavaCrypto.Sha1FileHashData(path);
+    }
+
     // Builds the list of files that need downloading. For manifest changes, uses
     // the hash diff. For all files in the target manifest, verifies the on-disk
-    // copy against the expected SHA-1 — catching corruption from interrupted
+    // copy against the expected SHA-1 ??? catching corruption from interrupted
     // writes, disk errors, or missing files.
     private List<DepotManifest.FileData> GetFilesNeedingDownload(
-        DepotManifest oldManifest,
+        DepotManifest? oldManifest,
         DepotManifest newManifest,
         bool isUpdate
     )
     {
-        var oldFiles = oldManifest?.Files.ToDictionary(f => f.FileName);
+        var oldFiles = BuildManifestFileMap(oldManifest);
         var result = new List<DepotManifest.FileData>();
         int verified = 0;
         int corrupt = 0;
 
         foreach (var file in newManifest.Files)
         {
+            var fileName = NormalizeManifestPath(file.FileName);
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                Log("Skipping depot file with an empty manifest path");
+                continue;
+            }
+
             if (file.Flags.HasFlag(EDepotFileFlag.Directory))
                 continue;
 
-            // Manifest changed for this file — always re-download.
-            if (isUpdate && oldFiles != null)
+            // Manifest changed for this file ??? always re-download.
+            if (isUpdate)
             {
                 if (
-                    !oldFiles.TryGetValue(file.FileName, out var oldFile)
-                    || !file.FileHash.SequenceEqual(oldFile.FileHash)
+                    !oldFiles.TryGetValue(fileName, out var oldFile)
+                    || !HashesEqual(file.FileHash, oldFile.FileHash)
                 )
                 {
                     result.Add(file);
@@ -698,7 +1086,7 @@ public class DepotDownloader : IDisposable
             }
 
             // Verify on-disk file matches the manifest hash.
-            var filePath = Path.Combine(_gameDir, file.FileName.Replace('\\', '/'));
+            var filePath = ResolveGamePath(fileName);
             if (VerifyFileHash(filePath, file))
             {
                 verified++;
@@ -722,18 +1110,56 @@ public class DepotDownloader : IDisposable
         return result;
     }
 
+    private static bool HashesEqual(byte[]? left, byte[]? right)
+    {
+        if (left == null || right == null)
+        {
+            return false;
+        }
+
+        return left.SequenceEqual(right);
+    }
+
+    private static Dictionary<string, DepotManifest.FileData> BuildManifestFileMap(DepotManifest? manifest)
+    {
+        var files = new Dictionary<string, DepotManifest.FileData>(StringComparer.Ordinal);
+
+        if (manifest == null)
+        {
+            return files;
+        }
+
+        foreach (var file in manifest.Files)
+        {
+            var fileName = NormalizeManifestPath(file.FileName);
+            if (string.IsNullOrEmpty(fileName))
+            {
+                continue;
+            }
+
+            files[fileName] = file;
+        }
+
+        return files;
+    }
+
     private static List<string> GetFilesToDelete(
-        DepotManifest oldManifest,
+        DepotManifest? oldManifest,
         DepotManifest newManifest
     )
     {
         if (oldManifest == null)
             return new List<string>();
 
-        var newFiles = new HashSet<string>(newManifest.Files.Select(f => f.FileName));
+        var newFiles = new HashSet<string>(
+            newManifest.Files
+                .Select(f => NormalizeManifestPath(f.FileName))
+                .Where(f => !string.IsNullOrEmpty(f)),
+            StringComparer.Ordinal);
+
         return oldManifest
-            .Files.Where(f => !newFiles.Contains(f.FileName))
-            .Select(f => f.FileName)
+            .Files.Select(f => NormalizeManifestPath(f.FileName))
+            .Where(f => !string.IsNullOrEmpty(f) && !newFiles.Contains(f))
             .ToList();
     }
 
@@ -743,10 +1169,24 @@ public class DepotDownloader : IDisposable
         if (!File.Exists(path))
             return 0;
 
-        return ulong.TryParse(File.ReadAllText(path).Trim(), out var id) ? id : 0;
+        try
+        {
+            var raw = File.ReadAllText(path).Trim();
+            if (ulong.TryParse(raw, out var id))
+                return id;
+
+            Log($"Ignoring malformed cached manifest id for depot {depotId}: {raw}");
+            MoveBadStateFile(path);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Log($"Could not read cached manifest id for depot {depotId}: {ex.Message}");
+            return 0;
+        }
     }
 
-    private DepotManifest LoadCachedManifest(uint depotId)
+    private DepotManifest? LoadCachedManifest(uint depotId)
     {
         var path = Path.Combine(_stateDir, $"{depotId}.manifest");
         if (!File.Exists(path))
@@ -757,47 +1197,170 @@ public class DepotDownloader : IDisposable
             using var fs = File.OpenRead(path);
             return DepotManifest.Deserialize(fs);
         }
-        catch
+        catch (Exception ex)
         {
+            Log($"Cached manifest for depot {depotId} could not be loaded: {ex.Message}");
+            MoveBadStateFile(path);
             return null;
+        }
+    }
+
+    private void MoveBadStateFile(string path)
+    {
+        try
+        {
+            if (!File.Exists(path))
+                return;
+
+            var badPath = path + ".bad";
+            if (File.Exists(badPath))
+                File.Delete(badPath);
+
+            File.Move(path, badPath);
+        }
+        catch (Exception ex)
+        {
+            Log($"Could not quarantine bad state file {Path.GetFileName(path)}: {ex.Message}");
         }
     }
 
     private void SaveManifest(uint depotId, DepotManifest manifest, ulong manifestId)
     {
-        using (var fs = File.Create(Path.Combine(_stateDir, $"{depotId}.manifest")))
+        var manifestPath = Path.Combine(_stateDir, $"{depotId}.manifest");
+        var manifestTempPath = manifestPath + ".tmp";
+        using (var fs = File.Create(manifestTempPath))
         {
             manifest.Serialize(fs);
         }
-        File.WriteAllText(Path.Combine(_stateDir, $"{depotId}.id"), manifestId.ToString());
+        CommitStateFile(manifestTempPath, manifestPath);
+
+        var idPath = Path.Combine(_stateDir, $"{depotId}.id");
+        var idTempPath = idPath + ".tmp";
+        File.WriteAllText(idTempPath, manifestId.ToString());
+        CommitStateFile(idTempPath, idPath);
+
+        DeleteQuietly(manifestPath + ".bad");
+        DeleteQuietly(idPath + ".bad");
+    }
+
+    private void CleanupStateTempFiles()
+    {
+        try
+        {
+            foreach (var path in Directory.GetFiles(_stateDir, "*.tmp"))
+                DeleteQuietly(path);
+        }
+        catch (Exception ex)
+        {
+            Log($"Could not clean download state temp files: {ex.Message}");
+        }
+    }
+
+    private static void CommitStateFile(string tempPath, string targetPath)
+    {
+        try
+        {
+            File.Move(tempPath, targetPath, overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            DeleteQuietly(tempPath);
+            throw new IOException(
+                $"Failed to commit downloader state file {Path.GetFileName(targetPath)}: {ex.Message}",
+                ex
+            );
+        }
     }
 
     private void Log(string msg)
     {
         PatchHelper.Log($"[Depot] {msg}");
-        LogMessage?.Invoke(msg);
+        try
+        {
+            LogMessage?.Invoke(msg);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Depot] Log callback failed: {ex.Message}");
+        }
     }
 
     private void ReportProgress()
     {
-        ProgressChanged?.Invoke(_progress);
+        if (OperatingSystem.IsAndroid())
+        {
+            var now = DateTime.UtcNow.Ticks;
+            var last = Interlocked.Read(ref _lastProgressReportTicks);
+            if (now - last < TimeSpan.TicksPerMillisecond * 250)
+                return;
+
+            if (Interlocked.CompareExchange(ref _lastProgressReportTicks, now, last) != last)
+                return;
+        }
+
+        InvokeProgressChanged(SnapshotProgress());
     }
 
-    private static string FormatSize(long bytes)
+    private void ForceReportProgress()
     {
-        if (bytes >= 1024L * 1024 * 1024)
-            return $"{bytes / (1024.0 * 1024 * 1024):F1} GB";
-        if (bytes >= 1024L * 1024)
-            return $"{bytes / (1024.0 * 1024):F1} MB";
-        if (bytes >= 1024)
-            return $"{bytes / 1024.0:F1} KB";
+        Interlocked.Exchange(ref _lastProgressReportTicks, DateTime.UtcNow.Ticks);
+        InvokeProgressChanged(SnapshotProgress());
+    }
+
+    private void InvokeProgressChanged(DownloadProgress progress)
+    {
+        try
+        {
+            ProgressChanged?.Invoke(progress);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Depot] Progress callback failed: {ex.Message}");
+        }
+    }
+
+    private DownloadProgress SnapshotProgress()
+    {
+        return new DownloadProgress
+        {
+            TotalBytes = Interlocked.Read(ref _progress.TotalBytes),
+            DownloadedBytes = Interlocked.Read(ref _progress.DownloadedBytes),
+            TotalFiles = _progress.TotalFiles,
+            CompletedFiles = _progress.CompletedFiles,
+            CurrentFile = _progress.CurrentFile,
+        };
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        const long kilobyte = 1024L;
+        const long megabyte = kilobyte * 1024L;
+        const long gigabyte = megabyte * 1024L;
+
+        if (bytes >= gigabyte)
+            return $"{bytes / (double)gigabyte:F1} GB";
+
+        if (bytes >= megabyte)
+            return $"{bytes / (double)megabyte:F1} MB";
+
+        if (bytes >= kilobyte)
+            return $"{bytes / (double)kilobyte:F1} KB";
+
         return $"{bytes} B";
     }
 
-    // Patches the PCK in-place to disable the Sentry autoload and GDExtension
-    // entries (no android.arm64 build exists for the Sentry plugin).
-    public static void PatchGamePck(string pckPath)
+    void IDisposable.Dispose()
+        => Dispose();
+
+    internal void Dispose()
     {
+        _cdnClient?.Dispose();
+    }
+
+    private static void PatchGamePck(string pckPath)
+    {
+        const uint maxPckPathBytes = 4096;
+
         if (!File.Exists(pckPath))
             return;
 
@@ -810,7 +1373,7 @@ public class DepotDownloader : IDisposable
             if (magic != 0x43504447) // "GDPC"
                 return;
 
-            uint formatVersion = reader.ReadUInt32();
+            reader.ReadUInt32(); // format version
             reader.ReadUInt32(); // major
             reader.ReadUInt32(); // minor
             reader.ReadUInt32(); // patch
@@ -828,8 +1391,14 @@ public class DepotDownloader : IDisposable
             for (uint i = 0; i < fileCount; i++)
             {
                 uint pathLen = reader.ReadUInt32();
+                if (pathLen == 0 || pathLen > maxPckPathBytes)
+                {
+                    PatchHelper.Log($"PCK patching skipped: invalid path length {pathLen}");
+                    return;
+                }
+
                 byte[] pathBytes = reader.ReadBytes((int)pathLen);
-                string path = System.Text.Encoding.UTF8.GetString(pathBytes).TrimEnd('\0');
+                string path = Encoding.UTF8.GetString(pathBytes).TrimEnd('\0');
                 long offset = reader.ReadInt64();
                 long size = reader.ReadInt64();
                 reader.ReadBytes(16); // MD5
@@ -837,14 +1406,11 @@ public class DepotDownloader : IDisposable
 
                 long absOffset = relativeOffsets ? fileBase + offset : offset;
 
-                if (path == "res://project.godot")
-                    patched |= PatchProjectGodot(fs, absOffset, size);
-                else if (path == "res://.godot/extension_list.cfg")
-                    patched |= PatchExtensionList(fs, absOffset, size);
+                patched |= PatchPckEntry(path, fs, absOffset, size);
             }
 
             if (patched)
-                PatchHelper.Log("Patched game PCK: removed Sentry plugin references");
+                PatchHelper.Log("Patched game PCK: removed Android-incompatible plugin references");
         }
         catch (Exception ex)
         {
@@ -852,54 +1418,180 @@ public class DepotDownloader : IDisposable
         }
     }
 
-    private static bool PatchProjectGodot(FileStream fs, long offset, long size)
+    private static bool IsPckPath(string path, string expected)
     {
+        return path == expected || path == $"res://{expected}";
+    }
+
+    private static bool PatchPckEntry(string path, FileStream fs, long offset, long size)
+    {
+        if (IsPckPath(path, "project.binary"))
+            return PatchProjectBinary(fs, offset, size);
+        if (IsPckPath(path, "project.godot"))
+            return PatchProjectGodot(fs, offset, size);
+        if (IsPckPath(path, ".godot/extension_list.cfg"))
+            return PatchExtensionList(fs, offset, size);
+        if (IsPckPath(path, "scenes/game.tscn"))
+            return PatchGameScene(fs, offset, size);
+
+        return false;
+    }
+
+    private static bool PatchProjectGodot(FileStream fs, long offset, long size)
+        => ApplyPckEntryPatch(fs, offset, size, "project.godot", content =>
+        {
+            var patched = false;
+            patched |= CommentOutProjectSetting(
+                content,
+                "SentryInit=\"*res://addons/sentry/SentryInit.gd\""
+            );
+            patched |= CommentOutProjectSetting(
+                content,
+                "FmodManager=\"*res://addons/fmod/FmodManager.gd\""
+            );
+            return patched;
+        });
+
+    private static bool PatchExtensionList(FileStream fs, long offset, long size)
+        => ApplyPckEntryPatch(fs, offset, size, "extension_list.cfg", content =>
+        {
+            var patched = false;
+            patched |= OverwriteEntryBytes(
+                content,
+                "res://addons/fmod/fmod.gdextension"
+            );
+            patched |= OverwriteEntryBytes(
+                content,
+                "res://addons/sentry/sentry.gdextension"
+            );
+            return patched;
+        });
+
+    private static bool PatchProjectBinary(FileStream fs, long offset, long size)
+        => ApplyPckEntryPatch(fs, offset, size, "project.binary", content =>
+        {
+            var patched = false;
+            patched |= ReplaceEntryBytes(
+                content,
+                "autoload/SentryInit",
+                "disabled/SentryInit"
+            );
+            patched |= ReplaceEntryBytes(
+                content,
+                "autoload/FmodManager",
+                "disabled/FmodManager"
+            );
+            return patched;
+        });
+
+    private static bool PatchGameScene(FileStream fs, long offset, long size)
+        => ApplyPckEntryPatch(fs, offset, size, "scenes/game.tscn", content =>
+        {
+            var patched = false;
+            patched |= CommentOutProjectSetting(
+                content,
+                "[ext_resource type=\"Script\" uid=\"uid://c6blhu0io0iwp\" path=\"res://src/gdscript/audio_manager_proxy.gd\" id=\"3_xfu11\"]"
+            );
+            patched |= CommentOutProjectSetting(
+                content,
+                "[node name=\"FmodBankLoader\" type=\"FmodBankLoader\" parent=\".\"]"
+            );
+            patched |= CommentOutProjectSetting(
+                content,
+                "bank_paths = [\"res://banks/desktop/Master.strings.bank\", \"res://banks/desktop/Master.bank\", \"res://banks/desktop/sfx.bank\", \"res://banks/desktop/temp_sfx.bank\", \"res://banks/desktop/ambience.bank\"]"
+            );
+            patched |= CommentOutProjectSetting(
+                content,
+                "script = ExtResource(\"3_xfu11\")"
+            );
+            patched |= CommentOutProjectSetting(
+                content,
+                "[node name=\"FmodListener2D\" type=\"FmodListener2D\" parent=\"AudioManager\"]"
+            );
+            return patched;
+        });
+
+    private static bool ApplyPckEntryPatch(
+        FileStream fs,
+        long offset,
+        long size,
+        string label,
+        Func<byte[], bool> patch
+    )
+    {
+        const long maxPatchablePckEntryBytes = 8L * 1024L * 1024L;
+
+        if (offset < 0 || size < 0 || size > maxPatchablePckEntryBytes || offset + size > fs.Length)
+        {
+            PatchHelper.Log(
+                $"PCK patching skipped for {label}: offset={offset}, size={size}, fileSize={fs.Length}"
+            );
+            return false;
+        }
+
         long savedPos = fs.Position;
         fs.Position = offset;
-        var content = new byte[size];
+        var content = new byte[(int)size];
         fs.ReadExactly(content, 0, (int)size);
 
-        // Comment out the Sentry autoload line by replacing 'S' with ';'.
-        var search = System.Text.Encoding.UTF8.GetBytes(
-            "SentryInit=\"*res://addons/sentry/SentryInit.gd\""
-        );
-        int idx = FindBytes(content, search);
-        if (idx < 0)
+        if (!patch(content))
         {
             fs.Position = savedPos;
             return false;
         }
 
-        content[idx] = (byte)';';
         fs.Position = offset;
         fs.Write(content, 0, content.Length);
         fs.Position = savedPos;
         return true;
     }
 
-    private static bool PatchExtensionList(FileStream fs, long offset, long size)
+    private static bool OverwriteEntryBytes(byte[] content, string entry)
     {
-        long savedPos = fs.Position;
-        fs.Position = offset;
-        var content = new byte[size];
-        fs.ReadExactly(content, 0, (int)size);
-
-        // Overwrite the Sentry GDExtension path with spaces (same byte count).
-        var search = System.Text.Encoding.UTF8.GetBytes("res://addons/sentry/sentry.gdextension");
+        var search = Encode(entry);
         int idx = FindBytes(content, search);
         if (idx < 0)
-        {
-            fs.Position = savedPos;
             return false;
+
+        Fill(content, idx, search.Length, (byte)' ');
+        return true;
+    }
+
+    private static bool ReplaceEntryBytes(byte[] content, string searchText, string replacementText)
+    {
+        var search = Encode(searchText);
+        var replacement = Encode(replacementText);
+        if (search.Length != replacement.Length)
+            throw new InvalidOperationException($"PCK replacement length mismatch for {searchText}");
+
+        var patched = false;
+        int idx;
+        while ((idx = FindBytes(content, search)) >= 0)
+        {
+            Array.Copy(replacement, 0, content, idx, replacement.Length);
+            patched = true;
         }
 
-        for (int i = 0; i < search.Length; i++)
-            content[idx + i] = (byte)' ';
+        return patched;
+    }
 
-        fs.Position = offset;
-        fs.Write(content, 0, content.Length);
-        fs.Position = savedPos;
+    private static bool CommentOutProjectSetting(byte[] content, string setting)
+    {
+        var search = Encode(setting);
+        int idx = FindBytes(content, search);
+        if (idx < 0)
+            return false;
+
+        content[idx] = (byte)';';
         return true;
+    }
+
+    private static byte[] Encode(string value) => Encoding.UTF8.GetBytes(value);
+
+    private static void Fill(byte[] content, int offset, int length, byte value)
+    {
+        for (var i = 0; i < length; i++)
+            content[offset + i] = value;
     }
 
     private static int FindBytes(byte[] haystack, byte[] needle)
@@ -920,9 +1612,8 @@ public class DepotDownloader : IDisposable
         }
         return -1;
     }
-
-    public void Dispose()
-    {
-        _cdnClient?.Dispose();
-    }
 }
+
+
+
+

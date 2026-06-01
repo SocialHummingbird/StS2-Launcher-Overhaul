@@ -2,9 +2,9 @@ using Godot;
 
 namespace STS2Mobile.Launcher.Components;
 
-public class StyledLabel : Label
+internal sealed class StyledLabel : Label
 {
-    public StyledLabel(
+    internal StyledLabel(
         string text,
         float scale,
         int fontSize = 15,
@@ -13,6 +13,9 @@ public class StyledLabel : Label
     {
         Text = text;
         HorizontalAlignment = align;
-        AddThemeFontSizeOverride("font_size", (int)(fontSize * scale));
+        AddThemeFontSizeOverride(
+            LauncherComponentTheme.FontSize,
+            LauncherComponentTheme.ScaleInt(scale, fontSize)
+        );
     }
 }

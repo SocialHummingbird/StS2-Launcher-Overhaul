@@ -8,6 +8,7 @@ fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PATCHER_DIR="$ROOT/src/STS2Mobile"
+STEAMKIT_PATCHER_DIR="$ROOT/tools/SteamKitAndroidPatch"
 BUILD_DIR="$ROOT/android"
 GRADLE_PROPS="$BUILD_DIR/gradle.properties"
 APK_DIR="$BUILD_DIR/build/outputs/apk/mono/release"
@@ -29,11 +30,19 @@ cp "$PUBLISH_DIR"/STS2Mobile.dll "$PUBLISH_DIR"/SteamKit2.dll \
    "$PUBLISH_DIR"/protobuf-net.dll "$PUBLISH_DIR"/protobuf-net.Core.dll \
    "$PUBLISH_DIR"/System.IO.Hashing.dll "$PUBLISH_DIR"/ZstdSharp.dll \
    "$BCL_DIR/"
+cp "$PUBLISH_DIR"/0Harmony.dll "$BCL_DIR/"
+
+echo "Patching SteamKit2 Android crypto calls..."
+dotnet build "$STEAMKIT_PATCHER_DIR/SteamKitAndroidPatch.csproj" -c Release
+dotnet "$STEAMKIT_PATCHER_DIR/bin/Release/net9.0/SteamKitAndroidPatch.dll" \
+    "$BCL_DIR/SteamKit2.dll" \
+    "$BCL_DIR/STS2Mobile.dll"
 
 cp "$ROOT/upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll" "$BCL_DIR/"
 
-CRYPTO_SO="$HOME/.nuget/packages/microsoft.netcore.app.runtime.mono.android-arm64/9.0.7/runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so"
-if [ -f "$CRYPTO_SO" ]; then
+CRYPTO_SO="$(find "$HOME/.nuget/packages/microsoft.netcore.app.runtime.mono.android-arm64" -path '*/runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so' 2>/dev/null | sort -V | tail -1 || true)"
+if [ -n "$CRYPTO_SO" ] && [ -f "$CRYPTO_SO" ]; then
+    mkdir -p "$BUILD_DIR/libs/release/arm64-v8a"
     cp "$CRYPTO_SO" "$BUILD_DIR/libs/release/arm64-v8a/"
 fi
 

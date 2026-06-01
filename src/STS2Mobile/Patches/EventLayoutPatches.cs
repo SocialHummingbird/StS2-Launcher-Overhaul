@@ -7,43 +7,55 @@ namespace STS2Mobile.Patches;
 // Adjusts event screen layout and button sizes for scaled viewports. Shifts the
 // event panel upward and clamps button widths to the available viewport width
 // when UI scale is above 100%.
-public static class EventLayoutPatches
+internal static class EventLayoutPatches
 {
-    // Original offsets from the scene file, used to reset when scale is at 100%.
+    private const string AddOptionsMethod = "AddOptions";
+    private const float ButtonHorizontalMargin = 40f;
+    private const float ButtonOriginalWidth = 800f;
+    private const float CenterAnchor = 0.5f;
+    private const int DefaultScalePercent = 100;
     private const float OriginalOffsetLeft = -38f;
     private const float OriginalOffsetRight = 762f;
-    private const float OriginalButtonWidth = 800f;
+    private const string OptionsContainerPath = "VBoxContainer/OptionsContainer";
+    private const string ReadyMethod = "_Ready";
+    private const string TypeName = "MegaCrit.Sts2.Core.Nodes.Events.NEventLayout";
+    private const float VerticalShiftMultiplier = 0.5f;
+    private const string VBoxContainerPath = "VBoxContainer";
 
-    public static void Apply(Harmony harmony)
+    internal static void Apply(Harmony harmony)
     {
         var sts2Asm = typeof(MegaCrit.Sts2.Core.Nodes.NGame).Assembly;
+        var eventLayoutType = sts2Asm.GetType(TypeName);
+        if (eventLayoutType == null)
+            return;
 
-        var eventLayoutType = sts2Asm.GetType("MegaCrit.Sts2.Core.Nodes.Events.NEventLayout");
-        if (eventLayoutType != null)
-        {
-            PatchHelper.Patch(
-                harmony,
-                eventLayoutType,
-                "_Ready",
-                postfix: PatchHelper.Method(typeof(EventLayoutPatches), nameof(ReadyPostfix))
-            );
+        PatchHelper.Patch(
+            harmony,
+            eventLayoutType,
+            ReadyMethod,
+            postfix: PatchHelper.Method(
+                typeof(EventLayoutPatches),
+                nameof(ReadyPostfix)
+            )
+        );
 
-            PatchHelper.Patch(
-                harmony,
-                eventLayoutType,
-                "AddOptions",
-                postfix: PatchHelper.Method(typeof(EventLayoutPatches), nameof(AddOptionsPostfix))
-            );
-        }
+        PatchHelper.Patch(
+            harmony,
+            eventLayoutType,
+            AddOptionsMethod,
+            postfix: PatchHelper.Method(
+                typeof(EventLayoutPatches),
+                nameof(AddOptionsPostfix)
+            )
+        );
     }
 
-    public static void ReadyPostfix(object __instance)
+    private static void ReadyPostfix(object __instance)
     {
         try
         {
             var layout = (Control)__instance;
             ApplyLayout(layout);
-
             UiScalePatches.UiScaleChanged += OnScaleChanged;
 
             void OnScaleChanged()
@@ -64,7 +76,7 @@ public static class EventLayoutPatches
         }
     }
 
-    public static void AddOptionsPostfix(object __instance)
+    private static void AddOptionsPostfix(object __instance)
     {
         try
         {
@@ -77,18 +89,18 @@ public static class EventLayoutPatches
         }
     }
 
-    private static void ApplyLayout(Control layout)
+    internal static void ApplyLayout(Control layout)
     {
         UiScalePatches.EnsureUiScaleLoaded();
 
         var window = layout.GetTree().Root;
         float vpWidth = window.ContentScaleSize.X;
 
-        var vbox = layout.GetNodeOrNull<Control>("VBoxContainer");
+        var vbox = layout.GetNodeOrNull<Control>(VBoxContainerPath);
         if (vbox == null)
             return;
 
-        if (UiScalePatches.UiScalePercent <= 100)
+        if (IsDefaultScale(UiScalePatches.UiScalePercent))
         {
             // Reset to original scene values
             layout.Position = new Vector2(layout.Position.X, 0f);
@@ -97,46 +109,52 @@ public static class EventLayoutPatches
             return;
         }
 
-        float scale = UiScalePatches.UiScalePercent / 100f;
-        float shiftUp = layout.Size.Y * (1f - 1f / scale) * 0.5f;
+        float shiftUp = VerticalShiftForScale(layout.Size.Y, UiScalePatches.UiScalePercent);
         layout.Position = new Vector2(layout.Position.X, -shiftUp);
 
-        float margin = 40f;
-        float maxWidth = vpWidth - margin * 2f;
-        float buttonWidth = Math.Min(OriginalButtonWidth, maxWidth);
-
+        float buttonWidth = ButtonWidthForViewport(vpWidth, UiScalePatches.UiScalePercent);
         float half = buttonWidth / 2f;
-        vbox.AnchorLeft = 0.5f;
-        vbox.AnchorRight = 0.5f;
+        vbox.AnchorLeft = CenterAnchor;
+        vbox.AnchorRight = CenterAnchor;
         vbox.OffsetLeft = -half;
         vbox.OffsetRight = half;
     }
 
-    private static void ApplyButtonSizes(Control layout)
+    internal static void ApplyButtonSizes(Control layout)
     {
         UiScalePatches.EnsureUiScaleLoaded();
 
         var window = layout.GetTree().Root;
-        float vpWidth = window.ContentScaleSize.X;
-        float margin = 40f;
-        float maxWidth = vpWidth - margin * 2f;
+        float targetWidth = ButtonWidthForViewport(
+            window.ContentScaleSize.X,
+            UiScalePatches.UiScalePercent
+        );
 
-        var optionsContainer = layout.GetNodeOrNull("VBoxContainer/OptionsContainer");
+        var optionsContainer = layout.GetNodeOrNull(OptionsContainerPath);
         if (optionsContainer == null)
             return;
-
-        // Clamp button width to viewport when scaled above 100%.
-        float targetWidth =
-            UiScalePatches.UiScalePercent <= 100
-                ? OriginalButtonWidth
-                : Math.Min(OriginalButtonWidth, maxWidth);
 
         foreach (var child in optionsContainer.GetChildren())
         {
             if (child is Control btn)
-            {
                 btn.CustomMinimumSize = new Vector2(targetWidth, btn.CustomMinimumSize.Y);
-            }
         }
+    }
+
+    private static float ButtonWidthForViewport(float viewportWidth, int scalePercent)
+    {
+        if (IsDefaultScale(scalePercent))
+            return ButtonOriginalWidth;
+
+        float maxWidth = viewportWidth - ButtonHorizontalMargin * 2f;
+        return Math.Min(ButtonOriginalWidth, maxWidth);
+    }
+
+    private static bool IsDefaultScale(int scalePercent) => scalePercent <= DefaultScalePercent;
+
+    private static float VerticalShiftForScale(float layoutHeight, int scalePercent)
+    {
+        float scale = scalePercent / (float)DefaultScalePercent;
+        return layoutHeight * (1f - 1f / scale) * VerticalShiftMultiplier;
     }
 }

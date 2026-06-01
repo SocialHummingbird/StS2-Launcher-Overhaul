@@ -33,6 +33,13 @@ configurations {
     monoImplementation {}
 }
 
+def godotReleaseAarPath = 'libs/release/godot-lib.template_release.aar'
+def publishedGodotArtifact = "org.godotengine:godot:4.5.1.stable"
+def dotnetCryptoBridgeJar =
+    '../vendor/godot/modules/mono/thirdparty/libSystem.Security.Cryptography.Native.Android.jar'
+def localCryptoBridgeJava =
+    'src/main/java/net/dot/android/crypto/DotnetProxyTrustManager.java'
+
 dependencies {
     implementation "androidx.fragment:fragment:$versions.fragmentVersion"
     implementation "androidx.core:core-splashscreen:$versions.splashscreenVersion"
@@ -48,9 +55,9 @@ dependencies {
         devImplementation fileTree(dir: 'libs/dev', include: ['**/*.jar', '*.aar'])
         releaseImplementation fileTree(dir: 'libs/release', include: ['**/*.jar', '*.aar'])
 
-        if (!file('libs/release/godot-lib.template_release.aar').exists()) {
+        if (!file(godotReleaseAarPath).exists()) {
             // Fallback for clean CI runners: use a published Godot Android artifact.
-            implementation "org.godotengine:godot:4.5.1.stable"
+            implementation publishedGodotArtifact
         }
     }
 
@@ -75,9 +82,8 @@ dependencies {
     }
 
     // .NET dependencies — JAR provides Java-side crypto bindings for the native .so
-    String jar = '../vendor/godot/modules/mono/thirdparty/libSystem.Security.Cryptography.Native.Android.jar'
-    if (file(jar).exists()) {
-        monoImplementation files(jar)
+    if (file(dotnetCryptoBridgeJar).exists() && !file(localCryptoBridgeJava).exists()) {
+        monoImplementation files(dotnetCryptoBridgeJar)
     }
 }
 
