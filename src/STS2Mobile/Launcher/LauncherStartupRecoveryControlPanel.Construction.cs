@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using STS2Mobile;
 
@@ -6,6 +7,21 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
+    private readonly struct RecoveryButton
+    {
+        private RecoveryButton(string label, Action run)
+        {
+            Label = label;
+            Run = run;
+        }
+
+        internal string Label { get; }
+        internal Action Run { get; }
+
+        internal static RecoveryButton Create(string label, Action run)
+            => new(label, run);
+    }
+
     private LauncherStartupRecoveryControlPanel()
     {
         Layer = CreateLayer();
@@ -63,11 +79,17 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private void AddRecoveryActions(VBoxContainer box)
     {
-        AddButton(box, "RETURN TO LAUNCHER", AndroidGodotAppBridge.RestartApp);
-        AddButton(box, "RESTART WITH SAFE LAUNCH", RestartWithSafeLaunch);
-        AddButton(box, "EXPORT STARTUP DIAGNOSTICS", ExportDiagnostics);
-        AddButton(box, "COPY RAW ERROR LOG", CopyRawErrorLog);
-        AddButton(box, "HIDE RECOVERY CONTROLS", () => Layer.QueueFree());
+        foreach (var action in RecoveryActions())
+            AddButton(box, action);
+    }
+
+    private IEnumerable<RecoveryButton> RecoveryActions()
+    {
+        yield return RecoveryButton.Create("RETURN TO LAUNCHER", AndroidGodotAppBridge.RestartApp);
+        yield return RecoveryButton.Create("RESTART WITH SAFE LAUNCH", RestartWithSafeLaunch);
+        yield return RecoveryButton.Create("EXPORT STARTUP DIAGNOSTICS", ExportDiagnostics);
+        yield return RecoveryButton.Create("COPY RAW ERROR LOG", CopyRawErrorLog);
+        yield return RecoveryButton.Create("HIDE RECOVERY CONTROLS", () => Layer.QueueFree());
     }
 
     private static void RestartWithSafeLaunch()
@@ -76,14 +98,14 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         AndroidGodotAppBridge.LaunchGameSafelyOnRestart();
     }
 
-    private static void AddButton(VBoxContainer box, string label, Action run)
+    private static void AddButton(VBoxContainer box, RecoveryButton action)
     {
         var button = new Button
         {
-            Text = label,
+            Text = action.Label,
             CustomMinimumSize = ButtonMinimumSize,
         };
-        button.Pressed += run;
+        button.Pressed += action.Run;
         box.AddChild(button);
     }
 }

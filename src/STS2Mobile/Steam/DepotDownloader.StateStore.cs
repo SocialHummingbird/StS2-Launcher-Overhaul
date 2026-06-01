@@ -11,11 +11,14 @@ internal sealed partial class DepotDownloader
         private readonly DepotDownloader _owner;
         private readonly string _stateDir;
 
-        internal DownloadStateStore(DepotDownloader owner, string stateDir)
+        private DownloadStateStore(DepotDownloader owner, string stateDir)
         {
             _owner = owner;
             _stateDir = stateDir;
         }
+
+        internal static DownloadStateStore Create(DepotDownloader owner, string stateDir)
+            => new(owner, stateDir);
 
         internal ulong LoadManifestId(uint depotId)
         {

@@ -8,23 +8,35 @@ internal sealed partial class SteamAuth
 {
     private const int AuthReconnectPollDelayMs = 250;
 
-    Task<string> IAuthenticator.GetDeviceCodeAsync(bool previousCodeWasIncorrect)
+    private readonly struct AuthCodeRequest
     {
-        return RequestCodeAsync(
-            previousCodeWasIncorrect,
-            "Previous 2FA code was incorrect, requesting new code",
-            "Steam Guard 2FA code required"
-        );
+        private AuthCodeRequest(string retryMessage, string initialMessage)
+        {
+            RetryMessage = retryMessage;
+            InitialMessage = initialMessage;
+        }
+
+        internal string RetryMessage { get; }
+        internal string InitialMessage { get; }
+
+        internal static AuthCodeRequest Device()
+            => new(
+                "Previous 2FA code was incorrect, requesting new code",
+                "Steam Guard 2FA code required"
+            );
+
+        internal static AuthCodeRequest Email(string email)
+            => new(
+                "Previous email code was incorrect, requesting new code",
+                $"Steam Guard email code sent to {email}"
+            );
     }
 
+    Task<string> IAuthenticator.GetDeviceCodeAsync(bool previousCodeWasIncorrect)
+        => RequestCodeAsync(previousCodeWasIncorrect, AuthCodeRequest.Device());
+
     Task<string> IAuthenticator.GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
-    {
-        return RequestCodeAsync(
-            previousCodeWasIncorrect,
-            "Previous email code was incorrect, requesting new code",
-            $"Steam Guard email code sent to {email}"
-        );
-    }
+        => RequestCodeAsync(previousCodeWasIncorrect, AuthCodeRequest.Email(email));
 
     Task<bool> IAuthenticator.AcceptDeviceConfirmationAsync()
     {
@@ -34,11 +46,10 @@ internal sealed partial class SteamAuth
 
     private async Task<string> RequestCodeAsync(
         bool previousCodeWasIncorrect,
-        string retryMessage,
-        string initialMessage
+        AuthCodeRequest request
     )
     {
-        Log(previousCodeWasIncorrect ? retryMessage : initialMessage);
+        Log(previousCodeWasIncorrect ? request.RetryMessage : request.InitialMessage);
 
         _waitingForAuthCode = true;
         try

@@ -5,12 +5,23 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherPreferences
 {
-    private const string LocalBackupPreference = "local_backup_enabled";
-    private const string CloudSyncPreference = "cloud_sync_enabled";
+    private const string LocalBackupPreferenceKey = "local_backup_enabled";
+    private const string CloudSyncPreferenceKey = "cloud_sync_enabled";
+    private static readonly BooleanPreference LocalBackupPreference = new(
+        LocalBackupPreferenceKey,
+        () => false,
+        ApplyLocalBackup,
+        RequestStoragePermissionForLocalBackup
+    );
+    private static readonly BooleanPreference CloudSyncPreference = new(
+        CloudSyncPreferenceKey,
+        () => !OperatingSystem.IsAndroid(),
+        ApplyCloudSync
+    );
 
     private readonly struct BooleanPreference
     {
-        internal BooleanPreference(
+        private BooleanPreference(
             string key,
             Func<bool> defaultValue,
             Action<bool> apply,
@@ -30,37 +41,22 @@ internal static partial class LauncherPreferences
     }
 
     internal static bool ReadLocalBackupEnabled()
-        => ReadBooleanPreference(LocalBackup());
+        => ReadBooleanPreference(LocalBackupPreference);
 
     internal static bool LoadAndApplyLocalBackupEnabled()
-        => LoadAndApplyBooleanPreference(LocalBackup());
+        => LoadAndApplyBooleanPreference(LocalBackupPreference);
 
     internal static void SaveLocalBackupEnabled(bool enabled)
-        => SaveBooleanPreference(LocalBackup(), enabled);
+        => SaveBooleanPreference(LocalBackupPreference, enabled);
 
     internal static bool ReadCloudSyncEnabled()
-        => ReadBooleanPreference(CloudSync());
+        => ReadBooleanPreference(CloudSyncPreference);
 
     internal static bool LoadAndApplyCloudSyncEnabled()
-        => LoadAndApplyBooleanPreference(CloudSync());
+        => LoadAndApplyBooleanPreference(CloudSyncPreference);
 
     internal static void SaveCloudSyncEnabled(bool enabled)
-        => SaveBooleanPreference(CloudSync(), enabled);
-
-    private static BooleanPreference LocalBackup()
-        => new(
-            LocalBackupPreference,
-            () => false,
-            ApplyLocalBackup,
-            RequestStoragePermissionForLocalBackup
-        );
-
-    private static BooleanPreference CloudSync()
-        => new(
-            CloudSyncPreference,
-            () => !OperatingSystem.IsAndroid(),
-            ApplyCloudSync
-        );
+        => SaveBooleanPreference(CloudSyncPreference, enabled);
 
     private static bool ReadBooleanPreference(BooleanPreference preference)
         => LoadBoolean(preference.Key, preference.DefaultValue());

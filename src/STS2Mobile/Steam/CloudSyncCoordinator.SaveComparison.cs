@@ -26,13 +26,13 @@ internal static partial class CloudSyncCoordinator
             internal bool LocalWins => _winner == Winner.Local;
             internal bool HasWinner => _winner != Winner.None;
 
-            internal static SaveWinner Cloud()
+            private static SaveWinner Cloud()
                 => new(Winner.Cloud);
 
-            internal static SaveWinner Local()
+            private static SaveWinner Local()
                 => new(Winner.Local);
 
-            internal static SaveWinner None()
+            private static SaveWinner None()
                 => new(Winner.None);
         }
 
@@ -44,10 +44,10 @@ internal static partial class CloudSyncCoordinator
                 Cloud = cloud;
             }
 
-            internal int Local { get; }
-            internal int Cloud { get; }
+            private int Local { get; }
+            private int Cloud { get; }
 
-            internal static NumericComparison Of(int local, int cloud)
+            private static NumericComparison Of(int local, int cloud)
                 => new(local, cloud);
         }
 

@@ -27,7 +27,7 @@ internal sealed partial class DepotDownloader : IDisposable
     {
         _connection = connection;
         _gameDir = Path.Combine(dataDir, "game");
-        _stateStore = new DownloadStateStore(this, Path.Combine(dataDir, "download_state"));
+        _stateStore = DownloadStateStore.Create(this, Path.Combine(dataDir, "download_state"));
         _cdnClient = connection.CreateCdnClient();
     }
 

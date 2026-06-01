@@ -11,7 +11,7 @@ internal sealed partial class SteamKit2CloudSaveStore
     {
         private readonly struct CloudFileInfo
         {
-            internal CloudFileInfo(int size, DateTimeOffset timestamp)
+            private CloudFileInfo(int size, DateTimeOffset timestamp)
             {
                 Size = size;
                 Timestamp = timestamp;
@@ -19,6 +19,9 @@ internal sealed partial class SteamKit2CloudSaveStore
 
             internal int Size { get; }
             internal DateTimeOffset Timestamp { get; }
+
+            internal static CloudFileInfo Create(int size, DateTimeOffset timestamp)
+                => new(size, timestamp);
         }
 
         private readonly ConcurrentDictionary<
@@ -71,8 +74,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         internal void Set(string path, int size, DateTimeOffset timestamp)
         {
             var key = CacheKey(path);
-            _files[key] = new CloudFileInfo(size, timestamp);
-            _persistedFiles[key] = 0;
+            SetPersistedFile(key, size, timestamp);
         }
 
         internal void Remove(string path)
@@ -84,6 +86,12 @@ internal sealed partial class SteamKit2CloudSaveStore
 
         private CloudFileInfo? GetFileInfo(string path)
             => GetFileInfoByKey(CacheKey(path));
+
+        private void SetPersistedFile(string key, int size, DateTimeOffset timestamp)
+        {
+            _files[key] = CloudFileInfo.Create(size, timestamp);
+            _persistedFiles[key] = 0;
+        }
 
         private CloudFileInfo? GetFileInfoByKey(string key)
         {

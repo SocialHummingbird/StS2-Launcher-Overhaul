@@ -64,12 +64,12 @@ internal sealed partial class SteamConnection
         if (cachedToken.HasValue)
             return AppAccessTokenResult.Found(cachedToken.Value);
 
-        EnsureConnected();
-
-        var tokenResult = await _steamApps.PICSGetAccessTokens(
-            new[] { appId },
-            Array.Empty<uint>()
-        );
+        var tokenResult = await RunConnectedAsync(
+            async () => await _steamApps.PICSGetAccessTokens(
+                new[] { appId },
+                Array.Empty<uint>()
+            )
+        ).ConfigureAwait(false);
         if (tokenResult.AppTokens?.TryGetValue(appId, out var token) == true)
             return RememberAppAccessToken(appId, token);
 

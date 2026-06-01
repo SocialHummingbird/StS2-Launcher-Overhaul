@@ -8,7 +8,7 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct DepotManifestReference
     {
-        internal DepotManifestReference(uint depotId, ulong manifestId)
+        private DepotManifestReference(uint depotId, ulong manifestId)
         {
             DepotId = depotId;
             ManifestId = manifestId;
@@ -16,6 +16,9 @@ internal sealed partial class DepotDownloader
 
         internal uint DepotId { get; }
         internal ulong ManifestId { get; }
+
+        internal static DepotManifestReference Create(uint depotId, ulong manifestId)
+            => new(depotId, manifestId);
     }
 
     private async Task<List<DepotManifestReference>> ParseDepotsAsync(
@@ -47,7 +50,7 @@ internal sealed partial class DepotDownloader
             return null;
 
         Log($"Found depot {depotId} manifest {manifestId.Value}");
-        return new DepotManifestReference(depotId, manifestId.Value);
+        return DepotManifestReference.Create(depotId, manifestId.Value);
     }
 
     private bool ShouldSkipDepot(KeyValue depot, uint depotId)

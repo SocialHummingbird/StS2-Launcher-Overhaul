@@ -8,7 +8,7 @@ internal sealed partial class LauncherController
 {
     private readonly struct CloudSyncRequest
     {
-        internal CloudSyncRequest(
+        private CloudSyncRequest(
             string confirmationMessage,
             Func<Task> run,
             string name,
@@ -28,32 +28,34 @@ internal sealed partial class LauncherController
         internal string Name { get; }
         internal string StartMessage { get; }
         internal string CompleteMessage { get; }
+
+        internal static CloudSyncRequest Push()
+            => new(
+                "Push local saves to cloud?\nThis will overwrite your cloud saves.",
+                LauncherCloudSaveState.ManualPushAllAsync,
+                "Push",
+                "Pushing local saves to cloud...",
+                "Push complete."
+            );
+
+        internal static CloudSyncRequest Pull()
+            => new(
+                "Pull cloud saves to local?\nThis will overwrite your local saves.",
+                LauncherCloudSaveState.ManualPullAllAsync,
+                "Pull",
+                "Pulling cloud saves to local...",
+                "Pull complete."
+            );
     }
 
     private void CloudSyncToggled(bool pressed)
         => LauncherPreferences.SaveCloudSyncEnabled(pressed);
 
     private void CloudPushPressed()
-        => RequestCloudSync(
-            new CloudSyncRequest(
-                "Push local saves to cloud?\nThis will overwrite your cloud saves.",
-                LauncherCloudSaveState.ManualPushAllAsync,
-                "Push",
-                "Pushing local saves to cloud...",
-                "Push complete."
-            )
-        );
+        => RequestCloudSync(CloudSyncRequest.Push());
 
     private void CloudPullPressed()
-        => RequestCloudSync(
-            new CloudSyncRequest(
-                "Pull cloud saves to local?\nThis will overwrite your local saves.",
-                LauncherCloudSaveState.ManualPullAllAsync,
-                "Pull",
-                "Pulling cloud saves to local...",
-                "Pull complete."
-            )
-        );
+        => RequestCloudSync(CloudSyncRequest.Pull());
 
     private void RequestCloudSync(CloudSyncRequest request)
     {

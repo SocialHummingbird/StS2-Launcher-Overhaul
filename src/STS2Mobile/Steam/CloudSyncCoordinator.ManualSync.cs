@@ -13,7 +13,7 @@ internal static partial class CloudSyncCoordinator
 
     private readonly struct ManualSyncPlan<TResult>
     {
-        internal ManualSyncPlan(
+        private ManualSyncPlan(
             Func<ManualSyncContext, IReadOnlyCollection<string>> discoverPaths,
             Func<int, string> startingMessage,
             Func<ManualSyncContext, IReadOnlyCollection<string>, Task<int>> backUpAsync,
@@ -36,6 +36,23 @@ internal static partial class CloudSyncCoordinator
         internal Func<int, string> BackedUpMessage { get; }
         internal Func<ManualSyncContext, IReadOnlyCollection<string>, Task<TResult>> TransferAsync { get; }
         internal Func<TResult, string> CompleteMessage { get; }
+
+        internal static ManualSyncPlan<TResult> Create(
+            Func<ManualSyncContext, IReadOnlyCollection<string>> discoverPaths,
+            Func<int, string> startingMessage,
+            Func<ManualSyncContext, IReadOnlyCollection<string>, Task<int>> backUpAsync,
+            Func<int, string> backedUpMessage,
+            Func<ManualSyncContext, IReadOnlyCollection<string>, Task<TResult>> transferAsync,
+            Func<TResult, string> completeMessage
+        )
+            => new(
+                discoverPaths,
+                startingMessage,
+                backUpAsync,
+                backedUpMessage,
+                transferAsync,
+                completeMessage
+            );
     }
 
     private readonly struct ManualSyncContext
@@ -44,7 +61,7 @@ internal static partial class CloudSyncCoordinator
         private readonly ICloudSaveStore _cloud;
         private readonly DateTime _deadline;
 
-        internal ManualSyncContext(
+        private ManualSyncContext(
             ISaveStore local,
             ICloudSaveStore cloud,
             DateTime deadline
@@ -54,6 +71,13 @@ internal static partial class CloudSyncCoordinator
             _cloud = cloud;
             _deadline = deadline;
         }
+
+        internal static ManualSyncContext Create(
+            ISaveStore local,
+            ICloudSaveStore cloud,
+            DateTime deadline
+        )
+            => new(local, cloud, deadline);
 
         internal IReadOnlyCollection<string> DiscoverLocalPaths()
             => SavePathDiscovery.Get(_local);
@@ -118,7 +142,7 @@ internal static partial class CloudSyncCoordinator
     )
     {
         var store = CloudSaveStoreFactory.CreateCloudSaveStore(accountName, refreshToken);
-        return new ManualSyncContext(
+        return ManualSyncContext.Create(
             store.LocalStore,
             store.CloudStore,
             DateTime.UtcNow.AddMilliseconds(ManualSyncOverallTimeoutMs)
@@ -129,7 +153,7 @@ internal static partial class CloudSyncCoordinator
         => RunManualSyncAsync(
             accountName,
             refreshToken,
-            new ManualSyncPlan<int>(
+            ManualSyncPlan<int>.Create(
                 sync => sync.DiscoverLocalPaths(),
                 PushStarting,
                 (sync, paths) => SaveBackups.CloudBeforeManualPushAsync(sync, paths),
@@ -143,7 +167,7 @@ internal static partial class CloudSyncCoordinator
         => RunManualSyncAsync(
             accountName,
             refreshToken,
-            new ManualSyncPlan<ManualPullResult>(
+            ManualSyncPlan<ManualPullResult>.Create(
                 sync => sync.DiscoverCloudPaths(),
                 PullStarting,
                 (sync, paths) => SaveBackups.LocalBeforeManualPullAsync(sync, paths),

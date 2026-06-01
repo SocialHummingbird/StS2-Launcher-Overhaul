@@ -6,6 +6,12 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherDiagnostics
 {
+    private enum DiagnosticFileMetadataStyle
+    {
+        MultiLine,
+        Inline,
+    }
+
     private readonly struct DiagnosticFileSnapshot
     {
         private DiagnosticFileSnapshot(
@@ -41,28 +47,23 @@ internal static partial class LauncherDiagnostics
         DiagnosticFile file,
         long inlineContentLimit
     )
-    {
-        try
-        {
-            var snapshot = DiagnosticFileSnapshot.From(file);
-            sb.AppendLine($"{file.Label}: {file.Path}");
-            if (!snapshot.HasText)
+        => AppendInspectedFile(
+            file,
+            snapshot =>
             {
-                AppendFileReadStatus(sb, snapshot.Read);
-                return;
-            }
+                sb.AppendLine($"{file.Label}: {file.Path}");
+                if (!snapshot.HasText)
+                {
+                    AppendFileReadStatus(sb, snapshot.Read);
+                    return;
+                }
 
-            sb.AppendLine("  exists=True");
-            sb.AppendLine($"  bytes={snapshot.Bytes}");
-            sb.AppendLine($"  modifiedUtc={snapshot.ModifiedUtc:O}");
-            if (snapshot.Bytes <= inlineContentLimit)
-                sb.AppendLine($"  contents={SingleLine(snapshot.Text)}");
-        }
-        catch (Exception ex)
-        {
-            sb.AppendLine($"{file.Label}: failed to inspect {file.Path}: {ex.Message}");
-        }
-    }
+                AppendFileMetadata(sb, snapshot, DiagnosticFileMetadataStyle.MultiLine);
+                if (snapshot.Bytes <= inlineContentLimit)
+                    sb.AppendLine($"  contents={SingleLine(snapshot.Text)}");
+            },
+            ex => sb.AppendLine($"{file.Label}: failed to inspect {file.Path}: {ex.Message}")
+        );
 
     private static void AppendFileContentsSection(
         StringBuilder sb,
@@ -71,28 +72,63 @@ internal static partial class LauncherDiagnostics
     {
         sb.AppendLine(Header(file.Label, file.Path));
 
+        AppendInspectedFile(
+            file,
+            snapshot =>
+            {
+                if (!snapshot.HasText)
+                {
+                    AppendFileReadStatus(sb, snapshot.Read);
+                    sb.AppendLine();
+                    return;
+                }
+
+                AppendFileMetadata(sb, snapshot, DiagnosticFileMetadataStyle.Inline);
+                sb.AppendLine("  contents:");
+                sb.AppendLine(snapshot.Text);
+                sb.AppendLine();
+            },
+            ex =>
+            {
+                sb.AppendLine($"  failed={ex.Message}");
+                sb.AppendLine();
+            }
+        );
+    }
+
+    private static void AppendInspectedFile(
+        DiagnosticFile file,
+        Action<DiagnosticFileSnapshot> appendSnapshot,
+        Action<Exception> appendFailure
+    )
+    {
         try
         {
-            var snapshot = DiagnosticFileSnapshot.From(file);
-            if (!snapshot.HasText)
-            {
-                AppendFileReadStatus(sb, snapshot.Read);
-                sb.AppendLine();
-                return;
-            }
-
-            sb.AppendLine(
-                $"  exists=True bytes={snapshot.Bytes} modifiedUtc={snapshot.ModifiedUtc:O}"
-            );
-            sb.AppendLine("  contents:");
-            sb.AppendLine(snapshot.Text);
+            appendSnapshot(DiagnosticFileSnapshot.From(file));
         }
         catch (Exception ex)
         {
-            sb.AppendLine($"  failed={ex.Message}");
+            appendFailure(ex);
+        }
+    }
+
+    private static void AppendFileMetadata(
+        StringBuilder sb,
+        DiagnosticFileSnapshot snapshot,
+        DiagnosticFileMetadataStyle style
+    )
+    {
+        if (style == DiagnosticFileMetadataStyle.Inline)
+        {
+            sb.AppendLine(
+                $"  exists=True bytes={snapshot.Bytes} modifiedUtc={snapshot.ModifiedUtc:O}"
+            );
+            return;
         }
 
-        sb.AppendLine();
+        sb.AppendLine("  exists=True");
+        sb.AppendLine($"  bytes={snapshot.Bytes}");
+        sb.AppendLine($"  modifiedUtc={snapshot.ModifiedUtc:O}");
     }
 
     private static string SingleLine(string text)

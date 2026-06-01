@@ -12,7 +12,7 @@ internal static partial class CloudSyncCoordinator
 
     private readonly struct AutoSyncPresence
     {
-        internal AutoSyncPresence(bool local, bool cloud)
+        private AutoSyncPresence(bool local, bool cloud)
         {
             Local = local;
             Cloud = cloud;
@@ -20,6 +20,9 @@ internal static partial class CloudSyncCoordinator
 
         internal bool Local { get; }
         internal bool Cloud { get; }
+
+        internal static AutoSyncPresence Of(bool local, bool cloud)
+            => new(local, cloud);
     }
 
     private readonly struct AutoSyncContext
@@ -27,7 +30,7 @@ internal static partial class CloudSyncCoordinator
         private readonly ISaveStore _local;
         private readonly ICloudSaveStore _cloud;
 
-        internal AutoSyncContext(ISaveStore local, ICloudSaveStore cloud, string path)
+        private AutoSyncContext(ISaveStore local, ICloudSaveStore cloud, string path)
         {
             _local = local;
             _cloud = cloud;
@@ -36,8 +39,11 @@ internal static partial class CloudSyncCoordinator
 
         internal string Path { get; }
 
+        internal static AutoSyncContext Create(ISaveStore local, ICloudSaveStore cloud, string path)
+            => new(local, cloud, path);
+
         internal AutoSyncPresence GetPresence()
-            => new(_local.FileExists(Path), _cloud.FileExists(Path));
+            => AutoSyncPresence.Of(_local.FileExists(Path), _cloud.FileExists(Path));
 
         internal bool CloudFileExists()
             => _cloud.FileExists(Path);
@@ -96,7 +102,7 @@ internal static partial class CloudSyncCoordinator
     // Progress/run files compare durable progress; non-progress conflicts default to cloud.
     internal static async Task AutoSyncFileAsync(ISaveStore local, ICloudSaveStore cloud, string path)
     {
-        var sync = new AutoSyncContext(local, cloud, path);
+        var sync = AutoSyncContext.Create(local, cloud, path);
         try
         {
             var presence = sync.GetPresence();

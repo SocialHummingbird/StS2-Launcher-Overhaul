@@ -20,6 +20,9 @@ internal sealed partial class DepotDownloader
             internal TValue Value { get; }
             internal DateTime Expiry { get; }
             internal bool Fresh => DateTime.UtcNow < Expiry;
+
+            internal static CacheEntry Create(TValue value, DateTime expiry)
+                => new(value, expiry);
         }
 
         private readonly ConcurrentDictionary<TKey, CacheEntry> _entries = new();
@@ -42,7 +45,7 @@ internal sealed partial class DepotDownloader
         }
 
         private void SetFor(TKey key, TValue value, TimeSpan ttl)
-            => _entries[key] = new CacheEntry(value, DateTime.UtcNow.Add(ttl));
+            => _entries[key] = CacheEntry.Create(value, DateTime.UtcNow.Add(ttl));
 
         internal async Task<TValue> GetOrAddAsync(
             TKey key,

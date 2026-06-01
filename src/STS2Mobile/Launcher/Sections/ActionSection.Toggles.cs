@@ -7,7 +7,7 @@ internal sealed partial class ActionSection
 {
     private readonly struct ToggleControl
     {
-        internal ToggleControl(
+        private ToggleControl(
             Button button,
             Func<bool, string> text,
             Action<bool> notifyChanged
@@ -21,21 +21,34 @@ internal sealed partial class ActionSection
         internal Button Button { get; }
         internal Func<bool, string> Text { get; }
         internal Action<bool> NotifyChanged { get; }
+
+        internal static ToggleControl Create(
+            Button button,
+            Func<bool, string> text,
+            Action<bool> notifyChanged
+        )
+            => new(button, text, notifyChanged);
     }
 
     private void ConfigureLocalBackupToggle()
-        => ConfigureToggle(new ToggleControl(
+        => ConfigureToggle(LocalBackupToggle());
+
+    private void ConfigureCloudSyncToggle()
+        => ConfigureToggle(CloudSyncToggle());
+
+    private ToggleControl LocalBackupToggle()
+        => ToggleControl.Create(
             _localBackupToggle,
             LocalBackupText,
             pressed => LocalBackupToggled?.Invoke(pressed)
-        ));
+        );
 
-    private void ConfigureCloudSyncToggle()
-        => ConfigureToggle(new ToggleControl(
+    private ToggleControl CloudSyncToggle()
+        => ToggleControl.Create(
             _cloudSyncToggle,
             CloudSyncText,
             pressed => CloudSyncToggled?.Invoke(pressed)
-        ));
+        );
 
     private void ConfigureToggle(ToggleControl toggle)
     {
@@ -49,15 +62,15 @@ internal sealed partial class ActionSection
     }
 
     private void ApplyLocalBackupToggle(bool value)
-        => SetToggleChecked(_localBackupToggle, LocalBackupText, value);
+        => SetToggleChecked(LocalBackupToggle(), value);
 
     private void ApplyCloudSyncToggle(bool value)
-        => SetToggleChecked(_cloudSyncToggle, CloudSyncText, value);
+        => SetToggleChecked(CloudSyncToggle(), value);
 
-    private void SetToggleChecked(Button button, Func<bool, string> text, bool value)
+    private void SetToggleChecked(ToggleControl toggle, bool value)
     {
-        button.ButtonPressed = value;
-        ApplyToggle(button, value, text(value));
+        toggle.Button.ButtonPressed = value;
+        ApplyToggle(toggle.Button, value, toggle.Text(value));
     }
 
     private void ApplyToggle(Button button, bool value, string text)

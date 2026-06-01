@@ -8,7 +8,7 @@ internal static partial class CloudSyncCoordinator
 {
     private readonly struct ManualPullResult
     {
-        private ManualPullResult(int downloaded, int skipped)
+        internal ManualPullResult(int downloaded, int skipped)
         {
             Downloaded = downloaded;
             Skipped = skipped;

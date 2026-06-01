@@ -7,7 +7,7 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct DepotFilePlan
     {
-        internal DepotFilePlan(
+        private DepotFilePlan(
             List<DepotManifest.FileData> downloads,
             List<string> deletes
         )
@@ -18,6 +18,12 @@ internal sealed partial class DepotDownloader
 
         internal List<DepotManifest.FileData> Downloads { get; }
         internal List<string> Deletes { get; }
+
+        internal static DepotFilePlan Create(
+            List<DepotManifest.FileData> downloads,
+            List<string> deletes
+        )
+            => new(downloads, deletes);
     }
 
     private DepotFilePlan BuildDepotFileLists(
@@ -32,6 +38,6 @@ internal sealed partial class DepotDownloader
         downloads = DeduplicateDownloads(downloads);
         ValidateDownloadFileSizes(downloads);
 
-        return new DepotFilePlan(downloads, GetFilesToDelete(oldManifest, newManifest));
+        return DepotFilePlan.Create(downloads, GetFilesToDelete(oldManifest, newManifest));
     }
 }

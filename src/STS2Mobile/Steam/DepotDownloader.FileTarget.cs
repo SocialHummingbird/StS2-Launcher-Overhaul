@@ -7,7 +7,7 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct DepotFileTarget
     {
-        internal DepotFileTarget(
+        private DepotFileTarget(
             string fileName,
             string filePath,
             string? fileDir,
@@ -27,6 +27,15 @@ internal sealed partial class DepotDownloader
         internal string? FileDir { get; }
         internal string TempPath { get; }
         internal string LockKey { get; }
+
+        internal static DepotFileTarget Create(
+            string fileName,
+            string filePath,
+            string? fileDir,
+            string tempPath,
+            string lockKey
+        )
+            => new(fileName, filePath, fileDir, tempPath, lockKey);
     }
 
     private string? GetManifestFileName(DepotManifest.FileData file)
@@ -48,7 +57,7 @@ internal sealed partial class DepotDownloader
         if (fileDir != null)
             Directory.CreateDirectory(fileDir);
 
-        return new DepotFileTarget(
+        return DepotFileTarget.Create(
             fileName,
             filePath,
             fileDir,

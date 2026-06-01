@@ -6,7 +6,7 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct PckTextReplacement
     {
-        internal PckTextReplacement(string search, string replacement)
+        private PckTextReplacement(string search, string replacement)
         {
             Search = search;
             Replacement = replacement;
@@ -14,6 +14,9 @@ internal sealed partial class DepotDownloader
 
         internal string Search { get; }
         internal string Replacement { get; }
+
+        internal static PckTextReplacement Create(string search, string replacement)
+            => new(search, replacement);
     }
 
     private static readonly string[] ProjectGodotSettingsToComment =
@@ -30,8 +33,8 @@ internal sealed partial class DepotDownloader
 
     private static readonly PckTextReplacement[] ProjectBinaryReplacements =
     {
-        new("autoload/SentryInit", "disabled/SentryInit"),
-        new("autoload/FmodManager", "disabled/FmodManager"),
+        PckTextReplacement.Create("autoload/SentryInit", "disabled/SentryInit"),
+        PckTextReplacement.Create("autoload/FmodManager", "disabled/FmodManager"),
     };
 
     private static readonly string[] GameSceneSettingsToComment =
