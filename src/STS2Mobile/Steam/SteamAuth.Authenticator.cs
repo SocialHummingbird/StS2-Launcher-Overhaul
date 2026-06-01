@@ -70,19 +70,23 @@ internal sealed partial class SteamAuth
 
             if (shouldReconnect())
             {
-                if (RequiresPersistentAuthConnection)
-                {
-                    if (!await TryReconnectForAuthAsync())
-                        Log(reconnectRetryMessage);
-                }
-                else
-                {
-                    LogAndroidAuthConnectionLossOnce();
-                }
+                await MaintainAuthConnectionAsync(reconnectRetryMessage);
             }
 
             await Task.WhenAny(task, Task.Delay(AuthReconnectPollDelayMs));
         }
+    }
+
+    private async Task MaintainAuthConnectionAsync(string reconnectRetryMessage)
+    {
+        if (!RequiresPersistentAuthConnection)
+        {
+            LogAndroidAuthConnectionLossOnce();
+            return;
+        }
+
+        if (!await TryReconnectForAuthAsync())
+            Log(reconnectRetryMessage);
     }
 
     private async Task ReconnectBeforeCodeSubmitAsync()
@@ -90,14 +94,24 @@ internal sealed partial class SteamAuth
         if (!NeedsAuthReconnect)
             return;
 
-        if (!RequiresPersistentAuthConnection)
+        if (ContinueWebApiAuthWithoutPersistentConnection(
+                "Submitting Steam Guard code through Steam WebAPI without CM reconnect"
+            ))
         {
-            LogAndroidAuthConnectionLossOnce();
-            Log("Submitting Steam Guard code through Steam WebAPI without CM reconnect");
             return;
         }
 
         await ReconnectForAuthAsync();
+    }
+
+    private bool ContinueWebApiAuthWithoutPersistentConnection(string message)
+    {
+        if (RequiresPersistentAuthConnection)
+            return false;
+
+        LogAndroidAuthConnectionLossOnce();
+        Log(message);
+        return true;
     }
 
     private bool NeedsAuthReconnect => _needsReconnectForAuth || !_connectedGate.IsSet;

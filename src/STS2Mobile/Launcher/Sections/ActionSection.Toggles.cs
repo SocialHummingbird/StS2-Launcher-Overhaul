@@ -5,40 +5,60 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection
 {
+    private readonly struct ToggleControl
+    {
+        internal ToggleControl(
+            Button button,
+            Func<bool, string> text,
+            Action<bool> notifyChanged
+        )
+        {
+            Button = button;
+            Text = text;
+            NotifyChanged = notifyChanged;
+        }
+
+        internal Button Button { get; }
+        internal Func<bool, string> Text { get; }
+        internal Action<bool> NotifyChanged { get; }
+    }
+
     private void ConfigureLocalBackupToggle()
-        => ConfigureToggle(
+        => ConfigureToggle(new ToggleControl(
             _localBackupToggle,
-            ApplyLocalBackupToggle,
+            LocalBackupText,
             pressed => LocalBackupToggled?.Invoke(pressed)
-        );
+        ));
 
     private void ConfigureCloudSyncToggle()
-        => ConfigureToggle(
+        => ConfigureToggle(new ToggleControl(
             _cloudSyncToggle,
-            ApplyCloudSyncToggle,
+            CloudSyncText,
             pressed => CloudSyncToggled?.Invoke(pressed)
-        );
+        ));
 
-    private static void ConfigureToggle(
-        Button button,
-        Action<bool> applyState,
-        Action<bool> notifyChanged
-    )
+    private void ConfigureToggle(ToggleControl toggle)
     {
-        button.ToggleMode = true;
-        applyState(false);
-        button.Toggled += pressed =>
+        toggle.Button.ToggleMode = true;
+        ApplyToggle(toggle.Button, false, toggle.Text(false));
+        toggle.Button.Toggled += pressed =>
         {
-            applyState(pressed);
-            notifyChanged(pressed);
+            ApplyToggle(toggle.Button, pressed, toggle.Text(pressed));
+            toggle.NotifyChanged(pressed);
         };
     }
 
     private void ApplyLocalBackupToggle(bool value)
-        => ApplyToggle(_localBackupToggle, value, LocalBackupText(value));
+        => SetToggleChecked(_localBackupToggle, LocalBackupText, value);
 
     private void ApplyCloudSyncToggle(bool value)
-        => ApplyToggle(_cloudSyncToggle, value, CloudSyncText(value));
+        => SetToggleChecked(_cloudSyncToggle, CloudSyncText, value);
+
+    private void SetToggleChecked(Button button, Func<bool, string> text, bool value)
+    {
+        button.ButtonPressed = value;
+        ApplyToggle(button, value, text(value));
+    }
 
     private void ApplyToggle(Button button, bool value, string text)
     {

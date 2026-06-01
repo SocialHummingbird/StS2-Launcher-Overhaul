@@ -17,11 +17,7 @@ internal sealed class DownloadSection : VBoxContainer
 
     internal DownloadSection(float scale)
     {
-        AddThemeConstantOverride(
-            LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.SectionSeparation, scale)
-        );
-        Visible = false;
+        LauncherSectionSetup.ConfigureHiddenSection(this, scale);
 
         _downloadButton = new StyledButton(
             DefaultDownloadButtonText,

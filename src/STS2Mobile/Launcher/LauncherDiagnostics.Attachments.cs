@@ -36,6 +36,8 @@ internal static partial class LauncherDiagnostics
         internal string? Error { get; }
         internal bool HasText => Text != null;
         internal bool IsMissing => Text == null && Error == null;
+        internal string Content => Text ?? string.Empty;
+        internal string[] Lines => Content.Replace("\r\n", "\n").Split('\n');
 
         internal static FileReadResult Read(string text)
             => new(text, error: null);
@@ -45,6 +47,11 @@ internal static partial class LauncherDiagnostics
 
         internal static FileReadResult Failed(string error)
             => new(text: null, error);
+
+        internal string Status(string missingPrefix = "", string failedPrefix = "")
+            => IsMissing
+                ? $"{missingPrefix}<missing>"
+                : $"{failedPrefix}<failed to read: {Error}>";
     }
 
     private static void AppendSummaryErrorDiagnostics(StringBuilder sb, string dataDir)
@@ -130,12 +137,11 @@ internal static partial class LauncherDiagnostics
         var read = ReadFileText(file.Path);
         if (!read.HasText)
         {
-            sb.AppendLine(ReadStatus(read));
+            sb.AppendLine(read.Status());
             return;
         }
 
-        var lines = read.Text.Replace("\r\n", "\n").Split('\n');
-        foreach (var line in SelectInterestingDiagnosticLines(lines, file.Limit))
+        foreach (var line in SelectInterestingDiagnosticLines(read.Lines, file.Limit))
             sb.AppendLine(line);
     }
 
@@ -149,11 +155,11 @@ internal static partial class LauncherDiagnostics
         var read = ReadFileText(file.Path);
         if (read.HasText)
         {
-            sb.AppendLine(TruncateForDisplay(read.Text, file.Limit));
+            sb.AppendLine(TruncateForDisplay(read.Content, file.Limit));
             return;
         }
 
-        sb.AppendLine(ReadStatus(read, missingPrefix, failedPrefix));
+        sb.AppendLine(read.Status(missingPrefix, failedPrefix));
     }
 
     private static FileReadResult ReadFileText(string path)
@@ -178,13 +184,4 @@ internal static partial class LauncherDiagnostics
 
         return text.Substring(0, maxChars) + "\n<truncated>";
     }
-
-    private static string ReadStatus(
-        FileReadResult read,
-        string missingPrefix = "",
-        string failedPrefix = ""
-    )
-        => read.IsMissing
-            ? $"{missingPrefix}<missing>"
-            : $"{failedPrefix}<failed to read: {read.Error}>";
 }

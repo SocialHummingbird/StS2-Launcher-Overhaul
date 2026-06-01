@@ -1,6 +1,5 @@
 using System;
 using Godot;
-using STS2Mobile.Launcher;
 using STS2Mobile.Launcher.Components;
 
 namespace STS2Mobile.Launcher.Sections;
@@ -15,11 +14,7 @@ internal sealed class LoginSection : VBoxContainer
 
     internal LoginSection(float scale)
     {
-        AddThemeConstantOverride(
-            LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.SectionSeparation, scale)
-        );
-        Visible = false;
+        LauncherSectionSetup.ConfigureHiddenSection(this, scale);
 
         _usernameField = new StyledLineEdit("Steam Username", scale);
         AddChild(_usernameField);

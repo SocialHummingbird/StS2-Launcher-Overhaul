@@ -15,9 +15,8 @@ internal sealed partial class DepotDownloader
     )
     {
         Log($"Downloading manifest for depot {depotId}...");
-        for (int attemptIndex = 0; attemptIndex < MaxRetries; attemptIndex++)
+        foreach (var attempt in CdnDownloadAttempts())
         {
-            var attempt = new CdnServerAttempt(GetCurrentServer(), attemptIndex);
             try
             {
                 return await _cdnClient.DownloadManifestAsync(

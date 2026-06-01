@@ -86,14 +86,14 @@ internal sealed partial class SteamAuth
 
     private async Task PrepareForAuthRetryAsync()
     {
-        if (RequiresPersistentAuthConnection)
+        if (ContinueWebApiAuthWithoutPersistentConnection(
+                "Retrying Android WebAPI credential auth without CM reconnect"
+            ))
         {
-            await ReconnectForAuthAsync();
             return;
         }
 
-        LogAndroidAuthConnectionLossOnce();
-        Log("Retrying Android WebAPI credential auth without CM reconnect");
+        await ReconnectForAuthAsync();
     }
 
     private static bool IsTransientAndroidAuthFailure(Exception ex)

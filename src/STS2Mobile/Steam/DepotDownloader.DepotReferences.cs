@@ -21,14 +21,7 @@ internal sealed partial class DepotDownloader
     }
 
     private static uint? GetReferencedAppId(KeyValue depot)
-    {
-        var depotFromApp = depot["depotfromapp"];
-        return depotFromApp != KeyValue.Invalid
-            && depotFromApp.Value != null
-            && uint.TryParse(depotFromApp.Value, out var otherAppId)
-            ? otherAppId
-            : null;
-    }
+        => ReadKeyValueUInt32(depot["depotfromapp"]);
 
     private async Task<KeyValue> GetReferencedDepotManifestSectionAsync(
         uint depotId,
@@ -47,4 +40,18 @@ internal sealed partial class DepotDownloader
 
     private static KeyValue GetManifestSectionOrInvalid(KeyValue depot)
         => depot != KeyValue.Invalid ? depot["manifests"] : KeyValue.Invalid;
+
+    private static uint? ReadKeyValueUInt32(KeyValue value)
+        => value != KeyValue.Invalid
+            && value.Value != null
+            && uint.TryParse(value.Value, out var parsed)
+            ? parsed
+            : null;
+
+    private static ulong? ReadKeyValueUInt64(KeyValue value)
+        => value != KeyValue.Invalid
+            && value.Value != null
+            && ulong.TryParse(value.Value, out var parsed)
+            ? parsed
+            : null;
 }

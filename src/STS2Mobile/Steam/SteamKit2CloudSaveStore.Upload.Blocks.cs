@@ -26,11 +26,13 @@ internal sealed partial class SteamKit2CloudSaveStore
                     );
             using var request = CreateUploadBlockRequest(
                 block.http_method == 2 ? HttpMethod.Post : HttpMethod.Put,
-                CloudHttpUrl(block.use_https, block.url_host, block.url_path),
+                block.use_https,
+                block.url_host,
+                block.url_path,
                 bodyData
             );
             foreach (var header in block.request_headers)
-                request.Headers.TryAddWithoutValidation(header.name, header.value);
+                AddCloudHttpHeader(request, header.name, header.value);
 
             await SendCloudHttpAsync(request).ConfigureAwait(false);
         }
@@ -38,14 +40,14 @@ internal sealed partial class SteamKit2CloudSaveStore
 
     private static HttpRequestMessage CreateUploadBlockRequest(
         HttpMethod method,
-        string url,
+        bool useHttps,
+        string host,
+        string path,
         byte[] bodyData
     )
     {
-        var request = new HttpRequestMessage(method, url)
-        {
-            Content = new ByteArrayContent(bodyData),
-        };
+        var request = CreateCloudHttpRequest(method, useHttps, host, path);
+        request.Content = new ByteArrayContent(bodyData);
         request.Content.Headers.ContentType = new MediaTypeHeaderValue(UploadBlockContentType);
         request.Content.Headers.ContentLength = bodyData.Length;
         return request;

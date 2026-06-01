@@ -4,54 +4,38 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private readonly struct PushDecision
+    private readonly struct TransferDecision
     {
         private enum Action
         {
             Skip,
-            Upload,
+            Transfer,
         }
 
-        private PushDecision(Action action, string? cloudContentToBackUp)
+        private TransferDecision(
+            Action action,
+            string? existingContentToBackUp,
+            bool backUpExisting
+        )
         {
             _action = action;
-            CloudContentToBackUp = cloudContentToBackUp;
+            ExistingContentToBackUp = existingContentToBackUp;
+            BackUpExisting = backUpExisting;
         }
 
         private readonly Action _action;
-        internal bool ShouldUpload => _action == Action.Upload;
-        internal string? CloudContentToBackUp { get; }
+        internal bool ShouldTransfer => _action == Action.Transfer;
+        internal string? ExistingContentToBackUp { get; }
+        internal bool BackUpExisting { get; }
 
-        internal static PushDecision Upload(string? cloudContentToBackUp)
-            => new(Action.Upload, cloudContentToBackUp);
+        internal static TransferDecision Transfer(
+            string? existingContentToBackUp = null,
+            bool backUpExisting = false
+        )
+            => new(Action.Transfer, existingContentToBackUp, backUpExisting);
 
-        internal static PushDecision SkipUpload()
-            => new(Action.Skip, cloudContentToBackUp: null);
-    }
-
-    private readonly struct PullDecision
-    {
-        private enum Action
-        {
-            Skip,
-            Download,
-        }
-
-        private PullDecision(Action action, bool backUpLocal)
-        {
-            _action = action;
-            BackUpLocal = backUpLocal;
-        }
-
-        private readonly Action _action;
-        internal bool ShouldDownload => _action == Action.Download;
-        internal bool BackUpLocal { get; }
-
-        internal static PullDecision Download(bool backUpLocal)
-            => new(Action.Download, backUpLocal);
-
-        internal static PullDecision SkipDownload()
-            => new(Action.Skip, backUpLocal: false);
+        internal static TransferDecision Skip()
+            => new(Action.Skip, existingContentToBackUp: null, backUpExisting: false);
     }
 
     private static async Task PushFileAsync(AutoSyncContext sync)
@@ -61,10 +45,10 @@ internal static partial class CloudSyncCoordinator
             return;
 
         var push = await GetPushDecisionAsync(sync, local);
-        if (!push.ShouldUpload)
+        if (!push.ShouldTransfer)
             return;
 
-        sync.PushLocalContent(local, push.CloudContentToBackUp, PushUploaded(sync.Path));
+        sync.PushLocalContent(local, push.ExistingContentToBackUp, PushUploaded(sync.Path));
     }
 
     private static async Task PullFileAsync(AutoSyncContext sync)
@@ -75,49 +59,49 @@ internal static partial class CloudSyncCoordinator
         string cloudContent = await sync.ReadCloudContentAsync(PullCloudFileOperation);
 
         var pull = GetPullDecision(sync, cloudContent);
-        if (!pull.ShouldDownload)
+        if (!pull.ShouldTransfer)
             return;
 
         await sync.PullCloudContentAsync(
             cloudContent,
             PullDownloaded(sync.Path),
-            pull.BackUpLocal
+            pull.BackUpExisting
         );
     }
 
-    private static async Task<PushDecision> GetPushDecisionAsync(
+    private static async Task<TransferDecision> GetPushDecisionAsync(
         AutoSyncContext sync,
         string localContent
     )
     {
         if (!sync.CloudFileExists())
-            return PushDecision.Upload(cloudContentToBackUp: null);
+            return TransferDecision.Transfer();
 
         string cloudContent = await sync.ReadCloudContentAsync(ReadCloudFileOperation);
         if (localContent == cloudContent)
         {
             PatchHelper.Log(PushSkippingIdentical(sync.Path));
-            return PushDecision.SkipUpload();
+            return TransferDecision.Skip();
         }
 
-        return PushDecision.Upload(cloudContent);
+        return TransferDecision.Transfer(existingContentToBackUp: cloudContent);
     }
 
-    private static PullDecision GetPullDecision(
+    private static TransferDecision GetPullDecision(
         AutoSyncContext sync,
         string cloudContent
     )
     {
         var local = sync.ReadLocalContent();
         if (local == null)
-            return PullDecision.Download(backUpLocal: false);
+            return TransferDecision.Transfer();
 
         if (local == cloudContent)
         {
             PatchHelper.Log(PullSkippingIdentical(sync.Path));
-            return PullDecision.SkipDownload();
+            return TransferDecision.Skip();
         }
 
-        return PullDecision.Download(backUpLocal: true);
+        return TransferDecision.Transfer(backUpExisting: true);
     }
 }

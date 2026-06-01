@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using SteamKit2;
@@ -14,13 +13,7 @@ internal sealed partial class DepotDownloader
         if (filesToDownload.Count <= 1)
             return filesToDownload;
 
-        var deduped = new Dictionary<string, DepotManifest.FileData>(StringComparer.Ordinal);
-        foreach (var file in filesToDownload)
-        {
-            var fileName = NormalizeManifestPath(file.FileName);
-            if (!string.IsNullOrEmpty(fileName))
-                deduped[fileName] = file;
-        }
+        var deduped = BuildManifestFileMap(filesToDownload);
 
         if (deduped.Count == filesToDownload.Count)
             return filesToDownload;

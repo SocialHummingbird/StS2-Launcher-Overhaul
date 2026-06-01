@@ -67,13 +67,15 @@ internal sealed partial class SteamKit2CloudSaveStore
         CCloud_ClientFileDownload_Response result
     )
     {
-        var request = new HttpRequestMessage(
+        var request = CreateCloudHttpRequest(
             HttpMethod.Get,
-            CloudHttpUrl(result.use_https, result.url_host, result.url_path)
+            result.use_https,
+            result.url_host,
+            result.url_path
         );
 
         foreach (var header in result.request_headers)
-            request.Headers.TryAddWithoutValidation(header.name, header.value);
+            AddCloudHttpHeader(request, header.name, header.value);
 
         return request;
     }

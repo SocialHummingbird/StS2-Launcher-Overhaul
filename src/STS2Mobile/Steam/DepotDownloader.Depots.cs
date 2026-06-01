@@ -26,21 +26,28 @@ internal sealed partial class DepotDownloader
 
         foreach (var depot in depotSection.Children)
         {
-            if (!uint.TryParse(depot.Name, out var depotId))
-                continue;
-
-            if (ShouldSkipDepot(depot, depotId))
-                continue;
-
-            var manifestId = await GetDepotManifestIdAsync(depot, depotId);
-            if (!manifestId.HasValue)
-                continue;
-
-            Log($"Found depot {depotId} manifest {manifestId.Value}");
-            result.Add(new DepotManifestReference(depotId, manifestId.Value));
+            var reference = await TryCreateDepotReferenceAsync(depot);
+            if (reference.HasValue)
+                result.Add(reference.Value);
         }
 
         return result;
+    }
+
+    private async Task<DepotManifestReference?> TryCreateDepotReferenceAsync(KeyValue depot)
+    {
+        if (!uint.TryParse(depot.Name, out var depotId))
+            return null;
+
+        if (ShouldSkipDepot(depot, depotId))
+            return null;
+
+        var manifestId = await GetDepotManifestIdAsync(depot, depotId);
+        if (!manifestId.HasValue)
+            return null;
+
+        Log($"Found depot {depotId} manifest {manifestId.Value}");
+        return new DepotManifestReference(depotId, manifestId.Value);
     }
 
     private bool ShouldSkipDepot(KeyValue depot, uint depotId)
@@ -67,12 +74,5 @@ internal sealed partial class DepotDownloader
     }
 
     private static ulong? GetPublicManifestId(KeyValue manifests)
-    {
-        var gidNode = manifests[PublicDepotBranch]["gid"];
-        return gidNode != KeyValue.Invalid
-            && gidNode.Value != null
-            && ulong.TryParse(gidNode.Value, out var manifestId)
-            ? manifestId
-            : null;
-    }
+        => ReadKeyValueUInt64(manifests[PublicDepotBranch]["gid"]);
 }

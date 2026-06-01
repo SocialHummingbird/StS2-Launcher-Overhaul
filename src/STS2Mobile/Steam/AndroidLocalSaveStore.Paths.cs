@@ -7,10 +7,7 @@ internal sealed partial class AndroidLocalSaveStore
 {
     private string FullPath(string path)
     {
-        var canonical = (path ?? string.Empty)
-            .Replace("user://", string.Empty)
-            .Replace('\\', '/')
-            .TrimStart('/');
+        var canonical = CloudSavePath.Relative(path);
         var fullPath = Path.GetFullPath(Path.Combine(_basePath, canonical));
         if (!IsInsideBasePath(fullPath))
             throw new IOException($"Save path escapes app data directory: {path}");

@@ -9,21 +9,37 @@ internal sealed partial class DepotDownloader
     private static Dictionary<string, DepotManifest.FileData> BuildManifestFileMap(
         DepotManifest? manifest
     )
+        => manifest == null
+            ? new Dictionary<string, DepotManifest.FileData>(StringComparer.Ordinal)
+            : BuildManifestFileMap(manifest.Files);
+
+    private static Dictionary<string, DepotManifest.FileData> BuildManifestFileMap(
+        IEnumerable<DepotManifest.FileData> files
+    )
     {
-        var files = new Dictionary<string, DepotManifest.FileData>(StringComparer.Ordinal);
+        var map = new Dictionary<string, DepotManifest.FileData>(StringComparer.Ordinal);
 
-        if (manifest == null)
-            return files;
-
-        foreach (var file in manifest.Files)
+        foreach (var file in files)
         {
             var fileName = NormalizeManifestPath(file.FileName);
             if (string.IsNullOrEmpty(fileName))
                 continue;
 
-            files[fileName] = file;
+            map[fileName] = file;
         }
 
-        return files;
+        return map;
+    }
+
+    private static IEnumerable<string> NormalizedManifestFileNames(
+        IEnumerable<DepotManifest.FileData> files
+    )
+    {
+        foreach (var file in files)
+        {
+            var fileName = NormalizeManifestPath(file.FileName);
+            if (!string.IsNullOrEmpty(fileName))
+                yield return fileName;
+        }
     }
 }

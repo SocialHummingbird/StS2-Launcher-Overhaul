@@ -16,14 +16,11 @@ internal sealed partial class DepotDownloader
             return new List<string>();
 
         var newFiles = new HashSet<string>(
-            newManifest.Files
-                .Select(f => NormalizeManifestPath(f.FileName))
-                .Where(f => !string.IsNullOrEmpty(f)),
+            NormalizedManifestFileNames(newManifest.Files),
             StringComparer.Ordinal);
 
-        return oldManifest
-            .Files.Select(f => NormalizeManifestPath(f.FileName))
-            .Where(f => !string.IsNullOrEmpty(f) && !newFiles.Contains(f))
+        return NormalizedManifestFileNames(oldManifest.Files)
+            .Where(f => !newFiles.Contains(f))
             .ToList();
     }
 }

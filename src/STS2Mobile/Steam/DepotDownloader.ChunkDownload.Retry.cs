@@ -16,9 +16,8 @@ internal sealed partial class DepotDownloader
         string fileName
     )
     {
-        for (int attemptIndex = 0; attemptIndex < MaxRetries; attemptIndex++)
+        foreach (var attempt in CdnDownloadAttempts())
         {
-            var attempt = new CdnServerAttempt(GetCurrentServer(), attemptIndex);
             try
             {
                 var written = await _cdnClient.DownloadDepotChunkAsync(

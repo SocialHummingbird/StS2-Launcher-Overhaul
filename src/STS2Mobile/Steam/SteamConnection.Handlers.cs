@@ -18,9 +18,9 @@ internal sealed partial class SteamConnection
 
     internal async Task<byte[]> GetDepotDecryptionKeyAsync(uint depotId)
     {
-        EnsureConnected();
-
-        var result = await _steamApps.GetDepotDecryptionKey(depotId, SteamCloudApp.AppId);
+        var result = await RunConnectedAsync(
+            async () => await _steamApps.GetDepotDecryptionKey(depotId, SteamCloudApp.AppId)
+        ).ConfigureAwait(false);
         if (result.Result != EResult.OK)
             throw new InvalidOperationException(
                 $"Failed to get depot key for {depotId}: {result.Result}"
@@ -35,25 +35,25 @@ internal sealed partial class SteamConnection
         string branch
     )
     {
-        EnsureConnected();
-
-        return await _steamContent.GetManifestRequestCode(
-            depotId,
-            SteamCloudApp.AppId,
-            manifestId,
-            branch
-        );
+        return await RunConnectedAsync(
+            async () => await _steamContent.GetManifestRequestCode(
+                depotId,
+                SteamCloudApp.AppId,
+                manifestId,
+                branch
+            )
+        ).ConfigureAwait(false);
     }
 
     internal async Task<string?> GetCdnAuthTokenAsync(uint depotId, string host)
     {
-        EnsureConnected();
-
-        var result = await _steamContent.GetCDNAuthToken(
-            SteamCloudApp.AppId,
-            depotId,
-            host
-        );
+        var result = await RunConnectedAsync(
+            async () => await _steamContent.GetCDNAuthToken(
+                SteamCloudApp.AppId,
+                depotId,
+                host
+            )
+        ).ConfigureAwait(false);
         return result.Result == EResult.OK ? result.Token : null;
     }
 
@@ -62,17 +62,23 @@ internal sealed partial class SteamConnection
         ulong accessToken
     )
     {
-        EnsureConnected();
-
-        var infoResult = await _steamApps.PICSGetProductInfo(
-            new[] { new SteamApps.PICSRequest(appId, accessToken) },
-            Enumerable.Empty<SteamApps.PICSRequest>()
-        );
+        var infoResult = await RunConnectedAsync(
+            async () => await _steamApps.PICSGetProductInfo(
+                new[] { new SteamApps.PICSRequest(appId, accessToken) },
+                Enumerable.Empty<SteamApps.PICSRequest>()
+            )
+        ).ConfigureAwait(false);
 
         foreach (var cb in infoResult.Results)
             if (cb.Apps.TryGetValue(appId, out var info))
                 return info;
 
         return null;
+    }
+
+    private async Task<TResult> RunConnectedAsync<TResult>(Func<Task<TResult>> operation)
+    {
+        EnsureConnected();
+        return await operation().ConfigureAwait(false);
     }
 }

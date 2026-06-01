@@ -1,6 +1,5 @@
 using System;
 using Godot;
-using STS2Mobile.Launcher;
 using STS2Mobile.Launcher.Components;
 
 namespace STS2Mobile.Launcher.Sections;
@@ -17,11 +16,7 @@ internal sealed class CodeSection : VBoxContainer
 
     internal CodeSection(float scale)
     {
-        AddThemeConstantOverride(
-            LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.SectionSeparation, scale)
-        );
-        Visible = false;
+        LauncherSectionSetup.ConfigureHiddenSection(this, scale);
 
         _codeLabel = new StyledLabel(
             "Enter Steam Guard code",

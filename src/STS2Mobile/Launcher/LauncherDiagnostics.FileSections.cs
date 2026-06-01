@@ -23,7 +23,7 @@ internal static partial class LauncherDiagnostics
         internal long Bytes { get; }
         internal DateTime ModifiedUtc { get; }
         internal bool HasText => Read.HasText;
-        internal string Text => Read.Text ?? string.Empty;
+        internal string Text => Read.Content;
 
         internal static DiagnosticFileSnapshot From(DiagnosticFile file)
         {

@@ -37,6 +37,8 @@ internal static partial class LauncherDiagnostics
         internal string? Text { get; }
         internal string? FallbackText { get; }
         internal bool HasText => Text != null;
+        internal string Content => Text ?? FallbackText ?? string.Empty;
+        internal string[] Lines => Content.Replace("\r\n", "\n").Split('\n');
 
         internal static LogcatCapture Captured(string text)
             => new(text, fallbackText: null);
@@ -60,10 +62,7 @@ internal static partial class LauncherDiagnostics
     }
 
     private static string CaptureLogcatContent(int lineCount)
-    {
-        var logcat = CaptureLogcat(lineCount);
-        return logcat.HasText ? logcat.Text! : logcat.FallbackText ?? string.Empty;
-    }
+        => CaptureLogcat(lineCount).Content;
 
     private static void AppendRawLogcatTail(StringBuilder sb)
         => AppendLogcatTail(
@@ -80,13 +79,12 @@ internal static partial class LauncherDiagnostics
         var logcat = CaptureLogcat(ErrorSummaryCaptureLines);
         if (!logcat.HasText)
         {
-            sb.AppendLine(logcat.FallbackText);
+            sb.AppendLine(logcat.Content);
             return;
         }
 
-        var lines = logcat.Text!.Replace("\r\n", "\n").Split('\n');
         foreach (var line in SelectInterestingDiagnosticLines(
-            lines,
+            logcat.Lines,
             ErrorSummaryInterestingLines
         ))
             sb.AppendLine(line);

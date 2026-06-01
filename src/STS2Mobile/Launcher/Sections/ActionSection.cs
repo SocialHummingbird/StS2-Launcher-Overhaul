@@ -35,16 +35,10 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly StyleBoxFlat _toggleOnStyle;
 
     internal void SetLocalBackupChecked(bool value)
-    {
-        _localBackupToggle.ButtonPressed = value;
-        ApplyLocalBackupToggle(value);
-    }
+        => ApplyLocalBackupToggle(value);
 
     internal void SetCloudSyncChecked(bool value)
-    {
-        _cloudSyncToggle.ButtonPressed = value;
-        ApplyCloudSyncToggle(value);
-    }
+        => ApplyCloudSyncToggle(value);
 
     internal void ShowLaunch(string text, bool showCloudSync, bool showUpdate)
     {

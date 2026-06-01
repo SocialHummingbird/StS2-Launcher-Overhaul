@@ -56,22 +56,16 @@ internal partial class LauncherModel : IDisposable
     }
 
     private static void Raise(Action callback, string name)
-    {
-        try
-        {
-            callback?.Invoke();
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Launcher] {name} callback failed: {ex.Message}");
-        }
-    }
+        => RunCallback(name, () => callback?.Invoke());
 
     private static void Raise<T>(Action<T> callback, T value, string name)
+        => RunCallback(name, () => callback?.Invoke(value));
+
+    private static void RunCallback(string name, Action invoke)
     {
         try
         {
-            callback?.Invoke(value);
+            invoke();
         }
         catch (Exception ex)
         {

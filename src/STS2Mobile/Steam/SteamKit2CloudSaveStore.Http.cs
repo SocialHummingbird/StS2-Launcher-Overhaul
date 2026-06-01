@@ -34,6 +34,21 @@ internal sealed partial class SteamKit2CloudSaveStore
         }
     }
 
+    private static HttpRequestMessage CreateCloudHttpRequest(
+        HttpMethod method,
+        bool useHttps,
+        string host,
+        string path
+    )
+        => new(method, CloudHttpUrl(useHttps, host, path));
+
+    private static void AddCloudHttpHeader(
+        HttpRequestMessage request,
+        string name,
+        string value
+    )
+        => request.Headers.TryAddWithoutValidation(name, value);
+
     private static string CloudHttpUrl(bool useHttps, string host, string path)
         => $"{(useHttps ? "https" : "http")}://{host}{path}";
 }

@@ -11,6 +11,33 @@ internal static partial class CloudSyncCoordinator
     private const int ManualSyncOverallTimeoutMs = 180_000;
     private const string ManualPullDownloadOperation = "ManualPull download";
 
+    private readonly struct ManualSyncPlan<TResult>
+    {
+        internal ManualSyncPlan(
+            Func<ManualSyncContext, IReadOnlyCollection<string>> discoverPaths,
+            Func<int, string> startingMessage,
+            Func<ManualSyncContext, IReadOnlyCollection<string>, Task<int>> backUpAsync,
+            Func<int, string> backedUpMessage,
+            Func<ManualSyncContext, IReadOnlyCollection<string>, Task<TResult>> transferAsync,
+            Func<TResult, string> completeMessage
+        )
+        {
+            DiscoverPaths = discoverPaths;
+            StartingMessage = startingMessage;
+            BackUpAsync = backUpAsync;
+            BackedUpMessage = backedUpMessage;
+            TransferAsync = transferAsync;
+            CompleteMessage = completeMessage;
+        }
+
+        internal Func<ManualSyncContext, IReadOnlyCollection<string>> DiscoverPaths { get; }
+        internal Func<int, string> StartingMessage { get; }
+        internal Func<ManualSyncContext, IReadOnlyCollection<string>, Task<int>> BackUpAsync { get; }
+        internal Func<int, string> BackedUpMessage { get; }
+        internal Func<ManualSyncContext, IReadOnlyCollection<string>, Task<TResult>> TransferAsync { get; }
+        internal Func<TResult, string> CompleteMessage { get; }
+    }
+
     private readonly struct ManualSyncContext
     {
         private readonly ISaveStore _local;
@@ -98,31 +125,49 @@ internal static partial class CloudSyncCoordinator
         );
     }
 
-    internal static async Task ManualPushAllAsync(string accountName, string refreshToken)
+    internal static Task ManualPushAllAsync(string accountName, string refreshToken)
+        => RunManualSyncAsync(
+            accountName,
+            refreshToken,
+            new ManualSyncPlan<int>(
+                sync => sync.DiscoverLocalPaths(),
+                PushStarting,
+                (sync, paths) => SaveBackups.CloudBeforeManualPushAsync(sync, paths),
+                PushBackedUpCloudFiles,
+                (sync, paths) => Task.FromResult(RunManualPushUploads(sync, paths)),
+                PushComplete
+            )
+        );
+
+    internal static Task ManualPullAllAsync(string accountName, string refreshToken)
+        => RunManualSyncAsync(
+            accountName,
+            refreshToken,
+            new ManualSyncPlan<ManualPullResult>(
+                sync => sync.DiscoverCloudPaths(),
+                PullStarting,
+                (sync, paths) => SaveBackups.LocalBeforeManualPullAsync(sync, paths),
+                PullBackedUpLocalFiles,
+                RunManualPullDownloadsAsync,
+                result => PullComplete(result.Downloaded, result.Skipped)
+            )
+        );
+
+    private static async Task RunManualSyncAsync<TResult>(
+        string accountName,
+        string refreshToken,
+        ManualSyncPlan<TResult> plan
+    )
     {
         var sync = CreateManualSyncContext(accountName, refreshToken);
-        var paths = sync.DiscoverLocalPaths();
-        PatchHelper.Log(PushStarting(paths.Count));
+        var paths = plan.DiscoverPaths(sync);
+        PatchHelper.Log(plan.StartingMessage(paths.Count));
 
-        var backedUp = await SaveBackups.CloudBeforeManualPushAsync(sync, paths);
+        var backedUp = await plan.BackUpAsync(sync, paths);
         if (backedUp > 0)
-            PatchHelper.Log(PushBackedUpCloudFiles(backedUp));
+            PatchHelper.Log(plan.BackedUpMessage(backedUp));
 
-        var count = RunManualPushUploads(sync, paths);
-        PatchHelper.Log(PushComplete(count));
-    }
-
-    internal static async Task ManualPullAllAsync(string accountName, string refreshToken)
-    {
-        var sync = CreateManualSyncContext(accountName, refreshToken);
-        var paths = sync.DiscoverCloudPaths();
-        PatchHelper.Log(PullStarting(paths.Count));
-
-        var backedUp = await SaveBackups.LocalBeforeManualPullAsync(sync, paths);
-        if (backedUp > 0)
-            PatchHelper.Log(PullBackedUpLocalFiles(backedUp));
-
-        var counts = await RunManualPullDownloadsAsync(sync, paths);
-        PatchHelper.Log(PullComplete(counts.Downloaded, counts.Skipped));
+        var result = await plan.TransferAsync(sync, paths);
+        PatchHelper.Log(plan.CompleteMessage(result));
     }
 }

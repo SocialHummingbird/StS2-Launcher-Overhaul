@@ -54,6 +54,12 @@ internal sealed partial class DepotDownloader
         return _servers[((idx % _servers.Count) + _servers.Count) % _servers.Count];
     }
 
+    private IEnumerable<CdnServerAttempt> CdnDownloadAttempts()
+    {
+        for (int attemptIndex = 0; attemptIndex < MaxRetries; attemptIndex++)
+            yield return new CdnServerAttempt(GetCurrentServer(), attemptIndex);
+    }
+
     private void MarkServerFailed(Server server)
     {
         if (_servers.Count <= 1 || server == null)
