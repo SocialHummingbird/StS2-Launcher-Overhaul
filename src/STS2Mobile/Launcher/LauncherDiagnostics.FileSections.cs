@@ -6,6 +6,36 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherDiagnostics
 {
+    private readonly struct DiagnosticFileSnapshot
+    {
+        private DiagnosticFileSnapshot(
+            FileReadResult read,
+            long bytes,
+            DateTime modifiedUtc
+        )
+        {
+            Read = read;
+            Bytes = bytes;
+            ModifiedUtc = modifiedUtc;
+        }
+
+        internal FileReadResult Read { get; }
+        internal long Bytes { get; }
+        internal DateTime ModifiedUtc { get; }
+        internal bool HasText => Read.HasText;
+        internal string Text => Read.Text ?? string.Empty;
+
+        internal static DiagnosticFileSnapshot From(DiagnosticFile file)
+        {
+            var read = ReadFileText(file.Path);
+            if (!read.HasText)
+                return new DiagnosticFileSnapshot(read, bytes: 0, modifiedUtc: default);
+
+            var info = new FileInfo(file.Path);
+            return new DiagnosticFileSnapshot(read, info.Length, info.LastWriteTimeUtc);
+        }
+    }
+
     private static void AppendFileSummary(
         StringBuilder sb,
         DiagnosticFile file,
@@ -14,20 +44,19 @@ internal static partial class LauncherDiagnostics
     {
         try
         {
-            var read = ReadFileText(file.Path);
+            var snapshot = DiagnosticFileSnapshot.From(file);
             sb.AppendLine($"{file.Label}: {file.Path}");
-            if (!read.HasText)
+            if (!snapshot.HasText)
             {
-                AppendFileReadStatus(sb, read);
+                AppendFileReadStatus(sb, snapshot.Read);
                 return;
             }
 
-            var info = new FileInfo(file.Path);
             sb.AppendLine("  exists=True");
-            sb.AppendLine($"  bytes={info.Length}");
-            sb.AppendLine($"  modifiedUtc={info.LastWriteTimeUtc:O}");
-            if (info.Length <= inlineContentLimit)
-                sb.AppendLine($"  contents={SingleLine(read.Text)}");
+            sb.AppendLine($"  bytes={snapshot.Bytes}");
+            sb.AppendLine($"  modifiedUtc={snapshot.ModifiedUtc:O}");
+            if (snapshot.Bytes <= inlineContentLimit)
+                sb.AppendLine($"  contents={SingleLine(snapshot.Text)}");
         }
         catch (Exception ex)
         {
@@ -44,20 +73,19 @@ internal static partial class LauncherDiagnostics
 
         try
         {
-            var read = ReadFileText(file.Path);
-            if (!read.HasText)
+            var snapshot = DiagnosticFileSnapshot.From(file);
+            if (!snapshot.HasText)
             {
-                AppendFileReadStatus(sb, read);
+                AppendFileReadStatus(sb, snapshot.Read);
                 sb.AppendLine();
                 return;
             }
 
-            var info = new FileInfo(file.Path);
             sb.AppendLine(
-                $"  exists=True bytes={info.Length} modifiedUtc={info.LastWriteTimeUtc:O}"
+                $"  exists=True bytes={snapshot.Bytes} modifiedUtc={snapshot.ModifiedUtc:O}"
             );
             sb.AppendLine("  contents:");
-            sb.AppendLine(read.Text);
+            sb.AppendLine(snapshot.Text);
         }
         catch (Exception ex)
         {
