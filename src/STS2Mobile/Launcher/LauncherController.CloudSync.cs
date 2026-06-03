@@ -55,16 +55,17 @@ internal sealed partial class LauncherController
             Action<Action> runOnMainThread
         )
         {
-            runOnMainThread(() => MarkStarted(view));
+            var request = this;
+            runOnMainThread(() => request.MarkStarted(view));
 
             try
             {
-                await RunWithTimeoutAsync();
-                runOnMainThread(() => MarkCompleted(view));
+                await request.RunWithTimeoutAsync();
+                runOnMainThread(() => request.MarkCompleted(view));
             }
             catch (Exception ex)
             {
-                runOnMainThread(() => MarkFailed(view, ex));
+                runOnMainThread(() => request.MarkFailed(view, ex));
             }
             finally
             {
