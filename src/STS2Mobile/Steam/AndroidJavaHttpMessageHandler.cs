@@ -29,27 +29,35 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
         _timeoutMs = timeoutMs;
     }
 
+    private readonly struct BridgeRequestContext
+    {
+        internal BridgeRequestContext(HttpRequestMessage request)
+        {
+            Uri = request.RequestUri;
+            Description = $"{request.Method} {SanitizeUri(request.RequestUri)}";
+        }
+
+        internal Uri? Uri { get; }
+        internal string Description { get; }
+    }
+
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken
     )
     {
-        var app = GetGodotApp();
-        if (app == null)
-            throw new HttpRequestException("GodotApp Java bridge is unavailable");
-
         var bodyBytes = await ReadRequestBodyAsync(request, cancellationToken).ConfigureAwait(false);
-        var requestDescription = $"{request.Method} {SanitizeUri(request.RequestUri)}";
+        var requestContext = new BridgeRequestContext(request);
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        string? raw = CallHttpRequestBridge(app, request, bodyBytes, requestDescription);
+        string? raw = CallHttpRequestBridge(request, bodyBytes, requestContext);
 
         ThrowIfCancelledWithRawResponseCleanup(raw, cancellationToken);
-        using var bridgeResponse = ReadBridgeResponse(raw, request.RequestUri, requestDescription);
+        using var bridgeResponse = ReadBridgeResponse(raw, requestContext);
         return bridgeResponse.CreateResponseWithContent(
             request,
-            requestDescription,
+            requestContext,
             cancellationToken
         );
     }

@@ -7,8 +7,6 @@ namespace STS2Mobile;
 internal static class AppPaths
 {
     private const string ExternalStorageRoot = "/storage/emulated/0/StS2Launcher";
-    private const string HasPermissionBridgeMethod = "hasStoragePermission";
-    private const string RequestPermissionBridgeMethod = "requestStoragePermission";
 
     internal const string ExternalModsDir = ExternalStorageRoot + "/Mods";
     internal const string ExternalSaveBackupsDir = ExternalStorageRoot + "/Saves";
@@ -18,10 +16,7 @@ internal static class AppPaths
     {
         try
         {
-            if (!AndroidGodotAppBridge.TryGetInstance(out var godotApp))
-                return false;
-
-            return (bool)godotApp.Call(HasPermissionBridgeMethod);
+            return AndroidGodotAppBridge.HasStoragePermission();
         }
         catch (Exception ex)
         {
@@ -36,8 +31,7 @@ internal static class AppPaths
     {
         try
         {
-            if (AndroidGodotAppBridge.TryGetInstance(out var godotApp))
-                godotApp.Call(RequestPermissionBridgeMethod);
+            AndroidGodotAppBridge.RequestStoragePermission();
         }
         catch (Exception ex)
         {

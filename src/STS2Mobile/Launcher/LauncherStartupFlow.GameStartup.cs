@@ -1,7 +1,6 @@
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
-using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
 
@@ -11,27 +10,7 @@ internal static partial class LauncherStartupFlow
     {
         try
         {
-            startup.SetPhase(PhaseGameStartup, "Starting game scene...");
-            PatchHelper.Log("Invoking NGame.GameStartup");
-
-            var recoveryControls = startup.ShowRecoveryControls();
-            startup.WriteSceneSnapshot("before NGame.GameStartup");
-            var startupTask = startup.StartGameStartupAsync();
-            if (await RecoverIfWatchdogTimedOutAsync(
-                    startupTask,
-                    startup,
-                    recoveryControls
-                ))
-            {
-                return;
-            }
-
-            await startupTask;
-            PatchHelper.Log("NGame.GameStartup completed");
-            if (!await startup.EnsureMainMenuReadyAsync())
-                return;
-
-            startup.MarkStartupObserved(recoveryControls);
+            await startup.RunGameStartupWithRecoveryAsync();
         }
         catch (TargetInvocationException ex)
         {

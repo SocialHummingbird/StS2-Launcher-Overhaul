@@ -19,9 +19,9 @@ internal static partial class LauncherPreferences
         ApplyCloudSync
     );
 
-    internal readonly struct ActionPreferenceState
+    internal readonly struct ActionPreferences
     {
-        private ActionPreferenceState(bool localBackupEnabled, bool cloudSyncEnabled)
+        internal ActionPreferences(bool localBackupEnabled, bool cloudSyncEnabled)
         {
             LocalBackupEnabled = localBackupEnabled;
             CloudSyncEnabled = cloudSyncEnabled;
@@ -29,15 +29,6 @@ internal static partial class LauncherPreferences
 
         internal bool LocalBackupEnabled { get; }
         internal bool CloudSyncEnabled { get; }
-
-        internal static ActionPreferenceState Read()
-            => new(LocalBackupPreference.Read(), CloudSyncPreference.Read());
-
-        internal static ActionPreferenceState LoadAndApply()
-            => new(
-                LocalBackupPreference.LoadAndApply(),
-                CloudSyncPreference.LoadAndApply()
-            );
     }
 
     private readonly struct BooleanPreference
@@ -81,11 +72,14 @@ internal static partial class LauncherPreferences
     internal static void SaveLocalBackupEnabled(bool enabled)
         => LocalBackupPreference.Save(enabled);
 
-    internal static ActionPreferenceState ReadActionPreferences()
-        => ActionPreferenceState.Read();
+    internal static ActionPreferences ReadActionPreferences()
+        => new(LocalBackupPreference.Read(), CloudSyncPreference.Read());
 
-    internal static ActionPreferenceState LoadAndApplyActionPreferences()
-        => ActionPreferenceState.LoadAndApply();
+    internal static ActionPreferences LoadAndApplyActionPreferences()
+        => new(
+            LocalBackupPreference.LoadAndApply(),
+            CloudSyncPreference.LoadAndApply()
+        );
 
     internal static bool LoadAndApplyCloudSyncEnabled()
         => CloudSyncPreference.LoadAndApply();

@@ -7,32 +7,51 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherSteamSession
 {
-    internal async Task<string> LoginAndVerifyAsync(
-        string username,
-        string password,
-        Action<string> logMessage,
-        Action<bool> codeNeeded,
-        Action verifyingOwnership
-    )
+    internal readonly struct LoginRequest
+    {
+        internal LoginRequest(
+            string username,
+            string password,
+            Action<string> logMessage,
+            Action<bool> codeNeeded,
+            Action verifyingOwnership
+        )
+        {
+            Username = username;
+            Password = password;
+            LogMessage = logMessage;
+            CodeNeeded = codeNeeded;
+            VerifyingOwnership = verifyingOwnership;
+        }
+
+        internal string Username { get; }
+        internal string Password { get; }
+        internal Action<string> LogMessage { get; }
+        internal Action<bool> CodeNeeded { get; }
+        internal Action VerifyingOwnership { get; }
+    }
+
+    internal async Task<string> LoginAndVerifyAsync(LoginRequest request)
     {
         try
         {
             ResetAuth();
             var auth = new SteamAuth(wasIncorrect =>
-                RequestSteamGuardCodeAsync(wasIncorrect, codeNeeded));
+                RequestSteamGuardCodeAsync(wasIncorrect, request.CodeNeeded));
             _auth = auth;
-            auth.LogMessage += msg => logMessage?.Invoke(msg);
-            auth.Connect();
+            auth.LogMessage += msg => request.LogMessage?.Invoke(msg);
 
             var result = await auth.LoginWithCredentialsAsync(
-                username,
-                password,
+                request.Username,
+                request.Password,
                 _credentialStore.GuardDataOrEmpty()
             );
             SaveLoginCredentials(result);
-            _connection = result.CreateConnection();
             ResetAuth();
-            return await VerifyOwnershipForSessionAsync(_connection, verifyingOwnership);
+            return await UseConnectionAndVerifyOwnershipAsync(
+                result.CreateConnection(),
+                request.VerifyingOwnership
+            );
         }
         catch (Exception ex)
         {

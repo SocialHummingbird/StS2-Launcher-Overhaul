@@ -12,29 +12,44 @@ internal static partial class LauncherDiagnostics
 
     private readonly struct DiagnosticAttachment
     {
-        private DiagnosticAttachment(DiagnosticFile file, int limit)
+        internal DiagnosticAttachment(DiagnosticFile file, int maxChars)
         {
             File = file;
-            Limit = limit;
+            MaxChars = maxChars;
         }
 
         private DiagnosticFile File { get; }
-        private int Limit { get; }
-
-        internal static DiagnosticAttachment Create(DiagnosticFile file, int limit)
-            => new(file, limit);
+        private int MaxChars { get; }
 
         internal void AppendHeader(StringBuilder sb)
             => File.AppendHeader(sb);
-
-        internal IEnumerable<string> InterestingLines(FileReadResult read)
-            => SelectInterestingDiagnosticLines(read.ContentLines(), Limit);
 
         internal FileReadResult Read()
             => File.Read();
 
         internal string TruncatedContent(FileReadResult read)
-            => TruncateForDisplay(read.ContentText(), Limit);
+            => TruncateForDisplay(read.ContentText(), MaxChars);
+    }
+
+    private readonly struct InterestingDiagnosticTail
+    {
+        internal InterestingDiagnosticTail(DiagnosticFile file, int maxLines)
+        {
+            File = file;
+            MaxLines = maxLines;
+        }
+
+        private DiagnosticFile File { get; }
+        private int MaxLines { get; }
+
+        internal void AppendHeader(StringBuilder sb)
+            => File.AppendHeader(sb);
+
+        internal IEnumerable<string> InterestingLines(FileReadResult read)
+            => SelectInterestingDiagnosticLines(read.ContentLines(), MaxLines);
+
+        internal FileReadResult Read()
+            => File.Read();
     }
 
     private readonly struct FileReadResult
@@ -52,13 +67,13 @@ internal static partial class LauncherDiagnostics
         private string TextOrEmpty => Text ?? string.Empty;
 
         internal static FileReadResult Read(string text)
-            => new(text, error: null);
+            => new(text, null);
 
         internal static FileReadResult Missing()
-            => new(text: null, error: null);
+            => new(null, null);
 
         internal static FileReadResult Failed(string error)
-            => new(text: null, error);
+            => new(null, error);
 
         internal void AppendFileStatus(StringBuilder sb)
             => sb.AppendLine(IsMissing ? "  exists=False" : $"  failed={Error}");
@@ -108,35 +123,32 @@ internal static partial class LauncherDiagnostics
 
     private static IEnumerable<DiagnosticAttachment> SummarySmallFiles(string dataDir)
     {
-        yield return Attachment(StartupMarker(dataDir), 2048);
-        yield return Attachment(AndroidUncaughtException(dataDir), 4096);
+        yield return new DiagnosticAttachment(StartupMarker(dataDir), 2048);
+        yield return new DiagnosticAttachment(AndroidUncaughtException(dataDir), 4096);
     }
 
-    private static IEnumerable<DiagnosticAttachment> SummaryInterestingTails(string dataDir)
+    private static IEnumerable<InterestingDiagnosticTail> SummaryInterestingTails(string dataDir)
     {
-        yield return Attachment(BootstrapTrace(), 80);
-        yield return Attachment(StartupSceneSnapshot(dataDir), 80);
+        yield return new InterestingDiagnosticTail(BootstrapTrace(), 80);
+        yield return new InterestingDiagnosticTail(StartupSceneSnapshot(dataDir), 80);
     }
 
     private static IEnumerable<DiagnosticAttachment> RawErrorLogFiles(string dataDir)
     {
-        yield return Attachment(
+        yield return new DiagnosticAttachment(
             StartupMarker(dataDir),
             SmallAttachmentMaxChars
         );
-        yield return Attachment(
+        yield return new DiagnosticAttachment(
             AndroidUncaughtException(dataDir),
             SmallAttachmentMaxChars
         );
-        yield return Attachment(BootstrapTrace(), LargeAttachmentMaxChars);
-        yield return Attachment(
+        yield return new DiagnosticAttachment(BootstrapTrace(), LargeAttachmentMaxChars);
+        yield return new DiagnosticAttachment(
             StartupSceneSnapshot(dataDir),
             LargeAttachmentMaxChars
         );
     }
-
-    private static DiagnosticAttachment Attachment(DiagnosticFile file, int limit)
-        => DiagnosticAttachment.Create(file, limit);
 
     private static void AppendAttachments(
         StringBuilder sb,
@@ -160,7 +172,7 @@ internal static partial class LauncherDiagnostics
 
     private static void AppendInterestingFileTail(
         StringBuilder sb,
-        DiagnosticAttachment file
+        InterestingDiagnosticTail file
     )
     {
         sb.AppendLine();

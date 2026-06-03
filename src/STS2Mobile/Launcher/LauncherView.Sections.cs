@@ -91,9 +91,7 @@ internal sealed partial class LauncherView
     )
         => Actions.ShowLaunch(launchText, showCloudSync, showUpdate);
 
-    internal void SetActionPreferences(
-        LauncherPreferences.ActionPreferenceState preferences
-    )
+    internal void SetActionPreferences(LauncherPreferences.ActionPreferences preferences)
     {
         Actions.SetLocalBackupChecked(preferences.LocalBackupEnabled);
         Actions.SetCloudSyncChecked(preferences.CloudSyncEnabled);

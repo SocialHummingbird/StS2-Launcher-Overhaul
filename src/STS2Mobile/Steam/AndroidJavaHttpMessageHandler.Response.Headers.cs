@@ -16,12 +16,19 @@ internal sealed partial class AndroidJavaHttpMessageHandler
             if (header.Value.ValueKind != JsonValueKind.Array)
                 continue;
 
-            var values = new List<string>();
-            foreach (var value in header.Value.EnumerateArray())
-                values.Add(GetBridgeString(value) ?? string.Empty);
+            var values = ReadBridgeHeaderValues(header.Value);
 
             if (!response.Headers.TryAddWithoutValidation(header.Name, values))
                 response.Content.Headers.TryAddWithoutValidation(header.Name, values);
         }
+    }
+
+    private static List<string> ReadBridgeHeaderValues(JsonElement valuesElement)
+    {
+        var values = new List<string>();
+        foreach (var value in valuesElement.EnumerateArray())
+            values.Add(GetBridgeString(value) ?? string.Empty);
+
+        return values;
     }
 }

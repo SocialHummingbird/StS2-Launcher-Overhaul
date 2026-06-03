@@ -19,24 +19,6 @@ internal sealed partial class LauncherController
     private const string ReleaseTagNameProperty = "tag_name";
     private static readonly TimeSpan LauncherUpdateTimeout = TimeSpan.FromSeconds(15);
 
-    private readonly struct ReleaseMetadata
-    {
-        private ReleaseMetadata(string? name, string? tag)
-        {
-            Name = name;
-            Tag = tag;
-        }
-
-        private string? Name { get; }
-        private string? Tag { get; }
-
-        internal static ReleaseMetadata Create(string? name, string? tag)
-            => new(name, tag);
-
-        internal string? NormalizeVersion()
-            => Name == null ? null : LauncherController.NormalizeVersion(Tag ?? Name);
-    }
-
     private static async Task<string?> CheckLatestLauncherVersionAsync()
     {
         var currentVersion = GetInstalledLauncherVersion();
@@ -50,8 +32,7 @@ internal sealed partial class LauncherController
         http.DefaultRequestHeaders.Add("User-Agent", LauncherUpdateUserAgent);
 
         var response = await http.GetStringAsync(LatestLauncherReleaseApiUrl).ConfigureAwait(false);
-        var release = ParseReleaseMetadata(response);
-        var latestVersion = release.NormalizeVersion();
+        var latestVersion = ParseLatestReleaseVersion(response);
         var installedVersion = NormalizeVersion(currentVersion);
 
         if (latestVersion == null || installedVersion == null)
@@ -67,10 +48,7 @@ internal sealed partial class LauncherController
     {
         try
         {
-            if (!AndroidGodotAppBridge.TryGetInstance(out var godotApp))
-                return null;
-
-            return (string)godotApp.Call("getVersionName");
+            return AndroidGodotAppBridge.GetVersionName();
         }
         catch
         {
@@ -78,7 +56,7 @@ internal sealed partial class LauncherController
         }
     }
 
-    private static ReleaseMetadata ParseReleaseMetadata(string json)
+    private static string? ParseLatestReleaseVersion(string json)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
@@ -90,10 +68,10 @@ internal sealed partial class LauncherController
             ? tagProp.GetString()
             : null;
 
-        return ReleaseMetadata.Create(releaseName, releaseTag);
+        return NormalizeVersion(releaseTag ?? releaseName);
     }
 
-    private static string? NormalizeVersion(string version)
+    private static string? NormalizeVersion(string? version)
     {
         if (string.IsNullOrEmpty(version))
             return null;

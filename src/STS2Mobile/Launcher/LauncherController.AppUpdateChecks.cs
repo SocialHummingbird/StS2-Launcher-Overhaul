@@ -7,28 +7,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
-    private readonly struct AppUpdateUi
-    {
-        private static readonly Color UpdateAvailableLogColor = new(1f, 0.85f, 0.2f);
-
-        internal static AppUpdateUi Create()
-            => new();
-
-        internal void ShowUpToDate(LauncherView view)
-            => view.AppendLog("Launcher is up to date");
-
-        internal void ShowUpdateAvailable(LauncherView view, string latestVersion)
-        {
-            view.AppendColoredLog(
-                $"Launcher update available: v{latestVersion} - "
-                    + $"download at {LauncherRepoReleasesPage}",
-                UpdateAvailableLogColor
-            );
-            view.SetStatus(
-                $"Launcher update available! Visit GitHub to download v{latestVersion}"
-            );
-        }
-    }
+    private static readonly Color AppUpdateAvailableLogColor = new(1f, 0.85f, 0.2f);
 
     private async Task CheckForAppUpdatesAsync()
     {
@@ -37,17 +16,30 @@ internal sealed partial class LauncherController
             var latestVersion = await CheckLatestLauncherVersionAsync();
             if (latestVersion == null)
             {
-                _runOnMainThread(() => AppUpdateUi.Create().ShowUpToDate(_view));
+                _runOnMainThread(ShowLauncherUpToDate);
                 return;
             }
 
-            _runOnMainThread(
-                () => AppUpdateUi.Create().ShowUpdateAvailable(_view, latestVersion)
-            );
+            _runOnMainThread(() => ShowLauncherUpdateAvailable(latestVersion));
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"[Launcher] App update check failed: {ex.Message}");
         }
+    }
+
+    private void ShowLauncherUpToDate()
+        => _view.AppendLog("Launcher is up to date");
+
+    private void ShowLauncherUpdateAvailable(string latestVersion)
+    {
+        _view.AppendColoredLog(
+            $"Launcher update available: v{latestVersion} - "
+                + $"download at {LauncherRepoReleasesPage}",
+            AppUpdateAvailableLogColor
+        );
+        _view.SetStatus(
+            $"Launcher update available! Visit GitHub to download v{latestVersion}"
+        );
     }
 }

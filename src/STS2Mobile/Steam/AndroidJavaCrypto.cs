@@ -5,9 +5,6 @@ namespace STS2Mobile.Steam;
 
 internal static partial class AndroidJavaCrypto
 {
-    private static readonly object AppLock = new();
-    private static GodotObject _godotApp;
-
     private static int CopyToDestination(byte[] source, Span<byte> destination, string tooShortMessage)
     {
         if (destination.Length < source.Length)
@@ -21,39 +18,54 @@ internal static partial class AndroidJavaCrypto
         string operationName,
         string methodName,
         string emptyResponseMessage,
-        params Variant[] arguments
+        params string[] arguments
+    )
+        => AndroidBridgeDispatcher.Run(
+            () => CallBase64BridgeOnMainThread(
+                operationName,
+                methodName,
+                emptyResponseMessage,
+                arguments
+            )
+        );
+
+    private static byte[] CallBase64BridgeOnMainThread(
+        string operationName,
+        string methodName,
+        string emptyResponseMessage,
+        string[] arguments
     )
     {
-        var app = GetGodotApp();
-        if (app == null)
+        if (!TryGetGodotApp(out var app))
             throw new InvalidOperationException($"GodotApp Java bridge is unavailable for {operationName}");
 
-        var encoded = (string)app.Call(methodName, arguments);
+        var encoded = (string)app.Call(methodName, CreateVariantArguments(arguments));
         if (string.IsNullOrEmpty(encoded))
             throw new InvalidOperationException(emptyResponseMessage);
 
         return Convert.FromBase64String(encoded);
     }
 
-    private static GodotObject GetGodotApp()
+    private static Variant[] CreateVariantArguments(string[] arguments)
     {
-        lock (AppLock)
+        var variants = new Variant[arguments.Length];
+        for (var i = 0; i < arguments.Length; i++)
+            variants[i] = arguments[i];
+
+        return variants;
+    }
+
+    private static bool TryGetGodotApp(out Godot.GodotObject godotApp)
+    {
+        try
         {
-            if (_godotApp != null)
-                return _godotApp;
-
-            try
-            {
-                if (!AndroidGodotAppBridge.TryGetInstance(out _godotApp))
-                    return null;
-
-                return _godotApp;
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Auth] Java crypto bridge unavailable: {ex.Message}");
-                return null;
-            }
+            return AndroidGodotAppBridge.TryGetInstance(out godotApp);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Auth] Java crypto bridge unavailable: {ex.Message}");
+            godotApp = null;
+            return false;
         }
     }
 }

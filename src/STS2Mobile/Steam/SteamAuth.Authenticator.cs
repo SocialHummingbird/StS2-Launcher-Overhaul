@@ -8,38 +8,55 @@ internal sealed partial class SteamAuth
 {
     private const int AuthReconnectPollDelayMs = 250;
 
-    private readonly struct AuthCodeRequest
+    private readonly struct AuthCodePrompt
     {
-        private AuthCodeRequest(string retryMessage, string initialMessage)
+        internal AuthCodePrompt(
+            bool previousCodeWasIncorrect,
+            string retryMessage,
+            string initialMessage
+        )
         {
+            PreviousCodeWasIncorrect = previousCodeWasIncorrect;
             RetryMessage = retryMessage;
             InitialMessage = initialMessage;
         }
 
+        internal bool PreviousCodeWasIncorrect { get; }
         private string RetryMessage { get; }
         private string InitialMessage { get; }
 
-        internal static AuthCodeRequest Device()
-            => new(
-                "Previous 2FA code was incorrect, requesting new code",
-                "Steam Guard 2FA code required"
-            );
+        internal string Message
+            => PreviousCodeWasIncorrect ? RetryMessage : InitialMessage;
+    }
 
-        internal static AuthCodeRequest Email(string email)
-            => new(
-                "Previous email code was incorrect, requesting new code",
-                $"Steam Guard email code sent to {email}"
-            );
+    private readonly struct AuthReconnectMonitor
+    {
+        internal AuthReconnectMonitor(Func<bool> shouldReconnect, string retryMessage)
+        {
+            ShouldReconnect = shouldReconnect;
+            RetryMessage = retryMessage;
+        }
 
-        internal void Log(SteamAuth auth, bool previousCodeWasIncorrect)
-            => auth.Log(previousCodeWasIncorrect ? RetryMessage : InitialMessage);
+        private Func<bool> ShouldReconnect { get; }
+        internal string RetryMessage { get; }
+
+        internal bool ShouldReconnectNow()
+            => ShouldReconnect();
     }
 
     Task<string> IAuthenticator.GetDeviceCodeAsync(bool previousCodeWasIncorrect)
-        => RequestCodeAsync(previousCodeWasIncorrect, AuthCodeRequest.Device());
+        => RequestCodeAsync(new AuthCodePrompt(
+            previousCodeWasIncorrect,
+            "Previous 2FA code was incorrect, requesting new code",
+            "Steam Guard 2FA code required"
+        ));
 
     Task<string> IAuthenticator.GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
-        => RequestCodeAsync(previousCodeWasIncorrect, AuthCodeRequest.Email(email));
+        => RequestCodeAsync(new AuthCodePrompt(
+            previousCodeWasIncorrect,
+            "Previous email code was incorrect, requesting new code",
+            $"Steam Guard email code sent to {email}"
+        ));
 
     Task<bool> IAuthenticator.AcceptDeviceConfirmationAsync()
     {
@@ -47,20 +64,19 @@ internal sealed partial class SteamAuth
         return Task.FromResult(false);
     }
 
-    private async Task<string> RequestCodeAsync(
-        bool previousCodeWasIncorrect,
-        AuthCodeRequest request
-    )
+    private async Task<string> RequestCodeAsync(AuthCodePrompt prompt)
     {
-        request.Log(this, previousCodeWasIncorrect);
+        Log(prompt.Message);
 
         _waitingForAuthCode = true;
         try
         {
             var code = await WaitForTaskAndMaintainAuthConnectionAsync(
-                _codeProvider(previousCodeWasIncorrect),
-                () => NeedsAuthReconnect,
-                "Steam auth reconnect did not complete yet; will retry while waiting for code"
+                _codeProvider(prompt.PreviousCodeWasIncorrect),
+                new AuthReconnectMonitor(
+                    () => NeedsAuthReconnect,
+                    "Steam auth reconnect did not complete yet; will retry while waiting for code"
+                )
             );
             await ReconnectBeforeCodeSubmitAsync();
             return code;
@@ -73,8 +89,7 @@ internal sealed partial class SteamAuth
 
     private async Task<T> WaitForTaskAndMaintainAuthConnectionAsync<T>(
         Task<T> task,
-        Func<bool> shouldReconnect,
-        string reconnectRetryMessage
+        AuthReconnectMonitor reconnect
     )
     {
         while (true)
@@ -82,9 +97,9 @@ internal sealed partial class SteamAuth
             if (task.IsCompleted)
                 return await task;
 
-            if (shouldReconnect())
+            if (reconnect.ShouldReconnectNow())
             {
-                await MaintainAuthConnectionAsync(reconnectRetryMessage);
+                await MaintainAuthConnectionAsync(reconnect.RetryMessage);
             }
 
             await Task.WhenAny(task, Task.Delay(AuthReconnectPollDelayMs));
@@ -93,12 +108,6 @@ internal sealed partial class SteamAuth
 
     private async Task MaintainAuthConnectionAsync(string reconnectRetryMessage)
     {
-        if (!RequiresPersistentAuthConnection)
-        {
-            LogAndroidAuthConnectionLossOnce();
-            return;
-        }
-
         if (!await TryReconnectForAuthAsync())
             Log(reconnectRetryMessage);
     }
@@ -108,27 +117,17 @@ internal sealed partial class SteamAuth
         if (!NeedsAuthReconnect)
             return;
 
-        if (ContinueWebApiAuthWithoutPersistentConnection(
-                "Submitting Steam Guard code through Steam WebAPI without CM reconnect"
-            ))
-        {
-            return;
-        }
-
         await ReconnectForAuthAsync();
     }
 
-    private bool ContinueWebApiAuthWithoutPersistentConnection(string message)
+    private void ContinueWebApiAuthWithoutPersistentConnection(string message)
     {
-        if (RequiresPersistentAuthConnection)
-            return false;
-
         LogAndroidAuthConnectionLossOnce();
         Log(message);
-        return true;
     }
 
-    private bool NeedsAuthReconnect => _needsReconnectForAuth || !_connectedGate.IsSet;
+    private bool NeedsAuthReconnect
+        => RequiresPersistentAuthConnection && (_needsReconnectForAuth || !_connectedGate.IsSet);
 
     private void LogAndroidAuthConnectionLossOnce()
     {

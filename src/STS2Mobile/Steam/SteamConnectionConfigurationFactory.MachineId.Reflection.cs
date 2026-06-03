@@ -9,7 +9,7 @@ internal static partial class SteamConnectionConfigurationFactory
 {
     private readonly struct MachineIdReflection
     {
-        private MachineIdReflection(Type? machineIdType, FieldInfo? tableField)
+        internal MachineIdReflection(Type? machineIdType, FieldInfo? tableField)
         {
             MachineIdType = machineIdType;
             TableField = tableField;
@@ -18,9 +18,6 @@ internal static partial class SteamConnectionConfigurationFactory
         private Type? MachineIdType { get; }
         private FieldInfo? TableField { get; }
         private bool Available => MachineIdType != null && TableField != null;
-
-        internal static MachineIdReflection Create(Type? machineIdType, FieldInfo? tableField)
-            => new(machineIdType, tableField);
 
         internal bool TrySeed(SteamConfiguration configuration)
         {
@@ -49,7 +46,7 @@ internal static partial class SteamConnectionConfigurationFactory
     {
         var type = Type.GetType(HardwareUtilsTypeName);
 
-        return MachineIdReflection.Create(
+        return new MachineIdReflection(
             type?.GetNestedType(MachineIdTypeName, BindingFlags.NonPublic),
             type?.GetField(
                 GenerationTableFieldName,

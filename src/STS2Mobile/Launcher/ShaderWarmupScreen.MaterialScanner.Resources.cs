@@ -19,20 +19,15 @@ internal sealed partial class ShaderWarmupScreen
             Dictionary<string, Material> materials
         )
         {
-            var cleanName = fileName.Replace(RemapExtension, "");
+            var cleanName = CleanResourceFileName(fileName);
             if (!IsSupportedMaterialFile(cleanName))
                 return;
 
-            var cleanPath = ChildPath(dirPath, cleanName);
+            var cleanPath = CleanResourcePath(dirPath, cleanName);
             if (materials.ContainsKey(cleanPath))
                 return;
 
             TryLoadMaterialResource(cleanName, cleanPath, materials);
         }
-
-        private static bool IsSupportedMaterialFile(string cleanName)
-            => cleanName.EndsWith(TresExtension)
-                || cleanName.EndsWith(GodotShaderExtension)
-                || cleanName.EndsWith(MaterialExtension);
     }
 }

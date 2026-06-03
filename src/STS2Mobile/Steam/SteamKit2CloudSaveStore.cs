@@ -29,33 +29,29 @@ internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveSt
 
     private bool Flush(int timeoutMs = 5000)
     {
-        var queueFlushed = TryFlushWriteQueue(timeoutMs);
-        return TryFlushConnection() && queueFlushed;
+        var queueFlushed = TryFlush(
+            () => _writeQueue.Flush(timeoutMs),
+            QueueFlushFailed
+        );
+        return TryFlush(
+            () =>
+            {
+                _connection.Flush();
+                return true;
+            },
+            ConnectionFlushFailed
+        ) && queueFlushed;
     }
 
-    private bool TryFlushWriteQueue(int timeoutMs)
+    private static bool TryFlush(Func<bool> flush, Func<Exception, string> failureMessage)
     {
         try
         {
-            return _writeQueue.Flush(timeoutMs);
+            return flush();
         }
         catch (Exception ex)
         {
-            PatchHelper.Log(QueueFlushFailed(ex));
-            return false;
-        }
-    }
-
-    private bool TryFlushConnection()
-    {
-        try
-        {
-            _connection.Flush();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log(ConnectionFlushFailed(ex));
+            PatchHelper.Log(failureMessage(ex));
             return false;
         }
     }

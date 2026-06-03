@@ -6,67 +6,52 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private readonly struct ManualPushResult
+    private readonly struct ManualPushPathResult
     {
-        private ManualPushResult(int queued, bool stopAfterBudget)
+        private ManualPushPathResult(bool queued, bool stopAfterBudget)
         {
             Queued = queued;
             StopAfterBudget = stopAfterBudget;
         }
 
-        private int Queued { get; }
+        internal bool Queued { get; }
         internal bool StopAfterBudget { get; }
 
-        internal string CompleteMessage()
-            => PushComplete(Queued);
+        internal static ManualPushPathResult Skipped()
+            => new(false, false);
 
-        internal ManualPushResult Add(ManualPushResult result)
-            => new(Queued + result.Queued, StopAfterBudget || result.StopAfterBudget);
+        internal static ManualPushPathResult QueuedPath()
+            => new(true, false);
 
-        internal static ManualPushResult Empty()
-            => new(queued: 0, stopAfterBudget: false);
-
-        internal static ManualPushResult QueuedOne()
-            => new(queued: 1, stopAfterBudget: false);
-
-        internal static ManualPushResult Skipped()
-            => new(queued: 0, stopAfterBudget: false);
-
-        internal static ManualPushResult BudgetExceeded()
-            => new(queued: 0, stopAfterBudget: true);
+        internal static ManualPushPathResult BudgetExceeded()
+            => new(false, true);
     }
 
-    private static ManualPushResult RunManualPushUploads(
-        ManualSyncContext sync,
-        IEnumerable<string> paths
-    )
-        => sync.RunCloudBatch(() => QueueManualPushPaths(sync, paths));
-
-    private static Task<ManualPushResult> RunManualPushUploadsAsync(
+    private static Task<string> RunManualPushUploadsAsync(
         ManualSyncContext sync,
         IReadOnlyCollection<string> paths
     )
-        => Task.FromResult(RunManualPushUploads(sync, paths));
-
-    private static ManualPushResult QueueManualPushPaths(
-        ManualSyncContext sync,
-        IEnumerable<string> paths
-    )
     {
-        var total = ManualPushResult.Empty();
-        foreach (var path in paths)
+        var queued = sync.RunCloudBatch(() =>
         {
-            var result = QueueManualPushPath(sync, path);
-            total = total.Add(result);
+            var count = 0;
+            foreach (var path in paths)
+            {
+                var result = QueueManualPushPath(sync, path);
+                if (result.Queued)
+                    count++;
 
-            if (result.StopAfterBudget)
-                break;
-        }
+                if (result.StopAfterBudget)
+                    break;
+            }
 
-        return total;
+            return count;
+        });
+
+        return Task.FromResult(PushComplete(queued));
     }
 
-    private static ManualPushResult QueueManualPushPath(
+    private static ManualPushPathResult QueueManualPushPath(
         ManualSyncContext sync,
         string path
     )
@@ -75,19 +60,19 @@ internal static partial class CloudSyncCoordinator
         {
             var local = sync.ReadLocalFile(path);
             if (local == null)
-                return ManualPushResult.Skipped();
+                return ManualPushPathResult.Skipped();
 
             PatchHelper.Log(PushQueuing(path, local.Length));
             if (sync.BudgetExceeded(ManualPushBudgetExceeded))
-                return ManualPushResult.BudgetExceeded();
+                return ManualPushPathResult.BudgetExceeded();
 
             sync.WriteCloudFile(path, local);
-            return ManualPushResult.QueuedOne();
+            return ManualPushPathResult.QueuedPath();
         }
         catch (Exception ex)
         {
             PatchHelper.Log(PushFailed(path, ex));
-            return ManualPushResult.Skipped();
+            return ManualPushPathResult.Skipped();
         }
     }
 }

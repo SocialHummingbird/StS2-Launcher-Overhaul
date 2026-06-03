@@ -47,16 +47,22 @@ internal static class AndroidEncryptedJsonFile
     }
 
     private static string Encrypt(string plainText)
-    {
-        var godotApp = GetGodotApp();
-        return (string)godotApp?.Call(EncryptStringBridgeMethod, plainText);
-    }
+        => AndroidBridgeDispatcher.Run(
+            () =>
+            {
+                var godotApp = GetGodotApp();
+                return (string)godotApp?.Call(EncryptStringBridgeMethod, plainText);
+            }
+        );
 
     private static string Decrypt(string encryptedText)
-    {
-        var godotApp = GetGodotApp();
-        return (string)godotApp?.Call(DecryptStringBridgeMethod, encryptedText);
-    }
+        => AndroidBridgeDispatcher.Run(
+            () =>
+            {
+                var godotApp = GetGodotApp();
+                return (string)godotApp?.Call(DecryptStringBridgeMethod, encryptedText);
+            }
+        );
 
     private static GodotObject GetGodotApp()
     {

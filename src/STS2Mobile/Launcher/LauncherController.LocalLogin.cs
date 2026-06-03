@@ -51,5 +51,5 @@ internal sealed partial class LauncherController
     }
 
     private Task LoginWithLocalCredentialsAsync(LocalSteamCredentials credentials)
-        => credentials.LoginAsync(_model);
+        => _model.LoginAsync(credentials.Username, credentials.Password);
 }

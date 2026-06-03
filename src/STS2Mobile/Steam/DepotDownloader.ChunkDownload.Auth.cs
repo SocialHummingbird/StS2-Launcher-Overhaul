@@ -6,7 +6,7 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private async Task<int?> TryDownloadChunkWithAuthAsync(
+    private Task<CdnDownloadResult<int>> TryDownloadChunkWithAuthAsync(
         uint depotId,
         DepotManifest.ChunkData chunk,
         byte[] buffer,
@@ -14,8 +14,7 @@ internal sealed partial class DepotDownloader
         string fileName,
         CdnServerAttempt attempt
     )
-    {
-        return await RunCdnAuthRetryAsync<int?>(
+        => RunCdnAuthRetryAsync<int>(
             depotId,
             attempt,
             ChunkAuthRetryOperation,
@@ -31,10 +30,8 @@ internal sealed partial class DepotDownloader
                 );
 
                 return ChunkHashVerifiedOrRetry(fileName, chunk, buffer, written, attempt)
-                    ? written
-                    : null;
-            },
-            failed: null
+                    ? CdnDownloadResult<int>.Success(written)
+                    : CdnDownloadResult<int>.Retry();
+            }
         );
-    }
 }

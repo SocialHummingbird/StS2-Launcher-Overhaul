@@ -7,39 +7,27 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
-    private readonly struct RedownloadRequest
-    {
-        private const string ConfirmationMessage =
-            "Redownload game files?\nThis keeps your Steam login but deletes downloaded game files.";
-        private const string DownloadButtonText = "DOWNLOAD GAME FILES";
-        private const string StatusMessage =
-            "Game files deleted. Download again to rebuild them.";
-        private const string LogMessage =
-            "Game files were deleted for a clean redownload.";
-
-        internal static RedownloadRequest Create()
-            => new();
-
-        internal void Confirm(LauncherView view, Action onConfirmed)
-            => view.ShowConfirmation(ConfirmationMessage, onConfirmed);
-
-        internal void Apply(LauncherModel model, LauncherView view)
-        {
-            model.ResetGameFilesForRedownload();
-            view.HideActions();
-            view.ShowDownloadAction(DownloadButtonText);
-            view.SetStatus(StatusMessage);
-            view.AppendLog(LogMessage);
-        }
-    }
+    private const string RedownloadConfirmationMessage =
+        "Redownload game files?\nThis keeps your Steam login but deletes downloaded game files.";
+    private const string DownloadGameFilesButtonText = "DOWNLOAD GAME FILES";
+    private const string RedownloadStatusMessage =
+        "Game files deleted. Download again to rebuild them.";
+    private const string RedownloadLogMessage =
+        "Game files were deleted for a clean redownload.";
 
     private void DownloadPressed()
         => _ = DownloadAsync();
 
     private void RedownloadPressed()
+        => _view.ShowConfirmation(RedownloadConfirmationMessage, ApplyRedownload);
+
+    private void ApplyRedownload()
     {
-        var request = RedownloadRequest.Create();
-        request.Confirm(_view, () => request.Apply(_model, _view));
+        _model.ResetGameFilesForRedownload();
+        _view.HideActions();
+        _view.ShowDownloadAction(DownloadGameFilesButtonText);
+        _view.SetStatus(RedownloadStatusMessage);
+        _view.AppendLog(RedownloadLogMessage);
     }
 
     private async Task DownloadAsync()

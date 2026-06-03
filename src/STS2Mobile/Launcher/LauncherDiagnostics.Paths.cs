@@ -9,7 +9,7 @@ internal static partial class LauncherDiagnostics
 {
     private readonly struct DiagnosticFile
     {
-        private DiagnosticFile(string label, string path)
+        internal DiagnosticFile(string label, string path)
         {
             Label = label;
             Path = path;
@@ -17,9 +17,6 @@ internal static partial class LauncherDiagnostics
 
         private string Label { get; }
         private string Path { get; }
-
-        internal static DiagnosticFile Create(string label, string path)
-            => new(label, path);
 
         internal void AppendHeader(StringBuilder sb)
             => sb.AppendLine(Header(Label, Path));
@@ -41,31 +38,31 @@ internal static partial class LauncherDiagnostics
     }
 
     private static DiagnosticFile AndroidUncaughtException(string dataDir)
-        => DiagnosticFile.Create(
+        => new(
             "Android uncaught exception",
             Path.Combine(dataDir, LauncherStorageNames.AndroidUncaughtException)
         );
 
     private static DiagnosticFile BootstrapTrace()
-        => DiagnosticFile.Create("Bootstrap trace", BootstrapTraceFile.TracePath);
+        => new("Bootstrap trace", BootstrapTraceFile.TracePath);
 
     private static DiagnosticFile GamePck(string dataDir)
-        => DiagnosticFile.Create("Game PCK", LauncherGameFiles.PckPath(dataDir));
+        => new("Game PCK", LauncherGameFiles.PckPath(dataDir));
 
     private static DiagnosticFile ManualSafeLaunchMarker(string dataDir)
-        => DiagnosticFile.Create(
+        => new(
             "Manual safe launch marker",
             Path.Combine(dataDir, LauncherStorageNames.ManualSafeLaunch)
         );
 
     private static DiagnosticFile StartupMarker(string dataDir)
-        => DiagnosticFile.Create(
+        => new(
             "Startup marker",
             Path.Combine(dataDir, LauncherStorageNames.StartupMarker)
         );
 
     private static DiagnosticFile StartupSceneSnapshot(string dataDir)
-        => DiagnosticFile.Create(
+        => new(
             "Startup scene snapshot",
             Path.Combine(dataDir, LauncherStorageNames.StartupSceneSnapshot)
         );

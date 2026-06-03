@@ -5,34 +5,49 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private readonly struct ManifestRequestCodeKey
+    private static readonly TimeSpan ManifestRequestCodeTtl = TimeSpan.FromMinutes(5);
+    private readonly struct ManifestRequestKey : IEquatable<ManifestRequestKey>
     {
-        private ManifestRequestCodeKey(uint depotId, ulong manifestId, string branch)
+        internal ManifestRequestKey(uint depotId, ulong manifestId, string branch)
         {
             DepotId = depotId;
             ManifestId = manifestId;
             Branch = branch;
         }
 
-        private uint DepotId { get; }
-        private ulong ManifestId { get; }
-        private string Branch { get; }
+        internal uint DepotId { get; }
+        internal ulong ManifestId { get; }
+        internal string Branch { get; }
 
-        internal static ManifestRequestCodeKey Public(uint depotId, ulong manifestId)
-            => new(depotId, manifestId, PublicDepotBranch);
+        public bool Equals(ManifestRequestKey other)
+            => DepotId == other.DepotId
+                && ManifestId == other.ManifestId
+                && Branch == other.Branch;
 
-        internal string RequestFailedMessage()
-            => $"Failed to get manifest request code for depot {DepotId}, "
-                + $"manifest {ManifestId}, branch '{Branch}'. "
-                + "Ensure the account owns this app.";
+        public override bool Equals(object obj)
+            => obj is ManifestRequestKey other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hash = 17;
+                hash = hash * 31 + DepotId.GetHashCode();
+                hash = hash * 31 + ManifestId.GetHashCode();
+                hash = hash * 31 + Branch.GetHashCode();
+                return hash;
+            }
+        }
     }
 
-    private static readonly TimeSpan ManifestRequestCodeTtl = TimeSpan.FromMinutes(5);
-    private readonly ExpiringCache<ManifestRequestCodeKey, ulong> _manifestRequestCodes = new();
+    private readonly ExpiringCache<
+        ManifestRequestKey,
+        ulong
+    > _manifestRequestCodes = new();
 
     private async Task<ulong> GetManifestRequestCodeAsync(uint depotId, ulong manifestId)
     {
-        var key = ManifestRequestCodeKey.Public(depotId, manifestId);
+        var key = new ManifestRequestKey(depotId, manifestId, PublicDepotBranch);
         var code = await _manifestRequestCodes.GetOrAddAsync(
             key,
             ManifestRequestCodeTtl,
@@ -43,9 +58,25 @@ internal sealed partial class DepotDownloader
             ),
             code => code != 0
         );
-        if (code == 0)
-            throw new Exception(key.RequestFailedMessage());
 
+        ThrowIfManifestRequestCodeDenied(code, depotId, manifestId, PublicDepotBranch);
         return code;
+    }
+
+    private static void ThrowIfManifestRequestCodeDenied(
+        ulong code,
+        uint depotId,
+        ulong manifestId,
+        string branch
+    )
+    {
+        if (code != 0)
+            return;
+
+        throw new Exception(
+            $"Failed to get manifest request code for depot {depotId}, "
+                + $"manifest {manifestId}, branch '{branch}'. "
+                + "Ensure the account owns this app."
+        );
     }
 }

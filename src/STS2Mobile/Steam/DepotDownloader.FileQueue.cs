@@ -9,6 +9,26 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private sealed class DepotFileDownloadQueue
+    {
+        private readonly IReadOnlyList<DepotManifest.FileData> _files;
+        private int _nextFileIndex = -1;
+
+        internal DepotFileDownloadQueue(IReadOnlyList<DepotManifest.FileData> files)
+        {
+            _files = files;
+        }
+
+        internal int WorkerCount
+            => Math.Min(MaxConcurrentDownloads, _files.Count);
+
+        internal DepotManifest.FileData? TakeNext()
+        {
+            var index = Interlocked.Increment(ref _nextFileIndex);
+            return index < _files.Count ? _files[index] : null;
+        }
+    }
+
     private async Task DownloadDepotFilesAsync(
         IReadOnlyList<DepotManifest.FileData> filesToDownload,
         uint depotId,
@@ -16,14 +36,13 @@ internal sealed partial class DepotDownloader
         CancellationToken ct
     )
     {
-        var nextFileIndex = -1;
-        var workerCount = Math.Min(MaxConcurrentDownloads, filesToDownload.Count);
+        var queue = new DepotFileDownloadQueue(filesToDownload);
         var workers = Enumerable
-            .Range(0, workerCount)
+            .Range(0, queue.WorkerCount)
             .Select(
                 _ => Task.Run(
                     () => DownloadDepotFileWorkerAsync(
-                        TakeNextFile,
+                        queue,
                         depotId,
                         depotKey,
                         ct
@@ -34,16 +53,10 @@ internal sealed partial class DepotDownloader
             .ToArray();
 
         await Task.WhenAll(workers);
-
-        DepotManifest.FileData? TakeNextFile()
-        {
-            var index = Interlocked.Increment(ref nextFileIndex);
-            return index < filesToDownload.Count ? filesToDownload[index] : null;
-        }
     }
 
     private async Task DownloadDepotFileWorkerAsync(
-        Func<DepotManifest.FileData?> takeNext,
+        DepotFileDownloadQueue queue,
         uint depotId,
         byte[] depotKey,
         CancellationToken ct
@@ -52,7 +65,7 @@ internal sealed partial class DepotDownloader
         while (true)
         {
             ct.ThrowIfCancellationRequested();
-            var file = takeNext();
+            var file = queue.TakeNext();
             if (file == null)
                 return;
 

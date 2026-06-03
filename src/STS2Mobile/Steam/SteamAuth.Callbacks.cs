@@ -42,12 +42,15 @@ internal sealed partial class SteamAuth
 
     private void MarkAuthConnectionLostDuringCredentials()
     {
-        _needsReconnectForAuth = true;
-        Log(AuthConnectionLostDuringCredentialsMessage());
-    }
+        if (!RequiresPersistentAuthConnection)
+        {
+            ContinueWebApiAuthWithoutPersistentConnection(
+                "Steam CM connection lost during Android WebAPI authentication; continuing credential flow"
+            );
+            return;
+        }
 
-    private static string AuthConnectionLostDuringCredentialsMessage()
-        => RequiresPersistentAuthConnection
-            ? "Connection lost during authentication - reconnecting to keep auth session alive"
-            : "Steam CM connection lost during Android WebAPI authentication; continuing credential flow";
+        _needsReconnectForAuth = true;
+        Log("Connection lost during authentication - reconnecting to keep auth session alive");
+    }
 }

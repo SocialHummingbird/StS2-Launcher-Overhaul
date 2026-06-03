@@ -7,28 +7,20 @@ namespace STS2Mobile.Launcher;
 
 internal static class LauncherCloudSaveState
 {
-    private readonly struct CloudSyncCredentials
+    private readonly struct SavedSteamCredentials
     {
-        internal CloudSyncCredentials(string accountName, string refreshToken)
+        internal SavedSteamCredentials(string accountName, string refreshToken)
         {
             AccountName = accountName;
             RefreshToken = refreshToken;
         }
 
-        private string AccountName { get; }
-        private string RefreshToken { get; }
-
-        internal SaveManager CreateSaveManager()
-            => new(
-                CloudSaveStoreFactory.CreateCloudSaveStore(AccountName, RefreshToken)
-            );
-
-        internal Task RunManualSyncAsync(Func<string, string, Task> sync)
-            => sync(AccountName, RefreshToken);
+        internal string AccountName { get; }
+        internal string RefreshToken { get; }
     }
 
     private static bool _cloudSyncEnabled = true;
-    private static CloudSyncCredentials? _savedCredentials;
+    private static SavedSteamCredentials? _savedCredentials;
 
     internal static string StatusSummary
         => $"HasToken={HasSavedCredentials}, CloudSync={_cloudSyncEnabled}";
@@ -42,13 +34,13 @@ internal static class LauncherCloudSaveState
     {
         saveManager = null;
 
-        var credentials = GetCloudSyncCredentials();
+        var credentials = GetSavedCredentialsForCloudSync();
         if (!credentials.HasValue)
             return false;
 
         try
         {
-            saveManager = credentials.Value.CreateSaveManager();
+            saveManager = CreateSaveManager(credentials.Value);
             PatchHelper.Log("[Cloud] Created SaveManager with SteamKit2 cloud store");
             return true;
         }
@@ -61,7 +53,7 @@ internal static class LauncherCloudSaveState
         }
     }
 
-    private static CloudSyncCredentials? GetCloudSyncCredentials()
+    private static SavedSteamCredentials? GetSavedCredentialsForCloudSync()
     {
         if (!_cloudSyncEnabled)
         {
@@ -100,10 +92,10 @@ internal static class LauncherCloudSaveState
         if (string.IsNullOrWhiteSpace(accountName))
             return;
 
-        _savedCredentials = new CloudSyncCredentials(accountName, refreshToken);
+        _savedCredentials = new SavedSteamCredentials(accountName, refreshToken);
     }
 
-    private static CloudSyncCredentials RequireSavedCredentials()
+    private static SavedSteamCredentials RequireSavedCredentials()
     {
         var credentials = _savedCredentials;
         if (!credentials.HasValue)
@@ -115,8 +107,18 @@ internal static class LauncherCloudSaveState
     private static Task RunManualSyncAsync(Func<string, string, Task> sync)
     {
         var credentials = RequireSavedCredentials();
-        return credentials.RunManualSyncAsync(sync);
+        return sync(credentials.AccountName, credentials.RefreshToken);
     }
+
+    private static SaveManager CreateSaveManager(
+        SavedSteamCredentials credentials
+    )
+        => new(
+            CloudSaveStoreFactory.CreateCloudSaveStore(
+                credentials.AccountName,
+                credentials.RefreshToken
+            )
+        );
 
     internal static void SaveCredentials(SteamCredentialStore credentialStore)
     {

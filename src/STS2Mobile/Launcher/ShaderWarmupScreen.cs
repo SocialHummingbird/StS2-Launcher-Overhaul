@@ -14,7 +14,7 @@ internal sealed partial class ShaderWarmupScreen : Control
 
     private readonly struct WarmupMaterial
     {
-        private WarmupMaterial(string path, Material material)
+        internal WarmupMaterial(string path, Material material)
         {
             Path = path;
             Material = material;
@@ -22,9 +22,6 @@ internal sealed partial class ShaderWarmupScreen : Control
 
         private string Path { get; }
         private Material Material { get; }
-
-        internal static WarmupMaterial Create(string path, Material material)
-            => new(path, material);
 
         internal Node CreateNode(ImageTexture whiteTexture)
             => Material is ParticleProcessMaterial particleMat

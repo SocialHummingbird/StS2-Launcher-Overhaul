@@ -23,6 +23,7 @@ internal sealed class LauncherUI : Control
     internal void Initialize()
     {
         ZIndex = LauncherZIndex;
+        AndroidBridgeDispatcher.RegisterCurrentThread();
 
         try
         {
@@ -60,6 +61,7 @@ internal sealed class LauncherUI : Control
 
     private void OnProcessFrame()
     {
+        AndroidBridgeDispatcher.Pump();
         DrainMainThreadActions();
         _view?.UpdateKeyboardOffset();
     }
@@ -87,6 +89,7 @@ internal sealed class LauncherUI : Control
         tree.ProcessFrame -= OnProcessFrame;
         tree.AutoAcceptQuit = true;
         _model?.Dispose();
+        AndroidBridgeDispatcher.UnregisterCurrentThread();
     }
 
     private Vector2 GetViewportSize()

@@ -46,25 +46,15 @@ internal static partial class CloudSyncCoordinator
                     foreach (var historyName in FallbackHistoryDirectories)
                     {
                         var historyDir = $"{profile}/{historyName}";
-                        AddFallbackHistoryFilePaths(paths, historyDir, store);
+                        AddSelectedHistoryFilePaths(
+                            paths,
+                            store,
+                            historyDir,
+                            files => SelectRunHistoryFiles(files).Take(RunHistoryLimit)
+                        );
                     }
                 }
             }
-        }
-
-        private static void AddFallbackHistoryFilePaths(
-            List<string> paths,
-            string historyDir,
-            ISaveStore store
-        )
-        {
-            AddHistoryFilePaths(
-                paths,
-                historyDir,
-                GetHistoryFiles(historyDir, store)
-                    .Where(f => f.EndsWith(RunHistoryExtension))
-                    .Take(RunHistoryLimit)
-            );
         }
     }
 }

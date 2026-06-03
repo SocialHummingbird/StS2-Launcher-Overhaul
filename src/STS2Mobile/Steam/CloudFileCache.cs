@@ -9,30 +9,9 @@ internal sealed partial class SteamKit2CloudSaveStore
     // Loaded lazily from Steam on first access with exponential backoff on failure.
     private sealed partial class CloudFileCache
     {
-        private readonly struct CloudFileInfo
-        {
-            private CloudFileInfo(int size, DateTimeOffset timestamp)
-            {
-                Size = size;
-                Timestamp = timestamp;
-            }
-
-            private int Size { get; }
-            private DateTimeOffset Timestamp { get; }
-
-            internal static CloudFileInfo Create(int size, DateTimeOffset timestamp)
-                => new(size, timestamp);
-
-            internal int SizeOrDefault()
-                => Size;
-
-            internal DateTimeOffset TimestampOrDefault()
-                => Timestamp;
-        }
-
         private readonly ConcurrentDictionary<
             string,
-            CloudFileInfo
+            (int Size, DateTimeOffset Timestamp)
         > _files = new();
         private readonly ConcurrentDictionary<string, byte> _persistedFiles = new();
 
@@ -48,12 +27,12 @@ internal sealed partial class SteamKit2CloudSaveStore
 
         internal DateTimeOffset GetLastModifiedTime(string path)
         {
-            return GetFileInfo(path)?.TimestampOrDefault() ?? DateTimeOffset.MinValue;
+            return GetFileInfo(path)?.Timestamp ?? DateTimeOffset.MinValue;
         }
 
         internal int GetFileSize(string path)
         {
-            return GetFileInfo(path)?.SizeOrDefault() ?? 0;
+            return GetFileInfo(path)?.Size ?? 0;
         }
 
         internal bool HasCloudFiles()
@@ -90,16 +69,16 @@ internal sealed partial class SteamKit2CloudSaveStore
             _persistedFiles.TryRemove(key, out _);
         }
 
-        private CloudFileInfo? GetFileInfo(string path)
+        private (int Size, DateTimeOffset Timestamp)? GetFileInfo(string path)
             => GetFileInfoByKey(CacheKey(path));
 
         private void SetPersistedFile(string key, int size, DateTimeOffset timestamp)
         {
-            _files[key] = CloudFileInfo.Create(size, timestamp);
+            _files[key] = (Size: size, Timestamp: timestamp);
             _persistedFiles[key] = 0;
         }
 
-        private CloudFileInfo? GetFileInfoByKey(string key)
+        private (int Size, DateTimeOffset Timestamp)? GetFileInfoByKey(string key)
         {
             EnsureLoaded();
             return _files.TryGetValue(key, out var info)

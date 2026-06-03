@@ -20,10 +20,10 @@ internal sealed partial class SteamKit2CloudSaveStore
         CloudStoreMessage("Cloud write thread stopped");
 
     private static string BeginSaveBatchFailed(Exception ex) =>
-        CloudStoreFailure("BeginSaveBatch", ex);
+        OperationFailed("BeginSaveBatch", ex);
 
     private static string EndSaveBatchFailed(Exception ex) =>
-        CloudStoreFailure("EndSaveBatch", ex);
+        OperationFailed("EndSaveBatch", ex);
 
     private static string OperationThrottled(string operationName, string path, int delayMs) =>
         CloudStoreMessage(
@@ -34,10 +34,10 @@ internal sealed partial class SteamKit2CloudSaveStore
         CloudStoreMessage($"{operationName} failed for {path}: {ex.Message}");
 
     private static string QueueFlushFailed(Exception ex) =>
-        CloudStoreFailure("Queue flush", ex);
+        OperationFailed("Queue flush", ex);
 
     private static string ConnectionFlushFailed(Exception ex) =>
-        CloudStoreFailure("Connection flush", ex);
+        OperationFailed("Connection flush", ex);
 
     private static string Downloaded(
         string path,
@@ -76,7 +76,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         CloudStoreMessage($"Wrote {bytes} bytes to {path} (compressed={compressed})");
 
     private static string BackgroundWriteFailed(Exception ex) =>
-        CloudStoreFailure("Background write", ex);
+        OperationFailed("Background write", ex);
 
     private static string WriteQueueFull(int maxQueuedWrites, long droppedWrites) =>
         CloudStoreMessage(
@@ -97,8 +97,8 @@ internal sealed partial class SteamKit2CloudSaveStore
     private static string TotalDroppedWrites(long droppedWrites) =>
         CloudStoreMessage($"Total dropped write actions: {droppedWrites}");
 
-    private static string CloudStoreFailure(string operation, Exception ex)
-        => CloudStoreMessage($"{operation} failed: {ex.Message}");
+    private static string OperationFailed(string operationName, Exception ex) =>
+        CloudStoreMessage($"{operationName} failed: {ex.Message}");
 
     private static string CloudStoreMessage(string message)
         => $"[Cloud] {message}";

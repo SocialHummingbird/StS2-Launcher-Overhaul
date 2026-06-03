@@ -6,21 +6,19 @@ namespace STS2Mobile.Steam;
 internal sealed partial class DepotDownloader
 {
     // Returns true if any depot has a newer manifest than what's cached locally.
-    internal async Task<bool> CheckForUpdatesAsync(CancellationToken ct = default)
-        => await RunWithSuspendedIdleTimeoutAsync(() => CheckForUpdatesCoreAsync(ct));
+    internal Task<bool> CheckForUpdatesAsync(CancellationToken ct = default)
+        => RunWithSuspendedIdleTimeoutAsync(() => CheckForUpdatesCoreAsync(ct));
 
     private async Task<bool> CheckForUpdatesCoreAsync(CancellationToken ct)
     {
-        _stateStore.Prepare();
-
-        var depots = await GetMainAppDepotsAsync();
+        var depots = await PrepareAndGetMainAppDepotsAsync(requireAny: false);
 
         foreach (var depot in depots)
         {
             ct.ThrowIfCancellationRequested();
-            if (depot.HasManifestChanged(this))
+            if (_stateStore.LoadManifestId(depot.DepotId) != depot.ManifestId)
             {
-                depot.LogManifestChanged(this);
+                Log($"Update available: depot {depot.DepotId} manifest changed");
                 return true;
             }
         }

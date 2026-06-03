@@ -6,15 +6,33 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private enum ManifestFileDownloadDecision
+    private readonly struct ManifestFileDownloadStatus
     {
-        Skipped,
-        Download,
-        Verified,
-        Corrupt,
+        private ManifestFileDownloadStatus(bool download, bool verified, bool corrupt)
+        {
+            Download = download;
+            Verified = verified;
+            Corrupt = corrupt;
+        }
+
+        internal bool Download { get; }
+        internal bool Verified { get; }
+        internal bool Corrupt { get; }
+
+        internal static ManifestFileDownloadStatus Skip()
+            => new(false, false, false);
+
+        internal static ManifestFileDownloadStatus NeedsDownload()
+            => new(true, false, false);
+
+        internal static ManifestFileDownloadStatus ExistingVerified()
+            => new(false, true, false);
+
+        internal static ManifestFileDownloadStatus CorruptNeedsDownload()
+            => new(true, false, true);
     }
 
-    private ManifestFileDownloadDecision GetManifestFileDownloadDecision(
+    private ManifestFileDownloadStatus GetManifestFileDownloadStatus(
         DepotManifest.FileData file,
         Dictionary<string, DepotManifest.FileData> oldFiles,
         bool isUpdate
@@ -22,24 +40,22 @@ internal sealed partial class DepotDownloader
     {
         var fileName = GetDownloadFileName(file);
         if (fileName == null)
-            return ManifestFileDownloadDecision.Skipped;
+            return ManifestFileDownloadStatus.Skip();
 
         if (ManifestEntryChanged(file, oldFiles, fileName, isUpdate))
-            return ManifestFileDownloadDecision.Download;
+            return ManifestFileDownloadStatus.NeedsDownload();
 
         var filePath = ResolveGamePath(fileName);
         if (VerifyFileHash(filePath, file))
-        {
-            return ManifestFileDownloadDecision.Verified;
-        }
+            return ManifestFileDownloadStatus.ExistingVerified();
 
         if (File.Exists(filePath))
         {
             Log($"File needs re-download (hash mismatch): {file.FileName}");
-            return ManifestFileDownloadDecision.Corrupt;
+            return ManifestFileDownloadStatus.CorruptNeedsDownload();
         }
 
-        return ManifestFileDownloadDecision.Download;
+        return ManifestFileDownloadStatus.NeedsDownload();
     }
 
     private string? GetDownloadFileName(DepotManifest.FileData file)

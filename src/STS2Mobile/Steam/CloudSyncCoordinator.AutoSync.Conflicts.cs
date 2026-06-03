@@ -4,18 +4,14 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private static async Task SyncExistingFileAsync(AutoSyncContext sync)
+    private static async Task SyncExistingFileAsync(
+        AutoSyncContext sync,
+        string localContent
+    )
     {
-        var local = sync.ReadLocalContent();
-        if (local == null)
-        {
-            await PullFileAsync(sync);
-            return;
-        }
-
         string cloudContent = await sync.ReadCloudContentAsync(ReadCloudFileOperation);
 
-        if (IsCorrupt(local))
+        if (IsCorrupt(localContent))
         {
             await sync.PullCloudContentAsync(
                 cloudContent,
@@ -25,13 +21,13 @@ internal static partial class CloudSyncCoordinator
             return;
         }
 
-        if (local == cloudContent)
+        if (localContent == cloudContent)
         {
             sync.Log(SyncIdenticalSkipping);
             return;
         }
 
-        await ResolveContentConflictAsync(sync, local, cloudContent);
+        await ResolveContentConflictAsync(sync, localContent, cloudContent);
     }
 
     private static async Task ResolveContentConflictAsync(
@@ -40,33 +36,33 @@ internal static partial class CloudSyncCoordinator
         string cloudContent
     )
     {
-        var winner = sync.GetExplicitWinner(localContent, cloudContent);
-        if (winner == SaveComparison.SaveWinner.Cloud)
+        switch (sync.GetExplicitWinner(localContent, cloudContent))
         {
-            await sync.PullCloudContentAsync(
-                cloudContent,
-                SyncCloudWins,
-                backUpLocal: true
-            );
-            return;
-        }
+            case SaveComparison.SaveWinner.Cloud:
+                await sync.PullCloudContentAsync(
+                    cloudContent,
+                    SyncCloudWins,
+                    backUpLocal: true
+                );
+                return;
 
-        if (winner == SaveComparison.SaveWinner.Local)
-        {
-            sync.PushLocalContent(
-                localContent,
-                cloudContent,
-                SyncLocalWinsUploading
-            );
-            return;
-        }
+            case SaveComparison.SaveWinner.Local:
+                sync.PushLocalContent(
+                    localContent,
+                    cloudContent,
+                    SyncLocalWinsUploading
+                );
+                return;
 
-        // Cloud wins on equal progress or non-progress files to preserve PC as primary.
-        await sync.PullCloudContentAsync(
-            cloudContent,
-            SyncContentsDifferCloudWins,
-            backUpLocal: true
-        );
+            // Cloud wins on equal progress or non-progress files to preserve PC as primary.
+            default:
+                await sync.PullCloudContentAsync(
+                    cloudContent,
+                    SyncContentsDifferCloudWins,
+                    backUpLocal: true
+                );
+                return;
+        }
     }
 
     // Save files are JSON; a non-JSON opener indicates corruption, e.g. unencrypted write.

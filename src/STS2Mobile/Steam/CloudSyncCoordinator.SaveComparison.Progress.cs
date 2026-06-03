@@ -20,19 +20,19 @@ internal static partial class CloudSyncCoordinator
                 local,
                 cloud,
                 (localRoot, cloudRoot) => FirstNumericWinner(
-                    NumericComparison.Of(
+                    (
                         GetInt(localRoot, FloorsClimbedProperty),
                         GetInt(cloudRoot, FloorsClimbedProperty)
                     ),
-                    NumericComparison.Of(
+                    (
                         SumCharacterGames(localRoot),
                         SumCharacterGames(cloudRoot)
                     ),
-                    NumericComparison.Of(
+                    (
                         CountDiscovered(localRoot),
                         CountDiscovered(cloudRoot)
                     ),
-                    NumericComparison.Of(
+                    (
                         GetInt(localRoot, TotalPlaytimeProperty),
                         GetInt(cloudRoot, TotalPlaytimeProperty)
                     )

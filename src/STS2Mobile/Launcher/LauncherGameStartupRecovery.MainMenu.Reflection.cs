@@ -8,44 +8,16 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherGameStartupRecovery
 {
-    private readonly struct CurrentSceneInfo
+    private readonly struct CurrentSceneInspection
     {
-        private CurrentSceneInfo(bool isMainMenu, string? sceneName)
+        internal CurrentSceneInspection(bool isMainMenu, string? sceneName)
         {
             IsMainMenu = isMainMenu;
             SceneName = sceneName;
         }
 
-        private bool IsMainMenu { get; }
-        private string? SceneName { get; }
-
-        internal static CurrentSceneInfo Missing()
-            => new(isMainMenu: false, sceneName: null);
-
-        internal static CurrentSceneInfo Found(bool isMainMenu, string sceneName)
-            => new(isMainMenu, sceneName);
-
-        internal static CurrentSceneInfo Failed(Exception ex)
-            => new(isMainMenu: false, sceneName: $"<inspect failed: {ex.Message}>");
-
-        internal bool IsMainMenuReady()
-            => IsMainMenu;
-
-        internal string MainMenuPresentMessage()
-            => $"Main menu present after startup: {SceneName}";
-
-        internal string MainMenuMissingMessage()
-            => $"Main menu missing after startup; current scene={SceneName ?? "<none>"}. Forcing LoadMainMenu.";
-
-        internal string ForcedLoadResultMessage()
-            => IsMainMenu
-                ? $"Forced main menu load succeeded: {SceneName}"
-                : $"Forced main menu load returned but current scene is {SceneName ?? "<none>"}";
-
-        internal string ForcedLoadStatus()
-            => IsMainMenu
-                ? "Main menu loaded."
-                : "Main menu force returned, but scene is still not main menu.";
+        internal bool IsMainMenu { get; }
+        internal string? SceneName { get; }
     }
 
     private static Task LoadMainMenuAsync(object game)
@@ -75,7 +47,7 @@ internal static partial class LauncherGameStartupRecovery
         }
     }
 
-    private static CurrentSceneInfo InspectCurrentScene(object game)
+    private static CurrentSceneInspection InspectCurrentScene(object game)
     {
         try
         {
@@ -86,17 +58,39 @@ internal static partial class LauncherGameStartupRecovery
                 .GetProperty("CurrentScene", BindingFlags.Public | BindingFlags.Instance)
                 ?.GetValue(rootSceneContainer);
             if (currentScene == null)
-                return CurrentSceneInfo.Missing();
+                return new CurrentSceneInspection(false, null);
 
             var sceneName = $"{currentScene.GetType().FullName} name={((Node)currentScene).Name}";
-            return CurrentSceneInfo.Found(
-                currentScene.GetType().FullName?.Contains("NMainMenu", StringComparison.Ordinal) == true,
+            return new CurrentSceneInspection(
+                currentScene.GetType().FullName?.Contains(
+                    "NMainMenu",
+                    StringComparison.Ordinal
+                ) == true,
                 sceneName
             );
         }
         catch (Exception ex)
         {
-            return CurrentSceneInfo.Failed(ex);
+            return new CurrentSceneInspection(
+                false,
+                $"<inspect failed: {ex.Message}>"
+            );
         }
     }
+
+    private static string MainMenuPresentMessage(CurrentSceneInspection scene)
+        => $"Main menu present after startup: {scene.SceneName}";
+
+    private static string MainMenuMissingMessage(CurrentSceneInspection scene)
+        => $"Main menu missing after startup; current scene={scene.SceneName ?? "<none>"}. Forcing LoadMainMenu.";
+
+    private static string ForcedLoadResultMessage(CurrentSceneInspection scene)
+        => scene.IsMainMenu
+            ? $"Forced main menu load succeeded: {scene.SceneName}"
+            : $"Forced main menu load returned but current scene is {scene.SceneName ?? "<none>"}";
+
+    private static string ForcedLoadStatus(CurrentSceneInspection scene)
+        => scene.IsMainMenu
+            ? "Main menu loaded."
+            : "Main menu force returned, but scene is still not main menu.";
 }

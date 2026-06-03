@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Godot;
 using STS2Mobile;
 
@@ -7,29 +6,6 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private readonly struct RecoveryButton
-    {
-        internal RecoveryButton(string label, Action run)
-        {
-            Label = label;
-            Run = run;
-        }
-
-        private string Label { get; }
-        private Action Run { get; }
-
-        internal Button CreateControl()
-        {
-            var button = new Button
-            {
-                Text = Label,
-                CustomMinimumSize = ButtonMinimumSize,
-            };
-            button.Pressed += Run;
-            return button;
-        }
-    }
-
     private LauncherStartupRecoveryControlPanel()
     {
         Layer = CreateLayer();
@@ -87,25 +63,21 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private void AddRecoveryActions(VBoxContainer box)
     {
-        foreach (var action in RecoveryActions())
-            AddButton(box, action);
+        AddButton(box, "RETURN TO LAUNCHER", AndroidGodotAppBridge.RestartApp);
+        AddButton(box, "RESTART WITH SAFE LAUNCH", RestartWithSafeLaunch);
+        AddButton(box, "EXPORT STARTUP DIAGNOSTICS", ExportDiagnostics);
+        AddButton(box, "COPY RAW ERROR LOG", CopyRawErrorLog);
+        AddButton(box, "HIDE RECOVERY CONTROLS", () => Layer.QueueFree());
     }
 
-    private IEnumerable<RecoveryButton> RecoveryActions()
+    private static void AddButton(VBoxContainer box, string label, Action run)
     {
-        yield return new RecoveryButton("RETURN TO LAUNCHER", AndroidGodotAppBridge.RestartApp);
-        yield return new RecoveryButton("RESTART WITH SAFE LAUNCH", RestartWithSafeLaunch);
-        yield return new RecoveryButton("EXPORT STARTUP DIAGNOSTICS", ExportDiagnostics);
-        yield return new RecoveryButton("COPY RAW ERROR LOG", CopyRawErrorLog);
-        yield return new RecoveryButton("HIDE RECOVERY CONTROLS", () => Layer.QueueFree());
+        var button = new Button
+        {
+            Text = label,
+            CustomMinimumSize = ButtonMinimumSize,
+        };
+        button.Pressed += run;
+        box.AddChild(button);
     }
-
-    private static void RestartWithSafeLaunch()
-    {
-        LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
-        AndroidGodotAppBridge.LaunchGameSafelyOnRestart();
-    }
-
-    private static void AddButton(VBoxContainer box, RecoveryButton action)
-        => box.AddChild(action.CreateControl());
 }

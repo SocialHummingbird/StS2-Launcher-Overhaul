@@ -12,7 +12,9 @@ internal sealed partial class SteamAuth
 
         if (!RequiresPersistentAuthConnection)
         {
-            TryStartBestEffortAuthConnection();
+            ContinueWebApiAuthWithoutPersistentConnection(
+                "Starting Android Steam WebAPI credential auth without Steam CM connection"
+            );
             return;
         }
 
@@ -20,17 +22,5 @@ internal sealed partial class SteamAuth
             throw new TimeoutException(
                 "Could not establish a Steam auth connection. Check Steam status and try again."
             );
-    }
-
-    private void TryStartBestEffortAuthConnection()
-    {
-        try
-        {
-            Connect();
-        }
-        catch (Exception ex)
-        {
-            Log($"Steam CM connection unavailable before Android WebAPI auth: {ex.Message}");
-        }
     }
 }

@@ -22,7 +22,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
 
         internal HttpResponseMessage CreateResponseWithContent(
             HttpRequestMessage request,
-            string requestDescription,
+            BridgeRequestContext requestContext,
             CancellationToken cancellationToken
         )
         {
@@ -32,7 +32,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
                 response.Content = CreateResponseContent(
                     Root,
                     Status,
-                    requestDescription,
+                    requestContext,
                     cancellationToken
                 );
                 ApplyBridgeHeaders(response, Root);
@@ -51,16 +51,15 @@ internal sealed partial class AndroidJavaHttpMessageHandler
 
         internal static ParsedBridgeResponse CreateValidated(
             JsonDocument document,
-            Uri? requestUri,
-            string requestDescription
+            BridgeRequestContext requestContext
         )
         {
             try
             {
-                ThrowIfBridgeError(document.RootElement, requestUri, requestDescription);
+                ThrowIfBridgeError(document.RootElement, requestContext);
                 return new(
                     document,
-                    ReadStatusCode(document.RootElement, requestDescription)
+                    ReadStatusCode(document.RootElement, requestContext)
                 );
             }
             catch
@@ -73,16 +72,14 @@ internal sealed partial class AndroidJavaHttpMessageHandler
 
     private static ParsedBridgeResponse ReadBridgeResponse(
         string? raw,
-        Uri? requestUri,
-        string requestDescription
+        BridgeRequestContext requestContext
     )
     {
-        var bridgeResponse = RequireBridgeResponse(raw, requestDescription);
-        var doc = ParseBridgeResponse(bridgeResponse, requestDescription);
+        var bridgeResponse = RequireBridgeResponse(raw, requestContext.Description);
+        var doc = ParseBridgeResponse(bridgeResponse, requestContext.Description);
         return ParsedBridgeResponse.CreateValidated(
             doc,
-            requestUri,
-            requestDescription
+            requestContext
         );
     }
 
@@ -116,8 +113,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
 
     private static void ThrowIfBridgeError(
         JsonElement root,
-        Uri? requestUri,
-        string requestDescription
+        BridgeRequestContext requestContext
     )
     {
         if (!root.TryGetProperty(ErrorProperty, out var error))
@@ -125,29 +121,29 @@ internal sealed partial class AndroidJavaHttpMessageHandler
 
         var errorMessage = SanitizeBridgeError(
             GetBridgeString(error),
-            requestUri
+            requestContext.Uri
         );
         throw new HttpRequestException(
             string.IsNullOrWhiteSpace(errorMessage)
-                ? $"Android Java HTTP bridge reported an unknown error for {requestDescription}"
-                : $"Android Java HTTP bridge error for {requestDescription}: {errorMessage}"
+                ? $"Android Java HTTP bridge reported an unknown error for {requestContext.Description}"
+                : $"Android Java HTTP bridge error for {requestContext.Description}: {errorMessage}"
         );
     }
 
-    private static int ReadStatusCode(JsonElement root, string requestDescription)
+    private static int ReadStatusCode(JsonElement root, BridgeRequestContext requestContext)
     {
-        var status = RequireStatusCode(root, requestDescription);
+        var status = RequireStatusCode(root, requestContext);
         if (!IsValidHttpStatusCode(status))
         {
             throw new HttpRequestException(
-                $"Android Java HTTP bridge returned an invalid HTTP status for {requestDescription}: {status}"
+                $"Android Java HTTP bridge returned an invalid HTTP status for {requestContext.Description}: {status}"
             );
         }
 
         return status;
     }
 
-    private static int RequireStatusCode(JsonElement root, string requestDescription)
+    private static int RequireStatusCode(JsonElement root, BridgeRequestContext requestContext)
     {
         if (
             root.TryGetProperty(StatusProperty, out var statusElement)
@@ -158,7 +154,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
         }
 
         throw new HttpRequestException(
-            $"Android Java HTTP bridge returned a response without a valid status for {requestDescription}"
+            $"Android Java HTTP bridge returned a response without a valid status for {requestContext.Description}"
         );
     }
 

@@ -6,55 +6,13 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
-    private readonly struct PrimaryColumnControls
-    {
-        private PrimaryColumnControls(
-            StyledLabel statusLabel,
-            LoginSection login,
-            CodeSection code,
-            DownloadSection download,
-            ActionSection actions
-        )
-        {
-            StatusLabel = statusLabel;
-            Login = login;
-            Code = code;
-            Download = download;
-            Actions = actions;
-        }
-
-        private StyledLabel StatusLabel { get; }
-        private LoginSection Login { get; }
-        private CodeSection Code { get; }
-        private DownloadSection Download { get; }
-        private ActionSection Actions { get; }
-
-        internal static PrimaryColumnControls Create(
-            StyledLabel statusLabel,
-            LoginSection login,
-            CodeSection code,
-            DownloadSection download,
-            ActionSection actions
-        )
-            => new(statusLabel, login, code, download, actions);
-
-        internal StyledLabel Status()
-            => StatusLabel;
-
-        internal LoginSection LoginSection()
-            => Login;
-
-        internal CodeSection CodeSection()
-            => Code;
-
-        internal DownloadSection DownloadSection()
-            => Download;
-
-        internal ActionSection ActionSection()
-            => Actions;
-    }
-
-    private static PrimaryColumnControls BuildPrimaryColumn(float scale, HBoxContainer hbox)
+    private static (
+        StyledLabel Status,
+        LoginSection Login,
+        CodeSection Code,
+        DownloadSection Download,
+        ActionSection Actions
+    ) BuildPrimaryColumn(float scale, HBoxContainer hbox)
     {
         var leftCenter = new CenterContainer();
         leftCenter.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -95,6 +53,6 @@ internal sealed partial class LauncherView
 
         left.AddChild(BuildFmodAttributionSection(scale));
 
-        return PrimaryColumnControls.Create(statusLabel, login, code, download, actions);
+        return (statusLabel, login, code, download, actions);
     }
 }

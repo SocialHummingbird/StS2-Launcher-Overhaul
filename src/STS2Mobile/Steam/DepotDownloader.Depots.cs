@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
 
@@ -7,30 +6,6 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private readonly struct DepotManifestReference
-    {
-        private DepotManifestReference(uint depotId, ulong manifestId)
-        {
-            DepotId = depotId;
-            ManifestId = manifestId;
-        }
-
-        private uint DepotId { get; }
-        private ulong ManifestId { get; }
-
-        internal static DepotManifestReference Create(uint depotId, ulong manifestId)
-            => new(depotId, manifestId);
-
-        internal Task DownloadAsync(DepotDownloader owner, CancellationToken ct)
-            => owner.DownloadDepotAsync(DepotId, ManifestId, ct);
-
-        internal bool HasManifestChanged(DepotDownloader owner)
-            => owner._stateStore.LoadManifestId(DepotId) != ManifestId;
-
-        internal void LogManifestChanged(DepotDownloader owner)
-            => owner.Log($"Update available: depot {DepotId} manifest changed");
-    }
-
     private async Task<List<DepotManifestReference>> ParseDepotsAsync(
         KeyValue depotSection
     )
@@ -55,12 +30,12 @@ internal sealed partial class DepotDownloader
         if (ShouldSkipDepot(depot, depotId))
             return null;
 
-        var manifestId = await GetDepotManifestIdAsync(depot, depotId);
+        var manifestId = await GetPublicManifestIdAsync(depot, depotId);
         if (!manifestId.HasValue)
             return null;
 
         Log($"Found depot {depotId} manifest {manifestId.Value}");
-        return DepotManifestReference.Create(depotId, manifestId.Value);
+        return new DepotManifestReference(depotId, manifestId.Value);
     }
 
     private bool ShouldSkipDepot(KeyValue depot, uint depotId)
@@ -77,6 +52,4 @@ internal sealed partial class DepotDownloader
         return true;
     }
 
-    private Task<ulong?> GetDepotManifestIdAsync(KeyValue depot, uint depotId)
-        => DepotManifestLookup.GetPublicManifestIdAsync(depot, depotId, this);
 }

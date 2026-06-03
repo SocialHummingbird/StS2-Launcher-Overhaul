@@ -1,5 +1,4 @@
 using System;
-using System.Net;
 using System.Threading.Tasks;
 using SteamKit2;
 using SteamKit2.CDN;
@@ -8,49 +7,54 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private async Task<int> DownloadChunkWithRetriesAsync(
+    private Task<int> DownloadChunkWithRetriesAsync(
         uint depotId,
         DepotManifest.ChunkData chunk,
         byte[] buffer,
         byte[] depotKey,
         string fileName
     )
+        => RunCdnDownloadWithRetriesAsync(
+            ChunkDownloadOperation,
+            attempt => TryDownloadChunkAsync(
+                depotId,
+                chunk,
+                buffer,
+                depotKey,
+                fileName,
+                attempt
+            ),
+            attempt => TryDownloadChunkWithAuthAsync(
+                depotId,
+                chunk,
+                buffer,
+                depotKey,
+                fileName,
+                attempt
+            ),
+            () => new Exception($"Failed to download chunk for {fileName} after {MaxRetries} attempts")
+        );
+
+    private async Task<CdnDownloadResult<int>> TryDownloadChunkAsync(
+        uint depotId,
+        DepotManifest.ChunkData chunk,
+        byte[] buffer,
+        byte[] depotKey,
+        string fileName,
+        CdnServerAttempt attempt
+    )
     {
-        foreach (var attempt in CdnDownloadAttempts())
-        {
-            try
-            {
-                var written = await attempt.DownloadChunkAsync(
-                    this,
-                    depotId,
-                    chunk,
-                    buffer,
-                    depotKey
-                );
+        var written = await attempt.DownloadChunkAsync(
+            this,
+            depotId,
+            chunk,
+            buffer,
+            depotKey
+        );
 
-                if (ChunkHashVerifiedOrRetry(fileName, chunk, buffer, written, attempt))
-                    return written;
-            }
-            catch (SteamKitWebRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
-            {
-                var written = await TryDownloadChunkWithAuthAsync(
-                    depotId,
-                    chunk,
-                    buffer,
-                    depotKey,
-                    fileName,
-                    attempt
-                );
-                if (written.HasValue)
-                    return written.Value;
-            }
-            catch (Exception ex) when (attempt.CanRetry())
-            {
-                attempt.HandleDownloadRetryFailure(this, ChunkDownloadOperation, ex);
-            }
-        }
-
-        throw new Exception($"Failed to download chunk for {fileName} after {MaxRetries} attempts");
+        return ChunkHashVerifiedOrRetry(fileName, chunk, buffer, written, attempt)
+            ? CdnDownloadResult<int>.Success(written)
+            : CdnDownloadResult<int>.Retry();
     }
 
     private bool ChunkHashVerifiedOrRetry(

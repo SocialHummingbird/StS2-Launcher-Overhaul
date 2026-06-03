@@ -9,42 +9,20 @@ internal sealed partial class DepotDownloader
     private sealed class ExpiringCache<TKey, TValue>
         where TKey : notnull
     {
-        private readonly struct CacheEntry
-        {
-            private CacheEntry(TValue value, DateTime expiry)
-            {
-                Value = value;
-                Expiry = expiry;
-            }
-
-            private TValue Value { get; }
-            private DateTime Expiry { get; }
-            private bool Fresh => DateTime.UtcNow < Expiry;
-
-            internal static CacheEntry Create(TValue value, DateTime expiry)
-                => new(value, expiry);
-
-            internal bool TryGetFresh(out TValue value)
-            {
-                if (Fresh)
-                {
-                    value = Value;
-                    return true;
-                }
-
-                value = default!;
-                return false;
-            }
-        }
-
-        private readonly ConcurrentDictionary<TKey, CacheEntry> _entries = new();
+        private readonly ConcurrentDictionary<
+            TKey,
+            (TValue Value, DateTime Expiry)
+        > _entries = new();
 
         private bool TryGetFresh(TKey key, out TValue value)
         {
             if (_entries.TryGetValue(key, out var entry))
             {
-                if (entry.TryGetFresh(out value))
+                if (IsFresh(entry.Expiry))
+                {
+                    value = entry.Value;
                     return true;
+                }
 
                 _entries.TryRemove(key, out _);
             }
@@ -53,8 +31,11 @@ internal sealed partial class DepotDownloader
             return false;
         }
 
+        private static bool IsFresh(DateTime expiry)
+            => DateTime.UtcNow < expiry;
+
         private void SetFor(TKey key, TValue value, TimeSpan ttl)
-            => _entries[key] = CacheEntry.Create(value, DateTime.UtcNow.Add(ttl));
+            => _entries[key] = (Value: value, Expiry: DateTime.UtcNow.Add(ttl));
 
         internal async Task<TValue> GetOrAddAsync(
             TKey key,

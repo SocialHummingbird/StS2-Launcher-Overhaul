@@ -11,6 +11,47 @@ internal static partial class LauncherDiagnostics
     private const string DiagnosticsDirectory = "diagnostics";
     private const string MissingDiagnosticValue = "<none>";
 
+    private readonly struct TimestampedReport
+    {
+        private readonly string _fileNamePrefix;
+        private readonly string _fallbackDirectory;
+        private readonly string _title;
+        private readonly string _generatedAtLabel;
+        private readonly Action<StringBuilder> _appendBody;
+
+        internal TimestampedReport(
+            string fileNamePrefix,
+            string fallbackDirectory,
+            string title,
+            string generatedAtLabel,
+            Action<StringBuilder> appendBody
+        )
+        {
+            _fileNamePrefix = fileNamePrefix;
+            _fallbackDirectory = fallbackDirectory;
+            _title = title;
+            _generatedAtLabel = generatedAtLabel;
+            _appendBody = appendBody;
+        }
+
+        internal string BuildText()
+            => BuildTimestampedText(_title, _generatedAtLabel, _appendBody);
+
+        internal string Write()
+        {
+            var fileName = $"{_fileNamePrefix}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.txt";
+            var targetPath = TryGetExternalDiagnosticsPath(fileName)
+                ?? Path.Combine(_fallbackDirectory, fileName);
+
+            var parent = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrWhiteSpace(parent))
+                Directory.CreateDirectory(parent);
+
+            File.WriteAllText(targetPath, BuildText());
+            return targetPath;
+        }
+    }
+
     internal readonly struct Snapshot
     {
         private enum LauncherStateDetail
@@ -19,60 +60,7 @@ internal static partial class LauncherDiagnostics
             Detailed,
         }
 
-        private readonly struct DiagnosticExtract
-        {
-            private DiagnosticExtract(
-                string title,
-                LauncherStateDetail stateDetail,
-                Action<StringBuilder, string> appendDiagnostics,
-                string footer
-            )
-            {
-                Title = title;
-                StateDetail = stateDetail;
-                AppendDiagnostics = appendDiagnostics;
-                Footer = footer;
-            }
-
-            private string Title { get; }
-            private LauncherStateDetail StateDetail { get; }
-            private Action<StringBuilder, string> AppendDiagnostics { get; }
-            private string Footer { get; }
-
-            internal static string BuildSummary(Snapshot snapshot)
-                => Summary().Build(snapshot);
-
-            internal static string BuildRawErrorLog(Snapshot snapshot)
-                => RawErrorLog().Build(snapshot);
-
-            private static DiagnosticExtract Summary()
-                => new(
-                    "=== LAST ERROR SUMMARY ===",
-                    LauncherStateDetail.Compact,
-                    AppendSummaryErrorDiagnostics,
-                    "=== END LAST ERROR SUMMARY ==="
-                );
-
-            private static DiagnosticExtract RawErrorLog()
-                => new(
-                    "=== RAW ERROR LOG ===",
-                    LauncherStateDetail.Detailed,
-                    AppendRawErrorDiagnostics,
-                    "=== END RAW ERROR LOG ==="
-                );
-
-            private string Build(Snapshot snapshot)
-            {
-                var sb = StartTimestampedText(Title, "UTC");
-                snapshot.AppendLauncherState(sb, StateDetail);
-                AppendPreviousLaunchPhase(sb, "Previous launch phase");
-                snapshot.AppendErrorDiagnostics(sb, AppendDiagnostics);
-                sb.AppendLine(Footer);
-                return sb.ToString();
-            }
-        }
-
-        private Snapshot(
+        internal Snapshot(
             string dataDir,
             string accountName,
             bool hasSavedCredentials,
@@ -96,42 +84,48 @@ internal static partial class LauncherDiagnostics
         private string SessionState { get; }
         private string FailReason { get; }
 
-        internal static Snapshot Create(
-            string dataDir,
-            string accountName,
-            bool hasSavedCredentials,
-            bool gameFilesReady,
-            string sessionState,
-            string failReason
-        )
-            => new(
-                dataDir,
-                accountName,
-                hasSavedCredentials,
-                gameFilesReady,
-                sessionState,
-                failReason
-            );
-
         internal string BuildDiagnosticsSummary()
-            => DiagnosticExtract.BuildSummary(this);
+            => BuildDiagnosticText(
+                "=== LAST ERROR SUMMARY ===",
+                LauncherStateDetail.Compact,
+                AppendSummaryErrorDiagnostics,
+                "=== END LAST ERROR SUMMARY ==="
+            );
 
         internal string BuildRawErrorLog()
-            => DiagnosticExtract.BuildRawErrorLog(this);
-
-        internal string WriteDiagnosticsReport()
-            => WriteTimestampedReport(
-                "sts2-launcher-diagnostics",
-                DataDir,
-                BuildDiagnosticsReport()
+            => BuildDiagnosticText(
+                "=== RAW ERROR LOG ===",
+                LauncherStateDetail.Detailed,
+                AppendRawErrorDiagnostics,
+                "=== END RAW ERROR LOG ==="
             );
 
-        private string BuildDiagnosticsReport()
-        {
-            var sb = StartTimestampedText("STS2 Launcher diagnostics", "Generated UTC");
-            AppendFullLauncherDiagnostics(sb);
-            return sb.ToString();
-        }
+        internal string WriteDiagnosticsReport()
+            => new TimestampedReport(
+                "sts2-launcher-diagnostics",
+                DataDir,
+                "STS2 Launcher diagnostics",
+                "Generated UTC",
+                AppendFullLauncherDiagnostics
+            ).Write();
+
+        private string BuildDiagnosticText(
+            string title,
+            LauncherStateDetail stateDetail,
+            Action<StringBuilder, string> appendDiagnostics,
+            string footer
+        )
+            => BuildTimestampedText(
+                title,
+                "UTC",
+                sb =>
+                {
+                    AppendLauncherState(sb, stateDetail);
+                    AppendPreviousLaunchPhase(sb, "Previous launch phase");
+                    AppendErrorDiagnostics(sb, appendDiagnostics);
+                    sb.AppendLine(footer);
+                }
+            );
 
         private void AppendLauncherState(StringBuilder sb, LauncherStateDetail detail)
         {
@@ -169,46 +163,31 @@ internal static partial class LauncherDiagnostics
     }
 
     internal static string WriteStartupRecoveryDiagnosticsReport(string dataDir)
-        => WriteTimestampedReport(
-            "sts2-startup-recovery-diagnostics",
-            dataDir,
-            BuildStartupRecoveryReport(dataDir)
-        );
-
-    private static string WriteTimestampedReport(
-        string fileNamePrefix,
-        string fallbackDirectory,
-        string report
-    )
-    {
-        var fileName = $"{fileNamePrefix}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.txt";
-        var targetPath = TryGetExternalDiagnosticsPath(fileName)
-            ?? Path.Combine(fallbackDirectory, fileName);
-
-        var parent = Path.GetDirectoryName(targetPath);
-        if (!string.IsNullOrWhiteSpace(parent))
-            Directory.CreateDirectory(parent);
-
-        File.WriteAllText(targetPath, report);
-        return targetPath;
-    }
+        => StartupRecoveryReport(dataDir).Write();
 
     internal static string BuildStartupRecoveryReport(string dataDir)
-    {
-        var sb = StartTimestampedText("STS2 startup recovery diagnostics", "Generated UTC");
-        AppendStartupRecoveryDiagnostics(sb, dataDir);
-        return sb.ToString();
-    }
+        => StartupRecoveryReport(dataDir).BuildText();
 
-    private static StringBuilder StartTimestampedText(
+    private static TimestampedReport StartupRecoveryReport(string dataDir)
+        => new(
+            "sts2-startup-recovery-diagnostics",
+            dataDir,
+            "STS2 startup recovery diagnostics",
+            "Generated UTC",
+            sb => AppendStartupRecoveryDiagnostics(sb, dataDir)
+        );
+
+    private static string BuildTimestampedText(
         string title,
-        string generatedAtLabel
+        string generatedAtLabel,
+        Action<StringBuilder> appendBody
     )
     {
         var sb = new StringBuilder();
         sb.AppendLine(title);
         sb.AppendLine($"{generatedAtLabel}: {DateTime.UtcNow:O}");
-        return sb;
+        appendBody(sb);
+        return sb.ToString();
     }
 
     private static void AppendLauncherPreferences(StringBuilder sb)

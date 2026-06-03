@@ -40,10 +40,10 @@ internal static partial class LauncherDiagnostics
         private string ContentText => Text ?? FallbackText ?? string.Empty;
 
         internal static LogcatCapture Captured(string text)
-            => new(text, fallbackText: null);
+            => new(text, null);
 
         internal static LogcatCapture Unavailable(string fallbackText)
-            => new(text: null, fallbackText);
+            => new(null, fallbackText);
 
         internal void AppendContent(StringBuilder sb)
             => sb.AppendLine(ContentText);

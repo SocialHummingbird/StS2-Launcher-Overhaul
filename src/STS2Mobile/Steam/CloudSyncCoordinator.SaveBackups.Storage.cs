@@ -7,80 +7,71 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveBackups
     {
-        private readonly struct BackupWriteResult
+        private readonly struct BackupWriteRequest
         {
-            private BackupWriteResult(string? path)
+            internal BackupWriteRequest(
+                string path,
+                string content,
+                string source,
+                string? fileNameOverride,
+                Action<string> onWritten
+            )
             {
                 Path = path;
+                Content = content;
+                Source = source;
+                FileNameOverride = fileNameOverride;
+                OnWritten = onWritten;
             }
 
-            private string? Path { get; }
-
-            internal static BackupWriteResult Skipped()
-                => new(path: null);
-
-            internal static BackupWriteResult WrittenTo(string path)
-                => new(path);
-
-            internal bool TryGetPath(out string path)
-            {
-                path = Path ?? string.Empty;
-                return Path != null;
-            }
+            internal string Path { get; }
+            internal string Content { get; }
+            internal string Source { get; }
+            internal string? FileNameOverride { get; }
+            internal Action<string> OnWritten { get; }
         }
 
         private static bool SaveContent(string path, string content, string source)
-            => SaveBackup(
+            => SaveBackup(new BackupWriteRequest(
                 path,
                 content,
                 source,
-                fileNameOverride: null,
+                null,
                 _ => PatchHelper.Log(SaveBackedUp(source, path))
-            );
+            ));
 
-        private static bool SaveBackup(
-            string path,
-            string content,
-            string source,
-            string? fileNameOverride,
-            Action<string> onWritten
-        )
+        private static bool SaveBackup(BackupWriteRequest request)
         {
             try
             {
-                var backup = TryWriteBackup(path, content, source, fileNameOverride);
-                if (!backup.TryGetPath(out var backupPath))
+                var backupPath = TryWriteBackup(request);
+                if (backupPath == null)
                     return false;
 
-                onWritten(backupPath);
+                request.OnWritten(backupPath);
                 return true;
             }
             catch (Exception ex)
             {
-                PatchHelper.Log(BackupFailed(source, path, ex));
+                PatchHelper.Log(BackupFailed(request.Source, request.Path, ex));
                 return false;
             }
         }
 
-        private static BackupWriteResult TryWriteBackup(
-            string path,
-            string content,
-            string source,
-            string? fileNameOverride
-        )
+        private static string? TryWriteBackup(BackupWriteRequest request)
         {
-            if (ShouldSkipBackup(content))
-                return BackupWriteResult.Skipped();
+            if (ShouldSkipBackup(request.Content))
+                return null;
 
-            var canonPath = NormalizeSavePath(path);
+            var canonPath = NormalizeSavePath(request.Path);
             var backupPath = BuildBackupPath(
                 GetProfileDir(canonPath),
-                fileNameOverride ?? Path.GetFileName(canonPath),
-                source
+                request.FileNameOverride ?? Path.GetFileName(canonPath),
+                request.Source
             );
 
-            File.WriteAllText(backupPath, content);
-            return BackupWriteResult.WrittenTo(backupPath);
+            File.WriteAllText(backupPath, request.Content);
+            return backupPath;
         }
 
         private static bool HasBackupAccess()

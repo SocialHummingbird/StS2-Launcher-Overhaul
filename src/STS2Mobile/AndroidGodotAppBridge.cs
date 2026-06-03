@@ -6,49 +6,78 @@ internal static class AndroidGodotAppBridge
 {
     private const string GetInstanceMethod = "getInstance";
     private const string GodotAppClass = "com.game.sts2launcher.GodotApp";
+    private const string HasStoragePermissionMethod = "hasStoragePermission";
     private const string JavaClassWrapper = "JavaClassWrapper";
+    private const string RequestStoragePermissionMethod = "requestStoragePermission";
     private const string WrapMethod = "wrap";
 
-    internal static void RestartApp() => GetInstance()?.Call("restartApp");
+    internal static void RestartApp() => CallVoid("restartApp");
 
-    internal static void LaunchGameOnRestart()
-        => GetInstance()?.Call("launchGameOnRestart");
+    internal static void LaunchGameOnRestart() => CallVoid("launchGameOnRestart");
 
     internal static void LaunchGameSafelyOnRestart()
-        => GetInstance()?.Call("launchGameSafelyOnRestart");
+        => CallVoid("launchGameSafelyOnRestart");
 
     internal static bool ShareTextFile(string path)
-        => (bool)(GetInstance()?.Call("shareTextFile", path) ?? false);
+        => AndroidBridgeDispatcher.Run(
+            () => (bool)(GetInstanceOnCurrentThread()?.Call("shareTextFile", path) ?? false)
+        );
 
     internal static string GetLogcatTail(int lineCount)
-        => (string)GetInstance()?.Call("getLogcatTail", lineCount);
+        => AndroidBridgeDispatcher.Run(
+            () => (string)GetInstanceOnCurrentThread()?.Call("getLogcatTail", lineCount)
+        );
 
     internal static string GetExternalFilesDirPath()
-        => (string)GetInstance()?.Call("getExternalFilesDirPath");
+        => AndroidBridgeDispatcher.Run(
+            () => (string)GetInstanceOnCurrentThread()?.Call("getExternalFilesDirPath")
+        );
 
     internal static string GetVersionName()
-        => (string)GetInstance()?.Call("getVersionName");
+        => AndroidBridgeDispatcher.Run(
+            () => (string)GetInstanceOnCurrentThread()?.Call("getVersionName")
+        );
 
     internal static long GetUsableSpaceBytes(string path)
-        => (long)(GetInstance()?.Call("getUsableSpaceBytes", path) ?? -1L);
+        => AndroidBridgeDispatcher.Run(
+            () => (long)(GetInstanceOnCurrentThread()?.Call("getUsableSpaceBytes", path) ?? -1L)
+        );
+
+    internal static bool HasStoragePermission()
+        => AndroidBridgeDispatcher.Run(
+            () => (bool)(GetInstanceOnCurrentThread()?.Call(HasStoragePermissionMethod) ?? false)
+        );
+
+    internal static void RequestStoragePermission()
+        => CallVoid(RequestStoragePermissionMethod);
 
     internal static bool TryGetInstance(out GodotObject godotApp)
     {
+        godotApp = AndroidBridgeDispatcher.Run(GetInstanceOnCurrentThread);
+        return godotApp != null;
+    }
+
+    private static void CallVoid(string method, params Variant[] arguments)
+        => AndroidBridgeDispatcher.Run(
+            () =>
+            {
+                GetInstanceOnCurrentThread()?.Call(method, arguments);
+                return true;
+            }
+        );
+
+    private static GodotObject GetInstanceOnCurrentThread()
+    {
         try
         {
-            godotApp = (GodotObject)GetGodotAppWrapper()
+            return (GodotObject)GetGodotAppWrapper()
                 .Call(GetInstanceMethod);
-            return godotApp != null;
         }
         catch
         {
-            godotApp = null;
-            return false;
+            return null;
         }
     }
-
-    private static GodotObject GetInstance() =>
-        TryGetInstance(out var godotApp) ? godotApp : null;
 
     private static GodotObject GetGodotAppWrapper()
     {

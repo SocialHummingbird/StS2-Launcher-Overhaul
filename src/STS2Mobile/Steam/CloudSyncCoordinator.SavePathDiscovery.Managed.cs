@@ -18,7 +18,11 @@ internal static partial class CloudSyncCoordinator
             try
             {
                 foreach (bool modded in ManagedSaveModes())
-                    CollectProfilePathsForMode(paths, store, modded);
+                {
+                    UserDataPathProvider.IsRunningModded = modded;
+                    foreach (var profileId in ProfileIds())
+                        AddManagedProfilePaths(paths, store, profileId);
+                }
             }
             finally
             {
@@ -32,17 +36,6 @@ internal static partial class CloudSyncCoordinator
             yield return true;
         }
 
-        private static void CollectProfilePathsForMode(
-            List<string> paths,
-            ISaveStore store,
-            bool modded
-        )
-        {
-            UserDataPathProvider.IsRunningModded = modded;
-            foreach (var profileId in ProfileIds())
-                AddManagedProfilePaths(paths, store, profileId);
-        }
-
         private static void AddManagedProfilePaths(
             List<string> paths,
             ISaveStore store,
@@ -53,28 +46,18 @@ internal static partial class CloudSyncCoordinator
             paths.Add(RunSaveManager.GetRunSavePath(profileId, CurrentRunSaveFile));
             paths.Add(RunSaveManager.GetRunSavePath(profileId, CurrentMultiplayerRunSaveFile));
             paths.Add(PrefsSaveManager.GetPrefsPath(profileId));
-            AddHistoryFiles(paths, store, profileId);
-        }
-
-        private static void AddHistoryFiles(
-            List<string> paths,
-            ISaveStore store,
-            int profileId
-        )
-        {
-            var historyDir = RunHistorySaveManager.GetHistoryPath(profileId);
-            AddHistoryFilePaths(
+            AddSelectedHistoryFilePaths(
                 paths,
-                historyDir,
-                SelectManagedRunHistoryFiles(GetHistoryFiles(historyDir, store))
+                store,
+                RunHistorySaveManager.GetHistoryPath(profileId),
+                SelectManagedRunHistoryFiles
             );
         }
 
         private static IEnumerable<string> SelectManagedRunHistoryFiles(IEnumerable<string> files)
-            => files
+            => SelectRunHistoryFiles(files)
                 .Where(f =>
-                    f.EndsWith(RunHistoryExtension)
-                    && !f.EndsWith(BackupExtension)
+                    !f.EndsWith(BackupExtension)
                     && !f.EndsWith(TempExtension)
                 )
                 .OrderByDescending(f => f)

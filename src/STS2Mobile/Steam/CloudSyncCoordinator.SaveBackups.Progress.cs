@@ -12,13 +12,13 @@ internal static partial class CloudSyncCoordinator
             if (!IsProgressSavePath(canonLowerPath))
                 return;
 
-            SaveBackup(
+            SaveBackup(new BackupWriteRequest(
                 canonLowerPath,
                 content,
                 source,
                 "progress.save",
                 backupPath => CompleteProgressBackup(source, path, backupPath)
-            );
+            ));
         }
 
         private static void CompleteProgressBackup(

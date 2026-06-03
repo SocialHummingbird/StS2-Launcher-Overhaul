@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
@@ -66,6 +67,18 @@ internal static partial class CloudSyncCoordinator
             return store.GetFilesInDirectory(historyDir);
         }
 
+        private static void AddSelectedHistoryFilePaths(
+            List<string> paths,
+            ISaveStore store,
+            string historyDir,
+            Func<IEnumerable<string>, IEnumerable<string>> selectFiles
+        )
+            => AddHistoryFilePaths(
+                paths,
+                historyDir,
+                selectFiles(GetHistoryFiles(historyDir, store))
+            );
+
         private static void AddHistoryFilePaths(
             List<string> paths,
             string historyDir,
@@ -75,5 +88,9 @@ internal static partial class CloudSyncCoordinator
             foreach (var file in files)
                 paths.Add($"{historyDir}/{file}");
         }
+
+        private static IEnumerable<string> SelectRunHistoryFiles(IEnumerable<string> files)
+            => files
+                .Where(f => f.EndsWith(RunHistoryExtension));
     }
 }

@@ -9,67 +9,6 @@ internal sealed partial class SteamKit2CloudSaveStore
     private const int DeleteThrottleDelayMs = 1000;
     private const int UploadThrottleDelayStepMs = 2000;
 
-    private readonly struct CloudRetryOperation
-    {
-        private CloudRetryOperation(
-            string name,
-            string path,
-            Func<int, int> throttleDelayMs,
-            Action run
-        )
-        {
-            Name = name;
-            Path = path;
-            ThrottleDelayMs = throttleDelayMs;
-            Run = run;
-        }
-
-        private string Name { get; }
-        private string Path { get; }
-        private Func<int, int> ThrottleDelayMs { get; }
-        private Action Run { get; }
-
-        internal static CloudRetryOperation Upload(string path, Action run)
-            => new(
-                "Upload",
-                path,
-                attempt => (attempt + 1) * UploadThrottleDelayStepMs,
-                run
-            );
-
-        internal static CloudRetryOperation Delete(string path, Action run)
-            => new(
-                "Delete",
-                path,
-                _ => DeleteThrottleDelayMs,
-                run
-            );
-
-        internal void RunWithRetry()
-        {
-            for (var attempt = 0; attempt < MaxCloudOperationAttempts; attempt++)
-            {
-                try
-                {
-                    Run();
-                    return;
-                }
-                catch (InvalidOperationException ex)
-                    when (IsTooManyPending(ex) && HasCloudOperationRetryRemaining(attempt))
-                {
-                    var delayMs = ThrottleDelayMs(attempt);
-                    PatchHelper.Log(OperationThrottled(Name, Path, delayMs));
-                    Thread.Sleep(delayMs);
-                }
-                catch (Exception ex)
-                {
-                    PatchHelper.Log(OperationFailed(Name, Path, ex));
-                    return;
-                }
-            }
-        }
-    }
-
     private void UploadWithRetry(
         string canonPath,
         byte[] bytes,
@@ -77,21 +16,50 @@ internal sealed partial class SteamKit2CloudSaveStore
         DateTimeOffset? timestamp = null
     )
         => RunCloudOperationWithRetry(
-            CloudRetryOperation.Upload(
-                canonPath,
-                () => UploadFileAsync(canonPath, bytes, batchId, timestamp)
-                    .GetAwaiter()
-                    .GetResult()
-            )
+            "Upload",
+            canonPath,
+            attempt => (attempt + 1) * UploadThrottleDelayStepMs,
+            () => UploadFileAsync(canonPath, bytes, batchId, timestamp)
+                .GetAwaiter()
+                .GetResult()
         );
 
     private void DeleteCloudFileWithRetry(string path)
         => RunCloudOperationWithRetry(
-            CloudRetryOperation.Delete(path, () => DeleteCloudFile(path))
+            "Delete",
+            path,
+            _ => DeleteThrottleDelayMs,
+            () => DeleteCloudFile(path)
         );
 
-    private static void RunCloudOperationWithRetry(CloudRetryOperation operation)
-        => operation.RunWithRetry();
+    private static void RunCloudOperationWithRetry(
+        string name,
+        string path,
+        Func<int, int> throttleDelayMs,
+        Action run
+    )
+    {
+        for (var attempt = 0; attempt < MaxCloudOperationAttempts; attempt++)
+        {
+            try
+            {
+                run();
+                return;
+            }
+            catch (InvalidOperationException ex)
+                when (IsTooManyPending(ex) && HasCloudOperationRetryRemaining(attempt))
+            {
+                var delayMs = throttleDelayMs(attempt);
+                PatchHelper.Log(OperationThrottled(name, path, delayMs));
+                Thread.Sleep(delayMs);
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(OperationFailed(name, path, ex));
+                return;
+            }
+        }
+    }
 
     private static bool HasCloudOperationRetryRemaining(int attempt)
         => attempt < MaxCloudOperationAttempts - 1;

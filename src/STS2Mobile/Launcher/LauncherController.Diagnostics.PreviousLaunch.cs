@@ -2,50 +2,37 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
-    private readonly struct PreviousLaunchWarning
-    {
-        private const string Status = "Previous game launch did not finish.";
-
-        private PreviousLaunchWarning(string? previousLaunchPhase)
-        {
-            PreviousLaunchPhase = previousLaunchPhase;
-        }
-
-        private string? PreviousLaunchPhase { get; }
-        private string PhaseSuffix => string.IsNullOrWhiteSpace(PreviousLaunchPhase)
-            ? ""
-            : $" Last phase: {PreviousLaunchPhase}.";
-
-        internal static PreviousLaunchWarning? Read()
-        {
-            var previousLaunchPhase = LauncherLaunchMarkers.ReadPreviousLaunchPhase();
-            return previousLaunchPhase == null
-                ? null
-                : new PreviousLaunchWarning(previousLaunchPhase);
-        }
-
-        internal void Apply(LauncherView view)
-        {
-            view.SetStatus(Status);
-            view.AppendLog(Status + PhaseSuffix);
-            view.AppendLog(
-                "The launcher is staying available so you are not trapped on a black screen."
-            );
-            view.AppendLog(
-                "Tap SHOW LAST ERROR to print the failure summary here, or EXPORT DIAGNOSTICS to share the full report."
-            );
-        }
-    }
+    private const string PreviousLaunchWarningStatus =
+        "Previous game launch did not finish.";
 
     private void ShowPreviousLaunchWarningIfNeeded()
     {
-        var warning = PreviousLaunchWarning.Read();
-        if (!warning.HasValue)
+        var previousLaunchPhase = LauncherLaunchMarkers.ReadPreviousLaunchPhase();
+        if (previousLaunchPhase == null)
             return;
 
-        warning.Value.Apply(_view);
+        ShowPreviousLaunchWarning(previousLaunchPhase);
         WriteAutomaticDiagnosticsOnce();
     }
+
+    private void ShowPreviousLaunchWarning(string? previousLaunchPhase)
+    {
+        _view.SetStatus(PreviousLaunchWarningStatus);
+        _view.AppendLog(
+            PreviousLaunchWarningStatus + PreviousLaunchPhaseSuffix(previousLaunchPhase)
+        );
+        _view.AppendLog(
+            "The launcher is staying available so you are not trapped on a black screen."
+        );
+        _view.AppendLog(
+            "Tap SHOW LAST ERROR to print the failure summary here, or EXPORT DIAGNOSTICS to share the full report."
+        );
+    }
+
+    private static string PreviousLaunchPhaseSuffix(string? previousLaunchPhase)
+        => string.IsNullOrWhiteSpace(previousLaunchPhase)
+            ? ""
+            : $" Last phase: {previousLaunchPhase}.";
 
     private void WriteAutomaticDiagnosticsOnce()
     {
@@ -53,10 +40,9 @@ internal sealed partial class LauncherController
             return;
 
         _automaticDiagnosticsWritten = true;
-        var path = TryGetDiagnosticsResult(
+        var path = TryWriteDiagnosticsReport(
             "Automatic diagnostics snapshot failed",
-            logFullException: false,
-            _model.WriteDiagnosticsReport
+            logFullException: false
         );
         if (path != null)
             _view.AppendLog($"Automatic diagnostics snapshot: {path}");

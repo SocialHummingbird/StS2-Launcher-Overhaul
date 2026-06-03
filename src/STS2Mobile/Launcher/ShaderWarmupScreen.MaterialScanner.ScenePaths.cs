@@ -11,11 +11,11 @@ internal sealed partial class ShaderWarmupScreen
         {
             VisitFiles(dirPath, (currentDir, fileName) =>
             {
-                var cleanName = fileName.Replace(RemapExtension, "");
-                if (!cleanName.EndsWith(SceneExtension))
+                var cleanName = CleanResourceFileName(fileName);
+                if (!IsSceneFile(cleanName))
                     return;
 
-                var cleanPath = ChildPath(currentDir, cleanName);
+                var cleanPath = CleanResourcePath(currentDir, cleanName);
                 if (ResourceLoader.Exists(cleanPath))
                     paths.Add(cleanPath);
             });

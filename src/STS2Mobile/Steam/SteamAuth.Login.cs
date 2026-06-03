@@ -59,37 +59,37 @@ internal sealed partial class SteamAuth
         var pollResponse = await PollForAuthResultAndMaintainConnectionAsync(authSession);
         Log($"Authentication successful for '{pollResponse.AccountName}'");
 
-        return LoginCredentials.Create(
+        return new LoginCredentials(
             pollResponse.AccountName,
             pollResponse.RefreshToken,
             pollResponse.NewGuardData ?? guardData
         );
     }
 
-    private async Task<AuthPollResult> PollForAuthResultAndMaintainConnectionAsync(
+    private Task<AuthPollResult> PollForAuthResultAndMaintainConnectionAsync(
         CredentialsAuthSession authSession
     )
-        => await WaitForTaskAndMaintainAuthConnectionAsync(
+        => WaitForTaskAndMaintainAuthConnectionAsync(
             authSession.PollingWaitForResultAsync(),
-            () => ShouldReconnectWhilePolling,
-            "Steam auth reconnect did not complete yet; will retry while polling auth result"
+            new AuthReconnectMonitor(
+                () => ShouldReconnectWhilePolling,
+                "Steam auth reconnect did not complete yet; will retry while polling auth result"
+            )
         );
 
     private bool ShouldReconnectWhilePolling => NeedsAuthReconnect && !_waitingForAuthCode;
 
     private bool CanRetryAuthAfterTransientFailure(Exception ex, int attempt)
         => attempt < CredentialAuthRetryCount
-            && (AuthConnectionWasLost || IsTransientAndroidAuthFailure(ex));
-
-    private bool AuthConnectionWasLost
-        => RequiresPersistentAuthConnection && (_needsReconnectForAuth || !_connectedGate.IsSet);
+            && (NeedsAuthReconnect || IsTransientAndroidAuthFailure(ex));
 
     private async Task PrepareForAuthRetryAsync()
     {
-        if (ContinueWebApiAuthWithoutPersistentConnection(
-                "Retrying Android WebAPI credential auth without CM reconnect"
-            ))
+        if (!RequiresPersistentAuthConnection)
         {
+            ContinueWebApiAuthWithoutPersistentConnection(
+                "Retrying Android WebAPI credential auth without CM reconnect"
+            );
             return;
         }
 

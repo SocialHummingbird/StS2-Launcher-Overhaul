@@ -6,55 +6,48 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private readonly struct ManualPullResult
+    private readonly struct ManualPullPathResult
     {
-        private ManualPullResult(int downloaded, int skipped)
+        private ManualPullPathResult(int downloaded, int skipped)
         {
             Downloaded = downloaded;
             Skipped = skipped;
         }
 
-        private int Downloaded { get; }
-        private int Skipped { get; }
+        internal int Downloaded { get; }
+        internal int Skipped { get; }
 
-        internal string CompleteMessage()
-            => PullComplete(Downloaded, Skipped);
+        internal static ManualPullPathResult DownloadedPath()
+            => new(1, 0);
 
-        internal ManualPullResult Add(ManualPullResult result)
-            => new(Downloaded + result.Downloaded, Skipped + result.Skipped);
+        internal static ManualPullPathResult SkippedMissingCloud()
+            => new(0, 1);
 
-        internal static ManualPullResult DownloadedOne()
-            => new(downloaded: 1, skipped: 0);
-
-        internal static ManualPullResult Empty()
-            => new(downloaded: 0, skipped: 0);
-
-        internal static ManualPullResult SkippedOne()
-            => new(downloaded: 0, skipped: 1);
-
-        internal static ManualPullResult Failed()
-            => new(downloaded: 0, skipped: 0);
+        internal static ManualPullPathResult Failed()
+            => new(0, 0);
     }
 
-    private static async Task<ManualPullResult> RunManualPullDownloadsAsync(
+    private static async Task<string> RunManualPullDownloadsAsync(
         ManualSyncContext sync,
-        IEnumerable<string> paths
+        IReadOnlyCollection<string> paths
     )
     {
-        var total = ManualPullResult.Empty();
+        var downloaded = 0;
+        var skipped = 0;
         foreach (var path in paths)
         {
             var result = await PullManualPathAsync(sync, path);
-            total = total.Add(result);
+            downloaded += result.Downloaded;
+            skipped += result.Skipped;
 
             if (sync.BudgetExceeded(ManualPullBudgetExceeded))
                 break;
         }
 
-        return total;
+        return PullComplete(downloaded, skipped);
     }
 
-    private static async Task<ManualPullResult> PullManualPathAsync(
+    private static async Task<ManualPullPathResult> PullManualPathAsync(
         ManualSyncContext sync,
         string path
     )
@@ -62,13 +55,13 @@ internal static partial class CloudSyncCoordinator
         try
         {
             if (!sync.CloudFileExists(path))
-                return ManualPullResult.SkippedOne();
+                return ManualPullPathResult.SkippedMissingCloud();
 
             PatchHelper.Log(PullDownloading(path));
             string content = await sync.ReadCloudContentAsync(path, ManualPullDownloadOperation);
             await sync.WriteLocalContentFromCloudAsync(path, content);
             PatchHelper.Log(PullWrote(path, content.Length));
-            return ManualPullResult.DownloadedOne();
+            return ManualPullPathResult.DownloadedPath();
         }
         catch (TimeoutException)
         {
@@ -79,6 +72,6 @@ internal static partial class CloudSyncCoordinator
             PatchHelper.Log(PullFailed(path, ex));
         }
 
-        return ManualPullResult.Failed();
+        return ManualPullPathResult.Failed();
     }
 }

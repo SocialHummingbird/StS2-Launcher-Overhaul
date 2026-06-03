@@ -11,8 +11,10 @@ internal sealed partial class LauncherSteamSession
     {
         try
         {
-            _connection = CreateSavedCredentialConnection();
-            return await VerifyOwnershipForSessionAsync(_connection, verifyingOwnership);
+            return await UseConnectionAndVerifyOwnershipAsync(
+                CreateSavedCredentialConnection(),
+                verifyingOwnership
+            );
         }
         catch (Exception ex)
         {
@@ -23,11 +25,8 @@ internal sealed partial class LauncherSteamSession
 
     internal async Task<string> EnsureConnectedAsync()
     {
-        if (!_credentialStore.TryCreateConnection(out var savedConnection))
+        if (!TryGetOrCreateSavedConnection(out var connection))
             return "No saved credentials";
-
-        var connection = _connection
-            ?? savedConnection;
 
         try
         {
@@ -48,5 +47,12 @@ internal sealed partial class LauncherSteamSession
             return connection;
 
         throw new InvalidOperationException("No saved credentials");
+    }
+
+    private bool TryGetOrCreateSavedConnection(out SteamConnection connection)
+    {
+        connection = _connection;
+        return connection != null
+            || _credentialStore.TryCreateConnection(out connection);
     }
 }

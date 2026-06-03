@@ -13,7 +13,7 @@ internal sealed partial class SteamAuth : IDisposable, IAuthenticator
 {
     internal readonly struct LoginCredentials
     {
-        private LoginCredentials(string accountName, string refreshToken, string guardData)
+        internal LoginCredentials(string accountName, string refreshToken, string guardData)
         {
             AccountName = accountName;
             RefreshToken = refreshToken;
@@ -23,13 +23,6 @@ internal sealed partial class SteamAuth : IDisposable, IAuthenticator
         private string AccountName { get; }
         private string RefreshToken { get; }
         private string GuardData { get; }
-
-        internal static LoginCredentials Create(
-            string accountName,
-            string refreshToken,
-            string guardData
-        )
-            => new(accountName, refreshToken, guardData);
 
         internal SteamConnection CreateConnection()
             => new(AccountName, RefreshToken);

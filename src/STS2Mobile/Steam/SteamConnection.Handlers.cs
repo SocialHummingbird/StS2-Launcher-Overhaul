@@ -13,8 +13,8 @@ internal sealed partial class SteamConnection
     internal Client CreateCdnClient()
         => new(_client);
 
-    internal async Task<IReadOnlyCollection<Server>> LoadCdnServersAsync(CancellationToken ct)
-        => await ContentServerDirectoryService.LoadAsync(_client.Configuration, ct);
+    internal Task<IReadOnlyCollection<Server>> LoadCdnServersAsync(CancellationToken ct)
+        => ContentServerDirectoryService.LoadAsync(_client.Configuration, ct);
 
     internal async Task<byte[]> GetDepotDecryptionKeyAsync(uint depotId)
     {

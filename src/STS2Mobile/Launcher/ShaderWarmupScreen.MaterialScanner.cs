@@ -31,7 +31,7 @@ internal sealed partial class ShaderWarmupScreen
             foreach (var (path, mat) in materials)
             {
                 var shaderKey = GetShaderKey(mat);
-                unique.TryAdd(shaderKey, WarmupMaterial.Create(path, mat));
+                unique.TryAdd(shaderKey, new WarmupMaterial(path, mat));
             }
 
             PatchHelper.Log(Message.UniqueShaders(materials.Count, unique.Count));
@@ -60,5 +60,19 @@ internal sealed partial class ShaderWarmupScreen
                 return $"particle#{mat.GetRid()}";
             return mat.ResourcePath ?? mat.GetRid().ToString();
         }
+
+        private static string CleanResourceFileName(string fileName)
+            => fileName.Replace(RemapExtension, "");
+
+        private static string CleanResourcePath(string dirPath, string cleanName)
+            => ChildPath(dirPath, cleanName);
+
+        private static bool IsSceneFile(string cleanName)
+            => cleanName.EndsWith(SceneExtension);
+
+        private static bool IsSupportedMaterialFile(string cleanName)
+            => cleanName.EndsWith(TresExtension)
+                || cleanName.EndsWith(GodotShaderExtension)
+                || cleanName.EndsWith(MaterialExtension);
     }
 }

@@ -5,11 +5,11 @@ namespace STS2Mobile.Steam;
 internal sealed partial class SteamKit2CloudSaveStore
 {
     void ICloudSaveStore.BeginSaveBatch()
-        => BeginCollectingSaveBatch();
+        => _saveBatch.BeginCollecting();
 
     void ICloudSaveStore.EndSaveBatch()
     {
-        var files = EndCollectingSaveBatch();
+        var files = _saveBatch.EndCollecting();
         if (files.Count == 0)
             return;
 

@@ -10,7 +10,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
     private static HttpContent CreateResponseContent(
         JsonElement root,
         int status,
-        string requestDescription,
+        BridgeRequestContext requestContext,
         CancellationToken cancellationToken
     )
     {
@@ -19,11 +19,11 @@ internal sealed partial class AndroidJavaHttpMessageHandler
             return CreateResponseContentFromBodyFile(
                 bodyFile,
                 status,
-                requestDescription,
+                requestContext.Description,
                 cancellationToken
             );
 
-        return CreateResponseContentFromBase64Body(root, requestDescription);
+        return CreateResponseContentFromBase64Body(root, requestContext.Description);
     }
 
     private static JsonElement? GetBodyFileElement(JsonElement root)

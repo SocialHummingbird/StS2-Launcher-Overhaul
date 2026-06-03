@@ -61,12 +61,16 @@ internal sealed partial class DepotDownloader
 
     private static bool ApplyReplacementPatches(
         byte[] content,
-        IEnumerable<PckTextReplacement> replacements
+        IEnumerable<(string Search, string Replacement)> replacements
     )
     {
         var patched = false;
         foreach (var replacement in replacements)
-            patched |= replacement.Apply(content);
+            patched |= ReplaceEntryBytes(
+                content,
+                replacement.Search,
+                replacement.Replacement
+            );
 
         return patched;
     }

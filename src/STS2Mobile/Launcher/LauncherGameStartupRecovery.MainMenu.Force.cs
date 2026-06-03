@@ -20,14 +20,14 @@ internal static partial class LauncherGameStartupRecovery
         if (await Task.WhenAny(loadMainMenu, timeout) != loadMainMenu)
         {
             PatchHelper.Log($"Forced LoadMainMenu timed out after {forceTimeoutMs}ms");
-            SetRecoveryStatus(startupStatus, "Forced main menu load timed out.");
+            LauncherStartupStatus.Set(startupStatus, "Forced main menu load timed out.");
             return false;
         }
 
         await loadMainMenu;
         var scene = InspectCurrentScene(game);
-        PatchHelper.Log(scene.ForcedLoadResultMessage());
-        SetRecoveryStatus(startupStatus, scene.ForcedLoadStatus());
-        return scene.IsMainMenuReady();
+        PatchHelper.Log(ForcedLoadResultMessage(scene));
+        LauncherStartupStatus.Set(startupStatus, ForcedLoadStatus(scene));
+        return scene.IsMainMenu;
     }
 }

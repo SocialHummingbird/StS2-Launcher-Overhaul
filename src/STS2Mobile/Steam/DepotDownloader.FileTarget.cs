@@ -14,7 +14,7 @@ internal sealed partial class DepotDownloader
 
     private readonly struct DepotFileTarget
     {
-        private DepotFileTarget(
+        internal DepotFileTarget(
             string fileName,
             string filePath,
             string? fileDir,
@@ -29,26 +29,14 @@ internal sealed partial class DepotDownloader
             LockKey = lockKey;
         }
 
-        private string FileName { get; }
+        internal string FileName { get; }
         private string FilePath { get; }
         private string? FileDir { get; }
         private string TempPath { get; }
         private string LockKey { get; }
 
-        internal static DepotFileTarget Create(
-            string fileName,
-            string filePath,
-            string? fileDir,
-            string tempPath,
-            string lockKey
-        )
-            => new(fileName, filePath, fileDir, tempPath, lockKey);
-
         internal SemaphoreSlim GetWriteLock()
             => _fileWriteLocks.GetOrAdd(LockKey, _ => new SemaphoreSlim(1, 1));
-
-        internal void SetCurrentDownloadFile(Action<string> setCurrentFile)
-            => setCurrentFile(FileName);
 
         internal bool TryCreateDirectoryTarget(DepotManifest.FileData file)
         {
@@ -122,7 +110,7 @@ internal sealed partial class DepotDownloader
         if (fileDir != null)
             Directory.CreateDirectory(fileDir);
 
-        return DepotFileTarget.Create(
+        return new DepotFileTarget(
             fileName,
             filePath,
             fileDir,

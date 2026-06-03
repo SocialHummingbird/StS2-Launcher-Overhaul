@@ -50,7 +50,7 @@ internal static partial class LauncherStartupFlow
             LauncherStartupStatus.Set(Status, status);
         }
 
-        internal void SetStatus(string status)
+        private void SetStatus(string status)
         {
             LauncherStartupStatus.Set(Status, status);
         }
@@ -58,25 +58,58 @@ internal static partial class LauncherStartupFlow
         internal void ApplySaveMode()
             => Mode.ApplySaveMode();
 
-        internal void LogShaderWarmupSkip()
-            => PatchHelper.Log(Mode.ShaderWarmupSkipLog);
-
-        internal void SetShaderWarmupSkipStatus()
-            => SetStatus(Mode.ShaderWarmupSkipStatus);
+        internal void ShowShaderWarmupSkipped()
+        {
+            PatchHelper.Log(Mode.ShaderWarmupSkipLog);
+            SetStatus(Mode.ShaderWarmupSkipStatus);
+        }
 
         internal void AddChild(Node child)
             => GameNode.AddChild(child);
 
-        internal CanvasLayer ShowRecoveryControls()
+        private CanvasLayer ShowRecoveryControls()
             => LauncherStartupRecoveryControlPanel.Show(GameNode);
 
-        internal void WriteSceneSnapshot(string reason)
+        private void WriteSceneSnapshot(string reason)
             => LauncherDiagnostics.WriteStartupSceneSnapshot(GameNode, reason);
 
-        internal Task StartGameStartupAsync()
+        private Task StartGameStartupAsync()
             => LauncherStartupFlow.StartGameStartupAsync(Game);
 
-        internal Task HandleWatchdogAsync(CanvasLayer recoveryControls)
+        internal async Task RunGameStartupWithRecoveryAsync()
+        {
+            SetPhase(PhaseGameStartup, "Starting game scene...");
+            PatchHelper.Log("Invoking NGame.GameStartup");
+
+            var recoveryControls = ShowRecoveryControls();
+            WriteSceneSnapshot("before NGame.GameStartup");
+            var startupTask = StartGameStartupAsync();
+
+            if (await RecoverIfWatchdogTimedOutAsync(startupTask, recoveryControls))
+                return;
+
+            await startupTask;
+            PatchHelper.Log("NGame.GameStartup completed");
+            if (!await EnsureMainMenuReadyAsync())
+                return;
+
+            MarkStartupObserved(recoveryControls);
+        }
+
+        private async Task<bool> RecoverIfWatchdogTimedOutAsync(
+            Task startupTask,
+            CanvasLayer recoveryControls
+        )
+        {
+            var watchdogTask = Task.Delay(StartupWatchdogMs);
+            if (await Task.WhenAny(startupTask, watchdogTask) != watchdogTask)
+                return false;
+
+            await HandleWatchdogAsync(recoveryControls);
+            return true;
+        }
+
+        private Task HandleWatchdogAsync(CanvasLayer recoveryControls)
             => LauncherGameStartupRecovery.HandleWatchdogAsync(
                 Game,
                 GameNode,
@@ -85,10 +118,10 @@ internal static partial class LauncherStartupFlow
                 StartupWatchdogMs
             );
 
-        internal Task<bool> EnsureMainMenuReadyAsync()
+        private Task<bool> EnsureMainMenuReadyAsync()
             => LauncherGameStartupRecovery.EnsureMainMenuReadyAsync(Game, GameNode, Status);
 
-        internal void MarkStartupObserved(CanvasLayer recoveryControls)
+        private void MarkStartupObserved(CanvasLayer recoveryControls)
             => LauncherGameStartupRecovery.MarkStartupObserved(
                 recoveryControls,
                 Status,

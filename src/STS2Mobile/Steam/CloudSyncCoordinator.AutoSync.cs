@@ -15,7 +15,7 @@ internal static partial class CloudSyncCoordinator
         private readonly ISaveStore _local;
         private readonly ICloudSaveStore _cloud;
 
-        private AutoSyncContext(ISaveStore local, ICloudSaveStore cloud, string path)
+        internal AutoSyncContext(ISaveStore local, ICloudSaveStore cloud, string path)
         {
             _local = local;
             _cloud = cloud;
@@ -24,13 +24,10 @@ internal static partial class CloudSyncCoordinator
 
         private string Path { get; }
 
-        internal static AutoSyncContext Create(ISaveStore local, ICloudSaveStore cloud, string path)
-            => new(local, cloud, path);
-
-        internal bool CloudFileExists()
+        private bool CloudFileExists()
             => _cloud.FileExists(Path);
 
-        internal string? ReadLocalContent()
+        private string? ReadLocalContent()
             => LocalFileExists() ? _local.ReadFile(Path) : null;
 
         internal Task<string> ReadCloudContentAsync(string operation)
@@ -64,6 +61,17 @@ internal static partial class CloudSyncCoordinator
 
         internal void LogSyncFailed(Exception ex)
             => PatchHelper.Log(SyncFailed(Path, ex));
+
+        private async Task PullCloudOnlyFileAsync()
+        {
+            string cloud = await ReadCloudContentAsync(PullCloudFileOperation);
+            await PullCloudContentAsync(cloud, PullDownloaded, backUpLocal: false);
+        }
+
+        private void PushLocalOnlyFile(string localContent)
+        {
+            PushLocalContent(localContent, cloudContent: null, PushUploaded);
+        }
 
         internal async Task PullCloudContentAsync(
             string content,
@@ -100,23 +108,23 @@ internal static partial class CloudSyncCoordinator
 
         internal async Task RunAsync()
         {
-            var local = LocalFileExists();
+            var localContent = ReadLocalContent();
             var cloud = CloudFileExists();
 
-            if (cloud && local)
+            if (cloud && localContent != null)
             {
-                await SyncExistingFileAsync(this);
+                await SyncExistingFileAsync(this, localContent);
                 return;
             }
 
             if (cloud)
             {
-                await PullFileAsync(this);
+                await PullCloudOnlyFileAsync();
                 return;
             }
 
-            if (local)
-                await PushFileAsync(this);
+            if (localContent != null)
+                PushLocalOnlyFile(localContent);
         }
     }
 
@@ -124,7 +132,7 @@ internal static partial class CloudSyncCoordinator
     // Progress/run files compare durable progress; non-progress conflicts default to cloud.
     internal static async Task AutoSyncFileAsync(ISaveStore local, ICloudSaveStore cloud, string path)
     {
-        var sync = AutoSyncContext.Create(local, cloud, path);
+        var sync = new AutoSyncContext(local, cloud, path);
         try
         {
             await sync.RunAsync();

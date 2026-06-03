@@ -13,39 +13,26 @@ internal static partial class CloudSyncCoordinator
             Local,
         }
 
-        private readonly struct NumericComparison
-        {
-            private NumericComparison(int local, int cloud)
-            {
-                Local = local;
-                Cloud = cloud;
-            }
-
-            private int Local { get; }
-            private int Cloud { get; }
-
-            internal static NumericComparison Of(int local, int cloud)
-                => new(local, cloud);
-
-            internal SaveWinner Winner()
-            {
-                if (Local == Cloud)
-                    return SaveWinner.None;
-
-                return Local > Cloud ? SaveWinner.Local : SaveWinner.Cloud;
-            }
-        }
-
-        private static SaveWinner FirstNumericWinner(params NumericComparison[] comparisons)
+        private static SaveWinner FirstNumericWinner(
+            params (int Local, int Cloud)[] comparisons
+        )
         {
             foreach (var comparison in comparisons)
             {
-                var winner = comparison.Winner();
+                var winner = NumericWinner(comparison.Local, comparison.Cloud);
                 if (winner != SaveWinner.None)
                     return winner;
             }
 
             return SaveWinner.None;
+        }
+
+        private static SaveWinner NumericWinner(int local, int cloud)
+        {
+            if (local == cloud)
+                return SaveWinner.None;
+
+            return local > cloud ? SaveWinner.Local : SaveWinner.Cloud;
         }
 
         private enum SaveKind

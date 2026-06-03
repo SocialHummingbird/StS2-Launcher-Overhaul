@@ -74,7 +74,7 @@ internal sealed partial class SteamCredentialStore
 
     internal void Save(string accountName, string refreshToken, string guardData)
     {
-        _credentials = SteamCredentials.Create(accountName, refreshToken, guardData);
+        _credentials = new SteamCredentials(accountName, refreshToken, guardData);
 
         try
         {

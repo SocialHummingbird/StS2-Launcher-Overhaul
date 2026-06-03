@@ -11,7 +11,7 @@ internal static partial class CloudSyncCoordinator
                 local,
                 cloud,
                 (localRoot, cloudRoot) => FirstNumericWinner(
-                    NumericComparison.Of(
+                    (
                         CountRunFloors(localRoot),
                         CountRunFloors(cloudRoot)
                     )

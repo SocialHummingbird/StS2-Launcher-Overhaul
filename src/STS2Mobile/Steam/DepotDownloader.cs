@@ -31,17 +31,16 @@ internal sealed partial class DepotDownloader : IDisposable
     {
         _connection = connection;
         _gameDir = Path.Combine(dataDir, "game");
-        _stateStore = DownloadStateStore.Create(this, Path.Combine(dataDir, "download_state"));
+        _stateStore = new DownloadStateStore(this, Path.Combine(dataDir, "download_state"));
         _cdnClient = connection.CreateCdnClient();
     }
 
-    internal async Task DownloadAsync(CancellationToken ct = default)
-        => await RunWithSuspendedIdleTimeoutAsync(() => DownloadCoreAsync(ct));
+    internal Task DownloadAsync(CancellationToken ct = default)
+        => RunWithSuspendedIdleTimeoutAsync(() => DownloadCoreAsync(ct));
 
     private async Task DownloadCoreAsync(CancellationToken ct)
     {
         Directory.CreateDirectory(_gameDir);
-        _stateStore.Prepare();
 
         Log(
             $"Downloader mode: android={OperatingSystem.IsAndroid()}, "
@@ -49,16 +48,14 @@ internal sealed partial class DepotDownloader : IDisposable
         );
         Log("Fetching app info...");
 
-        var depots = await GetMainAppDepotsAsync();
-        if (depots.Count == 0)
-            throw new Exception("No downloadable depots found");
+        var depots = await PrepareAndGetMainAppDepotsAsync(requireAny: true);
 
         _servers = await LoadCdnServersAsync(ct);
 
         foreach (var depot in depots)
         {
             ct.ThrowIfCancellationRequested();
-            await depot.DownloadAsync(this, ct);
+            await DownloadDepotAsync(depot, ct);
         }
 
         Log("All game files downloaded!");

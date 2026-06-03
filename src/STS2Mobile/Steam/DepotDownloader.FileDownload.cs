@@ -24,7 +24,7 @@ internal sealed partial class DepotDownloader
         await writeLock.WaitAsync(ct);
         try
         {
-            target.SetCurrentDownloadFile(file => _currentDownloadFile = file);
+            _currentDownloadFile = target.FileName;
             ForceReportProgress();
 
             if (target.TryCreateDirectoryTarget(file))

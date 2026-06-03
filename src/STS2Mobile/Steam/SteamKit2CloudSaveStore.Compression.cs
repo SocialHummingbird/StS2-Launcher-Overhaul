@@ -7,10 +7,10 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
-    private const string CloudZipDataEntryName = "data";
-
     private readonly struct CloudUploadPayload
     {
+        private const string ZipDataEntryName = "data";
+
         private CloudUploadPayload(byte[] data, bool compressed)
         {
             Data = data;
@@ -20,11 +20,33 @@ internal sealed partial class SteamKit2CloudSaveStore
         private byte[] Data { get; }
         private bool Compressed { get; }
 
-        internal static CloudUploadPayload Raw(byte[] data)
+        internal static CloudUploadPayload FromRaw(byte[] raw)
+        {
+            var zipped = CreateSingleEntryZip(raw);
+            if (zipped.Length >= raw.Length)
+                return Raw(raw);
+
+            return CompressedData(zipped);
+        }
+
+        private static CloudUploadPayload Raw(byte[] data)
             => new(data, compressed: false);
 
-        internal static CloudUploadPayload CompressedData(byte[] data)
+        private static CloudUploadPayload CompressedData(byte[] data)
             => new(data, compressed: true);
+
+        private static byte[] CreateSingleEntryZip(byte[] raw)
+        {
+            using var ms = new MemoryStream();
+            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                var entry = archive.CreateEntry(ZipDataEntryName, CompressionLevel.Optimal);
+                using var entryStream = entry.Open();
+                entryStream.Write(raw, 0, raw.Length);
+            }
+
+            return ms.ToArray();
+        }
 
         internal void LogUploadStart(string path, uint rawSize)
         {
@@ -45,15 +67,6 @@ internal sealed partial class SteamKit2CloudSaveStore
             => Data.Length;
     }
 
-    private static CloudUploadPayload CompressCloudFile(byte[] raw)
-    {
-        var zipped = CreateSingleEntryCloudZip(raw);
-        if (zipped.Length >= raw.Length)
-            return CloudUploadPayload.Raw(raw);
-
-        return CloudUploadPayload.CompressedData(zipped);
-    }
-
     private static byte[] DecompressCloudFile(byte[] zipData)
     {
         using var archive = new ZipArchive(new MemoryStream(zipData), ZipArchiveMode.Read);
@@ -65,18 +78,5 @@ internal sealed partial class SteamKit2CloudSaveStore
         using var output = new MemoryStream();
         stream.CopyTo(output);
         return output.ToArray();
-    }
-
-    private static byte[] CreateSingleEntryCloudZip(byte[] raw)
-    {
-        using var ms = new MemoryStream();
-        using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            var entry = archive.CreateEntry(CloudZipDataEntryName, CompressionLevel.Optimal);
-            using var entryStream = entry.Open();
-            entryStream.Write(raw, 0, raw.Length);
-        }
-
-        return ms.ToArray();
     }
 }

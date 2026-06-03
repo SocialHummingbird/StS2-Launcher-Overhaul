@@ -13,7 +13,7 @@ internal static partial class LauncherDiagnostics
 
     private readonly struct DiagnosticDirectory
     {
-        private DiagnosticDirectory(string label, string path, int maxDepth)
+        internal DiagnosticDirectory(string label, string path, int maxDepth)
         {
             Label = label;
             Path = path;
@@ -23,13 +23,6 @@ internal static partial class LauncherDiagnostics
         private string Label { get; }
         private string Path { get; }
         private int MaxDepth { get; }
-
-        internal static DiagnosticDirectory Create(
-            string label,
-            string path,
-            int maxDepth
-        )
-            => new(label, path, maxDepth);
 
         internal void AppendListing(StringBuilder sb)
         {
@@ -90,17 +83,17 @@ internal static partial class LauncherDiagnostics
         string dataDir
     )
     {
-        yield return DiagnosticDirectory.Create(
+        yield return new DiagnosticDirectory(
             "Game directory",
             Path.Combine(dataDir, LauncherStorageNames.GameDirectory),
             2
         );
-        yield return DiagnosticDirectory.Create(
+        yield return new DiagnosticDirectory(
             "Download state",
             Path.Combine(dataDir, LauncherStorageNames.DownloadStateDirectory),
             1
         );
-        yield return DiagnosticDirectory.Create(
+        yield return new DiagnosticDirectory(
             "Mono publish root",
             Path.Combine(
                 dataDir,

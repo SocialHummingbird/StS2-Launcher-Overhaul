@@ -25,16 +25,16 @@ internal sealed partial class LauncherView
         var dismissKeyboard = new Action<InputEvent>(DismissKeyboard);
         var shell = BuildShell(parent, scale, dismissKeyboard);
         _parent = parent;
-        _panel = shell.PanelControl();
-        _panelBaseY = shell.PanelBaseY();
+        _panel = shell.Panel;
+        _panelBaseY = shell.Panel.Position.Y;
         _scale = scale;
-        var primary = shell.BuildPrimaryColumn(scale);
-        _statusLabel = primary.Status();
-        Login = primary.LoginSection();
-        Code = primary.CodeSection();
-        Download = primary.DownloadSection();
-        Actions = primary.ActionSection();
-        Log = shell.BuildLogColumn(scale, dismissKeyboard);
+        var primary = BuildPrimaryColumn(scale, shell.RootColumns);
+        _statusLabel = primary.Status;
+        Login = primary.Login;
+        Code = primary.Code;
+        Download = primary.Download;
+        Actions = primary.Actions;
+        Log = BuildLogColumn(scale, shell.RootColumns, dismissKeyboard);
     }
 
     internal void SetStatus(string text) => _statusLabel.Text = text;

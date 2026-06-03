@@ -1,7 +1,7 @@
-using STS2Mobile.Steam;
 using System;
 using System.Threading.Tasks;
 using STS2Mobile.Patches;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -9,6 +9,15 @@ internal sealed partial class LauncherSteamSession
 {
     internal bool HasOwnershipMarker()
         => HasOwnershipMarkerForCurrentAccount();
+
+    private async Task<string> UseConnectionAndVerifyOwnershipAsync(
+        SteamConnection connection,
+        Action verifyingOwnership
+    )
+    {
+        _connection = connection;
+        return await VerifyOwnershipForSessionAsync(connection, verifyingOwnership);
+    }
 
     private async Task<string> VerifyOwnershipForSessionAsync(
         SteamConnection connection,
@@ -35,5 +44,4 @@ internal sealed partial class LauncherSteamSession
             "Steam denied app access token; ownership/session may be invalid"
         );
     }
-
 }

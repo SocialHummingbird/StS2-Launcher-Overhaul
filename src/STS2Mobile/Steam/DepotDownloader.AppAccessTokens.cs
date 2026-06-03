@@ -7,8 +7,11 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct ProductInfoApp
     {
-        private ProductInfoApp(uint appId)
+        private readonly DepotDownloader _owner;
+
+        private ProductInfoApp(DepotDownloader owner, uint appId)
         {
+            _owner = owner;
             AppId = appId;
         }
 
@@ -22,73 +25,71 @@ internal sealed partial class DepotDownloader
             : "";
 
         internal static Task<KeyValue> GetMainDepotsSectionAsync(DepotDownloader owner)
-            => new ProductInfoApp(SteamCloudApp.AppId)
-                .GetRequiredDepotsSectionAsync(owner);
+            => new ProductInfoApp(owner, SteamCloudApp.AppId)
+                .GetRequiredDepotsSectionAsync();
 
-        internal static Task<KeyValue> TryGetReferencedDepotsSectionAsync(
+        internal static Task<KeyValue> TryGetReferencedManifestSectionAsync(
             DepotDownloader owner,
-            uint appId
+            uint appId,
+            uint depotId
         )
-            => new ProductInfoApp(appId)
-                .TryGetDepotsSectionAsync(owner);
+            => new ProductInfoApp(owner, appId)
+                .TryGetManifestSectionAsync(depotId);
 
-        private async Task<KeyValue> GetRequiredDepotsSectionAsync(DepotDownloader owner)
+        private async Task<KeyValue> GetRequiredDepotsSectionAsync()
         {
-            var appInfo = await GetRequiredInfoAsync(owner);
+            var appInfo = await GetRequiredInfoAsync();
             return GetDepotsSection(appInfo);
         }
 
-        private async Task<KeyValue> TryGetDepotsSectionAsync(DepotDownloader owner)
+        private async Task<KeyValue> TryGetManifestSectionAsync(uint depotId)
         {
-            var appInfo = await GetInfoAsync(owner);
-            return appInfo == null
-                ? KeyValue.Invalid
-                : GetDepotsSection(appInfo);
+            var appInfo = await GetInfoAsync();
+            if (appInfo == null)
+                return KeyValue.Invalid;
+
+            var depots = GetDepotsSection(appInfo);
+            var depot = depots[depotId.ToString()];
+            return depot != KeyValue.Invalid ? depot["manifests"] : KeyValue.Invalid;
         }
 
-        private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo> GetRequiredInfoAsync(
-            DepotDownloader owner
-        )
+        private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo> GetRequiredInfoAsync()
         {
-            var appInfo = await GetInfoAsync(owner);
+            var appInfo = await GetInfoAsync();
             if (appInfo == null)
                 throw new System.Exception(AppInfoUnavailable());
 
             return appInfo;
         }
 
-        private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> GetInfoAsync(
-            DepotDownloader owner
-        )
+        private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> GetInfoAsync()
         {
-            if (owner._appInfoCache.TryGetValue(AppId, out var cached))
+            if (_owner._appInfoCache.TryGetValue(AppId, out var cached))
                 return cached;
 
-            var appInfo = await FetchInfoAsync(owner);
+            var appInfo = await FetchInfoAsync();
             if (appInfo != null)
-                owner._appInfoCache[AppId] = appInfo;
+                _owner._appInfoCache[AppId] = appInfo;
 
             return appInfo;
         }
 
-        private async Task<ulong> GetAccessTokenAsync(DepotDownloader owner)
+        private async Task<ulong> GetAccessTokenAsync()
         {
-            var token = await owner._connection.GetAppAccessTokenOrPublicAsync(
+            var token = await _owner._connection.GetAppAccessTokenOrPublicAsync(
                 AppId,
                 AccessTokenDenied()
             );
             if (token == 0)
-                owner.Log(PublicAccessTokenFallback());
+                _owner.Log(PublicAccessTokenFallback());
 
             return token;
         }
 
-        private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> FetchInfoAsync(
-            DepotDownloader owner
-        )
-            => await owner._connection.GetAppInfoAsync(
+        private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> FetchInfoAsync()
+            => await _owner._connection.GetAppInfoAsync(
                 AppId,
-                await GetAccessTokenAsync(owner)
+                await GetAccessTokenAsync()
             );
 
         private KeyValue GetDepotsSection(

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using SteamKit2.Internal;
 
 namespace STS2Mobile.Steam;
 
@@ -7,62 +6,58 @@ internal sealed partial class SteamKit2CloudSaveStore
 {
     private readonly struct SaveBatchFile
     {
-        private SaveBatchFile(string canonPath, byte[] bytes)
+        internal SaveBatchFile(string canonPath, byte[] bytes)
         {
             CanonPath = canonPath;
             Bytes = bytes;
         }
 
-        private string CanonPath { get; }
-        private byte[] Bytes { get; }
-
-        internal static SaveBatchFile Create(string canonPath, byte[] bytes)
-            => new(canonPath, bytes);
-
-        internal void AddTo(CCloud_BeginAppUploadBatch_Request request)
-            => request.files_to_upload.Add(CanonPath);
-
-        internal void Upload(SteamKit2CloudSaveStore store, ulong batchId)
-            => store.UploadWithRetry(CanonPath, Bytes, batchId);
+        internal string CanonPath { get; }
+        internal byte[] Bytes { get; }
     }
 
-    private readonly object _saveBatchLock = new();
-    private readonly List<SaveBatchFile> _saveBatchFiles = new();
-    private bool _saveBatchCollecting;
-
-    private void BeginCollectingSaveBatch()
+    private sealed class SaveBatchBuffer
     {
-        lock (_saveBatchLock)
+        private readonly object _lock = new();
+        private readonly List<SaveBatchFile> _files = new();
+        private bool _collecting;
+
+        internal void BeginCollecting()
         {
-            _saveBatchCollecting = true;
-            _saveBatchFiles.Clear();
+            lock (_lock)
+            {
+                _collecting = true;
+                _files.Clear();
+            }
+        }
+
+        internal bool TryCollect(string canonPath, byte[] bytes)
+        {
+            lock (_lock)
+            {
+                if (!_collecting)
+                    return false;
+
+                _files.Add(new SaveBatchFile(canonPath, bytes));
+                return true;
+            }
+        }
+
+        internal List<SaveBatchFile> EndCollecting()
+        {
+            lock (_lock)
+            {
+                _collecting = false;
+
+                if (_files.Count == 0)
+                    return new List<SaveBatchFile>();
+
+                var files = new List<SaveBatchFile>(_files);
+                _files.Clear();
+                return files;
+            }
         }
     }
 
-    private bool TryCollectSaveBatch(string canonPath, byte[] bytes)
-    {
-        lock (_saveBatchLock)
-        {
-            if (!_saveBatchCollecting)
-                return false;
-
-            _saveBatchFiles.Add(SaveBatchFile.Create(canonPath, bytes));
-            return true;
-        }
-    }
-
-    private List<SaveBatchFile> EndCollectingSaveBatch()
-    {
-        lock (_saveBatchLock)
-        {
-            _saveBatchCollecting = false;
-
-            if (_saveBatchFiles.Count == 0)
-                return new List<SaveBatchFile>();
-
-            var files = new List<SaveBatchFile>(_saveBatchFiles);
-            _saveBatchFiles.Clear();
-            return files;
-        }
-    }
+    private readonly SaveBatchBuffer _saveBatch = new();
 }

@@ -1302,6 +1302,42 @@ public class GodotApp extends GodotActivity {
 	}
 
 	public String httpRequest(String method, String urlString, String headersJson, String bodyBase64, int timeoutMs) {
+		if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+			return httpRequestOffMainThread(method, urlString, headersJson, bodyBase64, timeoutMs);
+		}
+
+		return performHttpRequest(method, urlString, headersJson, bodyBase64, timeoutMs);
+	}
+
+	private String httpRequestOffMainThread(
+			String method,
+			String urlString,
+			String headersJson,
+			String bodyBase64,
+			int timeoutMs) {
+		final java.util.concurrent.atomic.AtomicReference<String> result =
+			new java.util.concurrent.atomic.AtomicReference<>();
+		final java.util.concurrent.CountDownLatch completed = new java.util.concurrent.CountDownLatch(1);
+		Thread worker = new Thread(() -> {
+			try {
+				result.set(performHttpRequest(method, urlString, headersJson, bodyBase64, timeoutMs));
+			} finally {
+				completed.countDown();
+			}
+		}, "STS2-http-bridge");
+		worker.setDaemon(true);
+		worker.start();
+
+		try {
+			completed.await();
+			return result.get();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			return "{\"error\":\"HTTP bridge request interrupted\"}";
+		}
+	}
+
+	private String performHttpRequest(String method, String urlString, String headersJson, String bodyBase64, int timeoutMs) {
 		HttpURLConnection connection = null;
 		try {
 			URL url = new URL(urlString);

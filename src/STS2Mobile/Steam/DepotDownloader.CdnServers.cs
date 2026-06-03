@@ -12,7 +12,7 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct CdnServerAttempt
     {
-        private CdnServerAttempt(Server server, int index)
+        internal CdnServerAttempt(Server server, int index)
         {
             Server = server;
             Index = index;
@@ -22,9 +22,6 @@ internal sealed partial class DepotDownloader
         private int Index { get; }
         private int DisplayNumber => Index + 1;
         private bool HasRetryRemaining => Index < MaxRetries - 1;
-
-        internal static CdnServerAttempt Create(Server server, int index)
-            => new(server, index);
 
         internal Task<int> DownloadChunkAsync(
             DepotDownloader owner,
@@ -137,7 +134,7 @@ internal sealed partial class DepotDownloader
     private IEnumerable<CdnServerAttempt> CdnDownloadAttempts()
     {
         for (int attemptIndex = 0; attemptIndex < MaxRetries; attemptIndex++)
-            yield return CdnServerAttempt.Create(GetCurrentServer(), attemptIndex);
+            yield return new CdnServerAttempt(GetCurrentServer(), attemptIndex);
     }
 
     private void MarkServerFailed(Server server)

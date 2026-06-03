@@ -12,7 +12,7 @@ internal partial class LauncherModel
         => CreateDiagnosticsSnapshot().BuildRawErrorLog();
 
     private LauncherDiagnostics.Snapshot CreateDiagnosticsSnapshot()
-        => LauncherDiagnostics.Snapshot.Create(
+        => new(
             _dataDir,
             _credentialStore.AccountNameOrEmpty(),
             _credentialStore.HasUsableCredentials(),

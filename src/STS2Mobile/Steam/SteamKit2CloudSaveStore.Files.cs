@@ -64,7 +64,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         );
         _cache.Set(canonPath, bytes.Length, truncatedNow);
 
-        if (TryCollectSaveBatch(canonPath, bytes))
+        if (_saveBatch.TryCollect(canonPath, bytes))
             return;
 
         var ts = truncatedNow;

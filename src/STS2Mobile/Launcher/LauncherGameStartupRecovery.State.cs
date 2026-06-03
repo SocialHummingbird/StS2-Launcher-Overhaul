@@ -32,56 +32,49 @@ internal static partial class LauncherGameStartupRecovery
         private string? SnapshotReason { get; }
         private string EffectiveSnapshotReason => SnapshotReason ?? Reason;
 
-        private static RecoveryStateUpdate Create(
-            string reason,
-            string statusMessage,
-            string? snapshotReason = null
-        )
-            => new(reason, statusMessage, snapshotReason);
-
         internal static RecoveryStateUpdate GameStartupFailed(Exception ex)
         {
             var root = ex.GetBaseException();
             var message = $"{root.GetType().Name}: {root.Message}";
-            return Create(
+            return new RecoveryStateUpdate(
                 $"game startup failed: {message}",
                 $"Game startup failed: {message}"
             );
         }
 
         internal static RecoveryStateUpdate SettingsAndSavesFailed(Exception ex)
-            => Create(
+            => new(
                 "settings and saves failed",
                 $"Settings/save init failed: {ex.GetBaseException().Message}"
             );
 
         internal static RecoveryStateUpdate MainMenuGuardFailed()
-            => Create(
+            => new(
                 MainMenuGuardFailureReason,
                 "Main menu did not load. Use recovery controls below."
             );
 
         internal static RecoveryStateUpdate StartupObserved()
-            => Create(
+            => new(
                 StartupObservationReason,
                 "Game startup returned. Recovery controls remain briefly.",
                 "after NGame.GameStartup returned"
             );
 
         internal static RecoveryStateUpdate WatchdogStalled()
-            => Create(
+            => new(
                 WatchdogStalledReason,
                 "Game startup stalled. Attempting main menu recovery..."
             );
 
         internal static RecoveryStateUpdate WatchdogRecovered()
-            => Create(
+            => new(
                 WatchdogRecoveredReason,
                 "Main menu recovered after startup stall. Recovery controls remain briefly."
             );
 
         internal static RecoveryStateUpdate MainMenuRecoveryFailed()
-            => Create(
+            => new(
                 MainMenuRecoveryFailureReason,
                 "Game startup stalled and main menu recovery failed. Use recovery controls below."
             );
@@ -103,22 +96,8 @@ internal static partial class LauncherGameStartupRecovery
         RecoveryStateUpdate update
     )
     {
-        RecordStartupState(gameNode, startupStatus, update);
-        LauncherStartupRecoveryControlPanel.Show(gameNode);
-    }
-
-    private static void RecordStartupState(
-        Node gameNode,
-        Label startupStatus,
-        RecoveryStateUpdate update
-    )
-    {
         update.Apply(gameNode, startupStatus);
-    }
-
-    private static void SetRecoveryStatus(Label startupStatus, string status)
-    {
-        LauncherStartupStatus.Set(startupStatus, status);
+        LauncherStartupRecoveryControlPanel.Show(gameNode);
     }
 
     private static void MarkRecoveredStartup(
@@ -128,7 +107,7 @@ internal static partial class LauncherGameStartupRecovery
         RecoveryStateUpdate update
     )
     {
-        RecordStartupState(gameNode, startupStatus, update);
+        update.Apply(gameNode, startupStatus);
         ScheduleCleanup(recoveryControls, startupStatus);
     }
 

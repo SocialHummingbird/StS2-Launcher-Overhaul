@@ -7,7 +7,7 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherLaunchMarkers
 {
     internal static string? ReadPreviousLaunchPhase()
-        => ReadStartupPhaseQuietly();
+        => ReadStartupPhase(logFailures: false);
 
     internal static void WriteStartupPhase(string phase)
         => TryWriteMarker(
@@ -17,9 +17,7 @@ internal static partial class LauncherLaunchMarkers
         );
 
     internal static string? ReadStartupPhase()
-    {
-        return ReadStartupPhaseWithLogging();
-    }
+        => ReadStartupPhase(logFailures: true);
 
     internal static void ClearStartupMarker()
         => TryDeleteMarker(
@@ -28,13 +26,7 @@ internal static partial class LauncherLaunchMarkers
             out _
         );
 
-    private static string? ReadStartupPhaseQuietly()
-        => ReadStartupPhase(failureMessage: null);
-
-    private static string? ReadStartupPhaseWithLogging()
-        => ReadStartupPhase("Failed to read startup marker");
-
-    private static string? ReadStartupPhase(string? failureMessage)
+    private static string? ReadStartupPhase(bool logFailures)
     {
         try
         {
@@ -42,8 +34,8 @@ internal static partial class LauncherLaunchMarkers
         }
         catch (Exception ex)
         {
-            if (failureMessage != null)
-                PatchHelper.Log($"{failureMessage}: {ex.Message}");
+            if (logFailures)
+                PatchHelper.Log($"Failed to read startup marker: {ex.Message}");
             return null;
         }
     }
