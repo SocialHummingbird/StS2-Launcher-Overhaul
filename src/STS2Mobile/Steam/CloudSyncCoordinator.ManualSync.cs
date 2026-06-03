@@ -166,28 +166,34 @@ internal static partial class CloudSyncCoordinator
         => RunManualSyncAsync(
             accountName,
             refreshToken,
-            ManualSyncPlan<int>.Create(
-                sync => sync.DiscoverLocalPaths(),
-                PushStarting,
-                (sync, paths) => SaveBackups.CloudBeforeManualPushAsync(sync, paths),
-                PushBackedUpCloudFiles,
-                (sync, paths) => Task.FromResult(RunManualPushUploads(sync, paths)),
-                PushComplete
-            )
+            ManualPushPlan()
         );
 
     internal static Task ManualPullAllAsync(string accountName, string refreshToken)
         => RunManualSyncAsync(
             accountName,
             refreshToken,
-            ManualSyncPlan<ManualPullResult>.Create(
-                sync => sync.DiscoverCloudPaths(),
-                PullStarting,
-                (sync, paths) => SaveBackups.LocalBeforeManualPullAsync(sync, paths),
-                PullBackedUpLocalFiles,
-                RunManualPullDownloadsAsync,
-                result => result.CompleteMessage()
-            )
+            ManualPullPlan()
+        );
+
+    private static ManualSyncPlan<int> ManualPushPlan()
+        => ManualSyncPlan<int>.Create(
+            sync => sync.DiscoverLocalPaths(),
+            PushStarting,
+            (sync, paths) => SaveBackups.CloudBeforeManualPushAsync(sync, paths),
+            PushBackedUpCloudFiles,
+            RunManualPushUploadsAsync,
+            PushComplete
+        );
+
+    private static ManualSyncPlan<ManualPullResult> ManualPullPlan()
+        => ManualSyncPlan<ManualPullResult>.Create(
+            sync => sync.DiscoverCloudPaths(),
+            PullStarting,
+            (sync, paths) => SaveBackups.LocalBeforeManualPullAsync(sync, paths),
+            PullBackedUpLocalFiles,
+            RunManualPullDownloadsAsync,
+            result => result.CompleteMessage()
         );
 
     private static async Task RunManualSyncAsync<TResult>(

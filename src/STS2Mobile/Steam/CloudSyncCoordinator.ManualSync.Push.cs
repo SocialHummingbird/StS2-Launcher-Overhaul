@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
@@ -14,6 +15,12 @@ internal static partial class CloudSyncCoordinator
 
     private static int RunManualPushUploads(ManualSyncContext sync, IEnumerable<string> paths)
         => sync.RunCloudBatch(() => QueueManualPushPaths(sync, paths));
+
+    private static Task<int> RunManualPushUploadsAsync(
+        ManualSyncContext sync,
+        IReadOnlyCollection<string> paths
+    )
+        => Task.FromResult(RunManualPushUploads(sync, paths));
 
     private static int QueueManualPushPaths(ManualSyncContext sync, IEnumerable<string> paths)
     {

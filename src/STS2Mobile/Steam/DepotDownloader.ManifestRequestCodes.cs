@@ -20,6 +20,11 @@ internal sealed partial class DepotDownloader
 
         internal static ManifestRequestCodeKey Public(uint depotId, ulong manifestId)
             => new(depotId, manifestId, PublicDepotBranch);
+
+        internal string RequestFailedMessage()
+            => $"Failed to get manifest request code for depot {DepotId}, "
+                + $"manifest {ManifestId}, branch '{Branch}'. "
+                + "Ensure the account owns this app.";
     }
 
     private static readonly TimeSpan ManifestRequestCodeTtl = TimeSpan.FromMinutes(5);
@@ -39,10 +44,7 @@ internal sealed partial class DepotDownloader
             code => code != 0
         );
         if (code == 0)
-            throw new Exception(
-                $"Failed to get manifest request code for depot {depotId}. "
-                    + "Ensure the account owns this app."
-            );
+            throw new Exception(key.RequestFailedMessage());
 
         return code;
     }

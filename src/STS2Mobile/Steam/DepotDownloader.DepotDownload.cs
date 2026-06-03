@@ -31,13 +31,25 @@ internal sealed partial class DepotDownloader
                 Key
             );
 
-        internal Task DownloadFilesAsync(
+        private Task DownloadFilesAsync(
             DepotDownloader owner,
             DepotFilePlan filePlan,
             uint depotId,
             CancellationToken ct
         )
             => filePlan.DownloadAsync(owner, depotId, Key, ct);
+
+        internal async Task ApplyFilePlanAsync(
+            DepotDownloader owner,
+            DepotFilePlan filePlan,
+            uint depotId,
+            CancellationToken ct
+        )
+        {
+            filePlan.ApplyDeletes(owner);
+            filePlan.ResetProgress(owner);
+            await DownloadFilesAsync(owner, filePlan, depotId, ct);
+        }
     }
 
     private async Task DownloadDepotAsync(uint depotId, ulong manifestId, CancellationToken ct)
@@ -56,9 +68,7 @@ internal sealed partial class DepotDownloader
 
         var filePlan = BuildDepotFileLists(oldManifest, manifest, isUpdate);
 
-        filePlan.ApplyDeletes(this);
-        filePlan.ResetProgress(this);
-        await access.DownloadFilesAsync(this, filePlan, depotId, ct);
+        await access.ApplyFilePlanAsync(this, filePlan, depotId, ct);
 
         _stateStore.SaveManifest(depotId, manifest, manifestId);
         Log($"Depot {depotId} complete");
