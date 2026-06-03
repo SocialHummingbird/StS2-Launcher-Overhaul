@@ -6,34 +6,11 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveComparison
     {
-        internal readonly struct SaveWinner
+        internal enum SaveWinner
         {
-            private enum Winner
-            {
-                None,
-                Cloud,
-                Local,
-            }
-
-            private readonly Winner _winner;
-
-            private SaveWinner(Winner winner)
-            {
-                _winner = winner;
-            }
-
-            internal bool HasWinner => _winner != Winner.None;
-            internal bool CloudWins => _winner == Winner.Cloud;
-            internal bool LocalWins => _winner == Winner.Local;
-
-            internal static SaveWinner Cloud()
-                => new(Winner.Cloud);
-
-            internal static SaveWinner Local()
-                => new(Winner.Local);
-
-            internal static SaveWinner None()
-                => new(Winner.None);
+            None,
+            Cloud,
+            Local,
         }
 
         private readonly struct NumericComparison
@@ -44,8 +21,8 @@ internal static partial class CloudSyncCoordinator
                 Cloud = cloud;
             }
 
-            internal int Local { get; }
-            internal int Cloud { get; }
+            private int Local { get; }
+            private int Cloud { get; }
 
             internal static NumericComparison Of(int local, int cloud)
                 => new(local, cloud);
@@ -53,9 +30,9 @@ internal static partial class CloudSyncCoordinator
             internal SaveWinner Winner()
             {
                 if (Local == Cloud)
-                    return SaveWinner.None();
+                    return SaveWinner.None;
 
-                return Local > Cloud ? SaveWinner.Local() : SaveWinner.Cloud();
+                return Local > Cloud ? SaveWinner.Local : SaveWinner.Cloud;
             }
         }
 
@@ -64,11 +41,11 @@ internal static partial class CloudSyncCoordinator
             foreach (var comparison in comparisons)
             {
                 var winner = comparison.Winner();
-                if (winner.HasWinner)
+                if (winner != SaveWinner.None)
                     return winner;
             }
 
-            return SaveWinner.None();
+            return SaveWinner.None;
         }
 
         private enum SaveKind
@@ -114,13 +91,13 @@ internal static partial class CloudSyncCoordinator
                     SaveKind.Progress => CompareProgress(localContent, cloudContent),
                     SaveKind.CurrentRun => CompareCurrentRun(localContent, cloudContent),
                     // History files have unique filenames; prefs have no progress concept.
-                    _ => SaveWinner.None(),
+                    _ => SaveWinner.None,
                 };
             }
             catch (Exception ex)
             {
                 PatchHelper.Log(ProgressComparisonFailed(path, ex));
-                return SaveWinner.None();
+                return SaveWinner.None;
             }
         }
 

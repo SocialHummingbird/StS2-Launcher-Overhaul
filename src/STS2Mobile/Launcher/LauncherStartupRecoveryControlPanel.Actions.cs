@@ -23,7 +23,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         private string FailureTitle { get; }
         private Func<string> Run { get; }
 
-        internal static RecoveryDetailAction Create(
+        private static RecoveryDetailAction Create(
             string logAction,
             string failureTitle,
             Func<string> run
@@ -34,18 +34,14 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
             => Create(
                 "diagnostics export",
                 "Diagnostics export failed",
-                () => StartupRecoveryDiagnosticsAction
-                    .ForCurrentDataDir()
-                    .ExportAndShare()
+                ExportStartupRecoveryDiagnostics
             );
 
         internal static RecoveryDetailAction CopyRawErrorLog()
             => Create(
                 "raw error log copy",
                 "Raw error log copy failed",
-                () => StartupRecoveryDiagnosticsAction
-                    .ForCurrentDataDir()
-                    .CopyRawErrorLog()
+                CopyStartupRecoveryRawErrorLog
             );
 
         internal void Apply(Label detail)
@@ -98,6 +94,12 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         private static string RawErrorLogCopiedMessage(int length)
             => $"Raw error log copied to clipboard.\n\nLength: {length:N0} characters";
     }
+
+    private static string ExportStartupRecoveryDiagnostics()
+        => StartupRecoveryDiagnosticsAction.ForCurrentDataDir().ExportAndShare();
+
+    private static string CopyStartupRecoveryRawErrorLog()
+        => StartupRecoveryDiagnosticsAction.ForCurrentDataDir().CopyRawErrorLog();
 
     private void ExportDiagnostics()
         => RecoveryDetailAction.ExportDiagnostics().Apply(_detail);

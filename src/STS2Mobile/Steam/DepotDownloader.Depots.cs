@@ -78,7 +78,5 @@ internal sealed partial class DepotDownloader
     }
 
     private Task<ulong?> GetDepotManifestIdAsync(KeyValue depot, uint depotId)
-        => DepotManifestLookup
-            .Create(depot, depotId)
-            .GetPublicManifestIdAsync(this);
+        => DepotManifestLookup.GetPublicManifestIdAsync(depot, depotId, this);
 }

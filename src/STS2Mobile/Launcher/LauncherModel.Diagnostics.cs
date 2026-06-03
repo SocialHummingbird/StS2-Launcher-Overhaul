@@ -3,13 +3,13 @@ namespace STS2Mobile.Launcher;
 internal partial class LauncherModel
 {
     internal string WriteDiagnosticsReport()
-        => LauncherDiagnostics.WriteLauncherDiagnosticsReport(CreateDiagnosticsSnapshot());
+        => CreateDiagnosticsSnapshot().WriteDiagnosticsReport();
 
     internal string BuildDiagnosticsSummaryForDisplay()
-        => LauncherDiagnostics.BuildLauncherDiagnosticsSummary(CreateDiagnosticsSnapshot());
+        => CreateDiagnosticsSnapshot().BuildDiagnosticsSummary();
 
     internal string BuildRawErrorLogForClipboard()
-        => LauncherDiagnostics.BuildLauncherRawErrorLog(CreateDiagnosticsSnapshot());
+        => CreateDiagnosticsSnapshot().BuildRawErrorLog();
 
     private LauncherDiagnostics.Snapshot CreateDiagnosticsSnapshot()
         => LauncherDiagnostics.Snapshot.Create(

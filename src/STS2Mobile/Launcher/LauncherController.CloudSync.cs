@@ -50,19 +50,41 @@ internal sealed partial class LauncherController
         internal void Confirm(LauncherView view, Action onConfirmed)
             => view.ShowConfirmation(ConfirmationMessage, onConfirmed);
 
-        internal Task RunWithTimeoutAsync()
+        internal async Task ExecuteAsync(
+            LauncherView view,
+            Action<Action> runOnMainThread
+        )
+        {
+            runOnMainThread(() => MarkStarted(view));
+
+            try
+            {
+                await RunWithTimeoutAsync();
+                runOnMainThread(() => MarkCompleted(view));
+            }
+            catch (Exception ex)
+            {
+                runOnMainThread(() => MarkFailed(view, ex));
+            }
+            finally
+            {
+                runOnMainThread(() => view.SetPushPullDisabled(false));
+            }
+        }
+
+        private Task RunWithTimeoutAsync()
             => RunCloudSyncWithTimeoutAsync(Run, Name);
 
-        internal void MarkStarted(LauncherView view)
+        private void MarkStarted(LauncherView view)
         {
             view.SetPushPullDisabled(true);
             view.AppendLog(StartMessage);
         }
 
-        internal void MarkCompleted(LauncherView view)
+        private void MarkCompleted(LauncherView view)
             => view.AppendLog(CompleteMessage);
 
-        internal void MarkFailed(LauncherView view, Exception ex)
+        private void MarkFailed(LauncherView view, Exception ex)
         {
             PatchHelper.Log($"[Cloud] {Name} sync failed: {ex.Message}");
             view.AppendLog($"{Name} failed: {ex.Message}");
@@ -79,27 +101,8 @@ internal sealed partial class LauncherController
         => RequestCloudSync(CloudSyncRequest.Pull());
 
     private void RequestCloudSync(CloudSyncRequest request)
-        => request.Confirm(_view, () => _ = ExecuteCloudSyncAsync(request));
-
-    private async Task ExecuteCloudSyncAsync(CloudSyncRequest request)
-    {
-        SetCloudSyncBusy(request);
-
-        try
-        {
-            await request.RunWithTimeoutAsync();
-            _runOnMainThread(() => request.MarkCompleted(_view));
-        }
-        catch (Exception ex)
-        {
-            _runOnMainThread(() => request.MarkFailed(_view, ex));
-        }
-        finally
-        {
-            _runOnMainThread(() => _view.SetPushPullDisabled(false));
-        }
-    }
-
-    private void SetCloudSyncBusy(CloudSyncRequest request)
-        => _runOnMainThread(() => request.MarkStarted(_view));
+        => request.Confirm(
+            _view,
+            () => _ = request.ExecuteAsync(_view, _runOnMainThread)
+        );
 }

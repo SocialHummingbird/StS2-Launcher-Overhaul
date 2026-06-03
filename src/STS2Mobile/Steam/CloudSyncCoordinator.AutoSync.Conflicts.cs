@@ -41,7 +41,7 @@ internal static partial class CloudSyncCoordinator
     )
     {
         var winner = sync.GetExplicitWinner(localContent, cloudContent);
-        if (winner.CloudWins)
+        if (winner == SaveComparison.SaveWinner.Cloud)
         {
             await sync.PullCloudContentAsync(
                 cloudContent,
@@ -51,7 +51,7 @@ internal static partial class CloudSyncCoordinator
             return;
         }
 
-        if (winner.LocalWins)
+        if (winner == SaveComparison.SaveWinner.Local)
         {
             sync.PushLocalContent(
                 localContent,

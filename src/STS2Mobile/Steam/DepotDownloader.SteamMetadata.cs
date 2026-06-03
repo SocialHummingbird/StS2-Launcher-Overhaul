@@ -14,23 +14,7 @@ internal sealed partial class DepotDownloader
 
     private async Task<List<DepotManifestReference>> GetMainAppDepotsAsync()
     {
-        var app = ProductInfoApp.Main();
-        var appInfo = await app.GetRequiredInfoAsync(this);
-        var depotSection = app.GetDepotsSection(appInfo);
+        var depotSection = await ProductInfoApp.GetMainDepotsSectionAsync(this);
         return await ParseDepotsAsync(depotSection);
-    }
-
-    private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> GetAppInfoAsync(
-        ProductInfoApp app
-    )
-    {
-        if (_appInfoCache.TryGetValue(app.AppId, out var cached))
-            return cached;
-
-        var appInfo = await app.FetchInfoAsync(this);
-        if (appInfo != null)
-            _appInfoCache[app.AppId] = appInfo;
-
-        return appInfo;
     }
 }

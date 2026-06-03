@@ -9,7 +9,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 {
     private readonly struct RecoveryButton
     {
-        private RecoveryButton(string label, Action run)
+        internal RecoveryButton(string label, Action run)
         {
             Label = label;
             Run = run;
@@ -17,9 +17,6 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
         private string Label { get; }
         private Action Run { get; }
-
-        internal static RecoveryButton Create(string label, Action run)
-            => new(label, run);
 
         internal Button CreateControl()
         {
@@ -96,11 +93,11 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private IEnumerable<RecoveryButton> RecoveryActions()
     {
-        yield return RecoveryButton.Create("RETURN TO LAUNCHER", AndroidGodotAppBridge.RestartApp);
-        yield return RecoveryButton.Create("RESTART WITH SAFE LAUNCH", RestartWithSafeLaunch);
-        yield return RecoveryButton.Create("EXPORT STARTUP DIAGNOSTICS", ExportDiagnostics);
-        yield return RecoveryButton.Create("COPY RAW ERROR LOG", CopyRawErrorLog);
-        yield return RecoveryButton.Create("HIDE RECOVERY CONTROLS", () => Layer.QueueFree());
+        yield return new RecoveryButton("RETURN TO LAUNCHER", AndroidGodotAppBridge.RestartApp);
+        yield return new RecoveryButton("RESTART WITH SAFE LAUNCH", RestartWithSafeLaunch);
+        yield return new RecoveryButton("EXPORT STARTUP DIAGNOSTICS", ExportDiagnostics);
+        yield return new RecoveryButton("COPY RAW ERROR LOG", CopyRawErrorLog);
+        yield return new RecoveryButton("HIDE RECOVERY CONTROLS", () => Layer.QueueFree());
     }
 
     private static void RestartWithSafeLaunch()

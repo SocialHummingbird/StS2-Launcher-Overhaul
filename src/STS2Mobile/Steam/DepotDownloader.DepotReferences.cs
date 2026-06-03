@@ -16,10 +16,15 @@ internal sealed partial class DepotDownloader
         private KeyValue Depot { get; }
         private uint DepotId { get; }
 
-        internal static DepotManifestLookup Create(KeyValue depot, uint depotId)
-            => new(depot, depotId);
+        internal static Task<ulong?> GetPublicManifestIdAsync(
+            KeyValue depot,
+            uint depotId,
+            DepotDownloader owner
+        )
+            => new DepotManifestLookup(depot, depotId)
+                .GetPublicManifestIdAsync(owner);
 
-        internal async Task<ulong?> GetPublicManifestIdAsync(DepotDownloader owner)
+        private async Task<ulong?> GetPublicManifestIdAsync(DepotDownloader owner)
         {
             var manifests = await GetManifestSectionAsync(owner);
             return manifests == KeyValue.Invalid
@@ -48,12 +53,11 @@ internal sealed partial class DepotDownloader
         )
         {
             owner.Log($"Depot {DepotId} references app {otherAppId}, fetching...");
-            var app = ProductInfoApp.Create(otherAppId);
-            var otherAppInfo = await owner.GetAppInfoAsync(app);
-            if (otherAppInfo == null)
+            var otherDepots = await ProductInfoApp
+                .TryGetReferencedDepotsSectionAsync(owner, otherAppId);
+            if (otherDepots == KeyValue.Invalid)
                 return KeyValue.Invalid;
 
-            var otherDepots = app.GetDepotsSection(otherAppInfo);
             var otherDepot = otherDepots[DepotId.ToString()];
             return GetManifestSectionOrInvalid(otherDepot);
         }
