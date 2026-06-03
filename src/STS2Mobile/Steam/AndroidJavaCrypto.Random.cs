@@ -15,7 +15,7 @@ internal static partial class AndroidJavaCrypto
             "random bytes",
             RandomBytesBase64BridgeMethod,
             "Android Java random byte bridge returned an empty response",
-            count);
+            count.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     internal static void FillRandom(Span<byte> destination)

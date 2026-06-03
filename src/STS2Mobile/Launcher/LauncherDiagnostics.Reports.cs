@@ -115,17 +115,20 @@ internal static partial class LauncherDiagnostics
             Action<StringBuilder, string> appendDiagnostics,
             string footer
         )
-            => BuildTimestampedText(
+        {
+            var snapshot = this;
+            return BuildTimestampedText(
                 title,
                 "UTC",
                 sb =>
                 {
-                    AppendLauncherState(sb, stateDetail);
+                    snapshot.AppendLauncherState(sb, stateDetail);
                     AppendPreviousLaunchPhase(sb, "Previous launch phase");
-                    AppendErrorDiagnostics(sb, appendDiagnostics);
+                    snapshot.AppendErrorDiagnostics(sb, appendDiagnostics);
                     sb.AppendLine(footer);
                 }
             );
+        }
 
         private void AppendLauncherState(StringBuilder sb, LauncherStateDetail detail)
         {
