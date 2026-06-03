@@ -11,7 +11,7 @@ internal static partial class LauncherDiagnostics
     private const string DiagnosticsDirectory = "diagnostics";
     private const string MissingDiagnosticValue = "<none>";
 
-    private enum LauncherStateDetail
+    internal enum LauncherStateDetail
     {
         Compact,
         Detailed,
@@ -107,7 +107,7 @@ internal static partial class LauncherDiagnostics
                 failReason
             );
 
-        private void AppendLauncherState(StringBuilder sb, LauncherStateDetail detail)
+        internal void AppendLauncherState(StringBuilder sb, LauncherStateDetail detail)
         {
             if (detail == LauncherStateDetail.Detailed)
             {
@@ -128,20 +128,20 @@ internal static partial class LauncherDiagnostics
             sb.AppendLine($"Session state: {ValueOrMissing(SessionState)}");
         }
 
-        private void AppendFullLauncherDiagnostics(StringBuilder sb)
+        internal void AppendFullLauncherDiagnostics(StringBuilder sb)
         {
             AppendLauncherState(sb, LauncherStateDetail.Detailed);
             AppendLauncherPreferences(sb);
             AppendFullReportDiagnostics(sb, DataDir);
         }
 
-        private void AppendErrorDiagnostics(
+        internal void AppendErrorDiagnostics(
             StringBuilder sb,
             Action<StringBuilder, string> appendDiagnostics
         )
             => appendDiagnostics(sb, DataDir);
 
-        private string WriteLauncherDiagnosticsReport(string report)
+        internal string WriteLauncherDiagnosticsReport(string report)
             => WriteTimestampedReport(
                 "sts2-launcher-diagnostics",
                 DataDir,
