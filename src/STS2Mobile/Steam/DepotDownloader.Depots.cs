@@ -77,15 +77,8 @@ internal sealed partial class DepotDownloader
         return true;
     }
 
-    private async Task<ulong?> GetDepotManifestIdAsync(KeyValue depot, uint depotId)
-    {
-        var manifests = await GetDepotManifestSectionAsync(depot, depotId);
-        if (manifests == KeyValue.Invalid)
-            return null;
-
-        return GetPublicManifestId(manifests);
-    }
-
-    private static ulong? GetPublicManifestId(KeyValue manifests)
-        => ReadKeyValueUInt64(manifests[PublicDepotBranch]["gid"]);
+    private Task<ulong?> GetDepotManifestIdAsync(KeyValue depot, uint depotId)
+        => DepotManifestLookup
+            .Create(depot, depotId)
+            .GetPublicManifestIdAsync(this);
 }

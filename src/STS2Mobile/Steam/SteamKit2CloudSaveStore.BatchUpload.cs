@@ -22,6 +22,22 @@ internal sealed partial class SteamKit2CloudSaveStore
         internal static UploadBatchSession NotStarted()
             => new(id: 0);
 
+        internal static UploadBatchSession StartOrNone(
+            SteamKit2CloudSaveStore store,
+            IReadOnlyList<SaveBatchFile> files
+        )
+        {
+            try
+            {
+                return Started(store.BeginUploadBatch(files));
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(BeginSaveBatchFailed(ex));
+                return NotStarted();
+            }
+        }
+
         internal void Complete(SteamKit2CloudSaveStore store)
         {
             if (HasId)
@@ -34,22 +50,9 @@ internal sealed partial class SteamKit2CloudSaveStore
 
     private void UploadSaveBatch(IReadOnlyList<SaveBatchFile> files)
     {
-        var session = BeginUploadBatchOrNone(files);
+        var session = UploadBatchSession.StartOrNone(this, files);
         UploadBatchFiles(files, session);
         session.Complete(this);
-    }
-
-    private UploadBatchSession BeginUploadBatchOrNone(IReadOnlyList<SaveBatchFile> files)
-    {
-        try
-        {
-            return UploadBatchSession.Started(BeginUploadBatch(files));
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log(BeginSaveBatchFailed(ex));
-            return UploadBatchSession.NotStarted();
-        }
     }
 
     private ulong BeginUploadBatch(IReadOnlyList<SaveBatchFile> files)

@@ -8,6 +8,39 @@ internal sealed partial class LauncherController
 {
     private bool _updateCheckRunning;
 
+    private readonly struct UpdateCheckUi
+    {
+        private const string CheckFailedButtonText = "CHECK FAILED";
+        private const string UpToDateButtonText = "UP TO DATE";
+        private const string UpdateGameFilesButtonText = "UPDATE GAME FILES";
+        private const string UpdateAvailableStatus = "Update available!";
+
+        internal static UpdateCheckUi Create()
+            => new();
+
+        internal void SetBusy(LauncherView view, bool busy)
+            => view.SetUpdateCheckBusy(busy);
+
+        internal void ShowFailed(LauncherView view, string message)
+        {
+            view.AppendLog($"Update check failed: {message}");
+            view.SetUpdateButtonText(CheckFailedButtonText);
+        }
+
+        internal void ShowCompleted(LauncherView view, bool hasUpdate)
+        {
+            if (hasUpdate)
+            {
+                view.HideActions();
+                view.ShowDownloadAction(UpdateGameFilesButtonText);
+                view.SetStatus(UpdateAvailableStatus);
+                return;
+            }
+
+            view.SetUpdateButtonText(UpToDateButtonText);
+        }
+    }
+
     private void RunUpdateCheck()
         => _ = RunUpdateCheckAsync();
 
@@ -17,7 +50,7 @@ internal sealed partial class LauncherController
             return;
 
         _updateCheckRunning = true;
-        SetUpdateCheckBusy(true);
+        SetUpdateCheckBusy(busy: true);
 
         try
         {
@@ -31,7 +64,7 @@ internal sealed partial class LauncherController
         finally
         {
             _updateCheckRunning = false;
-            SetUpdateCheckBusy(false);
+            SetUpdateCheckBusy(busy: false);
         }
     }
 
@@ -44,27 +77,13 @@ internal sealed partial class LauncherController
     }
 
     private void SetUpdateCheckBusy(bool busy)
-        => _view.SetUpdateCheckBusy(busy);
+        => UpdateCheckUi.Create().SetBusy(_view, busy);
 
     private void ShowUpdateCheckFailed(string message)
-    {
-        _view.AppendLog($"Update check failed: {message}");
-        _view.SetUpdateButtonText("CHECK FAILED");
-    }
+        => UpdateCheckUi.Create().ShowFailed(_view, message);
 
     private void CompleteUpdateCheck(bool hasUpdate)
-    {
-        if (hasUpdate)
-        {
-            _view.HideActions();
-            ShowDownloadAction("UPDATE GAME FILES");
-            _view.SetStatus("Update available!");
-        }
-        else
-        {
-            _view.SetUpdateButtonText("UP TO DATE");
-        }
-    }
+        => UpdateCheckUi.Create().ShowCompleted(_view, hasUpdate);
 
     private void FailUpdateCheck(string message)
     {

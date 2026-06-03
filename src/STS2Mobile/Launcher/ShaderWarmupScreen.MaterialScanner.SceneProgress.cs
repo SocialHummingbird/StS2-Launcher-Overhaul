@@ -17,9 +17,7 @@ internal sealed partial class ShaderWarmupScreen
             if (index % 50 != 0)
                 return;
 
-            progress.SetDetail(Message.ScanningScenes(index, total));
-            if (total > 0)
-                progress.SetProgress((double)index / total * 50);
+            progress.ReportSceneScanProgress(index, total);
             if (tree != null)
                 await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
         }

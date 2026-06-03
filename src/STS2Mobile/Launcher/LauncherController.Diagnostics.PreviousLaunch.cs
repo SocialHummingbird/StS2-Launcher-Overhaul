@@ -1,28 +1,49 @@
-using System;
-
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
+    private readonly struct PreviousLaunchWarning
+    {
+        private const string Status = "Previous game launch did not finish.";
+
+        private PreviousLaunchWarning(string? previousLaunchPhase)
+        {
+            PreviousLaunchPhase = previousLaunchPhase;
+        }
+
+        private string? PreviousLaunchPhase { get; }
+        private string PhaseSuffix => string.IsNullOrWhiteSpace(PreviousLaunchPhase)
+            ? ""
+            : $" Last phase: {PreviousLaunchPhase}.";
+
+        internal static PreviousLaunchWarning? Read()
+        {
+            var previousLaunchPhase = LauncherLaunchMarkers.ReadPreviousLaunchPhase();
+            return previousLaunchPhase == null
+                ? null
+                : new PreviousLaunchWarning(previousLaunchPhase);
+        }
+
+        internal void Apply(LauncherView view)
+        {
+            view.SetStatus(Status);
+            view.AppendLog(Status + PhaseSuffix);
+            view.AppendLog(
+                "The launcher is staying available so you are not trapped on a black screen."
+            );
+            view.AppendLog(
+                "Tap SHOW LAST ERROR to print the failure summary here, or EXPORT DIAGNOSTICS to share the full report."
+            );
+        }
+    }
+
     private void ShowPreviousLaunchWarningIfNeeded()
     {
-        var previousLaunchPhase = LauncherLaunchMarkers.ReadPreviousLaunchPhase();
-        if (previousLaunchPhase == null)
+        var warning = PreviousLaunchWarning.Read();
+        if (!warning.HasValue)
             return;
 
-        const string status = "Previous game launch did not finish.";
-        var phaseSuffix = string.IsNullOrWhiteSpace(previousLaunchPhase)
-            ? ""
-            : $" Last phase: {previousLaunchPhase}.";
-
-        _view.SetStatus(status);
-        _view.AppendLog(status + phaseSuffix);
-        _view.AppendLog(
-            "The launcher is staying available so you are not trapped on a black screen."
-        );
-        _view.AppendLog(
-            "Tap SHOW LAST ERROR to print the failure summary here, or EXPORT DIAGNOSTICS to share the full report."
-        );
+        warning.Value.Apply(_view);
         WriteAutomaticDiagnosticsOnce();
     }
 

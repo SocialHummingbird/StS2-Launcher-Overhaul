@@ -51,7 +51,7 @@ internal sealed partial class DepotDownloader
         {
             return await retryAsync(token);
         }
-        catch (Exception ex) when (attempt.CanRetryAfter(ex))
+        catch (Exception ex) when (attempt.CanRetry())
         {
             attempt.HandleAuthRetryFailure(this, depotId, operation, ex);
             return failed;

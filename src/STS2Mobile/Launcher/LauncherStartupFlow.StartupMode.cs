@@ -1,4 +1,5 @@
 using System;
+using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
 
@@ -25,7 +26,7 @@ internal static partial class LauncherStartupFlow
         private bool SafeLaunchRequested
             => ManualSafeLaunch || IsPreviousPhase(PhaseManualSafeLaunch);
 
-        internal bool ShouldForceLocalSaves()
+        private bool ShouldForceLocalSaves()
             => SafeLaunchRequested
                 || IsPreviousPhase(PhaseSettingsAndSaves)
                 || IsPreviousPhase(PhaseGameStartup);
@@ -33,7 +34,22 @@ internal static partial class LauncherStartupFlow
         internal bool ShouldSkipShaderWarmup()
             => SafeLaunchRequested || IsPreviousPhase(PhaseShaderWarmup);
 
-        internal string LocalSavesReasonLog
+        internal string SettingsAndSavesStatus
+            => ShouldForceLocalSaves()
+                ? "Loading settings and saves in local-only safe mode..."
+                : "Loading settings and saves...";
+
+        internal void ApplySaveMode()
+        {
+            LauncherPreferences.LoadAndApplyCloudSyncEnabled();
+            if (!ShouldForceLocalSaves())
+                return;
+
+            LauncherCloudSaveState.DisableCloudSyncForLaunch();
+            PatchHelper.Log(LocalSavesReasonLog);
+        }
+
+        private string LocalSavesReasonLog
             => ManualSafeLaunch
                 ? "Disabling cloud save injection for manual safe launch"
                 : $"Disabling cloud save injection for this launch because previous launch stalled at {_previousIncompletePhase}";

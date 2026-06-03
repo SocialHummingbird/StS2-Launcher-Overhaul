@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 
 namespace STS2Mobile.Steam;
@@ -13,27 +12,25 @@ internal static partial class CloudSyncCoordinator
             if (!IsProgressSavePath(canonLowerPath))
                 return;
 
-            try
-            {
-                var backup = TryWriteBackup(
-                    canonLowerPath,
-                    content,
-                    source,
-                    "progress.save"
-                );
-                if (!backup.Written)
-                    return;
+            SaveBackup(
+                canonLowerPath,
+                content,
+                source,
+                "progress.save",
+                backupPath => CompleteProgressBackup(source, path, backupPath)
+            );
+        }
 
-                var backupPath = backup.PathOrThrow();
-                var backupDir = Path.GetDirectoryName(backupPath)
-                    ?? AppPaths.ExternalSaveBackupsDir;
-                PatchHelper.Log(SaveBackedUpTo(source, path, backupPath));
-                PruneProgressBackups(backupDir);
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log(BackupFailed(source, path, ex));
-            }
+        private static void CompleteProgressBackup(
+            string source,
+            string path,
+            string backupPath
+        )
+        {
+            var backupDir = Path.GetDirectoryName(backupPath)
+                ?? AppPaths.ExternalSaveBackupsDir;
+            PatchHelper.Log(SaveBackedUpTo(source, path, backupPath));
+            PruneProgressBackups(backupDir);
         }
 
         private static bool IsProgressSave(string path)

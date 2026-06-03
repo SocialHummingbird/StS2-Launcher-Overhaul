@@ -91,10 +91,12 @@ internal sealed partial class LauncherView
     )
         => Actions.ShowLaunch(launchText, showCloudSync, showUpdate);
 
-    internal void SetActionPreferences(bool localBackupEnabled, bool cloudSyncEnabled)
+    internal void SetActionPreferences(
+        LauncherPreferences.ActionPreferenceState preferences
+    )
     {
-        Actions.SetLocalBackupChecked(localBackupEnabled);
-        Actions.SetCloudSyncChecked(cloudSyncEnabled);
+        Actions.SetLocalBackupChecked(preferences.LocalBackupEnabled);
+        Actions.SetCloudSyncChecked(preferences.CloudSyncEnabled);
     }
 
     internal void SetPushPullDisabled(bool disabled)

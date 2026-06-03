@@ -3,12 +3,9 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class LauncherController
 {
     private void InitializeActionPreferences()
-    {
-        _view.SetActionPreferences(
-            LauncherPreferences.LoadAndApplyLocalBackupEnabled(),
-            LauncherPreferences.LoadAndApplyCloudSyncEnabled()
+        => _view.SetActionPreferences(
+            LauncherPreferences.LoadAndApplyActionPreferences()
         );
-    }
 
     private void StartSessionFlow()
     {

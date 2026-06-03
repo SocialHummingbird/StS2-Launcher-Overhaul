@@ -19,16 +19,32 @@ internal sealed partial class ShaderWarmupScreen
 
         private void SetStatus(string text) => _statusLabel.Text = text;
 
-        internal void SetDetail(string text) => _detailLabel.Text = text;
+        private void SetDetail(string text) => _detailLabel.Text = text;
 
-        internal void SetProgress(double progress) => _progressBar.Value = progress;
+        private void SetProgress(double progress) => _progressBar.Value = progress;
 
         internal void Complete(int materialCount, long elapsedMilliseconds)
         {
-            _progressBar.Value = 100;
-            _statusLabel.Text = Message.DoneStatus;
-            _detailLabel.Text = Message.Compiled(materialCount, elapsedMilliseconds);
+            SetProgress(100);
+            SetStatus(Message.DoneStatus);
+            SetDetail(Message.Compiled(materialCount, elapsedMilliseconds));
         }
+
+        internal void ReportCompileProgress(int completed, int total)
+        {
+            SetProgress(50 + (double)completed / total * 50);
+            SetDetail(Message.CompilingProgress(completed, total));
+        }
+
+        internal void ReportSceneScanProgress(int index, int total)
+        {
+            SetDetail(Message.ScanningScenes(index, total));
+            if (total > 0)
+                SetProgress((double)index / total * 50);
+        }
+
+        internal void ShowMaterialsFound(int materialCount)
+            => SetDetail(Message.FoundMaterialsDetail(materialCount));
 
         internal void ShowCompiling() => SetStatus(Message.CompilingStatus);
 

@@ -29,12 +29,19 @@ internal static partial class CloudSyncCoordinator
             private Func<ManualSyncContext, string, ValueTask<string?>> ReadContentAsync { get; }
             private Action<string, Exception> LogFailure { get; }
 
-            internal static ManualBackupPlan Create(
-                string source,
-                Func<ManualSyncContext, string, ValueTask<string?>> readContentAsync,
-                Action<string, Exception> logFailure
-            )
-                => new(source, readContentAsync, logFailure);
+            internal static ManualBackupPlan CloudBeforeManualPush()
+                => new(
+                    BackupSourceCloudPrePush,
+                    ReadCloudPrePushContentAsync,
+                    (path, ex) => PatchHelper.Log(PushCloudBackupFailed(path, ex))
+                );
+
+            internal static ManualBackupPlan LocalBeforeManualPull()
+                => new(
+                    BackupSourceLocalPrePull,
+                    ReadLocalPrePullContentAsync,
+                    (path, ex) => PatchHelper.Log(PullLocalBackupFailed(path, ex))
+                );
 
             internal async Task<bool> TryBackUpAsync(ManualSyncContext sync, string path)
             {
@@ -58,11 +65,7 @@ internal static partial class CloudSyncCoordinator
             => RunManualBackupsAsync(
                 sync,
                 paths,
-                ManualBackupPlan.Create(
-                    BackupSourceCloudPrePush,
-                    ReadCloudPrePushContentAsync,
-                    (path, ex) => PatchHelper.Log(PushCloudBackupFailed(path, ex))
-                )
+                ManualBackupPlan.CloudBeforeManualPush()
             );
 
         internal static Task<int> LocalBeforeManualPullAsync(
@@ -72,11 +75,7 @@ internal static partial class CloudSyncCoordinator
             => RunManualBackupsAsync(
                 sync,
                 paths,
-                ManualBackupPlan.Create(
-                    BackupSourceLocalPrePull,
-                    ReadLocalPrePullContentAsync,
-                    (path, ex) => PatchHelper.Log(PullLocalBackupFailed(path, ex))
-                )
+                ManualBackupPlan.LocalBeforeManualPull()
             );
 
         private static async Task<int> RunManualBackupsAsync(

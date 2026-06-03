@@ -16,7 +16,7 @@ internal sealed partial class ShaderWarmupScreen
         {
             CollectLooseMaterials(ResourceRoot, materials);
             PatchHelper.Log(Message.FoundLooseMaterials(materials.Count));
-            progress.SetDetail(Message.FoundMaterialsDetail(materials.Count));
+            progress.ShowMaterialsFound(materials.Count);
             if (tree != null)
                 await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
         }

@@ -44,9 +44,9 @@ internal sealed partial class DepotDownloader
                 if (written.HasValue)
                     return written.Value;
             }
-            catch (Exception ex) when (attempt.CanRetryAfter(ex))
+            catch (Exception ex) when (attempt.CanRetry())
             {
-                attempt.HandleDownloadRetryFailure(this, "Chunk download", ex);
+                attempt.HandleDownloadRetryFailure(this, ChunkDownloadOperation, ex);
             }
         }
 
@@ -64,7 +64,7 @@ internal sealed partial class DepotDownloader
         if (VerifyChunkHash(buffer, written, chunk))
             return true;
 
-        if (attempt.ShouldRetryChunkHash())
+        if (attempt.CanRetry())
         {
             Log($"Chunk SHA-1 mismatch at offset {chunk.Offset}, retrying...");
             return false;

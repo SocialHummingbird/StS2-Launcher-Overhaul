@@ -72,7 +72,7 @@ internal sealed partial class DepotDownloader
             return token;
         }
 
-        internal bool CanRetryAfter(Exception _)
+        internal bool CanRetry()
             => HasRetryRemaining;
 
         internal void HandleAuthRetryFailure(
@@ -98,9 +98,6 @@ internal sealed partial class DepotDownloader
             owner.Log($"{operation} failed (attempt {DisplayNumber}): {ex.Message}");
             MarkFailed(owner);
         }
-
-        internal bool ShouldRetryChunkHash()
-            => HasRetryRemaining;
 
         private void MarkFailed(DepotDownloader owner)
             => owner.MarkServerFailed(Server);

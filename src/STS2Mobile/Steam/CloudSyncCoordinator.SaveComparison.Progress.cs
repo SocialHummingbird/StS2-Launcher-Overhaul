@@ -16,25 +16,28 @@ internal static partial class CloudSyncCoordinator
         };
 
         private static SaveWinner CompareProgress(string local, string cloud)
-        {
-            using var localDoc = JsonDocument.Parse(local);
-            using var cloudDoc = JsonDocument.Parse(cloud);
-            var localRoot = localDoc.RootElement;
-            var cloudRoot = cloudDoc.RootElement;
-
-            return FirstNumericWinner(
-                NumericComparison.Of(
-                    GetInt(localRoot, FloorsClimbedProperty),
-                    GetInt(cloudRoot, FloorsClimbedProperty)
-                ),
-                NumericComparison.Of(SumCharacterGames(localRoot), SumCharacterGames(cloudRoot)),
-                NumericComparison.Of(CountDiscovered(localRoot), CountDiscovered(cloudRoot)),
-                NumericComparison.Of(
-                    GetInt(localRoot, TotalPlaytimeProperty),
-                    GetInt(cloudRoot, TotalPlaytimeProperty)
+            => CompareJson(
+                local,
+                cloud,
+                (localRoot, cloudRoot) => FirstNumericWinner(
+                    NumericComparison.Of(
+                        GetInt(localRoot, FloorsClimbedProperty),
+                        GetInt(cloudRoot, FloorsClimbedProperty)
+                    ),
+                    NumericComparison.Of(
+                        SumCharacterGames(localRoot),
+                        SumCharacterGames(cloudRoot)
+                    ),
+                    NumericComparison.Of(
+                        CountDiscovered(localRoot),
+                        CountDiscovered(cloudRoot)
+                    ),
+                    NumericComparison.Of(
+                        GetInt(localRoot, TotalPlaytimeProperty),
+                        GetInt(cloudRoot, TotalPlaytimeProperty)
+                    )
                 )
             );
-        }
 
         private static int SumCharacterGames(JsonElement root)
         {

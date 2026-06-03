@@ -49,6 +49,26 @@ internal static partial class CloudSyncCoordinator
 
             internal static NumericComparison Of(int local, int cloud)
                 => new(local, cloud);
+
+            internal SaveWinner Winner()
+            {
+                if (Local == Cloud)
+                    return SaveWinner.None();
+
+                return Local > Cloud ? SaveWinner.Local() : SaveWinner.Cloud();
+            }
+        }
+
+        private static SaveWinner FirstNumericWinner(params NumericComparison[] comparisons)
+        {
+            foreach (var comparison in comparisons)
+            {
+                var winner = comparison.Winner();
+                if (winner.HasWinner)
+                    return winner;
+            }
+
+            return SaveWinner.None();
         }
 
         private enum SaveKind
@@ -116,29 +136,6 @@ internal static partial class CloudSyncCoordinator
             return canonPath.Contains(CurrentRunPathToken)
                 ? SaveKind.CurrentRun
                 : SaveKind.Other;
-        }
-
-        private static SaveWinner CompareNumeric(
-            int localValue,
-            int cloudValue
-        )
-        {
-            if (localValue == cloudValue)
-                return SaveWinner.None();
-
-            return localValue > cloudValue ? SaveWinner.Local() : SaveWinner.Cloud();
-        }
-
-        private static SaveWinner FirstNumericWinner(params NumericComparison[] comparisons)
-        {
-            foreach (var comparison in comparisons)
-            {
-                var winner = CompareNumeric(comparison.Local, comparison.Cloud);
-                if (winner.HasWinner)
-                    return winner;
-            }
-
-            return SaveWinner.None();
         }
     }
 }

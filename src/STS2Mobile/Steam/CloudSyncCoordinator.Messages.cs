@@ -9,21 +9,27 @@ internal static partial class CloudSyncCoordinator
     private const string ManualPullBudgetExceeded =
         "[Cloud] Manual pull timeout: exceeded overall manual sync budget";
     private const string CloudLogPrefix = "[Cloud]";
+    private const string PullOperation = "Pull";
+    private const string PushOperation = "Push";
+    private const string SyncOperation = "Sync";
 
     private static string SyncLocalCorruptPulling(string path) =>
-        CloudOperationMessage("Sync", $"local {path} is corrupt, pulling from cloud");
+        CloudOperationMessage(
+            SyncOperation,
+            $"local {path} is corrupt, pulling from cloud"
+        );
 
     private static string SyncIdenticalSkipping(string path) =>
-        CloudOperationMessage("Sync", $"{path} identical, skipping");
+        CloudOperationMessage(SyncOperation, $"{path} identical, skipping");
 
     private static string SyncCloudWins(string path) =>
-        CloudOperationMessage("Sync", $"cloud wins for {path}");
+        CloudOperationMessage(SyncOperation, $"cloud wins for {path}");
 
     private static string SyncLocalWinsUploading(string path) =>
-        CloudOperationMessage("Sync", $"local wins for {path}, uploading");
+        CloudOperationMessage(SyncOperation, $"local wins for {path}, uploading");
 
     private static string SyncContentsDifferCloudWins(string path) =>
-        CloudOperationMessage("Sync", $"contents differ for {path}, cloud wins");
+        CloudOperationMessage(SyncOperation, $"contents differ for {path}, cloud wins");
 
     private static string SyncFailed(string path, Exception ex) =>
         CloudMessage($"Sync failed for {path}: {ex.Message}");
@@ -32,64 +38,70 @@ internal static partial class CloudSyncCoordinator
         CloudMessage($"Progress comparison failed for {path}: {ex.Message}");
 
     private static string PushSkippingIdentical(string path) =>
-        CloudOperationMessage("Push", $"skipping {path} (identical)");
+        CloudOperationMessage(PushOperation, $"skipping {path} (identical)");
 
     private static string PushUploaded(string path) =>
-        CloudOperationMessage("Push", $"uploaded {path}");
+        CloudOperationMessage(PushOperation, $"uploaded {path}");
 
     private static string PushStarting(int fileCount) =>
-        CloudOperationMessage("Push", $"starting ({fileCount} files)");
+        CloudOperationMessage(PushOperation, $"starting ({fileCount} files)");
 
     private static string PushBackedUpCloudFiles(int backedUp) =>
-        CloudOperationMessage("Push", $"backed up {backedUp} cloud files");
+        CloudOperationMessage(PushOperation, $"backed up {backedUp} cloud files");
 
     private static string PushQueuing(string path, int bytes) =>
-        CloudOperationMessage("Push", $"queuing {path} ({bytes} bytes)");
+        CloudOperationMessage(PushOperation, $"queuing {path} ({bytes} bytes)");
 
     private static string PushFailed(string path, Exception ex) =>
-        CloudFailureMessage("Push", path, ex);
+        CloudFailureMessage(PushOperation, path, ex);
 
     private static string PushComplete(int count) =>
         CloudMessage($"Push complete: {count} files batched for upload");
 
     private static string PushBackingUpCloud(string path) =>
-        CloudOperationMessage("Push", $"backing up cloud {path}");
+        CloudOperationMessage(PushOperation, $"backing up cloud {path}");
 
     private static string PushCloudBackupFailed(string path, Exception ex) =>
-        CloudOperationMessage("Push", $"backup failed for cloud {path}: {ex.Message}");
+        CloudOperationMessage(
+            PushOperation,
+            $"backup failed for cloud {path}: {ex.Message}"
+        );
 
     private static string PullSkippingIdentical(string path) =>
-        CloudOperationMessage("Pull", $"skipping {path} (identical)");
+        CloudOperationMessage(PullOperation, $"skipping {path} (identical)");
 
     private static string PullDownloaded(string path) =>
-        CloudOperationMessage("Pull", $"downloaded {path}");
+        CloudOperationMessage(PullOperation, $"downloaded {path}");
 
     private static string PullStarting(int fileCount) =>
-        CloudOperationMessage("Pull", $"starting ({fileCount} files)");
+        CloudOperationMessage(PullOperation, $"starting ({fileCount} files)");
 
     private static string PullBackedUpLocalFiles(int backedUp) =>
-        CloudOperationMessage("Pull", $"backed up {backedUp} local files");
+        CloudOperationMessage(PullOperation, $"backed up {backedUp} local files");
 
     private static string PullDownloading(string path) =>
-        CloudOperationMessage("Pull", $"downloading {path}");
+        CloudOperationMessage(PullOperation, $"downloading {path}");
 
     private static string PullWrote(string path, int bytes) =>
-        CloudOperationMessage("Pull", $"wrote {path} ({bytes} bytes)");
+        CloudOperationMessage(PullOperation, $"wrote {path} ({bytes} bytes)");
 
     private static string PullPathTimedOut(string path) =>
         CloudOperationMessage(
-            "Pull",
+            PullOperation,
             $"timeout for {path}, skipping remaining operations for this file"
         );
 
     private static string PullFailed(string path, Exception ex) =>
-        CloudFailureMessage("Pull", path, ex);
+        CloudFailureMessage(PullOperation, path, ex);
 
     private static string PullComplete(int downloaded, int skipped) =>
         CloudMessage($"Pull complete: {downloaded} downloaded, {skipped} not in cloud");
 
     private static string PullLocalBackupFailed(string path, Exception ex) =>
-        CloudOperationMessage("Pull", $"backup failed for local {path}: {ex.Message}");
+        CloudOperationMessage(
+            PullOperation,
+            $"backup failed for local {path}: {ex.Message}"
+        );
 
     private static string SaveBackedUp(string source, string path) =>
         CloudMessage($"Backed up {source} {path}");

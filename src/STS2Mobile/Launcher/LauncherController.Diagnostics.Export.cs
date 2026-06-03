@@ -5,6 +5,37 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
+    private readonly struct DiagnosticsExportResult
+    {
+        private DiagnosticsExportResult(string path)
+        {
+            Path = path;
+        }
+
+        private string Path { get; }
+
+        internal static DiagnosticsExportResult Create(string path)
+            => new(path);
+
+        internal void Apply(LauncherView view)
+        {
+            view.SetStatus("Diagnostics exported.");
+            view.AppendLog($"Diagnostics exported: {Path}");
+            ShareIfAndroid(view);
+        }
+
+        private void ShareIfAndroid(LauncherView view)
+        {
+            if (!OperatingSystem.IsAndroid())
+                return;
+
+            var shared = AndroidGodotAppBridge.ShareTextFile(Path);
+            view.AppendLog(
+                shared ? "Android share sheet opened." : "Could not open Android share sheet."
+            );
+        }
+    }
+
     private void DiagnosticsPressed()
     {
         var path = TryGetDiagnosticsResult(
@@ -16,19 +47,6 @@ internal sealed partial class LauncherController
         if (path == null)
             return;
 
-        _view.SetStatus("Diagnostics exported.");
-        _view.AppendLog($"Diagnostics exported: {path}");
-        ShareDiagnosticsIfAndroid(path);
-    }
-
-    private void ShareDiagnosticsIfAndroid(string path)
-    {
-        if (!OperatingSystem.IsAndroid())
-            return;
-
-        var shared = AndroidGodotAppBridge.ShareTextFile(path);
-        _view.AppendLog(
-            shared ? "Android share sheet opened." : "Could not open Android share sheet."
-        );
+        DiagnosticsExportResult.Create(path).Apply(_view);
     }
 }

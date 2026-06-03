@@ -7,17 +7,16 @@ internal static partial class CloudSyncCoordinator
     private static partial class SaveComparison
     {
         private static SaveWinner CompareCurrentRun(string local, string cloud)
-        {
-            using var localDoc = JsonDocument.Parse(local);
-            using var cloudDoc = JsonDocument.Parse(cloud);
-
-            return FirstNumericWinner(
-                NumericComparison.Of(
-                    CountRunFloors(localDoc.RootElement),
-                    CountRunFloors(cloudDoc.RootElement)
+            => CompareJson(
+                local,
+                cloud,
+                (localRoot, cloudRoot) => FirstNumericWinner(
+                    NumericComparison.Of(
+                        CountRunFloors(localRoot),
+                        CountRunFloors(cloudRoot)
+                    )
                 )
             );
-        }
 
         private static int CountRunFloors(JsonElement root)
         {

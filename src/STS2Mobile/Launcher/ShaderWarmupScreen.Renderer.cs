@@ -85,10 +85,6 @@ internal sealed partial class ShaderWarmupScreen
         }
 
         private void ReportProgress(int completed, int total)
-        {
-            double pct = 50 + (double)completed / total * 50;
-            _progress.SetProgress(pct);
-            _progress.SetDetail($"Compiling {completed} / {total}");
-        }
+            => _progress.ReportCompileProgress(completed, total);
     }
 }

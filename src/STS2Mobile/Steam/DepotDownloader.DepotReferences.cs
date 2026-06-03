@@ -5,41 +5,64 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private readonly struct DepotManifestLookup
+    {
+        private DepotManifestLookup(KeyValue depot, uint depotId)
+        {
+            Depot = depot;
+            DepotId = depotId;
+        }
+
+        private KeyValue Depot { get; }
+        private uint DepotId { get; }
+
+        internal static DepotManifestLookup Create(KeyValue depot, uint depotId)
+            => new(depot, depotId);
+
+        internal async Task<ulong?> GetPublicManifestIdAsync(DepotDownloader owner)
+        {
+            var manifests = await GetManifestSectionAsync(owner);
+            return manifests == KeyValue.Invalid
+                ? null
+                : ReadKeyValueUInt64(manifests[PublicDepotBranch]["gid"]);
+        }
+
+        private async Task<KeyValue> GetManifestSectionAsync(DepotDownloader owner)
+        {
+            var manifests = Depot["manifests"];
+            if (manifests != KeyValue.Invalid)
+                return manifests;
+
+            var otherAppId = ReferencedAppId();
+            return otherAppId.HasValue
+                ? await GetReferencedManifestSectionAsync(owner, otherAppId.Value)
+                : KeyValue.Invalid;
+        }
+
+        private uint? ReferencedAppId()
+            => ReadKeyValueUInt32(Depot["depotfromapp"]);
+
+        private async Task<KeyValue> GetReferencedManifestSectionAsync(
+            DepotDownloader owner,
+            uint otherAppId
+        )
+        {
+            owner.Log($"Depot {DepotId} references app {otherAppId}, fetching...");
+            var app = ProductInfoApp.Create(otherAppId);
+            var otherAppInfo = await owner.GetAppInfoAsync(app);
+            if (otherAppInfo == null)
+                return KeyValue.Invalid;
+
+            var otherDepots = app.GetDepotsSection(otherAppInfo);
+            var otherDepot = otherDepots[DepotId.ToString()];
+            return GetManifestSectionOrInvalid(otherDepot);
+        }
+
+        private static KeyValue GetManifestSectionOrInvalid(KeyValue depot)
+            => depot != KeyValue.Invalid ? depot["manifests"] : KeyValue.Invalid;
+    }
+
     private const string PublicDepotBranch = "public";
-
-    private async Task<KeyValue> GetDepotManifestSectionAsync(KeyValue depot, uint depotId)
-    {
-        var manifests = depot["manifests"];
-        if (manifests != KeyValue.Invalid)
-            return manifests;
-
-        var otherAppId = GetReferencedAppId(depot);
-        if (!otherAppId.HasValue)
-            return KeyValue.Invalid;
-
-        return await GetReferencedDepotManifestSectionAsync(depotId, otherAppId.Value);
-    }
-
-    private static uint? GetReferencedAppId(KeyValue depot)
-        => ReadKeyValueUInt32(depot["depotfromapp"]);
-
-    private async Task<KeyValue> GetReferencedDepotManifestSectionAsync(
-        uint depotId,
-        uint otherAppId
-    )
-    {
-        Log($"Depot {depotId} references app {otherAppId}, fetching...");
-        var otherAppInfo = await GetAppInfoAsync(otherAppId);
-        if (otherAppInfo == null)
-            return KeyValue.Invalid;
-
-        var otherDepots = GetDepotsSection(otherAppInfo, otherAppId);
-        var otherDepot = otherDepots[depotId.ToString()];
-        return GetManifestSectionOrInvalid(otherDepot);
-    }
-
-    private static KeyValue GetManifestSectionOrInvalid(KeyValue depot)
-        => depot != KeyValue.Invalid ? depot["manifests"] : KeyValue.Invalid;
 
     private static uint? ReadKeyValueUInt32(KeyValue value)
         => value != KeyValue.Invalid

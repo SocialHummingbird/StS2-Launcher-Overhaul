@@ -6,6 +6,25 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamConnection
 {
+    private readonly struct CloudRpcMethod
+    {
+        private CloudRpcMethod(string name)
+        {
+            Name = name;
+        }
+
+        private string Name { get; }
+
+        internal static CloudRpcMethod Create(string name)
+            => new(name);
+
+        internal string Endpoint()
+            => $"Cloud.{Name}#1";
+
+        internal InvalidOperationException CreateFailedException(EResult result)
+            => new($"Cloud.{Name} failed: {result}");
+    }
+
     // Sends a CCloud RPC. Connects on demand and retries on
     // transient connection failure.
     internal async Task<TResult> SendCloud<TRequest, TResult>(string method, TRequest request)
@@ -13,14 +32,15 @@ internal sealed partial class SteamConnection
         where TResult : ProtoBuf.IExtensible, new()
     {
         EnsureConnected();
+        var rpc = CloudRpcMethod.Create(method);
 
         await _sendLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            var job = _unifiedMessages.SendMessage<TRequest, TResult>($"Cloud.{method}#1", request);
+            var job = _unifiedMessages.SendMessage<TRequest, TResult>(rpc.Endpoint(), request);
             var response = await job.ToTask().ConfigureAwait(false);
             if (response.Result != EResult.OK)
-                throw new InvalidOperationException($"Cloud.{method} failed: {response.Result}");
+                throw rpc.CreateFailedException(response.Result);
             return response.Body;
         }
         finally

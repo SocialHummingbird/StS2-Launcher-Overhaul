@@ -15,6 +15,10 @@ internal sealed partial class DepotDownloader : IDisposable
     private const int DesktopMaxConcurrentDownloads = 8;
     private const int AndroidMaxConcurrentDownloads = 1;
     private const long AndroidMinimumFreeSpaceBytes = 256L * 1024L * 1024L;
+    private const string ChunkAuthRetryOperation = "Chunk";
+    private const string ChunkDownloadOperation = "Chunk download";
+    private const string ManifestAuthRetryOperation = "Manifest";
+    private const string ManifestDownloadOperation = "Manifest download";
     private const long MaxDepotChunkBytes = 64L * 1024L * 1024L;
     private const long MaxDepotFileBytes = 32L * 1024L * 1024L * 1024L;
 

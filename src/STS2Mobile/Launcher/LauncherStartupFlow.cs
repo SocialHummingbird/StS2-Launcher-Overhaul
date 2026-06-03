@@ -35,18 +35,13 @@ internal static partial class LauncherStartupFlow
         private Label Status { get; }
         private StartupMode Mode { get; }
 
-        internal bool ShouldForceLocalSaves()
-            => Mode.ShouldForceLocalSaves();
-
         internal bool ShouldSkipShaderWarmup()
             => Mode.ShouldSkipShaderWarmup();
 
         internal void SetSettingsAndSavesPhase()
             => SetPhase(
                 PhaseSettingsAndSaves,
-                ShouldForceLocalSaves()
-                    ? "Loading settings and saves in local-only safe mode..."
-                    : "Loading settings and saves..."
+                Mode.SettingsAndSavesStatus
             );
 
         internal void SetPhase(string phase, string status)
@@ -60,8 +55,8 @@ internal static partial class LauncherStartupFlow
             LauncherStartupStatus.Set(Status, status);
         }
 
-        internal void LogLocalSavesReason()
-            => PatchHelper.Log(Mode.LocalSavesReasonLog);
+        internal void ApplySaveMode()
+            => Mode.ApplySaveMode();
 
         internal void LogShaderWarmupSkip()
             => PatchHelper.Log(Mode.ShaderWarmupSkipLog);
@@ -117,7 +112,7 @@ internal static partial class LauncherStartupFlow
 
         var launcher = await ShowLauncherAndWaitForLaunchAsync(gameNode);
         var startup = CreateStartupContext(game, gameNode);
-        ApplyStartupSaveMode(startup);
+        startup.ApplySaveMode();
 
         startup.SetPhase(PhaseLaunchRequested, "Starting game...");
         PatchHelper.Log("User launched game, proceeding to startup...");

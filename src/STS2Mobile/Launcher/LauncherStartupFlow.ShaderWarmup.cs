@@ -5,25 +5,49 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherStartupFlow
 {
-    private static async Task RunShaderWarmupIfNeededAsync(StartupContext startup)
+    private readonly struct ShaderWarmupDecision
     {
-        var needsWarmup = ShaderWarmupScreen.NeedsWarmup();
-        var skipWarmup = startup.ShouldSkipShaderWarmup();
-
-        if (needsWarmup && !skipWarmup)
+        private ShaderWarmupDecision(bool shouldRun, bool shouldSkip)
         {
-            startup.SetPhase(PhaseShaderWarmup, "Warming shaders...");
-            PatchHelper.Log("Shader warmup starting");
-
-            await RunShaderWarmupAsync(startup);
-            PatchHelper.Log("Shader warmup complete");
+            ShouldRun = shouldRun;
+            ShouldSkip = shouldSkip;
         }
-        else if (skipWarmup)
+
+        private bool ShouldRun { get; }
+        private bool ShouldSkip { get; }
+
+        internal static ShaderWarmupDecision Create(StartupContext startup)
         {
-            startup.LogShaderWarmupSkip();
-            startup.SetShaderWarmupSkipStatus();
+            var needsWarmup = ShaderWarmupScreen.NeedsWarmup();
+            var skipWarmup = startup.ShouldSkipShaderWarmup();
+            return new(
+                shouldRun: needsWarmup && !skipWarmup,
+                shouldSkip: skipWarmup
+            );
+        }
+
+        internal async Task ApplyAsync(StartupContext startup)
+        {
+            if (ShouldRun)
+            {
+                startup.SetPhase(PhaseShaderWarmup, "Warming shaders...");
+                PatchHelper.Log("Shader warmup starting");
+
+                await RunShaderWarmupAsync(startup);
+                PatchHelper.Log("Shader warmup complete");
+                return;
+            }
+
+            if (ShouldSkip)
+            {
+                startup.LogShaderWarmupSkip();
+                startup.SetShaderWarmupSkipStatus();
+            }
         }
     }
+
+    private static async Task RunShaderWarmupIfNeededAsync(StartupContext startup)
+        => await ShaderWarmupDecision.Create(startup).ApplyAsync(startup);
 
     private static async Task RunShaderWarmupAsync(StartupContext startup)
     {

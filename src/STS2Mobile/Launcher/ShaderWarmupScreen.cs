@@ -113,7 +113,7 @@ internal sealed partial class ShaderWarmupScreen : Control
 
         if (materials.Count == 0)
         {
-            WriteWarmupVersion();
+            MarkWarmupComplete();
             return;
         }
 
@@ -124,9 +124,12 @@ internal sealed partial class ShaderWarmupScreen : Control
         progress.Complete(materials.Count, elapsedMilliseconds);
         PatchHelper.Log(Message.Completed(materials.Count, elapsedMilliseconds));
 
-        WriteWarmupVersion();
+        MarkWarmupComplete();
         await WaitFinishDelayAsync();
     }
+
+    private static void MarkWarmupComplete()
+        => WriteWarmupVersion();
 
     private async Task WaitPostDrawAsync()
     {

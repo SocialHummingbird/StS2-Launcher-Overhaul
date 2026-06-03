@@ -11,30 +11,36 @@ internal static partial class LauncherDiagnostics
     private const string DiagnosticsDirectory = "diagnostics";
     private const string MissingDiagnosticValue = "<none>";
 
+    private enum LauncherStateDetail
+    {
+        Compact,
+        Detailed,
+    }
+
     private readonly struct DiagnosticExtract
     {
         private DiagnosticExtract(
             string title,
-            Action<Snapshot, StringBuilder> appendState,
+            LauncherStateDetail stateDetail,
             Action<StringBuilder, string> appendDiagnostics,
             string footer
         )
         {
             Title = title;
-            AppendState = appendState;
+            StateDetail = stateDetail;
             AppendDiagnostics = appendDiagnostics;
             Footer = footer;
         }
 
         private string Title { get; }
-        private Action<Snapshot, StringBuilder> AppendState { get; }
+        private LauncherStateDetail StateDetail { get; }
         private Action<StringBuilder, string> AppendDiagnostics { get; }
         private string Footer { get; }
 
         internal static DiagnosticExtract Summary()
             => new(
                 "=== LAST ERROR SUMMARY ===",
-                (snapshot, sb) => snapshot.AppendCompactLauncherState(sb),
+                LauncherStateDetail.Compact,
                 AppendSummaryErrorDiagnostics,
                 "=== END LAST ERROR SUMMARY ==="
             );
@@ -42,7 +48,7 @@ internal static partial class LauncherDiagnostics
         internal static DiagnosticExtract RawErrorLog()
             => new(
                 "=== RAW ERROR LOG ===",
-                (snapshot, sb) => snapshot.AppendDetailedLauncherState(sb),
+                LauncherStateDetail.Detailed,
                 AppendRawErrorDiagnostics,
                 "=== END RAW ERROR LOG ==="
             );
@@ -50,9 +56,9 @@ internal static partial class LauncherDiagnostics
         internal string Build(Snapshot snapshot)
         {
             var sb = StartTimestampedText(Title, "UTC");
-            AppendState(snapshot, sb);
+            LauncherDiagnostics.AppendLauncherState(snapshot, sb, StateDetail);
             AppendPreviousLaunchPhase(sb, "Previous launch phase");
-            snapshot.AppendErrorDiagnostics(sb, AppendDiagnostics);
+            LauncherDiagnostics.AppendErrorDiagnostics(snapshot, sb, AppendDiagnostics);
             sb.AppendLine(Footer);
             return sb.ToString();
         }
@@ -101,35 +107,41 @@ internal static partial class LauncherDiagnostics
                 failReason
             );
 
-        internal void AppendCompactLauncherState(StringBuilder sb)
+        private void AppendLauncherState(StringBuilder sb, LauncherStateDetail detail)
+        {
+            if (detail == LauncherStateDetail.Detailed)
+            {
+                sb.AppendLine($"Data dir: {ValueOrMissing(DataDir)}");
+                sb.AppendLine($"Account: {ValueOrMissing(AccountName)}");
+                sb.AppendLine($"Has saved credentials: {HasSavedCredentials}");
+            }
+
+            AppendCompactLauncherState(sb);
+
+            if (detail == LauncherStateDetail.Detailed)
+                sb.AppendLine($"Fail reason: {ValueOrMissing(FailReason)}");
+        }
+
+        private void AppendCompactLauncherState(StringBuilder sb)
         {
             sb.AppendLine($"Game files ready: {GameFilesReady}");
             sb.AppendLine($"Session state: {ValueOrMissing(SessionState)}");
         }
 
-        internal void AppendDetailedLauncherState(StringBuilder sb)
+        private void AppendFullLauncherDiagnostics(StringBuilder sb)
         {
-            sb.AppendLine($"Data dir: {ValueOrMissing(DataDir)}");
-            sb.AppendLine($"Account: {ValueOrMissing(AccountName)}");
-            sb.AppendLine($"Has saved credentials: {HasSavedCredentials}");
-            AppendCompactLauncherState(sb);
-            sb.AppendLine($"Fail reason: {ValueOrMissing(FailReason)}");
-        }
-
-        internal void AppendFullLauncherDiagnostics(StringBuilder sb)
-        {
-            AppendDetailedLauncherState(sb);
+            AppendLauncherState(sb, LauncherStateDetail.Detailed);
             AppendLauncherPreferences(sb);
             AppendFullReportDiagnostics(sb, DataDir);
         }
 
-        internal void AppendErrorDiagnostics(
+        private void AppendErrorDiagnostics(
             StringBuilder sb,
             Action<StringBuilder, string> appendDiagnostics
         )
             => appendDiagnostics(sb, DataDir);
 
-        internal string WriteLauncherDiagnosticsReport(string report)
+        private string WriteLauncherDiagnosticsReport(string report)
             => WriteTimestampedReport(
                 "sts2-launcher-diagnostics",
                 DataDir,
@@ -201,10 +213,25 @@ internal static partial class LauncherDiagnostics
     private static void AppendFullLauncherDiagnostics(StringBuilder sb, Snapshot snapshot)
         => snapshot.AppendFullLauncherDiagnostics(sb);
 
+    private static void AppendErrorDiagnostics(
+        Snapshot snapshot,
+        StringBuilder sb,
+        Action<StringBuilder, string> appendDiagnostics
+    )
+        => snapshot.AppendErrorDiagnostics(sb, appendDiagnostics);
+
+    private static void AppendLauncherState(
+        Snapshot snapshot,
+        StringBuilder sb,
+        LauncherStateDetail detail
+    )
+        => snapshot.AppendLauncherState(sb, detail);
+
     private static void AppendLauncherPreferences(StringBuilder sb)
     {
-        sb.AppendLine($"Cloud sync pref: {LauncherPreferences.ReadCloudSyncEnabled()}");
-        sb.AppendLine($"Local backup pref: {LauncherPreferences.ReadLocalBackupEnabled()}");
+        var preferences = LauncherPreferences.ReadActionPreferences();
+        sb.AppendLine($"Cloud sync pref: {preferences.CloudSyncEnabled}");
+        sb.AppendLine($"Local backup pref: {preferences.LocalBackupEnabled}");
     }
 
     private static void AppendPreviousLaunchPhase(StringBuilder sb, string label)

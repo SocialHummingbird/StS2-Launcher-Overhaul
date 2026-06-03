@@ -135,7 +135,7 @@ internal static partial class CloudSyncCoordinator
             return true;
         }
 
-        internal int RunCloudBatch(Func<int> run)
+        internal TResult RunCloudBatch<TResult>(Func<TResult> run)
         {
             _cloud.BeginSaveBatch();
             try
@@ -176,14 +176,14 @@ internal static partial class CloudSyncCoordinator
             ManualPullPlan()
         );
 
-    private static ManualSyncPlan<int> ManualPushPlan()
-        => ManualSyncPlan<int>.Create(
+    private static ManualSyncPlan<ManualPushResult> ManualPushPlan()
+        => ManualSyncPlan<ManualPushResult>.Create(
             sync => sync.DiscoverLocalPaths(),
             PushStarting,
             (sync, paths) => SaveBackups.CloudBeforeManualPushAsync(sync, paths),
             PushBackedUpCloudFiles,
             RunManualPushUploadsAsync,
-            PushComplete
+            result => result.CompleteMessage()
         );
 
     private static ManualSyncPlan<ManualPullResult> ManualPullPlan()

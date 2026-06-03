@@ -39,9 +39,9 @@ internal sealed partial class DepotDownloader
                 if (manifest != null)
                     return manifest;
             }
-            catch (Exception ex) when (attempt.CanRetryAfter(ex))
+            catch (Exception ex) when (attempt.CanRetry())
             {
-                attempt.HandleDownloadRetryFailure(this, "Manifest download", ex);
+                attempt.HandleDownloadRetryFailure(this, ManifestDownloadOperation, ex);
             }
         }
 

@@ -15,33 +15,46 @@ internal static partial class CloudSyncCoordinator
 
         private TransferDecision(
             Action action,
+            Func<string, string>? transferMessage,
             string? existingContentToBackUp,
             bool backUpExisting
         )
         {
             _action = action;
+            TransferMessage = transferMessage;
             ExistingContentToBackUp = existingContentToBackUp;
             BackUpExisting = backUpExisting;
         }
 
         private readonly Action _action;
         private bool ShouldTransfer => _action == Action.Transfer;
+        private Func<string, string>? TransferMessage { get; }
         private string? ExistingContentToBackUp { get; }
         private bool BackUpExisting { get; }
 
         internal static TransferDecision Transfer(
+            Func<string, string> transferMessage,
             string? existingContentToBackUp = null,
             bool backUpExisting = false
         )
-            => new(Action.Transfer, existingContentToBackUp, backUpExisting);
+            => new(
+                Action.Transfer,
+                transferMessage,
+                existingContentToBackUp,
+                backUpExisting
+            );
 
         internal static TransferDecision Skip()
-            => new(Action.Skip, existingContentToBackUp: null, backUpExisting: false);
+            => new(
+                Action.Skip,
+                transferMessage: null,
+                existingContentToBackUp: null,
+                backUpExisting: false
+            );
 
         internal async Task ApplyPullAsync(
             AutoSyncContext sync,
-            string cloudContent,
-            Func<string, string> message
+            string cloudContent
         )
         {
             if (!ShouldTransfer)
@@ -49,22 +62,31 @@ internal static partial class CloudSyncCoordinator
 
             await sync.PullCloudContentAsync(
                 cloudContent,
-                message,
+                TransferMessageOrThrow(),
                 BackUpExisting
             );
         }
 
         internal void ApplyPush(
             AutoSyncContext sync,
-            string localContent,
-            Func<string, string> message
+            string localContent
         )
         {
             if (!ShouldTransfer)
                 return;
 
-            sync.PushLocalContent(localContent, ExistingContentToBackUp, message);
+            sync.PushLocalContent(
+                localContent,
+                ExistingContentToBackUp,
+                TransferMessageOrThrow()
+            );
         }
+
+        private Func<string, string> TransferMessageOrThrow()
+            => TransferMessage
+                ?? throw new InvalidOperationException(
+                    "Transfer decision has no transfer message"
+                );
     }
 
     private static async Task PushFileAsync(AutoSyncContext sync)
@@ -74,7 +96,7 @@ internal static partial class CloudSyncCoordinator
             return;
 
         var push = await GetPushDecisionAsync(sync, local);
-        push.ApplyPush(sync, local, PushUploaded);
+        push.ApplyPush(sync, local);
     }
 
     private static async Task PullFileAsync(AutoSyncContext sync)
@@ -85,7 +107,7 @@ internal static partial class CloudSyncCoordinator
         string cloudContent = await sync.ReadCloudContentAsync(PullCloudFileOperation);
 
         var pull = GetPullDecision(sync, cloudContent);
-        await pull.ApplyPullAsync(sync, cloudContent, PullDownloaded);
+        await pull.ApplyPullAsync(sync, cloudContent);
     }
 
     private static async Task<TransferDecision> GetPushDecisionAsync(
@@ -94,7 +116,7 @@ internal static partial class CloudSyncCoordinator
     )
     {
         if (!sync.CloudFileExists())
-            return TransferDecision.Transfer();
+            return TransferDecision.Transfer(PushUploaded);
 
         string cloudContent = await sync.ReadCloudContentAsync(ReadCloudFileOperation);
         if (localContent == cloudContent)
@@ -103,7 +125,10 @@ internal static partial class CloudSyncCoordinator
             return TransferDecision.Skip();
         }
 
-        return TransferDecision.Transfer(existingContentToBackUp: cloudContent);
+        return TransferDecision.Transfer(
+            PushUploaded,
+            existingContentToBackUp: cloudContent
+        );
     }
 
     private static TransferDecision GetPullDecision(
@@ -113,7 +138,7 @@ internal static partial class CloudSyncCoordinator
     {
         var local = sync.ReadLocalContent();
         if (local == null)
-            return TransferDecision.Transfer();
+            return TransferDecision.Transfer(PullDownloaded);
 
         if (local == cloudContent)
         {
@@ -121,6 +146,6 @@ internal static partial class CloudSyncCoordinator
             return TransferDecision.Skip();
         }
 
-        return TransferDecision.Transfer(backUpExisting: true);
+        return TransferDecision.Transfer(PullDownloaded, backUpExisting: true);
     }
 }

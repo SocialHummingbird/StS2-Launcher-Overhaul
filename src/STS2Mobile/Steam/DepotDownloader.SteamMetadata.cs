@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -15,57 +14,23 @@ internal sealed partial class DepotDownloader
 
     private async Task<List<DepotManifestReference>> GetMainAppDepotsAsync()
     {
-        var appInfo = await GetRequiredAppInfoAsync(SteamCloudApp.AppId);
-        var depotSection = GetDepotsSection(appInfo, SteamCloudApp.AppId);
+        var app = ProductInfoApp.Main();
+        var appInfo = await app.GetRequiredInfoAsync(this);
+        var depotSection = app.GetDepotsSection(appInfo);
         return await ParseDepotsAsync(depotSection);
     }
 
     private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> GetAppInfoAsync(
-        uint appId
+        ProductInfoApp app
     )
     {
-        if (_appInfoCache.TryGetValue(appId, out var cached))
+        if (_appInfoCache.TryGetValue(app.AppId, out var cached))
             return cached;
 
-        var appInfo = await FetchAppInfoAsync(appId);
+        var appInfo = await app.FetchInfoAsync(this);
         if (appInfo != null)
-            _appInfoCache[appId] = appInfo;
+            _appInfoCache[app.AppId] = appInfo;
 
         return appInfo;
-    }
-
-    private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> FetchAppInfoAsync(
-        uint appId
-    )
-    {
-        return await _connection.GetAppInfoAsync(
-            appId,
-            await GetProductInfoAccessTokenAsync(appId)
-        );
-    }
-
-    private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo> GetRequiredAppInfoAsync(
-        uint appId
-    )
-    {
-        var app = ProductInfoApp.Create(appId);
-        var appInfo = await GetAppInfoAsync(appId);
-        if (appInfo == null)
-            throw new Exception(app.AppInfoUnavailable());
-
-        return appInfo;
-    }
-
-    private static KeyValue GetDepotsSection(
-        SteamApps.PICSProductInfoCallback.PICSProductInfo appInfo,
-        uint appId
-    )
-    {
-        var app = ProductInfoApp.Create(appId);
-        var depots = appInfo?.KeyValues?["depots"];
-        if (depots == null || depots == KeyValue.Invalid)
-            throw new InvalidOperationException(app.MissingDepotsSection());
-
-        return depots;
     }
 }

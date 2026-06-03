@@ -18,7 +18,7 @@ internal sealed partial class DepotDownloader
         return await RunCdnAuthRetryAsync<int?>(
             depotId,
             attempt,
-            "Chunk",
+            ChunkAuthRetryOperation,
             async token =>
             {
                 var written = await attempt.DownloadChunkAsync(

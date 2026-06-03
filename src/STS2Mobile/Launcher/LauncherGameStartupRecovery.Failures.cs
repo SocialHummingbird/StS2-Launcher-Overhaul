@@ -8,16 +8,11 @@ internal static partial class LauncherGameStartupRecovery
 {
     internal static void HandleFailure(Node gameNode, Label startupStatus, Exception ex)
     {
-        var root = ex.GetBaseException();
-        var message = $"{root.GetType().Name}: {root.Message}";
         PatchHelper.Log($"Game startup failed: {ex}");
         ShowFailure(
             gameNode,
             startupStatus,
-            RecoveryStateUpdate.Create(
-                $"game startup failed: {message}",
-                $"Game startup failed: {message}"
-            )
+            RecoveryStateUpdate.GameStartupFailed(ex)
         );
     }
 
@@ -31,10 +26,7 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            RecoveryStateUpdate.Create(
-                "settings and saves failed",
-                $"Settings/save init failed: {ex.GetBaseException().Message}"
-            )
+            RecoveryStateUpdate.SettingsAndSavesFailed(ex)
         );
     }
 
@@ -43,10 +35,7 @@ internal static partial class LauncherGameStartupRecovery
         ShowFailure(
             gameNode,
             startupStatus,
-            RecoveryStateUpdate.Create(
-                MainMenuGuardFailureReason,
-                "Main menu did not load. Use recovery controls below."
-            )
+            RecoveryStateUpdate.MainMenuGuardFailed()
         );
         return false;
     }

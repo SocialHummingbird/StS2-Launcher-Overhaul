@@ -8,6 +8,49 @@ internal sealed partial class LauncherController
 {
     private bool _automaticDiagnosticsWritten;
 
+    private readonly struct DiagnosticsFailure
+    {
+        private DiagnosticsFailure(
+            string context,
+            bool logFullException,
+            Action<string>? onFailure
+        )
+        {
+            Context = context;
+            LogFullException = logFullException;
+            OnFailure = onFailure;
+        }
+
+        private string Context { get; }
+        private bool LogFullException { get; }
+        private Action<string>? OnFailure { get; }
+
+        internal static DiagnosticsFailure ReportToStatus(
+            string context,
+            Action<string> setStatus
+        )
+            => new(
+                context,
+                logFullException: true,
+                message => setStatus($"{context}: {message}")
+            );
+
+        internal static DiagnosticsFailure Create(
+            string context,
+            bool logFullException,
+            Action<string>? onFailure = null
+        )
+            => new(context, logFullException, onFailure);
+
+        internal void Handle(Exception ex)
+        {
+            PatchHelper.Log(
+                $"[Launcher] {Context}: {(LogFullException ? ex.ToString() : ex.Message)}"
+            );
+            OnFailure?.Invoke(ex.Message);
+        }
+    }
+
     private void ShowLastErrorPressed()
         => RunDiagnosticsAction(
             "Error summary failed",
@@ -35,18 +78,17 @@ internal sealed partial class LauncherController
 
     private void RunDiagnosticsAction(string failureContext, Action action)
     {
+        var failure = DiagnosticsFailure.ReportToStatus(
+            failureContext,
+            _view.SetStatus
+        );
         try
         {
             action();
         }
         catch (Exception ex)
         {
-            HandleDiagnosticsActionFailure(
-                failureContext,
-                ex,
-                logFullException: true,
-                message => _view.SetStatus($"{failureContext}: {message}")
-            );
+            failure.Handle(ex);
         }
     }
 
@@ -58,41 +100,19 @@ internal sealed partial class LauncherController
     )
         where T : class
     {
+        var failure = DiagnosticsFailure.Create(
+            failureContext,
+            logFullException,
+            onFailure
+        );
         try
         {
             return action();
         }
         catch (Exception ex)
         {
-            HandleDiagnosticsActionFailure(
-                failureContext,
-                ex,
-                logFullException,
-                onFailure
-            );
+            failure.Handle(ex);
             return default;
         }
-    }
-
-    private static void HandleDiagnosticsActionFailure(
-        string failureContext,
-        Exception ex,
-        bool logFullException,
-        Action<string>? onFailure
-    )
-    {
-        LogDiagnosticsFailure(failureContext, ex, logFullException);
-        onFailure?.Invoke(ex.Message);
-    }
-
-    private static void LogDiagnosticsFailure(
-        string failureContext,
-        Exception ex,
-        bool logFullException
-    )
-    {
-        PatchHelper.Log(
-            $"[Launcher] {failureContext}: {(logFullException ? ex.ToString() : ex.Message)}"
-        );
     }
 }

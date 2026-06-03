@@ -9,6 +9,7 @@ internal sealed partial class ShaderWarmupScreen
         internal const string ScanningStatus = "Scanning for shaders...";
         internal const string CompilingStatus = "Compiling shaders...";
         internal const string DoneStatus = "Done!";
+        internal const string InitialDetail = "Enumerating resources...";
         internal const string ScreenInitialized = "[ShaderWarmup] Screen initialized";
 
         internal static string Collected(int materialCount)
@@ -46,6 +47,9 @@ internal sealed partial class ShaderWarmupScreen
 
         internal static string ScanningScenes(int index, int total)
             => $"Scanning scenes... {index} / {total}";
+
+        internal static string CompilingProgress(int completed, int total)
+            => $"Compiling {completed} / {total}";
 
         internal static string MarkerCheckFailed(Exception ex)
             => $"[ShaderWarmup] NeedsWarmup check failed: {ex.Message}";

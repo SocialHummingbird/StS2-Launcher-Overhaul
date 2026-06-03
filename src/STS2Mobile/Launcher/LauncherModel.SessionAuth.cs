@@ -6,6 +6,45 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
+    private readonly struct ConnectionAttemptResult
+    {
+        private ConnectionAttemptResult(int attemptId, string? error)
+        {
+            AttemptId = attemptId;
+            Error = error;
+        }
+
+        private int AttemptId { get; }
+        private string? Error { get; }
+        private bool Succeeded => Error == null;
+
+        internal static ConnectionAttemptResult Create(int attemptId, string? error)
+            => new(attemptId, error);
+
+        internal void Apply(LauncherModel model)
+        {
+            if (!model.IsCurrentSessionAttempt(AttemptId))
+            {
+                LogStaleFailure();
+                return;
+            }
+
+            if (Succeeded)
+            {
+                model.MarkConnectionSucceeded();
+                return;
+            }
+
+            model.MarkConnectionFailed(Error);
+        }
+
+        private void LogStaleFailure()
+        {
+            if (Error != null)
+                PatchHelper.Log($"[Launcher] Ignored stale session failure: {Error}");
+        }
+    }
+
     // Connects on-demand and verifies ownership. Used when we have saved
     // credentials but no ownership marker.
     internal async Task ConnectAsync()
@@ -50,7 +89,7 @@ internal partial class LauncherModel
     {
         var attemptId = BeginSessionAttempt(state);
         var error = await run(attemptId);
-        CompleteConnectionAttempt(attemptId, error);
+        ConnectionAttemptResult.Create(attemptId, error).Apply(this);
     }
 
     private void BeginOwnershipVerification(int attemptId)
@@ -61,22 +100,14 @@ internal partial class LauncherModel
         SetSessionState(SessionState.VerifyingOwnership);
     }
 
-    private void CompleteConnectionAttempt(int attemptId, string error)
+    private void MarkConnectionSucceeded()
     {
-        if (!IsCurrentSessionAttempt(attemptId))
-        {
-            if (error != null)
-                PatchHelper.Log($"[Launcher] Ignored stale session failure: {error}");
-            return;
-        }
+        _connectionResolved = true;
+        SetSessionState(SessionState.LoggedIn);
+    }
 
-        if (error == null)
-        {
-            _connectionResolved = true;
-            SetSessionState(SessionState.LoggedIn);
-            return;
-        }
-
+    private void MarkConnectionFailed(string error)
+    {
         _connectionResolved = false;
         SetSessionState(SessionState.Failed, error);
     }

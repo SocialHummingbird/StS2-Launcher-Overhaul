@@ -7,22 +7,39 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
+    private readonly struct RedownloadRequest
+    {
+        private const string ConfirmationMessage =
+            "Redownload game files?\nThis keeps your Steam login but deletes downloaded game files.";
+        private const string DownloadButtonText = "DOWNLOAD GAME FILES";
+        private const string StatusMessage =
+            "Game files deleted. Download again to rebuild them.";
+        private const string LogMessage =
+            "Game files were deleted for a clean redownload.";
+
+        internal static RedownloadRequest Create()
+            => new();
+
+        internal void Confirm(LauncherView view, Action onConfirmed)
+            => view.ShowConfirmation(ConfirmationMessage, onConfirmed);
+
+        internal void Apply(LauncherModel model, LauncherView view)
+        {
+            model.ResetGameFilesForRedownload();
+            view.HideActions();
+            view.ShowDownloadAction(DownloadButtonText);
+            view.SetStatus(StatusMessage);
+            view.AppendLog(LogMessage);
+        }
+    }
+
     private void DownloadPressed()
         => _ = DownloadAsync();
 
     private void RedownloadPressed()
     {
-        _view.ShowConfirmation(
-            "Redownload game files?\nThis keeps your Steam login but deletes downloaded game files.",
-            () =>
-            {
-                _model.ResetGameFilesForRedownload();
-                _view.HideActions();
-                ShowDownloadAction("DOWNLOAD GAME FILES");
-                _view.SetStatus("Game files deleted. Download again to rebuild them.");
-                _view.AppendLog("Game files were deleted for a clean redownload.");
-            }
-        );
+        var request = RedownloadRequest.Create();
+        request.Confirm(_view, () => request.Apply(_model, _view));
     }
 
     private async Task DownloadAsync()
