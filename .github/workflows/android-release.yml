@@ -591,6 +591,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.build-android-release.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
           name: "StS2 Launcher ${{ needs.build-android-release.outputs.version_name }}"
           files: |
             release-artifacts/**/*.apk
