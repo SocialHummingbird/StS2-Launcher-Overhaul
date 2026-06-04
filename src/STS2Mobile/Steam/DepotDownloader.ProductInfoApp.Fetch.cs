@@ -8,16 +8,7 @@ internal sealed partial class DepotDownloader
     private readonly partial struct ProductInfoApp
     {
         private async Task<PICSProductInfo?> GetInfoAsync()
-        {
-            if (_owner._appInfoCache.TryGetValue(Identity.AppId, out var cached))
-                return cached;
-
-            var appInfo = await FetchInfoAsync();
-            if (appInfo != null)
-                _owner._appInfoCache[Identity.AppId] = appInfo;
-
-            return appInfo;
-        }
+            => await _owner._productInfoAppCache.GetOrFetchAsync(this);
 
         private async Task<ulong> GetAccessTokenAsync()
         {
@@ -31,7 +22,7 @@ internal sealed partial class DepotDownloader
             return token;
         }
 
-        private async Task<PICSProductInfo?> FetchInfoAsync()
+        internal async Task<PICSProductInfo?> FetchInfoForCacheAsync()
             => await _owner._connection.GetAppInfoAsync(
                 Identity.AppId,
                 await GetAccessTokenAsync()

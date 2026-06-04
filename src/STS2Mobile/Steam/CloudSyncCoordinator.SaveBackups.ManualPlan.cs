@@ -10,7 +10,7 @@ internal static partial class CloudSyncCoordinator
         private readonly struct ManualBackupPlan
         {
             private ManualBackupPlan(
-                string source,
+                BackupSource source,
                 Func<ManualSyncContext, string, ValueTask<string?>> readContentAsync,
                 Action<string, Exception> logFailure
             )
@@ -20,7 +20,7 @@ internal static partial class CloudSyncCoordinator
                 LogFailure = logFailure;
             }
 
-            private string Source { get; }
+            private BackupSource Source { get; }
             private Func<ManualSyncContext, string, ValueTask<string?>> ReadContentAsync { get; }
             private Action<string, Exception> LogFailure { get; }
 
@@ -28,7 +28,7 @@ internal static partial class CloudSyncCoordinator
                 Func<ManualSyncContext, string, ValueTask<string?>> readContentAsync
             )
                 => new(
-                    BackupSourceCloudPrePush,
+                    BackupSource.CloudPrePush,
                     readContentAsync,
                     LogPushCloudBackupFailure
                 );
@@ -37,7 +37,7 @@ internal static partial class CloudSyncCoordinator
                 Func<ManualSyncContext, string, ValueTask<string?>> readContentAsync
             )
                 => new(
-                    BackupSourceLocalPrePull,
+                    BackupSource.LocalPrePull,
                     readContentAsync,
                     LogPullLocalBackupFailure
                 );

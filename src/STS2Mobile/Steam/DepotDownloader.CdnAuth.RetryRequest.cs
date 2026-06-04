@@ -12,7 +12,7 @@ internal sealed partial class DepotDownloader
         internal CdnAuthRetryRequest(
             uint depotId,
             CdnServerAttempt attempt,
-            string operation,
+            CdnOperationName operation,
             Func<string, Task<CdnDownloadResult<T>>> retryAsync
         )
         {
@@ -24,7 +24,7 @@ internal sealed partial class DepotDownloader
 
         internal uint DepotId { get; }
         internal CdnServerAttempt Attempt { get; }
-        private string Operation { get; }
+        private CdnOperationName Operation { get; }
 
         internal Task<CdnDownloadResult<T>> RetryAsync(string token)
             => _retryAsync(token);

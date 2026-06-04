@@ -21,6 +21,18 @@ internal static partial class CloudSyncCoordinator
 
         internal async Task WaitAsync(Task task)
         {
+            await WaitForCompletionAsync(task).ConfigureAwait(false);
+            await task.ConfigureAwait(false);
+        }
+
+        internal async Task<T> WaitAsync<T>(Task<T> task)
+        {
+            await WaitForCompletionAsync(task).ConfigureAwait(false);
+            return await task.ConfigureAwait(false);
+        }
+
+        private async Task WaitForCompletionAsync(Task task)
+        {
             var timeout = Task.Delay(_timeoutMs);
             var winner = await Task.WhenAny(task, timeout).ConfigureAwait(false);
             if (winner == task)

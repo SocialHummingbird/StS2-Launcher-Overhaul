@@ -22,22 +22,18 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         private string FailureTitle { get; }
         private Func<StartupRecoveryReportSession, string> Run { get; }
 
-        internal static StartupRecoveryAction DiagnosticsExport(
-            Func<StartupRecoveryReportSession, string> run
-        )
-            => new(
+        internal static StartupRecoveryAction DiagnosticsExport { get; } =
+            new(
                 "diagnostics export",
                 "Diagnostics export failed",
-                run
+                session => session.ExportDiagnostics()
             );
 
-        internal static StartupRecoveryAction RawErrorLogCopy(
-            Func<StartupRecoveryReportSession, string> run
-        )
-            => new(
+        internal static StartupRecoveryAction RawErrorLogCopy { get; } =
+            new(
                 "raw error log copy",
                 "Raw error log copy failed",
-                run
+                session => session.CopyRawErrorLog()
             );
 
         internal string RunAndDescribe(StartupRecoveryReportSession session)

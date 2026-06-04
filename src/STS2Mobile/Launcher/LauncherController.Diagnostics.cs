@@ -1,4 +1,3 @@
-using System;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -7,57 +6,11 @@ internal sealed partial class LauncherController
 {
     private bool _automaticDiagnosticsWritten;
 
-    private static readonly DiagnosticsAction LastErrorDiagnosticsAction =
-        DiagnosticsAction.LastErrorSummary(ShowDiagnosticsSummary);
-
-    private static readonly DiagnosticsAction RawLogDiagnosticsAction =
-        DiagnosticsAction.RawErrorLog(CopyRawLogToClipboard);
-
-    private readonly struct DiagnosticsAction
-    {
-        private readonly Func<LauncherModel, string> _buildText;
-        private readonly Action<LauncherView, string> _publishText;
-
-        private DiagnosticsAction(
-            string failureContext,
-            Func<LauncherModel, string> buildText,
-            Action<LauncherView, string> publishText
-        )
-        {
-            FailureContext = failureContext;
-            _buildText = buildText;
-            _publishText = publishText;
-        }
-
-        internal string FailureContext { get; }
-
-        internal static DiagnosticsAction LastErrorSummary(
-            Action<LauncherView, string> publishText
-        )
-            => new(
-                "Error summary failed",
-                model => model.BuildDiagnosticsSummaryForDisplay(),
-                publishText
-            );
-
-        internal static DiagnosticsAction RawErrorLog(
-            Action<LauncherView, string> publishText
-        )
-            => new(
-                "Raw error log copy failed",
-                model => model.BuildRawErrorLogForClipboard(),
-                publishText
-            );
-
-        internal void Run(LauncherModel model, LauncherView view)
-            => _publishText(view, _buildText(model));
-    }
-
     private void ShowLastErrorPressed()
-        => RunDiagnosticsAction(LastErrorDiagnosticsAction);
+        => RunDiagnosticsAction(DiagnosticsAction.LastErrorSummary);
 
     private void CopyRawLogPressed()
-        => RunDiagnosticsAction(RawLogDiagnosticsAction);
+        => RunDiagnosticsAction(DiagnosticsAction.RawErrorLog);
 
     private void RunDiagnosticsAction(DiagnosticsAction action)
         => RunDiagnosticsAction(

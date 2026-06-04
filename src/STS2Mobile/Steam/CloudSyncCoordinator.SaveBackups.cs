@@ -6,11 +6,8 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveBackups
     {
-        private const string BackupSourceCloud = "cloud";
-        private const string BackupSourceLocal = "local";
-
         internal static void CloudProgressContent(string path, string content)
-            => ProgressContent(path, content, BackupSourceCloud);
+            => ProgressContent(path, content, BackupSource.Cloud);
 
         internal static void LocalProgressFile(ISaveStore local, string path)
         {
@@ -20,7 +17,7 @@ internal static partial class CloudSyncCoordinator
             if (!local.FileExists(path))
                 return;
 
-            ProgressContent(path, local.ReadFile(path), BackupSourceLocal);
+            ProgressContent(path, local.ReadFile(path), BackupSource.Local);
         }
     }
 }

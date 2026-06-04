@@ -14,6 +14,10 @@ internal sealed partial class SteamKit2CloudSaveStore
         new("Connection flush");
     private static readonly CloudStoreOperation CommitOperation =
         new("Commit");
+    private static readonly CloudStoreOperation UploadOperation =
+        new("Upload");
+    private static readonly CloudStoreOperation DeleteOperation =
+        new("Delete");
 
     private readonly struct CloudStoreOperation
     {
@@ -41,12 +45,6 @@ internal sealed partial class SteamKit2CloudSaveStore
 
     private static string EndSaveBatchFailed(Exception ex) =>
         EndSaveBatchOperation.Failed(ex);
-
-    private static string OperationThrottled(string operationName, string path, int delayMs) =>
-        new CloudStoreOperation(operationName).Throttled(path, delayMs);
-
-    private static string OperationFailed(string operationName, string path, Exception ex) =>
-        new CloudStoreOperation(operationName).FailedForPath(path, ex);
 
     private static string QueueFlushFailed(Exception ex) =>
         QueueFlushOperation.Failed(ex);

@@ -11,7 +11,7 @@ internal static partial class CloudSyncCoordinator
             private BackupWriteRequest(
                 string path,
                 string content,
-                string source,
+                BackupSource source,
                 string? fileNameOverride,
                 Action<string> onWritten
             )
@@ -25,14 +25,14 @@ internal static partial class CloudSyncCoordinator
 
             private string Path { get; }
             private string Content { get; }
-            private string Source { get; }
+            private BackupSource Source { get; }
             private string? FileNameOverride { get; }
             private Action<string> OnWritten { get; }
 
             internal static BackupWriteRequest Standard(
                 string path,
                 string content,
-                string source
+                BackupSource source
             )
                 => new(
                     path,
@@ -45,7 +45,7 @@ internal static partial class CloudSyncCoordinator
             internal static BackupWriteRequest Progress(
                 string path,
                 string content,
-                string source,
+                BackupSource source,
                 Action<string> onWritten
             )
                 => new(

@@ -32,7 +32,7 @@ internal sealed partial class DepotDownloader
         string fileName
     )
         => CdnDownloadOperation<int>.AcrossServersWithAuthRetry(
-            ChunkDownloadOperation,
+            CdnOperationName.ChunkDownload,
             attempt => TryDownloadChunkAsync(
                 depotId,
                 chunk,

@@ -6,7 +6,11 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveBackups
     {
-        private static void ProgressContent(string path, string content, string source)
+        private static void ProgressContent(
+            string path,
+            string content,
+            BackupSource source
+        )
         {
             if (!IsProgressSave(path))
                 return;
@@ -21,7 +25,7 @@ internal static partial class CloudSyncCoordinator
         }
 
         private static void CompleteProgressBackup(
-            string source,
+            BackupSource source,
             string path,
             string backupPath
         )

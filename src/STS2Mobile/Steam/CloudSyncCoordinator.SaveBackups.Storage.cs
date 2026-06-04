@@ -6,7 +6,11 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveBackups
     {
-        private static bool SaveContent(string path, string content, string source)
+        private static bool SaveContent(
+            string path,
+            string content,
+            BackupSource source
+        )
             => SaveBackup(BackupWriteRequest.Standard(path, content, source));
 
         private static bool SaveBackup(BackupWriteRequest request)

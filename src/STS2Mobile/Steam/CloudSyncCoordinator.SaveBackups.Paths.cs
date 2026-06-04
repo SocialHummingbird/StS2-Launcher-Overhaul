@@ -18,7 +18,7 @@ internal static partial class CloudSyncCoordinator
         private static string BuildBackupPathForSave(
             string path,
             string? fileNameOverride,
-            string source
+            BackupSource source
         )
         {
             var canonPath = NormalizeSavePath(path);
@@ -41,7 +41,11 @@ internal static partial class CloudSyncCoordinator
             return "default";
         }
 
-        private static string BuildBackupPath(string profileDir, string fileName, string source)
+        private static string BuildBackupPath(
+            string profileDir,
+            string fileName,
+            BackupSource source
+        )
         {
             var backupDir = Path.Combine(AppPaths.ExternalSaveBackupsDir, profileDir);
             Directory.CreateDirectory(backupDir);

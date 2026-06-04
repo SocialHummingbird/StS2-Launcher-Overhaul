@@ -18,7 +18,7 @@ internal sealed partial class DepotDownloader
             new CdnAuthRetryRequest<int>(
                 depotId,
                 attempt,
-                ChunkAuthRetryOperation,
+                CdnOperationName.ChunkAuthRetry,
                 token => CdnDownloadResult<int>.FromValidatedAsync(
                     () => attempt.DownloadChunkAsync(
                         this,

@@ -8,8 +8,6 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveBackups
     {
-        private const string BackupSourceCloudPrePush = "cloud-pre-push";
-        private const string BackupSourceLocalPrePull = "local-pre-pull";
         private const string ManualPushBackupReadOperation = "ManualPush backup read";
 
         private static readonly ManualBackupPlan CloudBeforeManualPushPlan =
