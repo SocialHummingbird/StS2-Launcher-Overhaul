@@ -21,8 +21,7 @@ internal sealed partial class DepotDownloader
 
         foreach (var file in files)
         {
-            var fileName = NormalizeManifestPath(file.FileName);
-            if (string.IsNullOrEmpty(fileName))
+            if (!TryGetNormalizedManifestFileName(file, out var fileName))
                 continue;
 
             map[fileName] = file;
@@ -37,9 +36,17 @@ internal sealed partial class DepotDownloader
     {
         foreach (var file in files)
         {
-            var fileName = NormalizeManifestPath(file.FileName);
-            if (!string.IsNullOrEmpty(fileName))
+            if (TryGetNormalizedManifestFileName(file, out var fileName))
                 yield return fileName;
         }
+    }
+
+    private static bool TryGetNormalizedManifestFileName(
+        DepotManifest.FileData file,
+        out string fileName
+    )
+    {
+        fileName = NormalizeManifestPath(file.FileName);
+        return !string.IsNullOrEmpty(fileName);
     }
 }

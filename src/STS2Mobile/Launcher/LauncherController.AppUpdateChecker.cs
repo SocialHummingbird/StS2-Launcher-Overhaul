@@ -24,10 +24,15 @@ internal sealed partial class LauncherController
     {
         private readonly LauncherVersion _installedVersion;
 
-        internal LauncherUpdateCheck(LauncherVersion installedVersion)
+        private LauncherUpdateCheck(LauncherVersion installedVersion)
         {
             _installedVersion = installedVersion;
         }
+
+        internal static LauncherUpdateCheck ForInstalledVersion(
+            LauncherVersion installedVersion
+        )
+            => new(installedVersion);
 
         internal async Task<string?> RunAsync()
         {
@@ -35,7 +40,7 @@ internal sealed partial class LauncherController
             if (!latestVersion.HasValue)
                 return null;
 
-            if (latestVersion.Value.CompareTo(_installedVersion) <= 0)
+            if (!latestVersion.Value.IsNewerThan(_installedVersion))
                 return null;
 
             return latestVersion.Value.ToString();
@@ -62,7 +67,7 @@ internal sealed partial class LauncherController
         }
     }
 
-    private readonly struct LauncherVersion : IComparable<LauncherVersion>
+    private readonly struct LauncherVersion
     {
         private LauncherVersion(string text, int[] parts)
         {
@@ -88,7 +93,10 @@ internal sealed partial class LauncherController
             return true;
         }
 
-        public int CompareTo(LauncherVersion other)
+        internal bool IsNewerThan(LauncherVersion other)
+            => CompareTo(other) > 0;
+
+        private int CompareTo(LauncherVersion other)
         {
             var len = Math.Max(Parts.Length, other.Parts.Length);
             for (var i = 0; i < len; i++)
@@ -124,7 +132,9 @@ internal sealed partial class LauncherController
         if (!LauncherVersion.TryParse(GetInstalledLauncherVersion(), out var installedVersion))
             return null;
 
-        return await new LauncherUpdateCheck(installedVersion).RunAsync();
+        return await LauncherUpdateCheck
+            .ForInstalledVersion(installedVersion)
+            .RunAsync();
     }
 
     private static string? GetInstalledLauncherVersion()
@@ -142,17 +152,17 @@ internal sealed partial class LauncherController
     private static LauncherVersion? ParseLatestReleaseVersion(string json)
     {
         using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-
-        var releaseName = root.TryGetProperty(ReleaseNameProperty, out var nameProp)
-            ? nameProp.GetString()
-            : null;
-        var releaseTag = root.TryGetProperty(ReleaseTagNameProperty, out var tagProp)
-            ? tagProp.GetString()
-            : null;
-
-        return LauncherVersion.TryParse(releaseTag ?? releaseName, out var version)
+        return LauncherVersion.TryParse(ReadReleaseVersionText(doc.RootElement), out var version)
             ? version
             : null;
     }
+
+    private static string? ReadReleaseVersionText(JsonElement root)
+        => ReadOptionalString(root, ReleaseTagNameProperty)
+            ?? ReadOptionalString(root, ReleaseNameProperty);
+
+    private static string? ReadOptionalString(JsonElement root, string property)
+        => root.TryGetProperty(property, out var value)
+            ? value.GetString()
+            : null;
 }

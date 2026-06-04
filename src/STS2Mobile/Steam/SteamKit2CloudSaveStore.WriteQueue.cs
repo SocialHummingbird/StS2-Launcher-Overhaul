@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace STS2Mobile.Steam;
@@ -168,10 +169,7 @@ internal sealed partial class SteamKit2CloudSaveStore
             => PatchHelper.Log(logMessage(MarkDroppedQueuedWrite()));
 
         private void DropQueuedWrite(string logMessage)
-        {
-            MarkDroppedQueuedWrite();
-            PatchHelper.Log(logMessage);
-        }
+            => DropQueuedWrite(_ => logMessage);
 
         private void ProcessLoop()
         {
@@ -192,4 +190,19 @@ internal sealed partial class SteamKit2CloudSaveStore
             }
         }
     }
+
+    private void EnqueueUpload(
+        string canonPath,
+        byte[] bytes,
+        DateTimeOffset timestamp
+    )
+        => _writeQueue.Enqueue(
+            () => UploadWithRetry(canonPath, bytes, timestamp: timestamp)
+        );
+
+    private void EnqueueDelete(string canonPath)
+        => _writeQueue.Enqueue(() => DeleteCloudFileWithRetry(canonPath));
+
+    private void EnqueueBatchUpload(IReadOnlyList<SaveBatchFile> files)
+        => _writeQueue.Enqueue(() => UploadSaveBatch(files));
 }

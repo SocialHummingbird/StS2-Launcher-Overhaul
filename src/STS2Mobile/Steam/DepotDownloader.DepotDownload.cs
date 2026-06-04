@@ -31,12 +31,27 @@ internal sealed partial class DepotDownloader
 
         var filePlan = BuildDepotFilePlan(oldManifest, manifest, isUpdate);
 
-        DeleteObsoleteFiles(filePlan.Deletes);
-        ResetDepotProgress(filePlan.Downloads);
-        await DownloadDepotFilesOrLogCurrentAsync(filePlan.Downloads, depotId, depotKey, ct);
+        await ExecuteDepotFilePlanAsync(filePlan, depotId, depotKey, ct);
 
         _stateStore.SaveManifest(depotId, manifest, manifestId);
         Log($"Depot {depotId} complete");
+    }
+
+    private async Task ExecuteDepotFilePlanAsync(
+        DepotFilePlan filePlan,
+        uint depotId,
+        byte[] depotKey,
+        CancellationToken ct
+    )
+    {
+        DeleteObsoleteFiles(filePlan.Deletes);
+        ResetDepotProgress(filePlan.Downloads);
+        await DownloadDepotFilesOrLogCurrentAsync(
+            filePlan.Downloads,
+            depotId,
+            depotKey,
+            ct
+        );
     }
 
     private async Task DownloadDepotFilesOrLogCurrentAsync(

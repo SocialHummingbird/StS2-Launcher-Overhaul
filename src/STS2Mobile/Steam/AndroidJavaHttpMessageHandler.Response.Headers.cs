@@ -8,7 +8,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
 {
     private static void ApplyBridgeHeaders(HttpResponseMessage response, JsonElement root)
     {
-        if (!root.TryGetProperty(HeadersProperty, out var headers))
+        if (!TryGetBridgeObject(root, HeadersProperty, out var headers))
             return;
 
         foreach (var header in headers.EnumerateObject())
@@ -30,17 +30,5 @@ internal sealed partial class AndroidJavaHttpMessageHandler
             values.Add(GetBridgeString(value) ?? string.Empty);
 
         return values;
-    }
-
-    private static bool TryGetBridgeArray(JsonElement element, out JsonElement array)
-    {
-        if (element.ValueKind == JsonValueKind.Array)
-        {
-            array = element;
-            return true;
-        }
-
-        array = default;
-        return false;
     }
 }

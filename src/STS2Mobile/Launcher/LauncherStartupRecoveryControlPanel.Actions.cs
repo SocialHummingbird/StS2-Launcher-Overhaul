@@ -1,6 +1,8 @@
 using System;
 using Godot;
 using STS2Mobile;
+using StartupRecoveryReport =
+    STS2Mobile.Launcher.LauncherDiagnostics.StartupRecoveryDiagnosticsReport;
 
 namespace STS2Mobile.Launcher;
 
@@ -17,7 +19,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         private StartupRecoveryAction(
             string logAction,
             string failureTitle,
-            Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> run
+            Func<StartupRecoveryReport, string> run
         )
         {
             LogAction = logAction;
@@ -27,10 +29,10 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
         private string LogAction { get; }
         private string FailureTitle { get; }
-        private Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> Run { get; }
+        private Func<StartupRecoveryReport, string> Run { get; }
 
         internal static StartupRecoveryAction DiagnosticsExport(
-            Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> run
+            Func<StartupRecoveryReport, string> run
         )
             => new(
                 "diagnostics export",
@@ -39,7 +41,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
             );
 
         internal static StartupRecoveryAction RawErrorLogCopy(
-            Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> run
+            Func<StartupRecoveryReport, string> run
         )
             => new(
                 "raw error log copy",
@@ -47,20 +49,17 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
                 run
             );
 
-        internal string RunAndDescribe()
+        internal string RunAndDescribe(StartupRecoveryReport report)
         {
             try
             {
-                return Run(CurrentReport());
+                return Run(report);
             }
             catch (Exception ex)
             {
                 return FailureMessage(ex);
             }
         }
-
-        private static LauncherDiagnostics.StartupRecoveryDiagnosticsReport CurrentReport()
-            => LauncherDiagnostics.StartupRecoveryReport(OS.GetDataDir());
 
         private string FailureMessage(Exception ex)
         {
@@ -82,11 +81,12 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         => ShowActionResult(CopyRawErrorLogAction);
 
     private void ShowActionResult(StartupRecoveryAction action)
-        => _detail.Text = action.RunAndDescribe();
+        => _detail.Text = action.RunAndDescribe(CreateStartupRecoveryReport());
 
-    private static string ExportDiagnosticsReport(
-        LauncherDiagnostics.StartupRecoveryDiagnosticsReport report
-    )
+    private static StartupRecoveryReport CreateStartupRecoveryReport()
+        => LauncherDiagnostics.StartupRecoveryReport(OS.GetDataDir());
+
+    private static string ExportDiagnosticsReport(StartupRecoveryReport report)
     {
         var path = report.Write();
         PatchHelper.Log($"Startup recovery diagnostics written: {path}");
@@ -94,9 +94,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         return ExportDiagnosticsMessage(path, shared);
     }
 
-    private static string CopyReportTextToClipboard(
-        LauncherDiagnostics.StartupRecoveryDiagnosticsReport report
-    )
+    private static string CopyReportTextToClipboard(StartupRecoveryReport report)
     {
         var text = report.BuildText();
         DisplayServer.ClipboardSet(text);

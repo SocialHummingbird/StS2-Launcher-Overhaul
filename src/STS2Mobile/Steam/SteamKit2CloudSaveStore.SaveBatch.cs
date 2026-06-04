@@ -13,7 +13,6 @@ internal sealed partial class SteamKit2CloudSaveStore
         if (files.Count == 0)
             return;
 
-        _writeQueue.Enqueue(() =>
-            UploadSaveBatch(files));
+        EnqueueBatchUpload(files);
     }
 }

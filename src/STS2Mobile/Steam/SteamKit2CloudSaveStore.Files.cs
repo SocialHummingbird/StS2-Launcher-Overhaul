@@ -67,8 +67,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         if (_saveBatch.TryCollect(canonPath, bytes))
             return;
 
-        var ts = truncatedNow;
-        _writeQueue.Enqueue(() => UploadWithRetry(canonPath, bytes, timestamp: ts));
+        EnqueueUpload(canonPath, bytes, truncatedNow);
     }
 
     private void DeleteFileCore(string path)
@@ -76,6 +75,6 @@ internal sealed partial class SteamKit2CloudSaveStore
         var canonPath = CloudSavePath.Canonicalize(path);
         _cache.Remove(canonPath);
 
-        _writeQueue.Enqueue(() => DeleteCloudFileWithRetry(canonPath));
+        EnqueueDelete(canonPath);
     }
 }

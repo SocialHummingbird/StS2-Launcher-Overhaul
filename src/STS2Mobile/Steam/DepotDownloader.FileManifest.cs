@@ -7,7 +7,7 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct DepotFilePlan
     {
-        internal DepotFilePlan(
+        private DepotFilePlan(
             IReadOnlyList<DepotManifest.FileData> downloads,
             IReadOnlyList<string> deletes
         )
@@ -18,6 +18,12 @@ internal sealed partial class DepotDownloader
 
         internal IReadOnlyList<DepotManifest.FileData> Downloads { get; }
         internal IReadOnlyList<string> Deletes { get; }
+
+        internal static DepotFilePlan FromManifestDiff(
+            IReadOnlyList<DepotManifest.FileData> downloads,
+            IReadOnlyList<string> deletes
+        )
+            => new(downloads, deletes);
     }
 
     // Combines manifest changes with on-disk verification so interrupted writes
@@ -31,7 +37,7 @@ internal sealed partial class DepotDownloader
         var downloads = GetFilesNeedingDownload(oldManifest, newManifest, isUpdate);
         downloads = DeduplicateDownloads(downloads);
         ValidateDownloadFileSizes(downloads);
-        return new DepotFilePlan(
+        return DepotFilePlan.FromManifestDiff(
             downloads,
             GetFilesToDelete(oldManifest, newManifest)
         );

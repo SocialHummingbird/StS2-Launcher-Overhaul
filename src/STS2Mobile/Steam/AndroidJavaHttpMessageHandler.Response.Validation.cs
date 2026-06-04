@@ -46,7 +46,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
             }
         }
 
-        public void Dispose()
+        void IDisposable.Dispose()
             => _document.Dispose();
 
         internal static ParsedBridgeResponse CreateValidated(
