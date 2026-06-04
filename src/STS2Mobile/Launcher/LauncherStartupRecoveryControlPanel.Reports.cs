@@ -1,26 +1,25 @@
 using Godot;
 using STS2Mobile;
-using StartupRecoveryReport =
-    STS2Mobile.Launcher.LauncherDiagnostics.StartupRecoveryDiagnosticsReport;
 
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private static StartupRecoveryReport CaptureStartupRecoveryReport()
-        => LauncherDiagnostics.StartupRecoveryReport(OS.GetDataDir());
-
-    private static string ExportDiagnosticsReport(StartupRecoveryReport report)
+    private static string ExportDiagnosticsReport()
     {
-        var path = report.Write();
+        var path = LauncherDiagnostics.WriteStartupRecoveryDiagnosticsReport(
+            OS.GetDataDir()
+        );
         PatchHelper.Log($"Startup recovery diagnostics written: {path}");
         var shared = AndroidGodotAppBridge.ShareTextFile(path);
         return ExportDiagnosticsMessage(path, shared);
     }
 
-    private static string CopyRawErrorLogReport(StartupRecoveryReport report)
+    private static string CopyRawErrorLogReport()
     {
-        var text = report.BuildText();
+        var text = LauncherDiagnostics.BuildStartupRecoveryDiagnosticsText(
+            OS.GetDataDir()
+        );
         DisplayServer.ClipboardSet(text);
         PatchHelper.Log(
             $"Startup recovery raw error log copied ({text.Length:N0} chars)"

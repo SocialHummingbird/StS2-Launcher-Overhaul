@@ -28,12 +28,12 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     private void ShowActionResult(
         string logAction,
         string failureTitle,
-        Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> run
+        Func<string> run
     )
     {
         try
         {
-            _detail.Text = run(CaptureStartupRecoveryReport());
+            _detail.Text = run();
         }
         catch (Exception ex)
         {

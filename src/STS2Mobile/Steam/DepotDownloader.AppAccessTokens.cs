@@ -16,7 +16,7 @@ internal sealed partial class DepotDownloader
             AppId = appId;
         }
 
-        internal uint AppId { get; }
+        private uint AppId { get; }
 
         internal static Task<KeyValue> GetMainDepotsSectionAsync(DepotDownloader owner)
             => new ProductInfoApp(owner, SteamCloudApp.AppId)

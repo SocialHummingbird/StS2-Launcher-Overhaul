@@ -33,7 +33,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         );
 
     private static void RunCloudOperationWithRetry(
-        CloudStoreOperation operation,
+        string operation,
         string path,
         Func<int, int> throttleDelayMs,
         Action run
@@ -53,7 +53,7 @@ internal sealed partial class SteamKit2CloudSaveStore
             }
             catch (Exception ex)
             {
-                PatchHelper.Log(operation.FailedForPath(path, ex));
+                PatchHelper.Log(OperationFailedForPath(operation, path, ex));
                 return;
             }
         }
@@ -66,12 +66,12 @@ internal sealed partial class SteamKit2CloudSaveStore
         => IsTooManyPending(ex) && attempt < MaxCloudOperationAttempts - 1;
 
     private static void WaitAfterThrottle(
-        CloudStoreOperation operation,
+        string operation,
         string path,
         int delayMs
     )
     {
-        PatchHelper.Log(operation.Throttled(path, delayMs));
+        PatchHelper.Log(OperationThrottled(operation, path, delayMs));
         Thread.Sleep(delayMs);
     }
 

@@ -17,61 +17,38 @@ internal sealed partial class LauncherController
     private const string VersionNumberPattern = @"\d+(?:\.\d+)*";
     private static readonly TimeSpan LauncherUpdateTimeout = TimeSpan.FromSeconds(15);
 
-    private sealed class LauncherUpdateCheck
-    {
-        private readonly LauncherVersion _installedVersion;
-
-        private LauncherUpdateCheck(LauncherVersion installedVersion)
-        {
-            _installedVersion = installedVersion;
-        }
-
-        internal static LauncherUpdateCheck ForInstalledVersion(
-            LauncherVersion installedVersion
-        )
-            => new(installedVersion);
-
-        internal async Task<string> RunAsync()
-        {
-            var latestVersion = await FetchLatestVersionAsync();
-            if (!latestVersion.HasValue)
-                return null;
-
-            if (!latestVersion.Value.IsNewerThan(_installedVersion))
-                return null;
-
-            return latestVersion.Value.ToString();
-        }
-
-        private static async Task<LauncherVersion?> FetchLatestVersionAsync()
-        {
-            using var http = CreateHttpClient();
-            var response = await http
-                .GetStringAsync(LatestLauncherReleaseApiUrl)
-                .ConfigureAwait(false);
-
-            return ParseLatestReleaseVersion(response);
-        }
-
-        private static HttpClient CreateHttpClient()
-        {
-            var http = OperatingSystem.IsAndroid()
-                ? AndroidJavaHttpMessageHandler.CreateCdnClient()
-                : new HttpClient { Timeout = LauncherUpdateTimeout };
-            http.Timeout = LauncherUpdateTimeout;
-            http.DefaultRequestHeaders.Add("User-Agent", LauncherUpdateUserAgent);
-            return http;
-        }
-    }
-
     private static async Task<string> CheckLatestLauncherVersionAsync()
     {
         if (!LauncherVersion.TryParse(GetInstalledLauncherVersion(), out var installedVersion))
             return null;
 
-        return await LauncherUpdateCheck
-            .ForInstalledVersion(installedVersion)
-            .RunAsync();
+        var latestVersion = await FetchLatestVersionAsync();
+        if (!latestVersion.HasValue)
+            return null;
+
+        return latestVersion.Value.IsNewerThan(installedVersion)
+            ? latestVersion.Value.ToString()
+            : null;
+    }
+
+    private static async Task<LauncherVersion?> FetchLatestVersionAsync()
+    {
+        using var http = CreateHttpClient();
+        var response = await http
+            .GetStringAsync(LatestLauncherReleaseApiUrl)
+            .ConfigureAwait(false);
+
+        return ParseLatestReleaseVersion(response);
+    }
+
+    private static HttpClient CreateHttpClient()
+    {
+        var http = OperatingSystem.IsAndroid()
+            ? AndroidJavaHttpMessageHandler.CreateCdnClient()
+            : new HttpClient { Timeout = LauncherUpdateTimeout };
+        http.Timeout = LauncherUpdateTimeout;
+        http.DefaultRequestHeaders.Add("User-Agent", LauncherUpdateUserAgent);
+        return http;
     }
 
     private static string GetInstalledLauncherVersion()

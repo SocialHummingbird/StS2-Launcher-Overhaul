@@ -18,11 +18,10 @@ internal sealed partial class SteamKit2CloudSaveStore
         CloudStoreMessage("Cloud write thread did not stop in time");
     private static readonly string WriteThreadStopped =
         CloudStoreMessage("Cloud write thread stopped");
-    private static readonly CloudStoreOperation BackgroundWriteOperation =
-        new("Background write");
+    private const string BackgroundWriteOperation = "Background write";
 
     private static string BackgroundWriteFailed(Exception ex) =>
-        BackgroundWriteOperation.Failed(ex);
+        OperationFailed(BackgroundWriteOperation, ex);
 
     private static string WriteQueueFull(int maxQueuedWrites, long droppedWrites) =>
         CloudStoreMessage(

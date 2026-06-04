@@ -15,10 +15,9 @@ internal static partial class CloudSyncCoordinator
             IEnumerable<string> paths
         )
             => RunManualBackupsAsync(
-                sync,
                 paths,
                 BackupSource.CloudPrePush,
-                ReadCloudPrePushContentAsync,
+                path => ReadCloudPrePushContentAsync(sync, path),
                 LogPushCloudBackupFailure
             );
 
@@ -27,10 +26,9 @@ internal static partial class CloudSyncCoordinator
             IEnumerable<string> paths
         )
             => RunManualBackupsAsync(
-                sync,
                 paths,
                 BackupSource.LocalPrePull,
-                ReadLocalPrePullContentAsync,
+                path => ReadLocalPrePullContentAsync(sync, path),
                 LogPullLocalBackupFailure
             );
 

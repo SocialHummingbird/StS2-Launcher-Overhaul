@@ -7,22 +7,17 @@ internal static partial class CloudSyncCoordinator
     private const string PushOperation = "Push";
     private const string SyncOperation = "Sync";
 
-    private static readonly CloudOperationMessages PullMessages = new(PullOperation);
-    private static readonly CloudOperationMessages PushMessages = new(PushOperation);
-    private static readonly CloudOperationMessages SyncMessages = new(SyncOperation);
+    private static string PullMessage(string message)
+        => CloudOperationMessage(PullOperation, message);
 
-    private readonly struct CloudOperationMessages
-    {
-        private readonly string _operation;
+    private static string PushMessage(string message)
+        => CloudOperationMessage(PushOperation, message);
 
-        internal CloudOperationMessages(string operation)
-        {
-            _operation = operation;
-        }
+    private static string SyncMessage(string message)
+        => CloudOperationMessage(SyncOperation, message);
 
-        internal string Format(string message)
-            => CloudMessage($"{_operation}: {message}");
-    }
+    private static string CloudOperationMessage(string operation, string message)
+        => CloudMessage($"{operation}: {message}");
 
     private static string CloudMessage(string message)
         => $"{CloudLogPrefix} {message}";

@@ -6,51 +6,6 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
-    private readonly struct ConnectionAttemptResult
-    {
-        private enum AttemptState
-        {
-            Succeeded,
-            Failed,
-        }
-
-        private ConnectionAttemptResult(AttemptState state, string failReason)
-        {
-            State = state;
-            FailReason = failReason;
-        }
-
-        private AttemptState State { get; }
-        private string FailReason { get; }
-        private bool Succeeded => State == AttemptState.Succeeded;
-
-        internal static ConnectionAttemptResult FromFailureText(string? error)
-            => error == null
-                ? Success()
-                : Failure(error);
-
-        private static ConnectionAttemptResult Success()
-            => new(AttemptState.Succeeded, string.Empty);
-
-        private static ConnectionAttemptResult Failure(string error)
-            => new(AttemptState.Failed, error);
-
-        internal void Apply(LauncherModel model)
-        {
-            model._connectionResolved = Succeeded;
-            model.SetSessionState(
-                Succeeded ? SessionState.LoggedIn : SessionState.Failed,
-                Succeeded ? null : FailReason
-            );
-        }
-
-        internal void LogIfStale()
-        {
-            if (!Succeeded)
-                PatchHelper.Log($"[Launcher] Ignored stale session failure: {FailReason}");
-        }
-    }
-
     // Connects on-demand and verifies ownership. Used when we have saved
     // credentials but no ownership marker.
     internal Task ConnectAsync()
@@ -66,13 +21,11 @@ internal partial class LauncherModel
         => RunConnectionAttemptAsync(
             SessionState.Authenticating,
             attemptId => _steamSession.LoginAndVerifyAsync(
-                LauncherSteamSession.LoginRequest.FromCredentials(
-                    username,
-                    password,
-                    RaiseLogReceived,
-                    RaiseCodeNeeded,
-                    () => BeginOwnershipVerification(attemptId)
-                )
+                username,
+                password,
+                RaiseLogReceived,
+                RaiseCodeNeeded,
+                () => BeginOwnershipVerification(attemptId)
             )
         );
 
@@ -96,22 +49,32 @@ internal partial class LauncherModel
     )
     {
         var attemptId = BeginSessionAttempt(state);
-        var result = ConnectionAttemptResult.FromFailureText(await run(attemptId));
-        ApplyConnectionAttemptResult(attemptId, result);
+        ApplyConnectionAttemptResult(attemptId, await run(attemptId));
     }
 
     private void ApplyConnectionAttemptResult(
         int attemptId,
-        ConnectionAttemptResult result
+        string? failure
     )
     {
         if (!IsCurrentSessionAttempt(attemptId))
         {
-            result.LogIfStale();
+            LogStaleConnectionFailure(failure);
             return;
         }
 
-        result.Apply(this);
+        var succeeded = failure == null;
+        _connectionResolved = succeeded;
+        SetSessionState(
+            succeeded ? SessionState.LoggedIn : SessionState.Failed,
+            failure
+        );
+    }
+
+    private static void LogStaleConnectionFailure(string? failure)
+    {
+        if (failure != null)
+            PatchHelper.Log($"[Launcher] Ignored stale session failure: {failure}");
     }
 
     private void BeginOwnershipVerification(int attemptId)

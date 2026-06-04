@@ -15,10 +15,11 @@ internal static partial class CloudSyncCoordinator
     {
         var cloudTime = cloud.GetLastModifiedTime(path);
         var writeTask = local.WriteFileAsync(path, content);
-        await CloudOperationTimeout
-            .For($"WriteLocalFile {path}", timeoutMs)
-            .WaitAsync(writeTask)
-            .ConfigureAwait(false);
+        await WaitForCloudOperationAsync(
+            $"WriteLocalFile {path}",
+            timeoutMs,
+            writeTask
+        ).ConfigureAwait(false);
         local.SetLastModifiedTime(path, cloudTime);
     }
 
@@ -30,9 +31,10 @@ internal static partial class CloudSyncCoordinator
     )
     {
         var task = cloud.ReadFileAsync(path);
-        return await CloudOperationTimeout
-            .For($"{operation} {path}", timeoutMs)
-            .WaitAsync(task)
-            .ConfigureAwait(false);
+        return await WaitForCloudOperationAsync(
+            $"{operation} {path}",
+            timeoutMs,
+            task
+        ).ConfigureAwait(false);
     }
 }

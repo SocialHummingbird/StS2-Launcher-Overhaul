@@ -14,34 +14,7 @@ internal sealed partial class DepotDownloader
         CorruptNeedsDownload,
     }
 
-    private readonly struct ManifestFileDownloadStatus
-    {
-        private ManifestFileDownloadStatus(ManifestFileDownloadState state)
-        {
-            State = state;
-        }
-
-        private ManifestFileDownloadState State { get; }
-        internal bool Download
-            => State == ManifestFileDownloadState.NeedsDownload
-                || State == ManifestFileDownloadState.CorruptNeedsDownload;
-        internal bool Verified => State == ManifestFileDownloadState.ExistingVerified;
-        internal bool Corrupt => State == ManifestFileDownloadState.CorruptNeedsDownload;
-
-        internal static ManifestFileDownloadStatus Skip()
-            => new(ManifestFileDownloadState.Skip);
-
-        internal static ManifestFileDownloadStatus NeedsDownload()
-            => new(ManifestFileDownloadState.NeedsDownload);
-
-        internal static ManifestFileDownloadStatus ExistingVerified()
-            => new(ManifestFileDownloadState.ExistingVerified);
-
-        internal static ManifestFileDownloadStatus CorruptNeedsDownload()
-            => new(ManifestFileDownloadState.CorruptNeedsDownload);
-    }
-
-    private ManifestFileDownloadStatus GetManifestFileDownloadStatus(
+    private ManifestFileDownloadState GetManifestFileDownloadState(
         DepotManifest.FileData file,
         Dictionary<string, DepotManifest.FileData> oldFiles,
         bool isUpdate
@@ -49,22 +22,22 @@ internal sealed partial class DepotDownloader
     {
         var fileName = GetDownloadFileName(file);
         if (fileName == null)
-            return ManifestFileDownloadStatus.Skip();
+            return ManifestFileDownloadState.Skip;
 
         if (ManifestEntryChanged(file, oldFiles, fileName, isUpdate))
-            return ManifestFileDownloadStatus.NeedsDownload();
+            return ManifestFileDownloadState.NeedsDownload;
 
         var filePath = ResolveGamePath(fileName);
         if (VerifyFileHash(filePath, file))
-            return ManifestFileDownloadStatus.ExistingVerified();
+            return ManifestFileDownloadState.ExistingVerified;
 
         if (File.Exists(filePath))
         {
             Log($"File needs re-download (hash mismatch): {file.FileName}");
-            return ManifestFileDownloadStatus.CorruptNeedsDownload();
+            return ManifestFileDownloadState.CorruptNeedsDownload;
         }
 
-        return ManifestFileDownloadStatus.NeedsDownload();
+        return ManifestFileDownloadState.NeedsDownload;
     }
 
     private string? GetDownloadFileName(DepotManifest.FileData file)

@@ -16,8 +16,7 @@ internal static partial class CloudSyncCoordinator
             PushStarting,
             SaveBackups.CloudBeforeManualPushAsync,
             PushBackedUpCloudFiles,
-            RunManualPushUploadsAsync,
-            (queued, _, _) => PushComplete(queued)
+            RunManualPushUploadsAsync
         );
 
     internal static Task ManualPullAllAsync(string accountName, string refreshToken)
@@ -28,7 +27,6 @@ internal static partial class CloudSyncCoordinator
             PullStarting,
             SaveBackups.LocalBeforeManualPullAsync,
             PullBackedUpLocalFiles,
-            RunManualPullDownloadsAsync,
-            (_, downloaded, skipped) => PullComplete(downloaded, skipped)
+            RunManualPullDownloadsAsync
         );
 }

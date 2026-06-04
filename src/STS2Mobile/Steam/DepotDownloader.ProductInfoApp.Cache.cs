@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductInfo;
@@ -10,14 +11,17 @@ internal sealed partial class DepotDownloader
     {
         private readonly ConcurrentDictionary<uint, PICSProductInfo> _cache = new();
 
-        internal async Task<PICSProductInfo?> GetOrFetchAsync(ProductInfoApp app)
+        internal async Task<PICSProductInfo?> GetOrFetchAsync(
+            uint appId,
+            Func<Task<PICSProductInfo?>> fetchAsync
+        )
         {
-            if (_cache.TryGetValue(app.AppId, out var cached))
+            if (_cache.TryGetValue(appId, out var cached))
                 return cached;
 
-            var appInfo = await app.FetchInfoForCacheAsync();
+            var appInfo = await fetchAsync();
             if (appInfo != null)
-                _cache[app.AppId] = appInfo;
+                _cache[appId] = appInfo;
 
             return appInfo;
         }

@@ -7,83 +7,32 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherSteamSession
 {
-    internal sealed class LoginRequest
-    {
-        private LoginRequest(
-            string username,
-            string password,
-            Action<string> logMessage,
-            Action<bool> codeNeeded,
-            Action verifyingOwnership
-        )
-        {
-            Username = username;
-            Password = password;
-            LogMessage = logMessage;
-            CodeNeeded = codeNeeded;
-            VerifyingOwnership = verifyingOwnership;
-        }
-
-        private string Username { get; }
-        private string Password { get; }
-        private Action<string> LogMessage { get; }
-        private Action<bool> CodeNeeded { get; }
-        private Action VerifyingOwnership { get; }
-
-        internal static LoginRequest FromCredentials(
-            string username,
-            string password,
-            Action<string> logMessage,
-            Action<bool> codeNeeded,
-            Action verifyingOwnership
-        )
-            => new(
-                username,
-                password,
-                logMessage,
-                codeNeeded,
-                verifyingOwnership
-            );
-
-        internal void AttachLog(SteamAuth auth)
-            => auth.LogMessage += msg => LogMessage?.Invoke(msg);
-
-        internal Task<SteamAuth.LoginCredentials> LoginAsync(
-            SteamAuth auth,
-            SteamCredentialStore credentialStore
-        )
-            => auth.LoginWithCredentialsAsync(
-                Username,
-                Password,
-                credentialStore.GuardDataOrEmpty()
-            );
-
-        internal Task<string> RequestCodeAsync(
-            LauncherSteamSession session,
-            bool wasIncorrect
-        )
-            => session.RequestSteamGuardCodeAsync(wasIncorrect, CodeNeeded);
-
-        internal void NotifyVerifyingOwnership()
-            => VerifyingOwnership();
-    }
-
-    internal async Task<string?> LoginAndVerifyAsync(LoginRequest request)
+    internal async Task<string?> LoginAndVerifyAsync(
+        string username,
+        string password,
+        Action<string> logMessage,
+        Action<bool> codeNeeded,
+        Action verifyingOwnership
+    )
     {
         try
         {
             ResetAuth();
             var auth = new SteamAuth(wasIncorrect =>
-                request.RequestCodeAsync(this, wasIncorrect));
+                RequestSteamGuardCodeAsync(wasIncorrect, codeNeeded));
             _auth = auth;
-            request.AttachLog(auth);
+            auth.LogMessage += msg => logMessage?.Invoke(msg);
 
-            var result = await request.LoginAsync(auth, _credentialStore);
+            var result = await auth.LoginWithCredentialsAsync(
+                username,
+                password,
+                _credentialStore.GuardDataOrEmpty()
+            );
             SaveLoginCredentials(result);
             ResetAuth();
             return await UseConnectionAndVerifyOwnershipAsync(
                 result.CreateConnection(),
-                request.NotifyVerifyingOwnership
+                verifyingOwnership
             );
         }
         catch (Exception ex)

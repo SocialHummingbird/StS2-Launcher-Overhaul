@@ -22,18 +22,27 @@ internal sealed partial class DepotDownloader
 
         foreach (var file in newManifest.Files)
         {
-            var decision = GetManifestFileDownloadStatus(
+            var decision = GetManifestFileDownloadState(
                 file,
                 oldFiles,
                 isUpdate
             );
 
-            if (decision.Download)
-                downloads.Add(file);
-            if (decision.Verified)
-                verified++;
-            if (decision.Corrupt)
-                corrupt++;
+            switch (decision)
+            {
+                case ManifestFileDownloadState.NeedsDownload:
+                    downloads.Add(file);
+                    break;
+
+                case ManifestFileDownloadState.ExistingVerified:
+                    verified++;
+                    break;
+
+                case ManifestFileDownloadState.CorruptNeedsDownload:
+                    downloads.Add(file);
+                    corrupt++;
+                    break;
+            }
         }
 
         if (verified > 0)

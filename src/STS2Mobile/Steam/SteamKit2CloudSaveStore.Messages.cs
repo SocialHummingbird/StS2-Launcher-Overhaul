@@ -4,53 +4,25 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
-    private static readonly CloudStoreOperation BeginSaveBatchOperation =
-        new("BeginSaveBatch");
-    private static readonly CloudStoreOperation EndSaveBatchOperation =
-        new("EndSaveBatch");
-    private static readonly CloudStoreOperation QueueFlushOperation =
-        new("Queue flush");
-    private static readonly CloudStoreOperation ConnectionFlushOperation =
-        new("Connection flush");
-    private static readonly CloudStoreOperation CommitOperation =
-        new("Commit");
-    private static readonly CloudStoreOperation UploadOperation =
-        new("Upload");
-    private static readonly CloudStoreOperation DeleteOperation =
-        new("Delete");
-
-    private readonly struct CloudStoreOperation
-    {
-        private readonly string _name;
-
-        internal CloudStoreOperation(string name)
-        {
-            _name = name;
-        }
-
-        internal string Throttled(string path, int delayMs)
-            => CloudStoreMessage(
-                $"{_name} throttled for {path}, retrying in {delayMs / 1000}s..."
-            );
-
-        internal string Failed(Exception ex)
-            => CloudStoreMessage($"{_name} failed: {ex.Message}");
-
-        internal string FailedForPath(string path, Exception ex)
-            => CloudStoreMessage($"{_name} failed for {path}: {ex.Message}");
-    }
+    private const string BeginSaveBatchOperation = "BeginSaveBatch";
+    private const string EndSaveBatchOperation = "EndSaveBatch";
+    private const string QueueFlushOperation = "Queue flush";
+    private const string ConnectionFlushOperation = "Connection flush";
+    private const string CommitOperation = "Commit";
+    private const string UploadOperation = "Upload";
+    private const string DeleteOperation = "Delete";
 
     private static string BeginSaveBatchFailed(Exception ex) =>
-        BeginSaveBatchOperation.Failed(ex);
+        OperationFailed(BeginSaveBatchOperation, ex);
 
     private static string EndSaveBatchFailed(Exception ex) =>
-        EndSaveBatchOperation.Failed(ex);
+        OperationFailed(EndSaveBatchOperation, ex);
 
     private static string QueueFlushFailed(Exception ex) =>
-        QueueFlushOperation.Failed(ex);
+        OperationFailed(QueueFlushOperation, ex);
 
     private static string ConnectionFlushFailed(Exception ex) =>
-        ConnectionFlushOperation.Failed(ex);
+        OperationFailed(ConnectionFlushOperation, ex);
 
     private static string Downloaded(
         string path,
@@ -83,7 +55,22 @@ internal sealed partial class SteamKit2CloudSaveStore
         CloudStoreMessage($"Commit returned file_committed=false for {path}");
 
     private static string CommitFailed(string path, Exception ex) =>
-        CommitOperation.FailedForPath(path, ex);
+        OperationFailedForPath(CommitOperation, path, ex);
+
+    private static string OperationThrottled(string operation, string path, int delayMs)
+        => CloudStoreMessage(
+            $"{operation} throttled for {path}, retrying in {delayMs / 1000}s..."
+        );
+
+    private static string OperationFailed(string operation, Exception ex)
+        => CloudStoreMessage($"{operation} failed: {ex.Message}");
+
+    private static string OperationFailedForPath(
+        string operation,
+        string path,
+        Exception ex
+    )
+        => CloudStoreMessage($"{operation} failed for {path}: {ex.Message}");
 
     private static string Wrote(string path, int bytes, bool compressed) =>
         CloudStoreMessage($"Wrote {bytes} bytes to {path} (compressed={compressed})");

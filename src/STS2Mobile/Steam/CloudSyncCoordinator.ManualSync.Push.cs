@@ -6,27 +6,29 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private static Task<ManualSyncResultAccumulator> RunManualPushUploadsAsync(
+    private static Task<string> RunManualPushUploadsAsync(
         ManualSyncContext sync,
         IReadOnlyCollection<string> paths
     )
     {
-        var totals = sync.RunCloudBatch(() =>
+        var queuedCount = sync.RunCloudBatch(() =>
         {
-            var batchTotals = ManualSyncResultAccumulator.Empty();
+            var batchQueued = 0;
             foreach (var path in paths)
             {
-                if (batchTotals.Add(QueueManualPushPath(sync, path)))
+                var (pathQueued, stopAfterBudget) = QueueManualPushPath(sync, path);
+                batchQueued += pathQueued;
+                if (stopAfterBudget)
                     break;
             }
 
-            return batchTotals;
+            return batchQueued;
         });
 
-        return Task.FromResult(totals);
+        return Task.FromResult(PushComplete(queuedCount));
     }
 
-    private static ManualSyncPathResult QueueManualPushPath(
+    private static (int pathQueued, bool stopAfterBudget) QueueManualPushPath(
         ManualSyncContext sync,
         string path
     )
@@ -35,19 +37,19 @@ internal static partial class CloudSyncCoordinator
         {
             var local = sync.ReadLocalFile(path);
             if (local == null)
-                return ManualSyncPathResult.NoChange();
+                return (0, false);
 
             PatchHelper.Log(PushQueuing(path, local.Length));
             if (sync.BudgetExceeded(ManualPushBudgetExceeded))
-                return ManualSyncPathResult.BudgetExceeded();
+                return (0, true);
 
             sync.WriteCloudFile(path, local);
-            return ManualSyncPathResult.QueuedPath();
+            return (1, false);
         }
         catch (Exception ex)
         {
             PatchHelper.Log(PushFailed(path, ex));
-            return ManualSyncPathResult.NoChange();
+            return (0, false);
         }
     }
 }

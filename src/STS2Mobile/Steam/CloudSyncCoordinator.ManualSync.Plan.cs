@@ -16,9 +16,8 @@ internal static partial class CloudSyncCoordinator
         Func<
             ManualSyncContext,
             IReadOnlyCollection<string>,
-            Task<ManualSyncResultAccumulator>
-        > transferAsync,
-        Func<int, int, int, string> completeMessage
+            Task<string>
+        > transferAsync
     )
     {
         var sync = CreateManualSyncContext(accountName, refreshToken);
@@ -29,7 +28,6 @@ internal static partial class CloudSyncCoordinator
         if (backedUp > 0)
             PatchHelper.Log(backedUpMessage(backedUp));
 
-        var transferResult = await transferAsync(sync, paths);
-        PatchHelper.Log(transferResult.CompleteMessage(completeMessage));
+        PatchHelper.Log(await transferAsync(sync, paths));
     }
 }

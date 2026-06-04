@@ -6,25 +6,27 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private static async Task<ManualSyncResultAccumulator> RunManualPullDownloadsAsync(
+    private static async Task<string> RunManualPullDownloadsAsync(
         ManualSyncContext sync,
         IReadOnlyCollection<string> paths
     )
     {
-        var totals = ManualSyncResultAccumulator.Empty();
+        var downloaded = 0;
+        var skipped = 0;
         foreach (var path in paths)
         {
-            if (totals.Add(await PullManualPathAsync(sync, path)))
-                break;
+            var result = await PullManualPathAsync(sync, path);
+            downloaded += result.downloaded;
+            skipped += result.skipped;
 
             if (sync.BudgetExceeded(ManualPullBudgetExceeded))
                 break;
         }
 
-        return totals;
+        return PullComplete(downloaded, skipped);
     }
 
-    private static async Task<ManualSyncPathResult> PullManualPathAsync(
+    private static async Task<(int downloaded, int skipped)> PullManualPathAsync(
         ManualSyncContext sync,
         string path
     )
@@ -32,13 +34,13 @@ internal static partial class CloudSyncCoordinator
         try
         {
             if (!sync.CloudFileExists(path))
-                return ManualSyncPathResult.SkippedMissingCloud();
+                return (0, 1);
 
             PatchHelper.Log(PullDownloading(path));
             string content = await sync.ReadCloudContentAsync(path, ManualPullDownloadOperation);
             await sync.WriteLocalContentFromCloudAsync(path, content);
             PatchHelper.Log(PullWrote(path, content.Length));
-            return ManualSyncPathResult.DownloadedPath();
+            return (1, 0);
         }
         catch (TimeoutException)
         {
@@ -49,6 +51,6 @@ internal static partial class CloudSyncCoordinator
             PatchHelper.Log(PullFailed(path, ex));
         }
 
-        return ManualSyncPathResult.NoChange();
+        return (0, 0);
     }
 }

@@ -42,7 +42,8 @@ internal sealed partial class LauncherController
                 PatchHelper.Log("[Launcher] Consumed local Steam credential file");
                 _runOnMainThread(() => ShowSessionState(LauncherModel.SessionState.Authenticating));
 
-                await localLogin.Value.LoginAsync(_model);
+                var credentials = localLogin.Value;
+                await _model.LoginAsync(credentials.username, credentials.password);
                 return;
             }
 

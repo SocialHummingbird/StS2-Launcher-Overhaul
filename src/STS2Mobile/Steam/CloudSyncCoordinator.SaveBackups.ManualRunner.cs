@@ -9,10 +9,9 @@ internal static partial class CloudSyncCoordinator
     private static partial class SaveBackups
     {
         private static async Task<int> RunManualBackupsAsync(
-            ManualSyncContext sync,
             IEnumerable<string> paths,
             BackupSource source,
-            Func<ManualSyncContext, string, ValueTask<string?>> readContentAsync,
+            Func<string, ValueTask<string?>> readContentAsync,
             Action<string, Exception> logFailure
         )
         {
@@ -20,7 +19,6 @@ internal static partial class CloudSyncCoordinator
             foreach (var path in paths)
             {
                 if (await TryBackupManualPathAsync(
-                    sync,
                     path,
                     source,
                     readContentAsync,
@@ -33,16 +31,15 @@ internal static partial class CloudSyncCoordinator
         }
 
         private static async Task<bool> TryBackupManualPathAsync(
-            ManualSyncContext sync,
             string path,
             BackupSource source,
-            Func<ManualSyncContext, string, ValueTask<string?>> readContentAsync,
+            Func<string, ValueTask<string?>> readContentAsync,
             Action<string, Exception> logFailure
         )
         {
             try
             {
-                var read = await readContentAsync(sync, path);
+                var read = await readContentAsync(path);
                 return read != null && SaveContent(path, read, source);
             }
             catch (Exception ex)

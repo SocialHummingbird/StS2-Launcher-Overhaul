@@ -10,47 +10,7 @@ internal sealed partial class LauncherController
 {
     private const string LocalSteamCredentialFileName = "steam_login_credentials.txt";
 
-    private readonly struct LocalSteamCredentials
-    {
-        private LocalSteamCredentials(string username, string password)
-        {
-            Username = username;
-            Password = password;
-        }
-
-        private string Username { get; }
-        private string Password { get; }
-
-        internal Task LoginAsync(LauncherModel model)
-            => model.LoginAsync(Username, Password);
-
-        internal static LocalSteamCredentials FromBase64Lines(string[] lines)
-        {
-            if (lines.Length < 2)
-                throw new InvalidDataException("expected two base64 lines");
-
-            var username = DecodeBase64Line(lines[0]).Trim();
-            var password = DecodeBase64Line(lines[1]);
-
-            return FromDecoded(username, password);
-        }
-
-        private static LocalSteamCredentials FromDecoded(
-            string username,
-            string password
-        )
-        {
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
-                throw new InvalidDataException("username or password was empty");
-
-            return new(username, password);
-        }
-
-        private static string DecodeBase64Line(string line)
-            => Encoding.UTF8.GetString(Convert.FromBase64String(line.Trim()));
-    }
-
-    private static LocalSteamCredentials? ConsumeLocalSteamCredentials()
+    private static (string username, string password)? ConsumeLocalSteamCredentials()
     {
         var lines = LauncherExternalFileInbox.ConsumeLines(
             LocalSteamCredentialFileName,
@@ -61,7 +21,7 @@ internal sealed partial class LauncherController
 
         try
         {
-            return LocalSteamCredentials.FromBase64Lines(lines);
+            return DecodeLocalSteamCredentials(lines);
         }
         catch (Exception ex)
         {
@@ -69,4 +29,22 @@ internal sealed partial class LauncherController
             return null;
         }
     }
+
+    private static (string username, string password) DecodeLocalSteamCredentials(
+        string[] lines
+    )
+    {
+        if (lines.Length < 2)
+            throw new InvalidDataException("expected two base64 lines");
+
+        var username = DecodeBase64Line(lines[0]).Trim();
+        var password = DecodeBase64Line(lines[1]);
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
+            throw new InvalidDataException("username or password was empty");
+
+        return (username, password);
+    }
+
+    private static string DecodeBase64Line(string line)
+        => Encoding.UTF8.GetString(Convert.FromBase64String(line.Trim()));
 }

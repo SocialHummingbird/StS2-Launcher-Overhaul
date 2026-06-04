@@ -5,37 +5,21 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherDiagnostics
 {
-    internal readonly struct StartupRecoveryDiagnosticsReport
-    {
-        internal StartupRecoveryDiagnosticsReport(string dataDir)
-        {
-            DataDir = dataDir;
-        }
-
-        private string DataDir { get; }
-
-        internal string Write()
-            => WriteTimestampedReport(
-                "sts2-startup-recovery-diagnostics",
-                DataDir,
-                BuildText()
-            );
-
-        internal string BuildText()
-        {
-            var dataDir = DataDir;
-            return BuildTimestampedText(
-                "STS2 startup recovery diagnostics",
-                "Generated UTC",
-                sb => AppendStartupRecoveryDiagnostics(sb, dataDir)
-            );
-        }
-    }
-
-    internal static StartupRecoveryDiagnosticsReport StartupRecoveryReport(
+    internal static string WriteStartupRecoveryDiagnosticsReport(
         string dataDir
     )
-        => new(dataDir);
+        => WriteTimestampedReport(
+            "sts2-startup-recovery-diagnostics",
+            dataDir,
+            BuildStartupRecoveryDiagnosticsText(dataDir)
+        );
+
+    internal static string BuildStartupRecoveryDiagnosticsText(string dataDir)
+        => BuildTimestampedText(
+            "STS2 startup recovery diagnostics",
+            "Generated UTC",
+            sb => AppendStartupRecoveryDiagnostics(sb, dataDir)
+        );
 
     private static void AppendStartupRecoveryDiagnostics(
         StringBuilder sb,

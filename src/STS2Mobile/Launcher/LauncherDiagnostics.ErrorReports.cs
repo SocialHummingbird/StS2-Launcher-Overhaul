@@ -14,7 +14,7 @@ internal static partial class LauncherDiagnostics
             => BuildErrorReport(
                 "=== LAST ERROR SUMMARY ===",
                 LauncherStateDetail.Compact,
-                AppendSummaryErrorDiagnostics,
+                sb => AppendSummaryErrorDiagnostics(sb, _state.DataDir),
                 "=== END LAST ERROR SUMMARY ==="
             );
 
@@ -22,7 +22,7 @@ internal static partial class LauncherDiagnostics
             => BuildErrorReport(
                 "=== RAW ERROR LOG ===",
                 LauncherStateDetail.Detailed,
-                AppendRawErrorDiagnostics,
+                sb => AppendRawErrorDiagnostics(sb, _state.DataDir),
                 "=== END RAW ERROR LOG ==="
             );
 
@@ -32,7 +32,7 @@ internal static partial class LauncherDiagnostics
         private string BuildErrorReport(
             string title,
             LauncherStateDetail detail,
-            Action<StringBuilder, string> appendDiagnostics,
+            Action<StringBuilder> appendDiagnostics,
             string footer
         )
             => BuildTimestampedText(
@@ -42,7 +42,7 @@ internal static partial class LauncherDiagnostics
                 {
                     AppendLauncherState(sb, detail);
                     AppendPreviousLaunchPhase(sb, PreviousLaunchPhaseLabel);
-                    appendDiagnostics(sb, _state.DataDir);
+                    appendDiagnostics(sb);
                     sb.AppendLine(footer);
                 }
             );

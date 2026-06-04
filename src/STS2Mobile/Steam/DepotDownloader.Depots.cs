@@ -24,17 +24,34 @@ internal sealed partial class DepotDownloader
 
     private async Task<DepotManifestReference?> TryCreateDepotReferenceAsync(KeyValue depot)
     {
-        if (!DepotSectionEntry.TryCreate(depot, out var entry))
+        if (!TryReadDepotId(depot, out var depotId))
             return null;
 
-        if (entry.ShouldSkip(this))
+        if (ShouldSkipDepot(depot, depotId))
             return null;
 
-        var manifestId = await entry.GetPublicManifestIdAsync(this);
+        var manifestId = await GetPublicManifestIdAsync(depot, depotId);
         if (!manifestId.HasValue)
             return null;
 
-        Log($"Found depot {entry.DepotId} manifest {manifestId.Value}");
-        return new DepotManifestReference(entry.DepotId, manifestId.Value);
+        Log($"Found depot {depotId} manifest {manifestId.Value}");
+        return new DepotManifestReference(depotId, manifestId.Value);
+    }
+
+    private static bool TryReadDepotId(KeyValue depot, out uint depotId)
+        => uint.TryParse(depot.Name, out depotId);
+
+    private bool ShouldSkipDepot(KeyValue depot, uint depotId)
+    {
+        var config = depot["config"];
+        if (config == KeyValue.Invalid)
+            return false;
+
+        var oslist = config["oslist"]?.Value;
+        if (string.IsNullOrEmpty(oslist) || oslist.Contains("windows"))
+            return false;
+
+        Log($"Skipping depot {depotId} (OS: {oslist})");
+        return true;
     }
 }
