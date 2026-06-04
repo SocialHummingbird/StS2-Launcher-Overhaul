@@ -11,6 +11,22 @@ internal static partial class CloudSyncCoordinator
     private const int ManualSyncOverallTimeoutMs = 180_000;
     private const string ManualPullDownloadOperation = "ManualPull download";
 
+    private static readonly ManualSyncPlan ManualPushPlan = new(
+        sync => sync.DiscoverLocalPaths(),
+        PushStarting,
+        SaveBackups.CloudBeforeManualPushAsync,
+        PushBackedUpCloudFiles,
+        RunManualPushUploadsAsync
+    );
+
+    private static readonly ManualSyncPlan ManualPullPlan = new(
+        sync => sync.DiscoverCloudPaths(),
+        PullStarting,
+        SaveBackups.LocalBeforeManualPullAsync,
+        PullBackedUpLocalFiles,
+        RunManualPullDownloadsAsync
+    );
+
     private readonly struct ManualSyncPlan
     {
         private readonly Func<ManualSyncContext, IReadOnlyCollection<string>> _discoverPaths;
@@ -137,20 +153,8 @@ internal static partial class CloudSyncCoordinator
     }
 
     internal static Task ManualPushAllAsync(string accountName, string refreshToken)
-        => new ManualSyncPlan(
-            sync => sync.DiscoverLocalPaths(),
-            PushStarting,
-            SaveBackups.CloudBeforeManualPushAsync,
-            PushBackedUpCloudFiles,
-            RunManualPushUploadsAsync
-        ).RunAsync(accountName, refreshToken);
+        => ManualPushPlan.RunAsync(accountName, refreshToken);
 
     internal static Task ManualPullAllAsync(string accountName, string refreshToken)
-        => new ManualSyncPlan(
-            sync => sync.DiscoverCloudPaths(),
-            PullStarting,
-            SaveBackups.LocalBeforeManualPullAsync,
-            PullBackedUpLocalFiles,
-            RunManualPullDownloadsAsync
-        ).RunAsync(accountName, refreshToken);
+        => ManualPullPlan.RunAsync(accountName, refreshToken);
 }

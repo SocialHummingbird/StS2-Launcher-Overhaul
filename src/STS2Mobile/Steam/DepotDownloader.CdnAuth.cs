@@ -40,6 +40,47 @@ internal sealed partial class DepotDownloader
 
     private readonly ExpiringCache<CdnAuthTokenKey, string?> _cdnAuthTokens = new();
 
+    private sealed class CdnDownloadOperation<T>
+    {
+        private readonly Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> _downloadAsync;
+        private readonly Func<CdnServerAttempt, Task<CdnDownloadResult<T>>>
+            _downloadWithAuthAsync;
+        private readonly Func<Exception> _createFailure;
+
+        internal CdnDownloadOperation(
+            string name,
+            Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadAsync,
+            Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadWithAuthAsync,
+            Func<Exception> createFailure
+        )
+        {
+            Name = name;
+            _downloadAsync = downloadAsync;
+            _downloadWithAuthAsync = downloadWithAuthAsync;
+            _createFailure = createFailure;
+        }
+
+        private string Name { get; }
+
+        internal Task<CdnDownloadResult<T>> DownloadAsync(CdnServerAttempt attempt)
+            => _downloadAsync(attempt);
+
+        internal Task<CdnDownloadResult<T>> DownloadWithAuthAsync(
+            CdnServerAttempt attempt
+        )
+            => _downloadWithAuthAsync(attempt);
+
+        internal void HandleRetryFailure(
+            DepotDownloader owner,
+            CdnServerAttempt attempt,
+            Exception ex
+        )
+            => attempt.HandleDownloadRetryFailure(owner, Name, ex);
+
+        internal Exception CreateFailure()
+            => _createFailure();
+    }
+
     private readonly struct CdnDownloadResult<T>
     {
         private CdnDownloadResult(bool succeeded, T value)
@@ -70,33 +111,30 @@ internal sealed partial class DepotDownloader
     }
 
     private async Task<T> RunCdnDownloadWithRetriesAsync<T>(
-        string operation,
-        Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadAsync,
-        Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadWithAuthAsync,
-        Func<Exception> createFailure
+        CdnDownloadOperation<T> operation
     )
     {
         foreach (var attempt in CdnDownloadAttempts())
         {
             try
             {
-                var result = await downloadAsync(attempt);
+                var result = await operation.DownloadAsync(attempt);
                 if (result.Succeeded)
                     return result.Value;
             }
             catch (SteamKitWebRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
-                var result = await downloadWithAuthAsync(attempt);
+                var result = await operation.DownloadWithAuthAsync(attempt);
                 if (result.Succeeded)
                     return result.Value;
             }
             catch (Exception ex) when (attempt.CanRetry())
             {
-                attempt.HandleDownloadRetryFailure(this, operation, ex);
+                operation.HandleRetryFailure(this, attempt, ex);
             }
         }
 
-        throw createFailure();
+        throw operation.CreateFailure();
     }
 
     private async Task<CdnDownloadResult<T>> RunCdnAuthRetryAsync<T>(

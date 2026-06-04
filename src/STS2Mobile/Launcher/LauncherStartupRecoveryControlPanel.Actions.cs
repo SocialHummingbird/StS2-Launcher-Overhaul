@@ -6,9 +6,21 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private readonly struct RecoveryAction
+    private static readonly StartupRecoveryAction ExportDiagnosticsAction = new(
+        "diagnostics export",
+        "Diagnostics export failed",
+        ExportDiagnosticsForDataDir
+    );
+
+    private static readonly StartupRecoveryAction CopyRawErrorLogAction = new(
+        "raw error log copy",
+        "Raw error log copy failed",
+        CopyRawErrorLogForDataDir
+    );
+
+    private sealed class StartupRecoveryAction
     {
-        internal RecoveryAction(
+        internal StartupRecoveryAction(
             string logAction,
             string failureTitle,
             Func<string, string> run
@@ -23,10 +35,19 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         private string FailureTitle { get; }
         private Func<string, string> Run { get; }
 
-        internal string RunForCurrentDataDir()
-            => Run(OS.GetDataDir());
+        internal string RunAndDescribe()
+        {
+            try
+            {
+                return Run(OS.GetDataDir());
+            }
+            catch (Exception ex)
+            {
+                return FailureMessage(ex);
+            }
+        }
 
-        internal string FailureMessage(Exception ex)
+        private string FailureMessage(Exception ex)
         {
             PatchHelper.Log($"Startup recovery {LogAction} failed: {ex}");
             return $"{FailureTitle}:\n{ex.GetBaseException().Message}";
@@ -40,30 +61,13 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     }
 
     private void ExportDiagnostics()
-        => ShowActionResult(new RecoveryAction(
-            "diagnostics export",
-            "Diagnostics export failed",
-            ExportDiagnosticsForDataDir
-        ));
+        => ShowActionResult(ExportDiagnosticsAction);
 
     private void CopyRawErrorLog()
-        => ShowActionResult(new RecoveryAction(
-            "raw error log copy",
-            "Raw error log copy failed",
-            CopyRawErrorLogForDataDir
-        ));
+        => ShowActionResult(CopyRawErrorLogAction);
 
-    private void ShowActionResult(RecoveryAction action)
-    {
-        try
-        {
-            _detail.Text = action.RunForCurrentDataDir();
-        }
-        catch (Exception ex)
-        {
-            _detail.Text = action.FailureMessage(ex);
-        }
-    }
+    private void ShowActionResult(StartupRecoveryAction action)
+        => _detail.Text = action.RunAndDescribe();
 
     private static string ExportDiagnosticsForDataDir(string dataDir)
     {

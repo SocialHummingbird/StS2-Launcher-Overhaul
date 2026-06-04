@@ -15,24 +15,28 @@ internal sealed partial class DepotDownloader
         string fileName
     )
         => RunCdnDownloadWithRetriesAsync(
-            ChunkDownloadOperation,
-            attempt => TryDownloadChunkAsync(
-                depotId,
-                chunk,
-                buffer,
-                depotKey,
-                fileName,
-                attempt
-            ),
-            attempt => TryDownloadChunkWithAuthAsync(
-                depotId,
-                chunk,
-                buffer,
-                depotKey,
-                fileName,
-                attempt
-            ),
-            () => new Exception($"Failed to download chunk for {fileName} after {MaxRetries} attempts")
+            new CdnDownloadOperation<int>(
+                ChunkDownloadOperation,
+                attempt => TryDownloadChunkAsync(
+                    depotId,
+                    chunk,
+                    buffer,
+                    depotKey,
+                    fileName,
+                    attempt
+                ),
+                attempt => TryDownloadChunkWithAuthAsync(
+                    depotId,
+                    chunk,
+                    buffer,
+                    depotKey,
+                    fileName,
+                    attempt
+                ),
+                () => new Exception(
+                    $"Failed to download chunk for {fileName} after {MaxRetries} attempts"
+                )
+            )
         );
 
     private async Task<CdnDownloadResult<int>> TryDownloadChunkAsync(

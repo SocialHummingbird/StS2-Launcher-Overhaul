@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using SteamKit2;
+using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductInfo;
 
 namespace STS2Mobile.Steam;
 
@@ -38,6 +39,38 @@ internal sealed partial class DepotDownloader
                 => $"Steam app info for {Name} has no depots section";
         }
 
+        private readonly struct ProductInfoAppSections
+        {
+            private readonly ProductInfoAppIdentity _identity;
+            private readonly PICSProductInfo _appInfo;
+
+            internal ProductInfoAppSections(
+                ProductInfoAppIdentity identity,
+                PICSProductInfo appInfo
+            )
+            {
+                _identity = identity;
+                _appInfo = appInfo;
+            }
+
+            internal KeyValue RequiredDepots()
+            {
+                var depots = _appInfo?.KeyValues?["depots"];
+                if (depots == null || depots == KeyValue.Invalid)
+                    throw new System.InvalidOperationException(
+                        _identity.MissingDepotsSection()
+                    );
+
+                return depots;
+            }
+
+            internal KeyValue TryManifestSection(uint depotId)
+            {
+                var depot = RequiredDepots()[depotId.ToString()];
+                return depot != KeyValue.Invalid ? depot["manifests"] : KeyValue.Invalid;
+            }
+        }
+
         private readonly DepotDownloader _owner;
 
         private ProductInfoApp(DepotDownloader owner, uint appId)
@@ -63,7 +96,7 @@ internal sealed partial class DepotDownloader
         private async Task<KeyValue> GetRequiredDepotsSectionAsync()
         {
             var appInfo = await GetRequiredInfoAsync();
-            return GetDepotsSection(appInfo);
+            return Sections(appInfo).RequiredDepots();
         }
 
         private async Task<KeyValue> TryGetManifestSectionAsync(uint depotId)
@@ -72,12 +105,10 @@ internal sealed partial class DepotDownloader
             if (appInfo == null)
                 return KeyValue.Invalid;
 
-            var depots = GetDepotsSection(appInfo);
-            var depot = depots[depotId.ToString()];
-            return depot != KeyValue.Invalid ? depot["manifests"] : KeyValue.Invalid;
+            return Sections(appInfo).TryManifestSection(depotId);
         }
 
-        private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo> GetRequiredInfoAsync()
+        private async Task<PICSProductInfo> GetRequiredInfoAsync()
         {
             var appInfo = await GetInfoAsync();
             if (appInfo == null)
@@ -86,7 +117,7 @@ internal sealed partial class DepotDownloader
             return appInfo;
         }
 
-        private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> GetInfoAsync()
+        private async Task<PICSProductInfo?> GetInfoAsync()
         {
             if (_owner._appInfoCache.TryGetValue(Identity.AppId, out var cached))
                 return cached;
@@ -110,21 +141,13 @@ internal sealed partial class DepotDownloader
             return token;
         }
 
-        private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> FetchInfoAsync()
+        private async Task<PICSProductInfo?> FetchInfoAsync()
             => await _owner._connection.GetAppInfoAsync(
                 Identity.AppId,
                 await GetAccessTokenAsync()
             );
 
-        private KeyValue GetDepotsSection(
-            SteamApps.PICSProductInfoCallback.PICSProductInfo appInfo
-        )
-        {
-            var depots = appInfo?.KeyValues?["depots"];
-            if (depots == null || depots == KeyValue.Invalid)
-                throw new System.InvalidOperationException(Identity.MissingDepotsSection());
-
-            return depots;
-        }
+        private ProductInfoAppSections Sections(PICSProductInfo appInfo)
+            => new(Identity, appInfo);
     }
 }

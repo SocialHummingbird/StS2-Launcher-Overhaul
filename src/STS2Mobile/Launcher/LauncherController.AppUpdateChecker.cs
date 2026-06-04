@@ -20,6 +20,48 @@ internal sealed partial class LauncherController
     private const string VersionNumberPattern = @"\d+(?:\.\d+)*";
     private static readonly TimeSpan LauncherUpdateTimeout = TimeSpan.FromSeconds(15);
 
+    private sealed class LauncherUpdateCheck
+    {
+        private readonly LauncherVersion _installedVersion;
+
+        internal LauncherUpdateCheck(LauncherVersion installedVersion)
+        {
+            _installedVersion = installedVersion;
+        }
+
+        internal async Task<string?> RunAsync()
+        {
+            var latestVersion = await FetchLatestVersionAsync();
+            if (!latestVersion.HasValue)
+                return null;
+
+            if (latestVersion.Value.CompareTo(_installedVersion) <= 0)
+                return null;
+
+            return latestVersion.Value.ToString();
+        }
+
+        private static async Task<LauncherVersion?> FetchLatestVersionAsync()
+        {
+            using var http = CreateHttpClient();
+            var response = await http
+                .GetStringAsync(LatestLauncherReleaseApiUrl)
+                .ConfigureAwait(false);
+
+            return ParseLatestReleaseVersion(response);
+        }
+
+        private static HttpClient CreateHttpClient()
+        {
+            var http = OperatingSystem.IsAndroid()
+                ? AndroidJavaHttpMessageHandler.CreateClient(HttpClientPurpose.CDN)
+                : new HttpClient { Timeout = LauncherUpdateTimeout };
+            http.Timeout = LauncherUpdateTimeout;
+            http.DefaultRequestHeaders.Add("User-Agent", LauncherUpdateUserAgent);
+            return http;
+        }
+    }
+
     private readonly struct LauncherVersion : IComparable<LauncherVersion>
     {
         private LauncherVersion(string text, int[] parts)
@@ -82,21 +124,7 @@ internal sealed partial class LauncherController
         if (!LauncherVersion.TryParse(GetInstalledLauncherVersion(), out var installedVersion))
             return null;
 
-        using var http = OperatingSystem.IsAndroid()
-            ? AndroidJavaHttpMessageHandler.CreateClient(HttpClientPurpose.CDN)
-            : new HttpClient { Timeout = LauncherUpdateTimeout };
-        http.Timeout = LauncherUpdateTimeout;
-        http.DefaultRequestHeaders.Add("User-Agent", LauncherUpdateUserAgent);
-
-        var response = await http.GetStringAsync(LatestLauncherReleaseApiUrl).ConfigureAwait(false);
-        var latestVersion = ParseLatestReleaseVersion(response);
-        if (!latestVersion.HasValue)
-            return null;
-
-        if (latestVersion.Value.CompareTo(installedVersion) <= 0)
-            return null;
-
-        return latestVersion.Value.ToString();
+        return await new LauncherUpdateCheck(installedVersion).RunAsync();
     }
 
     private static string? GetInstalledLauncherVersion()

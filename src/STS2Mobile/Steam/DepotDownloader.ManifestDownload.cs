@@ -15,33 +15,35 @@ internal sealed partial class DepotDownloader
     {
         Log($"Downloading manifest for depot {depotId}...");
         return RunCdnDownloadWithRetriesAsync(
-            ManifestDownloadOperation,
-            async attempt => CdnDownloadResult<DepotManifest>.Success(
-                await attempt.DownloadManifestAsync(
-                    this,
-                    depotId,
-                    manifestId,
-                    manifestRequestCode,
-                    depotKey
-                )
-            ),
-            attempt => RunCdnAuthRetryAsync<DepotManifest>(
-                depotId,
-                attempt,
-                ManifestAuthRetryOperation,
-                async token => CdnDownloadResult<DepotManifest>.Success(
+            new CdnDownloadOperation<DepotManifest>(
+                ManifestDownloadOperation,
+                async attempt => CdnDownloadResult<DepotManifest>.Success(
                     await attempt.DownloadManifestAsync(
                         this,
                         depotId,
                         manifestId,
                         manifestRequestCode,
-                        depotKey,
-                        token
+                        depotKey
                     )
+                ),
+                attempt => RunCdnAuthRetryAsync<DepotManifest>(
+                    depotId,
+                    attempt,
+                    ManifestAuthRetryOperation,
+                    async token => CdnDownloadResult<DepotManifest>.Success(
+                        await attempt.DownloadManifestAsync(
+                            this,
+                            depotId,
+                            manifestId,
+                            manifestRequestCode,
+                            depotKey,
+                            token
+                        )
+                    )
+                ),
+                () => new Exception(
+                    $"Failed to download manifest for depot {depotId} after {MaxRetries} attempts"
                 )
-            ),
-            () => new Exception(
-                $"Failed to download manifest for depot {depotId} after {MaxRetries} attempts"
             )
         );
     }

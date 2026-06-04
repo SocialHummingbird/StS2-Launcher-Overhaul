@@ -3,15 +3,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SteamKit2;
+using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductInfo;
 
 namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private readonly ConcurrentDictionary<
-        uint,
-        SteamApps.PICSProductInfoCallback.PICSProductInfo
-    > _appInfoCache = new();
+    private readonly ConcurrentDictionary<uint, PICSProductInfo> _appInfoCache = new();
 
     private readonly struct DepotManifestReference
     {

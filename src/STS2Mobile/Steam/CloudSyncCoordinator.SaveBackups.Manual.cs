@@ -12,6 +12,18 @@ internal static partial class CloudSyncCoordinator
         private const string BackupSourceLocalPrePull = "local-pre-pull";
         private const string ManualPushBackupReadOperation = "ManualPush backup read";
 
+        private static readonly ManualBackupPlan CloudBeforeManualPushPlan = new(
+            BackupSourceCloudPrePush,
+            ReadCloudPrePushContentAsync,
+            LogPushCloudBackupFailure
+        );
+
+        private static readonly ManualBackupPlan LocalBeforeManualPullPlan = new(
+            BackupSourceLocalPrePull,
+            ReadLocalPrePullContentAsync,
+            LogPullLocalBackupFailure
+        );
+
         private readonly struct ManualBackupPlan
         {
             internal ManualBackupPlan(
@@ -48,29 +60,13 @@ internal static partial class CloudSyncCoordinator
             ManualSyncContext sync,
             IEnumerable<string> paths
         )
-            => RunManualBackupsAsync(
-                sync,
-                paths,
-                new ManualBackupPlan(
-                    BackupSourceCloudPrePush,
-                    ReadCloudPrePushContentAsync,
-                    (path, ex) => PatchHelper.Log(PushCloudBackupFailed(path, ex))
-                )
-            );
+            => RunManualBackupsAsync(sync, paths, CloudBeforeManualPushPlan);
 
         internal static Task<int> LocalBeforeManualPullAsync(
             ManualSyncContext sync,
             IEnumerable<string> paths
         )
-            => RunManualBackupsAsync(
-                sync,
-                paths,
-                new ManualBackupPlan(
-                    BackupSourceLocalPrePull,
-                    ReadLocalPrePullContentAsync,
-                    (path, ex) => PatchHelper.Log(PullLocalBackupFailed(path, ex))
-                )
-            );
+            => RunManualBackupsAsync(sync, paths, LocalBeforeManualPullPlan);
 
         private static async Task<int> RunManualBackupsAsync(
             ManualSyncContext sync,
@@ -105,6 +101,12 @@ internal static partial class CloudSyncCoordinator
             string path
         )
             => new(sync.ReadLocalFile(path));
+
+        private static void LogPushCloudBackupFailure(string path, Exception ex)
+            => PatchHelper.Log(PushCloudBackupFailed(path, ex));
+
+        private static void LogPullLocalBackupFailure(string path, Exception ex)
+            => PatchHelper.Log(PullLocalBackupFailed(path, ex));
 
         private static bool IsImportantSave(string path)
         {

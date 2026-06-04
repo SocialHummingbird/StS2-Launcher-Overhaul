@@ -40,19 +40,19 @@ internal static partial class LauncherPreferences
             Action<bool>? beforeSave = null
         )
         {
-            Key = key;
+            Storage = new PreferenceFile(key);
             DefaultValue = defaultValue;
             Apply = apply;
             BeforeSave = beforeSave;
         }
 
-        private string Key { get; }
+        private PreferenceFile Storage { get; }
         private Func<bool> DefaultValue { get; }
         private Action<bool> Apply { get; }
         private Action<bool>? BeforeSave { get; }
 
         internal bool Read()
-            => LoadBoolean(Key, DefaultValue());
+            => Storage.ReadBoolean(DefaultValue());
 
         internal bool LoadAndApply()
         {
@@ -65,7 +65,7 @@ internal static partial class LauncherPreferences
         {
             BeforeSave?.Invoke(enabled);
             Apply(enabled);
-            SaveBoolean(Key, enabled);
+            Storage.WriteBoolean(enabled);
         }
     }
 

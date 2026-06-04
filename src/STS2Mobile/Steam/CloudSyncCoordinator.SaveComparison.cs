@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json;
 
 namespace STS2Mobile.Steam;
 
@@ -13,25 +14,15 @@ internal static partial class CloudSyncCoordinator
             Local,
         }
 
-        private readonly struct NumericComparison
-        {
-            internal NumericComparison(int local, int cloud)
-            {
-                Local = local;
-                Cloud = cloud;
-            }
-
-            internal int Local { get; }
-            internal int Cloud { get; }
-        }
-
-        private static SaveWinner FirstNumericWinner(
-            params NumericComparison[] comparisons
+        private static SaveWinner FirstMetricWinner(
+            JsonElement localRoot,
+            JsonElement cloudRoot,
+            Func<JsonElement, int>[] metrics
         )
         {
-            foreach (var comparison in comparisons)
+            foreach (var metric in metrics)
             {
-                var winner = NumericWinner(comparison.Local, comparison.Cloud);
+                var winner = NumericWinner(metric(localRoot), metric(cloudRoot));
                 if (winner != SaveWinner.None)
                     return winner;
             }

@@ -15,11 +15,10 @@ internal static partial class LauncherPreferences
         internal PreferenceFile(string fileName)
         {
             FileName = fileName;
-            Path = PreferencePath(fileName);
         }
 
         private string FileName { get; }
-        private string Path { get; }
+        private string Path => PreferencePath(FileName);
 
         internal bool ReadBoolean(bool defaultValue)
         {
@@ -53,12 +52,6 @@ internal static partial class LauncherPreferences
             }
         }
     }
-
-    private static bool LoadBoolean(string fileName, bool defaultValue)
-        => new PreferenceFile(fileName).ReadBoolean(defaultValue);
-
-    private static void SaveBoolean(string fileName, bool enabled)
-        => new PreferenceFile(fileName).WriteBoolean(enabled);
 
     private static string PreferencePath(string fileName)
         => Path.Combine(OS.GetDataDir(), fileName);
