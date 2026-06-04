@@ -30,10 +30,10 @@ internal static partial class CloudSyncCoordinator
             private string? FileNameOverride { get; }
             private Action<string> OnWritten { get; }
 
-            internal string? TryWrite()
+            internal bool TrySave()
             {
                 if (ShouldSkipBackup(Content))
-                    return null;
+                    return false;
 
                 var canonPath = NormalizeSavePath(Path);
                 var backupPath = BuildBackupPath(
@@ -43,12 +43,8 @@ internal static partial class CloudSyncCoordinator
                 );
 
                 File.WriteAllText(backupPath, Content);
-                return backupPath;
-            }
-
-            internal void NotifyWritten(string backupPath)
-            {
                 OnWritten(backupPath);
+                return true;
             }
 
             internal string FailureMessage(Exception ex)
@@ -68,12 +64,7 @@ internal static partial class CloudSyncCoordinator
         {
             try
             {
-                var backupPath = request.TryWrite();
-                if (backupPath == null)
-                    return false;
-
-                request.NotifyWritten(backupPath);
-                return true;
+                return request.TrySave();
             }
             catch (Exception ex)
             {

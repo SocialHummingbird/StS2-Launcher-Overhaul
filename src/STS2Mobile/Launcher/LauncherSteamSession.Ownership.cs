@@ -15,8 +15,16 @@ internal sealed partial class LauncherSteamSession
         Action verifyingOwnership
     )
     {
+        return await VerifyOwnershipForSessionAsync(
+            UseConnection(connection),
+            verifyingOwnership
+        );
+    }
+
+    private SteamConnection UseConnection(SteamConnection connection)
+    {
         _connection = connection;
-        return await VerifyOwnershipForSessionAsync(connection, verifyingOwnership);
+        return connection;
     }
 
     private async Task<string> VerifyOwnershipForSessionAsync(

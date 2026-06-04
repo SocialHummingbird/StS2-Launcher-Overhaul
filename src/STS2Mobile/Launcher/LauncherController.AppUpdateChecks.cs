@@ -9,18 +9,39 @@ internal sealed partial class LauncherController
 {
     private static readonly Color AppUpdateAvailableLogColor = new(1f, 0.85f, 0.2f);
 
+    private readonly struct LauncherUpdateResult
+    {
+        private LauncherUpdateResult(string? latestVersion)
+        {
+            LatestVersion = latestVersion;
+        }
+
+        private string? LatestVersion { get; }
+        private bool HasUpdate => LatestVersion != null;
+
+        internal static LauncherUpdateResult FromLatestVersion(string? latestVersion)
+            => new(latestVersion);
+
+        internal void Show(LauncherController controller)
+        {
+            if (HasUpdate)
+            {
+                controller.ShowLauncherUpdateAvailable(LatestVersion ?? "");
+                return;
+            }
+
+            controller.ShowLauncherUpToDate();
+        }
+    }
+
     private async Task CheckForAppUpdatesAsync()
     {
         try
         {
-            var latestVersion = await CheckLatestLauncherVersionAsync();
-            if (latestVersion == null)
-            {
-                _runOnMainThread(ShowLauncherUpToDate);
-                return;
-            }
-
-            _runOnMainThread(() => ShowLauncherUpdateAvailable(latestVersion));
+            var result = LauncherUpdateResult.FromLatestVersion(
+                await CheckLatestLauncherVersionAsync()
+            );
+            _runOnMainThread(() => result.Show(this));
         }
         catch (Exception ex)
         {

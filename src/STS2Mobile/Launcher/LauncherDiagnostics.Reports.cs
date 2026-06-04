@@ -203,17 +203,35 @@ internal static partial class LauncherDiagnostics
             => appendDiagnostics(sb, DataDir);
     }
 
-    internal static string WriteStartupRecoveryDiagnosticsReport(string dataDir)
-        => StartupRecoveryReport(dataDir).Write();
+    internal readonly struct StartupRecoveryDiagnosticsReport
+    {
+        internal StartupRecoveryDiagnosticsReport(string dataDir)
+        {
+            DataDir = dataDir;
+        }
 
-    internal static string BuildStartupRecoveryReport(string dataDir)
-        => StartupRecoveryReport(dataDir).BuildText();
+        private string DataDir { get; }
 
-    private static TimestampedReport StartupRecoveryReport(string dataDir)
-        => TimestampedReport.StartupRecovery(
-            dataDir,
-            sb => AppendStartupRecoveryDiagnostics(sb, dataDir)
-        );
+        internal string Write()
+            => CreateTimestampedReport().Write();
+
+        internal string BuildText()
+            => CreateTimestampedReport().BuildText();
+
+        private TimestampedReport CreateTimestampedReport()
+        {
+            var dataDir = DataDir;
+            return TimestampedReport.StartupRecovery(
+                dataDir,
+                sb => AppendStartupRecoveryDiagnostics(sb, dataDir)
+            );
+        }
+    }
+
+    internal static StartupRecoveryDiagnosticsReport StartupRecoveryReport(
+        string dataDir
+    )
+        => new(dataDir);
 
     private static string BuildTimestampedText(
         string title,

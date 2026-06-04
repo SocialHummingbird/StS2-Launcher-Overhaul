@@ -56,21 +56,14 @@ internal partial class LauncherModel
         if (ConnectionResolved)
             return true;
 
-        return CurrentSessionState
-            is not (
-                SessionState.Connecting
-                or SessionState.Authenticating
-                or SessionState.VerifyingOwnership
-            );
+        return !IsConnectionAttemptState(CurrentSessionState);
     }
 
     internal bool ShouldSuppressSessionUpdate(SessionState state, bool updateCheckRunning)
     {
         if (
             AwaitingCode
-            && state
-                is SessionState.Connecting
-                    or SessionState.Authenticating
+            && IsAuthenticationProgressState(state)
         )
             return true;
 
@@ -81,6 +74,17 @@ internal partial class LauncherModel
     }
 
     private bool IsLoggedIn => _sessionState == SessionState.LoggedIn;
+
+    private static bool IsConnectionAttemptState(SessionState state)
+        => state
+            is SessionState.Connecting
+                or SessionState.Authenticating
+                or SessionState.VerifyingOwnership;
+
+    private static bool IsAuthenticationProgressState(SessionState state)
+        => state
+            is SessionState.Connecting
+                or SessionState.Authenticating;
 
     private int BeginSessionAttempt(SessionState state)
     {

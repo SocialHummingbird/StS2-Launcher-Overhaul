@@ -71,7 +71,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private static string ExportDiagnosticsForDataDir(string dataDir)
     {
-        var path = LauncherDiagnostics.WriteStartupRecoveryDiagnosticsReport(dataDir);
+        var path = LauncherDiagnostics.StartupRecoveryReport(dataDir).Write();
         PatchHelper.Log($"Startup recovery diagnostics written: {path}");
         var shared = AndroidGodotAppBridge.ShareTextFile(path);
         return ExportDiagnosticsMessage(path, shared);
@@ -79,7 +79,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private static string CopyRawErrorLogForDataDir(string dataDir)
     {
-        var text = LauncherDiagnostics.BuildStartupRecoveryReport(dataDir);
+        var text = LauncherDiagnostics.StartupRecoveryReport(dataDir).BuildText();
         DisplayServer.ClipboardSet(text);
         PatchHelper.Log($"Startup recovery raw error log copied ({text.Length:N0} chars)");
         return RawErrorLogCopiedMessage(text.Length);

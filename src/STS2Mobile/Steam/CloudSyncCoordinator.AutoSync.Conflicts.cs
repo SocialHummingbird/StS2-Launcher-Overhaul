@@ -13,10 +13,9 @@ internal static partial class CloudSyncCoordinator
 
         if (IsCorrupt(localContent))
         {
-            await sync.PullCloudContentAsync(
+            await sync.PullCloudOverLocalAsync(
                 cloudContent,
-                SyncLocalCorruptPulling,
-                backUpLocal: true
+                SyncLocalCorruptPulling
             );
             return;
         }
@@ -39,10 +38,9 @@ internal static partial class CloudSyncCoordinator
         switch (sync.GetExplicitWinner(localContent, cloudContent))
         {
             case SaveComparison.SaveWinner.Cloud:
-                await sync.PullCloudContentAsync(
+                await sync.PullCloudOverLocalAsync(
                     cloudContent,
-                    SyncCloudWins,
-                    backUpLocal: true
+                    SyncCloudWins
                 );
                 return;
 
@@ -56,10 +54,9 @@ internal static partial class CloudSyncCoordinator
 
             // Cloud wins on equal progress or non-progress files to preserve PC as primary.
             default:
-                await sync.PullCloudContentAsync(
+                await sync.PullCloudOverLocalAsync(
                     cloudContent,
-                    SyncContentsDifferCloudWins,
-                    backUpLocal: true
+                    SyncContentsDifferCloudWins
                 );
                 return;
         }

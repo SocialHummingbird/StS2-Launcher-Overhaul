@@ -131,6 +131,12 @@ internal static partial class CloudSyncCoordinator
             await WriteLocalContentFromCloudAsync(content);
         }
 
+        internal Task PullCloudOverLocalAsync(
+            string content,
+            Func<string, string> message
+        )
+            => PullCloudContentAsync(content, message, backUpLocal: true);
+
         internal void PushLocalContent(
             string localContent,
             string? cloudContent,

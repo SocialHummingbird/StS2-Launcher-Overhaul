@@ -73,12 +73,15 @@ internal static partial class LauncherPreferences
         => LocalBackupPreference.Save(enabled);
 
     internal static ActionPreferences ReadActionPreferences()
-        => new(LocalBackupPreference.Read(), CloudSyncPreference.Read());
+        => CreateActionPreferences(apply: false);
 
     internal static ActionPreferences LoadAndApplyActionPreferences()
+        => CreateActionPreferences(apply: true);
+
+    private static ActionPreferences CreateActionPreferences(bool apply)
         => new(
-            LocalBackupPreference.LoadAndApply(),
-            CloudSyncPreference.LoadAndApply()
+            apply ? LocalBackupPreference.LoadAndApply() : LocalBackupPreference.Read(),
+            apply ? CloudSyncPreference.LoadAndApply() : CloudSyncPreference.Read()
         );
 
     internal static bool LoadAndApplyCloudSyncEnabled()

@@ -67,7 +67,7 @@ internal static partial class CloudSyncCoordinator
         PushMessages.Format($"failed for {path}: {ex.Message}");
 
     private static string PushComplete(int count) =>
-        CloudMessage($"Push complete: {count} files batched for upload");
+        PushMessages.Format($"complete: {count} files batched for upload");
 
     private static string PushBackingUpCloud(string path) =>
         PushMessages.Format($"backing up cloud {path}");
@@ -97,7 +97,7 @@ internal static partial class CloudSyncCoordinator
         PullMessages.Format($"failed for {path}: {ex.Message}");
 
     private static string PullComplete(int downloaded, int skipped) =>
-        CloudMessage($"Pull complete: {downloaded} downloaded, {skipped} not in cloud");
+        PullMessages.Format($"complete: {downloaded} downloaded, {skipped} not in cloud");
 
     private static string PullLocalBackupFailed(string path, Exception ex) =>
         PullMessages.Format($"backup failed for local {path}: {ex.Message}");

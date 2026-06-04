@@ -14,20 +14,26 @@ internal static partial class CloudSyncCoordinator
             Local,
         }
 
-        private static SaveWinner FirstMetricWinner(
-            JsonElement localRoot,
-            JsonElement cloudRoot,
-            Func<JsonElement, int>[] metrics
-        )
+        private readonly struct SaveMetricSet
         {
-            foreach (var metric in metrics)
+            private readonly Func<JsonElement, int>[] _metrics;
+
+            internal SaveMetricSet(params Func<JsonElement, int>[] metrics)
             {
-                var winner = NumericWinner(metric(localRoot), metric(cloudRoot));
-                if (winner != SaveWinner.None)
-                    return winner;
+                _metrics = metrics;
             }
 
-            return SaveWinner.None;
+            internal SaveWinner Compare(JsonElement localRoot, JsonElement cloudRoot)
+            {
+                foreach (var metric in _metrics)
+                {
+                    var winner = NumericWinner(metric(localRoot), metric(cloudRoot));
+                    if (winner != SaveWinner.None)
+                        return winner;
+                }
+
+                return SaveWinner.None;
+            }
         }
 
         private static SaveWinner NumericWinner(int local, int cloud)

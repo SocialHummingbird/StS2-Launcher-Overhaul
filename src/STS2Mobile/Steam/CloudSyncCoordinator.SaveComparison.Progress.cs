@@ -1,4 +1,3 @@
-using System;
 using System.Text.Json;
 
 namespace STS2Mobile.Steam;
@@ -16,23 +15,18 @@ internal static partial class CloudSyncCoordinator
             DiscoveredActsProperty,
         };
 
-        private static readonly Func<JsonElement, int>[] ProgressMetrics =
-        {
+        private static readonly SaveMetricSet ProgressMetrics = new(
             FloorsClimbed,
             SumCharacterGames,
             CountDiscovered,
-            TotalPlaytime,
-        };
+            TotalPlaytime
+        );
 
         private static SaveWinner CompareProgress(string local, string cloud)
             => CompareJson(
                 local,
                 cloud,
-                (localRoot, cloudRoot) => FirstMetricWinner(
-                    localRoot,
-                    cloudRoot,
-                    ProgressMetrics
-                )
+                ProgressMetrics.Compare
             );
 
         private static int FloorsClimbed(JsonElement root)

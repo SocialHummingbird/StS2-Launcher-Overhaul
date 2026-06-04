@@ -28,15 +28,14 @@ internal sealed partial class LauncherSteamSession
         if (!TryGetOrCreateSavedConnection(out var connection))
             return "No saved credentials";
 
+        UseConnection(connection);
         try
         {
             await EnsureAppAccessTokenNotDeniedAsync(connection);
-            _connection = connection;
             return null;
         }
         catch (Exception ex)
         {
-            _connection = connection;
             return $"Connection failed: {ex.Message}";
         }
     }

@@ -9,20 +9,26 @@ internal partial class LauncherModel
 {
     private readonly struct DepotConnectionOperation
     {
+        private readonly string? _missingConnectionMessage;
+        private readonly Action<string> _raiseFailure;
+        private readonly Func<SteamConnection, Task> _run;
+
         internal DepotConnectionOperation(
             string? missingConnectionMessage,
             Action<string> raiseFailure,
             Func<SteamConnection, Task> run
         )
         {
-            MissingConnectionMessage = missingConnectionMessage;
-            RaiseFailure = raiseFailure;
-            Run = run;
+            _missingConnectionMessage = missingConnectionMessage;
+            _raiseFailure = raiseFailure;
+            _run = run;
         }
 
-        internal string? MissingConnectionMessage { get; }
-        internal Action<string> RaiseFailure { get; }
-        internal Func<SteamConnection, Task> Run { get; }
+        internal void FailMissingConnection()
+            => _raiseFailure(_missingConnectionMessage);
+
+        internal Task RunAsync(SteamConnection connection)
+            => _run(connection);
     }
 
     private CancellationTokenSource _downloadCts;
@@ -89,11 +95,11 @@ internal partial class LauncherModel
         var connection = await GetDepotConnectionAsync();
         if (connection == null)
         {
-            operation.RaiseFailure(operation.MissingConnectionMessage);
+            operation.FailMissingConnection();
             return;
         }
 
-        await operation.Run(connection).ConfigureAwait(false);
+        await operation.RunAsync(connection).ConfigureAwait(false);
     }
 
     private bool DownloadIsRunning => Interlocked.CompareExchange(ref _downloadRunning, 0, 0) == 1;

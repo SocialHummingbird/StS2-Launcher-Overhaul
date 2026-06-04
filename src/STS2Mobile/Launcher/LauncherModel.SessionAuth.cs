@@ -6,6 +6,35 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
+    private readonly struct ConnectionAttemptResult
+    {
+        private ConnectionAttemptResult(string? error)
+        {
+            Error = error;
+        }
+
+        private string? Error { get; }
+        private bool Succeeded => Error == null;
+
+        internal static ConnectionAttemptResult FromError(string? error)
+            => new(error);
+
+        internal void Apply(LauncherModel model)
+        {
+            model._connectionResolved = Succeeded;
+            model.SetSessionState(
+                Succeeded ? SessionState.LoggedIn : SessionState.Failed,
+                Error
+            );
+        }
+
+        internal void LogIfStale()
+        {
+            if (Error != null)
+                PatchHelper.Log($"[Launcher] Ignored stale session failure: {Error}");
+        }
+    }
+
     // Connects on-demand and verifies ownership. Used when we have saved
     // credentials but no ownership marker.
     internal Task ConnectAsync()
@@ -51,31 +80,22 @@ internal partial class LauncherModel
     )
     {
         var attemptId = BeginSessionAttempt(state);
-        var error = await run(attemptId);
-        ApplyConnectionAttemptResult(attemptId, error);
+        var result = ConnectionAttemptResult.FromError(await run(attemptId));
+        ApplyConnectionAttemptResult(attemptId, result);
     }
 
-    private void ApplyConnectionAttemptResult(int attemptId, string? error)
+    private void ApplyConnectionAttemptResult(
+        int attemptId,
+        ConnectionAttemptResult result
+    )
     {
         if (!IsCurrentSessionAttempt(attemptId))
         {
-            LogStaleConnectionFailure(error);
+            result.LogIfStale();
             return;
         }
 
-        if (error == null)
-        {
-            MarkConnectionSucceeded();
-            return;
-        }
-
-        MarkConnectionFailed(error);
-    }
-
-    private static void LogStaleConnectionFailure(string? error)
-    {
-        if (error != null)
-            PatchHelper.Log($"[Launcher] Ignored stale session failure: {error}");
+        result.Apply(this);
     }
 
     private void BeginOwnershipVerification(int attemptId)
@@ -86,15 +106,4 @@ internal partial class LauncherModel
         SetSessionState(SessionState.VerifyingOwnership);
     }
 
-    private void MarkConnectionSucceeded()
-    {
-        _connectionResolved = true;
-        SetSessionState(SessionState.LoggedIn);
-    }
-
-    private void MarkConnectionFailed(string error)
-    {
-        _connectionResolved = false;
-        SetSessionState(SessionState.Failed, error);
-    }
 }
