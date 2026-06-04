@@ -9,6 +9,46 @@ internal static partial class CloudSyncCoordinator
 {
     private static bool _localBackupEnabled;
 
+    private readonly struct CloudOperationTimeout
+    {
+        private readonly string _operation;
+        private readonly int _timeoutMs;
+
+        private CloudOperationTimeout(string operation, int timeoutMs)
+        {
+            _operation = operation;
+            _timeoutMs = timeoutMs;
+        }
+
+        internal static CloudOperationTimeout For(string operation, int timeoutMs)
+            => new(operation, timeoutMs);
+
+        internal async Task WaitAsync(Task task)
+        {
+            var timeout = Task.Delay(_timeoutMs);
+            var winner = await Task.WhenAny(task, timeout).ConfigureAwait(false);
+            if (winner == task)
+                return;
+
+            var operation = _operation;
+            _ = task.ContinueWith(
+                t => PatchHelper.Log(LateCompletionMessage(operation, t.Exception)),
+                TaskContinuationOptions.OnlyOnFaulted
+                    | TaskContinuationOptions.ExecuteSynchronously
+            );
+            throw new TimeoutException(
+                $"{_operation} timed out after {_timeoutMs}ms"
+            );
+        }
+
+        private static string LateCompletionMessage(
+            string operation,
+            AggregateException exception
+        )
+            => "[Cloud] Late completion after timeout for "
+                + $"'{operation}', result: {exception?.GetBaseException().Message}";
+    }
+
     internal static void SetLocalBackupEnabled(bool enabled)
     {
         _localBackupEnabled = enabled;
@@ -24,7 +64,9 @@ internal static partial class CloudSyncCoordinator
     {
         var cloudTime = cloud.GetLastModifiedTime(path);
         var writeTask = local.WriteFileAsync(path, content);
-        await WaitForTimeoutAsync(writeTask, $"WriteLocalFile {path}", timeoutMs)
+        await CloudOperationTimeout
+            .For($"WriteLocalFile {path}", timeoutMs)
+            .WaitAsync(writeTask)
             .ConfigureAwait(false);
         await writeTask.ConfigureAwait(false);
         local.SetLastModifiedTime(path, cloudTime);
@@ -38,26 +80,10 @@ internal static partial class CloudSyncCoordinator
     )
     {
         var task = cloud.ReadFileAsync(path);
-        await WaitForTimeoutAsync(task, $"{operation} {path}", timeoutMs)
+        await CloudOperationTimeout
+            .For($"{operation} {path}", timeoutMs)
+            .WaitAsync(task)
             .ConfigureAwait(false);
         return await task.ConfigureAwait(false);
     }
-
-    private static async Task WaitForTimeoutAsync(Task task, string operation, int timeoutMs)
-    {
-        var timeout = Task.Delay(timeoutMs);
-        var winner = await Task.WhenAny(task, timeout).ConfigureAwait(false);
-        if (winner == task)
-            return;
-
-        _ = task.ContinueWith(
-            t =>
-                PatchHelper.Log(LateCompletionAfterTimeout(operation, t.Exception)),
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously
-        );
-        throw new TimeoutException($"{operation} timed out after {timeoutMs}ms");
-    }
-
-    private static string LateCompletionAfterTimeout(string operation, AggregateException exception) =>
-        $"[Cloud] Late completion after timeout for '{operation}', result: {exception?.GetBaseException().Message}";
 }

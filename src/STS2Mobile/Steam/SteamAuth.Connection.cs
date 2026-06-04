@@ -11,6 +11,7 @@ internal sealed partial class SteamAuth
     private const int AndroidConnectRetryDelayMs = 1000;
     private const int ConnectTimeoutMs = 10_000;
     private const int AndroidConnectTimeoutMs = 30_000;
+    private const int ConnectPollDelayMs = 100;
 
     private readonly struct ConnectRetryPlan
     {
@@ -72,6 +73,34 @@ internal sealed partial class SteamAuth
             );
     }
 
+    private readonly struct ConnectWaitPlan
+    {
+        private ConnectWaitPlan(int timeoutMs)
+        {
+            TimeoutMs = timeoutMs;
+        }
+
+        private int TimeoutMs { get; }
+        private int MaxPolls => TimeoutMs / ConnectPollDelayMs;
+
+        internal static ConnectWaitPlan Current()
+            => new(CurrentConnectTimeoutMs);
+
+        internal async Task<bool> WaitAsync(SteamAuth auth)
+        {
+            for (int i = 0; i < MaxPolls; i++)
+            {
+                if (auth._connectedGate.IsSet)
+                    return true;
+                if (!auth._connectStarted)
+                    return false;
+                await Task.Delay(ConnectPollDelayMs);
+            }
+
+            return auth._connectedGate.IsSet;
+        }
+    }
+
     internal void Connect()
     {
         if (_disposed || _connectedGate.IsSet || _connectStarted)
@@ -81,18 +110,7 @@ internal sealed partial class SteamAuth
     }
 
     private async Task<bool> WaitForConnectAsync()
-    {
-        var timeoutMs = CurrentConnectTimeoutMs;
-        for (int i = 0; i < timeoutMs / 100; i++)
-        {
-            if (_connectedGate.IsSet)
-                return true;
-            if (!_connectStarted)
-                return false;
-            await Task.Delay(100);
-        }
-        return _connectedGate.IsSet;
-    }
+        => await ConnectWaitPlan.Current().WaitAsync(this);
 
     private Task<bool> ConnectWithRetriesAsync()
         => TryConnectWithRetriesAsync(ConnectRetryPlan.Initial(this));

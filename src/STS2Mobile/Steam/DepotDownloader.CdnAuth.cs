@@ -172,23 +172,32 @@ internal sealed partial class DepotDownloader
     {
         foreach (var attempt in CdnDownloadAttempts())
         {
-            try
-            {
-                if ((await operation.DownloadAsync(attempt)).TryGetValue(out var value))
-                    return value;
-            }
-            catch (SteamKitWebRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
-            {
-                if ((await operation.DownloadWithAuthAsync(attempt)).TryGetValue(out var value))
-                    return value;
-            }
-            catch (Exception ex) when (attempt.CanRetry())
-            {
-                operation.HandleRetryFailure(this, attempt, ex);
-            }
+            var result = await TryCdnDownloadAttemptAsync(operation, attempt);
+            if (result.TryGetValue(out var value))
+                return value;
         }
 
         throw operation.CreateFailure();
+    }
+
+    private async Task<CdnDownloadResult<T>> TryCdnDownloadAttemptAsync<T>(
+        CdnDownloadOperation<T> operation,
+        CdnServerAttempt attempt
+    )
+    {
+        try
+        {
+            return await operation.DownloadAsync(attempt);
+        }
+        catch (SteamKitWebRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return await operation.DownloadWithAuthAsync(attempt);
+        }
+        catch (Exception ex) when (attempt.CanRetry())
+        {
+            operation.HandleRetryFailure(this, attempt, ex);
+            return CdnDownloadResult<T>.Retry();
+        }
     }
 
     private async Task<CdnDownloadResult<T>> RunCdnAuthRetryAsync<T>(

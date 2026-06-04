@@ -55,19 +55,36 @@ internal sealed partial class SteamKit2CloudSaveStore
                     return;
                 }
                 catch (InvalidOperationException ex)
-                    when (IsTooManyPending(ex) && HasCloudOperationRetryRemaining(attempt))
+                    when (CanRetryAfterThrottle(ex, attempt))
                 {
-                    var delayMs = _throttleDelayMs(attempt);
-                    PatchHelper.Log(OperationThrottled(_name, _path, delayMs));
-                    Thread.Sleep(delayMs);
+                    WaitAfterThrottle(attempt);
                 }
                 catch (Exception ex)
                 {
-                    PatchHelper.Log(OperationFailed(_name, _path, ex));
+                    LogFailure(ex);
                     return;
                 }
             }
         }
+
+        private bool CanRetryAfterThrottle(InvalidOperationException ex, int attempt)
+            => IsTooManyPending(ex) && HasRetryRemaining(attempt);
+
+        private void WaitAfterThrottle(int attempt)
+        {
+            var delayMs = _throttleDelayMs(attempt);
+            PatchHelper.Log(OperationThrottled(_name, _path, delayMs));
+            Thread.Sleep(delayMs);
+        }
+
+        private void LogFailure(Exception ex)
+            => PatchHelper.Log(OperationFailed(_name, _path, ex));
+
+        private static bool HasRetryRemaining(int attempt)
+            => attempt < MaxCloudOperationAttempts - 1;
+
+        private static bool IsTooManyPending(InvalidOperationException ex)
+            => ex.Message.Contains("TooManyPending");
     }
 
     private void UploadWithRetry(
@@ -88,10 +105,4 @@ internal sealed partial class SteamKit2CloudSaveStore
             path,
             () => DeleteCloudFile(path)
         ).Run();
-
-    private static bool HasCloudOperationRetryRemaining(int attempt)
-        => attempt < MaxCloudOperationAttempts - 1;
-
-    private static bool IsTooManyPending(InvalidOperationException ex)
-        => ex.Message.Contains("TooManyPending");
 }

@@ -84,6 +84,57 @@ internal static partial class LauncherDiagnostics
             Detailed,
         }
 
+        private readonly struct LauncherStateReport
+        {
+            internal LauncherStateReport(
+                string dataDir,
+                string accountName,
+                bool hasSavedCredentials,
+                bool gameFilesReady,
+                string sessionState,
+                string failReason
+            )
+            {
+                DataDir = dataDir;
+                AccountName = accountName;
+                HasSavedCredentials = hasSavedCredentials;
+                GameFilesReady = gameFilesReady;
+                SessionState = sessionState;
+                FailReason = failReason;
+            }
+
+            internal string DataDir { get; }
+            private string AccountName { get; }
+            private bool HasSavedCredentials { get; }
+            private bool GameFilesReady { get; }
+            private string SessionState { get; }
+            private string FailReason { get; }
+
+            internal void AppendTo(StringBuilder sb, LauncherStateDetail detail)
+            {
+                if (detail == LauncherStateDetail.Detailed)
+                    AppendDetailedPrefix(sb);
+
+                AppendCompact(sb);
+
+                if (detail == LauncherStateDetail.Detailed)
+                    sb.AppendLine($"Fail reason: {ValueOrMissing(FailReason)}");
+            }
+
+            private void AppendDetailedPrefix(StringBuilder sb)
+            {
+                sb.AppendLine($"Data dir: {ValueOrMissing(DataDir)}");
+                sb.AppendLine($"Account: {ValueOrMissing(AccountName)}");
+                sb.AppendLine($"Has saved credentials: {HasSavedCredentials}");
+            }
+
+            private void AppendCompact(StringBuilder sb)
+            {
+                sb.AppendLine($"Game files ready: {GameFilesReady}");
+                sb.AppendLine($"Session state: {ValueOrMissing(SessionState)}");
+            }
+        }
+
         private static readonly ErrorReportPlan SummaryErrorReport =
             ErrorReportPlan.Summary(AppendSummaryErrorDiagnostics);
 
@@ -153,20 +204,17 @@ internal static partial class LauncherDiagnostics
             string failReason
         )
         {
-            DataDir = dataDir;
-            AccountName = accountName;
-            HasSavedCredentials = hasSavedCredentials;
-            GameFilesReady = gameFilesReady;
-            SessionState = sessionState;
-            FailReason = failReason;
+            _state = new LauncherStateReport(
+                dataDir,
+                accountName,
+                hasSavedCredentials,
+                gameFilesReady,
+                sessionState,
+                failReason
+            );
         }
 
-        private string DataDir { get; }
-        private string AccountName { get; }
-        private bool HasSavedCredentials { get; }
-        private bool GameFilesReady { get; }
-        private string SessionState { get; }
-        private string FailReason { get; }
+        private readonly LauncherStateReport _state;
 
         internal string BuildDiagnosticsSummary()
             => SummaryErrorReport.BuildText(this);
@@ -176,43 +224,25 @@ internal static partial class LauncherDiagnostics
 
         internal string WriteDiagnosticsReport()
             => TimestampedReport.Launcher(
-                DataDir,
+                _state.DataDir,
                 AppendFullLauncherDiagnostics
             ).Write();
 
         private void AppendLauncherState(StringBuilder sb, LauncherStateDetail detail)
-        {
-            if (detail == LauncherStateDetail.Detailed)
-            {
-                sb.AppendLine($"Data dir: {ValueOrMissing(DataDir)}");
-                sb.AppendLine($"Account: {ValueOrMissing(AccountName)}");
-                sb.AppendLine($"Has saved credentials: {HasSavedCredentials}");
-            }
-
-            AppendCompactLauncherState(sb);
-
-            if (detail == LauncherStateDetail.Detailed)
-                sb.AppendLine($"Fail reason: {ValueOrMissing(FailReason)}");
-        }
-
-        private void AppendCompactLauncherState(StringBuilder sb)
-        {
-            sb.AppendLine($"Game files ready: {GameFilesReady}");
-            sb.AppendLine($"Session state: {ValueOrMissing(SessionState)}");
-        }
+            => _state.AppendTo(sb, detail);
 
         private void AppendFullLauncherDiagnostics(StringBuilder sb)
         {
             AppendLauncherState(sb, LauncherStateDetail.Detailed);
             AppendLauncherPreferences(sb);
-            AppendFullReportDiagnostics(sb, DataDir);
+            AppendFullReportDiagnostics(sb, _state.DataDir);
         }
 
         private void AppendErrorDiagnostics(
             StringBuilder sb,
             Action<StringBuilder, string> appendDiagnostics
         )
-            => appendDiagnostics(sb, DataDir);
+            => appendDiagnostics(sb, _state.DataDir);
     }
 
     internal readonly struct StartupRecoveryDiagnosticsReport

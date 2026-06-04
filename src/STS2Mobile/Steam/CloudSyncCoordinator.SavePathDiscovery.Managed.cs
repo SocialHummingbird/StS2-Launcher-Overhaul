@@ -55,12 +55,13 @@ internal static partial class CloudSyncCoordinator
         }
 
         private static IEnumerable<string> SelectManagedRunHistoryFiles(IEnumerable<string> files)
-            => SelectRunHistoryFiles(files)
-                .Where(f =>
-                    !f.EndsWith(BackupExtension)
-                    && !f.EndsWith(TempExtension)
-                )
-                .OrderByDescending(f => f)
-                .Take(RunHistoryLimit);
+            => LimitRunHistory(
+                SelectRunHistoryFiles(files)
+                    .Where(f =>
+                        !f.EndsWith(BackupExtension)
+                        && !f.EndsWith(TempExtension)
+                    )
+                    .OrderByDescending(f => f)
+            );
     }
 }

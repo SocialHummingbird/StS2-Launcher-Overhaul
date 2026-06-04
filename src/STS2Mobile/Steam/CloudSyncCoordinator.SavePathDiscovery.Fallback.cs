@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
@@ -77,7 +76,7 @@ internal static partial class CloudSyncCoordinator
                     paths,
                     store,
                     historyDir,
-                    files => SelectRunHistoryFiles(files).Take(RunHistoryLimit)
+                    files => LimitRunHistory(SelectRunHistoryFiles(files))
                 );
             }
         }

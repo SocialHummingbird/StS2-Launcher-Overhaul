@@ -27,11 +27,11 @@ internal sealed partial class LauncherController
         internal async Task RunAsync()
         {
             var operationTask = _run();
-            var timeout = Task.Delay(CloudSyncTimeoutMs);
-            if (await Task.WhenAny(operationTask, timeout) != operationTask)
-                throw new TimeoutException(TimeoutMessage);
-
-            await operationTask;
+            await LauncherTimeout.RunOrThrowAsync(
+                operationTask,
+                CloudSyncTimeoutMs,
+                TimeoutMessage
+            );
         }
     }
 }

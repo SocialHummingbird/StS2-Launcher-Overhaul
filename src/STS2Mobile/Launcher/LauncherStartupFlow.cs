@@ -102,8 +102,10 @@ internal static partial class LauncherStartupFlow
 
             internal async Task<bool> RecoverIfTimedOutAsync()
             {
-                var watchdogTask = Task.Delay(StartupWatchdogMs);
-                if (await Task.WhenAny(_startupTask, watchdogTask) != watchdogTask)
+                if (await LauncherTimeout.CompletesWithinAsync(
+                    _startupTask,
+                    StartupWatchdogMs
+                ))
                     return false;
 
                 await _recoverAsync();
