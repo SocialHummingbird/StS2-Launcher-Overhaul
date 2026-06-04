@@ -29,6 +29,9 @@ internal sealed partial class AndroidJavaHttpMessageHandler
         };
     }
 
+    internal static NetHttpClient CreateCdnClient()
+        => CreateClient(HttpClientPurpose.CDN);
+
     private static bool TryGetGodotApp(out Godot.GodotObject godotApp)
     {
         try

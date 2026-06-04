@@ -56,7 +56,7 @@ internal sealed partial class LauncherController
         private static HttpClient CreateHttpClient()
         {
             var http = OperatingSystem.IsAndroid()
-                ? AndroidJavaHttpMessageHandler.CreateClient(HttpClientPurpose.CDN)
+                ? AndroidJavaHttpMessageHandler.CreateCdnClient()
                 : new HttpClient { Timeout = LauncherUpdateTimeout };
             http.Timeout = LauncherUpdateTimeout;
             http.DefaultRequestHeaders.Add("User-Agent", LauncherUpdateUserAgent);
