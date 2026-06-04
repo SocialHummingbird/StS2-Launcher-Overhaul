@@ -10,7 +10,7 @@ internal sealed partial class DepotDownloader
     {
         private readonly struct ProductInfoAppIdentity
         {
-            private static ProductInfoAppIdentity For(uint appId)
+            internal static ProductInfoAppIdentity For(uint appId)
                 => new(appId);
 
             private ProductInfoAppIdentity(uint appId)
@@ -47,7 +47,7 @@ internal sealed partial class DepotDownloader
             private readonly ProductInfoAppIdentity _identity;
             private readonly PICSProductInfo _appInfo;
 
-            private static ProductInfoAppSections For(
+            internal static ProductInfoAppSections For(
                 ProductInfoAppIdentity identity,
                 PICSProductInfo appInfo
             )

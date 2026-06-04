@@ -18,13 +18,13 @@ internal static class LauncherCloudSaveState
         private string AccountName { get; }
         private string RefreshToken { get; }
 
-        private static SavedSteamCredentials FromLogin(
+        internal static SavedSteamCredentials FromLogin(
             string accountName,
             string refreshToken
         )
             => new(accountName, refreshToken);
 
-        private SaveManager CreateSaveManager()
+        internal SaveManager CreateSaveManager()
             => new(
                 CloudSaveStoreFactory.CreateCloudSaveStore(
                     AccountName,
@@ -32,7 +32,7 @@ internal static class LauncherCloudSaveState
                 )
             );
 
-        private Task RunManualSyncAsync(Func<string, string, Task> sync)
+        internal Task RunManualSyncAsync(Func<string, string, Task> sync)
             => sync(AccountName, RefreshToken);
     }
 

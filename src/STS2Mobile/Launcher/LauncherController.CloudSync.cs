@@ -86,7 +86,7 @@ internal sealed partial class LauncherController
             _runOnMainThread = runOnMainThread;
         }
 
-        private static CloudSyncExecution ForRequest(
+        internal static CloudSyncExecution ForRequest(
             CloudSyncRequest request,
             LauncherView view,
             Action<Action> runOnMainThread

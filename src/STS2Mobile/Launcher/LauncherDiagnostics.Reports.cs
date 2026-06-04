@@ -217,7 +217,7 @@ internal static partial class LauncherDiagnostics
 
     internal readonly struct StartupRecoveryDiagnosticsReport
     {
-        private StartupRecoveryDiagnosticsReport(string dataDir)
+        internal StartupRecoveryDiagnosticsReport(string dataDir)
         {
             DataDir = dataDir;
         }
