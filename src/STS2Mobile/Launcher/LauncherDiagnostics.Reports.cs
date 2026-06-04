@@ -60,6 +60,27 @@ internal static partial class LauncherDiagnostics
             Detailed,
         }
 
+        private readonly struct ErrorReportPlan
+        {
+            internal ErrorReportPlan(
+                string title,
+                LauncherStateDetail stateDetail,
+                Action<StringBuilder, string> appendDiagnostics,
+                string footer
+            )
+            {
+                Title = title;
+                StateDetail = stateDetail;
+                AppendDiagnostics = appendDiagnostics;
+                Footer = footer;
+            }
+
+            internal string Title { get; }
+            internal LauncherStateDetail StateDetail { get; }
+            internal Action<StringBuilder, string> AppendDiagnostics { get; }
+            internal string Footer { get; }
+        }
+
         internal Snapshot(
             string dataDir,
             string accountName,
@@ -85,20 +106,20 @@ internal static partial class LauncherDiagnostics
         private string FailReason { get; }
 
         internal string BuildDiagnosticsSummary()
-            => BuildDiagnosticText(
+            => BuildDiagnosticText(new ErrorReportPlan(
                 "=== LAST ERROR SUMMARY ===",
                 LauncherStateDetail.Compact,
                 AppendSummaryErrorDiagnostics,
                 "=== END LAST ERROR SUMMARY ==="
-            );
+            ));
 
         internal string BuildRawErrorLog()
-            => BuildDiagnosticText(
+            => BuildDiagnosticText(new ErrorReportPlan(
                 "=== RAW ERROR LOG ===",
                 LauncherStateDetail.Detailed,
                 AppendRawErrorDiagnostics,
                 "=== END RAW ERROR LOG ==="
-            );
+            ));
 
         internal string WriteDiagnosticsReport()
             => new TimestampedReport(
@@ -109,23 +130,18 @@ internal static partial class LauncherDiagnostics
                 AppendFullLauncherDiagnostics
             ).Write();
 
-        private string BuildDiagnosticText(
-            string title,
-            LauncherStateDetail stateDetail,
-            Action<StringBuilder, string> appendDiagnostics,
-            string footer
-        )
+        private string BuildDiagnosticText(ErrorReportPlan plan)
         {
             var snapshot = this;
             return BuildTimestampedText(
-                title,
+                plan.Title,
                 "UTC",
                 sb =>
                 {
-                    snapshot.AppendLauncherState(sb, stateDetail);
+                    snapshot.AppendLauncherState(sb, plan.StateDetail);
                     AppendPreviousLaunchPhase(sb, "Previous launch phase");
-                    snapshot.AppendErrorDiagnostics(sb, appendDiagnostics);
-                    sb.AppendLine(footer);
+                    snapshot.AppendErrorDiagnostics(sb, plan.AppendDiagnostics);
+                    sb.AppendLine(plan.Footer);
                 }
             );
         }

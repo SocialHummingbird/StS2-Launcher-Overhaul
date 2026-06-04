@@ -12,6 +12,19 @@ internal sealed partial class SteamKit2CloudSaveStore
         private const int EnqueueTimeoutMs = 2500;
         private const int MaxQueuedWrites = 256;
 
+        private readonly struct QueueDrainState
+        {
+            internal QueueDrainState(int queuedWrites, long pendingWrites)
+            {
+                QueuedWrites = queuedWrites;
+                PendingWrites = pendingWrites;
+            }
+
+            internal int QueuedWrites { get; }
+            internal long PendingWrites { get; }
+            internal bool HasPendingWrites => PendingWrites > 0 || QueuedWrites > 0;
+        }
+
         private readonly BlockingCollection<Action> _queue = new(
             new ConcurrentQueue<Action>(),
             MaxQueuedWrites
@@ -75,16 +88,16 @@ internal sealed partial class SteamKit2CloudSaveStore
             return WaitForDrain(timeoutMs);
         }
 
-        private bool HasPendingWrites(long pending)
-            => pending > 0 || _queue.Count > 0;
+        private QueueDrainState CaptureDrainState()
+            => new(_queue.Count, PendingWrites);
 
         private bool WaitForDrain(int timeoutMs)
         {
-            var pending = PendingWrites;
-            if (!HasPendingWrites(pending))
+            var initialState = CaptureDrainState();
+            if (!initialState.HasPendingWrites)
                 return true;
 
-            PatchHelper.Log(FlushingPendingWrites(pending));
+            PatchHelper.Log(FlushingPendingWrites(initialState.PendingWrites));
 
             if (_drainSignal.Wait(timeoutMs))
             {
@@ -92,7 +105,11 @@ internal sealed partial class SteamKit2CloudSaveStore
                 return true;
             }
 
-            PatchHelper.Log(FlushTimedOut(_queue.Count, PendingWrites));
+            var timedOutState = CaptureDrainState();
+            PatchHelper.Log(FlushTimedOut(
+                timedOutState.QueuedWrites,
+                timedOutState.PendingWrites
+            ));
             if (DroppedWrites > 0)
                 PatchHelper.Log(FlushDroppedWriteWarning(DroppedWrites));
             return false;

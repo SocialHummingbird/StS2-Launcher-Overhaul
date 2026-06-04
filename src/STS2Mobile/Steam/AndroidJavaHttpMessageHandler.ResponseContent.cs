@@ -7,37 +7,53 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class AndroidJavaHttpMessageHandler
 {
+    private readonly struct BridgeResponseBody
+    {
+        private BridgeResponseBody(JsonElement root, string? filePath)
+        {
+            Root = root;
+            FilePath = filePath;
+        }
+
+        private JsonElement Root { get; }
+        private string? FilePath { get; }
+        private bool HasFile => FilePath != null;
+
+        internal static BridgeResponseBody From(JsonElement root)
+            => new(root, ReadBodyFilePath(root));
+
+        internal void DeleteFileIfSafe()
+            => DeleteBodyFileIfSafe(FilePath);
+
+        internal HttpContent CreateContent(
+            int status,
+            string requestDescription,
+            CancellationToken cancellationToken
+        )
+            => HasFile
+                ? CreateResponseContentFromBodyFile(
+                    FilePath,
+                    status,
+                    requestDescription,
+                    cancellationToken
+                )
+                : CreateResponseContentFromBase64Body(Root, requestDescription);
+    }
+
     private static HttpContent CreateResponseContent(
         JsonElement root,
         int status,
         BridgeRequestContext requestContext,
         CancellationToken cancellationToken
     )
-    {
-        var bodyFile = GetBodyFilePath(root);
-        if (bodyFile != null)
-            return CreateResponseContentFromBodyFile(
-                bodyFile,
-                status,
-                requestContext.Description,
-                cancellationToken
-            );
+        => BridgeResponseBody
+            .From(root)
+            .CreateContent(status, requestContext.Description, cancellationToken);
 
-        return CreateResponseContentFromBase64Body(root, requestContext.Description);
-    }
-
-    private static JsonElement? GetBodyFileElement(JsonElement root)
+    private static string? ReadBodyFilePath(JsonElement root)
         => root.TryGetProperty(BodyFileProperty, out var bodyFileElement)
-            ? bodyFileElement
+            ? GetBridgeString(bodyFileElement)
             : null;
-
-    private static string? GetBodyFilePath(JsonElement root)
-    {
-        var bodyFileElement = GetBodyFileElement(root);
-        return bodyFileElement.HasValue
-            ? GetBridgeString(bodyFileElement.Value)
-            : null;
-    }
 
     private static HttpContent CreateResponseContentFromBase64Body(
         JsonElement root,
@@ -74,7 +90,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
         try
         {
             using var doc = JsonDocument.Parse(raw);
-            DeleteBodyFileIfSafe(GetBodyFilePath(doc.RootElement));
+            BridgeResponseBody.From(doc.RootElement).DeleteFileIfSafe();
         }
         catch
         {

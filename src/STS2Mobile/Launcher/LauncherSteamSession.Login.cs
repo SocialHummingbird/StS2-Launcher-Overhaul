@@ -7,7 +7,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherSteamSession
 {
-    internal readonly struct LoginRequest
+    internal sealed class LoginRequest
     {
         internal LoginRequest(
             string username,
@@ -24,11 +24,33 @@ internal sealed partial class LauncherSteamSession
             VerifyingOwnership = verifyingOwnership;
         }
 
-        internal string Username { get; }
-        internal string Password { get; }
-        internal Action<string> LogMessage { get; }
-        internal Action<bool> CodeNeeded { get; }
-        internal Action VerifyingOwnership { get; }
+        private string Username { get; }
+        private string Password { get; }
+        private Action<string> LogMessage { get; }
+        private Action<bool> CodeNeeded { get; }
+        private Action VerifyingOwnership { get; }
+
+        internal void AttachLog(SteamAuth auth)
+            => auth.LogMessage += msg => LogMessage?.Invoke(msg);
+
+        internal Task<SteamAuth.LoginCredentials> LoginAsync(
+            SteamAuth auth,
+            SteamCredentialStore credentialStore
+        )
+            => auth.LoginWithCredentialsAsync(
+                Username,
+                Password,
+                credentialStore.GuardDataOrEmpty()
+            );
+
+        internal Task<string> RequestCodeAsync(
+            LauncherSteamSession session,
+            bool wasIncorrect
+        )
+            => session.RequestSteamGuardCodeAsync(wasIncorrect, CodeNeeded);
+
+        internal void NotifyVerifyingOwnership()
+            => VerifyingOwnership();
     }
 
     internal async Task<string> LoginAndVerifyAsync(LoginRequest request)
@@ -37,20 +59,16 @@ internal sealed partial class LauncherSteamSession
         {
             ResetAuth();
             var auth = new SteamAuth(wasIncorrect =>
-                RequestSteamGuardCodeAsync(wasIncorrect, request.CodeNeeded));
+                request.RequestCodeAsync(this, wasIncorrect));
             _auth = auth;
-            auth.LogMessage += msg => request.LogMessage?.Invoke(msg);
+            request.AttachLog(auth);
 
-            var result = await auth.LoginWithCredentialsAsync(
-                request.Username,
-                request.Password,
-                _credentialStore.GuardDataOrEmpty()
-            );
+            var result = await request.LoginAsync(auth, _credentialStore);
             SaveLoginCredentials(result);
             ResetAuth();
             return await UseConnectionAndVerifyOwnershipAsync(
                 result.CreateConnection(),
-                request.VerifyingOwnership
+                request.NotifyVerifyingOwnership
             );
         }
         catch (Exception ex)

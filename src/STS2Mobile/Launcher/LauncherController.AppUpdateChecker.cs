@@ -17,12 +17,69 @@ internal sealed partial class LauncherController
     private const string LauncherUpdateUserAgent = "StS2-Launcher";
     private const string ReleaseNameProperty = "name";
     private const string ReleaseTagNameProperty = "tag_name";
+    private const string VersionNumberPattern = @"\d+(?:\.\d+)*";
     private static readonly TimeSpan LauncherUpdateTimeout = TimeSpan.FromSeconds(15);
+
+    private readonly struct LauncherVersion : IComparable<LauncherVersion>
+    {
+        private LauncherVersion(string text, int[] parts)
+        {
+            Text = text;
+            Parts = parts;
+        }
+
+        private string Text { get; }
+        private int[] Parts { get; }
+
+        internal static bool TryParse(string? version, out LauncherVersion parsed)
+        {
+            parsed = default;
+            if (string.IsNullOrEmpty(version))
+                return false;
+
+            var match = Regex.Match(version, VersionNumberPattern);
+            if (!match.Success)
+                return false;
+
+            var text = match.Value.TrimStart('v', 'V');
+            parsed = new LauncherVersion(text, ParseParts(text));
+            return true;
+        }
+
+        public int CompareTo(LauncherVersion other)
+        {
+            var len = Math.Max(Parts.Length, other.Parts.Length);
+            for (var i = 0; i < len; i++)
+            {
+                var current = PartOrZero(Parts, i);
+                var target = PartOrZero(other.Parts, i);
+                if (current != target)
+                    return current - target;
+            }
+
+            return 0;
+        }
+
+        public override string ToString()
+            => Text;
+
+        private static int[] ParseParts(string version)
+        {
+            var textParts = version.Split('.');
+            var parts = new int[textParts.Length];
+            for (var i = 0; i < textParts.Length; i++)
+                parts[i] = int.TryParse(textParts[i], out var value) ? value : 0;
+
+            return parts;
+        }
+
+        private static int PartOrZero(int[] parts, int index)
+            => index < parts.Length ? parts[index] : 0;
+    }
 
     private static async Task<string?> CheckLatestLauncherVersionAsync()
     {
-        var currentVersion = GetInstalledLauncherVersion();
-        if (currentVersion == null)
+        if (!LauncherVersion.TryParse(GetInstalledLauncherVersion(), out var installedVersion))
             return null;
 
         using var http = OperatingSystem.IsAndroid()
@@ -33,15 +90,13 @@ internal sealed partial class LauncherController
 
         var response = await http.GetStringAsync(LatestLauncherReleaseApiUrl).ConfigureAwait(false);
         var latestVersion = ParseLatestReleaseVersion(response);
-        var installedVersion = NormalizeVersion(currentVersion);
-
-        if (latestVersion == null || installedVersion == null)
+        if (!latestVersion.HasValue)
             return null;
 
-        if (CompareVersions(latestVersion, installedVersion) <= 0)
+        if (latestVersion.Value.CompareTo(installedVersion) <= 0)
             return null;
 
-        return latestVersion;
+        return latestVersion.Value.ToString();
     }
 
     private static string? GetInstalledLauncherVersion()
@@ -56,7 +111,7 @@ internal sealed partial class LauncherController
         }
     }
 
-    private static string? ParseLatestReleaseVersion(string json)
+    private static LauncherVersion? ParseLatestReleaseVersion(string json)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
@@ -68,32 +123,8 @@ internal sealed partial class LauncherController
             ? tagProp.GetString()
             : null;
 
-        return NormalizeVersion(releaseTag ?? releaseName);
-    }
-
-    private static string? NormalizeVersion(string? version)
-    {
-        if (string.IsNullOrEmpty(version))
-            return null;
-
-        var match = Regex.Match(version, @"\d+(?:\.\d+)*(?:\.\d+)*");
-        return match.Success ? match.Value.TrimStart('v', 'V') : null;
-    }
-
-    private static int CompareVersions(string a, string b)
-    {
-        var aParts = a.Split('.');
-        var bParts = b.Split('.');
-        var len = Math.Max(aParts.Length, bParts.Length);
-
-        for (int i = 0; i < len; i++)
-        {
-            int aVal = i < aParts.Length && int.TryParse(aParts[i], out var av) ? av : 0;
-            int bVal = i < bParts.Length && int.TryParse(bParts[i], out var bv) ? bv : 0;
-            if (aVal != bVal)
-                return aVal - bVal;
-        }
-
-        return 0;
+        return LauncherVersion.TryParse(releaseTag ?? releaseName, out var version)
+            ? version
+            : null;
     }
 }

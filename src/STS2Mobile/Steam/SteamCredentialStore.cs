@@ -11,25 +11,25 @@ internal sealed partial class SteamCredentialStore
     private readonly string _credentialsPath;
     private SteamCredentials _credentials;
 
-    private bool HasCredentials =>
-        _credentials?.RefreshToken != null && _credentials?.AccountName != null;
+    private bool HasCredentials
+        => _credentials?.HasUsableTokens() == true;
 
     internal bool HasUsableCredentials()
         => HasCredentials;
 
     internal string AccountNameOrEmpty()
-        => _credentials?.AccountName ?? string.Empty;
+        => _credentials?.AccountNameOrEmpty() ?? string.Empty;
 
     internal bool HasAccount()
-        => _credentials?.AccountName != null;
+        => _credentials?.HasAccount() == true;
 
     internal bool IsAccount(string accountName)
-        => _credentials?.AccountName == accountName;
+        => _credentials?.IsAccount(accountName) == true;
 
     internal bool TryGetAccountName(out string accountName)
     {
-        accountName = _credentials?.AccountName;
-        return accountName != null;
+        accountName = null;
+        return _credentials?.TryGetAccountName(out accountName) == true;
     }
 
     internal bool TryCreateConnection(out SteamConnection connection)
@@ -38,7 +38,7 @@ internal sealed partial class SteamCredentialStore
         if (!HasCredentials)
             return false;
 
-        connection = new SteamConnection(_credentials.AccountName, _credentials.RefreshToken);
+        connection = _credentials.CreateConnection();
         return true;
     }
 
@@ -47,12 +47,12 @@ internal sealed partial class SteamCredentialStore
         if (!HasCredentials)
             return false;
 
-        useCredentials(_credentials.AccountName, _credentials.RefreshToken);
+        _credentials.Use(useCredentials);
         return true;
     }
 
     internal string GuardDataOrEmpty()
-        => _credentials?.GuardData ?? string.Empty;
+        => _credentials?.GuardDataOrEmpty() ?? string.Empty;
 
     internal SteamCredentialStore(string dataDir)
     {

@@ -7,22 +7,46 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct ProductInfoApp
     {
+        private readonly struct ProductInfoAppIdentity
+        {
+            internal ProductInfoAppIdentity(uint appId)
+            {
+                AppId = appId;
+            }
+
+            internal uint AppId { get; }
+
+            private bool IsMainApp => AppId == SteamCloudApp.AppId;
+            private string Name => IsMainApp
+                ? $"{SteamCloudApp.Name} ({SteamCloudApp.AppId})"
+                : $"referenced app {AppId}";
+            private string OwnershipHint => IsMainApp
+                ? "; ownership/session may be invalid"
+                : "";
+
+            internal string AccessTokenDenied()
+                => $"Steam denied app access token for {Name}{OwnershipHint}";
+
+            internal string PublicAccessTokenFallback()
+                => $"Steam returned no app access token for {Name}; "
+                    + "continuing with public token 0";
+
+            internal string AppInfoUnavailable()
+                => $"Failed to get app info from Steam for {Name}{OwnershipHint}";
+
+            internal string MissingDepotsSection()
+                => $"Steam app info for {Name} has no depots section";
+        }
+
         private readonly DepotDownloader _owner;
 
         private ProductInfoApp(DepotDownloader owner, uint appId)
         {
             _owner = owner;
-            AppId = appId;
+            Identity = new ProductInfoAppIdentity(appId);
         }
 
-        private uint AppId { get; }
-        private bool IsMainApp => AppId == SteamCloudApp.AppId;
-        private string Name => IsMainApp
-            ? $"{SteamCloudApp.Name} ({SteamCloudApp.AppId})"
-            : $"referenced app {AppId}";
-        private string OwnershipHint => IsMainApp
-            ? "; ownership/session may be invalid"
-            : "";
+        private ProductInfoAppIdentity Identity { get; }
 
         internal static Task<KeyValue> GetMainDepotsSectionAsync(DepotDownloader owner)
             => new ProductInfoApp(owner, SteamCloudApp.AppId)
@@ -57,19 +81,19 @@ internal sealed partial class DepotDownloader
         {
             var appInfo = await GetInfoAsync();
             if (appInfo == null)
-                throw new System.Exception(AppInfoUnavailable());
+                throw new System.Exception(Identity.AppInfoUnavailable());
 
             return appInfo;
         }
 
         private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> GetInfoAsync()
         {
-            if (_owner._appInfoCache.TryGetValue(AppId, out var cached))
+            if (_owner._appInfoCache.TryGetValue(Identity.AppId, out var cached))
                 return cached;
 
             var appInfo = await FetchInfoAsync();
             if (appInfo != null)
-                _owner._appInfoCache[AppId] = appInfo;
+                _owner._appInfoCache[Identity.AppId] = appInfo;
 
             return appInfo;
         }
@@ -77,18 +101,18 @@ internal sealed partial class DepotDownloader
         private async Task<ulong> GetAccessTokenAsync()
         {
             var token = await _owner._connection.GetAppAccessTokenOrPublicAsync(
-                AppId,
-                AccessTokenDenied()
+                Identity.AppId,
+                Identity.AccessTokenDenied()
             );
             if (token == 0)
-                _owner.Log(PublicAccessTokenFallback());
+                _owner.Log(Identity.PublicAccessTokenFallback());
 
             return token;
         }
 
         private async Task<SteamApps.PICSProductInfoCallback.PICSProductInfo?> FetchInfoAsync()
             => await _owner._connection.GetAppInfoAsync(
-                AppId,
+                Identity.AppId,
                 await GetAccessTokenAsync()
             );
 
@@ -98,22 +122,9 @@ internal sealed partial class DepotDownloader
         {
             var depots = appInfo?.KeyValues?["depots"];
             if (depots == null || depots == KeyValue.Invalid)
-                throw new System.InvalidOperationException(MissingDepotsSection());
+                throw new System.InvalidOperationException(Identity.MissingDepotsSection());
 
             return depots;
         }
-
-        private string AccessTokenDenied()
-            => $"Steam denied app access token for {Name}{OwnershipHint}";
-
-        private string PublicAccessTokenFallback()
-            => $"Steam returned no app access token for {Name}; "
-                + "continuing with public token 0";
-
-        private string AppInfoUnavailable()
-            => $"Failed to get app info from Steam for {Name}{OwnershipHint}";
-
-        private string MissingDepotsSection()
-            => $"Steam app info for {Name} has no depots section";
     }
 }

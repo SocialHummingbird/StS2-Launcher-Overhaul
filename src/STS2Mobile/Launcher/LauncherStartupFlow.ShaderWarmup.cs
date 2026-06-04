@@ -5,11 +5,31 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherStartupFlow
 {
+    private readonly struct ShaderWarmupDecision
+    {
+        private ShaderWarmupDecision(bool shouldRun, bool shouldShowSkipped)
+        {
+            ShouldRun = shouldRun;
+            ShouldShowSkipped = shouldShowSkipped;
+        }
+
+        internal bool ShouldRun { get; }
+        internal bool ShouldShowSkipped { get; }
+
+        internal static ShaderWarmupDecision From(StartupContext startup)
+        {
+            var skipWarmup = startup.ShouldSkipShaderWarmup();
+            return new ShaderWarmupDecision(
+                ShaderWarmupScreen.NeedsWarmup() && !skipWarmup,
+                skipWarmup
+            );
+        }
+    }
+
     private static async Task RunShaderWarmupIfNeededAsync(StartupContext startup)
     {
-        var needsWarmup = ShaderWarmupScreen.NeedsWarmup();
-        var skipWarmup = startup.ShouldSkipShaderWarmup();
-        if (needsWarmup && !skipWarmup)
+        var decision = ShaderWarmupDecision.From(startup);
+        if (decision.ShouldRun)
         {
             startup.SetPhase(PhaseShaderWarmup, "Warming shaders...");
             PatchHelper.Log("Shader warmup starting");
@@ -19,7 +39,7 @@ internal static partial class LauncherStartupFlow
             return;
         }
 
-        if (skipWarmup)
+        if (decision.ShouldShowSkipped)
             startup.ShowShaderWarmupSkipped();
     }
 

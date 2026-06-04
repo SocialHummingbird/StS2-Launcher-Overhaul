@@ -46,6 +46,34 @@ internal static partial class LauncherDiagnostics
             sb.AppendLine(Text);
         }
 
+        internal void AppendContentsSection(StringBuilder sb)
+        {
+            if (AppendReadStatusIfNoText(sb))
+            {
+                sb.AppendLine();
+                return;
+            }
+
+            AppendMetadata(sb, DiagnosticFileMetadataStyle.Inline);
+            sb.AppendLine("  contents:");
+            AppendContents(sb);
+            sb.AppendLine();
+        }
+
+        internal void AppendSummary(
+            StringBuilder sb,
+            DiagnosticFile file,
+            long inlineContentLimit
+        )
+        {
+            sb.AppendLine(file.SummaryLine());
+            if (AppendReadStatusIfNoText(sb))
+                return;
+
+            AppendMetadata(sb, DiagnosticFileMetadataStyle.MultiLine);
+            AppendInlineContentsIfSmall(sb, inlineContentLimit);
+        }
+
         internal void AppendInlineContentsIfSmall(StringBuilder sb, long inlineContentLimit)
         {
             if (Bytes <= inlineContentLimit)
@@ -84,15 +112,7 @@ internal static partial class LauncherDiagnostics
     )
         => AppendInspectedFile(
             file,
-            snapshot =>
-            {
-                sb.AppendLine(file.SummaryLine());
-                if (snapshot.AppendReadStatusIfNoText(sb))
-                    return;
-
-                snapshot.AppendMetadata(sb, DiagnosticFileMetadataStyle.MultiLine);
-                snapshot.AppendInlineContentsIfSmall(sb, inlineContentLimit);
-            },
+            snapshot => snapshot.AppendSummary(sb, file, inlineContentLimit),
             ex => sb.AppendLine(file.InspectFailedMessage(ex))
         );
 
@@ -105,19 +125,7 @@ internal static partial class LauncherDiagnostics
 
         AppendInspectedFile(
             file,
-            snapshot =>
-            {
-                if (snapshot.AppendReadStatusIfNoText(sb))
-                {
-                    sb.AppendLine();
-                    return;
-                }
-
-                snapshot.AppendMetadata(sb, DiagnosticFileMetadataStyle.Inline);
-                sb.AppendLine("  contents:");
-                snapshot.AppendContents(sb);
-                sb.AppendLine();
-            },
+            snapshot => snapshot.AppendContentsSection(sb),
             ex =>
             {
                 sb.AppendLine($"  failed={ex.Message}");

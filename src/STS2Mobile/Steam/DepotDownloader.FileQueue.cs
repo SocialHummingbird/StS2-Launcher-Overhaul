@@ -29,6 +29,54 @@ internal sealed partial class DepotDownloader
         }
     }
 
+    private sealed class DepotFileDownloadWorkers
+    {
+        private readonly DepotDownloader _owner;
+        private readonly DepotFileDownloadQueue _queue;
+        private readonly uint _depotId;
+        private readonly byte[] _depotKey;
+        private readonly CancellationToken _ct;
+
+        internal DepotFileDownloadWorkers(
+            DepotDownloader owner,
+            DepotFileDownloadQueue queue,
+            uint depotId,
+            byte[] depotKey,
+            CancellationToken ct
+        )
+        {
+            _owner = owner;
+            _queue = queue;
+            _depotId = depotId;
+            _depotKey = depotKey;
+            _ct = ct;
+        }
+
+        internal Task RunAsync()
+        {
+            var workers = Enumerable
+                .Range(0, _queue.WorkerCount)
+                .Select(_ => Task.Run(RunWorkerAsync, _ct))
+                .ToArray();
+
+            return Task.WhenAll(workers);
+        }
+
+        private async Task RunWorkerAsync()
+        {
+            while (true)
+            {
+                _ct.ThrowIfCancellationRequested();
+                var file = _queue.TakeNext();
+                if (file == null)
+                    return;
+
+                await _owner.DownloadFileAsync(file, _depotId, _depotKey, _ct);
+                _owner.ForceReportProgress();
+            }
+        }
+    }
+
     private async Task DownloadDepotFilesAsync(
         IReadOnlyList<DepotManifest.FileData> filesToDownload,
         uint depotId,
@@ -37,40 +85,7 @@ internal sealed partial class DepotDownloader
     )
     {
         var queue = new DepotFileDownloadQueue(filesToDownload);
-        var workers = Enumerable
-            .Range(0, queue.WorkerCount)
-            .Select(
-                _ => Task.Run(
-                    () => DownloadDepotFileWorkerAsync(
-                        queue,
-                        depotId,
-                        depotKey,
-                        ct
-                    ),
-                    ct
-                )
-            )
-            .ToArray();
-
-        await Task.WhenAll(workers);
-    }
-
-    private async Task DownloadDepotFileWorkerAsync(
-        DepotFileDownloadQueue queue,
-        uint depotId,
-        byte[] depotKey,
-        CancellationToken ct
-    )
-    {
-        while (true)
-        {
-            ct.ThrowIfCancellationRequested();
-            var file = queue.TakeNext();
-            if (file == null)
-                return;
-
-            await DownloadFileAsync(file, depotId, depotKey, ct);
-            ForceReportProgress();
-        }
+        var workers = new DepotFileDownloadWorkers(this, queue, depotId, depotKey, ct);
+        await workers.RunAsync();
     }
 }

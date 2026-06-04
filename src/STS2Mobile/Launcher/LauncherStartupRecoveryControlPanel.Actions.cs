@@ -19,9 +19,18 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
             Run = run;
         }
 
-        internal string LogAction { get; }
-        internal string FailureTitle { get; }
-        internal Func<string, string> Run { get; }
+        private string LogAction { get; }
+        private string FailureTitle { get; }
+        private Func<string, string> Run { get; }
+
+        internal string RunForCurrentDataDir()
+            => Run(OS.GetDataDir());
+
+        internal string FailureMessage(Exception ex)
+        {
+            PatchHelper.Log($"Startup recovery {LogAction} failed: {ex}");
+            return $"{FailureTitle}:\n{ex.GetBaseException().Message}";
+        }
     }
 
     private static void RestartWithSafeLaunch()
@@ -48,12 +57,11 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     {
         try
         {
-            _detail.Text = action.Run(OS.GetDataDir());
+            _detail.Text = action.RunForCurrentDataDir();
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"Startup recovery {action.LogAction} failed: {ex}");
-            _detail.Text = $"{action.FailureTitle}:\n{ex.GetBaseException().Message}";
+            _detail.Text = action.FailureMessage(ex);
         }
     }
 

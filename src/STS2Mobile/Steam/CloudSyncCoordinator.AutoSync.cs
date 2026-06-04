@@ -12,6 +12,49 @@ internal static partial class CloudSyncCoordinator
 
     private readonly struct AutoSyncContext
     {
+        private readonly struct PathState
+        {
+            internal PathState(string? localContent, bool cloudExists)
+            {
+                LocalContent = localContent;
+                CloudExists = cloudExists;
+            }
+
+            internal string? LocalContent { get; }
+            internal bool CloudExists { get; }
+            internal bool HasLocal => LocalContent != null;
+            internal bool ExistsInBothStores => HasLocal && CloudExists;
+            internal bool ExistsOnlyInCloud => !HasLocal && CloudExists;
+
+            internal string RequireLocalContent()
+            {
+                if (LocalContent == null)
+                    throw new InvalidOperationException(
+                        "Auto sync path state has no local content"
+                    );
+
+                return LocalContent;
+            }
+
+            internal async Task RunAsync(AutoSyncContext sync)
+            {
+                if (ExistsInBothStores)
+                {
+                    await SyncExistingFileAsync(sync, RequireLocalContent());
+                    return;
+                }
+
+                if (ExistsOnlyInCloud)
+                {
+                    await sync.PullCloudOnlyFileAsync();
+                    return;
+                }
+
+                if (HasLocal)
+                    sync.PushLocalOnlyFile(RequireLocalContent());
+            }
+        }
+
         private readonly ISaveStore _local;
         private readonly ICloudSaveStore _cloud;
 
@@ -29,6 +72,9 @@ internal static partial class CloudSyncCoordinator
 
         private string? ReadLocalContent()
             => LocalFileExists() ? _local.ReadFile(Path) : null;
+
+        private PathState ReadPathState()
+            => new(ReadLocalContent(), CloudFileExists());
 
         internal Task<string> ReadCloudContentAsync(string operation)
             => CloudSyncCoordinator.ReadCloudContentAsync(
@@ -106,26 +152,8 @@ internal static partial class CloudSyncCoordinator
         private bool LocalFileExists()
             => _local.FileExists(Path);
 
-        internal async Task RunAsync()
-        {
-            var localContent = ReadLocalContent();
-            var cloud = CloudFileExists();
-
-            if (cloud && localContent != null)
-            {
-                await SyncExistingFileAsync(this, localContent);
-                return;
-            }
-
-            if (cloud)
-            {
-                await PullCloudOnlyFileAsync();
-                return;
-            }
-
-            if (localContent != null)
-                PushLocalOnlyFile(localContent);
-        }
+        internal Task RunAsync()
+            => ReadPathState().RunAsync(this);
     }
 
     // Uses content comparison only because timestamps are unreliable on mobile.

@@ -23,11 +23,32 @@ internal sealed partial class LauncherController
             CompleteMessage = completeMessage;
         }
 
-        internal string ConfirmationMessage { get; }
-        internal Func<Task> Run { get; }
-        internal string Name { get; }
-        internal string StartMessage { get; }
-        internal string CompleteMessage { get; }
+        private string ConfirmationMessage { get; }
+        private Func<Task> Run { get; }
+        private string Name { get; }
+        private string StartMessage { get; }
+        private string CompleteMessage { get; }
+
+        internal void ShowConfirmation(LauncherView view, Action accepted)
+            => view.ShowConfirmation(ConfirmationMessage, accepted);
+
+        internal Task RunWithTimeoutAsync()
+            => RunCloudSyncWithTimeoutAsync(Run, Name);
+
+        internal void MarkStarted(LauncherView view)
+        {
+            view.SetPushPullDisabled(true);
+            view.AppendLog(StartMessage);
+        }
+
+        internal void MarkComplete(LauncherView view)
+            => view.AppendLog(CompleteMessage);
+
+        internal void MarkFailed(LauncherView view, Exception ex)
+        {
+            PatchHelper.Log($"[Cloud] {Name} sync failed: {ex.Message}");
+            view.AppendLog($"{Name} failed: {ex.Message}");
+        }
 
         internal static CloudSyncRequest Push()
             => new(
@@ -48,6 +69,46 @@ internal sealed partial class LauncherController
             );
     }
 
+    private sealed class CloudSyncExecution
+    {
+        private readonly CloudSyncRequest _request;
+        private readonly LauncherView _view;
+        private readonly Action<Action> _runOnMainThread;
+
+        internal CloudSyncExecution(
+            CloudSyncRequest request,
+            LauncherView view,
+            Action<Action> runOnMainThread
+        )
+        {
+            _request = request;
+            _view = view;
+            _runOnMainThread = runOnMainThread;
+        }
+
+        internal async Task RunAsync()
+        {
+            OnMainThread(() => _request.MarkStarted(_view));
+
+            try
+            {
+                await _request.RunWithTimeoutAsync();
+                OnMainThread(() => _request.MarkComplete(_view));
+            }
+            catch (Exception ex)
+            {
+                OnMainThread(() => _request.MarkFailed(_view, ex));
+            }
+            finally
+            {
+                OnMainThread(() => _view.SetPushPullDisabled(false));
+            }
+        }
+
+        private void OnMainThread(Action action)
+            => _runOnMainThread(action);
+    }
+
     private void CloudSyncToggled(bool pressed)
         => LauncherPreferences.SaveCloudSyncEnabled(pressed);
 
@@ -58,39 +119,8 @@ internal sealed partial class LauncherController
         => RequestCloudSync(CloudSyncRequest.Pull());
 
     private void RequestCloudSync(CloudSyncRequest request)
-        => _view.ShowConfirmation(
-            request.ConfirmationMessage,
-            () => _ = ExecuteCloudSyncAsync(request)
-        );
+        => request.ShowConfirmation(_view, () => _ = ExecuteCloudSyncAsync(request));
 
-    private async Task ExecuteCloudSyncAsync(CloudSyncRequest request)
-    {
-        _runOnMainThread(() => MarkCloudSyncStarted(request.StartMessage));
-
-        try
-        {
-            await RunCloudSyncWithTimeoutAsync(request.Run, request.Name);
-            _runOnMainThread(() => _view.AppendLog(request.CompleteMessage));
-        }
-        catch (Exception ex)
-        {
-            _runOnMainThread(() => MarkCloudSyncFailed(request.Name, ex));
-        }
-        finally
-        {
-            _runOnMainThread(() => _view.SetPushPullDisabled(false));
-        }
-    }
-
-    private void MarkCloudSyncStarted(string startMessage)
-    {
-        _view.SetPushPullDisabled(true);
-        _view.AppendLog(startMessage);
-    }
-
-    private void MarkCloudSyncFailed(string name, Exception ex)
-    {
-        PatchHelper.Log($"[Cloud] {name} sync failed: {ex.Message}");
-        _view.AppendLog($"{name} failed: {ex.Message}");
-    }
+    private Task ExecuteCloudSyncAsync(CloudSyncRequest request)
+        => new CloudSyncExecution(request, _view, _runOnMainThread).RunAsync();
 }

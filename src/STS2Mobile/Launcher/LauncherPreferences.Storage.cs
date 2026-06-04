@@ -10,35 +10,55 @@ internal static partial class LauncherPreferences
     private const string TrueValue = "true";
     private const string FalseValue = "false";
 
-    private static bool LoadBoolean(string fileName, bool defaultValue)
+    private readonly struct PreferenceFile
     {
-        try
+        internal PreferenceFile(string fileName)
         {
-            var path = PreferencePath(fileName);
-            if (File.Exists(path))
-                return File.ReadAllText(path).Trim() == TrueValue;
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Launcher] Preference load failed for {fileName}: {ex.Message}");
+            FileName = fileName;
+            Path = PreferencePath(fileName);
         }
 
-        return defaultValue;
+        private string FileName { get; }
+        private string Path { get; }
+
+        internal bool ReadBoolean(bool defaultValue)
+        {
+            try
+            {
+                if (File.Exists(Path))
+                    return File.ReadAllText(Path).Trim() == TrueValue;
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(
+                    $"[Launcher] Preference load failed for {FileName}: {ex.Message}"
+                );
+            }
+
+            return defaultValue;
+        }
+
+        internal void WriteBoolean(bool enabled)
+        {
+            try
+            {
+                EnsurePreferenceDirectory(Path);
+                File.WriteAllText(Path, enabled ? TrueValue : FalseValue);
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(
+                    $"[Launcher] Preference save failed for {FileName}: {ex.Message}"
+                );
+            }
+        }
     }
+
+    private static bool LoadBoolean(string fileName, bool defaultValue)
+        => new PreferenceFile(fileName).ReadBoolean(defaultValue);
 
     private static void SaveBoolean(string fileName, bool enabled)
-    {
-        try
-        {
-            var path = PreferencePath(fileName);
-            EnsurePreferenceDirectory(path);
-            File.WriteAllText(path, enabled ? TrueValue : FalseValue);
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Launcher] Preference save failed for {fileName}: {ex.Message}");
-        }
-    }
+        => new PreferenceFile(fileName).WriteBoolean(enabled);
 
     private static string PreferencePath(string fileName)
         => Path.Combine(OS.GetDataDir(), fileName);

@@ -15,9 +15,27 @@ internal sealed partial class SteamConnection
             Token = token;
         }
 
-        internal bool Found { get; }
-        internal bool Denied { get; }
-        internal ulong Token { get; }
+        private bool Found { get; }
+        private bool Denied { get; }
+        private ulong Token { get; }
+
+        internal bool HasToken()
+            => Found;
+
+        internal void ThrowIfDenied(string deniedMessage)
+        {
+            if (Denied)
+                throw new InvalidOperationException(deniedMessage);
+        }
+
+        internal ulong TokenOrPublic(string deniedMessage)
+        {
+            if (Found)
+                return Token;
+
+            ThrowIfDenied(deniedMessage);
+            return 0;
+        }
 
         internal static AppAccessTokenResult FoundToken(ulong token)
             => new(true, false, token);
@@ -30,23 +48,13 @@ internal sealed partial class SteamConnection
     }
 
     internal async Task<bool> HasAppAccessTokenAsync(uint appId)
-        => (await GetAppAccessTokenAsync(appId)).Found;
+        => (await GetAppAccessTokenAsync(appId)).HasToken();
 
     internal async Task EnsureAppAccessTokenNotDeniedAsync(uint appId, string deniedMessage)
-    {
-        var tokenResult = await GetAppAccessTokenAsync(appId);
-        ThrowIfAppAccessTokenDenied(tokenResult.Denied, deniedMessage);
-    }
+        => (await GetAppAccessTokenAsync(appId)).ThrowIfDenied(deniedMessage);
 
     internal async Task<ulong> GetAppAccessTokenOrPublicAsync(uint appId, string deniedMessage)
-    {
-        var tokenResult = await GetAppAccessTokenAsync(appId);
-        if (tokenResult.Found)
-            return tokenResult.Token;
-
-        ThrowIfAppAccessTokenDenied(tokenResult.Denied, deniedMessage);
-        return 0;
-    }
+        => (await GetAppAccessTokenAsync(appId)).TokenOrPublic(deniedMessage);
 
     private async Task<AppAccessTokenResult> GetAppAccessTokenAsync(uint appId)
     {
@@ -77,11 +85,5 @@ internal sealed partial class SteamConnection
             _appAccessToken = token;
 
         return AppAccessTokenResult.FoundToken(token);
-    }
-
-    private static void ThrowIfAppAccessTokenDenied(bool denied, string deniedMessage)
-    {
-        if (denied)
-            throw new InvalidOperationException(deniedMessage);
     }
 }

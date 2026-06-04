@@ -10,6 +10,23 @@ internal sealed partial class SteamAuth
 {
     private const int CredentialAuthRetryCount = 3;
 
+    private readonly struct CredentialAuthRetryPlan
+    {
+        internal bool IncludesAttempt(int attempt)
+            => attempt <= CredentialAuthRetryCount;
+
+        internal bool CanRetry(Exception ex, int attempt, bool needsAuthReconnect)
+            => attempt < CredentialAuthRetryCount
+                && (needsAuthReconnect || IsTransientAndroidAuthFailure(ex));
+
+        internal void LogRetry(SteamAuth auth, Exception ex)
+        {
+            auth.Log(
+                $"Steam authentication interrupted ({ex.Message}); retrying auth session"
+            );
+        }
+    }
+
     internal async Task<LoginCredentials> LoginWithCredentialsAsync(
         string username,
         string password,
@@ -23,15 +40,20 @@ internal sealed partial class SteamAuth
         {
             Log($"Authenticating as '{username}'...");
 
-            for (int attempt = 1; attempt <= CredentialAuthRetryCount; attempt++)
+            var retry = new CredentialAuthRetryPlan();
+            for (int attempt = 1; retry.IncludesAttempt(attempt); attempt++)
             {
                 try
                 {
-                    return await AuthenticateCredentialsOnceAsync(username, password, guardData);
+                    return await AuthenticateCredentialsOnceAsync(
+                        username,
+                        password,
+                        guardData
+                    );
                 }
-                catch (Exception ex) when (CanRetryAuthAfterTransientFailure(ex, attempt))
+                catch (Exception ex) when (retry.CanRetry(ex, attempt, NeedsAuthReconnect))
                 {
-                    Log($"Steam authentication interrupted ({ex.Message}); retrying auth session");
+                    retry.LogRetry(this, ex);
                     await PrepareForAuthRetryAsync();
                 }
             }
@@ -78,10 +100,6 @@ internal sealed partial class SteamAuth
         );
 
     private bool ShouldReconnectWhilePolling => NeedsAuthReconnect && !_waitingForAuthCode;
-
-    private bool CanRetryAuthAfterTransientFailure(Exception ex, int attempt)
-        => attempt < CredentialAuthRetryCount
-            && (NeedsAuthReconnect || IsTransientAndroidAuthFailure(ex));
 
     private async Task PrepareForAuthRetryAsync()
     {

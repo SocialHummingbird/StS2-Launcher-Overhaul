@@ -8,6 +8,32 @@ internal sealed partial class LauncherController
 {
     private bool _automaticDiagnosticsWritten;
 
+    private readonly struct DiagnosticsFailureHandling
+    {
+        private readonly string _context;
+        private readonly bool _logFullException;
+        private readonly Action<string>? _onFailure;
+
+        internal DiagnosticsFailureHandling(
+            string context,
+            bool logFullException,
+            Action<string>? onFailure = null
+        )
+        {
+            _context = context;
+            _logFullException = logFullException;
+            _onFailure = onFailure;
+        }
+
+        internal void Handle(Exception ex)
+        {
+            PatchHelper.Log(
+                $"[Launcher] {_context}: {(_logFullException ? ex.ToString() : ex.Message)}"
+            );
+            _onFailure?.Invoke(ex.Message);
+        }
+    }
+
     private void ShowLastErrorPressed()
         => RunDiagnosticsAction(
             "Error summary failed",
@@ -35,18 +61,19 @@ internal sealed partial class LauncherController
 
     private void RunDiagnosticsAction(string failureContext, Action action)
     {
+        var failure = new DiagnosticsFailureHandling(
+            failureContext,
+            logFullException: true,
+            message => _view.SetStatus($"{failureContext}: {message}")
+        );
+
         try
         {
             action();
         }
         catch (Exception ex)
         {
-            HandleDiagnosticsFailure(
-                ex,
-                failureContext,
-                logFullException: true,
-                message => _view.SetStatus($"{failureContext}: {message}")
-            );
+            failure.Handle(ex);
         }
     }
 
@@ -56,32 +83,20 @@ internal sealed partial class LauncherController
         Action<string>? onFailure = null
     )
     {
+        var failure = new DiagnosticsFailureHandling(
+            failureContext,
+            logFullException,
+            onFailure
+        );
+
         try
         {
             return _model.WriteDiagnosticsReport();
         }
         catch (Exception ex)
         {
-            HandleDiagnosticsFailure(
-                ex,
-                failureContext,
-                logFullException,
-                onFailure
-            );
+            failure.Handle(ex);
             return default;
         }
-    }
-
-    private static void HandleDiagnosticsFailure(
-        Exception ex,
-        string context,
-        bool logFullException,
-        Action<string>? onFailure = null
-    )
-    {
-        PatchHelper.Log(
-            $"[Launcher] {context}: {(logFullException ? ex.ToString() : ex.Message)}"
-        );
-        onFailure?.Invoke(ex.Message);
     }
 }

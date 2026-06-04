@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using STS2Mobile;
 
@@ -6,6 +7,29 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
+    private readonly struct RecoveryButtonSpec
+    {
+        internal RecoveryButtonSpec(string label, Action run)
+        {
+            Label = label;
+            Run = run;
+        }
+
+        private string Label { get; }
+        private Action Run { get; }
+
+        internal void AddTo(VBoxContainer box)
+        {
+            var button = new Button
+            {
+                Text = Label,
+                CustomMinimumSize = ButtonMinimumSize,
+            };
+            button.Pressed += Run;
+            box.AddChild(button);
+        }
+    }
+
     private LauncherStartupRecoveryControlPanel()
     {
         Layer = CreateLayer();
@@ -63,21 +87,28 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private void AddRecoveryActions(VBoxContainer box)
     {
-        AddButton(box, "RETURN TO LAUNCHER", AndroidGodotAppBridge.RestartApp);
-        AddButton(box, "RESTART WITH SAFE LAUNCH", RestartWithSafeLaunch);
-        AddButton(box, "EXPORT STARTUP DIAGNOSTICS", ExportDiagnostics);
-        AddButton(box, "COPY RAW ERROR LOG", CopyRawErrorLog);
-        AddButton(box, "HIDE RECOVERY CONTROLS", () => Layer.QueueFree());
+        foreach (var action in RecoveryActions())
+            action.AddTo(box);
     }
 
-    private static void AddButton(VBoxContainer box, string label, Action run)
+    private IEnumerable<RecoveryButtonSpec> RecoveryActions()
     {
-        var button = new Button
-        {
-            Text = label,
-            CustomMinimumSize = ButtonMinimumSize,
-        };
-        button.Pressed += run;
-        box.AddChild(button);
+        yield return new RecoveryButtonSpec(
+            "RETURN TO LAUNCHER",
+            AndroidGodotAppBridge.RestartApp
+        );
+        yield return new RecoveryButtonSpec(
+            "RESTART WITH SAFE LAUNCH",
+            RestartWithSafeLaunch
+        );
+        yield return new RecoveryButtonSpec(
+            "EXPORT STARTUP DIAGNOSTICS",
+            ExportDiagnostics
+        );
+        yield return new RecoveryButtonSpec("COPY RAW ERROR LOG", CopyRawErrorLog);
+        yield return new RecoveryButtonSpec(
+            "HIDE RECOVERY CONTROLS",
+            () => Layer.QueueFree()
+        );
     }
 }

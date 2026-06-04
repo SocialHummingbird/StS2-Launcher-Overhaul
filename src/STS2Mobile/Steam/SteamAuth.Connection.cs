@@ -17,30 +17,58 @@ internal sealed partial class SteamAuth
         internal ConnectRetryPlan(
             Action beginAttempt,
             string startFailureMessage,
-            string retryMessage
+            string retryMessage,
+            int retryCount,
+            int retryDelayMs
         )
         {
             BeginAttempt = beginAttempt;
             StartFailureMessage = startFailureMessage;
             RetryMessage = retryMessage;
+            RetryCount = retryCount;
+            RetryDelayMs = retryDelayMs;
         }
 
-        internal Action BeginAttempt { get; }
-        internal string StartFailureMessage { get; }
-        internal string RetryMessage { get; }
+        private Action BeginAttempt { get; }
+        private string StartFailureMessage { get; }
+        private string RetryMessage { get; }
+        private int RetryCount { get; }
+        private int RetryDelayMs { get; }
+
+        internal void Begin()
+            => BeginAttempt();
+
+        internal void LogStartFailure(SteamAuth auth, Exception ex)
+            => auth.Log($"{StartFailureMessage}: {ex.Message}");
+
+        internal void LogRetry(SteamAuth auth)
+            => auth.Log(RetryMessage);
+
+        internal bool HasRetryAfter(int attempt)
+            => attempt < RetryCount;
+
+        internal bool IncludesAttempt(int attempt)
+            => attempt <= RetryCount;
+
+        internal Task WaitBeforeRetryAsync()
+            => Task.Delay(RetryDelayMs);
 
         internal static ConnectRetryPlan Initial(SteamAuth auth)
             => new(
                 auth.Connect,
                 "Steam connection failed to start before auth",
-                "Steam connection did not complete before auth; retrying..."
+                "Steam connection did not complete before auth; retrying...",
+                CurrentConnectRetryCount,
+                CurrentConnectRetryDelayMs
             );
 
         internal static ConnectRetryPlan AuthReconnect(SteamAuth auth)
             => new(
                 () => auth.BeginConnect("Reconnecting for auth code submission..."),
                 "Steam auth reconnect failed to start",
-                "Steam auth reconnect did not complete; retrying..."
+                "Steam auth reconnect did not complete; retrying...",
+                CurrentConnectRetryCount,
+                CurrentConnectRetryDelayMs
             );
     }
 
@@ -91,27 +119,26 @@ internal sealed partial class SteamAuth
 
     private async Task<bool> TryConnectWithRetriesAsync(ConnectRetryPlan plan)
     {
-        var retryCount = CurrentConnectRetryCount;
-        for (int attempt = 1; attempt <= retryCount; attempt++)
+        for (int attempt = 1; plan.IncludesAttempt(attempt); attempt++)
         {
             try
             {
-                plan.BeginAttempt();
+                plan.Begin();
             }
             catch (Exception ex)
             {
-                Log($"{plan.StartFailureMessage}: {ex.Message}");
+                plan.LogStartFailure(this, ex);
                 ResetConnectAttemptAfterFailure();
             }
 
             if (await WaitForConnectAsync())
                 return true;
 
-            if (attempt < retryCount)
+            if (plan.HasRetryAfter(attempt))
             {
                 ResetConnectAttemptAfterFailure();
-                Log(plan.RetryMessage);
-                await Task.Delay(CurrentConnectRetryDelayMs);
+                plan.LogRetry(this);
+                await plan.WaitBeforeRetryAsync();
             }
         }
 

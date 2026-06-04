@@ -24,11 +24,35 @@ internal static partial class CloudSyncCoordinator
                 OnWritten = onWritten;
             }
 
-            internal string Path { get; }
-            internal string Content { get; }
-            internal string Source { get; }
-            internal string? FileNameOverride { get; }
-            internal Action<string> OnWritten { get; }
+            private string Path { get; }
+            private string Content { get; }
+            private string Source { get; }
+            private string? FileNameOverride { get; }
+            private Action<string> OnWritten { get; }
+
+            internal string? TryWrite()
+            {
+                if (ShouldSkipBackup(Content))
+                    return null;
+
+                var canonPath = NormalizeSavePath(Path);
+                var backupPath = BuildBackupPath(
+                    GetProfileDir(canonPath),
+                    FileNameOverride ?? System.IO.Path.GetFileName(canonPath),
+                    Source
+                );
+
+                File.WriteAllText(backupPath, Content);
+                return backupPath;
+            }
+
+            internal void NotifyWritten(string backupPath)
+            {
+                OnWritten(backupPath);
+            }
+
+            internal string FailureMessage(Exception ex)
+                => BackupFailed(Source, Path, ex);
         }
 
         private static bool SaveContent(string path, string content, string source)
@@ -44,34 +68,18 @@ internal static partial class CloudSyncCoordinator
         {
             try
             {
-                var backupPath = TryWriteBackup(request);
+                var backupPath = request.TryWrite();
                 if (backupPath == null)
                     return false;
 
-                request.OnWritten(backupPath);
+                request.NotifyWritten(backupPath);
                 return true;
             }
             catch (Exception ex)
             {
-                PatchHelper.Log(BackupFailed(request.Source, request.Path, ex));
+                PatchHelper.Log(request.FailureMessage(ex));
                 return false;
             }
-        }
-
-        private static string? TryWriteBackup(BackupWriteRequest request)
-        {
-            if (ShouldSkipBackup(request.Content))
-                return null;
-
-            var canonPath = NormalizeSavePath(request.Path);
-            var backupPath = BuildBackupPath(
-                GetProfileDir(canonPath),
-                request.FileNameOverride ?? Path.GetFileName(canonPath),
-                request.Source
-            );
-
-            File.WriteAllText(backupPath, request.Content);
-            return backupPath;
         }
 
         private static bool HasBackupAccess()

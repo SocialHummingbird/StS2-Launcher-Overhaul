@@ -21,12 +21,15 @@ internal sealed partial class SteamAuth
             InitialMessage = initialMessage;
         }
 
-        internal bool PreviousCodeWasIncorrect { get; }
+        private bool PreviousCodeWasIncorrect { get; }
         private string RetryMessage { get; }
         private string InitialMessage { get; }
 
-        internal string Message
+        internal string LogMessage
             => PreviousCodeWasIncorrect ? RetryMessage : InitialMessage;
+
+        internal Task<string> RequestCodeAsync(Func<bool, Task<string>> codeProvider)
+            => codeProvider(PreviousCodeWasIncorrect);
     }
 
     private readonly struct AuthReconnectMonitor
@@ -38,10 +41,13 @@ internal sealed partial class SteamAuth
         }
 
         private Func<bool> ShouldReconnect { get; }
-        internal string RetryMessage { get; }
+        private string RetryMessage { get; }
 
         internal bool ShouldReconnectNow()
             => ShouldReconnect();
+
+        internal Task MaintainAsync(Func<string, Task> reconnectAsync)
+            => reconnectAsync(RetryMessage);
     }
 
     Task<string> IAuthenticator.GetDeviceCodeAsync(bool previousCodeWasIncorrect)
@@ -66,13 +72,13 @@ internal sealed partial class SteamAuth
 
     private async Task<string> RequestCodeAsync(AuthCodePrompt prompt)
     {
-        Log(prompt.Message);
+        Log(prompt.LogMessage);
 
         _waitingForAuthCode = true;
         try
         {
             var code = await WaitForTaskAndMaintainAuthConnectionAsync(
-                _codeProvider(prompt.PreviousCodeWasIncorrect),
+                prompt.RequestCodeAsync(_codeProvider),
                 new AuthReconnectMonitor(
                     () => NeedsAuthReconnect,
                     "Steam auth reconnect did not complete yet; will retry while waiting for code"
@@ -99,7 +105,7 @@ internal sealed partial class SteamAuth
 
             if (reconnect.ShouldReconnectNow())
             {
-                await MaintainAuthConnectionAsync(reconnect.RetryMessage);
+                await reconnect.MaintainAsync(MaintainAuthConnectionAsync);
             }
 
             await Task.WhenAny(task, Task.Delay(AuthReconnectPollDelayMs));

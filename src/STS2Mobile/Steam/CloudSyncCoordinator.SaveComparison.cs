@@ -13,8 +13,20 @@ internal static partial class CloudSyncCoordinator
             Local,
         }
 
+        private readonly struct NumericComparison
+        {
+            internal NumericComparison(int local, int cloud)
+            {
+                Local = local;
+                Cloud = cloud;
+            }
+
+            internal int Local { get; }
+            internal int Cloud { get; }
+        }
+
         private static SaveWinner FirstNumericWinner(
-            params (int Local, int Cloud)[] comparisons
+            params NumericComparison[] comparisons
         )
         {
             foreach (var comparison in comparisons)
