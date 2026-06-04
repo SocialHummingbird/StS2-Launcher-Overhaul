@@ -62,13 +62,7 @@ internal static partial class CloudSyncCoordinator
                 if (ShouldSkipBackup(Content))
                     return false;
 
-                var canonPath = NormalizeSavePath(Path);
-                var backupPath = BuildBackupPath(
-                    GetProfileDir(canonPath),
-                    FileNameOverride ?? System.IO.Path.GetFileName(canonPath),
-                    Source
-                );
-
+                var backupPath = BuildBackupPathForSave(Path, FileNameOverride, Source);
                 File.WriteAllText(backupPath, Content);
                 OnWritten(backupPath);
                 return true;

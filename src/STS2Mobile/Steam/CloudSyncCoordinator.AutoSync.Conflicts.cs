@@ -1,9 +1,50 @@
+using System;
 using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
+    private readonly struct AutoSyncConflictDecision
+    {
+        private readonly SaveComparison.SaveWinner _winner;
+        private readonly Func<string, string> _message;
+
+        private AutoSyncConflictDecision(
+            SaveComparison.SaveWinner winner,
+            Func<string, string> message
+        )
+        {
+            _winner = winner;
+            _message = message;
+        }
+
+        internal static AutoSyncConflictDecision ForWinner(
+            SaveComparison.SaveWinner winner
+        )
+            => winner switch
+            {
+                SaveComparison.SaveWinner.Cloud => new(winner, SyncCloudWins),
+                SaveComparison.SaveWinner.Local => new(winner, SyncLocalWinsUploading),
+                _ => new(winner, SyncContentsDifferCloudWins),
+            };
+
+        internal Task ApplyAsync(
+            AutoSyncContext sync,
+            string localContent,
+            string cloudContent
+        )
+        {
+            if (_winner == SaveComparison.SaveWinner.Local)
+            {
+                sync.PushLocalContent(localContent, cloudContent, _message);
+                return Task.CompletedTask;
+            }
+
+            return sync.PullCloudOverLocalAsync(cloudContent, _message);
+        }
+    }
+
     private static async Task SyncExistingFileAsync(
         AutoSyncContext sync,
         string localContent
@@ -29,38 +70,14 @@ internal static partial class CloudSyncCoordinator
         await ResolveContentConflictAsync(sync, localContent, cloudContent);
     }
 
-    private static async Task ResolveContentConflictAsync(
+    private static Task ResolveContentConflictAsync(
         AutoSyncContext sync,
         string localContent,
         string cloudContent
     )
-    {
-        switch (sync.GetExplicitWinner(localContent, cloudContent))
-        {
-            case SaveComparison.SaveWinner.Cloud:
-                await sync.PullCloudOverLocalAsync(
-                    cloudContent,
-                    SyncCloudWins
-                );
-                return;
-
-            case SaveComparison.SaveWinner.Local:
-                sync.PushLocalContent(
-                    localContent,
-                    cloudContent,
-                    SyncLocalWinsUploading
-                );
-                return;
-
-            // Cloud wins on equal progress or non-progress files to preserve PC as primary.
-            default:
-                await sync.PullCloudOverLocalAsync(
-                    cloudContent,
-                    SyncContentsDifferCloudWins
-                );
-                return;
-        }
-    }
+        => AutoSyncConflictDecision
+            .ForWinner(sync.GetExplicitWinner(localContent, cloudContent))
+            .ApplyAsync(sync, localContent, cloudContent);
 
     // Save files are JSON; a non-JSON opener indicates corruption, e.g. unencrypted write.
     private static bool IsCorrupt(string content)

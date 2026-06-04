@@ -46,18 +46,13 @@ internal static partial class LauncherStartupFlow
                 MarkStartupObserved(recoveryControls);
             }
 
-            private async Task<bool> RecoverIfWatchdogTimedOutAsync(
+            private Task<bool> RecoverIfWatchdogTimedOutAsync(
                 Task startupTask,
                 CanvasLayer recoveryControls
             )
-            {
-                var watchdogTask = Task.Delay(StartupWatchdogMs);
-                if (await Task.WhenAny(startupTask, watchdogTask) != watchdogTask)
-                    return false;
-
-                await HandleWatchdogAsync(recoveryControls);
-                return true;
-            }
+                => StartupWatchdog
+                    .For(startupTask, () => HandleWatchdogAsync(recoveryControls))
+                    .RecoverIfTimedOutAsync();
 
             private Task HandleWatchdogAsync(CanvasLayer recoveryControls)
                 => LauncherGameStartupRecovery.HandleWatchdogAsync(
@@ -81,6 +76,34 @@ internal static partial class LauncherStartupFlow
                     _startup.Status,
                     _startup.GameNode
                 );
+        }
+
+        private readonly struct StartupWatchdog
+        {
+            private readonly Task _startupTask;
+            private readonly Func<Task> _recoverAsync;
+
+            private StartupWatchdog(Task startupTask, Func<Task> recoverAsync)
+            {
+                _startupTask = startupTask;
+                _recoverAsync = recoverAsync;
+            }
+
+            internal static StartupWatchdog For(
+                Task startupTask,
+                Func<Task> recoverAsync
+            )
+                => new(startupTask, recoverAsync);
+
+            internal async Task<bool> RecoverIfTimedOutAsync()
+            {
+                var watchdogTask = Task.Delay(StartupWatchdogMs);
+                if (await Task.WhenAny(_startupTask, watchdogTask) != watchdogTask)
+                    return false;
+
+                await _recoverAsync();
+                return true;
+            }
         }
 
         internal StartupContext(

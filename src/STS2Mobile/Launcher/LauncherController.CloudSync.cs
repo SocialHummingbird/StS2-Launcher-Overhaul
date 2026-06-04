@@ -33,7 +33,7 @@ internal sealed partial class LauncherController
             => view.ShowConfirmation(ConfirmationMessage, accepted);
 
         internal Task RunWithTimeoutAsync()
-            => RunCloudSyncWithTimeoutAsync(Run, Name);
+            => TimedCloudSyncOperation.For(Name, Run).RunAsync();
 
         internal void MarkStarted(LauncherView view)
         {

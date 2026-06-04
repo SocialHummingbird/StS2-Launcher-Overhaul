@@ -100,6 +100,12 @@ internal sealed partial class DepotDownloader
         internal bool Succeeded { get; }
         internal T Value { get; }
 
+        internal bool TryGetValue(out T value)
+        {
+            value = Value;
+            return Succeeded;
+        }
+
         internal static CdnDownloadResult<T> Success(T value)
             => new(true, value);
 
@@ -121,6 +127,34 @@ internal sealed partial class DepotDownloader
         }
     }
 
+    private readonly struct CdnAuthRetryRequest<T>
+    {
+        private readonly Func<string, Task<CdnDownloadResult<T>>> _retryAsync;
+
+        internal CdnAuthRetryRequest(
+            uint depotId,
+            CdnServerAttempt attempt,
+            string operation,
+            Func<string, Task<CdnDownloadResult<T>>> retryAsync
+        )
+        {
+            DepotId = depotId;
+            Attempt = attempt;
+            Operation = operation;
+            _retryAsync = retryAsync;
+        }
+
+        internal uint DepotId { get; }
+        internal CdnServerAttempt Attempt { get; }
+        private string Operation { get; }
+
+        internal Task<CdnDownloadResult<T>> RetryAsync(string token)
+            => _retryAsync(token);
+
+        internal void HandleFailure(DepotDownloader owner, Exception ex)
+            => Attempt.HandleAuthRetryFailure(owner, DepotId, Operation, ex);
+    }
+
     private async Task<string?> GetCdnAuthToken(uint depotId, Server server)
     {
         var key = new CdnAuthTokenKey(depotId, server.Host);
@@ -140,15 +174,13 @@ internal sealed partial class DepotDownloader
         {
             try
             {
-                var result = await operation.DownloadAsync(attempt);
-                if (result.Succeeded)
-                    return result.Value;
+                if ((await operation.DownloadAsync(attempt)).TryGetValue(out var value))
+                    return value;
             }
             catch (SteamKitWebRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
-                var result = await operation.DownloadWithAuthAsync(attempt);
-                if (result.Succeeded)
-                    return result.Value;
+                if ((await operation.DownloadWithAuthAsync(attempt)).TryGetValue(out var value))
+                    return value;
             }
             catch (Exception ex) when (attempt.CanRetry())
             {
@@ -160,23 +192,23 @@ internal sealed partial class DepotDownloader
     }
 
     private async Task<CdnDownloadResult<T>> RunCdnAuthRetryAsync<T>(
-        uint depotId,
-        CdnServerAttempt attempt,
-        string operation,
-        Func<string, Task<CdnDownloadResult<T>>> retryAsync
+        CdnAuthRetryRequest<T> request
     )
     {
-        var token = await attempt.GetAuthTokenForRetryAsync(this, depotId);
+        var token = await request.Attempt.GetAuthTokenForRetryAsync(
+            this,
+            request.DepotId
+        );
         if (token == null)
             return CdnDownloadResult<T>.Retry();
 
         try
         {
-            return await retryAsync(token);
+            return await request.RetryAsync(token);
         }
-        catch (Exception ex) when (attempt.CanRetry())
+        catch (Exception ex) when (request.Attempt.CanRetry())
         {
-            attempt.HandleAuthRetryFailure(this, depotId, operation, ex);
+            request.HandleFailure(this, ex);
             return CdnDownloadResult<T>.Retry();
         }
     }

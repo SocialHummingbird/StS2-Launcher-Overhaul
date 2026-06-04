@@ -6,6 +6,48 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private readonly struct DepotSectionEntry
+    {
+        private readonly KeyValue _depot;
+
+        private DepotSectionEntry(KeyValue depot, uint depotId)
+        {
+            _depot = depot;
+            DepotId = depotId;
+        }
+
+        internal uint DepotId { get; }
+
+        internal static bool TryCreate(KeyValue depot, out DepotSectionEntry entry)
+        {
+            if (uint.TryParse(depot.Name, out var depotId))
+            {
+                entry = new DepotSectionEntry(depot, depotId);
+                return true;
+            }
+
+            entry = default;
+            return false;
+        }
+
+        internal bool ShouldSkip(DepotDownloader owner)
+        {
+            var config = _depot["config"];
+            if (config == KeyValue.Invalid)
+                return false;
+
+            var oslist = config["oslist"]?.Value;
+            if (string.IsNullOrEmpty(oslist) || oslist.Contains("windows"))
+                return false;
+
+            owner.Log($"Skipping depot {DepotId} (OS: {oslist})");
+            return true;
+        }
+
+        internal Task<ulong?> GetPublicManifestIdAsync(DepotDownloader owner)
+            => owner.GetPublicManifestIdAsync(_depot, DepotId);
+    }
+
     private async Task<List<DepotManifestReference>> ParseDepotsAsync(
         KeyValue depotSection
     )
@@ -24,32 +66,18 @@ internal sealed partial class DepotDownloader
 
     private async Task<DepotManifestReference?> TryCreateDepotReferenceAsync(KeyValue depot)
     {
-        if (!uint.TryParse(depot.Name, out var depotId))
+        if (!DepotSectionEntry.TryCreate(depot, out var entry))
             return null;
 
-        if (ShouldSkipDepot(depot, depotId))
+        if (entry.ShouldSkip(this))
             return null;
 
-        var manifestId = await GetPublicManifestIdAsync(depot, depotId);
+        var manifestId = await entry.GetPublicManifestIdAsync(this);
         if (!manifestId.HasValue)
             return null;
 
-        Log($"Found depot {depotId} manifest {manifestId.Value}");
-        return new DepotManifestReference(depotId, manifestId.Value);
-    }
-
-    private bool ShouldSkipDepot(KeyValue depot, uint depotId)
-    {
-        var config = depot["config"];
-        if (config == KeyValue.Invalid)
-            return false;
-
-        var oslist = config["oslist"]?.Value;
-        if (string.IsNullOrEmpty(oslist) || oslist.Contains("windows"))
-            return false;
-
-        Log($"Skipping depot {depotId} (OS: {oslist})");
-        return true;
+        Log($"Found depot {entry.DepotId} manifest {manifestId.Value}");
+        return new DepotManifestReference(entry.DepotId, manifestId.Value);
     }
 
 }
