@@ -29,18 +29,10 @@ internal sealed partial class SteamKit2CloudSaveStore
 
     private ulong BeginUploadBatch(IReadOnlyList<SaveBatchFile> files)
     {
-        var request = new CCloud_BeginAppUploadBatch_Request
-        {
-            appid = SteamCloudApp.AppId,
-            machine_name = "android",
-        };
-        foreach (var file in files)
-            request.files_to_upload.Add(file.CanonPath);
-
         var result = SendCloudBlocking<
             CCloud_BeginAppUploadBatch_Request,
             CCloud_BeginAppUploadBatch_Response
-        >("BeginAppUploadBatch", request);
+        >("BeginAppUploadBatch", CreateBeginAppUploadBatchRequest(files));
         return result.batch_id;
     }
 
@@ -62,12 +54,7 @@ internal sealed partial class SteamKit2CloudSaveStore
                 CCloud_CompleteAppUploadBatch_Response
             >(
                 "CompleteAppUploadBatchBlocking",
-                new CCloud_CompleteAppUploadBatch_Request
-                {
-                    appid = SteamCloudApp.AppId,
-                    batch_id = batchId,
-                    batch_eresult = (uint)SteamKit2.EResult.OK,
-                }
+                CreateCompleteAppUploadBatchRequest(batchId)
             );
         }
         catch (Exception ex)

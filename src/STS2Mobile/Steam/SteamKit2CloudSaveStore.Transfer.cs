@@ -59,39 +59,4 @@ internal sealed partial class SteamKit2CloudSaveStore
 
         return Encoding.UTF8.GetString(data);
     }
-
-    private static CCloud_ClientFileDownload_Request CreateFileDownloadRequest(string path)
-        => new() { appid = SteamCloudApp.AppId, filename = path };
-
-    private static HttpRequestMessage CreateFileDownloadHttpRequest(
-        CCloud_ClientFileDownload_Response result
-    )
-    {
-        var request = CreateCloudHttpRequest(
-            HttpMethod.Get,
-            result.use_https,
-            result.url_host,
-            result.url_path
-        );
-
-        foreach (var header in result.request_headers)
-            AddCloudHttpHeader(request, header.name, header.value);
-
-        return request;
-    }
-
-    private static bool ShouldDecompressDownloadedFile(
-        CCloud_ClientFileDownload_Response result,
-        byte[] data
-    )
-        => result.raw_file_size > 0
-            && result.raw_file_size != result.file_size
-            && HasZipMagic(data);
-
-    private static bool HasZipMagic(byte[] data)
-        => data.Length >= 4
-            && data[0] == 0x50
-            && data[1] == 0x4B
-            && data[2] == 0x03
-            && data[3] == 0x04;
 }

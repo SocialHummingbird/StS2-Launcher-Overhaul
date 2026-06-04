@@ -11,11 +11,7 @@ internal sealed partial class SteamKit2CloudSaveStore
             CCloud_ClientDeleteFile_Response
         >(
             "ClientDeleteFile",
-            new CCloud_ClientDeleteFile_Request
-            {
-                appid = SteamCloudApp.AppId,
-                filename = path,
-            }
+            CreateDeleteFileRequest(path)
         );
     }
 }

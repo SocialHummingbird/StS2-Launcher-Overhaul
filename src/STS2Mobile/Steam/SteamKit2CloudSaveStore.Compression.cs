@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
+using SteamKit2.Internal;
 
 namespace STS2Mobile.Steam;
 
@@ -79,4 +80,19 @@ internal sealed partial class SteamKit2CloudSaveStore
         stream.CopyTo(output);
         return output.ToArray();
     }
+
+    private static bool ShouldDecompressDownloadedFile(
+        CCloud_ClientFileDownload_Response result,
+        byte[] data
+    )
+        => result.raw_file_size > 0
+            && result.raw_file_size != result.file_size
+            && HasZipMagic(data);
+
+    private static bool HasZipMagic(byte[] data)
+        => data.Length >= 4
+            && data[0] == 0x50
+            && data[1] == 0x4B
+            && data[2] == 0x03
+            && data[3] == 0x04;
 }

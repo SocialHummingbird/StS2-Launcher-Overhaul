@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using Godot;
 using STS2Mobile.Patches;
@@ -15,73 +14,8 @@ internal static partial class LauncherStartupFlow
     private const string PhaseShaderWarmup = "shader warmup";
     private const int StartupWatchdogMs = 60_000;
 
-    private readonly struct StartupContext
+    private readonly partial struct StartupContext
     {
-        private readonly struct GameStartupAttempt
-        {
-            private readonly StartupContext _startup;
-
-            internal GameStartupAttempt(StartupContext startup)
-            {
-                _startup = startup;
-            }
-
-            internal async Task RunAsync()
-            {
-                _startup.SetPhase(PhaseGameStartup, "Starting game scene...");
-                PatchHelper.Log("Invoking NGame.GameStartup");
-
-                var recoveryControls = _startup.ShowRecoveryControls();
-                _startup.WriteSceneSnapshot("before NGame.GameStartup");
-                var startupTask = _startup.StartGameStartupAsync();
-
-                if (await RecoverIfWatchdogTimedOutAsync(startupTask, recoveryControls))
-                    return;
-
-                await startupTask;
-                PatchHelper.Log("NGame.GameStartup completed");
-                if (!await EnsureMainMenuReadyAsync())
-                    return;
-
-                MarkStartupObserved(recoveryControls);
-            }
-
-            private Task<bool> RecoverIfWatchdogTimedOutAsync(
-                Task startupTask,
-                CanvasLayer recoveryControls
-            )
-            {
-                var game = _startup.Game;
-                var gameNode = _startup.GameNode;
-                var status = _startup.Status;
-                return LauncherTimeout.RecoverIfTimedOutAsync(
-                    startupTask,
-                    StartupWatchdogMs,
-                    () => LauncherGameStartupRecovery.HandleWatchdogAsync(
-                        game,
-                        gameNode,
-                        status,
-                        recoveryControls,
-                        StartupWatchdogMs
-                    )
-                );
-            }
-
-            private Task<bool> EnsureMainMenuReadyAsync()
-                => LauncherGameStartupRecovery.EnsureMainMenuReadyAsync(
-                    _startup.Game,
-                    _startup.GameNode,
-                    _startup.Status
-                );
-
-            private void MarkStartupObserved(CanvasLayer recoveryControls)
-                => LauncherGameStartupRecovery.MarkStartupObserved(
-                    recoveryControls,
-                    _startup.Status,
-                    _startup.GameNode
-                );
-        }
-
         internal StartupContext(
             object game,
             Node gameNode,
@@ -131,28 +65,6 @@ internal static partial class LauncherStartupFlow
 
         internal void AddChild(Node child)
             => GameNode.AddChild(child);
-
-        private CanvasLayer ShowRecoveryControls()
-            => LauncherStartupRecoveryControlPanel.Show(GameNode);
-
-        private void WriteSceneSnapshot(string reason)
-            => LauncherDiagnostics.WriteStartupSceneSnapshot(GameNode, reason);
-
-        private Task StartGameStartupAsync()
-            => LauncherStartupFlow.StartGameStartupAsync(Game);
-
-        internal Task RunGameStartupWithRecoveryAsync()
-            => new GameStartupAttempt(this).RunAsync();
-
-        internal void HandleSettingsAndSavesFailure(Exception ex)
-            => LauncherGameStartupRecovery.HandleSettingsAndSavesFailure(
-                GameNode,
-                Status,
-                ex
-            );
-
-        internal void HandleFailure(Exception ex)
-            => LauncherGameStartupRecovery.HandleFailure(GameNode, Status, ex);
     }
 
     internal static async Task RunAsync(object game)

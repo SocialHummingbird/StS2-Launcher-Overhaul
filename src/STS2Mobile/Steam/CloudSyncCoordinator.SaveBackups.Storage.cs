@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 
 namespace STS2Mobile.Steam;
 
@@ -7,71 +6,6 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveBackups
     {
-        private readonly struct BackupWriteRequest
-        {
-            private BackupWriteRequest(
-                string path,
-                string content,
-                string source,
-                string? fileNameOverride,
-                Action<string> onWritten
-            )
-            {
-                Path = path;
-                Content = content;
-                Source = source;
-                FileNameOverride = fileNameOverride;
-                OnWritten = onWritten;
-            }
-
-            private string Path { get; }
-            private string Content { get; }
-            private string Source { get; }
-            private string? FileNameOverride { get; }
-            private Action<string> OnWritten { get; }
-
-            internal static BackupWriteRequest Standard(
-                string path,
-                string content,
-                string source
-            )
-                => new(
-                    path,
-                    content,
-                    source,
-                    fileNameOverride: null,
-                    _ => PatchHelper.Log(SaveBackedUp(source, path))
-                );
-
-            internal static BackupWriteRequest Progress(
-                string path,
-                string content,
-                string source,
-                Action<string> onWritten
-            )
-                => new(
-                    path,
-                    content,
-                    source,
-                    "progress.save",
-                    onWritten
-                );
-
-            internal bool TrySave()
-            {
-                if (ShouldSkipBackup(Content))
-                    return false;
-
-                var backupPath = BuildBackupPathForSave(Path, FileNameOverride, Source);
-                File.WriteAllText(backupPath, Content);
-                OnWritten(backupPath);
-                return true;
-            }
-
-            internal string FailureMessage(Exception ex)
-                => BackupFailed(Source, Path, ex);
-        }
-
         private static bool SaveContent(string path, string content, string source)
             => SaveBackup(BackupWriteRequest.Standard(path, content, source));
 
