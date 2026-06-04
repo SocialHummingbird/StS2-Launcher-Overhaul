@@ -49,6 +49,6 @@ internal static partial class CloudSyncCoordinator
             PatchHelper.Log(PullFailed(path, ex));
         }
 
-        return ManualSyncPathResult.Skipped();
+        return ManualSyncPathResult.NoChange();
     }
 }

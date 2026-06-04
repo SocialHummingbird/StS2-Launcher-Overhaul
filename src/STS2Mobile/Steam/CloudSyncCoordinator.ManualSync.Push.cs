@@ -38,7 +38,7 @@ internal static partial class CloudSyncCoordinator
         {
             var local = sync.ReadLocalFile(path);
             if (local == null)
-                return ManualSyncPathResult.Skipped();
+                return ManualSyncPathResult.NoChange();
 
             PatchHelper.Log(PushQueuing(path, local.Length));
             if (sync.BudgetExceeded(ManualPushBudgetExceeded))
@@ -50,7 +50,7 @@ internal static partial class CloudSyncCoordinator
         catch (Exception ex)
         {
             PatchHelper.Log(PushFailed(path, ex));
-            return ManualSyncPathResult.Skipped();
+            return ManualSyncPathResult.NoChange();
         }
     }
 }

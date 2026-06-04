@@ -99,7 +99,7 @@ internal static partial class CloudSyncCoordinator
         internal int Skipped { get; }
         internal bool StopAfterBudget { get; }
 
-        internal static ManualSyncPathResult Skipped()
+        internal static ManualSyncPathResult NoChange()
             => new(0, 0, 0, stopAfterBudget: false);
 
         internal static ManualSyncPathResult QueuedPath()
