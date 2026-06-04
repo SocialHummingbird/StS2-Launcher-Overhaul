@@ -13,7 +13,7 @@ internal sealed partial class LauncherController
             case LauncherModel.FastPathResult.ReadyToLaunch:
                 ShowReadyToLaunch(
                     _model.WelcomeBackStatus(),
-                    showUpdate: true
+                    LaunchUpdateAction.Visible
                 );
                 break;
 

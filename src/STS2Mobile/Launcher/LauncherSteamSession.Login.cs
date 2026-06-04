@@ -53,7 +53,7 @@ internal sealed partial class LauncherSteamSession
             => VerifyingOwnership();
     }
 
-    internal async Task<string> LoginAndVerifyAsync(LoginRequest request)
+    internal async Task<string?> LoginAndVerifyAsync(LoginRequest request)
     {
         try
         {

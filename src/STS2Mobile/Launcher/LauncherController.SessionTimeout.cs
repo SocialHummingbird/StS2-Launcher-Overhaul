@@ -38,7 +38,7 @@ internal sealed partial class LauncherController
     {
         _view.SetStatus(SavedCredentialsFallback);
         _view.AppendLog(OfflineLaunchAllowed);
-        ShowLaunchActions(showUpdate: false);
+        ShowLaunchActions(LaunchUpdateAction.Hidden);
     }
 
     private void ShowFirstLaunchFailure()

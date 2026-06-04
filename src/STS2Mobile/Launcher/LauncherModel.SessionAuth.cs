@@ -8,30 +8,40 @@ internal partial class LauncherModel
 {
     private readonly struct ConnectionAttemptResult
     {
-        private ConnectionAttemptResult(string? error)
+        private enum AttemptState
         {
-            Error = error;
+            Succeeded,
+            Failed,
         }
 
-        private string? Error { get; }
-        private bool Succeeded => Error == null;
+        private ConnectionAttemptResult(AttemptState state, string failReason)
+        {
+            State = state;
+            FailReason = failReason;
+        }
 
-        internal static ConnectionAttemptResult FromError(string? error)
-            => new(error);
+        private AttemptState State { get; }
+        private string FailReason { get; }
+        private bool Succeeded => State == AttemptState.Succeeded;
+
+        internal static ConnectionAttemptResult FromFailureText(string? error)
+            => error == null
+                ? new ConnectionAttemptResult(AttemptState.Succeeded, string.Empty)
+                : new ConnectionAttemptResult(AttemptState.Failed, error);
 
         internal void Apply(LauncherModel model)
         {
             model._connectionResolved = Succeeded;
             model.SetSessionState(
                 Succeeded ? SessionState.LoggedIn : SessionState.Failed,
-                Error
+                Succeeded ? null : FailReason
             );
         }
 
         internal void LogIfStale()
         {
-            if (Error != null)
-                PatchHelper.Log($"[Launcher] Ignored stale session failure: {Error}");
+            if (!Succeeded)
+                PatchHelper.Log($"[Launcher] Ignored stale session failure: {FailReason}");
         }
     }
 
@@ -76,11 +86,11 @@ internal partial class LauncherModel
 
     private async Task RunConnectionAttemptAsync(
         SessionState state,
-        Func<int, Task<string>> run
+        Func<int, Task<string?>> run
     )
     {
         var attemptId = BeginSessionAttempt(state);
-        var result = ConnectionAttemptResult.FromError(await run(attemptId));
+        var result = ConnectionAttemptResult.FromFailureText(await run(attemptId));
         ApplyConnectionAttemptResult(attemptId, result);
     }
 

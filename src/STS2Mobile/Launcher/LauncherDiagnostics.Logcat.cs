@@ -28,28 +28,33 @@ internal static partial class LauncherDiagnostics
 
     private readonly struct LogcatCapture
     {
-        private LogcatCapture(string? text, string? fallbackText)
+        private enum CaptureState
         {
-            Text = text;
-            FallbackText = fallbackText;
+            Captured,
+            Unavailable,
         }
 
-        private string? Text { get; }
-        private string? FallbackText { get; }
-        private bool HasText => Text != null;
-        private string ContentText => Text ?? FallbackText ?? string.Empty;
+        private LogcatCapture(CaptureState state, string text)
+        {
+            State = state;
+            Text = text;
+        }
+
+        private CaptureState State { get; }
+        private string Text { get; }
+        private bool HasText => State == CaptureState.Captured;
 
         internal static LogcatCapture Captured(string text)
-            => new(text, null);
+            => new(CaptureState.Captured, text);
 
         internal static LogcatCapture Unavailable(string fallbackText)
-            => new(null, fallbackText);
+            => new(CaptureState.Unavailable, fallbackText);
 
         internal void AppendContent(StringBuilder sb)
-            => sb.AppendLine(ContentText);
+            => sb.AppendLine(Text);
 
         internal string Content()
-            => ContentText;
+            => Text;
 
         internal bool HasContent()
             => HasText;
@@ -58,7 +63,7 @@ internal static partial class LauncherDiagnostics
             => SelectInterestingDiagnosticLines(ContentLines(), maxLines);
 
         private string[] ContentLines()
-            => ContentText.Replace("\r\n", "\n").Split('\n');
+            => Text.Replace("\r\n", "\n").Split('\n');
     }
 
     private static void AppendLogcatTail(

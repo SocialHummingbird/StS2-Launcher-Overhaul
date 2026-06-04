@@ -8,6 +8,12 @@ internal sealed partial class LauncherController
 {
     private bool _automaticDiagnosticsWritten;
 
+    private enum DiagnosticsExceptionDetail
+    {
+        MessageOnly,
+        FullException,
+    }
+
     private static readonly DiagnosticsAction LastErrorDiagnosticsAction = new(
         "Error summary failed",
         model => model.BuildDiagnosticsSummaryForDisplay(),
@@ -45,27 +51,32 @@ internal sealed partial class LauncherController
     private readonly struct DiagnosticsFailureHandling
     {
         private readonly string _context;
-        private readonly bool _logFullException;
+        private readonly DiagnosticsExceptionDetail _exceptionDetail;
         private readonly Action<string>? _onFailure;
 
         internal DiagnosticsFailureHandling(
             string context,
-            bool logFullException,
+            DiagnosticsExceptionDetail exceptionDetail,
             Action<string>? onFailure = null
         )
         {
             _context = context;
-            _logFullException = logFullException;
+            _exceptionDetail = exceptionDetail;
             _onFailure = onFailure;
         }
 
         internal void Handle(Exception ex)
         {
             PatchHelper.Log(
-                $"[Launcher] {_context}: {(_logFullException ? ex.ToString() : ex.Message)}"
+                $"[Launcher] {_context}: {ExceptionText(ex)}"
             );
             _onFailure?.Invoke(ex.Message);
         }
+
+        private string ExceptionText(Exception ex)
+            => _exceptionDetail == DiagnosticsExceptionDetail.FullException
+                ? ex.ToString()
+                : ex.Message;
     }
 
     private void ShowLastErrorPressed()
@@ -99,7 +110,7 @@ internal sealed partial class LauncherController
     {
         var failure = new DiagnosticsFailureHandling(
             failureContext,
-            logFullException: true,
+            DiagnosticsExceptionDetail.FullException,
             message => _view.SetStatus($"{failureContext}: {message}")
         );
 
@@ -115,13 +126,13 @@ internal sealed partial class LauncherController
 
     private string? TryWriteDiagnosticsReport(
         string failureContext,
-        bool logFullException,
+        DiagnosticsExceptionDetail exceptionDetail,
         Action<string>? onFailure = null
     )
     {
         var failure = new DiagnosticsFailureHandling(
             failureContext,
-            logFullException,
+            exceptionDetail,
             onFailure
         );
 

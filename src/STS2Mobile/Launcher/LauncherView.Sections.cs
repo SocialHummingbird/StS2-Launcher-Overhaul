@@ -86,10 +86,9 @@ internal sealed partial class LauncherView
 
     internal void ShowLaunchActions(
         string launchText,
-        bool showCloudSync,
         bool showUpdate
     )
-        => Actions.ShowLaunch(launchText, showCloudSync, showUpdate);
+        => Actions.ShowLaunch(launchText, showUpdate);
 
     internal void SetActionPreferences(LauncherPreferences.ActionPreferences preferences)
     {

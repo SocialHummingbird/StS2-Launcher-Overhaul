@@ -7,7 +7,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherSteamSession
 {
-    internal async Task<string> ConnectSavedCredentialsAndVerifyAsync(Action verifyingOwnership)
+    internal async Task<string?> ConnectSavedCredentialsAndVerifyAsync(Action verifyingOwnership)
     {
         try
         {
@@ -23,7 +23,7 @@ internal sealed partial class LauncherSteamSession
         }
     }
 
-    internal async Task<string> EnsureConnectedAsync()
+    internal async Task<string?> EnsureConnectedAsync()
     {
         if (!TryGetOrCreateSavedConnection(out var connection))
             return "No saved credentials";

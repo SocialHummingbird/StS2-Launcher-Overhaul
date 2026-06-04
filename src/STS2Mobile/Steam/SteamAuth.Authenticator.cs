@@ -8,28 +8,41 @@ internal sealed partial class SteamAuth
 {
     private const int AuthReconnectPollDelayMs = 250;
 
+    private enum AuthCodeAttempt
+    {
+        Initial,
+        RetryAfterIncorrectCode,
+    }
+
     private readonly struct AuthCodePrompt
     {
         internal AuthCodePrompt(
-            bool previousCodeWasIncorrect,
+            AuthCodeAttempt attempt,
             string retryMessage,
             string initialMessage
         )
         {
-            PreviousCodeWasIncorrect = previousCodeWasIncorrect;
+            Attempt = attempt;
             RetryMessage = retryMessage;
             InitialMessage = initialMessage;
         }
 
-        private bool PreviousCodeWasIncorrect { get; }
+        private AuthCodeAttempt Attempt { get; }
         private string RetryMessage { get; }
         private string InitialMessage { get; }
 
         internal string LogMessage
-            => PreviousCodeWasIncorrect ? RetryMessage : InitialMessage;
+            => IsRetry ? RetryMessage : InitialMessage;
 
         internal Task<string> RequestCodeAsync(Func<bool, Task<string>> codeProvider)
-            => codeProvider(PreviousCodeWasIncorrect);
+            => codeProvider(IsRetry);
+
+        private bool IsRetry => Attempt == AuthCodeAttempt.RetryAfterIncorrectCode;
+
+        internal static AuthCodeAttempt FromSteamRetry(bool previousCodeWasIncorrect)
+            => previousCodeWasIncorrect
+                ? AuthCodeAttempt.RetryAfterIncorrectCode
+                : AuthCodeAttempt.Initial;
     }
 
     private readonly struct AuthReconnectMonitor
@@ -52,14 +65,14 @@ internal sealed partial class SteamAuth
 
     Task<string> IAuthenticator.GetDeviceCodeAsync(bool previousCodeWasIncorrect)
         => RequestCodeAsync(new AuthCodePrompt(
-            previousCodeWasIncorrect,
+            AuthCodePrompt.FromSteamRetry(previousCodeWasIncorrect),
             "Previous 2FA code was incorrect, requesting new code",
             "Steam Guard 2FA code required"
         ));
 
     Task<string> IAuthenticator.GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
         => RequestCodeAsync(new AuthCodePrompt(
-            previousCodeWasIncorrect,
+            AuthCodePrompt.FromSteamRetry(previousCodeWasIncorrect),
             "Previous email code was incorrect, requesting new code",
             $"Steam Guard email code sent to {email}"
         ));

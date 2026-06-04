@@ -2,6 +2,57 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection
 {
+    private readonly struct SecondaryButtonVisibility
+    {
+        private SecondaryButtonVisibility(
+            bool update,
+            bool redownload,
+            bool support,
+            bool safeLaunch,
+            bool launch
+        )
+        {
+            Update = update;
+            Redownload = redownload;
+            Support = support;
+            SafeLaunch = safeLaunch;
+            Launch = launch;
+        }
+
+        internal bool Update { get; }
+        internal bool Redownload { get; }
+        internal bool Support { get; }
+        internal bool SafeLaunch { get; }
+        internal bool Launch { get; }
+
+        internal static SecondaryButtonVisibility LaunchReady(bool showUpdate)
+            => new(
+                update: showUpdate,
+                redownload: true,
+                support: true,
+                safeLaunch: true,
+                launch: true
+            );
+
+        internal static SecondaryButtonVisibility Retry()
+            => new(
+                update: false,
+                redownload: false,
+                support: true,
+                safeLaunch: false,
+                launch: false
+            );
+
+        internal static SecondaryButtonVisibility Hidden()
+            => new(
+                update: false,
+                redownload: false,
+                support: false,
+                safeLaunch: false,
+                launch: false
+            );
+    }
+
     private void SetCloudControlsVisible(bool visible)
     {
         _localBackupToggle.Visible = visible;
@@ -10,44 +61,21 @@ internal sealed partial class ActionSection
     }
 
     private void ShowLaunchButtons(bool showUpdate)
-        => SetSecondaryButtonsVisible(
-            showUpdate,
-            showRedownload: true,
-            showSupport: true,
-            showSafeLaunch: true
-        );
+        => SetSecondaryButtonsVisible(SecondaryButtonVisibility.LaunchReady(showUpdate));
 
     private void ShowRetryButtons()
-        => SetSecondaryButtonsVisible(
-            showUpdate: false,
-            showRedownload: false,
-            showSupport: true,
-            showSafeLaunch: false,
-            showLaunch: false
-        );
+        => SetSecondaryButtonsVisible(SecondaryButtonVisibility.Retry());
 
     private void HideSecondaryButtons()
-        => SetSecondaryButtonsVisible(
-            showUpdate: false,
-            showRedownload: false,
-            showSupport: false,
-            showSafeLaunch: false,
-            showLaunch: false
-        );
+        => SetSecondaryButtonsVisible(SecondaryButtonVisibility.Hidden());
 
-    private void SetSecondaryButtonsVisible(
-        bool showUpdate,
-        bool showRedownload,
-        bool showSupport,
-        bool showSafeLaunch,
-        bool showLaunch = true
-    )
+    private void SetSecondaryButtonsVisible(SecondaryButtonVisibility visibility)
     {
-        ShowUpdateButton(showUpdate);
-        _redownloadButton.Visible = showRedownload;
-        SetSupportButtonsVisible(showSupport);
-        _safeLaunchButton.Visible = showSafeLaunch;
-        _launchButton.Visible = showLaunch;
+        ShowUpdateButton(visibility.Update);
+        _redownloadButton.Visible = visibility.Redownload;
+        SetSupportButtonsVisible(visibility.Support);
+        _safeLaunchButton.Visible = visibility.SafeLaunch;
+        _launchButton.Visible = visibility.Launch;
     }
 
     private void ShowUpdateButton(bool visible)

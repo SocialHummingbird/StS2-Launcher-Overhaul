@@ -6,25 +6,32 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
+    private enum ManualPushPathState
+    {
+        Skipped,
+        Queued,
+        BudgetExceeded,
+    }
+
     private readonly struct ManualPushPathResult
     {
-        private ManualPushPathResult(bool queued, bool stopAfterBudget)
+        private ManualPushPathResult(ManualPushPathState state)
         {
-            Queued = queued;
-            StopAfterBudget = stopAfterBudget;
+            State = state;
         }
 
-        internal bool Queued { get; }
-        internal bool StopAfterBudget { get; }
+        private ManualPushPathState State { get; }
+        internal bool Queued => State == ManualPushPathState.Queued;
+        internal bool StopAfterBudget => State == ManualPushPathState.BudgetExceeded;
 
         internal static ManualPushPathResult Skipped()
-            => new(false, false);
+            => new(ManualPushPathState.Skipped);
 
         internal static ManualPushPathResult QueuedPath()
-            => new(true, false);
+            => new(ManualPushPathState.Queued);
 
         internal static ManualPushPathResult BudgetExceeded()
-            => new(false, true);
+            => new(ManualPushPathState.BudgetExceeded);
     }
 
     private static Task<string> RunManualPushUploadsAsync(

@@ -40,10 +40,10 @@ internal sealed partial class ActionSection : VBoxContainer
     internal void SetCloudSyncChecked(bool value)
         => ApplyCloudSyncToggle(value);
 
-    internal void ShowLaunch(string text, bool showCloudSync, bool showUpdate)
+    internal void ShowLaunch(string text, bool showUpdate)
     {
         _launchButton.Text = text;
-        SetCloudControlsVisible(showCloudSync);
+        SetCloudControlsVisible(true);
         ShowLaunchButtons(showUpdate);
         _retryButton.Visible = false;
     }

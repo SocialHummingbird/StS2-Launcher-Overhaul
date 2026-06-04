@@ -53,7 +53,7 @@ internal sealed partial class LauncherController
         _view.HideDownload();
         if (LauncherGameFiles.Ready())
         {
-            ShowLaunchActions(showUpdate: false);
+            ShowLaunchActions(LaunchUpdateAction.Hidden);
         }
         else
         {

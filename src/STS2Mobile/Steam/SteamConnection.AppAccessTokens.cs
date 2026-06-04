@@ -6,31 +6,36 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamConnection
 {
+    private enum AppAccessTokenState
+    {
+        Public,
+        Found,
+        Denied,
+    }
+
     private readonly struct AppAccessTokenResult
     {
-        private AppAccessTokenResult(bool found, bool denied, ulong token)
+        private AppAccessTokenResult(AppAccessTokenState state, ulong token)
         {
-            Found = found;
-            Denied = denied;
+            State = state;
             Token = token;
         }
 
-        private bool Found { get; }
-        private bool Denied { get; }
+        private AppAccessTokenState State { get; }
         private ulong Token { get; }
 
         internal bool HasToken()
-            => Found;
+            => State == AppAccessTokenState.Found;
 
         internal void ThrowIfDenied(string deniedMessage)
         {
-            if (Denied)
+            if (State == AppAccessTokenState.Denied)
                 throw new InvalidOperationException(deniedMessage);
         }
 
         internal ulong TokenOrPublic(string deniedMessage)
         {
-            if (Found)
+            if (HasToken())
                 return Token;
 
             ThrowIfDenied(deniedMessage);
@@ -38,13 +43,13 @@ internal sealed partial class SteamConnection
         }
 
         internal static AppAccessTokenResult FoundToken(ulong token)
-            => new(true, false, token);
+            => new(AppAccessTokenState.Found, token);
 
         internal static AppAccessTokenResult DeniedToken()
-            => new(false, true, 0);
+            => new(AppAccessTokenState.Denied, 0);
 
         internal static AppAccessTokenResult PublicToken()
-            => new(false, false, 0);
+            => new(AppAccessTokenState.Public, 0);
     }
 
     internal async Task<bool> HasAppAccessTokenAsync(uint appId)

@@ -54,29 +54,35 @@ internal static partial class LauncherDiagnostics
 
     private readonly struct FileReadResult
     {
-        private FileReadResult(string? text, string? error)
+        private enum ReadState
         {
-            Text = text;
-            Error = error;
+            Content,
+            Missing,
+            Failed,
         }
 
-        private string? Text { get; }
-        private string? Error { get; }
-        private bool HasText => Text != null;
-        private bool IsMissing => Text == null && Error == null;
-        private string TextOrEmpty => Text ?? string.Empty;
+        private FileReadResult(ReadState state, string text)
+        {
+            State = state;
+            Text = text;
+        }
+
+        private ReadState State { get; }
+        private string Text { get; }
+        private bool HasText => State == ReadState.Content;
+        private bool IsMissing => State == ReadState.Missing;
 
         internal static FileReadResult Read(string text)
-            => new(text, null);
+            => new(ReadState.Content, text);
 
         internal static FileReadResult Missing()
-            => new(null, null);
+            => new(ReadState.Missing, string.Empty);
 
         internal static FileReadResult Failed(string error)
-            => new(null, error);
+            => new(ReadState.Failed, error);
 
         internal void AppendFileStatus(StringBuilder sb)
-            => sb.AppendLine(IsMissing ? "  exists=False" : $"  failed={Error}");
+            => sb.AppendLine(IsMissing ? "  exists=False" : $"  failed={Text}");
 
         internal void AppendStatus(
             StringBuilder sb,
@@ -86,18 +92,18 @@ internal static partial class LauncherDiagnostics
             => sb.AppendLine(Status(missingPrefix, failedPrefix));
 
         internal string ContentText()
-            => TextOrEmpty;
+            => HasText ? Text : string.Empty;
 
         internal bool HasContent()
             => HasText;
 
         internal string[] ContentLines()
-            => TextOrEmpty.Replace("\r\n", "\n").Split('\n');
+            => ContentText().Replace("\r\n", "\n").Split('\n');
 
         private string Status(string missingPrefix = "", string failedPrefix = "")
             => IsMissing
                 ? $"{missingPrefix}<missing>"
-                : $"{failedPrefix}<failed to read: {Error}>";
+                : $"{failedPrefix}<failed to read: {Text}>";
     }
 
     private static void AppendSummaryErrorDiagnostics(StringBuilder sb, string dataDir)

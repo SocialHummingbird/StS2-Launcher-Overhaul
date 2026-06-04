@@ -9,13 +9,13 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     private static readonly StartupRecoveryAction ExportDiagnosticsAction = new(
         "diagnostics export",
         "Diagnostics export failed",
-        ExportDiagnosticsForDataDir
+        ExportDiagnosticsReport
     );
 
     private static readonly StartupRecoveryAction CopyRawErrorLogAction = new(
         "raw error log copy",
         "Raw error log copy failed",
-        CopyRawErrorLogForDataDir
+        CopyReportTextToClipboard
     );
 
     private sealed class StartupRecoveryAction
@@ -23,7 +23,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         internal StartupRecoveryAction(
             string logAction,
             string failureTitle,
-            Func<string, string> run
+            Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> run
         )
         {
             LogAction = logAction;
@@ -33,13 +33,13 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
         private string LogAction { get; }
         private string FailureTitle { get; }
-        private Func<string, string> Run { get; }
+        private Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> Run { get; }
 
         internal string RunAndDescribe()
         {
             try
             {
-                return Run(OS.GetDataDir());
+                return Run(LauncherDiagnostics.StartupRecoveryReport(OS.GetDataDir()));
             }
             catch (Exception ex)
             {
@@ -69,17 +69,21 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     private void ShowActionResult(StartupRecoveryAction action)
         => _detail.Text = action.RunAndDescribe();
 
-    private static string ExportDiagnosticsForDataDir(string dataDir)
+    private static string ExportDiagnosticsReport(
+        LauncherDiagnostics.StartupRecoveryDiagnosticsReport report
+    )
     {
-        var path = LauncherDiagnostics.StartupRecoveryReport(dataDir).Write();
+        var path = report.Write();
         PatchHelper.Log($"Startup recovery diagnostics written: {path}");
         var shared = AndroidGodotAppBridge.ShareTextFile(path);
         return ExportDiagnosticsMessage(path, shared);
     }
 
-    private static string CopyRawErrorLogForDataDir(string dataDir)
+    private static string CopyReportTextToClipboard(
+        LauncherDiagnostics.StartupRecoveryDiagnosticsReport report
+    )
     {
-        var text = LauncherDiagnostics.StartupRecoveryReport(dataDir).BuildText();
+        var text = report.BuildText();
         DisplayServer.ClipboardSet(text);
         PatchHelper.Log($"Startup recovery raw error log copied ({text.Length:N0} chars)");
         return RawErrorLogCopiedMessage(text.Length);

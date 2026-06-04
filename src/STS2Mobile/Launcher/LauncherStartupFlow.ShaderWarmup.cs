@@ -5,36 +5,43 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherStartupFlow
 {
+    private enum ShaderWarmupState
+    {
+        NotNeeded,
+        Run,
+        Skipped,
+    }
+
     private readonly struct ShaderWarmupDecision
     {
         private readonly StartupContext _startup;
-        private readonly bool _shouldRun;
-        private readonly bool _shouldShowSkipped;
+        private readonly ShaderWarmupState _state;
 
         private ShaderWarmupDecision(
             StartupContext startup,
-            bool shouldRun,
-            bool shouldShowSkipped
+            ShaderWarmupState state
         )
         {
             _startup = startup;
-            _shouldRun = shouldRun;
-            _shouldShowSkipped = shouldShowSkipped;
+            _state = state;
         }
 
         internal static ShaderWarmupDecision From(StartupContext startup)
         {
-            var skipWarmup = startup.ShouldSkipShaderWarmup();
+            if (startup.ShouldSkipShaderWarmup())
+                return new ShaderWarmupDecision(startup, ShaderWarmupState.Skipped);
+
             return new ShaderWarmupDecision(
                 startup,
-                ShaderWarmupScreen.NeedsWarmup() && !skipWarmup,
-                skipWarmup
+                ShaderWarmupScreen.NeedsWarmup()
+                    ? ShaderWarmupState.Run
+                    : ShaderWarmupState.NotNeeded
             );
         }
 
         internal async Task RunIfNeededAsync()
         {
-            if (_shouldRun)
+            if (_state == ShaderWarmupState.Run)
             {
                 _startup.SetPhase(PhaseShaderWarmup, "Warming shaders...");
                 PatchHelper.Log("Shader warmup starting");
@@ -44,7 +51,7 @@ internal static partial class LauncherStartupFlow
                 return;
             }
 
-            if (_shouldShowSkipped)
+            if (_state == ShaderWarmupState.Skipped)
                 _startup.ShowShaderWarmupSkipped();
         }
     }

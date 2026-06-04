@@ -2,12 +2,18 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
+    private enum LaunchUpdateAction
+    {
+        Hidden,
+        Visible,
+    }
+
     private void ShowLoggedIn()
     {
         _model.MarkConnectionResolved();
         if (LauncherGameFiles.Ready())
         {
-            ShowReadyToLaunch(_model.LoggedInStatus(), showUpdate: true);
+            ShowReadyToLaunch(_model.LoggedInStatus(), LaunchUpdateAction.Visible);
             return;
         }
 
@@ -23,19 +29,18 @@ internal sealed partial class LauncherController
         SetLoginFormVisible(true, disabled: false);
     }
 
-    private void ShowReadyToLaunch(string status, bool showUpdate)
+    private void ShowReadyToLaunch(string status, LaunchUpdateAction updateAction)
     {
         _view.SetStatus(status);
         ShowPreviousLaunchWarningIfNeeded();
-        ShowLaunchActions(showUpdate);
+        ShowLaunchActions(updateAction);
     }
 
-    private void ShowLaunchActions(bool showUpdate)
+    private void ShowLaunchActions(LaunchUpdateAction updateAction)
     {
         _view.ShowLaunchActions(
             _model.LaunchButtonText(),
-            showCloudSync: true,
-            showUpdate
+            updateAction == LaunchUpdateAction.Visible
         );
     }
 }

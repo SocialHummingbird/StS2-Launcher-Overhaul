@@ -10,7 +10,7 @@ internal sealed partial class LauncherSteamSession
     internal bool HasOwnershipMarker()
         => HasOwnershipMarkerForCurrentAccount();
 
-    private async Task<string> UseConnectionAndVerifyOwnershipAsync(
+    private async Task<string?> UseConnectionAndVerifyOwnershipAsync(
         SteamConnection connection,
         Action verifyingOwnership
     )
@@ -27,7 +27,7 @@ internal sealed partial class LauncherSteamSession
         return connection;
     }
 
-    private async Task<string> VerifyOwnershipForSessionAsync(
+    private async Task<string?> VerifyOwnershipForSessionAsync(
         SteamConnection connection,
         Action verifyingOwnership
     )

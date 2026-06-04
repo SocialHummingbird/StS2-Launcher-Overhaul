@@ -23,6 +23,12 @@ internal sealed partial class SteamKit2CloudSaveStore
             internal int QueuedWrites { get; }
             internal long PendingWrites { get; }
             internal bool HasPendingWrites => PendingWrites > 0 || QueuedWrites > 0;
+
+            internal void LogFlushStart()
+                => PatchHelper.Log(FlushingPendingWrites(PendingWrites));
+
+            internal void LogFlushTimeout()
+                => PatchHelper.Log(FlushTimedOut(QueuedWrites, PendingWrites));
         }
 
         private readonly BlockingCollection<Action> _queue = new(
@@ -97,7 +103,7 @@ internal sealed partial class SteamKit2CloudSaveStore
             if (!initialState.HasPendingWrites)
                 return true;
 
-            PatchHelper.Log(FlushingPendingWrites(initialState.PendingWrites));
+            initialState.LogFlushStart();
 
             if (_drainSignal.Wait(timeoutMs))
             {
@@ -106,10 +112,7 @@ internal sealed partial class SteamKit2CloudSaveStore
             }
 
             var timedOutState = CaptureDrainState();
-            PatchHelper.Log(FlushTimedOut(
-                timedOutState.QueuedWrites,
-                timedOutState.PendingWrites
-            ));
+            timedOutState.LogFlushTimeout();
             if (DroppedWrites > 0)
                 PatchHelper.Log(FlushDroppedWriteWarning(DroppedWrites));
             return false;

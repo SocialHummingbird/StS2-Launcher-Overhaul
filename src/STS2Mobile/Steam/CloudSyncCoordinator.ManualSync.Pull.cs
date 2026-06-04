@@ -6,25 +6,32 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
+    private enum ManualPullPathState
+    {
+        Failed,
+        Downloaded,
+        SkippedMissingCloud,
+    }
+
     private readonly struct ManualPullPathResult
     {
-        private ManualPullPathResult(int downloaded, int skipped)
+        private ManualPullPathResult(ManualPullPathState state)
         {
-            Downloaded = downloaded;
-            Skipped = skipped;
+            State = state;
         }
 
-        internal int Downloaded { get; }
-        internal int Skipped { get; }
+        private ManualPullPathState State { get; }
+        internal int Downloaded => State == ManualPullPathState.Downloaded ? 1 : 0;
+        internal int Skipped => State == ManualPullPathState.SkippedMissingCloud ? 1 : 0;
 
         internal static ManualPullPathResult DownloadedPath()
-            => new(1, 0);
+            => new(ManualPullPathState.Downloaded);
 
         internal static ManualPullPathResult SkippedMissingCloud()
-            => new(0, 1);
+            => new(ManualPullPathState.SkippedMissingCloud);
 
         internal static ManualPullPathResult Failed()
-            => new(0, 0);
+            => new(ManualPullPathState.Failed);
     }
 
     private static async Task<string> RunManualPullDownloadsAsync(

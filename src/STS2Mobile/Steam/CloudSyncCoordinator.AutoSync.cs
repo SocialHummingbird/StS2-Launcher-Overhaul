@@ -111,7 +111,7 @@ internal static partial class CloudSyncCoordinator
         private async Task PullCloudOnlyFileAsync()
         {
             string cloud = await ReadCloudContentAsync(PullCloudFileOperation);
-            await PullCloudContentAsync(cloud, PullDownloaded, backUpLocal: false);
+            await PullCloudOnlyContentAsync(cloud, PullDownloaded);
         }
 
         private void PushLocalOnlyFile(string localContent)
@@ -119,23 +119,24 @@ internal static partial class CloudSyncCoordinator
             PushLocalContent(localContent, cloudContent: null, PushUploaded);
         }
 
-        internal async Task PullCloudContentAsync(
-            string content,
-            Func<string, string> message,
-            bool backUpLocal
-        )
-        {
-            Log(message);
-            if (backUpLocal)
-                BackUpLocalProgress();
-            await WriteLocalContentFromCloudAsync(content);
-        }
-
-        internal Task PullCloudOverLocalAsync(
+        private async Task PullCloudOnlyContentAsync(
             string content,
             Func<string, string> message
         )
-            => PullCloudContentAsync(content, message, backUpLocal: true);
+        {
+            Log(message);
+            await WriteLocalContentFromCloudAsync(content);
+        }
+
+        internal async Task PullCloudOverLocalAsync(
+            string content,
+            Func<string, string> message
+        )
+        {
+            Log(message);
+            BackUpLocalProgress();
+            await WriteLocalContentFromCloudAsync(content);
+        }
 
         internal void PushLocalContent(
             string localContent,

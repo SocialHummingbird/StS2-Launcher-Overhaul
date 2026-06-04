@@ -6,30 +6,39 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private enum ManifestFileDownloadState
+    {
+        Skip,
+        NeedsDownload,
+        ExistingVerified,
+        CorruptNeedsDownload,
+    }
+
     private readonly struct ManifestFileDownloadStatus
     {
-        private ManifestFileDownloadStatus(bool download, bool verified, bool corrupt)
+        private ManifestFileDownloadStatus(ManifestFileDownloadState state)
         {
-            Download = download;
-            Verified = verified;
-            Corrupt = corrupt;
+            State = state;
         }
 
-        internal bool Download { get; }
-        internal bool Verified { get; }
-        internal bool Corrupt { get; }
+        private ManifestFileDownloadState State { get; }
+        internal bool Download
+            => State == ManifestFileDownloadState.NeedsDownload
+                || State == ManifestFileDownloadState.CorruptNeedsDownload;
+        internal bool Verified => State == ManifestFileDownloadState.ExistingVerified;
+        internal bool Corrupt => State == ManifestFileDownloadState.CorruptNeedsDownload;
 
         internal static ManifestFileDownloadStatus Skip()
-            => new(false, false, false);
+            => new(ManifestFileDownloadState.Skip);
 
         internal static ManifestFileDownloadStatus NeedsDownload()
-            => new(true, false, false);
+            => new(ManifestFileDownloadState.NeedsDownload);
 
         internal static ManifestFileDownloadStatus ExistingVerified()
-            => new(false, true, false);
+            => new(ManifestFileDownloadState.ExistingVerified);
 
         internal static ManifestFileDownloadStatus CorruptNeedsDownload()
-            => new(true, false, true);
+            => new(ManifestFileDownloadState.CorruptNeedsDownload);
     }
 
     private ManifestFileDownloadStatus GetManifestFileDownloadStatus(
