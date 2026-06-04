@@ -12,45 +12,32 @@ internal sealed partial class SteamAuth
     private const string AuthPollingReconnectRetryMessage =
         "Steam auth reconnect did not complete yet; will retry while polling auth result";
 
-    private enum AuthCodeAttempt
-    {
-        Initial,
-        RetryAfterIncorrectCode,
-    }
-
     private readonly struct AuthCodePrompt
     {
         private AuthCodePrompt(
-            AuthCodeAttempt attempt,
+            bool previousCodeWasIncorrect,
             string retryMessage,
             string initialMessage
         )
         {
-            Attempt = attempt;
+            PreviousCodeWasIncorrect = previousCodeWasIncorrect;
             RetryMessage = retryMessage;
             InitialMessage = initialMessage;
         }
 
-        private AuthCodeAttempt Attempt { get; }
+        private bool PreviousCodeWasIncorrect { get; }
         private string RetryMessage { get; }
         private string InitialMessage { get; }
 
         internal string LogMessage
-            => IsRetry ? RetryMessage : InitialMessage;
+            => PreviousCodeWasIncorrect ? RetryMessage : InitialMessage;
 
         internal Task<string> RequestCodeAsync(Func<bool, Task<string>> codeProvider)
-            => codeProvider(IsRetry);
-
-        private bool IsRetry => Attempt == AuthCodeAttempt.RetryAfterIncorrectCode;
-
-        internal static AuthCodeAttempt FromSteamRetry(bool previousCodeWasIncorrect)
-            => previousCodeWasIncorrect
-                ? AuthCodeAttempt.RetryAfterIncorrectCode
-                : AuthCodeAttempt.Initial;
+            => codeProvider(PreviousCodeWasIncorrect);
 
         internal static AuthCodePrompt DeviceCode(bool previousCodeWasIncorrect)
             => new(
-                FromSteamRetry(previousCodeWasIncorrect),
+                previousCodeWasIncorrect,
                 "Previous 2FA code was incorrect, requesting new code",
                 "Steam Guard 2FA code required"
             );
@@ -60,36 +47,9 @@ internal sealed partial class SteamAuth
             bool previousCodeWasIncorrect
         )
             => new(
-                FromSteamRetry(previousCodeWasIncorrect),
+                previousCodeWasIncorrect,
                 "Previous email code was incorrect, requesting new code",
                 $"Steam Guard email code sent to {email}"
-            );
-    }
-
-    private readonly struct AuthReconnectMonitor
-    {
-        private AuthReconnectMonitor(Func<bool> shouldReconnect, string retryMessage)
-        {
-            ShouldReconnect = shouldReconnect;
-            RetryMessage = retryMessage;
-        }
-
-        private Func<bool> ShouldReconnect { get; }
-        private string RetryMessage { get; }
-
-        internal bool ShouldReconnectNow()
-            => ShouldReconnect();
-
-        internal Task MaintainAsync(Func<string, Task> reconnectAsync)
-            => reconnectAsync(RetryMessage);
-
-        internal static AuthReconnectMonitor WaitingForCode(SteamAuth auth)
-            => new(() => auth.NeedsAuthReconnect, AuthCodeReconnectRetryMessage);
-
-        internal static AuthReconnectMonitor PollingAuthResult(SteamAuth auth)
-            => new(
-                () => auth.ShouldReconnectWhilePolling,
-                AuthPollingReconnectRetryMessage
             );
     }
 
@@ -114,7 +74,8 @@ internal sealed partial class SteamAuth
         {
             var code = await WaitForTaskAndMaintainAuthConnectionAsync(
                 prompt.RequestCodeAsync(_codeProvider),
-                AuthReconnectMonitor.WaitingForCode(this)
+                () => NeedsAuthReconnect,
+                AuthCodeReconnectRetryMessage
             );
             await ReconnectBeforeCodeSubmitAsync();
             return code;
@@ -127,7 +88,8 @@ internal sealed partial class SteamAuth
 
     private async Task<T> WaitForTaskAndMaintainAuthConnectionAsync<T>(
         Task<T> task,
-        AuthReconnectMonitor reconnect
+        Func<bool> shouldReconnect,
+        string reconnectRetryMessage
     )
     {
         while (true)
@@ -135,9 +97,9 @@ internal sealed partial class SteamAuth
             if (task.IsCompleted)
                 return await task;
 
-            if (reconnect.ShouldReconnectNow())
+            if (shouldReconnect())
             {
-                await reconnect.MaintainAsync(MaintainAuthConnectionAsync);
+                await MaintainAuthConnectionAsync(reconnectRetryMessage);
             }
 
             await Task.WhenAny(task, Task.Delay(AuthReconnectPollDelayMs));

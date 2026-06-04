@@ -13,11 +13,10 @@ internal sealed partial class DepotDownloader
         private ProductInfoApp(DepotDownloader owner, uint appId)
         {
             _owner = owner;
-            Identity = ProductInfoAppIdentity.For(appId);
+            AppId = appId;
         }
 
-        private ProductInfoAppIdentity Identity { get; }
-        internal uint AppId => Identity.AppId;
+        internal uint AppId { get; }
 
         internal static Task<KeyValue> GetMainDepotsSectionAsync(DepotDownloader owner)
             => new ProductInfoApp(owner, SteamCloudApp.AppId)
@@ -34,7 +33,7 @@ internal sealed partial class DepotDownloader
         private async Task<KeyValue> GetRequiredDepotsSectionAsync()
         {
             var appInfo = await GetRequiredInfoAsync();
-            return Sections(appInfo).RequiredDepots();
+            return RequiredDepotsSection(appInfo);
         }
 
         private async Task<KeyValue> TryGetManifestSectionAsync(uint depotId)
@@ -43,19 +42,33 @@ internal sealed partial class DepotDownloader
             if (appInfo == null)
                 return KeyValue.Invalid;
 
-            return Sections(appInfo).TryManifestSection(depotId);
+            return TryManifestSection(appInfo, depotId);
         }
 
         private async Task<PICSProductInfo> GetRequiredInfoAsync()
         {
             var appInfo = await GetInfoAsync();
             if (appInfo == null)
-                throw new System.Exception(Identity.AppInfoUnavailable());
+                throw new System.Exception(AppInfoUnavailable());
 
             return appInfo;
         }
 
-        private ProductInfoAppSections Sections(PICSProductInfo appInfo)
-            => ProductInfoAppSections.For(Identity, appInfo);
+        private KeyValue RequiredDepotsSection(PICSProductInfo appInfo)
+        {
+            var depots = appInfo?.KeyValues?["depots"];
+            if (depots == null || depots == KeyValue.Invalid)
+                throw new System.InvalidOperationException(
+                    MissingDepotsSection()
+                );
+
+            return depots;
+        }
+
+        private KeyValue TryManifestSection(PICSProductInfo appInfo, uint depotId)
+        {
+            var depot = RequiredDepotsSection(appInfo)[depotId.ToString()];
+            return depot != KeyValue.Invalid ? depot["manifests"] : KeyValue.Invalid;
+        }
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using STS2Mobile;
 
 namespace STS2Mobile.Launcher;
@@ -11,13 +12,33 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     }
 
     private void ExportDiagnostics()
-        => ShowActionResult(StartupRecoveryAction.DiagnosticsExport);
+        => ShowActionResult(
+            "diagnostics export",
+            "Diagnostics export failed",
+            session => session.ExportDiagnostics()
+        );
 
     private void CopyRawErrorLog()
-        => ShowActionResult(StartupRecoveryAction.RawErrorLogCopy);
-
-    private void ShowActionResult(StartupRecoveryAction action)
-        => _detail.Text = action.RunAndDescribe(
-            StartupRecoveryReportSession.Capture()
+        => ShowActionResult(
+            "raw error log copy",
+            "Raw error log copy failed",
+            session => session.CopyRawErrorLog()
         );
+
+    private void ShowActionResult(
+        string logAction,
+        string failureTitle,
+        Func<StartupRecoveryReportSession, string> run
+    )
+    {
+        try
+        {
+            _detail.Text = run(StartupRecoveryReportSession.Capture());
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Startup recovery {logAction} failed: {ex}");
+            _detail.Text = $"{failureTitle}:\n{ex.GetBaseException().Message}";
+        }
+    }
 }

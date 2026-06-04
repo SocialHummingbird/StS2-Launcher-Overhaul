@@ -33,7 +33,7 @@ internal static partial class CloudSyncCoordinator
         private readonly ManualSyncBackup _backupAsync;
         private readonly Func<int, string> _backedUpMessage;
         private readonly ManualSyncTransfer _transferAsync;
-        private readonly ManualSyncCompletion _completion;
+        private readonly Func<int, int, int, string> _completeMessage;
 
         private ManualSyncPlan(
             ManualSyncPathDiscovery discoverPaths,
@@ -41,7 +41,7 @@ internal static partial class CloudSyncCoordinator
             ManualSyncBackup backupAsync,
             Func<int, string> backedUpMessage,
             ManualSyncTransfer transferAsync,
-            ManualSyncCompletion completion
+            Func<int, int, int, string> completeMessage
         )
         {
             _discoverPaths = discoverPaths;
@@ -49,7 +49,7 @@ internal static partial class CloudSyncCoordinator
             _backupAsync = backupAsync;
             _backedUpMessage = backedUpMessage;
             _transferAsync = transferAsync;
-            _completion = completion;
+            _completeMessage = completeMessage;
         }
 
         internal static ManualSyncPlan Push(ManualSyncTransfer transferAsync)
@@ -59,7 +59,7 @@ internal static partial class CloudSyncCoordinator
                 SaveBackups.CloudBeforeManualPushAsync,
                 PushBackedUpCloudFiles,
                 transferAsync,
-                ManualSyncCompletion.Push
+                (queued, _, _) => PushComplete(queued)
             );
 
         internal static ManualSyncPlan Pull(ManualSyncTransfer transferAsync)
@@ -69,7 +69,7 @@ internal static partial class CloudSyncCoordinator
                 SaveBackups.LocalBeforeManualPullAsync,
                 PullBackedUpLocalFiles,
                 transferAsync,
-                ManualSyncCompletion.Pull
+                (_, downloaded, skipped) => PullComplete(downloaded, skipped)
             );
 
         internal async Task RunAsync(string accountName, string refreshToken)
@@ -83,7 +83,7 @@ internal static partial class CloudSyncCoordinator
                 PatchHelper.Log(_backedUpMessage(backedUp));
 
             var transferResult = await _transferAsync(sync, paths);
-            PatchHelper.Log(transferResult.CompleteMessage(_completion));
+            PatchHelper.Log(transferResult.CompleteMessage(_completeMessage));
         }
     }
 }

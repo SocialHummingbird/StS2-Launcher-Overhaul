@@ -7,42 +7,7 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
-    private readonly struct DepotConnectionOperation
-    {
-        private readonly string _missingConnectionMessage;
-        private readonly Action<string> _raiseFailure;
-        private readonly Func<SteamConnection, Task> _run;
-
-        private DepotConnectionOperation(
-            string missingConnectionMessage,
-            Action<string> raiseFailure,
-            Func<SteamConnection, Task> run
-        )
-        {
-            _missingConnectionMessage = missingConnectionMessage;
-            _raiseFailure = raiseFailure;
-            _run = run;
-        }
-
-        internal static DepotConnectionOperation Download(
-            Action<string> raiseFailure,
-            Func<SteamConnection, Task> run
-        )
-            => new("Not connected", raiseFailure, run);
-
-        internal static DepotConnectionOperation UpdateCheck(
-            string missingConnectionMessage,
-            Action<string> raiseFailure,
-            Func<SteamConnection, Task> run
-        )
-            => new(missingConnectionMessage, raiseFailure, run);
-
-        internal void FailMissingConnection()
-            => _raiseFailure(_missingConnectionMessage);
-
-        internal Task RunAsync(SteamConnection connection)
-            => _run(connection);
-    }
+    private const string NotConnectedMessage = "Not connected";
 
     private CancellationTokenSource _downloadCts;
     private DepotDownloader _downloader;
@@ -67,14 +32,12 @@ internal partial class LauncherModel
         try
         {
             await RunWithDepotConnectionAsync(
-                DepotConnectionOperation.Download(
-                    RaiseDownloadFailed,
-                    connection =>
-                    {
-                        BeginDownload(connection);
-                        return RunDownloadAsync();
-                    }
-                )
+                RaiseDownloadFailed,
+                connection =>
+                {
+                    BeginDownload(connection);
+                    return RunDownloadAsync();
+                }
             );
         }
         finally
@@ -85,11 +48,8 @@ internal partial class LauncherModel
 
     internal Task CheckForUpdatesAsync()
         => RunWithDepotConnectionAsync(
-            DepotConnectionOperation.UpdateCheck(
-                "Not connected",
-                RaiseUpdateCheckFailed,
-                CheckForUpdatesWithConnectionAsync
-            )
+            RaiseUpdateCheckFailed,
+            CheckForUpdatesWithConnectionAsync
         );
 
     private async Task CheckForUpdatesWithConnectionAsync(SteamConnection connection)
@@ -106,16 +66,19 @@ internal partial class LauncherModel
         }
     }
 
-    private async Task RunWithDepotConnectionAsync(DepotConnectionOperation operation)
+    private async Task RunWithDepotConnectionAsync(
+        Action<string> raiseFailure,
+        Func<SteamConnection, Task> run
+    )
     {
         var connection = await GetDepotConnectionAsync();
         if (connection == null)
         {
-            operation.FailMissingConnection();
+            raiseFailure(NotConnectedMessage);
             return;
         }
 
-        await operation.RunAsync(connection).ConfigureAwait(false);
+        await run(connection).ConfigureAwait(false);
     }
 
     private bool DownloadIsRunning => Interlocked.CompareExchange(ref _downloadRunning, 0, 0) == 1;

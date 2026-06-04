@@ -4,25 +4,6 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private readonly struct ManualSyncCompletion
-    {
-        private readonly Func<int, int, int, string> _format;
-
-        private ManualSyncCompletion(Func<int, int, int, string> format)
-        {
-            _format = format;
-        }
-
-        internal static ManualSyncCompletion Push { get; } =
-            new((queued, _, _) => PushComplete(queued));
-
-        internal static ManualSyncCompletion Pull { get; } =
-            new((_, downloaded, skipped) => PullComplete(downloaded, skipped));
-
-        internal string Format(int queued, int downloaded, int skipped)
-            => _format(queued, downloaded, skipped);
-    }
-
     private readonly struct ManualSyncPathResult
     {
         private ManualSyncPathResult(
@@ -59,47 +40,24 @@ internal static partial class CloudSyncCoordinator
             => new(0, 0, 0, stopAfterBudget: true);
     }
 
-    private readonly struct ManualSyncResultTotals
-    {
-        private ManualSyncResultTotals(int queued, int downloaded, int skipped)
-        {
-            Queued = queued;
-            Downloaded = downloaded;
-            Skipped = skipped;
-        }
-
-        private int Queued { get; }
-        private int Downloaded { get; }
-        private int Skipped { get; }
-
-        internal static ManualSyncResultTotals Empty()
-            => new(0, 0, 0);
-
-        internal ManualSyncResultTotals Add(ManualSyncPathResult result)
-            => new(
-                Queued + result.Queued,
-                Downloaded + result.Downloaded,
-                Skipped + result.Skipped
-            );
-
-        internal string CompleteMessage(ManualSyncCompletion completion)
-            => completion.Format(Queued, Downloaded, Skipped);
-    }
-
     private sealed class ManualSyncResultAccumulator
     {
-        private ManualSyncResultTotals _totals = ManualSyncResultTotals.Empty();
+        private int _downloaded;
+        private int _queued;
+        private int _skipped;
 
         internal static ManualSyncResultAccumulator Empty()
             => new();
 
         internal bool Add(ManualSyncPathResult result)
         {
-            _totals = _totals.Add(result);
+            _queued += result.Queued;
+            _downloaded += result.Downloaded;
+            _skipped += result.Skipped;
             return result.StopAfterBudget;
         }
 
-        internal string CompleteMessage(ManualSyncCompletion completion)
-            => _totals.CompleteMessage(completion);
+        internal string CompleteMessage(Func<int, int, int, string> format)
+            => format(_queued, _downloaded, _skipped);
     }
 }

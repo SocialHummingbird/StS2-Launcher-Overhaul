@@ -73,34 +73,6 @@ internal sealed partial class SteamAuth
             );
     }
 
-    private readonly struct ConnectWaitPlan
-    {
-        private ConnectWaitPlan(int timeoutMs)
-        {
-            TimeoutMs = timeoutMs;
-        }
-
-        private int TimeoutMs { get; }
-        private int MaxPolls => TimeoutMs / ConnectPollDelayMs;
-
-        internal static ConnectWaitPlan Current()
-            => new(CurrentConnectTimeoutMs);
-
-        internal async Task<bool> WaitAsync(SteamAuth auth)
-        {
-            for (int i = 0; i < MaxPolls; i++)
-            {
-                if (auth._connectedGate.IsSet)
-                    return true;
-                if (!auth._connectStarted)
-                    return false;
-                await Task.Delay(ConnectPollDelayMs);
-            }
-
-            return auth._connectedGate.IsSet;
-        }
-    }
-
     internal void Connect()
     {
         if (_disposed || _connectedGate.IsSet || _connectStarted)
@@ -110,7 +82,19 @@ internal sealed partial class SteamAuth
     }
 
     private async Task<bool> WaitForConnectAsync()
-        => await ConnectWaitPlan.Current().WaitAsync(this);
+    {
+        var maxPolls = CurrentConnectTimeoutMs / ConnectPollDelayMs;
+        for (int i = 0; i < maxPolls; i++)
+        {
+            if (_connectedGate.IsSet)
+                return true;
+            if (!_connectStarted)
+                return false;
+            await Task.Delay(ConnectPollDelayMs);
+        }
+
+        return _connectedGate.IsSet;
+    }
 
     private Task<bool> ConnectWithRetriesAsync()
         => TryConnectWithRetriesAsync(ConnectRetryPlan.Initial(this));

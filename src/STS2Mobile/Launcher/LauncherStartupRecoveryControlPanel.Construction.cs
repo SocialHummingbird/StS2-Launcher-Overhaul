@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -74,32 +74,26 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private void AddRecoveryActions(VBoxContainer box)
     {
-        foreach (var action in RecoveryActions())
-            action.AddTo(box);
+        AddRecoveryButton(box, ReturnToLauncherButton, AndroidGodotAppBridge.RestartApp);
+        AddRecoveryButton(box, RestartSafeLaunchButton, RestartWithSafeLaunch);
+        AddRecoveryButton(box, ExportDiagnosticsButton, ExportDiagnostics);
+        AddRecoveryButton(box, CopyRawErrorLogButton, CopyRawErrorLog);
+        AddRecoveryButton(box, HideControlsButton, HideRecoveryControls);
     }
 
-    private IEnumerable<RecoveryButtonSpec> RecoveryActions()
+    private static void AddRecoveryButton(
+        VBoxContainer box,
+        string label,
+        Action run
+    )
     {
-        yield return RecoveryButtonSpec.For(
-            ReturnToLauncherButton,
-            AndroidGodotAppBridge.RestartApp
-        );
-        yield return RecoveryButtonSpec.For(
-            RestartSafeLaunchButton,
-            RestartWithSafeLaunch
-        );
-        yield return RecoveryButtonSpec.For(
-            ExportDiagnosticsButton,
-            ExportDiagnostics
-        );
-        yield return RecoveryButtonSpec.For(
-            CopyRawErrorLogButton,
-            CopyRawErrorLog
-        );
-        yield return RecoveryButtonSpec.For(
-            HideControlsButton,
-            HideRecoveryControls
-        );
+        var button = new Button
+        {
+            Text = label,
+            CustomMinimumSize = ButtonMinimumSize,
+        };
+        button.Pressed += run;
+        box.AddChild(button);
     }
 
     private void HideRecoveryControls()

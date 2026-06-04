@@ -13,18 +13,18 @@ internal sealed partial class DepotDownloader
         private async Task<ulong> GetAccessTokenAsync()
         {
             var token = await _owner._connection.GetAppAccessTokenOrPublicAsync(
-                Identity.AppId,
-                Identity.AccessTokenDenied()
+                AppId,
+                AccessTokenDenied()
             );
             if (token == 0)
-                _owner.Log(Identity.PublicAccessTokenFallback());
+                _owner.Log(PublicAccessTokenFallback());
 
             return token;
         }
 
         internal async Task<PICSProductInfo?> FetchInfoForCacheAsync()
             => await _owner._connection.GetAppInfoAsync(
-                Identity.AppId,
+                AppId,
                 await GetAccessTokenAsync()
             );
     }
