@@ -63,21 +63,22 @@ internal sealed partial class SteamConnection
 
         internal async Task<AppAccessTokenResult> GetAsync(SteamConnection owner)
         {
+            var appId = AppId;
             var cachedToken = CachedToken(owner);
             if (cachedToken.HasValue)
                 return AppAccessTokenResult.FoundToken(cachedToken.Value);
 
             var tokenResult = await owner.RunConnectedAsync(
                 async () => await owner._steamApps.PICSGetAccessTokens(
-                    new[] { AppId },
+                    new[] { appId },
                     Array.Empty<uint>()
                 )
             ).ConfigureAwait(false);
 
-            if (tokenResult.AppTokens?.TryGetValue(AppId, out var token) == true)
+            if (tokenResult.AppTokens?.TryGetValue(appId, out var token) == true)
                 return Remember(owner, token);
 
-            return tokenResult.AppTokensDenied?.Contains(AppId) == true
+            return tokenResult.AppTokensDenied?.Contains(appId) == true
                 ? AppAccessTokenResult.DeniedToken()
                 : AppAccessTokenResult.PublicToken();
         }
