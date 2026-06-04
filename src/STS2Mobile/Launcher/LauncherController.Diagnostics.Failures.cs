@@ -5,26 +5,20 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
-    private enum DiagnosticsExceptionDetail
-    {
-        MessageOnly,
-        FullException,
-    }
-
     private readonly struct DiagnosticsFailureHandling
     {
         private readonly string _context;
-        private readonly DiagnosticsExceptionDetail _exceptionDetail;
+        private readonly Func<Exception, string> _formatException;
         private readonly Action<string> _onFailure;
 
         private DiagnosticsFailureHandling(
             string context,
-            DiagnosticsExceptionDetail exceptionDetail,
+            Func<Exception, string> formatException,
             Action<string> onFailure = null
         )
         {
             _context = context;
-            _exceptionDetail = exceptionDetail;
+            _formatException = formatException;
             _onFailure = onFailure;
         }
 
@@ -32,20 +26,17 @@ internal sealed partial class LauncherController
             string context,
             Action<string> onFailure = null
         )
-            => new(context, DiagnosticsExceptionDetail.FullException, onFailure);
+            => new(context, ex => ex.ToString(), onFailure);
 
-        internal static DiagnosticsFailureHandling WithDetail(
+        internal static DiagnosticsFailureHandling MessageOnly(
             string context,
-            DiagnosticsExceptionDetail exceptionDetail,
             Action<string> onFailure = null
         )
-            => new(context, exceptionDetail, onFailure);
+            => new(context, ex => ex.Message, onFailure);
 
         internal void Handle(Exception ex)
         {
-            PatchHelper.Log(
-                $"[Launcher] {_context}: {ExceptionText(ex)}"
-            );
+            PatchHelper.Log($"[Launcher] {_context}: {_formatException(ex)}");
             if (_onFailure != null)
                 _onFailure(ex.Message);
         }
@@ -74,11 +65,6 @@ internal sealed partial class LauncherController
                 return default;
             }
         }
-
-        private string ExceptionText(Exception ex)
-            => _exceptionDetail == DiagnosticsExceptionDetail.FullException
-                ? ex.ToString()
-                : ex.Message;
     }
 
     private void RunDiagnosticsAction(string failureContext, Action action)
@@ -93,13 +79,11 @@ internal sealed partial class LauncherController
 
     private string TryWriteDiagnosticsReport(
         string failureContext,
-        DiagnosticsExceptionDetail exceptionDetail,
         Action<string> onFailure = null
     )
     {
-        var failure = DiagnosticsFailureHandling.WithDetail(
+        var failure = DiagnosticsFailureHandling.MessageOnly(
             failureContext,
-            exceptionDetail,
             onFailure
         );
 

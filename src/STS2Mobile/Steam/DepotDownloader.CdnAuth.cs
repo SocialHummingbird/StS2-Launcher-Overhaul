@@ -52,8 +52,7 @@ internal sealed partial class DepotDownloader
         }
         catch (Exception ex) when (attempt.CanRetry())
         {
-            operation.HandleRetryFailure(this, attempt, ex);
-            return CdnDownloadResult<T>.Retry();
+            return operation.RetryAfterFailure(this, attempt, ex);
         }
     }
 
@@ -74,8 +73,7 @@ internal sealed partial class DepotDownloader
         }
         catch (Exception ex) when (request.Attempt.CanRetry())
         {
-            request.HandleFailure(this, ex);
-            return CdnDownloadResult<T>.Retry();
+            return request.RetryAfterFailure(this, ex);
         }
     }
 

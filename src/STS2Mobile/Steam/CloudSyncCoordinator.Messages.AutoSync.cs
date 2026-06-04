@@ -22,6 +22,6 @@ internal static partial class CloudSyncCoordinator
     private static string SyncFailed(string path, Exception ex) =>
         CloudMessage($"Sync failed for {path}: {ex.Message}");
 
-    private static string ProgressComparisonFailed(string path, Exception ex) =>
-        CloudMessage($"Progress comparison failed for {path}: {ex.Message}");
+    private static string SaveComparisonFailed(string path, Exception ex) =>
+        CloudMessage($"Save comparison failed for {path}: {ex.Message}");
 }

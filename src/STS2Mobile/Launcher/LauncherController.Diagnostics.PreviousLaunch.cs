@@ -41,8 +41,7 @@ internal sealed partial class LauncherController
 
         _automaticDiagnosticsWritten = true;
         var path = TryWriteDiagnosticsReport(
-            "Automatic diagnostics snapshot failed",
-            DiagnosticsExceptionDetail.MessageOnly
+            "Automatic diagnostics snapshot failed"
         );
         if (path != null)
             _view.AppendLog($"Automatic diagnostics snapshot: {path}");

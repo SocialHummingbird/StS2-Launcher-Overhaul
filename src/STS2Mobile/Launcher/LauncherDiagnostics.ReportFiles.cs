@@ -14,14 +14,11 @@ internal static partial class LauncherDiagnostics
 
     private static void AppendDiagnosticReportFiles(StringBuilder sb, string dataDir)
     {
-        foreach (var file in DiagnosticReportFiles(dataDir))
-        {
-            AppendFileSummary(
-                sb,
-                file,
-                inlineContentLimit: 4096
-            );
-        }
+        AppendFileSummaries(
+            sb,
+            DiagnosticReportFiles(dataDir),
+            inlineContentLimit: 4096
+        );
 
         foreach (var directory in DiagnosticReportDirectories(dataDir))
             AppendDirectoryListing(sb, directory);
@@ -29,11 +26,18 @@ internal static partial class LauncherDiagnostics
 
     private static IEnumerable<DiagnosticFile> DiagnosticReportFiles(string dataDir)
     {
-        yield return StartupMarker(dataDir);
-        yield return StartupSceneSnapshot(dataDir);
+        foreach (var file in StartupStateFiles(dataDir))
+            yield return file;
+
         yield return ManualSafeLaunchMarker(dataDir);
         yield return BootstrapTrace();
         yield return GamePck(dataDir);
+    }
+
+    private static IEnumerable<DiagnosticFile> StartupStateFiles(string dataDir)
+    {
+        yield return StartupMarker(dataDir);
+        yield return StartupSceneSnapshot(dataDir);
     }
 
     private static IEnumerable<DiagnosticDirectory> DiagnosticReportDirectories(

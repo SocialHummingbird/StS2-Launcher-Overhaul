@@ -58,7 +58,7 @@ internal static partial class CloudSyncCoordinator
             }
             catch (Exception ex)
             {
-                PatchHelper.Log(ProgressComparisonFailed(path, ex));
+                PatchHelper.Log(SaveComparisonFailed(path, ex));
                 return SaveWinner.None;
             }
         }

@@ -14,7 +14,8 @@ internal static partial class LauncherGameStartupRecovery
         int watchdogMs
     )
     {
-        RecoveryStateUpdate.WatchdogStalled().Apply(gameNode, startupStatus);
+        var ui = RecoveryUi.For(gameNode, startupStatus);
+        ui.Apply(RecoveryStateUpdate.WatchdogStalled());
         PatchHelper.Log(
             $"Game startup watchdog fired after {watchdogMs}ms; startup task still running"
         );
@@ -28,16 +29,14 @@ internal static partial class LauncherGameStartupRecovery
         {
             MarkRecoveredStartup(
                 recoveryControls,
-                startupStatus,
-                gameNode,
+                ui,
                 RecoveryStateUpdate.WatchdogRecovered()
             );
             return;
         }
 
         ShowFailure(
-            gameNode,
-            startupStatus,
+            ui,
             RecoveryStateUpdate.MainMenuRecoveryFailed()
         );
     }

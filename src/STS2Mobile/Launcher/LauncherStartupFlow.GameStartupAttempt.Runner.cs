@@ -1,5 +1,4 @@
 using System.Threading.Tasks;
-using Godot;
 using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
@@ -26,51 +25,16 @@ internal static partial class LauncherStartupFlow
                 _startup.WriteSceneSnapshot("before NGame.GameStartup");
                 var startupTask = _startup.StartGameStartupAsync();
 
-                if (await RecoverIfWatchdogTimedOutAsync(startupTask, recoveryControls))
+                if (await _startup.RecoverIfWatchdogTimedOutAsync(startupTask, recoveryControls))
                     return;
 
                 await startupTask;
                 PatchHelper.Log("NGame.GameStartup completed");
-                if (!await EnsureMainMenuReadyAsync())
+                if (!await _startup.EnsureMainMenuReadyAsync())
                     return;
 
-                MarkStartupObserved(recoveryControls);
+                _startup.MarkStartupObserved(recoveryControls);
             }
-
-            private Task<bool> RecoverIfWatchdogTimedOutAsync(
-                Task startupTask,
-                CanvasLayer recoveryControls
-            )
-            {
-                var game = _startup.Game;
-                var gameNode = _startup.GameNode;
-                var status = _startup.Status;
-                return LauncherTimeout.RecoverIfTimedOutAsync(
-                    startupTask,
-                    StartupWatchdogMs,
-                    () => LauncherGameStartupRecovery.HandleWatchdogAsync(
-                        game,
-                        gameNode,
-                        status,
-                        recoveryControls,
-                        StartupWatchdogMs
-                    )
-                );
-            }
-
-            private Task<bool> EnsureMainMenuReadyAsync()
-                => LauncherGameStartupRecovery.EnsureMainMenuReadyAsync(
-                    _startup.Game,
-                    _startup.GameNode,
-                    _startup.Status
-                );
-
-            private void MarkStartupObserved(CanvasLayer recoveryControls)
-                => LauncherGameStartupRecovery.MarkStartupObserved(
-                    recoveryControls,
-                    _startup.Status,
-                    _startup.GameNode
-                );
         }
     }
 }

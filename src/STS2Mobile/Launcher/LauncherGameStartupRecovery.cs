@@ -14,6 +14,7 @@ internal static partial class LauncherGameStartupRecovery
         Label startupStatus
     )
     {
+        var ui = RecoveryUi.For(gameNode, startupStatus);
         var mainMenuReady = await EnsureMainMenuAfterStartupAsync(
             game,
             startupStatus,
@@ -21,7 +22,7 @@ internal static partial class LauncherGameStartupRecovery
         );
         return mainMenuReady
             ? true
-            : HandleMainMenuGuardFailure(gameNode, startupStatus);
+            : HandleMainMenuGuardFailure(ui);
     }
 
     internal static void MarkStartupObserved(
@@ -32,8 +33,7 @@ internal static partial class LauncherGameStartupRecovery
     {
         MarkRecoveredStartup(
             recoveryControls,
-            startupStatus,
-            gameNode,
+            RecoveryUi.For(gameNode, startupStatus),
             RecoveryStateUpdate.StartupObserved()
         );
     }

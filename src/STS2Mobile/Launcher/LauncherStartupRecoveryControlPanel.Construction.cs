@@ -5,6 +5,12 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
+    private const string CopyRawErrorLogButton = "COPY RAW ERROR LOG";
+    private const string ExportDiagnosticsButton = "EXPORT STARTUP DIAGNOSTICS";
+    private const string HideControlsButton = "HIDE RECOVERY CONTROLS";
+    private const string RestartSafeLaunchButton = "RESTART WITH SAFE LAUNCH";
+    private const string ReturnToLauncherButton = "RETURN TO LAUNCHER";
+
     private LauncherStartupRecoveryControlPanel()
     {
         Layer = CreateLayer();
@@ -38,26 +44,32 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     }
 
     private static Label CreateTitle()
-    {
-        var title = new Label
-        {
-            Text = "Game is starting.",
-        };
-        title.AddThemeFontSizeOverride(ThemeFontSize, TitleFontSize);
-        title.AddThemeColorOverride(ThemeFontColor, TitleColor);
-        return title;
-    }
+        => CreateLabel(
+            "Game is starting.",
+            TitleFontSize,
+            TitleColor
+        );
 
     private static Label CreateDetail()
     {
-        var detail = new Label
-        {
-            Text = "If this screen does not change, copy the raw error log, export diagnostics, or restart with safe launch. These controls stay visible for several minutes.",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        };
-        detail.AddThemeFontSizeOverride(ThemeFontSize, DetailFontSize);
-        detail.AddThemeColorOverride(ThemeFontColor, DetailColor);
+        var detail = CreateLabel(
+            "If this screen does not change, copy the raw error log, export diagnostics, or restart with safe launch. These controls stay visible for several minutes.",
+            DetailFontSize,
+            DetailColor
+        );
+        detail.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         return detail;
+    }
+
+    private static Label CreateLabel(string text, int fontSize, Color color)
+    {
+        var label = new Label
+        {
+            Text = text,
+        };
+        label.AddThemeFontSizeOverride(ThemeFontSize, fontSize);
+        label.AddThemeColorOverride(ThemeFontColor, color);
+        return label;
     }
 
     private void AddRecoveryActions(VBoxContainer box)
@@ -68,17 +80,26 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private IEnumerable<RecoveryButtonSpec> RecoveryActions()
     {
-        yield return RecoveryButtonSpec.ReturnToLauncher(
+        yield return RecoveryButtonSpec.For(
+            ReturnToLauncherButton,
             AndroidGodotAppBridge.RestartApp
         );
-        yield return RecoveryButtonSpec.RestartWithSafeLaunch(
+        yield return RecoveryButtonSpec.For(
+            RestartSafeLaunchButton,
             RestartWithSafeLaunch
         );
-        yield return RecoveryButtonSpec.ExportStartupDiagnostics(
+        yield return RecoveryButtonSpec.For(
+            ExportDiagnosticsButton,
             ExportDiagnostics
         );
-        yield return RecoveryButtonSpec.CopyRawErrorLog(CopyRawErrorLog);
-        yield return RecoveryButtonSpec.HideRecoveryControls(HideRecoveryControls);
+        yield return RecoveryButtonSpec.For(
+            CopyRawErrorLogButton,
+            CopyRawErrorLog
+        );
+        yield return RecoveryButtonSpec.For(
+            HideControlsButton,
+            HideRecoveryControls
+        );
     }
 
     private void HideRecoveryControls()

@@ -50,19 +50,25 @@ internal static partial class LauncherStartupFlow
         }
 
         private string LocalSavesReasonLog
-            => ManualSafeLaunch
-                ? "Disabling cloud save injection for manual safe launch"
-                : $"Disabling cloud save injection for this launch because previous launch stalled at {_previousIncompletePhase}";
+            => SafeLaunchMessage(
+                "Disabling cloud save injection for manual safe launch",
+                $"Disabling cloud save injection for this launch because previous launch stalled at {_previousIncompletePhase}"
+            );
 
         internal string ShaderWarmupSkipLog
-            => ManualSafeLaunch
-                ? "Skipping shader warmup for manual safe launch"
-                : "Skipping shader warmup because the previous launch stalled there";
+            => SafeLaunchMessage(
+                "Skipping shader warmup for manual safe launch",
+                "Skipping shader warmup because the previous launch stalled there"
+            );
 
         internal string ShaderWarmupSkipStatus
-            => ManualSafeLaunch
-                ? "Skipping shader warmup for safe launch..."
-                : "Skipping shader warmup after previous stall...";
+            => SafeLaunchMessage(
+                "Skipping shader warmup for safe launch...",
+                "Skipping shader warmup after previous stall..."
+            );
+
+        private string SafeLaunchMessage(string manualSafeLaunch, string previousStall)
+            => ManualSafeLaunch ? manualSafeLaunch : previousStall;
 
         private bool IsPreviousPhase(string phase)
             => string.Equals(_previousIncompletePhase, phase, StringComparison.OrdinalIgnoreCase);

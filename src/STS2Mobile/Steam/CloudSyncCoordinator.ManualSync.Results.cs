@@ -1,7 +1,28 @@
+using System;
+
 namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
+    private readonly struct ManualSyncCompletion
+    {
+        private readonly Func<int, int, int, string> _format;
+
+        private ManualSyncCompletion(Func<int, int, int, string> format)
+        {
+            _format = format;
+        }
+
+        internal static ManualSyncCompletion Push { get; } =
+            new((queued, _, _) => PushComplete(queued));
+
+        internal static ManualSyncCompletion Pull { get; } =
+            new((_, downloaded, skipped) => PullComplete(downloaded, skipped));
+
+        internal string Format(int queued, int downloaded, int skipped)
+            => _format(queued, downloaded, skipped);
+    }
+
     private readonly struct ManualSyncPathResult
     {
         private ManualSyncPathResult(
@@ -61,11 +82,8 @@ internal static partial class CloudSyncCoordinator
                 Skipped + result.Skipped
             );
 
-        internal string PushCompleteMessage()
-            => PushComplete(Queued);
-
-        internal string PullCompleteMessage()
-            => PullComplete(Downloaded, Skipped);
+        internal string CompleteMessage(ManualSyncCompletion completion)
+            => completion.Format(Queued, Downloaded, Skipped);
     }
 
     private sealed class ManualSyncResultAccumulator
@@ -81,10 +99,7 @@ internal static partial class CloudSyncCoordinator
             return result.StopAfterBudget;
         }
 
-        internal string PushCompleteMessage()
-            => _totals.PushCompleteMessage();
-
-        internal string PullCompleteMessage()
-            => _totals.PullCompleteMessage();
+        internal string CompleteMessage(ManualSyncCompletion completion)
+            => _totals.CompleteMessage(completion);
     }
 }

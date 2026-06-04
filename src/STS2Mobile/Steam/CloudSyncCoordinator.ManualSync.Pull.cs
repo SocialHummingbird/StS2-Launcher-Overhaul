@@ -6,7 +6,7 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private static async Task<string> RunManualPullDownloadsAsync(
+    private static async Task<ManualSyncResultAccumulator> RunManualPullDownloadsAsync(
         ManualSyncContext sync,
         IReadOnlyCollection<string> paths
     )
@@ -21,7 +21,7 @@ internal static partial class CloudSyncCoordinator
                 break;
         }
 
-        return totals.PullCompleteMessage();
+        return totals;
     }
 
     private static async Task<ManualSyncPathResult> PullManualPathAsync(

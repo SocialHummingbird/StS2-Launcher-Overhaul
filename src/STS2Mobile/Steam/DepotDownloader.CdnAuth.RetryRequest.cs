@@ -29,7 +29,13 @@ internal sealed partial class DepotDownloader
         internal Task<CdnDownloadResult<T>> RetryAsync(string token)
             => _retryAsync(token);
 
-        internal void HandleFailure(DepotDownloader owner, Exception ex)
-            => Attempt.HandleAuthRetryFailure(owner, DepotId, Operation, ex);
+        internal CdnDownloadResult<T> RetryAfterFailure(
+            DepotDownloader owner,
+            Exception ex
+        )
+        {
+            Attempt.HandleAuthRetryFailure(owner, DepotId, Operation, ex);
+            return CdnDownloadResult<T>.Retry();
+        }
     }
 }

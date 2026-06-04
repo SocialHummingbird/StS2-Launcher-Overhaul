@@ -8,8 +8,7 @@ internal static partial class LauncherGameStartupRecovery
 {
     internal static void HandleFailure(Node gameNode, Label startupStatus, Exception ex)
         => LogAndShowFailure(
-            gameNode,
-            startupStatus,
+            RecoveryUi.For(gameNode, startupStatus),
             "Game startup failed",
             ex,
             RecoveryStateUpdate.GameStartupFailed
@@ -21,32 +20,26 @@ internal static partial class LauncherGameStartupRecovery
         Exception ex
     )
         => LogAndShowFailure(
-            gameNode,
-            startupStatus,
+            RecoveryUi.For(gameNode, startupStatus),
             "Settings/save init failed",
             ex,
             RecoveryStateUpdate.SettingsAndSavesFailed
         );
 
-    private static bool HandleMainMenuGuardFailure(Node gameNode, Label startupStatus)
+    private static bool HandleMainMenuGuardFailure(RecoveryUi ui)
     {
-        ShowFailure(
-            gameNode,
-            startupStatus,
-            RecoveryStateUpdate.MainMenuGuardFailed()
-        );
+        ShowFailure(ui, RecoveryStateUpdate.MainMenuGuardFailed());
         return false;
     }
 
     private static void LogAndShowFailure(
-        Node gameNode,
-        Label startupStatus,
+        RecoveryUi ui,
         string logPrefix,
         Exception ex,
         Func<Exception, RecoveryStateUpdate> createUpdate
     )
     {
         PatchHelper.Log($"{logPrefix}: {ex}");
-        ShowFailure(gameNode, startupStatus, createUpdate(ex));
+        ShowFailure(ui, createUpdate(ex));
     }
 }

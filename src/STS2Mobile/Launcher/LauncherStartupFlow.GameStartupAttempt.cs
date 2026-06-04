@@ -18,5 +18,35 @@ internal static partial class LauncherStartupFlow
 
         private Task StartGameStartupAsync()
             => LauncherStartupFlow.StartGameStartupAsync(Game);
+
+        private Task<bool> RecoverIfWatchdogTimedOutAsync(
+            Task startupTask,
+            CanvasLayer recoveryControls
+        )
+            => LauncherTimeout.RecoverIfTimedOutAsync(
+                startupTask,
+                StartupWatchdogMs,
+                () => LauncherGameStartupRecovery.HandleWatchdogAsync(
+                    Game,
+                    GameNode,
+                    Status,
+                    recoveryControls,
+                    StartupWatchdogMs
+                )
+            );
+
+        private Task<bool> EnsureMainMenuReadyAsync()
+            => LauncherGameStartupRecovery.EnsureMainMenuReadyAsync(
+                Game,
+                GameNode,
+                Status
+            );
+
+        private void MarkStartupObserved(CanvasLayer recoveryControls)
+            => LauncherGameStartupRecovery.MarkStartupObserved(
+                recoveryControls,
+                Status,
+                GameNode
+            );
     }
 }

@@ -7,25 +7,47 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherGameStartupRecovery
 {
-    private static void ShowFailure(
-        Node gameNode,
-        Label startupStatus,
-        RecoveryStateUpdate update
-    )
+    private readonly struct RecoveryUi
     {
-        update.Apply(gameNode, startupStatus);
-        LauncherStartupRecoveryControlPanel.Show(gameNode);
+        private RecoveryUi(Node gameNode, Label startupStatus)
+        {
+            GameNode = gameNode;
+            StartupStatus = startupStatus;
+        }
+
+        private Node GameNode { get; }
+        private Label StartupStatus { get; }
+
+        internal static RecoveryUi For(Node gameNode, Label startupStatus)
+            => new(gameNode, startupStatus);
+
+        internal void Apply(RecoveryStateUpdate update)
+            => update.Apply(GameNode, StartupStatus);
+
+        internal void ShowControls()
+            => LauncherStartupRecoveryControlPanel.Show(GameNode);
+
+        internal void ScheduleCleanup(CanvasLayer recoveryControls)
+            => LauncherGameStartupRecovery.ScheduleCleanup(
+                recoveryControls,
+                StartupStatus
+            );
+    }
+
+    private static void ShowFailure(RecoveryUi ui, RecoveryStateUpdate update)
+    {
+        ui.Apply(update);
+        ui.ShowControls();
     }
 
     private static void MarkRecoveredStartup(
         CanvasLayer recoveryControls,
-        Label startupStatus,
-        Node gameNode,
+        RecoveryUi ui,
         RecoveryStateUpdate update
     )
     {
-        update.Apply(gameNode, startupStatus);
-        ScheduleCleanup(recoveryControls, startupStatus);
+        ui.Apply(update);
+        ui.ScheduleCleanup(recoveryControls);
     }
 
     private static void ScheduleCleanup(CanvasLayer recoveryControls, Label startupStatus)

@@ -43,8 +43,7 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Data dir: {dataDir}");
         sb.AppendLine();
 
-        foreach (var file in StartupRecoveryFiles(dataDir))
-            AppendFileContentsSection(sb, file);
+        AppendFileContentsSections(sb, StartupRecoveryFiles(dataDir));
 
         AppendLogcatTail(
             sb,
@@ -55,8 +54,9 @@ internal static partial class LauncherDiagnostics
 
     private static IEnumerable<DiagnosticFile> StartupRecoveryFiles(string dataDir)
     {
-        yield return StartupMarker(dataDir);
-        yield return StartupSceneSnapshot(dataDir);
+        foreach (var file in StartupStateFiles(dataDir))
+            yield return file;
+
         yield return BootstrapTrace();
     }
 }

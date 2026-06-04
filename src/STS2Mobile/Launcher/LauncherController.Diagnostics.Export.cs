@@ -9,7 +9,6 @@ internal sealed partial class LauncherController
     {
         var path = TryWriteDiagnosticsReport(
             "Diagnostics export failed",
-            DiagnosticsExceptionDetail.FullException,
             message => _view.SetStatus($"Diagnostics export failed: {message}")
         );
         if (path == null)

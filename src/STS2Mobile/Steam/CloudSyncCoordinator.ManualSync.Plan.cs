@@ -6,6 +6,20 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
+    private delegate IReadOnlyCollection<string> ManualSyncPathDiscovery(
+        ManualSyncContext sync
+    );
+
+    private delegate Task<int> ManualSyncBackup(
+        ManualSyncContext sync,
+        IEnumerable<string> paths
+    );
+
+    private delegate Task<ManualSyncResultAccumulator> ManualSyncTransfer(
+        ManualSyncContext sync,
+        IReadOnlyCollection<string> paths
+    );
+
     private static readonly ManualSyncPlan ManualPushPlan =
         ManualSyncPlan.Push(RunManualPushUploadsAsync);
 
@@ -14,19 +28,20 @@ internal static partial class CloudSyncCoordinator
 
     private readonly struct ManualSyncPlan
     {
-        private readonly Func<ManualSyncContext, IReadOnlyCollection<string>> _discoverPaths;
+        private readonly ManualSyncPathDiscovery _discoverPaths;
         private readonly Func<int, string> _startingMessage;
-        private readonly Func<ManualSyncContext, IEnumerable<string>, Task<int>> _backupAsync;
+        private readonly ManualSyncBackup _backupAsync;
         private readonly Func<int, string> _backedUpMessage;
-        private readonly Func<ManualSyncContext, IReadOnlyCollection<string>, Task<string>>
-            _transferAsync;
+        private readonly ManualSyncTransfer _transferAsync;
+        private readonly ManualSyncCompletion _completion;
 
         private ManualSyncPlan(
-            Func<ManualSyncContext, IReadOnlyCollection<string>> discoverPaths,
+            ManualSyncPathDiscovery discoverPaths,
             Func<int, string> startingMessage,
-            Func<ManualSyncContext, IEnumerable<string>, Task<int>> backupAsync,
+            ManualSyncBackup backupAsync,
             Func<int, string> backedUpMessage,
-            Func<ManualSyncContext, IReadOnlyCollection<string>, Task<string>> transferAsync
+            ManualSyncTransfer transferAsync,
+            ManualSyncCompletion completion
         )
         {
             _discoverPaths = discoverPaths;
@@ -34,30 +49,27 @@ internal static partial class CloudSyncCoordinator
             _backupAsync = backupAsync;
             _backedUpMessage = backedUpMessage;
             _transferAsync = transferAsync;
+            _completion = completion;
         }
 
-        internal static ManualSyncPlan Push(
-            Func<ManualSyncContext, IReadOnlyCollection<string>, Task<string>>
-                transferAsync
-        )
+        internal static ManualSyncPlan Push(ManualSyncTransfer transferAsync)
             => new(
                 sync => sync.DiscoverLocalPaths(),
                 PushStarting,
                 SaveBackups.CloudBeforeManualPushAsync,
                 PushBackedUpCloudFiles,
-                transferAsync
+                transferAsync,
+                ManualSyncCompletion.Push
             );
 
-        internal static ManualSyncPlan Pull(
-            Func<ManualSyncContext, IReadOnlyCollection<string>, Task<string>>
-                transferAsync
-        )
+        internal static ManualSyncPlan Pull(ManualSyncTransfer transferAsync)
             => new(
                 sync => sync.DiscoverCloudPaths(),
                 PullStarting,
                 SaveBackups.LocalBeforeManualPullAsync,
                 PullBackedUpLocalFiles,
-                transferAsync
+                transferAsync,
+                ManualSyncCompletion.Pull
             );
 
         internal async Task RunAsync(string accountName, string refreshToken)
@@ -70,7 +82,8 @@ internal static partial class CloudSyncCoordinator
             if (backedUp > 0)
                 PatchHelper.Log(_backedUpMessage(backedUp));
 
-            PatchHelper.Log(await _transferAsync(sync, paths));
+            var transferResult = await _transferAsync(sync, paths);
+            PatchHelper.Log(transferResult.CompleteMessage(_completion));
         }
     }
 }

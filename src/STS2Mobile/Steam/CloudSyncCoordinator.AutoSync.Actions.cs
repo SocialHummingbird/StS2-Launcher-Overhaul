@@ -7,10 +7,20 @@ internal static partial class CloudSyncCoordinator
 {
     private readonly partial struct AutoSyncContext
     {
+        private enum LocalProgressBackup
+        {
+            None,
+            BeforeOverwrite,
+        }
+
         private async Task PullCloudOnlyFileAsync()
         {
             string cloud = await ReadCloudContentAsync(PullCloudFileOperation);
-            await PullCloudOnlyContentAsync(cloud, PullDownloaded);
+            await PullCloudContentAsync(
+                cloud,
+                PullDownloaded,
+                LocalProgressBackup.None
+            );
         }
 
         private void PushLocalOnlyFile(string localContent)
@@ -18,22 +28,28 @@ internal static partial class CloudSyncCoordinator
             PushLocalContent(localContent, cloudContent: null, PushUploaded);
         }
 
-        private async Task PullCloudOnlyContentAsync(
-            string content,
-            Func<string, string> message
-        )
-        {
-            Log(message);
-            await WriteLocalContentFromCloudAsync(content);
-        }
-
         internal async Task PullCloudOverLocalAsync(
             string content,
             Func<string, string> message
         )
         {
+            await PullCloudContentAsync(
+                content,
+                message,
+                LocalProgressBackup.BeforeOverwrite
+            );
+        }
+
+        private async Task PullCloudContentAsync(
+            string content,
+            Func<string, string> message,
+            LocalProgressBackup backup
+        )
+        {
             Log(message);
-            BackUpLocalProgress();
+            if (backup == LocalProgressBackup.BeforeOverwrite)
+                BackUpLocalProgress();
+
             await WriteLocalContentFromCloudAsync(content);
         }
 

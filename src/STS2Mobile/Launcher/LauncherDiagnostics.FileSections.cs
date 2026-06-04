@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace STS2Mobile.Launcher;
@@ -32,6 +33,25 @@ internal static partial class LauncherDiagnostics
                 sb.AppendLine();
             }
         );
+    }
+
+    private static void AppendFileContentsSections(
+        StringBuilder sb,
+        IEnumerable<DiagnosticFile> files
+    )
+    {
+        foreach (var file in files)
+            AppendFileContentsSection(sb, file);
+    }
+
+    private static void AppendFileSummaries(
+        StringBuilder sb,
+        IEnumerable<DiagnosticFile> files,
+        long inlineContentLimit
+    )
+    {
+        foreach (var file in files)
+            AppendFileSummary(sb, file, inlineContentLimit);
     }
 
     private static void AppendInspectedFile(

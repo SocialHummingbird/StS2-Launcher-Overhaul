@@ -43,12 +43,15 @@ internal sealed partial class DepotDownloader
         )
             => _downloadWithAuthAsync(attempt);
 
-        internal void HandleRetryFailure(
+        internal CdnDownloadResult<T> RetryAfterFailure(
             DepotDownloader owner,
             CdnServerAttempt attempt,
             Exception ex
         )
-            => attempt.HandleDownloadRetryFailure(owner, Name, ex);
+        {
+            attempt.HandleDownloadRetryFailure(owner, Name, ex);
+            return CdnDownloadResult<T>.Retry();
+        }
 
         internal Exception CreateFailure()
             => _createFailure();
