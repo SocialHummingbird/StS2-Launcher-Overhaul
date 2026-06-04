@@ -15,25 +15,25 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         => ShowActionResult(
             "diagnostics export",
             "Diagnostics export failed",
-            session => session.ExportDiagnostics()
+            ExportDiagnosticsReport
         );
 
     private void CopyRawErrorLog()
         => ShowActionResult(
             "raw error log copy",
             "Raw error log copy failed",
-            session => session.CopyRawErrorLog()
+            CopyRawErrorLogReport
         );
 
     private void ShowActionResult(
         string logAction,
         string failureTitle,
-        Func<StartupRecoveryReportSession, string> run
+        Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> run
     )
     {
         try
         {
-            _detail.Text = run(StartupRecoveryReportSession.Capture());
+            _detail.Text = run(CaptureStartupRecoveryReport());
         }
         catch (Exception ex)
         {

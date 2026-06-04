@@ -13,66 +13,6 @@ internal sealed partial class SteamAuth
     private const int AndroidConnectTimeoutMs = 30_000;
     private const int ConnectPollDelayMs = 100;
 
-    private readonly struct ConnectRetryPlan
-    {
-        private ConnectRetryPlan(
-            Action beginAttempt,
-            string startFailureMessage,
-            string retryMessage,
-            int retryCount,
-            int retryDelayMs
-        )
-        {
-            BeginAttempt = beginAttempt;
-            StartFailureMessage = startFailureMessage;
-            RetryMessage = retryMessage;
-            RetryCount = retryCount;
-            RetryDelayMs = retryDelayMs;
-        }
-
-        private Action BeginAttempt { get; }
-        private string StartFailureMessage { get; }
-        private string RetryMessage { get; }
-        private int RetryCount { get; }
-        private int RetryDelayMs { get; }
-
-        internal void Begin()
-            => BeginAttempt();
-
-        internal void LogStartFailure(SteamAuth auth, Exception ex)
-            => auth.Log($"{StartFailureMessage}: {ex.Message}");
-
-        internal void LogRetry(SteamAuth auth)
-            => auth.Log(RetryMessage);
-
-        internal bool HasRetryAfter(int attempt)
-            => attempt < RetryCount;
-
-        internal bool IncludesAttempt(int attempt)
-            => attempt <= RetryCount;
-
-        internal Task WaitBeforeRetryAsync()
-            => Task.Delay(RetryDelayMs);
-
-        internal static ConnectRetryPlan Initial(SteamAuth auth)
-            => new(
-                auth.Connect,
-                "Steam connection failed to start before auth",
-                "Steam connection did not complete before auth; retrying...",
-                CurrentConnectRetryCount,
-                CurrentConnectRetryDelayMs
-            );
-
-        internal static ConnectRetryPlan AuthReconnect(SteamAuth auth)
-            => new(
-                () => auth.BeginConnect("Reconnecting for auth code submission..."),
-                "Steam auth reconnect failed to start",
-                "Steam auth reconnect did not complete; retrying...",
-                CurrentConnectRetryCount,
-                CurrentConnectRetryDelayMs
-            );
-    }
-
     internal void Connect()
     {
         if (_disposed || _connectedGate.IsSet || _connectStarted)
@@ -97,7 +37,11 @@ internal sealed partial class SteamAuth
     }
 
     private Task<bool> ConnectWithRetriesAsync()
-        => TryConnectWithRetriesAsync(ConnectRetryPlan.Initial(this));
+        => TryConnectWithRetriesAsync(
+            Connect,
+            "Steam connection failed to start before auth",
+            "Steam connection did not complete before auth; retrying..."
+        );
 
     private async Task ReconnectForAuthAsync()
     {
@@ -114,33 +58,42 @@ internal sealed partial class SteamAuth
     {
         _needsReconnectForAuth = false;
 
-        var connected = await TryConnectWithRetriesAsync(ConnectRetryPlan.AuthReconnect(this));
+        var connected = await TryConnectWithRetriesAsync(
+            () => BeginConnect("Reconnecting for auth code submission..."),
+            "Steam auth reconnect failed to start",
+            "Steam auth reconnect did not complete; retrying..."
+        );
         _needsReconnectForAuth = !connected;
         return connected;
     }
 
-    private async Task<bool> TryConnectWithRetriesAsync(ConnectRetryPlan plan)
+    private async Task<bool> TryConnectWithRetriesAsync(
+        Action beginAttempt,
+        string startFailureMessage,
+        string retryMessage
+    )
     {
-        for (int attempt = 1; plan.IncludesAttempt(attempt); attempt++)
+        var retryCount = CurrentConnectRetryCount;
+        for (int attempt = 1; attempt <= retryCount; attempt++)
         {
             try
             {
-                plan.Begin();
+                beginAttempt();
             }
             catch (Exception ex)
             {
-                plan.LogStartFailure(this, ex);
+                Log($"{startFailureMessage}: {ex.Message}");
                 ResetConnectAttemptAfterFailure();
             }
 
             if (await WaitForConnectAsync())
                 return true;
 
-            if (plan.HasRetryAfter(attempt))
+            if (attempt < retryCount)
             {
                 ResetConnectAttemptAfterFailure();
-                plan.LogRetry(this);
-                await plan.WaitBeforeRetryAsync();
+                Log(retryMessage);
+                await Task.Delay(CurrentConnectRetryDelayMs);
             }
         }
 

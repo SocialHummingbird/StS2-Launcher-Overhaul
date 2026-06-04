@@ -52,52 +52,6 @@ internal sealed partial class SteamConnection
             => new(AppAccessTokenState.Public, 0);
     }
 
-    private readonly struct AppAccessTokenRequest
-    {
-        internal AppAccessTokenRequest(uint appId)
-        {
-            AppId = appId;
-        }
-
-        private uint AppId { get; }
-
-        internal async Task<AppAccessTokenResult> GetAsync(SteamConnection owner)
-        {
-            var appId = AppId;
-            var cachedToken = CachedToken(owner);
-            if (cachedToken.HasValue)
-                return AppAccessTokenResult.FoundToken(cachedToken.Value);
-
-            var tokenResult = await owner.RunConnectedAsync(
-                async () => await owner._steamApps.PICSGetAccessTokens(
-                    new[] { appId },
-                    Array.Empty<uint>()
-                )
-            ).ConfigureAwait(false);
-
-            if (tokenResult.AppTokens?.TryGetValue(appId, out var token) == true)
-                return Remember(owner, token);
-
-            return tokenResult.AppTokensDenied?.Contains(appId) == true
-                ? AppAccessTokenResult.DeniedToken()
-                : AppAccessTokenResult.PublicToken();
-        }
-
-        private ulong? CachedToken(SteamConnection owner)
-            => IsMainApp() && owner._appAccessToken != 0 ? owner._appAccessToken : null;
-
-        private AppAccessTokenResult Remember(SteamConnection owner, ulong token)
-        {
-            if (IsMainApp())
-                owner._appAccessToken = token;
-
-            return AppAccessTokenResult.FoundToken(token);
-        }
-
-        private bool IsMainApp()
-            => AppId == SteamCloudApp.AppId;
-    }
-
     internal async Task<bool> HasAppAccessTokenAsync(uint appId)
         => (await GetAppAccessTokenAsync(appId)).HasToken();
 
@@ -108,7 +62,37 @@ internal sealed partial class SteamConnection
         => (await GetAppAccessTokenAsync(appId)).TokenOrPublic(deniedMessage);
 
     private async Task<AppAccessTokenResult> GetAppAccessTokenAsync(uint appId)
-        => await new AppAccessTokenRequest(appId)
-            .GetAsync(this)
-            .ConfigureAwait(false);
+    {
+        var cachedToken = CachedAppAccessToken(appId);
+        if (cachedToken.HasValue)
+            return AppAccessTokenResult.FoundToken(cachedToken.Value);
+
+        var tokenResult = await RunConnectedAsync(
+            async () => await _steamApps.PICSGetAccessTokens(
+                new[] { appId },
+                Array.Empty<uint>()
+            )
+        ).ConfigureAwait(false);
+
+        if (tokenResult.AppTokens?.TryGetValue(appId, out var token) == true)
+            return RememberAppAccessToken(appId, token);
+
+        return tokenResult.AppTokensDenied?.Contains(appId) == true
+            ? AppAccessTokenResult.DeniedToken()
+            : AppAccessTokenResult.PublicToken();
+    }
+
+    private ulong? CachedAppAccessToken(uint appId)
+        => IsMainApp(appId) && _appAccessToken != 0 ? _appAccessToken : null;
+
+    private AppAccessTokenResult RememberAppAccessToken(uint appId, ulong token)
+    {
+        if (IsMainApp(appId))
+            _appAccessToken = token;
+
+        return AppAccessTokenResult.FoundToken(token);
+    }
+
+    private static bool IsMainApp(uint appId)
+        => appId == SteamCloudApp.AppId;
 }

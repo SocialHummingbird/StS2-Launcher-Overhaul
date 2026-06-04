@@ -15,16 +15,18 @@ internal static partial class LauncherDiagnostics
         private string DataDir { get; }
 
         internal string Write()
-            => CreateTimestampedReport().Write();
+            => WriteTimestampedReport(
+                "sts2-startup-recovery-diagnostics",
+                DataDir,
+                BuildText()
+            );
 
         internal string BuildText()
-            => CreateTimestampedReport().BuildText();
-
-        private TimestampedReport CreateTimestampedReport()
         {
             var dataDir = DataDir;
-            return TimestampedReport.StartupRecovery(
-                dataDir,
+            return BuildTimestampedText(
+                "STS2 startup recovery diagnostics",
+                "Generated UTC",
                 sb => AppendStartupRecoveryDiagnostics(sb, dataDir)
             );
         }

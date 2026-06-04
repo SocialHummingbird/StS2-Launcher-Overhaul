@@ -10,23 +10,29 @@ internal static partial class CloudSyncCoordinator
     {
         private const string ManualPushBackupReadOperation = "ManualPush backup read";
 
-        private static readonly ManualBackupPlan CloudBeforeManualPushPlan =
-            ManualBackupPlan.CloudBeforeManualPush(ReadCloudPrePushContentAsync);
-
-        private static readonly ManualBackupPlan LocalBeforeManualPullPlan =
-            ManualBackupPlan.LocalBeforeManualPull(ReadLocalPrePullContentAsync);
-
         internal static Task<int> CloudBeforeManualPushAsync(
             ManualSyncContext sync,
             IEnumerable<string> paths
         )
-            => RunManualBackupsAsync(sync, paths, CloudBeforeManualPushPlan);
+            => RunManualBackupsAsync(
+                sync,
+                paths,
+                BackupSource.CloudPrePush,
+                ReadCloudPrePushContentAsync,
+                LogPushCloudBackupFailure
+            );
 
         internal static Task<int> LocalBeforeManualPullAsync(
             ManualSyncContext sync,
             IEnumerable<string> paths
         )
-            => RunManualBackupsAsync(sync, paths, LocalBeforeManualPullPlan);
+            => RunManualBackupsAsync(
+                sync,
+                paths,
+                BackupSource.LocalPrePull,
+                ReadLocalPrePullContentAsync,
+                LogPullLocalBackupFailure
+            );
 
         private static async ValueTask<string?> ReadCloudPrePushContentAsync(
             ManualSyncContext sync,

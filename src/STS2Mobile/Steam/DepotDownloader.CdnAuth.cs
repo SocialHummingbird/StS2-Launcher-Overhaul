@@ -8,6 +8,10 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private const string CdnChunkAuthRetryOperation = "Chunk";
+    private const string CdnChunkDownloadOperation = "Chunk download";
+    private const string CdnManifestAuthRetryOperation = "Manifest";
+    private const string CdnManifestDownloadOperation = "Manifest download";
     private static readonly TimeSpan CdnAuthTokenTtl = TimeSpan.FromMinutes(20);
 
     private readonly ExpiringCache<CdnAuthTokenKey, string?> _cdnAuthTokens = new();
@@ -57,23 +61,27 @@ internal sealed partial class DepotDownloader
     }
 
     private async Task<CdnDownloadResult<T>> RunCdnAuthRetryAsync<T>(
-        CdnAuthRetryRequest<T> request
+        uint depotId,
+        CdnServerAttempt attempt,
+        string operation,
+        Func<string, Task<CdnDownloadResult<T>>> retryAsync
     )
     {
-        var token = await request.Attempt.GetAuthTokenForRetryAsync(
+        var token = await attempt.GetAuthTokenForRetryAsync(
             this,
-            request.DepotId
+            depotId
         );
         if (token == null)
             return CdnDownloadResult<T>.Retry();
 
         try
         {
-            return await request.RetryAsync(token);
+            return await retryAsync(token);
         }
-        catch (Exception ex) when (request.Attempt.CanRetry())
+        catch (Exception ex) when (attempt.CanRetry())
         {
-            return request.RetryAfterFailure(this, ex);
+            attempt.HandleAuthRetryFailure(this, depotId, operation, ex);
+            return CdnDownloadResult<T>.Retry();
         }
     }
 

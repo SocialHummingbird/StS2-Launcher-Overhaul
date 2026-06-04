@@ -11,23 +11,41 @@ internal sealed partial class DepotDownloader
         ulong
     > _manifestRequestCodes = new();
 
-    private Task<ulong> GetManifestRequestCodeAsync(uint depotId, ulong manifestId)
-        => GetManifestRequestCodeAsync(
-            new ManifestRequestCodeRequest(depotId, manifestId, PublicDepotBranch)
-        );
-
     private async Task<ulong> GetManifestRequestCodeAsync(
-        ManifestRequestCodeRequest request
+        uint depotId,
+        ulong manifestId
     )
     {
+        var branch = PublicDepotBranch;
         var code = await _manifestRequestCodes.GetOrAddAsync(
-            request.Key(),
+            new ManifestRequestKey(depotId, manifestId, branch),
             ManifestRequestCodeTtl,
-            () => request.FetchAsync(_connection),
+            () => _connection.GetManifestRequestCodeAsync(
+                depotId,
+                manifestId,
+                branch
+            ),
             code => code != 0
         );
 
-        request.ThrowIfDenied(code);
+        ThrowIfManifestRequestCodeDenied(code, depotId, manifestId, branch);
         return code;
+    }
+
+    private static void ThrowIfManifestRequestCodeDenied(
+        ulong code,
+        uint depotId,
+        ulong manifestId,
+        string branch
+    )
+    {
+        if (code != 0)
+            return;
+
+        throw new Exception(
+            $"Failed to get manifest request code for depot {depotId}, "
+                + $"manifest {manifestId}, branch '{branch}'. "
+                + "Ensure the account owns this app."
+        );
     }
 }

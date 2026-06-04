@@ -57,8 +57,26 @@ internal sealed partial class SteamKit2CloudSaveStore
         => WriteFileCore(path, Encoding.UTF8.GetBytes(content));
 
     private void WriteFileCore(string path, byte[] bytes)
-        => CloudFileWriteRequest.From(path, bytes).Apply(this);
+    {
+        var canonPath = CloudSavePath.Canonicalize(path);
+        var timestamp = TruncatedUtcNow();
+        _cache.Set(canonPath, bytes.Length, timestamp);
+
+        if (_saveBatch.TryCollect(canonPath, bytes))
+            return;
+
+        EnqueueUpload(canonPath, bytes, timestamp);
+    }
 
     private void DeleteFileCore(string path)
-        => CloudFileDeleteRequest.From(path).Apply(this);
+    {
+        var canonPath = CloudSavePath.Canonicalize(path);
+        _cache.Remove(canonPath);
+        EnqueueDelete(canonPath);
+    }
+
+    private static DateTimeOffset TruncatedUtcNow()
+        => DateTimeOffset.FromUnixTimeSeconds(
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+        );
 }

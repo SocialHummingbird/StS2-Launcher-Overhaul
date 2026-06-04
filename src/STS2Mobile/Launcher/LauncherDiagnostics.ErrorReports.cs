@@ -7,25 +7,44 @@ internal static partial class LauncherDiagnostics
 {
     internal sealed partial class Snapshot
     {
-        private static readonly ErrorReportPlan SummaryErrorReport =
-            ErrorReportPlan.Summary(AppendSummaryErrorDiagnostics);
-
-        private static readonly ErrorReportPlan RawErrorReport =
-            ErrorReportPlan.Raw(AppendRawErrorDiagnostics);
+        private const string ErrorReportGeneratedAtLabel = "UTC";
+        private const string PreviousLaunchPhaseLabel = "Previous launch phase";
 
         internal string BuildDiagnosticsSummary()
-            => SummaryErrorReport.BuildText(this);
+            => BuildErrorReport(
+                "=== LAST ERROR SUMMARY ===",
+                LauncherStateDetail.Compact,
+                AppendSummaryErrorDiagnostics,
+                "=== END LAST ERROR SUMMARY ==="
+            );
 
         internal string BuildRawErrorLog()
-            => RawErrorReport.BuildText(this);
+            => BuildErrorReport(
+                "=== RAW ERROR LOG ===",
+                LauncherStateDetail.Detailed,
+                AppendRawErrorDiagnostics,
+                "=== END RAW ERROR LOG ==="
+            );
 
         private void AppendLauncherState(StringBuilder sb, LauncherStateDetail detail)
             => _state.AppendTo(sb, detail);
 
-        private void AppendErrorDiagnostics(
-            StringBuilder sb,
-            Action<StringBuilder, string> appendDiagnostics
+        private string BuildErrorReport(
+            string title,
+            LauncherStateDetail detail,
+            Action<StringBuilder, string> appendDiagnostics,
+            string footer
         )
-            => appendDiagnostics(sb, _state.DataDir);
+            => BuildTimestampedText(
+                title,
+                ErrorReportGeneratedAtLabel,
+                sb =>
+                {
+                    AppendLauncherState(sb, detail);
+                    AppendPreviousLaunchPhase(sb, PreviousLaunchPhaseLabel);
+                    appendDiagnostics(sb, _state.DataDir);
+                    sb.AppendLine(footer);
+                }
+            );
     }
 }

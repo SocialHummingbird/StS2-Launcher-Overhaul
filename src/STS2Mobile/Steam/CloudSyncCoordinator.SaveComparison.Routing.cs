@@ -13,30 +13,6 @@ internal static partial class CloudSyncCoordinator
             CurrentRun,
         }
 
-        private readonly struct SaveComparisonPlan
-        {
-            private readonly Func<string, string, SaveWinner> _compare;
-
-            private SaveComparisonPlan(Func<string, string, SaveWinner> compare)
-            {
-                _compare = compare;
-            }
-
-            internal static SaveComparisonPlan ForPath(string path)
-                => GetSaveKind(path) switch
-                {
-                    SaveKind.Progress => new(CompareProgress),
-                    SaveKind.CurrentRun => new(CompareCurrentRun),
-                    _ => new(NoExplicitWinner),
-                };
-
-            internal SaveWinner Compare(string localContent, string cloudContent)
-                => _compare(localContent, cloudContent);
-
-            private static SaveWinner NoExplicitWinner(string _, string __)
-                => SaveWinner.None;
-        }
-
         internal static SaveWinner GetExplicitWinner(
             string path,
             string localContent,
@@ -52,9 +28,11 @@ internal static partial class CloudSyncCoordinator
         {
             try
             {
-                return SaveComparisonPlan
-                    .ForPath(path)
-                    .Compare(localContent, cloudContent);
+                return CompareByKind(
+                    GetSaveKind(path),
+                    localContent,
+                    cloudContent
+                );
             }
             catch (Exception ex)
             {
@@ -62,6 +40,18 @@ internal static partial class CloudSyncCoordinator
                 return SaveWinner.None;
             }
         }
+
+        private static SaveWinner CompareByKind(
+            SaveKind kind,
+            string localContent,
+            string cloudContent
+        )
+            => kind switch
+            {
+                SaveKind.Progress => CompareProgress(localContent, cloudContent),
+                SaveKind.CurrentRun => CompareCurrentRun(localContent, cloudContent),
+                _ => SaveWinner.None,
+            };
 
         private static SaveKind GetSaveKind(string path)
         {

@@ -7,35 +7,25 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private readonly struct StartupRecoveryReportSession
+    private static StartupRecoveryReport CaptureStartupRecoveryReport()
+        => LauncherDiagnostics.StartupRecoveryReport(OS.GetDataDir());
+
+    private static string ExportDiagnosticsReport(StartupRecoveryReport report)
     {
-        private StartupRecoveryReportSession(StartupRecoveryReport report)
-        {
-            Report = report;
-        }
+        var path = report.Write();
+        PatchHelper.Log($"Startup recovery diagnostics written: {path}");
+        var shared = AndroidGodotAppBridge.ShareTextFile(path);
+        return ExportDiagnosticsMessage(path, shared);
+    }
 
-        private StartupRecoveryReport Report { get; }
-
-        internal static StartupRecoveryReportSession Capture()
-            => new(LauncherDiagnostics.StartupRecoveryReport(OS.GetDataDir()));
-
-        internal string ExportDiagnostics()
-        {
-            var path = Report.Write();
-            PatchHelper.Log($"Startup recovery diagnostics written: {path}");
-            var shared = AndroidGodotAppBridge.ShareTextFile(path);
-            return ExportDiagnosticsMessage(path, shared);
-        }
-
-        internal string CopyRawErrorLog()
-        {
-            var text = Report.BuildText();
-            DisplayServer.ClipboardSet(text);
-            PatchHelper.Log(
-                $"Startup recovery raw error log copied ({text.Length:N0} chars)"
-            );
-            return RawErrorLogCopiedMessage(text.Length);
-        }
+    private static string CopyRawErrorLogReport(StartupRecoveryReport report)
+    {
+        var text = report.BuildText();
+        DisplayServer.ClipboardSet(text);
+        PatchHelper.Log(
+            $"Startup recovery raw error log copied ({text.Length:N0} chars)"
+        );
+        return RawErrorLogCopiedMessage(text.Length);
     }
 
     private static string ExportDiagnosticsMessage(string path, bool shared)

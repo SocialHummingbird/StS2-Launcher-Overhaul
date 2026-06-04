@@ -72,7 +72,7 @@ internal sealed partial class DepotDownloader
         internal void HandleAuthRetryFailure(
             DepotDownloader owner,
             uint depotId,
-            CdnOperationName operation,
+            string operation,
             Exception ex
         )
         {
@@ -85,7 +85,7 @@ internal sealed partial class DepotDownloader
 
         internal void HandleDownloadRetryFailure(
             DepotDownloader owner,
-            CdnOperationName operation,
+            string operation,
             Exception ex
         )
         {

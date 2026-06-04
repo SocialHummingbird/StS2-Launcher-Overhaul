@@ -9,8 +9,26 @@ internal static partial class CloudSyncCoordinator
     private const string ManualPullDownloadOperation = "ManualPull download";
 
     internal static Task ManualPushAllAsync(string accountName, string refreshToken)
-        => ManualPushPlan.RunAsync(accountName, refreshToken);
+        => RunManualSyncAsync(
+            accountName,
+            refreshToken,
+            sync => sync.DiscoverLocalPaths(),
+            PushStarting,
+            SaveBackups.CloudBeforeManualPushAsync,
+            PushBackedUpCloudFiles,
+            RunManualPushUploadsAsync,
+            (queued, _, _) => PushComplete(queued)
+        );
 
     internal static Task ManualPullAllAsync(string accountName, string refreshToken)
-        => ManualPullPlan.RunAsync(accountName, refreshToken);
+        => RunManualSyncAsync(
+            accountName,
+            refreshToken,
+            sync => sync.DiscoverCloudPaths(),
+            PullStarting,
+            SaveBackups.LocalBeforeManualPullAsync,
+            PullBackedUpLocalFiles,
+            RunManualPullDownloadsAsync,
+            (_, downloaded, skipped) => PullComplete(downloaded, skipped)
+        );
 }

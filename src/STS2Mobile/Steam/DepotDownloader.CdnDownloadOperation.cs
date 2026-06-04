@@ -13,7 +13,7 @@ internal sealed partial class DepotDownloader
         private readonly Func<Exception> _createFailure;
 
         private CdnDownloadOperation(
-            CdnOperationName name,
+            string name,
             Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadAsync,
             Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadWithAuthAsync,
             Func<Exception> createFailure
@@ -25,10 +25,10 @@ internal sealed partial class DepotDownloader
             _createFailure = createFailure;
         }
 
-        private CdnOperationName Name { get; }
+        private string Name { get; }
 
         internal static CdnDownloadOperation<T> AcrossServersWithAuthRetry(
-            CdnOperationName name,
+            string name,
             Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadAsync,
             Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadWithAuthAsync,
             Func<Exception> createFailure

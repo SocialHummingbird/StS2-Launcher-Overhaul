@@ -7,15 +7,21 @@ internal sealed partial class LauncherController
     private bool _automaticDiagnosticsWritten;
 
     private void ShowLastErrorPressed()
-        => RunDiagnosticsAction(DiagnosticsAction.LastErrorSummary);
+        => RunDiagnosticsAction(
+            "Error summary failed",
+            () => ShowDiagnosticsSummary(
+                _view,
+                _model.BuildDiagnosticsSummaryForDisplay()
+            )
+        );
 
     private void CopyRawLogPressed()
-        => RunDiagnosticsAction(DiagnosticsAction.RawErrorLog);
-
-    private void RunDiagnosticsAction(DiagnosticsAction action)
         => RunDiagnosticsAction(
-            action.FailureContext,
-            () => action.Run(_model, _view)
+            "Raw error log copy failed",
+            () => CopyRawLogToClipboard(
+                _view,
+                _model.BuildRawErrorLogForClipboard()
+            )
         );
 
     private static void ShowDiagnosticsSummary(LauncherView view, string summary)
