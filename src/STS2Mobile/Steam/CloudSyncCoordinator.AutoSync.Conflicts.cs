@@ -47,7 +47,7 @@ internal static partial class CloudSyncCoordinator
             return Task.CompletedTask;
         }
 
-        var message = winner == SaveComparison.SaveWinner.Cloud
+        Func<string, string> message = winner == SaveComparison.SaveWinner.Cloud
             ? SyncCloudWins
             : SyncContentsDifferCloudWins;
         return sync.PullCloudOverLocalAsync(cloudContent, message);
