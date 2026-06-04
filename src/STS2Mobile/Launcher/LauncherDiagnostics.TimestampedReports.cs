@@ -1,14 +1,10 @@
 using System;
-using System.IO;
 using System.Text;
-using STS2Mobile;
 
 namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherDiagnostics
 {
-    private const string DiagnosticsDirectory = "diagnostics";
-
     private readonly struct TimestampedReport
     {
         private readonly string _fileNamePrefix;
@@ -60,18 +56,9 @@ internal static partial class LauncherDiagnostics
             => BuildTimestampedText(_title, _generatedAtLabel, _appendBody);
 
         internal string Write()
-        {
-            var fileName = $"{_fileNamePrefix}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.txt";
-            var targetPath = TryGetExternalDiagnosticsPath(fileName)
-                ?? Path.Combine(_fallbackDirectory, fileName);
-
-            var parent = Path.GetDirectoryName(targetPath);
-            if (!string.IsNullOrWhiteSpace(parent))
-                Directory.CreateDirectory(parent);
-
-            File.WriteAllText(targetPath, BuildText());
-            return targetPath;
-        }
+            => TimestampedReportTarget
+                .For(_fileNamePrefix, _fallbackDirectory)
+                .Write(BuildText());
     }
 
     private static string BuildTimestampedText(
@@ -85,23 +72,5 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"{generatedAtLabel}: {DateTime.UtcNow:O}");
         appendBody(sb);
         return sb.ToString();
-    }
-
-    private static string TryGetExternalDiagnosticsPath(string fileName)
-    {
-        try
-        {
-            var externalDir = AndroidGodotAppBridge.GetExternalFilesDirPath();
-            if (string.IsNullOrWhiteSpace(externalDir))
-                return null;
-
-            var diagnosticsDir = Path.Combine(externalDir, DiagnosticsDirectory);
-            Directory.CreateDirectory(diagnosticsDir);
-            return Path.Combine(diagnosticsDir, fileName);
-        }
-        catch
-        {
-            return null;
-        }
     }
 }

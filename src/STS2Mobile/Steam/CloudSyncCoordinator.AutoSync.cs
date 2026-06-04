@@ -65,54 +65,6 @@ internal static partial class CloudSyncCoordinator
         internal void LogSyncFailed(Exception ex)
             => PatchHelper.Log(SyncFailed(Path, ex));
 
-        private async Task PullCloudOnlyFileAsync()
-        {
-            string cloud = await ReadCloudContentAsync(PullCloudFileOperation);
-            await PullCloudOnlyContentAsync(cloud, PullDownloaded);
-        }
-
-        private void PushLocalOnlyFile(string localContent)
-        {
-            PushLocalContent(localContent, cloudContent: null, PushUploaded);
-        }
-
-        private async Task PullCloudOnlyContentAsync(
-            string content,
-            Func<string, string> message
-        )
-        {
-            Log(message);
-            await WriteLocalContentFromCloudAsync(content);
-        }
-
-        internal async Task PullCloudOverLocalAsync(
-            string content,
-            Func<string, string> message
-        )
-        {
-            Log(message);
-            BackUpLocalProgress();
-            await WriteLocalContentFromCloudAsync(content);
-        }
-
-        internal void PushLocalContent(
-            string localContent,
-            string? cloudContent,
-            Func<string, string> message
-        )
-        {
-            Log(message);
-            if (cloudContent != null)
-                BackUpCloudProgress(cloudContent);
-            WriteCloudFile(localContent);
-        }
-
-        private void BackUpLocalProgress()
-            => SaveBackups.LocalProgressFile(_local, Path);
-
-        private void BackUpCloudProgress(string content)
-            => SaveBackups.CloudProgressContent(Path, content);
-
         private bool LocalFileExists()
             => _local.FileExists(Path);
 
