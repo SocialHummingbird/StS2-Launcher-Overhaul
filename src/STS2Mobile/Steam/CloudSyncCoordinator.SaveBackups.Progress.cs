@@ -8,8 +8,8 @@ internal static partial class CloudSyncCoordinator
     {
         private static void ProgressContent(string path, string content, string source)
         {
-            var canonLowerPath = NormalizeSavePath(path).ToLowerInvariant();
-            if (!IsProgressSavePath(canonLowerPath))
+            var canonLowerPath = NormalizeSavePathLower(path);
+            if (!CloudSavePath.IsProgressSave(path))
                 return;
 
             SaveBackup(new BackupWriteRequest(
@@ -34,10 +34,6 @@ internal static partial class CloudSyncCoordinator
         }
 
         private static bool IsProgressSave(string path)
-            => IsProgressSavePath(NormalizeSavePath(path).ToLowerInvariant());
-
-        private static bool IsProgressSavePath(string canonLowerPath)
-            => canonLowerPath.Contains("progress")
-                && canonLowerPath.EndsWith(".save");
+            => CloudSavePath.IsProgressSave(path);
     }
 }

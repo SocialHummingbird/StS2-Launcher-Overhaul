@@ -49,6 +49,6 @@ internal sealed partial class SteamKit2CloudSaveStore
         }
 
         private static string FilesEnumerated(int count) =>
-            $"[Cloud] Enumerated {count} cloud files";
+            CloudFileCacheMessage($"Enumerated {count} cloud files");
     }
 }

@@ -12,6 +12,9 @@ internal static partial class CloudSyncCoordinator
             return CloudSavePath.Canonicalize(path);
         }
 
+        private static string NormalizeSavePathLower(string path)
+            => CloudSavePath.CanonicalizeLower(path);
+
         private static string GetProfileDir(string canonPath)
         {
             var parts = canonPath.Split('/');

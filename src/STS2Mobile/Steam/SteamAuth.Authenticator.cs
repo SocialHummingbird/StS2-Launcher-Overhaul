@@ -7,6 +7,10 @@ namespace STS2Mobile.Steam;
 internal sealed partial class SteamAuth
 {
     private const int AuthReconnectPollDelayMs = 250;
+    private const string AuthCodeReconnectRetryMessage =
+        "Steam auth reconnect did not complete yet; will retry while waiting for code";
+    private const string AuthPollingReconnectRetryMessage =
+        "Steam auth reconnect did not complete yet; will retry while polling auth result";
 
     private enum AuthCodeAttempt
     {
@@ -16,7 +20,7 @@ internal sealed partial class SteamAuth
 
     private readonly struct AuthCodePrompt
     {
-        internal AuthCodePrompt(
+        private AuthCodePrompt(
             AuthCodeAttempt attempt,
             string retryMessage,
             string initialMessage
@@ -43,11 +47,28 @@ internal sealed partial class SteamAuth
             => previousCodeWasIncorrect
                 ? AuthCodeAttempt.RetryAfterIncorrectCode
                 : AuthCodeAttempt.Initial;
+
+        internal static AuthCodePrompt DeviceCode(bool previousCodeWasIncorrect)
+            => new(
+                FromSteamRetry(previousCodeWasIncorrect),
+                "Previous 2FA code was incorrect, requesting new code",
+                "Steam Guard 2FA code required"
+            );
+
+        internal static AuthCodePrompt EmailCode(
+            string email,
+            bool previousCodeWasIncorrect
+        )
+            => new(
+                FromSteamRetry(previousCodeWasIncorrect),
+                "Previous email code was incorrect, requesting new code",
+                $"Steam Guard email code sent to {email}"
+            );
     }
 
     private readonly struct AuthReconnectMonitor
     {
-        internal AuthReconnectMonitor(Func<bool> shouldReconnect, string retryMessage)
+        private AuthReconnectMonitor(Func<bool> shouldReconnect, string retryMessage)
         {
             ShouldReconnect = shouldReconnect;
             RetryMessage = retryMessage;
@@ -61,21 +82,22 @@ internal sealed partial class SteamAuth
 
         internal Task MaintainAsync(Func<string, Task> reconnectAsync)
             => reconnectAsync(RetryMessage);
+
+        internal static AuthReconnectMonitor WaitingForCode(SteamAuth auth)
+            => new(() => auth.NeedsAuthReconnect, AuthCodeReconnectRetryMessage);
+
+        internal static AuthReconnectMonitor PollingAuthResult(SteamAuth auth)
+            => new(
+                () => auth.ShouldReconnectWhilePolling,
+                AuthPollingReconnectRetryMessage
+            );
     }
 
     Task<string> IAuthenticator.GetDeviceCodeAsync(bool previousCodeWasIncorrect)
-        => RequestCodeAsync(new AuthCodePrompt(
-            AuthCodePrompt.FromSteamRetry(previousCodeWasIncorrect),
-            "Previous 2FA code was incorrect, requesting new code",
-            "Steam Guard 2FA code required"
-        ));
+        => RequestCodeAsync(AuthCodePrompt.DeviceCode(previousCodeWasIncorrect));
 
     Task<string> IAuthenticator.GetEmailCodeAsync(string email, bool previousCodeWasIncorrect)
-        => RequestCodeAsync(new AuthCodePrompt(
-            AuthCodePrompt.FromSteamRetry(previousCodeWasIncorrect),
-            "Previous email code was incorrect, requesting new code",
-            $"Steam Guard email code sent to {email}"
-        ));
+        => RequestCodeAsync(AuthCodePrompt.EmailCode(email, previousCodeWasIncorrect));
 
     Task<bool> IAuthenticator.AcceptDeviceConfirmationAsync()
     {
@@ -92,10 +114,7 @@ internal sealed partial class SteamAuth
         {
             var code = await WaitForTaskAndMaintainAuthConnectionAsync(
                 prompt.RequestCodeAsync(_codeProvider),
-                new AuthReconnectMonitor(
-                    () => NeedsAuthReconnect,
-                    "Steam auth reconnect did not complete yet; will retry while waiting for code"
-                )
+                AuthReconnectMonitor.WaitingForCode(this)
             );
             await ReconnectBeforeCodeSubmitAsync();
             return code;

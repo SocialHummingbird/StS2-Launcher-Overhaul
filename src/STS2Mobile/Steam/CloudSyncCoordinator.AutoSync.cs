@@ -12,6 +12,14 @@ internal static partial class CloudSyncCoordinator
 
     private readonly struct AutoSyncContext
     {
+        private enum PathPresence
+        {
+            Missing,
+            LocalOnly,
+            CloudOnly,
+            Both,
+        }
+
         private readonly struct PathState
         {
             internal PathState(string? localContent, bool cloudExists)
@@ -22,9 +30,14 @@ internal static partial class CloudSyncCoordinator
 
             internal string? LocalContent { get; }
             internal bool CloudExists { get; }
-            internal bool HasLocal => LocalContent != null;
-            internal bool ExistsInBothStores => HasLocal && CloudExists;
-            internal bool ExistsOnlyInCloud => !HasLocal && CloudExists;
+
+            private PathPresence Presence => (LocalContent != null, CloudExists) switch
+            {
+                (true, true) => PathPresence.Both,
+                (true, false) => PathPresence.LocalOnly,
+                (false, true) => PathPresence.CloudOnly,
+                _ => PathPresence.Missing,
+            };
 
             internal string RequireLocalContent()
             {
@@ -38,20 +51,20 @@ internal static partial class CloudSyncCoordinator
 
             internal async Task RunAsync(AutoSyncContext sync)
             {
-                if (ExistsInBothStores)
+                switch (Presence)
                 {
-                    await SyncExistingFileAsync(sync, RequireLocalContent());
-                    return;
-                }
+                    case PathPresence.Both:
+                        await SyncExistingFileAsync(sync, RequireLocalContent());
+                        return;
 
-                if (ExistsOnlyInCloud)
-                {
-                    await sync.PullCloudOnlyFileAsync();
-                    return;
-                }
+                    case PathPresence.CloudOnly:
+                        await sync.PullCloudOnlyFileAsync();
+                        return;
 
-                if (HasLocal)
-                    sync.PushLocalOnlyFile(RequireLocalContent());
+                    case PathPresence.LocalOnly:
+                        sync.PushLocalOnlyFile(RequireLocalContent());
+                        return;
+                }
             }
         }
 

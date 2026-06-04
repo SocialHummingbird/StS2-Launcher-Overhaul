@@ -39,7 +39,7 @@ internal sealed partial class DepotDownloader
             )
         );
 
-    private async Task<CdnDownloadResult<int>> TryDownloadChunkAsync(
+    private Task<CdnDownloadResult<int>> TryDownloadChunkAsync(
         uint depotId,
         DepotManifest.ChunkData chunk,
         byte[] buffer,
@@ -47,19 +47,22 @@ internal sealed partial class DepotDownloader
         string fileName,
         CdnServerAttempt attempt
     )
-    {
-        var written = await attempt.DownloadChunkAsync(
-            this,
-            depotId,
-            chunk,
-            buffer,
-            depotKey
+        => CdnDownloadResult<int>.FromValidatedAsync(
+            () => attempt.DownloadChunkAsync(
+                this,
+                depotId,
+                chunk,
+                buffer,
+                depotKey
+            ),
+            written => ChunkHashVerifiedOrRetry(
+                fileName,
+                chunk,
+                buffer,
+                written,
+                attempt
+            )
         );
-
-        return ChunkHashVerifiedOrRetry(fileName, chunk, buffer, written, attempt)
-            ? CdnDownloadResult<int>.Success(written)
-            : CdnDownloadResult<int>.Retry();
-    }
 
     private bool ChunkHashVerifiedOrRetry(
         string fileName,

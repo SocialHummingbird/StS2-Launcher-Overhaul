@@ -73,6 +73,31 @@ internal sealed partial class LauncherController
             _onFailure?.Invoke(ex.Message);
         }
 
+        internal void Run(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                Handle(ex);
+            }
+        }
+
+        internal string? TryRun(Func<string> action)
+        {
+            try
+            {
+                return action();
+            }
+            catch (Exception ex)
+            {
+                Handle(ex);
+                return default;
+            }
+        }
+
         private string ExceptionText(Exception ex)
             => _exceptionDetail == DiagnosticsExceptionDetail.FullException
                 ? ex.ToString()
@@ -114,14 +139,7 @@ internal sealed partial class LauncherController
             message => _view.SetStatus($"{failureContext}: {message}")
         );
 
-        try
-        {
-            action();
-        }
-        catch (Exception ex)
-        {
-            failure.Handle(ex);
-        }
+        failure.Run(action);
     }
 
     private string? TryWriteDiagnosticsReport(
@@ -136,14 +154,6 @@ internal sealed partial class LauncherController
             onFailure
         );
 
-        try
-        {
-            return _model.WriteDiagnosticsReport();
-        }
-        catch (Exception ex)
-        {
-            failure.Handle(ex);
-            return default;
-        }
+        return failure.TryRun(_model.WriteDiagnosticsReport);
     }
 }

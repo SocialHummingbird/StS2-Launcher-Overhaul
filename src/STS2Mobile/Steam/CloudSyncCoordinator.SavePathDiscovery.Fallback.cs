@@ -35,25 +35,50 @@ internal static partial class CloudSyncCoordinator
             ISaveStore store
         )
         {
+            foreach (var profile in FallbackProfiles())
+                AddFallbackProfilePaths(paths, store, profile);
+        }
+
+        private static IEnumerable<string> FallbackProfiles()
+        {
             foreach (var prefix in FallbackProfilePrefixes)
             {
                 foreach (var profileId in ProfileIds())
-                {
-                    var profile = $"{prefix}profile{profileId}";
-                    foreach (var file in FallbackProfileFiles)
-                        paths.Add($"{profile}/{file}");
+                    yield return $"{prefix}profile{profileId}";
+            }
+        }
 
-                    foreach (var historyName in FallbackHistoryDirectories)
-                    {
-                        var historyDir = $"{profile}/{historyName}";
-                        AddSelectedHistoryFilePaths(
-                            paths,
-                            store,
-                            historyDir,
-                            files => SelectRunHistoryFiles(files).Take(RunHistoryLimit)
-                        );
-                    }
-                }
+        private static void AddFallbackProfilePaths(
+            List<string> paths,
+            ISaveStore store,
+            string profile
+        )
+        {
+            AddFallbackProfileFiles(paths, profile);
+            AddFallbackProfileHistory(paths, store, profile);
+        }
+
+        private static void AddFallbackProfileFiles(List<string> paths, string profile)
+        {
+            foreach (var file in FallbackProfileFiles)
+                paths.Add($"{profile}/{file}");
+        }
+
+        private static void AddFallbackProfileHistory(
+            List<string> paths,
+            ISaveStore store,
+            string profile
+        )
+        {
+            foreach (var historyName in FallbackHistoryDirectories)
+            {
+                var historyDir = $"{profile}/{historyName}";
+                AddSelectedHistoryFilePaths(
+                    paths,
+                    store,
+                    historyDir,
+                    files => SelectRunHistoryFiles(files).Take(RunHistoryLimit)
+                );
             }
         }
     }

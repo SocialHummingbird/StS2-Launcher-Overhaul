@@ -93,10 +93,7 @@ internal sealed partial class SteamAuth
     )
         => WaitForTaskAndMaintainAuthConnectionAsync(
             authSession.PollingWaitForResultAsync(),
-            new AuthReconnectMonitor(
-                () => ShouldReconnectWhilePolling,
-                "Steam auth reconnect did not complete yet; will retry while polling auth result"
-            )
+            AuthReconnectMonitor.PollingAuthResult(this)
         );
 
     private bool ShouldReconnectWhilePolling => NeedsAuthReconnect && !_waitingForAuthCode;

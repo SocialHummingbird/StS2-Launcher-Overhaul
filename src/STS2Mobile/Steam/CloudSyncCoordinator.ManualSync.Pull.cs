@@ -34,24 +34,43 @@ internal static partial class CloudSyncCoordinator
             => new(ManualPullPathState.Failed);
     }
 
+    private readonly struct ManualPullResultTotals
+    {
+        private ManualPullResultTotals(int downloaded, int skipped)
+        {
+            Downloaded = downloaded;
+            Skipped = skipped;
+        }
+
+        private int Downloaded { get; }
+        private int Skipped { get; }
+
+        internal static ManualPullResultTotals Empty()
+            => new(0, 0);
+
+        internal ManualPullResultTotals Add(ManualPullPathResult result)
+            => new(Downloaded + result.Downloaded, Skipped + result.Skipped);
+
+        internal string CompleteMessage()
+            => PullComplete(Downloaded, Skipped);
+    }
+
     private static async Task<string> RunManualPullDownloadsAsync(
         ManualSyncContext sync,
         IReadOnlyCollection<string> paths
     )
     {
-        var downloaded = 0;
-        var skipped = 0;
+        var totals = ManualPullResultTotals.Empty();
         foreach (var path in paths)
         {
             var result = await PullManualPathAsync(sync, path);
-            downloaded += result.Downloaded;
-            skipped += result.Skipped;
+            totals = totals.Add(result);
 
             if (sync.BudgetExceeded(ManualPullBudgetExceeded))
                 break;
         }
 
-        return PullComplete(downloaded, skipped);
+        return totals.CompleteMessage();
     }
 
     private static async Task<ManualPullPathResult> PullManualPathAsync(

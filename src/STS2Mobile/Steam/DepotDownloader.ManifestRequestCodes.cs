@@ -45,38 +45,55 @@ internal sealed partial class DepotDownloader
         ulong
     > _manifestRequestCodes = new();
 
-    private async Task<ulong> GetManifestRequestCodeAsync(uint depotId, ulong manifestId)
+    private readonly struct ManifestRequestCodeRequest
     {
-        var key = new ManifestRequestKey(depotId, manifestId, PublicDepotBranch);
+        internal ManifestRequestCodeRequest(uint depotId, ulong manifestId, string branch)
+        {
+            DepotId = depotId;
+            ManifestId = manifestId;
+            Branch = branch;
+        }
+
+        private uint DepotId { get; }
+        private ulong ManifestId { get; }
+        private string Branch { get; }
+
+        internal ManifestRequestKey Key()
+            => new(DepotId, ManifestId, Branch);
+
+        internal Task<ulong> FetchAsync(SteamConnection connection)
+            => connection.GetManifestRequestCodeAsync(DepotId, ManifestId, Branch);
+
+        internal void ThrowIfDenied(ulong code)
+        {
+            if (code != 0)
+                return;
+
+            throw new Exception(
+                $"Failed to get manifest request code for depot {DepotId}, "
+                    + $"manifest {ManifestId}, branch '{Branch}'. "
+                    + "Ensure the account owns this app."
+            );
+        }
+    }
+
+    private Task<ulong> GetManifestRequestCodeAsync(uint depotId, ulong manifestId)
+        => GetManifestRequestCodeAsync(
+            new ManifestRequestCodeRequest(depotId, manifestId, PublicDepotBranch)
+        );
+
+    private async Task<ulong> GetManifestRequestCodeAsync(
+        ManifestRequestCodeRequest request
+    )
+    {
         var code = await _manifestRequestCodes.GetOrAddAsync(
-            key,
+            request.Key(),
             ManifestRequestCodeTtl,
-            () => _connection.GetManifestRequestCodeAsync(
-                depotId,
-                manifestId,
-                PublicDepotBranch
-            ),
+            () => request.FetchAsync(_connection),
             code => code != 0
         );
 
-        ThrowIfManifestRequestCodeDenied(code, depotId, manifestId, PublicDepotBranch);
+        request.ThrowIfDenied(code);
         return code;
-    }
-
-    private static void ThrowIfManifestRequestCodeDenied(
-        ulong code,
-        uint depotId,
-        ulong manifestId,
-        string branch
-    )
-    {
-        if (code != 0)
-            return;
-
-        throw new Exception(
-            $"Failed to get manifest request code for depot {depotId}, "
-                + $"manifest {manifestId}, branch '{branch}'. "
-                + "Ensure the account owns this app."
-        );
     }
 }

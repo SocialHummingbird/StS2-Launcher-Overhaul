@@ -109,11 +109,6 @@ internal static partial class CloudSyncCoordinator
             => PatchHelper.Log(PullLocalBackupFailed(path, ex));
 
         private static bool IsImportantSave(string path)
-        {
-            var lower = NormalizeSavePath(path).ToLowerInvariant();
-            return lower.Contains("progress.save")
-                || lower.Contains("current_run")
-                || lower.Contains("prefs");
-        }
+            => CloudSavePath.IsImportantForBackup(path);
     }
 }

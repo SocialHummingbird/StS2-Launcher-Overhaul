@@ -97,6 +97,20 @@ internal sealed partial class DepotDownloader
 
         internal static CdnDownloadResult<T> Retry()
             => new(false, default!);
+
+        internal static async Task<CdnDownloadResult<T>> FromAsync(
+            Func<Task<T>> downloadAsync
+        )
+            => Success(await downloadAsync());
+
+        internal static async Task<CdnDownloadResult<T>> FromValidatedAsync(
+            Func<Task<T>> downloadAsync,
+            Func<T, bool> isValid
+        )
+        {
+            var value = await downloadAsync();
+            return isValid(value) ? Success(value) : Retry();
+        }
     }
 
     private async Task<string?> GetCdnAuthToken(uint depotId, Server server)

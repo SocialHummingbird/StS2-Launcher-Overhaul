@@ -17,8 +17,8 @@ internal sealed partial class DepotDownloader
         return RunCdnDownloadWithRetriesAsync(
             new CdnDownloadOperation<DepotManifest>(
                 ManifestDownloadOperation,
-                async attempt => CdnDownloadResult<DepotManifest>.Success(
-                    await attempt.DownloadManifestAsync(
+                attempt => CdnDownloadResult<DepotManifest>.FromAsync(
+                    () => attempt.DownloadManifestAsync(
                         this,
                         depotId,
                         manifestId,
@@ -30,8 +30,8 @@ internal sealed partial class DepotDownloader
                     depotId,
                     attempt,
                     ManifestAuthRetryOperation,
-                    async token => CdnDownloadResult<DepotManifest>.Success(
-                        await attempt.DownloadManifestAsync(
+                    token => CdnDownloadResult<DepotManifest>.FromAsync(
+                        () => attempt.DownloadManifestAsync(
                             this,
                             depotId,
                             manifestId,

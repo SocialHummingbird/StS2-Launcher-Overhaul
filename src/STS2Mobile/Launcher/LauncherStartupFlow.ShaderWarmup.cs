@@ -41,18 +41,25 @@ internal static partial class LauncherStartupFlow
 
         internal async Task RunIfNeededAsync()
         {
-            if (_state == ShaderWarmupState.Run)
+            switch (_state)
             {
-                _startup.SetPhase(PhaseShaderWarmup, "Warming shaders...");
-                PatchHelper.Log("Shader warmup starting");
+                case ShaderWarmupState.Run:
+                    await RunAsync();
+                    return;
 
-                await RunShaderWarmupAsync(_startup);
-                PatchHelper.Log("Shader warmup complete");
-                return;
+                case ShaderWarmupState.Skipped:
+                    _startup.ShowShaderWarmupSkipped();
+                    return;
             }
+        }
 
-            if (_state == ShaderWarmupState.Skipped)
-                _startup.ShowShaderWarmupSkipped();
+        private async Task RunAsync()
+        {
+            _startup.SetPhase(PhaseShaderWarmup, "Warming shaders...");
+            PatchHelper.Log("Shader warmup starting");
+
+            await RunShaderWarmupAsync(_startup);
+            PatchHelper.Log("Shader warmup complete");
         }
     }
 

@@ -74,15 +74,15 @@ internal sealed partial class SteamKit2CloudSaveStore
             {
                 if (!_queue.TryAdd(action, EnqueueTimeoutMs))
                 {
-                    var dropped = MarkDroppedQueuedWrite();
-                    PatchHelper.Log(WriteQueueFull(MaxQueuedWrites, dropped));
+                    DropQueuedWrite(
+                        dropped => WriteQueueFull(MaxQueuedWrites, dropped)
+                    );
                     return;
                 }
             }
             catch (InvalidOperationException)
             {
-                PatchHelper.Log(WriteQueueClosingDrop);
-                MarkDroppedQueuedWrite();
+                DropQueuedWrite(WriteQueueClosingDrop);
             }
         }
 
@@ -162,6 +162,15 @@ internal sealed partial class SteamKit2CloudSaveStore
             var dropped = Interlocked.Increment(ref _droppedWrites);
             MarkCompleted();
             return dropped;
+        }
+
+        private void DropQueuedWrite(Func<long, string> logMessage)
+            => PatchHelper.Log(logMessage(MarkDroppedQueuedWrite()));
+
+        private void DropQueuedWrite(string logMessage)
+        {
+            MarkDroppedQueuedWrite();
+            PatchHelper.Log(logMessage);
         }
 
         private void ProcessLoop()

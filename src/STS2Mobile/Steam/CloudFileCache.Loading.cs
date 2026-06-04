@@ -57,10 +57,17 @@ internal sealed partial class SteamKit2CloudSaveStore
                 PatchHelper.Log(FileEnumerationMaxRetriesReached);
         }
 
-        private const string FileEnumerationMaxRetriesReached =
-            "[Cloud] Max retries reached for cloud file enumeration this session.";
+        private static readonly string FileEnumerationMaxRetriesReached =
+            CloudFileCacheMessage(
+                "Max retries reached for cloud file enumeration this session."
+            );
 
         private static string FileEnumerationFailed(int attempt, int maxRetries, Exception ex) =>
-            $"[Cloud] Failed to enumerate cloud files (attempt {attempt}/{maxRetries}): {ex.Message}";
+            CloudFileCacheMessage(
+                $"Failed to enumerate cloud files (attempt {attempt}/{maxRetries}): {ex.Message}"
+            );
+
+        private static string CloudFileCacheMessage(string message)
+            => $"[Cloud] {message}";
     }
 }

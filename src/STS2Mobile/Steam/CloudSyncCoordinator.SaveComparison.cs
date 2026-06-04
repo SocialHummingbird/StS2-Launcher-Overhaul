@@ -53,7 +53,6 @@ internal static partial class CloudSyncCoordinator
 
         private const string ActsProperty = "acts";
         private const string CharacterStatsProperty = "character_stats";
-        private const string CurrentRunPathToken = "current_run";
         private const string DiscoveredActsProperty = "discovered_acts";
         private const string DiscoveredCardsProperty = "discovered_cards";
         private const string DiscoveredEventsProperty = "discovered_events";
@@ -61,8 +60,6 @@ internal static partial class CloudSyncCoordinator
         private const string DiscoveredRelicsProperty = "discovered_relics";
         private const string FloorsClimbedProperty = "floors_climbed";
         private const string MapPointHistoryProperty = "map_point_history";
-        private const string ProgressPathToken = "progress";
-        private const string SaveExtension = ".save";
         private const string TotalLossesProperty = "total_losses";
         private const string TotalPlaytimeProperty = "total_playtime";
         private const string TotalWinsProperty = "total_wins";
@@ -99,14 +96,10 @@ internal static partial class CloudSyncCoordinator
 
         private static SaveKind GetSaveKind(string path)
         {
-            var canonPath = CloudSavePath.Canonicalize(path).ToLowerInvariant();
-            if (!canonPath.EndsWith(SaveExtension))
-                return SaveKind.Other;
-
-            if (canonPath.Contains(ProgressPathToken))
+            if (CloudSavePath.IsProgressSave(path))
                 return SaveKind.Progress;
 
-            return canonPath.Contains(CurrentRunPathToken)
+            return CloudSavePath.IsCurrentRunSave(path)
                 ? SaveKind.CurrentRun
                 : SaveKind.Other;
         }
