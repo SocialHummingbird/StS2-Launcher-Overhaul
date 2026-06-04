@@ -26,8 +26,14 @@ internal partial class LauncherModel
 
         internal static ConnectionAttemptResult FromFailureText(string? error)
             => error == null
-                ? new ConnectionAttemptResult(AttemptState.Succeeded, string.Empty)
-                : new ConnectionAttemptResult(AttemptState.Failed, error);
+                ? Success()
+                : Failure(error);
+
+        private static ConnectionAttemptResult Success()
+            => new(AttemptState.Succeeded, string.Empty);
+
+        private static ConnectionAttemptResult Failure(string error)
+            => new(AttemptState.Failed, error);
 
         internal void Apply(LauncherModel model)
         {
@@ -60,7 +66,7 @@ internal partial class LauncherModel
         => RunConnectionAttemptAsync(
             SessionState.Authenticating,
             attemptId => _steamSession.LoginAndVerifyAsync(
-                new LauncherSteamSession.LoginRequest(
+                LauncherSteamSession.LoginRequest.FromCredentials(
                     username,
                     password,
                     RaiseLogReceived,

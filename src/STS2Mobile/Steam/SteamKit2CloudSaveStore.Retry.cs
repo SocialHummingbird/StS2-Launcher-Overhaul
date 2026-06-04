@@ -16,7 +16,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         private readonly Func<int, int> _throttleDelayMs;
         private readonly Action _run;
 
-        internal CloudOperationRetryPlan(
+        private CloudOperationRetryPlan(
             string name,
             string path,
             Func<int, int> throttleDelayMs,
@@ -28,6 +28,22 @@ internal sealed partial class SteamKit2CloudSaveStore
             _throttleDelayMs = throttleDelayMs;
             _run = run;
         }
+
+        internal static CloudOperationRetryPlan Upload(string path, Action run)
+            => new(
+                "Upload",
+                path,
+                attempt => (attempt + 1) * UploadThrottleDelayStepMs,
+                run
+            );
+
+        internal static CloudOperationRetryPlan Delete(string path, Action run)
+            => new(
+                "Delete",
+                path,
+                _ => DeleteThrottleDelayMs,
+                run
+            );
 
         internal void Run()
         {
@@ -60,20 +76,16 @@ internal sealed partial class SteamKit2CloudSaveStore
         ulong batchId = 0,
         DateTimeOffset? timestamp = null
     )
-        => new CloudOperationRetryPlan(
-            "Upload",
+        => CloudOperationRetryPlan.Upload(
             canonPath,
-            attempt => (attempt + 1) * UploadThrottleDelayStepMs,
             () => UploadFileAsync(canonPath, bytes, batchId, timestamp)
                 .GetAwaiter()
                 .GetResult()
         ).Run();
 
     private void DeleteCloudFileWithRetry(string path)
-        => new CloudOperationRetryPlan(
-            "Delete",
+        => CloudOperationRetryPlan.Delete(
             path,
-            _ => DeleteThrottleDelayMs,
             () => DeleteCloudFile(path)
         ).Run();
 

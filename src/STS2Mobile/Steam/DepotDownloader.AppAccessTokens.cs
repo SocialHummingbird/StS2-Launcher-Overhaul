@@ -10,7 +10,10 @@ internal sealed partial class DepotDownloader
     {
         private readonly struct ProductInfoAppIdentity
         {
-            internal ProductInfoAppIdentity(uint appId)
+            private static ProductInfoAppIdentity For(uint appId)
+                => new(appId);
+
+            private ProductInfoAppIdentity(uint appId)
             {
                 AppId = appId;
             }
@@ -44,7 +47,13 @@ internal sealed partial class DepotDownloader
             private readonly ProductInfoAppIdentity _identity;
             private readonly PICSProductInfo _appInfo;
 
-            internal ProductInfoAppSections(
+            private static ProductInfoAppSections For(
+                ProductInfoAppIdentity identity,
+                PICSProductInfo appInfo
+            )
+                => new(identity, appInfo);
+
+            private ProductInfoAppSections(
                 ProductInfoAppIdentity identity,
                 PICSProductInfo appInfo
             )
@@ -76,7 +85,7 @@ internal sealed partial class DepotDownloader
         private ProductInfoApp(DepotDownloader owner, uint appId)
         {
             _owner = owner;
-            Identity = new ProductInfoAppIdentity(appId);
+            Identity = ProductInfoAppIdentity.For(appId);
         }
 
         private ProductInfoAppIdentity Identity { get; }
@@ -148,6 +157,6 @@ internal sealed partial class DepotDownloader
             );
 
         private ProductInfoAppSections Sections(PICSProductInfo appInfo)
-            => new(Identity, appInfo);
+            => ProductInfoAppSections.For(Identity, appInfo);
     }
 }

@@ -75,7 +75,7 @@ internal sealed partial class LauncherController
         private readonly LauncherView _view;
         private readonly Action<Action> _runOnMainThread;
 
-        internal CloudSyncExecution(
+        private CloudSyncExecution(
             CloudSyncRequest request,
             LauncherView view,
             Action<Action> runOnMainThread
@@ -85,6 +85,13 @@ internal sealed partial class LauncherController
             _view = view;
             _runOnMainThread = runOnMainThread;
         }
+
+        private static CloudSyncExecution ForRequest(
+            CloudSyncRequest request,
+            LauncherView view,
+            Action<Action> runOnMainThread
+        )
+            => new(request, view, runOnMainThread);
 
         internal async Task RunAsync()
         {
@@ -122,5 +129,7 @@ internal sealed partial class LauncherController
         => request.ShowConfirmation(_view, () => _ = ExecuteCloudSyncAsync(request));
 
     private Task ExecuteCloudSyncAsync(CloudSyncRequest request)
-        => new CloudSyncExecution(request, _view, _runOnMainThread).RunAsync();
+        => CloudSyncExecution
+            .ForRequest(request, _view, _runOnMainThread)
+            .RunAsync();
 }

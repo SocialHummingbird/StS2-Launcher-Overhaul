@@ -8,15 +8,14 @@ internal static partial class CloudSyncCoordinator
     {
         private static void ProgressContent(string path, string content, string source)
         {
-            var canonLowerPath = NormalizeSavePathLower(path);
-            if (!CloudSavePath.IsProgressSave(path))
+            if (!IsProgressSave(path))
                 return;
 
-            SaveBackup(new BackupWriteRequest(
+            var canonLowerPath = NormalizeSavePathLower(path);
+            SaveBackup(BackupWriteRequest.Progress(
                 canonLowerPath,
                 content,
                 source,
-                "progress.save",
                 backupPath => CompleteProgressBackup(source, path, backupPath)
             ));
         }

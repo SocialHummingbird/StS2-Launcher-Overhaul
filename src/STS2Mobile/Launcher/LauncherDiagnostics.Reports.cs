@@ -84,19 +84,11 @@ internal static partial class LauncherDiagnostics
             Detailed,
         }
 
-        private static readonly ErrorReportPlan SummaryErrorReport = new(
-            "=== LAST ERROR SUMMARY ===",
-            LauncherStateDetail.Compact,
-            AppendSummaryErrorDiagnostics,
-            "=== END LAST ERROR SUMMARY ==="
-        );
+        private static readonly ErrorReportPlan SummaryErrorReport =
+            ErrorReportPlan.Summary(AppendSummaryErrorDiagnostics);
 
-        private static readonly ErrorReportPlan RawErrorReport = new(
-            "=== RAW ERROR LOG ===",
-            LauncherStateDetail.Detailed,
-            AppendRawErrorDiagnostics,
-            "=== END RAW ERROR LOG ==="
-        );
+        private static readonly ErrorReportPlan RawErrorReport =
+            ErrorReportPlan.Raw(AppendRawErrorDiagnostics);
 
         private sealed class ErrorReportPlan
         {
@@ -105,7 +97,7 @@ internal static partial class LauncherDiagnostics
             private readonly Action<StringBuilder, string> _appendDiagnostics;
             private readonly string _footer;
 
-            internal ErrorReportPlan(
+            private ErrorReportPlan(
                 string title,
                 LauncherStateDetail stateDetail,
                 Action<StringBuilder, string> appendDiagnostics,
@@ -117,6 +109,26 @@ internal static partial class LauncherDiagnostics
                 _appendDiagnostics = appendDiagnostics;
                 _footer = footer;
             }
+
+            internal static ErrorReportPlan Summary(
+                Action<StringBuilder, string> appendDiagnostics
+            )
+                => new(
+                    "=== LAST ERROR SUMMARY ===",
+                    LauncherStateDetail.Compact,
+                    appendDiagnostics,
+                    "=== END LAST ERROR SUMMARY ==="
+                );
+
+            internal static ErrorReportPlan Raw(
+                Action<StringBuilder, string> appendDiagnostics
+            )
+                => new(
+                    "=== RAW ERROR LOG ===",
+                    LauncherStateDetail.Detailed,
+                    appendDiagnostics,
+                    "=== END RAW ERROR LOG ==="
+                );
 
             internal string BuildText(Snapshot snapshot)
                 => BuildTimestampedText(
@@ -205,7 +217,7 @@ internal static partial class LauncherDiagnostics
 
     internal readonly struct StartupRecoveryDiagnosticsReport
     {
-        internal StartupRecoveryDiagnosticsReport(string dataDir)
+        private StartupRecoveryDiagnosticsReport(string dataDir)
         {
             DataDir = dataDir;
         }

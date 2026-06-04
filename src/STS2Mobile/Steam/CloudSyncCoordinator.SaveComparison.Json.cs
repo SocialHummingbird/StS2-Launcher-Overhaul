@@ -28,10 +28,25 @@ internal static partial class CloudSyncCoordinator
         private static int GetArrayLength(JsonElement element, string property)
         {
             return
-                element.TryGetProperty(property, out var value)
-                && value.ValueKind == JsonValueKind.Array
+                TryGetArray(element, property, out var value)
                 ? value.GetArrayLength()
                 : 0;
+        }
+
+        private static bool TryGetArray(
+            JsonElement element,
+            string property,
+            out JsonElement array
+        )
+        {
+            if (
+                element.TryGetProperty(property, out array)
+                && array.ValueKind == JsonValueKind.Array
+            )
+                return true;
+
+            array = default;
+            return false;
         }
     }
 }

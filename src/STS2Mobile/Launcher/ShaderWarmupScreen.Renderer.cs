@@ -19,7 +19,7 @@ internal sealed partial class ShaderWarmupScreen
         private readonly SceneTree _tree;
         private readonly ShaderWarmupProgress _progress;
 
-        internal ShaderWarmupRenderer(
+        private ShaderWarmupRenderer(
             Control parent,
             SceneTree tree,
             ShaderWarmupProgress progress
@@ -29,6 +29,13 @@ internal sealed partial class ShaderWarmupScreen
             _tree = tree;
             _progress = progress;
         }
+
+        internal static ShaderWarmupRenderer ForScreen(
+            Control parent,
+            SceneTree tree,
+            ShaderWarmupProgress progress
+        )
+            => new(parent, tree, progress);
 
         internal async Task RenderAsync(List<WarmupMaterial> materials)
         {

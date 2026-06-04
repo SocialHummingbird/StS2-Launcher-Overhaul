@@ -14,24 +14,18 @@ internal sealed partial class LauncherController
         FullException,
     }
 
-    private static readonly DiagnosticsAction LastErrorDiagnosticsAction = new(
-        "Error summary failed",
-        model => model.BuildDiagnosticsSummaryForDisplay(),
-        ShowDiagnosticsSummary
-    );
+    private static readonly DiagnosticsAction LastErrorDiagnosticsAction =
+        DiagnosticsAction.LastErrorSummary(ShowDiagnosticsSummary);
 
-    private static readonly DiagnosticsAction RawLogDiagnosticsAction = new(
-        "Raw error log copy failed",
-        model => model.BuildRawErrorLogForClipboard(),
-        CopyRawLogToClipboard
-    );
+    private static readonly DiagnosticsAction RawLogDiagnosticsAction =
+        DiagnosticsAction.RawErrorLog(CopyRawLogToClipboard);
 
     private readonly struct DiagnosticsAction
     {
         private readonly Func<LauncherModel, string> _buildText;
         private readonly Action<LauncherView, string> _publishText;
 
-        internal DiagnosticsAction(
+        private DiagnosticsAction(
             string failureContext,
             Func<LauncherModel, string> buildText,
             Action<LauncherView, string> publishText
@@ -44,6 +38,24 @@ internal sealed partial class LauncherController
 
         internal string FailureContext { get; }
 
+        internal static DiagnosticsAction LastErrorSummary(
+            Action<LauncherView, string> publishText
+        )
+            => new(
+                "Error summary failed",
+                model => model.BuildDiagnosticsSummaryForDisplay(),
+                publishText
+            );
+
+        internal static DiagnosticsAction RawErrorLog(
+            Action<LauncherView, string> publishText
+        )
+            => new(
+                "Raw error log copy failed",
+                model => model.BuildRawErrorLogForClipboard(),
+                publishText
+            );
+
         internal void Run(LauncherModel model, LauncherView view)
             => _publishText(view, _buildText(model));
     }
@@ -54,7 +66,7 @@ internal sealed partial class LauncherController
         private readonly DiagnosticsExceptionDetail _exceptionDetail;
         private readonly Action<string>? _onFailure;
 
-        internal DiagnosticsFailureHandling(
+        private DiagnosticsFailureHandling(
             string context,
             DiagnosticsExceptionDetail exceptionDetail,
             Action<string>? onFailure = null
@@ -64,6 +76,19 @@ internal sealed partial class LauncherController
             _exceptionDetail = exceptionDetail;
             _onFailure = onFailure;
         }
+
+        internal static DiagnosticsFailureHandling FullException(
+            string context,
+            Action<string>? onFailure = null
+        )
+            => new(context, DiagnosticsExceptionDetail.FullException, onFailure);
+
+        internal static DiagnosticsFailureHandling WithDetail(
+            string context,
+            DiagnosticsExceptionDetail exceptionDetail,
+            Action<string>? onFailure = null
+        )
+            => new(context, exceptionDetail, onFailure);
 
         internal void Handle(Exception ex)
         {
@@ -133,9 +158,8 @@ internal sealed partial class LauncherController
 
     private void RunDiagnosticsAction(string failureContext, Action action)
     {
-        var failure = new DiagnosticsFailureHandling(
+        var failure = DiagnosticsFailureHandling.FullException(
             failureContext,
-            DiagnosticsExceptionDetail.FullException,
             message => _view.SetStatus($"{failureContext}: {message}")
         );
 
@@ -148,7 +172,7 @@ internal sealed partial class LauncherController
         Action<string>? onFailure = null
     )
     {
-        var failure = new DiagnosticsFailureHandling(
+        var failure = DiagnosticsFailureHandling.WithDetail(
             failureContext,
             exceptionDetail,
             onFailure

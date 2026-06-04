@@ -47,7 +47,7 @@ internal sealed partial class DepotDownloader
             _downloadWithAuthAsync;
         private readonly Func<Exception> _createFailure;
 
-        internal CdnDownloadOperation(
+        private CdnDownloadOperation(
             string name,
             Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadAsync,
             Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadWithAuthAsync,
@@ -61,6 +61,14 @@ internal sealed partial class DepotDownloader
         }
 
         private string Name { get; }
+
+        internal static CdnDownloadOperation<T> AcrossServersWithAuthRetry(
+            string name,
+            Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadAsync,
+            Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadWithAuthAsync,
+            Func<Exception> createFailure
+        )
+            => new(name, downloadAsync, downloadWithAuthAsync, createFailure);
 
         internal Task<CdnDownloadResult<T>> DownloadAsync(CdnServerAttempt attempt)
             => _downloadAsync(attempt);

@@ -27,14 +27,22 @@ internal sealed partial class ShaderWarmupScreen
             await ScanLooseMaterialsAsync(materials, tree, progress);
             await ScanScenesAsync(materials, tree, progress);
 
+            var unique = UniqueByShader(materials);
+            PatchHelper.Log(Message.UniqueShaders(materials.Count, unique.Count));
+            return unique;
+        }
+
+        private static List<WarmupMaterial> UniqueByShader(
+            Dictionary<string, Material> materials
+        )
+        {
             var unique = new Dictionary<string, WarmupMaterial>();
             foreach (var (path, mat) in materials)
             {
                 var shaderKey = GetShaderKey(mat);
-                unique.TryAdd(shaderKey, new WarmupMaterial(path, mat));
+                unique.TryAdd(shaderKey, WarmupMaterial.For(path, mat));
             }
 
-            PatchHelper.Log(Message.UniqueShaders(materials.Count, unique.Count));
             return unique.Values.ToList();
         }
 

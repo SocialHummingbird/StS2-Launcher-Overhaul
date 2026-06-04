@@ -12,21 +12,15 @@ internal static partial class CloudSyncCoordinator
         private const string BackupSourceLocalPrePull = "local-pre-pull";
         private const string ManualPushBackupReadOperation = "ManualPush backup read";
 
-        private static readonly ManualBackupPlan CloudBeforeManualPushPlan = new(
-            BackupSourceCloudPrePush,
-            ReadCloudPrePushContentAsync,
-            LogPushCloudBackupFailure
-        );
+        private static readonly ManualBackupPlan CloudBeforeManualPushPlan =
+            ManualBackupPlan.CloudBeforeManualPush(ReadCloudPrePushContentAsync);
 
-        private static readonly ManualBackupPlan LocalBeforeManualPullPlan = new(
-            BackupSourceLocalPrePull,
-            ReadLocalPrePullContentAsync,
-            LogPullLocalBackupFailure
-        );
+        private static readonly ManualBackupPlan LocalBeforeManualPullPlan =
+            ManualBackupPlan.LocalBeforeManualPull(ReadLocalPrePullContentAsync);
 
         private readonly struct ManualBackupPlan
         {
-            internal ManualBackupPlan(
+            private ManualBackupPlan(
                 string source,
                 Func<ManualSyncContext, string, ValueTask<string?>> readContentAsync,
                 Action<string, Exception> logFailure
@@ -40,6 +34,24 @@ internal static partial class CloudSyncCoordinator
             private string Source { get; }
             private Func<ManualSyncContext, string, ValueTask<string?>> ReadContentAsync { get; }
             private Action<string, Exception> LogFailure { get; }
+
+            internal static ManualBackupPlan CloudBeforeManualPush(
+                Func<ManualSyncContext, string, ValueTask<string?>> readContentAsync
+            )
+                => new(
+                    BackupSourceCloudPrePush,
+                    readContentAsync,
+                    LogPushCloudBackupFailure
+                );
+
+            internal static ManualBackupPlan LocalBeforeManualPull(
+                Func<ManualSyncContext, string, ValueTask<string?>> readContentAsync
+            )
+                => new(
+                    BackupSourceLocalPrePull,
+                    readContentAsync,
+                    LogPullLocalBackupFailure
+                );
 
             internal async Task<bool> TryBackupAsync(ManualSyncContext sync, string path)
             {

@@ -15,36 +15,49 @@ internal sealed partial class DepotDownloader
     {
         Log($"Downloading manifest for depot {depotId}...");
         return RunCdnDownloadWithRetriesAsync(
-            new CdnDownloadOperation<DepotManifest>(
-                ManifestDownloadOperation,
-                attempt => CdnDownloadResult<DepotManifest>.FromAsync(
+            CreateManifestDownloadOperation(
+                depotId,
+                manifestId,
+                manifestRequestCode,
+                depotKey
+            )
+        );
+    }
+
+    private CdnDownloadOperation<DepotManifest> CreateManifestDownloadOperation(
+        uint depotId,
+        ulong manifestId,
+        ulong manifestRequestCode,
+        byte[] depotKey
+    )
+        => CdnDownloadOperation<DepotManifest>.AcrossServersWithAuthRetry(
+            ManifestDownloadOperation,
+            attempt => CdnDownloadResult<DepotManifest>.FromAsync(
+                () => attempt.DownloadManifestAsync(
+                    this,
+                    depotId,
+                    manifestId,
+                    manifestRequestCode,
+                    depotKey
+                )
+            ),
+            attempt => RunCdnAuthRetryAsync<DepotManifest>(
+                depotId,
+                attempt,
+                ManifestAuthRetryOperation,
+                token => CdnDownloadResult<DepotManifest>.FromAsync(
                     () => attempt.DownloadManifestAsync(
                         this,
                         depotId,
                         manifestId,
                         manifestRequestCode,
-                        depotKey
+                        depotKey,
+                        token
                     )
-                ),
-                attempt => RunCdnAuthRetryAsync<DepotManifest>(
-                    depotId,
-                    attempt,
-                    ManifestAuthRetryOperation,
-                    token => CdnDownloadResult<DepotManifest>.FromAsync(
-                        () => attempt.DownloadManifestAsync(
-                            this,
-                            depotId,
-                            manifestId,
-                            manifestRequestCode,
-                            depotKey,
-                            token
-                        )
-                    )
-                ),
-                () => new Exception(
-                    $"Failed to download manifest for depot {depotId} after {MaxRetries} attempts"
                 )
+            ),
+            () => new Exception(
+                $"Failed to download manifest for depot {depotId} after {MaxRetries} attempts"
             )
         );
-    }
 }

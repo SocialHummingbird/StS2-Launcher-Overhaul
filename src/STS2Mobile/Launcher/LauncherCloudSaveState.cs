@@ -9,7 +9,7 @@ internal static class LauncherCloudSaveState
 {
     private readonly struct SavedSteamCredentials
     {
-        internal SavedSteamCredentials(string accountName, string refreshToken)
+        private SavedSteamCredentials(string accountName, string refreshToken)
         {
             AccountName = accountName;
             RefreshToken = refreshToken;
@@ -18,7 +18,13 @@ internal static class LauncherCloudSaveState
         private string AccountName { get; }
         private string RefreshToken { get; }
 
-        internal SaveManager CreateSaveManager()
+        private static SavedSteamCredentials FromLogin(
+            string accountName,
+            string refreshToken
+        )
+            => new(accountName, refreshToken);
+
+        private SaveManager CreateSaveManager()
             => new(
                 CloudSaveStoreFactory.CreateCloudSaveStore(
                     AccountName,
@@ -26,7 +32,7 @@ internal static class LauncherCloudSaveState
                 )
             );
 
-        internal Task RunManualSyncAsync(Func<string, string, Task> sync)
+        private Task RunManualSyncAsync(Func<string, string, Task> sync)
             => sync(AccountName, RefreshToken);
     }
 
@@ -103,7 +109,7 @@ internal static class LauncherCloudSaveState
         if (string.IsNullOrWhiteSpace(accountName))
             return;
 
-        _savedCredentials = new SavedSteamCredentials(accountName, refreshToken);
+        _savedCredentials = SavedSteamCredentials.FromLogin(accountName, refreshToken);
     }
 
     private static SavedSteamCredentials RequireSavedCredentials()

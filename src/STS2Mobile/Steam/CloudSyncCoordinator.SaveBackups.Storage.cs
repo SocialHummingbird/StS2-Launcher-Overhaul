@@ -9,7 +9,7 @@ internal static partial class CloudSyncCoordinator
     {
         private readonly struct BackupWriteRequest
         {
-            internal BackupWriteRequest(
+            private BackupWriteRequest(
                 string path,
                 string content,
                 string source,
@@ -29,6 +29,33 @@ internal static partial class CloudSyncCoordinator
             private string Source { get; }
             private string? FileNameOverride { get; }
             private Action<string> OnWritten { get; }
+
+            internal static BackupWriteRequest Standard(
+                string path,
+                string content,
+                string source
+            )
+                => new(
+                    path,
+                    content,
+                    source,
+                    fileNameOverride: null,
+                    _ => PatchHelper.Log(SaveBackedUp(source, path))
+                );
+
+            internal static BackupWriteRequest Progress(
+                string path,
+                string content,
+                string source,
+                Action<string> onWritten
+            )
+                => new(
+                    path,
+                    content,
+                    source,
+                    "progress.save",
+                    onWritten
+                );
 
             internal bool TrySave()
             {
@@ -52,13 +79,7 @@ internal static partial class CloudSyncCoordinator
         }
 
         private static bool SaveContent(string path, string content, string source)
-            => SaveBackup(new BackupWriteRequest(
-                path,
-                content,
-                source,
-                null,
-                _ => PatchHelper.Log(SaveBackedUp(source, path))
-            ));
+            => SaveBackup(BackupWriteRequest.Standard(path, content, source));
 
         private static bool SaveBackup(BackupWriteRequest request)
         {

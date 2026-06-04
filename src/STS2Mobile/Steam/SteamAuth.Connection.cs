@@ -14,7 +14,7 @@ internal sealed partial class SteamAuth
 
     private readonly struct ConnectRetryPlan
     {
-        internal ConnectRetryPlan(
+        private ConnectRetryPlan(
             Action beginAttempt,
             string startFailureMessage,
             string retryMessage,

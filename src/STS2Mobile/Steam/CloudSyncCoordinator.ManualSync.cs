@@ -11,21 +11,11 @@ internal static partial class CloudSyncCoordinator
     private const int ManualSyncOverallTimeoutMs = 180_000;
     private const string ManualPullDownloadOperation = "ManualPull download";
 
-    private static readonly ManualSyncPlan ManualPushPlan = new(
-        sync => sync.DiscoverLocalPaths(),
-        PushStarting,
-        SaveBackups.CloudBeforeManualPushAsync,
-        PushBackedUpCloudFiles,
-        RunManualPushUploadsAsync
-    );
+    private static readonly ManualSyncPlan ManualPushPlan =
+        ManualSyncPlan.Push(RunManualPushUploadsAsync);
 
-    private static readonly ManualSyncPlan ManualPullPlan = new(
-        sync => sync.DiscoverCloudPaths(),
-        PullStarting,
-        SaveBackups.LocalBeforeManualPullAsync,
-        PullBackedUpLocalFiles,
-        RunManualPullDownloadsAsync
-    );
+    private static readonly ManualSyncPlan ManualPullPlan =
+        ManualSyncPlan.Pull(RunManualPullDownloadsAsync);
 
     private readonly struct ManualSyncPlan
     {
@@ -36,7 +26,7 @@ internal static partial class CloudSyncCoordinator
         private readonly Func<ManualSyncContext, IReadOnlyCollection<string>, Task<string>>
             _transferAsync;
 
-        internal ManualSyncPlan(
+        private ManualSyncPlan(
             Func<ManualSyncContext, IReadOnlyCollection<string>> discoverPaths,
             Func<int, string> startingMessage,
             Func<ManualSyncContext, IEnumerable<string>, Task<int>> backupAsync,
@@ -50,6 +40,30 @@ internal static partial class CloudSyncCoordinator
             _backedUpMessage = backedUpMessage;
             _transferAsync = transferAsync;
         }
+
+        internal static ManualSyncPlan Push(
+            Func<ManualSyncContext, IReadOnlyCollection<string>, Task<string>>
+                transferAsync
+        )
+            => new(
+                sync => sync.DiscoverLocalPaths(),
+                PushStarting,
+                SaveBackups.CloudBeforeManualPushAsync,
+                PushBackedUpCloudFiles,
+                transferAsync
+            );
+
+        internal static ManualSyncPlan Pull(
+            Func<ManualSyncContext, IReadOnlyCollection<string>, Task<string>>
+                transferAsync
+        )
+            => new(
+                sync => sync.DiscoverCloudPaths(),
+                PullStarting,
+                SaveBackups.LocalBeforeManualPullAsync,
+                PullBackedUpLocalFiles,
+                transferAsync
+            );
 
         internal async Task RunAsync(string accountName, string refreshToken)
         {

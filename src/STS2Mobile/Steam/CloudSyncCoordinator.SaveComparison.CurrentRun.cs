@@ -6,7 +6,8 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveComparison
     {
-        private static readonly SaveMetricSet CurrentRunMetrics = new(CountRunFloors);
+        private static readonly SaveMetricSet CurrentRunMetrics =
+            SaveMetricSet.Ordered(CountRunFloors);
 
         private static SaveWinner CompareCurrentRun(string local, string cloud)
             => CompareJson(
@@ -18,10 +19,7 @@ internal static partial class CloudSyncCoordinator
         private static int CountRunFloors(JsonElement root)
         {
             int count = 0;
-            if (
-                root.TryGetProperty(MapPointHistoryProperty, out var history)
-                && history.ValueKind == JsonValueKind.Array
-            )
+            if (TryGetArray(root, MapPointHistoryProperty, out var history))
             {
                 foreach (var act in history.EnumerateArray())
                 {
@@ -29,10 +27,7 @@ internal static partial class CloudSyncCoordinator
                         count += act.GetArrayLength();
                 }
             }
-            else if (
-                root.TryGetProperty(ActsProperty, out var acts)
-                && acts.ValueKind == JsonValueKind.Array
-            )
+            else if (TryGetArray(root, ActsProperty, out var acts))
             {
                 // Alternate save format.
                 count = acts.GetArrayLength();

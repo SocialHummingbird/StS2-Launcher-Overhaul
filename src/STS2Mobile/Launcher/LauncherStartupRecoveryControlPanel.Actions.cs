@@ -6,21 +6,15 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private static readonly StartupRecoveryAction ExportDiagnosticsAction = new(
-        "diagnostics export",
-        "Diagnostics export failed",
-        ExportDiagnosticsReport
-    );
+    private static readonly StartupRecoveryAction ExportDiagnosticsAction =
+        StartupRecoveryAction.DiagnosticsExport(ExportDiagnosticsReport);
 
-    private static readonly StartupRecoveryAction CopyRawErrorLogAction = new(
-        "raw error log copy",
-        "Raw error log copy failed",
-        CopyReportTextToClipboard
-    );
+    private static readonly StartupRecoveryAction CopyRawErrorLogAction =
+        StartupRecoveryAction.RawErrorLogCopy(CopyReportTextToClipboard);
 
     private sealed class StartupRecoveryAction
     {
-        internal StartupRecoveryAction(
+        private StartupRecoveryAction(
             string logAction,
             string failureTitle,
             Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> run
@@ -35,17 +29,38 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         private string FailureTitle { get; }
         private Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> Run { get; }
 
+        internal static StartupRecoveryAction DiagnosticsExport(
+            Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> run
+        )
+            => new(
+                "diagnostics export",
+                "Diagnostics export failed",
+                run
+            );
+
+        internal static StartupRecoveryAction RawErrorLogCopy(
+            Func<LauncherDiagnostics.StartupRecoveryDiagnosticsReport, string> run
+        )
+            => new(
+                "raw error log copy",
+                "Raw error log copy failed",
+                run
+            );
+
         internal string RunAndDescribe()
         {
             try
             {
-                return Run(LauncherDiagnostics.StartupRecoveryReport(OS.GetDataDir()));
+                return Run(CurrentReport());
             }
             catch (Exception ex)
             {
                 return FailureMessage(ex);
             }
         }
+
+        private static LauncherDiagnostics.StartupRecoveryDiagnosticsReport CurrentReport()
+            => LauncherDiagnostics.StartupRecoveryReport(OS.GetDataDir());
 
         private string FailureMessage(Exception ex)
         {

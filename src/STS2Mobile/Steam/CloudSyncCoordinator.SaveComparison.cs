@@ -18,10 +18,15 @@ internal static partial class CloudSyncCoordinator
         {
             private readonly Func<JsonElement, int>[] _metrics;
 
-            internal SaveMetricSet(params Func<JsonElement, int>[] metrics)
+            private SaveMetricSet(params Func<JsonElement, int>[] metrics)
             {
                 _metrics = metrics;
             }
+
+            internal static SaveMetricSet Ordered(
+                params Func<JsonElement, int>[] metrics
+            )
+                => new(metrics);
 
             internal SaveWinner Compare(JsonElement localRoot, JsonElement cloudRoot)
             {

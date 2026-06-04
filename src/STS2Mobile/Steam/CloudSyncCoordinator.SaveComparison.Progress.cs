@@ -15,12 +15,13 @@ internal static partial class CloudSyncCoordinator
             DiscoveredActsProperty,
         };
 
-        private static readonly SaveMetricSet ProgressMetrics = new(
-            FloorsClimbed,
-            SumCharacterGames,
-            CountDiscovered,
-            TotalPlaytime
-        );
+        private static readonly SaveMetricSet ProgressMetrics =
+            SaveMetricSet.Ordered(
+                FloorsClimbed,
+                SumCharacterGames,
+                CountDiscovered,
+                TotalPlaytime
+            );
 
         private static SaveWinner CompareProgress(string local, string cloud)
             => CompareJson(
@@ -38,10 +39,7 @@ internal static partial class CloudSyncCoordinator
         private static int SumCharacterGames(JsonElement root)
         {
             int total = 0;
-            if (
-                root.TryGetProperty(CharacterStatsProperty, out var stats)
-                && stats.ValueKind == JsonValueKind.Array
-            )
+            if (TryGetArray(root, CharacterStatsProperty, out var stats))
             {
                 foreach (var character in stats.EnumerateArray())
                 {

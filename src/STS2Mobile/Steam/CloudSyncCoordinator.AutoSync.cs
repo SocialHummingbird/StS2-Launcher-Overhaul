@@ -22,14 +22,14 @@ internal static partial class CloudSyncCoordinator
 
         private readonly struct PathState
         {
-            internal PathState(string? localContent, bool cloudExists)
+            private PathState(string? localContent, bool cloudExists)
             {
                 LocalContent = localContent;
                 CloudExists = cloudExists;
             }
 
-            internal string? LocalContent { get; }
-            internal bool CloudExists { get; }
+            private string? LocalContent { get; }
+            private bool CloudExists { get; }
 
             private PathPresence Presence => (LocalContent != null, CloudExists) switch
             {
@@ -39,7 +39,10 @@ internal static partial class CloudSyncCoordinator
                 _ => PathPresence.Missing,
             };
 
-            internal string RequireLocalContent()
+            internal static PathState From(string? localContent, bool cloudExists)
+                => new(localContent, cloudExists);
+
+            private string RequireLocalContent()
             {
                 if (LocalContent == null)
                     throw new InvalidOperationException(
@@ -87,7 +90,7 @@ internal static partial class CloudSyncCoordinator
             => LocalFileExists() ? _local.ReadFile(Path) : null;
 
         private PathState ReadPathState()
-            => new(ReadLocalContent(), CloudFileExists());
+            => PathState.From(ReadLocalContent(), CloudFileExists());
 
         internal Task<string> ReadCloudContentAsync(string operation)
             => CloudSyncCoordinator.ReadCloudContentAsync(

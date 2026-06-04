@@ -10,12 +10,19 @@ internal sealed partial class ShaderWarmupScreen
         private readonly Label _detailLabel;
         private readonly ProgressBar _progressBar;
 
-        internal ShaderWarmupProgress(Label statusLabel, Label detailLabel, ProgressBar progressBar)
+        private ShaderWarmupProgress(Label statusLabel, Label detailLabel, ProgressBar progressBar)
         {
             _statusLabel = statusLabel;
             _detailLabel = detailLabel;
             _progressBar = progressBar;
         }
+
+        internal static ShaderWarmupProgress ForLabels(
+            Label statusLabel,
+            Label detailLabel,
+            ProgressBar progressBar
+        )
+            => new(statusLabel, detailLabel, progressBar);
 
         private void SetStatus(string text) => _statusLabel.Text = text;
 

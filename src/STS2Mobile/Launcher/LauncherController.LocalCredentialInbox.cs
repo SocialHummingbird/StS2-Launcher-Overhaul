@@ -32,10 +32,18 @@ internal sealed partial class LauncherController
             var username = DecodeBase64Line(lines[0]).Trim();
             var password = DecodeBase64Line(lines[1]);
 
+            return FromDecoded(username, password);
+        }
+
+        private static LocalSteamCredentials FromDecoded(
+            string username,
+            string password
+        )
+        {
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
                 throw new InvalidDataException("username or password was empty");
 
-            return new LocalSteamCredentials(username, password);
+            return new(username, password);
         }
 
         private static string DecodeBase64Line(string line)

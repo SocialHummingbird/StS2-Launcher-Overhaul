@@ -18,8 +18,8 @@ internal sealed partial class AndroidJavaHttpMessageHandler
             RequestMessage = request,
         };
 
-        if (root.TryGetProperty(ReasonProperty, out var reason))
-            response.ReasonPhrase = GetBridgeString(reason);
+        if (TryGetBridgeString(root, ReasonProperty, out var reason))
+            response.ReasonPhrase = reason;
 
         return response;
     }

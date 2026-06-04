@@ -14,7 +14,7 @@ internal sealed partial class ShaderWarmupScreen : Control
 
     private readonly struct WarmupMaterial
     {
-        internal WarmupMaterial(string path, Material material)
+        private WarmupMaterial(string path, Material material)
         {
             Path = path;
             Material = material;
@@ -22,6 +22,9 @@ internal sealed partial class ShaderWarmupScreen : Control
 
         private string Path { get; }
         private Material Material { get; }
+
+        internal static WarmupMaterial For(string path, Material material)
+            => new(path, material);
 
         internal Node CreateNode(ImageTexture whiteTexture)
             => Material is ParticleProcessMaterial particleMat
@@ -97,7 +100,11 @@ internal sealed partial class ShaderWarmupScreen : Control
     private async Task RunWarmupAsync()
     {
         var sw = Stopwatch.StartNew();
-        var progress = new ShaderWarmupProgress(_statusLabel, _detailLabel, _progressBar);
+        var progress = ShaderWarmupProgress.ForLabels(
+            _statusLabel,
+            _detailLabel,
+            _progressBar
+        );
 
         progress.ShowScanning();
         await WaitPostDrawAsync();
@@ -114,7 +121,7 @@ internal sealed partial class ShaderWarmupScreen : Control
             return;
         }
 
-        var renderer = new ShaderWarmupRenderer(this, tree, progress);
+        var renderer = ShaderWarmupRenderer.ForScreen(this, tree, progress);
         await renderer.RenderAsync(materials);
 
         var elapsedMilliseconds = sw.ElapsedMilliseconds;

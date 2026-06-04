@@ -88,4 +88,36 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
     {
         return element.ValueKind == JsonValueKind.String ? element.GetString() : element.ToString();
     }
+
+    private static bool TryGetBridgeString(
+        JsonElement root,
+        string property,
+        out string? value
+    )
+    {
+        if (root.TryGetProperty(property, out var element))
+        {
+            value = GetBridgeString(element);
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static bool TryGetBridgeInt32(
+        JsonElement root,
+        string property,
+        out int value
+    )
+    {
+        if (
+            root.TryGetProperty(property, out var element)
+            && element.TryGetInt32(out value)
+        )
+            return true;
+
+        value = default;
+        return false;
+    }
 }

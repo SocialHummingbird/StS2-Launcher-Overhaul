@@ -50,9 +50,12 @@ internal sealed partial class LauncherSteamSession
                 return false;
             }
 
-            code = new LocalSteamGuardCode(normalized);
+            code = FromNormalized(normalized);
             return true;
         }
+
+        private static LocalSteamGuardCode FromNormalized(string code)
+            => new(code);
 
         private static bool IsValid(string code)
         {

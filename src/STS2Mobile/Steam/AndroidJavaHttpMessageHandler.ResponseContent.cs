@@ -51,8 +51,8 @@ internal sealed partial class AndroidJavaHttpMessageHandler
             .CreateContent(status, requestContext.Description, cancellationToken);
 
     private static string? ReadBodyFilePath(JsonElement root)
-        => root.TryGetProperty(BodyFileProperty, out var bodyFileElement)
-            ? GetBridgeString(bodyFileElement)
+        => TryGetBridgeString(root, BodyFileProperty, out var bodyFilePath)
+            ? bodyFilePath
             : null;
 
     private static HttpContent CreateResponseContentFromBase64Body(
@@ -77,8 +77,8 @@ internal sealed partial class AndroidJavaHttpMessageHandler
 
     private static string ReadBase64ResponseBody(JsonElement root)
     {
-        return root.TryGetProperty(BodyProperty, out var bodyElement)
-            ? GetBridgeString(bodyElement) ?? string.Empty
+        return TryGetBridgeString(root, BodyProperty, out var body)
+            ? body ?? string.Empty
             : string.Empty;
     }
 

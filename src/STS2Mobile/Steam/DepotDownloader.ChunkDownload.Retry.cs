@@ -15,27 +15,42 @@ internal sealed partial class DepotDownloader
         string fileName
     )
         => RunCdnDownloadWithRetriesAsync(
-            new CdnDownloadOperation<int>(
-                ChunkDownloadOperation,
-                attempt => TryDownloadChunkAsync(
-                    depotId,
-                    chunk,
-                    buffer,
-                    depotKey,
-                    fileName,
-                    attempt
-                ),
-                attempt => TryDownloadChunkWithAuthAsync(
-                    depotId,
-                    chunk,
-                    buffer,
-                    depotKey,
-                    fileName,
-                    attempt
-                ),
-                () => new Exception(
-                    $"Failed to download chunk for {fileName} after {MaxRetries} attempts"
-                )
+            CreateChunkDownloadOperation(
+                depotId,
+                chunk,
+                buffer,
+                depotKey,
+                fileName
+            )
+        );
+
+    private CdnDownloadOperation<int> CreateChunkDownloadOperation(
+        uint depotId,
+        DepotManifest.ChunkData chunk,
+        byte[] buffer,
+        byte[] depotKey,
+        string fileName
+    )
+        => CdnDownloadOperation<int>.AcrossServersWithAuthRetry(
+            ChunkDownloadOperation,
+            attempt => TryDownloadChunkAsync(
+                depotId,
+                chunk,
+                buffer,
+                depotKey,
+                fileName,
+                attempt
+            ),
+            attempt => TryDownloadChunkWithAuthAsync(
+                depotId,
+                chunk,
+                buffer,
+                depotKey,
+                fileName,
+                attempt
+            ),
+            () => new Exception(
+                $"Failed to download chunk for {fileName} after {MaxRetries} attempts"
             )
         );
 

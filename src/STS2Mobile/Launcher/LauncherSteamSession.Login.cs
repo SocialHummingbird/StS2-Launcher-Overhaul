@@ -9,7 +9,7 @@ internal sealed partial class LauncherSteamSession
 {
     internal sealed class LoginRequest
     {
-        internal LoginRequest(
+        private LoginRequest(
             string username,
             string password,
             Action<string> logMessage,
@@ -29,6 +29,21 @@ internal sealed partial class LauncherSteamSession
         private Action<string> LogMessage { get; }
         private Action<bool> CodeNeeded { get; }
         private Action VerifyingOwnership { get; }
+
+        internal static LoginRequest FromCredentials(
+            string username,
+            string password,
+            Action<string> logMessage,
+            Action<bool> codeNeeded,
+            Action verifyingOwnership
+        )
+            => new(
+                username,
+                password,
+                logMessage,
+                codeNeeded,
+                verifyingOwnership
+            );
 
         internal void AttachLog(SteamAuth auth)
             => auth.LogMessage += msg => LogMessage?.Invoke(msg);
