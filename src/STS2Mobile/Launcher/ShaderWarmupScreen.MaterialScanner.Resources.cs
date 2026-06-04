@@ -26,7 +26,7 @@ internal sealed partial class ShaderWarmupScreen
                 return;
 
             var cleanPath = CleanResourcePath(dirPath, cleanName);
-            if (materials.ContainsKey(cleanPath))
+            if (materials.Contains(cleanPath))
                 return;
 
             TryLoadMaterialResource(cleanName, cleanPath, materials);
