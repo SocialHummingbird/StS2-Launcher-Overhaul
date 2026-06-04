@@ -23,17 +23,23 @@ internal static partial class LauncherStartupFlow
             Task startupTask,
             CanvasLayer recoveryControls
         )
-            => LauncherTimeout.RecoverIfTimedOutAsync(
+        {
+            var game = Game;
+            var gameNode = GameNode;
+            var status = Status;
+
+            return LauncherTimeout.RecoverIfTimedOutAsync(
                 startupTask,
                 StartupWatchdogMs,
                 () => LauncherGameStartupRecovery.HandleWatchdogAsync(
-                    Game,
-                    GameNode,
-                    Status,
+                    game,
+                    gameNode,
+                    status,
                     recoveryControls,
                     StartupWatchdogMs
                 )
             );
+        }
 
         private Task<bool> EnsureMainMenuReadyAsync()
             => LauncherGameStartupRecovery.EnsureMainMenuReadyAsync(
