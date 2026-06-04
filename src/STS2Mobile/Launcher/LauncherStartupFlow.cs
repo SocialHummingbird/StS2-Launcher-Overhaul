@@ -54,18 +54,17 @@ internal static partial class LauncherStartupFlow
                 var game = _startup.Game;
                 var gameNode = _startup.GameNode;
                 var status = _startup.Status;
-                return StartupWatchdog
-                    .For(
-                        startupTask,
-                        () => LauncherGameStartupRecovery.HandleWatchdogAsync(
-                            game,
-                            gameNode,
-                            status,
-                            recoveryControls,
-                            StartupWatchdogMs
-                        )
+                return LauncherTimeout.RecoverIfTimedOutAsync(
+                    startupTask,
+                    StartupWatchdogMs,
+                    () => LauncherGameStartupRecovery.HandleWatchdogAsync(
+                        game,
+                        gameNode,
+                        status,
+                        recoveryControls,
+                        StartupWatchdogMs
                     )
-                    .RecoverIfTimedOutAsync();
+                );
             }
 
             private Task<bool> EnsureMainMenuReadyAsync()
@@ -81,36 +80,6 @@ internal static partial class LauncherStartupFlow
                     _startup.Status,
                     _startup.GameNode
                 );
-        }
-
-        private readonly struct StartupWatchdog
-        {
-            private readonly Task _startupTask;
-            private readonly Func<Task> _recoverAsync;
-
-            private StartupWatchdog(Task startupTask, Func<Task> recoverAsync)
-            {
-                _startupTask = startupTask;
-                _recoverAsync = recoverAsync;
-            }
-
-            internal static StartupWatchdog For(
-                Task startupTask,
-                Func<Task> recoverAsync
-            )
-                => new(startupTask, recoverAsync);
-
-            internal async Task<bool> RecoverIfTimedOutAsync()
-            {
-                if (await LauncherTimeout.CompletesWithinAsync(
-                    _startupTask,
-                    StartupWatchdogMs
-                ))
-                    return false;
-
-                await _recoverAsync();
-                return true;
-            }
         }
 
         internal StartupContext(

@@ -56,6 +56,30 @@ internal static partial class CloudSyncCoordinator
             CurrentRun,
         }
 
+        private readonly struct SaveComparisonPlan
+        {
+            private readonly Func<string, string, SaveWinner> _compare;
+
+            private SaveComparisonPlan(Func<string, string, SaveWinner> compare)
+            {
+                _compare = compare;
+            }
+
+            internal static SaveComparisonPlan ForPath(string path)
+                => GetSaveKind(path) switch
+                {
+                    SaveKind.Progress => new(CompareProgress),
+                    SaveKind.CurrentRun => new(CompareCurrentRun),
+                    _ => new(NoExplicitWinner),
+                };
+
+            internal SaveWinner Compare(string localContent, string cloudContent)
+                => _compare(localContent, cloudContent);
+
+            private static SaveWinner NoExplicitWinner(string _, string __)
+                => SaveWinner.None;
+        }
+
         private const string ActsProperty = "acts";
         private const string CharacterStatsProperty = "character_stats";
         private const string DiscoveredActsProperty = "discovered_acts";
@@ -84,13 +108,9 @@ internal static partial class CloudSyncCoordinator
         {
             try
             {
-                return GetSaveKind(path) switch
-                {
-                    SaveKind.Progress => CompareProgress(localContent, cloudContent),
-                    SaveKind.CurrentRun => CompareCurrentRun(localContent, cloudContent),
-                    // History files have unique filenames; prefs have no progress concept.
-                    _ => SaveWinner.None,
-                };
+                return SaveComparisonPlan
+                    .ForPath(path)
+                    .Compare(localContent, cloudContent);
             }
             catch (Exception ex)
             {

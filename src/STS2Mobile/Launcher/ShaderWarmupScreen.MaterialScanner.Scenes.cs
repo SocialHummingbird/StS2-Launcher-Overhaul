@@ -9,7 +9,7 @@ internal sealed partial class ShaderWarmupScreen
     private static partial class ShaderWarmupMaterialScanner
     {
         private static async Task ScanScenesAsync(
-            Dictionary<string, Material> materials,
+            WarmupMaterialCollection materials,
             SceneTree tree,
             ShaderWarmupProgress progress
         )

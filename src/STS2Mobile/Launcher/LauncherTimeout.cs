@@ -19,4 +19,17 @@ internal static class LauncherTimeout
 
         await task;
     }
+
+    internal static async Task<bool> RecoverIfTimedOutAsync(
+        Task task,
+        int timeoutMs,
+        Func<Task> recoverAsync
+    )
+    {
+        if (await CompletesWithinAsync(task, timeoutMs))
+            return false;
+
+        await recoverAsync();
+        return true;
+    }
 }

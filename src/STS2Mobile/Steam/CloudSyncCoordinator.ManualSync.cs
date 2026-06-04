@@ -145,6 +145,26 @@ internal static partial class CloudSyncCoordinator
             => PullComplete(Downloaded, Skipped);
     }
 
+    private sealed class ManualSyncResultAccumulator
+    {
+        private ManualSyncResultTotals _totals = ManualSyncResultTotals.Empty();
+
+        internal static ManualSyncResultAccumulator Empty()
+            => new();
+
+        internal bool Add(ManualSyncPathResult result)
+        {
+            _totals = _totals.Add(result);
+            return result.StopAfterBudget;
+        }
+
+        internal string PushCompleteMessage()
+            => _totals.PushCompleteMessage();
+
+        internal string PullCompleteMessage()
+            => _totals.PullCompleteMessage();
+    }
+
     private readonly struct ManualSyncContext
     {
         private readonly ISaveStore _local;

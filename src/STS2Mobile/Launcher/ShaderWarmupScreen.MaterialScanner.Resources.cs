@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -7,7 +6,10 @@ internal sealed partial class ShaderWarmupScreen
 {
     private static partial class ShaderWarmupMaterialScanner
     {
-        private static void CollectLooseMaterials(string dirPath, Dictionary<string, Material> materials)
+        private static void CollectLooseMaterials(
+            string dirPath,
+            WarmupMaterialCollection materials
+        )
         {
             VisitFiles(dirPath, (currentDir, fileName) =>
                 TryCollectMaterialFile(currentDir, fileName, materials));
@@ -16,7 +18,7 @@ internal sealed partial class ShaderWarmupScreen
         private static void TryCollectMaterialFile(
             string dirPath,
             string fileName,
-            Dictionary<string, Material> materials
+            WarmupMaterialCollection materials
         )
         {
             var cleanName = CleanResourceFileName(fileName);

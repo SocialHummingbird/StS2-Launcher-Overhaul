@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 
 namespace STS2Mobile.Steam;
 
@@ -21,18 +20,11 @@ internal sealed partial class DepotDownloader
                 continue;
             }
 
-            if (!File.Exists(path))
-                continue;
-
-            try
-            {
-                File.Delete(path);
-                Log($"Deleted: {fileName}");
-            }
-            catch (Exception ex)
-            {
-                Log($"Could not delete obsolete file {fileName}: {ex.Message}");
-            }
+            TryDeleteFileIfExists(
+                path,
+                $"Deleted: {fileName}",
+                ex => $"Could not delete obsolete file {fileName}: {ex.Message}"
+            );
         }
     }
 }

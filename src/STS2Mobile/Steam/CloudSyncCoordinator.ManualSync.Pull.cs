@@ -11,11 +11,11 @@ internal static partial class CloudSyncCoordinator
         IReadOnlyCollection<string> paths
     )
     {
-        var totals = ManualSyncResultTotals.Empty();
+        var totals = ManualSyncResultAccumulator.Empty();
         foreach (var path in paths)
         {
-            var result = await PullManualPathAsync(sync, path);
-            totals = totals.Add(result);
+            if (totals.Add(await PullManualPathAsync(sync, path)))
+                break;
 
             if (sync.BudgetExceeded(ManualPullBudgetExceeded))
                 break;

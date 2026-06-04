@@ -17,6 +17,39 @@ internal sealed partial class DepotDownloader
         }
     }
 
+    private bool TryDeleteFileIfExists(
+        string path,
+        string successMessage,
+        Func<Exception, string> failureMessage
+    )
+    {
+        var deleted = TryDeleteFileIfExists(path, failureMessage);
+        if (deleted)
+            Log(successMessage);
+
+        return deleted;
+    }
+
+    private bool TryDeleteFileIfExists(
+        string path,
+        Func<Exception, string> failureMessage
+    )
+    {
+        if (!File.Exists(path))
+            return false;
+
+        try
+        {
+            File.Delete(path);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log(failureMessage(ex));
+            return false;
+        }
+    }
+
     private static void DeleteQuietly(string path)
     {
         try

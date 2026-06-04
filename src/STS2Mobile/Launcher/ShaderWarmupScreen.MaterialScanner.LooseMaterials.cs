@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Godot;
 
@@ -9,7 +8,7 @@ internal sealed partial class ShaderWarmupScreen
     private static partial class ShaderWarmupMaterialScanner
     {
         private static async Task ScanLooseMaterialsAsync(
-            Dictionary<string, Material> materials,
+            WarmupMaterialCollection materials,
             SceneTree tree,
             ShaderWarmupProgress progress
         )

@@ -76,9 +76,14 @@ internal static partial class CloudSyncCoordinator
                     paths,
                     store,
                     historyDir,
-                    files => LimitRunHistory(SelectRunHistoryFiles(files))
+                    SelectFallbackRunHistoryFiles
                 );
             }
         }
+
+        private static IEnumerable<string> SelectFallbackRunHistoryFiles(
+            IEnumerable<string> files
+        )
+            => LimitRunHistory(SelectRunHistoryFiles(files));
     }
 }

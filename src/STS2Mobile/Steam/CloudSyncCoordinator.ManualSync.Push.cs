@@ -13,13 +13,10 @@ internal static partial class CloudSyncCoordinator
     {
         var totals = sync.RunCloudBatch(() =>
         {
-            var batchTotals = ManualSyncResultTotals.Empty();
+            var batchTotals = ManualSyncResultAccumulator.Empty();
             foreach (var path in paths)
             {
-                var result = QueueManualPushPath(sync, path);
-                batchTotals = batchTotals.Add(result);
-
-                if (result.StopAfterBudget)
+                if (batchTotals.Add(QueueManualPushPath(sync, path)))
                     break;
             }
 

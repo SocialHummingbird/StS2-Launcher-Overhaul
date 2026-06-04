@@ -61,6 +61,9 @@ internal static partial class LauncherPreferences
             return enabled;
         }
 
+        internal bool ReadForActionPreferences(bool apply)
+            => apply ? LoadAndApply() : Read();
+
         internal void Save(bool enabled)
         {
             BeforeSave?.Invoke(enabled);
@@ -80,8 +83,8 @@ internal static partial class LauncherPreferences
 
     private static ActionPreferences CreateActionPreferences(bool apply)
         => new(
-            apply ? LocalBackupPreference.LoadAndApply() : LocalBackupPreference.Read(),
-            apply ? CloudSyncPreference.LoadAndApply() : CloudSyncPreference.Read()
+            LocalBackupPreference.ReadForActionPreferences(apply),
+            CloudSyncPreference.ReadForActionPreferences(apply)
         );
 
     internal static bool LoadAndApplyCloudSyncEnabled()

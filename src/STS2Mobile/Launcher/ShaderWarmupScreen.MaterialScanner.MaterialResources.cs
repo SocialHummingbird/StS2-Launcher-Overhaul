@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -11,7 +10,7 @@ internal sealed partial class ShaderWarmupScreen
         private static void TryLoadMaterialResource(
             string cleanName,
             string cleanPath,
-            Dictionary<string, Material> materials
+            WarmupMaterialCollection materials
         )
         {
             try
@@ -22,13 +21,12 @@ internal sealed partial class ShaderWarmupScreen
                 if (cleanName.EndsWith(TresExtension))
                 {
                     if (TryLoadTresMaterial(cleanPath, out var mat))
-                        materials[cleanPath] = mat;
+                        materials.SetMaterial(cleanPath, mat);
                     return;
                 }
 
                 var res = ResourceLoader.Load(cleanPath, null, ResourceLoader.CacheMode.Reuse);
-                if (TryCreateMaterial(res, out var material))
-                    materials[cleanPath] = material;
+                materials.SetResource(cleanPath, res);
             }
             catch (Exception ex)
             {

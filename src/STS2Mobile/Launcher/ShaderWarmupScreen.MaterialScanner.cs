@@ -17,33 +17,56 @@ internal sealed partial class ShaderWarmupScreen
         private const string SceneRoot = "res://scenes";
         private const string TresExtension = ".tres";
 
+        private sealed class WarmupMaterialCollection
+        {
+            private readonly Dictionary<string, Material> _materials = new();
+
+            internal int Count => _materials.Count;
+
+            internal bool Contains(string path)
+                => _materials.ContainsKey(path);
+
+            internal void SetMaterial(string path, Material material)
+                => _materials[path] = material;
+
+            internal void SetResource(string path, Resource resource)
+            {
+                if (TryCreateMaterial(resource, out var material))
+                    SetMaterial(path, material);
+            }
+
+            internal void TryAddResource(string path, Resource resource)
+            {
+                if (TryCreateMaterial(resource, out var material))
+                    _materials.TryAdd(path, material);
+            }
+
+            internal List<WarmupMaterial> UniqueByShader()
+            {
+                var unique = new Dictionary<string, WarmupMaterial>();
+                foreach (var (path, mat) in _materials)
+                {
+                    var shaderKey = GetShaderKey(mat);
+                    unique.TryAdd(shaderKey, WarmupMaterial.For(path, mat));
+                }
+
+                return unique.Values.ToList();
+            }
+        }
+
         internal static async Task<List<WarmupMaterial>> CollectAsync(
             SceneTree tree,
             ShaderWarmupProgress progress
         )
         {
-            var materials = new Dictionary<string, Material>();
+            var materials = new WarmupMaterialCollection();
 
             await ScanLooseMaterialsAsync(materials, tree, progress);
             await ScanScenesAsync(materials, tree, progress);
 
-            var unique = UniqueByShader(materials);
+            var unique = materials.UniqueByShader();
             PatchHelper.Log(Message.UniqueShaders(materials.Count, unique.Count));
             return unique;
-        }
-
-        private static List<WarmupMaterial> UniqueByShader(
-            Dictionary<string, Material> materials
-        )
-        {
-            var unique = new Dictionary<string, WarmupMaterial>();
-            foreach (var (path, mat) in materials)
-            {
-                var shaderKey = GetShaderKey(mat);
-                unique.TryAdd(shaderKey, WarmupMaterial.For(path, mat));
-            }
-
-            return unique.Values.ToList();
         }
 
         private static bool TryCreateMaterial(Resource resource, out Material material)

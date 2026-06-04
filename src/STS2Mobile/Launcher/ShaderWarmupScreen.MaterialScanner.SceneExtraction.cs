@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -10,7 +9,7 @@ internal sealed partial class ShaderWarmupScreen
     {
         private static void ExtractSceneMaterials(
             string scenePath,
-            Dictionary<string, Material> materials
+            WarmupMaterialCollection materials
         )
         {
             try
@@ -32,7 +31,7 @@ internal sealed partial class ShaderWarmupScreen
         private static void ExtractMaterials(
             PackedScene packed,
             string scenePath,
-            Dictionary<string, Material> materials
+            WarmupMaterialCollection materials
         )
         {
             var state = packed.GetState();
@@ -67,14 +66,17 @@ internal sealed partial class ShaderWarmupScreen
             int nodeIndex,
             int propertyIndex,
             string propName,
-            Dictionary<string, Material> materials
+            WarmupMaterialCollection materials
         )
         {
             try
             {
                 var val = state.GetNodePropertyValue(nodeIndex, propertyIndex);
-                if (val.Obj is Resource resource && TryCreateMaterial(resource, out var material))
-                    materials.TryAdd($"{scenePath}#node{nodeIndex}#{propName}", material);
+                if (val.Obj is Resource resource)
+                    materials.TryAddResource(
+                        $"{scenePath}#node{nodeIndex}#{propName}",
+                        resource
+                    );
             }
             catch (Exception ex)
             {
