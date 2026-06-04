@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 
 namespace STS2Mobile.Steam;
 
@@ -62,14 +61,19 @@ internal static partial class CloudSyncCoordinator
                 if (ShouldSkipBackup(Content))
                     return false;
 
-                var backupPath = BuildBackupPathForSave(Path, FileNameOverride, Source);
-                File.WriteAllText(backupPath, Content);
-                OnWritten(backupPath);
+                CreateTarget().Write();
                 return true;
             }
 
             internal string FailureMessage(Exception ex)
                 => BackupFailed(Source, Path, ex);
+
+            private BackupWriteTarget CreateTarget()
+                => new(
+                    BuildBackupPathForSave(Path, FileNameOverride, Source),
+                    Content,
+                    OnWritten
+                );
         }
     }
 }

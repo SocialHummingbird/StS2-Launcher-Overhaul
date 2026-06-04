@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 
 namespace STS2Mobile.Launcher;
@@ -9,102 +8,6 @@ internal static partial class LauncherDiagnostics
 {
     private const int LargeAttachmentMaxChars = 256 * 1024;
     private const int SmallAttachmentMaxChars = 64 * 1024;
-
-    private readonly struct DiagnosticAttachment
-    {
-        internal DiagnosticAttachment(DiagnosticFile file, int maxChars)
-        {
-            File = file;
-            MaxChars = maxChars;
-        }
-
-        private DiagnosticFile File { get; }
-        private int MaxChars { get; }
-
-        internal void AppendHeader(StringBuilder sb)
-            => File.AppendHeader(sb);
-
-        internal FileReadResult Read()
-            => File.Read();
-
-        internal string TruncatedContent(FileReadResult read)
-            => TruncateForDisplay(read.ContentText(), MaxChars);
-    }
-
-    private readonly struct InterestingDiagnosticTail
-    {
-        internal InterestingDiagnosticTail(DiagnosticFile file, int maxLines)
-        {
-            File = file;
-            MaxLines = maxLines;
-        }
-
-        private DiagnosticFile File { get; }
-        private int MaxLines { get; }
-
-        internal void AppendHeader(StringBuilder sb)
-            => File.AppendHeader(sb);
-
-        internal IEnumerable<string> InterestingLines(FileReadResult read)
-            => SelectInterestingDiagnosticLines(read.ContentLines(), MaxLines);
-
-        internal FileReadResult Read()
-            => File.Read();
-    }
-
-    private readonly struct FileReadResult
-    {
-        private enum ReadState
-        {
-            Content,
-            Missing,
-            Failed,
-        }
-
-        private FileReadResult(ReadState state, string text)
-        {
-            State = state;
-            Text = text;
-        }
-
-        private ReadState State { get; }
-        private string Text { get; }
-        private bool HasText => State == ReadState.Content;
-        private bool IsMissing => State == ReadState.Missing;
-
-        internal static FileReadResult Read(string text)
-            => new(ReadState.Content, text);
-
-        internal static FileReadResult Missing()
-            => new(ReadState.Missing, string.Empty);
-
-        internal static FileReadResult Failed(string error)
-            => new(ReadState.Failed, error);
-
-        internal void AppendFileStatus(StringBuilder sb)
-            => sb.AppendLine(IsMissing ? "  exists=False" : $"  failed={Text}");
-
-        internal void AppendStatus(
-            StringBuilder sb,
-            string missingPrefix = "",
-            string failedPrefix = ""
-        )
-            => sb.AppendLine(Status(missingPrefix, failedPrefix));
-
-        internal string ContentText()
-            => HasText ? Text : string.Empty;
-
-        internal bool HasContent()
-            => HasText;
-
-        internal string[] ContentLines()
-            => ContentText().Replace("\r\n", "\n").Split('\n');
-
-        private string Status(string missingPrefix = "", string failedPrefix = "")
-            => IsMissing
-                ? $"{missingPrefix}<missing>"
-                : $"{failedPrefix}<failed to read: {Text}>";
-    }
 
     private static void AppendSummaryErrorDiagnostics(StringBuilder sb, string dataDir)
     {
