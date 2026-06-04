@@ -19,7 +19,7 @@ internal static partial class LauncherGameStartupRecovery
         private RecoveryStateUpdate(
             string reason,
             string statusMessage,
-            string? snapshotReason = null
+            string snapshotReason = null
         )
         {
             Reason = reason;
@@ -29,7 +29,7 @@ internal static partial class LauncherGameStartupRecovery
 
         private string Reason { get; }
         private string StatusMessage { get; }
-        private string? SnapshotReason { get; }
+        private string SnapshotReason { get; }
         private string EffectiveSnapshotReason => SnapshotReason ?? Reason;
 
         internal static RecoveryStateUpdate GameStartupFailed(Exception ex)

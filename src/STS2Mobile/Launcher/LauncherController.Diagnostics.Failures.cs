@@ -15,12 +15,12 @@ internal sealed partial class LauncherController
     {
         private readonly string _context;
         private readonly DiagnosticsExceptionDetail _exceptionDetail;
-        private readonly Action<string>? _onFailure;
+        private readonly Action<string> _onFailure;
 
         private DiagnosticsFailureHandling(
             string context,
             DiagnosticsExceptionDetail exceptionDetail,
-            Action<string>? onFailure = null
+            Action<string> onFailure = null
         )
         {
             _context = context;
@@ -30,14 +30,14 @@ internal sealed partial class LauncherController
 
         internal static DiagnosticsFailureHandling FullException(
             string context,
-            Action<string>? onFailure = null
+            Action<string> onFailure = null
         )
             => new(context, DiagnosticsExceptionDetail.FullException, onFailure);
 
         internal static DiagnosticsFailureHandling WithDetail(
             string context,
             DiagnosticsExceptionDetail exceptionDetail,
-            Action<string>? onFailure = null
+            Action<string> onFailure = null
         )
             => new(context, exceptionDetail, onFailure);
 
@@ -46,7 +46,8 @@ internal sealed partial class LauncherController
             PatchHelper.Log(
                 $"[Launcher] {_context}: {ExceptionText(ex)}"
             );
-            _onFailure?.Invoke(ex.Message);
+            if (_onFailure != null)
+                _onFailure(ex.Message);
         }
 
         internal void Run(Action action)
@@ -61,7 +62,7 @@ internal sealed partial class LauncherController
             }
         }
 
-        internal string? TryRun(Func<string> action)
+        internal string TryRun(Func<string> action)
         {
             try
             {
@@ -90,10 +91,10 @@ internal sealed partial class LauncherController
         failure.Run(action);
     }
 
-    private string? TryWriteDiagnosticsReport(
+    private string TryWriteDiagnosticsReport(
         string failureContext,
         DiagnosticsExceptionDetail exceptionDetail,
-        Action<string>? onFailure = null
+        Action<string> onFailure = null
     )
     {
         var failure = DiagnosticsFailureHandling.WithDetail(

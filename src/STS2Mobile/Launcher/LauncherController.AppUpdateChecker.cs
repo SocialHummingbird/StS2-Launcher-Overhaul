@@ -1,9 +1,6 @@
 using System;
 using System.Net.Http;
-using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using SteamKit2;
 using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
@@ -34,7 +31,7 @@ internal sealed partial class LauncherController
         )
             => new(installedVersion);
 
-        internal async Task<string?> RunAsync()
+        internal async Task<string> RunAsync()
         {
             var latestVersion = await FetchLatestVersionAsync();
             if (!latestVersion.HasValue)
@@ -67,67 +64,7 @@ internal sealed partial class LauncherController
         }
     }
 
-    private readonly struct LauncherVersion
-    {
-        private LauncherVersion(string text, int[] parts)
-        {
-            Text = text;
-            Parts = parts;
-        }
-
-        private string Text { get; }
-        private int[] Parts { get; }
-
-        internal static bool TryParse(string? version, out LauncherVersion parsed)
-        {
-            parsed = default;
-            if (string.IsNullOrEmpty(version))
-                return false;
-
-            var match = Regex.Match(version, VersionNumberPattern);
-            if (!match.Success)
-                return false;
-
-            var text = match.Value.TrimStart('v', 'V');
-            parsed = new LauncherVersion(text, ParseParts(text));
-            return true;
-        }
-
-        internal bool IsNewerThan(LauncherVersion other)
-            => CompareTo(other) > 0;
-
-        private int CompareTo(LauncherVersion other)
-        {
-            var len = Math.Max(Parts.Length, other.Parts.Length);
-            for (var i = 0; i < len; i++)
-            {
-                var current = PartOrZero(Parts, i);
-                var target = PartOrZero(other.Parts, i);
-                if (current != target)
-                    return current - target;
-            }
-
-            return 0;
-        }
-
-        public override string ToString()
-            => Text;
-
-        private static int[] ParseParts(string version)
-        {
-            var textParts = version.Split('.');
-            var parts = new int[textParts.Length];
-            for (var i = 0; i < textParts.Length; i++)
-                parts[i] = int.TryParse(textParts[i], out var value) ? value : 0;
-
-            return parts;
-        }
-
-        private static int PartOrZero(int[] parts, int index)
-            => index < parts.Length ? parts[index] : 0;
-    }
-
-    private static async Task<string?> CheckLatestLauncherVersionAsync()
+    private static async Task<string> CheckLatestLauncherVersionAsync()
     {
         if (!LauncherVersion.TryParse(GetInstalledLauncherVersion(), out var installedVersion))
             return null;
@@ -137,7 +74,7 @@ internal sealed partial class LauncherController
             .RunAsync();
     }
 
-    private static string? GetInstalledLauncherVersion()
+    private static string GetInstalledLauncherVersion()
     {
         try
         {
@@ -148,21 +85,4 @@ internal sealed partial class LauncherController
             return null;
         }
     }
-
-    private static LauncherVersion? ParseLatestReleaseVersion(string json)
-    {
-        using var doc = JsonDocument.Parse(json);
-        return LauncherVersion.TryParse(ReadReleaseVersionText(doc.RootElement), out var version)
-            ? version
-            : null;
-    }
-
-    private static string? ReadReleaseVersionText(JsonElement root)
-        => ReadOptionalString(root, ReleaseTagNameProperty)
-            ?? ReadOptionalString(root, ReleaseNameProperty);
-
-    private static string? ReadOptionalString(JsonElement root, string property)
-        => root.TryGetProperty(property, out var value)
-            ? value.GetString()
-            : null;
 }

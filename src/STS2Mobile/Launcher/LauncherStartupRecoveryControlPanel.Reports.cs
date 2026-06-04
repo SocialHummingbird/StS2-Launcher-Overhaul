@@ -37,4 +37,12 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
             return RawErrorLogCopiedMessage(text.Length);
         }
     }
+
+    private static string ExportDiagnosticsMessage(string path, bool shared)
+        => shared
+            ? $"Diagnostics exported and share sheet opened.\n\nSaved at:\n{path}"
+            : $"Diagnostics exported, but the share sheet did not open.\n\nSaved at:\n{path}";
+
+    private static string RawErrorLogCopiedMessage(int length)
+        => $"Raw error log copied to clipboard.\n\nLength: {length:N0} characters";
 }

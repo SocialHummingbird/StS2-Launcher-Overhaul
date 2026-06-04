@@ -15,7 +15,7 @@ internal sealed partial class LauncherController
         WriteAutomaticDiagnosticsOnce();
     }
 
-    private void ShowPreviousLaunchWarning(string? previousLaunchPhase)
+    private void ShowPreviousLaunchWarning(string previousLaunchPhase)
     {
         _view.SetStatus(PreviousLaunchWarningStatus);
         _view.AppendLog(
@@ -29,7 +29,7 @@ internal sealed partial class LauncherController
         );
     }
 
-    private static string PreviousLaunchPhaseSuffix(string? previousLaunchPhase)
+    private static string PreviousLaunchPhaseSuffix(string previousLaunchPhase)
         => string.IsNullOrWhiteSpace(previousLaunchPhase)
             ? ""
             : $" Last phase: {previousLaunchPhase}.";

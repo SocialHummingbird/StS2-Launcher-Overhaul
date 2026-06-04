@@ -10,14 +10,14 @@ internal static partial class LauncherGameStartupRecovery
 {
     private readonly struct CurrentSceneInspection
     {
-        internal CurrentSceneInspection(bool isMainMenu, string? sceneName)
+        internal CurrentSceneInspection(bool isMainMenu, string sceneName)
         {
             IsMainMenu = isMainMenu;
             SceneName = sceneName;
         }
 
         internal bool IsMainMenu { get; }
-        internal string? SceneName { get; }
+        internal string SceneName { get; }
     }
 
     private static Task LoadMainMenuAsync(object game)

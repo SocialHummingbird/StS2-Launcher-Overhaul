@@ -6,80 +6,8 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private readonly struct ProductInfoApp
+    private readonly partial struct ProductInfoApp
     {
-        private readonly struct ProductInfoAppIdentity
-        {
-            internal static ProductInfoAppIdentity For(uint appId)
-                => new(appId);
-
-            private ProductInfoAppIdentity(uint appId)
-            {
-                AppId = appId;
-            }
-
-            internal uint AppId { get; }
-
-            private bool IsMainApp => AppId == SteamCloudApp.AppId;
-            private string Name => IsMainApp
-                ? $"{SteamCloudApp.Name} ({SteamCloudApp.AppId})"
-                : $"referenced app {AppId}";
-            private string OwnershipHint => IsMainApp
-                ? "; ownership/session may be invalid"
-                : "";
-
-            internal string AccessTokenDenied()
-                => $"Steam denied app access token for {Name}{OwnershipHint}";
-
-            internal string PublicAccessTokenFallback()
-                => $"Steam returned no app access token for {Name}; "
-                    + "continuing with public token 0";
-
-            internal string AppInfoUnavailable()
-                => $"Failed to get app info from Steam for {Name}{OwnershipHint}";
-
-            internal string MissingDepotsSection()
-                => $"Steam app info for {Name} has no depots section";
-        }
-
-        private readonly struct ProductInfoAppSections
-        {
-            private readonly ProductInfoAppIdentity _identity;
-            private readonly PICSProductInfo _appInfo;
-
-            internal static ProductInfoAppSections For(
-                ProductInfoAppIdentity identity,
-                PICSProductInfo appInfo
-            )
-                => new(identity, appInfo);
-
-            private ProductInfoAppSections(
-                ProductInfoAppIdentity identity,
-                PICSProductInfo appInfo
-            )
-            {
-                _identity = identity;
-                _appInfo = appInfo;
-            }
-
-            internal KeyValue RequiredDepots()
-            {
-                var depots = _appInfo?.KeyValues?["depots"];
-                if (depots == null || depots == KeyValue.Invalid)
-                    throw new System.InvalidOperationException(
-                        _identity.MissingDepotsSection()
-                    );
-
-                return depots;
-            }
-
-            internal KeyValue TryManifestSection(uint depotId)
-            {
-                var depot = RequiredDepots()[depotId.ToString()];
-                return depot != KeyValue.Invalid ? depot["manifests"] : KeyValue.Invalid;
-            }
-        }
-
         private readonly DepotDownloader _owner;
 
         private ProductInfoApp(DepotDownloader owner, uint appId)
