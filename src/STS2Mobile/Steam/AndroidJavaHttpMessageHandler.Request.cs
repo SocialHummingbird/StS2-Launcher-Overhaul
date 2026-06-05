@@ -16,7 +16,12 @@ internal sealed partial class AndroidJavaHttpMessageHandler
             return AndroidBridgeDispatcher.Run(
                 () =>
                 {
-                    if (!TryGetGodotApp(out var app))
+                    if (
+                        !AndroidGodotAppBridge.TryGetInstance(
+                            out var app,
+                            "[Auth] Java HTTP bridge unavailable"
+                        )
+                    )
                         throw new InvalidOperationException("GodotApp Java bridge is unavailable");
 
                     return (string)app.Call(

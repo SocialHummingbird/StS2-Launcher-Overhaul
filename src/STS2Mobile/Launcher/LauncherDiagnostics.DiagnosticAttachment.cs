@@ -21,7 +21,23 @@ internal static partial class LauncherDiagnostics
         internal FileReadResult Read()
             => File.Read();
 
-        internal string TruncatedContent(FileReadResult read)
+        internal void AppendTruncatedContent(
+            StringBuilder sb,
+            string missingPrefix = "",
+            string failedPrefix = ""
+        )
+        {
+            var read = Read();
+            if (read.HasContent())
+            {
+                sb.AppendLine(TruncatedContent(read));
+                return;
+            }
+
+            read.AppendStatus(sb, missingPrefix, failedPrefix);
+        }
+
+        private string TruncatedContent(FileReadResult read)
             => TruncateForDisplay(read.ContentText(), MaxChars);
     }
 }

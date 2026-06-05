@@ -40,6 +40,9 @@ internal sealed partial class DepotDownloader
             }
         }
 
+        internal bool ManifestChanged(DepotManifestReference depot)
+            => LoadManifestId(depot.DepotId) != depot.ManifestId;
+
         internal DepotManifest? LoadManifest(uint depotId)
         {
             var path = Path.Combine(_stateDir, $"{depotId}.manifest");
@@ -59,8 +62,9 @@ internal sealed partial class DepotDownloader
             }
         }
 
-        internal void SaveManifest(uint depotId, DepotManifest manifest, ulong manifestId)
+        internal void SaveManifest(DepotManifestReference depot, DepotManifest manifest)
         {
+            var depotId = depot.DepotId;
             var manifestPath = Path.Combine(_stateDir, $"{depotId}.manifest");
             var manifestTempPath = manifestPath + ".tmp";
             using (var fs = File.Create(manifestTempPath))
@@ -71,7 +75,7 @@ internal sealed partial class DepotDownloader
 
             var idPath = Path.Combine(_stateDir, $"{depotId}.id");
             var idTempPath = idPath + ".tmp";
-            File.WriteAllText(idTempPath, manifestId.ToString());
+            File.WriteAllText(idTempPath, depot.ManifestId.ToString());
             CommitStateFile(idTempPath, idPath);
 
             DeleteQuietly(manifestPath + ".bad");

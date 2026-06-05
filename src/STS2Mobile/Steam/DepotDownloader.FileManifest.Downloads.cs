@@ -5,6 +5,75 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private sealed class ManifestDownloadSelection
+    {
+        private readonly List<DepotManifest.FileData> _downloads = new();
+        private int _verified;
+        private int _corrupt;
+
+        private ManifestDownloadSelection()
+        {
+        }
+
+        private static ManifestDownloadSelection Empty()
+            => new();
+
+        private void Include(
+            DepotManifest.FileData file,
+            ManifestFileDownloadState decision
+        )
+        {
+            switch (decision)
+            {
+                case ManifestFileDownloadState.NeedsDownload:
+                    _downloads.Add(file);
+                    break;
+
+                case ManifestFileDownloadState.ExistingVerified:
+                    _verified++;
+                    break;
+
+                case ManifestFileDownloadState.CorruptNeedsDownload:
+                    _downloads.Add(file);
+                    _corrupt++;
+                    break;
+            }
+        }
+
+        private List<DepotManifest.FileData> Finish(DepotDownloader owner)
+        {
+            if (_verified > 0)
+                owner.Log($"Verified {_verified} existing files");
+            if (_corrupt > 0)
+                owner.Log($"Found {_corrupt} corrupt files requiring re-download");
+
+            return _downloads;
+        }
+
+        private static List<DepotManifest.FileData> Build(
+            DepotDownloader owner,
+            DepotManifest newManifest,
+            Dictionary<string, DepotManifest.FileData> oldFiles,
+            bool isUpdate
+        )
+        {
+            var selection = Empty();
+            foreach (var file in newManifest.Files)
+            {
+                selection.Include(
+                    file,
+                    owner.GetManifestFileDownloadState(
+                        file,
+                        oldFiles,
+                        isUpdate
+                    )
+                );
+            }
+
+            return selection.Finish(owner);
+        }
+    }
+
     // Builds the list of files that need downloading. For manifest changes, uses
     // the hash diff. For all files in the target manifest, verifies the on-disk
     // copy against the expected SHA-1, catching corruption from interrupted
@@ -16,40 +85,11 @@ internal sealed partial class DepotDownloader
     )
     {
         var oldFiles = BuildManifestFileMap(oldManifest);
-        var downloads = new List<DepotManifest.FileData>();
-        var verified = 0;
-        var corrupt = 0;
-
-        foreach (var file in newManifest.Files)
-        {
-            var decision = GetManifestFileDownloadState(
-                file,
-                oldFiles,
-                isUpdate
-            );
-
-            switch (decision)
-            {
-                case ManifestFileDownloadState.NeedsDownload:
-                    downloads.Add(file);
-                    break;
-
-                case ManifestFileDownloadState.ExistingVerified:
-                    verified++;
-                    break;
-
-                case ManifestFileDownloadState.CorruptNeedsDownload:
-                    downloads.Add(file);
-                    corrupt++;
-                    break;
-            }
-        }
-
-        if (verified > 0)
-            Log($"Verified {verified} existing files");
-        if (corrupt > 0)
-            Log($"Found {corrupt} corrupt files requiring re-download");
-
-        return downloads;
+        return ManifestDownloadSelection.Build(
+            this,
+            newManifest,
+            oldFiles,
+            isUpdate
+        );
     }
 }

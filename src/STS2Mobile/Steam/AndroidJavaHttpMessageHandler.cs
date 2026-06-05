@@ -31,7 +31,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
 
     private readonly struct BridgeRequestContext
     {
-        internal BridgeRequestContext(HttpRequestMessage request)
+        private BridgeRequestContext(HttpRequestMessage request)
         {
             Uri = request.RequestUri;
             Description = $"{request.Method} {SanitizeUri(request.RequestUri)}";
@@ -39,6 +39,60 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
 
         internal Uri? Uri { get; }
         internal string Description { get; }
+
+        internal static BridgeRequestContext For(HttpRequestMessage request)
+            => new(request);
+    }
+
+    private readonly struct BridgeExchange
+    {
+        private BridgeExchange(BridgeRequestContext request, string? rawResponse)
+        {
+            Request = request;
+            RawResponse = rawResponse;
+        }
+
+        internal BridgeRequestContext Request { get; }
+        internal string? RawResponse { get; }
+
+        internal static BridgeExchange Send(
+            AndroidJavaHttpMessageHandler owner,
+            HttpRequestMessage request,
+            byte[] bodyBytes
+        )
+        {
+            var requestContext = BridgeRequestContext.For(request);
+            return new BridgeExchange(
+                requestContext,
+                owner.CallHttpRequestBridge(request, bodyBytes, requestContext)
+            );
+        }
+
+        private void ThrowIfCancelled(CancellationToken cancellationToken)
+        {
+            if (!cancellationToken.IsCancellationRequested)
+                return;
+
+            DeleteResponseBodyFile();
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        internal HttpResponseMessage CreateResponseWithContent(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            ThrowIfCancelled(cancellationToken);
+            using var bridgeResponse = ReadBridgeResponse(this);
+            return bridgeResponse.CreateResponseWithContent(
+                request,
+                Request,
+                cancellationToken
+            );
+        }
+
+        private void DeleteResponseBodyFile()
+            => DeleteBodyFileFromRawResponse(RawResponse);
     }
 
     protected override async Task<HttpResponseMessage> SendAsync(
@@ -47,19 +101,12 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
     )
     {
         var bodyBytes = await ReadRequestBodyAsync(request, cancellationToken).ConfigureAwait(false);
-        var requestContext = new BridgeRequestContext(request);
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        string? raw = CallHttpRequestBridge(request, bodyBytes, requestContext);
+        var exchange = BridgeExchange.Send(this, request, bodyBytes);
 
-        ThrowIfCancelledWithRawResponseCleanup(raw, cancellationToken);
-        using var bridgeResponse = ReadBridgeResponse(raw, requestContext);
-        return bridgeResponse.CreateResponseWithContent(
-            request,
-            requestContext,
-            cancellationToken
-        );
+        return exchange.CreateResponseWithContent(request, cancellationToken);
     }
 
     private static async Task<byte[]> ReadRequestBodyAsync(
@@ -70,18 +117,6 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
         return request.Content == null
             ? Array.Empty<byte>()
             : await request.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static void ThrowIfCancelledWithRawResponseCleanup(
-        string? raw,
-        CancellationToken cancellationToken
-    )
-    {
-        if (!cancellationToken.IsCancellationRequested)
-            return;
-
-        DeleteBodyFileFromRawResponse(raw);
-        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private static string? GetBridgeString(JsonElement element)

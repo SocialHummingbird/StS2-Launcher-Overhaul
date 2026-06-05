@@ -1,4 +1,5 @@
 using Godot;
+using System;
 
 namespace STS2Mobile;
 
@@ -55,6 +56,23 @@ internal static class AndroidGodotAppBridge
     {
         godotApp = AndroidBridgeDispatcher.Run(GetInstanceOnCurrentThread);
         return godotApp != null;
+    }
+
+    internal static bool TryGetInstance(
+        out GodotObject godotApp,
+        string unavailableLogMessage
+    )
+    {
+        try
+        {
+            return TryGetInstance(out godotApp);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"{unavailableLogMessage}: {ex.Message}");
+            godotApp = null;
+            return false;
+        }
     }
 
     private static void CallVoid(string method, params Variant[] arguments)

@@ -16,9 +16,11 @@ internal static partial class CloudSyncCoordinator
         )
             => RunManualBackupsAsync(
                 paths,
-                BackupSource.CloudPrePush,
-                path => ReadCloudPrePushContentAsync(sync, path),
-                LogPushCloudBackupFailure
+                new ManualBackupPlan(
+                    BackupSource.CloudPrePush,
+                    path => ReadCloudPrePushContentAsync(sync, path),
+                    LogPushCloudBackupFailure
+                )
             );
 
         internal static Task<int> LocalBeforeManualPullAsync(
@@ -27,9 +29,11 @@ internal static partial class CloudSyncCoordinator
         )
             => RunManualBackupsAsync(
                 paths,
-                BackupSource.LocalPrePull,
-                path => ReadLocalPrePullContentAsync(sync, path),
-                LogPullLocalBackupFailure
+                new ManualBackupPlan(
+                    BackupSource.LocalPrePull,
+                    path => ReadLocalPrePullContentAsync(sync, path),
+                    LogPullLocalBackupFailure
+                )
             );
 
         private static async ValueTask<string?> ReadCloudPrePushContentAsync(

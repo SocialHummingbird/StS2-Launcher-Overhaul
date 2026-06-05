@@ -7,6 +7,30 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
+    private readonly struct CloudHttpRequestTarget
+    {
+        internal CloudHttpRequestTarget(
+            HttpMethod method,
+            bool useHttps,
+            string host,
+            string path
+        )
+        {
+            Method = method;
+            UseHttps = useHttps;
+            Host = host;
+            Path = path;
+        }
+
+        internal HttpMethod Method { get; }
+        private bool UseHttps { get; }
+        private string Host { get; }
+        private string Path { get; }
+
+        internal string Url()
+            => $"{(UseHttps ? "https" : "http")}://{Host}{Path}";
+    }
+
     private async Task<byte[]> ReadCloudHttpBytesAsync(HttpRequestMessage request)
     {
         using var response = await SendCloudHttpRequestAsync(request).ConfigureAwait(false);
@@ -34,13 +58,8 @@ internal sealed partial class SteamKit2CloudSaveStore
         }
     }
 
-    private static HttpRequestMessage CreateCloudHttpRequest(
-        HttpMethod method,
-        bool useHttps,
-        string host,
-        string path
-    )
-        => new(method, CloudHttpUrl(useHttps, host, path));
+    private static HttpRequestMessage CreateCloudHttpRequest(CloudHttpRequestTarget target)
+        => new(target.Method, target.Url());
 
     private static void AddCloudHttpHeader(
         HttpRequestMessage request,
@@ -49,6 +68,4 @@ internal sealed partial class SteamKit2CloudSaveStore
     )
         => request.Headers.TryAddWithoutValidation(name, value);
 
-    private static string CloudHttpUrl(bool useHttps, string host, string path)
-        => $"{(useHttps ? "https" : "http")}://{host}{path}";
 }

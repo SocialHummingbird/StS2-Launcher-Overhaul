@@ -24,51 +24,66 @@ internal static partial class LauncherGameStartupRecovery
         internal void Apply(RecoveryStateUpdate update)
             => update.Apply(GameNode, StartupStatus);
 
-        internal void ShowControls()
+        private void ShowControls()
             => LauncherStartupRecoveryControlPanel.Show(GameNode);
 
         internal void ScheduleCleanup(CanvasLayer recoveryControls)
-            => LauncherGameStartupRecovery.ScheduleCleanup(
-                recoveryControls,
-                StartupStatus
-            );
-    }
+            => RecoveryCleanupTarget.For(recoveryControls, StartupStatus)
+                .Schedule();
 
-    private static void ShowFailure(RecoveryUi ui, RecoveryStateUpdate update)
-    {
-        ui.Apply(update);
-        ui.ShowControls();
-    }
-
-    private static void MarkRecoveredStartup(
-        CanvasLayer recoveryControls,
-        RecoveryUi ui,
-        RecoveryStateUpdate update
-    )
-    {
-        ui.Apply(update);
-        ui.ScheduleCleanup(recoveryControls);
-    }
-
-    private static void ScheduleCleanup(CanvasLayer recoveryControls, Label startupStatus)
-        => _ = RunScheduledCleanupAsync(recoveryControls, startupStatus);
-
-    private static async Task RunScheduledCleanupAsync(
-        CanvasLayer recoveryControls,
-        Label startupStatus
-    )
-    {
-        try
+        internal void ShowFailure(RecoveryStateUpdate update)
         {
-            await Task.Delay(PostStartupRecoveryMs);
-            LauncherLaunchMarkers.ClearStartupMarker();
-            recoveryControls?.QueueFree();
-            startupStatus?.QueueFree();
-            PatchHelper.Log("Post-startup recovery controls cleared; scene snapshot retained");
+            Apply(update);
+            ShowControls();
         }
-        catch (Exception ex)
+
+        internal void MarkRecoveredStartup(
+            CanvasLayer recoveryControls,
+            RecoveryStateUpdate update
+        )
         {
-            PatchHelper.Log($"Post-startup recovery cleanup failed: {ex.Message}");
+            Apply(update);
+            ScheduleCleanup(recoveryControls);
+        }
+    }
+
+    private readonly struct RecoveryCleanupTarget
+    {
+        private RecoveryCleanupTarget(
+            CanvasLayer recoveryControls,
+            Label startupStatus
+        )
+        {
+            RecoveryControls = recoveryControls;
+            StartupStatus = startupStatus;
+        }
+
+        private CanvasLayer RecoveryControls { get; }
+        private Label StartupStatus { get; }
+
+        internal static RecoveryCleanupTarget For(
+            CanvasLayer recoveryControls,
+            Label startupStatus
+        )
+            => new(recoveryControls, startupStatus);
+
+        internal void Schedule()
+            => _ = RunAsync();
+
+        private async Task RunAsync()
+        {
+            try
+            {
+                await Task.Delay(PostStartupRecoveryMs);
+                LauncherLaunchMarkers.ClearStartupMarker();
+                RecoveryControls?.QueueFree();
+                StartupStatus?.QueueFree();
+                PatchHelper.Log("Post-startup recovery controls cleared; scene snapshot retained");
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"Post-startup recovery cleanup failed: {ex.Message}");
+            }
         }
     }
 }

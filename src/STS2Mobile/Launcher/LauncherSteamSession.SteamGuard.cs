@@ -14,19 +14,33 @@ internal sealed partial class LauncherSteamSession
         Action<bool> codeNeeded
     )
     {
-        _awaitingCode = true;
-        codeNeeded?.Invoke(wasIncorrect);
-        _codeTcs = new TaskCompletionSource<string>();
+        var codeTask = BeginSteamGuardCodeRequest(wasIncorrect, codeNeeded);
 
         try
         {
-            return await WaitForSteamGuardCodeAsync(_codeTcs.Task);
+            return await WaitForSteamGuardCodeAsync(codeTask);
         }
         finally
         {
-            _awaitingCode = false;
-            _codeTcs = null;
+            EndSteamGuardCodeRequest();
         }
+    }
+
+    private Task<string> BeginSteamGuardCodeRequest(
+        bool wasIncorrect,
+        Action<bool> codeNeeded
+    )
+    {
+        _awaitingCode = true;
+        codeNeeded?.Invoke(wasIncorrect);
+        _codeTcs = new TaskCompletionSource<string>();
+        return _codeTcs.Task;
+    }
+
+    private void EndSteamGuardCodeRequest()
+    {
+        _awaitingCode = false;
+        _codeTcs = null;
     }
 
     private static async Task<string> WaitForSteamGuardCodeAsync(Task<string> uiCodeTask)

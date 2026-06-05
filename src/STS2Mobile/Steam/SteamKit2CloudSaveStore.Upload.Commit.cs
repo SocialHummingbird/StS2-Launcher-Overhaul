@@ -7,8 +7,7 @@ namespace STS2Mobile.Steam;
 internal sealed partial class SteamKit2CloudSaveStore
 {
     private async Task CommitFileUploadAsync(
-        string path,
-        byte[] fileHash,
+        CloudFileUpload upload,
         bool uploadSucceeded
     )
     {
@@ -20,16 +19,16 @@ internal sealed partial class SteamKit2CloudSaveStore
                     CCloud_ClientCommitFileUpload_Response
                 >(
                     "ClientCommitFileUpload",
-                    CreateCommitFileUploadRequest(path, fileHash, uploadSucceeded)
+                    CreateCommitFileUploadRequest(upload, uploadSucceeded)
                 )
                 .ConfigureAwait(false);
 
             if (uploadSucceeded && !commitResult.file_committed)
-                PatchHelper.Log(CommitReturnedFalse(path));
+                PatchHelper.Log(CommitReturnedFalse(upload.Path));
         }
         catch (Exception ex)
         {
-            PatchHelper.Log(CommitFailed(path, ex));
+            PatchHelper.Log(CommitFailed(upload.Path, ex));
         }
     }
 }

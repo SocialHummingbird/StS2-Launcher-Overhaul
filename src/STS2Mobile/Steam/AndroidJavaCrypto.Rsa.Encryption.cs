@@ -15,13 +15,14 @@ internal static partial class AndroidJavaCrypto
         if (!RsaPublicKeys.TryGetValue(rsa, out var key))
             throw new InvalidOperationException("RSA public key was not imported before encryption");
 
+        var keyArguments = key.ToBridgeArguments();
         return CallBase64Bridge(
             "RSA encryption",
             RsaEncryptBase64BridgeMethod,
             "Android Java RSA bridge returned an empty response",
-            key.EncodedSubjectPublicKeyInfo(),
-            key.EncodedModulus(),
-            key.EncodedExponent(),
+            keyArguments.SubjectPublicKeyInfo,
+            keyArguments.Modulus,
+            keyArguments.Exponent,
             Convert.ToBase64String(data),
             paddingName
         );

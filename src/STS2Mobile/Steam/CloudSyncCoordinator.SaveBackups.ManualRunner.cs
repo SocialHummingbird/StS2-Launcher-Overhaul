@@ -8,45 +8,51 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveBackups
     {
+        private readonly struct ManualBackupPlan
+        {
+            private ManualBackupPlan(
+                BackupSource source,
+                Func<string, ValueTask<string?>> readContentAsync,
+                Action<string, Exception> logFailure
+            )
+            {
+                Source = source;
+                ReadContentAsync = readContentAsync;
+                LogFailure = logFailure;
+            }
+
+            private BackupSource Source { get; }
+            private Func<string, ValueTask<string?>> ReadContentAsync { get; }
+            private Action<string, Exception> LogFailure { get; }
+
+            private async Task<bool> TryBackupPathAsync(string path)
+            {
+                try
+                {
+                    var read = await ReadContentAsync(path);
+                    return read != null && SaveContent(path, read, Source);
+                }
+                catch (Exception ex)
+                {
+                    LogFailure(path, ex);
+                    return false;
+                }
+            }
+        }
+
         private static async Task<int> RunManualBackupsAsync(
             IEnumerable<string> paths,
-            BackupSource source,
-            Func<string, ValueTask<string?>> readContentAsync,
-            Action<string, Exception> logFailure
+            ManualBackupPlan plan
         )
         {
             var backedUp = 0;
             foreach (var path in paths)
             {
-                if (await TryBackupManualPathAsync(
-                    path,
-                    source,
-                    readContentAsync,
-                    logFailure
-                ))
+                if (await plan.TryBackupPathAsync(path))
                     backedUp++;
             }
 
             return backedUp;
-        }
-
-        private static async Task<bool> TryBackupManualPathAsync(
-            string path,
-            BackupSource source,
-            Func<string, ValueTask<string?>> readContentAsync,
-            Action<string, Exception> logFailure
-        )
-        {
-            try
-            {
-                var read = await readContentAsync(path);
-                return read != null && SaveContent(path, read, source);
-            }
-            catch (Exception ex)
-            {
-                logFailure(path, ex);
-                return false;
-            }
         }
     }
 }

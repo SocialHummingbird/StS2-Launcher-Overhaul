@@ -11,24 +11,26 @@ internal static partial class CloudSyncCoordinator
         IReadOnlyCollection<string> paths
     )
     {
-        var queuedCount = sync.RunCloudBatch(() =>
+        var summary = sync.RunCloudBatch(() =>
         {
-            var batchQueued = 0;
+            var batch = ManualSyncTransferSummary.Empty(
+                (queued, _) => PushComplete(queued)
+            );
             foreach (var path in paths)
             {
-                var (pathQueued, stopAfterBudget) = QueueManualPushPath(sync, path);
-                batchQueued += pathQueued;
-                if (stopAfterBudget)
+                var result = QueueManualPushPath(sync, path);
+                batch = batch.Include(result);
+                if (result.StopAfterBudget)
                     break;
             }
 
-            return batchQueued;
+            return batch;
         });
 
-        return Task.FromResult(PushComplete(queuedCount));
+        return Task.FromResult(summary.CompleteMessage());
     }
 
-    private static (int pathQueued, bool stopAfterBudget) QueueManualPushPath(
+    private static ManualSyncPathResult QueueManualPushPath(
         ManualSyncContext sync,
         string path
     )
@@ -37,19 +39,19 @@ internal static partial class CloudSyncCoordinator
         {
             var local = sync.ReadLocalFile(path);
             if (local == null)
-                return (0, false);
+                return ManualSyncPathResult.Ignored;
 
             PatchHelper.Log(PushQueuing(path, local.Length));
-            if (sync.BudgetExceeded(ManualPushBudgetExceeded))
-                return (0, true);
+            if (sync.BudgetExceeded(ManualPushBudgetExceeded()))
+                return ManualSyncPathResult.BudgetExceeded;
 
             sync.WriteCloudFile(path, local);
-            return (1, false);
+            return ManualSyncPathResult.CompletedPath;
         }
         catch (Exception ex)
         {
             PatchHelper.Log(PushFailed(path, ex));
-            return (0, false);
+            return ManualSyncPathResult.Ignored;
         }
     }
 }

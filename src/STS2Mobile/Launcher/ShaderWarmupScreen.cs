@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Godot;
@@ -10,6 +11,46 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class ShaderWarmupScreen : Control
 {
     private const int WarmupVersion = 5;
+
+    private readonly struct WarmupCompletion
+    {
+        internal WarmupCompletion(int materialCount, long elapsedMilliseconds)
+        {
+            MaterialCount = materialCount;
+            ElapsedMilliseconds = elapsedMilliseconds;
+        }
+
+        internal int MaterialCount { get; }
+        internal long ElapsedMilliseconds { get; }
+    }
+
+    private readonly struct WarmupRun
+    {
+        internal WarmupRun(
+            SceneTree tree,
+            ShaderWarmupProgress progress,
+            Stopwatch stopwatch
+        )
+        {
+            Tree = tree;
+            Progress = progress;
+            Stopwatch = stopwatch;
+        }
+
+        internal SceneTree Tree { get; }
+        internal ShaderWarmupProgress Progress { get; }
+        private Stopwatch Stopwatch { get; }
+
+        internal void CompleteAndReport(int materialCount)
+        {
+            var completion = new WarmupCompletion(
+                materialCount,
+                Stopwatch.ElapsedMilliseconds
+            );
+            Progress.Complete(completion);
+            PatchHelper.Log(Message.Completed(completion));
+        }
+    }
 
     private TaskCompletionSource<bool> _tcs;
     private Label _statusLabel;
@@ -64,21 +105,12 @@ internal sealed partial class ShaderWarmupScreen : Control
 
     private async Task RunWarmupAsync()
     {
-        var sw = Stopwatch.StartNew();
-        var progress = ShaderWarmupProgress.ForLabels(
-            _statusLabel,
-            _detailLabel,
-            _progressBar
+        var warmup = CreateWarmupRun();
+
+        var materials = await CollectWarmupMaterialsAsync(
+            warmup.Tree,
+            warmup.Progress
         );
-
-        progress.ShowScanning();
-        await WaitPostDrawAsync();
-
-        var tree = GetTree();
-        var materials = await ShaderWarmupMaterialScanner.CollectAsync(tree, progress);
-        PatchHelper.Log(Message.Collected(materials.Count));
-
-        progress.ShowCompiling();
 
         if (materials.Count == 0)
         {
@@ -86,15 +118,53 @@ internal sealed partial class ShaderWarmupScreen : Control
             return;
         }
 
-        var renderer = ShaderWarmupRenderer.ForScreen(this, tree, progress);
-        await renderer.RenderAsync(materials);
+        await RenderWarmupMaterialsAsync(
+            warmup.Tree,
+            warmup.Progress,
+            materials
+        );
 
-        var elapsedMilliseconds = sw.ElapsedMilliseconds;
-        progress.Complete(materials.Count, elapsedMilliseconds);
-        PatchHelper.Log(Message.Completed(materials.Count, elapsedMilliseconds));
-
+        warmup.CompleteAndReport(materials.Count);
         MarkWarmupComplete();
         await WaitFinishDelayAsync();
+    }
+
+    private WarmupRun CreateWarmupRun()
+        => new(
+            GetTree(),
+            CreateProgress(),
+            Stopwatch.StartNew()
+        );
+
+    private ShaderWarmupProgress CreateProgress()
+        => ShaderWarmupProgress.ForLabels(
+            _statusLabel,
+            _detailLabel,
+            _progressBar
+        );
+
+    private async Task<List<WarmupMaterial>> CollectWarmupMaterialsAsync(
+        SceneTree tree,
+        ShaderWarmupProgress progress
+    )
+    {
+        progress.ShowScanning();
+        await WaitPostDrawAsync();
+
+        var materials = await ShaderWarmupMaterialScanner.CollectAsync(tree, progress);
+        PatchHelper.Log(Message.Collected(materials.Count));
+        return materials;
+    }
+
+    private async Task RenderWarmupMaterialsAsync(
+        SceneTree tree,
+        ShaderWarmupProgress progress,
+        List<WarmupMaterial> materials
+    )
+    {
+        progress.ShowCompiling();
+        var renderer = ShaderWarmupRenderer.ForScreen(this, tree, progress);
+        await renderer.RenderAsync(materials);
     }
 
     private static void MarkWarmupComplete()

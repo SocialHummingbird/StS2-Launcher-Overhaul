@@ -29,10 +29,21 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 > **Disclaimer**: This is an unofficial community project. Slay the Spire 2 is developed and published by Mega Crit Games. A valid Steam account that owns Slay the Spire 2 is required. Game files are downloaded directly from Steam after authentication. No game assets are included in this repository.
 
+## Current Status
+
+This fork is in an active refactor and validation phase. GitHub Actions can build and publish signed ARM64 APKs, and release asset verification is in place, but full runtime validation is not complete.
+
+- Latest published APK release: `v0.2.175-refactor-apk`
+- Current APK asset: `StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk`
+- Package name: `com.sts2launcher.overhaul.fork.dev`
+- Release asset SHA-256: `78f40ad39d6cab30af4178fba6fcee713ae8df54db20d4e3c9f8a5e225b1d097`
+- Known open issue: Steam login can still fail during startup/authentication even when the device has network access.
+- Emulator limitation: the default Android `x86_64` path is native fallback only. Forcing Godot on `x86_64` is a known crash-prone diagnostic path, not a proof target.
+
 ## Features
 
 - **Steam authentication**  
-  Login via SteamKit2 with Steam Guard 2FA support.
+  Login via SteamKit2 with Steam Guard 2FA support. This path is still under active validation; startup authentication failures are a known open issue.
 - **Game file download**  
   Depot download directly from Steam, with update checking.
 - **Cloud saves**  
@@ -133,7 +144,7 @@ Verify a local archived APK from `artifacts/android/`:
 sha256sum -c StS2Launcher-v0.2.0-local-arm64-arm64-v8a.apk.sha256
 ```
 
-The Android `x86_64` emulator is useful for install, routing, release packaging, and native diagnostic-screen testing, but it is not a valid proof target for the Godot/.NET launcher or downloaded game. `x86_64` routes to a native fallback screen instead of starting Godot, because the emulator path crashes inside the Mono/GodotSharp native runtime. Use an `arm64-v8a` Android device/build to test Steam login, download, and actual game launch.
+The Android `x86_64` emulator is useful for install, routing, release packaging, and native diagnostic-screen testing, but it is not a valid proof target for the Godot/.NET launcher or downloaded game. `x86_64` routes to a native fallback screen instead of starting Godot, because the emulator path crashes inside the Mono/GodotSharp native runtime. A forced-Godot emulator run can still crash with native runtime failures such as destroyed mutex access. Use an `arm64-v8a` Android device/build to test Steam login, download, and actual game launch.
 
 ### Local Android smoke test
 
@@ -173,7 +184,7 @@ adb install -r android/build/outputs/apk/mono/release/StS2Launcher-v*.apk
 # Fresh install for local build wrapper default package
 adb shell pm clear com.sts2launcher.overhaul.fork.dev
 
-# Fresh install for production/release package
+# Fresh install for future production package, if used
 adb shell pm clear com.sts2launcher.overhaul.fork
 ```
 
@@ -182,46 +193,61 @@ adb shell pm clear com.sts2launcher.overhaul.fork
 GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
-2. Download the universal APK for the latest release. Prefer the asset with `universal` in the filename for phones.
+2. Download the APK for the latest release.
     - Direct latest URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest
-    - Downloaded artifact names include:
-      - `StS2Launcher-v<version>-universal.apk` or similar (recommended installable package for phones)
-      - `StS2Launcher-v<version>-arm64-v8a.apk` or similar (ARM64-only test package)
-      - `StS2Launcher-v<version>-x86_64.apk` or similar (emulator-only test package)
+    - Current release assets are ARM64-only test packages, named like:
+      - `StS2Launcher-v<version>-arm64-v8a.apk`
+    - Older releases may include universal or x86_64 assets. Prefer ARM64 for phones.
 
-Current verified phone release:
+Current published APK release:
 
 ```powershell
-.\scripts\verify-android-release-apk.ps1
-.\scripts\install-android-release.ps1 -ClearAppData -Launch -CaptureDiagnostics
+.\scripts\verify-android-release-apk.ps1 `
+  -ReleaseTag "v0.2.175-refactor-apk" `
+  -AssetName "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk" `
+  -Abi arm64-v8a
+
+.\scripts\install-android-release.ps1 `
+  -ReleaseTag "v0.2.175-refactor-apk" `
+  -AssetName "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk" `
+  -ClearAppData `
+  -Launch `
+  -CaptureDiagnostics
 ```
 
-Defaults:
+Release details:
 
 ```text
-Release: v0.2.88-apk-native-verify
-Asset: StS2Launcher-v0.2.88-universal-phone.apk
+Release: v0.2.175-refactor-apk
+Asset: StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.dev
+SHA-256: 78f40ad39d6cab30af4178fba6fcee713ae8df54db20d4e3c9f8a5e225b1d097
 ```
 
-The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms both `arm64-v8a` and `x86_64` native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.
-      - `*.apk.sha256` (optional checksum)
-3. (Optional) Verify checksum:
+The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.
+
+3. Optional manual checksum verification:
 
 ```bash
-sha256sum -c StS2Launcher-vX.Y.Z.apk.sha256
+sha256sum -c StS2Launcher-vX.Y.Z-arm64-v8a.apk.sha256
 ```
 
-4. Install on your phone:
+4. Optional manual install:
 
 ```bash
-adb install -r StS2Launcher-vX.Y.Z.apk
+adb install -r StS2Launcher-vX.Y.Z-arm64-v8a.apk
 ```
 
-Signed vs unsigned behavior:
+Signing behavior:
 
-- Signed release (production): generated when repository signing secrets are configured.
-- Unsigned release (testing): generated when signing secrets are missing; install works for test devices only and may trigger OS security warnings on fresh devices.
+- Published APK releases require repository signing secrets and a pinned release signer fingerprint.
+- The release workflow refuses to publish a temporary-key APK because it would not update existing installs safely.
+
+Known current runtime limitations:
+
+- Steam startup login/authentication can still fail and needs fresh device/emulator logs before it should be considered resolved.
+- `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.
+- Full phone proof still requires ARM64 hardware validation through Steam login, game download, cloud sync, and game launch.
 
 ### Release install troubleshooting
 
@@ -231,17 +257,16 @@ If installation fails:
   - likely a partially downloaded APK or signing mismatch.
   - re-download and re-run `sha256sum -c`.
 - `INSTALL_FAILED_UPDATE_INCOMPATIBLE`:
-  - remove previous app install first, then reinstall (this fork now uses package `com.sts2launcher.overhaul.fork`):
+  - remove the previous install first, then reinstall. Current test releases use package `com.sts2launcher.overhaul.fork.dev`:
   
   ```bash
-  adb uninstall com.sts2launcher.overhaul.fork
-  adb install -r StS2Launcher-vX.Y.Z.apk
+  adb uninstall com.sts2launcher.overhaul.fork.dev
+  adb install -r StS2Launcher-vX.Y.Z-arm64-v8a.apk
   ```
 - `INSTALL_FAILED_OLDER_SDK`:
   - your device is running an unsupported Android API level.
-- `INSTALL_FAILED_DEXOPT` or immediate crash:
 - `App isn't compatible with your phone`:
-  - make sure you downloaded the `universal` APK, not the `x86_64` emulator-only APK.
+  - make sure you downloaded an APK matching your device ABI. Current public test releases are ARM64-only.
 - `INSTALL_FAILED_DEXOPT` or immediate crash:
   - capture logs with `adb logcat` and open a release issue with stack trace.
 

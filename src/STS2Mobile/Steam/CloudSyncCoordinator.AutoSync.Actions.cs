@@ -28,7 +28,7 @@ internal static partial class CloudSyncCoordinator
             PushLocalContent(localContent, cloudContent: null, PushUploaded);
         }
 
-        internal async Task PullCloudOverLocalAsync(
+        private async Task PullCloudOverLocalAsync(
             string content,
             Func<string, string> message
         )
@@ -53,7 +53,7 @@ internal static partial class CloudSyncCoordinator
             await WriteLocalContentFromCloudAsync(content);
         }
 
-        internal void PushLocalContent(
+        private void PushLocalContent(
             string localContent,
             string? cloudContent,
             Func<string, string> message

@@ -5,19 +5,24 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherDiagnostics
 {
+    private const string StartupRecoveryDiagnosticsTitle =
+        "STS2 startup recovery diagnostics";
+
     internal static string WriteStartupRecoveryDiagnosticsReport(
         string dataDir
     )
-        => WriteTimestampedReport(
+        => StartupRecoveryDiagnostics(dataDir).Write(
             "sts2-startup-recovery-diagnostics",
-            dataDir,
-            BuildStartupRecoveryDiagnosticsText(dataDir)
+            dataDir
         );
 
     internal static string BuildStartupRecoveryDiagnosticsText(string dataDir)
-        => BuildTimestampedText(
-            "STS2 startup recovery diagnostics",
-            "Generated UTC",
+        => StartupRecoveryDiagnostics(dataDir).Build();
+
+    private static TimestampedText StartupRecoveryDiagnostics(string dataDir)
+        => CreateTimestampedText(
+            StartupRecoveryDiagnosticsTitle,
+            GeneratedUtcLabel,
             sb => AppendStartupRecoveryDiagnostics(sb, dataDir)
         );
 

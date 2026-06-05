@@ -6,6 +6,8 @@ The Android `x86_64` emulator is useful for install, routing, release packaging,
 
 Use an `arm64-v8a` Android device/build as the proof target for actual game launch.
 
+The latest published refactor APK has passed GitHub release build and structural asset verification, but it is not a full runtime proof. Steam startup login/authentication is still a known open issue.
+
 ## Evidence so far
 
 - `STS2Mobile.dll` can be loaded from the custom Godot/Mono bootstrap.
@@ -43,39 +45,50 @@ Use an `arm64-v8a` Android device/build as the proof target for actual game laun
 - This validates APK installability, ABI routing, package metadata, and native diagnostic UI on a visible emulator.
 - It does not validate Steam login, download, or Godot/.NET launcher runtime.
 - This is expected and intentional.
+- If `sts2_force_godot_x86=1` is used to bypass the fallback, crashes in the forced Godot path are expected diagnostic evidence, not a release blocker by themselves.
 
 ### Android arm64-v8a device
 
 - Before game files are downloaded: show launcher UI.
 - After game files are downloaded: start Godot/game runtime and apply mobile patches.
 - This path still needs runtime proof on real ARM64 hardware.
+- Steam startup login/authentication still needs fresh proof; current failures include connection loss during authentication despite network availability.
 
 ## Local validation commands
 
-The current phone release is:
+The current published APK release is:
 
-- Release: `v0.2.88-apk-native-verify`
-- Phone asset: `StS2Launcher-v0.2.88-universal-phone.apk`
-- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.88-apk-native-verify
+- Release: `v0.2.175-refactor-apk`
+- Asset: `StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk`
+- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.175-refactor-apk
+- SHA-256: `78f40ad39d6cab30af4178fba6fcee713ae8df54db20d4e3c9f8a5e225b1d097`
 
 Before installing, verify the uploaded GitHub release asset itself:
 
 ```powershell
-.\scripts\verify-android-release-apk.ps1
+.\scripts\verify-android-release-apk.ps1 `
+  -ReleaseTag "v0.2.175-refactor-apk" `
+  -AssetName "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk" `
+  -Abi arm64-v8a
 ```
 
 Expected result:
 
 ```text
-Release digest OK: 7ff0e7d03ec49ae079bf52d3f2d6b381cfd4f0e95220eb151cef46d51e848530
-Release APK verification passed: v0.2.88-apk-native-verify/StS2Launcher-v0.2.88-universal-phone.apk
-Verified ABIs: arm64-v8a, x86_64
+Release digest OK: 78f40ad39d6cab30af4178fba6fcee713ae8df54db20d4e3c9f8a5e225b1d097
+Release APK verification passed: v0.2.175-refactor-apk/StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk
+Verified ABIs: arm64-v8a
 ```
 
 Install the verified release APK to a connected phone and capture diagnostics in one run:
 
 ```powershell
-.\scripts\install-android-release.ps1 -ClearAppData -Launch -CaptureDiagnostics
+.\scripts\install-android-release.ps1 `
+  -ReleaseTag "v0.2.175-refactor-apk" `
+  -AssetName "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk" `
+  -ClearAppData `
+  -Launch `
+  -CaptureDiagnostics
 ```
 
 If the app is already installed and you only need fresh diagnostics:
@@ -86,7 +99,7 @@ If the app is already installed and you only need fresh diagnostics:
 
 The diagnostic capture writes a timestamped `artifacts/android/phone-diagnostics-*` directory with device metadata, full logcat, filtered logcat, package state, and app-private assembly cache listings when `run-as` is available.
 
-For phone installs, use a universal APK when available. ABI-specific APKs are useful for debugging, but the `x86_64` APK is emulator-only and will be incompatible with ARM64 phones.
+For phone installs, use an APK that matches the device ABI. The current public refactor APK is ARM64-only. Older `x86_64` APKs are emulator-only and will be incompatible with ARM64 phones.
 
 Build ABI-specific local artifacts:
 
@@ -117,6 +130,7 @@ The smoke test writes:
 ## Missing proof
 
 - ARM64 device run from clean app data through Steam auth.
+- Resolution or clear root-cause evidence for Steam startup login/authentication failures.
 - ARM64 download of game files.
 - ARM64 launch of downloaded game PCK.
 - Confirmation that Harmony/mobile patches apply successfully on ARM64 without the Android `x86_64` runtime crash signature.

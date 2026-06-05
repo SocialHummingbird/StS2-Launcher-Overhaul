@@ -13,8 +13,8 @@ internal sealed partial class DepotDownloader
             Value = value;
         }
 
-        internal bool Succeeded { get; }
-        internal T Value { get; }
+        private bool Succeeded { get; }
+        private T Value { get; }
 
         internal bool TryGetValue(out T value)
         {

@@ -7,6 +7,7 @@
 ## Validation
 
 - [ ] Build/check command run:
+- [ ] Release/APK asset checked when relevant:
 - [ ] Manual verification:
   - Device(s):
   - Steps:
@@ -28,4 +29,4 @@
 
 ## Notes for reviewers
 
-Mention any temporary workarounds and planned follow-up cleanup.
+Mention any temporary workarounds, Steam startup/login risk, and planned follow-up cleanup.

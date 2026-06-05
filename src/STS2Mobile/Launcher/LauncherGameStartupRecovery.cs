@@ -31,9 +31,8 @@ internal static partial class LauncherGameStartupRecovery
         Node gameNode
     )
     {
-        MarkRecoveredStartup(
+        RecoveryUi.For(gameNode, startupStatus).MarkRecoveredStartup(
             recoveryControls,
-            RecoveryUi.For(gameNode, startupStatus),
             RecoveryStateUpdate.StartupObserved()
         );
     }

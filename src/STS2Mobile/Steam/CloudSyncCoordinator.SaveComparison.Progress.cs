@@ -24,10 +24,10 @@ internal static partial class CloudSyncCoordinator
             );
 
         private static SaveWinner CompareProgress(string local, string cloud)
-            => CompareJson(
+            => SaveJsonComparison.Compare(
                 local,
                 cloud,
-                ProgressMetrics.Compare
+                ProgressMetrics
             );
 
         private static int FloorsClimbed(JsonElement root)

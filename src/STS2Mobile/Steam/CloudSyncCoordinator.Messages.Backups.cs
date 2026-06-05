@@ -7,27 +7,27 @@ internal static partial class CloudSyncCoordinator
     private static partial class SaveBackups
     {
         private static string PushBackingUpCloud(string path) =>
-            CloudSyncCoordinator.PushMessage($"backing up cloud {path}");
+            PushMessage($"backing up cloud {path}");
 
         private static string PushCloudBackupFailed(string path, Exception ex) =>
-            CloudSyncCoordinator.PushMessage(
+            PushMessage(
                 $"backup failed for cloud {path}: {ex.Message}"
             );
 
         private static string PullLocalBackupFailed(string path, Exception ex) =>
-            CloudSyncCoordinator.PullMessage(
+            PullMessage(
                 $"backup failed for local {path}: {ex.Message}"
             );
 
         private static string SaveBackedUp(BackupSource source, string path) =>
-            CloudSyncCoordinator.CloudMessage($"Backed up {source} {path}");
+            CloudMessage($"Backed up {source} {path}");
 
         private static string SaveBackedUpTo(
             BackupSource source,
             string path,
             string backupPath
         ) =>
-            CloudSyncCoordinator.CloudMessage(
+            CloudMessage(
                 $"Backed up {source} {path} -> {backupPath}"
             );
 
@@ -36,7 +36,7 @@ internal static partial class CloudSyncCoordinator
             string path,
             Exception ex
         ) =>
-            CloudSyncCoordinator.CloudMessage(
+            CloudMessage(
                 $"Backup failed for {source} {path}: {ex.Message}"
             );
     }

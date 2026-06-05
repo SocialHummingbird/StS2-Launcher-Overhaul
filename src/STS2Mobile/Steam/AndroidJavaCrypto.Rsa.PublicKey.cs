@@ -6,6 +6,31 @@ internal static partial class AndroidJavaCrypto
 {
     private sealed class RsaPublicKey
     {
+        internal readonly struct BridgeArguments
+        {
+            private BridgeArguments(
+                string subjectPublicKeyInfo,
+                string modulus,
+                string exponent
+            )
+            {
+                SubjectPublicKeyInfo = subjectPublicKeyInfo;
+                Modulus = modulus;
+                Exponent = exponent;
+            }
+
+            internal string SubjectPublicKeyInfo { get; }
+            internal string Modulus { get; }
+            internal string Exponent { get; }
+
+            internal static BridgeArguments From(RsaPublicKey key)
+                => new(
+                    Encoded(key.SubjectPublicKeyInfo),
+                    Encoded(key.Modulus),
+                    Encoded(key.Exponent)
+                );
+        }
+
         private RsaPublicKey(byte[] subjectPublicKeyInfo)
         {
             SubjectPublicKeyInfo = subjectPublicKeyInfo;
@@ -21,20 +46,25 @@ internal static partial class AndroidJavaCrypto
         private byte[]? Modulus { get; }
         private byte[]? Exponent { get; }
 
-        internal static RsaPublicKey FromParameters(byte[] modulus, byte[] exponent)
+        private static RsaPublicKey FromParameters(byte[] modulus, byte[] exponent)
             => new(modulus, exponent);
 
-        internal static RsaPublicKey FromSubjectPublicKeyInfo(byte[] subjectPublicKeyInfo)
+        private static RsaPublicKey FromSubjectPublicKeyInfo(byte[] subjectPublicKeyInfo)
             => new(subjectPublicKeyInfo);
 
-        internal string EncodedSubjectPublicKeyInfo()
-            => Encoded(SubjectPublicKeyInfo);
+        internal static RsaPublicKey ImportedParameters(
+            byte[] modulus,
+            byte[] exponent
+        )
+            => FromParameters(modulus, exponent);
 
-        internal string EncodedModulus()
-            => Encoded(Modulus);
+        internal static RsaPublicKey ImportedSubjectPublicKeyInfo(
+            byte[] subjectPublicKeyInfo
+        )
+            => FromSubjectPublicKeyInfo(subjectPublicKeyInfo);
 
-        internal string EncodedExponent()
-            => Encoded(Exponent);
+        internal BridgeArguments ToBridgeArguments()
+            => BridgeArguments.From(this);
 
         private static string Encoded(byte[]? value)
             => value == null ? string.Empty : Convert.ToBase64String(value);

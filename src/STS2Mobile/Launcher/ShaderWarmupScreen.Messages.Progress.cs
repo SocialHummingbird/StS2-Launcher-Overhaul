@@ -4,8 +4,8 @@ internal sealed partial class ShaderWarmupScreen
 {
     private static partial class Message
     {
-        internal static string Compiled(int materialCount, long elapsedMilliseconds)
-            => $"Compiled {materialCount} shaders in {elapsedMilliseconds}ms";
+        internal static string Compiled(WarmupCompletion completion)
+            => $"Compiled {completion.MaterialCount} shaders in {completion.ElapsedMilliseconds}ms";
 
         internal static string FoundMaterialsDetail(int materialCount)
             => $"Found {materialCount} materials...";

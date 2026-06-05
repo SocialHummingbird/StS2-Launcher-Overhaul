@@ -27,16 +27,14 @@ internal static partial class LauncherGameStartupRecovery
         );
         if (recovered)
         {
-            MarkRecoveredStartup(
+            ui.MarkRecoveredStartup(
                 recoveryControls,
-                ui,
                 RecoveryStateUpdate.WatchdogRecovered()
             );
             return;
         }
 
-        ShowFailure(
-            ui,
+        ui.ShowFailure(
             RecoveryStateUpdate.MainMenuRecoveryFailed()
         );
     }

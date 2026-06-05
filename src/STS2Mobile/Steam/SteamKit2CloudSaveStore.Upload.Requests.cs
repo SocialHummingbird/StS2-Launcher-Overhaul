@@ -1,4 +1,3 @@
-using System;
 using SteamKit2.Internal;
 
 namespace STS2Mobile.Steam;
@@ -6,46 +5,36 @@ namespace STS2Mobile.Steam;
 internal sealed partial class SteamKit2CloudSaveStore
 {
     private static CCloud_ClientBeginFileUpload_Request CreateBeginFileUploadRequest(
-        string path,
-        int uploadSize,
-        uint rawSize,
-        byte[] fileHash,
-        ulong batchId,
-        DateTimeOffset? timestamp
+        CloudFileUpload upload
     )
     {
-        var uploadTimestamp = timestamp.HasValue
-            ? (ulong)timestamp.Value.ToUnixTimeSeconds()
-            : (ulong)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
         var request = new CCloud_ClientBeginFileUpload_Request
         {
             appid = SteamCloudApp.AppId,
-            filename = path,
-            file_size = (uint)uploadSize,
-            raw_file_size = rawSize,
-            file_sha = fileHash,
-            time_stamp = uploadTimestamp,
+            filename = upload.Path,
+            file_size = (uint)upload.UploadSize,
+            raw_file_size = upload.RawSize,
+            file_sha = upload.FileHash,
+            time_stamp = upload.UploadTimestamp,
             can_encrypt = false,
             is_shared_file = false,
         };
 
-        if (batchId != 0)
-            request.upload_batch_id = batchId;
+        if (upload.HasBatchId)
+            request.upload_batch_id = upload.BatchId;
 
         return request;
     }
 
     private static CCloud_ClientCommitFileUpload_Request CreateCommitFileUploadRequest(
-        string path,
-        byte[] fileHash,
+        CloudFileUpload upload,
         bool uploadSucceeded
     )
         => new()
         {
             transfer_succeeded = uploadSucceeded,
             appid = SteamCloudApp.AppId,
-            file_sha = fileHash,
-            filename = path,
+            file_sha = upload.FileHash,
+            filename = upload.Path,
         };
 }

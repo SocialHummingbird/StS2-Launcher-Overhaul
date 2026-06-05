@@ -13,6 +13,63 @@ internal sealed partial class LauncherController
 
     private bool _updateCheckRunning;
 
+    private readonly struct UpdateCheckViewUpdate
+    {
+        private UpdateCheckViewUpdate(
+            string logMessage = null,
+            string updateButtonText = null,
+            string downloadButtonText = null,
+            string status = null,
+            bool hideActions = false
+        )
+        {
+            LogMessage = logMessage;
+            UpdateButtonText = updateButtonText;
+            DownloadButtonText = downloadButtonText;
+            Status = status;
+            HideActions = hideActions;
+        }
+
+        private string LogMessage { get; }
+        private string UpdateButtonText { get; }
+        private string DownloadButtonText { get; }
+        private string Status { get; }
+        private bool HideActions { get; }
+
+        private static UpdateCheckViewUpdate Completed(bool hasUpdate)
+            => hasUpdate
+                ? new(
+                    downloadButtonText: UpdateGameFilesButtonText,
+                    status: UpdateAvailableStatus,
+                    hideActions: true
+                )
+                : new(updateButtonText: UpToDateButtonText);
+
+        private static UpdateCheckViewUpdate Failed(string message)
+            => new(
+                logMessage: $"Update check failed: {message}",
+                updateButtonText: UpdateCheckFailedButtonText
+            );
+
+        private void Apply(LauncherView view)
+        {
+            if (LogMessage != null)
+                view.AppendLog(LogMessage);
+
+            if (HideActions)
+                view.HideActions();
+
+            if (DownloadButtonText != null)
+                view.ShowDownloadAction(DownloadButtonText);
+
+            if (Status != null)
+                view.SetStatus(Status);
+
+            if (UpdateButtonText != null)
+                view.SetUpdateButtonText(UpdateButtonText);
+        }
+    }
+
     private void RunUpdateCheck()
         => _ = RunUpdateCheckAsync();
 
@@ -31,7 +88,7 @@ internal sealed partial class LauncherController
         catch (Exception ex)
         {
             PatchHelper.Log($"[Launcher] Check for updates failed: {ex}");
-            ShowUpdateCheckFailed(ex.Message);
+            FailUpdateCheck(ex.Message);
         }
         finally
         {
@@ -51,27 +108,9 @@ internal sealed partial class LauncherController
     private void SetUpdateCheckBusy(bool busy)
         => _view.SetUpdateCheckBusy(busy);
 
-    private void ShowUpdateCheckFailed(string message)
-    {
-        _view.AppendLog($"Update check failed: {message}");
-        _view.SetUpdateButtonText(UpdateCheckFailedButtonText);
-    }
-
     private void CompleteUpdateCheck(bool hasUpdate)
-    {
-        if (hasUpdate)
-        {
-            _view.HideActions();
-            _view.ShowDownloadAction(UpdateGameFilesButtonText);
-            _view.SetStatus(UpdateAvailableStatus);
-            return;
-        }
-
-        _view.SetUpdateButtonText(UpToDateButtonText);
-    }
+        => UpdateCheckViewUpdate.Completed(hasUpdate).Apply(_view);
 
     private void FailUpdateCheck(string message)
-    {
-        ShowUpdateCheckFailed(message);
-    }
+        => UpdateCheckViewUpdate.Failed(message).Apply(_view);
 }

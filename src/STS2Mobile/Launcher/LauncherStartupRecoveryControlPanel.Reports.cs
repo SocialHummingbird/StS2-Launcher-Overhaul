@@ -5,33 +5,92 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private static string ExportDiagnosticsReport()
+    private readonly struct StartupRecoveryDiagnosticsReport
     {
-        var path = LauncherDiagnostics.WriteStartupRecoveryDiagnosticsReport(
-            OS.GetDataDir()
-        );
-        PatchHelper.Log($"Startup recovery diagnostics written: {path}");
-        var shared = AndroidGodotAppBridge.ShareTextFile(path);
-        return ExportDiagnosticsMessage(path, shared);
+        private StartupRecoveryDiagnosticsReport(string dataDir)
+        {
+            DataDir = dataDir;
+        }
+
+        private string DataDir { get; }
+
+        private static StartupRecoveryDiagnosticsReport Current()
+            => new(OS.GetDataDir());
+
+        private string Export()
+        {
+            var path = LauncherDiagnostics.WriteStartupRecoveryDiagnosticsReport(
+                DataDir
+            );
+            PatchHelper.Log($"Startup recovery diagnostics written: {path}");
+            return DiagnosticsExportResult.MessageFor(
+                LauncherSharedTextFile.Share(path)
+            );
+        }
+
+        private string CopyRawErrorLog()
+            => RawErrorLogCopy.CopyAndDescribe(
+                LauncherDiagnostics.BuildStartupRecoveryDiagnosticsText(DataDir)
+            );
+
+        internal static string ExportCurrent()
+            => Current().Export();
+
+        internal static string CopyCurrentRawErrorLog()
+            => Current().CopyRawErrorLog();
     }
+
+    private readonly struct DiagnosticsExportResult
+    {
+        private DiagnosticsExportResult(LauncherSharedTextFile file)
+        {
+            File = file;
+        }
+
+        private LauncherSharedTextFile File { get; }
+
+        private string Message()
+            => File.Shared
+                ? $"Diagnostics exported and share sheet opened.\n\nSaved at:\n{File.Path}"
+                : $"Diagnostics exported, but the share sheet did not open.\n\nSaved at:\n{File.Path}";
+
+        internal static string MessageFor(LauncherSharedTextFile file)
+            => new DiagnosticsExportResult(file).Message();
+    }
+
+    private readonly struct RawErrorLogCopy
+    {
+        private RawErrorLogCopy(string text)
+        {
+            ClipboardText = new LauncherClipboardText(text);
+        }
+
+        private LauncherClipboardText ClipboardText { get; }
+        private int Length => ClipboardText.Length;
+
+        private void CopyToClipboard()
+            => ClipboardText.CopyToClipboard();
+
+        private void LogCopied()
+            => PatchHelper.Log(
+                $"Startup recovery raw error log copied ({Length:N0} chars)"
+            );
+
+        private string Message()
+            => $"Raw error log copied to clipboard.\n\nLength: {Length:N0} characters";
+
+        internal static string CopyAndDescribe(string text)
+        {
+            var rawLog = new RawErrorLogCopy(text);
+            rawLog.CopyToClipboard();
+            rawLog.LogCopied();
+            return rawLog.Message();
+        }
+    }
+
+    private static string ExportDiagnosticsReport()
+        => StartupRecoveryDiagnosticsReport.ExportCurrent();
 
     private static string CopyRawErrorLogReport()
-    {
-        var text = LauncherDiagnostics.BuildStartupRecoveryDiagnosticsText(
-            OS.GetDataDir()
-        );
-        DisplayServer.ClipboardSet(text);
-        PatchHelper.Log(
-            $"Startup recovery raw error log copied ({text.Length:N0} chars)"
-        );
-        return RawErrorLogCopiedMessage(text.Length);
-    }
-
-    private static string ExportDiagnosticsMessage(string path, bool shared)
-        => shared
-            ? $"Diagnostics exported and share sheet opened.\n\nSaved at:\n{path}"
-            : $"Diagnostics exported, but the share sheet did not open.\n\nSaved at:\n{path}";
-
-    private static string RawErrorLogCopiedMessage(int length)
-        => $"Raw error log copied to clipboard.\n\nLength: {length:N0} characters";
+        => StartupRecoveryDiagnosticsReport.CopyCurrentRawErrorLog();
 }

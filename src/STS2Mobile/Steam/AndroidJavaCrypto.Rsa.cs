@@ -23,7 +23,10 @@ internal static partial class AndroidJavaCrypto
 
         var rsa = (RSA)algorithm;
         RsaPublicKeys.Remove(rsa);
-        RsaPublicKeys.Add(rsa, RsaPublicKey.FromSubjectPublicKeyInfo(source.ToArray()));
+        RsaPublicKeys.Add(
+            rsa,
+            RsaPublicKey.ImportedSubjectPublicKeyInfo(source.ToArray())
+        );
         if (rsa is AndroidRsa androidRsa)
             androidRsa.SetPublicKeySize(EstimateSubjectPublicKeyInfoSize(source));
         bytesRead = source.Length;
@@ -43,7 +46,10 @@ internal static partial class AndroidJavaCrypto
         RsaPublicKeys.Remove(rsa);
         RsaPublicKeys.Add(
             rsa,
-            RsaPublicKey.FromParameters(parameters.Modulus, parameters.Exponent)
+            RsaPublicKey.ImportedParameters(
+                parameters.Modulus,
+                parameters.Exponent
+            )
         );
         if (rsa is AndroidRsa androidRsa)
             androidRsa.SetPublicKeySize(parameters.Modulus.Length * 8);

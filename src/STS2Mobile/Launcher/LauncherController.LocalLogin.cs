@@ -27,8 +27,9 @@ internal sealed partial class LauncherController
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"[Launcher] Local Steam credential handoff failed: {ex}");
-            _runOnMainThread(() => ShowLoginForm($"Login failed: {ex.GetBaseException().Message}"));
+            _runOnMainThread(
+                () => LoginFormFailure.LocalCredentialHandoff().Show(this, ex)
+            );
         }
     }
 
@@ -40,10 +41,11 @@ internal sealed partial class LauncherController
             if (localLogin.HasValue)
             {
                 PatchHelper.Log("[Launcher] Consumed local Steam credential file");
-                _runOnMainThread(() => ShowSessionState(LauncherModel.SessionState.Authenticating));
+                _runOnMainThread(
+                    () => ShowSessionState(LauncherModel.SessionState.Authenticating)
+                );
 
-                var credentials = localLogin.Value;
-                await _model.LoginAsync(credentials.username, credentials.password);
+                await localLogin.Value.LoginAsync(_model);
                 return;
             }
 

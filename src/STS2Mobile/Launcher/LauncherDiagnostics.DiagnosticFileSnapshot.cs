@@ -40,7 +40,7 @@ internal static partial class LauncherDiagnostics
             return new DiagnosticFileSnapshot(read, info.Length, info.LastWriteTimeUtc);
         }
 
-        internal void AppendContents(StringBuilder sb)
+        private void AppendContents(StringBuilder sb)
         {
             sb.AppendLine(Text);
         }
@@ -73,13 +73,13 @@ internal static partial class LauncherDiagnostics
             AppendInlineContentsIfSmall(sb, inlineContentLimit);
         }
 
-        internal void AppendInlineContentsIfSmall(StringBuilder sb, long inlineContentLimit)
+        private void AppendInlineContentsIfSmall(StringBuilder sb, long inlineContentLimit)
         {
             if (Bytes <= inlineContentLimit)
                 sb.AppendLine($"  contents={SingleLine(Text)}");
         }
 
-        internal void AppendMetadata(StringBuilder sb, DiagnosticFileMetadataStyle style)
+        private void AppendMetadata(StringBuilder sb, DiagnosticFileMetadataStyle style)
         {
             if (style == DiagnosticFileMetadataStyle.Inline)
             {
@@ -94,7 +94,7 @@ internal static partial class LauncherDiagnostics
             sb.AppendLine($"  modifiedUtc={ModifiedUtc:O}");
         }
 
-        internal bool AppendReadStatusIfNoText(StringBuilder sb)
+        private bool AppendReadStatusIfNoText(StringBuilder sb)
         {
             if (HasText)
                 return false;
@@ -102,5 +102,8 @@ internal static partial class LauncherDiagnostics
             Read.AppendFileStatus(sb);
             return true;
         }
+
+        private static string SingleLine(string text)
+            => text.Replace('\n', ' ').Replace('\r', ' ');
     }
 }

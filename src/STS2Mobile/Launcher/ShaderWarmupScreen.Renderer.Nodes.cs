@@ -12,12 +12,11 @@ internal sealed partial class ShaderWarmupScreen
             SubViewport viewport,
             ImageTexture whiteTexture,
             List<WarmupMaterial> materials,
-            int start,
-            int end
+            WarmupRenderBatch batch
         )
         {
             var batchNodes = new List<Node>();
-            for (int i = start; i < end; i++)
+            for (int i = batch.Start; i < batch.End; i++)
             {
                 var material = materials[i];
                 try

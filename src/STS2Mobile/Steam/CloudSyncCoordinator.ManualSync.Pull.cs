@@ -11,22 +11,19 @@ internal static partial class CloudSyncCoordinator
         IReadOnlyCollection<string> paths
     )
     {
-        var downloaded = 0;
-        var skipped = 0;
+        var summary = ManualSyncTransferSummary.Empty(PullComplete);
         foreach (var path in paths)
         {
-            var result = await PullManualPathAsync(sync, path);
-            downloaded += result.downloaded;
-            skipped += result.skipped;
+            summary = summary.Include(await PullManualPathAsync(sync, path));
 
-            if (sync.BudgetExceeded(ManualPullBudgetExceeded))
+            if (sync.BudgetExceeded(ManualPullBudgetExceeded()))
                 break;
         }
 
-        return PullComplete(downloaded, skipped);
+        return summary.CompleteMessage();
     }
 
-    private static async Task<(int downloaded, int skipped)> PullManualPathAsync(
+    private static async Task<ManualSyncPathResult> PullManualPathAsync(
         ManualSyncContext sync,
         string path
     )
@@ -34,13 +31,13 @@ internal static partial class CloudSyncCoordinator
         try
         {
             if (!sync.CloudFileExists(path))
-                return (0, 1);
+                return ManualSyncPathResult.SkippedPath;
 
             PatchHelper.Log(PullDownloading(path));
             string content = await sync.ReadCloudContentAsync(path, ManualPullDownloadOperation);
             await sync.WriteLocalContentFromCloudAsync(path, content);
             PatchHelper.Log(PullWrote(path, content.Length));
-            return (1, 0);
+            return ManualSyncPathResult.CompletedPath;
         }
         catch (TimeoutException)
         {
@@ -51,6 +48,6 @@ internal static partial class CloudSyncCoordinator
             PatchHelper.Log(PullFailed(path, ex));
         }
 
-        return (0, 0);
+        return ManualSyncPathResult.Ignored;
     }
 }

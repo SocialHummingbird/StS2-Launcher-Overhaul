@@ -12,21 +12,13 @@ internal static partial class CloudSyncCoordinator
         => RunManualSyncAsync(
             accountName,
             refreshToken,
-            sync => sync.DiscoverLocalPaths(),
-            PushStarting,
-            SaveBackups.CloudBeforeManualPushAsync,
-            PushBackedUpCloudFiles,
-            RunManualPushUploadsAsync
+            ManualSyncPlan.Push
         );
 
     internal static Task ManualPullAllAsync(string accountName, string refreshToken)
         => RunManualSyncAsync(
             accountName,
             refreshToken,
-            sync => sync.DiscoverCloudPaths(),
-            PullStarting,
-            SaveBackups.LocalBeforeManualPullAsync,
-            PullBackedUpLocalFiles,
-            RunManualPullDownloadsAsync
+            ManualSyncPlan.Pull
         );
 }

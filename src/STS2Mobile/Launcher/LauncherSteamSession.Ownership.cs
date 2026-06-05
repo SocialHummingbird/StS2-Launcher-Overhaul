@@ -7,6 +7,11 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherSteamSession
 {
+    private const string OwnershipDeniedMessage =
+        "You don't own Slay the Spire 2. Purchase on Steam to play.";
+    private const string AppAccessTokenDeniedMessage =
+        "Steam denied app access token; ownership/session may be invalid";
+
     internal bool HasOwnershipMarker()
         => HasOwnershipMarkerForCurrentAccount();
 
@@ -33,23 +38,48 @@ internal sealed partial class LauncherSteamSession
     )
     {
         verifyingOwnership?.Invoke();
-        if (!_credentialStore.TryGetAccountName(out var accountName))
-            throw new InvalidOperationException("Cannot verify ownership without an account");
+        var accountName = GetAccountNameForOwnershipVerification();
+        var owns = await HasAppAccessTokenAsync(connection);
+        return CompleteOwnershipVerification(accountName, owns);
+    }
 
-        var owns = await connection.HasAppAccessTokenAsync(SteamCloudApp.AppId);
+    private string CompleteOwnershipVerification(string accountName, bool owns)
+    {
         if (owns)
             SaveOwnershipMarker(accountName);
-
         PatchHelper.Log(owns ? "[Launcher] Ownership verified" : "[Launcher] Ownership denied");
+        return owns ? null : OwnershipDeniedMessage;
+    }
 
-        return owns ? null : "You don't own Slay the Spire 2. Purchase on Steam to play.";
+    private string GetAccountNameForOwnershipVerification()
+    {
+        if (_credentialStore.TryGetAccountName(out var accountName))
+            return accountName;
+
+        throw new InvalidOperationException("Cannot verify ownership without an account");
     }
 
     private static async Task EnsureAppAccessTokenNotDeniedAsync(SteamConnection connection)
     {
-        await connection.EnsureAppAccessTokenNotDeniedAsync(
+        await connection.GetAppAccessTokenOrPublicAsync(
             SteamCloudApp.AppId,
-            "Steam denied app access token; ownership/session may be invalid"
+            AppAccessTokenDeniedMessage
         );
+    }
+
+    private static async Task<bool> HasAppAccessTokenAsync(SteamConnection connection)
+    {
+        try
+        {
+            return await connection.GetAppAccessTokenOrPublicAsync(
+                SteamCloudApp.AppId,
+                OwnershipDeniedMessage
+            ) != 0;
+        }
+        catch (InvalidOperationException ex)
+            when (ex.Message == OwnershipDeniedMessage)
+        {
+            return false;
+        }
     }
 }

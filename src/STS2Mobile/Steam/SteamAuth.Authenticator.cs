@@ -53,6 +53,47 @@ internal sealed partial class SteamAuth
             );
     }
 
+    private readonly struct AuthConnectionWatch<T>
+    {
+        internal AuthConnectionWatch(
+            Task<T> pendingTask,
+            Func<bool> shouldReconnect,
+            string reconnectRetryMessage
+        )
+        {
+            PendingTask = pendingTask;
+            ShouldReconnect = shouldReconnect;
+            ReconnectRetryMessage = reconnectRetryMessage;
+        }
+
+        private Task<T> PendingTask { get; }
+        private Func<bool> ShouldReconnect { get; }
+        private string ReconnectRetryMessage { get; }
+
+        internal async Task<T> WaitAsync(SteamAuth owner)
+        {
+            while (true)
+            {
+                if (PendingTask.IsCompleted)
+                    return await PendingTask;
+
+                if (ShouldReconnect())
+                    await MaintainConnectionAsync(owner);
+
+                await Task.WhenAny(
+                    PendingTask,
+                    Task.Delay(AuthReconnectPollDelayMs)
+                );
+            }
+        }
+
+        private async Task MaintainConnectionAsync(SteamAuth owner)
+        {
+            if (!await owner.TryReconnectForAuthAsync())
+                owner.Log(ReconnectRetryMessage);
+        }
+    }
+
     Task<string> IAuthenticator.GetDeviceCodeAsync(bool previousCodeWasIncorrect)
         => RequestCodeAsync(AuthCodePrompt.DeviceCode(previousCodeWasIncorrect));
 
@@ -72,11 +113,11 @@ internal sealed partial class SteamAuth
         _waitingForAuthCode = true;
         try
         {
-            var code = await WaitForTaskAndMaintainAuthConnectionAsync(
+            var code = await new AuthConnectionWatch<string>(
                 prompt.RequestCodeAsync(_codeProvider),
                 () => NeedsAuthReconnect,
                 AuthCodeReconnectRetryMessage
-            );
+            ).WaitAsync(this);
             await ReconnectBeforeCodeSubmitAsync();
             return code;
         }
@@ -84,32 +125,6 @@ internal sealed partial class SteamAuth
         {
             _waitingForAuthCode = false;
         }
-    }
-
-    private async Task<T> WaitForTaskAndMaintainAuthConnectionAsync<T>(
-        Task<T> task,
-        Func<bool> shouldReconnect,
-        string reconnectRetryMessage
-    )
-    {
-        while (true)
-        {
-            if (task.IsCompleted)
-                return await task;
-
-            if (shouldReconnect())
-            {
-                await MaintainAuthConnectionAsync(reconnectRetryMessage);
-            }
-
-            await Task.WhenAny(task, Task.Delay(AuthReconnectPollDelayMs));
-        }
-    }
-
-    private async Task MaintainAuthConnectionAsync(string reconnectRetryMessage)
-    {
-        if (!await TryReconnectForAuthAsync())
-            Log(reconnectRetryMessage);
     }
 
     private async Task ReconnectBeforeCodeSubmitAsync()

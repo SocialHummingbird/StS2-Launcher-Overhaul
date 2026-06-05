@@ -5,6 +5,62 @@ namespace STS2Mobile.Steam;
 
 internal static partial class AndroidJavaCrypto
 {
+    private readonly struct Base64BridgeCall
+    {
+        private Base64BridgeCall(
+            string operationName,
+            string methodName,
+            string emptyResponseMessage,
+            string[] arguments
+        )
+        {
+            OperationName = operationName;
+            MethodName = methodName;
+            EmptyResponseMessage = emptyResponseMessage;
+            Arguments = arguments;
+        }
+
+        private string OperationName { get; }
+        private string MethodName { get; }
+        private string EmptyResponseMessage { get; }
+        private string[] Arguments { get; }
+
+        private static Base64BridgeCall Create(
+            string operationName,
+            string methodName,
+            string emptyResponseMessage,
+            string[] arguments
+        )
+            => new(operationName, methodName, emptyResponseMessage, arguments);
+
+        private byte[] Run()
+            => AndroidBridgeDispatcher.Run(RunOnMainThread);
+
+        private byte[] RunOnMainThread()
+        {
+            if (
+                !AndroidGodotAppBridge.TryGetInstance(
+                    out var app,
+                    "[Auth] Java crypto bridge unavailable"
+                )
+            )
+            {
+                throw new InvalidOperationException(
+                    $"GodotApp Java bridge is unavailable for {OperationName}"
+                );
+            }
+
+            var encoded = (string)app.Call(
+                MethodName,
+                CreateVariantArguments(Arguments)
+            );
+            if (string.IsNullOrEmpty(encoded))
+                throw new InvalidOperationException(EmptyResponseMessage);
+
+            return Convert.FromBase64String(encoded);
+        }
+    }
+
     private static int CopyToDestination(byte[] source, Span<byte> destination, string tooShortMessage)
     {
         if (destination.Length < source.Length)
@@ -20,31 +76,14 @@ internal static partial class AndroidJavaCrypto
         string emptyResponseMessage,
         params string[] arguments
     )
-        => AndroidBridgeDispatcher.Run(
-            () => CallBase64BridgeOnMainThread(
+        => Base64BridgeCall
+            .Create(
                 operationName,
                 methodName,
                 emptyResponseMessage,
                 arguments
             )
-        );
-
-    private static byte[] CallBase64BridgeOnMainThread(
-        string operationName,
-        string methodName,
-        string emptyResponseMessage,
-        string[] arguments
-    )
-    {
-        if (!TryGetGodotApp(out var app))
-            throw new InvalidOperationException($"GodotApp Java bridge is unavailable for {operationName}");
-
-        var encoded = (string)app.Call(methodName, CreateVariantArguments(arguments));
-        if (string.IsNullOrEmpty(encoded))
-            throw new InvalidOperationException(emptyResponseMessage);
-
-        return Convert.FromBase64String(encoded);
-    }
+            .Run();
 
     private static Variant[] CreateVariantArguments(string[] arguments)
     {
@@ -53,19 +92,5 @@ internal static partial class AndroidJavaCrypto
             variants[i] = arguments[i];
 
         return variants;
-    }
-
-    private static bool TryGetGodotApp(out Godot.GodotObject godotApp)
-    {
-        try
-        {
-            return AndroidGodotAppBridge.TryGetInstance(out godotApp);
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Auth] Java crypto bridge unavailable: {ex.Message}");
-            godotApp = null;
-            return false;
-        }
     }
 }

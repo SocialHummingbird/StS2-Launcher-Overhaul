@@ -12,6 +12,50 @@ internal sealed partial class SteamKit2CloudSaveStore
 {
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
 
+    private readonly struct CloudDownloadedFile
+    {
+        private CloudDownloadedFile(string path, CCloud_ClientFileDownload_Response result, byte[] data)
+        {
+            Path = path;
+            Result = result;
+            Data = data;
+        }
+
+        private string Path { get; }
+        private CCloud_ClientFileDownload_Response Result { get; }
+        private byte[] Data { get; }
+
+        internal static CloudDownloadedFile From(
+            string path,
+            CCloud_ClientFileDownload_Response result,
+            byte[] data
+        )
+        {
+            PatchHelper.Log(Downloaded(
+                path,
+                data.Length,
+                result.encrypted,
+                result.file_size,
+                result.raw_file_size
+            ));
+            return new CloudDownloadedFile(path, result, data);
+        }
+
+        internal string ReadText()
+            => Encoding.UTF8.GetString(ContentBytes());
+
+        private byte[] ContentBytes()
+        {
+            if (!ShouldDecompressDownloadedFile(Result, Data))
+                return Data;
+
+            var compressedSize = Data.Length;
+            var decompressed = DecompressCloudFile(Data);
+            PatchHelper.Log(Unzipped(Path, compressedSize, decompressed.Length));
+            return decompressed;
+        }
+    }
+
     string ISaveStore.ReadFile(string path)
         => ReadFileCore(path);
 
@@ -38,25 +82,9 @@ internal sealed partial class SteamKit2CloudSaveStore
             )
             .ConfigureAwait(false);
 
-        if (result.appid != SteamCloudApp.AppId || string.IsNullOrEmpty(result.url_host))
-            throw new InvalidOperationException($"Cloud download failed for {path}");
-
-        using var httpRequest = CreateFileDownloadHttpRequest(result);
+        var download = CloudFileDownload.FromValidated(path, result);
+        using var httpRequest = download.CreateHttpRequest();
         var data = await ReadCloudHttpBytesAsync(httpRequest).ConfigureAwait(false);
-        PatchHelper.Log(Downloaded(
-            path,
-            data.Length,
-            result.encrypted,
-            result.file_size,
-            result.raw_file_size));
-
-        if (ShouldDecompressDownloadedFile(result, data))
-        {
-            var compressedSize = data.Length;
-            data = DecompressCloudFile(data);
-            PatchHelper.Log(Unzipped(path, compressedSize, data.Length));
-        }
-
-        return Encoding.UTF8.GetString(data);
+        return download.ReadText(data);
     }
 }

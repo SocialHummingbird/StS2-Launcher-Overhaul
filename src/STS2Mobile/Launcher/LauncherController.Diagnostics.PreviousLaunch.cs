@@ -16,23 +16,7 @@ internal sealed partial class LauncherController
     }
 
     private void ShowPreviousLaunchWarning(string previousLaunchPhase)
-    {
-        _view.SetStatus(PreviousLaunchWarningStatus);
-        _view.AppendLog(
-            PreviousLaunchWarningStatus + PreviousLaunchPhaseSuffix(previousLaunchPhase)
-        );
-        _view.AppendLog(
-            "The launcher is staying available so you are not trapped on a black screen."
-        );
-        _view.AppendLog(
-            "Tap SHOW LAST ERROR to print the failure summary here, or EXPORT DIAGNOSTICS to share the full report."
-        );
-    }
-
-    private static string PreviousLaunchPhaseSuffix(string previousLaunchPhase)
-        => string.IsNullOrWhiteSpace(previousLaunchPhase)
-            ? ""
-            : $" Last phase: {previousLaunchPhase}.";
+        => new PreviousLaunchWarning(previousLaunchPhase).Show(_view);
 
     private void WriteAutomaticDiagnosticsOnce()
     {
@@ -41,9 +25,45 @@ internal sealed partial class LauncherController
 
         _automaticDiagnosticsWritten = true;
         var path = TryWriteDiagnosticsReport(
-            "Automatic diagnostics snapshot failed"
+            DiagnosticsReportWrite.AutomaticSnapshot()
         );
         if (path != null)
             _view.AppendLog($"Automatic diagnostics snapshot: {path}");
+    }
+
+    private readonly struct PreviousLaunchWarning
+    {
+        private const string LauncherAvailableMessage =
+            "The launcher is staying available so you are not trapped on a black screen.";
+        private const string DiagnosticsActionMessage =
+            "Tap SHOW LAST ERROR to print the failure summary here, or EXPORT DIAGNOSTICS to share the full report.";
+
+        internal PreviousLaunchWarning(string previousLaunchPhase)
+        {
+            PreviousLaunchPhase = previousLaunchPhase;
+        }
+
+        private string PreviousLaunchPhase { get; }
+
+        internal void Show(LauncherView view)
+        {
+            view.SetStatus(PreviousLaunchWarningStatus);
+
+            foreach (var line in LogLines())
+                view.AppendLog(line);
+        }
+
+        private string[] LogLines()
+            => new[]
+            {
+                PreviousLaunchWarningStatus + PreviousLaunchPhaseSuffix(),
+                LauncherAvailableMessage,
+                DiagnosticsActionMessage,
+            };
+
+        private string PreviousLaunchPhaseSuffix()
+            => string.IsNullOrWhiteSpace(PreviousLaunchPhase)
+                ? ""
+                : $" Last phase: {PreviousLaunchPhase}.";
     }
 }

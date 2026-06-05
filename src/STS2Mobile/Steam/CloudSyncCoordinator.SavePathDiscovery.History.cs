@@ -9,34 +9,36 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SavePathDiscovery
     {
-        private static IEnumerable<string> GetHistoryFiles(string historyDir, ISaveStore store)
+        private readonly struct HistoryFileSelection
         {
-            if (!store.DirectoryExists(historyDir))
-                return Array.Empty<string>();
+            internal HistoryFileSelection(
+                string directory,
+                Func<IEnumerable<string>, IEnumerable<string>> selectFiles
+            )
+            {
+                Directory = directory;
+                SelectFiles = selectFiles;
+            }
 
-            return store.GetFilesInDirectory(historyDir);
-        }
+            private string Directory { get; }
+            private Func<IEnumerable<string>, IEnumerable<string>> SelectFiles { get; }
 
-        private static void AddSelectedHistoryFilePaths(
-            List<string> paths,
-            ISaveStore store,
-            string historyDir,
-            Func<IEnumerable<string>, IEnumerable<string>> selectFiles
-        )
-            => AddHistoryFilePaths(
-                paths,
-                historyDir,
-                selectFiles(GetHistoryFiles(historyDir, store))
-            );
+            internal void AddTo(List<string> paths, ISaveStore store)
+            {
+                foreach (var file in Select(store))
+                    paths.Add($"{Directory}/{file}");
+            }
 
-        private static void AddHistoryFilePaths(
-            List<string> paths,
-            string historyDir,
-            IEnumerable<string> files
-        )
-        {
-            foreach (var file in files)
-                paths.Add($"{historyDir}/{file}");
+            private IEnumerable<string> Select(ISaveStore store)
+                => SelectFiles(GetFiles(store));
+
+            private IEnumerable<string> GetFiles(ISaveStore store)
+            {
+                if (!store.DirectoryExists(Directory))
+                    return Array.Empty<string>();
+
+                return store.GetFilesInDirectory(Directory);
+            }
         }
 
         private static IEnumerable<string> SelectRunHistoryFiles(IEnumerable<string> files)

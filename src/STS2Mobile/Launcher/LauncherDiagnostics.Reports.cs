@@ -30,14 +30,13 @@ internal static partial class LauncherDiagnostics
         private readonly LauncherStateReport _state;
 
         internal string WriteDiagnosticsReport()
-            => WriteTimestampedReport(
+            => CreateTimestampedText(
+                "STS2 Launcher diagnostics",
+                GeneratedUtcLabel,
+                AppendFullLauncherDiagnostics
+            ).Write(
                 "sts2-launcher-diagnostics",
-                _state.DataDir,
-                BuildTimestampedText(
-                    "STS2 Launcher diagnostics",
-                    "Generated UTC",
-                    AppendFullLauncherDiagnostics
-                )
+                _state.DataDir
             );
 
         private void AppendFullLauncherDiagnostics(StringBuilder sb)

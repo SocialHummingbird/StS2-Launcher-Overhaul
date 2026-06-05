@@ -1,7 +1,6 @@
 using System;
 using System.Buffers;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
@@ -10,23 +9,65 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private async Task WriteDepotFileChunksAsync(
-        DepotManifest.FileData file,
-        uint depotId,
-        byte[] depotKey,
-        DepotFileTarget target,
-        CancellationToken ct
-    )
+    private readonly struct ChunkWriteRequest
     {
-        using var fs = target.CreateTempFile();
-        foreach (var chunk in file.Chunks.OrderBy(c => c.Offset))
+        private ChunkWriteRequest(
+            FileStream stream,
+            uint depotId,
+            DepotManifest.ChunkData chunk,
+            byte[] depotKey,
+            string fileName
+        )
         {
-            ct.ThrowIfCancellationRequested();
-            if (file.TotalSize == 0 && chunk.Offset == 0 && chunk.UncompressedLength == 0)
-                continue;
+            Stream = stream;
+            DepotId = depotId;
+            Chunk = chunk;
+            DepotKey = depotKey;
+            FileName = fileName;
+        }
 
-            target.ValidateChunk(file, chunk);
-            await target.WriteChunkAsync(this, fs, depotId, chunk, depotKey);
+        private FileStream Stream { get; }
+        private uint DepotId { get; }
+        private DepotManifest.ChunkData Chunk { get; }
+        private byte[] DepotKey { get; }
+        private string FileName { get; }
+        private int Length => checked((int)Chunk.UncompressedLength);
+
+        private static ChunkWriteRequest Create(
+            FileStream stream,
+            uint depotId,
+            DepotManifest.ChunkData chunk,
+            byte[] depotKey,
+            string fileName
+        )
+            => new(stream, depotId, chunk, depotKey, fileName);
+
+        private async Task RunAsync(DepotDownloader owner)
+        {
+            var buffer = ArrayPool<byte>.Shared.Rent(Length);
+            try
+            {
+                var written = await owner.DownloadChunkWithRetriesAsync(
+                    DepotId,
+                    Chunk,
+                    buffer,
+                    DepotKey,
+                    FileName
+                );
+
+                Write(buffer, written);
+                owner.RecordChunkWritten(written);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+
+        private void Write(byte[] buffer, int written)
+        {
+            Stream.Seek((long)Chunk.Offset, SeekOrigin.Begin);
+            Stream.Write(buffer, 0, written);
         }
     }
 
@@ -37,29 +78,14 @@ internal sealed partial class DepotDownloader
         byte[] depotKey,
         string fileName
     )
+        => await ChunkWriteRequest
+            .Create(fs, depotId, chunk, depotKey, fileName)
+            .RunAsync(this);
+
+    private void RecordChunkWritten(int written)
     {
-        var chunkLength = checked((int)chunk.UncompressedLength);
-        var buffer = ArrayPool<byte>.Shared.Rent(chunkLength);
-        try
-        {
-            int written = await DownloadChunkWithRetriesAsync(
-                depotId,
-                chunk,
-                buffer,
-                depotKey,
-                fileName
-            );
-
-            fs.Seek((long)chunk.Offset, SeekOrigin.Begin);
-            fs.Write(buffer, 0, written);
-
-            Interlocked.Add(ref _downloadedBytes, written);
-            ReportProgress();
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
+        Interlocked.Add(ref _downloadedBytes, written);
+        ReportProgress();
     }
 
     private static void ValidateChunkSize(string fileName, DepotManifest.ChunkData chunk)

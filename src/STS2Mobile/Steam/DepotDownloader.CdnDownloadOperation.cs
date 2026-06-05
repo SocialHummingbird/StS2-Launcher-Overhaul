@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Net;
 using System.Threading.Tasks;
+using SteamKit2;
 
 namespace STS2Mobile.Steam;
 
@@ -35,15 +38,50 @@ internal sealed partial class DepotDownloader
         )
             => new(name, downloadAsync, downloadWithAuthAsync, createFailure);
 
-        internal Task<CdnDownloadResult<T>> DownloadAsync(CdnServerAttempt attempt)
+        internal async Task<T> RunAsync(
+            DepotDownloader owner,
+            IEnumerable<CdnServerAttempt> attempts
+        )
+        {
+            foreach (var attempt in attempts)
+            {
+                var result = await TryAsync(owner, attempt);
+                if (result.TryGetValue(out var value))
+                    return value;
+            }
+
+            throw CreateFailure();
+        }
+
+        private async Task<CdnDownloadResult<T>> TryAsync(
+            DepotDownloader owner,
+            CdnServerAttempt attempt
+        )
+        {
+            try
+            {
+                return await DownloadAsync(attempt);
+            }
+            catch (SteamKitWebRequestException ex)
+                when (ex.StatusCode == HttpStatusCode.Forbidden)
+            {
+                return await DownloadWithAuthAsync(attempt);
+            }
+            catch (Exception ex) when (attempt.CanRetry())
+            {
+                return RetryAfterFailure(owner, attempt, ex);
+            }
+        }
+
+        private Task<CdnDownloadResult<T>> DownloadAsync(CdnServerAttempt attempt)
             => _downloadAsync(attempt);
 
-        internal Task<CdnDownloadResult<T>> DownloadWithAuthAsync(
+        private Task<CdnDownloadResult<T>> DownloadWithAuthAsync(
             CdnServerAttempt attempt
         )
             => _downloadWithAuthAsync(attempt);
 
-        internal CdnDownloadResult<T> RetryAfterFailure(
+        private CdnDownloadResult<T> RetryAfterFailure(
             DepotDownloader owner,
             CdnServerAttempt attempt,
             Exception ex
@@ -53,7 +91,7 @@ internal sealed partial class DepotDownloader
             return CdnDownloadResult<T>.Retry();
         }
 
-        internal Exception CreateFailure()
+        private Exception CreateFailure()
             => _createFailure();
     }
 }

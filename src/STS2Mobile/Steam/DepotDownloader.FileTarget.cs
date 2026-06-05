@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
@@ -14,7 +15,7 @@ internal sealed partial class DepotDownloader
 
     private readonly struct DepotFileTarget
     {
-        internal DepotFileTarget(
+        private DepotFileTarget(
             string fileName,
             string filePath,
             string? fileDir,
@@ -29,16 +30,64 @@ internal sealed partial class DepotDownloader
             LockKey = lockKey;
         }
 
-        internal string FileName { get; }
+        private string FileName { get; }
         private string FilePath { get; }
         private string? FileDir { get; }
         private string TempPath { get; }
         private string LockKey { get; }
 
-        internal SemaphoreSlim GetWriteLock()
+        internal static DepotFileTarget Create(DepotDownloader owner, string fileName)
+        {
+            var filePath = owner.ResolveGamePath(fileName);
+            var fileDir = Path.GetDirectoryName(filePath);
+            if (fileDir != null)
+                Directory.CreateDirectory(fileDir);
+
+            return new DepotFileTarget(
+                fileName,
+                filePath,
+                fileDir,
+                filePath + ".downloading",
+                Path.GetFullPath(filePath)
+            );
+        }
+
+        internal async Task DownloadAsync(
+            DepotDownloader owner,
+            DepotManifest.FileData file,
+            uint depotId,
+            byte[] depotKey,
+            CancellationToken ct
+        )
+        {
+            var writeLock = GetWriteLock();
+            await writeLock.WaitAsync(ct);
+            try
+            {
+                owner._currentDownloadFile = FileName;
+                owner.ForceReportProgress();
+
+                if (TryCreateDirectoryTarget(file))
+                    return;
+
+                if (TryUseExistingFile(owner, file))
+                    return;
+
+                PrepareDownload(owner, file);
+                await WriteChunksAsync(owner, file, depotId, depotKey, ct);
+                CommitVerified(owner, file);
+            }
+            finally
+            {
+                DeleteTempFile();
+                writeLock.Release();
+            }
+        }
+
+        private SemaphoreSlim GetWriteLock()
             => _fileWriteLocks.GetOrAdd(LockKey, _ => new SemaphoreSlim(1, 1));
 
-        internal bool TryCreateDirectoryTarget(DepotManifest.FileData file)
+        private bool TryCreateDirectoryTarget(DepotManifest.FileData file)
         {
             if (!file.Flags.HasFlag(EDepotFileFlag.Directory))
                 return false;
@@ -47,10 +96,10 @@ internal sealed partial class DepotDownloader
             return true;
         }
 
-        internal bool ExistingFileMatches(DepotManifest.FileData file)
+        private bool ExistingFileMatches(DepotManifest.FileData file)
             => File.Exists(FilePath) && VerifyFileHash(FilePath, file);
 
-        internal void PrepareDownload(DepotDownloader owner, DepotManifest.FileData file)
+        private void PrepareDownload(DepotDownloader owner, DepotManifest.FileData file)
         {
             var fileSize = checked((long)file.TotalSize);
             owner.EnsureEnoughFreeSpaceForFile(FileDir ?? owner._gameDir, fileSize, FileName);
@@ -58,28 +107,64 @@ internal sealed partial class DepotDownloader
             DeleteTempFile();
         }
 
-        internal FileStream CreateTempFile()
+        private bool TryUseExistingFile(
+            DepotDownloader owner,
+            DepotManifest.FileData file
+        )
+        {
+            // Validate existing file against manifest SHA-1 hash. A size-only check
+            // would miss corruption from interrupted writes (SetLength pre-allocates).
+            if (!ExistingFileMatches(file))
+                return false;
+
+            Interlocked.Add(ref owner._downloadedBytes, (long)file.TotalSize);
+            owner.ForceReportProgress();
+            return true;
+        }
+
+        private async Task WriteChunksAsync(
+            DepotDownloader owner,
+            DepotManifest.FileData file,
+            uint depotId,
+            byte[] depotKey,
+            CancellationToken ct
+        )
+        {
+            using var fs = CreateTempFile();
+            foreach (var chunk in file.Chunks.OrderBy(c => c.Offset))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (
+                    file.TotalSize == 0
+                    && chunk.Offset == 0
+                    && chunk.UncompressedLength == 0
+                )
+                    continue;
+
+                ValidateChunk(file, chunk);
+                await owner.DownloadAndWriteChunkAsync(
+                    fs,
+                    depotId,
+                    chunk,
+                    depotKey,
+                    FileName
+                );
+            }
+        }
+
+        private FileStream CreateTempFile()
             => System.IO.File.Create(TempPath);
 
-        internal void DeleteTempFile()
+        private void DeleteTempFile()
             => DeleteQuietly(TempPath);
 
-        internal void ValidateChunk(DepotManifest.FileData file, DepotManifest.ChunkData chunk)
+        private void ValidateChunk(DepotManifest.FileData file, DepotManifest.ChunkData chunk)
         {
             ValidateChunkBounds(FileName, file.TotalSize, chunk);
             ValidateChunkSize(FileName, chunk);
         }
 
-        internal Task WriteChunkAsync(
-            DepotDownloader owner,
-            FileStream stream,
-            uint depotId,
-            DepotManifest.ChunkData chunk,
-            byte[] depotKey
-        )
-            => owner.DownloadAndWriteChunkAsync(stream, depotId, chunk, depotKey, FileName);
-
-        internal void CommitVerified(DepotDownloader owner, DepotManifest.FileData file)
+        private void CommitVerified(DepotDownloader owner, DepotManifest.FileData file)
         {
             if (!VerifyFileHash(TempPath, file))
             {
@@ -101,21 +186,5 @@ internal sealed partial class DepotDownloader
         }
 
         return fileName;
-    }
-
-    private DepotFileTarget CreateDepotFileTarget(string fileName)
-    {
-        var filePath = ResolveGamePath(fileName);
-        var fileDir = Path.GetDirectoryName(filePath);
-        if (fileDir != null)
-            Directory.CreateDirectory(fileDir);
-
-        return new DepotFileTarget(
-            fileName,
-            filePath,
-            fileDir,
-            filePath + ".downloading",
-            Path.GetFullPath(filePath)
-        );
     }
 }

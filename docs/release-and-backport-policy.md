@@ -2,10 +2,10 @@
 
 ## Release Cadence
 
-Until CI is fully in place, releases are prepared from `main` after a PR batch that:
+Releases are prepared after a PR batch that:
 
 1. Is fully reviewed
-2. Has validation evidence in PR body or linked issue
+2. Has validation evidence in the PR body or linked issue
 3. Closes any open blockers from the current phase
 
 Recommended cadence:
@@ -16,11 +16,12 @@ Recommended cadence:
 ## Changelog and Tag Rules
 
 - Keep `CHANGELOG.md` entries current with each release-related PR.
-- Add a short “release note” section under a dated release heading:
+- Add a short "release note" section under a dated release heading:
   - Why this release exists
   - User-facing changes
   - Reliability/fix highlights
-  - Known limitations
+  - Exact APK asset name, ABI, package name, and SHA-256
+  - Known limitations, especially Steam startup/login status and whether ARM64 runtime proof exists
 
 ### Tag workflow
 
@@ -32,7 +33,9 @@ git push --tags
 On the same day, publish a GitHub release summary:
 
 - Highlights
-- Validation references (issue + log artifacts)
+- Validation references, including issues and log artifacts
+- Exact APK asset name, ABI, package name, and SHA-256
+- Known limitations
 - Full changelog link
 
 ## Backport Policy from Upstream
@@ -45,10 +48,10 @@ Scope: fixes from `Ekyso/StS2-Launcher` that should be integrated into this fork
   - Diff is small and conflict-free
 - **Rewrite/replace when**:
   - Patch hits architecture paths already refactored in this fork
-  - Runtime assumptions differ (mobile/startup orchestrator changes)
+  - Runtime assumptions differ, especially mobile/startup orchestrator changes
   - API contracts are not compatible
 - **Delay**:
-  - When upstream change is uncertain and requires broad rework, track as follow-up issue and implement in the rewrite path instead of blind cherry-pick.
+  - When upstream change is uncertain and requires broad rework, track as a follow-up issue and implement in the rewrite path instead of blind cherry-picking.
 
 ## Compatibility Tracking
 

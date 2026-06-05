@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
@@ -6,16 +7,38 @@ internal sealed partial class DepotDownloader
 {
     private readonly struct ManifestRequestKey : IEquatable<ManifestRequestKey>
     {
-        internal ManifestRequestKey(uint depotId, ulong manifestId, string branch)
+        private ManifestRequestKey(uint depotId, ulong manifestId, string branch)
         {
             DepotId = depotId;
             ManifestId = manifestId;
             Branch = branch;
         }
 
-        internal uint DepotId { get; }
-        internal ulong ManifestId { get; }
-        internal string Branch { get; }
+        private uint DepotId { get; }
+        private ulong ManifestId { get; }
+        private string Branch { get; }
+
+        internal static ManifestRequestKey Public(uint depotId, ulong manifestId)
+            => new(depotId, manifestId, PublicDepotBranch);
+
+        internal Task<ulong> FetchCodeAsync(SteamConnection connection)
+            => connection.GetManifestRequestCodeAsync(
+                DepotId,
+                ManifestId,
+                Branch
+            );
+
+        internal void ThrowIfDenied(ulong code)
+        {
+            if (code != 0)
+                return;
+
+            throw new Exception(
+                $"Failed to get manifest request code for depot {DepotId}, "
+                    + $"manifest {ManifestId}, branch '{Branch}'. "
+                    + "Ensure the account owns this app."
+            );
+        }
 
         public bool Equals(ManifestRequestKey other)
             => DepotId == other.DepotId

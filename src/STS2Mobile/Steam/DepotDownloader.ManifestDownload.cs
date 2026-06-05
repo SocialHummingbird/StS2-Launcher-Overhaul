@@ -6,58 +6,75 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private readonly struct ManifestDownloadRequest
+    {
+        internal ManifestDownloadRequest(
+            uint depotId,
+            ulong manifestId,
+            ulong requestCode,
+            byte[] depotKey
+        )
+        {
+            DepotId = depotId;
+            ManifestId = manifestId;
+            RequestCode = requestCode;
+            DepotKey = depotKey;
+        }
+
+        internal uint DepotId { get; }
+        private ulong ManifestId { get; }
+        private ulong RequestCode { get; }
+        private byte[] DepotKey { get; }
+
+        internal string DownloadLogMessage()
+            => $"Downloading manifest for depot {DepotId}...";
+
+        internal string FailureMessage()
+            => $"Failed to download manifest for depot {DepotId} after {MaxRetries} attempts";
+
+        internal Task<DepotManifest> DownloadAsync(
+            DepotDownloader owner,
+            CdnServerAttempt attempt,
+            string? cdnAuthToken = null
+        )
+            => attempt.DownloadManifestAsync(
+                owner,
+                DepotId,
+                ManifestId,
+                RequestCode,
+                DepotKey,
+                cdnAuthToken
+            );
+    }
+
     private Task<DepotManifest> DownloadManifestWithRetriesAsync(
-        uint depotId,
-        ulong manifestId,
-        ulong manifestRequestCode,
-        byte[] depotKey
+        ManifestDownloadRequest request
     )
     {
-        Log($"Downloading manifest for depot {depotId}...");
+        Log(request.DownloadLogMessage());
         return RunCdnDownloadWithRetriesAsync(
-            CreateManifestDownloadOperation(
-                depotId,
-                manifestId,
-                manifestRequestCode,
-                depotKey
-            )
+            CreateManifestDownloadOperation(request)
         );
     }
 
     private CdnDownloadOperation<DepotManifest> CreateManifestDownloadOperation(
-        uint depotId,
-        ulong manifestId,
-        ulong manifestRequestCode,
-        byte[] depotKey
+        ManifestDownloadRequest request
     )
         => CdnDownloadOperation<DepotManifest>.AcrossServersWithAuthRetry(
             CdnManifestDownloadOperation,
             attempt => CdnDownloadResult<DepotManifest>.FromAsync(
-                () => attempt.DownloadManifestAsync(
-                    this,
-                    depotId,
-                    manifestId,
-                    manifestRequestCode,
-                    depotKey
-                )
+                () => request.DownloadAsync(this, attempt)
             ),
             attempt => RunCdnAuthRetryAsync(
-                depotId,
-                attempt,
-                CdnManifestAuthRetryOperation,
-                token => CdnDownloadResult<DepotManifest>.FromAsync(
-                    () => attempt.DownloadManifestAsync(
-                        this,
-                        depotId,
-                        manifestId,
-                        manifestRequestCode,
-                        depotKey,
-                        token
+                new CdnAuthRetry<DepotManifest>(
+                    request.DepotId,
+                    attempt,
+                    CdnManifestAuthRetryOperation,
+                    token => CdnDownloadResult<DepotManifest>.FromAsync(
+                        () => request.DownloadAsync(this, attempt, token)
                     )
                 )
             ),
-            () => new Exception(
-                $"Failed to download manifest for depot {depotId} after {MaxRetries} attempts"
-            )
+            () => new Exception(request.FailureMessage())
         );
 }

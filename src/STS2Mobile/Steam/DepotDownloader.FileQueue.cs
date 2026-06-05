@@ -29,34 +29,61 @@ internal sealed partial class DepotDownloader
         }
     }
 
-    private sealed class DepotFileDownloadWorkers
+    private readonly struct DepotFileDownloadContext
     {
-        private readonly DepotDownloader _owner;
-        private readonly DepotFileDownloadQueue _queue;
-        private readonly uint _depotId;
-        private readonly byte[] _depotKey;
-        private readonly CancellationToken _ct;
-
-        internal DepotFileDownloadWorkers(
+        private DepotFileDownloadContext(
             DepotDownloader owner,
-            DepotFileDownloadQueue queue,
             uint depotId,
             byte[] depotKey,
             CancellationToken ct
         )
         {
-            _owner = owner;
-            _queue = queue;
-            _depotId = depotId;
-            _depotKey = depotKey;
-            _ct = ct;
+            Owner = owner;
+            DepotId = depotId;
+            DepotKey = depotKey;
+            Cancellation = ct;
         }
 
-        internal Task RunAsync()
+        internal CancellationToken Cancellation { get; }
+
+        private DepotDownloader Owner { get; }
+        private uint DepotId { get; }
+        private byte[] DepotKey { get; }
+
+        internal async Task DownloadAsync(DepotManifest.FileData file)
+        {
+            await Owner.DownloadFileAsync(file, DepotId, DepotKey, Cancellation);
+            Owner.ForceReportProgress();
+        }
+
+        internal static DepotFileDownloadContext Create(
+            DepotDownloader owner,
+            uint depotId,
+            byte[] depotKey,
+            CancellationToken ct
+        )
+            => new(owner, depotId, depotKey, ct);
+    }
+
+    private sealed class DepotFileDownloadWorkers
+    {
+        private readonly DepotFileDownloadQueue _queue;
+        private readonly DepotFileDownloadContext _context;
+
+        private DepotFileDownloadWorkers(
+            DepotFileDownloadQueue queue,
+            DepotFileDownloadContext context
+        )
+        {
+            _queue = queue;
+            _context = context;
+        }
+
+        private Task RunAsync()
         {
             var workers = Enumerable
                 .Range(0, _queue.WorkerCount)
-                .Select(_ => Task.Run(RunWorkerAsync, _ct))
+                .Select(_ => Task.Run(RunWorkerAsync, _context.Cancellation))
                 .ToArray();
 
             return Task.WhenAll(workers);
@@ -66,15 +93,23 @@ internal sealed partial class DepotDownloader
         {
             while (true)
             {
-                _ct.ThrowIfCancellationRequested();
+                _context.Cancellation.ThrowIfCancellationRequested();
                 var file = _queue.TakeNext();
                 if (file == null)
                     return;
 
-                await _owner.DownloadFileAsync(file, _depotId, _depotKey, _ct);
-                _owner.ForceReportProgress();
+                await _context.DownloadAsync(file);
             }
         }
+
+        internal static Task RunAsync(
+            IReadOnlyList<DepotManifest.FileData> files,
+            DepotFileDownloadContext context
+        )
+            => new DepotFileDownloadWorkers(
+                new DepotFileDownloadQueue(files),
+                context
+            ).RunAsync();
     }
 
     private async Task DownloadDepotFilesAsync(
@@ -84,8 +119,7 @@ internal sealed partial class DepotDownloader
         CancellationToken ct
     )
     {
-        var queue = new DepotFileDownloadQueue(filesToDownload);
-        var workers = new DepotFileDownloadWorkers(this, queue, depotId, depotKey, ct);
-        await workers.RunAsync();
+        var context = DepotFileDownloadContext.Create(this, depotId, depotKey, ct);
+        await DepotFileDownloadWorkers.RunAsync(filesToDownload, context);
     }
 }

@@ -37,9 +37,8 @@ internal static partial class LauncherDiagnostics
         {
             sb.AppendLine();
             file.AppendHeader(sb);
-            AppendTruncatedFile(
+            file.AppendTruncatedContent(
                 sb,
-                file,
                 missingPrefix,
                 failedPrefix
             );
@@ -62,22 +61,5 @@ internal static partial class LauncherDiagnostics
 
         foreach (var line in file.InterestingLines(read))
             sb.AppendLine(line);
-    }
-
-    private static void AppendTruncatedFile(
-        StringBuilder sb,
-        DiagnosticAttachment file,
-        string missingPrefix = "",
-        string failedPrefix = ""
-    )
-    {
-        var read = file.Read();
-        if (read.HasContent())
-        {
-            sb.AppendLine(file.TruncatedContent(read));
-            return;
-        }
-
-        read.AppendStatus(sb, missingPrefix, failedPrefix);
     }
 }

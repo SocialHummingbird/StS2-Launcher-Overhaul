@@ -7,42 +7,63 @@ internal sealed partial class DepotDownloader
 {
     private const string PublicDepotBranch = "public";
 
-    private async Task<ulong?> GetPublicManifestIdAsync(
-        KeyValue depot,
-        uint depotId
-    )
+    private readonly struct DepotManifestSource
     {
-        var manifests = await GetManifestSectionAsync(depot, depotId);
-        return manifests == KeyValue.Invalid
-            ? null
-            : ReadKeyValueUInt64(manifests[PublicDepotBranch]["gid"]);
-    }
+        private DepotManifestSource(
+            DepotDownloader owner,
+            KeyValue depot,
+            uint depotId
+        )
+        {
+            Owner = owner;
+            Depot = depot;
+            DepotId = depotId;
+        }
 
-    private async Task<KeyValue> GetManifestSectionAsync(
-        KeyValue depot,
-        uint depotId
-    )
-    {
-        var manifests = depot["manifests"];
-        if (manifests != KeyValue.Invalid)
-            return manifests;
+        private DepotDownloader Owner { get; }
+        private KeyValue Depot { get; }
+        private uint DepotId { get; }
 
-        var otherAppId = ReadKeyValueUInt32(depot["depotfromapp"]);
-        return otherAppId.HasValue
-            ? await GetReferencedManifestSectionAsync(otherAppId.Value, depotId)
-            : KeyValue.Invalid;
-    }
+        internal static Task<ulong?> GetPublicManifestIdAsync(
+            DepotDownloader owner,
+            KeyValue depot,
+            uint depotId
+        )
+            => new DepotManifestSource(owner, depot, depotId)
+                .GetPublicManifestIdAsync();
 
-    private async Task<KeyValue> GetReferencedManifestSectionAsync(
-        uint appId,
-        uint depotId
-    )
-    {
-        Log($"Depot {depotId} references app {appId}, fetching...");
-        return await ProductInfoApp.TryGetReferencedManifestSectionAsync(
-            this,
-            appId,
-            depotId
-        );
+        private async Task<ulong?> GetPublicManifestIdAsync()
+        {
+            var manifests = await GetManifestSectionAsync();
+            return manifests == KeyValue.Invalid
+                ? null
+                : DepotDownloader.ReadKeyValueUInt64(
+                    manifests[PublicDepotBranch]["gid"]
+                );
+        }
+
+        private async Task<KeyValue> GetManifestSectionAsync()
+        {
+            var manifests = Depot["manifests"];
+            if (manifests != KeyValue.Invalid)
+                return manifests;
+
+            var otherAppId = DepotDownloader.ReadKeyValueUInt32(
+                Depot["depotfromapp"]
+            );
+            return otherAppId.HasValue
+                ? await GetReferencedManifestSectionAsync(otherAppId.Value)
+                : KeyValue.Invalid;
+        }
+
+        private async Task<KeyValue> GetReferencedManifestSectionAsync(uint appId)
+        {
+            Owner.Log($"Depot {DepotId} references app {appId}, fetching...");
+            return await ProductInfoApp.TryGetReferencedManifestSectionAsync(
+                Owner,
+                appId,
+                DepotId
+            );
+        }
     }
 }

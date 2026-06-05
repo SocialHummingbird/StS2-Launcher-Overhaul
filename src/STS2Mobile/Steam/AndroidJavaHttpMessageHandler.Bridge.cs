@@ -11,7 +11,10 @@ internal sealed partial class AndroidJavaHttpMessageHandler
         if (!OperatingSystem.IsAndroid())
             return;
 
-        _ = TryGetGodotApp(out _);
+        _ = AndroidGodotAppBridge.TryGetInstance(
+            out _,
+            "[Auth] Java HTTP bridge unavailable"
+        );
     }
 
     internal static NetHttpClient CreateClient(HttpClientPurpose purpose)
@@ -31,18 +34,4 @@ internal sealed partial class AndroidJavaHttpMessageHandler
 
     internal static NetHttpClient CreateCdnClient()
         => CreateClient(HttpClientPurpose.CDN);
-
-    private static bool TryGetGodotApp(out Godot.GodotObject godotApp)
-    {
-        try
-        {
-            return AndroidGodotAppBridge.TryGetInstance(out godotApp);
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Auth] Java HTTP bridge unavailable: {ex.Message}");
-            godotApp = null;
-            return false;
-        }
-    }
 }

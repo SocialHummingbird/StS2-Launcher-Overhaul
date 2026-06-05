@@ -21,7 +21,36 @@ internal static partial class LauncherDiagnostics
         internal void AppendHeader(StringBuilder sb)
             => sb.AppendLine(Header(Label, Path));
 
-        internal string InspectFailedMessage(Exception ex)
+        internal void AppendSummary(StringBuilder sb, long inlineContentLimit)
+        {
+            try
+            {
+                DiagnosticFileSnapshot
+                    .From(this)
+                    .AppendSummary(sb, this, inlineContentLimit);
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine(InspectFailedMessage(ex));
+            }
+        }
+
+        internal void AppendContentsSection(StringBuilder sb)
+        {
+            AppendHeader(sb);
+
+            try
+            {
+                DiagnosticFileSnapshot.From(this).AppendContentsSection(sb);
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"  failed={ex.Message}");
+                sb.AppendLine();
+            }
+        }
+
+        private string InspectFailedMessage(Exception ex)
             => $"{Label}: failed to inspect {Path}: {ex.Message}";
 
         internal FileInfo Info()

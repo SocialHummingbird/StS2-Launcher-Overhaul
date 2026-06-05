@@ -1,7 +1,5 @@
 using System;
-using System.Net;
 using System.Threading.Tasks;
-using SteamKit2;
 using SteamKit2.CDN;
 
 namespace STS2Mobile.Steam;
@@ -16,6 +14,49 @@ internal sealed partial class DepotDownloader
 
     private readonly ExpiringCache<CdnAuthTokenKey, string?> _cdnAuthTokens = new();
 
+    private readonly struct CdnAuthRetry<T>
+    {
+        internal CdnAuthRetry(
+            uint depotId,
+            CdnServerAttempt attempt,
+            string operation,
+            Func<string, Task<CdnDownloadResult<T>>> retryAsync
+        )
+        {
+            DepotId = depotId;
+            Attempt = attempt;
+            Operation = operation;
+            RetryAsync = retryAsync;
+        }
+
+        private uint DepotId { get; }
+        private CdnServerAttempt Attempt { get; }
+        private string Operation { get; }
+        private Func<string, Task<CdnDownloadResult<T>>> RetryAsync { get; }
+
+        internal async Task<CdnDownloadResult<T>> RunAsync(DepotDownloader owner)
+        {
+            var token = await Attempt.GetAuthTokenForRetryAsync(owner, DepotId);
+            if (token == null)
+                return CdnDownloadResult<T>.Retry();
+
+            try
+            {
+                return await RetryAsync(token);
+            }
+            catch (Exception ex) when (Attempt.CanRetry())
+            {
+                Attempt.HandleAuthRetryFailure(
+                    owner,
+                    DepotId,
+                    Operation,
+                    ex
+                );
+                return CdnDownloadResult<T>.Retry();
+            }
+        }
+    }
+
     private async Task<string?> GetCdnAuthToken(uint depotId, Server server)
     {
         var key = new CdnAuthTokenKey(depotId, server.Host);
@@ -27,63 +68,15 @@ internal sealed partial class DepotDownloader
         );
     }
 
-    private async Task<T> RunCdnDownloadWithRetriesAsync<T>(
+    private Task<T> RunCdnDownloadWithRetriesAsync<T>(
         CdnDownloadOperation<T> operation
     )
-    {
-        foreach (var attempt in CdnDownloadAttempts())
-        {
-            var result = await TryCdnDownloadAttemptAsync(operation, attempt);
-            if (result.TryGetValue(out var value))
-                return value;
-        }
+        => operation.RunAsync(this, CdnDownloadAttempts());
 
-        throw operation.CreateFailure();
-    }
-
-    private async Task<CdnDownloadResult<T>> TryCdnDownloadAttemptAsync<T>(
-        CdnDownloadOperation<T> operation,
-        CdnServerAttempt attempt
+    private Task<CdnDownloadResult<T>> RunCdnAuthRetryAsync<T>(
+        CdnAuthRetry<T> retry
     )
-    {
-        try
-        {
-            return await operation.DownloadAsync(attempt);
-        }
-        catch (SteamKitWebRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
-        {
-            return await operation.DownloadWithAuthAsync(attempt);
-        }
-        catch (Exception ex) when (attempt.CanRetry())
-        {
-            return operation.RetryAfterFailure(this, attempt, ex);
-        }
-    }
-
-    private async Task<CdnDownloadResult<T>> RunCdnAuthRetryAsync<T>(
-        uint depotId,
-        CdnServerAttempt attempt,
-        string operation,
-        Func<string, Task<CdnDownloadResult<T>>> retryAsync
-    )
-    {
-        var token = await attempt.GetAuthTokenForRetryAsync(
-            this,
-            depotId
-        );
-        if (token == null)
-            return CdnDownloadResult<T>.Retry();
-
-        try
-        {
-            return await retryAsync(token);
-        }
-        catch (Exception ex) when (attempt.CanRetry())
-        {
-            attempt.HandleAuthRetryFailure(this, depotId, operation, ex);
-            return CdnDownloadResult<T>.Retry();
-        }
-    }
+        => retry.RunAsync(this);
 
     private void InvalidateCdnAuthToken(uint depotId, Server server)
     {

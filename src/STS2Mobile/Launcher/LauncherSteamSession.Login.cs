@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using STS2Mobile.Patches;
 using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
@@ -17,19 +16,13 @@ internal sealed partial class LauncherSteamSession
     {
         try
         {
-            ResetAuth();
-            var auth = new SteamAuth(wasIncorrect =>
-                RequestSteamGuardCodeAsync(wasIncorrect, codeNeeded));
-            _auth = auth;
-            auth.LogMessage += msg => logMessage?.Invoke(msg);
-
-            var result = await auth.LoginWithCredentialsAsync(
+            var result = await LoginWithCredentialsAsync(
                 username,
                 password,
-                _credentialStore.GuardDataOrEmpty()
+                logMessage,
+                codeNeeded
             );
             SaveLoginCredentials(result);
-            ResetAuth();
             return await UseConnectionAndVerifyOwnershipAsync(
                 result.CreateConnection(),
                 verifyingOwnership
@@ -37,10 +30,44 @@ internal sealed partial class LauncherSteamSession
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"[Launcher] Login failed: {ex.Message}");
             ResetAuth();
-            return ex.Message;
+            return SessionFailure("Login failed", ex);
         }
+    }
+
+    private async Task<SteamAuth.LoginCredentials> LoginWithCredentialsAsync(
+        string username,
+        string password,
+        Action<string> logMessage,
+        Action<bool> codeNeeded
+    )
+    {
+        ResetAuth();
+        var auth = CreateAuthSession(logMessage, codeNeeded);
+        try
+        {
+            return await auth.LoginWithCredentialsAsync(
+                username,
+                password,
+                _credentialStore.GuardDataOrEmpty()
+            );
+        }
+        finally
+        {
+            ResetAuth();
+        }
+    }
+
+    private SteamAuth CreateAuthSession(
+        Action<string> logMessage,
+        Action<bool> codeNeeded
+    )
+    {
+        var auth = new SteamAuth(wasIncorrect =>
+            RequestSteamGuardCodeAsync(wasIncorrect, codeNeeded));
+        _auth = auth;
+        auth.LogMessage += msg => logMessage?.Invoke(msg);
+        return auth;
     }
 
     private void SaveLoginCredentials(SteamAuth.LoginCredentials result)

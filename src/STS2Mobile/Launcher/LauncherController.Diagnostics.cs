@@ -1,5 +1,3 @@
-using Godot;
-
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
@@ -32,10 +30,11 @@ internal sealed partial class LauncherController
 
     private static void CopyRawLogToClipboard(LauncherView view, string rawLog)
     {
-        DisplayServer.ClipboardSet(rawLog);
+        var clipboardText = new LauncherClipboardText(rawLog);
+        clipboardText.CopyToClipboard();
         view.SetStatus("Raw error log copied.");
         view.AppendLog(
-            $"Raw error log copied to clipboard ({rawLog.Length:N0} chars)."
+            $"Raw error log copied to clipboard ({clipboardText.Length:N0} chars)."
         );
     }
 }

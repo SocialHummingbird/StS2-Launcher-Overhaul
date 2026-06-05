@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
 
@@ -24,8 +23,7 @@ internal sealed partial class LauncherController
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"[Launcher] Login handler failed: {ex.Message}");
-            ShowLoginForm($"Login failed: {ex.Message}");
+            LoginFormFailure.LoginHandler().Show(this, ex);
         }
     }
 

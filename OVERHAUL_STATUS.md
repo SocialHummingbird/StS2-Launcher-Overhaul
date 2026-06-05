@@ -2,10 +2,12 @@
 
 This file tracks what we are actively working on in the overhaul branch.
 
-## Current Focus (Phase 7 Closure)
-- Confirmed: phase transition artifact completed
-- `issue #2` is closed
-- Keep monthly status checks visible and action-oriented
+## Current Focus
+- Continue the refactor and validation pass after `v0.2.175-refactor-apk`.
+- Keep GitHub release assets verifiable, signed, and update-compatible.
+- Resolve or root-cause Steam startup login/authentication failures before treating the APK as device-ready.
+- Use ARM64 hardware as the proof target for launcher login, game download, cloud sync, and game launch.
+- Treat Android `x86_64` emulator coverage as install/routing/native-fallback diagnostics unless explicitly forcing the crash-prone Godot path.
 
 ## High-Impact Reliability Backlog
 
@@ -20,11 +22,13 @@ This file tracks what we are actively working on in the overhaul branch.
 | P7 | Closure | CI artifact handling + phase transition hygiene | Reliability / Governance | Completed |
 
 ## Open Follow-up Tasks
-- Validate artifact publication strategy in next release cycle (documented in [docs/android-release-validation.md](docs/android-release-validation.md))
-- Perform periodic release review (completed when following the checklist)
+- Resolve or clearly root-cause Steam startup login/authentication failures.
+- Capture a clean ARM64 device run through Steam authentication, game download, cloud sync, and game launch.
+- Keep release verification aligned with the latest APK asset in [docs/android-release-validation.md](docs/android-release-validation.md) and [docs/runbook-android-validation.md](docs/runbook-android-validation.md).
+- Continue targeted refactors in launcher diagnostics, startup recovery, cloud sync, Steam helpers, and downloader code after validation-sensitive risks are understood.
 
 ## Active Status Issue
-- (Closed) https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/issues/2
+- No single active status issue is authoritative. Use release issues and validation logs as the current source of truth.
 
 ## Rollback Strategy
 - Keep each PR scoped to one logical change so labels and patches can be reverted independently.

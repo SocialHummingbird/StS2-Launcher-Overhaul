@@ -4,7 +4,9 @@ Use this checklist before filing overhaul issues that involve crashes, stutters,
 
 ## Required Capture
 - Device model + OS + Android version
+- Device ABI
 - App version / package version
+- Release tag / APK asset when testing a GitHub release
 - Exact issue context (clean install, updated install, locale, cloud-sync state)
 - Timestamped sequence:
   - app launch -> launcher screen -> login/download/launch -> failure point
@@ -20,6 +22,7 @@ adb logcat > sts2launcher-logcat.txt
 3. Stop stream and search for:
 - `Mono` / `Unhandled` / `Exception`
 - `PatchHelper` lines
+- `Steam` / `SteamKit` authentication lines
 - `Locale` / `CultureInfo` / `GetThreeLetterLanguageCode`
 - `ApplyLocaleFontSubstitution`
 - `Cloud` / `Flush`
@@ -29,6 +32,7 @@ adb logcat > sts2launcher-logcat.txt
 - Attach first 200-300 lines around the primary exception
 - Attach at least one 30-second sample around the failure window
 - Include device locale and region settings
+- Include whether Steam login reached Steam Guard, authentication success, ownership verification, or failed earlier
 
 ## Optional but Useful
 - Screenshot of launcher/overlay state

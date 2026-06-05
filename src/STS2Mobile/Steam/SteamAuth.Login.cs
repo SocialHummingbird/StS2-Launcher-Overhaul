@@ -10,6 +10,84 @@ internal sealed partial class SteamAuth
 {
     private const int CredentialAuthRetryCount = 3;
 
+    private readonly struct CredentialAuthAttempt
+    {
+        internal CredentialAuthAttempt(int number)
+        {
+            Number = number;
+        }
+
+        private int Number { get; }
+
+        internal bool CanRetry(Exception ex, bool needsAuthReconnect)
+            => Number < CredentialAuthRetryCount
+                && (ex is not AuthenticationException)
+                && IsRecoverableAuthInterruption(ex, needsAuthReconnect);
+    }
+
+    private readonly struct CredentialAuthRunner
+    {
+        private CredentialAuthRunner(
+            SteamAuth owner,
+            string username,
+            string password,
+            string guardData
+        )
+        {
+            Owner = owner;
+            Username = username;
+            Password = password;
+            GuardData = guardData;
+        }
+
+        private SteamAuth Owner { get; }
+        private string Username { get; }
+        private string Password { get; }
+        private string GuardData { get; }
+
+        internal static Task<LoginCredentials> RunAsync(
+            SteamAuth owner,
+            string username,
+            string password,
+            string guardData
+        )
+            => new CredentialAuthRunner(
+                owner,
+                username,
+                password,
+                guardData
+            ).RunAsync();
+
+        private async Task<LoginCredentials> RunAsync()
+        {
+            Owner.Log($"Authenticating as '{Username}'...");
+
+            for (int attempt = 1; attempt <= CredentialAuthRetryCount; attempt++)
+            {
+                try
+                {
+                    return await Owner.AuthenticateCredentialsOnceAsync(
+                        Username,
+                        Password,
+                        GuardData
+                    );
+                }
+                catch (Exception ex) when (
+                    new CredentialAuthAttempt(attempt).CanRetry(
+                        ex,
+                        Owner.NeedsAuthReconnect
+                    )
+                )
+                {
+                    Owner.LogCredentialAuthRetry(ex);
+                    await Owner.PrepareForAuthRetryAsync();
+                }
+            }
+
+            throw new TimeoutException("Steam authentication did not complete.");
+        }
+    }
+
     internal async Task<LoginCredentials> LoginWithCredentialsAsync(
         string username,
         string password,
@@ -21,36 +99,18 @@ internal sealed partial class SteamAuth
         _credentialAuthStarted = true;
         try
         {
-            Log($"Authenticating as '{username}'...");
-
-            for (int attempt = 1; attempt <= CredentialAuthRetryCount; attempt++)
-            {
-                try
-                {
-                    return await AuthenticateCredentialsOnceAsync(
-                        username,
-                        password,
-                        guardData
-                    );
-                }
-                catch (Exception ex) when (CanRetryCredentialAuth(ex, attempt))
-                {
-                    LogCredentialAuthRetry(ex);
-                    await PrepareForAuthRetryAsync();
-                }
-            }
-
-            throw new TimeoutException("Steam authentication did not complete.");
+            return await CredentialAuthRunner.RunAsync(
+                this,
+                username,
+                password,
+                guardData
+            );
         }
         finally
         {
             _credentialAuthStarted = false;
         }
     }
-
-    private bool CanRetryCredentialAuth(Exception ex, int attempt)
-        => attempt < CredentialAuthRetryCount
-            && (NeedsAuthReconnect || IsTransientAndroidAuthFailure(ex));
 
     private void LogCredentialAuthRetry(Exception ex)
         => Log($"Steam authentication interrupted ({ex.Message}); retrying auth session");
@@ -80,11 +140,11 @@ internal sealed partial class SteamAuth
     private Task<AuthPollResult> PollForAuthResultAndMaintainConnectionAsync(
         CredentialsAuthSession authSession
     )
-        => WaitForTaskAndMaintainAuthConnectionAsync(
+        => new AuthConnectionWatch<AuthPollResult>(
             authSession.PollingWaitForResultAsync(),
             () => ShouldReconnectWhilePolling,
             AuthPollingReconnectRetryMessage
-        );
+        ).WaitAsync(this);
 
     private bool ShouldReconnectWhilePolling => NeedsAuthReconnect && !_waitingForAuthCode;
 
@@ -103,7 +163,7 @@ internal sealed partial class SteamAuth
 
     private static bool IsTransientAndroidAuthFailure(Exception ex)
     {
-        if (!OperatingSystem.IsAndroid() || ex is AuthenticationException)
+        if (!OperatingSystem.IsAndroid())
             return false;
 
         return (ex is TimeoutException
@@ -112,6 +172,12 @@ internal sealed partial class SteamAuth
             or IOException)
             || IsSteamConnectionInvalidOperation(ex);
     }
+
+    private static bool IsRecoverableAuthInterruption(
+        Exception ex,
+        bool needsAuthReconnect
+    )
+        => needsAuthReconnect || IsTransientAndroidAuthFailure(ex);
 
     private static bool IsSteamConnectionInvalidOperation(Exception ex)
         => ex is InvalidOperationException

@@ -46,12 +46,10 @@ internal static partial class CloudSyncCoordinator
             paths.Add(RunSaveManager.GetRunSavePath(profileId, CurrentRunSaveFile));
             paths.Add(RunSaveManager.GetRunSavePath(profileId, CurrentMultiplayerRunSaveFile));
             paths.Add(PrefsSaveManager.GetPrefsPath(profileId));
-            AddSelectedHistoryFilePaths(
-                paths,
-                store,
+            new HistoryFileSelection(
                 RunHistorySaveManager.GetHistoryPath(profileId),
                 SelectManagedRunHistoryFiles
-            );
+            ).AddTo(paths, store);
         }
 
         private static IEnumerable<string> SelectManagedRunHistoryFiles(IEnumerable<string> files)

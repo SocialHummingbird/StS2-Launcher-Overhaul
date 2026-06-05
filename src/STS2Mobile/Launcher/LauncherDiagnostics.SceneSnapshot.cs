@@ -59,13 +59,14 @@ internal static partial class LauncherDiagnostics
     }
 
     private static string BuildStartupSceneSnapshot(Node root, string reason)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("STS2 startup scene snapshot");
-        sb.AppendLine($"UTC: {DateTime.UtcNow:O}");
-        sb.AppendLine($"Reason: {reason}");
-        sb.AppendLine();
-        AppendSceneNode(sb, root, depth: 0);
-        return sb.ToString();
-    }
+        => CreateTimestampedText(
+            "STS2 startup scene snapshot",
+            "UTC",
+            sb =>
+            {
+                sb.AppendLine($"Reason: {reason}");
+                sb.AppendLine();
+                AppendSceneNode(sb, root, depth: 0);
+            }
+        ).Build();
 }

@@ -20,21 +20,58 @@ internal static partial class LauncherStartupFlow
 
         var launcher = await ShowLauncherAndWaitForLaunchAsync(gameNode);
         var startup = CreateStartupContext(game, gameNode);
-        startup.ApplySaveMode();
+        await StartGameAfterLauncherAsync(launcher, startup);
+    }
 
-        startup.SetPhase(PhaseLaunchRequested, "Starting game...");
-        PatchHelper.Log("User launched game, proceeding to startup...");
+    private static async Task StartGameAfterLauncherAsync(
+        LauncherUI launcher,
+        StartupContext startup
+    )
+        => await new StartupLaunchSequence(launcher, startup).RunAsync();
 
-        ResetSaveManagerInstance();
+    private readonly struct StartupLaunchSequence
+    {
+        internal StartupLaunchSequence(LauncherUI launcher, StartupContext startup)
+        {
+            Launcher = launcher;
+            Startup = startup;
+        }
 
-        launcher.QueueFree();
-        startup.SetPhase(PhaseLauncherClosed, "Launcher closed. Preparing game startup...");
+        private LauncherUI Launcher { get; }
+        private StartupContext Startup { get; }
 
-        await RunShaderWarmupIfNeededAsync(startup);
-        if (!InitializeSettingsAndSaves(startup))
-            return;
+        internal async Task RunAsync()
+        {
+            BeginLaunch();
+            CloseLauncher();
+            await RunStartupAsync();
+        }
 
-        await RunGameStartupAsync(startup);
+        private void BeginLaunch()
+        {
+            Startup.ApplySaveMode();
+            Startup.SetPhase(PhaseLaunchRequested, "Starting game...");
+            PatchHelper.Log("User launched game, proceeding to startup...");
+            ResetSaveManagerInstance();
+        }
+
+        private void CloseLauncher()
+        {
+            Launcher.QueueFree();
+            Startup.SetPhase(
+                PhaseLauncherClosed,
+                "Launcher closed. Preparing game startup..."
+            );
+        }
+
+        private async Task RunStartupAsync()
+        {
+            await RunShaderWarmupIfNeededAsync(Startup);
+            if (!InitializeSettingsAndSaves(Startup))
+                return;
+
+            await RunGameStartupAsync(Startup);
+        }
     }
 
     private static async Task<LauncherUI> ShowLauncherAndWaitForLaunchAsync(Node gameNode)

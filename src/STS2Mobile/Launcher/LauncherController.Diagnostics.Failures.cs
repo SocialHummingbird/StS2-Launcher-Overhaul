@@ -5,6 +5,84 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
+    private readonly struct DiagnosticsReportWrite
+    {
+        private DiagnosticsReportWrite(string failureContext, bool showFailureStatus)
+        {
+            FailureContext = failureContext;
+            ShowFailureStatus = showFailureStatus;
+        }
+
+        private string FailureContext { get; }
+        private bool ShowFailureStatus { get; }
+
+        private static DiagnosticsReportWrite ManualExport()
+            => new(
+                "Diagnostics export failed",
+                showFailureStatus: true
+            );
+
+        private static DiagnosticsReportWrite AutomaticSnapshot()
+            => new(
+                "Automatic diagnostics snapshot failed",
+                showFailureStatus: false
+            );
+    }
+
+    private readonly struct DiagnosticsFailure
+    {
+        private DiagnosticsFailure(
+            string context,
+            Exception exception,
+            bool showStatus,
+            bool includeStackTrace
+        )
+        {
+            Context = context;
+            Exception = exception;
+            ShowStatus = showStatus;
+            IncludeStackTrace = includeStackTrace;
+        }
+
+        private string Context { get; }
+        private Exception Exception { get; }
+        private bool ShowStatus { get; }
+        private bool IncludeStackTrace { get; }
+        private string Detail => IncludeStackTrace
+            ? Exception.ToString()
+            : Exception.Message;
+
+        private static DiagnosticsFailure ActionFailed(
+            string context,
+            Exception exception
+        )
+            => new(
+                context,
+                exception,
+                showStatus: true,
+                includeStackTrace: true
+            );
+
+        private static DiagnosticsFailure ReportWriteFailed(
+            string context,
+            Exception exception,
+            bool showStatus
+        )
+            => new(
+                context,
+                exception,
+                showStatus,
+                includeStackTrace: false
+            );
+
+        private void Show(LauncherView view)
+        {
+            LogDiagnosticsFailure(Context, Detail);
+            if (ShowStatus)
+                view.SetStatus($"{Context}: {Exception.Message}");
+        }
+    }
+
     private void RunDiagnosticsAction(string failureContext, Action action)
     {
         try
@@ -13,15 +91,11 @@ internal sealed partial class LauncherController
         }
         catch (Exception ex)
         {
-            LogDiagnosticsFailure(failureContext, ex.ToString());
-            _view.SetStatus($"{failureContext}: {ex.Message}");
+            DiagnosticsFailure.ActionFailed(failureContext, ex).Show(_view);
         }
     }
 
-    private string TryWriteDiagnosticsReport(
-        string failureContext,
-        Action<string> onFailure = null
-    )
+    private string TryWriteDiagnosticsReport(DiagnosticsReportWrite report)
     {
         try
         {
@@ -29,9 +103,13 @@ internal sealed partial class LauncherController
         }
         catch (Exception ex)
         {
-            LogDiagnosticsFailure(failureContext, ex.Message);
-            if (onFailure != null)
-                onFailure(ex.Message);
+            DiagnosticsFailure
+                .ReportWriteFailed(
+                    report.FailureContext,
+                    ex,
+                    report.ShowFailureStatus
+                )
+                .Show(_view);
             return default;
         }
     }

@@ -12,6 +12,42 @@ internal static partial class CloudSyncCoordinator
 
     private readonly partial struct AutoSyncContext
     {
+        private enum SavePresence
+        {
+            None,
+            LocalOnly,
+            CloudOnly,
+            Both,
+        }
+
+        private readonly struct AutoSyncFiles
+        {
+            internal AutoSyncFiles(string? localContent, bool cloudExists)
+            {
+                LocalContent = localContent;
+                CloudExists = cloudExists;
+            }
+
+            internal string? LocalContent { get; }
+            private bool CloudExists { get; }
+
+            internal SavePresence Presence
+            {
+                get
+                {
+                    if (LocalContent != null && CloudExists)
+                        return SavePresence.Both;
+
+                    if (LocalContent != null)
+                        return SavePresence.LocalOnly;
+
+                    return CloudExists
+                        ? SavePresence.CloudOnly
+                        : SavePresence.None;
+                }
+            }
+        }
+
         private readonly ISaveStore _local;
         private readonly ICloudSaveStore _cloud;
 
@@ -30,7 +66,7 @@ internal static partial class CloudSyncCoordinator
         private string? ReadLocalContent()
             => LocalFileExists() ? _local.ReadFile(Path) : null;
 
-        internal Task<string> ReadCloudContentAsync(string operation)
+        private Task<string> ReadCloudContentAsync(string operation)
             => CloudSyncCoordinator.ReadCloudContentAsync(
                 _cloud,
                 Path,
@@ -50,13 +86,13 @@ internal static partial class CloudSyncCoordinator
         private void WriteCloudFile(string content)
             => _cloud.WriteFile(Path, content);
 
-        internal SaveComparison.SaveWinner GetExplicitWinner(
+        private SaveComparison.SaveWinner GetExplicitWinner(
             string localContent,
             string cloudContent
         )
             => SaveComparison.GetExplicitWinner(Path, localContent, cloudContent);
 
-        internal void Log(Func<string, string> message)
+        private void Log(Func<string, string> message)
             => PatchHelper.Log(message(Path));
 
         internal void LogSyncFailed(Exception ex)
@@ -67,23 +103,30 @@ internal static partial class CloudSyncCoordinator
 
         internal async Task RunAsync()
         {
-            var localContent = ReadLocalContent();
-            var cloudExists = CloudFileExists();
-            if (localContent != null && cloudExists)
-            {
-                await SyncExistingFileAsync(this, localContent);
-                return;
-            }
-
-            if (cloudExists)
-            {
-                await PullCloudOnlyFileAsync();
-                return;
-            }
-
-            if (localContent != null)
-                PushLocalOnlyFile(localContent);
+            var files = ReadFiles();
+            await SyncFilesAsync(files);
         }
+
+        private async Task SyncFilesAsync(AutoSyncFiles files)
+        {
+            switch (files.Presence)
+            {
+                case SavePresence.Both:
+                    await SyncExistingFileAsync(files.LocalContent!);
+                    break;
+                case SavePresence.CloudOnly:
+                    await PullCloudOnlyFileAsync();
+                    break;
+                case SavePresence.LocalOnly:
+                    PushLocalOnlyFile(files.LocalContent!);
+                    break;
+                case SavePresence.None:
+                    break;
+            }
+        }
+
+        private AutoSyncFiles ReadFiles()
+            => new(ReadLocalContent(), CloudFileExists());
     }
 
     // Uses content comparison only because timestamps are unreliable on mobile.

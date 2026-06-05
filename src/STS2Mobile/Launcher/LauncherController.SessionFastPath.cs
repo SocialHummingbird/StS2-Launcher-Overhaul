@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
 
@@ -41,8 +40,7 @@ internal sealed partial class LauncherController
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"[Launcher] Auto-connect failed: {ex}");
-            ShowLoginForm($"Connection failed: {ex.GetBaseException().Message}");
+            LoginFormFailure.AutoConnect().Show(this, ex);
         }
     }
 }

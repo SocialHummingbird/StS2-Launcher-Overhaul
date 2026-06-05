@@ -20,7 +20,7 @@ internal static partial class CloudSyncCoordinator
         private const string RunHistoryExtension = ".run";
         private const string TempExtension = ".tmp";
 
-        internal static List<string> Get(ISaveStore store)
+        internal static IReadOnlyCollection<string> Get(ISaveStore store)
         {
             var paths = new List<string>();
             CollectProfilePathsSafe(paths, store);

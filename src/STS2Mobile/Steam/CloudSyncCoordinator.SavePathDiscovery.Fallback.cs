@@ -29,55 +29,55 @@ internal static partial class CloudSyncCoordinator
             "modded/",
         };
 
+        private readonly struct FallbackProfile
+        {
+            internal FallbackProfile(string name)
+            {
+                Name = name;
+            }
+
+            private string Name { get; }
+
+            internal void AddTo(List<string> paths, ISaveStore store)
+            {
+                AddFiles(paths);
+                AddHistory(paths, store);
+            }
+
+            private void AddFiles(List<string> paths)
+            {
+                foreach (var file in FallbackProfileFiles)
+                    paths.Add($"{Name}/{file}");
+            }
+
+            private void AddHistory(List<string> paths, ISaveStore store)
+            {
+                foreach (var historyName in FallbackHistoryDirectories)
+                {
+                    var historyDir = $"{Name}/{historyName}";
+                    new HistoryFileSelection(
+                        historyDir,
+                        SelectFallbackRunHistoryFiles
+                    ).AddTo(paths, store);
+                }
+            }
+        }
+
         private static void AddFallbackProfilePaths(
             List<string> paths,
             ISaveStore store
         )
         {
             foreach (var profile in FallbackProfiles())
-                AddFallbackProfilePaths(paths, store, profile);
+                profile.AddTo(paths, store);
         }
 
-        private static IEnumerable<string> FallbackProfiles()
+        private static IEnumerable<FallbackProfile> FallbackProfiles()
         {
             foreach (var prefix in FallbackProfilePrefixes)
             {
                 foreach (var profileId in ProfileIds())
-                    yield return $"{prefix}profile{profileId}";
-            }
-        }
-
-        private static void AddFallbackProfilePaths(
-            List<string> paths,
-            ISaveStore store,
-            string profile
-        )
-        {
-            AddFallbackProfileFiles(paths, profile);
-            AddFallbackProfileHistory(paths, store, profile);
-        }
-
-        private static void AddFallbackProfileFiles(List<string> paths, string profile)
-        {
-            foreach (var file in FallbackProfileFiles)
-                paths.Add($"{profile}/{file}");
-        }
-
-        private static void AddFallbackProfileHistory(
-            List<string> paths,
-            ISaveStore store,
-            string profile
-        )
-        {
-            foreach (var historyName in FallbackHistoryDirectories)
-            {
-                var historyDir = $"{profile}/{historyName}";
-                AddSelectedHistoryFilePaths(
-                    paths,
-                    store,
-                    historyDir,
-                    SelectFallbackRunHistoryFiles
-                );
+                    yield return new FallbackProfile($"{prefix}profile{profileId}");
             }
         }
 

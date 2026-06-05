@@ -19,6 +19,18 @@ internal sealed partial class ShaderWarmupScreen
         private readonly SceneTree _tree;
         private readonly ShaderWarmupProgress _progress;
 
+        private readonly struct WarmupRenderBatch
+        {
+            internal WarmupRenderBatch(int start, int end)
+            {
+                Start = start;
+                End = end;
+            }
+
+            internal int Start { get; }
+            internal int End { get; }
+        }
+
         private ShaderWarmupRenderer(
             Control parent,
             SceneTree tree,
@@ -60,16 +72,18 @@ internal sealed partial class ShaderWarmupScreen
             int total = materials.Count;
             for (int i = 0; i < total; i += BatchSize)
             {
-                int batchEnd = Math.Min(i + BatchSize, total);
+                var batch = new WarmupRenderBatch(
+                    i,
+                    Math.Min(i + BatchSize, total)
+                );
                 var batchNodes = AddBatchNodes(
                     viewport,
                     whiteTexture,
                     materials,
-                    i,
-                    batchEnd
+                    batch
                 );
 
-                ReportProgress(batchEnd, total);
+                ReportProgress(batch.End, total);
 
                 await WaitForRenderFramesAsync();
                 ClearBatch(batchNodes);

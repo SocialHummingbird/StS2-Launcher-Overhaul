@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using STS2Mobile.Patches;
@@ -10,41 +9,78 @@ internal sealed partial class LauncherController
 {
     private const string LocalSteamCredentialFileName = "steam_login_credentials.txt";
 
-    private static (string username, string password)? ConsumeLocalSteamCredentials()
+    private readonly struct LocalSteamCredentials
     {
-        var lines = LauncherExternalFileInbox.ConsumeLines(
-            LocalSteamCredentialFileName,
-            "[Launcher] Ignored local Steam credential file"
-        );
-        if (lines == null)
-            return null;
+        private LocalSteamCredentials(string username, string password)
+        {
+            Username = username;
+            Password = password;
+        }
 
-        try
+        private string Username { get; }
+        private string Password { get; }
+
+        internal static LocalSteamCredentials? Consume()
         {
-            return DecodeLocalSteamCredentials(lines);
+            var lines = LauncherExternalFileInbox.ConsumeLines(
+                LocalSteamCredentialFileName,
+                "[Launcher] Ignored local Steam credential file"
+            );
+            if (lines == null)
+                return null;
+
+            return TryDecode(lines, out var credentials)
+                ? credentials
+                : null;
         }
-        catch (Exception ex)
+
+        private static bool TryDecode(
+            string[] lines,
+            out LocalSteamCredentials credentials
+        )
         {
-            PatchHelper.Log($"[Launcher] Ignored local Steam credential file: {ex.Message}");
-            return null;
+            credentials = default;
+            if (lines.Length < 2)
+                return Invalid("expected two base64 lines");
+
+            if (
+                !TryDecodeBase64Line(lines[0], out var username)
+                || !TryDecodeBase64Line(lines[1], out var password)
+            )
+                return Invalid("expected base64-encoded username and password");
+
+            username = username.Trim();
+            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
+                return Invalid("username or password was empty");
+
+            credentials = new LocalSteamCredentials(username, password);
+            return true;
         }
+
+        private static bool TryDecodeBase64Line(string line, out string value)
+        {
+            value = null;
+            try
+            {
+                value = Encoding.UTF8.GetString(Convert.FromBase64String(line.Trim()));
+                return true;
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
+        private static bool Invalid(string reason)
+        {
+            PatchHelper.Log($"[Launcher] Ignored local Steam credential file: {reason}");
+            return false;
+        }
+
+        internal Task LoginAsync(LauncherModel model)
+            => model.LoginAsync(Username, Password);
     }
 
-    private static (string username, string password) DecodeLocalSteamCredentials(
-        string[] lines
-    )
-    {
-        if (lines.Length < 2)
-            throw new InvalidDataException("expected two base64 lines");
-
-        var username = DecodeBase64Line(lines[0]).Trim();
-        var password = DecodeBase64Line(lines[1]);
-        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
-            throw new InvalidDataException("username or password was empty");
-
-        return (username, password);
-    }
-
-    private static string DecodeBase64Line(string line)
-        => Encoding.UTF8.GetString(Convert.FromBase64String(line.Trim()));
+    private static LocalSteamCredentials? ConsumeLocalSteamCredentials()
+        => LocalSteamCredentials.Consume();
 }

@@ -1,6 +1,12 @@
 # Local Steam login emulator testing
 
-For emulator-only testing, create an untracked file at:
+For emulator-only Steam login testing, create an untracked credential file at:
+
+```text
+tmp\steam-login.local.json
+```
+
+Example schema:
 
 ```json
 {
@@ -40,6 +46,10 @@ To avoid putting the code in shell history or echoing it to the terminal, prompt
 
 Do not commit `tmp/steam-login.local.json`.
 
+This file is intended for local automation only. Scripts should consume it without printing credential values to the terminal or logs.
+
+Current status: this harness can reduce repeated manual typing and can prove whether the login flow reaches Steam Guard, successful authentication, ownership verification, or a known crash signature. It does not by itself prove the ARM64 phone path, and Steam startup authentication failures remain an open issue until fresh logs show a successful startup/login/ownership sequence.
+
 To rebuild the local emulator APK with the tracked SteamKit Android crypto patcher:
 
 ```powershell
@@ -55,6 +65,7 @@ To check a captured logcat file for the repeated native crypto crash regression:
 ```
 
 The checker fails on fatal native crypto signatures and passes when the login reaches Steam Guard, successful authentication, or ownership verification.
+It should not be used to mark startup Steam authentication fully fixed unless the relevant run reaches successful authentication or ownership verification.
 
 For post-Steam Guard verification, require successful authentication or ownership verification:
 

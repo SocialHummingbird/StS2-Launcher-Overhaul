@@ -10,41 +10,69 @@ internal static partial class LauncherDiagnostics
         private const string ErrorReportGeneratedAtLabel = "UTC";
         private const string PreviousLaunchPhaseLabel = "Previous launch phase";
 
+        private readonly struct ErrorReportDefinition
+        {
+            private ErrorReportDefinition(
+                string title,
+                LauncherStateDetail stateDetail,
+                Action<StringBuilder> appendDiagnostics,
+                string footer
+            )
+            {
+                Title = title;
+                StateDetail = stateDetail;
+                AppendDiagnostics = appendDiagnostics;
+                Footer = footer;
+            }
+
+            internal string Title { get; }
+            internal LauncherStateDetail StateDetail { get; }
+            internal Action<StringBuilder> AppendDiagnostics { get; }
+            internal string Footer { get; }
+
+            internal static ErrorReportDefinition Summary(
+                string dataDir
+            )
+                => new(
+                    "=== LAST ERROR SUMMARY ===",
+                    LauncherStateDetail.Compact,
+                    sb => AppendSummaryErrorDiagnostics(sb, dataDir),
+                    "=== END LAST ERROR SUMMARY ==="
+                );
+
+            internal static ErrorReportDefinition RawLog(
+                string dataDir
+            )
+                => new(
+                    "=== RAW ERROR LOG ===",
+                    LauncherStateDetail.Detailed,
+                    sb => AppendRawErrorDiagnostics(sb, dataDir),
+                    "=== END RAW ERROR LOG ==="
+                );
+        }
+
         internal string BuildDiagnosticsSummary()
-            => BuildErrorReport(
-                "=== LAST ERROR SUMMARY ===",
-                LauncherStateDetail.Compact,
-                sb => AppendSummaryErrorDiagnostics(sb, _state.DataDir),
-                "=== END LAST ERROR SUMMARY ==="
-            );
+            => BuildErrorReport(ErrorReportDefinition.Summary(_state.DataDir));
 
         internal string BuildRawErrorLog()
-            => BuildErrorReport(
-                "=== RAW ERROR LOG ===",
-                LauncherStateDetail.Detailed,
-                sb => AppendRawErrorDiagnostics(sb, _state.DataDir),
-                "=== END RAW ERROR LOG ==="
-            );
+            => BuildErrorReport(ErrorReportDefinition.RawLog(_state.DataDir));
 
         private void AppendLauncherState(StringBuilder sb, LauncherStateDetail detail)
             => _state.AppendTo(sb, detail);
 
         private string BuildErrorReport(
-            string title,
-            LauncherStateDetail detail,
-            Action<StringBuilder> appendDiagnostics,
-            string footer
+            ErrorReportDefinition report
         )
-            => BuildTimestampedText(
-                title,
+            => CreateTimestampedText(
+                report.Title,
                 ErrorReportGeneratedAtLabel,
                 sb =>
                 {
-                    AppendLauncherState(sb, detail);
+                    AppendLauncherState(sb, report.StateDetail);
                     AppendPreviousLaunchPhase(sb, PreviousLaunchPhaseLabel);
-                    appendDiagnostics(sb);
-                    sb.AppendLine(footer);
+                    report.AppendDiagnostics(sb);
+                    sb.AppendLine(report.Footer);
                 }
-            );
+            ).Build();
     }
 }

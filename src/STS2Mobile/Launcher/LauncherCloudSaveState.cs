@@ -24,13 +24,29 @@ internal static class LauncherCloudSaveState
         )
             => new(accountName, refreshToken);
 
-        internal SaveManager CreateSaveManager()
-            => new(
-                CloudSaveStoreFactory.CreateCloudSaveStore(
-                    AccountName,
-                    RefreshToken
-                )
-            );
+        internal bool TryCreateSaveManager(out SaveManager saveManager)
+        {
+            saveManager = null;
+
+            try
+            {
+                saveManager = new SaveManager(
+                    CloudSaveStoreFactory.CreateCloudSaveStore(
+                        AccountName,
+                        RefreshToken
+                    )
+                );
+                PatchHelper.Log("[Cloud] Created SaveManager with SteamKit2 cloud store");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(
+                    $"[Cloud] Cloud store injection failed, falling back to local: {ex.Message}"
+                );
+                return false;
+            }
+        }
 
         internal Task RunManualSyncAsync(Func<string, string, Task> sync)
             => sync(AccountName, RefreshToken);
@@ -51,41 +67,33 @@ internal static class LauncherCloudSaveState
     {
         saveManager = null;
 
-        var credentials = GetSavedCredentialsForCloudSync();
-        if (!credentials.HasValue)
+        if (!TryGetSavedCredentialsForCloudSync(out var credentials))
             return false;
 
-        try
-        {
-            saveManager = credentials.Value.CreateSaveManager();
-            PatchHelper.Log("[Cloud] Created SaveManager with SteamKit2 cloud store");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log(
-                $"[Cloud] Cloud store injection failed, falling back to local: {ex.Message}"
-            );
-            return false;
-        }
+        return credentials.TryCreateSaveManager(out saveManager);
     }
 
-    private static SavedSteamCredentials? GetSavedCredentialsForCloudSync()
+    private static bool TryGetSavedCredentialsForCloudSync(
+        out SavedSteamCredentials credentials
+    )
     {
+        credentials = default;
+
         if (!_cloudSyncEnabled)
         {
             PatchHelper.Log("[Cloud] Cloud sync disabled by user - using local-only SaveManager");
-            return null;
+            return false;
         }
 
-        var credentials = _savedCredentials;
-        if (!credentials.HasValue)
+        var savedCredentials = _savedCredentials;
+        if (!savedCredentials.HasValue)
         {
             PatchHelper.Log("[Cloud] No saved credentials - using local-only SaveManager");
-            return null;
+            return false;
         }
 
-        return credentials;
+        credentials = savedCredentials.Value;
+        return true;
     }
 
     internal static Task ManualPushAllAsync()

@@ -22,7 +22,7 @@ internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveSt
     }
 
     internal static ICloudSaveStore GetOrCreate(string accountName, string refreshToken)
-        => _instance ?? new SteamKit2CloudSaveStore(accountName, refreshToken);
+        => _instance ??= new SteamKit2CloudSaveStore(accountName, refreshToken);
 
     internal static bool FlushActive(int timeoutMs)
         => _instance?.Flush(timeoutMs) ?? true;

@@ -6,6 +6,59 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private readonly struct DepotReferenceCandidate
+    {
+        private DepotReferenceCandidate(DepotDownloader owner, KeyValue depot, uint depotId)
+        {
+            Owner = owner;
+            Depot = depot;
+            DepotId = depotId;
+        }
+
+        private DepotDownloader Owner { get; }
+        private KeyValue Depot { get; }
+        private uint DepotId { get; }
+
+        internal static DepotReferenceCandidate? TryCreate(
+            DepotDownloader owner,
+            KeyValue depot
+        )
+            => uint.TryParse(depot.Name, out var depotId)
+                ? new DepotReferenceCandidate(owner, depot, depotId)
+                : null;
+
+        internal async Task<DepotManifestReference?> TryCreateReferenceAsync()
+        {
+            if (ShouldSkip())
+                return null;
+
+            var manifestId = await DepotManifestSource.GetPublicManifestIdAsync(
+                Owner,
+                Depot,
+                DepotId
+            );
+            if (!manifestId.HasValue)
+                return null;
+
+            Owner.Log($"Found depot {DepotId} manifest {manifestId.Value}");
+            return new DepotManifestReference(DepotId, manifestId.Value);
+        }
+
+        private bool ShouldSkip()
+        {
+            var config = Depot["config"];
+            if (config == KeyValue.Invalid)
+                return false;
+
+            var oslist = config["oslist"]?.Value;
+            if (string.IsNullOrEmpty(oslist) || oslist.Contains("windows"))
+                return false;
+
+            Owner.Log($"Skipping depot {DepotId} (OS: {oslist})");
+            return true;
+        }
+    }
+
     private async Task<List<DepotManifestReference>> ParseDepotsAsync(
         KeyValue depotSection
     )
@@ -14,44 +67,15 @@ internal sealed partial class DepotDownloader
 
         foreach (var depot in depotSection.Children)
         {
-            var reference = await TryCreateDepotReferenceAsync(depot);
+            var candidate = DepotReferenceCandidate.TryCreate(this, depot);
+            if (!candidate.HasValue)
+                continue;
+
+            var reference = await candidate.Value.TryCreateReferenceAsync();
             if (reference.HasValue)
                 result.Add(reference.Value);
         }
 
         return result;
-    }
-
-    private async Task<DepotManifestReference?> TryCreateDepotReferenceAsync(KeyValue depot)
-    {
-        if (!TryReadDepotId(depot, out var depotId))
-            return null;
-
-        if (ShouldSkipDepot(depot, depotId))
-            return null;
-
-        var manifestId = await GetPublicManifestIdAsync(depot, depotId);
-        if (!manifestId.HasValue)
-            return null;
-
-        Log($"Found depot {depotId} manifest {manifestId.Value}");
-        return new DepotManifestReference(depotId, manifestId.Value);
-    }
-
-    private static bool TryReadDepotId(KeyValue depot, out uint depotId)
-        => uint.TryParse(depot.Name, out depotId);
-
-    private bool ShouldSkipDepot(KeyValue depot, uint depotId)
-    {
-        var config = depot["config"];
-        if (config == KeyValue.Invalid)
-            return false;
-
-        var oslist = config["oslist"]?.Value;
-        if (string.IsNullOrEmpty(oslist) || oslist.Contains("windows"))
-            return false;
-
-        Log($"Skipping depot {depotId} (OS: {oslist})");
-        return true;
     }
 }

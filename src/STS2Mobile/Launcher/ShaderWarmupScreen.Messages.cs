@@ -15,8 +15,8 @@ internal sealed partial class ShaderWarmupScreen
         internal static string Collected(int materialCount)
             => $"[ShaderWarmup] Collected {materialCount} materials to warm";
 
-        internal static string Completed(int materialCount, long elapsedMilliseconds)
-            => $"[ShaderWarmup] Completed: {materialCount} materials in {elapsedMilliseconds}ms";
+        internal static string Completed(WarmupCompletion completion)
+            => $"[ShaderWarmup] Completed: {completion.MaterialCount} materials in {completion.ElapsedMilliseconds}ms";
 
         internal static string ScreenBuildFailed(Exception ex)
             => $"[ShaderWarmup] BuildUI failed: {ex}";

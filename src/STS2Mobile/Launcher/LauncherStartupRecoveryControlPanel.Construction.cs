@@ -11,6 +11,32 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     private const string RestartSafeLaunchButton = "RESTART WITH SAFE LAUNCH";
     private const string ReturnToLauncherButton = "RETURN TO LAUNCHER";
 
+    private readonly struct RecoveryButtonSpec
+    {
+        private RecoveryButtonSpec(string label, Action run)
+        {
+            Label = label;
+            Run = run;
+        }
+
+        private string Label { get; }
+        private Action Run { get; }
+
+        private Button CreateButton()
+        {
+            var button = new Button
+            {
+                Text = Label,
+                CustomMinimumSize = ButtonMinimumSize,
+            };
+            button.Pressed += Run;
+            return button;
+        }
+
+        internal static Button CreateButton(string label, Action run)
+            => new RecoveryButtonSpec(label, run).CreateButton();
+    }
+
     private LauncherStartupRecoveryControlPanel()
     {
         Layer = CreateLayer();
@@ -74,27 +100,19 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private void AddRecoveryActions(VBoxContainer box)
     {
-        AddRecoveryButton(box, ReturnToLauncherButton, AndroidGodotAppBridge.RestartApp);
-        AddRecoveryButton(box, RestartSafeLaunchButton, RestartWithSafeLaunch);
-        AddRecoveryButton(box, ExportDiagnosticsButton, ExportDiagnostics);
-        AddRecoveryButton(box, CopyRawErrorLogButton, CopyRawErrorLog);
-        AddRecoveryButton(box, HideControlsButton, HideRecoveryControls);
+        foreach (var action in RecoveryButtons())
+            box.AddChild(action);
     }
 
-    private static void AddRecoveryButton(
-        VBoxContainer box,
-        string label,
-        Action run
-    )
-    {
-        var button = new Button
+    private Button[] RecoveryButtons()
+        => new[]
         {
-            Text = label,
-            CustomMinimumSize = ButtonMinimumSize,
+            RecoveryButtonSpec.CreateButton(ReturnToLauncherButton, AndroidGodotAppBridge.RestartApp),
+            RecoveryButtonSpec.CreateButton(RestartSafeLaunchButton, RestartWithSafeLaunch),
+            RecoveryButtonSpec.CreateButton(ExportDiagnosticsButton, ExportDiagnostics),
+            RecoveryButtonSpec.CreateButton(CopyRawErrorLogButton, CopyRawErrorLog),
+            RecoveryButtonSpec.CreateButton(HideControlsButton, HideRecoveryControls),
         };
-        button.Pressed += run;
-        box.AddChild(button);
-    }
 
     private void HideRecoveryControls()
         => Layer.QueueFree();

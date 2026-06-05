@@ -13,45 +13,53 @@ internal static partial class CloudSyncCoordinator
             CurrentRun,
         }
 
+        private readonly struct SaveComparisonInput
+        {
+            internal SaveComparisonInput(
+                string path,
+                string localContent,
+                string cloudContent
+            )
+            {
+                Path = path;
+                LocalContent = localContent;
+                CloudContent = cloudContent;
+            }
+
+            internal string Path { get; }
+            internal string LocalContent { get; }
+            internal string CloudContent { get; }
+            internal SaveKind Kind => GetSaveKind(Path);
+
+            internal SaveWinner Compare()
+            {
+                try
+                {
+                    return CompareByKind();
+                }
+                catch (Exception ex)
+                {
+                    PatchHelper.Log(SaveComparisonFailed(Path, ex));
+                    return SaveWinner.None;
+                }
+            }
+
+            private SaveWinner CompareByKind()
+                => Kind switch
+                {
+                    SaveKind.Progress => CompareProgress(LocalContent, CloudContent),
+                    SaveKind.CurrentRun => CompareCurrentRun(LocalContent, CloudContent),
+                    _ => SaveWinner.None,
+                };
+        }
+
         internal static SaveWinner GetExplicitWinner(
             string path,
             string localContent,
             string cloudContent
         )
-            => Compare(path, localContent, cloudContent);
-
-        private static SaveWinner Compare(
-            string path,
-            string localContent,
-            string cloudContent
-        )
-        {
-            try
-            {
-                return CompareByKind(
-                    GetSaveKind(path),
-                    localContent,
-                    cloudContent
-                );
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log(SaveComparisonFailed(path, ex));
-                return SaveWinner.None;
-            }
-        }
-
-        private static SaveWinner CompareByKind(
-            SaveKind kind,
-            string localContent,
-            string cloudContent
-        )
-            => kind switch
-            {
-                SaveKind.Progress => CompareProgress(localContent, cloudContent),
-                SaveKind.CurrentRun => CompareCurrentRun(localContent, cloudContent),
-                _ => SaveWinner.None,
-            };
+            => new SaveComparisonInput(path, localContent, cloudContent)
+                .Compare();
 
         private static SaveKind GetSaveKind(string path)
         {

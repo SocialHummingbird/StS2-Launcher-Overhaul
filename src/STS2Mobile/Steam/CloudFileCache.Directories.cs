@@ -6,33 +6,61 @@ internal sealed partial class SteamKit2CloudSaveStore
 {
     private sealed partial class CloudFileCache
     {
-        internal string[] GetFilesInDirectory(string directoryPath)
+        private readonly struct CloudDirectorySnapshot
         {
-            EnsureLoaded();
-            var result = new List<string>();
+            private readonly List<string> _files;
+            private readonly HashSet<string> _directories;
 
-            foreach (var remainder in EnumerateDirectoryEntries(directoryPath))
+            private CloudDirectorySnapshot(
+                List<string> files,
+                HashSet<string> directories
+            )
             {
-                if (!remainder.Contains('/'))
-                    result.Add(remainder);
+                _files = files;
+                _directories = directories;
             }
 
-            return result.ToArray();
+            internal string[] Files()
+                => _files.ToArray();
+
+            internal string[] Directories()
+                => [.. _directories];
+
+            internal static CloudDirectorySnapshot From(
+                IEnumerable<string> entries
+            )
+            {
+                var files = new List<string>();
+                var directories = new HashSet<string>();
+
+                foreach (var remainder in entries)
+                {
+                    var slashIndex = remainder.IndexOf('/');
+                    if (slashIndex >= 0)
+                    {
+                        directories.Add(remainder.Substring(0, slashIndex));
+                        continue;
+                    }
+
+                    files.Add(remainder);
+                }
+
+                return new CloudDirectorySnapshot(files, directories);
+            }
         }
 
+        internal string[] GetFilesInDirectory(string directoryPath)
+            => DirectorySnapshot(directoryPath).Files();
+
         internal string[] GetDirectoriesInDirectory(string directoryPath)
+            => DirectorySnapshot(directoryPath).Directories();
+
+        private CloudDirectorySnapshot DirectorySnapshot(string directoryPath)
         {
             EnsureLoaded();
-            var dirs = new HashSet<string>();
-
-            foreach (var remainder in EnumerateDirectoryEntries(directoryPath))
-            {
-                var slashIndex = remainder.IndexOf('/');
-                if (slashIndex >= 0)
-                    dirs.Add(remainder.Substring(0, slashIndex));
-            }
-
-            return [.. dirs];
+            return CloudDirectorySnapshot.From(
+                EnumerateDirectoryEntries(directoryPath)
+            );
         }
 
         private IEnumerable<string> EnumerateDirectoryEntries(string directoryPath)

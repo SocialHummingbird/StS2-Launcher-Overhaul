@@ -7,22 +7,10 @@ namespace STS2Mobile.Steam;
 internal sealed partial class SteamKit2CloudSaveStore
 {
     private async Task<CCloud_ClientBeginFileUpload_Response?> BeginFileUploadAsync(
-        string path,
-        int uploadSize,
-        uint rawSize,
-        byte[] fileHash,
-        ulong batchId,
-        DateTimeOffset? timestamp
+        CloudFileUpload upload
     )
     {
-        var request = CreateBeginFileUploadRequest(
-            path,
-            uploadSize,
-            rawSize,
-            fileHash,
-            batchId,
-            timestamp
-        );
+        var request = CreateBeginFileUploadRequest(upload);
 
         try
         {
@@ -35,7 +23,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("DuplicateRequest"))
         {
-            PatchHelper.Log(UploadSkippedAlreadyUpToDate(path));
+            PatchHelper.Log(UploadSkippedAlreadyUpToDate(upload.Path));
             return null;
         }
     }

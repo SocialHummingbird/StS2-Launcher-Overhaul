@@ -6,30 +6,30 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamConnection
 {
-    private enum AppAccessTokenState
-    {
-        Public,
-        Found,
-        Denied,
-    }
-
     private readonly struct AppAccessTokenResult
     {
-        private AppAccessTokenResult(AppAccessTokenState state, ulong token)
+        private enum State
         {
-            State = state;
+            Public,
+            Found,
+            Denied,
+        }
+
+        private AppAccessTokenResult(State state, ulong token)
+        {
+            TokenState = state;
             Token = token;
         }
 
-        private AppAccessTokenState State { get; }
+        private State TokenState { get; }
         private ulong Token { get; }
 
-        internal bool HasToken()
-            => State == AppAccessTokenState.Found;
+        private bool HasToken()
+            => TokenState == State.Found;
 
-        internal void ThrowIfDenied(string deniedMessage)
+        private void ThrowIfDenied(string deniedMessage)
         {
-            if (State == AppAccessTokenState.Denied)
+            if (TokenState == State.Denied)
                 throw new InvalidOperationException(deniedMessage);
         }
 
@@ -43,20 +43,14 @@ internal sealed partial class SteamConnection
         }
 
         internal static AppAccessTokenResult FoundToken(ulong token)
-            => new(AppAccessTokenState.Found, token);
+            => new(State.Found, token);
 
         internal static AppAccessTokenResult DeniedToken()
-            => new(AppAccessTokenState.Denied, 0);
+            => new(State.Denied, 0);
 
         internal static AppAccessTokenResult PublicToken()
-            => new(AppAccessTokenState.Public, 0);
+            => new(State.Public, 0);
     }
-
-    internal async Task<bool> HasAppAccessTokenAsync(uint appId)
-        => (await GetAppAccessTokenAsync(appId)).HasToken();
-
-    internal async Task EnsureAppAccessTokenNotDeniedAsync(uint appId, string deniedMessage)
-        => (await GetAppAccessTokenAsync(appId)).ThrowIfDenied(deniedMessage);
 
     internal async Task<ulong> GetAppAccessTokenOrPublicAsync(uint appId, string deniedMessage)
         => (await GetAppAccessTokenAsync(appId)).TokenOrPublic(deniedMessage);
@@ -67,6 +61,11 @@ internal sealed partial class SteamConnection
         if (cachedToken.HasValue)
             return AppAccessTokenResult.FoundToken(cachedToken.Value);
 
+        return await FetchAppAccessTokenAsync(appId);
+    }
+
+    private async Task<AppAccessTokenResult> FetchAppAccessTokenAsync(uint appId)
+    {
         var tokenResult = await RunConnectedAsync(
             async () => await _steamApps.PICSGetAccessTokens(
                 new[] { appId },

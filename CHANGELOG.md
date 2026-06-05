@@ -15,14 +15,22 @@ All notable changes for the overhauled repository are recorded here.
   - `docs/device-log-checklist.md`
 
 ### Changed
+- Updated GitHub-facing project text for the current APK state: `v0.2.175-refactor-apk`, ARM64-only release assets, signed release expectations, emulator limits, and the open Steam startup login/authentication risk.
+- Reframed overhaul status from the old phase-closure language to the current refactor and validation stabilization work.
 - Improved launcher timeout control for manual cloud sync operations to avoid UI hangs.
 - Added per-path and per-operation timeouts for cloud sync coordinator reads/writes.
 - Hardened lifecycle cloud flush paths to avoid unbounded waits.
 - Hardened dependency reflection in `ModLoaderPatches` to avoid startup breakage when mod metadata shape changes.
 
 ### Fixed
+- Fixed stale documentation that presented older universal/x86 release assets as the current phone testing path.
 - Fixed `Task.WhenAny`-based dead-ends for cloud sync operations that could block launcher interaction.
 - Added time-bound guardrails around cache read/write/update operations in cloud sync paths.
+
+### Known Issues
+- Steam startup login/authentication can still fail even when the device has network access.
+- Android `x86_64` emulator runs are fallback/diagnostic coverage only unless the unsafe Godot path is explicitly forced.
+- Full runtime proof still requires ARM64 hardware validation through Steam login, download, cloud sync, and game launch.
 
 ## [Initial Overhaul Baseline]
 - Forked repository and established independent project documentation and workflow for a sustained rewrite.

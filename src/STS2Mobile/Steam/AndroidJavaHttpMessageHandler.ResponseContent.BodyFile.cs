@@ -7,21 +7,74 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class AndroidJavaHttpMessageHandler
 {
+    private readonly struct BodyFileContentRequest
+    {
+        private BodyFileContentRequest(
+            string? bodyFile,
+            int status,
+            string requestDescription,
+            CancellationToken cancellationToken
+        )
+        {
+            BodyFile = bodyFile;
+            Status = status;
+            RequestDescription = requestDescription;
+            CancellationToken = cancellationToken;
+        }
+
+        private string? BodyFile { get; }
+        private int Status { get; }
+        private string RequestDescription { get; }
+        private CancellationToken CancellationToken { get; }
+        private bool IsError => Status >= 400;
+
+        private static BodyFileContentRequest Create(
+            string? bodyFile,
+            int status,
+            string requestDescription,
+            CancellationToken cancellationToken
+        )
+            => new(bodyFile, status, requestDescription, cancellationToken);
+
+        private HttpContent CreateContent()
+        {
+            var safeBodyFile = RequireExistingSafeBodyFile(
+                BodyFile,
+                RequestDescription
+            );
+            ThrowIfCancelledWithBodyFileCleanup(safeBodyFile, CancellationToken);
+
+            return IsError
+                ? CreateBufferedErrorBodyContent(safeBodyFile, RequestDescription)
+                : new DeleteOnDisposeFileContent(safeBodyFile);
+        }
+
+        private static HttpContent CreateContent(
+            string? bodyFile,
+            int status,
+            string requestDescription,
+            CancellationToken cancellationToken
+        )
+            => Create(
+                bodyFile,
+                status,
+                requestDescription,
+                cancellationToken
+            ).CreateContent();
+    }
+
     private static HttpContent CreateResponseContentFromBodyFile(
         string? bodyFile,
         int status,
         string requestDescription,
         CancellationToken cancellationToken
     )
-    {
-        var safeBodyFile = RequireExistingSafeBodyFile(bodyFile, requestDescription);
-        ThrowIfCancelledWithBodyFileCleanup(safeBodyFile, cancellationToken);
-
-        if (status < 400)
-            return new DeleteOnDisposeFileContent(safeBodyFile);
-
-        return CreateBufferedErrorBodyContent(safeBodyFile, requestDescription);
-    }
+        => BodyFileContentRequest.CreateContent(
+            bodyFile,
+            status,
+            requestDescription,
+            cancellationToken
+        );
 
     private static HttpContent CreateBufferedErrorBodyContent(
         string safeBodyFile,

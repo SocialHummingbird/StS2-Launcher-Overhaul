@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a reproducible problem with startup, cloud sync, downloads, or gameplay flow
+about: Report a reproducible problem with startup, Steam login, cloud sync, downloads, or gameplay flow
 title: "[BUG] "
 labels: ["bug", "needs-triage", "category: reliability"]
 assignees: []
@@ -28,9 +28,21 @@ Describe what happened instead.
 
 - Device model:
 - Android version:
+- Device ABI:
 - Locale/Region settings:
 - App version:
+- Release tag / APK asset:
 - Branch/commit:
+- Clean install or update:
+
+## Area
+
+- [ ] Startup
+- [ ] Steam login/authentication
+- [ ] Game download
+- [ ] Cloud sync
+- [ ] Game launch/runtime
+- [ ] Android x86 fallback/diagnostics
 
 ## Priority / severity (pick one)
 
@@ -45,7 +57,7 @@ Describe what happened instead.
 ## Logs / evidence
 
 - Attach output from `adb logcat` (ideally with the crash window)
-- Include lines for `PatchHelper` and key exceptions
+- Include lines for `PatchHelper`, `Steam`, `SteamKit`, `Cloud`, and key exceptions where relevant
 - If relevant, include screenshot of black screen / launcher overlay
 - Link to any repro save / device profile
 

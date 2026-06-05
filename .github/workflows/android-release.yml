@@ -20,7 +20,7 @@ on:
         required: false
         default: ""
       patched_godot_apk_url:
-        description: "Optional APK URL to source patched arm64 libgodot_android.so from."
+        description: "Optional APK URL to source patched arm64 libgodot_android.so from. Default is a known patched-Godot source APK, not a runtime validation target."
         required: false
         default: "https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.88-apk-native-verify/StS2Launcher-v0.2.88-universal-phone.apk"
       version_name:

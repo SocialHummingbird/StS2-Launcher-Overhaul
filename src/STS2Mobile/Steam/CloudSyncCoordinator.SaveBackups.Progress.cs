@@ -16,13 +16,14 @@ internal static partial class CloudSyncCoordinator
                 return;
 
             var canonLowerPath = NormalizeSavePathLower(path);
-            SaveBackup(
-                canonLowerPath,
-                content,
-                source,
-                fileNameOverride: "progress.save",
-                backupPath => CompleteProgressBackup(source, path, backupPath)
-            );
+            BackupWrite
+                .Progress(
+                    canonLowerPath,
+                    content,
+                    source,
+                    backupPath => CompleteProgressBackup(source, path, backupPath)
+                )
+                .TrySave();
         }
 
         private static void CompleteProgressBackup(

@@ -1,4 +1,3 @@
-using System;
 using System.Text.Json;
 
 namespace STS2Mobile.Steam;
@@ -7,15 +6,33 @@ internal static partial class CloudSyncCoordinator
 {
     private static partial class SaveComparison
     {
-        private static SaveWinner CompareJson(
-            string local,
-            string cloud,
-            Func<JsonElement, JsonElement, SaveWinner> compare
-        )
+        private readonly struct SaveJsonComparison
         {
-            using var localDoc = JsonDocument.Parse(local);
-            using var cloudDoc = JsonDocument.Parse(cloud);
-            return compare(localDoc.RootElement, cloudDoc.RootElement);
+            internal SaveJsonComparison(JsonElement localRoot, JsonElement cloudRoot)
+            {
+                LocalRoot = localRoot;
+                CloudRoot = cloudRoot;
+            }
+
+            private JsonElement LocalRoot { get; }
+            private JsonElement CloudRoot { get; }
+
+            internal SaveWinner Compare(SaveMetricSet metrics)
+                => metrics.Compare(LocalRoot, CloudRoot);
+
+            internal static SaveWinner Compare(
+                string local,
+                string cloud,
+                SaveMetricSet metrics
+            )
+            {
+                using var localDoc = JsonDocument.Parse(local);
+                using var cloudDoc = JsonDocument.Parse(cloud);
+                return new SaveJsonComparison(
+                    localDoc.RootElement,
+                    cloudDoc.RootElement
+                ).Compare(metrics);
+            }
         }
 
         private static int GetInt(JsonElement element, string property)

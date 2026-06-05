@@ -17,18 +17,18 @@ internal sealed partial class LauncherController
     private const string VersionNumberPattern = @"\d+(?:\.\d+)*";
     private static readonly TimeSpan LauncherUpdateTimeout = TimeSpan.FromSeconds(15);
 
-    private static async Task<string> CheckLatestLauncherVersionAsync()
+    private static async Task<LauncherUpdateCheckResult> CheckLatestLauncherVersionAsync()
     {
         if (!LauncherVersion.TryParse(GetInstalledLauncherVersion(), out var installedVersion))
-            return null;
+            return LauncherUpdateCheckResult.UpToDate();
 
         var latestVersion = await FetchLatestVersionAsync();
         if (!latestVersion.HasValue)
-            return null;
+            return LauncherUpdateCheckResult.UpToDate();
 
         return latestVersion.Value.IsNewerThan(installedVersion)
-            ? latestVersion.Value.ToString()
-            : null;
+            ? LauncherUpdateCheckResult.Available(latestVersion.Value)
+            : LauncherUpdateCheckResult.UpToDate();
     }
 
     private static async Task<LauncherVersion?> FetchLatestVersionAsync()

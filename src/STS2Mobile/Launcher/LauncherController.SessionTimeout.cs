@@ -22,28 +22,60 @@ internal sealed partial class LauncherController
         if (_model.ShouldIgnoreConnectionTimeout(sessionAttemptId))
             return;
 
-        if (CanUseOfflineLaunch())
-        {
-            _runOnMainThread(ShowOfflineLaunch);
-            return;
-        }
-
-        _runOnMainThread(ShowFirstLaunchFailure);
+        var outcome = CreateConnectionTimeoutOutcome();
+        _runOnMainThread(() => outcome.Apply(this));
     }
 
     private bool CanUseOfflineLaunch()
         => _model.HasOwnershipMarker() && LauncherGameFiles.Ready();
 
-    private void ShowOfflineLaunch()
-    {
-        _view.SetStatus(SavedCredentialsFallback);
-        _view.AppendLog(OfflineLaunchAllowed);
-        ShowLaunchActions(LaunchUpdateAction.Hidden);
-    }
+    private ConnectionTimeoutOutcome CreateConnectionTimeoutOutcome()
+        => CanUseOfflineLaunch()
+            ? ConnectionTimeoutOutcome.OfflineLaunch()
+            : ConnectionTimeoutOutcome.FirstLaunchFailure();
 
-    private void ShowFirstLaunchFailure()
+    private readonly struct ConnectionTimeoutOutcome
     {
-        _view.SetStatus(FirstLaunchConnectionFailed);
-        _view.ShowRetry();
+        private readonly string _status;
+        private readonly string _logMessage;
+        private readonly LaunchUpdateAction? _launchAction;
+        private readonly bool _showRetry;
+
+        private ConnectionTimeoutOutcome(
+            string status,
+            string logMessage = null,
+            LaunchUpdateAction? launchAction = null,
+            bool showRetry = false
+        )
+        {
+            _status = status;
+            _logMessage = logMessage;
+            _launchAction = launchAction;
+            _showRetry = showRetry;
+        }
+
+        internal static ConnectionTimeoutOutcome OfflineLaunch()
+            => new(
+                SavedCredentialsFallback,
+                OfflineLaunchAllowed,
+                LaunchUpdateAction.Hidden
+            );
+
+        internal static ConnectionTimeoutOutcome FirstLaunchFailure()
+            => new(FirstLaunchConnectionFailed, showRetry: true);
+
+        internal void Apply(LauncherController controller)
+        {
+            controller._view.SetStatus(_status);
+
+            if (_logMessage != null)
+                controller._view.AppendLog(_logMessage);
+
+            if (_launchAction.HasValue)
+                controller.ShowLaunchActions(_launchAction.Value);
+
+            if (_showRetry)
+                controller._view.ShowRetry();
+        }
     }
 }

@@ -28,7 +28,7 @@ internal static partial class LauncherGameStartupRecovery
 
     private static bool HandleMainMenuGuardFailure(RecoveryUi ui)
     {
-        ShowFailure(ui, RecoveryStateUpdate.MainMenuGuardFailed());
+        ui.ShowFailure(RecoveryStateUpdate.MainMenuGuardFailed());
         return false;
     }
 
@@ -40,6 +40,6 @@ internal static partial class LauncherGameStartupRecovery
     )
     {
         PatchHelper.Log($"{logPrefix}: {ex}");
-        ShowFailure(ui, createUpdate(ex));
+        ui.ShowFailure(createUpdate(ex));
     }
 }

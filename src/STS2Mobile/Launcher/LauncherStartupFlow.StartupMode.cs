@@ -7,17 +7,75 @@ internal static partial class LauncherStartupFlow
 {
     private sealed class StartupMode
     {
-        private readonly string _previousIncompletePhase;
+        private readonly PreviousStartupPhase _previousPhase;
+
+        private readonly struct PreviousStartupPhase
+        {
+            private PreviousStartupPhase(string phase)
+            {
+                Phase = phase;
+            }
+
+            private string Phase { get; }
+
+            private bool Is(string phase)
+                => string.Equals(Phase, phase, StringComparison.OrdinalIgnoreCase);
+
+            private string PreviousStallMessage(string message)
+                => $"{message} {Phase}";
+
+            private static PreviousStartupPhase FromMarkers()
+                => new(LauncherLaunchMarkers.ReadStartupPhase());
+
+            private bool Matches(string phase)
+                => Is(phase);
+
+            private string DescribePreviousStall(string message)
+                => PreviousStallMessage(message);
+        }
+
+        private readonly struct StartupSaveModePlan
+        {
+            private StartupSaveModePlan(bool forceLocalSaves, string reasonLog)
+            {
+                ForceLocalSaves = forceLocalSaves;
+                ReasonLog = reasonLog;
+            }
+
+            private bool ForceLocalSaves { get; }
+            private string ReasonLog { get; }
+
+            internal string SettingsAndSavesStatus
+                => ForceLocalSaves
+                    ? "Loading settings and saves in local-only safe mode..."
+                    : "Loading settings and saves...";
+
+            private static StartupSaveModePlan Create(
+                bool forceLocalSaves,
+                string reasonLog
+            )
+                => new(forceLocalSaves, reasonLog);
+
+            internal void Apply()
+            {
+                LauncherPreferences.LoadAndApplyCloudSyncEnabled();
+                if (!ForceLocalSaves)
+                    return;
+
+                LauncherCloudSaveState.DisableCloudSyncForLaunch();
+                PatchHelper.Log(ReasonLog);
+            }
+        }
 
         internal static StartupMode CreateFromMarkers()
             => new(
-                LauncherLaunchMarkers.ReadStartupPhase(),
+                PreviousStartupPhase.FromMarkers(),
                 LauncherLaunchMarkers.ConsumeManualSafeLaunchMarker()
             );
 
-        private StartupMode(string previousIncompletePhase, bool manualSafeLaunch)
+        private StartupMode(PreviousStartupPhase previousPhase, bool manualSafeLaunch)
         {
-            _previousIncompletePhase = previousIncompletePhase;
+            _previousPhase = previousPhase;
             ManualSafeLaunch = manualSafeLaunch;
         }
 
@@ -31,28 +89,27 @@ internal static partial class LauncherStartupFlow
                 || IsPreviousPhase(PhaseSettingsAndSaves)
                 || IsPreviousPhase(PhaseGameStartup);
 
+        private StartupSaveModePlan SaveModePlan
+            => StartupSaveModePlan.Create(
+                ShouldForceLocalSaves(),
+                LocalSavesReasonLog
+            );
+
         internal bool ShouldSkipShaderWarmup()
             => SafeLaunchRequested || IsPreviousPhase(PhaseShaderWarmup);
 
         internal string SettingsAndSavesStatus
-            => ShouldForceLocalSaves()
-                ? "Loading settings and saves in local-only safe mode..."
-                : "Loading settings and saves...";
+            => SaveModePlan.SettingsAndSavesStatus;
 
         internal void ApplySaveMode()
-        {
-            LauncherPreferences.LoadAndApplyCloudSyncEnabled();
-            if (!ShouldForceLocalSaves())
-                return;
-
-            LauncherCloudSaveState.DisableCloudSyncForLaunch();
-            PatchHelper.Log(LocalSavesReasonLog);
-        }
+            => SaveModePlan.Apply();
 
         private string LocalSavesReasonLog
             => SafeLaunchMessage(
                 "Disabling cloud save injection for manual safe launch",
-                $"Disabling cloud save injection for this launch because previous launch stalled at {_previousIncompletePhase}"
+                _previousPhase.DescribePreviousStall(
+                    "Disabling cloud save injection for this launch because previous launch stalled at"
+                )
             );
 
         internal string ShaderWarmupSkipLog
@@ -71,6 +128,6 @@ internal static partial class LauncherStartupFlow
             => ManualSafeLaunch ? manualSafeLaunch : previousStall;
 
         private bool IsPreviousPhase(string phase)
-            => string.Equals(_previousIncompletePhase, phase, StringComparison.OrdinalIgnoreCase);
+            => _previousPhase.Matches(phase);
     }
 }

@@ -9,6 +9,67 @@ internal partial class LauncherModel
 {
     private const string NotConnectedMessage = "Not connected";
 
+    private readonly struct DepotConnectionAction
+    {
+        private DepotConnectionAction(
+            Action<string> raiseFailure,
+            Func<SteamConnection, Task> run
+        )
+        {
+            RaiseFailure = raiseFailure;
+            Run = run;
+        }
+
+        private Action<string> RaiseFailure { get; }
+        private Func<SteamConnection, Task> Run { get; }
+
+        internal static DepotConnectionAction Download(LauncherModel model)
+            => new(
+                model.RaiseDownloadFailed,
+                connection =>
+                {
+                    model.BeginDownload(connection);
+                    return model.RunDownloadAsync();
+                }
+            );
+
+        internal static DepotConnectionAction UpdateCheck(LauncherModel model)
+            => new(
+                model.RaiseUpdateCheckFailed,
+                model.CheckForUpdatesWithConnectionAsync
+            );
+
+        internal async Task RunAsync(SteamConnection connection)
+            => await Run(connection).ConfigureAwait(false);
+
+        internal void FailNotConnected()
+            => RaiseFailure(NotConnectedMessage);
+    }
+
+    private readonly struct DownloadRunGuard
+    {
+        private DownloadRunGuard(LauncherModel model, bool acquired)
+        {
+            Model = model;
+            Acquired = acquired;
+        }
+
+        private LauncherModel Model { get; }
+        internal bool Acquired { get; }
+
+        internal static DownloadRunGuard TryAcquire(LauncherModel model)
+            => new(
+                model,
+                Interlocked.Exchange(ref model._downloadRunning, 1) == 0
+            );
+
+        internal void Release()
+        {
+            if (Acquired)
+                Interlocked.Exchange(ref Model._downloadRunning, 0);
+        }
+    }
+
     private CancellationTokenSource _downloadCts;
     private DepotDownloader _downloader;
     private int _downloadRunning;
@@ -23,7 +84,8 @@ internal partial class LauncherModel
 
     internal async Task StartDownloadAsync()
     {
-        if (!TryMarkDownloadRunning())
+        var run = DownloadRunGuard.TryAcquire(this);
+        if (!run.Acquired)
         {
             RaiseDownloadFailed("Download already running");
             return;
@@ -32,24 +94,18 @@ internal partial class LauncherModel
         try
         {
             await RunWithDepotConnectionAsync(
-                RaiseDownloadFailed,
-                connection =>
-                {
-                    BeginDownload(connection);
-                    return RunDownloadAsync();
-                }
+                DepotConnectionAction.Download(this)
             );
         }
         finally
         {
-            Interlocked.Exchange(ref _downloadRunning, 0);
+            run.Release();
         }
     }
 
     internal Task CheckForUpdatesAsync()
         => RunWithDepotConnectionAsync(
-            RaiseUpdateCheckFailed,
-            CheckForUpdatesWithConnectionAsync
+            DepotConnectionAction.UpdateCheck(this)
         );
 
     private async Task CheckForUpdatesWithConnectionAsync(SteamConnection connection)
@@ -67,24 +123,20 @@ internal partial class LauncherModel
     }
 
     private async Task RunWithDepotConnectionAsync(
-        Action<string> raiseFailure,
-        Func<SteamConnection, Task> run
+        DepotConnectionAction action
     )
     {
         var connection = await GetDepotConnectionAsync();
         if (connection == null)
         {
-            raiseFailure(NotConnectedMessage);
+            action.FailNotConnected();
             return;
         }
 
-        await run(connection).ConfigureAwait(false);
+        await action.RunAsync(connection).ConfigureAwait(false);
     }
 
     private bool DownloadIsRunning => Interlocked.CompareExchange(ref _downloadRunning, 0, 0) == 1;
-
-    private bool TryMarkDownloadRunning()
-        => Interlocked.Exchange(ref _downloadRunning, 1) == 0;
 
     private async Task<SteamConnection> GetDepotConnectionAsync()
     {

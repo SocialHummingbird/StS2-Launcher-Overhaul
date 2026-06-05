@@ -7,28 +7,41 @@ internal sealed partial class DepotDownloader
 {
     private readonly partial struct ProductInfoApp
     {
-        private async Task<PICSProductInfo?> GetInfoAsync()
-            => await _owner._productInfoAppCache.GetOrFetchAsync(
-                AppId,
-                FetchInfoAsync
-            );
-
-        private async Task<ulong> GetAccessTokenAsync()
+        private readonly struct ProductInfoFetchRequest
         {
-            var token = await _owner._connection.GetAppAccessTokenOrPublicAsync(
-                AppId,
-                AccessTokenDenied()
-            );
-            if (token == 0)
-                _owner.Log(PublicAccessTokenFallback());
+            internal ProductInfoFetchRequest(ProductInfoApp app)
+            {
+                App = app;
+            }
 
-            return token;
+            private ProductInfoApp App { get; }
+
+            internal async Task<PICSProductInfo?> FetchAsync()
+                => await App._owner._connection.GetAppInfoAsync(
+                    App.AppId,
+                    await GetAccessTokenAsync()
+                );
+
+            private async Task<ulong> GetAccessTokenAsync()
+            {
+                var token = await App._owner._connection.GetAppAccessTokenOrPublicAsync(
+                    App.AppId,
+                    App.AccessTokenDenied()
+                );
+                if (token == 0)
+                    App._owner.Log(App.PublicAccessTokenFallback());
+
+                return token;
+            }
         }
 
-        private async Task<PICSProductInfo?> FetchInfoAsync()
-            => await _owner._connection.GetAppInfoAsync(
+        private async Task<PICSProductInfo?> GetInfoAsync()
+        {
+            var request = new ProductInfoFetchRequest(this);
+            return await _owner._productInfoAppCache.GetOrFetchAsync(
                 AppId,
-                await GetAccessTokenAsync()
+                request.FetchAsync
             );
+        }
     }
 }

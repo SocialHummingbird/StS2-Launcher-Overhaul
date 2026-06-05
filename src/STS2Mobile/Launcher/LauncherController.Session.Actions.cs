@@ -18,8 +18,7 @@ internal sealed partial class LauncherController
         }
 
         _view.SetStatus(_model.LoggedInStatus());
-        _view.ShowDownloadAction("DOWNLOAD GAME FILES");
-        _view.SetDownloadButtonDisabled(false);
+        ShowDownloadReadyAction();
     }
 
     private void ShowFailed()

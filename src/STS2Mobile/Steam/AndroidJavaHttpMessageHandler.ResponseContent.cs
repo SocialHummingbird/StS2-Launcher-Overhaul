@@ -7,6 +7,22 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class AndroidJavaHttpMessageHandler
 {
+    private readonly struct BridgeResponseContentContext
+    {
+        internal BridgeResponseContentContext(
+            int status,
+            BridgeRequestContext request
+        )
+        {
+            Status = status;
+            Request = request;
+        }
+
+        internal int Status { get; }
+        internal BridgeRequestContext Request { get; }
+        internal string RequestDescription => Request.Description;
+    }
+
     private readonly struct BridgeResponseBody
     {
         private BridgeResponseBody(JsonElement root, string? filePath)
@@ -26,18 +42,17 @@ internal sealed partial class AndroidJavaHttpMessageHandler
             => DeleteBodyFileIfSafe(FilePath);
 
         internal HttpContent CreateContent(
-            int status,
-            string requestDescription,
+            BridgeResponseContentContext context,
             CancellationToken cancellationToken
         )
             => HasFile
                 ? CreateResponseContentFromBodyFile(
                     FilePath,
-                    status,
-                    requestDescription,
+                    context.Status,
+                    context.RequestDescription,
                     cancellationToken
                 )
-                : CreateResponseContentFromBase64Body(Root, requestDescription);
+                : CreateResponseContentFromBase64Body(Root, context.RequestDescription);
     }
 
     private static HttpContent CreateResponseContent(
@@ -48,7 +63,10 @@ internal sealed partial class AndroidJavaHttpMessageHandler
     )
         => BridgeResponseBody
             .From(root)
-            .CreateContent(status, requestContext.Description, cancellationToken);
+            .CreateContent(
+                new BridgeResponseContentContext(status, requestContext),
+                cancellationToken
+            );
 
     private static string? ReadBodyFilePath(JsonElement root)
         => TryGetBridgeString(root, BodyFileProperty, out var bodyFilePath)

@@ -9,7 +9,7 @@ internal sealed partial class SteamKit2CloudSaveStore
     {
         internal void Enqueue(Action action)
         {
-            if (_isDisposed)
+            if (IsDisposed)
             {
                 PatchHelper.Log(WriteQueueDisposedDrop);
                 return;
@@ -22,6 +22,11 @@ internal sealed partial class SteamKit2CloudSaveStore
             }
 
             MarkQueued();
+            TryAddQueuedWrite(action);
+        }
+
+        private void TryAddQueuedWrite(Action action)
+        {
             try
             {
                 if (!_queue.TryAdd(action, EnqueueTimeoutMs))
@@ -33,6 +38,10 @@ internal sealed partial class SteamKit2CloudSaveStore
                 }
             }
             catch (InvalidOperationException)
+            {
+                DropQueuedWrite(WriteQueueClosingDrop);
+            }
+            catch (ObjectDisposedException)
             {
                 DropQueuedWrite(WriteQueueClosingDrop);
             }

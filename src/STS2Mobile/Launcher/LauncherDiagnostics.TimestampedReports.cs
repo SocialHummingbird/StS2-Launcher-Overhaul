@@ -8,6 +8,31 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherDiagnostics
 {
     private const string DiagnosticsDirectory = "diagnostics";
+    private const string GeneratedUtcLabel = "Generated UTC";
+
+    private readonly struct TimestampedText
+    {
+        internal TimestampedText(
+            string title,
+            string generatedAtLabel,
+            Action<StringBuilder> appendBody
+        )
+        {
+            Title = title;
+            GeneratedAtLabel = generatedAtLabel;
+            AppendBody = appendBody;
+        }
+
+        private string Title { get; }
+        private string GeneratedAtLabel { get; }
+        private Action<StringBuilder> AppendBody { get; }
+
+        internal string Build()
+            => BuildTimestampedText(Title, GeneratedAtLabel, AppendBody);
+
+        internal string Write(string fileNamePrefix, string fallbackDirectory)
+            => WriteTimestampedReport(fileNamePrefix, fallbackDirectory, Build());
+    }
 
     private static string WriteTimestampedReport(
         string fileNamePrefix,
@@ -23,9 +48,16 @@ internal static partial class LauncherDiagnostics
         if (!string.IsNullOrWhiteSpace(parent))
             Directory.CreateDirectory(parent);
 
-        File.WriteAllText(targetPath, text);
+        System.IO.File.WriteAllText(targetPath, text);
         return targetPath;
     }
+
+    private static TimestampedText CreateTimestampedText(
+        string title,
+        string generatedAtLabel,
+        Action<StringBuilder> appendBody
+    )
+        => new(title, generatedAtLabel, appendBody);
 
     private static string BuildTimestampedText(
         string title,

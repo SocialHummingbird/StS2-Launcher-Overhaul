@@ -35,7 +35,12 @@ internal sealed partial class SteamKit2CloudSaveStore
 
         private long DroppedWrites => Volatile.Read(ref _droppedWrites);
 
+        private bool IsDisposed => Volatile.Read(ref _isDisposed);
+
         private long PendingWrites => Volatile.Read(ref _pendingWrites);
+
+        private void MarkDisposed()
+            => Volatile.Write(ref _isDisposed, true);
     }
 
     private void EnqueueUpload(

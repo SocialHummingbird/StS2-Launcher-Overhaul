@@ -8,7 +8,7 @@ internal sealed partial class SteamKit2CloudSaveStore
     {
         internal bool Flush(int timeoutMs = 5000)
         {
-            if (_isDisposed)
+            if (IsDisposed)
                 return true;
 
             return WaitForDrain(timeoutMs);
@@ -19,26 +19,39 @@ internal sealed partial class SteamKit2CloudSaveStore
 
         internal void Dispose()
         {
-            if (_isDisposed)
+            if (IsDisposed)
                 return;
 
-            _isDisposed = true;
+            MarkDisposed();
 
+            FlushBeforeDispose();
+            StopWriteThread();
+            LogDroppedWrites();
+
+            _queue.Dispose();
+            _drainSignal.Dispose();
+        }
+
+        private void FlushBeforeDispose()
+        {
             var completed = WaitForDrain(DisposeFlushTimeoutMs);
             if (!completed)
                 PatchHelper.Log(FlushTimedOutDuringDispose);
+        }
 
+        private void StopWriteThread()
+        {
             _queue.CompleteAdding();
             if (!_thread.Join(3000))
                 PatchHelper.Log(WriteThreadStopTimedOut);
             else
                 PatchHelper.Log(WriteThreadStopped);
+        }
 
+        private void LogDroppedWrites()
+        {
             if (DroppedWrites > 0)
                 PatchHelper.Log(TotalDroppedWrites(DroppedWrites));
-
-            _queue.Dispose();
-            _drainSignal.Dispose();
         }
 
         private QueueDrainState CaptureDrainState()

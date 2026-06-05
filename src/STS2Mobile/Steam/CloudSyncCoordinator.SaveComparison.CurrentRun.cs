@@ -10,10 +10,10 @@ internal static partial class CloudSyncCoordinator
             SaveMetricSet.Ordered(CountRunFloors);
 
         private static SaveWinner CompareCurrentRun(string local, string cloud)
-            => CompareJson(
+            => SaveJsonComparison.Compare(
                 local,
                 cloud,
-                CurrentRunMetrics.Compare
+                CurrentRunMetrics
             );
 
         private static int CountRunFloors(JsonElement root)

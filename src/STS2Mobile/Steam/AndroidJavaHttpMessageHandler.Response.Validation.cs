@@ -70,16 +70,16 @@ internal sealed partial class AndroidJavaHttpMessageHandler
         }
     }
 
-    private static ParsedBridgeResponse ReadBridgeResponse(
-        string? raw,
-        BridgeRequestContext requestContext
-    )
+    private static ParsedBridgeResponse ReadBridgeResponse(BridgeExchange exchange)
     {
-        var bridgeResponse = RequireBridgeResponse(raw, requestContext.Description);
-        var doc = ParseBridgeResponse(bridgeResponse, requestContext.Description);
+        var bridgeResponse = RequireBridgeResponse(
+            exchange.RawResponse,
+            exchange.Request.Description
+        );
+        var doc = ParseBridgeResponse(bridgeResponse, exchange.Request.Description);
         return ParsedBridgeResponse.CreateValidated(
             doc,
-            requestContext
+            exchange.Request
         );
     }
 

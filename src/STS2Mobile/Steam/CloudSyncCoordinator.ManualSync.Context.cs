@@ -7,21 +7,43 @@ namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
+    private readonly struct ManualSyncBudget
+    {
+        private ManualSyncBudget(DateTime deadline)
+        {
+            _deadline = deadline;
+        }
+
+        private readonly DateTime _deadline;
+
+        internal static ManualSyncBudget StartingNow()
+            => new(DateTime.UtcNow.AddMilliseconds(ManualSyncOverallTimeoutMs));
+
+        internal bool Exceeded(string message)
+        {
+            if (DateTime.UtcNow <= _deadline)
+                return false;
+
+            PatchHelper.Log(message);
+            return true;
+        }
+    }
+
     private readonly struct ManualSyncContext
     {
         private readonly ISaveStore _local;
         private readonly ICloudSaveStore _cloud;
-        private readonly DateTime _deadline;
+        private readonly ManualSyncBudget _budget;
 
         internal ManualSyncContext(
             ISaveStore local,
             ICloudSaveStore cloud,
-            DateTime deadline
+            ManualSyncBudget budget
         )
         {
             _local = local;
             _cloud = cloud;
-            _deadline = deadline;
+            _budget = budget;
         }
 
         internal IReadOnlyCollection<string> DiscoverLocalPaths()
@@ -59,13 +81,7 @@ internal static partial class CloudSyncCoordinator
             );
 
         internal bool BudgetExceeded(string message)
-        {
-            if (DateTime.UtcNow <= _deadline)
-                return false;
-
-            PatchHelper.Log(message);
-            return true;
-        }
+            => _budget.Exceeded(message);
 
         internal TResult RunCloudBatch<TResult>(Func<TResult> run)
         {
@@ -90,7 +106,7 @@ internal static partial class CloudSyncCoordinator
         return new ManualSyncContext(
             store.LocalStore,
             store.CloudStore,
-            DateTime.UtcNow.AddMilliseconds(ManualSyncOverallTimeoutMs)
+            ManualSyncBudget.StartingNow()
         );
     }
 }

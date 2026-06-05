@@ -16,7 +16,7 @@ internal sealed partial class DepotDownloader
         foreach (var depot in depots)
         {
             ct.ThrowIfCancellationRequested();
-            if (_stateStore.LoadManifestId(depot.DepotId) != depot.ManifestId)
+            if (_stateStore.ManifestChanged(depot))
             {
                 Log($"Update available: depot {depot.DepotId} manifest changed");
                 return true;

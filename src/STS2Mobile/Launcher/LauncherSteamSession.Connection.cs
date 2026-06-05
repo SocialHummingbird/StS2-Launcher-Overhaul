@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using STS2Mobile.Patches;
 using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
@@ -18,8 +17,11 @@ internal sealed partial class LauncherSteamSession
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"[Launcher] Connection failed: {ex.Message}");
-            return $"Could not connect to Steam: {ex.Message}";
+            return SessionFailure(
+                "Connection failed",
+                ex,
+                "Could not connect to Steam"
+            );
         }
     }
 
@@ -36,7 +38,7 @@ internal sealed partial class LauncherSteamSession
         }
         catch (Exception ex)
         {
-            return $"Connection failed: {ex.Message}";
+            return SessionFailure("Connection failed", ex, "Connection failed");
         }
     }
 
