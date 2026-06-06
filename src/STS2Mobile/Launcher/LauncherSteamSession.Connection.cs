@@ -27,10 +27,17 @@ internal sealed partial class LauncherSteamSession
 
     internal async Task<string?> EnsureConnectedAsync()
     {
-        if (!TryGetOrCreateSavedConnection(out var connection))
+        if (_connection != null)
+            return await EnsureExistingConnectionAsync(_connection);
+
+        if (!_credentialStore.TryCreateConnection(out var connection))
             return "No saved credentials";
 
-        UseConnection(connection);
+        return await AdoptSavedConnectionAfterAccessCheckAsync(connection);
+    }
+
+    private async Task<string?> EnsureExistingConnectionAsync(SteamConnection connection)
+    {
         try
         {
             await EnsureAppAccessTokenNotDeniedAsync(connection);
@@ -38,8 +45,59 @@ internal sealed partial class LauncherSteamSession
         }
         catch (Exception ex)
         {
+            DropConnection(connection);
             return SessionFailure("Connection failed", ex, "Connection failed");
         }
+    }
+
+    private async Task<string?> AdoptSavedConnectionAfterAccessCheckAsync(
+        SteamConnection connection
+    )
+        => await AdoptConnectionAfterVerificationAsync(
+            connection,
+            async verifiedConnection =>
+            {
+                try
+                {
+                    await EnsureAppAccessTokenNotDeniedAsync(verifiedConnection);
+                    return null;
+                }
+                catch (Exception ex)
+                {
+                    return SessionFailure("Connection failed", ex, "Connection failed");
+                }
+            }
+        );
+
+    private async Task<string?> AdoptConnectionAfterVerificationAsync(
+        SteamConnection connection,
+        Func<SteamConnection, Task<string?>> verifyAsync
+    )
+    {
+        var adopted = false;
+        try
+        {
+            var failure = await verifyAsync(connection);
+            if (failure != null)
+                return failure;
+
+            UseConnection(connection);
+            adopted = true;
+            return null;
+        }
+        finally
+        {
+            if (!adopted)
+                connection.Dispose();
+        }
+    }
+
+    private void DropConnection(SteamConnection connection)
+    {
+        if (ReferenceEquals(_connection, connection))
+            _connection = null;
+
+        connection.Dispose();
     }
 
     private SteamConnection CreateSavedCredentialConnection()
@@ -48,12 +106,5 @@ internal sealed partial class LauncherSteamSession
             return connection;
 
         throw new InvalidOperationException("No saved credentials");
-    }
-
-    private bool TryGetOrCreateSavedConnection(out SteamConnection connection)
-    {
-        connection = _connection;
-        return connection != null
-            || _credentialStore.TryCreateConnection(out connection);
     }
 }

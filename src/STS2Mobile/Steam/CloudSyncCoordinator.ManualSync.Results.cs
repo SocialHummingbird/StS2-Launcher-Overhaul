@@ -21,6 +21,9 @@ internal static partial class CloudSyncCoordinator
         internal static ManualSyncPathResult CompletedPath { get; } = new(1, 0, false);
         internal static ManualSyncPathResult SkippedPath { get; } = new(0, 1, false);
         internal static ManualSyncPathResult BudgetExceeded { get; } = new(0, 0, true);
+
+        internal ManualSyncPathResult WithBudgetStop()
+            => new(Completed, Skipped, true);
     }
 
     private readonly struct ManualSyncTransferSummary

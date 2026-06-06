@@ -6,6 +6,18 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
+    private static readonly RecoveryAction ExportDiagnosticsAction = new(
+        "diagnostics export",
+        "Diagnostics export failed",
+        ExportDiagnosticsReport
+    );
+
+    private static readonly RecoveryAction CopyRawErrorLogAction = new(
+        "raw error log copy",
+        "Raw error log copy failed",
+        CopyRawErrorLogReport
+    );
+
     private readonly struct RecoveryAction
     {
         private RecoveryAction(
@@ -35,15 +47,6 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
                 detail.Text = $"{FailureTitle}:\n{ex.GetBaseException().Message}";
             }
         }
-
-        internal static void ShowResult(
-            Label detail,
-            string logAction,
-            string failureTitle,
-            Func<string> run
-        )
-            => new RecoveryAction(logAction, failureTitle, run)
-                .ShowResult(detail);
     }
 
     private static void RestartWithSafeLaunch()
@@ -53,18 +56,11 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     }
 
     private void ExportDiagnostics()
-        => RecoveryAction.ShowResult(
-            _detail,
-            "diagnostics export",
-            "Diagnostics export failed",
-            ExportDiagnosticsReport
-        );
+        => ShowRecoveryAction(ExportDiagnosticsAction);
 
     private void CopyRawErrorLog()
-        => RecoveryAction.ShowResult(
-            _detail,
-            "raw error log copy",
-            "Raw error log copy failed",
-            CopyRawErrorLogReport
-        );
+        => ShowRecoveryAction(CopyRawErrorLogAction);
+
+    private void ShowRecoveryAction(RecoveryAction action)
+        => action.ShowResult(_detail);
 }

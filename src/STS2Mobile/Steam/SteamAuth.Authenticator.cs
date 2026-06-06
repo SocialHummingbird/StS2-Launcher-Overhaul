@@ -110,8 +110,7 @@ internal sealed partial class SteamAuth
     {
         Log(prompt.LogMessage);
 
-        _waitingForAuthCode = true;
-        try
+        return await RunWhileWaitingForAuthCodeAsync(async () =>
         {
             var code = await new AuthConnectionWatch<string>(
                 prompt.RequestCodeAsync(_codeProvider),
@@ -120,6 +119,17 @@ internal sealed partial class SteamAuth
             ).WaitAsync(this);
             await ReconnectBeforeCodeSubmitAsync();
             return code;
+        });
+    }
+
+    private async Task<string> RunWhileWaitingForAuthCodeAsync(
+        Func<Task<string>> waitForCodeAsync
+    )
+    {
+        _waitingForAuthCode = true;
+        try
+        {
+            return await waitForCodeAsync();
         }
         finally
         {

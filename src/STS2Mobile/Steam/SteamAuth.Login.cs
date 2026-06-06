@@ -96,15 +96,24 @@ internal sealed partial class SteamAuth
     {
         await EnsureConnectedForLoginAsync();
 
-        _credentialAuthStarted = true;
-        try
-        {
-            return await CredentialAuthRunner.RunAsync(
+        return await RunWhileCredentialAuthStartedAsync(
+            () => CredentialAuthRunner.RunAsync(
                 this,
                 username,
                 password,
                 guardData
-            );
+            )
+        );
+    }
+
+    private async Task<LoginCredentials> RunWhileCredentialAuthStartedAsync(
+        Func<Task<LoginCredentials>> runAsync
+    )
+    {
+        _credentialAuthStarted = true;
+        try
+        {
+            return await runAsync();
         }
         finally
         {
