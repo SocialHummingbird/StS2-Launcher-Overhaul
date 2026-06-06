@@ -112,7 +112,11 @@ jobs:
 
           VERSION_CODE="${{ github.event.inputs.version_code }}"
           if [[ -z "${VERSION_CODE}" ]]; then
-            VERSION_CODE="${GITHUB_RUN_NUMBER}"
+            if [[ "${RELEASE_TAG}" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+              VERSION_CODE="$((BASH_REMATCH[1] * 10000000 + BASH_REMATCH[2] * 100000 + BASH_REMATCH[3] * 100))"
+            else
+              VERSION_CODE="${GITHUB_RUN_NUMBER}"
+            fi
           fi
 
           if ! [[ "${VERSION_CODE}" =~ ^[0-9]+$ ]] || (( VERSION_CODE < 1 )); then
