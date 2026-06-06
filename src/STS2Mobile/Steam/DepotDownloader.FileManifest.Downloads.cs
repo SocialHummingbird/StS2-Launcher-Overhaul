@@ -50,7 +50,7 @@ internal sealed partial class DepotDownloader
             return _downloads;
         }
 
-        private static List<DepotManifest.FileData> Build(
+        internal static List<DepotManifest.FileData> Build(
             DepotDownloader owner,
             DepotManifest newManifest,
             Dictionary<string, DepotManifest.FileData> oldFiles,

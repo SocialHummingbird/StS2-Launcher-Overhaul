@@ -20,7 +20,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private readonly struct RecoveryAction
     {
-        private RecoveryAction(
+        internal RecoveryAction(
             string logAction,
             string failureTitle,
             Func<string> run
@@ -35,7 +35,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         private string FailureTitle { get; }
         private Func<string> Run { get; }
 
-        private void ShowResult(Label detail)
+        internal void ShowResult(Label detail)
         {
             try
             {

@@ -44,7 +44,7 @@ internal sealed partial class ShaderWarmupScreen
                     total > 0 ? (double)index / total * 50 : null
                 );
 
-            internal static ProgressUpdate Detail(string detail)
+            internal static ProgressUpdate DetailOnly(string detail)
                 => new(status: null, detail, progress: null);
 
             internal static ProgressUpdate StatusOnly(string status)
@@ -104,7 +104,7 @@ internal sealed partial class ShaderWarmupScreen
             => Apply(ProgressUpdate.SceneScanProgress(index, total));
 
         internal void ShowMaterialsFound(int materialCount)
-            => Apply(ProgressUpdate.Detail(Message.FoundMaterialsDetail(materialCount)));
+            => Apply(ProgressUpdate.DetailOnly(Message.FoundMaterialsDetail(materialCount)));
 
         internal void ShowCompiling()
             => Apply(ProgressUpdate.StatusOnly(Message.CompilingStatus));

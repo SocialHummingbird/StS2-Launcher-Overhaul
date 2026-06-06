@@ -49,7 +49,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
                 : new DeleteOnDisposeFileContent(safeBodyFile);
         }
 
-        private static HttpContent CreateContent(
+        internal static HttpContent CreateContent(
             string? bodyFile,
             int status,
             string requestDescription,

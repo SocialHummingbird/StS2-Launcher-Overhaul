@@ -24,13 +24,13 @@ internal static partial class LauncherStartupFlow
             private string PreviousStallMessage(string message)
                 => $"{message} {Phase}";
 
-            private static PreviousStartupPhase FromMarkers()
+            internal static PreviousStartupPhase FromMarkers()
                 => new(LauncherLaunchMarkers.ReadStartupPhase());
 
-            private bool Matches(string phase)
+            internal bool Matches(string phase)
                 => Is(phase);
 
-            private string DescribePreviousStall(string message)
+            internal string DescribePreviousStall(string message)
                 => PreviousStallMessage(message);
         }
 
@@ -50,7 +50,7 @@ internal static partial class LauncherStartupFlow
                     ? "Loading settings and saves in local-only safe mode..."
                     : "Loading settings and saves...";
 
-            private static StartupSaveModePlan Create(
+            internal static StartupSaveModePlan Create(
                 bool forceLocalSaves,
                 string reasonLog
             )

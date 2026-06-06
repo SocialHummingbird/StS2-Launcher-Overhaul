@@ -11,10 +11,10 @@ internal static partial class CloudSyncCoordinator
                 Label = label;
             }
 
-            private static BackupSource Cloud { get; } = new("cloud");
-            private static BackupSource Local { get; } = new("local");
-            private static BackupSource CloudPrePush { get; } = new("cloud-pre-push");
-            private static BackupSource LocalPrePull { get; } = new("local-pre-pull");
+            internal static BackupSource Cloud { get; } = new("cloud");
+            internal static BackupSource Local { get; } = new("local");
+            internal static BackupSource CloudPrePush { get; } = new("cloud-pre-push");
+            internal static BackupSource LocalPrePull { get; } = new("local-pre-pull");
 
             private string Label { get; }
 

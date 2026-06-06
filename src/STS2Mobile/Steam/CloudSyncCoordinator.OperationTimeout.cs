@@ -35,8 +35,9 @@ internal static partial class CloudSyncCoordinator
             if (winner == task)
                 return;
 
+            var operation = Operation;
             _ = task.ContinueWith(
-                t => PatchHelper.Log(LateCompletionMessage(Operation, t.Exception)),
+                t => PatchHelper.Log(LateCompletionMessage(operation, t.Exception)),
                 TaskContinuationOptions.OnlyOnFaulted
                     | TaskContinuationOptions.ExecuteSynchronously
             );

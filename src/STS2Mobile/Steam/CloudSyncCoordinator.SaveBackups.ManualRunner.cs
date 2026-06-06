@@ -10,7 +10,7 @@ internal static partial class CloudSyncCoordinator
     {
         private readonly struct ManualBackupPlan
         {
-            private ManualBackupPlan(
+            internal ManualBackupPlan(
                 BackupSource source,
                 Func<string, ValueTask<string?>> readContentAsync,
                 Action<string, Exception> logFailure
@@ -25,7 +25,7 @@ internal static partial class CloudSyncCoordinator
             private Func<string, ValueTask<string?>> ReadContentAsync { get; }
             private Action<string, Exception> LogFailure { get; }
 
-            private async Task<bool> TryBackupPathAsync(string path)
+            internal async Task<bool> TryBackupPathAsync(string path)
             {
                 try
                 {

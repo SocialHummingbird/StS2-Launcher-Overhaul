@@ -33,7 +33,7 @@ internal sealed partial class DepotDownloader
         private string FileName { get; }
         private int Length => checked((int)Chunk.UncompressedLength);
 
-        private static ChunkWriteRequest Create(
+        internal static ChunkWriteRequest Create(
             FileStream stream,
             uint depotId,
             DepotManifest.ChunkData chunk,
@@ -42,7 +42,7 @@ internal sealed partial class DepotDownloader
         )
             => new(stream, depotId, chunk, depotKey, fileName);
 
-        private async Task RunAsync(DepotDownloader owner)
+        internal async Task RunAsync(DepotDownloader owner)
         {
             var buffer = ArrayPool<byte>.Shared.Rent(Length);
             try

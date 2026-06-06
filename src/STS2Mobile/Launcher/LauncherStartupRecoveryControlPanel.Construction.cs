@@ -33,7 +33,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
             return button;
         }
 
-        private static Button CreateButton(string label, Action run)
+        internal static Button CreateButton(string label, Action run)
             => new RecoveryButtonSpec(label, run).CreateButton();
     }
 

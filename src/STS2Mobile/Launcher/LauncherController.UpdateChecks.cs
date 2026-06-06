@@ -36,7 +36,7 @@ internal sealed partial class LauncherController
         private string Status { get; }
         private bool HideActions { get; }
 
-        private static UpdateCheckViewUpdate Completed(bool hasUpdate)
+        internal static UpdateCheckViewUpdate Completed(bool hasUpdate)
             => hasUpdate
                 ? new(
                     downloadButtonText: UpdateGameFilesButtonText,
@@ -45,13 +45,13 @@ internal sealed partial class LauncherController
                 )
                 : new(updateButtonText: UpToDateButtonText);
 
-        private static UpdateCheckViewUpdate Failed(string message)
+        internal static UpdateCheckViewUpdate Failed(string message)
             => new(
                 logMessage: $"Update check failed: {message}",
                 updateButtonText: UpdateCheckFailedButtonText
             );
 
-        private void Apply(LauncherView view)
+        internal void Apply(LauncherView view)
         {
             if (LogMessage != null)
                 view.AppendLog(LogMessage);

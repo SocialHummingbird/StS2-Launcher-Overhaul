@@ -13,16 +13,16 @@ internal sealed partial class LauncherController
             ShowFailureStatus = showFailureStatus;
         }
 
-        private string FailureContext { get; }
-        private bool ShowFailureStatus { get; }
+        internal string FailureContext { get; }
+        internal bool ShowFailureStatus { get; }
 
-        private static DiagnosticsReportWrite ManualExport()
+        internal static DiagnosticsReportWrite ManualExport()
             => new(
                 "Diagnostics export failed",
                 showFailureStatus: true
             );
 
-        private static DiagnosticsReportWrite AutomaticSnapshot()
+        internal static DiagnosticsReportWrite AutomaticSnapshot()
             => new(
                 "Automatic diagnostics snapshot failed",
                 showFailureStatus: false
@@ -52,7 +52,7 @@ internal sealed partial class LauncherController
             ? Exception.ToString()
             : Exception.Message;
 
-        private static DiagnosticsFailure ActionFailed(
+        internal static DiagnosticsFailure ActionFailed(
             string context,
             Exception exception
         )
@@ -63,7 +63,7 @@ internal sealed partial class LauncherController
                 includeStackTrace: true
             );
 
-        private static DiagnosticsFailure ReportWriteFailed(
+        internal static DiagnosticsFailure ReportWriteFailed(
             string context,
             Exception exception,
             bool showStatus
@@ -75,7 +75,7 @@ internal sealed partial class LauncherController
                 includeStackTrace: false
             );
 
-        private void Show(LauncherView view)
+        internal void Show(LauncherView view)
         {
             LogDiagnosticsFailure(Context, Detail);
             if (ShowStatus)

@@ -37,11 +37,11 @@ internal sealed partial class SteamKit2CloudSaveStore
                     return;
                 }
             }
-            catch (InvalidOperationException)
+            catch (ObjectDisposedException)
             {
                 DropQueuedWrite(WriteQueueClosingDrop);
             }
-            catch (ObjectDisposedException)
+            catch (InvalidOperationException)
             {
                 DropQueuedWrite(WriteQueueClosingDrop);
             }

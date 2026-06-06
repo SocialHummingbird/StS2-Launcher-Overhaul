@@ -25,7 +25,7 @@ internal static partial class AndroidJavaCrypto
         private string EmptyResponseMessage { get; }
         private string[] Arguments { get; }
 
-        private static Base64BridgeCall Create(
+        internal static Base64BridgeCall Create(
             string operationName,
             string methodName,
             string emptyResponseMessage,
@@ -33,7 +33,7 @@ internal static partial class AndroidJavaCrypto
         )
             => new(operationName, methodName, emptyResponseMessage, arguments);
 
-        private byte[] Run()
+        internal byte[] Run()
             => AndroidBridgeDispatcher.Run(RunOnMainThread);
 
         private byte[] RunOnMainThread()

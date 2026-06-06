@@ -25,7 +25,7 @@ internal sealed partial class LauncherController
             Run = run;
         }
 
-        private string ConfirmationMessage { get; }
+        internal string ConfirmationMessage { get; }
         private string Name { get; }
         private string StartMessage { get; }
         private string CompleteMessage { get; }
