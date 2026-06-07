@@ -50,6 +50,7 @@ internal sealed partial class LauncherSteamSession : IDisposable
 
     private void ResetAuth()
     {
+        ClearPendingCodeRequest();
         _auth?.Dispose();
         _auth = null;
     }

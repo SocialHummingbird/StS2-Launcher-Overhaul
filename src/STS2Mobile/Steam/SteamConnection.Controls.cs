@@ -24,6 +24,9 @@ internal sealed partial class SteamConnection
     // Enters Draining state: waits for pending RPCs to complete, then disconnects.
     internal void Flush()
     {
+        if (_disposed)
+            return;
+
         lock (_stateLock)
         {
             if (!IsConnected)
@@ -68,8 +71,17 @@ internal sealed partial class SteamConnection
 
     internal void Dispose()
     {
+        if (_disposed)
+            return;
+
+        _disposing = true;
         Flush();
+        var callbackPumpStopped = Teardown();
+        _disposed = true;
         _sendLock.Dispose();
-        _connectedGate.Dispose();
+        if (callbackPumpStopped)
+            _connectedGate.Dispose();
+        else
+            PatchHelper.Log("[Connection] Leaving gate undisposed because callbacks may still be running");
     }
 }

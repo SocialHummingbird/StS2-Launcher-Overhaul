@@ -26,15 +26,32 @@ if (-not $creds.username -or -not $creds.password) {
     throw "Credentials file must contain username and password."
 }
 
-if ($Launch) {
-    & $AdbPath shell monkey -p $PackageName 1 | Out-Null
-    Start-Sleep -Seconds $StartupDelaySeconds
-}
+$guardCode = Resolve-SteamGuardCode -GuardCode $GuardCode -PromptForGuardCode:$PromptForGuardCode -Credentials $creds
 
 if ($UseLocalCredentialFile) {
+    if ($Launch) {
+        & $AdbPath shell am force-stop $PackageName | Out-Null
+    }
+
+    Clear-SteamLoginHandoffFiles -AdbPath $AdbPath -PackageName $PackageName
     Write-SteamLoginCredentialFile -AdbPath $AdbPath -PackageName $PackageName -Username $creds.username -Password $creds.password
     Write-Host "Wrote local Steam credential handoff file."
+
+    if ($guardCode) {
+        Write-SteamGuardCodeFile -AdbPath $AdbPath -PackageName $PackageName -Code $guardCode
+        Write-Host "Wrote local Steam Guard handoff file."
+    }
+
+    if ($Launch) {
+        & $AdbPath shell monkey -p $PackageName 1 | Out-Null
+        Start-Sleep -Seconds $StartupDelaySeconds
+    }
 } else {
+    if ($Launch) {
+        & $AdbPath shell monkey -p $PackageName 1 | Out-Null
+        Start-Sleep -Seconds $StartupDelaySeconds
+    }
+
     & $AdbPath shell input tap 860 500 | Out-Null
     Start-Sleep -Milliseconds 700
     Send-AndroidInputText -AdbPath $AdbPath -Text $creds.username
@@ -48,14 +65,15 @@ if ($UseLocalCredentialFile) {
     & $AdbPath shell input tap 860 720 | Out-Null
 }
 
-$guardCode = Resolve-SteamGuardCode -GuardCode $GuardCode -PromptForGuardCode:$PromptForGuardCode -Credentials $creds
-if ($guardCode) {
+if ($UseLocalCredentialFile) {
+    if ($guardCode) {
+        Write-Host "Submitted username/password and Steam Guard through local handoff."
+    } else {
+        Write-Host "Submitted username/password through local handoff. Pass -GuardCode, use -PromptForGuardCode, or add shared_secret/guard_code to $CredentialsPath to automate 2FA."
+    }
+} elseif ($guardCode) {
     Write-SteamGuardCodeFile -AdbPath $AdbPath -PackageName $PackageName -Code $guardCode
     Write-Host "Wrote local Steam Guard handoff file."
 } else {
-    if ($UseLocalCredentialFile) {
-        Write-Host "Submitted username/password through local handoff. Pass -GuardCode, use -PromptForGuardCode, or add shared_secret/guard_code to $CredentialsPath to automate 2FA."
-    } else {
-        Write-Host "Submitted username/password. Pass -GuardCode, use -PromptForGuardCode, or add shared_secret/guard_code to $CredentialsPath to automate 2FA."
-    }
+    Write-Host "Submitted username/password. Pass -GuardCode, use -PromptForGuardCode, or add shared_secret/guard_code to $CredentialsPath to automate 2FA."
 }

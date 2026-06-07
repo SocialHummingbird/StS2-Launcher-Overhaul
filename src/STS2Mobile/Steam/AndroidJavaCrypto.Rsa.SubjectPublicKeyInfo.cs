@@ -2,7 +2,7 @@ using System;
 
 namespace STS2Mobile.Steam;
 
-internal static partial class AndroidJavaCrypto
+public static partial class AndroidJavaCrypto
 {
     private static int EstimateSubjectPublicKeyInfoSize(ReadOnlySpan<byte> source)
     {

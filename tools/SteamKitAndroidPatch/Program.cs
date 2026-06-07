@@ -1,15 +1,24 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using System.IO.Compression;
+
+if (args.Length == 2 && args[0] == "--verify-apk")
+{
+    VerifyApkCryptoPatches(args[1]);
+    return;
+}
 
 if (args.Length < 2 || args.Length > 3)
 {
     Console.Error.WriteLine("Usage: SteamKitPatch <SteamKit2.dll> <STS2Mobile.dll> [sts2.dll]");
+    Console.Error.WriteLine("       SteamKitPatch --verify-apk <apk>");
     Environment.Exit(2);
 }
 
 var steamKitPath = args[0];
 var helperPath = args[1];
 var gamePath = args.Length == 3 ? args[2] : null;
+AssertStagedTogether(steamKitPath, helperPath);
 var resolver = CreateResolver(steamKitPath, helperPath, gamePath);
 var reader = new ReaderParameters { AssemblyResolver = resolver, ReadWrite = false };
 var steamKit = ModuleDefinition.ReadModule(steamKitPath, reader);
@@ -17,15 +26,35 @@ var helper = ModuleDefinition.ReadModule(helperPath, reader);
 
 var helperType = helper.GetType("STS2Mobile.Steam.AndroidJavaCrypto")
     ?? throw new InvalidOperationException("Could not find AndroidJavaCrypto helper type");
+if (!helperType.IsPublic)
+    throw new InvalidOperationException("AndroidJavaCrypto helper type must be public for patched external assemblies");
 
 var cryptoPatchRules = CreateCryptoPatchRules(helperType, steamKit);
 var cryptoPatchCounts = PatchCryptoCalls(steamKit, cryptoPatchRules);
 AssertRequiredCryptoPatches(cryptoPatchCounts);
 AssertNoForbiddenCryptoCallsites(steamKit);
+AssertPatchedHelperCallsites(steamKit, cryptoPatchRules, cryptoPatchCounts);
+AssertReferencesHelperAssembly(steamKit, helperType);
 
 WriteModuleOverOriginal(steamKit, steamKitPath);
-helper.Dispose();
 Console.WriteLine(FormatCryptoPatchSummary(cryptoPatchCounts));
+
+var webSocketClientPath = Path.Combine(
+    Path.GetDirectoryName(Path.GetFullPath(steamKitPath))!,
+    "System.Net.WebSockets.Client.dll"
+);
+if (File.Exists(webSocketClientPath))
+{
+    AssertStagedTogether(webSocketClientPath, helperPath);
+    PatchWebSocketClientCrypto(webSocketClientPath, helperType, resolver);
+}
+else
+    throw new FileNotFoundException(
+        "System.Net.WebSockets.Client.dll is required for Android WebSocket crypto patching",
+        webSocketClientPath
+    );
+
+helper.Dispose();
 
 if (!string.IsNullOrWhiteSpace(gamePath))
     PatchGamePlatformUtil(gamePath, resolver);
@@ -42,6 +71,141 @@ static DefaultAssemblyResolver CreateResolver(params string?[] assemblyPaths)
     }
 
     return resolver;
+}
+
+static void VerifyApkCryptoPatches(string apkPath)
+{
+    if (!File.Exists(apkPath))
+        throw new FileNotFoundException("APK not found", apkPath);
+
+    var tempDir = Path.Combine(Path.GetTempPath(), "sts2-apk-crypto-verify-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(tempDir);
+    var openedModules = new List<ModuleDefinition>();
+    try
+    {
+        var steamKitPath = ExtractApkBclEntry(apkPath, "SteamKit2.dll", tempDir);
+        var helperPath = ExtractApkBclEntry(apkPath, "STS2Mobile.dll", tempDir);
+        var webSocketClientPath = ExtractApkBclEntry(apkPath, "System.Net.WebSockets.Client.dll", tempDir);
+        var resolver = CreateResolver(steamKitPath, helperPath, webSocketClientPath);
+        var reader = new ReaderParameters { AssemblyResolver = resolver, ReadWrite = false };
+        var helper = ModuleDefinition.ReadModule(helperPath, reader);
+        openedModules.Add(helper);
+        var helperType = helper.GetType("STS2Mobile.Steam.AndroidJavaCrypto")
+            ?? throw new InvalidOperationException("Could not find AndroidJavaCrypto helper type in APK");
+        if (!helperType.IsPublic)
+            throw new InvalidOperationException("AndroidJavaCrypto helper type is not public in APK");
+
+        var sha1TryHashDataHelper = FindHelper(
+            helperType,
+            new("Sha1TryHashData", "System.Boolean", "System.ReadOnlySpan`1<System.Byte>", "System.Span`1<System.Byte>", "System.Int32&")
+        );
+        var steamKit = ModuleDefinition.ReadModule(steamKitPath, reader);
+        openedModules.Add(steamKit);
+        AssertNoForbiddenCryptoCallsites(steamKit);
+        AssertReferencesHelperAssembly(steamKit, helperType);
+        AssertContainsAnyHelperCallsite(steamKit, helperType, 1);
+
+        var webSocketClient = ModuleDefinition.ReadModule(webSocketClientPath, reader);
+        openedModules.Add(webSocketClient);
+        AssertNoForbiddenWebSocketClientCryptoCallsites(webSocketClient);
+        AssertReferencesHelperAssembly(webSocketClient, helperType);
+        AssertContainsHelperCallsite(webSocketClient, webSocketClient.ImportReference(sha1TryHashDataHelper), 1);
+        Console.WriteLine("Verified APK Android crypto patches: SteamKit2.dll and System.Net.WebSockets.Client.dll reference AndroidJavaCrypto helpers and contain no forbidden crypto callsites.");
+    }
+    finally
+    {
+        foreach (var module in openedModules)
+            module.Dispose();
+
+        try
+        {
+            Directory.Delete(tempDir, true);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Warning: failed to delete APK crypto verification temp directory {tempDir}: {ex.Message}");
+        }
+    }
+}
+
+static string ExtractApkBclEntry(string apkPath, string fileName, string outputDirectory)
+{
+    using var archive = ZipFile.OpenRead(apkPath);
+    var entryName = "assets/dotnet_bcl/" + fileName;
+    var entry = archive.GetEntry(entryName)
+        ?? throw new InvalidOperationException($"APK does not contain {entryName}");
+    var outputPath = Path.Combine(outputDirectory, fileName);
+    entry.ExtractToFile(outputPath, true);
+    return outputPath;
+}
+
+static void AssertContainsHelperCallsite(
+    ModuleDefinition module,
+    MethodReference helper,
+    int minimumCount
+)
+{
+    var count = CountHelperCallsites(module, helper);
+
+    if (count < minimumCount)
+    {
+        throw new InvalidOperationException(
+            $"{module.Name} expected at least {minimumCount} callsite(s) to {helper.FullName}, found {count}"
+        );
+    }
+}
+
+static void AssertContainsAnyHelperCallsite(
+    ModuleDefinition module,
+    TypeDefinition helperType,
+    int minimumCount
+)
+{
+    var count = 0;
+    foreach (var type in module.Types.SelectMany(WalkTypes))
+    {
+        foreach (var method in type.Methods)
+        {
+            if (!method.HasBody)
+                continue;
+
+            foreach (var instruction in method.Body.Instructions)
+            {
+                if (
+                    IsCallInstruction(instruction) &&
+                    instruction.Operand is MethodReference mr &&
+                    string.Equals(mr.DeclaringType.FullName, helperType.FullName, StringComparison.Ordinal)
+                )
+                {
+                    count++;
+                }
+            }
+        }
+    }
+
+    if (count < minimumCount)
+    {
+        throw new InvalidOperationException(
+            $"{module.Name} expected at least {minimumCount} AndroidJavaCrypto helper callsite(s), found {count}"
+        );
+    }
+}
+
+static void AssertStagedTogether(string targetAssemblyPath, string helperAssemblyPath)
+{
+    var targetDirectory = Path.GetDirectoryName(Path.GetFullPath(targetAssemblyPath));
+    var helperDirectory = Path.GetDirectoryName(Path.GetFullPath(helperAssemblyPath));
+
+    if (
+        string.IsNullOrWhiteSpace(targetDirectory) ||
+        string.IsNullOrWhiteSpace(helperDirectory) ||
+        !string.Equals(targetDirectory, helperDirectory, StringComparison.OrdinalIgnoreCase)
+    )
+    {
+        throw new InvalidOperationException(
+            $"{Path.GetFileName(targetAssemblyPath)} and {Path.GetFileName(helperAssemblyPath)} must be staged in the same directory for Android runtime resolution"
+        );
+    }
 }
 
 static IReadOnlyList<CryptoPatchRule> CreateCryptoPatchRules(TypeDefinition helperType, ModuleDefinition targetModule)
@@ -107,6 +271,24 @@ static IReadOnlyList<CryptoPatchRule> CreateCryptoPatchRules(TypeDefinition help
             "System.Security.Cryptography.SHA1",
             new("HashData", "System.Byte[]", "System.Byte[]"),
             new("Sha1HashData", "System.Byte[]", "System.Byte[]")
+        ),
+        new(
+            "sha1TryHashData",
+            "System.Security.Cryptography.SHA1",
+            new(
+                "TryHashData",
+                "System.Boolean",
+                "System.ReadOnlySpan`1<System.Byte>",
+                "System.Span`1<System.Byte>",
+                "System.Int32&"
+            ),
+            new(
+                "Sha1TryHashData",
+                "System.Boolean",
+                "System.ReadOnlySpan`1<System.Byte>",
+                "System.Span`1<System.Byte>",
+                "System.Int32&"
+            )
         ),
         new(
             "createAes",
@@ -220,6 +402,7 @@ static string FormatCryptoPatchSummary(IReadOnlyDictionary<string, int> counts)
         "hmacSha1Span",
         "hmacSha1SpanDestination",
         "sha1Bytes",
+        "sha1TryHashData",
         "createAes",
         "aesEncryptEcb",
         "aesEncryptCbc",
@@ -231,10 +414,81 @@ static string FormatCryptoPatchSummary(IReadOnlyDictionary<string, int> counts)
     return "Patched SteamKit2.dll: " + string.Join(", ", orderedNames.Select(name => $"{name}={counts[name]}"));
 }
 
+static void PatchWebSocketClientCrypto(string webSocketClientPath, TypeDefinition helperType, IAssemblyResolver resolver)
+{
+    var reader = new ReaderParameters { AssemblyResolver = resolver, ReadWrite = false };
+    var webSocketClient = ModuleDefinition.ReadModule(webSocketClientPath, reader);
+    var cryptoPatchRules = CreateWebSocketClientCryptoPatchRules(helperType, webSocketClient);
+    var cryptoPatchCounts = PatchCryptoCalls(webSocketClient, cryptoPatchRules);
+    AssertRequiredWebSocketClientCryptoPatches(cryptoPatchCounts);
+    AssertNoForbiddenWebSocketClientCryptoCallsites(webSocketClient);
+    AssertPatchedHelperCallsites(webSocketClient, cryptoPatchRules, cryptoPatchCounts);
+    AssertReferencesHelperAssembly(webSocketClient, helperType);
+
+    WriteModuleOverOriginal(webSocketClient, webSocketClientPath);
+    Console.WriteLine(FormatWebSocketClientCryptoPatchSummary(cryptoPatchCounts));
+}
+
+static IReadOnlyList<CryptoPatchRule> CreateWebSocketClientCryptoPatchRules(
+    TypeDefinition helperType,
+    ModuleDefinition targetModule
+)
+{
+    var ruleSpecs = new CryptoPatchRuleSpec[]
+    {
+        new(
+            "sha1TryHashData",
+            "System.Security.Cryptography.SHA1",
+            new(
+                "TryHashData",
+                "System.Boolean",
+                "System.ReadOnlySpan`1<System.Byte>",
+                "System.Span`1<System.Byte>",
+                "System.Int32&"
+            ),
+            new(
+                "Sha1TryHashData",
+                "System.Boolean",
+                "System.ReadOnlySpan`1<System.Byte>",
+                "System.Span`1<System.Byte>",
+                "System.Int32&"
+            )
+        ),
+    };
+
+    return ruleSpecs
+        .Select(spec => new CryptoPatchRule(
+            spec.CountName,
+            spec.DeclaringType,
+            spec.Target,
+            targetModule.ImportReference(FindHelper(helperType, spec.Helper))
+        ))
+        .ToArray();
+}
+
+static void AssertRequiredWebSocketClientCryptoPatches(IReadOnlyDictionary<string, int> counts)
+{
+    RequirePatch(
+        counts,
+        "sha1TryHashData",
+        "No System.Net.WebSockets.Client.dll SHA1.TryHashData calls were patched"
+    );
+}
+
+static string FormatWebSocketClientCryptoPatchSummary(IReadOnlyDictionary<string, int> counts)
+{
+    return "Patched System.Net.WebSockets.Client.dll: sha1TryHashData=" + counts["sha1TryHashData"];
+}
+
 static MethodDefinition FindHelper(TypeDefinition helperType, MethodSignature signature)
 {
-    return helperType.Methods.FirstOrDefault(signature.Matches)
+    var method = helperType.Methods.FirstOrDefault(signature.Matches)
         ?? throw new InvalidOperationException($"Could not find AndroidJavaCrypto.{signature.Name}");
+
+    if (!method.IsPublic || !method.IsStatic)
+        throw new InvalidOperationException($"AndroidJavaCrypto.{signature.Name} must be public static for patched external assemblies");
+
+    return method;
 }
 
 static void RequirePatch(IReadOnlyDictionary<string, int> counts, string name, string message)
@@ -248,9 +502,75 @@ static int Sum(IReadOnlyDictionary<string, int> counts, params string[] names)
     return names.Sum(name => counts[name]);
 }
 
+static void AssertPatchedHelperCallsites(
+    ModuleDefinition module,
+    IReadOnlyList<CryptoPatchRule> rules,
+    IReadOnlyDictionary<string, int> expectedCounts
+)
+{
+    foreach (var rule in rules)
+    {
+        var expectedCount = expectedCounts[rule.CountName];
+        if (expectedCount == 0)
+            continue;
+
+        var actualCount = CountHelperCallsites(module, rule.ImportedHelper);
+        if (actualCount < expectedCount)
+        {
+            throw new InvalidOperationException(
+                $"{module.Name} expected at least {expectedCount} patched callsite(s) to {rule.ImportedHelper.FullName}, found {actualCount}"
+            );
+        }
+    }
+}
+
+static int CountHelperCallsites(ModuleDefinition module, MethodReference helper)
+{
+    var count = 0;
+    foreach (var type in module.Types.SelectMany(WalkTypes))
+    {
+        foreach (var method in type.Methods)
+        {
+            if (!method.HasBody)
+                continue;
+
+            foreach (var instruction in method.Body.Instructions)
+            {
+                if (
+                    IsCallInstruction(instruction) &&
+                    instruction.Operand is MethodReference mr &&
+                    string.Equals(mr.FullName, helper.FullName, StringComparison.Ordinal)
+                )
+                {
+                    count++;
+                }
+            }
+        }
+    }
+
+    return count;
+}
+
 static bool IsCallInstruction(Instruction instruction)
 {
     return instruction.OpCode == OpCodes.Call || instruction.OpCode == OpCodes.Callvirt;
+}
+
+static void AssertReferencesHelperAssembly(ModuleDefinition targetModule, TypeDefinition helperType)
+{
+    var helperAssemblyName = helperType.Module.Assembly?.Name.Name
+        ?? throw new InvalidOperationException("Could not resolve AndroidJavaCrypto helper assembly name");
+
+    if (
+        !targetModule.AssemblyReferences.Any(reference =>
+            string.Equals(reference.Name, helperAssemblyName, StringComparison.Ordinal)
+        )
+    )
+    {
+        throw new InvalidOperationException(
+            $"{targetModule.Name} does not reference {helperAssemblyName} after Android crypto patching"
+        );
+    }
 }
 
 static void WriteModuleOverOriginal(ModuleDefinition module, string path)
@@ -330,9 +650,13 @@ static bool IsForbiddenCryptoCallsite(MethodReference mr)
         return true;
     }
 
-    if ((typeName == "System.Security.Cryptography.HMACSHA1" ||
-         typeName == "System.Security.Cryptography.SHA1") &&
-        methodName == "HashData")
+    if (typeName == "System.Security.Cryptography.HMACSHA1" && methodName == "HashData")
+    {
+        return true;
+    }
+
+    if (typeName == "System.Security.Cryptography.SHA1" &&
+        (methodName == "HashData" || methodName == "TryHashData"))
     {
         return true;
     }
@@ -352,6 +676,55 @@ static bool IsForbiddenCryptoCallsite(MethodReference mr)
     }
 
     return false;
+}
+
+static void AssertNoForbiddenWebSocketClientCryptoCallsites(ModuleDefinition module)
+{
+    var remaining = new Dictionary<string, int>();
+
+    foreach (var type in module.Types.SelectMany(WalkTypes))
+    {
+        foreach (var method in type.Methods)
+        {
+            if (!method.HasBody)
+                continue;
+
+            foreach (var instruction in method.Body.Instructions)
+            {
+                if (instruction.Operand is not MethodReference mr)
+                    continue;
+
+                if (!IsForbiddenWebSocketClientCryptoCallsite(mr))
+                    continue;
+
+                var signature =
+                    $"{mr.DeclaringType.FullName}::{mr.Name}(" +
+                    string.Join(",", mr.Parameters.Select(p => p.ParameterType.FullName)) +
+                    $")->{mr.ReturnType.FullName}";
+                remaining.TryGetValue(signature, out var count);
+                remaining[signature] = count + 1;
+            }
+        }
+    }
+
+    if (remaining.Count > 0)
+    {
+        throw new InvalidOperationException(
+            "Forbidden Android WebSocket client crypto callsites remain after patching: " +
+            string.Join("; ", remaining.OrderBy(kvp => kvp.Key).Select(kvp => $"{kvp.Value}x {kvp.Key}"))
+        );
+    }
+}
+
+static bool IsForbiddenWebSocketClientCryptoCallsite(MethodReference mr)
+{
+    return mr.DeclaringType.FullName == "System.Security.Cryptography.SHA1" &&
+        mr.Name == "TryHashData" &&
+        mr.Parameters.Count == 3 &&
+        mr.Parameters[0].ParameterType.FullName == "System.ReadOnlySpan`1<System.Byte>" &&
+        mr.Parameters[1].ParameterType.FullName == "System.Span`1<System.Byte>" &&
+        mr.Parameters[2].ParameterType.FullName == "System.Int32&" &&
+        mr.ReturnType.FullName == "System.Boolean";
 }
 
 static void PatchGamePlatformUtil(string gamePath, IAssemblyResolver resolver)

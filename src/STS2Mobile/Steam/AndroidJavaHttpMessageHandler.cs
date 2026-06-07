@@ -58,13 +58,19 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
         internal static BridgeExchange Send(
             AndroidJavaHttpMessageHandler owner,
             HttpRequestMessage request,
-            byte[] bodyBytes
+            byte[] bodyBytes,
+            CancellationToken cancellationToken
         )
         {
             var requestContext = BridgeRequestContext.For(request);
             return new BridgeExchange(
                 requestContext,
-                owner.CallHttpRequestBridge(request, bodyBytes, requestContext)
+                owner.CallHttpRequestBridge(
+                    request,
+                    bodyBytes,
+                    requestContext,
+                    cancellationToken
+                )
             );
         }
 
@@ -104,7 +110,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var exchange = BridgeExchange.Send(this, request, bodyBytes);
+        var exchange = BridgeExchange.Send(this, request, bodyBytes, cancellationToken);
 
         return exchange.CreateResponseWithContent(request, cancellationToken);
     }

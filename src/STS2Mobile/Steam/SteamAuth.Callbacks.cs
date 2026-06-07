@@ -8,12 +8,18 @@ internal sealed partial class SteamAuth
     {
         _callbackManager.Subscribe<SteamClient.ConnectedCallback>(_ =>
         {
+            if (_disposed)
+                return;
+
             Log("Connected to Steam");
             MarkAuthConnected();
         });
 
         _callbackManager.Subscribe<SteamClient.DisconnectedCallback>(cb =>
         {
+            if (_disposed)
+                return;
+
             MarkAuthDisconnected();
             if (cb.UserInitiated)
                 return;

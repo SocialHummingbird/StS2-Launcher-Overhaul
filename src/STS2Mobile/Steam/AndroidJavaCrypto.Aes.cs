@@ -3,9 +3,9 @@ using System.Security.Cryptography;
 
 namespace STS2Mobile.Steam;
 
-internal static partial class AndroidJavaCrypto
+public static partial class AndroidJavaCrypto
 {
-    internal static Aes CreateAes()
+    public static Aes CreateAes()
     {
         if (!OperatingSystem.IsAndroid())
             return Aes.Create();
@@ -13,7 +13,7 @@ internal static partial class AndroidJavaCrypto
         return new AndroidAes();
     }
 
-    internal static int AesEncryptEcb(
+    public static int AesEncryptEcb(
         SymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> plaintext,
         Span<byte> destination,
@@ -27,7 +27,7 @@ internal static partial class AndroidJavaCrypto
         return CopyToDestination(output, destination, "Destination is too short for AES output");
     }
 
-    internal static int AesEncryptCbc(
+    public static int AesEncryptCbc(
         SymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> plaintext,
         ReadOnlySpan<byte> iv,
@@ -42,7 +42,7 @@ internal static partial class AndroidJavaCrypto
         return CopyToDestination(output, destination, "Destination is too short for AES output");
     }
 
-    internal static int AesDecryptEcb(
+    public static int AesDecryptEcb(
         SymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> ciphertext,
         Span<byte> destination,
@@ -56,7 +56,7 @@ internal static partial class AndroidJavaCrypto
         return CopyToDestination(output, destination, "Destination is too short for AES output");
     }
 
-    internal static int AesDecryptCbc(
+    public static int AesDecryptCbc(
         SymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> ciphertext,
         ReadOnlySpan<byte> iv,
@@ -71,7 +71,7 @@ internal static partial class AndroidJavaCrypto
         return CopyToDestination(output, destination, "Destination is too short for AES output");
     }
 
-    internal static byte[] AesDecryptCbc(
+    public static byte[] AesDecryptCbc(
         SymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> ciphertext,
         ReadOnlySpan<byte> iv,

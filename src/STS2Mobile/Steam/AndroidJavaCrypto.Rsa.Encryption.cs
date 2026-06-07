@@ -3,9 +3,9 @@ using System.Security.Cryptography;
 
 namespace STS2Mobile.Steam;
 
-internal static partial class AndroidJavaCrypto
+public static partial class AndroidJavaCrypto
 {
-    private static byte[] RsaEncrypt(RSA rsa, byte[] data, RSAEncryptionPadding padding)
+    public static byte[] RsaEncrypt(RSA rsa, byte[] data, RSAEncryptionPadding padding)
     {
         if (!OperatingSystem.IsAndroid())
             return rsa.Encrypt(data, padding);

@@ -5,8 +5,16 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
+    private bool _manualLoginInProgress;
+
     private void LoginPressed(string username, string password)
-        => _ = LoginAsync(username, password);
+    {
+        if (_manualLoginInProgress)
+            return;
+
+        _manualLoginInProgress = true;
+        _ = LoginAsync(username, password);
+    }
 
     private void CodeSubmitPressed(string code)
     {
@@ -24,6 +32,10 @@ internal sealed partial class LauncherController
         catch (Exception ex)
         {
             LoginFormFailure.LoginHandler().Show(this, ex);
+        }
+        finally
+        {
+            _manualLoginInProgress = false;
         }
     }
 

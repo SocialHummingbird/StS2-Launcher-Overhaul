@@ -55,6 +55,11 @@ internal sealed partial class SteamConnection : IDisposable
     private int _backoffMs;
     private Exception _connectError;
     private volatile int _idleSuspendCount;
+    private volatile bool _callbackPumpStopped;
+    private volatile bool _disposing;
+    private volatile bool _disposed;
+    private readonly ManualResetEventSlim _teardownComplete = new(false);
+    private int _teardownStarted;
     private ulong _appAccessToken;
 
     private ConnectionState State { get; set; } = ConnectionState.Idle;

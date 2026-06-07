@@ -20,14 +20,14 @@ internal sealed partial class SteamAuth : IDisposable, IAuthenticator
             GuardData = guardData;
         }
 
-        private string AccountName { get; }
+        internal string AccountName { get; }
         private string RefreshToken { get; }
         private string GuardData { get; }
 
         internal SteamConnection CreateConnection()
             => new(AccountName, RefreshToken);
 
-        internal void SaveTo(SteamCredentialStore credentialStore)
+        internal bool SaveTo(SteamCredentialStore credentialStore)
             => credentialStore.Save(AccountName, RefreshToken, GuardData);
     }
 

@@ -22,7 +22,9 @@ internal sealed partial class SteamAuth
             PatchHelper.Log($"[Auth] Disconnect failed during dispose: {ex.Message}");
         }
 
-        _callbackPump.Stop(2000);
-        _connectedGate.Dispose();
+        if (_callbackPump.Stop(2000))
+            _connectedGate.Dispose();
+        else
+            PatchHelper.Log("[Auth] Callback pump did not stop before dispose; leaving gate undisposed");
     }
 }

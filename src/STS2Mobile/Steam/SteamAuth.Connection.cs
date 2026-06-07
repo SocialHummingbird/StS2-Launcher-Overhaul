@@ -143,6 +143,13 @@ internal sealed partial class SteamAuth
             )
         );
 
+    private async Task ForceReconnectForLoginRetryAsync(string message)
+    {
+        Log(message);
+        ResetConnectAttemptAfterFailure(force: true);
+        await EnsureConnectedForLoginAsync();
+    }
+
     private async Task ReconnectForAuthAsync()
     {
         if (await TryReconnectForAuthAsync())
@@ -181,9 +188,9 @@ internal sealed partial class SteamAuth
         Log(message);
     }
 
-    private void ResetConnectAttemptAfterFailure()
+    private void ResetConnectAttemptAfterFailure(bool force = false)
     {
-        if (!_connectStarted)
+        if (!_connectStarted && !force)
             return;
 
         _connectStarted = false;

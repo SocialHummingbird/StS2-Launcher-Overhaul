@@ -18,7 +18,7 @@ internal partial class LauncherModel
         {
             _inGameMode = value;
             if (value && _launchTcs == null)
-                _launchTcs = new TaskCompletionSource<bool>();
+                _launchTcs = CreateLaunchSignal();
         }
     }
 
@@ -27,7 +27,7 @@ internal partial class LauncherModel
 
     internal Task WaitForLaunch()
     {
-        _launchTcs ??= new TaskCompletionSource<bool>();
+        _launchTcs ??= CreateLaunchSignal();
         return _launchTcs.Task;
     }
 
@@ -56,6 +56,9 @@ internal partial class LauncherModel
     }
 
     private bool PreserveLaunchConnection => _launchTcs != null;
+
+    private static TaskCompletionSource<bool> CreateLaunchSignal()
+        => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private void SaveLaunchCredentials()
     {

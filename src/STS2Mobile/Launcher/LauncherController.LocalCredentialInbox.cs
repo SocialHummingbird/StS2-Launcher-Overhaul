@@ -29,9 +29,10 @@ internal sealed partial class LauncherController
             if (lines == null)
                 return null;
 
-            return TryDecode(lines, out var credentials)
-                ? credentials
-                : null;
+            if (!TryDecode(lines, out var credentials))
+                return null;
+
+            return credentials;
         }
 
         private static bool TryDecode(
@@ -77,8 +78,11 @@ internal sealed partial class LauncherController
             return false;
         }
 
-        internal Task LoginAsync(LauncherModel model)
-            => model.LoginAsync(Username, Password);
+        internal Task LoginAsync(
+            LauncherModel model,
+            Action<int> startTimeout
+        )
+            => model.LoginWithTimeoutAsync(Username, Password, startTimeout);
     }
 
     private static LocalSteamCredentials? ConsumeLocalSteamCredentials()

@@ -7,7 +7,33 @@ $SteamLoginCrashPatterns = @(
     "Interop+Crypto",
     "AndroidCryptoNative_",
     "SafeEvpCipherCtxHandle",
-    "SafeSslHandle"
+    "SafeSslHandle",
+    "Android Java SHA-1 TryHashData bridge failed",
+    "MethodAccessException",
+    "MissingMethodException",
+    "TypeLoadException",
+    "EntryPointNotFoundException"
+)
+$SteamLoginSuccessPatterns = @(
+    "[Auth] Authentication successful",
+    "[Launcher] Ownership verified"
+)
+$SteamLoginFailurePatterns = @(
+    "[Auth] Login failed",
+    "Login failed:",
+    "Could not establish a Steam auth connection",
+    "The SteamClient instance must be connected",
+    "InvalidPassword",
+    "AccountLoginDenied",
+    "AccountLogonDenied",
+    "TwoFactorCodeMismatch",
+    "ServiceUnavailable"
+)
+$SteamLoginInteractionRequiredPatterns = @(
+    "Steam Guard",
+    "two-factor",
+    "TwoFactor",
+    "EmailCode"
 )
 
 function Read-HiddenText {
@@ -140,6 +166,18 @@ function Write-SteamGuardCodeFile {
     }
 }
 
+function Clear-SteamLoginHandoffFiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [Parameter(Mandatory = $true)]
+        [string]$PackageName
+    )
+
+    $deviceDir = "/sdcard/Android/data/$PackageName/files"
+    & $AdbPath shell rm -f "$deviceDir/steam_login_credentials.txt" "$deviceDir/steam_guard_code.txt" | Out-Null
+}
+
 function Write-SteamLoginCredentialFile {
     param(
         [Parameter(Mandatory = $true)]
@@ -190,6 +228,23 @@ function Send-AndroidInputText {
     & $AdbPath shell input text $builder.ToString() | Out-Null
 }
 
+function Find-FirstSteamLoginLogPattern {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Log,
+        [Parameter(Mandatory = $true)]
+        [string[]]$Patterns
+    )
+
+    foreach ($pattern in $Patterns) {
+        if ($Log.IndexOf($pattern, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            return $pattern
+        }
+    }
+
+    return $null
+}
+
 function Wait-SteamLoginPostGuardResult {
     param(
         [Parameter(Mandatory = $true)]
@@ -203,15 +258,58 @@ function Wait-SteamLoginPostGuardResult {
         Start-Sleep -Seconds $PollSeconds
         $currentLog = (& $AdbPath logcat -d -v time | Out-String)
 
-        if ($currentLog -like "*[Auth] Authentication successful*" -or $currentLog -like "*[Launcher] Ownership verified*") {
-            Write-Host "Detected post-2FA success signal."
+        $matchedSuccess = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginSuccessPatterns
+        if ($matchedSuccess) {
+            Write-Host "Detected post-2FA success signal: $matchedSuccess"
             return
         }
 
-        $matchedCrash = $SteamLoginCrashPatterns | Where-Object { $currentLog -like "*$_*" } | Select-Object -First 1
+        $matchedCrash = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginCrashPatterns
         if ($matchedCrash) {
             Write-Host "Detected crash signature: $matchedCrash"
             return
         }
     }
+}
+
+function Wait-SteamLoginResult {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [int]$TimeoutSeconds = 180,
+        [int]$PollSeconds = 3
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds $PollSeconds
+        $currentLog = (& $AdbPath logcat -d -v time | Out-String)
+
+        $matchedSuccess = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginSuccessPatterns
+        if ($matchedSuccess) {
+            Write-Host "Detected auth success signal: $matchedSuccess"
+            return "success"
+        }
+
+        $matchedFailure = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginFailurePatterns
+        if ($matchedFailure) {
+            Write-Host "Detected auth failure signal: $matchedFailure"
+            return "failure"
+        }
+
+        $matchedCrash = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginCrashPatterns
+        if ($matchedCrash) {
+            Write-Host "Detected crash signature: $matchedCrash"
+            return "crash"
+        }
+
+        $matchedInteractionRequired = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginInteractionRequiredPatterns
+        if ($matchedInteractionRequired) {
+            Write-Host "Detected interaction-required signal: $matchedInteractionRequired"
+            return "interaction-required"
+        }
+    }
+
+    Write-Host "Timed out waiting for auth result after $TimeoutSeconds seconds."
+    return "timeout"
 }

@@ -7,6 +7,9 @@ internal sealed partial class SteamConnection
 {
     private void EnsureConnected()
     {
+        if (_disposing || _disposed)
+            throw new ObjectDisposedException(nameof(SteamConnection));
+
         if (TryUseExistingConnection())
             return;
 

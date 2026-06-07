@@ -33,13 +33,25 @@ internal static class LauncherExternalFileInbox
         try
         {
             var content = read(path);
-            File.Delete(path);
+            TryDeleteConsumedFile(path, failureMessage);
             return content;
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"{failureMessage}: {ex.Message}");
             return null;
+        }
+    }
+
+    private static void TryDeleteConsumedFile(string path, string failureMessage)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"{failureMessage}; consumed file but could not delete it: {ex.Message}");
         }
     }
 

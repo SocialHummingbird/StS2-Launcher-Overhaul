@@ -71,7 +71,8 @@ internal sealed partial class LauncherSteamSession
 
     private async Task<string?> AdoptConnectionAfterVerificationAsync(
         SteamConnection connection,
-        Func<SteamConnection, Task<string?>> verifyAsync
+        Func<SteamConnection, Task<string?>> verifyAsync,
+        Func<Task<string?>> beforeAdoptAsync = null
     )
     {
         var adopted = false;
@@ -80,6 +81,13 @@ internal sealed partial class LauncherSteamSession
             var failure = await verifyAsync(connection);
             if (failure != null)
                 return failure;
+
+            if (beforeAdoptAsync != null)
+            {
+                var beforeAdoptFailure = await beforeAdoptAsync();
+                if (beforeAdoptFailure != null)
+                    return beforeAdoptFailure;
+            }
 
             UseConnection(connection);
             adopted = true;

@@ -212,8 +212,15 @@ if ($LASTEXITCODE -ne 0) {
     throw "SteamKit Android patcher build failed"
 }
 
-Write-Host "Patching SteamKit2.dll Android crypto calls..."
-dotnet $patcherDll (Join-Path $bclDir "SteamKit2.dll") (Join-Path $bclDir "STS2Mobile.dll")
+Write-Host "Patching SteamKit2.dll and System.Net.WebSockets.Client.dll Android crypto calls..."
+$patchOutput = & dotnet $patcherDll (Join-Path $bclDir "SteamKit2.dll") (Join-Path $bclDir "STS2Mobile.dll") 2>&1
+$patchOutput | ForEach-Object { Write-Host $_ }
+if ($LASTEXITCODE -ne 0) {
+    throw "SteamKit Android patcher failed with exit code $LASTEXITCODE."
+}
+if (-not (($patchOutput | Out-String) -match "Patched System\.Net\.WebSockets\.Client\.dll: sha1TryHashData=[1-9][0-9]*")) {
+    throw "System.Net.WebSockets.Client.dll SHA1 patch summary was not emitted with a positive patch count."
+}
 if ($LASTEXITCODE -ne 0) {
     throw "SteamKit Android patch failed"
 }
@@ -256,6 +263,10 @@ if ($apk.Name -ne "StS2Launcher-v$VersionName.apk") {
 Write-Host "APK built: $($apk.FullName)"
 Test-AndroidApkContents -ApkPath $apk.FullName -TargetAbis $targetAbis -TempRoot (Join-Path $root "tmp") -TempPrefix "apk-verify"
 Write-Host "APK verification passed for ABIs: $($targetAbis -join ', ')"
+& (Join-Path $PSScriptRoot "verify-android-apk-crypto-patches.ps1") -ApkPath $apk.FullName
+if ($LASTEXITCODE -ne 0) {
+    throw "APK Android crypto patch verification failed with exit code $LASTEXITCODE."
+}
 
 $artifactDir = Join-Path $root "artifacts\android"
 $safeVersionName = $VersionName -replace '[^A-Za-z0-9._-]', '_'

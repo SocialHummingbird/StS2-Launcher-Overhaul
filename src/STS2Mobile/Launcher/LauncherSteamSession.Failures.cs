@@ -11,7 +11,8 @@ internal sealed partial class LauncherSteamSession
         string? userPrefix = null
     )
     {
-        PatchHelper.Log($"[Launcher] {logContext}: {ex.Message}");
-        return userPrefix == null ? ex.Message : $"{userPrefix}: {ex.Message}";
+        PatchHelper.Log($"[Launcher] {logContext}: {ex}");
+        var message = ex.GetBaseException().Message;
+        return userPrefix == null ? message : $"{userPrefix}: {message}";
     }
 }

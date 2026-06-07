@@ -29,11 +29,11 @@ internal sealed partial class LauncherSteamSession
         }
     }
 
-    private void SaveOwnershipMarker(string accountName)
+    private bool SaveOwnershipMarker(string accountName)
     {
         try
         {
-            AndroidEncryptedJsonFile.Save(
+            return AndroidEncryptedJsonFile.Save(
                 OwnershipMarkerPath,
                 new OwnershipMarker(
                     accountName,
@@ -44,6 +44,7 @@ internal sealed partial class LauncherSteamSession
         catch (Exception ex)
         {
             PatchHelper.Log($"[Ownership] Failed to save marker: {ex.Message}");
+            return false;
         }
     }
 

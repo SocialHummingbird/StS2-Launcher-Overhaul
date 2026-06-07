@@ -10,8 +10,20 @@ internal sealed partial class LauncherController
     private void StartSessionFlow()
     {
         var result = _model.StartSession();
+        HandleSessionFlow(result);
+    }
+
+    private void HandleSessionFlow(LauncherModel.FastPathResult result)
+    {
+        if (
+            result != LauncherModel.FastPathResult.ReadyToLaunch
+            && TryStartImmediateLocalLoginHandoff()
+        )
+            return;
+
         HandleFastPath(result);
-        StartLocalLoginHandoff();
+        if (result != LauncherModel.FastPathResult.ReadyToLaunch)
+            StartLocalLoginHandoff();
     }
 
     private void LocalBackupToggled(bool pressed)
@@ -20,7 +32,7 @@ internal sealed partial class LauncherController
     private void RetryPressed()
     {
         var result = _model.Retry();
-        HandleFastPath(result);
+        HandleSessionFlow(result);
     }
 
     private void LaunchPressed()

@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 
 namespace STS2Mobile.Steam;
 
-internal static partial class AndroidJavaCrypto
+public static partial class AndroidJavaCrypto
 {
     private sealed class AndroidAes : Aes
     {

@@ -17,14 +17,20 @@ internal sealed partial class LauncherSteamSession
 
     private async Task<string?> UseConnectionAndVerifyOwnershipAsync(
         SteamConnection connection,
-        Action verifyingOwnership
+        Action verifyingOwnership,
+        string accountName = null,
+        Func<Task<string?>> beforeAdoptAsync = null,
+        bool saveOwnershipMarker = true
     )
         => await AdoptConnectionAfterVerificationAsync(
             connection,
             verifiedConnection => VerifyOwnershipForSessionAsync(
                 verifiedConnection,
-                verifyingOwnership
-            )
+                verifyingOwnership,
+                accountName,
+                saveOwnershipMarker
+            ),
+            beforeAdoptAsync
         );
 
     private SteamConnection UseConnection(SteamConnection connection)
@@ -35,18 +41,24 @@ internal sealed partial class LauncherSteamSession
 
     private async Task<string?> VerifyOwnershipForSessionAsync(
         SteamConnection connection,
-        Action verifyingOwnership
+        Action verifyingOwnership,
+        string accountNameOverride = null,
+        bool saveOwnershipMarker = true
     )
     {
         verifyingOwnership?.Invoke();
-        var accountName = GetAccountNameForOwnershipVerification();
+        var accountName = accountNameOverride ?? GetAccountNameForOwnershipVerification();
         var owns = await HasAppAccessTokenAsync(connection);
-        return CompleteOwnershipVerification(accountName, owns);
+        return CompleteOwnershipVerification(accountName, owns, saveOwnershipMarker);
     }
 
-    private string CompleteOwnershipVerification(string accountName, bool owns)
+    private string CompleteOwnershipVerification(
+        string accountName,
+        bool owns,
+        bool saveOwnershipMarker
+    )
     {
-        if (owns)
+        if (owns && saveOwnershipMarker)
             SaveOwnershipMarker(accountName);
         PatchHelper.Log(owns ? "[Launcher] Ownership verified" : "[Launcher] Ownership denied");
         return owns ? null : OwnershipDeniedMessage;

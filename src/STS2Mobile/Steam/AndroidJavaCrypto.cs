@@ -3,7 +3,7 @@ using Godot;
 
 namespace STS2Mobile.Steam;
 
-internal static partial class AndroidJavaCrypto
+public static partial class AndroidJavaCrypto
 {
     private readonly struct Base64BridgeCall
     {
@@ -50,6 +50,11 @@ internal static partial class AndroidJavaCrypto
                 );
             }
 
+            return RunWithBridge(app);
+        }
+
+        private byte[] RunWithBridge(GodotObject app)
+        {
             var encoded = (string)app.Call(
                 MethodName,
                 CreateVariantArguments(Arguments)

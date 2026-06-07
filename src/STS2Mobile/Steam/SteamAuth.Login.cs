@@ -19,8 +19,9 @@ internal sealed partial class SteamAuth
 
         private int Number { get; }
 
-        internal bool CanRetry(Exception ex, bool needsAuthReconnect)
+        internal bool CanRetry(Exception ex, bool needsAuthReconnect, bool authDisposed)
             => Number < CredentialAuthRetryCount
+                && !authDisposed
                 && (ex is not AuthenticationException)
                 && IsRecoverableAuthInterruption(ex, needsAuthReconnect);
     }
@@ -75,12 +76,13 @@ internal sealed partial class SteamAuth
                 catch (Exception ex) when (
                     new CredentialAuthAttempt(attempt).CanRetry(
                         ex,
-                        Owner.NeedsAuthReconnect
+                        Owner.NeedsAuthReconnect,
+                        Owner._disposed
                     )
                 )
                 {
                     Owner.LogCredentialAuthRetry(ex);
-                    await Owner.PrepareForAuthRetryAsync();
+                    await Owner.PrepareForAuthRetryAsync(ex);
                 }
             }
 
@@ -157,10 +159,25 @@ internal sealed partial class SteamAuth
 
     private bool ShouldReconnectWhilePolling => NeedsAuthReconnect && !_waitingForAuthCode;
 
-    private async Task PrepareForAuthRetryAsync()
+    private async Task PrepareForAuthRetryAsync(Exception ex)
     {
         if (!RequiresPersistentAuthConnection)
         {
+            if (IsSteamConnectionInvalidOperation(ex))
+            {
+                await ForceReconnectForLoginRetryAsync(
+                    "Reconnecting before retrying Android credential auth after SteamClient connection failure"
+                );
+                return;
+            }
+
+            if (!_connectedGate.IsSet)
+            {
+                Log("Reconnecting before retrying Android credential auth");
+                await EnsureConnectedForLoginAsync();
+                return;
+            }
+
             ContinueWebApiAuthWithoutPersistentConnection(
                 "Retrying Android WebAPI credential auth without CM reconnect"
             );

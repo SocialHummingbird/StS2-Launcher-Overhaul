@@ -21,7 +21,20 @@ $fatalPatterns = @(
     "Interop\+Crypto",
     "AndroidCryptoNative_",
     "SafeEvpCipherCtxHandle",
-    "SafeSslHandle"
+    "SafeSslHandle",
+    "System\.Net\.WebSockets\.WebSocketHandle\.CreateSecKeyAndSecWebSocketAccept",
+    "System\.Security\.Cryptography\.SHA1\.TryHashData",
+    "MethodAccessException",
+    "MissingMethodException",
+    "TypeLoadException",
+    "EntryPointNotFoundException",
+    "Android Java SHA-1 TryHashData bridge failed"
+)
+
+$loginFailurePatterns = @(
+    "The SteamClient instance must be connected",
+    "Could not establish a Steam auth connection",
+    "\[Auth\] Login failed"
 )
 
 $preSteamGuardBoundaryPatterns = @(
@@ -44,6 +57,18 @@ foreach ($pattern in $fatalPatterns) {
 
 if ($fatalMatches.Count -gt 0) {
     Write-Error "Steam login crash regression detected. Matched: $($fatalMatches -join ', ')"
+    exit 1
+}
+
+$loginFailureMatches = @()
+foreach ($pattern in $loginFailurePatterns) {
+    if ($log -match $pattern) {
+        $loginFailureMatches += $pattern
+    }
+}
+
+if ($loginFailureMatches.Count -gt 0) {
+    Write-Error "Steam login failure regression detected. Matched: $($loginFailureMatches -join ', ')"
     exit 1
 }
 

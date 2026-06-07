@@ -10,7 +10,7 @@ internal sealed partial class LauncherController
         "Connection timed out. Valid ownership marker found.";
     private const string SavedCredentialsFallback =
         "No connection - saved credentials will be used";
-    private const int SteamConnectionTimeoutMs = 10_000;
+    private const int SteamConnectionTimeoutMs = 30_000;
 
     private void StartConnectionTimeout(int sessionAttemptId)
         => _ = RunConnectionTimeoutAsync(sessionAttemptId);

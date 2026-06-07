@@ -2,11 +2,11 @@ using System;
 
 namespace STS2Mobile.Steam;
 
-internal static partial class AndroidJavaCrypto
+public static partial class AndroidJavaCrypto
 {
     private const string RandomBytesBase64BridgeMethod = "randomBytesBase64";
 
-    private static byte[] GetRandomBytes(int count)
+    public static byte[] GetRandomBytes(int count)
     {
         if (!OperatingSystem.IsAndroid())
             return System.Security.Cryptography.RandomNumberGenerator.GetBytes(count);
@@ -18,7 +18,7 @@ internal static partial class AndroidJavaCrypto
             count.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
-    internal static void FillRandom(Span<byte> destination)
+    public static void FillRandom(Span<byte> destination)
     {
         if (!OperatingSystem.IsAndroid())
         {

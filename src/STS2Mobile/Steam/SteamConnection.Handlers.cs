@@ -79,6 +79,22 @@ internal sealed partial class SteamConnection
     private async Task<TResult> RunConnectedAsync<TResult>(Func<Task<TResult>> operation)
     {
         EnsureConnected();
-        return await operation().ConfigureAwait(false);
+
+        await _sendLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            ThrowIfDisposing();
+            return await operation().ConfigureAwait(false);
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
+    }
+
+    private void ThrowIfDisposing()
+    {
+        if (_disposing || _disposed)
+            throw new ObjectDisposedException(nameof(SteamConnection));
     }
 }

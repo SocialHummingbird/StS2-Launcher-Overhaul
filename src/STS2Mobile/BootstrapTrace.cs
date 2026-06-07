@@ -9,8 +9,7 @@ internal static class BootstrapTrace
     private const string AndroidLogTag = "STS2Mobile";
     private const int AndroidLogInfoPriority = 4;
     private const string FileName = "sts2_bootstrap_trace.log";
-    private const string FallbackPath =
-        "/data/data/com.sts2launcher.overhaul.fork.dev/files/sts2_bootstrap_trace.log";
+    private const string TempDirectoryName = "tmp";
     private const long MaxBytes = 256L * 1024L;
     private static readonly object Lock = new();
 
@@ -39,7 +38,51 @@ internal static class BootstrapTrace
         }
         catch
         {
-            return FallbackPath;
+            return Path.Combine(ResolveFallbackDataDirectory(), FileName);
+        }
+    }
+
+    internal static string ResolveFallbackDataDirectory()
+    {
+        foreach (var variable in new[] { "TMPDIR", "TMP", "TEMP" })
+        {
+            var temp = Environment.GetEnvironmentVariable(variable);
+            if (string.IsNullOrWhiteSpace(temp))
+                continue;
+
+            string normalized;
+            try
+            {
+                normalized = Path.GetFullPath(temp);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (
+                string.Equals(
+                    Path.GetFileName(normalized),
+                    TempDirectoryName,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+            {
+                var parent = Path.GetDirectoryName(normalized);
+                if (!string.IsNullOrWhiteSpace(parent))
+                    return parent;
+            }
+
+            return normalized;
+        }
+
+        try
+        {
+            return Path.GetTempPath();
+        }
+        catch
+        {
+            return ".";
         }
     }
 

@@ -17,6 +17,7 @@ internal sealed partial class SteamConnection
         await _sendLock.WaitAsync().ConfigureAwait(false);
         try
         {
+            ThrowIfDisposing();
             var job = _unifiedMessages.SendMessage<TRequest, TResult>(
                 CloudRpcEndpoint(method),
                 request

@@ -21,10 +21,15 @@ internal sealed partial class SteamCredentialStore
         return null;
     }
 
-    private void SaveCredentials(SteamCredentials credentials)
+    private bool SaveCredentials(SteamCredentials credentials)
     {
         if (!AndroidEncryptedJsonFile.Save(_credentialsPath, credentials))
+        {
             PatchHelper.Log(EncryptionFailedLogMessage);
+            return false;
+        }
+
+        return true;
     }
 
     private void DeleteCredentialsFile()

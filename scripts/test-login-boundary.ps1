@@ -13,7 +13,10 @@ param(
     [int]$ManualGuardWaitSeconds = 90,
     [int]$PostGuardResultTimeoutSeconds = 180,
     [int]$PostGuardPollSeconds = 3,
-    [int]$PostLoginWaitSeconds = 35
+    [int]$PostLoginWaitSeconds = 35,
+    [int]$LoginResultTimeoutSeconds = 180,
+    [int]$LoginResultPollSeconds = 3,
+    [switch]$SkipCryptoPatchVerification
 )
 
 $ErrorActionPreference = "Stop"
@@ -42,6 +45,13 @@ if (-not $ApkPath) {
 
 if (-not (Test-Path -LiteralPath $ApkPath)) {
     throw "APK not found: $ApkPath"
+}
+
+if (-not $SkipCryptoPatchVerification) {
+    & (Join-Path $PSScriptRoot "verify-android-apk-crypto-patches.ps1") -ApkPath $ApkPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "APK Android crypto patch verification failed with exit code $LASTEXITCODE."
+    }
 }
 
 $creds = Get-Content -LiteralPath $CredentialsPath -Raw | ConvertFrom-Json
@@ -85,7 +95,9 @@ if ($WaitForPostGuardResult) {
     Write-Host "Enter the Steam Guard code directly in the emulator. Waiting $ManualGuardWaitSeconds seconds before capturing post-2FA evidence..."
     Start-Sleep -Seconds $ManualGuardWaitSeconds
 } else {
-    Start-Sleep -Seconds $PostLoginWaitSeconds
+    Write-Host "Waiting up to $LoginResultTimeoutSeconds seconds for auth success, auth failure, Steam Guard request, or a crash signature."
+    $loginResult = Wait-SteamLoginResult -AdbPath $AdbPath -TimeoutSeconds $LoginResultTimeoutSeconds -PollSeconds $LoginResultPollSeconds
+    Write-Host "Login result wait completed: $loginResult"
 }
 
 & $AdbPath logcat -d -v time > $OutputLogcatPath

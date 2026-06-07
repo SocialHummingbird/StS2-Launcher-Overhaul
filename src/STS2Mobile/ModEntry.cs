@@ -24,11 +24,10 @@ public static class ModEntry
     private const int ProbeSuccess = 0;
     private const int ProbeSuccessWithValue = 1;
     private const uint GodotPckMagic = 0x43504447;
-    private const string GamePckPath =
-        "/data/data/com.sts2launcher.overhaul.fork.dev/files/game/SlayTheSpire2.pck";
+    private const string GameDirectoryName = "game";
+    private const string GamePckFileName = "SlayTheSpire2.pck";
     private const int MinimumPckHeaderLength = 96;
-    private const string ManagedTempDirectory =
-        "/data/data/com.sts2launcher.overhaul.fork.dev/files/tmp";
+    private const string TempDirectoryName = "tmp";
     private static readonly string[] TempVariableNames =
     {
         "TMPDIR",
@@ -181,6 +180,31 @@ public static class ModEntry
 
     private static bool IsStandaloneLauncherRequired()
         => !IsGamePckStructurallyReady(GamePckPath);
+
+    private static string GamePckPath
+        => Path.Combine(
+            RuntimeDataDirectory,
+            GameDirectoryName,
+            GamePckFileName
+        );
+
+    private static string ManagedTempDirectory
+        => Path.Combine(RuntimeDataDirectory, TempDirectoryName);
+
+    private static string RuntimeDataDirectory
+    {
+        get
+        {
+            try
+            {
+                return OS.GetDataDir();
+            }
+            catch
+            {
+                return BootstrapTrace.ResolveFallbackDataDirectory();
+            }
+        }
+    }
 
     private static void InstallManagedExceptionHandlers()
     {

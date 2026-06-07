@@ -354,10 +354,20 @@ jobs:
 
           echo "Patching SteamKit2 Android crypto calls."
           dotnet build "$ROOT_DIR/tools/SteamKitAndroidPatch/SteamKitAndroidPatch.csproj" -c Release
-          dotnet "$ROOT_DIR/tools/SteamKitAndroidPatch/bin/Release/net9.0/SteamKitAndroidPatch.dll" \
+          patch_output_file="$RUNNER_TEMP/steamkit-android-patch-output.txt"
+          if ! dotnet "$ROOT_DIR/tools/SteamKitAndroidPatch/bin/Release/net9.0/SteamKitAndroidPatch.dll" \
             "$BCL_DIR/SteamKit2.dll" \
             "$BCL_DIR/STS2Mobile.dll" \
-            "$BCL_DIR/sts2.dll"
+            "$BCL_DIR/sts2.dll" > "$patch_output_file" 2>&1; then
+            cat "$patch_output_file"
+            echo "::error::SteamKit Android patcher failed."
+            exit 1
+          fi
+          cat "$patch_output_file"
+          if ! grep -Eq 'Patched System\.Net\.WebSockets\.Client\.dll: sha1TryHashData=[1-9][0-9]*' "$patch_output_file"; then
+            echo "::error::System.Net.WebSockets.Client.dll SHA1 patch summary was not emitted with a positive patch count."
+            exit 1
+          fi
 
           resolve_tls_so() {
             local runtime_version
@@ -478,6 +488,7 @@ jobs:
           ABS_APK_PATH="$(pwd)/${RENAMED_APK_PATH}"
 
           pwsh ../scripts/verify-android-apk.ps1 -ApkPath "$ABS_APK_PATH" -Abi arm64-v8a
+          pwsh ../scripts/verify-android-apk-crypto-patches.ps1 -ApkPath "$ABS_APK_PATH"
 
           {
             echo "version_name=${VERSION_NAME}"

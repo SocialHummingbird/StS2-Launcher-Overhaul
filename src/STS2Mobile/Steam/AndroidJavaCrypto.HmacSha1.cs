@@ -3,11 +3,11 @@ using System.Security.Cryptography;
 
 namespace STS2Mobile.Steam;
 
-internal static partial class AndroidJavaCrypto
+public static partial class AndroidJavaCrypto
 {
     private const string HmacSha1Base64BridgeMethod = "hmacSha1Base64";
 
-    internal static byte[] HmacSha1HashData(byte[] key, byte[] source)
+    public static byte[] HmacSha1HashData(byte[] key, byte[] source)
     {
         if (!OperatingSystem.IsAndroid())
             return HMACSHA1.HashData(key, source);
@@ -15,7 +15,7 @@ internal static partial class AndroidJavaCrypto
         return HmacSha1HashDataAndroid(key, source);
     }
 
-    internal static byte[] HmacSha1HashData(ReadOnlySpan<byte> key, ReadOnlySpan<byte> source)
+    public static byte[] HmacSha1HashData(ReadOnlySpan<byte> key, ReadOnlySpan<byte> source)
     {
         if (!OperatingSystem.IsAndroid())
             return HMACSHA1.HashData(key, source);
@@ -23,7 +23,7 @@ internal static partial class AndroidJavaCrypto
         return HmacSha1HashDataAndroid(key.ToArray(), source.ToArray());
     }
 
-    internal static int HmacSha1HashData(ReadOnlySpan<byte> key, ReadOnlySpan<byte> source, Span<byte> destination)
+    public static int HmacSha1HashData(ReadOnlySpan<byte> key, ReadOnlySpan<byte> source, Span<byte> destination)
     {
         if (!OperatingSystem.IsAndroid())
             return HMACSHA1.HashData(key, source, destination);

@@ -40,12 +40,14 @@ internal sealed class SteamCallbackPump
         _thread.Start();
     }
 
-    internal void Stop(int joinTimeoutMs, bool clearThread = false)
+    internal bool Stop(int joinTimeoutMs, bool clearThread = false)
     {
         _running = false;
         _thread?.Join(joinTimeoutMs);
+        var stopped = _thread == null || !_thread.IsAlive;
         if (clearThread)
             _thread = null;
+        return stopped;
     }
 
     private void ProcessLoop()

@@ -4,12 +4,12 @@ using System.Security.Cryptography;
 
 namespace STS2Mobile.Steam;
 
-internal static partial class AndroidJavaCrypto
+public static partial class AndroidJavaCrypto
 {
     private static readonly ConditionalWeakTable<RSA, RsaPublicKey> RsaPublicKeys = new();
     private const string RsaEncryptBase64BridgeMethod = "rsaEncryptBase64";
 
-    internal static void ImportSubjectPublicKeyInfo(
+    public static void ImportSubjectPublicKeyInfo(
         AsymmetricAlgorithm algorithm,
         ReadOnlySpan<byte> source,
         out int bytesRead
@@ -32,7 +32,7 @@ internal static partial class AndroidJavaCrypto
         bytesRead = source.Length;
     }
 
-    internal static void ImportParameters(RSA rsa, RSAParameters parameters)
+    public static void ImportParameters(RSA rsa, RSAParameters parameters)
     {
         if (!OperatingSystem.IsAndroid())
         {
@@ -55,7 +55,7 @@ internal static partial class AndroidJavaCrypto
             androidRsa.SetPublicKeySize(parameters.Modulus.Length * 8);
     }
 
-    internal static RSA CreateRsa()
+    public static RSA CreateRsa()
     {
         if (!OperatingSystem.IsAndroid())
             return RSA.Create();

@@ -7,7 +7,13 @@ internal sealed partial class LauncherSteamSession
 {
     private const int GuardCodePollDelayMs = 500;
 
-    internal void SubmitCode(string code) => _codeTcs?.TrySetResult(code);
+    internal void SubmitCode(string code)
+    {
+        if (!_awaitingCode)
+            return;
+
+        _codeTcs?.TrySetResult(code);
+    }
 
     private async Task<string> RequestSteamGuardCodeAsync(
         bool wasIncorrect,
@@ -31,16 +37,25 @@ internal sealed partial class LauncherSteamSession
         Action<bool> codeNeeded
     )
     {
+        _codeTcs = new TaskCompletionSource<string>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
         _awaitingCode = true;
         codeNeeded?.Invoke(wasIncorrect);
-        _codeTcs = new TaskCompletionSource<string>();
         return _codeTcs.Task;
     }
 
     private void EndSteamGuardCodeRequest()
     {
-        _awaitingCode = false;
+        ClearPendingCodeRequest();
+    }
+
+    private void ClearPendingCodeRequest()
+    {
+        var codeTcs = _codeTcs;
         _codeTcs = null;
+        _awaitingCode = false;
+        codeTcs?.TrySetCanceled();
     }
 
     private static async Task<string> WaitForSteamGuardCodeAsync(Task<string> uiCodeTask)

@@ -1301,6 +1301,82 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
+	private final java.util.concurrent.atomic.AtomicInteger httpRequestIds =
+		new java.util.concurrent.atomic.AtomicInteger();
+	private static final long ASYNC_HTTP_RESPONSE_TTL_MS = 5L * 60L * 1000L;
+	private final java.util.concurrent.ConcurrentHashMap<String, AsyncHttpResponse> httpRequestResponses =
+		new java.util.concurrent.ConcurrentHashMap<>();
+	private static final long CANCELED_HTTP_REQUEST_TTL_MS = 5L * 60L * 1000L;
+	private final java.util.concurrent.ConcurrentHashMap<String, Long> canceledHttpRequests =
+		new java.util.concurrent.ConcurrentHashMap<>();
+
+	private static final class AsyncHttpResponse {
+		final String body;
+		final long completedAt;
+
+		AsyncHttpResponse(String body) {
+			this.body = body;
+			this.completedAt = System.currentTimeMillis();
+		}
+	}
+
+	public String httpRequestAsyncStart(String method, String urlString, String headersJson, String bodyBase64, int timeoutMs) {
+		final String requestId = Integer.toString(httpRequestIds.incrementAndGet());
+		Thread worker = new Thread(() -> {
+			String response;
+			try {
+				response = performHttpRequest(method, urlString, headersJson, bodyBase64, timeoutMs);
+			} catch (Throwable t) {
+				Log.e(TAG, "Async HTTP bridge request failed unexpectedly: " + method + " " + sanitizeUrlForLog(urlString), t);
+				response = "{\"error\":\"HTTP bridge request failed unexpectedly\"}";
+			}
+			if (canceledHttpRequests.remove(requestId) != null) {
+				return;
+			}
+			cleanupAsyncHttpResponses();
+			httpRequestResponses.put(requestId, new AsyncHttpResponse(response));
+		}, "STS2-http-bridge-" + requestId);
+		worker.setDaemon(true);
+		worker.start();
+		return requestId;
+	}
+
+	public String httpRequestAsyncPoll(String requestId) {
+		cleanupAsyncHttpResponses();
+		AsyncHttpResponse response = httpRequestResponses.remove(requestId);
+		return response == null ? "" : response.body;
+	}
+
+	public void httpRequestAsyncCancel(String requestId) {
+		httpRequestResponses.remove(requestId);
+		cleanupCanceledHttpRequests();
+		canceledHttpRequests.put(requestId, System.currentTimeMillis());
+	}
+
+	private void cleanupCanceledHttpRequests() {
+		long cutoff = System.currentTimeMillis() - CANCELED_HTTP_REQUEST_TTL_MS;
+		for (Map.Entry<String, Long> entry : canceledHttpRequests.entrySet()) {
+			Long canceledAt = entry.getValue();
+			if (canceledAt == null) {
+				canceledHttpRequests.remove(entry.getKey());
+			} else if (canceledAt < cutoff) {
+				canceledHttpRequests.remove(entry.getKey(), canceledAt);
+			}
+		}
+	}
+
+	private void cleanupAsyncHttpResponses() {
+		long cutoff = System.currentTimeMillis() - ASYNC_HTTP_RESPONSE_TTL_MS;
+		for (Map.Entry<String, AsyncHttpResponse> entry : httpRequestResponses.entrySet()) {
+			AsyncHttpResponse response = entry.getValue();
+			if (response == null) {
+				httpRequestResponses.remove(entry.getKey());
+			} else if (response.completedAt < cutoff) {
+				httpRequestResponses.remove(entry.getKey(), response);
+			}
+		}
+	}
+
 	public String httpRequest(String method, String urlString, String headersJson, String bodyBase64, int timeoutMs) {
 		if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
 			return httpRequestOffMainThread(method, urlString, headersJson, bodyBase64, timeoutMs);

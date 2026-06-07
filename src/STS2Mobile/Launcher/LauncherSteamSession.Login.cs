@@ -22,11 +22,14 @@ internal sealed partial class LauncherSteamSession
                 logMessage,
                 codeNeeded
             );
-            SaveLoginCredentials(result);
-            return await UseConnectionAndVerifyOwnershipAsync(
+            var failure = await UseConnectionAndVerifyOwnershipAsync(
                 result.CreateConnection(),
-                verifyingOwnership
+                verifyingOwnership,
+                result.AccountName,
+                () => Task.FromResult(SaveLoginCredentials(result)),
+                saveOwnershipMarker: false
             );
+            return failure;
         }
         catch (Exception ex)
         {
@@ -70,9 +73,17 @@ internal sealed partial class LauncherSteamSession
         return auth;
     }
 
-    private void SaveLoginCredentials(SteamAuth.LoginCredentials result)
+    private string? SaveLoginCredentials(SteamAuth.LoginCredentials result)
     {
-        result.SaveTo(_credentialStore);
-        LauncherCloudSaveState.SaveCredentials(_credentialStore);
+        if (!result.SaveTo(_credentialStore))
+            return "Could not save Steam credentials. Login was not completed.";
+
+        if (!LauncherCloudSaveState.SaveCredentials(_credentialStore))
+            return "Could not update cloud save credentials. Login was not completed.";
+
+        if (!SaveOwnershipMarker(result.AccountName))
+            return "Could not save ownership marker. Login was not completed.";
+
+        return null;
     }
 }

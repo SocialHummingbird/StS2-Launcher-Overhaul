@@ -112,12 +112,13 @@ internal static class LauncherCloudSaveState
         _cloudSyncEnabled = false;
     }
 
-    private static void SaveCredentials(string accountName, string refreshToken)
+    private static bool SaveCredentials(string accountName, string refreshToken)
     {
         if (string.IsNullOrWhiteSpace(accountName))
-            return;
+            return false;
 
         _savedCredentials = SavedSteamCredentials.FromLogin(accountName, refreshToken);
+        return true;
     }
 
     private static SavedSteamCredentials RequireSavedCredentials()
@@ -132,8 +133,20 @@ internal static class LauncherCloudSaveState
     private static Task RunManualSyncAsync(Func<string, string, Task> sync)
         => RequireSavedCredentials().RunManualSyncAsync(sync);
 
-    internal static void SaveCredentials(SteamCredentialStore credentialStore)
+    internal static bool SaveCredentials(SteamCredentialStore credentialStore)
     {
-        credentialStore.TryUseCredentials(SaveCredentials);
+        var saved = false;
+        credentialStore.TryUseCredentials(
+            (accountName, refreshToken) =>
+            {
+                saved = SaveCredentials(accountName, refreshToken);
+            }
+        );
+        return saved;
+    }
+
+    internal static void ClearCredentials()
+    {
+        _savedCredentials = null;
     }
 }

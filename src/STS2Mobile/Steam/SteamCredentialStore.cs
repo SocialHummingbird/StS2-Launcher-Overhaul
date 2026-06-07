@@ -72,18 +72,29 @@ internal sealed partial class SteamCredentialStore
         }
     }
 
-    internal void Save(string accountName, string refreshToken, string guardData)
+    internal bool Save(string accountName, string refreshToken, string guardData)
     {
-        _credentials = new SteamCredentials(accountName, refreshToken, guardData);
+        var credentials = new SteamCredentials(accountName, refreshToken, guardData);
 
         try
         {
-            SaveCredentials(_credentials);
+            if (!SaveCredentials(credentials))
+                return false;
+
+            _credentials = credentials;
             PatchHelper.Log("[Credentials] Saved (Android Keystore encrypted)");
+            return true;
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"[Credentials] Save failed: {ex.Message}");
+            return false;
         }
+    }
+
+    internal void Clear()
+    {
+        _credentials = null;
+        DeleteCredentialsFile();
     }
 }
