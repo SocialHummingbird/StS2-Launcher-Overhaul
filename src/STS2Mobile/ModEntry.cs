@@ -197,12 +197,15 @@ public static class ModEntry
         {
             try
             {
-                return OS.GetDataDir();
+                var dataDir = OS.GetDataDir();
+                if (BootstrapTrace.TryNormalizeDirectory(dataDir, out var normalized))
+                    return normalized;
             }
             catch
             {
-                return BootstrapTrace.ResolveFallbackDataDirectory();
             }
+
+            return BootstrapTrace.ResolveFallbackDataDirectory();
         }
     }
 

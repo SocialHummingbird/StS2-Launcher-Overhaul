@@ -1,6 +1,6 @@
 param(
     [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
-    [string]$PackageName = "com.sts2launcher.overhaul.fork.dev",
+    [string]$PackageName = "",
     [string]$ArtifactsDir = "",
     [string]$DeviceSerial = "",
     [int]$WaitForDeviceSeconds = 0,
@@ -25,6 +25,7 @@ Assert-AndroidAdbPath -AdbPath $AdbPath
 
 $device = Resolve-AndroidTargetDevice -AdbPath $AdbPath -DeviceSerial $DeviceSerial -WaitForDeviceSeconds $WaitForDeviceSeconds
 $DeviceSerial = $device
+$PackageName = Resolve-AndroidInstalledLauncherPackageName -AdbPath $AdbPath -DeviceSerial $DeviceSerial -PackageName $PackageName
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $outDir = Join-Path $ArtifactsDir "phone-diagnostics-$timestamp"
 New-Item -ItemType Directory -Force $outDir | Out-Null

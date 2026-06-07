@@ -46,6 +46,10 @@ if ($digest -and $digest.StartsWith("sha256:")) {
 
 $targetAbis = Resolve-AndroidApkTargetAbis -Abi $Abi
 Test-AndroidApkContents -ApkPath $apkPath -TargetAbis $targetAbis -TempRoot (Join-Path $root "tmp") -TempPrefix "release-apk-verify"
+& (Join-Path $PSScriptRoot "verify-android-apk-crypto-patches.ps1") -ApkPath $apkPath
+if ($LASTEXITCODE -ne 0) {
+    throw "Release APK Android crypto patch verification failed with exit code $LASTEXITCODE."
+}
 
 Write-Host "Release APK verification passed: $ReleaseTag/$AssetName"
 Write-Host "Verified ABIs: $($targetAbis -join ', ')"

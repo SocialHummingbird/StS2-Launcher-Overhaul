@@ -1,6 +1,6 @@
 param(
     [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
-    [string]$PackageName = "com.sts2launcher.overhaul.fork.dev",
+    [string]$PackageName = "",
     [string]$ArtifactsDir = "",
     [int]$WaitSeconds = 10,
     [switch]$ClearAppData,
@@ -12,6 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "android-adb-utils.ps1")
+. (Join-Path $PSScriptRoot "android-apk-utils.ps1")
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 if (-not $ArtifactsDir) {
@@ -78,6 +79,10 @@ $device = Resolve-AndroidTargetDevice -AdbPath $AdbPath -DeviceSerial $DeviceSer
 $DeviceSerial = $device
 $abiList = (Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", "ro.product.cpu.abilist") | Out-String).Trim()
 $apk = Resolve-ApkForAbi $abiList
+if ([string]::IsNullOrWhiteSpace($PackageName)) {
+    $PackageName = Get-AndroidApkPackageName -ApkPath $apk -AdbPath $AdbPath
+    Write-Host "Resolved APK package: $PackageName"
+}
 $component = Get-AndroidLauncherComponent -PackageName $PackageName
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $fullLogPath = Join-Path $ArtifactsDir "logcat-smoke-$timestamp-full.txt"

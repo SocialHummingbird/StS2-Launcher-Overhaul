@@ -106,6 +106,8 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
         CancellationToken cancellationToken
     )
     {
+        RejectWebSocketRequest(request);
+
         var bodyBytes = await ReadRequestBodyAsync(request, cancellationToken).ConfigureAwait(false);
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -123,6 +125,19 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
         return request.Content == null
             ? Array.Empty<byte>()
             : await request.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void RejectWebSocketRequest(HttpRequestMessage request)
+    {
+        var scheme = request.RequestUri?.Scheme;
+        if (
+            string.Equals(scheme, "ws", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(scheme, "wss", StringComparison.OrdinalIgnoreCase)
+        )
+            throw new NotSupportedException(
+                "Android Java HTTP bridge cannot handle WebSocket CM requests; "
+                    + "CMWebSocket must use the managed WebSocket HttpClient."
+            );
     }
 
     private static string? GetBridgeString(JsonElement element)

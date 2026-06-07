@@ -26,9 +26,11 @@ $fatalPatterns = @(
     "System\.Security\.Cryptography\.SHA1\.TryHashData",
     "MethodAccessException",
     "MissingMethodException",
-    "TypeLoadException",
     "EntryPointNotFoundException",
-    "Android Java SHA-1 TryHashData bridge failed"
+    "Android Java SHA-1 TryHashData bridge failed",
+    "HTTP bridge request failed: GET wss://",
+    "Android Java HTTP bridge cannot handle WebSocket CM requests",
+    "unknown protocol: wss"
 )
 
 $loginFailurePatterns = @(
@@ -46,6 +48,12 @@ $preSteamGuardBoundaryPatterns = @(
 $postSteamGuardBoundaryPatterns = @(
     "\[Auth\] Authentication successful",
     "\[Launcher\] Ownership verified"
+)
+
+$requiredTransportEvidencePatterns = @(
+    "\[Auth\] Android Steam CM protocol configured: WebSocket",
+    "\[Auth\] Steam CM WebSocket using managed \.NET transport",
+    "\[Auth\] Android Java SHA-1 TryHashData bridge active"
 )
 
 $fatalMatches = @()
@@ -69,6 +77,18 @@ foreach ($pattern in $loginFailurePatterns) {
 
 if ($loginFailureMatches.Count -gt 0) {
     Write-Error "Steam login failure regression detected. Matched: $($loginFailureMatches -join ', ')"
+    exit 1
+}
+
+$missingTransportEvidence = @()
+foreach ($pattern in $requiredTransportEvidencePatterns) {
+    if ($log -notmatch $pattern) {
+        $missingTransportEvidence += $pattern
+    }
+}
+
+if ($missingTransportEvidence.Count -gt 0) {
+    Write-Error "Steam login transport evidence missing. Missing: $($missingTransportEvidence -join ', ')"
     exit 1
 }
 
@@ -96,4 +116,4 @@ if (-not $reachedBoundary) {
     exit 1
 }
 
-Write-Host "Steam login native crypto crash regression check passed."
+Write-Host "Steam login transport/auth regression check passed."

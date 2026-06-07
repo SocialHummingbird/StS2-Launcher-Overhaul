@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using SteamKit2;
 
 namespace STS2Mobile.Steam;
@@ -6,10 +7,12 @@ namespace STS2Mobile.Steam;
 internal static partial class SteamConnectionConfigurationFactory
 {
     private const ProtocolTypes AndroidProtocolTypes = ProtocolTypes.WebSocket;
+    private static int _androidProtocolLogged;
 
     internal static SteamConfiguration Create()
     {
         AndroidJavaHttpMessageHandler.Prime();
+        LogAndroidProtocolConfigurationOnce();
 
         var config = SteamConfiguration.Create(builder =>
         {
@@ -26,5 +29,14 @@ internal static partial class SteamConnectionConfigurationFactory
 
         SeedAndroidMachineIdCache(config);
         return config;
+    }
+
+    private static void LogAndroidProtocolConfigurationOnce()
+    {
+        if (!OperatingSystem.IsAndroid())
+            return;
+
+        if (Interlocked.Exchange(ref _androidProtocolLogged, 1) == 0)
+            PatchHelper.Log("[Auth] Android Steam CM protocol configured: WebSocket");
     }
 }

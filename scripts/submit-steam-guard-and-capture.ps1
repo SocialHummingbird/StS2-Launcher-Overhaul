@@ -1,6 +1,7 @@
 param(
-    [string]$PackageName = "com.sts2launcher.overhaul.fork.dev",
+    [string]$PackageName = "",
     [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
+    [string]$DeviceSerial = "",
     [string]$OutputLogcatPath = "tmp\login-boundary-post-2fa-logcat.txt",
     [string]$OutputScreenshotPath = "tmp\login-boundary-post-2fa.png",
     [string]$GuardCode = "",
@@ -16,6 +17,13 @@ $ErrorActionPreference = "Stop"
 if (-not (Test-Path -LiteralPath $AdbPath)) {
     throw "adb not found: $AdbPath"
 }
+
+if (-not [string]::IsNullOrWhiteSpace($DeviceSerial)) {
+    $env:ANDROID_SERIAL = $DeviceSerial
+    Write-Host "Using Android device serial: $DeviceSerial"
+}
+
+$PackageName = Resolve-SteamLauncherPackageName -AdbPath $AdbPath -DeviceSerial $DeviceSerial -PackageName $PackageName
 
 function Read-GuardCodeGui() {
     Add-Type -AssemblyName System.Windows.Forms
@@ -118,16 +126,14 @@ $guardCode = Read-GuardCode
 New-Item -ItemType Directory -Force (Split-Path -Parent $OutputLogcatPath) | Out-Null
 New-Item -ItemType Directory -Force (Split-Path -Parent $OutputScreenshotPath) | Out-Null
 
-& $AdbPath logcat -c
-
-Write-SteamGuardCodeFile -AdbPath $AdbPath -PackageName $PackageName -Code $guardCode
+Write-SteamGuardCodeFile -AdbPath $AdbPath -DeviceSerial $DeviceSerial -PackageName $PackageName -Code $guardCode
 
 Write-Host "Wrote local Steam Guard handoff file for $PackageName. Waiting up to $PostGuardResultTimeoutSeconds seconds for auth/ownership success or a crash signature..."
-Wait-SteamLoginPostGuardResult -AdbPath $AdbPath -TimeoutSeconds $PostGuardResultTimeoutSeconds -PollSeconds $PostGuardPollSeconds
+Wait-SteamLoginPostGuardResult -AdbPath $AdbPath -DeviceSerial $DeviceSerial -TimeoutSeconds $PostGuardResultTimeoutSeconds -PollSeconds $PostGuardPollSeconds
 
-& $AdbPath logcat -d -v time > $OutputLogcatPath
-& $AdbPath shell screencap -p /sdcard/sts2-login-boundary-post-2fa.png | Out-Null
-& $AdbPath pull /sdcard/sts2-login-boundary-post-2fa.png $OutputScreenshotPath | Out-Null
+Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("logcat", "-d", "-v", "time") > $OutputLogcatPath
+Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "screencap", "-p", "/sdcard/sts2-login-boundary-post-2fa.png") | Out-Null
+Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("pull", "/sdcard/sts2-login-boundary-post-2fa.png", $OutputScreenshotPath) | Out-Null
 
 .\scripts\check-login-crash-log.ps1 -LogcatPath $OutputLogcatPath -RequirePostSteamGuard
 

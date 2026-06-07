@@ -1,6 +1,7 @@
 param(
-    [string]$PackageName = "com.sts2launcher.overhaul.fork.dev",
+    [string]$PackageName = "",
     [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
+    [string]$DeviceSerial = "",
     [string]$CredentialsPath = "tmp\steam-login.local.json",
     [string]$OutputLogcatPath = "tmp\login-boundary-logcat.txt",
     [string]$OutputScreenshotPath = "tmp\login-boundary.png",
@@ -22,9 +23,33 @@ param(
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "steam-login-utils.ps1")
+. (Join-Path $PSScriptRoot "android-apk-utils.ps1")
+
+function Invoke-BoundaryAdb {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+        [switch]$AllowFailure
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($DeviceSerial)) {
+        & $AdbPath -s $DeviceSerial @Arguments
+    } else {
+        & $AdbPath @Arguments
+    }
+
+    if (-not $AllowFailure -and $LASTEXITCODE -ne 0) {
+        throw "adb $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
+    }
+}
 
 if (-not (Test-Path -LiteralPath $AdbPath)) {
     throw "adb not found: $AdbPath"
+}
+
+if (-not [string]::IsNullOrWhiteSpace($DeviceSerial)) {
+    $env:ANDROID_SERIAL = $DeviceSerial
+    Write-Host "Using Android device serial: $DeviceSerial"
 }
 
 if (-not (Test-Path -LiteralPath $CredentialsPath)) {
@@ -45,6 +70,11 @@ if (-not $ApkPath) {
 
 if (-not (Test-Path -LiteralPath $ApkPath)) {
     throw "APK not found: $ApkPath"
+}
+
+if ([string]::IsNullOrWhiteSpace($PackageName)) {
+    $PackageName = Get-AndroidApkPackageName -ApkPath $ApkPath -AdbPath $AdbPath
+    Write-Host "Resolved APK package: $PackageName"
 }
 
 if (-not $SkipCryptoPatchVerification) {
@@ -71,15 +101,16 @@ New-Item -ItemType Directory -Force (Split-Path -Parent $OutputLogcatPath) | Out
 New-Item -ItemType Directory -Force (Split-Path -Parent $OutputScreenshotPath) | Out-Null
 
 Write-Host "Installing APK: $ApkPath"
-& $AdbPath uninstall $PackageName | Out-Null
-& $AdbPath install -r $ApkPath | Out-Null
+Invoke-BoundaryAdb -Arguments @("uninstall", $PackageName) -AllowFailure | Out-Null
+Invoke-BoundaryAdb -Arguments @("install", $ApkPath) | Out-Null
 
-& $AdbPath logcat -c
+Invoke-BoundaryAdb -Arguments @("logcat", "-c")
 
 .\scripts\login-emulator.ps1 `
     -CredentialsPath $CredentialsPath `
     -PackageName $PackageName `
     -AdbPath $AdbPath `
+    -DeviceSerial $DeviceSerial `
     -GuardCode $GuardCode `
     -PromptForGuardCode:$PromptForGuardCode `
     -UseLocalCredentialFile `
@@ -87,7 +118,7 @@ Write-Host "Installing APK: $ApkPath"
 
 if ($WaitForPostGuardResult) {
     Write-Host "Waiting up to $PostGuardResultTimeoutSeconds seconds for auth/ownership success or a crash signature. If Steam Guard is required, use scripts\submit-steam-guard-and-capture.ps1 or enter the code in the emulator."
-    Wait-SteamLoginPostGuardResult -AdbPath $AdbPath -TimeoutSeconds $PostGuardResultTimeoutSeconds -PollSeconds $PostGuardPollSeconds
+    Wait-SteamLoginPostGuardResult -AdbPath $AdbPath -DeviceSerial $DeviceSerial -TimeoutSeconds $PostGuardResultTimeoutSeconds -PollSeconds $PostGuardPollSeconds
 } elseif ($WaitForManualGuardSubmit) {
     Read-Host "Enter the Steam Guard code directly in the emulator, submit it, then press Enter here to capture post-2FA evidence"
     Start-Sleep -Seconds $PostLoginWaitSeconds
@@ -96,13 +127,13 @@ if ($WaitForPostGuardResult) {
     Start-Sleep -Seconds $ManualGuardWaitSeconds
 } else {
     Write-Host "Waiting up to $LoginResultTimeoutSeconds seconds for auth success, auth failure, Steam Guard request, or a crash signature."
-    $loginResult = Wait-SteamLoginResult -AdbPath $AdbPath -TimeoutSeconds $LoginResultTimeoutSeconds -PollSeconds $LoginResultPollSeconds
+    $loginResult = Wait-SteamLoginResult -AdbPath $AdbPath -DeviceSerial $DeviceSerial -TimeoutSeconds $LoginResultTimeoutSeconds -PollSeconds $LoginResultPollSeconds
     Write-Host "Login result wait completed: $loginResult"
 }
 
-& $AdbPath logcat -d -v time > $OutputLogcatPath
-& $AdbPath shell screencap -p /sdcard/sts2-login-boundary.png | Out-Null
-& $AdbPath pull /sdcard/sts2-login-boundary.png $OutputScreenshotPath | Out-Null
+Invoke-BoundaryAdb -Arguments @("logcat", "-d", "-v", "time") > $OutputLogcatPath
+Invoke-BoundaryAdb -Arguments @("shell", "screencap", "-p", "/sdcard/sts2-login-boundary.png") | Out-Null
+Invoke-BoundaryAdb -Arguments @("pull", "/sdcard/sts2-login-boundary.png", $OutputScreenshotPath) | Out-Null
 
 .\scripts\check-login-crash-log.ps1 -LogcatPath $OutputLogcatPath -RequirePostSteamGuard:$requirePostSteamGuard
 

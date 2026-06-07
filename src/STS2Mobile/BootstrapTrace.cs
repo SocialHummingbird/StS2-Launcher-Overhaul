@@ -50,26 +50,12 @@ internal static class BootstrapTrace
             if (string.IsNullOrWhiteSpace(temp))
                 continue;
 
-            string normalized;
-            try
-            {
-                normalized = Path.GetFullPath(temp);
-            }
-            catch
-            {
+            if (!TryNormalizeDirectory(temp, out var normalized))
                 continue;
-            }
 
-            if (
-                string.Equals(
-                    Path.GetFileName(normalized),
-                    TempDirectoryName,
-                    StringComparison.OrdinalIgnoreCase
-                )
-            )
+            if (IsTempDirectoryName(normalized))
             {
-                var parent = Path.GetDirectoryName(normalized);
-                if (!string.IsNullOrWhiteSpace(parent))
+                if (TryGetParentDirectory(normalized, out var parent))
                     return parent;
             }
 
@@ -78,11 +64,62 @@ internal static class BootstrapTrace
 
         try
         {
-            return Path.GetTempPath();
+            if (TryNormalizeDirectory(Path.GetTempPath(), out var tempPath))
+                return tempPath;
         }
         catch
         {
-            return ".";
+        }
+
+        return ".";
+    }
+
+    internal static bool TryNormalizeDirectory(string path, out string normalized)
+    {
+        normalized = null;
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        try
+        {
+            normalized = Path.GetFullPath(path);
+            return !string.IsNullOrWhiteSpace(normalized);
+        }
+        catch
+        {
+            normalized = null;
+            return false;
+        }
+    }
+
+    private static bool IsTempDirectoryName(string path)
+    {
+        try
+        {
+            return string.Equals(
+                Path.GetFileName(path),
+                TempDirectoryName,
+                StringComparison.OrdinalIgnoreCase
+            );
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetParentDirectory(string path, out string parent)
+    {
+        parent = null;
+        try
+        {
+            parent = Path.GetDirectoryName(path);
+            return !string.IsNullOrWhiteSpace(parent);
+        }
+        catch
+        {
+            parent = null;
+            return false;
         }
     }
 

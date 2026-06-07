@@ -11,6 +11,99 @@ function Resolve-AndroidApkTargetAbis {
     return @($Abi)
 }
 
+function Resolve-AndroidAaptPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath
+    )
+
+    $sdkRoots = @()
+    if (Test-Path -LiteralPath $AdbPath) {
+        $platformToolsDir = Split-Path -Parent (Resolve-Path -LiteralPath $AdbPath).Path
+        $sdkRoots += Split-Path -Parent $platformToolsDir
+    } else {
+        $adbCommand = Get-Command $AdbPath -ErrorAction SilentlyContinue
+        if ($adbCommand -and $adbCommand.Source) {
+            $platformToolsDir = Split-Path -Parent (Resolve-Path -LiteralPath $adbCommand.Source).Path
+            $sdkRoots += Split-Path -Parent $platformToolsDir
+        }
+    }
+
+    $sdkRoots += @($env:ANDROID_HOME, $env:ANDROID_SDK_ROOT)
+    $sdkRoots = @($sdkRoots |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        ForEach-Object { (Resolve-Path -LiteralPath $_ -ErrorAction SilentlyContinue).Path } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique)
+
+    foreach ($sdkRoot in $sdkRoots) {
+        $buildToolsDir = Join-Path $sdkRoot "build-tools"
+        if (-not (Test-Path -LiteralPath $buildToolsDir)) {
+            continue
+        }
+
+        $aapt = Get-ChildItem -LiteralPath $buildToolsDir -Directory |
+            ForEach-Object {
+                $aaptPath = $null
+                foreach ($candidateName in @("aapt.exe", "aapt")) {
+                    $candidatePath = Join-Path $_.FullName $candidateName
+                    if (Test-Path -LiteralPath $candidatePath) {
+                        $aaptPath = $candidatePath
+                        break
+                    }
+                }
+
+                if ($aaptPath) {
+                    try {
+                        $parsedVersion = [version]$_.Name
+                    } catch {
+                        $parsedVersion = [version]"0.0"
+                    }
+
+                    [pscustomobject]@{
+                        Path = $aaptPath
+                        Version = $parsedVersion
+                        Name = $_.Name
+                    }
+                }
+            } |
+            Sort-Object @{ Expression = { $_.Version }; Descending = $true }, Name -Descending |
+            Select-Object -First 1
+
+        if ($aapt) {
+            return $aapt.Path
+        }
+    }
+
+    throw "Android SDK aapt tool not found. Set ANDROID_HOME or ANDROID_SDK_ROOT to an SDK with build-tools installed."
+}
+
+function Get-AndroidApkPackageName {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApkPath,
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath
+    )
+
+    if (-not (Test-Path -LiteralPath $ApkPath)) {
+        throw "APK not found: $ApkPath"
+    }
+
+    $aapt = Resolve-AndroidAaptPath -AdbPath $AdbPath
+    $badging = & $aapt dump badging $ApkPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to read APK badging with aapt: $ApkPath"
+    }
+
+    $joined = $badging -join "`n"
+    if ($joined -notmatch "package: name='([^']+)'") {
+        throw "Could not resolve APK package name from badging: $ApkPath"
+    }
+
+    return $Matches[1]
+}
+
 function Test-FileContainsAscii {
     param(
         [Parameter(Mandatory = $true)]
@@ -72,6 +165,8 @@ function Test-AndroidApkContents {
         "assets/bootstrap.pck",
         "assets/dotnet_bcl/STS2Mobile.dll",
         "assets/dotnet_bcl/GodotSharp.dll",
+        "assets/dotnet_bcl/SteamKit2.dll",
+        "assets/dotnet_bcl/System.Net.WebSockets.Client.dll",
         "assets/dotnet_bcl/System.Private.CoreLib.dll"
     )
     $requiredNativeRuntimeLibs = @(
