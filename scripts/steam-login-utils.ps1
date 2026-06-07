@@ -20,6 +20,11 @@ $SteamLoginSuccessPatterns = @(
     "[Auth] Authentication successful",
     "[Launcher] Ownership verified"
 )
+$SteamLoginUnsupportedTargetPatterns = @(
+    "Routing to native x86 fallback",
+    "Showing native x86 fallback",
+    "This Android x86 emulator cannot safely run the Godot/.NET runtime"
+)
 $SteamLoginFailurePatterns = @(
     "[Auth] Login failed",
     "Login failed:",
@@ -379,6 +384,8 @@ function Wait-SteamLoginPostGuardResult {
     if ($result -ne "success") {
         Write-Host "Post-2FA login result wait completed: $result"
     }
+
+    return $result
 }
 
 function Wait-SteamLoginResult {
@@ -433,6 +440,12 @@ function Wait-SteamLoginSignal {
         if ($matchedSuccess) {
             Write-Host "Detected ${SuccessLabel} signal: $matchedSuccess"
             return "success"
+        }
+
+        $matchedUnsupportedTarget = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginUnsupportedTargetPatterns
+        if ($matchedUnsupportedTarget) {
+            Write-Host "Detected unsupported validation target: $matchedUnsupportedTarget"
+            return "unsupported-target"
         }
 
         $matchedCrash = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginCrashPatterns

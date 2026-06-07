@@ -16,6 +16,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+. (Join-Path $PSScriptRoot "android-apk-utils.ps1")
+
 function Get-ConnectedPhysicalDeviceSerial {
     param(
         [Parameter(Mandatory = $true)]
@@ -47,6 +49,149 @@ function Get-ConnectedPhysicalDeviceSerial {
     throw "No physical Android device is connected. Connect a phone/tablet with USB debugging enabled."
 }
 
+function Invoke-PhysicalLoginAdbCapture {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [Parameter(Mandatory = $true)]
+        [string]$DeviceSerial,
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $output = @(& $AdbPath -s $DeviceSerial @Arguments 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "adb $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
+    }
+
+    return $output
+}
+
+function Get-PhysicalDeviceAbiList {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [Parameter(Mandatory = $true)]
+        [string]$DeviceSerial
+    )
+
+    $abiList = (Invoke-PhysicalLoginAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", "ro.product.cpu.abilist") -join "").Trim()
+    if (-not [string]::IsNullOrWhiteSpace($abiList)) {
+        return $abiList
+    }
+
+    return (Invoke-PhysicalLoginAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", "ro.product.cpu.abi") -join "").Trim()
+}
+
+function Get-PhysicalDeviceProperty {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [Parameter(Mandatory = $true)]
+        [string]$DeviceSerial,
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    return (Invoke-PhysicalLoginAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", $Name) -join "").Trim()
+}
+
+function Assert-PhysicalDeviceSupportsArm64 {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [Parameter(Mandatory = $true)]
+        [string]$DeviceSerial
+    )
+
+    $abiList = Get-PhysicalDeviceAbiList -AdbPath $AdbPath -DeviceSerial $DeviceSerial
+    if ($abiList -notmatch "(^|,)arm64-v8a(,|$)") {
+        throw "Physical-device validation requires an ARM64 Android target. Device $DeviceSerial reports ABI list: $abiList"
+    }
+
+    return $abiList
+}
+
+function Get-ApkNativeCodeLine {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApkPath,
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath
+    )
+
+    $aaptPath = Resolve-AndroidAaptPath -AdbPath $AdbPath
+    $badging = @(& $aaptPath dump badging $ApkPath 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "aapt dump badging failed for APK: $ApkPath"
+    }
+
+    return $badging | Where-Object { ([string]$_).StartsWith("native-code:") } | Select-Object -First 1
+}
+
+function Assert-ApkSupportsArm64 {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApkPath,
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath
+    )
+
+    $nativeCodeLine = Get-ApkNativeCodeLine -ApkPath $ApkPath -AdbPath $AdbPath
+    if (-not $nativeCodeLine) {
+        throw "Physical-device validation requires an APK with arm64-v8a native code. $ApkPath did not report native-code badging."
+    }
+
+    if ($nativeCodeLine -notmatch "'arm64-v8a'") {
+        throw "Physical-device validation requires an ARM64-capable APK. $ApkPath reports $nativeCodeLine"
+    }
+}
+
+function Test-ApkSupportsArm64 {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApkPath,
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath
+    )
+
+    $nativeCodeLine = Get-ApkNativeCodeLine -ApkPath $ApkPath -AdbPath $AdbPath
+    if (-not $nativeCodeLine) {
+        return $false
+    }
+
+    return $nativeCodeLine -match "'arm64-v8a'"
+}
+
+function Resolve-PhysicalLoginApkPath {
+    param(
+        [string]$ApkPath = "",
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ApkPath)) {
+        return $ApkPath
+    }
+
+    $candidateApks = @(
+        Get-ChildItem -LiteralPath "android\build\outputs\apk\mono\release" -Filter "StS2Launcher-v*.apk" -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending
+    )
+
+    foreach ($candidateApk in $candidateApks) {
+        if (Test-ApkSupportsArm64 -ApkPath $candidateApk.FullName -AdbPath $AdbPath) {
+            return $candidateApk.FullName
+        }
+    }
+
+    if ($candidateApks.Count -eq 0) {
+        throw "No APK found in android\build\outputs\apk\mono\release. Pass -ApkPath with an ARM64-capable APK."
+    }
+
+    throw "No ARM64-capable APK found in android\build\outputs\apk\mono\release. Pass -ApkPath with an APK that contains arm64-v8a native code."
+}
+
 if (-not (Test-Path -LiteralPath $AdbPath)) {
     throw "adb not found: $AdbPath"
 }
@@ -59,6 +204,22 @@ if ($DeviceSerial.StartsWith("emulator-")) {
     throw "Physical-device validation cannot use emulator serial: $DeviceSerial"
 }
 
+$deviceAbiList = Assert-PhysicalDeviceSupportsArm64 -AdbPath $AdbPath -DeviceSerial $DeviceSerial
+$deviceModel = Get-PhysicalDeviceProperty -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Name "ro.product.model"
+$deviceManufacturer = Get-PhysicalDeviceProperty -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Name "ro.product.manufacturer"
+$deviceSdk = Get-PhysicalDeviceProperty -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Name "ro.build.version.sdk"
+
+$ApkPath = Resolve-PhysicalLoginApkPath -ApkPath $ApkPath -AdbPath $AdbPath
+if (-not [string]::IsNullOrWhiteSpace($ApkPath)) {
+    Assert-ApkSupportsArm64 -ApkPath $ApkPath -AdbPath $AdbPath
+    $apkPackageName = Get-AndroidApkPackageName -ApkPath $ApkPath -AdbPath $AdbPath
+    if ([string]::IsNullOrWhiteSpace($PackageName)) {
+        $PackageName = $apkPackageName
+    } elseif ($PackageName -ne $apkPackageName) {
+        throw "PackageName mismatch. APK $ApkPath declares $apkPackageName but -PackageName was $PackageName."
+    }
+}
+
 $safeDeviceSerial = $DeviceSerial -replace '[^A-Za-z0-9_.-]', '_'
 $outputPrefix = "artifacts\android\physical-login-$safeDeviceSerial"
 $summaryPath = "$outputPrefix-summary.txt"
@@ -67,9 +228,15 @@ $screenshotPath = "$outputPrefix.png"
 
 New-Item -ItemType Directory -Force (Split-Path -Parent $summaryPath) | Out-Null
 @(
+    "Validation target: physical ARM64 Android device",
+    "Validation note: headed x86 emulator results are non-authoritative for Steam login",
     "Device serial: $DeviceSerial",
+    "Device manufacturer: $deviceManufacturer",
+    "Device model: $deviceModel",
+    "Device Android SDK: $deviceSdk",
+    "Device ABI list: $deviceAbiList",
     "APK path: $ApkPath",
-    "Package override: $PackageName",
+    "Resolved package: $PackageName",
     "Credentials path: $CredentialsPath",
     "Logcat path: $logcatPath",
     "Screenshot path: $screenshotPath"

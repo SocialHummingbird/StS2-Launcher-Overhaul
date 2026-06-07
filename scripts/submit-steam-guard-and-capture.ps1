@@ -128,12 +128,17 @@ New-Item -ItemType Directory -Force (Split-Path -Parent $OutputScreenshotPath) |
 
 Write-SteamGuardCodeFile -AdbPath $AdbPath -DeviceSerial $DeviceSerial -PackageName $PackageName -Code $guardCode
 
-Write-Host "Wrote local Steam Guard handoff file for $PackageName. Waiting up to $PostGuardResultTimeoutSeconds seconds for auth/ownership success or a crash signature..."
-Wait-SteamLoginPostGuardResult -AdbPath $AdbPath -DeviceSerial $DeviceSerial -TimeoutSeconds $PostGuardResultTimeoutSeconds -PollSeconds $PostGuardPollSeconds
+Write-Host "Wrote local Steam Guard handoff file for $PackageName. Waiting up to $PostGuardResultTimeoutSeconds seconds for auth/ownership success, unsupported target, or a crash signature..."
+$postGuardLoginResult = Wait-SteamLoginPostGuardResult -AdbPath $AdbPath -DeviceSerial $DeviceSerial -TimeoutSeconds $PostGuardResultTimeoutSeconds -PollSeconds $PostGuardPollSeconds
 
 Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("logcat", "-d", "-v", "time") > $OutputLogcatPath
 Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "screencap", "-p", "/sdcard/sts2-login-boundary-post-2fa.png") | Out-Null
 Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("pull", "/sdcard/sts2-login-boundary-post-2fa.png", $OutputScreenshotPath) | Out-Null
+
+if ($postGuardLoginResult -eq "unsupported-target") {
+    Write-Error "Steam login validation target unsupported. Captured logcat: $OutputLogcatPath. Captured screenshot: $OutputScreenshotPath. Use a supported ARM64 Android device/build for authoritative login validation."
+    exit 1
+}
 
 .\scripts\check-login-crash-log.ps1 -LogcatPath $OutputLogcatPath -RequirePostSteamGuard
 

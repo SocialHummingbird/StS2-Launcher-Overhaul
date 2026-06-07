@@ -39,6 +39,12 @@ $loginFailurePatterns = @(
     "\[Auth\] Login failed"
 )
 
+$unsupportedTargetPatterns = @(
+    "Routing to native x86 fallback",
+    "Showing native x86 fallback",
+    "This Android x86 emulator cannot safely run the Godot/\.NET runtime"
+)
+
 $preSteamGuardBoundaryPatterns = @(
     "\[Auth\] Steam Guard 2FA code required",
     "\[Auth\] Authentication successful",
@@ -65,6 +71,18 @@ foreach ($pattern in $fatalPatterns) {
 
 if ($fatalMatches.Count -gt 0) {
     Write-Error "Steam login crash regression detected. Matched: $($fatalMatches -join ', ')"
+    exit 1
+}
+
+$unsupportedTargetMatches = @()
+foreach ($pattern in $unsupportedTargetPatterns) {
+    if ($log -match $pattern) {
+        $unsupportedTargetMatches += $pattern
+    }
+}
+
+if ($unsupportedTargetMatches.Count -gt 0) {
+    Write-Error "Steam login validation target unsupported. Matched: $($unsupportedTargetMatches -join ', '). Use a supported ARM64 Android device/build for authoritative login validation."
     exit 1
 }
 

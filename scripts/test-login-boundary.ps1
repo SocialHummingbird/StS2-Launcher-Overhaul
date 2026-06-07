@@ -116,9 +116,10 @@ Invoke-BoundaryAdb -Arguments @("logcat", "-c")
     -UseLocalCredentialFile `
     -Launch
 
+$boundaryLoginResult = $null
 if ($WaitForPostGuardResult) {
-    Write-Host "Waiting up to $PostGuardResultTimeoutSeconds seconds for auth/ownership success or a crash signature. If Steam Guard is required, use scripts\submit-steam-guard-and-capture.ps1 or enter the code in the emulator."
-    Wait-SteamLoginPostGuardResult -AdbPath $AdbPath -DeviceSerial $DeviceSerial -TimeoutSeconds $PostGuardResultTimeoutSeconds -PollSeconds $PostGuardPollSeconds
+    Write-Host "Waiting up to $PostGuardResultTimeoutSeconds seconds for auth/ownership success, unsupported target, or a crash signature. If Steam Guard is required, use scripts\submit-steam-guard-and-capture.ps1 or enter the code in the emulator."
+    $boundaryLoginResult = Wait-SteamLoginPostGuardResult -AdbPath $AdbPath -DeviceSerial $DeviceSerial -TimeoutSeconds $PostGuardResultTimeoutSeconds -PollSeconds $PostGuardPollSeconds
 } elseif ($WaitForManualGuardSubmit) {
     Read-Host "Enter the Steam Guard code directly in the emulator, submit it, then press Enter here to capture post-2FA evidence"
     Start-Sleep -Seconds $PostLoginWaitSeconds
@@ -126,14 +127,19 @@ if ($WaitForPostGuardResult) {
     Write-Host "Enter the Steam Guard code directly in the emulator. Waiting $ManualGuardWaitSeconds seconds before capturing post-2FA evidence..."
     Start-Sleep -Seconds $ManualGuardWaitSeconds
 } else {
-    Write-Host "Waiting up to $LoginResultTimeoutSeconds seconds for auth success, auth failure, Steam Guard request, or a crash signature."
-    $loginResult = Wait-SteamLoginResult -AdbPath $AdbPath -DeviceSerial $DeviceSerial -TimeoutSeconds $LoginResultTimeoutSeconds -PollSeconds $LoginResultPollSeconds
-    Write-Host "Login result wait completed: $loginResult"
+    Write-Host "Waiting up to $LoginResultTimeoutSeconds seconds for auth success, auth failure, Steam Guard request, unsupported target, or a crash signature."
+    $boundaryLoginResult = Wait-SteamLoginResult -AdbPath $AdbPath -DeviceSerial $DeviceSerial -TimeoutSeconds $LoginResultTimeoutSeconds -PollSeconds $LoginResultPollSeconds
+    Write-Host "Login result wait completed: $boundaryLoginResult"
 }
 
 Invoke-BoundaryAdb -Arguments @("logcat", "-d", "-v", "time") > $OutputLogcatPath
 Invoke-BoundaryAdb -Arguments @("shell", "screencap", "-p", "/sdcard/sts2-login-boundary.png") | Out-Null
 Invoke-BoundaryAdb -Arguments @("pull", "/sdcard/sts2-login-boundary.png", $OutputScreenshotPath) | Out-Null
+
+if ($boundaryLoginResult -eq "unsupported-target") {
+    Write-Error "Steam login validation target unsupported. Captured logcat: $OutputLogcatPath. Captured screenshot: $OutputScreenshotPath. Use a supported ARM64 Android device/build for authoritative login validation."
+    exit 1
+}
 
 .\scripts\check-login-crash-log.ps1 -LogcatPath $OutputLogcatPath -RequirePostSteamGuard:$requirePostSteamGuard
 

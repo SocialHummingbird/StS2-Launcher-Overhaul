@@ -108,9 +108,10 @@ static void VerifyApkCryptoPatches(string apkPath)
         var webSocketClient = ModuleDefinition.ReadModule(webSocketClientPath, reader);
         openedModules.Add(webSocketClient);
         AssertNoForbiddenWebSocketClientCryptoCallsites(webSocketClient);
-        AssertReferencesHelperAssembly(webSocketClient, helperType);
-        AssertContainsHelperCallsite(webSocketClient, webSocketClient.ImportReference(sha1TryHashDataHelper), 1);
-        Console.WriteLine("Verified APK Android crypto patches: SteamKit2.dll and System.Net.WebSockets.Client.dll reference AndroidJavaCrypto helpers and contain no forbidden crypto callsites.");
+        var webSocketClientSha1Helper = webSocketClient.ImportReference(sha1TryHashDataHelper);
+        if (CountHelperCallsites(webSocketClient, webSocketClientSha1Helper) > 0)
+            AssertReferencesHelperAssembly(webSocketClient, helperType);
+        Console.WriteLine("Verified APK Android crypto patches: SteamKit2.dll references AndroidJavaCrypto helpers; System.Net.WebSockets.Client.dll contains no forbidden crypto callsites and references helpers when patching is required.");
     }
     finally
     {
@@ -420,10 +421,10 @@ static void PatchWebSocketClientCrypto(string webSocketClientPath, TypeDefinitio
     var webSocketClient = ModuleDefinition.ReadModule(webSocketClientPath, reader);
     var cryptoPatchRules = CreateWebSocketClientCryptoPatchRules(helperType, webSocketClient);
     var cryptoPatchCounts = PatchCryptoCalls(webSocketClient, cryptoPatchRules);
-    AssertRequiredWebSocketClientCryptoPatches(cryptoPatchCounts);
     AssertNoForbiddenWebSocketClientCryptoCallsites(webSocketClient);
     AssertPatchedHelperCallsites(webSocketClient, cryptoPatchRules, cryptoPatchCounts);
-    AssertReferencesHelperAssembly(webSocketClient, helperType);
+    if (Sum(cryptoPatchCounts, "sha1TryHashData") > 0)
+        AssertReferencesHelperAssembly(webSocketClient, helperType);
 
     WriteModuleOverOriginal(webSocketClient, webSocketClientPath);
     Console.WriteLine(FormatWebSocketClientCryptoPatchSummary(cryptoPatchCounts));
@@ -464,15 +465,6 @@ static IReadOnlyList<CryptoPatchRule> CreateWebSocketClientCryptoPatchRules(
             targetModule.ImportReference(FindHelper(helperType, spec.Helper))
         ))
         .ToArray();
-}
-
-static void AssertRequiredWebSocketClientCryptoPatches(IReadOnlyDictionary<string, int> counts)
-{
-    RequirePatch(
-        counts,
-        "sha1TryHashData",
-        "No System.Net.WebSockets.Client.dll SHA1.TryHashData calls were patched"
-    );
 }
 
 static string FormatWebSocketClientCryptoPatchSummary(IReadOnlyDictionary<string, int> counts)

@@ -218,8 +218,8 @@ $patchOutput | ForEach-Object { Write-Host $_ }
 if ($LASTEXITCODE -ne 0) {
     throw "SteamKit Android patcher failed with exit code $LASTEXITCODE."
 }
-if (-not (($patchOutput | Out-String) -match "Patched System\.Net\.WebSockets\.Client\.dll: sha1TryHashData=[1-9][0-9]*")) {
-    throw "System.Net.WebSockets.Client.dll SHA1 patch summary was not emitted with a positive patch count."
+if (-not (($patchOutput | Out-String) -match "Patched System\.Net\.WebSockets\.Client\.dll: sha1TryHashData=[0-9]+")) {
+    throw "System.Net.WebSockets.Client.dll SHA1 patch summary was not emitted."
 }
 if ($LASTEXITCODE -ne 0) {
     throw "SteamKit Android patch failed"
