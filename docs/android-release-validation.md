@@ -48,7 +48,7 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
 3. Confirm checksum file exists:
    - `StS2Launcher-v<version>-arm64-v8a.apk.sha256`
 4. Confirm the release body includes generated release notes.
-5. Confirm the release notes do not claim full runtime proof unless ARM64 Steam login, download, cloud sync, and game launch were validated.
+5. Confirm the release notes distinguish the current working ARM64 path from release-candidate status. Do not claim release-ready cloud sync until Pull and Push have both been validated, including no-accidental-upload behavior for Push.
 
 ## 4) Structural asset verification
 
@@ -86,7 +86,11 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 
 1. Start app and confirm launcher UI appears.
 2. Confirm no immediate crash on cold start.
-3. Confirm Steam login reaches authentication success or ownership verification before marking startup auth fixed.
+3. Confirm Steam login reaches authentication success or ownership verification.
+4. Confirm game download works when game files are absent.
+5. Confirm Pull from Cloud downloads real Steam Cloud files, writes Android local saves, and the game reads/surfaces the pulled profile.
+6. Confirm Push to Cloud requires confirmation, cancel/no-confirm does not upload, and confirmed Push behavior is explicitly validated or deferred with overwrite-risk rationale.
+7. Confirm locked-screen/focus interruption and upgrade install behavior before calling a release candidate ready.
 
 ## 6) Archive and follow-up
 

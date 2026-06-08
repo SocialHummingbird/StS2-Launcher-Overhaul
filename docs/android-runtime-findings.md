@@ -6,7 +6,9 @@ The Android `x86_64` emulator is useful for install, routing, release packaging,
 
 Use an `arm64-v8a` Android device/build as the proof target for actual game launch.
 
-The latest published refactor APK has passed GitHub release build and structural asset verification, but it is not a full runtime proof. Steam startup login/authentication is still a known open issue.
+The latest published refactor APK has passed GitHub release build and structural asset verification. Local ARM64 validation has now proven the working launcher path through fresh runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game.
+
+This is still a hardening state, not a finished release-candidate signoff. Push to Cloud, upgrade install behavior, locked-screen interruption, stale assembly cache behavior, and repeated release-readiness coverage remain open validation gates.
 
 ## Evidence so far
 
@@ -51,8 +53,8 @@ The latest published refactor APK has passed GitHub release build and structural
 
 - Before game files are downloaded: show launcher UI.
 - After game files are downloaded: start Godot/game runtime and apply mobile patches.
-- This path still needs runtime proof on real ARM64 hardware.
-- Steam startup login/authentication still needs fresh proof; current failures include connection loss during authentication despite network availability.
+- This path now has local ARM64 proof through authenticated game download, Pull from Cloud, Android local save handoff, and normal game launch.
+- Treat the app as working but still under polish/hardening until Push and release-readiness gates are complete.
 
 ## Local validation commands
 
@@ -127,10 +129,10 @@ The smoke test writes:
 - `artifacts/android/logcat-smoke-*-filtered.txt`
 - `artifacts/android/logcat-smoke-*-full.txt`
 
-## Missing proof
+## Remaining proof
 
-- ARM64 device run from clean app data through Steam auth.
-- Resolution or clear root-cause evidence for Steam startup login/authentication failures.
-- ARM64 download of game files.
-- ARM64 launch of downloaded game PCK.
-- Confirmation that Harmony/mobile patches apply successfully on ARM64 without the Android `x86_64` runtime crash signature.
+- Confirmed Push to Cloud upload behavior, including Steam Cloud metadata/file mutation after explicit user approval.
+- Cancel/no-confirm Push safety evidence showing no upload starts without confirmation.
+- Upgrade install evidence showing package `lastUpdateTime` advances and stale app-private assembly cache behavior does not recur.
+- Locked-screen interruption behavior showing Android focus loss does not get misclassified as a game crash.
+- Repeated release-readiness pass covering fresh install, upgrade install, Pull, Push, game launch, and diagnostics.

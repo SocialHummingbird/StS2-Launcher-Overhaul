@@ -100,11 +100,24 @@ adb logcat > sts2launcher-<device>-<date>.log
 - [ ] Initial sync does not stall indefinitely
 - [ ] Large cloud backlog remains bounded and progresses/logs progress
 - [ ] No repeated write-queue timeouts on background/resume
+- [ ] Pull from Cloud downloads real Steam Cloud files and writes Android local saves
+- [ ] Game startup reads the same Android local save paths populated by Pull
+- [ ] Push to Cloud shows confirmation before upload
+- [ ] Cancel/no-confirm Push path does not start upload
+- [ ] Confirmed Push is validated only when it is safe to mutate Steam Cloud state, or explicitly deferred with risk noted
 
 ### UI/layout path
 
 - [ ] Main layout loads without `NullReferenceException` spikes in same frame
 - [ ] Menu/buttons remain interactive in initial scene
+
+### Release hardening path
+
+- [ ] Fresh install proves runtime freshness with current assembly schema logs
+- [ ] Upgrade install advances package update time and does not reuse stale managed assemblies
+- [ ] Successful game startup hides launcher recovery controls quickly
+- [ ] Locked-screen or Android focus interruption is not misreported as a game crash
+- [ ] Normal diagnostics avoid missing-path log floods; verbose save diagnostics remain opt-in
 
 ## Evidence format for PR comments/issues
 

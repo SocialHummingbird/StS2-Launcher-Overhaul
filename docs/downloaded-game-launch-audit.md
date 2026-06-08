@@ -162,10 +162,11 @@ Current manual pull behavior:
 - Android `SaveManager` construction now falls back to a local-only `CloudSaveStore` using `AndroidLocalSaveStore` plus a disabled cloud store even when cloud sync is disabled or saved Steam credentials are not available in memory. Cloud credentials should decide cloud access only; they must not decide whether the game reads the Android save directory. The disabled cloud store reports reads as missing and ignores writes/deletes with logs so upstream save code can still complete local writes.
 - Safe launch and previous-stall recovery can still force cloud access off. Android local save-store injection remains available so local pulled saves can still be read.
 
-Open cloud issue:
+Historical cloud issues now superseded by Pull validation:
 
-- Cloud enumeration still reports task-cancelled failures.
-- Manual known-path probing can recover common save files, but enumeration/path discovery is not reliable enough for release readiness until the next device run proves it finds the user's actual cloud files.
+- Earlier cloud enumeration runs reported task-cancelled failures and required known-path fallback probing.
+- The validated Pull baseline now proves the current path can enumerate/download real Steam Cloud files on the connected ARM64 device.
+- Keep the fallback/diagnostic logging because it remains useful for accounts with different save layouts or future Steam Cloud regressions.
 - CCloud RPC waits now have a deterministic 45-second timeout wrapper and named cancellation/timeout errors, so future logs should say which Steam cloud method failed instead of only `A task was canceled`.
 - Android manual pull fallback probes `.backup` variants of key profile save files:
   - `progress.save.backup`
@@ -209,7 +210,7 @@ Verified on connected ARM64 phone:
 
 ## Current local implementation state
 
-Implemented locally but not yet verified on device:
+Originally implemented locally, now covered by the validated Pull baseline unless individually called out below:
 
 - Assembly cache schema is bumped to `22`.
 - Assembly diagnostics include `schema=<n>`, cached `bytes=<n>`, and `expectedBytes=<n>`.
@@ -226,7 +227,7 @@ Implemented locally but not yet verified on device:
 - Android local save writes, reads, existence checks, and directory enumeration log concrete filesystem paths.
 - `scripts/collect-android-save-validation.ps1` captures focused evidence and writes `summary.txt` gate output.
 
-Do not treat the items above as proven until a rebuilt APK is installed and the next phone run shows matching runtime logs. The first gate is `schema=22`; if it is missing, the device is still running stale Java/APK code.
+The first gate remains runtime freshness. If future device logs do not show the current assembly schema, stop interpreting cloud/game behavior until the install/cache path is fixed.
 
 ## Next-session decision boundary
 
@@ -252,13 +253,13 @@ The next connected-device session must follow this order:
    - Required evidence: pulled save/profile is visible/usable in normal launch.
    - If paths align but UI does not surface saves: investigate game save migration/profile selection, not Steam pull.
 
-Not currently verified:
+Previously unverified Pull gates now proven:
 
-- Fresh install after schema `22` forces `New version detected, re-copying all assemblies`.
-- Manual `Pull from Cloud` runs without showing or depending on the inert confirmation dialog.
-- Steam cloud pull downloads the user's real save files on the current device/account.
-- Pulled files land under the logged Android local save base.
-- The game constructs the patched save manager during normal launch and surfaces the pulled save/profile.
+- Fresh runtime install showed schema `22` on device.
+- Manual `Pull from Cloud` executed and downloaded real Steam Cloud files.
+- Pull wrote files under Android app-private local storage.
+- Game startup read the same Android local paths populated by Pull.
+- Pulled save state surfaced in-game as `Profile 1`.
 
 ## Remaining launch-readiness blockers
 
@@ -269,18 +270,15 @@ Not currently verified:
    - Dumped PCK evidence shows remaining FMOD-dependent scripts are compiled `.gdc`, so patching them safely is not currently practical with byte-preserving PCK edits.
    - Next realistic options are either make the FMOD extension initialize cleanly on Android, rebuild/stub the dependent GDScript bytecode, or accept the nonfatal FMOD init noise while keeping launch stable.
 
-2. Save pull and save surfacing are not yet proven end to end.
-- Current local fixes address stale managed assemblies, the inert confirmation dialog, normal-launch save-store injection, and recursive backup/variant path discovery.
-- Android local-only `SaveManager` fallback now ensures the game can use pulled local saves even if cloud credentials are not loaded during game startup.
-- The next device run must prove that the installed APK actually refreshes `.godot/mono/publish/<arch>/STS2Mobile.dll`.
-   - The next device run must prove that manual pull writes files under the same Android local save base used by the game.
-   - The next device run must prove that the game shows/uses the pulled save after normal launch.
+2. Push to Cloud is not yet proven end to end.
+   - Pull and save surfacing are proven on the current ARM64 device.
+   - Push still requires deliberate validation because confirmed Push overwrites Steam Cloud state.
+   - Required Push evidence: confirmation appears before upload, cancel/no-confirm does not upload, confirmed upload mutates expected Steam Cloud files/metadata, and a later Pull round-trips the pushed state.
 
-3. Steam cloud enumeration is unreliable.
-   - Known-path fallback exists, and recursive store enumeration has been added for backup/variant filenames.
-   - Enumeration timeout/cancellation needs repeated device evidence with the new candidate-path logs.
-   - The low-level CCloud wait path now reports method-specific timeout/cancellation errors.
-   - Manual pull needs another user-triggered run to determine whether the failing method is still `Cloud.EnumerateUserFiles#1`, whether backup paths exist, or whether a later cloud operation fails.
+3. Steam cloud enumeration still needs broad-account confidence.
+   - Current Pull validation proved enumeration/download for the tested account/device.
+   - Known-path fallback and recursive store enumeration should stay because other accounts may have different backup/variant filenames.
+   - Low-level CCloud wait paths report method-specific timeout/cancellation errors for future regressions.
 
 4. Manual cloud pull needs repeated crash regression.
    - One post-fix pull survived.
