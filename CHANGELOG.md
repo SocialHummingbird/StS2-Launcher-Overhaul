@@ -9,6 +9,7 @@
 ## 2026-06-08 - Device-independent polish pass
 
 - Centralized Android APK metadata selection so smoke/login/verification scripts prefer compatible APKs by versionCode instead of only by file write time.
+- Aligned release install/verify helper defaults with the current ARM64-only public release asset.
 - Tightened Push-to-Cloud warning text and recovery cleanup logging so normal success is less likely to read like a failure.
 - Focused Android diagnostics filters and save-validation summaries on startup freshness, assembly cache evidence, cloud Pull/Push markers, and crash indicators.
 

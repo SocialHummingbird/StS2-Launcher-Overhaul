@@ -1,7 +1,7 @@
 param(
     [string]$Repo = "SocialHummingbird/StS2-Launcher-Overhaul",
-    [string]$ReleaseTag = "v0.2.88-apk-native-verify",
-    [string]$AssetName = "StS2Launcher-v0.2.88-universal-phone.apk",
+    [string]$ReleaseTag = "v0.2.175-refactor-apk",
+    [string]$AssetName = "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk",
     [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
     [string]$PackageName = "",
     [string]$ArtifactsDir = "",

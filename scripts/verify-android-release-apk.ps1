@@ -1,9 +1,9 @@
 param(
     [string]$Repo = "SocialHummingbird/StS2-Launcher-Overhaul",
-    [string]$ReleaseTag = "v0.2.88-apk-native-verify",
-    [string]$AssetName = "StS2Launcher-v0.2.88-universal-phone.apk",
+    [string]$ReleaseTag = "v0.2.175-refactor-apk",
+    [string]$AssetName = "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk",
     [ValidateSet("arm64-v8a", "x86_64", "universal")]
-    [string]$Abi = "universal",
+    [string]$Abi = "arm64-v8a",
     [string]$ArtifactsDir = ""
 )
 
