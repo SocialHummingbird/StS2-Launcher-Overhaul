@@ -11,6 +11,7 @@ internal sealed partial class LauncherView
         var dialog = new ColorRect
         {
             Color = LauncherComponentTheme.DialogOverlay,
+            MouseFilter = Control.MouseFilterEnum.Stop,
         };
         dialog.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 
@@ -31,12 +32,14 @@ internal sealed partial class LauncherView
     {
         var center = new CenterContainer();
         center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        center.MouseFilter = Control.MouseFilterEnum.Pass;
         return center;
     }
 
     private static PanelContainer BuildDialogBox(float scale)
     {
         var dialogBox = new PanelContainer();
+        dialogBox.MouseFilter = Control.MouseFilterEnum.Pass;
         var boxStyle = new StyleBoxFlat();
         boxStyle.BgColor = LauncherComponentTheme.DialogPanelBackground;
         boxStyle.SetCornerRadiusAll(
@@ -52,6 +55,7 @@ internal sealed partial class LauncherView
     private static VBoxContainer BuildDialogContentBox(float scale)
     {
         var vbox = new VBoxContainer();
+        vbox.MouseFilter = Control.MouseFilterEnum.Pass;
         vbox.AddThemeConstantOverride(
             LauncherComponentTheme.ThemeSeparation,
             LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.DialogContentSeparation)
@@ -66,6 +70,7 @@ internal sealed partial class LauncherView
             scale,
             fontSize: LauncherComponentTheme.DialogMessageFontSize
         );
+        label.MouseFilter = Control.MouseFilterEnum.Ignore;
         label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         label.CustomMinimumSize = new Vector2(
             LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.DialogMessageWidth),
@@ -82,20 +87,44 @@ internal sealed partial class LauncherView
     )
     {
         var buttonRow = new HBoxContainer();
+        buttonRow.MouseFilter = Control.MouseFilterEnum.Pass;
         buttonRow.AddThemeConstantOverride(
             LauncherComponentTheme.ThemeSeparation,
             LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.DialogButtonSeparation)
         );
         buttonRow.Alignment = BoxContainer.AlignmentMode.Center;
 
-        buttonRow.AddChild(BuildDialogButton(dialog, "Cancel", scale, null));
-        buttonRow.AddChild(BuildDialogButton(dialog, "OK", scale, onConfirmed));
+        var dismissed = false;
+        void Dismiss(Action callback)
+        {
+            if (dismissed)
+                return;
+
+            dismissed = true;
+            dialog.QueueFree();
+            callback?.Invoke();
+        }
+
+        var cancel = BuildDialogButton("Cancel", scale, () => Dismiss(null));
+        var ok = BuildDialogButton("OK", scale, () => Dismiss(onConfirmed));
+
+        buttonRow.AddChild(cancel);
+        buttonRow.AddChild(ok);
+        dialog.GuiInput += ev =>
+        {
+            if (!TryGetPressedPointerPosition(ev, out var position))
+                return;
+
+            if (ok.GetGlobalRect().HasPoint(position))
+                Dismiss(onConfirmed);
+            else if (cancel.GetGlobalRect().HasPoint(position))
+                Dismiss(null);
+        };
 
         return buttonRow;
     }
 
     private static Button BuildDialogButton(
-        ColorRect dialog,
         string text,
         float scale,
         Action callback
@@ -107,15 +136,28 @@ internal sealed partial class LauncherView
             LauncherComponentTheme.DialogButtonFontSize,
             LauncherComponentTheme.DialogButtonHeight
         );
+        button.MouseFilter = Control.MouseFilterEnum.Stop;
         button.CustomMinimumSize = new Vector2(
             LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.DialogButtonWidth),
             button.CustomMinimumSize.Y
         );
-        button.Pressed += () =>
-        {
-            dialog.QueueFree();
-            callback?.Invoke();
-        };
+        button.Pressed += callback;
         return button;
+    }
+
+    private static bool TryGetPressedPointerPosition(InputEvent ev, out Vector2 position)
+    {
+        switch (ev)
+        {
+            case InputEventScreenTouch { Pressed: true } touch:
+                position = touch.Position;
+                return true;
+            case InputEventMouseButton { Pressed: true } mouse:
+                position = mouse.Position;
+                return true;
+            default:
+                position = Vector2.Zero;
+                return false;
+        }
     }
 }

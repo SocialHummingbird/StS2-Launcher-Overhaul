@@ -21,6 +21,7 @@ internal static partial class CloudSyncCoordinator
             writeTask
         ).ConfigureAwait(false);
         local.SetLastModifiedTime(path, cloudTime);
+        PatchHelper.Log($"[Cloud] Local write path: {path} -> {local.GetFullPath(path)}");
     }
 
     private static async Task<string> ReadCloudContentAsync(

@@ -1,19 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private static async Task RunManualSyncAsync(
+    private static async Task<string> RunManualSyncAsync(
         string accountName,
         string refreshToken,
         ManualSyncPlan plan
     )
     {
         var sync = CreateManualSyncContext(accountName, refreshToken);
-        await plan.RunAsync(sync);
+        return await plan.RunAsync(sync);
     }
 
     private readonly struct ManualSyncPlan
@@ -57,11 +58,11 @@ internal static partial class CloudSyncCoordinator
         private ManualSyncBackupStep Backup { get; }
         private ManualSyncTransferStep Transfer { get; }
 
-        internal async Task RunAsync(ManualSyncContext sync)
+        internal async Task<string> RunAsync(ManualSyncContext sync)
         {
             var paths = Paths.Discover(sync);
             await Backup.RunAsync(sync, paths);
-            await Transfer.RunAsync(sync, paths);
+            return await Transfer.RunAsync(sync, paths);
         }
     }
 
@@ -83,6 +84,11 @@ internal static partial class CloudSyncCoordinator
         {
             var paths = DiscoverPaths(sync);
             PatchHelper.Log(StartingMessage(paths.Count));
+            PatchHelper.Log(
+                "[Cloud] Candidate sync paths: "
+                    + string.Join(", ", paths.Take(25))
+                    + (paths.Count > 25 ? $", ... +{paths.Count - 25} more" : "")
+            );
             return paths;
         }
     }
@@ -131,10 +137,14 @@ internal static partial class CloudSyncCoordinator
             Task<string>
         > TransferAsync { get; }
 
-        internal async Task RunAsync(
+        internal async Task<string> RunAsync(
             ManualSyncContext sync,
             IReadOnlyCollection<string> paths
         )
-            => PatchHelper.Log(await TransferAsync(sync, paths));
+        {
+            var result = await TransferAsync(sync, paths);
+            PatchHelper.Log(result);
+            return result;
+        }
     }
 }

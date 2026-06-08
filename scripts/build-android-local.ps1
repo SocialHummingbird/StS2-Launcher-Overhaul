@@ -9,7 +9,9 @@ param(
     [string]$KeystorePassword = "android",
     [string]$KeystoreAlias = "androiddebugkey",
     [ValidateSet("arm64-v8a", "x86_64", "universal")]
-    [string]$Abi = "arm64-v8a"
+    [string]$Abi = "arm64-v8a",
+    [switch]$Install,
+    [string]$DeviceSerial = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -296,4 +298,25 @@ $metadata = [ordered]@{
 $metadata | ConvertTo-Json | Set-Content -LiteralPath $metadataPath -Encoding UTF8
 Write-Host "APK metadata: $metadataPath"
 
+if ($Install) {
+    $adbPath = Join-Path $AndroidHome "platform-tools\adb.exe"
+    if (-not (Test-Path -LiteralPath $adbPath)) {
+        throw "adb not found: $adbPath"
+    }
+
+    $adbArgs = @()
+    if (-not [string]::IsNullOrWhiteSpace($DeviceSerial)) {
+        $adbArgs += @("-s", $DeviceSerial)
+    }
+
+    $adbArgs += @("install", "-r", $archivedApk)
+
+    Write-Host "Installing APK on Android device..."
+    & $adbPath @adbArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "adb install failed with exit code $LASTEXITCODE."
+    }
+
+    Write-Host "APK installed on Android device."
+}
 

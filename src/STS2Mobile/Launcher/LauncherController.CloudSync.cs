@@ -15,21 +15,24 @@ internal sealed partial class LauncherController
             string name,
             string startMessage,
             string completeMessage,
-            Func<Task> run
+            bool bypassConfirmation,
+            Func<Task<string>> run
         )
         {
             ConfirmationMessage = confirmationMessage;
             Name = name;
             StartMessage = startMessage;
             CompleteMessage = completeMessage;
+            BypassConfirmation = bypassConfirmation;
             Run = run;
         }
 
         internal string ConfirmationMessage { get; }
+        internal bool BypassConfirmation { get; }
         private string Name { get; }
         private string StartMessage { get; }
         private string CompleteMessage { get; }
-        private Func<Task> Run { get; }
+        private Func<Task<string>> Run { get; }
 
         internal static ManualCloudSyncRequest Push()
             => new(
@@ -37,6 +40,7 @@ internal sealed partial class LauncherController
                 "Push",
                 "Pushing local saves to cloud...",
                 "Push complete.",
+                false,
                 LauncherCloudSaveState.ManualPushAllAsync
             );
 
@@ -46,6 +50,7 @@ internal sealed partial class LauncherController
                 "Pull",
                 "Pulling cloud saves to local...",
                 "Pull complete.",
+                true,
                 LauncherCloudSaveState.ManualPullAllAsync
             );
 
@@ -55,8 +60,12 @@ internal sealed partial class LauncherController
             view.AppendLog(StartMessage);
         }
 
-        internal void ShowComplete(LauncherView view)
-            => view.AppendLog(CompleteMessage);
+        internal void ShowComplete(LauncherView view, string result)
+        {
+            view.AppendLog(CompleteMessage);
+            if (!string.IsNullOrWhiteSpace(result))
+                view.AppendLog(result);
+        }
 
         internal void ShowFailed(LauncherView view, Exception ex)
         {
@@ -67,14 +76,15 @@ internal sealed partial class LauncherController
         internal void ShowFinished(LauncherView view)
             => view.SetPushPullDisabled(false);
 
-        internal async Task RunWithTimeoutAsync()
+        internal async Task<string> RunWithTimeoutAsync()
         {
-            var operationTask = Run();
+            var operationTask = Task.Run(Run);
             await LauncherTimeout.RunOrThrowAsync(
                 operationTask,
                 CloudSyncTimeoutMs,
                 $"{Name} timed out after {CloudSyncTimeoutMs}ms"
             );
+            return await operationTask;
         }
     }
 
@@ -88,10 +98,20 @@ internal sealed partial class LauncherController
         => RequestCloudSync(ManualCloudSyncRequest.Pull());
 
     private void RequestCloudSync(ManualCloudSyncRequest request)
-        => _view.ShowConfirmation(
+    {
+        _model.RefreshCloudSaveCredentials();
+
+        if (request.BypassConfirmation)
+        {
+            _ = ExecuteCloudSyncAsync(request);
+            return;
+        }
+
+        _view.ShowConfirmation(
             request.ConfirmationMessage,
             () => _ = ExecuteCloudSyncAsync(request)
         );
+    }
 
     private async Task ExecuteCloudSyncAsync(ManualCloudSyncRequest request)
     {
@@ -99,8 +119,8 @@ internal sealed partial class LauncherController
 
         try
         {
-            await request.RunWithTimeoutAsync();
-            RunOnMainThread(() => request.ShowComplete(_view));
+            var result = await request.RunWithTimeoutAsync();
+            RunOnMainThread(() => request.ShowComplete(_view, result));
         }
         catch (Exception ex)
         {

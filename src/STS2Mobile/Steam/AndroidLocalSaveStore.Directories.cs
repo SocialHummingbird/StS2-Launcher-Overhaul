@@ -13,18 +13,28 @@ internal sealed partial class AndroidLocalSaveStore
     {
         var fullPath = FullPath(directoryPath);
         if (!Directory.Exists(fullPath))
+        {
+            PatchHelper.Log($"[Cloud] Android local save files: {directoryPath} -> {fullPath} missing");
             return Array.Empty<string>();
+        }
 
-        return Directory.GetFiles(fullPath).Select(Path.GetFileName).ToArray();
+        var files = Directory.GetFiles(fullPath).Select(Path.GetFileName).ToArray();
+        PatchHelper.Log($"[Cloud] Android local save files: {directoryPath} -> {fullPath} count={files.Length}");
+        return files;
     }
 
     string[] ISaveStore.GetDirectoriesInDirectory(string directoryPath)
     {
         var fullPath = FullPath(directoryPath);
         if (!Directory.Exists(fullPath))
+        {
+            PatchHelper.Log($"[Cloud] Android local save directories: {directoryPath} -> {fullPath} missing");
             return Array.Empty<string>();
+        }
 
-        return Directory.GetDirectories(fullPath).Select(Path.GetFileName).ToArray();
+        var directories = Directory.GetDirectories(fullPath).Select(Path.GetFileName).ToArray();
+        PatchHelper.Log($"[Cloud] Android local save directories: {directoryPath} -> {fullPath} count={directories.Length}");
+        return directories;
     }
 
     void ISaveStore.CreateDirectory(string directoryPath) => Directory.CreateDirectory(FullPath(directoryPath));

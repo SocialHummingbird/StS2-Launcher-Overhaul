@@ -38,6 +38,12 @@ internal partial class LauncherModel : IDisposable
         return StartSession();
     }
 
+    internal bool RefreshCloudSaveCredentials()
+    {
+        _credentialStore.Load();
+        return LauncherCloudSaveState.SaveCredentials(_credentialStore);
+    }
+
     internal void ResetGameFilesForRedownload()
     {
         CancelDownloadForRetry();

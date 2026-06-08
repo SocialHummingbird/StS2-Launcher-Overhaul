@@ -16,5 +16,6 @@ internal sealed partial class AndroidLocalSaveStore : ISaveStore
             ? _basePath
             : _basePath + Path.DirectorySeparatorChar;
         Directory.CreateDirectory(_basePath);
+        PatchHelper.Log($"[Cloud] Android local save base: {_basePath}");
     }
 }

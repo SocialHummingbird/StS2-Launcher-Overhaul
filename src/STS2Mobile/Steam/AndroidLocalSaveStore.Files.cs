@@ -7,9 +7,17 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class AndroidLocalSaveStore
 {
-    string ISaveStore.ReadFile(string path) => ReadTextFile(path);
+    string ISaveStore.ReadFile(string path)
+    {
+        PatchHelper.Log($"[Cloud] Android local save read: {path} -> {FullPath(path)}");
+        return ReadTextFile(path);
+    }
 
-    Task<string> ISaveStore.ReadFileAsync(string path) => Task.FromResult(ReadTextFile(path));
+    Task<string> ISaveStore.ReadFileAsync(string path)
+    {
+        PatchHelper.Log($"[Cloud] Android local save read async: {path} -> {FullPath(path)}");
+        return Task.FromResult(ReadTextFile(path));
+    }
 
     void ISaveStore.WriteFile(string path, string content)
     {
@@ -33,7 +41,14 @@ internal sealed partial class AndroidLocalSaveStore
         return Task.CompletedTask;
     }
 
-    bool ISaveStore.FileExists(string path) => File.Exists(FullPath(path));
+    bool ISaveStore.FileExists(string path)
+    {
+        var fullPath = FullPath(path);
+        var exists = File.Exists(fullPath);
+        if (IsSaveDiagnosticPath(path) || exists)
+            PatchHelper.Log($"[Cloud] Android local save exists: {path} -> {fullPath} = {exists}");
+        return exists;
+    }
 
     void ISaveStore.DeleteFile(string path)
     {
@@ -75,5 +90,15 @@ internal sealed partial class AndroidLocalSaveStore
     string ISaveStore.GetFullPath(string filename)
     {
         return FullPath(filename);
+    }
+
+    private static bool IsSaveDiagnosticPath(string path)
+    {
+        var lower = CloudSavePath.CanonicalizeLower(path ?? string.Empty);
+        return lower.Contains("progress")
+            || lower.Contains("current_run")
+            || lower.Contains("prefs")
+            || lower.EndsWith(".save")
+            || lower.EndsWith(".run");
     }
 }

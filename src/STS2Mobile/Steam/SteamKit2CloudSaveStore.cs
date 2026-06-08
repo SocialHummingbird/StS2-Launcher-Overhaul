@@ -8,12 +8,16 @@ internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveSt
 {
     private static SteamKit2CloudSaveStore _instance;
 
+    private readonly string _accountName;
+    private readonly string _refreshToken;
     private readonly SteamConnection _connection;
     private readonly CloudFileCache _cache;
     private readonly CloudWriteQueue _writeQueue;
 
     private SteamKit2CloudSaveStore(string accountName, string refreshToken)
     {
+        _accountName = accountName ?? string.Empty;
+        _refreshToken = refreshToken ?? string.Empty;
         _connection = new SteamConnection(accountName, refreshToken);
         _cache = new CloudFileCache(_connection);
         _writeQueue = new CloudWriteQueue();
@@ -22,7 +26,22 @@ internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveSt
     }
 
     internal static ICloudSaveStore GetOrCreate(string accountName, string refreshToken)
-        => _instance ??= new SteamKit2CloudSaveStore(accountName, refreshToken);
+    {
+        if (_instance != null && _instance.MatchesCredentials(accountName, refreshToken))
+            return _instance;
+
+        if (_instance != null)
+        {
+            PatchHelper.Log("[Cloud] Replacing Steam cloud store for refreshed credentials");
+            _instance.Dispose();
+        }
+
+        return new SteamKit2CloudSaveStore(accountName, refreshToken);
+    }
+
+    private bool MatchesCredentials(string accountName, string refreshToken)
+        => string.Equals(_accountName, accountName ?? string.Empty, StringComparison.Ordinal)
+            && string.Equals(_refreshToken, refreshToken ?? string.Empty, StringComparison.Ordinal);
 
     internal static bool FlushActive(int timeoutMs)
         => _instance?.Flush(timeoutMs) ?? true;

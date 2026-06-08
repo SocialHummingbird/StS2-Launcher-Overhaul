@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SteamKit2.Internal;
 
 namespace STS2Mobile.Steam;
@@ -11,6 +12,7 @@ internal sealed partial class SteamKit2CloudSaveStore
         {
             uint startIndex = 0;
             const uint pageSize = 500;
+            var sampleNames = new List<string>();
 
             while (true)
             {
@@ -33,6 +35,8 @@ internal sealed partial class SteamKit2CloudSaveStore
                 foreach (var file in result.files)
                 {
                     var key = CacheKey(file.filename);
+                    if (sampleNames.Count < 25)
+                        sampleNames.Add(key);
                     SetPersistedFile(
                         key,
                         (int)file.file_size,
@@ -46,6 +50,8 @@ internal sealed partial class SteamKit2CloudSaveStore
             }
 
             PatchHelper.Log(FilesEnumerated(_files.Count));
+            if (sampleNames.Count > 0)
+                PatchHelper.Log("[Cloud] Enumerated cloud file sample: " + string.Join(", ", sampleNames));
         }
 
         private static string FilesEnumerated(int count) =>

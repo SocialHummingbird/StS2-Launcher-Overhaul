@@ -48,7 +48,7 @@ internal static class LauncherCloudSaveState
             }
         }
 
-        internal Task RunManualSyncAsync(Func<string, string, Task> sync)
+        internal Task<string> RunManualSyncAsync(Func<string, string, Task<string>> sync)
             => sync(AccountName, RefreshToken);
     }
 
@@ -68,9 +68,29 @@ internal static class LauncherCloudSaveState
         saveManager = null;
 
         if (!TryGetSavedCredentialsForCloudSync(out var credentials))
-            return false;
+            return TryCreateAndroidLocalSaveManager(out saveManager);
 
         return credentials.TryCreateSaveManager(out saveManager);
+    }
+
+    private static bool TryCreateAndroidLocalSaveManager(out SaveManager saveManager)
+    {
+        saveManager = null;
+
+        if (!OperatingSystem.IsAndroid())
+            return false;
+
+        try
+        {
+            saveManager = new SaveManager(CloudSaveStoreFactory.CreateLocalOnlyCloudSaveStore());
+            PatchHelper.Log("[Cloud] Created Android local-only SaveManager");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Cloud] Android local-only SaveManager failed: {ex.Message}");
+            return false;
+        }
     }
 
     private static bool TryGetSavedCredentialsForCloudSync(
@@ -81,14 +101,14 @@ internal static class LauncherCloudSaveState
 
         if (!_cloudSyncEnabled)
         {
-            PatchHelper.Log("[Cloud] Cloud sync disabled by user - using local-only SaveManager");
+            PatchHelper.Log("[Cloud] Cloud sync disabled - using Android local-only SaveManager when available");
             return false;
         }
 
         var savedCredentials = _savedCredentials;
         if (!savedCredentials.HasValue)
         {
-            PatchHelper.Log("[Cloud] No saved credentials - using local-only SaveManager");
+            PatchHelper.Log("[Cloud] No saved credentials - using Android local-only SaveManager when available");
             return false;
         }
 
@@ -96,10 +116,10 @@ internal static class LauncherCloudSaveState
         return true;
     }
 
-    internal static Task ManualPushAllAsync()
+    internal static Task<string> ManualPushAllAsync()
         => RunManualSyncAsync(CloudSyncCoordinator.ManualPushAllAsync);
 
-    internal static Task ManualPullAllAsync()
+    internal static Task<string> ManualPullAllAsync()
         => RunManualSyncAsync(CloudSyncCoordinator.ManualPullAllAsync);
 
     internal static void SetCloudSyncEnabled(bool enabled)
@@ -125,12 +145,12 @@ internal static class LauncherCloudSaveState
     {
         var credentials = _savedCredentials;
         if (!credentials.HasValue)
-            throw new InvalidOperationException("No saved Steam credentials");
+            throw new InvalidOperationException("No saved Steam credentials. Log in again before pulling cloud saves.");
 
         return credentials.Value;
     }
 
-    private static Task RunManualSyncAsync(Func<string, string, Task> sync)
+    private static Task<string> RunManualSyncAsync(Func<string, string, Task<string>> sync)
         => RequireSavedCredentials().RunManualSyncAsync(sync);
 
     internal static bool SaveCredentials(SteamCredentialStore credentialStore)
@@ -141,6 +161,13 @@ internal static class LauncherCloudSaveState
             {
                 saved = SaveCredentials(accountName, refreshToken);
             }
+        );
+        if (!saved)
+            _savedCredentials = null;
+
+        PatchHelper.Log(saved
+            ? "[Cloud] Saved Steam credentials available for cloud sync"
+            : "[Cloud] Saved Steam credentials unavailable for cloud sync"
         );
         return saved;
     }

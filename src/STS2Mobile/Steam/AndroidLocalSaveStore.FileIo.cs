@@ -18,5 +18,6 @@ internal sealed partial class AndroidLocalSaveStore
         EnsureParentDirectory(fullPath);
 
         File.WriteAllBytes(fullPath, bytes);
+        PatchHelper.Log($"[Cloud] Android local save write: {path} -> {fullPath} ({bytes.Length} bytes)");
     }
 }

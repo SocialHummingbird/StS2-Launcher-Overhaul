@@ -8,7 +8,13 @@ internal static class CloudSaveStoreFactory
     internal static CloudSaveStore CreateCloudSaveStore(string accountName, string refreshToken)
         => new(CreateLocalStore(), CreateCloudStore(accountName, refreshToken));
 
-    private static ISaveStore CreateLocalStore()
+    internal static CloudSaveStore CreateLocalOnlyCloudSaveStore()
+    {
+        var local = CreateLocalStore();
+        return new CloudSaveStore(local, new DisabledCloudSaveStore(local));
+    }
+
+    internal static ISaveStore CreateLocalStore()
         => OperatingSystem.IsAndroid()
             ? new AndroidLocalSaveStore()
             : new GodotFileIo(UserDataPathProvider.GetAccountScopedBasePath(null));

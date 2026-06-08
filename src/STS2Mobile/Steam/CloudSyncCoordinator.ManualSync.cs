@@ -8,14 +8,14 @@ internal static partial class CloudSyncCoordinator
     private const int ManualSyncOverallTimeoutMs = 180_000;
     private const string ManualPullDownloadOperation = "ManualPull download";
 
-    internal static Task ManualPushAllAsync(string accountName, string refreshToken)
+    internal static Task<string> ManualPushAllAsync(string accountName, string refreshToken)
         => RunManualSyncAsync(
             accountName,
             refreshToken,
             ManualSyncPlan.Push
         );
 
-    internal static Task ManualPullAllAsync(string accountName, string refreshToken)
+    internal static Task<string> ManualPullAllAsync(string accountName, string refreshToken)
         => RunManualSyncAsync(
             accountName,
             refreshToken,

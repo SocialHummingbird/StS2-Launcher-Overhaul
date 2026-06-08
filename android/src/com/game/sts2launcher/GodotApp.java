@@ -78,7 +78,7 @@ public class GodotApp extends GodotActivity {
 	private static final String ENV_FORCE_CRITICAL_PATCH_FAILURE = "STS2_FORCE_CRITICAL_PATCH_FAILURE";
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String EXTRA_SAFE_LAUNCH_ON_START = "sts2_safe_launch";
-    private static final int ASSEMBLY_CACHE_SCHEMA = 20;
+    private static final int ASSEMBLY_CACHE_SCHEMA = 22;
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v29";
 	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
@@ -277,6 +277,7 @@ public class GodotApp extends GodotActivity {
 	private void logAssemblyCacheState(String phase, File destDir, File srcDir, boolean requireGameAssemblies, Set<String> packagedBclNames) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Assembly cache diagnostics [").append(phase).append("]");
+		sb.append(" schema=").append(ASSEMBLY_CACHE_SCHEMA);
 		sb.append(" arch=").append(getRuntimeGodotArchDir());
 		sb.append(" nativeLibraryDir=").append(getApplicationInfo().nativeLibraryDir);
 		sb.append(" filesDir=").append(getFilesDir().getAbsolutePath());
@@ -294,9 +295,28 @@ public class GodotApp extends GodotActivity {
 			required.addAll(java.util.Arrays.asList(GAME_REQUIRED_ASSEMBLIES));
 		for (String name : required.toArray(new String[0])) {
 			File file = destDir == null ? null : new File(destDir, name);
+			File sourceFile = srcDir == null ? null : new File(srcDir, name);
+			long sourceBytes = sourceFile != null && sourceFile.exists()
+				? sourceFile.length()
+				: packagedAssetLength("dotnet_bcl/" + name);
 			Log.i(TAG, "Assembly cache required file [" + phase + "]: " + name
 				+ " exists=" + (file != null && file.exists())
-				+ " bytes=" + (file != null && file.exists() ? file.length() : 0));
+				+ " bytes=" + (file != null && file.exists() ? file.length() : 0)
+				+ " expectedBytes=" + sourceBytes);
+		}
+	}
+
+	private long packagedAssetLength(String assetPath) {
+		try (InputStream asset = getAssets().open(assetPath)) {
+			long total = 0L;
+			byte[] buffer = new byte[8192];
+			int read;
+			while ((read = asset.read(buffer)) > 0) {
+				total += read;
+			}
+			return total;
+		} catch (IOException e) {
+			return -1L;
 		}
 	}
 
@@ -612,23 +632,60 @@ public class GodotApp extends GodotActivity {
 			return false;
 		}
 
-		File[] files = srcDir.listFiles((file, name) -> name.endsWith(".dll"));
+		File[] files = srcDir.listFiles();
 		if (files == null || files.length == 0) {
 			return false;
 		}
 
 		for (File src : files) {
+			if (!src.isFile()) {
+				continue;
+			}
 			if (!shouldCopyGameAssemblyFile(src.getName(), packagedBclNames)) {
 				continue;
 			}
 			File dest = new File(destDir, src.getName());
-			if (!dest.exists() || dest.length() != src.length()) {
-				Log.i(TAG, "Game assembly cache is incomplete: " + src.getName());
+			if (!filesMatch(src, dest)) {
+				Log.i(TAG, "Game assembly cache is stale or incomplete: " + src.getName());
 				return false;
 			}
 		}
 
 		return true;
+	}
+
+	private boolean filesMatch(File expected, File current) {
+		if (expected == null || current == null || !expected.exists() || !current.exists()) {
+			return false;
+		}
+
+		if (expected.length() != current.length()) {
+			return false;
+		}
+
+		try (InputStream expectedStream = new FileInputStream(expected);
+				InputStream currentStream = new FileInputStream(current)) {
+			byte[] expectedBuffer = new byte[8192];
+			byte[] currentBuffer = new byte[8192];
+			while (true) {
+				int expectedRead = expectedStream.read(expectedBuffer);
+				int currentRead = currentStream.read(currentBuffer);
+				if (expectedRead != currentRead) {
+					return false;
+				}
+				if (expectedRead < 0) {
+					return true;
+				}
+				for (int i = 0; i < expectedRead; i++) {
+					if (expectedBuffer[i] != currentBuffer[i]) {
+						return false;
+					}
+				}
+			}
+		} catch (IOException e) {
+			Log.w(TAG, "Could not compare game assembly cache file: " + expected.getName(), e);
+			return false;
+		}
 	}
 
 	private boolean isGamePckReady() {

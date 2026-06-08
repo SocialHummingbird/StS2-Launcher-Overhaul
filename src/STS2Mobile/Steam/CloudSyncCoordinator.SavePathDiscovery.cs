@@ -24,7 +24,7 @@ internal static partial class CloudSyncCoordinator
         {
             var paths = new List<string>();
             CollectProfilePathsSafe(paths, store);
-            return paths;
+            return Deduplicate(paths);
         }
 
         private static void CollectProfilePathsSafe(
@@ -32,12 +32,7 @@ internal static partial class CloudSyncCoordinator
             ISaveStore store
         )
         {
-            if (OperatingSystem.IsAndroid())
-            {
-                AddFallbackProfilePaths(paths, store);
-                return;
-            }
-
+            var fallbackAdded = false;
             try
             {
                 CollectProfilePaths(paths, store);
@@ -46,7 +41,35 @@ internal static partial class CloudSyncCoordinator
             {
                 PatchHelper.Log(SavePathManagerFallback(ex));
                 AddFallbackProfilePaths(paths, store);
+                fallbackAdded = true;
             }
+            catch (Exception ex) when (OperatingSystem.IsAndroid())
+            {
+                PatchHelper.Log(SavePathManagerFallback(ex));
+            }
+
+            if (OperatingSystem.IsAndroid() && !fallbackAdded)
+                AddFallbackProfilePaths(paths, store);
+        }
+
+        private static IReadOnlyCollection<string> Deduplicate(List<string> paths)
+        {
+            var deduped = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var path in paths)
+            {
+                if (string.IsNullOrWhiteSpace(path))
+                    continue;
+
+                var canonical = CloudSavePath.Canonicalize(path);
+                if (seen.Add(canonical))
+                    deduped.Add(canonical);
+            }
+
+            if (deduped.Count != paths.Count)
+                PatchHelper.Log($"[Cloud] Save path discovery deduped {paths.Count} candidates to {deduped.Count}");
+
+            return deduped;
         }
 
         private static string SavePathManagerFallback(Exception ex) =>

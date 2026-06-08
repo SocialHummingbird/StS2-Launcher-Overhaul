@@ -31,5 +31,9 @@ internal static partial class CloudSyncCoordinator
         PullMessage($"not in cloud: {path}");
 
     private static string PullComplete(int downloaded, int skipped) =>
-        PullMessage($"complete: {downloaded} downloaded, {skipped} not in cloud");
+        downloaded > 0
+            ? PullMessage($"complete: {downloaded} downloaded, {skipped} not in cloud")
+            : PullMessage(
+                $"complete with no downloads: {skipped} candidate paths were not found in cloud; check the candidate path and cloud enumeration logs"
+            );
 }
