@@ -13,7 +13,7 @@ internal sealed partial class DepotDownloader : IDisposable
 {
     private const int MaxRetries = 5;
     private const int DesktopMaxConcurrentDownloads = 8;
-    private const int AndroidMaxConcurrentDownloads = 1;
+    private const int AndroidMaxConcurrentDownloads = 3;
     private const long AndroidMinimumFreeSpaceBytes = 256L * 1024L * 1024L;
     private const long MaxDepotChunkBytes = 64L * 1024L * 1024L;
     private const long MaxDepotFileBytes = 32L * 1024L * 1024L * 1024L;
@@ -56,7 +56,7 @@ internal sealed partial class DepotDownloader : IDisposable
 
         Log("All game files downloaded!");
 
-        // Remove Sentry plugin references (no android.arm64 build exists).
+        // Remove Android-incompatible startup references while keeping the FMOD extension registered for script types.
         PatchGamePck(Path.Combine(_gameDir, "SlayTheSpire2.pck"));
     }
 

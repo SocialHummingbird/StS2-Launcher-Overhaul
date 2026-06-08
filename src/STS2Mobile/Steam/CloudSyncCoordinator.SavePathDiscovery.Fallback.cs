@@ -9,18 +9,25 @@ internal static partial class CloudSyncCoordinator
     {
         private static readonly string[] FallbackHistoryDirectories =
         {
-            "runs",
-            "run_history",
-            "history",
+            "saves/history",
         };
 
         private static readonly string[] FallbackProfileFiles =
         {
-            ProgressSaveFile,
-            CurrentRunSaveFile,
-            CurrentMultiplayerRunSaveFile,
-            PrefsFile,
-            PrefsSaveFile,
+            $"saves/{ProgressSaveFile}",
+            $"saves/{ProgressSaveFile}{BackupExtension}",
+            $"saves/{CurrentRunSaveFile}",
+            $"saves/{CurrentRunSaveFile}{BackupExtension}",
+            $"saves/{CurrentMultiplayerRunSaveFile}",
+            $"saves/{CurrentMultiplayerRunSaveFile}{BackupExtension}",
+            $"saves/{PrefsFile}",
+            $"saves/{PrefsFile}{BackupExtension}",
+            $"saves/{PrefsSaveFile}",
+            $"saves/{PrefsSaveFile}{BackupExtension}",
+        };
+
+        private static readonly string[] FallbackRootFiles =
+        {
         };
 
         private static readonly string[] FallbackProfilePrefixes =
@@ -68,6 +75,7 @@ internal static partial class CloudSyncCoordinator
             ISaveStore store
         )
         {
+            paths.AddRange(FallbackRootFiles);
             foreach (var profile in FallbackProfiles())
                 profile.AddTo(paths, store);
         }

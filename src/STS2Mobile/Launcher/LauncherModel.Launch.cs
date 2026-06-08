@@ -33,6 +33,7 @@ internal partial class LauncherModel
 
     internal void Launch()
     {
+        LauncherLaunchMarkers.ClearManualSafeLaunchMarker();
         SaveLaunchCredentials();
 
         if (TrySignalInProcessLaunch())
@@ -46,10 +47,10 @@ internal partial class LauncherModel
         LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
         SaveLaunchCredentials();
 
-        if (TrySafeAndroidRestart())
+        if (TrySignalInProcessLaunch())
             return;
 
-        if (TrySignalInProcessLaunch())
+        if (TrySafeAndroidRestart())
             return;
 
         RestartForLaunch(safe: true);

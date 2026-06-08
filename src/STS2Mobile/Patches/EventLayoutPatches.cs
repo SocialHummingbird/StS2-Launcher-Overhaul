@@ -24,29 +24,8 @@ internal static class EventLayoutPatches
 
     internal static void Apply(Harmony harmony)
     {
-        var sts2Asm = typeof(MegaCrit.Sts2.Core.Nodes.NGame).Assembly;
-        var eventLayoutType = sts2Asm.GetType(TypeName);
-        if (eventLayoutType == null)
-            return;
-
-        PatchHelper.Patch(
-            harmony,
-            eventLayoutType,
-            ReadyMethod,
-            postfix: PatchHelper.Method(
-                typeof(EventLayoutPatches),
-                nameof(ReadyPostfix)
-            )
-        );
-
-        PatchHelper.Patch(
-            harmony,
-            eventLayoutType,
-            AddOptionsMethod,
-            postfix: PatchHelper.Method(
-                typeof(EventLayoutPatches),
-                nameof(AddOptionsPostfix)
-            )
+        PatchHelper.Log(
+            "Event layout patch disabled: current Android runtime cannot safely Harmony-wrap private-field-heavy event layout methods."
         );
     }
 

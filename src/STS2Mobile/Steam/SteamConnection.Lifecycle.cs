@@ -65,7 +65,7 @@ internal sealed partial class SteamConnection
 
     private void WaitForConnectionAttempt()
     {
-        if (!_connectedGate.Wait(ConnectTimeoutMs))
+        if (!WaitForConnectedGate())
         {
             PatchHelper.Log("[Connection] Connect timed out");
             ResetAfterFailedConnect();
@@ -77,6 +77,23 @@ internal sealed partial class SteamConnection
 
         ResetAfterFailedConnect();
         throw _connectError;
+    }
+
+    private bool WaitForConnectedGate()
+    {
+        var deadline = Environment.TickCount64 + ConnectTimeoutMs;
+        while (true)
+        {
+            var remaining = deadline - Environment.TickCount64;
+            if (remaining <= 0)
+                return _connectedGate.IsSet;
+
+            if (_connectedGate.Wait((int)Math.Min(50, remaining)))
+                return true;
+
+            if (OperatingSystem.IsAndroid())
+                AndroidBridgeDispatcher.Pump();
+        }
     }
 
     private void CompleteConnectionAttempt()

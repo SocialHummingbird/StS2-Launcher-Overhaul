@@ -129,6 +129,10 @@ internal static partial class CloudSyncCoordinator
             => new(ReadLocalContent(), CloudFileExists());
     }
 
+    private static bool IsCloudFileMissing(Exception ex)
+        => ex is System.IO.FileNotFoundException
+            || ex.Message.Contains("FileNotFound", StringComparison.OrdinalIgnoreCase);
+
     // Uses content comparison only because timestamps are unreliable on mobile.
     // Progress/run files compare durable progress; non-progress conflicts default to cloud.
     internal static async Task AutoSyncFileAsync(ISaveStore local, ICloudSaveStore cloud, string path)

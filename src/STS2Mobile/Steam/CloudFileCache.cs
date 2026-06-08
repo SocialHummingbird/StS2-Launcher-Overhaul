@@ -22,7 +22,17 @@ internal sealed partial class SteamKit2CloudSaveStore
 
         internal bool FileExists(string path)
         {
+            EnsureLoaded();
+            if (!_loaded)
+                return true; // Unknown after enumeration failure; let direct reads ask Steam.
+
             return GetFileInfo(path).HasValue;
+        }
+
+        internal bool IsLoaded()
+        {
+            EnsureLoaded();
+            return _loaded;
         }
 
         internal DateTimeOffset GetLastModifiedTime(string path)

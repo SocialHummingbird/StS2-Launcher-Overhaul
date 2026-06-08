@@ -16,6 +16,12 @@ internal static partial class CloudSyncCoordinator
     private static string SyncLocalWinsUploading(string path) =>
         SyncMessage($"local wins for {path}, uploading");
 
+    private static string SyncCloudMissingLocalWins(string path) =>
+        SyncMessage($"cloud missing for {path}, uploading local");
+
+    private static string SyncCloudMissingSkipping(string path) =>
+        SyncMessage($"cloud missing for {path}, skipping");
+
     private static string SyncContentsDifferCloudWins(string path) =>
         SyncMessage($"contents differ for {path}, cloud wins");
 

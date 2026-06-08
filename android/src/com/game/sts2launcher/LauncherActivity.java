@@ -17,6 +17,10 @@ public class LauncherActivity extends Activity {
 		super.onCreate(savedInstanceState);
 
 		Intent intent = new Intent(this, shouldUseNativeX86Fallback() ? NativeFallbackActivity.class : GodotApp.class);
+		Intent sourceIntent = getIntent();
+		if (sourceIntent != null && sourceIntent.getExtras() != null) {
+			intent.putExtras(sourceIntent);
+		}
 		intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
 		startActivity(intent);
 		finish();

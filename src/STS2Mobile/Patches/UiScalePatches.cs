@@ -26,9 +26,9 @@ internal static class UiScalePatches
     {
         var sts2Asm = typeof(MegaCrit.Sts2.Core.Nodes.NGame).Assembly;
 
-        PatchResolutionDropdown(harmony, sts2Asm);
-        PatchResolutionDropdownItem(harmony, sts2Asm);
-        PatchSettingsScreen(harmony, sts2Asm);
+        PatchHelper.Log(
+            "UI scale dropdown replacement disabled: current Android runtime cannot safely Harmony-wrap private-field-heavy resolution dropdown methods."
+        );
         PatchWindowChangeHandlers(harmony, sts2Asm);
     }
 

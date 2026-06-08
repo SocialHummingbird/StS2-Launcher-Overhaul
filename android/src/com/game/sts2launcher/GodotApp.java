@@ -72,8 +72,14 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
 	private static final String KEY_LAUNCH_GAME_ON_NEXT_START = "launch_game_on_next_start";
 	private static final String KEY_SAFE_LAUNCH_ON_NEXT_START = "safe_launch_on_next_start";
-	private static final int ASSEMBLY_CACHE_SCHEMA = 9;
-	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v26";
+	private static final String ENV_LAUNCHER_BOOTSTRAP = "STS2_LAUNCHER_BOOTSTRAP";
+	private static final String ENV_AUTO_LAUNCH_GAME = "STS2_AUTO_LAUNCH_GAME";
+	private static final String ENV_AUTO_SAFE_LAUNCH = "STS2_AUTO_SAFE_LAUNCH";
+	private static final String ENV_FORCE_CRITICAL_PATCH_FAILURE = "STS2_FORCE_CRITICAL_PATCH_FAILURE";
+	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
+	private static final String EXTRA_SAFE_LAUNCH_ON_START = "sts2_safe_launch";
+    private static final int ASSEMBLY_CACHE_SCHEMA = 20;
+	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v29";
 	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
 	private static final int MAX_BUFFERED_HTTP_RESPONSE_BYTES = 1024 * 1024;
@@ -90,7 +96,11 @@ public class GodotApp extends GodotActivity {
 		"ZstdSharp.dll",
 		"GodotSharp.dll"
 	};
-	private static final String GAME_REQUIRED_ASSEMBLY = "sts2.dll";
+	private static final String[] GAME_REQUIRED_ASSEMBLIES = {
+		"sts2.dll",
+		"Steamworks.NET.dll",
+		"Sentry.dll"
+	};
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -246,9 +256,8 @@ public class GodotApp extends GodotActivity {
 		}
 
 		ArrayList<String> required = new ArrayList<>(java.util.Arrays.asList(BOOTSTRAP_REQUIRED_ASSEMBLIES));
-		if (requireGameAssemblies) {
-			required.add(GAME_REQUIRED_ASSEMBLY);
-		}
+		if (requireGameAssemblies)
+			required.addAll(java.util.Arrays.asList(GAME_REQUIRED_ASSEMBLIES));
 
 		for (String fileName : required.toArray(new String[0])) {
 			File file = new File(destDir, fileName);
@@ -281,9 +290,8 @@ public class GodotApp extends GodotActivity {
 		Log.i(TAG, sb.toString());
 
 		ArrayList<String> required = new ArrayList<>(java.util.Arrays.asList(BOOTSTRAP_REQUIRED_ASSEMBLIES));
-		if (requireGameAssemblies) {
-			required.add(GAME_REQUIRED_ASSEMBLY);
-		}
+		if (requireGameAssemblies)
+			required.addAll(java.util.Arrays.asList(GAME_REQUIRED_ASSEMBLIES));
 		for (String name : required.toArray(new String[0])) {
 			File file = destDir == null ? null : new File(destDir, name);
 			Log.i(TAG, "Assembly cache required file [" + phase + "]: " + name
@@ -380,6 +388,7 @@ public class GodotApp extends GodotActivity {
 		if (
 			!refreshCache
 				&& hasRequiredCacheFiles(destDir, requiresGameAssemblies)
+				&& hasCurrentPackagedRequiredAssemblies(destDir)
 				&& (!requiresGameAssemblies || hasCachedGameAssemblies(destDir, srcDir, packagedBclNames))
 		) {
 			Log.i(TAG, "Assemblies already set up at: " + destDir.getAbsolutePath());
@@ -495,8 +504,6 @@ public class GodotApp extends GodotActivity {
 			|| lower.equals("mscorrc.dll")
 			|| lower.equals("msquic.dll")
 			|| lower.equals("steam_api64.dll")
-			|| lower.equals("steamworks.net.dll")
-			|| lower.equals("sentry.dll")
 			|| lower.equals("sharpgen.runtime.dll")
 			|| lower.equals("sharpgen.runtime.com.dll")
 			|| lower.equals("system.io.compression.native.dll")
@@ -547,7 +554,49 @@ public class GodotApp extends GodotActivity {
 		if (srcDir == null || !srcDir.exists() || !srcDir.isDirectory()) {
 			return false;
 		}
-		return new File(srcDir, GAME_REQUIRED_ASSEMBLY).exists();
+		return new File(srcDir, GAME_REQUIRED_ASSEMBLIES[0]).exists();
+	}
+
+	private boolean hasCurrentPackagedRequiredAssemblies(File destDir) {
+		if (destDir == null || !destDir.exists() || !destDir.isDirectory()) {
+			return false;
+		}
+
+		for (String name : BOOTSTRAP_REQUIRED_ASSEMBLIES) {
+			File cached = new File(destDir, name);
+			if (!cached.exists() || !packagedAssetMatchesFile("dotnet_bcl/" + name, cached)) {
+				Log.i(TAG, "Packaged assembly cache is stale: " + name);
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private boolean packagedAssetMatchesFile(String assetPath, File cached) {
+		try (InputStream asset = getAssets().open(assetPath);
+				InputStream current = new FileInputStream(cached)) {
+			byte[] assetBuffer = new byte[8192];
+			byte[] currentBuffer = new byte[8192];
+			while (true) {
+				int assetRead = asset.read(assetBuffer);
+				int currentRead = current.read(currentBuffer);
+				if (assetRead != currentRead) {
+					return false;
+				}
+				if (assetRead < 0) {
+					return true;
+				}
+				for (int i = 0; i < assetRead; i++) {
+					if (assetBuffer[i] != currentBuffer[i]) {
+						return false;
+					}
+				}
+			}
+		} catch (IOException e) {
+			Log.w(TAG, "Could not compare packaged assembly asset: " + assetPath, e);
+			return false;
+		}
 	}
 
 	private boolean containsAssemblies(File dir) {
@@ -569,7 +618,7 @@ public class GodotApp extends GodotActivity {
 		}
 
 		for (File src : files) {
-			if (packagedBclNames.contains(src.getName())) {
+			if (!shouldCopyGameAssemblyFile(src.getName(), packagedBclNames)) {
 				continue;
 			}
 			File dest = new File(destDir, src.getName());
@@ -652,9 +701,14 @@ public class GodotApp extends GodotActivity {
 	public List<String> getCommandLine() {
 		List<String> commands = new ArrayList<>(super.getCommandLine());
 		File pckFile = new File(gameDir, PCK_FILE);
-		if (isGamePckReady() && consumeGameLaunchRequest()) {
+		boolean launchRequested = isGamePckReady() && consumeGameLaunchRequest();
+		setAutoLaunchGameMode(launchRequested);
+		setForcedCriticalPatchFailureMode();
+		if (launchRequested) {
+			setLauncherBootstrapMode(false);
 			boolean safeLaunch = consumeSafeGameLaunchRequest();
-			boolean useDefaultRenderer = safeLaunch || previousStartupPhaseWas("game startup completed");
+			setAutoSafeLaunchMode(safeLaunch);
+			boolean useDefaultRenderer = previousStartupPhaseWas("game startup completed");
 			patchGamePckForAndroid(pckFile);
 			if (!useDefaultRenderer) {
 				commands.add("--rendering-driver");
@@ -665,6 +719,9 @@ public class GodotApp extends GodotActivity {
 				Log.i(TAG, safeLaunch
 					? "Using default renderer for manual safe launch"
 					: "Using default renderer because previous game startup completed but did not produce a usable screen");
+			}
+			if (safeLaunch && !useDefaultRenderer) {
+				Log.i(TAG, "Manual safe launch keeps OpenGL compatibility renderer");
 			}
 			commands.add("--verbose");
 			Log.i(TAG, "Enabled verbose Godot logging for downloaded game");
@@ -680,8 +737,10 @@ public class GodotApp extends GodotActivity {
 			}
 			Log.i(TAG, "Loading PCK from: " + pckFile.getAbsolutePath());
 		} else {
+			setAutoSafeLaunchMode(false);
 			// Start in the launcher unless a one-shot game launch was requested; use bootstrap PCK so Godot can initialize for the
 			// launcher.
+			setLauncherBootstrapMode(true);
 			String bootstrapPck = extractBootstrapPck();
 			if (bootstrapPck != null) {
 				commands.add("--main-pack");
@@ -690,6 +749,50 @@ public class GodotApp extends GodotActivity {
 			}
 		}
 		return commands;
+	}
+
+	private void setLauncherBootstrapMode(boolean enabled) {
+		try {
+			android.system.Os.setenv(ENV_LAUNCHER_BOOTSTRAP, enabled ? "1" : "0", true);
+			Log.i(TAG, "Launcher bootstrap mode: " + enabled);
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to set launcher bootstrap mode", e);
+		}
+	}
+
+	private void setAutoLaunchGameMode(boolean enabled) {
+		try {
+			android.system.Os.setenv(ENV_AUTO_LAUNCH_GAME, enabled ? "1" : "0", true);
+			Log.i(TAG, "Auto-launch game mode: " + enabled);
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to set auto-launch game mode", e);
+		}
+	}
+
+	private void setAutoSafeLaunchMode(boolean enabled) {
+		try {
+			android.system.Os.setenv(ENV_AUTO_SAFE_LAUNCH, enabled ? "1" : "0", true);
+			Log.i(TAG, "Auto-safe-launch mode: " + enabled);
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to set auto-safe-launch mode", e);
+		}
+	}
+
+	private void setForcedCriticalPatchFailureMode() {
+		boolean enabled = false;
+		try {
+			enabled = android.provider.Settings.Global.getInt(getContentResolver(), "sts2_force_critical_patch_failure", 0) == 1;
+			android.system.Os.setenv(ENV_FORCE_CRITICAL_PATCH_FAILURE, enabled ? "1" : "0", true);
+			if (enabled) {
+				Log.w(TAG, "Forced critical patch failure mode enabled by Android global setting");
+			}
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to set forced critical patch failure mode", e);
+			try {
+				android.system.Os.setenv(ENV_FORCE_CRITICAL_PATCH_FAILURE, "0", true);
+			} catch (Exception ignored) {
+			}
+		}
 	}
 
 	private boolean previousStartupPhaseWas(String expectedPhase) {
@@ -709,6 +812,13 @@ public class GodotApp extends GodotActivity {
 	}
 
 	private boolean consumeGameLaunchRequest() {
+		Intent intent = getIntent();
+		if (intent != null && intent.getBooleanExtra(EXTRA_LAUNCH_GAME_ON_START, false)) {
+			intent.removeExtra(EXTRA_LAUNCH_GAME_ON_START);
+			Log.i(TAG, "Consuming intent game launch request");
+			return true;
+		}
+
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		boolean requested = prefs.getBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, false);
 		if (!requested) {
@@ -722,6 +832,13 @@ public class GodotApp extends GodotActivity {
 	}
 
 	private boolean consumeSafeGameLaunchRequest() {
+		Intent intent = getIntent();
+		if (intent != null && intent.getBooleanExtra(EXTRA_SAFE_LAUNCH_ON_START, false)) {
+			intent.removeExtra(EXTRA_SAFE_LAUNCH_ON_START);
+			Log.i(TAG, "Consuming intent safe launch request");
+			return true;
+		}
+
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		boolean requested = prefs.getBoolean(KEY_SAFE_LAUNCH_ON_NEXT_START, false);
 		if (!requested) {
@@ -776,6 +893,7 @@ public class GodotApp extends GodotActivity {
 				readUInt32LE(raf); // entry flags
 
 				long absOffset = relativeOffsets ? fileBase + offset : offset;
+				dumpPckEntryForDiagnostics(path, raf, absOffset, size);
 				if (isPckPath(path, "project.binary")) {
 					patched |= patchPckBinaryProjectEntry(raf, absOffset, size);
 				} else if (isPckPath(path, "project.godot")) {
@@ -784,15 +902,16 @@ public class GodotApp extends GodotActivity {
 						"FmodManager=\"*res://addons/fmod/FmodManager.gd\""
 					});
 				} else if (isPckPath(path, ".godot/extension_list.cfg")) {
+					patched |= patchPckTextEntryReplacements(raf, absOffset, size, new String[][] {
+						{ spacesFor("res://addons/fmod/fmod.gdextension"), "res://addons/fmod/fmod.gdextension" }
+					});
 					if (isX86Runtime()) {
 						patched |= patchPckTextEntry(raf, absOffset, size, new String[] {
-							"res://addons/fmod/fmod.gdextension",
 							"res://addons/sentry/sentry.gdextension",
 							"res://addons/spine/spine_godot_extension.gdextension"
 						});
 					} else {
 						patched |= patchPckTextEntry(raf, absOffset, size, new String[] {
-							"res://addons/fmod/fmod.gdextension",
 							"res://addons/sentry/sentry.gdextension"
 						});
 					}
@@ -822,6 +941,64 @@ public class GodotApp extends GodotActivity {
 		} catch (Exception e) {
 			Log.w(TAG, "Failed to write PCK Android patch marker", e);
 		}
+	}
+
+	private void dumpPckEntryForDiagnostics(String path, RandomAccessFile raf, long offset, long size) {
+		if (!isPckDiagnosticsDumpEnabled() || !isPckDiagnosticsPath(path)) {
+			return;
+		}
+		if (offset < 0 || size < 0 || size > 4L * 1024L * 1024L) {
+			Log.w(TAG, "PCK diagnostic dump skipped for " + path + ": size=" + size);
+			return;
+		}
+
+		try {
+			File dir = getExternalFilesDir("pck-diagnostics");
+			if (dir == null) {
+				Log.w(TAG, "PCK diagnostic dump skipped: external files dir unavailable");
+				return;
+			}
+			if (!dir.exists() && !dir.mkdirs()) {
+				Log.w(TAG, "PCK diagnostic dump skipped: failed to create " + dir);
+				return;
+			}
+
+			long saved = raf.getFilePointer();
+			raf.seek(offset);
+			byte[] content = new byte[(int)size];
+			raf.readFully(content);
+			raf.seek(saved);
+
+			String fileName = path.replace("res://", "").replace("/", "__").replace("\\", "__");
+			File out = new File(dir, fileName);
+			try (java.io.FileOutputStream stream = new java.io.FileOutputStream(out)) {
+				stream.write(content);
+			}
+			Log.i(TAG, "PCK diagnostic entry dumped: " + path + " -> " + out.getAbsolutePath() + " bytes=" + size);
+		} catch (Exception e) {
+			Log.w(TAG, "PCK diagnostic dump failed for " + path, e);
+		}
+	}
+
+	private boolean isPckDiagnosticsDumpEnabled() {
+		try {
+			return android.provider.Settings.Global.getInt(getContentResolver(), "sts2_dump_pck_diagnostics", 0) == 1;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	private boolean isPckDiagnosticsPath(String path) {
+		return isPckPath(path, ".godot/extension_list.cfg")
+			|| isPckPath(path, "addons/fmod/fmod.gdextension")
+			|| isPckPath(path, "addons/fmod/FmodManager.gd")
+			|| isPckPath(path, "addons/fmod/FmodManager.gdc")
+			|| isPckPath(path, "src/gdscript/music_controller_proxy.gd")
+			|| isPckPath(path, "src/gdscript/music_controller_proxy.gdc")
+			|| isPckPath(path, "src/gdscript/audio_manager_proxy.gd")
+			|| isPckPath(path, "src/gdscript/audio_manager_proxy.gdc")
+			|| isPckPath(path, "scenes/game.tscn")
+			|| isPckPath(path, "project.godot");
 	}
 
 	private boolean isPckPath(String path, String expected) {
@@ -913,6 +1090,36 @@ public class GodotApp extends GodotActivity {
 		}
 
 		return patched;
+	}
+
+	private boolean patchPckTextEntryReplacements(RandomAccessFile raf, long offset, long size, String[][] replacements) throws IOException {
+		if (offset < 0 || size < 0 || size > 8L * 1024L * 1024L || offset + size > raf.length()) {
+			return false;
+		}
+
+		long saved = raf.getFilePointer();
+		raf.seek(offset);
+		byte[] content = new byte[(int)size];
+		raf.readFully(content);
+		boolean patched = false;
+
+		for (String[] replacement : replacements) {
+			patched |= replacePckEntryBytes(content, replacement[0], replacement[1]);
+		}
+
+		if (patched) {
+			raf.seek(offset);
+			raf.write(content);
+		}
+
+		raf.seek(saved);
+		return patched;
+	}
+
+	private String spacesFor(String value) {
+		char[] chars = new char[value.length()];
+		java.util.Arrays.fill(chars, ' ');
+		return new String(chars);
 	}
 
 	private boolean patchPckTextEntry(RandomAccessFile raf, long offset, long size, String[] needles) throws IOException {
@@ -1039,24 +1246,35 @@ public class GodotApp extends GodotActivity {
 		return BuildConfig.VERSION_NAME;
 	}
 
-	public void launchGameOnRestart() {
-		Log.i(TAG, "Scheduling one-shot game launch on restart");
-		getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-			.edit()
-			.putBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, true)
-			.apply();
-		restartApp();
-	}
+    public void launchGameOnRestart() {
+        Log.i(TAG, "Scheduling one-shot game launch on restart");
+        boolean saved = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .edit()
+            .remove(KEY_SAFE_LAUNCH_ON_NEXT_START)
+            .putBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, true)
+            .commit();
+        Log.i(TAG, "One-shot game launch request saved: " + saved);
+        if (!saved) {
+            Log.e(TAG, "Failed to persist one-shot game launch request; not restarting");
+            return;
+        }
+        restartApp();
+    }
 
-	public void launchGameSafelyOnRestart() {
-		Log.i(TAG, "Scheduling one-shot safe game launch on restart");
-		getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-			.edit()
-			.putBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, true)
-			.putBoolean(KEY_SAFE_LAUNCH_ON_NEXT_START, true)
-			.apply();
-		restartApp();
-	}
+    public void launchGameSafelyOnRestart() {
+        Log.i(TAG, "Scheduling one-shot safe game launch on restart");
+        boolean saved = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, true)
+            .putBoolean(KEY_SAFE_LAUNCH_ON_NEXT_START, true)
+            .commit();
+        Log.i(TAG, "One-shot safe game launch request saved: " + saved);
+        if (!saved) {
+            Log.e(TAG, "Failed to persist one-shot safe game launch request; not restarting");
+            return;
+        }
+        restartApp();
+    }
 
 	public void restartApp() {
 		Log.i(TAG, "Restarting app...");

@@ -12,8 +12,10 @@ $SteamLoginCrashPatterns = @(
     "MethodAccessException",
     "MissingMethodException",
     "EntryPointNotFoundException",
+    "Android Java random byte bridge returned an empty response",
     "HTTP bridge request failed: GET wss://",
     "Android Java HTTP bridge cannot handle WebSocket CM requests",
+    "Steam CM WebSocket using managed .NET transport",
     "unknown protocol: wss"
 )
 $SteamLoginSuccessPatterns = @(

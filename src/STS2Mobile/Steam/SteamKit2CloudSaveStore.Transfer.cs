@@ -10,7 +10,9 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamKit2CloudSaveStore
 {
-    private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private readonly HttpClient _http = OperatingSystem.IsAndroid()
+        ? AndroidJavaHttpMessageHandler.CreateCdnClient()
+        : new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 
     private readonly struct CloudDownloadedFile
     {
@@ -68,13 +70,19 @@ internal sealed partial class SteamKit2CloudSaveStore
     private async Task<string> ReadFileAsyncCore(string path)
     {
         path = CloudSavePath.Canonicalize(path);
+        var cacheLoaded = _cache.IsLoaded();
+        PatchHelper.Log($"[Cloud] Read: starting {path} cacheLoaded={cacheLoaded}");
 
-        if (!_cache.FileExists(path))
+        if (cacheLoaded && !_cache.FileExists(path))
             throw new FileNotFoundException($"Cloud file not found: {path}");
 
-        if (_cache.GetFileSize(path) == 0)
+        if (cacheLoaded && _cache.GetFileSize(path) == 0)
+        {
+            PatchHelper.Log($"[Cloud] Read: cache says empty {path}");
             return string.Empty;
+        }
 
+        PatchHelper.Log($"[Cloud] Read: requesting download URL for {path}");
         var result = await _connection
             .SendCloud<CCloud_ClientFileDownload_Request, CCloud_ClientFileDownload_Response>(
                 "ClientFileDownload",
@@ -82,9 +90,14 @@ internal sealed partial class SteamKit2CloudSaveStore
             )
             .ConfigureAwait(false);
 
+        PatchHelper.Log(
+            $"[Cloud] Read: download URL received for {path} host={(string.IsNullOrEmpty(result.url_host) ? "<none>" : result.url_host)} fileSize={result.file_size} rawSize={result.raw_file_size} encrypted={result.encrypted}"
+        );
         var download = CloudFileDownload.FromValidated(path, result);
         using var httpRequest = download.CreateHttpRequest();
+        PatchHelper.Log($"[Cloud] Read: fetching bytes for {path}");
         var data = await ReadCloudHttpBytesAsync(httpRequest).ConfigureAwait(false);
+        PatchHelper.Log($"[Cloud] Read: fetched {data.Length} bytes for {path}");
         return download.ReadText(data);
     }
 }

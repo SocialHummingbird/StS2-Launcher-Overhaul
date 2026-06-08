@@ -84,10 +84,11 @@ internal sealed partial class LauncherSteamSession
     {
         try
         {
-            return await connection.GetAppAccessTokenOrPublicAsync(
+            await connection.GetAppAccessTokenOrPublicAsync(
                 SteamCloudApp.AppId,
                 OwnershipDeniedMessage
-            ) != 0;
+            );
+            return true;
         }
         catch (InvalidOperationException ex)
             when (ex.Message == OwnershipDeniedMessage)

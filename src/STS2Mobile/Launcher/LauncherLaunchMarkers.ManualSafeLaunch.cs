@@ -12,6 +12,13 @@ internal static partial class LauncherLaunchMarkers
             "[Launcher] Failed to write manual safe launch marker"
         );
 
+    internal static void ClearManualSafeLaunchMarker()
+        => TryDeleteMarker(
+            ManualSafeLaunchPath,
+            "Failed to clear manual safe launch marker",
+            out _
+        );
+
     internal static bool ConsumeManualSafeLaunchMarker()
     {
         if (!TryDeleteMarker(
@@ -19,7 +26,7 @@ internal static partial class LauncherLaunchMarkers
             "Failed to consume manual safe launch marker",
             out var existed
         ))
-            return true;
+            return false;
 
         if (!existed)
             return false;

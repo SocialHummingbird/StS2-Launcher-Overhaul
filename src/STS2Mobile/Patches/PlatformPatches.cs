@@ -111,12 +111,7 @@ internal static class PlatformPatches
 
             harmony.Patch(
                 method,
-                prefix: new HarmonyMethod(
-                    typeof(PlatformPatches).GetMethod(
-                        nameof(GetThreeLetterLanguageCodePrefix),
-                        BindingFlags.Public | BindingFlags.Static
-                    )
-                )
+                prefix: new HarmonyMethod(Prefix(nameof(GetThreeLetterLanguageCodePrefix)))
             );
             PatchHelper.Log(
                 "Patched NullPlatformUtilStrategy.GetThreeLetterLanguageCode (locale fix)"
@@ -241,7 +236,7 @@ internal static class PlatformPatches
     {
         return typeof(PlatformPatches).GetMethod(
             prefixName,
-            BindingFlags.Public | BindingFlags.Static
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
         );
     }
 

@@ -44,7 +44,7 @@ public static partial class AndroidJavaCrypto
         private readonly string _mode;
         private readonly PaddingMode _padding;
         private readonly byte[] _key;
-        private readonly byte[] _iv;
+        private byte[] _currentIv;
         private readonly MemoryStream _buffer = new();
         private bool _disposed;
 
@@ -60,7 +60,7 @@ public static partial class AndroidJavaCrypto
             _mode = AesModeName(mode);
             _padding = padding;
             _key = CopyRequired(key, nameof(key));
-            _iv = CopyOptional(iv);
+            _currentIv = CopyOptional(iv);
         }
 
         public bool CanReuseTransform => false;
@@ -89,9 +89,16 @@ public static partial class AndroidJavaCrypto
             if (inputCount > 0)
                 _buffer.Write(inputBuffer, inputOffset, inputCount);
 
-            // Java Cipher is used as a one-shot bridge. Buffering intermediate
-            // blocks keeps CryptoStream write paths on the safe Java side too.
-            return 0;
+            var data = TakeTransformBlockData();
+            if (data.Length == 0)
+                return 0;
+
+            var output = CryptWithCurrentIv(PaddingMode.None, data);
+            if (outputBuffer.Length - outputOffset < output.Length)
+                throw new ArgumentException("Output buffer is too short for AES output", nameof(outputBuffer));
+
+            Array.Copy(output, 0, outputBuffer, outputOffset, output.Length);
+            return output.Length;
         }
 
         public byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount)
@@ -104,7 +111,74 @@ public static partial class AndroidJavaCrypto
 
             var data = _buffer.ToArray();
             _buffer.SetLength(0);
-            return AesCryptAndroid(_operation, _mode, _padding, _key, _iv, data);
+            if (data.Length == 0 && _padding == PaddingMode.None)
+                return Array.Empty<byte>();
+
+            return CryptWithCurrentIv(_padding, data);
+        }
+
+        private byte[] TakeTransformBlockData()
+        {
+            var buffered = _buffer.ToArray();
+            var processLength = buffered.Length - (buffered.Length % AesBlockSizeBytes);
+            if (
+                _padding == PaddingMode.PKCS7 &&
+                _operation == "decrypt" &&
+                processLength == buffered.Length &&
+                processLength > 0
+            )
+            {
+                processLength -= AesBlockSizeBytes;
+            }
+
+            if (processLength <= 0)
+                return Array.Empty<byte>();
+
+            var data = new byte[processLength];
+            Array.Copy(buffered, 0, data, 0, processLength);
+
+            _buffer.SetLength(0);
+            if (processLength < buffered.Length)
+                _buffer.Write(buffered, processLength, buffered.Length - processLength);
+
+            return data;
+        }
+
+        private byte[] CryptWithCurrentIv(PaddingMode padding, byte[] data)
+        {
+            var iv = _mode == "CBC" ? _currentIv : Array.Empty<byte>();
+            var output = AesCryptAndroid(_operation, _mode, padding, _key, iv, data);
+            UpdateCurrentIv(data, output);
+            return output;
+        }
+
+        private void UpdateCurrentIv(byte[] input, byte[] output)
+        {
+            if (_mode != "CBC")
+                return;
+
+            if (_operation == "encrypt")
+            {
+                if (output.Length >= AesBlockSizeBytes)
+                    _currentIv = LastBlock(output);
+                return;
+            }
+
+            if (input.Length >= AesBlockSizeBytes)
+                _currentIv = LastBlock(input);
+        }
+
+        private static byte[] LastBlock(byte[] data)
+        {
+            var block = new byte[AesBlockSizeBytes];
+            Array.Copy(
+                data,
+                data.Length - AesBlockSizeBytes,
+                block,
+                0,
+                AesBlockSizeBytes
+            );
+            return block;
         }
 
         private void ThrowIfDisposed()

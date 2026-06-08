@@ -26,6 +26,9 @@ public static class ModEntry
     private const uint GodotPckMagic = 0x43504447;
     private const string GameDirectoryName = "game";
     private const string GamePckFileName = "SlayTheSpire2.pck";
+    private const string LauncherBootstrapVariable = "STS2_LAUNCHER_BOOTSTRAP";
+    private const int StartupFallbackShieldZIndex = 4090;
+    private const int StartupFallbackLauncherZIndex = 4092;
     private const int MinimumPckHeaderLength = 96;
     private const string TempDirectoryName = "tmp";
     private static readonly string[] TempVariableNames =
@@ -36,6 +39,10 @@ public static class ModEntry
     };
     private static int _applyState = ApplyNotStarted;
     private static int _exceptionHandlersInstalled;
+    private static string _startupFallbackReason;
+
+    internal static bool HasStartupFallbackReason
+        => !string.IsNullOrWhiteSpace(_startupFallbackReason);
 
     // Bootstraps GodotSharp by setting up DLL import resolver, native interop,
     // and managed callbacks. Called from gd_mono.cpp before Apply().
@@ -148,8 +155,10 @@ public static class ModEntry
 
             if (patchResult.CriticalFailed)
             {
+                var reason = "Critical startup patches failed:\n"
+                    + string.Join("\n", patchResult.FailureMessages().Take(5));
                 PatchHelper.Log("Critical startup patches failed; scheduling standalone launcher fallback.");
-                ScheduleStandaloneLauncher();
+                ScheduleStandaloneLauncher(reason);
                 return;
             }
 
@@ -166,20 +175,32 @@ public static class ModEntry
             }
 
             PatchHelper.Log("Startup patch orchestration complete.");
-            if (IsStandaloneLauncherRequired())
+            if (IsLauncherBootstrapRequested())
             {
+                PatchHelper.Log("Launcher bootstrap mode requested; showing launcher UI.");
                 ScheduleStandaloneLauncher();
+            }
+            else if (IsStandaloneLauncherRequired())
+            {
+                ScheduleStandaloneLauncher("Game files are not ready. Launcher-only mode started.");
             }
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"Unexpected startup error: {ex.Message}");
-            ScheduleStandaloneLauncher();
+            ScheduleStandaloneLauncher($"Unexpected startup error:\n{ex.GetType().Name}: {ex.Message}");
         }
     }
 
     private static bool IsStandaloneLauncherRequired()
         => !IsGamePckStructurallyReady(GamePckPath);
+
+    private static bool IsLauncherBootstrapRequested()
+        => string.Equals(
+            System.Environment.GetEnvironmentVariable(LauncherBootstrapVariable),
+            "1",
+            StringComparison.Ordinal
+        );
 
     private static string GamePckPath
         => Path.Combine(
@@ -292,7 +313,13 @@ public static class ModEntry
     }
 
     private static void ScheduleStandaloneLauncher()
+        => ScheduleStandaloneLauncher(null);
+
+    private static void ScheduleStandaloneLauncher(string reason)
     {
+        if (!string.IsNullOrWhiteSpace(reason))
+            _startupFallbackReason = reason;
+
         PatchHelper.Log("Scheduling standalone launcher...");
         Callable.From(CreateStandaloneLauncher).CallDeferred();
     }
@@ -306,9 +333,62 @@ public static class ModEntry
         }
 
         var launcher = new LauncherUI();
+        AddStartupFallbackShield(tree);
         tree.Root.AddChild(launcher);
         launcher.Initialize();
+        RaiseStartupFallbackLauncher(launcher);
+        AddStartupFallbackBanner(tree);
         PatchHelper.Log("Standalone launcher displayed");
+    }
+
+    private static void AddStartupFallbackShield(SceneTree tree)
+    {
+        if (string.IsNullOrWhiteSpace(_startupFallbackReason))
+            return;
+
+        var shield = new ColorRect
+        {
+            Name = "STS2MobileStartupFallbackShield",
+            Color = new Color(0.02f, 0.02f, 0.025f, 0.96f),
+            ZIndex = StartupFallbackShieldZIndex,
+            MouseFilter = Control.MouseFilterEnum.Stop,
+        };
+        shield.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        tree.Root.AddChild(shield);
+        PatchHelper.Log("Startup fallback shield displayed");
+    }
+
+    private static void RaiseStartupFallbackLauncher(LauncherUI launcher)
+    {
+        if (string.IsNullOrWhiteSpace(_startupFallbackReason))
+            return;
+
+        launcher.ZIndex = StartupFallbackLauncherZIndex;
+        PatchHelper.Log("Startup fallback launcher raised above shield");
+    }
+
+    private static void AddStartupFallbackBanner(SceneTree tree)
+    {
+        if (string.IsNullOrWhiteSpace(_startupFallbackReason))
+            return;
+
+        var banner = new Label
+        {
+            Text = "Game launch failed before startup completed.\n" + _startupFallbackReason,
+            ZIndex = 1000,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        banner.SetAnchorsPreset(Control.LayoutPreset.TopWide);
+        banner.OffsetLeft = 18;
+        banner.OffsetTop = 18;
+        banner.OffsetRight = -18;
+        banner.OffsetBottom = 190;
+        banner.AddThemeColorOverride("font_color", Colors.White);
+        banner.AddThemeColorOverride("font_shadow_color", Colors.Black);
+        banner.AddThemeConstantOverride("shadow_offset_x", 2);
+        banner.AddThemeConstantOverride("shadow_offset_y", 2);
+        tree.Root.AddChild(banner);
+        PatchHelper.Log("Startup fallback banner displayed");
     }
 
     private static bool TryBeginApply()

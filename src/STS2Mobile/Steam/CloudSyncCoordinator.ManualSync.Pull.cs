@@ -46,6 +46,11 @@ internal static partial class CloudSyncCoordinator
         {
             PatchHelper.Log(PullPathTimedOut(path));
         }
+        catch (Exception ex) when (IsCloudFileMissing(ex))
+        {
+            PatchHelper.Log(PullNotInCloud(path));
+            result = ManualSyncPathResult.SkippedPath;
+        }
         catch (Exception ex)
         {
             PatchHelper.Log(PullFailed(path, ex));

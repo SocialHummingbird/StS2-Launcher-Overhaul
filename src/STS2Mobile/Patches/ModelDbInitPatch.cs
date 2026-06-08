@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -86,7 +86,7 @@ internal static class ModelDbInitPatch
         var harmony = new Harmony(HarmonyId);
         var containsPrefix = typeof(ModelDbInitPatch).GetMethod(
             nameof(ContainsPrefix),
-            BindingFlags.Public | BindingFlags.Static
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
         );
         if (containsPrefix == null)
         {

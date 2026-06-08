@@ -1,28 +1,42 @@
 using System;
 using System.Threading.Tasks;
+using STS2Mobile.Patches;
 using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherSteamSession
 {
+    private const int SavedConnectionVerifyAttempts = 3;
+
     internal async Task<string?> ConnectSavedCredentialsAndVerifyAsync(Action verifyingOwnership)
     {
-        try
+        Exception lastFailure = null;
+
+        for (var attempt = 1; attempt <= SavedConnectionVerifyAttempts; attempt++)
         {
-            return await UseConnectionAndVerifyOwnershipAsync(
-                CreateSavedCredentialConnection(),
-                verifyingOwnership
-            );
+            try
+            {
+                if (attempt > 1)
+                    PatchHelper.Log($"[Launcher] Retrying saved Steam connection ({attempt}/{SavedConnectionVerifyAttempts})");
+
+                return await UseConnectionAndVerifyOwnershipAsync(
+                    CreateSavedCredentialConnection(),
+                    verifyingOwnership
+                );
+            }
+            catch (Exception ex)
+            {
+                lastFailure = ex;
+                PatchHelper.Log($"[Launcher] Saved Steam connection attempt {attempt}/{SavedConnectionVerifyAttempts} failed: {ex.GetType().Name}: {ex.Message}");
+            }
         }
-        catch (Exception ex)
-        {
-            return SessionFailure(
-                "Connection failed",
-                ex,
-                "Could not connect to Steam"
-            );
-        }
+
+        return SessionFailure(
+            "Connection failed",
+            lastFailure,
+            "Could not connect to Steam"
+        );
     }
 
     internal async Task<string?> EnsureConnectedAsync()
@@ -53,21 +67,35 @@ internal sealed partial class LauncherSteamSession
     private async Task<string?> AdoptSavedConnectionAfterAccessCheckAsync(
         SteamConnection connection
     )
-        => await AdoptConnectionAfterVerificationAsync(
-            connection,
-            async verifiedConnection =>
+    {
+        Exception lastFailure = null;
+
+        for (var attempt = 1; attempt <= SavedConnectionVerifyAttempts; attempt++)
+        {
+            var attemptConnection = attempt == 1 ? connection : CreateSavedCredentialConnection();
+            try
             {
-                try
-                {
-                    await EnsureAppAccessTokenNotDeniedAsync(verifiedConnection);
-                    return null;
-                }
-                catch (Exception ex)
-                {
-                    return SessionFailure("Connection failed", ex, "Connection failed");
-                }
+                if (attempt > 1)
+                    PatchHelper.Log($"[Launcher] Retrying Steam access check ({attempt}/{SavedConnectionVerifyAttempts})");
+
+                return await AdoptConnectionAfterVerificationAsync(
+                    attemptConnection,
+                    async verifiedConnection =>
+                    {
+                        await EnsureAppAccessTokenNotDeniedAsync(verifiedConnection);
+                        return null;
+                    }
+                );
             }
-        );
+            catch (Exception ex)
+            {
+                lastFailure = ex;
+                PatchHelper.Log($"[Launcher] Steam access check attempt {attempt}/{SavedConnectionVerifyAttempts} failed: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        return SessionFailure("Connection failed", lastFailure, "Connection failed");
+    }
 
     private async Task<string?> AdoptConnectionAfterVerificationAsync(
         SteamConnection connection,

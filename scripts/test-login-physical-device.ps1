@@ -75,12 +75,12 @@ function Get-PhysicalDeviceAbiList {
         [string]$DeviceSerial
     )
 
-    $abiList = (Invoke-PhysicalLoginAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", "ro.product.cpu.abilist") -join "").Trim()
+    $abiList = ((Invoke-PhysicalLoginAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", "ro.product.cpu.abilist")) -join "").Trim()
     if (-not [string]::IsNullOrWhiteSpace($abiList)) {
         return $abiList
     }
 
-    return (Invoke-PhysicalLoginAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", "ro.product.cpu.abi") -join "").Trim()
+    return ((Invoke-PhysicalLoginAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", "ro.product.cpu.abi")) -join "").Trim()
 }
 
 function Get-PhysicalDeviceProperty {
@@ -93,7 +93,7 @@ function Get-PhysicalDeviceProperty {
         [string]$Name
     )
 
-    return (Invoke-PhysicalLoginAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", $Name) -join "").Trim()
+    return ((Invoke-PhysicalLoginAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", $Name)) -join "").Trim()
 }
 
 function Assert-PhysicalDeviceSupportsArm64 {
@@ -242,46 +242,46 @@ New-Item -ItemType Directory -Force (Split-Path -Parent $summaryPath) | Out-Null
     "Screenshot path: $screenshotPath"
 ) | Set-Content -LiteralPath $summaryPath -Encoding UTF8
 
-$boundaryArgs = @(
-    "-DeviceSerial", $DeviceSerial,
-    "-AdbPath", $AdbPath,
-    "-CredentialsPath", $CredentialsPath,
-    "-OutputLogcatPath", $logcatPath,
-    "-OutputScreenshotPath", $screenshotPath,
-    "-LoginResultTimeoutSeconds", $LoginResultTimeoutSeconds,
-    "-PostGuardResultTimeoutSeconds", $PostGuardResultTimeoutSeconds
-)
+$boundaryArgs = @{
+    DeviceSerial = $DeviceSerial
+    AdbPath = $AdbPath
+    CredentialsPath = $CredentialsPath
+    OutputLogcatPath = $logcatPath
+    OutputScreenshotPath = $screenshotPath
+    LoginResultTimeoutSeconds = $LoginResultTimeoutSeconds
+    PostGuardResultTimeoutSeconds = $PostGuardResultTimeoutSeconds
+}
 
 if (-not [string]::IsNullOrWhiteSpace($ApkPath)) {
-    $boundaryArgs += @("-ApkPath", $ApkPath)
+    $boundaryArgs.ApkPath = $ApkPath
 }
 
 if (-not [string]::IsNullOrWhiteSpace($PackageName)) {
-    $boundaryArgs += @("-PackageName", $PackageName)
+    $boundaryArgs.PackageName = $PackageName
 }
 
 if (-not [string]::IsNullOrWhiteSpace($GuardCode)) {
-    $boundaryArgs += @("-GuardCode", $GuardCode)
+    $boundaryArgs.GuardCode = $GuardCode
 }
 
 if ($PromptForGuardCode) {
-    $boundaryArgs += "-PromptForGuardCode"
+    $boundaryArgs.PromptForGuardCode = $true
 }
 
 if ($WaitForManualGuardCode) {
-    $boundaryArgs += "-WaitForManualGuardCode"
+    $boundaryArgs.WaitForManualGuardCode = $true
 }
 
 if ($WaitForManualGuardSubmit) {
-    $boundaryArgs += "-WaitForManualGuardSubmit"
+    $boundaryArgs.WaitForManualGuardSubmit = $true
 }
 
 if ($WaitForPostGuardResult) {
-    $boundaryArgs += "-WaitForPostGuardResult"
+    $boundaryArgs.WaitForPostGuardResult = $true
 }
 
 if ($SkipCryptoPatchVerification) {
-    $boundaryArgs += "-SkipCryptoPatchVerification"
+    $boundaryArgs.SkipCryptoPatchVerification = $true
 }
 
 Write-Host "Running physical-device Steam login validation on $DeviceSerial"

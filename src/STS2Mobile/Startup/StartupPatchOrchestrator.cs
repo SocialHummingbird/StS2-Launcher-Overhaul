@@ -9,6 +9,8 @@ namespace STS2Mobile;
 
 internal static class StartupPatchOrchestrator
 {
+    private const string ForceCriticalPatchFailureVariable = "STS2_FORCE_CRITICAL_PATCH_FAILURE";
+
     private static readonly PatchGroup[] Groups = new PatchGroup[]
     {
         Core(),
@@ -21,6 +23,17 @@ internal static class StartupPatchOrchestrator
         var stopwatch = Stopwatch.StartNew();
         var results = new List<PatchGroupResult>(Groups.Length);
         var criticalFailed = false;
+
+        if (ForceCriticalPatchFailureRequested())
+        {
+            var forcedResult = ForcedCriticalPatchFailureResult(stopwatch);
+            PatchHelper.Log(
+                $"[startup] Patch orchestration finished in {forcedResult.Duration.TotalMilliseconds:F1}ms: "
+                + $"{forcedResult.AppliedPatchCount}/{forcedResult.TotalPatchCount} applied, "
+                + $"{forcedResult.FailedPatchCount} failed, criticalFailed={forcedResult.CriticalFailed}"
+            );
+            return forcedResult;
+        }
 
         foreach (var group in Groups)
         {
@@ -49,6 +62,40 @@ internal static class StartupPatchOrchestrator
         return result;
     }
 
+    private static bool ForceCriticalPatchFailureRequested()
+        => string.Equals(
+            Environment.GetEnvironmentVariable(ForceCriticalPatchFailureVariable),
+            "1",
+            StringComparison.Ordinal
+        );
+
+    private static StartupPatchResult ForcedCriticalPatchFailureResult(Stopwatch stopwatch)
+    {
+        stopwatch.Stop();
+        PatchHelper.Log("[startup] Forced critical patch failure requested for fallback validation");
+        return new StartupPatchResult(
+            new[]
+            {
+                new PatchGroupResult(
+                    "core",
+                    true,
+                    stopwatch.Elapsed,
+                    new[]
+                    {
+                        new PatchAttempt(
+                            "Forced critical patch failure",
+                            false,
+                            TimeSpan.Zero,
+                            "Injected by STS2_FORCE_CRITICAL_PATCH_FAILURE"
+                        )
+                    }
+                )
+            },
+            criticalFailed: true,
+            stopwatch.Elapsed
+        );
+    }
+
     private static PatchGroup Core()
         => new(
             "core",
@@ -57,6 +104,7 @@ internal static class StartupPatchOrchestrator
             {
                 new("Platform compatibility", PlatformPatches.Apply),
                 new("Model DB bootstrap", ModelDbInitPatch.Apply),
+                new("Launcher startup gate", LauncherPatches.Apply),
             }
         );
 
@@ -88,7 +136,6 @@ internal static class StartupPatchOrchestrator
             {
                 new("LAN multiplayer", LanMultiplayerPatcher.Apply),
                 new("Mod loader integration", ModLoaderPatches.Apply),
-                new("Launcher UI", LauncherPatches.Apply),
                 new("Save diagnostics", SaveDiagnosticPatches.Apply),
             }
         );
@@ -118,10 +165,26 @@ internal static class StartupPatchOrchestrator
     private static PatchAttempt ApplyStep(PatchGroup group, PatchStep step, Harmony harmony)
     {
         var patchStopwatch = Stopwatch.StartNew();
+        var helperFailures = new List<string>();
+        void CaptureHelperFailure(string message)
+        {
+            if (IsHelperPatchFailure(message))
+                helperFailures.Add(message);
+        }
+
+        PatchHelper.LogEmitted += CaptureHelperFailure;
         try
         {
             BootstrapTrace.Log($"Starting patch step: {group.Name}/{step.Name}");
             step.Apply(harmony);
+            if (helperFailures.Count > 0)
+            {
+                var failure = FormatHelperFailures(helperFailures);
+                BootstrapTrace.Log($"Failed patch step: {group.Name}/{step.Name}: {failure}");
+                PatchHelper.Log($"[{group.Name}] {step.Name} failed: {failure}");
+                return new PatchAttempt(step.Name, false, patchStopwatch.Elapsed, failure);
+            }
+
             BootstrapTrace.Log($"Finished patch step: {group.Name}/{step.Name}");
             return new PatchAttempt(step.Name, true, patchStopwatch.Elapsed, null);
         }
@@ -134,8 +197,23 @@ internal static class StartupPatchOrchestrator
         }
         finally
         {
+            PatchHelper.LogEmitted -= CaptureHelperFailure;
             patchStopwatch.Stop();
         }
+    }
+
+    private static bool IsHelperPatchFailure(string message)
+        => message.StartsWith("FAILED ", StringComparison.Ordinal)
+            || message.Contains(" patch failed:", StringComparison.OrdinalIgnoreCase);
+
+    private static string FormatHelperFailures(IReadOnlyList<string> failures)
+    {
+        const int maxFailures = 3;
+        var selected = failures.Take(maxFailures).ToArray();
+        var suffix = failures.Count > maxFailures
+            ? $" (+{failures.Count - maxFailures} more)"
+            : "";
+        return string.Join("; ", selected) + suffix;
     }
 
     private readonly record struct PatchStep(string Name, Action<Harmony> Apply);

@@ -85,7 +85,8 @@ internal static partial class LauncherStartupFlow
             => ManualSafeLaunch || IsPreviousPhase(PhaseManualSafeLaunch);
 
         private bool ShouldForceLocalSaves()
-            => SafeLaunchRequested
+            => OperatingSystem.IsAndroid()
+                || SafeLaunchRequested
                 || IsPreviousPhase(PhaseSettingsAndSaves)
                 || IsPreviousPhase(PhaseGameStartup);
 
@@ -105,12 +106,20 @@ internal static partial class LauncherStartupFlow
             => SaveModePlan.Apply();
 
         private string LocalSavesReasonLog
-            => SafeLaunchMessage(
-                "Disabling cloud save injection for manual safe launch",
-                _previousPhase.DescribePreviousStall(
+        {
+            get
+            {
+                if (ManualSafeLaunch)
+                    return "Disabling cloud save injection for manual safe launch";
+
+                if (OperatingSystem.IsAndroid())
+                    return "Disabling in-game cloud save injection on Android; launcher cloud sync remains available.";
+
+                return _previousPhase.DescribePreviousStall(
                     "Disabling cloud save injection for this launch because previous launch stalled at"
-                )
-            );
+                );
+            }
+        }
 
         internal string ShaderWarmupSkipLog
             => SafeLaunchMessage(

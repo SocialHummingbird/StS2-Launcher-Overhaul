@@ -11,11 +11,7 @@ public static partial class AndroidJavaCrypto
         if (!OperatingSystem.IsAndroid())
             return System.Security.Cryptography.RandomNumberGenerator.GetBytes(count);
 
-        return CallBase64Bridge(
-            "random bytes",
-            RandomBytesBase64BridgeMethod,
-            "Android Java random byte bridge returned an empty response",
-            count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return CallRandomBytesBridge(count);
     }
 
     public static void FillRandom(Span<byte> destination)
@@ -28,4 +24,30 @@ public static partial class AndroidJavaCrypto
 
         GetRandomBytes(destination.Length).CopyTo(destination);
     }
+
+    private static byte[] CallRandomBytesBridge(int count)
+        => AndroidBridgeDispatcher.Run(
+            () =>
+            {
+                if (
+                    !AndroidGodotAppBridge.TryGetInstance(
+                        out var app,
+                        "[Auth] Java crypto bridge unavailable"
+                    )
+                )
+                {
+                    throw new InvalidOperationException(
+                        "GodotApp Java bridge is unavailable for random bytes"
+                    );
+                }
+
+                var encoded = (string)app.Call(RandomBytesBase64BridgeMethod, count);
+                if (string.IsNullOrEmpty(encoded))
+                    throw new InvalidOperationException(
+                        "Android Java random byte bridge returned an empty response"
+                    );
+
+                return Convert.FromBase64String(encoded);
+            }
+        );
 }

@@ -24,11 +24,12 @@ internal sealed partial class LauncherController
             return;
 
         _automaticDiagnosticsWritten = true;
-        var path = TryWriteDiagnosticsReport(
-            DiagnosticsReportWrite.AutomaticSnapshot()
+        PatchHelper.Log(
+            "[Launcher] Previous launch warning shown; automatic diagnostics deferred to avoid blocking launcher display."
         );
-        if (path != null)
-            _view.AppendLog($"Automatic diagnostics snapshot: {path}");
+        _view.AppendLog(
+            "Diagnostics snapshot was not collected automatically to keep the launcher responsive. Use EXPORT DIAGNOSTICS after the launcher is visible."
+        );
     }
 
     private readonly struct PreviousLaunchWarning

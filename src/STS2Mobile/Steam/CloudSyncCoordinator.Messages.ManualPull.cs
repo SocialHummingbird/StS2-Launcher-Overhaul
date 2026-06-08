@@ -27,6 +27,9 @@ internal static partial class CloudSyncCoordinator
     private static string PullFailed(string path, Exception ex) =>
         PullMessage($"failed for {path}: {ex.Message}");
 
+    private static string PullNotInCloud(string path) =>
+        PullMessage($"not in cloud: {path}");
+
     private static string PullComplete(int downloaded, int skipped) =>
         PullMessage($"complete: {downloaded} downloaded, {skipped} not in cloud");
 }

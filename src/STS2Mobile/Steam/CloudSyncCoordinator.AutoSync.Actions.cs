@@ -15,7 +15,17 @@ internal static partial class CloudSyncCoordinator
 
         private async Task PullCloudOnlyFileAsync()
         {
-            string cloud = await ReadCloudContentAsync(PullCloudFileOperation);
+            string cloud;
+            try
+            {
+                cloud = await ReadCloudContentAsync(PullCloudFileOperation);
+            }
+            catch (Exception ex) when (IsCloudFileMissing(ex))
+            {
+                Log(SyncCloudMissingSkipping);
+                return;
+            }
+
             await PullCloudContentAsync(
                 cloud,
                 PullDownloaded,

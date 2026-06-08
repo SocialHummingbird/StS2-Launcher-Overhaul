@@ -136,7 +136,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler : HttpMessageHandler
         )
             throw new NotSupportedException(
                 "Android Java HTTP bridge cannot handle WebSocket CM requests; "
-                    + "CMWebSocket must use the managed WebSocket HttpClient."
+                    + "Android Steam CM must use TCP to avoid managed WebSocket TLS."
             );
     }
 

@@ -4,15 +4,17 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private const string FmodProjectGodotSetting = "FmodManager=\"*res://addons/fmod/FmodManager.gd\"";
+    private const string FmodExtensionListEntry = "res://addons/fmod/fmod.gdextension";
+
     private static readonly string[] ProjectGodotSettingsToComment =
     {
         "SentryInit=\"*res://addons/sentry/SentryInit.gd\"",
-        "FmodManager=\"*res://addons/fmod/FmodManager.gd\"",
+        FmodProjectGodotSetting,
     };
 
     private static readonly string[] ExtensionListEntriesToOverwrite =
     {
-        "res://addons/fmod/fmod.gdextension",
         "res://addons/sentry/sentry.gdextension",
     };
 
@@ -20,6 +22,11 @@ internal sealed partial class DepotDownloader
     {
         ("autoload/SentryInit", "disabled/SentryInit"),
         ("autoload/FmodManager", "disabled/FmodManager"),
+    };
+
+    private static readonly (string Search, string Replacement)[] FmodExtensionListRestorations =
+    {
+        (SpacesFor(FmodExtensionListEntry), FmodExtensionListEntry),
     };
 
     private static readonly string[] GameSceneSettingsToComment =
@@ -31,13 +38,16 @@ internal sealed partial class DepotDownloader
         "[node name=\"FmodListener2D\" type=\"FmodListener2D\" parent=\"AudioManager\"]",
     };
 
+    private static string SpacesFor(string value) => new(' ', value.Length);
+
     private static bool PatchProjectGodot(FileStream fs, long offset, long size)
         => ApplyPckEntryPatch(
             fs,
             offset,
             size,
             "project.godot",
-            content => ApplyProjectSettingComments(content, ProjectGodotSettingsToComment)
+            content =>
+                ApplyProjectSettingComments(content, ProjectGodotSettingsToComment)
         );
 
     private static bool PatchExtensionList(FileStream fs, long offset, long size)
@@ -46,7 +56,9 @@ internal sealed partial class DepotDownloader
             offset,
             size,
             "extension_list.cfg",
-            content => ApplyEntryOverwrites(content, ExtensionListEntriesToOverwrite)
+            content =>
+                ApplyReplacementPatches(content, FmodExtensionListRestorations)
+                | ApplyEntryOverwrites(content, ExtensionListEntriesToOverwrite)
         );
 
     private static bool PatchProjectBinary(FileStream fs, long offset, long size)
@@ -55,7 +67,8 @@ internal sealed partial class DepotDownloader
             offset,
             size,
             "project.binary",
-            content => ApplyReplacementPatches(content, ProjectBinaryReplacements)
+            content =>
+                ApplyReplacementPatches(content, ProjectBinaryReplacements)
         );
 
     private static bool PatchGameScene(FileStream fs, long offset, long size)

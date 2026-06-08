@@ -152,7 +152,7 @@ internal sealed partial class SteamAuth
     }
 
     private bool NeedsAuthReconnect
-        => RequiresPersistentAuthConnection && (_needsReconnectForAuth || !_connectedGate.IsSet);
+        => _needsReconnectForAuth || !_connectedGate.IsSet;
 
     private void LogAndroidAuthConnectionLossOnce()
     {
@@ -160,6 +160,6 @@ internal sealed partial class SteamAuth
             return;
 
         _androidAuthConnectionLossLogged = true;
-        Log("Steam CM connection unavailable during Android WebAPI auth; continuing credential flow");
+        Log("Steam CM connection unavailable during Android WebAPI auth; reconnect required before guarded auth continues");
     }
 }

@@ -137,7 +137,7 @@ internal static class LanMultiplayerPatcher
                 postfix: new HarmonyMethod(
                     patcherType.GetMethod(
                         nameof(JoinScreenReadyPostfix),
-                        BindingFlags.Public | BindingFlags.Static
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
                     )
                 )
             );
@@ -152,7 +152,7 @@ internal static class LanMultiplayerPatcher
                 prefix: new HarmonyMethod(
                     patcherType.GetMethod(
                         nameof(OnSubmenuOpenedPrefix),
-                        BindingFlags.Public | BindingFlags.Static
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
                     )
                 )
             );
@@ -167,7 +167,7 @@ internal static class LanMultiplayerPatcher
                 postfix: new HarmonyMethod(
                     patcherType.GetMethod(
                         nameof(JoinScreenClosedPostfix),
-                        BindingFlags.Public | BindingFlags.Static
+                        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
                     )
                 )
             );
@@ -186,7 +186,7 @@ internal static class LanMultiplayerPatcher
                         postfix: new HarmonyMethod(
                             patcherType.GetMethod(
                                 nameof(StartENetHostPostfix),
-                                BindingFlags.Public | BindingFlags.Static
+                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
                             )
                         )
                     );
@@ -204,7 +204,7 @@ internal static class LanMultiplayerPatcher
                         postfix: new HarmonyMethod(
                             patcherType.GetMethod(
                                 nameof(DisconnectPostfix),
-                                BindingFlags.Public | BindingFlags.Static
+                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
                             )
                         )
                     );
@@ -228,7 +228,7 @@ internal static class LanMultiplayerPatcher
                         prefix: new HarmonyMethod(
                             patcherType.GetMethod(
                                 nameof(GetPlayerNamePrefix),
-                                BindingFlags.Public | BindingFlags.Static
+                                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
                             )
                         )
                     );

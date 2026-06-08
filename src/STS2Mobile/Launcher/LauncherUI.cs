@@ -10,6 +10,8 @@ namespace STS2Mobile.Launcher;
 // processes a main-thread action queue so SteamKit callbacks can update the UI.
 internal sealed class LauncherUI : Control
 {
+    private const string AutoLaunchVariable = "STS2_AUTO_LAUNCH_GAME";
+    private const string AutoSafeLaunchVariable = "STS2_AUTO_SAFE_LAUNCH";
     private const float ReferenceLongEdge = 960f;
     private const int LauncherZIndex = 100;
     private static readonly Vector2 DefaultViewportSize = new(1920, 1080);
@@ -52,7 +54,18 @@ internal sealed class LauncherUI : Control
         tree.AutoAcceptQuit = false;
         tree.ProcessFrame += OnProcessFrame;
         TreeExiting += OnExitTree;
-        _controller.Start();
+        try
+        {
+            _controller.Start();
+            PatchHelper.Log("Launcher controller started");
+            AutoLaunchIfRequested();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Launcher controller startup FAILED: {ex}");
+            _view?.SetStatus("Launcher startup failed. Diagnostics are available below.");
+            _view?.AppendLog(ex.ToString());
+        }
     }
 
     internal void SetGameMode(bool inGameMode) => _inGameMode = inGameMode;
@@ -94,4 +107,36 @@ internal sealed class LauncherUI : Control
 
     private Vector2 GetViewportSize()
         => GetViewport()?.GetVisibleRect().Size ?? DefaultViewportSize;
+
+    private void AutoLaunchIfRequested()
+    {
+        if (!_inGameMode)
+            return;
+
+        if (
+            !string.Equals(
+                System.Environment.GetEnvironmentVariable(AutoLaunchVariable),
+                "1",
+                StringComparison.Ordinal
+            )
+        )
+            return;
+
+        System.Environment.SetEnvironmentVariable(AutoLaunchVariable, "0");
+        var safeLaunch = string.Equals(
+            System.Environment.GetEnvironmentVariable(AutoSafeLaunchVariable),
+            "1",
+            StringComparison.Ordinal
+        );
+        System.Environment.SetEnvironmentVariable(AutoSafeLaunchVariable, "0");
+        PatchHelper.Log(
+            safeLaunch
+                ? "Auto-safe-launching downloaded game from launch request."
+                : "Auto-launching downloaded game from launch request."
+        );
+        if (safeLaunch)
+            _model.LaunchSafe();
+        else
+            _model.Launch();
+    }
 }

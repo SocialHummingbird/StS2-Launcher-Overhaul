@@ -54,7 +54,20 @@ internal static partial class CloudSyncCoordinator
 
         private async Task SyncExistingFileAsync(string localContent)
         {
-            string cloudContent = await ReadCloudContentAsync(ReadCloudFileOperation);
+            string cloudContent;
+            try
+            {
+                cloudContent = await ReadCloudContentAsync(ReadCloudFileOperation);
+            }
+            catch (Exception ex) when (IsCloudFileMissing(ex))
+            {
+                PushLocalContent(
+                    localContent,
+                    cloudContent: null,
+                    SyncCloudMissingLocalWins
+                );
+                return;
+            }
 
             if (IsCorrupt(localContent))
             {

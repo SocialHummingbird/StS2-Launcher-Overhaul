@@ -1,4 +1,4 @@
-using Godot;
+﻿using Godot;
 using System;
 using System.Threading.Tasks;
 using STS2Mobile.Patches;
@@ -72,17 +72,37 @@ internal static partial class LauncherGameStartupRecovery
 
         private async Task RunAsync()
         {
+            await Task.Delay(PostStartupRecoveryMs);
+            LauncherLaunchMarkers.ClearStartupMarker();
+
+            var controlsCleared = QueueFreeIfAlive(RecoveryControls, "recovery controls");
+            var statusCleared = QueueFreeIfAlive(StartupStatus, "startup status");
+
+            PatchHelper.Log(
+                "Post-startup recovery cleanup finished; " +
+                $"controlsCleared={controlsCleared}, statusCleared={statusCleared}, scene snapshot retained"
+            );
+        }
+
+        private static bool QueueFreeIfAlive(Node node, string label)
+        {
+            if (node is null)
+                return true;
+
             try
             {
-                await Task.Delay(PostStartupRecoveryMs);
-                LauncherLaunchMarkers.ClearStartupMarker();
-                RecoveryControls?.QueueFree();
-                StartupStatus?.QueueFree();
-                PatchHelper.Log("Post-startup recovery controls cleared; scene snapshot retained");
+                node.QueueFree();
+                return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                PatchHelper.Log($"Post-startup recovery {label} already disposed");
+                return true;
             }
             catch (Exception ex)
             {
-                PatchHelper.Log($"Post-startup recovery cleanup failed: {ex.Message}");
+                PatchHelper.Log($"Post-startup recovery {label} cleanup failed: {ex.Message}");
+                return false;
             }
         }
     }

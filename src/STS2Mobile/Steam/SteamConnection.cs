@@ -33,7 +33,7 @@ internal sealed partial class SteamConnection : IDisposable
     }
 
     private const int MaxBackoffMs = 32_000;
-    private const int ConnectTimeoutMs = 15_000;
+    private const int ConnectTimeoutMs = 30_000;
 
     private readonly string _accountName;
     private readonly string _refreshToken;

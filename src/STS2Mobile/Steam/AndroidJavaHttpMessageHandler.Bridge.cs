@@ -28,12 +28,10 @@ internal sealed partial class AndroidJavaHttpMessageHandler
 
         if (purpose == HttpClientPurpose.CMWebSocket)
         {
-            // CM WebSocket traffic must stay on System.Net.WebSockets.Client.
-            // The Java HTTP bridge is intentionally limited to normal HTTP(S)
-            // requests and cannot service wss:// upgrade/socket traffic.
-            // SteamKit passes this client as the HttpMessageInvoker argument to
-            // ClientWebSocket.ConnectAsync, so the managed WebSocket assembly is
-            // still the transport owner and must keep its Android SHA-1 patch.
+            // Android CM traffic is configured for TCP to avoid the Mono/Godot
+            // SslStream abort hit by System.Net.WebSockets.Client. This path is
+            // retained only as a defensive fallback if SteamKit asks for a
+            // CMWebSocket client despite the Android protocol configuration.
             LogCmWebSocketTransportOnce();
             return new NetHttpClient()
             {
@@ -58,7 +56,7 @@ internal sealed partial class AndroidJavaHttpMessageHandler
     private static void LogCmWebSocketTransportOnce()
     {
         if (Interlocked.Exchange(ref _cmWebSocketTransportLogged, 1) == 0)
-            PatchHelper.Log("[Auth] Steam CM WebSocket using managed .NET transport");
+            PatchHelper.Log("[Auth] Unexpected Steam CM WebSocket using managed .NET transport");
     }
 
     private static void LogJavaHttpTransportOnce()

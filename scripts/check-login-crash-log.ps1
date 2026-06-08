@@ -28,6 +28,8 @@ $fatalPatterns = @(
     "MissingMethodException",
     "EntryPointNotFoundException",
     "Android Java SHA-1 TryHashData bridge failed",
+    "Android Java random byte bridge returned an empty response",
+    "Steam CM WebSocket using managed \.NET transport",
     "HTTP bridge request failed: GET wss://",
     "Android Java HTTP bridge cannot handle WebSocket CM requests",
     "unknown protocol: wss"
@@ -57,9 +59,9 @@ $postSteamGuardBoundaryPatterns = @(
 )
 
 $requiredTransportEvidencePatterns = @(
-    "\[Auth\] Android Steam CM protocol configured: WebSocket",
-    "\[Auth\] Steam CM WebSocket using managed \.NET transport",
-    "\[Auth\] Android Java SHA-1 TryHashData bridge active"
+    "\[Auth\] Android Steam CM protocol configured: TCP",
+    "\[Auth\] Steam WebAPI/CDN using Android Java HTTP bridge",
+    "EnvelopeEncryptedConnection\] Encryption result: OK"
 )
 
 $fatalMatches = @()

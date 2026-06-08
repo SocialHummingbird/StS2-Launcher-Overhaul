@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using System.Threading;
 using Godot;
 using STS2Mobile.Patches;
 
@@ -16,6 +17,13 @@ internal static partial class LauncherStartupFlow
 
     internal static async Task RunAsync(object game)
     {
+        if (ModEntry.HasStartupFallbackReason)
+        {
+            PatchHelper.Log("Startup fallback is active; blocking downloaded game startup.");
+            await Task.Delay(Timeout.InfiniteTimeSpan);
+            return;
+        }
+
         var gameNode = (Node)game;
 
         var launcher = await ShowLauncherAndWaitForLaunchAsync(gameNode);
@@ -78,8 +86,8 @@ internal static partial class LauncherStartupFlow
     {
         var launcher = new LauncherUI();
         launcher.SetGameMode(true);
-        launcher.Initialize();
         gameNode.AddChild(launcher);
+        launcher.Initialize();
         PatchHelper.Log("Launcher UI displayed");
         await launcher.WaitForLaunch();
 
