@@ -58,6 +58,21 @@ Required future Push evidence:
 - Release asset hygiene: signer, package name, versionCode monotonicity, checksums, and GitHub release notes.
 - Diagnostics polish so normal successful startup/cloud-save behavior is not hidden by noisy low-value logs.
 
+## Device-independent polish completed after baseline proof
+
+- Local smoke/login/verification scripts now select APKs by parsed package metadata and versionCode, with ABI/package compatibility checks where applicable, instead of relying only on file write time.
+- Push-to-Cloud warning text now names Steam Cloud explicitly and calls out overwrite risk before upload.
+- Recovery cleanup logging now describes normal post-startup cleanup as success-path UI cleanup.
+- Diagnostics filters retain startup freshness, assembly cache, expectedSource/expectedBytes, cloud sync, and crash evidence while reducing broad log noise.
+
+## Static upgrade/cache freshness review
+
+The Android activity cache path has a usable static evidence chain for upgrade/freshness diagnosis:
+
+- Startup freshness logs package, versionName/versionCode, schema, stored schema, stored versionCode, stored package, runtime arch, cache existence, and `STS2Mobile.dll` bytes.
+- Assembly setup logs `cache-hit` versus full recopy and emits `expectedSource`/`expectedBytes` for required managed assemblies.
+- The remaining gap is runtime proof across a real upgrade install; static logs make the evidence observable, but they do not replace the device upgrade test.
+
 ## Emulator limitation
 
 ARM64 hardware is the proof target for Steam login, download, cloud sync, and game launch. Android `x86_64` emulator coverage is useful for install/routing/native-fallback diagnostics only; forcing Godot on `x86_64` remains a crash-prone diagnostic path, not release proof.

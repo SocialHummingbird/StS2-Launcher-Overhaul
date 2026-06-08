@@ -36,10 +36,10 @@ internal sealed partial class LauncherController
 
         internal static ManualCloudSyncRequest Push()
             => new(
-                "Push local saves to cloud?\nThis will overwrite your cloud saves.",
+                "Push local saves to Steam Cloud?\nThis can overwrite your Steam Cloud saves. Continue only after backing up or using a controlled test save.",
                 "Push",
-                "Pushing local saves to cloud...",
-                "Push complete.",
+                "Pushing Android local saves to Steam Cloud...",
+                "Push complete. Steam Cloud may now contain Android local saves.",
                 false,
                 LauncherCloudSaveState.ManualPushAllAsync
             );

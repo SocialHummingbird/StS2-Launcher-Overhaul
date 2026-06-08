@@ -78,7 +78,7 @@ function Resolve-AndroidAaptPath {
     throw "Android SDK aapt tool not found. Set ANDROID_HOME or ANDROID_SDK_ROOT to an SDK with build-tools installed."
 }
 
-function Get-AndroidApkPackageName {
+function Invoke-AndroidAaptBadging {
     param(
         [Parameter(Mandatory = $true)]
         [string]$ApkPath,
@@ -91,17 +91,128 @@ function Get-AndroidApkPackageName {
     }
 
     $aapt = Resolve-AndroidAaptPath -AdbPath $AdbPath
-    $badging = & $aapt dump badging $ApkPath
+    $badging = @(& $aapt dump badging $ApkPath 2>&1)
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to read APK badging with aapt: $ApkPath"
     }
 
+    return $badging
+}
+
+function Get-AndroidApkMetadata {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApkPath,
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath
+    )
+
+    $resolvedPath = (Resolve-Path -LiteralPath $ApkPath).Path
+    $badging = Invoke-AndroidAaptBadging -ApkPath $resolvedPath -AdbPath $AdbPath
     $joined = $badging -join "`n"
-    if ($joined -notmatch "package: name='([^']+)'") {
-        throw "Could not resolve APK package name from badging: $ApkPath"
+    $packageMatch = [regex]::Match(
+        $joined,
+        "package:\s+name='([^']+)'\s+versionCode='([0-9]+)'\s+versionName='([^']*)'"
+    )
+    if (-not $packageMatch.Success) {
+        throw "Could not resolve APK package metadata from badging: $resolvedPath"
     }
 
-    return $Matches[1]
+    $nativeCodeLine = @($badging | Where-Object { ([string]$_).StartsWith("native-code:") } | Select-Object -First 1)
+    $file = Get-Item -LiteralPath $resolvedPath
+
+    return [pscustomobject]@{
+        Path = $resolvedPath
+        Name = $file.Name
+        PackageName = $packageMatch.Groups[1].Value
+        VersionCode = [int64]$packageMatch.Groups[2].Value
+        VersionName = $packageMatch.Groups[3].Value
+        NativeCodeLine = [string]$nativeCodeLine
+        SupportsArm64 = [bool]([string]$nativeCodeLine -match "'arm64-v8a'")
+        SupportsX86_64 = [bool]([string]$nativeCodeLine -match "'x86_64'")
+        LastWriteTimeUtc = $file.LastWriteTimeUtc
+    }
+}
+
+function Test-AndroidApkSupportsAbi {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Metadata,
+        [Parameter(Mandatory = $true)]
+        [string]$Abi
+    )
+
+    switch ($Abi) {
+        "arm64-v8a" { return [bool]$Metadata.SupportsArm64 }
+        "x86_64" { return [bool]$Metadata.SupportsX86_64 }
+        default { throw "Unsupported APK ABI filter: $Abi" }
+    }
+}
+
+function Select-AndroidApk {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Directory,
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [string]$Filter = "StS2Launcher-v*.apk",
+        [string]$TargetAbi = "",
+        [string]$PackageName = ""
+    )
+
+    if (-not (Test-Path -LiteralPath $Directory)) {
+        throw "APK directory not found: $Directory"
+    }
+
+    $candidates = @(
+        Get-ChildItem -LiteralPath $Directory -Filter $Filter -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                try {
+                    Get-AndroidApkMetadata -ApkPath $_.FullName -AdbPath $AdbPath
+                } catch {
+                    Write-Host "Skipping APK with unreadable metadata: $($_.FullName) ($($_.Exception.Message))"
+                    $null
+                }
+            } |
+            Where-Object { $null -ne $_ }
+    )
+
+    if ($TargetAbi) {
+        $candidates = @($candidates | Where-Object { Test-AndroidApkSupportsAbi -Metadata $_ -Abi $TargetAbi })
+    }
+
+    if ($PackageName) {
+        $candidates = @($candidates | Where-Object { $_.PackageName -eq $PackageName })
+    }
+
+    $selected = @(
+        $candidates |
+            Sort-Object `
+                @{ Expression = { $_.VersionCode }; Descending = $true }, `
+                @{ Expression = { $_.LastWriteTimeUtc }; Descending = $true }, `
+                @{ Expression = { $_.Name }; Descending = $true }
+    ) | Select-Object -First 1
+
+    if (-not $selected) {
+        $requirements = @("filter=$Filter")
+        if ($TargetAbi) { $requirements += "abi=$TargetAbi" }
+        if ($PackageName) { $requirements += "package=$PackageName" }
+        throw "No APK found in $Directory matching $($requirements -join ', ')."
+    }
+
+    Write-Host "Selected APK: $($selected.Name) package=$($selected.PackageName) version=$($selected.VersionName) versionCode=$($selected.VersionCode)"
+    return $selected
+}
+
+function Get-AndroidApkPackageName {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApkPath,
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath
+    )
+
+    return (Get-AndroidApkMetadata -ApkPath $ApkPath -AdbPath $AdbPath).PackageName
 }
 
 function Test-FileContainsAscii {

@@ -1,5 +1,6 @@
 param(
     [string]$ApkPath = "",
+    [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
     [switch]$RebuildPatcher
 )
 
@@ -10,16 +11,11 @@ $patcherDirectory = Join-Path $root "tools\SteamKitAndroidPatch"
 $patcherProject = Join-Path $patcherDirectory "SteamKitAndroidPatch.csproj"
 $patcherDll = Join-Path $patcherDirectory "bin\Release\net9.0\SteamKitAndroidPatch.dll"
 
+. (Join-Path $PSScriptRoot "android-apk-utils.ps1")
+
 if (-not $ApkPath) {
-    $latestApk = Get-ChildItem -LiteralPath (Join-Path $root "android\build\outputs\apk\mono\release") -Filter "StS2Launcher-v*.apk" |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-
-    if (-not $latestApk) {
-        throw "No APK found in android\build\outputs\apk\mono\release"
-    }
-
-    $ApkPath = $latestApk.FullName
+    $selectedApk = Select-AndroidApk -Directory (Join-Path $root "android\build\outputs\apk\mono\release") -AdbPath $AdbPath
+    $ApkPath = $selectedApk.Path
 }
 
 if (-not (Test-Path -LiteralPath $ApkPath)) {

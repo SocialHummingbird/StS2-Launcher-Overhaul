@@ -57,15 +57,8 @@ if (-not (Test-Path -LiteralPath $CredentialsPath)) {
 }
 
 if (-not $ApkPath) {
-    $latestApk = Get-ChildItem -LiteralPath "android\build\outputs\apk\mono\release" -Filter "StS2Launcher-v*.apk" |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-
-    if (-not $latestApk) {
-        throw "No APK found in android\build\outputs\apk\mono\release"
-    }
-
-    $ApkPath = $latestApk.FullName
+    $selectedApk = Select-AndroidApk -Directory "android\build\outputs\apk\mono\release" -AdbPath $AdbPath -PackageName $PackageName
+    $ApkPath = $selectedApk.Path
 }
 
 if (-not (Test-Path -LiteralPath $ApkPath)) {

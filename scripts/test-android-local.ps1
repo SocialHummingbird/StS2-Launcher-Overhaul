@@ -29,30 +29,16 @@ function Resolve-ApkForAbi([string]$AbiList) {
         return (Resolve-Path $ApkPath).Path
     }
 
-    $universalApk = Get-ChildItem -LiteralPath $ArtifactsDir -Filter "*universal*.apk" |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-    if ($universalApk) {
-        return $universalApk.FullName
-    }
-
     if ($AbiList -match "x86_64") {
-        $pattern = "*x86_64.apk"
+        $targetAbi = "x86_64"
     } elseif ($AbiList -match "arm64-v8a") {
-        $pattern = "*arm64-v8a.apk"
+        $targetAbi = "arm64-v8a"
     } else {
         throw "Unsupported device ABI list: $AbiList"
     }
 
-    $apk = Get-ChildItem -LiteralPath $ArtifactsDir -Filter $pattern |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-
-    if (-not $apk) {
-        throw "No APK matching $pattern found in $ArtifactsDir"
-    }
-
-    return $apk.FullName
+    $selected = Select-AndroidApk -Directory $ArtifactsDir -AdbPath $AdbPath -TargetAbi $targetAbi -PackageName $PackageName
+    return $selected.Path
 }
 
 function Test-ApkChecksum([string]$Path) {
@@ -139,6 +125,7 @@ Write-Host "Result: $result"
     "Device: $device"
     "ABI list: $abiList"
     "APK: $apk"
+    "Package: $PackageName"
     "Full logcat: $fullLogPath"
     "Filtered logcat: $filteredLogPath"
     "Result: $result"

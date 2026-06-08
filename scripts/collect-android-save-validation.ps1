@@ -58,10 +58,9 @@ $rawLogPath = Join-Path $outDir "logcat.txt"
 $rawLog | Set-Content -LiteralPath $rawLogPath -Encoding UTF8
 
 $patterns = @(
-    "STS2Mobile",
     "Assembly cache diagnostics",
+    "Assembly cache required file",
     "Android startup freshness",
-    "schema=",
     "New version detected",
     "re-copying all assemblies",
     "cache-hit",
@@ -102,6 +101,8 @@ $summary = [ordered]@{
     steamCloudSaveManagerSeen = [bool]($rawLog -match '\[Cloud\] Created SaveManager with SteamKit2 cloud store')
     pullNoDownloadsSeen = [bool]($rawLog -match 'complete with no downloads')
     pullWriteSeen = [bool]($rawLog -match '\[Cloud\] Pull wrote|\[Cloud\].*wrote .* bytes|\[Cloud\] Android local save write:')
+    pushPromptSeen = [bool]($rawLog -match 'Push local saves to Steam Cloud\?')
+    pushUploadMarkerSeen = [bool]($rawLog -match '\[Cloud\].*(Push|Upload|CommitFileUpload|BeginFileUpload)')
     fatalExceptionSeen = [bool]($rawLog -match 'FATAL EXCEPTION|AndroidRuntime.*FATAL|AndroidRuntime.*Exception')
 }
 
@@ -125,6 +126,8 @@ $summaryText = @(
     "Steam cloud SaveManager seen: $($summary.steamCloudSaveManagerSeen)",
     "pull no-downloads seen: $($summary.pullNoDownloadsSeen)",
     "pull write seen: $($summary.pullWriteSeen)",
+    "push prompt seen: $($summary.pushPromptSeen)",
+    "push upload marker seen: $($summary.pushUploadMarkerSeen)",
     "fatal exception seen: $($summary.fatalExceptionSeen)"
 )
 $summaryText | Set-Content -LiteralPath (Join-Path $outDir "summary.txt") -Encoding UTF8

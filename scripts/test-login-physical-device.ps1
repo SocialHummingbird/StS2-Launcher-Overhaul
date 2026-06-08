@@ -120,12 +120,7 @@ function Get-ApkNativeCodeLine {
         [string]$AdbPath
     )
 
-    $aaptPath = Resolve-AndroidAaptPath -AdbPath $AdbPath
-    $badging = @(& $aaptPath dump badging $ApkPath 2>&1)
-    if ($LASTEXITCODE -ne 0) {
-        throw "aapt dump badging failed for APK: $ApkPath"
-    }
-
+    $badging = Invoke-AndroidAaptBadging -ApkPath $ApkPath -AdbPath $AdbPath
     return $badging | Where-Object { ([string]$_).StartsWith("native-code:") } | Select-Object -First 1
 }
 
@@ -174,22 +169,8 @@ function Resolve-PhysicalLoginApkPath {
         return $ApkPath
     }
 
-    $candidateApks = @(
-        Get-ChildItem -LiteralPath "android\build\outputs\apk\mono\release" -Filter "StS2Launcher-v*.apk" -ErrorAction SilentlyContinue |
-            Sort-Object LastWriteTime -Descending
-    )
-
-    foreach ($candidateApk in $candidateApks) {
-        if (Test-ApkSupportsArm64 -ApkPath $candidateApk.FullName -AdbPath $AdbPath) {
-            return $candidateApk.FullName
-        }
-    }
-
-    if ($candidateApks.Count -eq 0) {
-        throw "No APK found in android\build\outputs\apk\mono\release. Pass -ApkPath with an ARM64-capable APK."
-    }
-
-    throw "No ARM64-capable APK found in android\build\outputs\apk\mono\release. Pass -ApkPath with an APK that contains arm64-v8a native code."
+    $selectedApk = Select-AndroidApk -Directory "android\build\outputs\apk\mono\release" -AdbPath $AdbPath -TargetAbi "arm64-v8a"
+    return $selectedApk.Path
 }
 
 if (-not (Test-Path -LiteralPath $AdbPath)) {

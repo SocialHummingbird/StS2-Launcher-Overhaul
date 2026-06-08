@@ -79,7 +79,7 @@ internal static partial class LauncherGameStartupRecovery
             var statusCleared = QueueFreeIfAlive(StartupStatus, "startup status");
 
             PatchHelper.Log(
-                "Post-startup recovery cleanup finished; " +
+                "Post-startup recovery UI cleanup finished after game startup was observed; " +
                 $"controlsCleared={controlsCleared}, statusCleared={statusCleared}, scene snapshot retained"
             );
         }
