@@ -347,10 +347,34 @@ Status after end-to-end Pull validation:
 - Pulled save state surfaces in-game as `Profile 1`.
 - Successful game startup now clears recovery controls quickly instead of leaving debug controls over the game.
 - Raw validation artifacts remain local-only via `.gitignore`; durable evidence should stay in this audit rather than committing capture dumps.
+- Push to Cloud confirmation gate appears before upload with the warning `Push local saves to cloud? This will overwrite your cloud saves.`
+- Back/no-confirm dismissal after the Push warning did not produce push/upload/start markers in the filtered logcat window.
+- Fresh local install evidence for the current hardening build:
+  - `versionName=0.2.0-local-hardening-20260608`
+  - `versionCode=2260808`
+  - `lastUpdateTime=2026-06-08 20:21:04`
+- Latest force-stop/relaunch after that install showed the app drawing `GodotApp`, but filtered logcat did not surface the expected `Assembly cache diagnostics ... schema=22` / cache freshness lines. Treat package metadata and UI wording as current-install evidence only; do not treat this relaunch as fresh runtime/cache proof.
+- Rebuilt freshness-probe install evidence:
+  - `versionName=0.2.0-local-hardening-freshness2-20260608`
+  - `versionCode=2260810`
+  - `lastUpdateTime=2026-06-08 20:56:32`
+- Rebuilt startup freshness evidence is visible in normal logcat without `run-as`:
+  - `Android startup freshness: package=com.sts2launcher.overhaul.fork.local versionName=0.2.0-local-hardening-freshness2-20260608 versionCode=2260810 schema=22 storedSchema=22 storedVersionCode=2260810 storedPackage=com.sts2launcher.overhaul.fork.local arch=arm64 cacheDirExists=true sts2MobileBytes=622080`
+  - `Assembly cache diagnostics [cache-hit] schema=22 arch=arm64 ... requireGameAssemblies=true`
+  - `Assembly cache required file [cache-hit]: STS2Mobile.dll exists=true bytes=622080 expectedSource=packaged-bcl expectedBytes=622080`
+  - Required-file diagnostics now include `expectedSource` and match the cache source actually used for each file. Previously misleading expected-byte mismatches were caused by comparing packaged BCL cache files to same-named downloaded game assemblies.
+- Fresh installed UI now shows `Game Cloud Sync: ON/OFF` instead of the older `Auto Sync` label.
+- Fresh installed UI shows explicit toggle status summaries:
+  - enabled: `Game cloud sync enabled. Manual Push/Pull remains available from the launcher.`
+  - disabled: `Game cloud sync disabled. The game will use Android local saves; manual Push/Pull remains available.`
+- Fresh-build Push validation required calibrated ADB coordinates on the foldable screen, but the visible Push button reliably opened the confirmation dialog once the coordinate offset was accounted for.
+- Fresh-build direct `Cancel` dismissed the Push confirmation dialog and returned to the launcher.
+- Fresh-build direct `Cancel` produced no StS2 push/upload/start markers in the filtered logcat window; unrelated Samsung/Play cloud-service lines were ignored.
 
 Live-cloud validation still required:
 
-- Push to Cloud must be tested deliberately because it overwrites Steam cloud state.
+- Push to Cloud confirmed upload must be tested deliberately because it overwrites Steam cloud state.
+- Direct `Cancel` button activation is validated on the fresh latest build; Android Back/no-confirm dismissal was also previously validated as no-upload.
 - Required Push evidence: confirmation dialog appears before upload, cancel/no-confirm path performs no upload, confirmed push uploads changed local files, and a subsequent Steam/cloud enumeration shows the pushed remote metadata changed as expected.
 - Required safety check: after a confirmed push, Pull from Cloud should round-trip the same changed file back to Android local storage.
 
@@ -369,3 +393,32 @@ Release-readiness checklist:
 - Game launch: launcher closes, game reaches main menu, recovery controls hide after successful startup.
 - Locked-screen interruption: app does not get misclassified as crashed when Android lockscreen/Dream steals focus.
 - Diagnostics: normal logs are not flooded by missing-path exists checks; validation scripts can enable verbose save diagnostics with the marker file.
+
+Current release-readiness gaps after latest local install:
+
+- Schema/cache freshness is now recaptured on the rebuilt freshness-probe install through normal logcat.
+- Direct app-private cache inspection is unavailable for the latest local package because `run-as` reports `package not debuggable: com.sts2launcher.overhaul.fork.local`.
+- Tooling fix added and validated: Android startup now logs `Android startup freshness:` before assembly setup with package, version, schema, stored schema/version, runtime arch, cache directory presence, and `STS2Mobile.dll` byte count. Validation collectors include this line in filtered output and summary detection.
+- Required-file expected-byte diagnostics now include `expectedSource` and showed matching bytes for the required cache files on the `2260810` second relaunch.
+- Confirmed Push upload remains intentionally deferred because it overwrites Steam Cloud.
+- Locked-screen interruption has partial smoke evidence only: after launcher start, Android Power lock/wake left the package process alive (`pidof` returned `28125`) and produced no app `AndroidRuntime`/fatal/stale-launch markers. Automated keyguard dismiss/swipe reached Android `Bouncer` with `mDreamingLockscreen=true`, so secure device unlock still blocks full return-to-app proof. A manual unlock-and-return validation is still required before release signoff.
+
+## Final Android cloud-save hardening status
+
+Implemented and validated:
+
+- Fresh install/runtime freshness is proven on ARM64 by package metadata, `Android startup freshness`, `schema=22`, matching stored package/version/schema, and `STS2Mobile.dll` cache bytes matching expected bytes.
+- Pull from Cloud is proven end to end: Steam files were enumerated/downloaded, Android local save files were written, the game read the same local paths, and the pulled save surfaced as `Profile 1`.
+- Push to Cloud is safe against accidental upload in the tested paths: confirmation appears before upload, direct `Cancel` returns to launcher, Back/no-confirm dismissal returns without upload, and filtered logcat showed no StS2 push/upload/start markers.
+- Launcher recovery overlay and startup wording were cleaned up so successful startup is not presented as a failure and recovery controls hide quickly.
+- `Game Cloud Sync` wording replaces `Auto Sync` and explicitly says the game uses Android local saves when cloud sync is disabled while manual Push/Pull remains available.
+- Normal save diagnostics are quieter; verbose save diagnostics remain opt-in through the marker file used by validation scripts.
+- Build/install validation reports installed package version and `lastUpdateTime`; startup freshness logging no longer depends on `run-as`.
+- Artifact hygiene is handled by `.gitignore`; raw capture artifacts stay local and this audit keeps concise evidence only.
+- The 58 absent cloud candidate paths are reviewed and are not release-blocking because Pull downloaded available cloud files and the game read the important save files.
+- User-facing manual sync summaries include completion timestamps.
+
+Deliberately deferred with risk:
+
+- Confirmed Push upload is not executed in this hardening pass because it can overwrite the user's Steam Cloud state. Required future evidence is: user-approved confirmation, upload of a controlled local change, Steam Cloud metadata/file mutation, subsequent Pull round-trip to Android local storage, and no upload on cancel/no-confirm paths.
+- Full locked-screen return-to-app validation is not complete because automated wake/dismiss reaches secure Android keyguard `Bouncer`. Current evidence proves process survival and no app crash markers through lock/wake; future evidence must include manual unlock returning to the launcher/game without stale-crash classification.

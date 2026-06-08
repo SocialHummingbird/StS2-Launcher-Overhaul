@@ -110,6 +110,7 @@ public class GodotApp extends GodotActivity {
 		configureTempDirectory();
 		configureMonoForEmulator();
 		cleanupStaleHttpResponseFiles();
+		logStartupFreshnessProbe();
 
 		SplashScreen.installSplashScreen(this);
 		EdgeToEdge.enable(this);
@@ -212,6 +213,31 @@ public class GodotApp extends GodotActivity {
 		return true;
 	}
 
+	private void logStartupFreshnessProbe() {
+		try {
+			SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+			String arch = getRuntimeGodotArchDir();
+			File destDir = new File(getFilesDir(), ".godot/mono/publish/" + arch);
+			File patcher = new File(destDir, "STS2Mobile.dll");
+			Log.i(
+				TAG,
+				"Android startup freshness:"
+					+ " package=" + getPackageName()
+					+ " versionName=" + BuildConfig.VERSION_NAME
+					+ " versionCode=" + BuildConfig.VERSION_CODE
+					+ " schema=" + ASSEMBLY_CACHE_SCHEMA
+					+ " storedSchema=" + prefs.getInt(KEY_ASSEMBLY_CACHE_SCHEMA, -1)
+					+ " storedVersionCode=" + prefs.getInt(KEY_INSTALLED_VERSION_CODE, -1)
+					+ " storedPackage=" + prefs.getString(KEY_INSTALLED_PACKAGE_NAME, "")
+					+ " arch=" + arch
+					+ " cacheDirExists=" + destDir.isDirectory()
+					+ " sts2MobileBytes=" + (patcher.exists() ? patcher.length() : -1)
+			);
+		} catch (Exception e) {
+			Log.w(TAG, "Android startup freshness probe failed", e);
+		}
+	}
+
 	private String getRuntimeGodotArchDir() {
 		String nativeLibraryDir = getApplicationInfo().nativeLibraryDir;
 		if (nativeLibraryDir != null) {
@@ -295,13 +321,22 @@ public class GodotApp extends GodotActivity {
 			required.addAll(java.util.Arrays.asList(GAME_REQUIRED_ASSEMBLIES));
 		for (String name : required.toArray(new String[0])) {
 			File file = destDir == null ? null : new File(destDir, name);
+			boolean packagedBcl = packagedBclNames != null && packagedBclNames.contains(name);
 			File sourceFile = srcDir == null ? null : new File(srcDir, name);
-			long sourceBytes = sourceFile != null && sourceFile.exists()
-				? sourceFile.length()
-				: packagedAssetLength("dotnet_bcl/" + name);
+			long sourceBytes = packagedBcl
+				? packagedAssetLength("dotnet_bcl/" + name)
+				: sourceFile != null && sourceFile.exists()
+					? sourceFile.length()
+					: packagedAssetLength("dotnet_bcl/" + name);
+			String expectedSource = packagedBcl
+				? "packaged-bcl"
+				: sourceFile != null && sourceFile.exists()
+					? "game"
+					: "packaged-bcl-fallback";
 			Log.i(TAG, "Assembly cache required file [" + phase + "]: " + name
 				+ " exists=" + (file != null && file.exists())
 				+ " bytes=" + (file != null && file.exists() ? file.length() : 0)
+				+ " expectedSource=" + expectedSource
 				+ " expectedBytes=" + sourceBytes);
 		}
 	}

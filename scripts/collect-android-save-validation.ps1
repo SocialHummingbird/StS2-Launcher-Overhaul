@@ -60,11 +60,13 @@ $rawLog | Set-Content -LiteralPath $rawLogPath -Encoding UTF8
 $patterns = @(
     "STS2Mobile",
     "Assembly cache diagnostics",
+    "Android startup freshness",
     "schema=",
     "New version detected",
     "re-copying all assemblies",
     "cache-hit",
     "expectedBytes",
+    "expectedSource",
     "\[Cloud\]",
     "Candidate sync paths",
     "Enumerated cloud file sample",
@@ -84,6 +86,7 @@ $filtered | ForEach-Object { $_.Line } |
 $summary = [ordered]@{
     output = $outDir
     schema22Seen = [bool]($rawLog -match 'schema=22')
+    startupFreshnessSeen = [bool]($rawLog -match 'Android startup freshness:.*schema=22')
     assemblyRecopySeen = [bool]($rawLog -match 'New version detected, re-copying all assemblies')
     assemblyCacheHitSeen = [bool]($rawLog -match 'Assembly cache diagnostics \[cache-hit\]')
     expectedBytesSeen = [bool]($rawLog -match 'expectedBytes=')
@@ -106,6 +109,7 @@ $summaryText = @(
     "Android save validation summary",
     "Output: $outDir",
     "schema=22 seen: $($summary.schema22Seen)",
+    "startup freshness seen: $($summary.startupFreshnessSeen)",
     "assembly recopy seen: $($summary.assemblyRecopySeen)",
     "assembly cache-hit seen: $($summary.assemblyCacheHitSeen)",
     "expectedBytes seen: $($summary.expectedBytesSeen)",
