@@ -1,63 +1,53 @@
-# Overhaul Roadmap
+# OVERHAUL_ROADMAP.md
 
-This roadmap tracks the ongoing rewrite and stabilization effort.
+This roadmap tracks the overhaul phases and the current Android release-hardening path.
 
-## Phase 0 — Baseline and migration
+## Current release posture
 
-- [x] Create independent project with clear provenance
-- [x] Baseline all branches from upstream lineage
-- [x] Finish contributor process files and templates
-- [x] Set branch protections / PR validation
+The app has a working ARM64 Android baseline. It is not yet release-candidate complete because confirmed Push-to-Cloud upload, upgrade behavior, locked-screen interruption, and repeated release artifact validation still need evidence.
 
-## Phase 1 — Reliability hardening
+Canonical status: [docs/current-android-status.md](docs/current-android-status.md)
 
-- [x] Stabilize background/cloud async flow with timeouts and structured cancellation
-- [x] Fix lifecycle flushing correctness for cloud writes
-- [x] Remove thread-safety issues in parallel download/token caches
-- [x] Improve reflection patch hardening for version drift
+## Phase 1 - Reliability hardening
 
-## Phase 2 — Architecture cleanup
+- [x] Stabilize background/cloud async flow with timeouts and structured cancellation.
+- [x] Harden locale parsing and startup crash paths.
+- [x] Improve reflection patch hardening for version drift.
+- [x] Keep downloader resume/retry behavior from racing duplicate writes.
 
-- [x] Split optional patches from required startup path
-- [x] Introduce clearer service boundaries in launcher orchestration
-- [x] Reduce global/static mutable state where feasible
-- [x] Improve observability for recurring failure paths
+## Phase 2 - Android build and release hygiene
 
-## Phase 3 — Validation and maintainability
+- [x] Keep GitHub release APKs structurally verifiable.
+- [x] Require stable signing inputs before publishing update-compatible releases.
+- [x] Verify package name, signer, versionCode, native libraries, and release checksums.
+- [ ] Re-run release-readiness validation after the current Android hardening changes land in a published APK.
 
-- [x] Add runbooks for representative device matrix
-- [x] Add issue templates and issue triage labels
-- [x] Add recurring issue triage and status issue workflow
-- [x] Publish changelog for each tagged release
+## Phase 3 - Launcher and runtime UX
 
-## Phase 4 — Governance completion
+- [x] Present the launcher reliably on fresh ARM64 installs.
+- [x] Preserve Android local save behavior even when cloud sync is disabled.
+- [x] Improve cloud sync wording from ambiguous auto-sync language to explicit Game Cloud Sync behavior.
+- [ ] Continue polishing recovery/status text so successful startup is not presented as a failure.
+- [ ] Reduce noisy diagnostics while preserving actionable startup/cache/cloud evidence.
 
-- [x] Enforce branch protection for `main` with PR-first workflow
-- [x] Establish rollback strategy branch (`compat/legacy`)
-- [x] Publish release/changelog strategy and backport policy
-- [x] Document branch protection expectations and deployment safety steps
+## Phase 4 - Steam and cloud-save validation
 
-## Phase 5 — CI bootstrap and merge safety
+- [x] Validate Steam login and ownership-gated depot download on ARM64 hardware.
+- [x] Validate Pull from Cloud through Steam enumeration, download, Android local save write, and in-game profile load.
+- [x] Validate Push confirmation and cancel/no-confirm no-upload behavior.
+- [ ] Validate confirmed Push upload with controlled Steam Cloud overwrite evidence.
+- [ ] Validate Push/Pull round-trip after a controlled local save mutation.
 
-- [x] Add required-status-check workflow for governance/documentation safety
-- [x] Wire branch protection to require a deterministic CI check context
+## Phase 5 - Device lifecycle and install-path validation
 
-## Phase 6 — CI smoke check expansion
+- [x] Add startup freshness and assembly cache diagnostics for installed runtime/schema/cache evidence.
+- [ ] Validate upgrade install behavior from the current public release baseline.
+- [ ] Validate locked-screen interruption and return-to-app after manual unlock.
+- [ ] Repeat stale assembly cache/freshness checks across reinstall and upgrade scenarios.
 
-- [x] Add optional artifact-aware build smoke job
-- [x] Keep build smoke non-blocking until artifacts are standardized
-- [x] Document required check expectations for both governance and build jobs
+## Phase 6 - Public release readiness
 
-## Phase 7 — Reliability closure and workflow hardening
-
-- [x] Close out P0–P3 backlog outcomes in the current status tracking
-- [x] Keep both required check contexts active (`Governance Smoke Check`, `Build Smoke Check`) in branch protection
-- [x] Normalize artifact coverage notes for environments without publish outputs
-- [x] Complete phase handoff cleanup and prepare final tracking issue closeout
-
-## Phase 8 - Android working-path polish and cloud-save hardening
-
-- [x] Prove the ARM64 Android launcher path works locally through fresh install, Steam download, Pull from Cloud, Android local save handoff, and in-game profile load.
-- [ ] Validate Push to Cloud safely, including confirmation, cancel/no-upload behavior, confirmed upload behavior, and Steam Cloud overwrite evidence.
-- [ ] Finish release-readiness validation for fresh install, upgrade install, game launch, locked-screen interruption, stale assembly cache behavior, Pull, and Push.
-- [ ] Polish launcher recovery, sync wording, diagnostics, and user-facing status so the working path is understandable and not overly noisy.
+- [ ] Publish release notes that clearly say the app works on the validated ARM64 path but is still being polished/hardened.
+- [ ] Keep confirmed Push overwrite risk explicit until validated.
+- [ ] Keep x86_64 emulator limitations explicit.
+- [ ] Keep APK artifacts, checksums, validation logs, and summaries clean enough for external testers.

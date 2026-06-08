@@ -1,5 +1,7 @@
 # Migration Checklist (Implemented Baseline)
 
+Current Android status: the ARM64 launcher path works locally and is now in polish/cloud-save hardening. See [docs/current-android-status.md](docs/current-android-status.md).
+
 This repo started as an independent copy of [Ekyso/StS2-Launcher](https://github.com/Ekyso/StS2-Launcher) with the goal of an architectural overhaul.
 
 ## 1) Repository Setup (Done)

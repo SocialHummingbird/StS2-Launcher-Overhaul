@@ -1,5 +1,7 @@
 # Contributing
 
+Before claiming release readiness, check [docs/current-android-status.md](docs/current-android-status.md) and keep Push-to-Cloud overwrite risk explicit until confirmed Push evidence exists.
+
 Thank you for contributing to this overhaul project.
 
 This repository is an independent continuation of the original launcher with a strong focus on reliability and architecture changes.

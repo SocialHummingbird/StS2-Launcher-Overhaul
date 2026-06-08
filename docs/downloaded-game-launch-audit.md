@@ -1,5 +1,7 @@
 # Downloaded-game launch audit
 
+Current posture: this audit now supports a working ARM64 baseline. Pull is proven end to end; confirmed Push upload remains intentionally deferred because it can overwrite Steam Cloud. See [current Android status](current-android-status.md).
+
 Last updated: 2026-06-08
 
 ## Scope

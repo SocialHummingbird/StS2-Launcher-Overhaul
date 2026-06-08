@@ -1,5 +1,7 @@
 # Device Log Checklist
 
+Current posture: collect logs for a working ARM64 baseline plus remaining hardening gates. Prioritize startup freshness, assembly cache expectedSource/expectedBytes, cloud Pull/Push evidence, save handoff, crash markers, and release package/version identity. See [current Android status](current-android-status.md).
+
 Use this checklist before filing overhaul issues that involve crashes, stutters, or startup failures.
 
 ## Required Capture

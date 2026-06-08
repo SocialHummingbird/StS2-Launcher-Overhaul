@@ -1,5 +1,7 @@
 # Release, Changelog, and Backport Policy
 
+Release and backport decisions should use [current Android status](current-android-status.md) as the baseline: the app works locally on ARM64, but release-candidate hardening remains open.
+
 ## Release Cadence
 
 Releases are prepared after a PR batch that:
@@ -21,7 +23,7 @@ Recommended cadence:
   - User-facing changes
   - Reliability/fix highlights
   - Exact APK asset name, ABI, package name, and SHA-256
-  - Known limitations, especially Steam startup/login status and whether ARM64 runtime proof exists
+  - Known limitations, especially confirmed Push-to-Cloud overwrite risk, upgrade install behavior, locked-screen interruption, stale-cache freshness, and whether ARM64 release-readiness proof exists
 
 ### Tag workflow
 

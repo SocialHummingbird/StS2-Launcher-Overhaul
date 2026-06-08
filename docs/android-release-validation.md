@@ -1,5 +1,7 @@
 # Android release validation checklist
 
+Current posture: the ARM64 Android path works locally, including Steam download, Pull from Cloud, Android local save handoff, and game launch. Release validation is now about hardening that baseline, especially confirmed Push-to-Cloud overwrite evidence, upgrade install behavior, locked-screen interruption, freshness/cache checks, and release artifact hygiene. See [current Android status](current-android-status.md).
+
 Use this checklist after every release run (manual or tag-triggered) to confirm artifact publication before announcing a release.
 
 ## 1) Verify workflow outcome

@@ -33,7 +33,7 @@ gh api repos/SocialHummingbird/StS2-Launcher-Overhaul/branches/main/protection \
   --field required_pull_request_reviews='{"required_approving_review_count":1}'
 ```
 
-When CI is available, prefer required status checks:
+When CI is available, prefer required status checks. Release claims should also stay aligned with [current Android status](current-android-status.md):
 
 - `Governance Smoke Check` job: `governance-smoke` in `.github/workflows/overhaul-governance-ci.yml`
 - `Build Smoke Check` job: `build-smoke` in `.github/workflows/overhaul-governance-ci.yml`

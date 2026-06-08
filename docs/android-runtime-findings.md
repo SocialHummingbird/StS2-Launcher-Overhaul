@@ -1,5 +1,7 @@
 # Android runtime findings
 
+Current posture: the app works on the validated ARM64 path and is in polish/hardening. Treat this document as runtime findings supporting [current Android status](current-android-status.md), not as a claim that release-candidate validation is complete.
+
 ## Current conclusion
 
 The Android `x86_64` emulator is useful for install, routing, release packaging, and native diagnostic-screen validation, but it is not a reliable target for the Godot/.NET launcher or downloaded game runtime.

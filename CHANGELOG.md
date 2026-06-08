@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-08 - Documentation status refresh
+
+- Documentation now has a canonical current Android status page advertising the working ARM64 baseline while keeping polish/hardening blockers explicit.
+- README, overhaul status, roadmap, Android validation docs, runtime findings, login testing notes, and validation runbooks now share the same release posture: working locally, not release-candidate complete.
+- GitHub repository description already matched this posture: working Android launcher, currently in polish and cloud-save hardening.
+
 All notable changes for the overhauled repository are recorded here.
 
 ## [Unreleased]

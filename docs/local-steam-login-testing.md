@@ -1,5 +1,7 @@
 # Local Steam login emulator testing
 
+For the current working-baseline and hardening blockers, see [current Android status](current-android-status.md).
+
 For emulator-only Steam login testing, create an untracked credential file at:
 
 ```text
@@ -48,7 +50,7 @@ Do not commit `tmp/steam-login.local.json`.
 
 This file is intended for local automation only. Scripts should consume it without printing credential values to the terminal or logs.
 
-Current status: this harness can reduce repeated manual typing and can prove whether the login flow reaches Steam Guard, successful authentication, ownership verification, or a known crash signature. It does not by itself prove the ARM64 phone path, and Steam startup authentication failures remain an open issue until fresh logs show a successful startup/login/ownership sequence.
+Current status: this harness can still reduce repeated manual typing and isolate Steam login/Steam Guard behavior, but the ARM64 phone path has now been proven through login, ownership-gated download, Pull from Cloud, local save handoff, and game launch. Use this harness for focused login regressions, not as the primary proof that the app works.
 
 To rebuild the local emulator APK with the tracked SteamKit Android crypto patcher:
 

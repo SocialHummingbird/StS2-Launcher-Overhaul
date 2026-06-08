@@ -14,6 +14,7 @@ The goal is a **drastic architecture and reliability overhaul** that is harder t
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - Device log checklist: [docs/device-log-checklist.md](docs/device-log-checklist.md)
 - Android runtime findings: [docs/android-runtime-findings.md](docs/android-runtime-findings.md)
+- Current Android status: [docs/current-android-status.md](docs/current-android-status.md)
 
 ### Suggested working remotes
 
@@ -31,17 +32,20 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 ## Current Status
 
-This fork now has a working ARM64 Android launcher path in local validation. The app installs, starts the launcher, downloads game files from Steam, pulls Steam Cloud saves into Android local app storage, and starts the game with the pulled profile visible in-game.
+**Working ARM64 Android baseline:** the launcher now installs, starts, authenticates with Steam, downloads game files, pulls Steam Cloud saves into Android local app storage, and launches the game with the pulled profile visible in-game.
 
-The project is still going through polish and hardening before it should be treated as a finished public release. The remaining focus is Push-to-Cloud validation, release-readiness checks, clearer sync/recovery UX, quieter diagnostics, and repeatable validation evidence.
+This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on safe Push-to-Cloud evidence, upgrade/reinstall behavior, locked-screen interruption handling, stale-cache detection, quieter diagnostics, and release asset hygiene.
 
 - Latest published APK release: `v0.2.175-refactor-apk`
 - Current APK asset: `StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.dev`
 - Release asset SHA-256: `78f40ad39d6cab30af4178fba6fcee713ae8df54db20d4e3c9f8a5e225b1d097`
+- Latest validated local hardening build: `0.2.0-local-hardening-freshness2-20260608` / `versionCode=2260810`
 - Validated locally: fresh APK/runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch on ARM64 hardware.
-- Still hardening: confirmed Push to Cloud upload path, no-accidental-upload guarantees, locked-screen interruption behavior, upgrade install behavior, stale assembly cache checks, and release-candidate polish.
-- Emulator limitation: the default Android `x86_64` path is native fallback only. Forcing Godot on `x86_64` is a known crash-prone diagnostic path, not a proof target.
+- Still hardening: confirmed Push to Cloud upload, no-accidental-upload evidence, locked-screen interruption behavior, upgrade install behavior, stale assembly cache checks, diagnostics polish, and release-candidate validation.
+- Emulator limitation: Android `x86_64` is fallback/diagnostic coverage only. ARM64 hardware remains the proof target.
+
+See [docs/current-android-status.md](docs/current-android-status.md) for the current evidence and remaining blockers.
 
 ## Features
 

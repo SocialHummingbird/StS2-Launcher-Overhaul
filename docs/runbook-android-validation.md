@@ -1,5 +1,7 @@
 # Android Validation Runbook
 
+Current posture: validate regressions against the working ARM64 baseline, then collect evidence for remaining hardening gates. The baseline is fresh install, Steam download, Pull from Cloud, Android local save handoff, and game launch. See [current Android status](current-android-status.md).
+
 This runbook is used for manual verification of startup and reliability changes where full automation is not available.
 
 ## Scope
