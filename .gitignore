@@ -42,6 +42,7 @@ venv/
 
 # Logs
 logs.txt
+artifacts/
 
 # Hidden directories
 .*

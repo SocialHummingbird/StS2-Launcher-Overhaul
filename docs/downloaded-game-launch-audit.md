@@ -338,3 +338,36 @@ Use `scripts/run-next-android-save-validation.ps1` when the phone is connected a
    - `FMOD` / `Fmod`
    - `Cloud`
    - `AndroidRuntime`
+
+## Remaining Android cloud-save hardening gates
+
+Status after end-to-end Pull validation:
+
+- Fresh install/runtime freshness is proven by `schema=22` logs on device.
+- Pull from Cloud is proven on device: Steam files were enumerated, 103 files downloaded, and 58 candidate paths were absent from cloud.
+- The game reads the same Android-local paths populated by Pull: `profile.save`, `profile1/saves/progress.save`, and `profile1/saves/prefs.save`.
+- Pulled save state surfaces in-game as `Profile 1`.
+- Successful game startup now clears recovery controls quickly instead of leaving debug controls over the game.
+- Raw validation artifacts remain local-only via `.gitignore`; durable evidence should stay in this audit rather than committing capture dumps.
+
+Live-cloud validation still required:
+
+- Push to Cloud must be tested deliberately because it overwrites Steam cloud state.
+- Required Push evidence: confirmation dialog appears before upload, cancel/no-confirm path performs no upload, confirmed push uploads changed local files, and a subsequent Steam/cloud enumeration shows the pushed remote metadata changed as expected.
+- Required safety check: after a confirmed push, Pull from Cloud should round-trip the same changed file back to Android local storage.
+
+Path-discovery review:
+
+- Current validation found 161 candidate paths and 58 not present in cloud.
+- The 58 absent candidates are not a blocker because Pull downloaded all available cloud files and the game read the important save files successfully.
+- Filtering should only be done if future captures show material slowdown, user-facing confusion, or repeated checks for paths that are known impossible for STS2 cloud saves.
+
+Release-readiness checklist:
+
+- Fresh install: APK installs, schema freshness logs appear, launcher opens.
+- Upgrade install: package `lastUpdateTime` advances, schema/cache freshness is visible, no stale assembly cache behavior.
+- Pull: confirmation bypass remains intentional, files download, local writes appear, game reads pulled paths.
+- Push: confirmation required, cancel is no-op, confirmed upload mutates Steam cloud only after user approval.
+- Game launch: launcher closes, game reaches main menu, recovery controls hide after successful startup.
+- Locked-screen interruption: app does not get misclassified as crashed when Android lockscreen/Dream steals focus.
+- Diagnostics: normal logs are not flooded by missing-path exists checks; validation scripts can enable verbose save diagnostics with the marker file.

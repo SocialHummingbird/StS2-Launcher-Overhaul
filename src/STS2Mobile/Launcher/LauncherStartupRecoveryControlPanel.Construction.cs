@@ -71,7 +71,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private static Label CreateTitle()
         => CreateLabel(
-            "Game is starting.",
+            "Game is starting...",
             TitleFontSize,
             TitleColor
         );
@@ -79,7 +79,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     private static Label CreateDetail()
     {
         var detail = CreateLabel(
-            "If this screen does not change, copy the raw error log, export diagnostics, or restart with safe launch. These controls stay visible for several minutes.",
+            "If this screen does not change, copy the raw error log, export diagnostics, or restart with safe launch. These controls hide automatically after a successful startup.",
             DetailFontSize,
             DetailColor
         );

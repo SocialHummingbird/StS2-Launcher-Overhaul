@@ -45,7 +45,7 @@ internal sealed partial class AndroidLocalSaveStore
     {
         var fullPath = FullPath(path);
         var exists = File.Exists(fullPath);
-        if (IsSaveDiagnosticPath(path) || exists)
+        if (exists || VerboseDiagnosticsEnabled)
             PatchHelper.Log($"[Cloud] Android local save exists: {path} -> {fullPath} = {exists}");
         return exists;
     }
@@ -90,15 +90,5 @@ internal sealed partial class AndroidLocalSaveStore
     string ISaveStore.GetFullPath(string filename)
     {
         return FullPath(filename);
-    }
-
-    private static bool IsSaveDiagnosticPath(string path)
-    {
-        var lower = CloudSavePath.CanonicalizeLower(path ?? string.Empty);
-        return lower.Contains("progress")
-            || lower.Contains("current_run")
-            || lower.Contains("prefs")
-            || lower.EndsWith(".save")
-            || lower.EndsWith(".run");
     }
 }

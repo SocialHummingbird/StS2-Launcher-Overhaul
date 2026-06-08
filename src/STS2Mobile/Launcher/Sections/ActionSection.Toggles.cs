@@ -64,5 +64,5 @@ internal sealed partial class ActionSection
         => value ? "Local Backup: ON" : "Local Backup: OFF";
 
     private static string CloudSyncText(bool value)
-        => value ? "Auto Sync: ON" : "Auto Sync: OFF";
+        => value ? "Game Cloud Sync: ON" : "Game Cloud Sync: OFF";
 }

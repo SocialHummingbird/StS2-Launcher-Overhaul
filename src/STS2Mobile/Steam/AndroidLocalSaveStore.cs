@@ -6,6 +6,7 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class AndroidLocalSaveStore : ISaveStore
 {
+    private const string VerboseDiagnosticsMarker = ".sts2_verbose_save_diagnostics";
     private readonly string _basePath;
     private readonly string _basePathWithSeparator;
 
@@ -18,4 +19,7 @@ internal sealed partial class AndroidLocalSaveStore : ISaveStore
         Directory.CreateDirectory(_basePath);
         PatchHelper.Log($"[Cloud] Android local save base: {_basePath}");
     }
+
+    private bool VerboseDiagnosticsEnabled
+        => File.Exists(Path.Combine(_basePath, VerboseDiagnosticsMarker));
 }

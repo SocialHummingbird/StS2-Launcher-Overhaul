@@ -6,6 +6,7 @@ param(
     [int]$WaitSeconds = 0,
     [int]$LogcatTailLines = 100000,
     [switch]$ClearLogcat,
+    [switch]$EnableVerboseSaveDiagnostics,
     [switch]$DumpSaveFiles
 )
 
@@ -28,6 +29,10 @@ if (-not (Test-Path -LiteralPath $AdbPath)) {
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $outDir = Join-Path $OutputRoot "save-validation-$timestamp"
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+
+if ($EnableVerboseSaveDiagnostics) {
+    Invoke-Adb shell run-as $PackageName sh -c "touch files/.sts2_verbose_save_diagnostics" | Out-Null
+}
 
 if ($ClearLogcat) {
     Invoke-Adb logcat -c | Out-Null
@@ -131,6 +136,10 @@ if ($DumpSaveFiles) {
     }
 
     $saveFiles | Set-Content -LiteralPath (Join-Path $outDir "save-files.txt") -Encoding UTF8
+}
+
+if ($EnableVerboseSaveDiagnostics) {
+    Invoke-Adb shell run-as $PackageName sh -c "rm -f files/.sts2_verbose_save_diagnostics" | Out-Null
 }
 
 @{

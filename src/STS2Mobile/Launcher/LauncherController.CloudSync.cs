@@ -62,7 +62,7 @@ internal sealed partial class LauncherController
 
         internal void ShowComplete(LauncherView view, string result)
         {
-            view.AppendLog(CompleteMessage);
+            view.AppendLog($"{CompleteMessage} ({DateTime.Now:HH:mm:ss})");
             if (!string.IsNullOrWhiteSpace(result))
                 view.AppendLog(result);
         }
@@ -89,7 +89,14 @@ internal sealed partial class LauncherController
     }
 
     private void CloudSyncToggled(bool pressed)
-        => LauncherPreferences.SaveCloudSyncEnabled(pressed);
+    {
+        LauncherPreferences.SaveCloudSyncEnabled(pressed);
+        _view.SetStatus(
+            pressed
+                ? "Game cloud sync enabled. Manual Push/Pull remains available from the launcher."
+                : "Game cloud sync disabled. The game will use Android local saves; manual Push/Pull remains available."
+        );
+    }
 
     private void CloudPushPressed()
         => RequestCloudSync(ManualCloudSyncRequest.Push());

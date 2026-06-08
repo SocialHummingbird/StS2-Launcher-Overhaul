@@ -6,7 +6,7 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherGameStartupRecovery
 {
     private const int MainMenuForceTimeoutMs = 15_000;
-    private const int PostStartupRecoveryMs = 180_000;
+    private const int PostStartupRecoveryMs = 3_000;
 
     internal static async Task<bool> EnsureMainMenuReadyAsync(
         object game,

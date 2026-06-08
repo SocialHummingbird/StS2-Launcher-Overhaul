@@ -16,6 +16,7 @@ if (-not (Test-Path -LiteralPath $collector)) {
 $collectorArgs = @{
     DeviceSerial = $DeviceSerial
     ClearLogcat = $true
+    EnableVerboseSaveDiagnostics = $true
     WaitSeconds = $WaitSeconds
 }
 

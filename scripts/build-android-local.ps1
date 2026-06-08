@@ -309,6 +309,7 @@ if ($Install) {
         $adbArgs += @("-s", $DeviceSerial)
     }
 
+    $adbDeviceArgs = $adbArgs
     $adbArgs += @("install", "-r", $archivedApk)
 
     Write-Host "Installing APK on Android device..."
@@ -318,5 +319,16 @@ if ($Install) {
     }
 
     Write-Host "APK installed on Android device."
+    $packageDump = & $adbPath @adbDeviceArgs shell dumpsys package $PackageName | Out-String
+    $installedVersion = [regex]::Match($packageDump, 'versionName=([^\r\n]+)')
+    $installedUpdate = [regex]::Match($packageDump, 'lastUpdateTime=([^\r\n]+)')
+    if ($installedVersion.Success) {
+        Write-Host "Installed package $PackageName $($installedVersion.Groups[1].Value.Trim())"
+    }
+    if ($installedUpdate.Success) {
+        Write-Host "Installed package lastUpdateTime=$($installedUpdate.Groups[1].Value.Trim())"
+    } else {
+        Write-Host "Installed package metadata captured, but lastUpdateTime was not found."
+    }
 }
 

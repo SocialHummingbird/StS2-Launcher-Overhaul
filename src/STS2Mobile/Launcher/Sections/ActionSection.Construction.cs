@@ -30,7 +30,7 @@ internal sealed partial class ActionSection
         );
 
         _localBackupToggle = AddSecondaryHiddenButton("Local Backup: OFF", scale, null);
-        _cloudSyncToggle = AddSecondaryHiddenButton("Auto Sync: OFF", scale, null);
+        _cloudSyncToggle = AddSecondaryHiddenButton("Game Cloud Sync: OFF", scale, null);
         ConfigureLocalBackupToggle();
         ConfigureCloudSyncToggle();
 
