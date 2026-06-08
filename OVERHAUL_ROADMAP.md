@@ -54,3 +54,10 @@ This roadmap tracks the ongoing rewrite and stabilization effort.
 - [x] Keep both required check contexts active (`Governance Smoke Check`, `Build Smoke Check`) in branch protection
 - [x] Normalize artifact coverage notes for environments without publish outputs
 - [x] Complete phase handoff cleanup and prepare final tracking issue closeout
+
+## Phase 8 - Android working-path polish and cloud-save hardening
+
+- [x] Prove the ARM64 Android launcher path works locally through fresh install, Steam download, Pull from Cloud, Android local save handoff, and in-game profile load.
+- [ ] Validate Push to Cloud safely, including confirmation, cancel/no-upload behavior, confirmed upload behavior, and Steam Cloud overwrite evidence.
+- [ ] Finish release-readiness validation for fresh install, upgrade install, game launch, locked-screen interruption, stale assembly cache behavior, Pull, and Push.
+- [ ] Polish launcher recovery, sync wording, diagnostics, and user-facing status so the working path is understandable and not overly noisy.

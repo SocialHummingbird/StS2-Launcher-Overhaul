@@ -31,23 +31,26 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 ## Current Status
 
-This fork is in an active refactor and validation phase. GitHub Actions can build and publish signed ARM64 APKs, and release asset verification is in place, but full runtime validation is not complete.
+This fork now has a working ARM64 Android launcher path in local validation. The app installs, starts the launcher, downloads game files from Steam, pulls Steam Cloud saves into Android local app storage, and starts the game with the pulled profile visible in-game.
+
+The project is still going through polish and hardening before it should be treated as a finished public release. The remaining focus is Push-to-Cloud validation, release-readiness checks, clearer sync/recovery UX, quieter diagnostics, and repeatable validation evidence.
 
 - Latest published APK release: `v0.2.175-refactor-apk`
 - Current APK asset: `StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.dev`
 - Release asset SHA-256: `78f40ad39d6cab30af4178fba6fcee713ae8df54db20d4e3c9f8a5e225b1d097`
-- Known open issue: Steam login can still fail during startup/authentication even when the device has network access.
+- Validated locally: fresh APK/runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch on ARM64 hardware.
+- Still hardening: confirmed Push to Cloud upload path, no-accidental-upload guarantees, locked-screen interruption behavior, upgrade install behavior, stale assembly cache checks, and release-candidate polish.
 - Emulator limitation: the default Android `x86_64` path is native fallback only. Forcing Godot on `x86_64` is a known crash-prone diagnostic path, not a proof target.
 
 ## Features
 
 - **Steam authentication**  
-  Login via SteamKit2 with Steam Guard 2FA support. This path is still under active validation; startup authentication failures are a known open issue.
+  Login via SteamKit2 with Steam Guard 2FA support. ARM64 device validation has progressed through authenticated download and cloud pull; release hardening is still ongoing.
 - **Game file download**  
   Depot download directly from Steam, with update checking.
 - **Cloud saves**  
-  Full Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads.
+  Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads. Pull from Cloud is validated end-to-end on ARM64 hardware; Push to Cloud is still being hardened because confirming it can overwrite Steam Cloud state.
 - **Mobile adaptation**  
   Touch input, UI scaling, layout adjustments, and app lifecycle handling via Harmony runtime patches.
 - **LAN multiplayer**  
@@ -245,9 +248,10 @@ Signing behavior:
 
 Known current runtime limitations:
 
-- Steam startup login/authentication can still fail and needs fresh device/emulator logs before it should be considered resolved.
+- The app now has a validated working ARM64 local path through download, cloud pull, and game launch, but this is not yet a finished release-candidate pass.
+- Push to Cloud still needs explicit end-to-end overwrite validation before it should be advertised as release-ready.
+- Fresh install, upgrade install, locked-screen interruption, and stale assembly cache behavior remain release-readiness gates.
 - `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.
-- Full phone proof still requires ARM64 hardware validation through Steam login, game download, cloud sync, and game launch.
 
 ### Release install troubleshooting
 
