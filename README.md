@@ -1,4 +1,8 @@
-# StS2 Launcher Overhaul
+﻿# StS2 Launcher Overhaul
+
+<p align="center">
+  <img src="docs/assets/sts2-launcher-icon.svg" alt="StS2 Launcher icon" width="128" height="128">
+</p>
 
 ## Project note (independent copy)
 
@@ -357,3 +361,4 @@ This enables the fast multiplayer mode that the mobile client expects.
 This project is licensed under the [MIT License](LICENSE). See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for third-party dependency licenses.
 
 FMOD requires a commercial license if your project generates revenue. Spine Runtimes require a valid Spine Editor license. See the third-party licenses file for details.
+
