@@ -13,7 +13,15 @@ internal sealed partial class LauncherController
             return;
 
         _manualLoginInProgress = true;
-        _ = LoginAsync(username, password);
+        StartObservedLauncherTask(
+            "Manual Steam login",
+            () => LoginAsync(username, password),
+            ex =>
+            {
+                _manualLoginInProgress = false;
+                LoginFormFailure.LoginHandler().Show(this, ex);
+            }
+        );
     }
 
     private void CodeSubmitPressed(string code)

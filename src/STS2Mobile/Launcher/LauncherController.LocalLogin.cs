@@ -20,7 +20,10 @@ internal sealed partial class LauncherController
         if (Interlocked.CompareExchange(ref _localLoginHandoffStarted, 1, 0) != 0)
             return;
 
-        _ = Task.Run(RunLocalLoginHandoffAsync);
+        StartObservedLocalLoginTask(
+            "Local Steam credential handoff watcher",
+            () => Task.Run(RunLocalLoginHandoffAsync)
+        );
     }
 
     private bool TryStartImmediateLocalLoginHandoff()
@@ -45,14 +48,31 @@ internal sealed partial class LauncherController
         _runOnMainThread(
             () => ShowSessionState(LauncherModel.SessionState.Authenticating)
         );
-        _ = Task.Run(
-            () => RunLocalLoginHandoffAsync(
-                localLogin.Value,
-                showAuthenticatingState: false
+        StartObservedLocalLoginTask(
+            "Immediate local Steam credential handoff",
+            () => Task.Run(
+                () => RunLocalLoginHandoffAsync(
+                    localLogin.Value,
+                    showAuthenticatingState: false
+                )
             )
         );
         return true;
     }
+
+    private void StartObservedLocalLoginTask(
+        string taskName,
+        Func<Task> taskFactory
+    )
+        => StartObservedLauncherTask(
+            taskName,
+            taskFactory,
+            ex =>
+            {
+                Volatile.Write(ref _localLoginHandoffStarted, 0);
+                LoginFormFailure.LocalCredentialHandoff().Show(this, ex);
+            }
+        );
 
     private async Task RunLocalLoginHandoffAsync()
     {

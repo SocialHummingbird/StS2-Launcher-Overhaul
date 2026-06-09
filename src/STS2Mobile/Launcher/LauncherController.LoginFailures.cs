@@ -29,8 +29,8 @@ internal sealed partial class LauncherController
             => new(
                 "Login handler failed",
                 "Login failed",
-                logFullException: false,
-                showBaseException: false
+                logFullException: true,
+                showBaseException: true
             );
 
         internal static LoginFormFailure AutoConnect()

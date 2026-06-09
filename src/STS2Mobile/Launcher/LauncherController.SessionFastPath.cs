@@ -27,7 +27,11 @@ internal sealed partial class LauncherController
     }
 
     private void StartAutoConnect()
-        => _ = RunAutoConnectAsync();
+        => StartObservedLauncherTask(
+            "Saved Steam credential auto-connect",
+            RunAutoConnectAsync,
+            ex => LoginFormFailure.AutoConnect().Show(this, ex)
+        );
 
     private async Task RunAutoConnectAsync()
     {

@@ -1,6 +1,7 @@
 using System;
 using Godot;
 using STS2Mobile.Launcher.Components;
+using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher.Sections;
 
@@ -47,6 +48,15 @@ internal sealed class LoginSection : VBoxContainer
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             return;
 
-        LoginRequested?.Invoke(username, password);
+        try
+        {
+            LoginRequested?.Invoke(username, password);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log(
+                $"[Launcher] Login request handler failed before authentication: {ex}"
+            );
+        }
     }
 }
