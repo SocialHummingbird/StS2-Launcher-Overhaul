@@ -1,5 +1,7 @@
 # Android release validation checklist
 
+Current posture: the ARM64 Android path works locally, including Steam download, Pull from Cloud, Push-to-Cloud hardening, Android local save handoff, and game launch. Release validation is now about hardening that baseline on the newest public APK, especially Samsung retests, persisted Steam-session/update UX, confirmed Push overwrite evidence, upgrade install behavior, freshness/cache checks, visual loading-screen regressions, and release artifact hygiene. See [current Android status](current-android-status.md).
+
 Use this checklist after every release run (manual or tag-triggered) to confirm artifact publication before announcing a release.
 
 ## 1) Verify workflow outcome
@@ -43,35 +45,58 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
 
 1. Open the release page for the tag (for example `v0.2.0`).
 2. Confirm at least one APK asset exists with name pattern:
-   - `StS2Launcher-v<version>.apk`
+   - Current ARM64 releases: `StS2Launcher-v<version>-arm64-v8a.apk`
+   - Older universal releases: `StS2Launcher-v<version>.apk` or `StS2Launcher-v<version>-universal*.apk`
 3. Confirm checksum file exists:
-   - `StS2Launcher-v<version>.apk.sha256`
+   - `StS2Launcher-v<version>-arm64-v8a.apk.sha256`
 4. Confirm the release body includes generated release notes.
+5. Confirm the release notes distinguish the current working ARM64 path from release-candidate status. Do not claim release-ready cloud sync until Pull and Push have both been validated, including no-accidental-upload behavior for Push.
 
-## 4) Optional checksum verification (local)
+## 4) Structural asset verification
+
+Run the release verifier against the exact release tag and asset:
+
+```powershell
+.\scripts\verify-android-release-apk.ps1 `
+  -ReleaseTag "v0.2.184-loading-scale" `
+  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
+  -Abi arm64-v8a
+```
+
+For manual checksum verification after downloading the `.sha256` sidecar:
 
 ```bash
-sha256sum -c StS2Launcher-v<version>.apk.sha256
+sha256sum -c StS2Launcher-v<version>-arm64-v8a.apk.sha256
 ```
 
 Expected output:
 
 ```text
-StS2Launcher-v<version>.apk: OK
+StS2Launcher-v<version>-arm64-v8a.apk: OK
 ```
 
 ## 5) Install validation on device
 
-```bash
-adb install -r StS2Launcher-v<version>.apk
+```powershell
+.\scripts\install-android-release.ps1 `
+  -ReleaseTag "v0.2.184-loading-scale" `
+  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
+  -ClearAppData `
+  -Launch `
+  -CaptureDiagnostics
 ```
 
 1. Start app and confirm launcher UI appears.
 2. Confirm no immediate crash on cold start.
+3. Confirm native splash, launcher loading/warmup, and settled launcher surfaces do not clip or distort on the target screen.
+4. Confirm Steam login reaches authentication success or ownership verification.
+5. Confirm game download works when game files are absent.
+6. Confirm Pull from Cloud downloads real Steam Cloud files, writes Android local saves, and the game reads/surfaces the pulled profile.
+7. Confirm Push to Cloud requires confirmation, cancel/no-confirm does not upload, and confirmed Push behavior is explicitly validated or deferred with overwrite-risk rationale.
+8. Confirm locked-screen/focus interruption and upgrade install behavior for every new release candidate before calling it ready.
 
 ## 6) Archive and follow-up
 
 - Record any failures in the release PR or issue tracker.
 - Fix root cause before creating the next tag.
 - Add a short note to `OVERHAUL_STATUS.md` if a process step changes.
-
