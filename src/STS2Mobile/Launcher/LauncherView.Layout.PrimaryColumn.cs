@@ -28,7 +28,7 @@ internal sealed partial class LauncherView
 
         var left = new VBoxContainer();
         left.CustomMinimumSize = new Vector2(
-            LauncherViewLayoutMetrics.ScaleInt(LauncherViewLayoutMetrics.PrimaryColumnMinWidth, scale),
+            LauncherViewLayoutMetrics.PrimaryColumnMinWidth,
             0
         );
         left.AddThemeConstantOverride(
