@@ -1,4 +1,4 @@
-# Current Android Status
+﻿# Current Android Status
 
 _Last updated: 2026-06-09_
 
@@ -15,8 +15,8 @@ The app now works on the validated ARM64 Android path, but it is still in polish
 Validated locally on ARM64 hardware:
 
 - Fresh APK/runtime install reaches the launcher.
-- The latest public release APK verifies structurally, installs, launches, and has a captured ARM64 launcher visual check.
-- Public release upgrade compatibility has advanced through `v0.2.184-loading-scale` with `versionCode=218400`; earlier proof showed `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6` preserving install state.
+- The latest public release APK verifies structurally, installs, launches, and has captured ARM64 launcher visual checks for login, diagnostics drawer, ready-state layout, and Push confirmation/cancel.
+- Public release upgrade compatibility has advanced through `v0.2.185-responsive-ui` with `versionCode=218500`; the latest signed dev APK installed over the previous dev package while preserving app data. Earlier proof showed `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6` preserving install state.
 - Locked-screen interruption returns to the app after manual unlock without app-specific crash markers.
 - Steam login and game depot download complete.
 - Pull from Cloud downloads real Steam Cloud files.
@@ -31,18 +31,19 @@ Validated locally on ARM64 hardware:
 Latest public release evidence:
 
 ```text
-release=v0.2.184-loading-scale
-asset=StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk
-sha256=299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d
+release=v0.2.185-responsive-ui
+asset=StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk
+sha256=7f15f28c5f7307a798d29c4ce00930cc45322c68867e0c1171435bbadf62afb0
 package=com.sts2launcher.overhaul.fork.dev
-versionName=0.2.184-loading-scale
-versionCode=218400
-upgradeBaseline=v0.2.183-login-hardening / versionCode=218300
+versionName=0.2.185-responsive-ui
+versionCode=218500
+upgradeBaseline=v0.2.184-loading-scale / versionCode=218400
 ```
 
 Latest device evidence folders:
 
-- `artifacts/android/github-release-v0.2.184-loading-scale`
+- `artifacts/android/github-release-v0.2.185-responsive-ui`
+- `artifacts/android/responsive-ui-check-20260609`
 - `artifacts/android/phone-diagnostics-20260609-204439`
 - `artifacts/android/loading-scale-release-visual-20260609`
 - `artifacts/android/physical-login-RFCY70XQE7F-logcat.txt`
@@ -87,8 +88,8 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 
 ## Remaining release-readiness blockers
 
-- Re-run full login/Pull/Push confirmation/cancel/game-launch smoke on the clean public `v0.2.184-loading-scale` release-facing build.
-- Keep Push treated as destructive even though local clean3 manual Push confirmation is validated; newest release-facing smoke still needs to confirm the same behavior on the public APK.
+- Re-run full login/Pull/confirmed-Push/game-launch smoke on the clean public `v0.2.185-responsive-ui` release-facing build.
+- Keep Push treated as destructive. The newest public APK has confirmation/cancel safety evidence, but confirmed Push mutation still needs an explicit newest-public smoke before release-candidate signoff.
 - Repeated local stale assembly cache/freshness checks across in-place local upgrade once signing continuity is restored.
 - Repeat release asset hygiene on every new release: signer, package name, versionCode monotonicity, checksums, structural verifier, and GitHub release notes.
 - Further diagnostics polish so normal successful startup/cloud-save behavior is not hidden by remaining low-value platform logs.
@@ -101,7 +102,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Manual cloud-sync start/complete/failure status updates now keep the launcher header aligned with the operation result instead of leaving stale generic status text behind.
 - Recovery cleanup logging now describes normal post-startup cleanup as success-path UI cleanup.
 - Diagnostics filters retain startup freshness, assembly cache, expectedSource/expectedBytes, cloud sync, and crash evidence while reducing broad log noise.
-- Native splash now uses the scalable launcher vector icon, shader-warmup/loading panel sizing is short-edge aware, and startup status text is safe-margin anchored for short/wide Android screens.
+- Native splash now uses the scalable launcher vector icon, shader-warmup/loading panel sizing is short-edge aware, startup status text is safe-margin anchored for short/wide Android screens, and the launcher itself now uses a short-edge-aware responsive shell with collapsible diagnostics.
 
 ## Static upgrade/cache freshness review
 

@@ -1,4 +1,4 @@
-# StS2 Launcher Overhaul
+﻿# StS2 Launcher Overhaul
 
 <p align="center">
   <img src="docs/assets/sts2-launcher-icon.svg" alt="StS2 Launcher icon" width="128" height="128">
@@ -40,13 +40,13 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, richer loading/progress surfaces, quieter diagnostics, and repeatable release asset hygiene.
 
-- Latest published APK release: `v0.2.184-loading-scale`
-- Current APK asset: `StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk`
+- Latest published APK release: `v0.2.185-responsive-ui`
+- Current APK asset: `StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.dev`
-- Release asset SHA-256: `299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d`
-- Latest verified public release: `0.2.184-loading-scale` / `versionCode=218400`
-- Validated locally/publicly: fresh APK/runtime install, public `v0.2.183 -> v0.2.184` update-compatible release build, launcher startup visual check on ARM64 hardware, Steam login to Steam Guard on public `v0.2.183`, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
-- Still hardening: Samsung A53/S25+/S24 Ultra reporter retests, repeated public-release Pull/Push/game-launch smoke on the newest APK, persisted Steam session/update UX, richer launch progress UI, diagnostics polish, and release-candidate signoff.
+- Release asset SHA-256: `7f15f28c5f7307a798d29c4ce00930cc45322c68867e0c1171435bbadf62afb0`
+- Latest verified public release: `0.2.185-responsive-ui` / `versionCode=218500`
+- Validated locally/publicly: fresh APK/runtime install, public `v0.2.184 -> v0.2.185` update-compatible release build, responsive launcher login/diagnostics/ready-state visual checks on ARM64 hardware, Push-to-Cloud confirmation/cancel safety on the public `v0.2.185` APK, Steam login to Steam Guard on public `v0.2.183`, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
+- Still hardening: Samsung A53/S25+/S24 Ultra reporter retests, repeated public-release Pull/confirmed-Push/game-launch smoke on the newest APK, persisted Steam session/update UX, richer launch progress UI, diagnostics polish, and release-candidate signoff.
 - Emulator limitation: Android `x86_64` is fallback/diagnostic coverage only. ARM64 hardware remains the proof target.
 
 See [docs/current-android-status.md](docs/current-android-status.md) for the current evidence and remaining blockers.
@@ -214,13 +214,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.184-loading-scale" `
-  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.185-responsive-ui" `
+  -AssetName "StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.184-loading-scale" `
-  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.185-responsive-ui" `
+  -AssetName "StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -229,10 +229,10 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.184-loading-scale
-Asset: StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk
+Release: v0.2.185-responsive-ui
+Asset: StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.dev
-SHA-256: 299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d
+SHA-256: 7f15f28c5f7307a798d29c4ce00930cc45322c68867e0c1171435bbadf62afb0
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.
@@ -275,7 +275,7 @@ Known current runtime limitations:
 
 - The app now has a validated working ARM64 path through download, cloud pull, cloud push hardening, and game launch, but this is not yet a finished release-candidate pass.
 - Push to Cloud is locally validated after the managed SHA-1 hardening fix, and that fix is included in the verified public APK line. Repeat Push confirmation/cancel smoke on the newest public APK is still required before release-candidate signoff.
-- The public release package has passed update-compatible release builds through `v0.2.184-loading-scale`; repeated local `.local` in-place upgrade coverage remains secondary because local builds use a separate package identity.
+- The public release package has passed update-compatible release builds through `v0.2.185-responsive-ui`; the newest APK also has ARM64 visual validation for the responsive launcher ready state and Push confirmation/cancel path. Repeated local `.local` in-place upgrade coverage remains secondary because local builds use a separate package identity.
 - Stale assembly cache behavior still needs repeated local upgrade coverage after signing continuity is fixed.
 - `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.
 
@@ -378,4 +378,3 @@ This enables the fast multiplayer mode that the mobile client expects.
 This project is licensed under the [MIT License](LICENSE). See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for third-party dependency licenses.
 
 FMOD requires a commercial license if your project generates revenue. Spine Runtimes require a valid Spine Editor license. See the third-party licenses file for details.
-

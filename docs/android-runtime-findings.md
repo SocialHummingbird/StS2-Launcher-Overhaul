@@ -1,4 +1,4 @@
-# Android runtime findings
+﻿# Android runtime findings
 
 Current posture: the app works on the validated ARM64 path and is in polish/hardening. Treat this document as runtime findings supporting [current Android status](current-android-status.md), not as a claim that release-candidate validation is complete.
 
@@ -8,9 +8,9 @@ The Android `x86_64` emulator is useful for install, routing, release packaging,
 
 Use an `arm64-v8a` Android device/build as the proof target for actual game launch.
 
-The latest published APK has passed GitHub release build and structural asset verification. Local ARM64 validation has now proven the working launcher path through fresh runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game. The current public APK also has an ARM64 install/launch visual check for the adaptive launcher/loading-scale work.
+The latest published APK has passed GitHub release build and structural asset verification. Local ARM64 validation has now proven the working launcher path through fresh runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game. The current public APK also has ARM64 install/launch visual checks for the responsive launcher shell, diagnostics drawer, ready-state action layout, and Push confirmation/cancel path.
 
-This is still a hardening state, not a finished release-candidate signoff. Newest-public-release Pull/Push/game-launch smoke, persisted Steam-session/update UX, Samsung reporter retests, stale assembly cache behavior, and repeated release-readiness coverage remain open validation gates.
+This is still a hardening state, not a finished release-candidate signoff. Newest-public-release Pull/confirmed-Push/game-launch smoke, persisted Steam-session/update UX, Samsung reporter retests, stale assembly cache behavior, and repeated release-readiness coverage remain open validation gates.
 
 ## Evidence so far
 
@@ -62,25 +62,25 @@ This is still a hardening state, not a finished release-candidate signoff. Newes
 
 The current published APK release is:
 
-- Release: `v0.2.184-loading-scale`
-- Asset: `StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk`
-- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.184-loading-scale
-- SHA-256: `299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d`
+- Release: `v0.2.185-responsive-ui`
+- Asset: `StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk`
+- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.185-responsive-ui
+- SHA-256: `7f15f28c5f7307a798d29c4ce00930cc45322c68867e0c1171435bbadf62afb0`
 
 Before installing, verify the uploaded GitHub release asset itself:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.184-loading-scale" `
-  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.185-responsive-ui" `
+  -AssetName "StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
 Expected result:
 
 ```text
-Release digest OK: 299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d
-Release APK verification passed: v0.2.184-loading-scale/StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk
+Release digest OK: 7f15f28c5f7307a798d29c4ce00930cc45322c68867e0c1171435bbadf62afb0
+Release APK verification passed: v0.2.185-responsive-ui/StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk
 Verified ABIs: arm64-v8a
 ```
 
@@ -88,8 +88,8 @@ Install the verified release APK to a connected phone and capture diagnostics in
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.184-loading-scale" `
-  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.185-responsive-ui" `
+  -AssetName "StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -133,8 +133,8 @@ The smoke test writes:
 
 ## Remaining proof
 
-- Repeat confirmed Push to Cloud behavior on the newest public APK, including Steam Cloud metadata/file mutation after explicit user approval.
-- Repeat cancel/no-confirm Push safety evidence on the newest public APK showing no upload starts without confirmation.
+- Repeat confirmed Push to Cloud behavior on the newest public APK, including Steam Cloud metadata/file mutation after explicit user approval. Confirmation/cancel safety is already visually checked on `v0.2.185-responsive-ui`.
+- Keep cancel/no-confirm Push safety evidence in every release-candidate pass; `v0.2.185-responsive-ui` has visual confirmation/cancel evidence showing upload requires explicit approval.
 - Upgrade install evidence showing package `lastUpdateTime` advances and stale app-private assembly cache behavior does not recur.
 - Locked-screen interruption behavior showing Android focus loss does not get misclassified as a game crash.
 - Repeated release-readiness pass covering fresh install, upgrade install, Pull, Push, game launch, and diagnostics.

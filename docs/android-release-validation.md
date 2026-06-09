@@ -1,4 +1,4 @@
-# Android release validation checklist
+﻿# Android release validation checklist
 
 Current posture: the ARM64 Android path works locally, including Steam download, Pull from Cloud, Push-to-Cloud hardening, Android local save handoff, and game launch. Release validation is now about hardening that baseline on the newest public APK, especially Samsung retests, persisted Steam-session/update UX, confirmed Push overwrite evidence, upgrade install behavior, freshness/cache checks, visual loading-screen regressions, and release artifact hygiene. See [current Android status](current-android-status.md).
 
@@ -58,8 +58,8 @@ Run the release verifier against the exact release tag and asset:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.184-loading-scale" `
-  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.185-responsive-ui" `
+  -AssetName "StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -79,8 +79,8 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.184-loading-scale" `
-  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.185-responsive-ui" `
+  -AssetName "StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
