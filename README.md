@@ -38,15 +38,15 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 **Working ARM64 Android baseline:** the launcher now installs, starts, authenticates with Steam, downloads game files, pulls Steam Cloud saves into Android local app storage, pushes Android saves back to Steam Cloud on the local hardening build, and launches the game with the pulled profile visible in-game.
 
-This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on validating the newest public release on-device, local signing/update continuity, stale-cache detection, quieter diagnostics, and repeatable release asset hygiene.
+This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, richer loading/progress surfaces, quieter diagnostics, and repeatable release asset hygiene.
 
-- Latest published APK release: `v0.2.178-cloudpush-icon`
-- Current APK asset: `StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk`
+- Latest published APK release: `v0.2.184-loading-scale`
+- Current APK asset: `StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.dev`
-- Release asset SHA-256: `5f8c04ad6602494f84ade6165180e18177c54c3908fe2de1cbc5ddf8cb4fd076`
-- Latest verified public release: `0.2.178-cloudpush-icon` / `versionCode=217800`
-- Validated locally: fresh APK/runtime install, public `v0.2.175 -> v0.2.177` upgrade install, locked-screen return, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
-- Still hardening: launch/login/Pull/Push confirmation/cancel smoke on the clean public release-facing build, local signing/update continuity for `.local` validation, stale assembly cache checks across local upgrade, diagnostics polish, and release-candidate signoff.
+- Release asset SHA-256: `299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d`
+- Latest verified public release: `0.2.184-loading-scale` / `versionCode=218400`
+- Validated locally/publicly: fresh APK/runtime install, public `v0.2.183 -> v0.2.184` update-compatible release build, launcher startup visual check on ARM64 hardware, Steam login to Steam Guard on public `v0.2.183`, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
+- Still hardening: Samsung A53/S25+/S24 Ultra reporter retests, repeated public-release Pull/Push/game-launch smoke on the newest APK, persisted Steam session/update UX, richer launch progress UI, diagnostics polish, and release-candidate signoff.
 - Emulator limitation: Android `x86_64` is fallback/diagnostic coverage only. ARM64 hardware remains the proof target.
 
 See [docs/current-android-status.md](docs/current-android-status.md) for the current evidence and remaining blockers.
@@ -214,13 +214,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.178-cloudpush-icon" `
-  -AssetName "StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.184-loading-scale" `
+  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.178-cloudpush-icon" `
-  -AssetName "StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.184-loading-scale" `
+  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -229,10 +229,10 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.178-cloudpush-icon
-Asset: StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk
+Release: v0.2.184-loading-scale
+Asset: StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.dev
-SHA-256: 5f8c04ad6602494f84ade6165180e18177c54c3908fe2de1cbc5ddf8cb4fd076
+SHA-256: 299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.
@@ -273,9 +273,9 @@ Signing behavior:
 
 Known current runtime limitations:
 
-- The app now has a validated working ARM64 local path through download, cloud pull, and game launch, but this is not yet a finished release-candidate pass.
-- Push to Cloud is locally validated after the managed SHA-1 hardening fix, and the fix is included in the verified `v0.2.178-cloudpush-icon` public APK. Clean release-facing manual confirmation/cancel smoke is still pending before release-candidate signoff.
-- Local in-place upgrade validation is blocked until the original `.local` signing key is restored or app data is intentionally reset; the public release package has passed `v0.2.175 -> v0.2.177` upgrade validation.
+- The app now has a validated working ARM64 path through download, cloud pull, cloud push hardening, and game launch, but this is not yet a finished release-candidate pass.
+- Push to Cloud is locally validated after the managed SHA-1 hardening fix, and that fix is included in the verified public APK line. Repeat Push confirmation/cancel smoke on the newest public APK is still required before release-candidate signoff.
+- The public release package has passed update-compatible release builds through `v0.2.184-loading-scale`; repeated local `.local` in-place upgrade coverage remains secondary because local builds use a separate package identity.
 - Stale assembly cache behavior still needs repeated local upgrade coverage after signing continuity is fixed.
 - `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.
 

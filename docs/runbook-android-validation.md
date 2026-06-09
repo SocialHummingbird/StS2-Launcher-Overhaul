@@ -1,6 +1,6 @@
 # Android Validation Runbook
 
-Current posture: validate regressions against the working ARM64 baseline, then collect evidence for remaining hardening gates. The baseline is fresh install, Steam download, Pull from Cloud, Android local save handoff, and game launch. See [current Android status](current-android-status.md).
+Current posture: validate regressions against the working ARM64 baseline, then collect evidence for remaining hardening gates. The baseline is fresh install, Steam download, Pull from Cloud, Push hardening, Android local save handoff, game launch, and adaptive launcher/loading screen behavior. See [current Android status](current-android-status.md).
 
 This runbook is used for manual verification of startup and reliability changes where full automation is not available.
 
@@ -34,8 +34,8 @@ Run at least one device from each row for patch-level changes:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.178-cloudpush-icon" `
-  -AssetName "StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.184-loading-scale" `
+  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -43,8 +43,8 @@ Run at least one device from each row for patch-level changes:
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.178-cloudpush-icon" `
-  -AssetName "StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.184-loading-scale" `
+  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -90,6 +90,8 @@ adb logcat > sts2launcher-<device>-<date>.log
 ### Startup path
 
 - [ ] Launcher opens without immediate dev/command overlay
+- [ ] Native splash uses the launcher icon and does not stretch/distort on the target display
+- [ ] Loading/warmup/startup status surfaces fit inside safe screen margins
 - [ ] No `.NET assemblies not found` alert
 - [ ] `Assembly cache diagnostics` shows `arm64` and required DLLs present on ARM64 phone
 - [ ] Steam login reaches authentication success or ownership verification

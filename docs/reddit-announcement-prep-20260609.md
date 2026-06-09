@@ -2,16 +2,16 @@
 
 ## Current public claim
 
-StS2 Launcher now works on the validated ARM64 Android path: install, Steam login, game download, Pull from Cloud, local hardening Push to Cloud, Pull-after-Push, local save handoff, and game launch/profile visibility have been validated. The newest public release asset is published and structurally verified, but public-release on-device smoke is still pending before release-candidate signoff.
+StS2 Launcher now works on the validated ARM64 Android path: install, Steam login, game download, Pull from Cloud, local hardening Push to Cloud, Pull-after-Push, local save handoff, and game launch/profile visibility have been validated. The newest public release asset is published, structurally verified, and installed/launched on ARM64 hardware, but full newest-public-release Pull/Push/game-launch smoke is still pending before release-candidate signoff.
 
 ## Public release to link
 
 - Repository: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul
-- Release: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.178-cloudpush-icon
-- APK: `StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk`
+- Release: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.184-loading-scale
+- APK: `StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk`
 - Package: `com.sts2launcher.overhaul.fork.dev`
-- Version: `0.2.178-cloudpush-icon` / `versionCode=217800`
-- SHA-256: `5f8c04ad6602494f84ade6165180e18177c54c3908fe2de1cbc5ddf8cb4fd076`
+- Version: `0.2.184-loading-scale` / `versionCode=218400`
+- SHA-256: `299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d`
 - Target: ARM64 Android phones only for real validation.
 
 ## Posting constraints checked
@@ -41,7 +41,7 @@ StS2 Launcher now runs Slay the Spire 2 on ARM64 Android - working, but still in
 
 I have been working on an unofficial Android launcher for Slay the Spire 2: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul
 
-The current ARM64 Android path now works in testing: the app installs, authenticates with Steam, downloads the game files from Steam, pulls Steam Cloud saves into Android local storage, launches the game, and shows the pulled profile in-game. Push to Cloud has also been validated on the local hardening build and the fix is included in the latest public APK.
+The current ARM64 Android path now works in testing: the app installs, authenticates with Steam, downloads the game files from Steam, pulls Steam Cloud saves into Android local storage, launches the game, and shows the pulled profile in-game. Push to Cloud has also been validated on the local hardening build and the fix is included in the latest public APK. Recent public builds also include Samsung-layout reachability fixes, Steam login crash-boundary hardening, and adaptive native splash/loading-screen scaling.
 
 This is not a finished release-candidate yet. It is in the polish/hardening phase, and I am looking for technically comfortable testers who understand the risks.
 
@@ -55,7 +55,7 @@ Important caveats:
 - Do not post credentials, guard codes, tokens, private save contents, or full unsanitized logs publicly.
 
 Latest public APK:
-https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.178-cloudpush-icon
+https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.184-loading-scale
 
 If you try it, the most useful feedback is device model, Android version, whether install/login/download/Pull/game launch worked, and any scrubbed crash log snippets. Please keep reports sanitized.
 

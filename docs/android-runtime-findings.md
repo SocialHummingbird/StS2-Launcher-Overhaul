@@ -8,9 +8,9 @@ The Android `x86_64` emulator is useful for install, routing, release packaging,
 
 Use an `arm64-v8a` Android device/build as the proof target for actual game launch.
 
-The latest published refactor APK has passed GitHub release build and structural asset verification. Local ARM64 validation has now proven the working launcher path through fresh runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game.
+The latest published APK has passed GitHub release build and structural asset verification. Local ARM64 validation has now proven the working launcher path through fresh runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game. The current public APK also has an ARM64 install/launch visual check for the adaptive launcher/loading-scale work.
 
-This is still a hardening state, not a finished release-candidate signoff. Push to Cloud, upgrade install behavior, locked-screen interruption, stale assembly cache behavior, and repeated release-readiness coverage remain open validation gates.
+This is still a hardening state, not a finished release-candidate signoff. Newest-public-release Pull/Push/game-launch smoke, persisted Steam-session/update UX, Samsung reporter retests, stale assembly cache behavior, and repeated release-readiness coverage remain open validation gates.
 
 ## Evidence so far
 
@@ -62,25 +62,25 @@ This is still a hardening state, not a finished release-candidate signoff. Push 
 
 The current published APK release is:
 
-- Release: `v0.2.178-cloudpush-icon`
-- Asset: `StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk`
-- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.178-cloudpush-icon
-- SHA-256: `5f8c04ad6602494f84ade6165180e18177c54c3908fe2de1cbc5ddf8cb4fd076`
+- Release: `v0.2.184-loading-scale`
+- Asset: `StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk`
+- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.184-loading-scale
+- SHA-256: `299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d`
 
 Before installing, verify the uploaded GitHub release asset itself:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.178-cloudpush-icon" `
-  -AssetName "StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.184-loading-scale" `
+  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
 Expected result:
 
 ```text
-Release digest OK: 5f8c04ad6602494f84ade6165180e18177c54c3908fe2de1cbc5ddf8cb4fd076
-Release APK verification passed: v0.2.178-cloudpush-icon/StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk
+Release digest OK: 299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d
+Release APK verification passed: v0.2.184-loading-scale/StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk
 Verified ABIs: arm64-v8a
 ```
 
@@ -88,8 +88,8 @@ Install the verified release APK to a connected phone and capture diagnostics in
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.178-cloudpush-icon" `
-  -AssetName "StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.184-loading-scale" `
+  -AssetName "StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -103,7 +103,7 @@ If the app is already installed and you only need fresh diagnostics:
 
 The diagnostic capture writes a timestamped `artifacts/android/phone-diagnostics-*` directory with device metadata, full logcat, filtered logcat, package state, and app-private assembly cache listings when `run-as` is available.
 
-For phone installs, use an APK that matches the device ABI. The current public refactor APK is ARM64-only. Older `x86_64` APKs are emulator-only and will be incompatible with ARM64 phones.
+For phone installs, use an APK that matches the device ABI. The current public APK is ARM64-only. Older `x86_64` APKs are emulator-only and will be incompatible with ARM64 phones.
 
 Build ABI-specific local artifacts:
 
@@ -133,8 +133,8 @@ The smoke test writes:
 
 ## Remaining proof
 
-- Confirmed Push to Cloud upload behavior, including Steam Cloud metadata/file mutation after explicit user approval.
-- Cancel/no-confirm Push safety evidence showing no upload starts without confirmation.
+- Repeat confirmed Push to Cloud behavior on the newest public APK, including Steam Cloud metadata/file mutation after explicit user approval.
+- Repeat cancel/no-confirm Push safety evidence on the newest public APK showing no upload starts without confirmation.
 - Upgrade install evidence showing package `lastUpdateTime` advances and stale app-private assembly cache behavior does not recur.
 - Locked-screen interruption behavior showing Android focus loss does not get misclassified as a game crash.
 - Repeated release-readiness pass covering fresh install, upgrade install, Pull, Push, game launch, and diagnostics.

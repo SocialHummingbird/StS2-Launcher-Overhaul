@@ -6,6 +6,7 @@ Current device evidence ledgers:
 
 - [android-device-validation-20260608.md](android-device-validation-20260608.md)
 - [android-cloud-save-validation-20260609.md](android-cloud-save-validation-20260609.md)
+- [launcher-loading-screen-staging.md](launcher-loading-screen-staging.md)
 
 ## Headline
 
@@ -14,8 +15,8 @@ The app now works on the validated ARM64 Android path, but it is still in polish
 Validated locally on ARM64 hardware:
 
 - Fresh APK/runtime install reaches the launcher.
-- The latest public release APK verifies structurally; latest launch proof remains the previous public APK plus local ARM64 hardening builds until clean public-release smoke is rerun.
-- Public release upgrade from `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6` preserves install state and advances `versionCode` from `217500` to `217700`; the newer `v0.2.178-cloudpush-icon` release is published and structurally verified at `versionCode=217800`.
+- The latest public release APK verifies structurally, installs, launches, and has a captured ARM64 launcher visual check.
+- Public release upgrade compatibility has advanced through `v0.2.184-loading-scale` with `versionCode=218400`; earlier proof showed `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6` preserving install state.
 - Locked-screen interruption returns to the app after manual unlock without app-specific crash markers.
 - Steam login and game depot download complete.
 - Pull from Cloud downloads real Steam Cloud files.
@@ -30,18 +31,21 @@ Validated locally on ARM64 hardware:
 Latest public release evidence:
 
 ```text
-release=v0.2.178-cloudpush-icon
-asset=StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk
-sha256=5f8c04ad6602494f84ade6165180e18177c54c3908fe2de1cbc5ddf8cb4fd076
+release=v0.2.184-loading-scale
+asset=StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk
+sha256=299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d
 package=com.sts2launcher.overhaul.fork.dev
-versionName=0.2.178-cloudpush-icon
-versionCode=217800
-upgradeBaseline=v0.2.175-refactor-apk / versionCode=217500
+versionName=0.2.184-loading-scale
+versionCode=218400
+upgradeBaseline=v0.2.183-login-hardening / versionCode=218300
 ```
 
 Latest device evidence folders:
 
-- `artifacts/android/github-release-v0.2.178-cloudpush-icon`
+- `artifacts/android/github-release-v0.2.184-loading-scale`
+- `artifacts/android/phone-diagnostics-20260609-204439`
+- `artifacts/android/loading-scale-release-visual-20260609`
+- `artifacts/android/physical-login-RFCY70XQE7F-logcat.txt`
 - `artifacts/android/phone-diagnostics-20260608-220359`
 - `artifacts/android/lock-unlock-validation-20260608-215548`
 - `artifacts/android/local-pull-smoke-20260608-221143`
@@ -83,11 +87,12 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 
 ## Remaining release-readiness blockers
 
-- Re-run launch/login/Pull/Push confirmation/cancel smoke on the clean public `v0.2.178-cloudpush-icon` release-facing build.
-- Keep Push treated as destructive even though local clean3 manual Push confirmation is validated; release-facing smoke still needs to confirm the same behavior on the public APK.
+- Re-run full login/Pull/Push confirmation/cancel/game-launch smoke on the clean public `v0.2.184-loading-scale` release-facing build.
+- Keep Push treated as destructive even though local clean3 manual Push confirmation is validated; newest release-facing smoke still needs to confirm the same behavior on the public APK.
 - Repeated local stale assembly cache/freshness checks across in-place local upgrade once signing continuity is restored.
 - Repeat release asset hygiene on every new release: signer, package name, versionCode monotonicity, checksums, structural verifier, and GitHub release notes.
 - Further diagnostics polish so normal successful startup/cloud-save behavior is not hidden by remaining low-value platform logs.
+- Improve persisted Steam session/update UX so game update checks do not appear to require unnecessary re-login when a saved session is still valid.
 
 ## Device-independent polish completed after baseline proof
 
@@ -96,6 +101,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Manual cloud-sync start/complete/failure status updates now keep the launcher header aligned with the operation result instead of leaving stale generic status text behind.
 - Recovery cleanup logging now describes normal post-startup cleanup as success-path UI cleanup.
 - Diagnostics filters retain startup freshness, assembly cache, expectedSource/expectedBytes, cloud sync, and crash evidence while reducing broad log noise.
+- Native splash now uses the scalable launcher vector icon, shader-warmup/loading panel sizing is short-edge aware, and startup status text is safe-margin anchored for short/wide Android screens.
 
 ## Static upgrade/cache freshness review
 
