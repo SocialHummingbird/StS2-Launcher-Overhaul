@@ -7,31 +7,42 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class LauncherView
 {
     private static RichTextLabel BuildLogColumn(
-        float scale,
-        HBoxContainer hbox,
+        LauncherLayoutProfile profile,
+        VBoxContainer root,
         Action<InputEvent> dismissKeyboard
     )
     {
-        var right = new VBoxContainer();
-        right.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        right.SizeFlagsStretchRatio = LauncherViewLayoutMetrics.LogColumnStretchRatio;
-        hbox.AddChild(right);
+        var scale = profile.Scale;
+        var drawer = new VBoxContainer();
+        drawer.Visible = false;
+        drawer.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        drawer.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(6, scale)
+        );
 
-        var logTitle = new StyledLabel(
-            "Console",
+        var toggle = new StyledButton(
+            "SHOW DIAGNOSTICS CONSOLE",
             scale,
-            fontSize: LauncherViewLayoutMetrics.LogTitleFontSize
+            fontSize: 12,
+            height: 34
         );
-        logTitle.AddThemeColorOverride(
-            LauncherViewLayoutMetrics.ThemeFontColor,
-            LauncherViewLayoutMetrics.LogTitleColor
-        );
-        right.AddChild(logTitle);
+        LauncherButtonStyles.ApplySupportAction(toggle, scale);
+        toggle.Pressed += () =>
+        {
+            drawer.Visible = !drawer.Visible;
+            toggle.Text = drawer.Visible ? "HIDE DIAGNOSTICS CONSOLE" : "SHOW DIAGNOSTICS CONSOLE";
+        };
+        root.AddChild(toggle);
 
         var log = BuildLogView(scale);
-        log.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        log.CustomMinimumSize = new Vector2(
+            0,
+            LauncherViewLayoutMetrics.ScaleInt(profile.Compact ? 140 : 180, scale)
+        );
         log.GuiInput += input => dismissKeyboard(input);
-        right.AddChild(log);
+        drawer.AddChild(log);
+        root.AddChild(drawer);
         return log;
     }
 }

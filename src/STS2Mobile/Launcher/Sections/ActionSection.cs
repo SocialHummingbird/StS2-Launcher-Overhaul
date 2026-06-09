@@ -30,9 +30,13 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _diagnosticsButton;
     private readonly Button _showLastErrorButton;
     private readonly Button _copyRawLogButton;
-    private readonly HBoxContainer _pushPullRow;
+    private readonly VBoxContainer _cloudGroup;
+    private readonly VBoxContainer _supportGroup;
+    private readonly VBoxContainer _pushPullRow;
+    private readonly Button _supportToggle;
     private readonly StyleBoxFlat _toggleOffStyle;
     private readonly StyleBoxFlat _toggleOnStyle;
+    private bool _supportExpanded;
 
     internal void SetLocalBackupChecked(bool value)
         => ApplyLocalBackupToggle(value);

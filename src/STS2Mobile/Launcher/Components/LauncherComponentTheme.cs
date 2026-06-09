@@ -38,16 +38,24 @@ internal static class LauncherComponentTheme
     internal const string StatePressed = "pressed";
     internal const string ThemeSeparation = "separation";
 
-    internal static readonly Color ButtonDisabled = new(0.2f, 0.2f, 0.22f);
-    internal static readonly Color ButtonHover = new(0.3f, 0.3f, 0.36f);
-    internal static readonly Color ButtonNormal = new(0.25f, 0.25f, 0.3f);
-    internal static readonly Color ButtonPressed = new(0.2f, 0.2f, 0.25f);
+    internal static readonly Color ButtonDisabled = new(0.12f, 0.14f, 0.17f);
+    internal static readonly Color ButtonHover = new(0.13f, 0.22f, 0.3f);
+    internal static readonly Color ButtonNormal = new(0.08f, 0.14f, 0.2f);
+    internal static readonly Color ButtonPressed = new(0.05f, 0.1f, 0.16f);
+    internal static readonly Color CyanAccent = new(0.04f, 0.84f, 0.95f);
+    internal static readonly Color CyanDim = new(0.03f, 0.42f, 0.52f);
+    internal static readonly Color DarkInk = new(0.02f, 0.04f, 0.06f);
     internal static readonly Color DialogOverlay = new(0, 0, 0, 0.6f);
-    internal static readonly Color DialogPanelBackground = new(0.15f, 0.15f, 0.18f);
-    internal static readonly Color LogBackground = new(0.05f, 0.05f, 0.07f);
-    internal static readonly Color LogText = new(0.6f, 0.6f, 0.65f);
-    internal static readonly Color PanelBackground = new(0.12f, 0.12f, 0.15f);
-    internal static readonly Color ScreenBackground = new(0.08f, 0.08f, 0.1f);
+    internal static readonly Color DialogPanelBackground = new(0.07f, 0.1f, 0.13f);
+    internal static readonly Color LogBackground = new(0.02f, 0.04f, 0.06f);
+    internal static readonly Color LogText = new(0.55f, 0.78f, 0.82f);
+    internal static readonly Color OrangeAccent = new(1.0f, 0.48f, 0.02f);
+    internal static readonly Color OrangeHot = new(1.0f, 0.78f, 0.08f);
+    internal static readonly Color PanelBackground = new(0.045f, 0.07f, 0.095f);
+    internal static readonly Color ScreenBackground = new(0.015f, 0.02f, 0.03f);
+    internal static readonly Color TextMuted = new(0.45f, 0.52f, 0.56f);
+    internal static readonly Color TextPrimary = new(0.9f, 0.95f, 0.93f);
+    internal static readonly Color TextSecondary = new(0.58f, 0.74f, 0.76f);
 
     internal static int ScaleInt(float scale, int value)
         => (int)(value * scale);

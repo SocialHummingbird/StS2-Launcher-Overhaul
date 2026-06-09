@@ -12,14 +12,14 @@ internal sealed partial class LauncherView
         CodeSection Code,
         DownloadSection Download,
         ActionSection Actions
-    ) BuildPrimaryColumn(float scale, HBoxContainer hbox)
+    ) BuildPrimaryColumn(LauncherLayoutProfile profile, VBoxContainer root)
     {
+        var scale = profile.Scale;
         var leftScroll = new ScrollContainer();
         leftScroll.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         leftScroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-        leftScroll.SizeFlagsStretchRatio = LauncherViewLayoutMetrics.PrimaryColumnStretchRatio;
         leftScroll.FollowFocus = true;
-        hbox.AddChild(leftScroll);
+        root.AddChild(leftScroll);
 
         var leftCenter = new CenterContainer();
         leftCenter.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -28,7 +28,7 @@ internal sealed partial class LauncherView
 
         var left = new VBoxContainer();
         left.CustomMinimumSize = new Vector2(
-            LauncherViewLayoutMetrics.PrimaryColumnMinWidth,
+            profile.ContentMaxWidth,
             0
         );
         left.AddThemeConstantOverride(
@@ -37,12 +37,12 @@ internal sealed partial class LauncherView
         );
         leftCenter.AddChild(left);
 
-        var title = new StyledLabel("StS2 Launcher", scale, fontSize: 26);
-        left.AddChild(title);
-        left.AddChild(new HSeparator());
-
         var statusLabel = new StyledLabel("Initializing...", scale);
         statusLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        statusLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextSecondary
+        );
         left.AddChild(statusLabel);
 
         var login = new LoginSection(scale);

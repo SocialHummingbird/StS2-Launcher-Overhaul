@@ -6,8 +6,9 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection
 {
-    private Button AddPrimaryHiddenButton(string text, float scale, Action pressed)
+    private Button AddPrimaryHiddenButton(Container parent, string text, float scale, Action pressed)
         => AddHiddenButton(
+            parent,
             text,
             scale,
             LauncherSectionMetrics.PrimaryButtonFontSize,
@@ -15,8 +16,9 @@ internal sealed partial class ActionSection
             pressed
         );
 
-    private Button AddSecondaryHiddenButton(string text, float scale, Action pressed)
+    private Button AddSecondaryHiddenButton(Container parent, string text, float scale, Action pressed)
         => AddHiddenButton(
+            parent,
             text,
             scale,
             LauncherSectionMetrics.SecondaryButtonFontSize,
@@ -25,6 +27,7 @@ internal sealed partial class ActionSection
         );
 
     private Button AddHiddenButton(
+        Container parent,
         string text,
         float scale,
         int fontSize,
@@ -36,12 +39,12 @@ internal sealed partial class ActionSection
         button.Visible = false;
         if (pressed != null)
             button.Pressed += pressed;
-        AddChild(button);
+        parent.AddChild(button);
         return button;
     }
 
     private static Button AddPushPullButton(
-        HBoxContainer row,
+        VBoxContainer row,
         string text,
         float scale,
         Action pressed

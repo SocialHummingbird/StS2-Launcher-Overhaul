@@ -55,6 +55,7 @@ internal sealed partial class ActionSection
 
     private void SetCloudControlsVisible(bool visible)
     {
+        _cloudGroup.Visible = visible;
         _localBackupToggle.Visible = visible;
         _cloudSyncToggle.Visible = visible;
         _pushPullRow.Visible = visible;
@@ -87,6 +88,17 @@ internal sealed partial class ActionSection
 
     private void SetSupportButtonsVisible(bool visible)
     {
+        _supportToggle.Visible = visible;
+        if (!visible)
+        {
+            _supportExpanded = false;
+            _supportGroup.Visible = false;
+            _supportToggle.Text = "MORE SUPPORT OPTIONS";
+        }
+        else
+        {
+            _supportGroup.Visible = _supportExpanded;
+        }
         _diagnosticsButton.Visible = visible;
         _showLastErrorButton.Visible = visible;
         _copyRawLogButton.Visible = visible;

@@ -18,23 +18,25 @@ internal sealed partial class LauncherView
     private readonly StyledPanel _panel;
     private readonly float _panelBaseY;
     private readonly float _scale;
+    private readonly LauncherLayoutProfile _profile;
     private readonly StyledLabel _statusLabel;
 
-    internal LauncherView(Control parent, float scale)
+    internal LauncherView(Control parent, LauncherLayoutProfile profile)
     {
         var dismissKeyboard = new Action<InputEvent>(DismissKeyboard);
-        var shell = BuildShell(parent, scale, dismissKeyboard);
+        var shell = BuildShell(parent, profile, dismissKeyboard);
         _parent = parent;
         _panel = shell.Panel;
         _panelBaseY = shell.Panel.Position.Y;
-        _scale = scale;
-        var primary = BuildPrimaryColumn(scale, shell.RootColumns);
+        _scale = profile.Scale;
+        _profile = profile;
+        var primary = BuildPrimaryColumn(profile, shell.Content);
         _statusLabel = primary.Status;
         Login = primary.Login;
         Code = primary.Code;
         Download = primary.Download;
         Actions = primary.Actions;
-        Log = BuildLogColumn(scale, shell.RootColumns, dismissKeyboard);
+        Log = BuildLogColumn(profile, shell.Content, dismissKeyboard);
     }
 
     internal void SetStatus(string text) => _statusLabel.Text = text;

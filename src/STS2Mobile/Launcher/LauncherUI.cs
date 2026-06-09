@@ -12,7 +12,6 @@ internal sealed class LauncherUI : Control
 {
     private const string AutoLaunchVariable = "STS2_AUTO_LAUNCH_GAME";
     private const string AutoSafeLaunchVariable = "STS2_AUTO_SAFE_LAUNCH";
-    private const float ReferenceLongEdge = 960f;
     private const int LauncherZIndex = 100;
     private static readonly Vector2 DefaultViewportSize = new(1920, 1080);
 
@@ -32,17 +31,17 @@ internal sealed class LauncherUI : Control
             var viewportSize = GetViewportSize();
             SetAnchorsPreset(LayoutPreset.FullRect);
             Size = viewportSize;
-            var scale = Math.Max(viewportSize.X, viewportSize.Y) / ReferenceLongEdge;
+            var layoutProfile = LauncherLayoutProfile.ForViewport(viewportSize);
             _model = new LauncherModel(OS.GetDataDir());
             _model.InGameMode = _inGameMode;
-            _view = new LauncherView(this, scale);
+            _view = new LauncherView(this, layoutProfile);
             _controller = new LauncherController(
                 _model,
                 _view,
                 EnqueueMainThreadAction
             );
 
-            PatchHelper.Log($"LauncherUI initialized. Viewport={viewportSize}");
+            PatchHelper.Log($"LauncherUI initialized. {layoutProfile}");
         }
         catch (Exception ex)
         {

@@ -39,5 +39,9 @@ internal sealed class StyledButton : Button
             LauncherComponentTheme.StateDisabled,
             LauncherStyleBoxes.MakeFilled(LauncherComponentTheme.ButtonDisabled, radius)
         );
+        AddThemeColorOverride("font_color", LauncherComponentTheme.TextPrimary);
+        AddThemeColorOverride("font_hover_color", LauncherComponentTheme.TextPrimary);
+        AddThemeColorOverride("font_pressed_color", LauncherComponentTheme.CyanAccent);
+        AddThemeColorOverride("font_disabled_color", LauncherComponentTheme.TextMuted);
     }
 }
