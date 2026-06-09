@@ -8,7 +8,7 @@ The Android `x86_64` emulator is useful for install, routing, release packaging,
 
 Use an `arm64-v8a` Android device/build as the proof target for actual game launch.
 
-The latest published APK has passed GitHub release build and structural asset verification. Local ARM64 validation has now proven the working launcher path through fresh runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game. The current public APK also has ARM64 install/launch visual checks for the responsive launcher shell, diagnostics drawer, ready-state action layout, and Push confirmation/cancel path.
+The latest published APK has passed GitHub release build and structural asset verification. Local ARM64 validation has now proven the working launcher path through fresh runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game. The current public APK also has ARM64 install/launch visual checks for the responsive launcher shell, active download progress, diagnostics drawer, ready-state action layout, and Push confirmation/cancel path.
 
 This is still a hardening state, not a finished release-candidate signoff. Newest-public-release Pull/confirmed-Push/game-launch smoke, persisted Steam-session/update UX, Samsung reporter retests, stale assembly cache behavior, and repeated release-readiness coverage remain open validation gates.
 

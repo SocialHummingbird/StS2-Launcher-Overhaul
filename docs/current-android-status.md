@@ -15,7 +15,7 @@ The app now works on the validated ARM64 Android path, but it is still in polish
 Validated locally on ARM64 hardware:
 
 - Fresh APK/runtime install reaches the launcher.
-- The latest public release APK verifies structurally, installs, launches, and has captured ARM64 launcher visual checks for login, diagnostics drawer, ready-state layout, and Push confirmation/cancel.
+- The latest public release APK verifies structurally, installs, launches, and has captured ARM64 launcher visual checks for login, active download progress, diagnostics drawer, ready-state layout, and Push confirmation/cancel.
 - Public release upgrade compatibility has advanced through `v0.2.185-responsive-ui` with `versionCode=218500`; the latest signed dev APK installed over the previous dev package while preserving app data. Earlier proof showed `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6` preserving install state.
 - Locked-screen interruption returns to the app after manual unlock without app-specific crash markers.
 - Steam login and game depot download complete.
