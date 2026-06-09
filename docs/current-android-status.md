@@ -14,8 +14,8 @@ The app now works on the validated ARM64 Android path, but it is still in polish
 Validated locally on ARM64 hardware:
 
 - Fresh APK/runtime install reaches the launcher.
-- The latest public release APK verifies structurally and launches.
-- Public release upgrade from `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6` preserves install state and advances `versionCode` from `217500` to `217700`.
+- The latest public release APK verifies structurally; latest launch proof remains the previous public APK plus local ARM64 hardening builds until clean public-release smoke is rerun.
+- Public release upgrade from `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6` preserves install state and advances `versionCode` from `217500` to `217700`; the newer `v0.2.178-cloudpush-icon` release is published and structurally verified at `versionCode=217800`.
 - Locked-screen interruption returns to the app after manual unlock without app-specific crash markers.
 - Steam login and game depot download complete.
 - Pull from Cloud downloads real Steam Cloud files.
@@ -30,18 +30,18 @@ Validated locally on ARM64 hardware:
 Latest public release evidence:
 
 ```text
-release=v0.2.177-login-a8729d6
-asset=StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk
-sha256=bde43591aeb6904488560bb1e27421276cc3248bbc7d2eb9151e29b8b9fef199
+release=v0.2.178-cloudpush-icon
+asset=StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk
+sha256=5f8c04ad6602494f84ade6165180e18177c54c3908fe2de1cbc5ddf8cb4fd076
 package=com.sts2launcher.overhaul.fork.dev
-versionName=0.2.177-login-a8729d6
-versionCode=217700
+versionName=0.2.178-cloudpush-icon
+versionCode=217800
 upgradeBaseline=v0.2.175-refactor-apk / versionCode=217500
 ```
 
 Latest device evidence folders:
 
-- `artifacts/android/github-release-v0.2.177-login-a8729d6`
+- `artifacts/android/github-release-v0.2.178-cloudpush-icon`
 - `artifacts/android/phone-diagnostics-20260608-220359`
 - `artifacts/android/lock-unlock-validation-20260608-215548`
 - `artifacts/android/local-pull-smoke-20260608-221143`
@@ -83,10 +83,10 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 
 ## Remaining release-readiness blockers
 
-- Publish and verify a release asset that includes the managed SHA-1/manual Push hardening.
-- Re-run manual Push confirmation/cancel smoke on the clean release-facing build; local clean3 manual Push confirmation is validated, but release-facing asset smoke is still pending.
+- Re-run launch/login/Pull/Push confirmation/cancel smoke on the clean public `v0.2.178-cloudpush-icon` release-facing build.
+- Keep Push treated as destructive even though local clean3 manual Push confirmation is validated; release-facing smoke still needs to confirm the same behavior on the public APK.
 - Repeated local stale assembly cache/freshness checks across in-place local upgrade once signing continuity is restored.
-- Release asset hygiene on every new release: signer, package name, versionCode monotonicity, checksums, structural verifier, and GitHub release notes.
+- Repeat release asset hygiene on every new release: signer, package name, versionCode monotonicity, checksums, structural verifier, and GitHub release notes.
 - Further diagnostics polish so normal successful startup/cloud-save behavior is not hidden by remaining low-value platform logs.
 
 ## Device-independent polish completed after baseline proof

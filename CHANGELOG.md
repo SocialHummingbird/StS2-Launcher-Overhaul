@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-06-09 - Public release and Reddit-readiness polish
+
+- Published and structurally verified 0.2.178-cloudpush-icon, an ARM64 public APK that includes the managed SHA-1 Push hardening and new launcher icon.
+- Updated GitHub-facing release instructions, safe public trial guidance, ARM64 caveats, Push overwrite warnings, and support boundaries for public testers.
+- Added a Reddit announcement prep note with posting constraints, known-risk wording, and a draft announcement.
 ## 2026-06-09 - Android cloud-save Push/Pull hardening
 
 - Fixed the post-Push Android process death by replacing the cloud upload SHA-1 file-hash path with managed SHA-1 instead of Android native crypto.
@@ -45,7 +50,7 @@ All notable changes for the overhauled repository are recorded here.
   - `docs/device-log-checklist.md`
 
 ### Changed
-- Updated GitHub-facing project text for the current APK state: `v0.2.177-login-a8729d6`, ARM64-only release assets, signed release expectations, emulator limits, and the current working-but-hardening Android validation state.
+- Updated GitHub-facing project text for the current APK state: `v0.2.178-cloudpush-icon`, ARM64-only release assets, signed release expectations, emulator limits, and the current working-but-hardening Android validation state.
 - Updated GitHub-facing project text to reflect that the ARM64 local Android path now works through fresh install/runtime validation, Steam download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, and game launch, while release hardening remains active.
 - Reframed overhaul status from the old phase-closure language to the current refactor and validation stabilization work.
 - Improved launcher timeout control for manual cloud sync operations to avoid UI hangs.
@@ -60,7 +65,7 @@ All notable changes for the overhauled repository are recorded here.
 - Added time-bound guardrails around cache read/write/update operations in cloud sync paths.
 
 ### Known Issues
-- Push to Cloud is locally validated but still needs a published release asset with the managed SHA-1 fix and clean release-facing manual confirmation/cancel smoke before release-candidate signoff.
+- Push to Cloud is locally validated and included in the verified `v0.2.178-cloudpush-icon` public APK, but still needs clean release-facing manual confirmation/cancel smoke before release-candidate signoff.
 - Release-readiness validation still needs repeated local stale assembly cache coverage after `.local` signing continuity is restored.
 - Android `x86_64` emulator runs are fallback/diagnostic coverage only unless the unsafe Godot path is explicitly forced.
 

@@ -58,8 +58,8 @@ Run the release verifier against the exact release tag and asset:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.177-login-a8729d6" `
-  -AssetName "StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.178-cloudpush-icon" `
+  -AssetName "StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -79,8 +79,8 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.177-login-a8729d6" `
-  -AssetName "StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.178-cloudpush-icon" `
+  -AssetName "StS2Launcher-v0.2.178-cloudpush-icon-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
