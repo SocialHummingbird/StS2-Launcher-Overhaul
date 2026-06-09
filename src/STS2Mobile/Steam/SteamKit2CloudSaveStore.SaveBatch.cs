@@ -15,4 +15,15 @@ internal sealed partial class SteamKit2CloudSaveStore
 
         EnqueueBatchUpload(files);
     }
+
+    internal void EndSaveBatchAndUploadNow()
+    {
+        var files = _saveBatch.EndCollecting();
+        if (files.Count == 0)
+            return;
+
+        PatchHelper.Log(UploadingBatchSynchronously(files.Count));
+        UploadSaveBatch(files);
+        PatchHelper.Log(UploadedBatchSynchronously(files.Count));
+    }
 }

@@ -20,5 +20,11 @@ internal static partial class CloudSyncCoordinator
         PushMessage($"failed for {path}: {ex.Message}");
 
     private static string PushComplete(int count) =>
-        PushMessage($"complete: {count} files batched for upload");
+        PushMessage($"complete: {count} files uploaded and flushed");
+
+    private static string PushFlushing() =>
+        PushMessage("waiting for queued cloud uploads to flush");
+
+    private static string PushFlushTimedOut(string result) =>
+        $"{result}; queued upload flush timed out";
 }

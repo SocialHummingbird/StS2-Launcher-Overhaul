@@ -36,20 +36,20 @@ internal sealed partial class LauncherController
 
         internal static ManualCloudSyncRequest Push()
             => new(
-                "Push local saves to Steam Cloud?\nThis can overwrite your Steam Cloud saves. Continue only after backing up or using a controlled test save.",
+                "Push Android local saves to Steam Cloud?\nThis can overwrite Steam Cloud saves for this Steam account. Pull from Cloud first and verify the Android saves exist before pushing.",
                 "Push",
                 "Pushing Android local saves to Steam Cloud...",
-                "Push complete. Steam Cloud may now contain Android local saves.",
+                "Push complete. Steam Cloud now reflects Android local saves.",
                 false,
                 LauncherCloudSaveState.ManualPushAllAsync
             );
 
         internal static ManualCloudSyncRequest Pull()
             => new(
-                "Pull cloud saves to local?\nThis will overwrite your local saves.",
+                "Pull Steam Cloud saves to Android local storage?\nThis overwrites Android local saves with the current Steam Cloud state.",
                 "Pull",
-                "Pulling cloud saves to local...",
-                "Pull complete.",
+                "Pulling Steam Cloud saves to Android local storage...",
+                "Pull complete. Android local saves now reflect Steam Cloud.",
                 true,
                 LauncherCloudSaveState.ManualPullAllAsync
             );
@@ -57,11 +57,13 @@ internal sealed partial class LauncherController
         internal void ShowStarted(LauncherView view)
         {
             view.SetPushPullDisabled(true);
+            view.SetStatus(StartMessage);
             view.AppendLog(StartMessage);
         }
 
         internal void ShowComplete(LauncherView view, string result)
         {
+            view.SetStatus(CompleteMessage);
             view.AppendLog($"{CompleteMessage} ({DateTime.Now:HH:mm:ss})");
             if (!string.IsNullOrWhiteSpace(result))
                 view.AppendLog(result);
@@ -70,6 +72,7 @@ internal sealed partial class LauncherController
         internal void ShowFailed(LauncherView view, Exception ex)
         {
             PatchHelper.Log($"[Cloud] {Name} sync failed: {ex.Message}");
+            view.SetStatus($"{Name} failed. See console for details.");
             view.AppendLog($"{Name} failed: {ex.Message}");
         }
 

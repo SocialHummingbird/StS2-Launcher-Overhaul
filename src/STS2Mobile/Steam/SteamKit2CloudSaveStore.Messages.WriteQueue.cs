@@ -31,6 +31,12 @@ internal sealed partial class SteamKit2CloudSaveStore
     private static string FlushingPendingWrites(long pendingWrites) =>
         CloudStoreMessage($"Flushing {pendingWrites} pending writes...");
 
+    private static string UploadingBatchSynchronously(int count) =>
+        CloudStoreMessage($"Uploading {count} files synchronously for manual cloud push...");
+
+    private static string UploadedBatchSynchronously(int count) =>
+        CloudStoreMessage($"Uploaded {count} files synchronously for manual cloud push.");
+
     private static string FlushTimedOut(int queuedWrites, long pendingWrites) =>
         CloudStoreMessage(
             $"Flush timed out, {queuedWrites} queued + {pendingWrites} total pending writes"

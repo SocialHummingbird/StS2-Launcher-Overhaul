@@ -32,17 +32,17 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 ## Current Status
 
-**Working ARM64 Android baseline:** the launcher now installs, starts, authenticates with Steam, downloads game files, pulls Steam Cloud saves into Android local app storage, and launches the game with the pulled profile visible in-game.
+**Working ARM64 Android baseline:** the launcher now installs, starts, authenticates with Steam, downloads game files, pulls Steam Cloud saves into Android local app storage, pushes Android saves back to Steam Cloud on the local hardening build, and launches the game with the pulled profile visible in-game.
 
-This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on safe Push-to-Cloud overwrite evidence, local signing/update continuity, stale-cache detection, quieter diagnostics, and release asset hygiene.
+This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on publishing/verifying a release asset with the latest cloud-save hardening, local signing/update continuity, stale-cache detection, quieter diagnostics, and release asset hygiene.
 
 - Latest published APK release: `v0.2.177-login-a8729d6`
 - Current APK asset: `StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.dev`
 - Release asset SHA-256: `bde43591aeb6904488560bb1e27421276cc3248bbc7d2eb9151e29b8b9fef199`
 - Latest validated public release: `0.2.177-login-a8729d6` / `versionCode=217700`
-- Validated locally: fresh APK/runtime install, public `v0.2.175 -> v0.2.177` upgrade install, locked-screen return, Steam game download, Pull from Cloud, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
-- Still hardening: confirmed Push to Cloud upload and round-trip Pull evidence, no-accidental-upload evidence on the latest warning build, local signing/update continuity for `.local` validation, stale assembly cache checks across local upgrade, diagnostics polish, and release-candidate signoff.
+- Validated locally: fresh APK/runtime install, public `v0.2.175 -> v0.2.177` upgrade install, locked-screen return, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
+- Still hardening: publishing/verifying a release asset with the managed SHA-1 Push fix, manual Push confirmation/cancel smoke on the clean release-facing build, local signing/update continuity for `.local` validation, stale assembly cache checks across local upgrade, diagnostics polish, and release-candidate signoff.
 - Emulator limitation: Android `x86_64` is fallback/diagnostic coverage only. ARM64 hardware remains the proof target.
 
 See [docs/current-android-status.md](docs/current-android-status.md) for the current evidence and remaining blockers.
@@ -54,7 +54,7 @@ See [docs/current-android-status.md](docs/current-android-status.md) for the cur
 - **Game file download**  
   Depot download directly from Steam, with update checking.
 - **Cloud saves**  
-  Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads. Pull from Cloud is validated end-to-end on ARM64 hardware; Push to Cloud is still being hardened because confirming it can overwrite Steam Cloud state.
+  Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads. Pull from Cloud, Push to Cloud, and Pull-after-Push round trip are validated on ARM64 local hardening builds. Push remains an explicit overwrite-risk action because it can replace Steam Cloud state.
 - **Mobile adaptation**  
   Touch input, UI scaling, layout adjustments, and app lifecycle handling via Harmony runtime patches.
 - **LAN multiplayer**  
@@ -253,7 +253,7 @@ Signing behavior:
 Known current runtime limitations:
 
 - The app now has a validated working ARM64 local path through download, cloud pull, and game launch, but this is not yet a finished release-candidate pass.
-- Push to Cloud still needs explicit end-to-end overwrite validation before it should be advertised as release-ready.
+- Push to Cloud is locally validated after the managed SHA-1 hardening fix, but the fix still needs a published release asset and clean release-facing manual confirmation/cancel smoke before release-candidate signoff.
 - Local in-place upgrade validation is blocked until the original `.local` signing key is restored or app data is intentionally reset; the public release package has passed `v0.2.175 -> v0.2.177` upgrade validation.
 - Stale assembly cache behavior still needs repeated local upgrade coverage after signing continuity is fixed.
 - `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.

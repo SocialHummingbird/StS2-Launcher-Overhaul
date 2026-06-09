@@ -11,7 +11,7 @@ internal static partial class CloudSyncCoordinator
         IReadOnlyCollection<string> paths
     )
     {
-        var summary = sync.RunCloudBatch(() =>
+        var summary = sync.RunCloudBatchImmediate(() =>
         {
             var batch = ManualSyncTransferSummary.Empty(
                 (queued, _) => PushComplete(queued)
@@ -27,7 +27,8 @@ internal static partial class CloudSyncCoordinator
             return batch;
         });
 
-        return Task.FromResult(summary.CompleteMessage());
+        var result = summary.CompleteMessage();
+        return Task.FromResult(result);
     }
 
     private static ManualSyncPathResult QueueManualPushPath(

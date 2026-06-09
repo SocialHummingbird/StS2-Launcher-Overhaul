@@ -1,5 +1,4 @@
 using System;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using SteamKit2.Internal;
 
@@ -51,7 +50,7 @@ internal sealed partial class SteamKit2CloudSaveStore
                 batchId,
                 timestamp,
                 CloudUploadPayload.FromRaw(rawBytes),
-                SHA1.HashData(rawBytes)
+                ManagedSha1.Hash(rawBytes)
             );
     }
 

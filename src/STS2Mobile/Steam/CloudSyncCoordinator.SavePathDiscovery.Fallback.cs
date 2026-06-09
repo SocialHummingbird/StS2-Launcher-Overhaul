@@ -40,6 +40,13 @@ internal static partial class CloudSyncCoordinator
 
         private const int EnumeratedPathLimit = 1000;
         private const int EnumeratedDirectoryDepthLimit = 8;
+        private static readonly string[] IgnoredEnumerationDirectories =
+        {
+            ".godot",
+            "cache",
+            "game",
+            "tmp",
+        };
 
         private readonly struct FallbackProfile
         {
@@ -128,10 +135,14 @@ internal static partial class CloudSyncCoordinator
 
             foreach (var child in SafeGetDirectories(store, directory))
             {
+                var childPath = CombineCloudPath(directory, child);
+                if (ShouldSkipEnumeratedDirectory(childPath))
+                    continue;
+
                 EnumerateSavePaths(
                     paths,
                     store,
-                    CombineCloudPath(directory, child),
+                    childPath,
                     depth + 1
                 );
                 if (paths.Count >= EnumeratedPathLimit)
@@ -181,6 +192,18 @@ internal static partial class CloudSyncCoordinator
                 || lower.EndsWith("/prefs.save")
                 || lower.EndsWith("/prefs.backup")
                 || lower.EndsWith("/prefs.save.backup");
+        }
+
+        private static bool ShouldSkipEnumeratedDirectory(string path)
+        {
+            var lower = CloudSavePath.CanonicalizeLower(path);
+            foreach (var ignored in IgnoredEnumerationDirectories)
+            {
+                if (lower == ignored || lower.StartsWith($"{ignored}/"))
+                    return true;
+            }
+
+            return false;
         }
 
         private static IEnumerable<FallbackProfile> FallbackProfiles()

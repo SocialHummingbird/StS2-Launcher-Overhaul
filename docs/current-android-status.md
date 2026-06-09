@@ -1,8 +1,11 @@
 # Current Android Status
 
-_Last updated: 2026-06-08_
+_Last updated: 2026-06-09_
 
-Current device evidence ledger: [android-device-validation-20260608.md](android-device-validation-20260608.md).
+Current device evidence ledgers:
+
+- [android-device-validation-20260608.md](android-device-validation-20260608.md)
+- [android-cloud-save-validation-20260609.md](android-cloud-save-validation-20260609.md)
 
 ## Headline
 
@@ -16,6 +19,8 @@ Validated locally on ARM64 hardware:
 - Locked-screen interruption returns to the app after manual unlock without app-specific crash markers.
 - Steam login and game depot download complete.
 - Pull from Cloud downloads real Steam Cloud files.
+- Push to Cloud completes on the local hardening build without post-Push process death.
+- Pull after Push downloads and writes the pushed cloud state back to Android local storage.
 - Android local save handoff works.
 - The downloaded game launches and shows the pulled `Profile 1` in-game.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
@@ -60,37 +65,35 @@ The startup freshness probe and assembly cache diagnostics now report the instal
 
 ## Cloud-save posture
 
-Pull from Cloud is validated end to end. Steam Cloud files were enumerated and downloaded, Android local save files were written, and the game read the pulled profile from Android app storage.
-
-Push to Cloud is partially hardened but not release-ready:
+Pull from Cloud and Push to Cloud are now validated end to end on the local ARM64 hardening path. Steam Cloud files were enumerated/downloaded, Android local save files were written, Push uploaded/flushed the local save batch without process death, and Pull after Push wrote the cloud state back into Android app storage.
 
 - The Push confirmation gate appears before upload.
 - Direct Cancel returns to the launcher without upload.
 - Back/no-confirm dismissal returns without upload.
 - The latest warning text names Steam Cloud overwrite risk in code and documentation.
-- Confirmed Push upload has intentionally not been executed in the current hardening pass because it can overwrite real Steam Cloud state.
-- The current `.local` app cannot be updated in-place to the newest local warning build because the original local test signing key is unavailable; the recreated test keystore has a different certificate, and `run-as` is unavailable for safe private save mutation/inspection.
-
-Required future Push evidence:
-
-- Use a controlled local save mutation.
-- Confirm the user approval dialog appears before upload.
-- Confirm upload mutates the expected Steam Cloud file/metadata.
-- Pull again and prove the pushed state round-trips back to Android local storage.
-- Reconfirm cancel/no-confirm paths produce no upload markers.
+- Confirmed Push can overwrite real Steam Cloud state; keep it treated as an explicit destructive action.
+- The 2026-06-09 Push crash was fixed by replacing Android native `SHA1.HashData` in the cloud upload file-hash path with managed SHA-1.
+- Push evidence: `artifacts/android/push-managedsha1-observation-20260609-1`.
+- Current-build manual Push evidence: `artifacts/android/push-clean3-observation-20260609-1`.
+- Pull-after-Push evidence: `artifacts/android/pull-after-push-observation-20260609-1`.
+- Preferred local evidence summaries: `summary-scrubbed.md` inside each 2026-06-09 Push/Pull artifact folder.
+- Current launcher Push/Pull UI status text now names direction explicitly: Push makes Steam Cloud reflect Android local saves, and Pull makes Android local saves reflect Steam Cloud.
+- Push confirmation now tells testers to Pull first and verify Android local saves exist before pushing, because Push can overwrite Steam Cloud state.
+- Save discovery now skips app runtime/cache trees such as `.godot`, `cache`, `game`, and `tmp` during fallback enumeration so cloud-save diagnostics stay focused on save candidates.
 
 ## Remaining release-readiness blockers
 
-- Confirmed Push to Cloud upload and round-trip evidence.
-- Safe controlled local save mutation/inspection path for Push evidence, either by restoring the original `.local` signing key, intentionally resetting `.local` app data, or using another controlled test account/state.
+- Publish and verify a release asset that includes the managed SHA-1/manual Push hardening.
+- Re-run manual Push confirmation/cancel smoke on the clean release-facing build; local clean3 manual Push confirmation is validated, but release-facing asset smoke is still pending.
 - Repeated local stale assembly cache/freshness checks across in-place local upgrade once signing continuity is restored.
 - Release asset hygiene on every new release: signer, package name, versionCode monotonicity, checksums, structural verifier, and GitHub release notes.
-- Diagnostics polish so normal successful startup/cloud-save behavior is not hidden by noisy low-value logs.
+- Further diagnostics polish so normal successful startup/cloud-save behavior is not hidden by remaining low-value platform logs.
 
 ## Device-independent polish completed after baseline proof
 
 - Local smoke/login/verification scripts now select APKs by parsed package metadata and versionCode, with ABI/package compatibility checks where applicable, instead of relying only on file write time.
-- Push-to-Cloud warning text now names Steam Cloud explicitly and calls out overwrite risk before upload.
+- Push-to-Cloud warning text now names Steam Cloud explicitly, calls out overwrite risk before upload, and directs testers to Pull first and verify Android local saves exist before pushing.
+- Manual cloud-sync start/complete/failure status updates now keep the launcher header aligned with the operation result instead of leaving stale generic status text behind.
 - Recovery cleanup logging now describes normal post-startup cleanup as success-path UI cleanup.
 - Diagnostics filters retain startup freshness, assembly cache, expectedSource/expectedBytes, cloud sync, and crash evidence while reducing broad log noise.
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-06-09 - Android cloud-save Push/Pull hardening
+
+- Fixed the post-Push Android process death by replacing the cloud upload SHA-1 file-hash path with managed SHA-1 instead of Android native crypto.
+- Changed manual Push to upload the collected Steam Cloud batch directly before reporting completion, instead of queuing work to the background writer and waiting on a flush.
+- Validated local ARM64 Push completion with `105` files uploaded/flushed and no crash markers.
+- Revalidated manual Push on the current `0.2.0-codexcloudfix-clean3` ARM64 local build through the launcher UI; Push completed, Steam later idled out normally, and the app process stayed alive.
+- Validated Pull after Push with `105` cloud files downloaded/written and `57` absent-in-cloud paths reported without app crash.
+- Reduced fallback save discovery noise by skipping app runtime/cache directories during manual cloud sync enumeration.
+- Tightened manual Push/Pull launcher status text so successful operations state which side now reflects the other, and Push warns testers to Pull first and verify Android local saves exist before overwriting Steam Cloud.
+- Added `docs/android-cloud-save-validation-20260609.md` as the current cloud-save evidence ledger.
+
 ## 2026-06-08 - Device validation evidence refresh
 
 - Updated release-facing docs and helper defaults from `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6`.
@@ -35,7 +46,7 @@ All notable changes for the overhauled repository are recorded here.
 
 ### Changed
 - Updated GitHub-facing project text for the current APK state: `v0.2.177-login-a8729d6`, ARM64-only release assets, signed release expectations, emulator limits, and the current working-but-hardening Android validation state.
-- Updated GitHub-facing project text to reflect that the ARM64 local Android path now works through fresh install/runtime validation, Steam download, Pull from Cloud, Android local save handoff, and game launch, while Push/release hardening remains active.
+- Updated GitHub-facing project text to reflect that the ARM64 local Android path now works through fresh install/runtime validation, Steam download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, and game launch, while release hardening remains active.
 - Reframed overhaul status from the old phase-closure language to the current refactor and validation stabilization work.
 - Improved launcher timeout control for manual cloud sync operations to avoid UI hangs.
 - Clarified launcher cloud-sync wording/status and startup recovery wording for the current working-but-hardening phase.
@@ -49,8 +60,8 @@ All notable changes for the overhauled repository are recorded here.
 - Added time-bound guardrails around cache read/write/update operations in cloud sync paths.
 
 ### Known Issues
-- Push to Cloud still requires explicit end-to-end validation before it should be treated as release-ready, because confirmed Push can overwrite Steam Cloud state.
-- Release-readiness validation still needs confirmed Push overwrite/round-trip evidence and repeated local stale assembly cache coverage after `.local` signing continuity is restored.
+- Push to Cloud is locally validated but still needs a published release asset with the managed SHA-1 fix and clean release-facing manual confirmation/cancel smoke before release-candidate signoff.
+- Release-readiness validation still needs repeated local stale assembly cache coverage after `.local` signing continuity is restored.
 - Android `x86_64` emulator runs are fallback/diagnostic coverage only unless the unsafe Godot path is explicitly forced.
 
 ## [Initial Overhaul Baseline]

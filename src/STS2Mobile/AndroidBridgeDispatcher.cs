@@ -41,6 +41,9 @@ internal static class AndroidBridgeDispatcher
 
     internal static void Pump()
     {
+        if (!CanPumpOnCurrentThread())
+            return;
+
         while (Requests.TryDequeue(out var request))
             request.Execute();
     }
@@ -63,6 +66,17 @@ internal static class AndroidBridgeDispatcher
         lock (StateLock)
         {
             return _registered && _mainThreadId != Environment.CurrentManagedThreadId;
+        }
+    }
+
+    private static bool CanPumpOnCurrentThread()
+    {
+        if (!OperatingSystem.IsAndroid())
+            return true;
+
+        lock (StateLock)
+        {
+            return _registered && _mainThreadId == Environment.CurrentManagedThreadId;
         }
     }
 
