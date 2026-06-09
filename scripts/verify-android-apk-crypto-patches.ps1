@@ -1,10 +1,29 @@
 param(
     [string]$ApkPath = "",
-    [string]$AdbPath = "$(Join-Path $env:USERPROFILE '.w40k-android-toolchain\android-sdk\platform-tools\adb.exe')",
+    [string]$AdbPath = "",
     [switch]$RebuildPatcher
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($AdbPath)) {
+    $homeDir = if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        $env:USERPROFILE
+    } elseif (-not [string]::IsNullOrWhiteSpace($env:HOME)) {
+        $env:HOME
+    } else {
+        ""
+    }
+
+    if ($homeDir) {
+        $AdbPath = Join-Path $homeDir ".w40k-android-toolchain/android-sdk/platform-tools/adb"
+        if ($IsWindows) {
+            $AdbPath = Join-Path $homeDir ".w40k-android-toolchain\android-sdk\platform-tools\adb.exe"
+        }
+    } else {
+        $AdbPath = "adb"
+    }
+}
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $patcherDirectory = Join-Path $root "tools\SteamKitAndroidPatch"
