@@ -49,6 +49,12 @@ internal sealed class StyledPanel : CenterContainer
             Math.Min(vpSize.Y * 0.85f, MaxHeight)
         );
 
+    internal void UpdateSizeFromViewport(Vector2 vpSize, float heightRatio)
+        => _panelContainer.CustomMinimumSize = new Vector2(
+            Math.Min(vpSize.X * _widthRatio, MaxWidth),
+            Math.Min(vpSize.Y * heightRatio, MaxHeight)
+        );
+
     private static StyleBoxFlat BuildStyle(float scale)
     {
         var style = LauncherStyleBoxes.MakeFilled(
