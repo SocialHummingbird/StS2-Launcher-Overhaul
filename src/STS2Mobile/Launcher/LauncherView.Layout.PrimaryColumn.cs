@@ -14,11 +14,17 @@ internal sealed partial class LauncherView
         ActionSection Actions
     ) BuildPrimaryColumn(float scale, HBoxContainer hbox)
     {
+        var leftScroll = new ScrollContainer();
+        leftScroll.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        leftScroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        leftScroll.SizeFlagsStretchRatio = LauncherViewLayoutMetrics.PrimaryColumnStretchRatio;
+        leftScroll.FollowFocus = true;
+        hbox.AddChild(leftScroll);
+
         var leftCenter = new CenterContainer();
         leftCenter.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         leftCenter.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
-        leftCenter.SizeFlagsStretchRatio = LauncherViewLayoutMetrics.PrimaryColumnStretchRatio;
-        hbox.AddChild(leftCenter);
+        leftScroll.AddChild(leftCenter);
 
         var left = new VBoxContainer();
         left.CustomMinimumSize = new Vector2(

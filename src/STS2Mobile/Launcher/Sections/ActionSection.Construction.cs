@@ -54,6 +54,16 @@ internal sealed partial class ActionSection
         );
         AddChild(_pushPullRow);
 
+        _launchButton = AddPrimaryHiddenButton(
+            "LAUNCH",
+            scale,
+            () => LaunchPressed?.Invoke()
+        );
+        _safeLaunchButton = AddSecondaryHiddenButton(
+            "SAFE LAUNCH",
+            scale,
+            () => SafeLaunchPressed?.Invoke()
+        );
         _updateButton = AddPrimaryHiddenButton(
             "CHECK FOR UPDATES",
             scale,
@@ -78,16 +88,6 @@ internal sealed partial class ActionSection
             "COPY RAW ERROR LOG",
             scale,
             () => CopyRawLogPressed?.Invoke()
-        );
-        _safeLaunchButton = AddSecondaryHiddenButton(
-            "SAFE LAUNCH",
-            scale,
-            () => SafeLaunchPressed?.Invoke()
-        );
-        _launchButton = AddPrimaryHiddenButton(
-            "LAUNCH",
-            scale,
-            () => LaunchPressed?.Invoke()
         );
     }
 }
