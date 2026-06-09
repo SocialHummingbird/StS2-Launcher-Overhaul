@@ -34,8 +34,8 @@ Run at least one device from each row for patch-level changes:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.175-refactor-apk" `
-  -AssetName "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.177-login-a8729d6" `
+  -AssetName "StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -43,8 +43,8 @@ Run at least one device from each row for patch-level changes:
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.175-refactor-apk" `
-  -AssetName "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.177-login-a8729d6" `
+  -AssetName "StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics

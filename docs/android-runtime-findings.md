@@ -62,25 +62,25 @@ This is still a hardening state, not a finished release-candidate signoff. Push 
 
 The current published APK release is:
 
-- Release: `v0.2.175-refactor-apk`
-- Asset: `StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk`
-- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.175-refactor-apk
-- SHA-256: `78f40ad39d6cab30af4178fba6fcee713ae8df54db20d4e3c9f8a5e225b1d097`
+- Release: `v0.2.177-login-a8729d6`
+- Asset: `StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk`
+- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.177-login-a8729d6
+- SHA-256: `bde43591aeb6904488560bb1e27421276cc3248bbc7d2eb9151e29b8b9fef199`
 
 Before installing, verify the uploaded GitHub release asset itself:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.175-refactor-apk" `
-  -AssetName "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.177-login-a8729d6" `
+  -AssetName "StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
 Expected result:
 
 ```text
-Release digest OK: 78f40ad39d6cab30af4178fba6fcee713ae8df54db20d4e3c9f8a5e225b1d097
-Release APK verification passed: v0.2.175-refactor-apk/StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk
+Release digest OK: bde43591aeb6904488560bb1e27421276cc3248bbc7d2eb9151e29b8b9fef199
+Release APK verification passed: v0.2.177-login-a8729d6/StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk
 Verified ABIs: arm64-v8a
 ```
 
@@ -88,8 +88,8 @@ Install the verified release APK to a connected phone and capture diagnostics in
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.175-refactor-apk" `
-  -AssetName "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.177-login-a8729d6" `
+  -AssetName "StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics

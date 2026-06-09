@@ -58,8 +58,8 @@ Run the release verifier against the exact release tag and asset:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.175-refactor-apk" `
-  -AssetName "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.177-login-a8729d6" `
+  -AssetName "StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -79,8 +79,8 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.175-refactor-apk" `
-  -AssetName "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.177-login-a8729d6" `
+  -AssetName "StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -92,11 +92,10 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 4. Confirm game download works when game files are absent.
 5. Confirm Pull from Cloud downloads real Steam Cloud files, writes Android local saves, and the game reads/surfaces the pulled profile.
 6. Confirm Push to Cloud requires confirmation, cancel/no-confirm does not upload, and confirmed Push behavior is explicitly validated or deferred with overwrite-risk rationale.
-7. Confirm locked-screen/focus interruption and upgrade install behavior before calling a release candidate ready.
+7. Confirm locked-screen/focus interruption and upgrade install behavior for every new release candidate before calling it ready.
 
 ## 6) Archive and follow-up
 
 - Record any failures in the release PR or issue tracker.
 - Fix root cause before creating the next tag.
 - Add a short note to `OVERHAUL_STATUS.md` if a process step changes.
-

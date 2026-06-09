@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-08 - Device validation evidence refresh
+
+- Updated release-facing docs and helper defaults from `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6`.
+- Recorded ARM64 phone evidence for public release verification, `v0.2.175 -> v0.2.177` upgrade install, locked-screen return, Pull from Cloud, game launch/profile visibility, and force-stop/relaunch recovery.
+- Narrowed remaining release-readiness blockers to confirmed Push-to-Cloud overwrite/round-trip evidence, safe controlled local save mutation, `.local` signing continuity, repeated local cache/freshness upgrade coverage, and diagnostics polish.
+
 ## 2026-06-08 - Documentation status refresh
 
 - Documentation now has a canonical current Android status page advertising the working ARM64 baseline while keeping polish/hardening blockers explicit.
@@ -28,7 +34,7 @@ All notable changes for the overhauled repository are recorded here.
   - `docs/device-log-checklist.md`
 
 ### Changed
-- Updated GitHub-facing project text for the current APK state: `v0.2.175-refactor-apk`, ARM64-only release assets, signed release expectations, emulator limits, and the current working-but-hardening Android validation state.
+- Updated GitHub-facing project text for the current APK state: `v0.2.177-login-a8729d6`, ARM64-only release assets, signed release expectations, emulator limits, and the current working-but-hardening Android validation state.
 - Updated GitHub-facing project text to reflect that the ARM64 local Android path now works through fresh install/runtime validation, Steam download, Pull from Cloud, Android local save handoff, and game launch, while Push/release hardening remains active.
 - Reframed overhaul status from the old phase-closure language to the current refactor and validation stabilization work.
 - Improved launcher timeout control for manual cloud sync operations to avoid UI hangs.
@@ -44,7 +50,7 @@ All notable changes for the overhauled repository are recorded here.
 
 ### Known Issues
 - Push to Cloud still requires explicit end-to-end validation before it should be treated as release-ready, because confirmed Push can overwrite Steam Cloud state.
-- Release-readiness validation still needs complete fresh-install, upgrade-install, Pull, Push, game-launch, locked-screen interruption, and stale assembly cache coverage.
+- Release-readiness validation still needs confirmed Push overwrite/round-trip evidence and repeated local stale assembly cache coverage after `.local` signing continuity is restored.
 - Android `x86_64` emulator runs are fallback/diagnostic coverage only unless the unsafe Godot path is explicitly forced.
 
 ## [Initial Overhaul Baseline]
