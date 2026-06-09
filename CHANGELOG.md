@@ -1,8 +1,16 @@
 # Changelog
 
+## 2026-06-09 - Responsive launcher UI release
+
+- Published and structurally verified `v0.2.185-responsive-ui`, an ARM64 public APK with the redesigned short-edge-aware launcher shell.
+- Replaced the fixed two-column launcher screen with a responsive arcane-terminal layout that keeps `START GAME` and `SAFE LAUNCH` reachable on short/wide Samsung-style landscape screens.
+- Moved the verbose console into a collapsible diagnostics drawer so login, download progress, ready actions, cloud controls, support actions, and diagnostics no longer compete for horizontal space.
+- Validated the latest public APK on ARM64 hardware across fresh login, active download progress, ready-state actions, diagnostics drawer, and Push-to-Cloud confirmation/cancel.
+- Updated GitHub-facing release/status/Reddit prep docs and GitHub issue responses for the latest responsive UI and remaining hardening boundaries.
+
 ## 2026-06-09 - Public release and Reddit-readiness polish
 
-- Published and structurally verified 0.2.178-cloudpush-icon, an ARM64 public APK that includes the managed SHA-1 Push hardening and new launcher icon.
+- Published and structurally verified `v0.2.185-responsive-ui`, an ARM64 public APK that includes managed SHA-1 Push hardening, the new launcher icon, and the responsive launcher shell.
 - Updated GitHub-facing release instructions, safe public trial guidance, ARM64 caveats, Push overwrite warnings, and support boundaries for public testers.
 - Added a Reddit announcement prep note with posting constraints, known-risk wording, and a draft announcement.
 ## 2026-06-09 - Android cloud-save Push/Pull hardening
@@ -50,7 +58,7 @@ All notable changes for the overhauled repository are recorded here.
   - `docs/device-log-checklist.md`
 
 ### Changed
-- Updated GitHub-facing project text for the current APK state: `v0.2.178-cloudpush-icon`, ARM64-only release assets, signed release expectations, emulator limits, and the current working-but-hardening Android validation state.
+- Updated GitHub-facing project text for the current APK state: `v0.2.185-responsive-ui`, ARM64-only release assets, signed release expectations, emulator limits, and the current working-but-hardening Android validation state.
 - Updated GitHub-facing project text to reflect that the ARM64 local Android path now works through fresh install/runtime validation, Steam download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, and game launch, while release hardening remains active.
 - Reframed overhaul status from the old phase-closure language to the current refactor and validation stabilization work.
 - Improved launcher timeout control for manual cloud sync operations to avoid UI hangs.
@@ -65,7 +73,7 @@ All notable changes for the overhauled repository are recorded here.
 - Added time-bound guardrails around cache read/write/update operations in cloud sync paths.
 
 ### Known Issues
-- Push to Cloud is locally validated and included in the verified `v0.2.178-cloudpush-icon` public APK, but still needs clean release-facing manual confirmation/cancel smoke before release-candidate signoff.
+- Push to Cloud is locally validated and the latest public APK has release-facing confirmation/cancel safety evidence, but confirmed newest-public Push mutation still needs an explicit smoke before release-candidate signoff.
 - Release-readiness validation still needs repeated local stale assembly cache coverage after `.local` signing continuity is restored.
 - Android `x86_64` emulator runs are fallback/diagnostic coverage only unless the unsafe Godot path is explicitly forced.
 

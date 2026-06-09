@@ -38,7 +38,7 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 **Working ARM64 Android baseline:** the launcher now installs, starts, authenticates with Steam, downloads game files, pulls Steam Cloud saves into Android local app storage, pushes Android saves back to Steam Cloud on the local hardening build, and launches the game with the pulled profile visible in-game.
 
-This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, richer loading/progress surfaces, quieter diagnostics, and repeatable release asset hygiene.
+This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, quieter diagnostics, repeatable release asset hygiene, and full newest-public Pull/confirmed-Push/game-launch smoke.
 
 - Latest published APK release: `v0.2.185-responsive-ui`
 - Current APK asset: `StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk`
@@ -56,11 +56,11 @@ See [docs/current-android-status.md](docs/current-android-status.md) for the cur
 - **Steam authentication**  
   Login via SteamKit2 with Steam Guard 2FA support. ARM64 device validation has progressed through authenticated download, cloud pull, local hardening Push, and game launch; release hardening is still ongoing.
 - **Game file download**  
-  Depot download directly from Steam, with update checking.
+  Depot download directly from Steam, with update checking and an ARM64-validated responsive progress screen.
 - **Cloud saves**  
   Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads. Pull from Cloud, Push to Cloud, and Pull-after-Push round trip are validated on ARM64 local hardening builds. Push remains an explicit overwrite-risk action because it can replace Steam Cloud state.
 - **Mobile adaptation**  
-  Touch input, UI scaling, layout adjustments, and app lifecycle handling via Harmony runtime patches.
+  Touch input, short-edge-aware launcher scaling, responsive ready/download/login layouts, and app lifecycle handling via Harmony runtime patches.
 - **LAN multiplayer**  
   UDP broadcast discovery and manual IP join.
 - **Shader warmup**  
