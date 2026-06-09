@@ -4,8 +4,8 @@ This record summarizes the current ARM64 phone validation pass for StS2 Launcher
 
 ## Device and packages
 
-- Device serial: `RFCY70XQE7F`
-- Device model: Samsung `SM_F966B`
+- Device serial: `<device-serial>`
+- Device model: `<device-model>`
 - ABI: `arm64-v8a`
 - Public release package: `com.sts2launcher.overhaul.fork.dev`
 - Local validation package: `com.sts2launcher.overhaul.fork.local`
@@ -110,7 +110,7 @@ Evidence:
 Observed result:
 
 - Force-stop followed by package launch returned to the launcher.
-- The launcher showed saved Steam credentials with `Welcome back, purcho`.
+- The launcher showed saved Steam credentials with `Welcome back, <steam-account>`.
 - `Game Cloud Sync: OFF` was visible.
 - The app stayed foreground and alive.
 - The initial broad fatal detector matched ADB monkey runtime startup and the Godot plugin name `AndroidRuntime`, not an app crash.

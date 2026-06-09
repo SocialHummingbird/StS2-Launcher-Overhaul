@@ -1,6 +1,6 @@
 param(
     [string]$PackageName = "",
-    [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
+    [string]$AdbPath = "$(Join-Path $env:USERPROFILE '.w40k-android-toolchain\android-sdk\platform-tools\adb.exe')",
     [string]$DeviceSerial = "",
     [string]$OutputLogcatPath = "tmp\login-boundary-post-2fa-logcat.txt",
     [string]$OutputScreenshotPath = "tmp\login-boundary-post-2fa.png",

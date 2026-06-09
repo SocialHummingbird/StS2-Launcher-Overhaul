@@ -1,5 +1,5 @@
 param(
-    [string]$DeviceSerial = "RFCY70XQE7F",
+    [string]$DeviceSerial = $env:ANDROID_SERIAL,
     [int]$WaitSeconds = 90,
     [switch]$DumpSaveFiles
 )

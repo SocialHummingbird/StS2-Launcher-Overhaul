@@ -1,7 +1,7 @@
 param(
     [string]$DeviceSerial = "",
     [string]$PackageName = "com.sts2launcher.overhaul.fork.local",
-    [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
+    [string]$AdbPath = "$(Join-Path $env:USERPROFILE '.w40k-android-toolchain\android-sdk\platform-tools\adb.exe')",
     [string]$OutputRoot = "artifacts\android",
     [int]$WaitSeconds = 0,
     [int]$LogcatTailLines = 100000,
