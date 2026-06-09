@@ -17,7 +17,9 @@ StS2 Launcher now works on the validated ARM64 Android path: install, Steam logi
 ## Posting constraints checked
 
 - Direct `r/slaythespire` rules access was attempted on 2026-06-09, but Reddit returned network-security/403 blocks from this environment. Treat subreddit-specific approval as unverified until checked from a logged-in browser or by modmail.
-- Reddit's platform rules require community-rule compliance, authentic participation, no spam/disruptive behavior, no deception/impersonation, and respect for privacy. The announcement should disclose affiliation, avoid APK-only promotion, and avoid asking users to post private data.
+- Reddit's platform rules require community-rule compliance, authentic participation, no spam/disruptive behavior, no deception/impersonation, and respect for privacy. Source: https://redditinc.com/policies/reddit-rules
+- Reddit Help says promotional content is not inherently spam, but some communities disallow promotional content and others use a 10% self-promotion convention. It also lists repeated same/similar posts, unrelated link-farmed posts, disguised redirects, harmful links, and promotional bots as spam examples. Source: https://support.reddithelp.com/hc/en-us/articles/28012014962580-How-do-I-keep-spam-out-of-my-community
+- The announcement should disclose affiliation, avoid APK-only promotion, avoid reposting, and avoid asking users to post private data.
 - If using a Slay the Spire 2-specific community, repeat the same mod-rule check before posting because subreddit rules can change.
 
 ## Must-say caveats
