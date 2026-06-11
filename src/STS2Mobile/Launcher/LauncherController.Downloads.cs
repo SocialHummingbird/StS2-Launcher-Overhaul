@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using STS2Mobile.Patches;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
