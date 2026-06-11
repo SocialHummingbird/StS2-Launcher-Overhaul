@@ -28,6 +28,9 @@ import java.io.InputStream;
 public class NativeFallbackActivity extends Activity {
 	private static final String TAG = "STS2Mobile";
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
+	private static final String GAME_BRANCH_FILE = "game_branch";
+	private static final String GAME_VERSIONS_DIR = "game_versions";
+	private static final String BRANCH_MARKER_FILE = "steam_branch.txt";
 	public static final String EXTRA_REASON_TITLE = "com.game.sts2launcher.REASON_TITLE";
 	public static final String EXTRA_REASON_MESSAGE = "com.game.sts2launcher.REASON_MESSAGE";
 	public static final String EXTRA_REASON_DIAGNOSTICS = "com.game.sts2launcher.REASON_DIAGNOSTICS";
@@ -118,6 +121,7 @@ public class NativeFallbackActivity extends Activity {
 		clearButton.setText("Clear downloaded files");
 		clearButton.setOnClickListener(v -> {
 			deleteRecursive(new File(getFilesDir(), "game"));
+			deleteRecursive(new File(getFilesDir(), GAME_VERSIONS_DIR));
 			deleteRecursive(new File(getFilesDir(), ".godot"));
 			restartApp();
 		});
@@ -144,7 +148,7 @@ public class NativeFallbackActivity extends Activity {
 	}
 
 	private String describeRuntimeState() {
-		File pck = new File(new File(getFilesDir(), "game"), PCK_FILE);
+		File pck = new File(resolveGameDir(), PCK_FILE);
 		StringBuilder state = new StringBuilder();
 		state.append("App version: ");
 		state.append(describeAppVersion());
@@ -154,6 +158,13 @@ public class NativeFallbackActivity extends Activity {
 		appendDeviceName(state);
 		state.append("\nRuntime ABI: ");
 		appendSupportedAbis(state);
+		state.append("\nSelected Steam branch: ");
+		state.append(readSelectedBranch());
+		state.append("\nSelected Steam branch note: ");
+		state.append(SteamBranchInfo.selectorHelpText(readSelectedBranch()));
+		state.append("\nResolved game directory: ");
+		state.append(resolveGameDir().getAbsolutePath());
+		appendBranchMarkerState(state);
 		state.append("\nGame PCK: ");
 		state.append(pck.getAbsolutePath());
 		state.append("\nPCK exists: ");
@@ -166,6 +177,152 @@ public class NativeFallbackActivity extends Activity {
 		}
 		appendAssemblyCacheState(state);
 		return state.toString();
+	}
+
+	private void appendBranchMarkerState(StringBuilder state) {
+		File marker = new File(resolveGameDir(), BRANCH_MARKER_FILE);
+		String selectedBranch = readSelectedBranch();
+		state.append("\nSteam branch marker: ");
+		state.append(marker.getAbsolutePath());
+		state.append("\nSteam branch marker exists: ");
+		state.append(marker.exists() && marker.isFile() ? "yes" : "no");
+		if (!marker.exists() || !marker.isFile()) {
+			state.append("\nSteam branch marker ready: ");
+			state.append("public".equalsIgnoreCase(selectedBranch) ? "yes" : "no");
+			return;
+		}
+
+		try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(marker))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (line.regionMatches(true, 0, "Branch:", 0, "Branch:".length())) {
+					String markerBranch = line.substring("Branch:".length()).trim();
+					state.append("\nSteam branch marker branch: ");
+					state.append(markerBranch);
+					state.append("\nSteam branch marker install slot kind: ");
+					state.append(readMarkerValue(marker, "Install slot kind:"));
+					state.append("\nSteam branch marker expected install slot kind: ");
+					state.append(SteamBranchInfo.installSlotKind(selectedBranch));
+					state.append("\nSteam branch marker install slot directory: ");
+					state.append(readMarkerValue(marker, "Install slot directory:"));
+					state.append("\nSteam branch marker expected install slot directory: ");
+					state.append(SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
+					state.append("\nSteam branch marker has matching install slot provenance: ");
+					state.append(hasInstallSlotProvenance(marker, selectedBranch) ? "yes" : "no");
+					state.append("\nSteam branch marker has depot manifests: ");
+					state.append(hasDepotManifestProvenance(marker) ? "yes" : "no");
+					state.append("\nSteam branch marker depot manifest entries: ");
+					state.append(depotManifestCount(marker));
+					state.append("\nSteam branch marker ready: ");
+					state.append(
+						markerBranch.equalsIgnoreCase(selectedBranch)
+							&& ("public".equalsIgnoreCase(selectedBranch) || (hasInstallSlotProvenance(marker, selectedBranch) && hasDepotManifestProvenance(marker)))
+							? "yes"
+							: "no"
+					);
+					return;
+				}
+			}
+			state.append("\nSteam branch marker branch: <missing>");
+			state.append("\nSteam branch marker has matching install slot provenance: no");
+			state.append("\nSteam branch marker has depot manifests: no");
+			state.append("\nSteam branch marker depot manifest entries: 0");
+			state.append("\nSteam branch marker ready: no");
+		} catch (IOException e) {
+			Log.w(TAG, "Failed to inspect Steam branch marker", e);
+			state.append("\nSteam branch marker branch: <read failed>");
+			state.append("\nSteam branch marker has matching install slot provenance: no");
+			state.append("\nSteam branch marker has depot manifests: no");
+			state.append("\nSteam branch marker depot manifest entries: 0");
+			state.append("\nSteam branch marker ready: no");
+		}
+	}
+
+	private boolean hasDepotManifestProvenance(File marker) {
+		return depotManifestCount(marker) > 0;
+	}
+
+	private boolean hasInstallSlotProvenance(File marker, String branch) {
+		return SteamBranchInfo.installSlotKind(branch).equalsIgnoreCase(readMarkerValue(marker, "Install slot kind:"))
+			&& normalizeMarkerPath(SteamBranchInfo.installSlotDirectory(getFilesDir(), branch).getAbsolutePath()).equalsIgnoreCase(
+				normalizeMarkerPath(readMarkerValue(marker, "Install slot directory:"))
+			);
+	}
+
+	private String readMarkerValue(File marker, String prefix) {
+		if (marker == null || !marker.exists() || !marker.isFile()) {
+			return "";
+		}
+
+		try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(marker))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (line.regionMatches(true, 0, prefix, 0, prefix.length())) {
+					return line.substring(prefix.length()).trim();
+				}
+			}
+		} catch (IOException e) {
+			Log.w(TAG, "Failed to inspect Steam branch marker install slot provenance", e);
+		}
+
+		return "";
+	}
+
+	private String normalizeMarkerPath(String path) {
+		if (path == null || path.trim().isEmpty() || path.startsWith("<")) {
+			return "";
+		}
+
+		String normalized = path.trim().replace('\\', '/');
+		while (normalized.endsWith("/") && normalized.length() > 1) {
+			normalized = normalized.substring(0, normalized.length() - 1);
+		}
+		return normalized;
+	}
+
+	private int depotManifestCount(File marker) {
+		if (marker == null || !marker.exists() || !marker.isFile()) {
+			return 0;
+		}
+
+		try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(marker))) {
+			int count = 0;
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (line.regionMatches(true, 0, "Depot manifest:", 0, "Depot manifest:".length())) {
+					count++;
+				}
+			}
+			return count;
+		} catch (IOException e) {
+			Log.w(TAG, "Failed to inspect Steam branch marker depot provenance", e);
+		}
+		return 0;
+	}
+
+	private File resolveGameDir() {
+		String branch = readSelectedBranch();
+		return SteamBranchInfo.gameDirectory(getFilesDir(), branch);
+	}
+
+	private String readSelectedBranch() {
+		File branchFile = new File(getFilesDir(), GAME_BRANCH_FILE);
+		if (!branchFile.exists() || !branchFile.isFile()) {
+			return "public";
+		}
+		try (java.io.FileInputStream in = new java.io.FileInputStream(branchFile);
+				java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+			byte[] buffer = new byte[128];
+			int read;
+			while ((read = in.read(buffer)) > 0) {
+				out.write(buffer, 0, read);
+			}
+			String branch = out.toString("UTF-8").trim();
+			return branch.isEmpty() ? "public" : branch;
+		} catch (Exception e) {
+			Log.w(TAG, "Could not read selected game branch", e);
+			return "public";
+		}
 	}
 
 	private void appendAssemblyCacheState(StringBuilder state) {

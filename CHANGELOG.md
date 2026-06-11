@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-11 - Steam version selection hardening docs
+
+- Documented the Steam game version selection hardening path: default/public versus `beta` selection, branch-aware manifest resolution, side-by-side non-public caches, selected-version diagnostics, branch marker provenance, and safe branch-switch/Push guardrails.
+- Added `docs/steam-version-selection-runbook.md` as the ordered validation path for build gate, public/default baseline, beta cache/startup routing, marker failure recovery, cleanup, Pull-before-Push safety, pre-Push backup evidence, and release-readiness signoff.
+- Updated GitHub-facing status text to clarify that Steam beta/version selection is implemented for validation but is not release-signed until ARM64 evidence proves beta/password behavior, inaccessible/private branch handling, save compatibility, and Push safety.
+- Added selector-level helper text in the launcher UI explaining the fixed public/beta toggle, unsupported beta password/private branch behavior, and unproven save compatibility.
+- Added selected-version guidance to branch-switch confirmation, launcher logs, launcher diagnostics, branch-switch marker evidence, native Android pre-routing logs, native startup logs, and native fallback diagnostics.
+- Added managed/native selector-guidance parity checks plus a Steam version-selection static audit workflow so public/beta safety wording, marker/provenance requirements, and release blockers are guarded in CI.
+
 ## 2026-06-09 - Responsive launcher UI release
 
 - Published and structurally verified `v0.2.185-responsive-ui`, an ARM64 public APK with the redesigned short-edge-aware launcher shell.
@@ -59,6 +68,7 @@ All notable changes for the overhauled repository are recorded here.
 
 ### Changed
 - Updated GitHub-facing project text for the current APK state: `v0.2.185-responsive-ui`, ARM64-only release assets, signed release expectations, emulator limits, and the current working-but-hardening Android validation state.
+- Updated Steam version selection docs for the current hardening state, including the validation runbook, branch marker provenance requirements, side-by-side cache behavior, and explicit release blockers for beta/password handling and save compatibility.
 - Updated GitHub-facing project text to reflect that the ARM64 local Android path now works through fresh install/runtime validation, Steam download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, and game launch, while release hardening remains active.
 - Reframed overhaul status from the old phase-closure language to the current refactor and validation stabilization work.
 - Improved launcher timeout control for manual cloud sync operations to avoid UI hangs.
@@ -73,6 +83,7 @@ All notable changes for the overhauled repository are recorded here.
 - Added time-bound guardrails around cache read/write/update operations in cloud sync paths.
 
 ### Known Issues
+- Steam beta/version selection is implemented for validation, but release signoff still requires ARM64 evidence for public/default regression, beta branch download/startup routing, inaccessible/private/password branch behavior, save compatibility across branches, and Pull-before-Push backup safety.
 - Push to Cloud is locally validated and the latest public APK has release-facing confirmation/cancel safety evidence, but confirmed newest-public Push mutation still needs an explicit smoke before release-candidate signoff.
 - Release-readiness validation still needs repeated local stale assembly cache coverage after `.local` signing continuity is restored.
 - Android `x86_64` emulator runs are fallback/diagnostic coverage only unless the unsafe Godot path is explicitly forced.

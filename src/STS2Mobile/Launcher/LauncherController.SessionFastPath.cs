@@ -11,7 +11,7 @@ internal sealed partial class LauncherController
         {
             case LauncherModel.FastPathResult.ReadyToLaunch:
                 ShowReadyToLaunch(
-                    _model.WelcomeBackStatus(),
+                    SelectedVersionReadyStatus(_model.WelcomeBackStatus()),
                     LaunchUpdateAction.Visible
                 );
                 break;

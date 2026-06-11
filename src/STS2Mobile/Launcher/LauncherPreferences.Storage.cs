@@ -37,12 +37,32 @@ internal static partial class LauncherPreferences
             return defaultValue;
         }
 
+        internal string ReadText(string defaultValue)
+        {
+            try
+            {
+                if (File.Exists(Path))
+                    return File.ReadAllText(Path).Trim();
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(
+                    $"[Launcher] Preference load failed for {FileName}: {ex.Message}"
+                );
+            }
+
+            return defaultValue;
+        }
+
         internal void WriteBoolean(bool enabled)
+            => WriteText(enabled ? TrueValue : FalseValue);
+
+        internal void WriteText(string value)
         {
             try
             {
                 EnsurePreferenceDirectory(Path);
-                File.WriteAllText(Path, enabled ? TrueValue : FalseValue);
+                File.WriteAllText(Path, value ?? string.Empty);
             }
             catch (Exception ex)
             {

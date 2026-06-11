@@ -72,6 +72,9 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
 	private static final String KEY_LAUNCH_GAME_ON_NEXT_START = "launch_game_on_next_start";
 	private static final String KEY_SAFE_LAUNCH_ON_NEXT_START = "safe_launch_on_next_start";
+	private static final String GAME_BRANCH_FILE = "game_branch";
+	private static final String GAME_VERSIONS_DIR = "game_versions";
+	private static final String BRANCH_MARKER_FILE = "steam_branch.txt";
 	private static final String ENV_LAUNCHER_BOOTSTRAP = "STS2_LAUNCHER_BOOTSTRAP";
 	private static final String ENV_AUTO_LAUNCH_GAME = "STS2_AUTO_LAUNCH_GAME";
 	private static final String ENV_AUTO_SAFE_LAUNCH = "STS2_AUTO_SAFE_LAUNCH";
@@ -106,7 +109,22 @@ public class GodotApp extends GodotActivity {
 	public void onCreate(Bundle savedInstanceState) {
 		instance = this;
 		installAndroidExceptionHandler();
-		gameDir = new File(getFilesDir(), "game").getAbsolutePath();
+		gameDir = resolveGameDir().getAbsolutePath();
+		String selectedBranch = readSelectedBranch();
+		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
+		Log.i(TAG, "Selected Steam branch: " + selectedBranch);
+		Log.i(TAG, "Selected Steam branch note: " + SteamBranchInfo.selectorHelpText(selectedBranch));
+		Log.i(TAG, "Selected game version slot kind: " + SteamBranchInfo.installSlotKind(selectedBranch));
+		Log.i(TAG, "Selected game version slot directory: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
+		Log.i(TAG, "Resolved game directory: " + gameDir);
+		Log.i(TAG, "Steam branch marker install slot kind: " + readMarkerValue(branchMarker, "Install slot kind:"));
+		Log.i(TAG, "Steam branch marker expected install slot kind: " + SteamBranchInfo.installSlotKind(selectedBranch));
+		Log.i(TAG, "Steam branch marker install slot directory: " + readMarkerValue(branchMarker, "Install slot directory:"));
+		Log.i(TAG, "Steam branch marker expected install slot directory: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
+		Log.i(TAG, "Steam branch marker has matching install slot provenance: " + hasInstallSlotProvenance(branchMarker, selectedBranch));
+		Log.i(TAG, "Steam branch marker has depot manifests: " + hasDepotManifestProvenance(branchMarker));
+		Log.i(TAG, "Steam branch marker depot manifest entries: " + depotManifestCount(branchMarker));
+		Log.i(TAG, "Steam branch marker ready: " + isBranchMarkerReady(selectedBranch));
 		configureTempDirectory();
 		configureMonoForEmulator();
 		cleanupStaleHttpResponseFiles();
@@ -177,6 +195,31 @@ public class GodotApp extends GodotActivity {
 			out.write(text.getBytes("UTF-8"));
 		} catch (Exception e) {
 			Log.w(TAG, "Failed to write " + name, e);
+		}
+	}
+
+	private File resolveGameDir() {
+		String branch = readSelectedBranch();
+		return SteamBranchInfo.gameDirectory(getFilesDir(), branch);
+	}
+
+	private String readSelectedBranch() {
+		File branchFile = new File(getFilesDir(), GAME_BRANCH_FILE);
+		if (!branchFile.exists() || !branchFile.isFile()) {
+			return "public";
+		}
+		try (FileInputStream in = new FileInputStream(branchFile);
+				ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+			byte[] buffer = new byte[128];
+			int read;
+			while ((read = in.read(buffer)) > 0) {
+				out.write(buffer, 0, read);
+			}
+			String branch = out.toString("UTF-8").trim();
+			return branch.isEmpty() ? "public" : branch;
+		} catch (Exception e) {
+			Log.w(TAG, "Could not read selected game branch", e);
+			return "public";
 		}
 	}
 
@@ -724,8 +767,12 @@ public class GodotApp extends GodotActivity {
 	}
 
 	private boolean isGamePckReady() {
+		String branch = readSelectedBranch();
 		File pck = new File(gameDir, PCK_FILE);
 		if (!pck.exists() || !pck.isFile() || pck.length() < 96) {
+			return false;
+		}
+		if (!isBranchMarkerReady(branch)) {
 			return false;
 		}
 
@@ -761,6 +808,95 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
+	private boolean isBranchMarkerReady(String branch) {
+		File marker = new File(gameDir, BRANCH_MARKER_FILE);
+		if (!marker.exists() || !marker.isFile()) {
+			return "public".equalsIgnoreCase(branch);
+		}
+
+		try (BufferedReader reader = new BufferedReader(new FileReader(marker))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (!line.regionMatches(true, 0, "Branch:", 0, "Branch:".length())) {
+					continue;
+				}
+				String markerBranch = line.substring("Branch:".length()).trim();
+				boolean ready = markerBranch.equalsIgnoreCase(branch);
+				if (!ready) {
+					Log.w(TAG, "Steam branch marker mismatch: selected=" + branch + " marker=" + markerBranch);
+				}
+				return ready && ("public".equalsIgnoreCase(branch) || (hasInstallSlotProvenance(marker, branch) && hasDepotManifestProvenance(marker)));
+			}
+			Log.w(TAG, "Steam branch marker has no Branch line: " + marker.getAbsolutePath());
+		} catch (IOException e) {
+			Log.w(TAG, "Failed to read Steam branch marker: " + marker.getAbsolutePath(), e);
+		}
+
+		return false;
+	}
+
+	private boolean hasDepotManifestProvenance(File marker) {
+		return depotManifestCount(marker) > 0;
+	}
+
+	private boolean hasInstallSlotProvenance(File marker, String branch) {
+		return SteamBranchInfo.installSlotKind(branch).equalsIgnoreCase(readMarkerValue(marker, "Install slot kind:"))
+			&& normalizeMarkerPath(SteamBranchInfo.installSlotDirectory(getFilesDir(), branch).getAbsolutePath()).equalsIgnoreCase(
+				normalizeMarkerPath(readMarkerValue(marker, "Install slot directory:"))
+			);
+	}
+
+	private String readMarkerValue(File marker, String prefix) {
+		if (marker == null || !marker.exists() || !marker.isFile()) {
+			return "";
+		}
+
+		try (BufferedReader reader = new BufferedReader(new FileReader(marker))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (line.regionMatches(true, 0, prefix, 0, prefix.length())) {
+					return line.substring(prefix.length()).trim();
+				}
+			}
+		} catch (IOException e) {
+			Log.w(TAG, "Failed to inspect Steam branch marker install slot provenance: " + marker.getAbsolutePath(), e);
+		}
+
+		return "";
+	}
+
+	private String normalizeMarkerPath(String path) {
+		if (path == null || path.trim().isEmpty() || path.startsWith("<")) {
+			return "";
+		}
+
+		String normalized = path.trim().replace('\\', '/');
+		while (normalized.endsWith("/") && normalized.length() > 1) {
+			normalized = normalized.substring(0, normalized.length() - 1);
+		}
+		return normalized;
+	}
+
+	private int depotManifestCount(File marker) {
+		if (marker == null || !marker.exists() || !marker.isFile()) {
+			return 0;
+		}
+
+		try (BufferedReader reader = new BufferedReader(new FileReader(marker))) {
+			int count = 0;
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (line.regionMatches(true, 0, "Depot manifest:", 0, "Depot manifest:".length())) {
+					count++;
+				}
+			}
+			return count;
+		} catch (IOException e) {
+			Log.w(TAG, "Failed to inspect Steam branch marker depot provenance: " + marker.getAbsolutePath(), e);
+		}
+		return 0;
+	}
+
 	private void copyFile(File src, File dest) throws IOException {
 		try (InputStream in = new FileInputStream(src);
 				OutputStream out = new FileOutputStream(dest)) {
@@ -793,6 +929,21 @@ public class GodotApp extends GodotActivity {
 	public List<String> getCommandLine() {
 		List<String> commands = new ArrayList<>(super.getCommandLine());
 		File pckFile = new File(gameDir, PCK_FILE);
+		String selectedBranch = readSelectedBranch();
+		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
+		Log.i(TAG, "Selected Steam branch for startup: " + selectedBranch);
+		Log.i(TAG, "Selected Steam branch note for startup: " + SteamBranchInfo.selectorHelpText(selectedBranch));
+		Log.i(TAG, "Selected game version slot kind for startup: " + SteamBranchInfo.installSlotKind(selectedBranch));
+		Log.i(TAG, "Selected game version slot directory for startup: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
+		Log.i(TAG, "Resolved startup game directory: " + gameDir);
+		Log.i(TAG, "Steam branch marker install slot kind for startup: " + readMarkerValue(branchMarker, "Install slot kind:"));
+		Log.i(TAG, "Steam branch marker expected install slot kind for startup: " + SteamBranchInfo.installSlotKind(selectedBranch));
+		Log.i(TAG, "Steam branch marker install slot directory for startup: " + readMarkerValue(branchMarker, "Install slot directory:"));
+		Log.i(TAG, "Steam branch marker expected install slot directory for startup: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
+		Log.i(TAG, "Steam branch marker has matching install slot provenance for startup: " + hasInstallSlotProvenance(branchMarker, selectedBranch));
+		Log.i(TAG, "Steam branch marker has depot manifests for startup: " + hasDepotManifestProvenance(branchMarker));
+		Log.i(TAG, "Steam branch marker depot manifest entries for startup: " + depotManifestCount(branchMarker));
+		Log.i(TAG, "Steam branch marker ready for startup: " + isBranchMarkerReady(selectedBranch));
 		boolean launchRequested = isGamePckReady() && consumeGameLaunchRequest();
 		setAutoLaunchGameMode(launchRequested);
 		setForcedCriticalPatchFailureMode();

@@ -4,7 +4,7 @@ This roadmap tracks the overhaul phases and the current Android release-hardenin
 
 ## Current release posture
 
-The app has a working ARM64 Android baseline. It is not yet release-candidate complete because confirmed Push-to-Cloud upload, upgrade behavior, locked-screen interruption, and repeated release artifact validation still need evidence.
+The app has a working ARM64 Android baseline. It is not yet release-candidate complete because confirmed Push-to-Cloud upload, upgrade behavior, locked-screen interruption, Steam version-selection hardening, and repeated release artifact validation still need evidence.
 
 Canonical status: [docs/current-android-status.md](docs/current-android-status.md)
 
@@ -38,16 +38,36 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 - [ ] Validate confirmed Push upload with controlled Steam Cloud overwrite evidence.
 - [ ] Validate Push/Pull round-trip after a controlled local save mutation.
 
-## Phase 5 - Device lifecycle and install-path validation
+## Phase 5 - Steam version selection and branch cache hardening
+
+- [x] Persist selected Steam branch in launcher preferences.
+- [x] Add default/public versus `beta` selector for validation.
+- [x] Make manifest resolution, update checks, download state, and game directories branch-aware.
+- [x] Keep non-public branch installs in side-by-side `game_versions/<branch>/` caches.
+- [x] Require branch marker/provenance metadata before treating non-public caches as ready.
+- [x] Add selected-version diagnostics, cached-version inventory, and native startup/fallback marker reporting.
+- [x] Add wrapped selector guidance, selected-version notes in managed/native diagnostics, branch-switch marker evidence, and managed/native guidance parity guardrails.
+- [x] Add safe branch-switch warnings and local-backup posture before switching versions.
+- [x] Gate manual Push after branch switches when backup storage permission is unavailable.
+- [x] Document validation checklist, runbook, user/tester guide, issue template, evidence template, and static audit helper.
+- [ ] Validate public/default regression on ARM64 hardware after version-selection changes.
+- [ ] Validate `beta` download, marker provenance, and selected-PCK startup routing on ARM64 hardware.
+- [ ] Validate missing/private/password-protected beta branch behavior or explicitly keep unsupported UI/docs wording.
+- [ ] Validate save compatibility across public/beta branch switches, including Pull-after-switch, local-save evidence, and backup safety, or explicitly document incompatibility risk.
+- [ ] Validate selected-version redownload and inactive-cache cleanup on device.
+- [ ] Validate Pull-after-switch, local-save evidence, pre-Push backup evidence, `last_manual_cloud_push.txt`, and aggregate successful post-switch Push evidence after a branch switch before accepting any manual Push mutation.
+
+## Phase 6 - Device lifecycle and install-path validation
 
 - [x] Add startup freshness and assembly cache diagnostics for installed runtime/schema/cache evidence.
 - [ ] Validate upgrade install behavior from the current public release baseline.
 - [ ] Validate locked-screen interruption and return-to-app after manual unlock.
 - [ ] Repeat stale assembly cache/freshness checks across reinstall and upgrade scenarios.
 
-## Phase 6 - Public release readiness
+## Phase 7 - Public release readiness
 
 - [ ] Publish release notes that clearly say the app works on the validated ARM64 path but is still being polished/hardened.
 - [ ] Keep confirmed Push overwrite risk explicit until validated.
+- [ ] Keep Steam beta/version selection release blockers explicit until ARM64 evidence exists.
 - [ ] Keep x86_64 emulator limitations explicit.
 - [ ] Keep APK artifacts, checksums, validation logs, and summaries clean enough for external testers.

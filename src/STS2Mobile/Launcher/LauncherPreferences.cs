@@ -7,6 +7,8 @@ internal static partial class LauncherPreferences
 {
     private const string LocalBackupPreferenceKey = "local_backup_enabled";
     private const string CloudSyncPreferenceKey = "cloud_sync_enabled";
+    private const string GameBranchPreferenceKey = "game_branch";
+    private static readonly PreferenceFile GameBranchPreference = new(GameBranchPreferenceKey);
     private static readonly BooleanPreference LocalBackupPreference = new(
         LocalBackupPreferenceKey,
         () => false,
@@ -21,14 +23,16 @@ internal static partial class LauncherPreferences
 
     internal readonly struct ActionPreferences
     {
-        internal ActionPreferences(bool localBackupEnabled, bool cloudSyncEnabled)
+        internal ActionPreferences(bool localBackupEnabled, bool cloudSyncEnabled, string gameBranch)
         {
             LocalBackupEnabled = localBackupEnabled;
             CloudSyncEnabled = cloudSyncEnabled;
+            GameBranch = SteamGameBranch.Normalize(gameBranch);
         }
 
         internal bool LocalBackupEnabled { get; }
         internal bool CloudSyncEnabled { get; }
+        internal string GameBranch { get; }
     }
 
     private readonly struct BooleanPreference
@@ -72,16 +76,24 @@ internal static partial class LauncherPreferences
     internal static void SaveLocalBackupEnabled(bool enabled)
         => LocalBackupPreference.Save(enabled);
 
+    internal static string ReadGameBranch()
+        => SteamGameBranch.Normalize(GameBranchPreference.ReadText(SteamGameBranch.Public));
+
+    internal static void SaveGameBranch(string branch)
+        => GameBranchPreference.WriteText(SteamGameBranch.Normalize(branch));
+
     internal static ActionPreferences ReadActionPreferences()
         => new(
             LocalBackupPreference.Read(),
-            CloudSyncPreference.Read()
+            CloudSyncPreference.Read(),
+            ReadGameBranch()
         );
 
     internal static ActionPreferences LoadAndApplyActionPreferences()
         => new(
             LocalBackupPreference.LoadAndApply(),
-            CloudSyncPreference.LoadAndApply()
+            CloudSyncPreference.LoadAndApply(),
+            ReadGameBranch()
         );
 
     internal static bool LoadAndApplyCloudSyncEnabled()

@@ -1,6 +1,7 @@
 using System;
 using Godot;
 using STS2Mobile.Launcher.Components;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher.Sections;
 
@@ -51,6 +52,29 @@ internal sealed partial class ActionSection
         );
         LauncherButtonStyles.ApplySafeAction(_safeLaunchButton, scale);
 
+        _branchButton = AddSecondaryHiddenButton(
+            this,
+            "",
+            scale,
+            ToggleGameBranch
+        );
+
+        _branchHelpLabel = new StyledLabel(
+            "",
+            scale,
+            fontSize: LauncherSectionMetrics.ProgressFontSize,
+            align: HorizontalAlignment.Left
+        );
+        _branchHelpLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _branchHelpLabel.MouseFilter = MouseFilterEnum.Ignore;
+        _branchHelpLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherViewLayoutMetrics.LogTitleColor
+        );
+        _branchHelpLabel.Visible = false;
+        AddChild(_branchHelpLabel);
+        SetGameBranch(_gameBranch);
+
         _cloudGroup = BuildActionGroup(scale);
         _cloudGroup.Visible = false;
         AddChild(_cloudGroup);
@@ -68,15 +92,27 @@ internal sealed partial class ActionSection
         );
         _pushButton = AddPushPullButton(
             _pushPullRow,
-            "Push to Cloud",
+            PushButtonText,
             scale,
-            () => CloudPushPressed?.Invoke()
+            ArmCloudPush
         );
+        _confirmPushButton = AddPushPullButton(
+            _pushPullRow,
+            PushConfirmButtonText,
+            scale,
+            ConfirmCloudPush
+        );
+        _confirmPushButton.Visible = false;
+        LauncherButtonStyles.ApplyPrimaryAction(_confirmPushButton, scale);
         _pullButton = AddPushPullButton(
             _pushPullRow,
             "Pull from Cloud",
             scale,
-            () => CloudPullPressed?.Invoke()
+            () =>
+            {
+                ResetCloudPushArm();
+                CloudPullPressed?.Invoke();
+            }
         );
         _cloudGroup.AddChild(_pushPullRow);
 
@@ -101,9 +137,15 @@ internal sealed partial class ActionSection
         LauncherButtonStyles.ApplySupportAction(_updateButton, scale);
         _redownloadButton = AddSecondaryHiddenButton(
             _supportGroup,
-            "REDOWNLOAD GAME FILES",
+            "REDOWNLOAD SELECTED VERSION",
             scale,
             () => RedownloadPressed?.Invoke()
+        );
+        _clearCachedVersionsButton = AddSecondaryHiddenButton(
+            _supportGroup,
+            "CLEAR CACHED VERSIONS",
+            scale,
+            () => ClearCachedVersionsPressed?.Invoke()
         );
         _diagnosticsButton = AddSecondaryHiddenButton(
             _supportGroup,
@@ -141,5 +183,29 @@ internal sealed partial class ActionSection
         _supportExpanded = !_supportExpanded;
         _supportGroup.Visible = _supportExpanded;
         _supportToggle.Text = _supportExpanded ? "HIDE SUPPORT OPTIONS" : "MORE SUPPORT OPTIONS";
+    }
+
+    private void ArmCloudPush()
+    {
+        _pushButton.Visible = false;
+        _confirmPushButton.Visible = true;
+    }
+
+    private void ConfirmCloudPush()
+    {
+        ResetCloudPushArm();
+        CloudPushPressed?.Invoke();
+    }
+
+    private void ResetCloudPushArm(bool showPushButton = true)
+    {
+        _pushButton.Visible = showPushButton;
+        _confirmPushButton.Visible = false;
+    }
+
+    private void ToggleGameBranch()
+    {
+        SetGameBranch(SteamGameBranch.ToggleKnownBranch(_gameBranch));
+        GameBranchChanged?.Invoke(_gameBranch);
     }
 }

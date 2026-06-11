@@ -24,7 +24,9 @@ public static class ModEntry
     private const int ProbeSuccess = 0;
     private const int ProbeSuccessWithValue = 1;
     private const uint GodotPckMagic = 0x43504447;
+    private const string GameBranchFileName = "game_branch";
     private const string GameDirectoryName = "game";
+    private const string GameVersionsDirectoryName = "game_versions";
     private const string GamePckFileName = "SlayTheSpire2.pck";
     private const string LauncherBootstrapVariable = "STS2_LAUNCHER_BOOTSTRAP";
     private const int StartupFallbackShieldZIndex = 4090;
@@ -204,13 +206,85 @@ public static class ModEntry
 
     private static string GamePckPath
         => Path.Combine(
-            RuntimeDataDirectory,
-            GameDirectoryName,
+            GameDirectoryPath,
             GamePckFileName
         );
 
+    private static string GameDirectoryPath
+    {
+        get
+        {
+            var branch = ReadSelectedBranch();
+            return string.Equals(branch, "public", StringComparison.OrdinalIgnoreCase)
+                ? Path.Combine(RuntimeDataDirectory, GameDirectoryName)
+                : Path.Combine(RuntimeDataDirectory, GameVersionsDirectoryName, StateDirectoryName(branch), GameDirectoryName);
+        }
+    }
+
     private static string ManagedTempDirectory
         => Path.Combine(RuntimeDataDirectory, TempDirectoryName);
+
+    private static string ReadSelectedBranch()
+    {
+        try
+        {
+            var path = Path.Combine(RuntimeDataDirectory, GameBranchFileName);
+            if (!File.Exists(path))
+                return "public";
+
+            var branch = File.ReadAllText(path).Trim();
+            return string.IsNullOrWhiteSpace(branch) ? "public" : branch;
+        }
+        catch
+        {
+            return "public";
+        }
+    }
+
+    private static string StateDirectoryName(string branch)
+    {
+        if (string.Equals(branch, "public", StringComparison.OrdinalIgnoreCase))
+            return "public";
+
+        if (string.Equals(branch, "beta", StringComparison.OrdinalIgnoreCase))
+            return "beta";
+
+        var sb = new System.Text.StringBuilder(branch.Length);
+        foreach (var ch in branch)
+        {
+            if (char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.')
+                sb.Append(ch);
+            else
+                sb.Append('_');
+        }
+
+        var safePrefix = sb.Length == 0 ? "branch" : sb.ToString();
+        if (safePrefix.Length > 48)
+            safePrefix = safePrefix[..48].TrimEnd('.', '-', '_');
+
+        if (safePrefix.Length == 0)
+            safePrefix = "branch";
+
+        return $"{safePrefix}-{StableBranchHash(branch)}";
+    }
+
+    private static string StableBranchHash(string branch)
+    {
+        unchecked
+        {
+            const uint offsetBasis = 2166136261;
+            const uint prime = 16777619;
+
+            var hash = offsetBasis;
+            foreach (var ch in branch)
+            {
+                hash ^= ch;
+                hash *= prime;
+            }
+
+            return hash.ToString("x8");
+        }
+    }
 
     private static string RuntimeDataDirectory
     {

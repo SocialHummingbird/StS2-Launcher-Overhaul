@@ -8,6 +8,7 @@ internal sealed partial class LauncherView
         Action<string, string> loginRequested,
         Action<string> codeSubmitted,
         Action downloadRequested,
+        Action<string> gameBranchChanged,
         Action launchPressed,
         Action retryPressed,
         Action<bool> localBackupToggled,
@@ -16,6 +17,7 @@ internal sealed partial class LauncherView
         Action cloudPullPressed,
         Action checkForUpdatesPressed,
         Action redownloadPressed,
+        Action clearCachedVersionsPressed,
         Action diagnosticsPressed,
         Action showLastErrorPressed,
         Action copyRawLogPressed,
@@ -25,6 +27,8 @@ internal sealed partial class LauncherView
         Login.LoginRequested += loginRequested;
         Code.CodeSubmitted += codeSubmitted;
         Download.DownloadRequested += downloadRequested;
+        Download.GameBranchChanged += gameBranchChanged;
+        Actions.GameBranchChanged += gameBranchChanged;
         Actions.LaunchPressed += launchPressed;
         Actions.RetryPressed += retryPressed;
         Actions.LocalBackupToggled += localBackupToggled;
@@ -33,6 +37,7 @@ internal sealed partial class LauncherView
         Actions.CloudPullPressed += cloudPullPressed;
         Actions.CheckForUpdatesPressed += checkForUpdatesPressed;
         Actions.RedownloadPressed += redownloadPressed;
+        Actions.ClearCachedVersionsPressed += clearCachedVersionsPressed;
         Actions.DiagnosticsPressed += diagnosticsPressed;
         Actions.ShowLastErrorPressed += showLastErrorPressed;
         Actions.CopyRawLogPressed += copyRawLogPressed;
@@ -58,6 +63,12 @@ internal sealed partial class LauncherView
     {
         Download.Visible = true;
         Download.Reset(buttonText);
+    }
+
+    internal void SetGameBranch(string branch)
+    {
+        Download.SetGameBranch(branch);
+        Actions.SetGameBranch(branch);
     }
 
     internal void ShowDownloadProgress(string text)
@@ -94,6 +105,7 @@ internal sealed partial class LauncherView
     {
         Actions.SetLocalBackupChecked(preferences.LocalBackupEnabled);
         Actions.SetCloudSyncChecked(preferences.CloudSyncEnabled);
+        SetGameBranch(preferences.GameBranch);
     }
 
     internal void SetPushPullDisabled(bool disabled)

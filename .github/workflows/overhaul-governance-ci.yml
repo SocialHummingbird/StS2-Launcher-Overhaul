@@ -21,6 +21,10 @@ jobs:
           test -f OVERHAUL_ROADMAP.md || { echo "Missing OVERHAUL_ROADMAP.md"; exit 1; }
           test -f OVERHAUL_STATUS.md || { echo "Missing OVERHAUL_STATUS.md"; exit 1; }
           test -f CONTRIBUTING.md || { echo "Missing CONTRIBUTING.md"; exit 1; }
+          test -f .github/workflows/steam-version-selection-static-audit.yml || { echo "Missing Steam version-selection static audit workflow"; exit 1; }
+          test -f scripts/audit-steam-version-selection.ps1 || { echo "Missing Steam version-selection static audit helper"; exit 1; }
+          test -f scripts/audit-steam-branch-guidance-parity.ps1 || { echo "Missing Steam branch guidance parity helper"; exit 1; }
+          test -f docs/steam-version-selection-validation.md || { echo "Missing Steam version-selection validation docs"; exit 1; }
 
       - name: Validate repository diff hygiene
         run: |
@@ -33,6 +37,10 @@ jobs:
               "OVERHAUL_ROADMAP.md",
               "OVERHAUL_STATUS.md",
               "CONTRIBUTING.md",
+              ".github/workflows/steam-version-selection-static-audit.yml",
+              "scripts/audit-steam-version-selection.ps1",
+              "scripts/audit-steam-branch-guidance-parity.ps1",
+              "docs/steam-version-selection-validation.md",
           ]
 
           for name in critical:

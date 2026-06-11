@@ -30,6 +30,14 @@ internal static partial class LauncherDiagnostics
             yield return file;
 
         yield return ManualSafeLaunchMarker(dataDir);
+        yield return new DiagnosticFile(
+            "Last game branch switch",
+            LauncherBranchSwitchSafety.MarkerPath(dataDir)
+        );
+        yield return new DiagnosticFile(
+            "Selected game branch marker",
+            STS2Mobile.Steam.SteamGameInstallPaths.BranchMarkerPath(dataDir, LauncherPreferences.ReadGameBranch())
+        );
         yield return BootstrapTrace();
         yield return GamePck(dataDir);
     }
@@ -46,12 +54,17 @@ internal static partial class LauncherDiagnostics
     {
         yield return new DiagnosticDirectory(
             "Game directory",
-            Path.Combine(dataDir, LauncherStorageNames.GameDirectory),
+            LauncherGameFiles.GameDirectoryPath(dataDir, LauncherPreferences.ReadGameBranch()),
+            2
+        );
+        yield return new DiagnosticDirectory(
+            "Game versions",
+            Path.Combine(dataDir, LauncherStorageNames.GameVersionsDirectory),
             2
         );
         yield return new DiagnosticDirectory(
             "Download state",
-            Path.Combine(dataDir, LauncherStorageNames.DownloadStateDirectory),
+            STS2Mobile.Steam.SteamGameInstallPaths.DownloadStateDirectoryPath(dataDir, LauncherPreferences.ReadGameBranch()),
             1
         );
         yield return new DiagnosticDirectory(

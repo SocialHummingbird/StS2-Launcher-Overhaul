@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,15 +20,19 @@ internal sealed partial class DepotDownloader : IDisposable
     private const long MaxDepotFileBytes = 32L * 1024L * 1024L * 1024L;
 
     private readonly SteamConnection _connection;
+    private readonly string _dataDir;
+    private readonly string _branch;
     private readonly string _gameDir;
     private readonly DownloadStateStore _stateStore;
     private readonly Client _cdnClient;
 
-    internal DepotDownloader(SteamConnection connection, string dataDir)
+    internal DepotDownloader(SteamConnection connection, string dataDir, string branch = SteamGameBranch.Public)
     {
         _connection = connection;
-        _gameDir = Path.Combine(dataDir, "game");
-        _stateStore = new DownloadStateStore(this, Path.Combine(dataDir, "download_state"));
+        _dataDir = dataDir;
+        _branch = SteamGameBranch.Normalize(branch);
+        _gameDir = SteamGameInstallPaths.GameDirectory(dataDir, _branch);
+        _stateStore = new DownloadStateStore(this, SteamGameInstallPaths.DownloadStateDirectoryPath(dataDir, _branch));
         _cdnClient = connection.CreateCdnClient();
     }
 
@@ -40,7 +45,8 @@ internal sealed partial class DepotDownloader : IDisposable
 
         Log(
             $"Downloader mode: android={OperatingSystem.IsAndroid()}, "
-                + $"maxConcurrency={MaxConcurrentDownloads}"
+                + $"maxConcurrency={MaxConcurrentDownloads}, "
+                + $"branch={_branch}"
         );
         Log("Fetching app info...");
 
@@ -58,6 +64,25 @@ internal sealed partial class DepotDownloader : IDisposable
 
         // Remove Android-incompatible startup references while keeping the FMOD extension registered for script types.
         PatchGamePck(Path.Combine(_gameDir, "SlayTheSpire2.pck"));
+        WriteBranchMarker(depots);
+    }
+
+    private void WriteBranchMarker(IReadOnlyList<DepotManifestReference> depots)
+    {
+        var markerPath = SteamGameInstallPaths.BranchMarkerPath(_dataDir, _branch);
+        var text =
+            $"Branch: {_branch}\n"
+                + $"Display name: {SteamGameBranch.DisplayName(_branch)}\n"
+                + $"Directory name: {SteamGameBranch.StateDirectoryName(_branch)}\n"
+                + $"Install slot kind: {SteamGameInstallPaths.VersionSlotKind(_branch)}\n"
+                + $"Install slot directory: {SteamGameInstallPaths.VersionSlotDirectory(_dataDir, _branch)}\n"
+                + $"Updated UTC: {DateTime.UtcNow:O}\n"
+                + $"Depot manifest count: {depots.Count}\n";
+        foreach (var depot in depots)
+            text += $"Depot manifest: depot={depot.DepotId} manifest={depot.ManifestId} branch={depot.Branch}\n";
+
+        File.WriteAllText(markerPath, text);
+        Log($"Wrote Steam branch marker: {markerPath}");
     }
 
     private async Task RunWithSuspendedIdleTimeoutAsync(Func<Task> action)
@@ -88,6 +113,7 @@ internal sealed partial class DepotDownloader : IDisposable
 
     private static int MaxConcurrentDownloads =>
         OperatingSystem.IsAndroid() ? AndroidMaxConcurrentDownloads : DesktopMaxConcurrentDownloads;
+
 
     void IDisposable.Dispose()
         => Dispose();

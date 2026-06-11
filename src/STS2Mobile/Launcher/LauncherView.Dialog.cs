@@ -6,7 +6,12 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
-    private static ColorRect BuildConfirmationDialog(string message, float scale, Action onConfirmed)
+    private static ColorRect BuildConfirmationDialog(
+        string message,
+        float scale,
+        Action onConfirmed,
+        Action onCancelled = null
+    )
     {
         var dialog = new ColorRect
         {
@@ -21,7 +26,7 @@ internal sealed partial class LauncherView
         dialogBox.AddChild(vbox);
 
         vbox.AddChild(BuildDialogMessage(message, scale));
-        vbox.AddChild(BuildDialogButtons(dialog, scale, onConfirmed));
+        vbox.AddChild(BuildDialogButtons(dialog, scale, onConfirmed, onCancelled));
 
         center.AddChild(dialogBox);
         dialog.AddChild(center);
@@ -83,7 +88,8 @@ internal sealed partial class LauncherView
     private static HBoxContainer BuildDialogButtons(
         ColorRect dialog,
         float scale,
-        Action onConfirmed
+        Action onConfirmed,
+        Action onCancelled
     )
     {
         var buttonRow = new HBoxContainer();
@@ -105,7 +111,7 @@ internal sealed partial class LauncherView
             callback?.Invoke();
         }
 
-        var cancel = BuildDialogButton("Cancel", scale, () => Dismiss(null));
+        var cancel = BuildDialogButton("Cancel", scale, () => Dismiss(onCancelled));
         var ok = BuildDialogButton("OK", scale, () => Dismiss(onConfirmed));
 
         buttonRow.AddChild(cancel);
@@ -118,7 +124,7 @@ internal sealed partial class LauncherView
             if (ok.GetGlobalRect().HasPoint(position))
                 Dismiss(onConfirmed);
             else if (cancel.GetGlobalRect().HasPoint(position))
-                Dismiss(null);
+                Dismiss(onCancelled);
         };
 
         return buttonRow;

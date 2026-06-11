@@ -1,12 +1,14 @@
 ﻿# Current Android Status
 
-_Last updated: 2026-06-09_
+_Last updated: 2026-06-11_
 
 Current device evidence ledgers:
 
 - [android-device-validation-20260608.md](android-device-validation-20260608.md)
 - [android-cloud-save-validation-20260609.md](android-cloud-save-validation-20260609.md)
 - [launcher-loading-screen-staging.md](launcher-loading-screen-staging.md)
+- [steam-version-selection-validation.md](steam-version-selection-validation.md)
+- [steam-version-selection-runbook.md](steam-version-selection-runbook.md)
 
 ## Headline
 
@@ -72,7 +74,7 @@ The startup freshness probe and assembly cache diagnostics now report the instal
 
 Pull from Cloud and Push to Cloud are now validated end to end on the local ARM64 hardening path. Steam Cloud files were enumerated/downloaded, Android local save files were written, Push uploaded/flushed the local save batch without process death, and Pull after Push wrote the cloud state back into Android app storage.
 
-- The Push confirmation gate appears before upload.
+- Push now requires an `ARE YOU SURE?` arming tap before the overwrite confirmation gate appears.
 - Direct Cancel returns to the launcher without upload.
 - Back/no-confirm dismissal returns without upload.
 - The latest warning text names Steam Cloud overwrite risk in code and documentation.
@@ -83,11 +85,12 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Pull-after-Push evidence: `artifacts/android/pull-after-push-observation-20260609-1`.
 - Preferred local evidence summaries: `summary-scrubbed.md` inside each 2026-06-09 Push/Pull artifact folder.
 - Current launcher Push/Pull UI status text now names direction explicitly: Push makes Steam Cloud reflect Android local saves, and Pull makes Android local saves reflect Steam Cloud.
-- Push confirmation now tells testers to Pull first and verify Android local saves exist before pushing, because Push can overwrite Steam Cloud state.
+- Push confirmation now tells testers to Pull first and verify Android local saves exist before pushing, because Push can overwrite Steam Cloud state. The launcher also requires a separate `ARE YOU SURE?` arming tap before that confirmation can appear.
 - Save discovery now skips app runtime/cache trees such as `.godot`, `cache`, `game`, and `tmp` during fallback enumeration so cloud-save diagnostics stay focused on save candidates.
 
 ## Remaining release-readiness blockers
 
+- Steam game version selection is in hardening: selected branch is persisted and used for manifest resolution/update checks, non-public branches download into side-by-side `game_versions/<branch>/game` caches, completed branch downloads write `steam_branch.txt` marker/provenance metadata, inactive cached versions can be cleared from support options, and local backup is enabled before branch switches. The launcher now shows wrapped selector guidance for the fixed public/beta toggle, unsupported beta password/private branch behavior, and unproven save compatibility; the same selected-version guidance is captured in launcher diagnostics, branch-switch marker evidence, manual Pull evidence, native pre-routing/startup logs, and native fallback diagnostics. Static CI guardrails cover version-selection docs, release blockers, and managed/native selector-guidance parity. Steam beta/password behavior, inaccessible/private branch handling, startup routing, cache cleanup, Pull-after-switch/current-backup safety, and save compatibility across branches still need ARM64 device validation before release-candidate signoff; see [Steam version selection validation](steam-version-selection-validation.md) and [Steam version selection runbook](steam-version-selection-runbook.md).
 - Re-run full login/Pull/confirmed-Push/game-launch smoke on the clean public `v0.2.185-responsive-ui` release-facing build.
 - Keep Push treated as destructive. The newest public APK has confirmation/cancel safety evidence, but confirmed Push mutation still needs an explicit newest-public smoke before release-candidate signoff.
 - Repeated local stale assembly cache/freshness checks across in-place local upgrade once signing continuity is restored.

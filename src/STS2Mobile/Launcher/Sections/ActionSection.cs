@@ -1,18 +1,24 @@
 using System;
 using Godot;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection : VBoxContainer
 {
+    private const string PushButtonText = "Push to Cloud";
+    private const string PushConfirmButtonText = "ARE YOU SURE? PUSH TO CLOUD";
+
     internal event Action LaunchPressed;
     internal event Action RetryPressed;
+    internal event Action<string> GameBranchChanged;
     internal event Action<bool> LocalBackupToggled;
     internal event Action<bool> CloudSyncToggled;
     internal event Action CloudPushPressed;
     internal event Action CloudPullPressed;
     internal event Action CheckForUpdatesPressed;
     internal event Action RedownloadPressed;
+    internal event Action ClearCachedVersionsPressed;
     internal event Action DiagnosticsPressed;
     internal event Action ShowLastErrorPressed;
     internal event Action CopyRawLogPressed;
@@ -21,12 +27,16 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _launchButton;
     private readonly Button _safeLaunchButton;
     private readonly Button _retryButton;
+    private readonly Button _branchButton;
+    private readonly Label _branchHelpLabel;
     private readonly Button _localBackupToggle;
     private readonly Button _cloudSyncToggle;
     private readonly Button _pushButton;
+    private readonly Button _confirmPushButton;
     private readonly Button _pullButton;
     private readonly Button _updateButton;
     private readonly Button _redownloadButton;
+    private readonly Button _clearCachedVersionsButton;
     private readonly Button _diagnosticsButton;
     private readonly Button _showLastErrorButton;
     private readonly Button _copyRawLogButton;
@@ -37,12 +47,20 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly StyleBoxFlat _toggleOffStyle;
     private readonly StyleBoxFlat _toggleOnStyle;
     private bool _supportExpanded;
+    private string _gameBranch = SteamGameBranch.Public;
 
     internal void SetLocalBackupChecked(bool value)
         => ApplyLocalBackupToggle(value);
 
     internal void SetCloudSyncChecked(bool value)
         => ApplyCloudSyncToggle(value);
+
+    internal void SetGameBranch(string branch)
+    {
+        _gameBranch = SteamGameBranch.Normalize(branch);
+        _branchButton.Text = $"GAME VERSION: {SteamGameBranch.DisplayName(_gameBranch)}";
+        _branchHelpLabel.Text = SteamGameBranch.SelectorInstallSlotHelpText(_gameBranch);
+    }
 
     internal void ShowLaunch(string text, bool showUpdate)
     {
@@ -68,7 +86,13 @@ internal sealed partial class ActionSection : VBoxContainer
 
     internal void SetPushPullDisabled(bool disabled)
     {
+        if (disabled)
+        {
+            ResetCloudPushArm(_pushPullRow.Visible);
+        }
+
         _pushButton.Disabled = disabled;
+        _confirmPushButton.Disabled = disabled;
         _pullButton.Disabled = disabled;
     }
 

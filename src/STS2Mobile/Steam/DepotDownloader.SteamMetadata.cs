@@ -15,8 +15,11 @@ internal sealed partial class DepotDownloader
         _stateStore.Prepare();
 
         var depots = await GetMainAppDepotsAsync();
-        if (requireAny && depots.Count == 0)
-            throw new Exception("No downloadable depots found");
+        if (depots.Count == 0)
+        {
+            if (requireAny || !IsPublicBranch)
+                throw new Exception(NoAccessibleDepotsMessage());
+        }
 
         return depots;
     }
@@ -26,4 +29,14 @@ internal sealed partial class DepotDownloader
         var depotSection = await ProductInfoApp.GetMainDepotsSectionAsync(this);
         return await ParseDepotsAsync(depotSection);
     }
+
+    private bool IsPublicBranch
+        => string.Equals(_branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase);
+
+    private string NoAccessibleDepotsMessage()
+        => IsPublicBranch
+            ? "No downloadable depots found"
+            : $"No downloadable depots found for Steam branch '{_branch}'. "
+                + "The branch may not exist, may be unavailable to this Steam account, "
+                + "or may require a Steam beta password. Beta password entry is not implemented yet.";
 }

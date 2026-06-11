@@ -1,0 +1,29 @@
+name: Steam Version Selection Static Audit
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  steam-version-selection-audit:
+    name: Static guardrail audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Run Steam version-selection static audit
+        shell: pwsh
+        run: ./scripts/audit-steam-version-selection.ps1
+
+      - name: Run Steam branch guidance parity audit
+        shell: pwsh
+        run: ./scripts/audit-steam-branch-guidance-parity.ps1

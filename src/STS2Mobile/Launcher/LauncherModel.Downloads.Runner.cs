@@ -40,7 +40,7 @@ internal partial class LauncherModel
 
     private DepotDownloader CreateDownloader(SteamConnection connection)
     {
-        var downloader = new DepotDownloader(connection, _dataDir);
+        var downloader = new DepotDownloader(connection, _dataDir, LauncherPreferences.ReadGameBranch());
         downloader.LogMessage += RaiseDownloadLogReceived;
         return downloader;
     }

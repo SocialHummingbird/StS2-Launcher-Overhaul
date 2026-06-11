@@ -1,6 +1,6 @@
 ﻿# Android release validation checklist
 
-Current posture: the ARM64 Android path works locally, including Steam download, Pull from Cloud, Push-to-Cloud hardening, Android local save handoff, and game launch. Release validation is now about hardening that baseline on the newest public APK, especially Samsung retests, persisted Steam-session/update UX, confirmed Push overwrite evidence, upgrade install behavior, freshness/cache checks, visual loading-screen regressions, and release artifact hygiene. See [current Android status](current-android-status.md).
+Current posture: the ARM64 Android path works locally, including Steam download, Pull from Cloud, Push-to-Cloud hardening, Android local save handoff, and game launch. Release validation is now about hardening that baseline on the newest public APK, especially Samsung retests, persisted Steam-session/update UX, Steam version-selection validation, confirmed Push overwrite evidence, upgrade install behavior, freshness/cache checks, visual loading-screen regressions, and release artifact hygiene. See [current Android status](current-android-status.md).
 
 Use this checklist after every release run (manual or tag-triggered) to confirm artifact publication before announcing a release.
 
@@ -27,7 +27,14 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
 .\scripts\check-android-release-readiness.ps1
 ```
 
-4. If these are missing or stale, configure them from the stable release keystore:
+4. If the release includes Steam game version selection, run the static version-selection guardrails before device validation:
+
+```powershell
+.\scripts\audit-steam-version-selection.ps1
+.\scripts\audit-steam-branch-guidance-parity.ps1
+```
+
+5. If these are missing or stale, configure them from the stable release keystore:
 
 ```powershell
 .\scripts\configure-android-release-signing.ps1 `
@@ -36,10 +43,10 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
   -KeyAlias "<alias>"
 ```
 
-5. Confirm the compatibility step reports the same package name as the installed release package.
-6. Confirm the compatibility step reports the same signer SHA-256 as `ANDROID_RELEASE_SIGNER_SHA256`.
-7. Confirm the compatibility step reports a higher `versionCode` than the baseline APK.
-8. Do not announce the APK as update-compatible if the run used `allow_update_baseline_reset=true`; that mode creates a new stable baseline and cannot update APKs signed by a different previous key.
+6. Confirm the compatibility step reports the same package name as the installed release package.
+7. Confirm the compatibility step reports the same signer SHA-256 as `ANDROID_RELEASE_SIGNER_SHA256`.
+8. Confirm the compatibility step reports a higher `versionCode` than the baseline APK.
+9. Do not announce the APK as update-compatible if the run used `allow_update_baseline_reset=true`; that mode creates a new stable baseline and cannot update APKs signed by a different previous key.
 
 ## 3) Verify published release assets
 
@@ -51,6 +58,7 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
    - `StS2Launcher-v<version>-arm64-v8a.apk.sha256`
 4. Confirm the release body includes generated release notes.
 5. Confirm the release notes distinguish the current working ARM64 path from release-candidate status. Do not claim release-ready cloud sync until Pull and Push have both been validated, including no-accidental-upload behavior for Push.
+6. Confirm the release notes do not claim Steam beta/version selection is release-signed unless the Steam version-selection runbook has current ARM64 evidence for public/default, beta, marker provenance, cache cleanup, missing/private/password branch behavior, save compatibility, and Pull-after-switch/current-backup safety.
 
 ## 4) Structural asset verification
 
@@ -91,9 +99,12 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 3. Confirm native splash, launcher loading/warmup, and settled launcher surfaces do not clip or distort on the target screen.
 4. Confirm Steam login reaches authentication success or ownership verification.
 5. Confirm game download works when game files are absent.
-6. Confirm Pull from Cloud downloads real Steam Cloud files, writes Android local saves, and the game reads/surfaces the pulled profile.
-7. Confirm Push to Cloud requires confirmation, cancel/no-confirm does not upload, and confirmed Push behavior is explicitly validated or deferred with overwrite-risk rationale.
-8. Confirm locked-screen/focus interruption and upgrade install behavior for every new release candidate before calling it ready.
+6. Confirm Steam version selection does not regress the default/public path: selected branch is default/public, download/update uses the legacy `files/game` path, and the game launches.
+7. If beta/version selection is included in the release claim, follow [Steam version selection runbook](steam-version-selection-runbook.md) and capture evidence for `beta` selection, side-by-side cache path, `steam_branch.txt` marker provenance, selected-PCK startup routing, selected-version redownload, inactive-cache cleanup, and missing/private/password branch behavior.
+8. Confirm save compatibility across public/beta branch switches is validated or explicitly documented as an unsupported risk.
+9. Confirm Pull from Cloud downloads real Steam Cloud files, writes Android local saves, and the game reads/surfaces the pulled profile.
+10. Confirm Push to Cloud requires confirmation, cancel/no-confirm does not upload, and confirmed Push behavior is explicitly validated or deferred with overwrite-risk rationale. After any Steam branch switch, manual Push must stay blocked until backup storage permission and local/cloud pre-Push backup evidence exist.
+11. Confirm locked-screen/focus interruption and upgrade install behavior for every new release candidate before calling it ready.
 
 ## 6) Archive and follow-up
 

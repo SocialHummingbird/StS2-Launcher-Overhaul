@@ -26,6 +26,11 @@ internal sealed partial class LauncherView
         _parent.AddChild(BuildConfirmationDialog(message, _scale, onConfirmed));
     }
 
+    internal void ShowConfirmation(string message, Action onConfirmed, Action onCancelled)
+    {
+        _parent.AddChild(BuildConfirmationDialog(message, _scale, onConfirmed, onCancelled));
+    }
+
     private void DismissKeyboard(InputEvent ev)
     {
         if (ev is InputEventMouseButton { Pressed: true } or InputEventScreenTouch { Pressed: true })

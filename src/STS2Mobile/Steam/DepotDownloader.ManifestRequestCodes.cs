@@ -13,10 +13,11 @@ internal sealed partial class DepotDownloader
 
     private async Task<ulong> GetManifestRequestCodeAsync(
         uint depotId,
-        ulong manifestId
+        ulong manifestId,
+        string branch
     )
     {
-        var request = ManifestRequestKey.Public(depotId, manifestId);
+        var request = ManifestRequestKey.ForBranch(depotId, manifestId, branch);
         var code = await _manifestRequestCodes.GetOrAddAsync(
             request,
             ManifestRequestCodeTtl,

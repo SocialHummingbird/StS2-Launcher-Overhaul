@@ -18,8 +18,8 @@ internal sealed partial class DepotDownloader
         private ulong ManifestId { get; }
         private string Branch { get; }
 
-        internal static ManifestRequestKey Public(uint depotId, ulong manifestId)
-            => new(depotId, manifestId, PublicDepotBranch);
+        internal static ManifestRequestKey ForBranch(uint depotId, ulong manifestId, string branch)
+            => new(depotId, manifestId, SteamGameBranch.Normalize(branch));
 
         internal Task<ulong> FetchCodeAsync(SteamConnection connection)
             => connection.GetManifestRequestCodeAsync(

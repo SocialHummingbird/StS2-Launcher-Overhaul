@@ -10,8 +10,8 @@ internal static partial class CloudSyncCoordinator
     private static string PushStarting(int fileCount) =>
         PushMessage($"starting ({fileCount} files)");
 
-    private static string PushBackedUpCloudFiles(int backedUp) =>
-        PushMessage($"backed up {backedUp} cloud files");
+    private static string PushBackedUpPrePushFiles(int backedUp) =>
+        PushMessage($"backed up {backedUp} pre-push safety files");
 
     private static string PushQueuing(string path, int bytes) =>
         PushMessage($"queuing {path} ({bytes} bytes)");

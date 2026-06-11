@@ -32,7 +32,7 @@ internal sealed partial class DepotDownloader
             if (ShouldSkip())
                 return null;
 
-            var manifestId = await DepotManifestSource.GetPublicManifestIdAsync(
+            var manifestId = await DepotManifestSource.GetSelectedManifestIdAsync(
                 Owner,
                 Depot,
                 DepotId
@@ -40,8 +40,8 @@ internal sealed partial class DepotDownloader
             if (!manifestId.HasValue)
                 return null;
 
-            Owner.Log($"Found depot {DepotId} manifest {manifestId.Value}");
-            return new DepotManifestReference(DepotId, manifestId.Value);
+            Owner.Log($"Found depot {DepotId} manifest {manifestId.Value} for branch '{Owner._branch}'");
+            return new DepotManifestReference(DepotId, manifestId.Value, Owner._branch);
         }
 
         private bool ShouldSkip()

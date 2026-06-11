@@ -36,8 +36,8 @@ internal static partial class CloudSyncCoordinator
                 PushStarting
             ),
             new ManualSyncBackupStep(
-                SaveBackups.CloudBeforeManualPushAsync,
-                PushBackedUpCloudFiles
+                SaveBackups.BeforeManualPushAsync,
+                PushBackedUpPrePushFiles
             ),
             new ManualSyncTransferStep(RunManualPushUploadsAsync)
         );

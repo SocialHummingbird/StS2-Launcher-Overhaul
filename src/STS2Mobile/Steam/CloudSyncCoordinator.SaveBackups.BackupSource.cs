@@ -14,6 +14,7 @@ internal static partial class CloudSyncCoordinator
             internal static BackupSource Cloud { get; } = new("cloud");
             internal static BackupSource Local { get; } = new("local");
             internal static BackupSource CloudPrePush { get; } = new("cloud-pre-push");
+            internal static BackupSource LocalPrePush { get; } = new("local-pre-push");
             internal static BackupSource LocalPrePull { get; } = new("local-pre-pull");
 
             private string Label { get; }

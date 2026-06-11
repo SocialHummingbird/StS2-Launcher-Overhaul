@@ -1,0 +1,122 @@
+# Steam Version Selection Validation Runbook
+
+This runbook defines the safe order for validating Steam game version selection and side-by-side branch caches. It is intentionally evidence-first: do not treat a later step as meaningful if an earlier gate has failed.
+
+## Scope
+
+- Validate the default/public Steam branch still works through the legacy install path.
+- Validate the beta branch path is branch-aware from selection through download, startup, diagnostics, and cleanup.
+- Preserve save safety by proving Pull and backup posture before any Push test.
+- Keep private/password-protected beta behavior and save compatibility as release blockers until proven.
+
+## Evidence targets
+
+Capture evidence in `docs/steam-version-selection-evidence-template.md`.
+
+Required artifacts:
+
+- Build output for managed C# and Android Java.
+- Device model, CPU ABI, APK build identifier, and install source.
+- Launcher diagnostics bundle after public/default validation.
+- Launcher diagnostics bundle after beta validation.
+- Native startup or logcat evidence for selected branch startup routing.
+- Branch marker files for each validated installed branch.
+- Cloud Pull evidence before any Push validation.
+- Local pre-Push and cloud pre-Push backup evidence before any Push mutation.
+
+## Safe validation order
+
+1. Build gate
+
+   Compile the managed C# launcher code and Android Java entry points before any runtime validation. If this fails, stop and fix build errors before continuing.
+
+2. Fresh install or controlled upgrade
+
+   Install the APK on ARM64 hardware. Record whether this is a fresh install or an upgrade over an earlier public-only APK.
+
+3. Public/default startup baseline
+
+   Start the launcher with the selected version set to default/public. Confirm the launcher uses the legacy `files/game` and `files/download_state` paths.
+
+4. Public/default download and launch
+
+   Download or update the public/default game files. Confirm `files/game/SlayTheSpire2.pck` is ready and launches. Public/default installs upgraded from older APKs may remain ready without `steam_branch.txt`.
+
+5. Public/default diagnostics capture
+
+   Capture diagnostics. Confirm selected branch, selected version name, selected game directory, selected PCK path, selected readiness result, selected download state, and cached version inventory are present.
+
+6. Switch warning gate
+
+   Select the beta branch. Confirm the branch-switch confirmation warns about download requirements, save compatibility risk, local backup enablement, manual Push backup-storage requirement, private/password-protected branches, and lack of beta password entry.
+
+7. Beta download path
+
+   Confirm `game_branch=beta` persists and the beta download uses `files/game_versions/beta/game` plus `files/game_versions/beta/download_state`.
+
+8. Beta branch marker provenance
+
+   After beta download, inspect the selected beta `steam_branch.txt`. It must include the selected branch, display/state directory name, depot manifest count, and one or more depot manifest entries.
+
+9. Beta startup routing
+
+   Launch the game with beta selected. Confirm native pre-routing logs selected branch, selected branch note, and resolved game directory. Confirm native startup routes to `files/game_versions/beta/game/SlayTheSpire2.pck` and logs selected branch, selected branch note, resolved startup game directory, branch marker readiness, depot-manifest provenance, and depot manifest entry count.
+
+10. Marker failure recovery
+
+   Validate that a selected non-public cache with missing, mismatched, or provenance-free `steam_branch.txt` is not treated as ready. The launcher should show the selected-version redownload/rebuild-cache action instead of launching stale or ambiguous files.
+
+11. Redownload selected version
+
+   Confirm `REDOWNLOAD SELECTED VERSION` deletes only the selected branch cache and selected branch download state, writes `last_game_version_redownload.txt`, then starts a replacement download. Inactive branch caches must remain intact.
+
+12. Inactive cache cleanup
+
+   Confirm `CLEAR CACHED VERSIONS` removes inactive non-public caches and preserves the currently selected branch cache. Capture the launcher status/log line naming the selected version preserved, logcat lines for removed inactive cache paths and the preserved selected cache path, the diagnostics line `Game version cache cleanup marker selected cache preserved where applicable`, and `last_game_version_cache_cleanup.txt`.
+
+13. Switch back to public/default
+
+   Select default/public again. Confirm startup uses `files/game/SlayTheSpire2.pck` and does not delete the beta cache unless cleanup is explicitly invoked.
+
+14. Missing/private/password beta behavior
+
+   Validate the behavior when the selected beta branch is missing, private, inaccessible to the Steam account, or password-protected. If password-protected behavior cannot be tested, keep it as a release blocker and ensure diagnostics show `Steam beta password entry supported: false`.
+
+15. Save compatibility review
+
+   Before any Push test, confirm local save files and Steam Cloud save files are understood for the selected branch. Treat compatibility between branches as unproven unless game behavior confirms otherwise.
+
+16. Cloud Pull gate
+
+   Perform Pull from Cloud first. Confirm important save files exist locally after Pull before considering any Push test.
+
+17. Backup permission gate
+
+   Confirm local backup is enabled, branch-switch marker safety evidence is complete, Pull from Cloud completed after the branch switch for the selected version, Android local save evidence is present, backup storage permission is available, and diagnostics show structured branch-switch marker details, manual Pull evidence, local save evidence count/presence, backup directory path/existence, plus `Branch-switch manual Push prerequisites satisfied`. If a branch switch marker exists and branch-switch marker safety evidence, current Pull evidence, Android local save evidence, or backup storage permission is missing, Push must remain blocked and write `last_manual_cloud_push_blocked.txt`.
+
+18. Pre-Push backup evidence
+
+   Before mutating Steam Cloud, confirm local-pre-push backups cover every important Android local save and cloud-pre-push backups cover every existing important Steam Cloud save. Capture `Pre-Push local backup evidence count`, `Pre-Push cloud backup evidence count`, `Latest pre-Push local backup UTC`, `Latest pre-Push cloud backup UTC`, `Pre-Push local backup evidence after branch switch`, `Pre-Push cloud backup evidence after branch switch`, and `Branch-switch pre-Push backup evidence satisfied`. If Local Backup is enabled and storage permission, full local pre-Push coverage, or full cloud pre-Push coverage for existing important Steam Cloud saves is missing, manual Push must fail before upload and write `last_manual_cloud_push_blocked.txt`.
+
+19. Manual Push smoke test
+
+   Only after Pull, local save existence, storage permission, and backup evidence are proven, perform a manual Push. Record selected game version, confirmation wording, backup evidence, upload result, and any crash/log output.
+
+20. Final evidence package
+
+   Fill the evidence template with concrete pass/fail results, linked diagnostics, branch marker contents, logs, and unresolved blockers. Do not mark release-ready while Steam beta password behavior, save compatibility, or Push safety evidence is missing.
+
+## Stop conditions
+
+- Build gate fails.
+- Public/default no longer downloads, updates, or launches.
+- Selected beta cache can launch without matching branch marker provenance.
+- Branch switch does not force local backup posture.
+- Manual Push can proceed after branch switch without backup storage permission.
+- Pull evidence or local save existence is missing before Push.
+- Pre-Push backup evidence is missing before Push.
+- Diagnostics do not expose enough branch, marker, cache, and backup state to debug failures.
+
+## Release-readiness rule
+
+Release readiness requires evidence, not implementation intent. The version-selection feature remains blocked until public/default, beta, startup routing, cache cleanup, diagnostics, branch marker provenance, Pull-after-switch/current-backup safety, backup evidence, missing/private/password beta behavior, and save compatibility are all proven or explicitly documented as unsupported user-facing limitations.

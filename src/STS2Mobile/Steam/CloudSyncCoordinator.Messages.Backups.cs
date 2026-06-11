@@ -14,6 +14,11 @@ internal static partial class CloudSyncCoordinator
                 $"backup failed for cloud {path}: {ex.Message}"
             );
 
+        private static string PushLocalBackupFailed(string path, Exception ex) =>
+            PushMessage(
+                $"backup failed for local {path}: {ex.Message}"
+            );
+
         private static string PullLocalBackupFailed(string path, Exception ex) =>
             PullMessage(
                 $"backup failed for local {path}: {ex.Message}"

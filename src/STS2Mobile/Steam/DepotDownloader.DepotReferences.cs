@@ -5,8 +5,6 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private const string PublicDepotBranch = "public";
-
     private readonly struct DepotManifestSource
     {
         private DepotManifestSource(
@@ -24,22 +22,27 @@ internal sealed partial class DepotDownloader
         private KeyValue Depot { get; }
         private uint DepotId { get; }
 
-        internal static Task<ulong?> GetPublicManifestIdAsync(
+        internal static Task<ulong?> GetSelectedManifestIdAsync(
             DepotDownloader owner,
             KeyValue depot,
             uint depotId
         )
             => new DepotManifestSource(owner, depot, depotId)
-                .GetPublicManifestIdAsync();
+                .GetSelectedManifestIdAsync();
 
-        private async Task<ulong?> GetPublicManifestIdAsync()
+        private async Task<ulong?> GetSelectedManifestIdAsync()
         {
             var manifests = await GetManifestSectionAsync();
-            return manifests == KeyValue.Invalid
-                ? null
-                : DepotDownloader.ReadKeyValueUInt64(
-                    manifests[PublicDepotBranch]["gid"]
-                );
+            if (manifests == KeyValue.Invalid)
+                return null;
+
+            var manifestId = DepotDownloader.ReadKeyValueUInt64(
+                manifests[Owner._branch]["gid"]
+            );
+            if (!manifestId.HasValue)
+                Owner.Log($"Depot {DepotId} has no manifest for branch '{Owner._branch}'");
+
+            return manifestId;
         }
 
         private async Task<KeyValue> GetManifestSectionAsync()

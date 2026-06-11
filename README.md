@@ -38,7 +38,7 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 **Working ARM64 Android baseline:** the launcher now installs, starts, authenticates with Steam, downloads game files, pulls Steam Cloud saves into Android local app storage, pushes Android saves back to Steam Cloud on the local hardening build, and launches the game with the pulled profile visible in-game.
 
-This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, quieter diagnostics, repeatable release asset hygiene, and full newest-public Pull/confirmed-Push/game-launch smoke.
+This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, Steam beta/version selection validation, quieter diagnostics, repeatable release asset hygiene, and full newest-public Pull/confirmed-Push/game-launch smoke.
 
 - Latest published APK release: `v0.2.185-responsive-ui`
 - Current APK asset: `StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk`
@@ -46,7 +46,11 @@ This is still a polish and hardening phase, not release-candidate signoff. The a
 - Release asset SHA-256: `7f15f28c5f7307a798d29c4ce00930cc45322c68867e0c1171435bbadf62afb0`
 - Latest verified public release: `0.2.185-responsive-ui` / `versionCode=218500`
 - Validated locally/publicly: fresh APK/runtime install, public `v0.2.184 -> v0.2.185` update-compatible release build, responsive launcher login/download-progress/diagnostics/ready-state visual checks on ARM64 hardware, Push-to-Cloud confirmation/cancel safety on the public `v0.2.185` APK, Steam login to Steam Guard on public `v0.2.183`, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
-- Still hardening: Samsung A53/S25+/S24 Ultra reporter retests, repeated public-release Pull/confirmed-Push/game-launch smoke on the newest APK, persisted Steam session/update UX, richer launch progress UI, diagnostics polish, and release-candidate signoff.
+- Still hardening: Samsung A53/S25+/S24 Ultra reporter retests, repeated public-release Pull/confirmed-Push/game-launch smoke on the newest APK, persisted Steam session/update UX, Steam beta/version selection validation, richer launch progress UI, diagnostics polish, and release-candidate signoff.
+- Steam beta/version selection is implemented for validation, with a default/public versus `beta` selector, branch-aware downloads, side-by-side non-public caches, selected-version diagnostics, wrapped selector guidance, native routing/fallback diagnostics, branch-switch marker evidence, and safe branch-switch warnings. Static CI guardrails cover version-selection docs, release blockers, and managed/native selector-guidance parity. It is not release-signed yet: beta password behavior, inaccessible/private branch handling, startup routing, cache cleanup, Push backup evidence, and save compatibility across branches still require ARM64 device validation.
+- Steam version selection user guide: [docs/steam-version-selection-user-guide.md](docs/steam-version-selection-user-guide.md).
+- Branch validation checklist: [docs/steam-version-selection-validation.md](docs/steam-version-selection-validation.md).
+- Branch validation runbook: [docs/steam-version-selection-runbook.md](docs/steam-version-selection-runbook.md).
 - Emulator limitation: Android `x86_64` is fallback/diagnostic coverage only. ARM64 hardware remains the proof target.
 
 See [docs/current-android-status.md](docs/current-android-status.md) for the current evidence and remaining blockers.
@@ -56,9 +60,9 @@ See [docs/current-android-status.md](docs/current-android-status.md) for the cur
 - **Steam authentication**  
   Login via SteamKit2 with Steam Guard 2FA support. ARM64 device validation has progressed through authenticated download, cloud pull, local hardening Push, and game launch; release hardening is still ongoing.
 - **Game file download**  
-  Depot download directly from Steam, with update checking and an ARM64-validated responsive progress screen.
+  Depot download directly from Steam, with update checking, an ARM64-validated responsive progress screen, Steam branch selection for the default/public branch versus a named beta branch, and side-by-side cached installs for non-public branches. Beta branch support is currently a hardening feature: arbitrary branch discovery and Steam beta password entry are not implemented.
 - **Cloud saves**  
-  Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads. Pull from Cloud, Push to Cloud, and Pull-after-Push round trip are validated on ARM64 local hardening builds. Push remains an explicit overwrite-risk action because it can replace Steam Cloud state.
+  Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads. Pull from Cloud, Push to Cloud, and Pull-after-Push round trip are validated on ARM64 local hardening builds. Push remains an explicit overwrite-risk action because it can replace Steam Cloud state, and now requires an `ARE YOU SURE?` arming tap before the final confirmation.
 - **Mobile adaptation**  
   Touch input, short-edge-aware launcher scaling, responsive ready/download/login layouts, and app lifecycle handling via Harmony runtime patches.
 - **LAN multiplayer**  
@@ -245,7 +249,7 @@ Safe public trial checklist:
 4. Download the game through the launcher.
 5. Use Pull from Cloud before Push to Cloud.
 6. Confirm Android local saves/profiles exist before using Push to Cloud.
-7. Treat Push to Cloud as destructive: it makes Steam Cloud reflect Android local saves and can overwrite remote save state.
+7. Treat Push to Cloud as destructive: it makes Steam Cloud reflect Android local saves, can overwrite remote save state, now requires an `ARE YOU SURE?` arming tap, and still requires the final confirmation dialog.
 
 Support boundaries for public testers:
 

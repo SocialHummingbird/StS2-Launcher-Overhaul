@@ -8,8 +8,7 @@ internal sealed partial class LauncherController
 {
     private const string UpdateCheckFailedButtonText = "CHECK FAILED";
     private const string UpToDateButtonText = "UP TO DATE";
-    private const string UpdateGameFilesButtonText = "UPDATE GAME FILES";
-    private const string UpdateAvailableStatus = "Update available!";
+    private const string UpdateGameFilesButtonText = "UPDATE SELECTED VERSION";
 
     private bool _updateCheckRunning;
 
@@ -40,14 +39,17 @@ internal sealed partial class LauncherController
             => hasUpdate
                 ? new(
                     downloadButtonText: UpdateGameFilesButtonText,
-                    status: UpdateAvailableStatus,
+                    status: $"Update available for selected game version ({SelectedGameVersionName()}).",
                     hideActions: true
                 )
-                : new(updateButtonText: UpToDateButtonText);
+                : new(
+                    logMessage: $"Selected game version is up to date ({SelectedGameVersionName()}).",
+                    updateButtonText: UpToDateButtonText
+                );
 
         internal static UpdateCheckViewUpdate Failed(string message)
             => new(
-                logMessage: $"Update check failed: {message}",
+                logMessage: $"Update check failed for selected game version ({SelectedGameVersionName()}): {message}",
                 updateButtonText: UpdateCheckFailedButtonText
             );
 

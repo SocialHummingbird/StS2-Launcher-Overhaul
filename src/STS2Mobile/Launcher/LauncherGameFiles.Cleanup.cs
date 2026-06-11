@@ -18,4 +18,17 @@ internal static partial class LauncherGameFiles
             PatchHelper.Log($"[Launcher] Failed to delete directory {path}: {ex.Message}");
         }
     }
+
+    private static void DeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Failed to delete file {path}: {ex.Message}");
+        }
+    }
 }

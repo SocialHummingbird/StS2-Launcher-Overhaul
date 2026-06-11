@@ -23,7 +23,7 @@ Recommended cadence:
   - User-facing changes
   - Reliability/fix highlights
   - Exact APK asset name, ABI, package name, and SHA-256
-  - Known limitations, especially confirmed Push-to-Cloud overwrite risk, upgrade install behavior, locked-screen interruption, stale-cache freshness, and whether ARM64 release-readiness proof exists
+  - Known limitations, especially confirmed Push-to-Cloud overwrite risk, Steam beta/version selection proof, beta password/private branch behavior, save compatibility across branches, upgrade install behavior, locked-screen interruption, stale-cache freshness, and whether ARM64 release-readiness proof exists
 
 ### Tag workflow
 
@@ -39,6 +39,9 @@ On the same day, publish a GitHub release summary:
 - Exact APK asset name, ABI, package name, and SHA-256
 - Known limitations
 - Full changelog link
+
+For builds that include Steam game version selection before full ARM64 signoff, use `docs/steam-version-selection-release-note-snippet.md` so release notes describe the feature as validation-stage and keep beta/password/save-safety blockers explicit.
+If selector warning text, branch diagnostics, startup routing, cache cleanup, or cloud-save safety changed, include results from `scripts/audit-steam-version-selection.ps1` and `scripts/audit-steam-branch-guidance-parity.ps1` in the release evidence before publishing.
 
 ## Backport Policy from Upstream
 

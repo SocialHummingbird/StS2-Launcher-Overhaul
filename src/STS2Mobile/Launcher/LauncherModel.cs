@@ -23,6 +23,8 @@ internal partial class LauncherModel : IDisposable
     private string _failReason;
     private SessionState _sessionState = SessionState.Disconnected;
 
+    internal string DataDir => _dataDir;
+
     internal LauncherModel(string dataDir)
     {
         _dataDir = dataDir;
