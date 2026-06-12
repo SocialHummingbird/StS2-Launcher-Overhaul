@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace STS2Mobile.Launcher;
 
@@ -16,6 +17,7 @@ internal sealed partial class LauncherView
         Action cloudPushPressed,
         Action cloudPullPressed,
         Action checkForUpdatesPressed,
+        Action refreshGameVersionsPressed,
         Action redownloadPressed,
         Action clearCachedVersionsPressed,
         Action diagnosticsPressed,
@@ -28,6 +30,7 @@ internal sealed partial class LauncherView
         Code.CodeSubmitted += codeSubmitted;
         Download.DownloadRequested += downloadRequested;
         Download.GameBranchChanged += gameBranchChanged;
+        Download.RefreshGameVersionsRequested += refreshGameVersionsPressed;
         Actions.GameBranchChanged += gameBranchChanged;
         Actions.LaunchPressed += launchPressed;
         Actions.RetryPressed += retryPressed;
@@ -36,6 +39,7 @@ internal sealed partial class LauncherView
         Actions.CloudPushPressed += cloudPushPressed;
         Actions.CloudPullPressed += cloudPullPressed;
         Actions.CheckForUpdatesPressed += checkForUpdatesPressed;
+        Actions.RefreshGameVersionsPressed += refreshGameVersionsPressed;
         Actions.RedownloadPressed += redownloadPressed;
         Actions.ClearCachedVersionsPressed += clearCachedVersionsPressed;
         Actions.DiagnosticsPressed += diagnosticsPressed;
@@ -69,6 +73,12 @@ internal sealed partial class LauncherView
     {
         Download.SetGameBranch(branch);
         Actions.SetGameBranch(branch);
+    }
+
+    internal void SetGameBranchOptions(IReadOnlyList<LauncherBranchCatalog.BranchOption> branches)
+    {
+        Download.SetAvailableBranches(branches);
+        Actions.SetAvailableBranches(branches);
     }
 
     internal void ShowDownloadProgress(string text)
@@ -116,6 +126,12 @@ internal sealed partial class LauncherView
         Actions.SetUpdateButtonDisabled(busy);
         if (busy)
             Actions.SetUpdateButtonText("Checking...");
+    }
+
+    internal void SetRefreshGameVersionsBusy(bool busy)
+    {
+        Download.SetRefreshVersionsButtonDisabled(busy);
+        Actions.SetRefreshVersionsButtonDisabled(busy);
     }
 
     internal void SetUpdateButtonText(string text)

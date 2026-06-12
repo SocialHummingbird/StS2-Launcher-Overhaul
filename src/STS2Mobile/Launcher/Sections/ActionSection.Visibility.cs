@@ -81,7 +81,7 @@ internal sealed partial class ActionSection
     {
         ShowUpdateButton(visibility.Update);
         _redownloadButton.Visible = visibility.Redownload;
-        _branchButton.Visible = visibility.Branch;
+        _branchDropdown.Visible = visibility.Branch;
         _branchHelpLabel.Visible = visibility.Branch;
         SetSupportButtonsVisible(visibility.Support);
         _safeLaunchButton.Visible = visibility.SafeLaunch;
@@ -109,6 +109,7 @@ internal sealed partial class ActionSection
             _supportGroup.Visible = _supportExpanded;
         }
         _diagnosticsButton.Visible = visible;
+        _refreshVersionsButton.Visible = visible;
         _clearCachedVersionsButton.Visible = visible;
         _showLastErrorButton.Visible = visible;
         _copyRawLogButton.Visible = visible;

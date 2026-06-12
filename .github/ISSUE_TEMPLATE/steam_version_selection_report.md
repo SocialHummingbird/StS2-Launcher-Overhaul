@@ -38,6 +38,40 @@ If beta was selected:
 - Did Steam report the branch as missing, private, inaccessible, or password-protected?
 - Was a beta password expected for this branch?
 
+Paste branch availability lines from logcat/download failure if available:
+
+```text
+Visible Steam branches:
+Selected branch visibility:
+Windows depot manifests for selected branch:
+visible branches:
+```
+
+Paste branch availability diagnostics if available:
+
+```text
+Steam branch availability marker filename:
+Steam branch availability marker path:
+Steam branch availability marker present:
+Steam branch availability UTC:
+Steam branch availability selected branch:
+Steam branch availability matches current selected branch:
+Steam branch availability selected branch visibility:
+Steam branch availability selected branch Windows depot manifests:
+Steam branch availability selected branch downloadable:
+Steam branch availability selected branch problem:
+Steam branch availability visible branch count:
+Steam branch availability visible branches:
+```
+
+```text
+Selected game branch:
+Selected game branch preference key:
+Selected game branch source:
+Selected game branch selection kind:
+Steam branch selector mode:
+```
+
 ## Download and startup result
 
 - [ ] Download/update check completed
@@ -108,6 +142,8 @@ Branch switch marker UTC:
 Branch switch marker UTC parseable:
 Branch switch previous branch:
 Branch switch selected branch:
+Branch switch selected branch selection kind:
+Branch switch selector mode:
 Branch switch selected version:
 Branch switch selected version slot kind:
 Branch switch selected version slot directory:
@@ -125,6 +161,8 @@ Manual Pull evidence marker present:
 Manual Pull evidence UTC:
 Manual Pull evidence UTC parseable:
 Manual Pull evidence selected branch:
+Manual Pull evidence selected branch selection kind:
+Manual Pull evidence selector mode:
 Manual Pull evidence selected version:
 Manual Pull evidence selected version slot kind:
 Manual Pull evidence selected version slot directory:
@@ -138,6 +176,8 @@ Manual Push evidence marker present:
 Latest manual Push evidence outcome:
 Latest manual Push evidence UTC:
 Latest manual Push evidence selected branch:
+Latest manual Push evidence selected branch selection kind:
+Latest manual Push evidence selector mode:
 Latest manual Push evidence selected version:
 Latest manual Push evidence selected version slot kind:
 Latest manual Push evidence selected version slot directory:
@@ -145,6 +185,8 @@ Latest manual Push evidence reason:
 Manual Push evidence UTC:
 Manual Push evidence UTC parseable:
 Manual Push evidence selected branch:
+Manual Push evidence selected branch selection kind:
+Manual Push evidence selector mode:
 Manual Push evidence selected version:
 Manual Push evidence selected version slot kind:
 Manual Push evidence selected version slot directory:
@@ -163,6 +205,8 @@ Manual Push blocked evidence marker present:
 Manual Push blocked evidence UTC:
 Manual Push blocked evidence UTC parseable:
 Manual Push blocked evidence selected branch:
+Manual Push blocked evidence selected branch selection kind:
+Manual Push blocked evidence selector mode:
 Manual Push blocked evidence selected version:
 Manual Push blocked evidence selected version slot kind:
 Manual Push blocked evidence selected version slot directory:

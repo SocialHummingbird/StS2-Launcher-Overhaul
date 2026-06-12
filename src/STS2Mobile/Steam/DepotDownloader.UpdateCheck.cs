@@ -9,6 +9,15 @@ internal sealed partial class DepotDownloader
     internal Task<bool> CheckForUpdatesAsync(CancellationToken ct = default)
         => RunWithSuspendedIdleTimeoutAsync(() => CheckForUpdatesCoreAsync(ct));
 
+    internal Task RefreshBranchCatalogAsync(CancellationToken ct = default)
+        => RunWithSuspendedIdleTimeoutAsync(async () =>
+        {
+            ct.ThrowIfCancellationRequested();
+            Log("Refreshing Steam branch catalog...");
+            await GetMainAppDepotsAsync().ConfigureAwait(false);
+            Log("Steam branch catalog refreshed.");
+        });
+
     private async Task<bool> CheckForUpdatesCoreAsync(CancellationToken ct)
     {
         var depots = await PrepareAndGetMainAppDepotsAsync(requireAny: false);

@@ -50,7 +50,8 @@ internal sealed partial class LauncherController
         internal static UpdateCheckViewUpdate Failed(string message)
             => new(
                 logMessage: $"Update check failed for selected game version ({SelectedGameVersionName()}): {message}",
-                updateButtonText: UpdateCheckFailedButtonText
+                updateButtonText: UpdateCheckFailedButtonText,
+                status: $"Update check failed for selected game version ({SelectedGameVersionName()}): {message}"
             );
 
         internal void Apply(LauncherView view)
@@ -111,8 +112,16 @@ internal sealed partial class LauncherController
         => _view.SetUpdateCheckBusy(busy);
 
     private void CompleteUpdateCheck(bool hasUpdate)
-        => UpdateCheckViewUpdate.Completed(hasUpdate).Apply(_view);
+    {
+        RefreshGameBranchOptions();
+        UpdateCheckViewUpdate.Completed(hasUpdate).Apply(_view);
+    }
 
     private void FailUpdateCheck(string message)
-        => UpdateCheckViewUpdate.Failed(message).Apply(_view);
+    {
+        RefreshGameBranchOptions();
+        UpdateCheckViewUpdate.Failed(
+            LauncherBranchAvailabilityStatus.CompactFailureMessage(_model.DataDir, message)
+        ).Apply(_view);
+    }
 }

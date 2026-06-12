@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 namespace STS2Mobile.Steam;
@@ -8,8 +9,8 @@ internal static class SteamGameBranch
     internal const string Public = "public";
     internal const string Beta = "beta";
     internal const bool BetaPasswordEntrySupported = false;
-    internal const bool BranchDiscoverySupported = false;
-    internal const string SelectorMode = "public/beta toggle";
+    internal const bool BranchDiscoverySupported = true;
+    internal const string SelectorMode = "Steam branch dropdown";
 
     internal static string Normalize(string branch)
     {
@@ -32,12 +33,49 @@ internal static class SteamGameBranch
             : branch;
     }
 
+    internal static string SelectionKind(string branch)
+        => string.Equals(Normalize(branch), Public, StringComparison.OrdinalIgnoreCase)
+            ? "dropdown default/public branch"
+            : "dropdown non-public branch";
+
+    internal static IReadOnlyList<string> DropdownBranches(string selectedBranch)
+        => DropdownBranches(selectedBranch, Array.Empty<string>());
+
+    internal static IReadOnlyList<string> DropdownBranches(string selectedBranch, IEnumerable<string> discoveredBranches)
+    {
+        selectedBranch = Normalize(selectedBranch);
+        var branches = new List<string> { Public };
+
+        foreach (var discoveredBranch in discoveredBranches ?? Array.Empty<string>())
+        {
+            var branch = Normalize(discoveredBranch);
+            if (!branches.Exists(candidate => string.Equals(candidate, branch, StringComparison.OrdinalIgnoreCase)))
+                branches.Add(branch);
+        }
+
+        if (!branches.Exists(branch => string.Equals(branch, Beta, StringComparison.OrdinalIgnoreCase)))
+            branches.Add(Beta);
+
+        if (!branches.Exists(branch => string.Equals(branch, selectedBranch, StringComparison.OrdinalIgnoreCase)))
+            branches.Add(selectedBranch);
+
+        return branches;
+    }
+
+    internal static string DropdownLabel(string branch)
+    {
+        branch = Normalize(branch);
+        return string.Equals(branch, Public, StringComparison.OrdinalIgnoreCase)
+            ? "Default / public"
+            : $"{DisplayName(branch)}";
+    }
+
     internal static string SelectorHelpText(string branch)
     {
         branch = Normalize(branch);
         return string.Equals(branch, Public, StringComparison.OrdinalIgnoreCase)
-            ? "Default/public Steam branch. Beta toggle is fixed; branch discovery is not supported."
-            : "Beta branch selected. Private/password-protected beta branches are not supported; inaccessible beta branches fail during download/update checks without changing Steam Cloud saves. Save compatibility is unproven.";
+            ? "Default/public Steam branch. Choose a game version from the dropdown. Account-visible branch options refresh after Steam app-info is available; beta password entry is still being hardened."
+            : $"Steam branch '{branch}' selected from the game version dropdown. Private/password-protected branches may be inaccessible because beta password entry is not supported. Failed downloads do not change Steam Cloud saves. Save compatibility is unproven.";
     }
 
     internal static string SelectorInstallSlotHelpText(string branch)

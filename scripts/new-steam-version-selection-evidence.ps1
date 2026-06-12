@@ -66,6 +66,7 @@ Use this folder for one validation run. Do not place Steam credentials or person
 - ``branch-markers/``: copied ``last_game_branch_switch.txt`` evidence when branch-switch validation runs.
 - ``branch-markers/``: copied ``last_manual_cloud_pull.txt`` evidence when Pull-after-switch validation runs.
 - ``branch-markers/``: copied ``last_manual_cloud_push.txt`` evidence when Push-after-switch validation runs.
+- Manual Push evidence marker filename: ``last_manual_cloud_push.txt``.
 - ``branch-markers/``: copied ``last_manual_cloud_push_blocked.txt`` evidence when Push is blocked before upload.
 - ``branch-markers/``: copied ``last_game_version_cache_cleanup.txt`` evidence when cache cleanup validation runs.
 - ``branch-markers/``: copied ``last_game_version_redownload.txt`` evidence when selected-version redownload validation runs.

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using STS2Mobile.Steam;
 
@@ -17,6 +18,7 @@ internal sealed partial class ActionSection : VBoxContainer
     internal event Action CloudPushPressed;
     internal event Action CloudPullPressed;
     internal event Action CheckForUpdatesPressed;
+    internal event Action RefreshGameVersionsPressed;
     internal event Action RedownloadPressed;
     internal event Action ClearCachedVersionsPressed;
     internal event Action DiagnosticsPressed;
@@ -27,7 +29,7 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _launchButton;
     private readonly Button _safeLaunchButton;
     private readonly Button _retryButton;
-    private readonly Button _branchButton;
+    private readonly OptionButton _branchDropdown;
     private readonly Label _branchHelpLabel;
     private readonly Button _localBackupToggle;
     private readonly Button _cloudSyncToggle;
@@ -35,6 +37,7 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _confirmPushButton;
     private readonly Button _pullButton;
     private readonly Button _updateButton;
+    private readonly Button _refreshVersionsButton;
     private readonly Button _redownloadButton;
     private readonly Button _clearCachedVersionsButton;
     private readonly Button _diagnosticsButton;
@@ -46,6 +49,8 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _supportToggle;
     private readonly StyleBoxFlat _toggleOffStyle;
     private readonly StyleBoxFlat _toggleOnStyle;
+    private readonly List<LauncherBranchCatalog.BranchOption> _branchOptions = new();
+    private IReadOnlyList<LauncherBranchCatalog.BranchOption> _availableBranches = Array.Empty<LauncherBranchCatalog.BranchOption>();
     private bool _supportExpanded;
     private string _gameBranch = SteamGameBranch.Public;
 
@@ -58,8 +63,16 @@ internal sealed partial class ActionSection : VBoxContainer
     internal void SetGameBranch(string branch)
     {
         _gameBranch = SteamGameBranch.Normalize(branch);
-        _branchButton.Text = $"GAME VERSION: {SteamGameBranch.DisplayName(_gameBranch)}";
-        _branchHelpLabel.Text = SteamGameBranch.SelectorInstallSlotHelpText(_gameBranch);
+        PopulateBranchDropdown();
+        _branchHelpLabel.Text = SteamGameBranch.SelectorInstallSlotHelpText(_gameBranch)
+            + "\n"
+            + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches);
+    }
+
+    internal void SetAvailableBranches(IReadOnlyList<LauncherBranchCatalog.BranchOption> branches)
+    {
+        _availableBranches = branches ?? Array.Empty<LauncherBranchCatalog.BranchOption>();
+        PopulateBranchDropdown();
     }
 
     internal void ShowLaunch(string text, bool showUpdate)
@@ -99,4 +112,6 @@ internal sealed partial class ActionSection : VBoxContainer
     internal void SetUpdateButtonText(string text) => _updateButton.Text = text;
 
     internal void SetUpdateButtonDisabled(bool disabled) => _updateButton.Disabled = disabled;
+
+    internal void SetRefreshVersionsButtonDisabled(bool disabled) => _refreshVersionsButton.Disabled = disabled;
 }

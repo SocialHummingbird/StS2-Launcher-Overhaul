@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using STS2Mobile.Launcher;
 using STS2Mobile.Launcher.Components;
@@ -12,26 +13,39 @@ internal sealed class DownloadSection : VBoxContainer
 
     internal event Action DownloadRequested;
     internal event Action<string> GameBranchChanged;
+    internal event Action RefreshGameVersionsRequested;
 
-    private readonly Button _branchButton;
+    private readonly OptionButton _branchDropdown;
+    private readonly Button _refreshBranchesButton;
     private readonly Label _branchHelpLabel;
     private readonly Button _downloadButton;
     private readonly ProgressBar _progressBar;
     private readonly Label _progressLabel;
+    private readonly List<LauncherBranchCatalog.BranchOption> _branchOptions = new();
+    private IReadOnlyList<LauncherBranchCatalog.BranchOption> _availableBranches = Array.Empty<LauncherBranchCatalog.BranchOption>();
     private string _gameBranch = SteamGameBranch.Public;
 
     internal DownloadSection(float scale)
     {
         LauncherSectionSetup.ConfigureHiddenSection(this, scale);
 
-        _branchButton = new StyledButton(
-            "",
+        _branchDropdown = new OptionButton();
+        _branchDropdown.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _branchDropdown.CustomMinimumSize = new Vector2(
+            0,
+            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.SecondaryButtonHeight, scale)
+        );
+        _branchDropdown.ItemSelected += ApplyGameBranch;
+        AddChild(_branchDropdown);
+
+        _refreshBranchesButton = new StyledButton(
+            "REFRESH GAME VERSIONS",
             scale,
             fontSize: LauncherSectionMetrics.SecondaryButtonFontSize,
             height: LauncherSectionMetrics.SecondaryButtonHeight
         );
-        _branchButton.Pressed += ToggleGameBranch;
-        AddChild(_branchButton);
+        _refreshBranchesButton.Pressed += () => RefreshGameVersionsRequested?.Invoke();
+        AddChild(_refreshBranchesButton);
 
         _branchHelpLabel = new StyledLabel(
             "",
@@ -92,17 +106,29 @@ internal sealed class DownloadSection : VBoxContainer
 
     internal void SetButtonDisabled(bool disabled) => _downloadButton.Disabled = disabled;
 
+    internal void SetRefreshVersionsButtonDisabled(bool disabled)
+        => _refreshBranchesButton.Disabled = disabled;
+
     internal void SetGameBranch(string branch)
     {
         _gameBranch = SteamGameBranch.Normalize(branch);
-        _branchButton.Text = $"GAME VERSION: {SteamGameBranch.DisplayName(_gameBranch)}";
-        _branchHelpLabel.Text = SteamGameBranch.SelectorInstallSlotHelpText(_gameBranch);
+        PopulateBranchDropdown();
+        _branchHelpLabel.Text = SteamGameBranch.SelectorInstallSlotHelpText(_gameBranch)
+            + "\n"
+            + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches);
+    }
+
+    internal void SetAvailableBranches(IReadOnlyList<LauncherBranchCatalog.BranchOption> branches)
+    {
+        _availableBranches = branches ?? Array.Empty<LauncherBranchCatalog.BranchOption>();
+        PopulateBranchDropdown();
     }
 
     internal void Reset(string buttonText = DefaultDownloadButtonText)
     {
         _downloadButton.Disabled = false;
-        _branchButton.Disabled = false;
+        _branchDropdown.Disabled = false;
+        _refreshBranchesButton.Disabled = false;
         _downloadButton.Text = buttonText;
         HideProgress();
         _progressBar.Value = 0;
@@ -114,12 +140,36 @@ internal sealed class DownloadSection : VBoxContainer
         _progressBar.Value = pct;
         _progressLabel.Visible = true;
         _progressLabel.Text = text;
-        _branchButton.Disabled = true;
+        _branchDropdown.Disabled = true;
+        _refreshBranchesButton.Disabled = true;
     }
 
-    private void ToggleGameBranch()
+    private void ApplyGameBranch(long index)
     {
-        SetGameBranch(SteamGameBranch.ToggleKnownBranch(_gameBranch));
+        if (index < 0 || index >= _branchOptions.Count)
+            return;
+
+        var branch = _branchOptions[(int)index].Branch;
+        SetGameBranch(branch);
         GameBranchChanged?.Invoke(_gameBranch);
+    }
+
+    private void PopulateBranchDropdown()
+    {
+        _branchOptions.Clear();
+        _branchDropdown.Clear();
+
+        var selectedIndex = 0;
+        foreach (var option in LauncherBranchCatalog.DropdownOptions(_gameBranch, _availableBranches))
+        {
+            var index = _branchOptions.Count;
+            _branchOptions.Add(option);
+            _branchDropdown.AddItem(option.Label);
+
+            if (string.Equals(option.Branch, _gameBranch, StringComparison.OrdinalIgnoreCase))
+                selectedIndex = index;
+        }
+
+        _branchDropdown.Select(selectedIndex);
     }
 }

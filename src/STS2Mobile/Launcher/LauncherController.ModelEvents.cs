@@ -21,6 +21,8 @@ internal sealed partial class LauncherController
         _model.DownloadCancelled += OnMainThread(CancelDownload);
         _model.UpdateCheckCompleted += OnMainThread<bool>(CompleteUpdateCheck);
         _model.UpdateCheckFailed += OnMainThread<string>(FailUpdateCheck);
+        _model.BranchCatalogRefreshCompleted += OnMainThread(CompleteBranchCatalogRefresh);
+        _model.BranchCatalogRefreshFailed += OnMainThread<string>(FailBranchCatalogRefresh);
     }
 
     private Action OnMainThread(Action action)

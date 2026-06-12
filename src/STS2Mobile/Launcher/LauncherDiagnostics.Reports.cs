@@ -56,11 +56,24 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Cloud sync pref: {preferences.CloudSyncEnabled}");
         sb.AppendLine($"Local backup pref: {preferences.LocalBackupEnabled}");
         sb.AppendLine($"Selected game branch: {branch}");
+        sb.AppendLine($"Selected game branch preference key: game_branch");
+        sb.AppendLine($"Selected game branch source: {(LauncherPreferences.GameBranchPreferenceExists() ? "saved preference" : "default fallback")}");
+        sb.AppendLine($"Selected game branch selection kind: {SteamGameBranch.SelectionKind(branch)}");
         sb.AppendLine($"Selected game version name: {SteamGameBranch.DisplayName(branch)}");
         sb.AppendLine($"Selected game version note: {SteamGameBranch.SelectorHelpText(branch)}");
         sb.AppendLine($"Steam branch selector mode: {SteamGameBranch.SelectorMode}");
         sb.AppendLine($"Steam branch discovery supported: {BoolText(SteamGameBranch.BranchDiscoverySupported)}");
+        var discoveredBranches = LauncherBranchCatalog.ReadVisibleBranches(dataDir);
+        sb.AppendLine($"Steam branch catalog source: {LauncherBranchCatalog.SourceDescription(dataDir)}");
+        sb.AppendLine($"Steam branch dropdown options: {LauncherBranchCatalog.DropdownOptionLabels(branch, discoveredBranches)}");
+        sb.AppendLine($"Steam branch dropdown option metadata: {LauncherBranchCatalog.DropdownOptionMetadata(branch, discoveredBranches)}");
         sb.AppendLine($"Steam beta password entry supported: {BoolText(SteamGameBranch.BetaPasswordEntrySupported)}");
+        sb.AppendLine($"Android credential Autofill provider model: {LauncherAutofillSupport.ProviderModel}");
+        sb.AppendLine($"Godot login field Autofill hints configured: {BoolText(LauncherAutofillSupport.GodotFieldAutofillHintsConfigured)}");
+        sb.AppendLine($"Native Android Autofill overlay supported: {BoolText(LauncherAutofillSupport.NativeAndroidAutofillOverlaySupported)}");
+        sb.AppendLine($"Launcher stores Steam password for Autofill: {BoolText(LauncherAutofillSupport.AppStoresSteamPassword)}");
+        sb.AppendLine($"Native Android Autofill result TTL seconds: {LauncherAutofillSupport.NativeDialogResultTtlSeconds}");
+        sb.AppendLine($"Android credential Autofill implementation note: {LauncherAutofillSupport.CurrentImplementation}");
         sb.AppendLine($"Selected game branch storage directory: {SteamGameBranch.StateDirectoryName(branch)}");
         sb.AppendLine($"Selected game version slot kind: {SteamGameInstallPaths.VersionSlotKind(branch)}");
         sb.AppendLine($"Selected game version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch)}");
@@ -69,6 +82,7 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Selected game files ready: {BoolText(LauncherGameFiles.Ready(dataDir, branch))}");
         sb.AppendLine($"Selected game readiness problem: {ValueOrMissing(LauncherGameFiles.ReadinessProblem(dataDir, branch))}");
         sb.AppendLine($"Selected download state: {SteamGameInstallPaths.DownloadStateDirectoryPath(dataDir, branch)}");
+        AppendBranchAvailability(sb, dataDir);
         var branchMarkerPath = SteamGameInstallPaths.BranchMarkerPath(dataDir, branch);
         sb.AppendLine($"Selected game branch marker: {branchMarkerPath}");
         sb.AppendLine($"Selected game branch marker present: {BoolText(File.Exists(branchMarkerPath))}");
@@ -87,6 +101,90 @@ internal static partial class LauncherDiagnostics
 
     private static string ReadBranchMarkerBranch(string markerPath)
         => ReadBranchMarkerValue(markerPath, "Branch:");
+
+    private static void AppendBranchAvailability(StringBuilder sb, string dataDir)
+    {
+        var markerPath = SteamGameInstallPaths.BranchAvailabilityMarkerPath(dataDir);
+        sb.AppendLine($"Steam branch availability marker filename: {SteamGameInstallPaths.BranchAvailabilityMarkerFileName}");
+        sb.AppendLine($"Steam branch availability marker path: {markerPath}");
+        sb.AppendLine($"Steam branch availability marker present: {BoolText(File.Exists(markerPath))}");
+        sb.AppendLine($"Steam branch availability UTC: {ReadBranchAvailabilityMarkerValue(dataDir, "UTC:")}");
+        sb.AppendLine($"Steam branch availability selected branch: {ReadBranchAvailabilityMarkerValue(dataDir, "Selected branch:")}");
+        sb.AppendLine($"Steam branch availability matches current selected branch: {BoolText(BranchAvailabilityMarkerMatchesSelectedBranch(dataDir))}");
+        sb.AppendLine($"Steam branch availability selected branch visibility: {ReadBranchAvailabilityMarkerValue(dataDir, "Selected branch visibility:")}");
+        sb.AppendLine($"Steam branch availability selected branch Windows depot manifests: {ReadBranchAvailabilityMarkerValue(dataDir, "Windows depot manifests for selected branch:")}");
+        sb.AppendLine($"Steam branch availability selected branch downloadable: {BranchAvailabilitySelectedBranchDownloadable(dataDir)}");
+        sb.AppendLine($"Steam branch availability selected branch problem: {BranchAvailabilitySelectedBranchProblem(dataDir)}");
+        sb.AppendLine($"Steam branch availability visible branch count: {ReadBranchAvailabilityMarkerValue(dataDir, "Visible branch count:")}");
+        sb.AppendLine($"Steam branch availability visible branches: {ReadBranchAvailabilityMarkerValues(dataDir, "Visible branch:")}");
+    }
+
+    private static string ReadBranchAvailabilityMarkerValue(string dataDir, string prefix)
+        => ReadBranchMarkerValue(SteamGameInstallPaths.BranchAvailabilityMarkerPath(dataDir), prefix);
+
+    private static bool BranchAvailabilityMarkerMatchesSelectedBranch(string dataDir)
+    {
+        var markerBranch = ReadBranchAvailabilityMarkerValue(dataDir, "Selected branch:");
+        if (markerBranch.StartsWith("<", System.StringComparison.Ordinal))
+            return false;
+
+        return string.Equals(
+            SteamGameBranch.Normalize(markerBranch),
+            SteamGameBranch.Normalize(LauncherPreferences.ReadGameBranch()),
+            System.StringComparison.OrdinalIgnoreCase
+        );
+    }
+
+    private static string ReadBranchAvailabilityMarkerValues(string dataDir, string prefix)
+    {
+        var markerPath = SteamGameInstallPaths.BranchAvailabilityMarkerPath(dataDir);
+        if (!File.Exists(markerPath))
+            return MissingDiagnosticValue;
+
+        try
+        {
+            var values = new System.Collections.Generic.List<string>();
+            foreach (var line in File.ReadLines(markerPath))
+            {
+                if (line.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
+                    values.Add(ValueOrMissing(line.Substring(prefix.Length).Trim()));
+            }
+
+            return values.Count == 0 ? $"<missing {prefix.TrimEnd(':')} lines>" : string.Join(" | ", values);
+        }
+        catch
+        {
+            return "<read failed>";
+        }
+    }
+
+    private static string BranchAvailabilitySelectedBranchDownloadable(string dataDir)
+        => BranchAvailabilitySelectedBranchManifestCount(dataDir) > 0 ? "true" : "false";
+
+    private static string BranchAvailabilitySelectedBranchProblem(string dataDir)
+    {
+        var manifestCount = BranchAvailabilitySelectedBranchManifestCount(dataDir);
+        if (manifestCount > 0)
+            return "downloadable";
+
+        var visibility = ReadBranchAvailabilityMarkerValue(dataDir, "Selected branch visibility:");
+        if (visibility.StartsWith("<", System.StringComparison.Ordinal))
+            return visibility;
+
+        return visibility.Contains("not listed", System.StringComparison.OrdinalIgnoreCase)
+            ? "selected branch was not listed in Steam branch metadata and has no Windows depot manifest"
+            : "selected branch was listed but has no Windows depot manifest";
+    }
+
+    private static int BranchAvailabilitySelectedBranchManifestCount(string dataDir)
+        => int.TryParse(
+            ReadBranchAvailabilityMarkerValue(dataDir, "Windows depot manifests for selected branch:"),
+            System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var count
+        )
+            ? count
+            : 0;
 
     private static string ReadBranchMarkerValue(string markerPath, string prefix)
     {
@@ -175,6 +273,8 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Branch switch marker UTC parseable: {BoolText(LauncherBranchSwitchSafety.MarkerUtcParseable(dataDir))}");
         sb.AppendLine($"Branch switch previous branch: {LauncherBranchSwitchSafety.PreviousBranch(dataDir)}");
         sb.AppendLine($"Branch switch selected branch: {LauncherBranchSwitchSafety.SelectedBranch(dataDir)}");
+        sb.AppendLine($"Branch switch selected branch selection kind: {LauncherBranchSwitchSafety.SelectedBranchSelectionKind(dataDir)}");
+        sb.AppendLine($"Branch switch selector mode: {LauncherBranchSwitchSafety.SelectorMode(dataDir)}");
         sb.AppendLine($"Branch switch selected version: {LauncherBranchSwitchSafety.SelectedVersion(dataDir)}");
         sb.AppendLine($"Branch switch selected version slot kind: {LauncherBranchSwitchSafety.SelectedVersionSlotKind(dataDir)}");
         sb.AppendLine($"Branch switch selected version slot directory: {LauncherBranchSwitchSafety.SelectedVersionSlotDirectory(dataDir)}");
@@ -193,6 +293,8 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Manual Pull evidence UTC: {LauncherCloudSyncEvidence.LastManualPullUtc(dataDir)}");
         sb.AppendLine($"Manual Pull evidence UTC parseable: {BoolText(LauncherCloudSyncEvidence.LastManualPullUtcParseable(dataDir))}");
         sb.AppendLine($"Manual Pull evidence selected branch: {LauncherCloudSyncEvidence.LastManualPullSelectedBranch(dataDir)}");
+        sb.AppendLine($"Manual Pull evidence selected branch selection kind: {LauncherCloudSyncEvidence.LastManualPullSelectedBranchSelectionKind(dataDir)}");
+        sb.AppendLine($"Manual Pull evidence selector mode: {LauncherCloudSyncEvidence.LastManualPullSelectorMode(dataDir)}");
         sb.AppendLine($"Manual Pull evidence selected version: {LauncherCloudSyncEvidence.LastManualPullSelectedVersion(dataDir)}");
         sb.AppendLine($"Manual Pull evidence selected version slot kind: {LauncherCloudSyncEvidence.LastManualPullSelectedVersionSlotKind(dataDir)}");
         sb.AppendLine($"Manual Pull evidence selected version slot directory: {LauncherCloudSyncEvidence.LastManualPullSelectedVersionSlotDirectory(dataDir)}");
@@ -206,6 +308,8 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Latest manual Push evidence outcome: {LauncherCloudSyncEvidence.LatestManualPushEvidenceOutcome(dataDir)}");
         sb.AppendLine($"Latest manual Push evidence UTC: {LauncherCloudSyncEvidence.LatestManualPushEvidenceUtc(dataDir)}");
         sb.AppendLine($"Latest manual Push evidence selected branch: {LauncherCloudSyncEvidence.LatestManualPushEvidenceSelectedBranch(dataDir)}");
+        sb.AppendLine($"Latest manual Push evidence selected branch selection kind: {LauncherCloudSyncEvidence.LatestManualPushEvidenceSelectedBranchSelectionKind(dataDir)}");
+        sb.AppendLine($"Latest manual Push evidence selector mode: {LauncherCloudSyncEvidence.LatestManualPushEvidenceSelectorMode(dataDir)}");
         sb.AppendLine($"Latest manual Push evidence selected version: {LauncherCloudSyncEvidence.LatestManualPushEvidenceSelectedVersion(dataDir)}");
         sb.AppendLine($"Latest manual Push evidence selected version slot kind: {LauncherCloudSyncEvidence.LatestManualPushEvidenceSelectedVersionSlotKind(dataDir)}");
         sb.AppendLine($"Latest manual Push evidence selected version slot directory: {LauncherCloudSyncEvidence.LatestManualPushEvidenceSelectedVersionSlotDirectory(dataDir)}");
@@ -213,6 +317,8 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Manual Push evidence UTC: {LauncherCloudSyncEvidence.LastManualPushUtc(dataDir)}");
         sb.AppendLine($"Manual Push evidence UTC parseable: {BoolText(LauncherCloudSyncEvidence.LastManualPushUtcParseable(dataDir))}");
         sb.AppendLine($"Manual Push evidence selected branch: {LauncherCloudSyncEvidence.LastManualPushSelectedBranch(dataDir)}");
+        sb.AppendLine($"Manual Push evidence selected branch selection kind: {LauncherCloudSyncEvidence.LastManualPushSelectedBranchSelectionKind(dataDir)}");
+        sb.AppendLine($"Manual Push evidence selector mode: {LauncherCloudSyncEvidence.LastManualPushSelectorMode(dataDir)}");
         sb.AppendLine($"Manual Push evidence selected version: {LauncherCloudSyncEvidence.LastManualPushSelectedVersion(dataDir)}");
         sb.AppendLine($"Manual Push evidence selected version slot kind: {LauncherCloudSyncEvidence.LastManualPushSelectedVersionSlotKind(dataDir)}");
         sb.AppendLine($"Manual Push evidence selected version slot directory: {LauncherCloudSyncEvidence.LastManualPushSelectedVersionSlotDirectory(dataDir)}");
@@ -231,6 +337,8 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Manual Push blocked evidence UTC: {LauncherCloudSyncEvidence.LastManualPushBlockedUtc(dataDir)}");
         sb.AppendLine($"Manual Push blocked evidence UTC parseable: {BoolText(LauncherCloudSyncEvidence.LastManualPushBlockedUtcParseable(dataDir))}");
         sb.AppendLine($"Manual Push blocked evidence selected branch: {LauncherCloudSyncEvidence.LastManualPushBlockedSelectedBranch(dataDir)}");
+        sb.AppendLine($"Manual Push blocked evidence selected branch selection kind: {LauncherCloudSyncEvidence.LastManualPushBlockedSelectedBranchSelectionKind(dataDir)}");
+        sb.AppendLine($"Manual Push blocked evidence selector mode: {LauncherCloudSyncEvidence.LastManualPushBlockedSelectorMode(dataDir)}");
         sb.AppendLine($"Manual Push blocked evidence selected version: {LauncherCloudSyncEvidence.LastManualPushBlockedSelectedVersion(dataDir)}");
         sb.AppendLine($"Manual Push blocked evidence selected version slot kind: {LauncherCloudSyncEvidence.LastManualPushBlockedSelectedVersionSlotKind(dataDir)}");
         sb.AppendLine($"Manual Push blocked evidence selected version slot directory: {LauncherCloudSyncEvidence.LastManualPushBlockedSelectedVersionSlotDirectory(dataDir)}");

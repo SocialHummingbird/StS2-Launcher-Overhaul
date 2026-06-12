@@ -52,12 +52,15 @@ internal sealed partial class ActionSection
         );
         LauncherButtonStyles.ApplySafeAction(_safeLaunchButton, scale);
 
-        _branchButton = AddSecondaryHiddenButton(
-            this,
-            "",
-            scale,
-            ToggleGameBranch
+        _branchDropdown = new OptionButton();
+        _branchDropdown.Visible = false;
+        _branchDropdown.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _branchDropdown.CustomMinimumSize = new Vector2(
+            0,
+            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.SecondaryButtonHeight, scale)
         );
+        _branchDropdown.ItemSelected += ApplyGameBranch;
+        AddChild(_branchDropdown);
 
         _branchHelpLabel = new StyledLabel(
             "",
@@ -135,6 +138,12 @@ internal sealed partial class ActionSection
             () => CheckForUpdatesPressed?.Invoke()
         );
         LauncherButtonStyles.ApplySupportAction(_updateButton, scale);
+        _refreshVersionsButton = AddSecondaryHiddenButton(
+            _supportGroup,
+            "REFRESH GAME VERSIONS",
+            scale,
+            () => RefreshGameVersionsPressed?.Invoke()
+        );
         _redownloadButton = AddSecondaryHiddenButton(
             _supportGroup,
             "REDOWNLOAD SELECTED VERSION",
@@ -203,9 +212,32 @@ internal sealed partial class ActionSection
         _confirmPushButton.Visible = false;
     }
 
-    private void ToggleGameBranch()
+    private void ApplyGameBranch(long index)
     {
-        SetGameBranch(SteamGameBranch.ToggleKnownBranch(_gameBranch));
+        if (index < 0 || index >= _branchOptions.Count)
+            return;
+
+        var branch = _branchOptions[(int)index].Branch;
+        SetGameBranch(branch);
         GameBranchChanged?.Invoke(_gameBranch);
+    }
+
+    private void PopulateBranchDropdown()
+    {
+        _branchOptions.Clear();
+        _branchDropdown.Clear();
+
+        var selectedIndex = 0;
+        foreach (var option in LauncherBranchCatalog.DropdownOptions(_gameBranch, _availableBranches))
+        {
+            var index = _branchOptions.Count;
+            _branchOptions.Add(option);
+            _branchDropdown.AddItem(option.Label);
+
+            if (string.Equals(option.Branch, _gameBranch, StringComparison.OrdinalIgnoreCase))
+                selectedIndex = index;
+        }
+
+        _branchDropdown.Select(selectedIndex);
     }
 }

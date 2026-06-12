@@ -11,11 +11,12 @@ final class SteamBranchInfo {
 	}
 
 	static String selectorHelpText(String branch) {
-		if (PUBLIC_BRANCH.equalsIgnoreCase(normalize(branch))) {
-			return "Default/public Steam branch. Beta toggle is fixed; branch discovery is not supported.";
+		String normalized = normalize(branch);
+		if (PUBLIC_BRANCH.equalsIgnoreCase(normalized)) {
+			return "Default/public Steam branch. Choose a game version from the dropdown. Account-visible branch options refresh after Steam app-info is available; beta password entry is still being hardened.";
 		}
 
-		return "Beta branch selected. Private/password-protected beta branches are not supported; inaccessible beta branches fail during download/update checks without changing Steam Cloud saves. Save compatibility is unproven.";
+		return "Steam branch '" + normalized + "' selected from the game version dropdown. Private/password-protected branches may be inaccessible because beta password entry is not supported. Failed downloads do not change Steam Cloud saves. Save compatibility is unproven.";
 	}
 
 	static String installSlotKind(String branch) {

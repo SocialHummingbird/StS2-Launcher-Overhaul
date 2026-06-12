@@ -13,10 +13,10 @@ This note documents the intended architecture for Steam game version selection i
 
 ## Branch model
 
-The launcher currently supports a fixed selector mode:
+The launcher currently supports this selector mode:
 
 ```text
-public/beta toggle
+Steam branch dropdown
 ```
 
 Supported branch IDs:
@@ -24,16 +24,25 @@ Supported branch IDs:
 - `public`
 - `beta`
 
+Supported selector capabilities:
+
+- Dropdown-first game version selection.
+- Dropdown options refresh from captured Steam app-info visible branch evidence after download/update app-info has been captured.
+- Dropdown labels stay concise so the selector remains usable on phone screens.
+- Selected-version helper text surfaces availability metadata from Steam app-info when available, including downloadability, password flag, build ID, and description.
+- The launcher exposes a non-mutating `REFRESH GAME VERSIONS` action that fetches Steam app-info branch metadata and updates the dropdown without downloading or deleting game files.
+- `public` remains available even when Steam app-info branch evidence is absent.
+- Previously saved custom branch values remain selectable so older validation installs do not lose their selected branch.
+
 Unsupported capabilities:
 
-- Arbitrary Steam branch discovery.
 - Steam beta password entry.
 
 Diagnostics and user-facing docs must continue to expose these limitations while they remain true.
 
 Managed launcher guidance comes from `SteamGameBranch.SelectorHelpText`, with launcher UI using `SteamGameBranch.SelectorInstallSlotHelpText` so the active install slot is visible beside the branch limitation wording. Native Android routing/fallback guidance comes from `SteamBranchInfo.selectorHelpText`; keep the limitation strings semantically aligned until the native layer can consume the managed source directly. Managed and native branch cache paths must also stay aligned: `SteamGameBranch.StateDirectoryName`, managed startup routing, and `SteamBranchInfo.stateDirectoryName` must preserve `public`/`beta` paths and use the same collision-resistant hash rule for future arbitrary branch IDs.
 
-Launcher selector guidance should be shown as wrapped, non-interactive helper text under the game-version button so it remains readable on short/wide Android screens without intercepting taps.
+Launcher selector guidance should be shown as wrapped, non-interactive helper text under the game-version dropdown so it remains readable on short/wide Android screens without intercepting taps. The normal user path must stay dropdown-first; free-form branch entry is not acceptable as the release UX because Steam exposes branch selection as a list.
 
 ## Storage model
 

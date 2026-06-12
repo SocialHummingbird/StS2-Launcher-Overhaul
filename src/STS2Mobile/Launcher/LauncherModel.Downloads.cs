@@ -39,6 +39,12 @@ internal partial class LauncherModel
                 model.CheckForUpdatesWithConnectionAsync
             );
 
+        internal static DepotConnectionAction BranchCatalogRefresh(LauncherModel model)
+            => new(
+                model.RaiseBranchCatalogRefreshFailed,
+                model.RefreshBranchCatalogWithConnectionAsync
+            );
+
         internal async Task RunAsync(SteamConnection connection)
             => await Run(connection).ConfigureAwait(false);
 
@@ -81,6 +87,8 @@ internal partial class LauncherModel
     internal event Action DownloadCancelled;
     internal event Action<bool> UpdateCheckCompleted;
     internal event Action<string> UpdateCheckFailed;
+    internal event Action BranchCatalogRefreshCompleted;
+    internal event Action<string> BranchCatalogRefreshFailed;
 
     internal async Task StartDownloadAsync()
     {
@@ -108,6 +116,11 @@ internal partial class LauncherModel
             DepotConnectionAction.UpdateCheck(this)
         );
 
+    internal Task RefreshBranchCatalogAsync()
+        => RunWithDepotConnectionAsync(
+            DepotConnectionAction.BranchCatalogRefresh(this)
+        );
+
     private async Task CheckForUpdatesWithConnectionAsync(SteamConnection connection)
     {
         try
@@ -119,6 +132,20 @@ internal partial class LauncherModel
         catch (Exception ex)
         {
             RaiseUpdateCheckFailed(ex.Message);
+        }
+    }
+
+    private async Task RefreshBranchCatalogWithConnectionAsync(SteamConnection connection)
+    {
+        try
+        {
+            using var downloader = CreateDownloader(connection);
+            await downloader.RefreshBranchCatalogAsync().ConfigureAwait(false);
+            RaiseBranchCatalogRefreshCompleted();
+        }
+        catch (Exception ex)
+        {
+            RaiseBranchCatalogRefreshFailed(ex.Message);
         }
     }
 

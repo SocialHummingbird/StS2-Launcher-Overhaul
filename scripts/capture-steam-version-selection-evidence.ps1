@@ -30,6 +30,7 @@ $manualPushMarkerFileName = "last_manual_cloud_push.txt"
 $manualPushBlockedMarkerFileName = "last_manual_cloud_push_blocked.txt"
 $cacheCleanupMarkerFileName = "last_game_version_cache_cleanup.txt"
 $redownloadMarkerFileName = "last_game_version_redownload.txt"
+$branchAvailabilityMarkerFileName = "last_steam_branch_availability.txt"
 New-Item -ItemType Directory -Force $logsDir | Out-Null
 New-Item -ItemType Directory -Force $markersDir | Out-Null
 New-Item -ItemType Directory -Force $diagnosticsDir | Out-Null
@@ -136,6 +137,10 @@ $redownloadMarkerPath = Join-Path $markersDir $redownloadMarkerFileName
 Invoke-RunAsShell -Command "cat files/$redownloadMarkerFileName 2>/dev/null || true" -AllowFailure |
     Set-Content -LiteralPath $redownloadMarkerPath -Encoding UTF8
 
+$branchAvailabilityMarkerPath = Join-Path $markersDir $branchAvailabilityMarkerFileName
+Invoke-RunAsShell -Command "cat files/$branchAvailabilityMarkerFileName 2>/dev/null || true" -AllowFailure |
+    Set-Content -LiteralPath $branchAvailabilityMarkerPath -Encoding UTF8
+
 Add-Content -LiteralPath $summaryPath -Value @(
     "",
     "Captured:",
@@ -154,6 +159,7 @@ Add-Content -LiteralPath $summaryPath -Value @(
     "- $manualPushBlockedMarkerPath ($manualPushBlockedMarkerFileName)",
     "- $cacheCleanupMarkerPath ($cacheCleanupMarkerFileName)",
     "- $redownloadMarkerPath ($redownloadMarkerFileName)",
+    "- $branchAvailabilityMarkerPath ($branchAvailabilityMarkerFileName)",
     "- $($markerPaths.Count) branch marker file(s)"
 ) -Encoding UTF8
 

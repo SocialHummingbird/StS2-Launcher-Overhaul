@@ -9,6 +9,7 @@ internal static class SteamGameInstallPaths
     internal const string GameVersionsDirectory = "game_versions";
     internal const string DownloadStateDirectory = "download_state";
     internal const string BranchMarkerFileName = "steam_branch.txt";
+    internal const string BranchAvailabilityMarkerFileName = "last_steam_branch_availability.txt";
 
     internal static string VersionSlotDirectory(string dataDir, string branch)
     {
@@ -44,4 +45,7 @@ internal static class SteamGameInstallPaths
 
     internal static string BranchMarkerPath(string dataDir, string branch)
         => Path.Combine(GameDirectory(dataDir, branch), BranchMarkerFileName);
+
+    internal static string BranchAvailabilityMarkerPath(string dataDir)
+        => Path.Combine(dataDir, BranchAvailabilityMarkerFileName);
 }

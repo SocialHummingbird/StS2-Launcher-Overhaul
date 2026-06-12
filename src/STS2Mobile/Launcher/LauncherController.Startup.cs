@@ -3,9 +3,15 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class LauncherController
 {
     private void InitializeActionPreferences()
-        => _view.SetActionPreferences(
+    {
+        RefreshGameBranchOptions();
+        _view.SetActionPreferences(
             LauncherPreferences.LoadAndApplyActionPreferences()
         );
+    }
+
+    private void RefreshGameBranchOptions()
+        => _view.SetGameBranchOptions(LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir));
 
     private void StartSessionFlow()
     {
@@ -70,6 +76,8 @@ internal sealed partial class LauncherController
     {
         LauncherPreferences.SaveGameBranch(branch);
         LauncherPreferences.SaveLocalBackupEnabled(true);
+        LauncherBranchAvailabilityStatus.Clear(_model.DataDir);
+        RefreshGameBranchOptions();
         LauncherBranchSwitchSafety.WriteMarker(_model.DataDir, previousBranch, branch);
         _view.SetActionPreferences(LauncherPreferences.ReadActionPreferences());
         _view.AppendLog($"Game version set to {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}. Local backup enabled for branch switching.");

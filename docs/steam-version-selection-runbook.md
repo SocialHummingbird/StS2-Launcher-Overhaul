@@ -48,7 +48,7 @@ Required artifacts:
 
 6. Switch warning gate
 
-   Select the beta branch. Confirm the branch-switch confirmation warns about download requirements, save compatibility risk, local backup enablement, manual Push backup-storage requirement, private/password-protected branches, and lack of beta password entry.
+   Enter a non-public Steam branch name such as `beta` and apply it. Confirm the branch-switch confirmation warns about download requirements, save compatibility risk, local backup enablement, manual Push backup-storage requirement, private/password-protected branches, and lack of beta password entry.
 
 7. Beta download path
 
@@ -80,7 +80,7 @@ Required artifacts:
 
 14. Missing/private/password beta behavior
 
-   Validate the behavior when the selected beta branch is missing, private, inaccessible to the Steam account, or password-protected. If password-protected behavior cannot be tested, keep it as a release blocker and ensure diagnostics show `Steam beta password entry supported: false`.
+   Validate the behavior when a selected dropdown branch is stale, missing, private, inaccessible to the Steam account, or password-protected. If password-protected behavior cannot be tested, keep it as a release blocker and ensure diagnostics show `Steam beta password entry supported: false`.
 
 15. Save compatibility review
 

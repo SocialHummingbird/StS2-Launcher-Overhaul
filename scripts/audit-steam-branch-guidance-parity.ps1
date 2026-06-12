@@ -27,10 +27,12 @@ $native = Get-Content -LiteralPath $nativePath -Raw
 
 $requiredPhrases = @(
     "Default/public Steam branch",
-    "Beta toggle is fixed",
-    "branch discovery is not supported",
-    "Private/password-protected beta branches are not supported",
-    "without changing Steam Cloud saves",
+    "Choose a game version from the dropdown",
+    "Account-visible branch options refresh after Steam app-info is available",
+    "beta password entry is still being hardened",
+    "selected from the game version dropdown",
+    "Private/password-protected branches may be inaccessible",
+    "Failed downloads do not change Steam Cloud saves",
     "Save compatibility is unproven"
 )
 

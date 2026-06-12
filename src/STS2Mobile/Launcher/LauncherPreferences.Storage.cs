@@ -71,6 +71,9 @@ internal static partial class LauncherPreferences
                 );
             }
         }
+
+        internal bool Exists()
+            => File.Exists(Path);
     }
 
     private static string PreferencePath(string fileName)

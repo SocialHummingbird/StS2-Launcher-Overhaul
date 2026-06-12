@@ -28,6 +28,12 @@ internal static class LauncherBranchSwitchSafety
     internal static string SelectedBranch(string dataDir)
         => ReadMarkerValue(dataDir, "Selected branch:");
 
+    internal static string SelectedBranchSelectionKind(string dataDir)
+        => ReadMarkerValue(dataDir, "Selected branch selection kind:");
+
+    internal static string SelectorMode(string dataDir)
+        => ReadMarkerValue(dataDir, "Steam branch selector mode:");
+
     internal static string SelectedVersion(string dataDir)
         => ReadMarkerValue(dataDir, "Selected version:");
 
@@ -60,6 +66,8 @@ internal static class LauncherBranchSwitchSafety
         return MarkerUtcParseable(dataDir)
             && HasValue(PreviousBranch(dataDir))
             && HasValue(SelectedBranch(dataDir))
+            && HasValue(SelectedBranchSelectionKind(dataDir))
+            && HasValue(SelectorMode(dataDir))
             && HasValue(SelectedVersion(dataDir))
             && HasValue(SelectedVersionSlotKind(dataDir))
             && HasValue(SelectedVersionSlotDirectory(dataDir))
@@ -104,6 +112,8 @@ internal static class LauncherBranchSwitchSafety
                 $"UTC: {DateTime.UtcNow:O}\n"
                 + $"Previous branch: {SteamGameBranch.Normalize(previousBranch)}\n"
                 + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"
+                + $"Selected branch selection kind: {SteamGameBranch.SelectionKind(selectedBranch)}\n"
+                + $"Steam branch selector mode: {SteamGameBranch.SelectorMode}\n"
                 + $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}\n"
                 + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
                 + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"

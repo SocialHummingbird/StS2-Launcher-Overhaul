@@ -24,4 +24,10 @@ internal partial class LauncherModel
 
     private void RaiseUpdateCheckFailed(string message)
         => Raise(UpdateCheckFailed, message, nameof(UpdateCheckFailed));
+
+    private void RaiseBranchCatalogRefreshCompleted()
+        => Raise(BranchCatalogRefreshCompleted, nameof(BranchCatalogRefreshCompleted));
+
+    private void RaiseBranchCatalogRefreshFailed(string message)
+        => Raise(BranchCatalogRefreshFailed, message, nameof(BranchCatalogRefreshFailed));
 }

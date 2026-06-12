@@ -85,6 +85,7 @@ Purpose:
 - Captures `adb devices -l`.
 - Captures full and focused logcat snapshots.
 - Captures coarse app game/cache directory listings through `run-as`.
+- Captures app-private Steam branch markers, including the latest branch availability result from app info.
 - Captures bounded non-public branch cache tree and cache-size snapshots.
 - Captures non-secret local/cloud pre-Push backup filename listings and counts from external backup storage.
 - Copies `steam_branch.txt` marker files from app storage when present.
@@ -132,6 +133,7 @@ branch-markers/last_manual_cloud_push.txt
 branch-markers/last_manual_cloud_push_blocked.txt
 branch-markers/last_game_version_cache_cleanup.txt
 branch-markers/last_game_version_redownload.txt
+branch-markers/last_steam_branch_availability.txt
 capture-summary.txt
 ```
 
@@ -153,3 +155,9 @@ Use the tools in this order:
 - Do not copy shared preferences.
 - Prefer scrubbed summaries when sharing evidence publicly.
 - Keep raw logs local if they contain account-identifying paths, usernames, or device identifiers.
+
+## Autofill versus local credential handoff
+
+Android/Samsung/password-manager Autofill is the user-facing login convenience path. It uses the native `USE ANDROID AUTOFILL` dialog and must not create a launcher-owned Autofill password store.
+
+Local credential handoff files are developer-only automation aids for repeatable test runs. Do not describe them as Autofill, do not include them in evidence bundles, and do not copy them into public artifacts.

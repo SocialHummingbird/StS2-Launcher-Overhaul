@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Text;
 
 namespace STS2Mobile;
 
@@ -10,6 +11,8 @@ internal static class AndroidGodotAppBridge
     private const string HasStoragePermissionMethod = "hasStoragePermission";
     private const string JavaClassWrapper = "JavaClassWrapper";
     private const string RequestStoragePermissionMethod = "requestStoragePermission";
+    private const string ShowSteamLoginAutofillDialogMethod = "showSteamLoginAutofillDialog";
+    private const string ConsumeSteamLoginAutofillResultMethod = "consumeSteamLoginAutofillResult";
     private const string WrapMethod = "wrap";
 
     internal static void RestartApp() => CallVoid("restartApp");
@@ -51,6 +54,29 @@ internal static class AndroidGodotAppBridge
 
     internal static void RequestStoragePermission()
         => CallVoid(RequestStoragePermissionMethod);
+
+    internal static void ShowSteamLoginAutofillDialog()
+        => CallVoid(ShowSteamLoginAutofillDialogMethod);
+
+    internal static bool TryConsumeSteamLoginAutofillResult(out string username, out string password)
+    {
+        username = "";
+        password = "";
+
+        var result = AndroidBridgeDispatcher.Run(
+            () => (string)(GetInstanceOnCurrentThread()?.Call(ConsumeSteamLoginAutofillResultMethod) ?? "")
+        );
+        if (string.IsNullOrWhiteSpace(result))
+            return false;
+
+        var parts = result.Split('\n');
+        if (parts.Length < 2)
+            return false;
+
+        username = DecodeBase64Utf8(parts[0]).Trim();
+        password = DecodeBase64Utf8(parts[1]);
+        return !string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password);
+    }
 
     internal static bool TryGetInstance(out GodotObject godotApp)
     {
@@ -94,6 +120,18 @@ internal static class AndroidGodotAppBridge
         catch
         {
             return null;
+        }
+    }
+
+    private static string DecodeBase64Utf8(string value)
+    {
+        try
+        {
+            return Encoding.UTF8.GetString(Convert.FromBase64String(value ?? ""));
+        }
+        catch
+        {
+            return "";
         }
     }
 

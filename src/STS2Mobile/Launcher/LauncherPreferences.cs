@@ -82,6 +82,9 @@ internal static partial class LauncherPreferences
     internal static void SaveGameBranch(string branch)
         => GameBranchPreference.WriteText(SteamGameBranch.Normalize(branch));
 
+    internal static bool GameBranchPreferenceExists()
+        => GameBranchPreference.Exists();
+
     internal static ActionPreferences ReadActionPreferences()
         => new(
             LocalBackupPreference.Read(),

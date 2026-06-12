@@ -49,6 +49,12 @@ import android.content.Context;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.util.Base64;
+import android.view.View;
+import android.view.autofill.AutofillManager;
+import android.text.InputType;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.app.AlertDialog;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -88,6 +94,11 @@ public class GodotApp extends GodotActivity {
 	private static final int MAX_BUFFERED_HTTP_RESPONSE_BYTES = 1024 * 1024;
 	private static boolean exceptionHandlerInstalled;
 	private long lastHttpResponseCleanupAt;
+	private final Object autofillLoginLock = new Object();
+	private String pendingAutofillLoginUsername = "";
+	private String pendingAutofillLoginPassword = "";
+	private long pendingAutofillLoginExpiresAtMs = 0L;
+	private static final long AUTOFILL_LOGIN_RESULT_TTL_MS = 60L * 1000L;
 	private static final String[] BOOTSTRAP_REQUIRED_ASSEMBLIES = {
 		"STS2Mobile.dll",
 		"SteamKit2.dll",
@@ -1749,6 +1760,103 @@ public class GodotApp extends GodotActivity {
 			}
 		} else {
 			requestPermissions(new String[] { android.Manifest.permission.WRITE_EXTERNAL_STORAGE }, 1);
+		}
+	}
+
+	public void showSteamLoginAutofillDialog() {
+		runOnUiThread(() -> {
+			try {
+				final EditText username = new EditText(this);
+				username.setHint("Steam Username");
+				username.setSingleLine(true);
+				username.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+				if (android.os.Build.VERSION.SDK_INT >= 26) {
+					username.setAutofillHints(View.AUTOFILL_HINT_USERNAME, View.AUTOFILL_HINT_EMAIL_ADDRESS);
+					username.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
+				}
+
+				final EditText password = new EditText(this);
+				password.setHint("Steam Password");
+				password.setSingleLine(true);
+				password.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+				if (android.os.Build.VERSION.SDK_INT >= 26) {
+					password.setAutofillHints(View.AUTOFILL_HINT_PASSWORD);
+					password.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
+				}
+
+				LinearLayout layout = new LinearLayout(this);
+				layout.setOrientation(LinearLayout.VERTICAL);
+				int padding = (int)(24 * getResources().getDisplayMetrics().density);
+				layout.setPadding(padding, padding / 2, padding, 0);
+				layout.addView(username);
+				layout.addView(password);
+
+				AlertDialog dialog = new AlertDialog.Builder(this)
+					.setTitle("Steam login")
+					.setMessage("Use Android/Samsung/password-manager Autofill. The launcher does not save this password for Autofill.")
+					.setView(layout)
+					.setPositiveButton("Login", (d, which) -> storeAutofillLogin(username.getText().toString(), password.getText().toString()))
+					.setNegativeButton("Cancel", (d, which) -> clearAutofillLogin())
+					.setOnCancelListener(d -> clearAutofillLogin())
+					.create();
+				dialog.setOnShowListener(d -> {
+					username.requestFocus();
+					if (android.os.Build.VERSION.SDK_INT >= 26) {
+						AutofillManager autofillManager = getSystemService(AutofillManager.class);
+						if (autofillManager != null) {
+							autofillManager.requestAutofill(username);
+						}
+					}
+				});
+				dialog.show();
+			} catch (Exception e) {
+				Log.w(TAG, "Could not show Steam login Autofill dialog", e);
+			}
+		});
+	}
+
+	public String consumeSteamLoginAutofillResult() {
+		synchronized (autofillLoginLock) {
+			if (pendingAutofillLoginExpiresAtMs > 0L && System.currentTimeMillis() > pendingAutofillLoginExpiresAtMs) {
+				clearAutofillLoginLocked();
+				return "";
+			}
+
+			if (pendingAutofillLoginUsername.isEmpty() && pendingAutofillLoginPassword.isEmpty()) {
+				return "";
+			}
+
+			String result = base64Utf8(pendingAutofillLoginUsername) + "\n" + base64Utf8(pendingAutofillLoginPassword);
+			clearAutofillLoginLocked();
+			return result;
+		}
+	}
+
+	private void storeAutofillLogin(String username, String password) {
+		synchronized (autofillLoginLock) {
+			pendingAutofillLoginUsername = username == null ? "" : username.trim();
+			pendingAutofillLoginPassword = password == null ? "" : password;
+			pendingAutofillLoginExpiresAtMs = System.currentTimeMillis() + AUTOFILL_LOGIN_RESULT_TTL_MS;
+		}
+	}
+
+	private void clearAutofillLogin() {
+		synchronized (autofillLoginLock) {
+			clearAutofillLoginLocked();
+		}
+	}
+
+	private void clearAutofillLoginLocked() {
+		pendingAutofillLoginUsername = "";
+		pendingAutofillLoginPassword = "";
+		pendingAutofillLoginExpiresAtMs = 0L;
+	}
+
+	private static String base64Utf8(String value) {
+		try {
+			return Base64.encodeToString((value == null ? "" : value).getBytes("UTF-8"), Base64.NO_WRAP);
+		} catch (Exception e) {
+			return "";
 		}
 	}
 

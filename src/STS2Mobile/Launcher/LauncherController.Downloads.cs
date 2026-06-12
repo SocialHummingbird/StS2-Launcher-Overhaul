@@ -197,6 +197,7 @@ internal sealed partial class LauncherController
 
     private void CompleteDownload()
     {
+        RefreshGameBranchOptions();
         var branch = LauncherPreferences.ReadGameBranch();
         var filesReady = LauncherGameFiles.Ready(_model.DataDir, branch);
         DownloadViewUpdate.Completed(
@@ -206,7 +207,12 @@ internal sealed partial class LauncherController
     }
 
     private void FailDownload(string message)
-        => DownloadViewUpdate.Failed(message).Apply(this);
+    {
+        RefreshGameBranchOptions();
+        DownloadViewUpdate.Failed(
+            LauncherBranchAvailabilityStatus.CompactFailureMessage(_model.DataDir, message)
+        ).Apply(this);
+    }
 
     private void CancelDownload()
         => DownloadViewUpdate.Cancelled().Apply(this);

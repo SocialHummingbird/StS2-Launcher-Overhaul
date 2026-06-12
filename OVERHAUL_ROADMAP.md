@@ -47,12 +47,17 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 - [x] Require branch marker/provenance metadata before treating non-public caches as ready.
 - [x] Add selected-version diagnostics, cached-version inventory, and native startup/fallback marker reporting.
 - [x] Add wrapped selector guidance, selected-version notes in managed/native diagnostics, branch-switch marker evidence, and managed/native guidance parity guardrails.
+- [x] Replace normal-user branch text entry with a dropdown-first Steam game version selector.
+- [x] Add `REFRESH GAME VERSIONS` metadata refresh from Steam app-info without downloading or deleting game files.
+- [x] Surface selected-branch availability/password/build metadata in helper text and diagnostics.
+- [x] Add Android one-shot native Autofill login dialog using password-manager hints without app-owned Autofill password storage.
 - [x] Add safe branch-switch warnings and local-backup posture before switching versions.
 - [x] Gate manual Push after branch switches when backup storage permission is unavailable.
 - [x] Document validation checklist, runbook, user/tester guide, issue template, evidence template, and static audit helper.
 - [ ] Validate public/default regression on ARM64 hardware after version-selection changes.
 - [ ] Validate `beta` download, marker provenance, and selected-PCK startup routing on ARM64 hardware.
 - [ ] Validate missing/private/password-protected beta branch behavior or explicitly keep unsupported UI/docs wording.
+- [ ] Validate `REFRESH GAME VERSIONS`, dropdown metadata labels, and native Android/Samsung/password-manager Autofill behavior on ARM64 hardware.
 - [ ] Validate save compatibility across public/beta branch switches, including Pull-after-switch, local-save evidence, and backup safety, or explicitly document incompatibility risk.
 - [ ] Validate selected-version redownload and inactive-cache cleanup on device.
 - [ ] Validate Pull-after-switch, local-save evidence, pre-Push backup evidence, `last_manual_cloud_push.txt`, and aggregate successful post-switch Push evidence after a branch switch before accepting any manual Push mutation.

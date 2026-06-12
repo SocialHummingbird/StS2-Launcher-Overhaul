@@ -7,7 +7,9 @@ The feature is implemented for validation and hardening. It is not release-signe
 ## What is supported now
 
 - Select the default/public Steam branch.
-- Select a named `beta` branch.
+- Select Steam game versions from a dropdown instead of typing branch names.
+- Refresh account-visible Steam branch/version options with `REFRESH GAME VERSIONS` before downloading.
+- See selected branch availability metadata in helper text, including downloadability, password status, build ID, and description where Steam exposes them.
 - Keep default/public files in the legacy app storage path.
 - Keep non-public branch files in side-by-side caches under `game_versions/<branch>/`.
 - Redownload only the selected version.
@@ -20,11 +22,35 @@ The feature is implemented for validation and hardening. It is not release-signe
 
 ## What is not supported yet
 
-- Arbitrary Steam branch discovery.
 - Steam beta password entry.
+- Release-signed device proof for refreshed dropdown metadata and private/password/unavailable branch behavior.
 - Release-signed behavior for private, inaccessible, or password-protected branches.
 - Proven save compatibility between public and beta game versions.
 - Treating Steam Cloud Push as safe after a branch switch without Pull and backup evidence.
+
+## Version selector
+
+Use `REFRESH GAME VERSIONS` after logging in to fetch Steam app-info branch metadata for the current account. This action updates the dropdown and `last_steam_branch_availability.txt`; it does not download, delete, or modify game files.
+
+The dropdown intentionally keeps labels short for phone screens. Detailed selected-version status appears below the selector and should explain:
+
+- Whether the selected branch appears downloadable for this account.
+- Whether Steam exposed a Windows depot manifest.
+- Whether Steam marked the branch as password-protected.
+- Build ID and description when Steam exposes them.
+- Whether metadata has not been refreshed yet.
+
+`public` remains available even when Steam branch metadata has not been captured. A previously saved custom branch remains selectable for compatibility with older validation builds.
+
+## Steam login Autofill
+
+Android builds include `USE ANDROID AUTOFILL` on the login screen. This opens a native Android username/password dialog with Autofill hints so Samsung Pass, Google Password Manager, Bitwarden, 1Password, and similar providers can offer credentials.
+
+The launcher does not create a separate Autofill password store and does not log the filled values. The native dialog keeps filled username/password values in memory only until the existing Steam login flow consumes them.
+
+If the native Autofill dialog is cancelled, dismissed, consumed by login, or left pending for 60 seconds, the pending username/password values are cleared from the Java bridge buffer.
+
+The launcher still stores Steam session credentials/tokens for normal SteamKit login and Steam Cloud use using the existing encrypted Android Keystore path. That is separate from password-manager Autofill and must not be described as Autofill password storage.
 
 ## Storage model
 
@@ -98,11 +124,23 @@ When reporting version-selection behavior, capture launcher diagnostics and incl
 
 ```text
 Selected game branch:
+Selected game branch preference key:
+Selected game branch source:
+Selected game branch selection kind:
 Selected game version:
 Selected game version note:
 Steam branch selector mode:
 Steam branch discovery supported:
+Steam branch catalog source:
+Steam branch dropdown options:
+Steam branch dropdown option metadata:
 Steam beta password entry supported:
+Android credential Autofill provider model:
+Godot login field Autofill hints configured:
+Native Android Autofill overlay supported:
+Launcher stores Steam password for Autofill:
+Native Android Autofill result TTL seconds:
+Android credential Autofill implementation note:
 Selected game branch storage directory:
 Selected game version slot kind:
 Selected game version slot directory:
@@ -122,6 +160,18 @@ Selected game branch marker has matching install slot provenance:
 Selected game branch marker has depot manifests:
 Selected game branch marker depot manifest entries:
 Selected game branch marker ready:
+Steam branch availability marker filename:
+Steam branch availability marker path:
+Steam branch availability marker present:
+Steam branch availability UTC:
+Steam branch availability selected branch:
+Steam branch availability matches current selected branch:
+Steam branch availability selected branch visibility:
+Steam branch availability selected branch Windows depot manifests:
+Steam branch availability selected branch downloadable:
+Steam branch availability selected branch problem:
+Steam branch availability visible branch count:
+Steam branch availability visible branches:
 Current selected branch for version marker comparison:
 Game version redownload marker filename:
 Game version redownload marker path:
@@ -160,6 +210,8 @@ Branch switch marker UTC:
 Branch switch marker UTC parseable:
 Branch switch previous branch:
 Branch switch selected branch:
+Branch switch selected branch selection kind:
+Branch switch selector mode:
 Branch switch selected version:
 Branch switch selected version slot kind:
 Branch switch selected version slot directory:
@@ -178,6 +230,8 @@ Manual Pull evidence marker present:
 Manual Pull evidence UTC:
 Manual Pull evidence UTC parseable:
 Manual Pull evidence selected branch:
+Manual Pull evidence selected branch selection kind:
+Manual Pull evidence selector mode:
 Manual Pull evidence selected version:
 Manual Pull evidence selected version slot kind:
 Manual Pull evidence selected version slot directory:
@@ -186,11 +240,19 @@ Manual Pull evidence is after branch switch:
 Manual Pull evidence matches selected branch:
 Manual Pull completed after branch switch for selected version:
 Manual Push evidence marker filename:
+
+`last_manual_cloud_push.txt`
+
+Blocked Manual Push evidence marker filename:
+
+`last_manual_cloud_push_blocked.txt`
 Manual Push evidence marker path:
 Manual Push evidence marker present:
 Latest manual Push evidence outcome:
 Latest manual Push evidence UTC:
 Latest manual Push evidence selected branch:
+Latest manual Push evidence selected branch selection kind:
+Latest manual Push evidence selector mode:
 Latest manual Push evidence selected version:
 Latest manual Push evidence selected version slot kind:
 Latest manual Push evidence selected version slot directory:
@@ -198,6 +260,8 @@ Latest manual Push evidence reason:
 Manual Push evidence UTC:
 Manual Push evidence UTC parseable:
 Manual Push evidence selected branch:
+Manual Push evidence selected branch selection kind:
+Manual Push evidence selector mode:
 Manual Push evidence selected version:
 Manual Push evidence selected version slot kind:
 Manual Push evidence selected version slot directory:
@@ -216,6 +280,8 @@ Manual Push blocked evidence marker present:
 Manual Push blocked evidence UTC:
 Manual Push blocked evidence UTC parseable:
 Manual Push blocked evidence selected branch:
+Manual Push blocked evidence selected branch selection kind:
+Manual Push blocked evidence selector mode:
 Manual Push blocked evidence selected version:
 Manual Push blocked evidence selected version slot kind:
 Manual Push blocked evidence selected version slot directory:

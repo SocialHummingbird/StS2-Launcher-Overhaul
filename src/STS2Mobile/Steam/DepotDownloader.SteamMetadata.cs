@@ -7,6 +7,7 @@ namespace STS2Mobile.Steam;
 internal sealed partial class DepotDownloader
 {
     private readonly ProductInfoAppCache _productInfoAppCache = new();
+    private BranchAvailabilityReport _lastBranchAvailability;
 
     private async Task<List<DepotManifestReference>> PrepareAndGetMainAppDepotsAsync(
         bool requireAny
@@ -27,6 +28,9 @@ internal sealed partial class DepotDownloader
     private async Task<List<DepotManifestReference>> GetMainAppDepotsAsync()
     {
         var depotSection = await ProductInfoApp.GetMainDepotsSectionAsync(this);
+        _lastBranchAvailability = BranchAvailabilityReport.FromDepots(depotSection, _branch);
+        Log(_lastBranchAvailability.LogSummary());
+        _lastBranchAvailability.WriteMarker(_dataDir);
         return await ParseDepotsAsync(depotSection);
     }
 
@@ -38,5 +42,6 @@ internal sealed partial class DepotDownloader
             ? "No downloadable depots found"
             : $"No downloadable depots found for Steam branch '{_branch}'. "
                 + "The branch may not exist, may be unavailable to this Steam account, "
-                + "or may require a Steam beta password. Beta password entry is not implemented yet.";
+                + "or may require a Steam beta password. Beta password entry is not implemented yet. "
+                + (_lastBranchAvailability?.FailureSummary() ?? "Visible branch information was unavailable.");
 }

@@ -16,6 +16,7 @@ internal sealed partial class LauncherController
             CloudPushPressed,
             CloudPullPressed,
             RunUpdateCheck,
+            RunBranchCatalogRefresh,
             RedownloadPressed,
             ClearCachedVersionsPressed,
             DiagnosticsPressed,

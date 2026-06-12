@@ -79,6 +79,16 @@ internal static class LauncherCloudSyncEvidence
             ? LastManualPushBlockedSelectedBranch(dataDir)
             : LastManualPushSelectedBranch(dataDir);
 
+    internal static string LatestManualPushEvidenceSelectedBranchSelectionKind(string dataDir)
+        => string.Equals(LatestManualPushEvidenceOutcome(dataDir), "blocked-before-upload", StringComparison.OrdinalIgnoreCase)
+            ? LastManualPushBlockedSelectedBranchSelectionKind(dataDir)
+            : LastManualPushSelectedBranchSelectionKind(dataDir);
+
+    internal static string LatestManualPushEvidenceSelectorMode(string dataDir)
+        => string.Equals(LatestManualPushEvidenceOutcome(dataDir), "blocked-before-upload", StringComparison.OrdinalIgnoreCase)
+            ? LastManualPushBlockedSelectorMode(dataDir)
+            : LastManualPushSelectorMode(dataDir);
+
     internal static string LatestManualPushEvidenceSelectedVersion(string dataDir)
         => string.Equals(LatestManualPushEvidenceOutcome(dataDir), "blocked-before-upload", StringComparison.OrdinalIgnoreCase)
             ? LastManualPushBlockedSelectedVersion(dataDir)
@@ -120,6 +130,12 @@ internal static class LauncherCloudSyncEvidence
     internal static string LastManualPullSelectedBranch(string dataDir)
         => ReadSelectedBranch(LastManualPullMarkerPath(dataDir)) ?? "<none>";
 
+    internal static string LastManualPullSelectedBranchSelectionKind(string dataDir)
+        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), "Selected branch selection kind:") ?? "<none>";
+
+    internal static string LastManualPullSelectorMode(string dataDir)
+        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), "Steam branch selector mode:") ?? "<none>";
+
     internal static string LastManualPullSelectedVersion(string dataDir)
         => ReadMarkerValue(LastManualPullMarkerPath(dataDir), "Selected version:") ?? "<none>";
 
@@ -131,6 +147,12 @@ internal static class LauncherCloudSyncEvidence
 
     internal static string LastManualPushSelectedBranch(string dataDir)
         => ReadSelectedBranch(LastManualPushMarkerPath(dataDir)) ?? "<none>";
+
+    internal static string LastManualPushSelectedBranchSelectionKind(string dataDir)
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Selected branch selection kind:") ?? "<none>";
+
+    internal static string LastManualPushSelectorMode(string dataDir)
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Steam branch selector mode:") ?? "<none>";
 
     internal static string LastManualPushSelectedVersion(string dataDir)
         => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Selected version:") ?? "<none>";
@@ -155,6 +177,12 @@ internal static class LauncherCloudSyncEvidence
 
     internal static string LastManualPushBlockedSelectedBranch(string dataDir)
         => ReadSelectedBranch(LastManualPushBlockedMarkerPath(dataDir)) ?? "<none>";
+
+    internal static string LastManualPushBlockedSelectedBranchSelectionKind(string dataDir)
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Selected branch selection kind:") ?? "<none>";
+
+    internal static string LastManualPushBlockedSelectorMode(string dataDir)
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Steam branch selector mode:") ?? "<none>";
 
     internal static string LastManualPushBlockedSelectedVersion(string dataDir)
         => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Selected version:") ?? "<none>";
@@ -280,6 +308,8 @@ internal static class LauncherCloudSyncEvidence
             var text =
                 $"UTC: {DateTime.UtcNow:O}\n"
                 + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"
+                + $"Selected branch selection kind: {SteamGameBranch.SelectionKind(selectedBranch)}\n"
+                + $"Steam branch selector mode: {SteamGameBranch.SelectorMode}\n"
                 + $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}\n"
                 + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
                 + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
@@ -300,6 +330,8 @@ internal static class LauncherCloudSyncEvidence
             var text =
                 $"UTC: {DateTime.UtcNow:O}\n"
                 + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"
+                + $"Selected branch selection kind: {SteamGameBranch.SelectionKind(selectedBranch)}\n"
+                + $"Steam branch selector mode: {SteamGameBranch.SelectorMode}\n"
                 + $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}\n"
                 + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
                 + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
@@ -331,6 +363,8 @@ internal static class LauncherCloudSyncEvidence
             var text =
                 $"UTC: {DateTime.UtcNow:O}\n"
                 + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"
+                + $"Selected branch selection kind: {SteamGameBranch.SelectionKind(selectedBranch)}\n"
+                + $"Steam branch selector mode: {SteamGameBranch.SelectorMode}\n"
                 + $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}\n"
                 + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
                 + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
