@@ -74,6 +74,8 @@ internal sealed class LoginSection : VBoxContainer
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             return;
 
+        _passwordField.Text = "";
+
         try
         {
             LoginRequested?.Invoke(username, password);

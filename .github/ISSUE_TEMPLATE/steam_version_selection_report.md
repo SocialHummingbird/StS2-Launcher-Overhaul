@@ -10,6 +10,24 @@ assignees: []
 
 Describe what you tested and the result.
 
+## Release-readiness gate covered
+
+Check every gate this report provides direct evidence for. Leave unchecked if the report does not prove it.
+
+- [ ] Public/default branch download/update/launch
+- [ ] `REFRESH GAME VERSIONS` dropdown refresh without downloading or deleting game files
+- [ ] Account-visible non-public branch metadata/status
+- [ ] Available non-public branch download/startup routing
+- [ ] Missing/private/inaccessible/password-protected branch blocked clearly
+- [ ] No silent fallback to public/default after selected-version failure
+- [ ] Selected-version redownload or inactive cache cleanup safety
+- [ ] Pull-before-Push and Android local-save evidence
+- [ ] Branch-switch backup/blocked-Push safety evidence
+- [ ] Android/Samsung/password-manager Autofill behavior
+- [ ] Public-share artifact hygiene reviewed
+
+If any checked gate has partial, uncertain, or contradictory evidence, explain it in the relevant section instead of treating it as passed.
+
 ## Artifact hygiene
 
 Do not attach Steam credentials, refresh tokens, shared preferences, or unsanitized logs that expose account names, device identifiers, or local user paths. Redact identifying data before sharing publicly.
@@ -70,6 +88,25 @@ Selected game branch preference key:
 Selected game branch source:
 Selected game branch selection kind:
 Steam branch selector mode:
+```
+
+## Steam login / Autofill / credential log safety
+
+- [ ] Steam login reached authentication success or ownership verification
+- [ ] Android/Samsung/password-manager Autofill was tested
+- [ ] Autofill was not tested
+
+Paste non-secret credential-safety diagnostics if available:
+
+```text
+Android credential Autofill provider model:
+Godot login field Autofill hints configured:
+Native Android Autofill overlay supported:
+Launcher stores Steam password for Autofill:
+Native Android Autofill result TTL seconds:
+Android credential Autofill implementation note:
+SteamKit debug logs opt-in enabled:
+SteamKit debug logs sanitized for credentials/tokens:
 ```
 
 ## Download and startup result
@@ -167,9 +204,13 @@ Manual Pull evidence selected version:
 Manual Pull evidence selected version slot kind:
 Manual Pull evidence selected version slot directory:
 Manual Pull completion flag recorded:
+Manual Pull completed before Push:
 Manual Pull evidence is after branch switch:
 Manual Pull evidence matches selected branch:
 Manual Pull completed after branch switch for selected version:
+Current important Android local save evidence count:
+Current important Android local save evidence present:
+Baseline manual Push prerequisites satisfied:
 Manual Push evidence marker filename:
 Manual Push evidence marker path:
 Manual Push evidence marker present:
@@ -194,6 +235,8 @@ Manual Push evidence recorded local backup count:
 Manual Push evidence recorded cloud backup count:
 Manual Push evidence recorded latest local backup UTC:
 Manual Push evidence recorded latest cloud backup UTC:
+Manual Push evidence recorded important local save evidence count:
+Manual Push evidence recorded baseline prerequisites satisfied:
 Manual Push completion flag recorded:
 Manual Push evidence is after branch switch:
 Manual Push evidence matches selected branch:
@@ -216,6 +259,8 @@ Manual Push blocked evidence recorded local backup count:
 Manual Push blocked evidence recorded cloud backup count:
 Manual Push blocked evidence recorded latest local backup UTC:
 Manual Push blocked evidence recorded latest cloud backup UTC:
+Manual Push blocked evidence recorded important local save evidence count:
+Manual Push blocked evidence recorded baseline prerequisites satisfied:
 Manual Push blocked evidence recorded pre-Push backup evidence satisfied:
 Manual Push blocked evidence reason:
 Manual Push blocked before upload evidence recorded:
@@ -305,10 +350,12 @@ Save compatibility observations between selected versions:
 ## Logs / attachments
 
 - [ ] Launcher diagnostics attached
-- [ ] `adb logcat` attached
+- [ ] `adb logcat` attached only after redacting identifiers and confirming SteamKit debug logs were either disabled or sanitized; prefer `logcat-steam-version-focused-redacted.txt`, avoid raw full logcat unless explicitly needed, and manually review it before posting
 - [ ] Screenshot attached
 - [ ] Branch marker file attached or pasted
 - [ ] Backup evidence attached if Push was tested
+
+If SteamKit debug logging was enabled with `sts2_steamkit_debug_logs=1`, confirm the diagnostics line `SteamKit debug logs sanitized for credentials/tokens: true` before attaching any log excerpt publicly.
 
 If native startup or fallback diagnostics appeared, paste relevant lines:
 

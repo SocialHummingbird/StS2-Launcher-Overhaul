@@ -35,7 +35,7 @@ final class SteamBranchInfo {
 	}
 
 	static String stateDirectoryName(String branch) {
-		String normalized = normalize(branch);
+		String normalized = storageIdentity(branch);
 		if (PUBLIC_BRANCH.equalsIgnoreCase(normalized)) {
 			return PUBLIC_BRANCH;
 		}
@@ -62,6 +62,10 @@ final class SteamBranchInfo {
 		}
 
 		return safePrefix + "-" + stableBranchHash(normalized);
+	}
+
+	private static String storageIdentity(String branch) {
+		return normalize(branch).toLowerCase(Locale.ROOT);
 	}
 
 	private static String normalize(String branch) {

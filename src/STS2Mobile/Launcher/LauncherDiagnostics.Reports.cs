@@ -43,10 +43,18 @@ internal static partial class LauncherDiagnostics
 
         private void AppendFullLauncherDiagnostics(StringBuilder sb)
         {
+            AppendPublicSharingWarning(sb);
             AppendLauncherState(sb, LauncherStateDetail.Detailed);
             AppendLauncherPreferences(sb, _state.DataDir);
             AppendFullReportDiagnostics(sb, _state.DataDir);
         }
+    }
+
+    private static void AppendPublicSharingWarning(StringBuilder sb)
+    {
+        sb.AppendLine("Public sharing warning: review and redact this diagnostics report before posting publicly.");
+        sb.AppendLine("It may include account names, local paths, device details, save/cloud state, and log excerpts.");
+        sb.AppendLine();
     }
 
     private static void AppendLauncherPreferences(StringBuilder sb, string dataDir)
@@ -74,6 +82,8 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Launcher stores Steam password for Autofill: {BoolText(LauncherAutofillSupport.AppStoresSteamPassword)}");
         sb.AppendLine($"Native Android Autofill result TTL seconds: {LauncherAutofillSupport.NativeDialogResultTtlSeconds}");
         sb.AppendLine($"Android credential Autofill implementation note: {LauncherAutofillSupport.CurrentImplementation}");
+        sb.AppendLine($"SteamKit debug logs opt-in enabled: {BoolText(SteamConnectionConfigurationFactory.SteamKitDebugLogsOptInEnabled)}");
+        sb.AppendLine($"SteamKit debug logs sanitized for credentials/tokens: {BoolText(SteamConnectionConfigurationFactory.SteamKitDebugLogsSanitized)}");
         sb.AppendLine($"Selected game branch storage directory: {SteamGameBranch.StateDirectoryName(branch)}");
         sb.AppendLine($"Selected game version slot kind: {SteamGameInstallPaths.VersionSlotKind(branch)}");
         sb.AppendLine($"Selected game version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch)}");
@@ -299,9 +309,13 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Manual Pull evidence selected version slot kind: {LauncherCloudSyncEvidence.LastManualPullSelectedVersionSlotKind(dataDir)}");
         sb.AppendLine($"Manual Pull evidence selected version slot directory: {LauncherCloudSyncEvidence.LastManualPullSelectedVersionSlotDirectory(dataDir)}");
         sb.AppendLine($"Manual Pull completion flag recorded: {BoolText(LauncherCloudSyncEvidence.LastManualPullCompletionRecorded(dataDir))}");
+        sb.AppendLine($"Manual Pull completed before Push: {BoolText(LauncherCloudSyncEvidence.LastManualPullBeforePushCompletionRecorded(dataDir))}");
         sb.AppendLine($"Manual Pull evidence is after branch switch: {BoolText(LauncherCloudSyncEvidence.LastManualPullIsAfterBranchSwitch(dataDir))}");
         sb.AppendLine($"Manual Pull evidence matches selected branch: {BoolText(LauncherCloudSyncEvidence.LastManualPullMatchesSelectedBranch(dataDir, LauncherPreferences.ReadGameBranch()))}");
         sb.AppendLine($"Manual Pull completed after branch switch for selected version: {BoolText(LauncherCloudSyncEvidence.HasManualPullAfterBranchSwitch(dataDir, LauncherPreferences.ReadGameBranch()))}");
+        sb.AppendLine($"Current important Android local save evidence count: {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}");
+        sb.AppendLine($"Current important Android local save evidence present: {BoolText(LauncherLocalSaveEvidence.HasImportantSaveEvidence(dataDir))}");
+        sb.AppendLine($"Baseline manual Push prerequisites satisfied: {BoolText(LauncherCloudSyncEvidence.BaselineManualPushPrerequisitesSatisfied(dataDir, LauncherPreferences.ReadGameBranch()))}");
         sb.AppendLine($"Manual Push evidence marker filename: {LauncherCloudSyncEvidence.LastManualPushMarkerFileName}");
         sb.AppendLine($"Manual Push evidence marker path: {LauncherCloudSyncEvidence.LastManualPushMarkerPath(dataDir)}");
         sb.AppendLine($"Manual Push evidence marker present: {BoolText(File.Exists(LauncherCloudSyncEvidence.LastManualPushMarkerPath(dataDir)))}");
@@ -326,6 +340,8 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Manual Push evidence recorded cloud backup count: {LauncherCloudSyncEvidence.LastManualPushRecordedCloudBackupCount(dataDir)}");
         sb.AppendLine($"Manual Push evidence recorded latest local backup UTC: {LauncherCloudSyncEvidence.LastManualPushRecordedLatestLocalBackupUtc(dataDir)}");
         sb.AppendLine($"Manual Push evidence recorded latest cloud backup UTC: {LauncherCloudSyncEvidence.LastManualPushRecordedLatestCloudBackupUtc(dataDir)}");
+        sb.AppendLine($"Manual Push evidence recorded important local save evidence count: {LauncherCloudSyncEvidence.LastManualPushRecordedImportantLocalSaveEvidenceCount(dataDir)}");
+        sb.AppendLine($"Manual Push evidence recorded baseline prerequisites satisfied: {LauncherCloudSyncEvidence.LastManualPushRecordedBaselinePrerequisitesSatisfied(dataDir)}");
         sb.AppendLine($"Manual Push completion flag recorded: {BoolText(LauncherCloudSyncEvidence.LastManualPushCompletionRecorded(dataDir))}");
         sb.AppendLine($"Manual Push evidence is after branch switch: {BoolText(LauncherCloudSyncEvidence.LastManualPushIsAfterBranchSwitch(dataDir))}");
         sb.AppendLine($"Manual Push evidence matches selected branch: {BoolText(LauncherCloudSyncEvidence.LastManualPushMatchesSelectedBranch(dataDir, LauncherPreferences.ReadGameBranch()))}");
@@ -348,6 +364,8 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Manual Push blocked evidence recorded cloud backup count: {LauncherCloudSyncEvidence.LastManualPushBlockedRecordedCloudBackupCount(dataDir)}");
         sb.AppendLine($"Manual Push blocked evidence recorded latest local backup UTC: {LauncherCloudSyncEvidence.LastManualPushBlockedRecordedLatestLocalBackupUtc(dataDir)}");
         sb.AppendLine($"Manual Push blocked evidence recorded latest cloud backup UTC: {LauncherCloudSyncEvidence.LastManualPushBlockedRecordedLatestCloudBackupUtc(dataDir)}");
+        sb.AppendLine($"Manual Push blocked evidence recorded important local save evidence count: {LauncherCloudSyncEvidence.LastManualPushBlockedRecordedImportantLocalSaveEvidenceCount(dataDir)}");
+        sb.AppendLine($"Manual Push blocked evidence recorded baseline prerequisites satisfied: {LauncherCloudSyncEvidence.LastManualPushBlockedRecordedBaselinePrerequisitesSatisfied(dataDir)}");
         sb.AppendLine($"Manual Push blocked evidence recorded pre-Push backup evidence satisfied: {LauncherCloudSyncEvidence.LastManualPushBlockedRecordedPrePushBackupEvidenceSatisfied(dataDir)}");
         sb.AppendLine($"Manual Push blocked evidence reason: {LauncherCloudSyncEvidence.LastManualPushBlockedReason(dataDir)}");
         sb.AppendLine($"Manual Push blocked before upload evidence recorded: {BoolText(LauncherCloudSyncEvidence.LastManualPushBlockedBeforeUpload(dataDir))}");

@@ -101,9 +101,9 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 5. Confirm game download works when game files are absent.
 6. Confirm Steam version selection does not regress the default/public path: selected branch is default/public, download/update uses the legacy `files/game` path, and the game launches.
 7. If beta/version selection is included in the release claim, follow [Steam version selection runbook](steam-version-selection-runbook.md) and capture evidence for `beta` selection, side-by-side cache path, `steam_branch.txt` marker provenance, selected-PCK startup routing, selected-version redownload, inactive-cache cleanup, and missing/private/password branch behavior.
-8. Confirm save compatibility across public/beta branch switches is validated or explicitly documented as an unsupported risk.
+8. Confirm save compatibility across public/non-public branch switches is validated or explicitly documented as an unsupported risk.
 9. Confirm Pull from Cloud downloads real Steam Cloud files, writes Android local saves, and the game reads/surfaces the pulled profile.
-10. Confirm Push to Cloud requires confirmation, cancel/no-confirm does not upload, and confirmed Push behavior is explicitly validated or deferred with overwrite-risk rationale. After any Steam branch switch, manual Push must stay blocked until backup storage permission and local/cloud pre-Push backup evidence exist.
+10. Confirm Push to Cloud requires confirmation, cancel/no-confirm does not upload, and confirmed Push behavior is explicitly validated or deferred with overwrite-risk rationale. Manual Push must stay blocked until Pull from Cloud evidence exists for the currently selected game version and important Android local save evidence is present. After any Steam branch switch, manual Push must also stay blocked until backup storage permission and local/cloud pre-Push backup evidence exist. Diagnostics must expose `Manual Pull completed before Push`, `Current important Android local save evidence count`, `Current important Android local save evidence present`, `Baseline manual Push prerequisites satisfied`, and the recorded completed/blocked Push marker baseline/local-save evidence fields.
 11. Confirm locked-screen/focus interruption and upgrade install behavior for every new release candidate before calling it ready.
 
 ## 6) Archive and follow-up

@@ -17,6 +17,8 @@ internal sealed partial class LauncherController
         "Selected game version deleted. Download again to rebuild it.";
     private const string RedownloadLogMessage =
         "Selected game version files were deleted for a clean redownload.";
+    private const string BlockedRedownloadConfirmationMessage =
+        "Delete selected game version cache?\nThis branch is currently blocked by Steam app-info availability evidence, so the launcher will delete the selected local cache but will not start a replacement download.";
 
     private readonly struct DownloadViewUpdate
     {
@@ -134,9 +136,31 @@ internal sealed partial class LauncherController
 
     private void DownloadPressed()
     {
-        if (LauncherGameFiles.HasBranchMetadataProblem(_model.DataDir, LauncherPreferences.ReadGameBranch()))
+        var selectedBranch = LauncherPreferences.ReadGameBranch();
+        var downloadProblem = LauncherBranchCatalog.SelectedOptionDownloadProblem(
+            selectedBranch,
+            LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir)
+        );
+        if (LauncherGameFiles.HasBranchMetadataProblem(_model.DataDir, selectedBranch))
         {
+            if (!string.IsNullOrWhiteSpace(downloadProblem))
+            {
+                _view.ShowConfirmation(
+                    BlockedRedownloadConfirmationMessage + "\n\n" + downloadProblem,
+                    () => ApplyRedownloadBlockedByBranchProblem(downloadProblem)
+                );
+                return;
+            }
+
             _view.ShowConfirmation(RedownloadConfirmationMessage, ApplyRedownloadAndDownload);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(downloadProblem))
+        {
+            _view.SetStatus(downloadProblem);
+            _view.AppendLog(downloadProblem);
+            ShowDownloadReadyAction();
             return;
         }
 
@@ -176,6 +200,15 @@ internal sealed partial class LauncherController
         _view.SetStatus("Selected game version metadata cache cleared. Rebuilding selected version from Steam...");
         _view.AppendLog("Selected game version metadata cache cleared before replacement download.");
         _ = DownloadAsync();
+    }
+
+    private void ApplyRedownloadBlockedByBranchProblem(string downloadProblem)
+    {
+        _model.ResetGameFilesForRedownload();
+        _view.SetStatus(downloadProblem);
+        _view.AppendLog("Selected game version cache cleared, but replacement download remains blocked by Steam branch availability evidence.");
+        _view.AppendLog(downloadProblem);
+        ShowDownloadReadyAction();
     }
 
     private async Task DownloadAsync()

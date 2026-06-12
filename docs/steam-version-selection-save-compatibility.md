@@ -1,6 +1,6 @@
 # Steam Version Selection Save Compatibility Matrix
 
-This matrix tracks save behavior when switching between Steam game versions. Until these rows have current ARM64 evidence, save compatibility across branches remains unknown and Steam Cloud Push after a branch switch must be treated as destructive.
+This matrix tracks save behavior when switching between Steam game versions. Until these rows have current ARM64 evidence, save compatibility across branches remains unknown. Steam Cloud Push must be treated as destructive unless the selected version has fresh Pull-before-Push evidence and Android local save evidence; after a branch switch, the extra branch-switch backup gates also apply.
 
 ## Rule
 
@@ -39,9 +39,9 @@ Each completed row should include:
 
 | Scenario | Minimum gate before Push | Current state |
 | --- | --- | --- |
-| No branch switch in current session | Pull first, verify Android local saves exist, confirm overwrite-risk prompt intentionally | Needs newest-public evidence |
-| Public/default to beta switch | Pull first, local saves exist, local backup enabled, backup storage permission available, local pre-Push backup exists, cloud pre-Push backup exists, `last_manual_cloud_push.txt` records selected branch and backup evidence | Missing ARM64 evidence |
-| Beta to public/default switch | Pull first, local saves exist, local backup enabled, backup storage permission available, local pre-Push backup exists, cloud pre-Push backup exists, `last_manual_cloud_push.txt` records selected branch and backup evidence | Missing ARM64 evidence |
+| No branch switch in current session | Pull first for the selected version, verify Android local saves exist, confirm overwrite-risk prompt intentionally, and confirm diagnostics/markers show `Manual Pull completed before Push`, current important Android local save evidence, and `Baseline manual Push prerequisites satisfied` | Needs newest-public evidence |
+| Public/default to beta switch | Pull first for the selected version, local saves exist, local backup enabled, backup storage permission available, local pre-Push backup exists, cloud pre-Push backup exists, `last_manual_cloud_push.txt` records selected branch, baseline prerequisites, local-save evidence, and backup evidence | Missing ARM64 evidence |
+| Beta to public/default switch | Pull first for the selected version, local saves exist, local backup enabled, backup storage permission available, local pre-Push backup exists, cloud pre-Push backup exists, `last_manual_cloud_push.txt` records selected branch, baseline prerequisites, local-save evidence, and backup evidence | Missing ARM64 evidence |
 | Missing backup storage permission after branch switch | Push must remain blocked | Missing ARM64 evidence |
 
 ## Release decision language
@@ -49,7 +49,7 @@ Each completed row should include:
 Use this wording until the matrix is complete:
 
 ```text
-Save compatibility between public and beta Steam branches is not yet proven. Pull from Cloud after the branch switch for the selected version, verify Android local saves exist, and do not Push after switching branches unless current Pull evidence, backup storage permission, local/cloud pre-Push backup evidence, and successful Push marker evidence are present.
+Save compatibility between public and beta Steam branches is not yet proven. Pull from Cloud for the selected version and verify Android local saves exist before any Push. After switching branches, do not Push unless Pull-after-switch evidence, backup storage permission, local/cloud pre-Push backup evidence, and successful Push marker evidence are present.
 ```
 
 Only soften this wording after ARM64 evidence proves the relevant rows.

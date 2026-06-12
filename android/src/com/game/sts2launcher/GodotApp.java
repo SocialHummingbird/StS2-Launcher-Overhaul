@@ -85,6 +85,7 @@ public class GodotApp extends GodotActivity {
 	private static final String ENV_AUTO_LAUNCH_GAME = "STS2_AUTO_LAUNCH_GAME";
 	private static final String ENV_AUTO_SAFE_LAUNCH = "STS2_AUTO_SAFE_LAUNCH";
 	private static final String ENV_FORCE_CRITICAL_PATCH_FAILURE = "STS2_FORCE_CRITICAL_PATCH_FAILURE";
+	private static final String ENV_STEAMKIT_DEBUG_LOGS = "STS2_STEAMKIT_DEBUG_LOGS";
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String EXTRA_SAFE_LAUNCH_ON_START = "sts2_safe_launch";
     private static final int ASSEMBLY_CACHE_SCHEMA = 22;
@@ -954,10 +955,16 @@ public class GodotApp extends GodotActivity {
 		Log.i(TAG, "Steam branch marker has matching install slot provenance for startup: " + hasInstallSlotProvenance(branchMarker, selectedBranch));
 		Log.i(TAG, "Steam branch marker has depot manifests for startup: " + hasDepotManifestProvenance(branchMarker));
 		Log.i(TAG, "Steam branch marker depot manifest entries for startup: " + depotManifestCount(branchMarker));
-		Log.i(TAG, "Steam branch marker ready for startup: " + isBranchMarkerReady(selectedBranch));
-		boolean launchRequested = isGamePckReady() && consumeGameLaunchRequest();
+		boolean branchMarkerReady = isBranchMarkerReady(selectedBranch);
+		boolean gamePckReady = isGamePckReady();
+		Log.i(TAG, "Steam branch marker ready for startup: " + branchMarkerReady);
+		boolean launchRequested = branchMarkerReady && gamePckReady && consumeGameLaunchRequest();
+		if (gamePckReady && !branchMarkerReady) {
+			Log.w(TAG, "Blocking selected game version startup because branch marker provenance is missing or mismatched; returning to launcher instead of falling back to another branch.");
+		}
 		setAutoLaunchGameMode(launchRequested);
 		setForcedCriticalPatchFailureMode();
+		setSteamKitDebugLogMode();
 		if (launchRequested) {
 			setLauncherBootstrapMode(false);
 			boolean safeLaunch = consumeSafeGameLaunchRequest();
@@ -1480,7 +1487,14 @@ public class GodotApp extends GodotActivity {
 	}
 
 	@Override
+	protected void onStop() {
+		clearAutofillLogin();
+		super.onStop();
+	}
+
+	@Override
 	protected void onDestroy() {
+		clearAutofillLogin();
 		if (multicastLock != null && multicastLock.isHeld()) {
 			multicastLock.release();
 			Log.i(TAG, "WiFi MulticastLock released");
@@ -1829,6 +1843,23 @@ public class GodotApp extends GodotActivity {
 			String result = base64Utf8(pendingAutofillLoginUsername) + "\n" + base64Utf8(pendingAutofillLoginPassword);
 			clearAutofillLoginLocked();
 			return result;
+		}
+	}
+
+	private void setSteamKitDebugLogMode() {
+		boolean enabled = false;
+		try {
+			enabled = android.provider.Settings.Global.getInt(getContentResolver(), "sts2_steamkit_debug_logs", 0) == 1;
+			android.system.Os.setenv(ENV_STEAMKIT_DEBUG_LOGS, enabled ? "1" : "0", true);
+			if (enabled) {
+				Log.i(TAG, "Sanitized SteamKit debug logging enabled by Android global setting");
+			}
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to set SteamKit debug log mode", e);
+			try {
+				android.system.Os.setenv(ENV_STEAMKIT_DEBUG_LOGS, "0", true);
+			} catch (Exception ignored) {
+			}
 		}
 	}
 

@@ -11,6 +11,7 @@ Static guardrails:
 | `scripts/audit-steam-version-selection.ps1` passes |  |  |  |
 | `scripts/audit-steam-branch-guidance-parity.ps1` passes |  |  |  |
 | CI static audit workflow result captured when available |  |  |  |
+| `docs/steam-version-selection-release-readiness.md` reviewed against this evidence package |  |  |  |
 
 | Check | Evidence | Result | Notes |
 | --- | --- | --- | --- |
@@ -61,10 +62,11 @@ Missing/private/password branch behavior:
 | Diagnostics show `Steam branch discovery supported: true` |  |  |  |
 | Diagnostics show Steam branch catalog source, Steam branch dropdown options, and Steam branch dropdown option metadata |  |  |  |
 | Dropdown labels remain concise, while selected-version helper text shows availability, password status, build ID, and description where Steam exposes them |  |  |  |
+| Selected-version helper text treats password-protected, no-Windows-manifest, and not-listed branches as blocked states |  |  |  |
 | `REFRESH GAME VERSIONS` fetches Steam app-info branch metadata, refreshes dropdown options, and does not download/delete game files |  |  |  |
-| Diagnostics show Android credential Autofill provider model, Godot login field Autofill hints configured, native Android Autofill overlay supported, and launcher stores Steam password for Autofill |  |  |  |
+| Diagnostics show Android credential Autofill provider model, Godot login field Autofill hints configured, native Android Autofill overlay supported, launcher stores Steam password for Autofill, SteamKit debug logs opt-in status, and SteamKit debug logs are disabled by default/sanitized for credentials and tokens when enabled |  |  |  |
 | `USE ANDROID AUTOFILL` opens a native Android username/password dialog with password-manager Autofill hints |  |  |  |
-| Native Autofill-filled credentials are consumed by the existing login flow, cancelled, or expired after 60 seconds without being logged or written to artifact files |  |  |  |
+| Native Autofill-filled credentials are consumed by the existing login flow, cancelled, cleared when the Android activity stops/destroys, or expired after 60 seconds without being logged or written to artifact files; the Godot password field clears after request capture |  |  |  |
 | Android/Samsung/password-manager Autofill behavior is validated on device or remains an explicit blocker |  |  |  |
 | Diagnostics show `Steam branch selector mode: Steam branch dropdown` |  |  |  |
 
@@ -74,6 +76,7 @@ Cache switching and cleanup:
 | --- | --- | --- | --- |
 | Switching branches writes `last_game_branch_switch.txt` |  |  |  |
 | Branch switch marker records parseable UTC, Branch switch previous branch, Branch switch selected branch, selected branch selection kind, selector mode, selected version, selected version slot kind, selected version slot directory, selected branch match against the active selected branch, selected branch note, local backup, Push backup-storage requirement, warning acknowledgement, and required-evidence status for the selected branch |  |  |  |
+| Branch switch confirmation shows refreshed selected-branch availability/status and any selected-branch blocked reason |  |  |  |
 | Pull-after-switch writes `last_manual_cloud_pull.txt` with parseable UTC, selected branch, selected branch selection kind, selector mode, selected version, selected version slot kind, selected version slot directory, selected branch note, and completion flag |  |  |  |
 | Selected non-public cache is preserved by `CLEAR CACHED VERSIONS` |  |  |  |
 | Inactive non-public caches are removed by `CLEAR CACHED VERSIONS` |  |  |  |
@@ -136,12 +139,24 @@ Artifact hygiene:
 | --- | --- | --- | --- |
 | Evidence bundle excludes Steam credentials, refresh tokens, and shared preferences |  |  |  |
 | Publicly shared evidence is scrubbed of account names, device identifiers, and local user paths |  |  |  |
-| Raw logs with identifying data are kept local or redacted before sharing |  |  |  |
+| Raw full logcat was omitted by default, or captured only with `-IncludeRawLogcat` for local-only diagnostics and manually reviewed/redacted before sharing |  |  |  |
+| Evidence bundle records `sts2_steamkit_debug_logs` setting state; public log excerpts confirm SteamKit logs were disabled or sanitized |  |  |  |
+| Public issue evidence uses `logcat-steam-version-focused-redacted.txt` or equivalent manual redaction instead of raw full logcat, and the best-effort redacted file was manually reviewed before posting |  |  |  |
+| Redacted focused logcat includes its best-effort/manual-review warning header |  |  |  |
+| Evidence bundle includes `ARTIFACT_HYGIENE.txt` and raw logs are treated as local-only unless manually reviewed and redacted |  |  |  |
+| Evidence bundle includes `PUBLIC_SHARE_MANIFEST.txt` listing preferred public artifacts and local-only/manual-review artifacts |  |  |  |
+| Evidence bundle includes `logcat-redaction-summary.txt` with focused-line and changed-line counts |  |  |  |
+| Evidence bundle includes `launcher-diagnostics-index.txt`; any full launcher diagnostics report attached publicly was manually reviewed/redacted |  |  |  |
+| Full launcher diagnostics and startup-recovery diagnostics reports include a public-sharing warning before detailed state/evidence/log sections |  |  |  |
+| Copied raw error logs include review/redaction warning text before public posting |  |  |  |
+| Launcher support UI labels raw-log copy as review-before-sharing |  |  |  |
+| Startup recovery UI labels raw-log copy as review-before-sharing and warns raw logs can contain identifying data |  |  |  |
 
 Release decision:
 
 | Item | Evidence | Decision |
 | --- | --- | --- |
+| Release-readiness tracker reviewed |  |  |
 | Build gate passed |  |  |
 | Public/default path validated |  |  |
 | Beta/non-public path validated |  |  |
@@ -181,9 +196,13 @@ Use these exact labels when collecting validation screenshots or notes so the st
 - Manual Pull evidence selected version slot kind
 - Manual Pull evidence selected version slot directory
 - Manual Pull completion flag recorded
+- Manual Pull completed before Push
 - Manual Pull evidence is after branch switch
 - Manual Pull evidence matches selected branch
 - Manual Pull completed after branch switch
+- Current important Android local save evidence count
+- Current important Android local save evidence present
+- Baseline manual Push prerequisites satisfied
 - Manual Push evidence marker filename
 - Manual Push evidence marker path
 - Manual Push evidence UTC
@@ -203,6 +222,8 @@ Use these exact labels when collecting validation screenshots or notes so the st
 - Manual Push evidence recorded cloud backup count
 - Manual Push evidence recorded latest local backup UTC
 - Manual Push evidence recorded latest cloud backup UTC
+- Manual Push evidence recorded important local save evidence count
+- Manual Push evidence recorded baseline prerequisites satisfied
 - Manual Push completion flag recorded
 - Manual Push evidence is after branch switch
 - Manual Push evidence matches selected branch
@@ -222,6 +243,8 @@ Use these exact labels when collecting validation screenshots or notes so the st
 - Manual Push blocked evidence recorded cloud backup count
 - Manual Push blocked evidence recorded latest local backup UTC
 - Manual Push blocked evidence recorded latest cloud backup UTC
+- Manual Push blocked evidence recorded important local save evidence count
+- Manual Push blocked evidence recorded baseline prerequisites satisfied
 - Manual Push blocked evidence recorded pre-Push backup evidence satisfied
 - Manual Push blocked evidence reason
 - Manual Push blocked before upload evidence recorded

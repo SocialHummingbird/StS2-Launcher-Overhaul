@@ -170,7 +170,7 @@ internal sealed partial class ActionSection
         );
         _copyRawLogButton = AddSecondaryHiddenButton(
             _supportGroup,
-            "COPY RAW ERROR LOG",
+            "COPY RAW LOG (REVIEW BEFORE SHARING)",
             scale,
             () => CopyRawLogPressed?.Invoke()
         );

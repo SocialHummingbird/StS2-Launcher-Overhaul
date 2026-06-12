@@ -31,6 +31,7 @@ internal static partial class LauncherDiagnostics
         string dataDir
     )
     {
+        AppendPublicSharingWarning(sb);
         sb.AppendLine($"Data dir: {dataDir}");
         sb.AppendLine();
 

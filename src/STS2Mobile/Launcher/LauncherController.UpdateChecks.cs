@@ -7,6 +7,7 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class LauncherController
 {
     private const string UpdateCheckFailedButtonText = "CHECK FAILED";
+    private const string UpdateCheckBlockedButtonText = "CHECK BLOCKED";
     private const string UpToDateButtonText = "UP TO DATE";
     private const string UpdateGameFilesButtonText = "UPDATE SELECTED VERSION";
 
@@ -52,6 +53,13 @@ internal sealed partial class LauncherController
                 logMessage: $"Update check failed for selected game version ({SelectedGameVersionName()}): {message}",
                 updateButtonText: UpdateCheckFailedButtonText,
                 status: $"Update check failed for selected game version ({SelectedGameVersionName()}): {message}"
+            );
+
+        internal static UpdateCheckViewUpdate Blocked(string message)
+            => new(
+                logMessage: $"Update check blocked for selected game version ({SelectedGameVersionName()}): {message}",
+                updateButtonText: UpdateCheckBlockedButtonText,
+                status: $"Update check blocked for selected game version ({SelectedGameVersionName()}): {message}"
             );
 
         internal void Apply(LauncherView view)
@@ -104,7 +112,23 @@ internal sealed partial class LauncherController
     {
         // Check for launcher (APK) updates from GitHub in parallel with game file updates.
         var appUpdateTask = CheckForAppUpdatesAsync();
-        await _model.CheckForUpdatesAsync();
+        var selectedBranch = LauncherPreferences.ReadGameBranch();
+        var updateProblem = LauncherBranchCatalog.SelectedOptionDownloadProblem(
+            selectedBranch,
+            LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir)
+        );
+
+        if (!string.IsNullOrWhiteSpace(updateProblem))
+        {
+            UpdateCheckViewUpdate.Blocked(
+                updateProblem.Replace("Download blocked:", "Update check blocked:")
+            ).Apply(_view);
+        }
+        else
+        {
+            await _model.CheckForUpdatesAsync();
+        }
+
         await appUpdateTask;
     }
 

@@ -77,7 +77,8 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
             );
 
         private string Message()
-            => $"Raw error log copied to clipboard.\n\nLength: {Length:N0} characters";
+            => "Raw error log copied to clipboard. Review/redact before public posting."
+                + $"\n\nLength: {Length:N0} characters";
 
         internal static string CopyAndDescribe(string text)
         {

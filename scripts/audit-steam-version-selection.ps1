@@ -42,6 +42,25 @@ function Add-Check([string]$RelativePath, [string]$Description, [string[]]$Requi
     }
 }
 
+function Add-ForbiddenCheck([string]$RelativePath, [string]$Description, [string[]]$ForbiddenPatterns) {
+    $content = Read-RepoFile $RelativePath
+    if ($null -eq $content) {
+        return
+    }
+
+    foreach ($pattern in $ForbiddenPatterns) {
+        if ($content -match $pattern) {
+            $failures.Add("$RelativePath - $Description - forbidden pattern present: $pattern")
+            return
+        }
+    }
+
+    $script:passes += 1
+    if (-not $Quiet) {
+        Write-Host "PASS $RelativePath - $Description"
+    }
+}
+
 Add-Check `
     "src\STS2Mobile\Steam\SteamGameBranch.cs" `
     "declares current selector capabilities and unsupported beta features" `
@@ -59,10 +78,28 @@ Add-Check `
         "BetaPasswordEntrySupported\s*=\s*false",
         "BranchDiscoverySupported\s*=\s*true",
         "Account-visible branch options refresh after Steam app-info is available",
+        "StorageIdentity",
         "StableBranchHash",
         "safePrefix",
         "TrimEnd",
-        "StableBranchHash\(branch\)"
+        "StableBranchHash\(storageBranch\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\SteamConnectionConfigurationFactory.cs" `
+    "sanitizes SteamKit debug logs before writing launcher diagnostics" `
+    @(
+        "SanitizeSteamKitDebugMessage",
+        "SteamKitDebugLogsSanitized\s*=\s*true",
+        "SteamKitDebugLogsOptInEnabled",
+        "STS2_STEAMKIT_DEBUG_LOGS",
+        "disabled by default",
+        "SensitiveJsonValueRegex",
+        "SensitiveKeyValueRegex",
+        "BearerTokenRegex",
+        "<redacted>",
+        "PatchHelper\.Log",
+        "SteamKit"
     )
 
 Add-Check `
@@ -85,6 +122,9 @@ Add-Check `
         "CompleteBranchCatalogRefresh",
         "FailBranchCatalogRefresh",
         "SetRefreshGameVersionsBusy",
+        "SelectedOptionStatus",
+        "SelectedOptionDownloadProblem",
+        "Selected version:",
         "RefreshGameBranchOptions"
     )
 
@@ -99,13 +139,37 @@ Add-Check `
         "DropdownOptions",
         "DropdownOptionMetadata",
         "SelectedOptionStatus",
+        "SelectedOptionDownloadProblem",
+        "DropdownLabelWithMetadata",
         "StatusText",
         "windowsManifestDepots",
         "passwordRequired",
         "buildId",
+        "\(password\)",
+        "\(unavailable\)",
+        "\(ready\)",
         "Steam app-info visible branch catalog",
-        "Distinct",
+        "GroupBy",
+        "saved selection",
+        "not listed in the latest Steam app-info catalog",
+        "private, inaccessible, password-protected, or unavailable",
+        "Download blocked: Steam marks this branch as password-protected",
+        "password gate still blocks this launcher from downloading it",
+        "Download blocked: this branch is visible to this account, but no Windows depot manifest was exposed",
+        "Download blocked: this branch was not listed in Steam branch metadata",
+        "Download blocked: selected saved branch was not listed",
+        "Download blocked: selected branch is password-protected",
+        "Download blocked: selected branch has no Windows depot manifest",
+        "Steam app-info metadata has not been captured",
         "SteamGameBranch\.Public"
+    )
+
+Add-ForbiddenCheck `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.cs" `
+    "does not inject hardcoded beta as a normal dropdown fallback" `
+    @(
+        "SteamGameBranch\.Beta,\s*source:\s*""fallback""",
+        "AddIfMissing\(options,\s*new BranchOption\(SteamGameBranch\.Beta"
     )
 
 Add-Check `
@@ -130,6 +194,7 @@ Add-Check `
     @(
         "GameVersionsDirectoryName",
         "StateDirectoryName",
+        "StorageIdentity",
         "StableBranchHash",
         "safePrefix",
         "TrimEnd",
@@ -152,6 +217,7 @@ Add-Check `
         "REFRESH GAME VERSIONS",
         "RefreshGameVersionsRequested",
         "SelectedOptionStatus",
+        "UpdateBranchHelpText",
         "OptionButton",
         "_branchDropdown",
         "LauncherBranchCatalog\.DropdownOptions",
@@ -169,6 +235,7 @@ Add-Check `
         "RefreshGameVersionsPressed",
         "SetRefreshVersionsButtonDisabled",
         "SelectedOptionStatus",
+        "UpdateBranchHelpText",
         "OptionButton",
         "_branchDropdown",
         "LauncherBranchCatalog\.DropdownOptions",
@@ -295,11 +362,30 @@ Add-Check `
     "src\STS2Mobile\Launcher\LauncherController.Downloads.cs" `
     "reports selected-version preservation when clearing inactive caches" `
     @(
+        "SelectedOptionDownloadProblem",
+        "Download blocked",
+        "BlockedRedownloadConfirmationMessage",
+        "ApplyRedownloadBlockedByBranchProblem",
+        "replacement download remains blocked",
         "ClearCachedVersionsPressed",
         "ClearCachedVersions",
         "DeleteInactiveVersionCaches",
         "Selected version preserved",
         "SteamGameBranch\.DisplayName"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.cs" `
+    "blocks selected-version update checks for known unavailable branches while preserving app update checks" `
+    @(
+        "CheckForAppUpdatesAsync",
+        "SelectedOptionDownloadProblem",
+        "Update check blocked:",
+        "CHECK BLOCKED",
+        "Update check blocked for selected game version",
+        "LauncherBranchCatalog\.ReadVisibleBranches",
+        "_model\.CheckForUpdatesAsync",
+        "await appUpdateTask"
     )
 
 Add-Check `
@@ -353,7 +439,16 @@ Add-Check `
     "guards manual Push after branch switches until backup storage is available" `
     @(
         "CloudPushPressed",
+        "CanPushWithBaselineEvidence",
         "BranchSwitchSafety",
+        "Selected version slot:",
+        "Pull-after-switch for",
+        "Android local save evidence",
+        "Pull from Cloud must complete for the selected game version before Push",
+        "selected game version \{selectedVersion\}",
+        "no Android local save evidence exists before Push",
+        "LastManualPullCompletionRecorded",
+        "LastManualPullMatchesSelectedBranch",
         "LauncherBranchSwitchSafety\.HasRequiredEvidence",
         "branch switch marker is missing required safety evidence",
         "does not match the selected game version",
@@ -394,6 +489,9 @@ Add-Check `
         "LastManualPullSelectedVersionSlotKind",
         "LastManualPullSelectedVersionSlotDirectory",
         "LastManualPullCompletionRecorded",
+        "LastManualPullBeforePushCompletionRecorded",
+        "BaselineManualPushPrerequisitesSatisfied",
+        "Manual Pull completed before Push",
         "LastManualPullIsAfterBranchSwitch",
         "LastManualPullMatchesSelectedBranch",
         "LastManualPushUtc",
@@ -418,6 +516,8 @@ Add-Check `
         "LastManualPushRecordedCloudBackupCount",
         "LastManualPushRecordedLatestLocalBackupUtc",
         "LastManualPushRecordedLatestCloudBackupUtc",
+        "LastManualPushRecordedImportantLocalSaveEvidenceCount",
+        "LastManualPushRecordedBaselinePrerequisitesSatisfied",
         "LastManualPushCompletionRecorded",
         "LastManualPushIsAfterBranchSwitch",
         "LastManualPushMatchesSelectedBranch",
@@ -437,6 +537,8 @@ Add-Check `
         "LastManualPushBlockedRecordedCloudBackupCount",
         "LastManualPushBlockedRecordedLatestLocalBackupUtc",
         "LastManualPushBlockedRecordedLatestCloudBackupUtc",
+        "LastManualPushBlockedRecordedImportantLocalSaveEvidenceCount",
+        "LastManualPushBlockedRecordedBaselinePrerequisitesSatisfied",
         "LastManualPushBlockedRecordedPrePushBackupEvidenceSatisfied",
         "LastManualPushBlockedReason",
         "LastManualPushBlockedBeforeUpload",
@@ -452,9 +554,12 @@ Add-Check `
         "Pre-Push cloud backup evidence count:",
         "Latest pre-Push local backup UTC:",
         "Latest pre-Push cloud backup UTC:",
+        "Important Android local save evidence count:",
+        "Baseline manual Push prerequisites satisfied:",
         'string\? ReadSelectedBranch',
         "return false",
         "Manual Pull completed before branch-switch Push",
+        "Manual Pull completed before Push",
         "Manual Push completed after branch-switch safety gates",
         "Selected version:",
         "Selected branch note"
@@ -513,6 +618,9 @@ Add-Check `
     @(
         "BranchSwitchConfirmationMessage",
         "SteamGameBranch\.SelectorInstallSlotHelpText",
+        "LauncherBranchCatalog\.ReadVisibleBranches",
+        "SelectedOptionStatus",
+        "SelectedOptionDownloadProblem",
         "AppendLog\(STS2Mobile\.Steam\.SteamGameBranch\.SelectorInstallSlotHelpText",
         "SelectedVersionReadyStatus",
         "SelectedVersionDownloadRequiredStatus",
@@ -532,9 +640,20 @@ Add-Check `
         "Android/Samsung/password-manager Autofill only",
         "must not store or inject Steam passwords",
         "native one-shot Autofill dialog",
+        "activity stops/destroys",
+        "password field is cleared immediately",
         "autofill_hint",
         "credential_storage_owner",
         "android_autofill_provider"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LoginSection.cs" `
+    "clears captured Steam password from Godot login UI before authentication handoff" `
+    @(
+        "var password = _passwordField\.Text",
+        "_passwordField\.Text = """"",
+        "LoginRequested\?\.Invoke\(username, password\)"
     )
 
 Add-Check `
@@ -577,6 +696,49 @@ Add-Check `
     )
 
 Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.StartupRecoveryReports.cs" `
+    "adds public-sharing warning before startup recovery diagnostics content" `
+    @(
+        "AppendStartupRecoveryDiagnostics",
+        "AppendPublicSharingWarning",
+        "Data dir:"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Construction.cs" `
+    "labels startup recovery raw-log copy as review-before-sharing" `
+    @(
+        "COPY RAW LOG \(REVIEW BEFORE SHARING\)",
+        "Raw logs can contain identifying data",
+        "review/redact before sharing"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "labels launcher support raw-log copy as review-before-sharing" `
+    @(
+        "COPY RAW LOG \(REVIEW BEFORE SHARING\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Diagnostics.cs" `
+    "warns before raw launcher error logs are copied for sharing" `
+    @(
+        "Public sharing warning",
+        "review and redact this raw error log before posting publicly",
+        "Review/redact before public posting",
+        "Raw error log copied"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Reports.cs" `
+    "warns after startup recovery raw error logs are copied" `
+    @(
+        "Raw error log copied to clipboard",
+        "Review/redact before public posting"
+    )
+
+Add-Check `
     "src\STS2Mobile\Launcher\LauncherDiagnostics.Reports.cs" `
     "reports selected branch, marker, cache, and backup state" `
     @(
@@ -593,6 +755,10 @@ Add-Check `
         "Launcher stores Steam password for Autofill",
         "Native Android Autofill result TTL seconds",
         "Android credential Autofill implementation note",
+        "SteamKit debug logs opt-in enabled",
+        "SteamKit debug logs sanitized for credentials/tokens",
+        "Public sharing warning",
+        "review and redact this diagnostics report before posting publicly",
         "Selected game version slot kind",
         "Selected game version slot directory",
         "Selected game branch marker install slot kind",
@@ -677,6 +843,7 @@ Add-Check `
         "Manual Pull evidence selected version slot kind",
         "Manual Pull evidence selected version slot directory",
         "Manual Pull completion flag recorded",
+        "Manual Pull completed before Push",
         "Manual Pull evidence is after branch switch",
         "Manual Pull evidence matches selected branch",
         "Manual Pull completed after branch switch for selected version",
@@ -701,6 +868,8 @@ Add-Check `
         "Manual Push evidence recorded cloud backup count",
         "Manual Push evidence recorded latest local backup UTC",
         "Manual Push evidence recorded latest cloud backup UTC",
+        "Manual Push evidence recorded important local save evidence count",
+        "Manual Push evidence recorded baseline prerequisites satisfied",
         "Manual Push completion flag recorded",
         "Manual Push evidence is after branch switch",
         "Manual Push evidence matches selected branch",
@@ -721,6 +890,8 @@ Add-Check `
         "Manual Push blocked evidence recorded cloud backup count",
         "Manual Push blocked evidence recorded latest local backup UTC",
         "Manual Push blocked evidence recorded latest cloud backup UTC",
+        "Manual Push blocked evidence recorded important local save evidence count",
+        "Manual Push blocked evidence recorded baseline prerequisites satisfied",
         "Manual Push blocked evidence recorded pre-Push backup evidence satisfied",
         "Manual Push blocked evidence reason",
         "Manual Push blocked before upload evidence recorded",
@@ -822,9 +993,34 @@ Add-Check `
         "Current release decision: not release-ready",
         "active install slot",
         "selected-cache-preserved aggregate",
+        "Manual Pull completed before Push",
+        "Current important Android local save evidence count",
+        "Baseline manual Push prerequisites satisfied",
         "beta password",
         "save compatibility",
+        "steam-version-selection-release-readiness\.md",
         "steam-version-selection-runbook\.md"
+    )
+
+Add-Check `
+    "docs\steam-version-selection-release-readiness.md" `
+    "tracks implementation status versus release evidence requirements" `
+    @(
+        "Current status",
+        "Evidence required before release-candidate signoff",
+        "Known release blockers",
+        "Release rule",
+        "Public/default branch",
+        "Branch selector",
+        "No silent public fallback",
+        "Side-by-side storage",
+        "Native startup routing",
+        "Steam Cloud safety",
+        "Autofill",
+        "Artifact hygiene",
+        "ARM64",
+        "Pull-before-Push",
+        "not release-ready"
     )
 
 Add-Check `
@@ -856,8 +1052,14 @@ Add-Check `
     "maps goal requirements to static and runtime evidence" `
     @(
         "Completion rule",
+        "steam-version-selection-release-readiness\.md",
         "Requirement audit",
         "selected-version note",
+        "account-visible Steam branch dropdown",
+        "public/default always available",
+        "Manual Pull completed before Push",
+        "Current important Android local save evidence count",
+        "Baseline manual Push prerequisites satisfied",
         "Manual Push evidence marker filename",
         "last_manual_cloud_push_blocked\.txt",
         "Manual Push completed after branch switch for selected version with backup evidence",
@@ -869,6 +1071,14 @@ Add-Check `
         "Do not mark Steam beta/version selection release-ready yet"
     )
 
+Add-ForbiddenCheck `
+    "docs\steam-version-selection-completion-audit.md" `
+    "does not describe the old manual selector model" `
+    @(
+        "manual Steam branch entry",
+        "no arbitrary discovery"
+    )
+
 Add-Check `
     "scripts\new-steam-version-selection-evidence.ps1" `
     "creates a structured artifact folder for ARM64 validation evidence" `
@@ -878,6 +1088,11 @@ Add-Check `
         "backup-evidence",
         "Resolve-RepoPath",
         "steam-version-selection-evidence-template\.md",
+        "steam-version-selection-release-readiness\.md",
+        "ARTIFACT_HYGIENE\.txt",
+        "PUBLIC_SHARE_MANIFEST\.txt",
+        "Preferred public artifacts",
+        "Local-only or manual-review artifacts",
         "Manual Push evidence marker filename",
         "Do not run manual Push"
     )
@@ -887,6 +1102,26 @@ Add-Check `
     "captures non-secret device evidence for version-selection validation" `
     @(
         "logcat-steam-version-focused",
+        "logcat-steam-version-focused-redacted\.txt",
+        "-split '\\r\?\\n'",
+        "best-effort pattern-based redaction",
+        "warning header",
+        "account/username fields",
+        "local user paths",
+        "Redact-LogLine",
+        "ARTIFACT_HYGIENE\.txt",
+        "local-only raw diagnostics",
+        "PUBLIC_SHARE_MANIFEST\.txt",
+        "preferred public artifacts",
+        "IncludeRawLogcat",
+        "Raw full logcat omitted by default",
+        "logcat-redaction-summary\.txt",
+        "Focused log lines changed by best-effort redaction",
+        "launcher-diagnostics-index\.txt",
+        "Attach full reports manually only after review/redaction",
+        "steamkit-debug-log-setting\.txt",
+        "sts2_steamkit_debug_logs",
+        "Expected routine evidence value",
         "steam_branch\.txt",
         "last_game_branch_switch\.txt",
         "manualPullMarkerFileName",
@@ -929,15 +1164,62 @@ Add-Check `
         "audit-steam-branch-guidance-parity\.ps1",
         "new-steam-version-selection-evidence\.ps1",
         "capture-steam-version-selection-evidence\.ps1",
+        "steam-version-selection-release-readiness\.md",
+        "ARTIFACT_HYGIENE\.txt",
+        "local-only/raw-log",
+        "PUBLIC_SHARE_MANIFEST\.txt",
+        "safer public-sharing defaults",
+        "logcat-steam-version-focused-redacted\.txt",
+        "IncludeRawLogcat",
+        "omitted by default",
         "normalize local path separators",
+        "steamkit-debug-log-setting\.txt",
+        "logcat-redaction-summary\.txt",
+        "launcher-diagnostics-index\.txt",
         "last_game_branch_switch\.txt",
         "last_manual_cloud_push\.txt",
         "last_manual_cloud_push_blocked\.txt",
         "pre-push-backup-counts\.txt",
         "Artifact hygiene",
         "Do not store Steam credentials",
+        "sts2_steamkit_debug_logs",
+        "disabled by default",
         "Autofill versus local credential handoff",
         "developer-only automation aids"
+    )
+
+Add-Check `
+    "android\src\com\game\sts2launcher\GodotApp.java" `
+    "requires selected branch provenance before consuming native game launch requests" `
+    @(
+        "boolean branchMarkerReady = isBranchMarkerReady\(selectedBranch\)",
+        "boolean gamePckReady = isGamePckReady\(\)",
+        "branchMarkerReady && gamePckReady && consumeGameLaunchRequest\(\)",
+        "Blocking selected game version startup because branch marker provenance is missing or mismatched",
+        "returning to launcher instead of falling back to another branch"
+    )
+
+Add-Check `
+    "android\src\com\game\sts2launcher\GodotApp.java" `
+    "clears one-shot native Autofill login values on lifecycle exit" `
+    @(
+        "protected void onStop\(\)",
+        "protected void onDestroy\(\)",
+        "clearAutofillLogin\(\)",
+        "pendingAutofillLoginUsername = """"",
+        "pendingAutofillLoginPassword = """"",
+        "AUTOFILL_LOGIN_RESULT_TTL_MS"
+    )
+
+Add-Check `
+    "android\src\com\game\sts2launcher\GodotApp.java" `
+    "keeps SteamKit debug logging opt-in at the Android boundary" `
+    @(
+        "ENV_STEAMKIT_DEBUG_LOGS",
+        "sts2_steamkit_debug_logs",
+        "setSteamKitDebugLogMode",
+        "Sanitized SteamKit debug logging enabled",
+        "STS2_STEAMKIT_DEBUG_LOGS"
     )
 
 Add-Check `
@@ -987,10 +1269,14 @@ Add-Check `
     "docs\steam-version-selection-runbook.md" `
     "orders destructive cloud validation behind Pull and backup gates" `
     @(
+        "steam-version-selection-release-readiness\.md",
         "Cloud Pull gate",
         "Backup permission gate",
         "Pre-Push backup evidence",
-        "Manual Push smoke test"
+        "Manual Push smoke test",
+        "Optional auth diagnostics",
+        "sts2_steamkit_debug_logs",
+        "SteamKit debug logs sanitized for credentials/tokens"
     )
 
 Add-Check `
@@ -1001,10 +1287,14 @@ Add-Check `
         "Branch discovery",
         "Android credential Autofill",
         "Launcher stores Steam password for Autofill",
+        "SteamKit debug logs opt-in status",
+        "disabled by default",
         "Steam branch dropdown option metadata",
         "Static guardrails",
+        "steam-version-selection-release-readiness\.md",
         "audit-steam-version-selection\.ps1",
         "audit-steam-branch-guidance-parity\.ps1",
+        "blocked states",
         "Selector helper text shows the active install slot",
         "selected game version note",
         "selected game version slot kind",
@@ -1047,9 +1337,13 @@ Add-Check `
         "Manual Pull evidence selected version slot kind",
         "Manual Pull evidence selected version slot directory",
         "Manual Pull completion flag recorded",
+        "Manual Pull completed before Push",
         "Manual Pull evidence is after branch switch",
         "Manual Pull evidence matches selected branch",
         "Manual Pull completed after branch switch",
+        "Current important Android local save evidence count",
+        "Current important Android local save evidence present",
+        "Baseline manual Push prerequisites satisfied",
         "Manual Push evidence marker filename",
         "Manual Push evidence marker path",
         "Manual Push evidence UTC",
@@ -1069,6 +1363,8 @@ Add-Check `
         "Manual Push evidence recorded cloud backup count",
         "Manual Push evidence recorded latest local backup UTC",
         "Manual Push evidence recorded latest cloud backup UTC",
+        "Manual Push evidence recorded important local save evidence count",
+        "Manual Push evidence recorded baseline prerequisites satisfied",
         "Manual Push completion flag recorded",
         "Manual Push evidence is after branch switch",
         "Manual Push evidence matches selected branch",
@@ -1088,6 +1384,8 @@ Add-Check `
         "Manual Push blocked evidence recorded cloud backup count",
         "Manual Push blocked evidence recorded latest local backup UTC",
         "Manual Push blocked evidence recorded latest cloud backup UTC",
+        "Manual Push blocked evidence recorded important local save evidence count",
+        "Manual Push blocked evidence recorded baseline prerequisites satisfied",
         "Manual Push blocked evidence recorded pre-Push backup evidence satisfied",
         "Manual Push blocked evidence reason",
         "Manual Push blocked before upload evidence recorded",
@@ -1104,7 +1402,21 @@ Add-Check `
         "refresh tokens",
         "shared preferences",
         "device identifiers",
-        "Raw logs with identifying data"
+        "Raw full logcat was omitted by default",
+        "IncludeRawLogcat",
+        "sts2_steamkit_debug_logs",
+        "logcat-steam-version-focused-redacted\.txt",
+        "best-effort redacted file was manually reviewed before posting",
+        "Redacted focused logcat includes its best-effort/manual-review warning header",
+        "ARTIFACT_HYGIENE\.txt",
+        "raw logs are treated as local-only",
+        "PUBLIC_SHARE_MANIFEST\.txt",
+        "preferred public artifacts",
+        "logcat-redaction-summary\.txt",
+        "focused-line and changed-line counts",
+        "launcher-diagnostics-index\.txt",
+        "full launcher diagnostics report attached publicly was manually reviewed/redacted",
+        "Full launcher diagnostics and startup-recovery diagnostics reports include a public-sharing warning"
     )
 
 Add-Check `
@@ -1112,11 +1424,13 @@ Add-Check `
     "keeps tester-facing support boundaries and cloud safety rules visible" `
     @(
         "implemented for validation",
+        "steam-version-selection-release-readiness\.md",
         "What is not supported yet",
         "REFRESH GAME VERSIONS",
         "Steam login Autofill",
         "Android credential Autofill provider model",
         "Native Android Autofill result TTL seconds",
+        "blocked states",
         "Steam beta password entry",
         "Selected game version note",
         "Selected game version slot kind",
@@ -1214,12 +1528,25 @@ Add-Check `
     ".github\ISSUE_TEMPLATE\steam_version_selection_report.md" `
     "keeps public Steam version-selection reports free of secrets and identifiers" `
     @(
+        "Release-readiness gate covered",
+        "No silent fallback to public/default",
+        "Android/Samsung/password-manager Autofill behavior",
+        "Public-share artifact hygiene reviewed",
         "Artifact hygiene",
         "Steam credentials",
         "refresh tokens",
         "shared preferences",
         "device identifiers",
         "local user paths",
+        "Android credential Autofill provider model",
+        "Launcher stores Steam password for Autofill",
+        "SteamKit debug logs opt-in enabled",
+        "SteamKit debug logs sanitized for credentials/tokens",
+        "adb logcat",
+        "redacting identifiers",
+        "logcat-steam-version-focused-redacted\.txt",
+        "avoid raw full logcat",
+        "manually review it before posting",
         "Selected game version note",
         "Selected game version slot kind",
         "Selected game version slot directory",
@@ -1250,6 +1577,10 @@ Add-Check `
         "Manual Pull evidence selected version",
         "Manual Pull evidence selected version slot kind",
         "Manual Pull evidence selected version slot directory",
+        "Manual Pull completed before Push",
+        "Current important Android local save evidence count",
+        "Current important Android local save evidence present",
+        "Baseline manual Push prerequisites satisfied",
         "Manual Pull completed after branch switch",
         "Manual Push evidence marker filename",
         "Manual Push evidence marker path",
@@ -1261,6 +1592,8 @@ Add-Check `
         "Manual Push evidence selected version",
         "Manual Push evidence selected version slot kind",
         "Manual Push evidence selected version slot directory",
+        "Manual Push evidence recorded important local save evidence count",
+        "Manual Push evidence recorded baseline prerequisites satisfied",
         "Manual Push evidence recorded pre-Push backup evidence satisfied",
         "Manual Push completed after branch switch for selected version with backup evidence",
         "Manual Push blocked evidence marker filename",
@@ -1274,6 +1607,8 @@ Add-Check `
         "Manual Push blocked evidence selected version slot kind",
         "Manual Push blocked evidence selected version slot directory",
         "Manual Push blocked evidence reason",
+        "Manual Push blocked evidence recorded important local save evidence count",
+        "Manual Push blocked evidence recorded baseline prerequisites satisfied",
         "Manual Push blocked evidence recorded prerequisites satisfied",
         "Manual Push blocked evidence recorded local backup count",
         "Manual Push blocked evidence recorded cloud backup count",
@@ -1311,6 +1646,8 @@ Add-Check `
         "Steam version selection and branch cache hardening",
         "REFRESH GAME VERSIONS",
         "Autofill",
+        "SteamKit debug logs disabled by default",
+        "sts2_steamkit_debug_logs=1",
         "branch marker/provenance",
         "wrapped selector guidance",
         "managed/native guidance parity",
@@ -1353,6 +1690,8 @@ Add-Check `
         "REFRESH GAME VERSIONS",
         "dropdown-first",
         "Android Autofill",
+        "SteamKit debug logs are disabled by default",
+        "sts2_steamkit_debug_logs=1",
         "wrapped selector guidance",
         "managed/native selector-guidance parity",
         "audit-steam-version-selection\.ps1",
@@ -1364,14 +1703,30 @@ Add-Check `
     )
 
 Add-Check `
+    "docs\current-android-status.md" `
+    "keeps Android status current for version selection, Autofill, and credential-log hardening" `
+    @(
+        "Steam beta/version selection is in hardening",
+        "steam-version-selection-release-readiness\.md",
+        "discovery-led dropdown Steam branch selector",
+        "Autofill",
+        "does not store Steam passwords for Autofill",
+        "SteamKit debug logs are disabled by default",
+        "sts2_steamkit_debug_logs=1",
+        "ARM64 device validation"
+    )
+
+Add-Check `
     "README.md" `
     "advertises version selection as validation-stage, not release-signed" `
     @(
         "implemented for validation",
+        "steam-version-selection-release-readiness\.md",
         "not release-signed",
-        "dropdown-first selector",
+        "discovery-led dropdown selector",
         "REFRESH GAME VERSIONS",
         "Autofill",
+        "SteamKit debug logs are disabled by default",
         "Steam beta password entry",
         "Push backup evidence"
     )

@@ -30,11 +30,15 @@ internal sealed partial class LauncherController
 
     private static void CopyRawLogToClipboard(LauncherView view, string rawLog)
     {
-        var clipboardText = new LauncherClipboardText(rawLog);
+        var clipboardText = new LauncherClipboardText(
+            "Public sharing warning: review and redact this raw error log before posting publicly.\n"
+            + "It may include account names, local paths, device details, save/cloud state, and log excerpts.\n\n"
+            + rawLog
+        );
         clipboardText.CopyToClipboard();
-        view.SetStatus("Raw error log copied.");
+        view.SetStatus("Raw error log copied. Review/redact before sharing.");
         view.AppendLog(
-            $"Raw error log copied to clipboard ({clipboardText.Length:N0} chars)."
+            $"Raw error log copied to clipboard ({clipboardText.Length:N0} chars). Review/redact before public posting."
         );
     }
 }

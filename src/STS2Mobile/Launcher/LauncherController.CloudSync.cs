@@ -43,7 +43,7 @@ internal sealed partial class LauncherController
 
         internal static ManualCloudSyncRequest Push(string dataDir, string selectedBranch)
             => new(
-                PushConfirmationMessage(dataDir),
+                PushConfirmationMessage(dataDir, selectedBranch),
                 "Push",
                 "Pushing Android local saves to Steam Cloud...",
                 "Push complete. Steam Cloud now reflects Android local saves.",
@@ -64,18 +64,20 @@ internal sealed partial class LauncherController
                 () => LauncherCloudSyncEvidence.WriteManualPullMarker(dataDir, selectedBranch)
             );
 
-        private static string PushConfirmationMessage(string dataDir)
+        private static string PushConfirmationMessage(string dataDir, string selectedBranch)
             => "Push Android local saves to Steam Cloud?\n"
-                + $"Selected game version: {SteamGameBranch.DisplayName(LauncherPreferences.ReadGameBranch())}.\n"
-                + BranchSwitchPushWarning(dataDir)
+                + $"Selected game version: {SteamGameBranch.DisplayName(selectedBranch)}.\n"
+                + $"Selected version slot: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)} ({SteamGameBranch.StateDirectoryName(selectedBranch)}).\n"
+                + BranchSwitchPushWarning(dataDir, selectedBranch)
                 + "This can overwrite Steam Cloud saves for this Steam account. "
                 + "Save compatibility across Steam branches is not validated. "
                 + "When Local Backup is ON, manual Push backs up important Android local saves and existing Steam Cloud saves before upload. "
                 + "Pull from Cloud first and verify the Android saves exist before pushing.";
 
-        private static string BranchSwitchPushWarning(string dataDir)
+        private static string BranchSwitchPushWarning(string dataDir, string selectedBranch)
             => LauncherBranchSwitchSafety.HasMarker(dataDir)
-                ? "A game version switch was recorded on this install. Treat this Push as cross-version/destructive unless Pull, local-save existence, backup storage permission, local pre-Push backup, and cloud pre-Push backup evidence are all current.\n"
+                ? "A game version switch was recorded on this install. Treat this Push as cross-version/destructive unless the selected-version safety evidence is current: "
+                    + $"Pull-after-switch for {SteamGameBranch.DisplayName(selectedBranch)}, Android local save evidence, backup storage permission, local pre-Push backup evidence, and cloud pre-Push backup evidence.\n"
                 : string.Empty;
 
         internal void ShowStarted(LauncherView view)
@@ -129,6 +131,9 @@ internal sealed partial class LauncherController
 
     private void CloudPushPressed()
     {
+        if (!CanPushWithBaselineEvidence())
+            return;
+
         if (!CanPushAfterBranchSwitch())
             return;
 
@@ -136,6 +141,35 @@ internal sealed partial class LauncherController
             _model.DataDir,
             LauncherPreferences.ReadGameBranch()
         ));
+    }
+
+    private bool CanPushWithBaselineEvidence()
+    {
+        var selectedBranch = LauncherPreferences.ReadGameBranch();
+        var selectedVersion = SteamGameBranch.DisplayName(selectedBranch);
+
+        if (
+            !LauncherCloudSyncEvidence.LastManualPullCompletionRecorded(_model.DataDir)
+            || !LauncherCloudSyncEvidence.LastManualPullMatchesSelectedBranch(_model.DataDir, selectedBranch)
+        )
+        {
+            const string reason = "Manual Push blocked: Pull from Cloud must complete for the selected game version before Push.";
+            LauncherCloudSyncEvidence.WriteManualPushBlockedMarker(_model.DataDir, selectedBranch, reason);
+            _view.SetStatus($"Push blocked: Pull from Cloud must complete for selected game version {selectedVersion} before Push.");
+            _view.AppendLog($"Push blocked: no current Pull from Cloud evidence exists for selected game version {selectedVersion}.");
+            return false;
+        }
+
+        if (!LauncherLocalSaveEvidence.HasImportantSaveEvidence(_model.DataDir))
+        {
+            const string reason = "Manual Push blocked: no Android local save evidence exists before Push.";
+            LauncherCloudSyncEvidence.WriteManualPushBlockedMarker(_model.DataDir, selectedBranch, reason);
+            _view.SetStatus($"Push blocked: no Android local save files were found for selected game version {selectedVersion}.");
+            _view.AppendLog($"Push blocked: Pull from Cloud first for {selectedVersion}, launch or inspect the game until Android local saves exist, then retry Push.");
+            return false;
+        }
+
+        return true;
     }
 
     private bool CanPushAfterBranchSwitch()

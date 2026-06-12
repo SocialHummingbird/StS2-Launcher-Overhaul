@@ -243,6 +243,8 @@ public static class ModEntry
 
     private static string StateDirectoryName(string branch)
     {
+        branch = StorageIdentity(branch);
+
         if (string.Equals(branch, "public", StringComparison.OrdinalIgnoreCase))
             return "public";
 
@@ -267,6 +269,9 @@ public static class ModEntry
 
         return $"{safePrefix}-{StableBranchHash(branch)}";
     }
+
+    private static string StorageIdentity(string branch)
+        => string.IsNullOrWhiteSpace(branch) ? "public" : branch.Trim().ToLowerInvariant();
 
     private static string StableBranchHash(string branch)
     {

@@ -9,7 +9,7 @@ internal static class LauncherAutofillSupport
     internal const bool GodotFieldAutofillHintsConfigured = true;
     internal const int NativeDialogResultTtlSeconds = 60;
     internal const string ProviderModel = "Android/Samsung/password-manager Autofill only; launcher must not store or inject Steam passwords.";
-    internal const string CurrentImplementation = "Godot-rendered login fields carry username/password metadata; Android can also show a native one-shot Autofill dialog with real username/password EditText controls. Filled values are held in memory only until consumed by the login flow, cancelled, or expired after 60 seconds.";
+    internal const string CurrentImplementation = "Godot-rendered login fields carry username/password metadata; Android can also show a native one-shot Autofill dialog with real username/password EditText controls. Filled values are held in memory only until consumed by the login flow, cancelled, the activity stops/destroys, or expired after 60 seconds. The Godot password field is cleared immediately after the login request captures the value.";
     internal const string UsernamePurpose = "username";
     internal const string PasswordPurpose = "password";
 

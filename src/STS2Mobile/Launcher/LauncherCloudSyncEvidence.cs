@@ -175,6 +175,12 @@ internal static class LauncherCloudSyncEvidence
     internal static string LastManualPushRecordedLatestCloudBackupUtc(string dataDir)
         => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Latest pre-Push cloud backup UTC:") ?? "<none>";
 
+    internal static string LastManualPushRecordedImportantLocalSaveEvidenceCount(string dataDir)
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Important Android local save evidence count:") ?? "<none>";
+
+    internal static string LastManualPushRecordedBaselinePrerequisitesSatisfied(string dataDir)
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Baseline manual Push prerequisites satisfied:") ?? "<none>";
+
     internal static string LastManualPushBlockedSelectedBranch(string dataDir)
         => ReadSelectedBranch(LastManualPushBlockedMarkerPath(dataDir)) ?? "<none>";
 
@@ -208,6 +214,12 @@ internal static class LauncherCloudSyncEvidence
     internal static string LastManualPushBlockedRecordedLatestCloudBackupUtc(string dataDir)
         => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Latest pre-Push cloud backup UTC:") ?? "<none>";
 
+    internal static string LastManualPushBlockedRecordedImportantLocalSaveEvidenceCount(string dataDir)
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Important Android local save evidence count:") ?? "<none>";
+
+    internal static string LastManualPushBlockedRecordedBaselinePrerequisitesSatisfied(string dataDir)
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Baseline manual Push prerequisites satisfied:") ?? "<none>";
+
     internal static string LastManualPushBlockedRecordedPrePushBackupEvidenceSatisfied(string dataDir)
         => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Branch-switch pre-Push backup evidence satisfied:") ?? "<none>";
 
@@ -215,7 +227,16 @@ internal static class LauncherCloudSyncEvidence
         => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Blocked reason:") ?? "<none>";
 
     internal static bool LastManualPullCompletionRecorded(string dataDir)
-        => HasCompletionFlag(LastManualPullMarkerPath(dataDir));
+        => LastManualPullBeforePushCompletionRecorded(dataDir)
+            || HasCompletionFlag(LastManualPullMarkerPath(dataDir));
+
+    internal static bool LastManualPullBeforePushCompletionRecorded(string dataDir)
+        => HasCompletionFlag(LastManualPullMarkerPath(dataDir), "Manual Pull completed before Push:");
+
+    internal static bool BaselineManualPushPrerequisitesSatisfied(string dataDir, string selectedBranch)
+        => LastManualPullCompletionRecorded(dataDir)
+            && LastManualPullMatchesSelectedBranch(dataDir, selectedBranch)
+            && LauncherLocalSaveEvidence.HasImportantSaveEvidence(dataDir);
 
     internal static bool LastManualPushCompletionRecorded(string dataDir)
         => HasCompletionFlag(LastManualPushMarkerPath(dataDir), "Manual Push completed after branch-switch safety gates:");
@@ -314,6 +335,7 @@ internal static class LauncherCloudSyncEvidence
                 + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
                 + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
                 + $"Selected branch note: {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
+                + "Manual Pull completed before Push: true\n"
                 + "Manual Pull completed before branch-switch Push: true\n";
             File.WriteAllText(LastManualPullMarkerPath(dataDir), text);
         }
@@ -340,6 +362,8 @@ internal static class LauncherCloudSyncEvidence
                 + $"Pre-Push cloud backup evidence count: {LauncherBackupEvidence.CloudPrePushBackupCount()}\n"
                 + $"Latest pre-Push local backup UTC: {LauncherBackupEvidence.LatestLocalPrePushBackupUtc()}\n"
                 + $"Latest pre-Push cloud backup UTC: {LauncherBackupEvidence.LatestCloudPrePushBackupUtc()}\n"
+                + $"Important Android local save evidence count: {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n"
+                + $"Baseline manual Push prerequisites satisfied: {BaselineManualPushPrerequisitesSatisfied(dataDir, selectedBranch).ToString().ToLowerInvariant()}\n"
                 + $"Branch-switch pre-Push backup evidence satisfied: {LauncherBackupEvidence.HasPrePushBackupEvidenceAfterBranchSwitch(dataDir).ToString().ToLowerInvariant()}\n"
                 + "Manual Push completed after branch-switch safety gates: true\n";
             File.WriteAllText(LastManualPushMarkerPath(dataDir), text);
@@ -374,6 +398,8 @@ internal static class LauncherCloudSyncEvidence
                 + $"Pre-Push cloud backup evidence count: {LauncherBackupEvidence.CloudPrePushBackupCount()}\n"
                 + $"Latest pre-Push local backup UTC: {LauncherBackupEvidence.LatestLocalPrePushBackupUtc()}\n"
                 + $"Latest pre-Push cloud backup UTC: {LauncherBackupEvidence.LatestCloudPrePushBackupUtc()}\n"
+                + $"Important Android local save evidence count: {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n"
+                + $"Baseline manual Push prerequisites satisfied: {BaselineManualPushPrerequisitesSatisfied(dataDir, selectedBranch).ToString().ToLowerInvariant()}\n"
                 + $"Branch-switch pre-Push backup evidence satisfied: {LauncherBackupEvidence.HasPrePushBackupEvidenceAfterBranchSwitch(dataDir).ToString().ToLowerInvariant()}\n"
                 + $"Blocked reason: {SanitizeSingleLine(reason)}\n"
                 + "Manual Push blocked before upload: true\n";

@@ -45,6 +45,59 @@ if (Test-Path -LiteralPath $templatePath) {
     Set-Content -LiteralPath $evidencePath -Value "# Steam Version Selection Evidence`n" -Encoding UTF8
 }
 
+$artifactHygienePath = Join-Path $evidenceDir "ARTIFACT_HYGIENE.txt"
+$artifactHygiene = @"
+Steam Version Selection Artifact Hygiene
+
+Do not store or publish Steam credentials, guard codes, refresh tokens, shared preferences, private save contents, or unsanitized full logs in this evidence folder.
+
+Raw logs and full launcher diagnostics are local-only unless they have been manually reviewed and redacted before sharing.
+
+Prefer public attachments from this folder in this order:
+
+1. evidence.md after completing non-secret result fields.
+2. PUBLIC_SHARE_MANIFEST.txt after reviewing it.
+3. logs/logcat-steam-version-focused-redacted.txt when generated and manually reviewed.
+4. diagnostics/logcat-redaction-summary.txt when generated.
+5. screenshots that do not expose account names, credentials, guard codes, save contents, or device-identifying details.
+6. branch marker files only after checking they do not expose identifying data.
+
+The release-readiness contract is docs/steam-version-selection-release-readiness.md.
+"@
+
+Set-Content -LiteralPath $artifactHygienePath -Value $artifactHygiene -Encoding UTF8
+
+$publicShareManifestPath = Join-Path $evidenceDir "PUBLIC_SHARE_MANIFEST.txt"
+$publicShareManifest = @"
+Steam Version Selection Public Share Manifest
+
+Preferred public artifacts after manual review:
+
+- evidence.md
+- ARTIFACT_HYGIENE.txt
+- logs/logcat-steam-version-focused-redacted.txt
+- diagnostics/logcat-redaction-summary.txt
+- diagnostics/steamkit-debug-log-setting.txt
+- diagnostics/launcher-diagnostics-index.txt
+- screenshots that do not expose account or device-identifying details
+- branch-markers/steam-branch-marker-list.txt
+- branch-markers/last_steam_branch_availability.txt
+
+Local-only or manual-review artifacts:
+
+- logs/logcat-full.txt
+- logs/logcat-steam-version-focused.txt
+- full launcher diagnostics reports
+- startup-recovery diagnostics reports
+- raw copied error logs
+- private save files or save-content dumps
+- any artifact containing credentials, guard codes, refresh tokens, shared preferences, account names, local user paths, or device identifiers
+
+Before public posting, compare the evidence against docs/steam-version-selection-release-readiness.md and only mark a release-readiness gate as covered when the artifact directly proves that gate.
+"@
+
+Set-Content -LiteralPath $publicShareManifestPath -Value $publicShareManifest -Encoding UTF8
+
 $readmePath = Join-Path $evidenceDir "README.md"
 $readme = @"
 # Steam Version Selection Evidence Folder
@@ -57,6 +110,8 @@ Use this folder for one validation run. Do not place Steam credentials or person
 ## Fill first
 
 - ``evidence.md`` copied from ``docs/steam-version-selection-evidence-template.md``.
+- Review ``docs/steam-version-selection-release-readiness.md`` and mark only gates this folder directly proves.
+- Review ``ARTIFACT_HYGIENE.txt`` and ``PUBLIC_SHARE_MANIFEST.txt`` before sharing anything publicly.
 
 ## Put artifacts here
 
@@ -78,6 +133,7 @@ Use this folder for one validation run. Do not place Steam credentials or person
 - ``docs/steam-version-selection-architecture.md``
 - ``docs/steam-version-selection-validation.md``
 - ``docs/steam-version-selection-runbook.md``
+- ``docs/steam-version-selection-release-readiness.md``
 - ``docs/steam-version-selection-user-guide.md``
 - ``docs/steam-version-selection-completion-audit.md``
 

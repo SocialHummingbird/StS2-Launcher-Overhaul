@@ -57,17 +57,25 @@ internal sealed partial class LauncherController
         );
     }
 
-    private static string BranchSwitchConfirmationMessage(string previousBranch, string branch)
+    private string BranchSwitchConfirmationMessage(string previousBranch, string branch)
     {
         var previous = STS2Mobile.Steam.SteamGameBranch.DisplayName(previousBranch);
         var selected = STS2Mobile.Steam.SteamGameBranch.DisplayName(branch);
         var selectedNote = STS2Mobile.Steam.SteamGameBranch.SelectorInstallSlotHelpText(branch);
+        var availableBranches = LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir);
+        var selectedStatus = LauncherBranchCatalog.SelectedOptionStatus(branch, availableBranches);
+        var selectedProblem = LauncherBranchCatalog.SelectedOptionDownloadProblem(branch, availableBranches);
         var message =
             $"Switch game version from {previous} to {selected}?\n"
             + "This can require another download, and saves may not be compatible between Steam branches. "
             + "Local backup will be enabled before switching. "
             + "Steam Cloud Push will require backup storage permission after switching.\n\n"
-            + selectedNote;
+            + selectedNote
+            + "\n"
+            + selectedStatus;
+
+        if (!string.IsNullOrWhiteSpace(selectedProblem))
+            message += "\n\n" + selectedProblem;
 
         return message;
     }

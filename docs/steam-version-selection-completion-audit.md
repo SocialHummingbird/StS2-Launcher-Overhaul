@@ -12,16 +12,16 @@ The Steam version-selection goal is complete only when every requirement below h
 | --- | --- | --- | --- |
 | Branch-aware downloader metadata and manifest resolution | Implemented for selected branch with branch marker/provenance contract documented | Build passes; public/default update check; beta update/download check; inaccessible/private/password branch behavior | Not complete |
 | Persist selected branch | Implemented through launcher preferences and documented diagnostics | Device session proves selected branch persists across app restart and update/download flows | Not complete |
-| Expose selected branch in launcher UI | Implemented as manual Steam branch entry with wrapped/non-interactive selector guidance shown in managed UI, branch-switch confirmation, logs, diagnostics, native routing logs, and native fallback diagnostics | Visual/device evidence for selector, switch warning, wrapped helper text, persisted selected-version display, native pre-routing logs, and fallback diagnostics | Not complete |
+| Expose selected branch in launcher UI | Implemented as an account-visible Steam branch dropdown with public/default always available, branch metadata/status labels, wrapped/non-interactive selector guidance shown in managed UI, branch-switch confirmation, logs, diagnostics, native routing logs, and native fallback diagnostics | Visual/device evidence for discovered dropdown contents, public/default fallback option, metadata/status labels, switch warning, wrapped helper text, persisted selected-version display, native pre-routing logs, and fallback diagnostics | Not complete |
 | Branch-aware update/download/redownload flows | Implemented and documented through selected-version wording and cache rules | Public/default and beta download/update/redownload logs prove selected branch paths and messages | Not complete |
 | Safe branch-switch warnings | Implemented and documented with non-public/password/save/backup warnings | Device evidence captures confirmation text and local-backup enablement before applying switch | Not complete |
-| Save-backup protections | Implemented and documented with complete branch-switch marker evidence gate, successful manual Pull evidence marker, local-save evidence gate, Push backup-storage gate, full local/cloud pre-Push backup coverage enforcement when Local Backup is enabled, blocked Push marker evidence, pre-Push backup evidence diagnostics, successful manual Push marker with backup counts/timestamps, Manual Push evidence marker filename diagnostics, and aggregate post-switch Push evidence diagnostic | Complete branch-switch marker evidence, Pull-after-switch, local-save evidence, backup permission, fail-before-upload evidence for incomplete backups, `last_manual_cloud_push_blocked.txt`, full local pre-Push coverage, full cloud pre-Push coverage, blocked-Push evidence, `last_manual_cloud_push.txt`, marker backup counts/timestamps, and `Manual Push completed after branch switch for selected version with backup evidence` after branch switch | Not complete |
+| Save-backup protections | Implemented and documented with baseline Pull-before-Push evidence for the selected version, Android local-save evidence before any manual Push, complete branch-switch marker evidence gate, successful manual Pull evidence marker, Push backup-storage gate after branch switches, full local/cloud pre-Push backup coverage enforcement when Local Backup is enabled, blocked Push marker evidence, pre-Push backup evidence diagnostics, successful manual Push marker with backup counts/timestamps, Manual Push evidence marker filename diagnostics, and aggregate post-switch Push evidence diagnostic | Complete baseline Pull-before-Push evidence, `Manual Pull completed before Push`, current important Android local save evidence count/presence, `Baseline manual Push prerequisites satisfied`, complete branch-switch marker evidence, Pull-after-switch, backup permission, fail-before-upload evidence for incomplete backups, `last_manual_cloud_push_blocked.txt`, full local pre-Push coverage, full cloud pre-Push coverage, blocked-Push evidence, `last_manual_cloud_push.txt`, marker backup counts/timestamps, and `Manual Push completed after branch switch for selected version with backup evidence` after branch switch | Not complete |
 | Side-by-side per-branch install storage | Implemented and documented for `files/game_versions/<branch>/` | Device filesystem/diagnostics prove beta cache coexists with public cache and survives branch switches | Not complete |
 | Active-version startup selection | Implemented and documented for managed/native/fallback startup routing | Native startup/logcat proves selected public and selected beta PCK routing; non-public marker failures do not launch | Not complete |
 | Diagnostics | Implemented and documented for selected branch, selected-version note, native selected-branch note, marker, cache, and backup state | Captured diagnostics bundle and logcat prove fields are present and accurate on public/default and beta paths | Not complete |
 | Cleanup controls | Implemented and documented for selected-version redownload and inactive cache cleanup | Device evidence proves selected cache deletion is scoped and inactive cleanup preserves selected cache | Not complete |
 | Explicit release-readiness blockers | Documented in validation, runbook, roadmap, release policy, README, user guide, release-note snippet, and issue template | Release notes/status remain accurate after validation; blockers are cleared only by evidence | Partially complete |
-| Beta/password behavior | Unsupported capabilities documented: no arbitrary discovery, no beta password entry | Steam behavior observed for accessible beta, missing/private beta, and password-protected beta or explicit unsupported UI decision | Not complete |
+| Beta/password behavior | Unsupported capabilities documented: no manual/private branch forcing beyond account-visible Steam app-info discovery, no beta password entry | Steam behavior observed for accessible non-public branches, missing/private branches, and password-protected branches or explicit unsupported UI decision | Not complete |
 | Save compatibility across branches | Risk documented and Push guarded | Public/beta save load/switch behavior observed, or incompatibility explicitly documented as unsupported | Not complete |
 
 ## Evidence inventory
@@ -31,6 +31,7 @@ Static artifacts now in place:
 - `docs/steam-version-selection-architecture.md`
 - `docs/steam-version-selection-validation.md`
 - `docs/steam-version-selection-runbook.md`
+- `docs/steam-version-selection-release-readiness.md`
 - `docs/steam-version-selection-evidence-template.md`
 - `docs/steam-version-selection-user-guide.md`
 - `docs/steam-version-selection-release-note-snippet.md`
@@ -54,7 +55,9 @@ Runtime evidence still required:
 - Selected-version redownload behavior.
 - Inactive cache cleanup behavior.
 - Missing/private/password-protected beta behavior.
-- Pull from Cloud after the branch switch for the selected version before Push.
+- Pull from Cloud for the selected version before any Push.
+- Android local save evidence before any Push.
+- Pull from Cloud after the branch switch for the selected version before post-switch Push.
 - Backup storage permission evidence.
 - Full local pre-Push and cloud pre-Push backup coverage evidence.
 - Fail-before-upload evidence and `last_manual_cloud_push_blocked.txt` when required backup coverage is incomplete.
@@ -68,6 +71,7 @@ Do not mark Steam beta/version selection release-ready yet.
 Safe public wording:
 
 - Implemented for validation.
-- Available as manual Steam branch entry with `public` as the default branch.
+- Available as an account-visible Steam branch dropdown with `public` as the default branch.
 - Still in hardening.
-- Not release-signed until ARM64 evidence proves beta/password/private branch behavior, save compatibility, startup routing, cache cleanup, Pull-after-switch/current-backup safety, pre-Push backup evidence, and successful post-switch Push marker evidence.
+- Not release-signed until ARM64 evidence proves beta/password/private branch behavior, save compatibility, startup routing, cache cleanup, Pull-before-Push/local-save safety, Pull-after-switch/backup safety, pre-Push backup evidence, and successful post-switch Push marker evidence.
+- Release-readiness remains governed by `docs/steam-version-selection-release-readiness.md` and the completed evidence template for the current candidate build.

@@ -1,5 +1,67 @@
 # Changelog
 
+## 2026-06-12 - Steam branch storage hardening
+
+- Added refreshed selected-branch availability/status details to the branch-switch confirmation so password-protected, no-manifest, and not-listed branch blockers are visible before switching.
+- Fixed blocked selected-version update checks so the support button no longer remains on `Checking...` and the status/log explicitly name the selected game version and blocked branch reason.
+- Updated successful `REFRESH GAME VERSIONS` handling so the launcher status/log immediately names the selected version and surfaces any selected-branch blocked state from refreshed app-info metadata.
+- Fixed the ready/action and download branch selectors so refreshed Steam branch metadata immediately updates the selected-version helper text instead of leaving stale availability/password/unavailable wording visible.
+- Tightened selected-version helper text so password-protected, no-manifest, and not-listed Steam branches are shown as blocked states instead of implying they are generally downloadable.
+- Updated the normal launcher support-menu raw-log copy button to use the same review-before-sharing wording as startup recovery.
+- Aligned the README static-audit guardrail with the current `discovery-led dropdown selector` wording and pointed overhaul status at the version-selection release-readiness tracker.
+- Fixed the Steam version-selection evidence-folder scaffold so new validation folders now include `ARTIFACT_HYGIENE.txt`, `PUBLIC_SHARE_MANIFEST.txt`, and release-readiness tracker guidance before any device capture runs.
+- Added a release-readiness gate checklist to the Steam version-selection GitHub issue template so tester reports map directly to the remaining signoff blockers.
+- Aligned the version-selection evidence template, completion audit, validation index, and static audit with the new release-readiness tracker so signoff evidence has one consistent contract.
+- Added a Steam version-selection release-readiness tracker and static guardrails so implemented branch-selection work is clearly separated from ARM64 evidence still required for release signoff.
+- Updated the startup recovery raw-log copy button and helper text to warn before copying that raw logs require review/redaction before sharing.
+- Added review/redaction warnings to raw error log clipboard flows so copied diagnostics are not silently treated as public-safe.
+- Added the diagnostics public-sharing warning to startup-recovery diagnostics exports as well as full launcher diagnostics reports.
+- Added a public-sharing warning to exported launcher diagnostics reports so full reports clearly require review/redaction before public posting.
+- Added `PUBLIC_SHARE_MANIFEST.txt` to generated Steam version-selection evidence bundles to separate preferred public artifacts from local-only/manual-review artifacts.
+- Added static audit coverage for the evidence capture helper's CRLF/LF-safe logcat and marker path splitting.
+- Fixed CRLF/LF splitting in the Steam version-selection evidence capture helper so logcat processing and branch-marker path parsing handle Android/Windows line endings correctly.
+- Added a launcher diagnostics index to Steam version-selection evidence bundles so available diagnostics reports are discoverable without auto-copying potentially identifying full report contents.
+- Added a focused logcat redaction summary artifact with processed-line and changed-line counts to make evidence-bundle redaction state easier to review.
+- Made raw full logcat capture opt-in in the Steam version-selection evidence helper while still generating focused and redacted focused log artifacts by default.
+- Added `ARTIFACT_HYGIENE.txt` to generated Steam version-selection evidence bundles so raw logs are clearly marked local-only unless manually reviewed and redacted.
+- Added a self-describing warning header to generated redacted focused logcat artifacts so shared logs still disclose the best-effort/manual-review limitation.
+- Expanded focused logcat redaction to cover common account/username/serial-like fields and local user paths in addition to credentials/tokens.
+- Clarified that generated redacted logcat evidence is best-effort and must still be manually reviewed before public posting.
+- Added a redacted focused logcat artifact to the Steam version-selection evidence capture helper and made docs/templates prefer it for public issue sharing.
+- Extended the Steam version-selection evidence capture helper to record the `sts2_steamkit_debug_logs` Android global setting so log bundles show whether SteamKit debug logging was disabled or explicitly enabled for sanitized auth diagnostics.
+- Tightened the Steam version-selection issue template so public `adb logcat` attachments must be redacted and must confirm SteamKit debug logs were disabled or sanitized.
+- Updated release-note and roadmap wording so public release docs mention quiet-by-default SteamKit logging with opt-in sanitized auth diagnostics.
+- Documented the optional `sts2_steamkit_debug_logs` auth-diagnostics workflow in the version-selection runbook/tooling docs and static audit so sanitized SteamKit logs stay opt-in.
+- Made Android SteamKit debug logging opt-in via `sts2_steamkit_debug_logs=1` to reduce normal diagnostic noise while preserving credential/token sanitization when enabled.
+- Exposed SteamKit credential/token log sanitization in launcher diagnostics, evidence templates, user guide, and the Steam version-selection GitHub issue template.
+- Sanitized Android SteamKit debug log forwarding so common password/token/session fields are redacted before launcher diagnostics, and added static audit coverage for the sanitizer.
+- Corrected stale Steam version-selection completion-audit wording that still described manual branch entry/no discovery, and added a static guardrail against reintroducing that old selector model.
+- Tightened Steam version-selection completion/runbook/save-compatibility docs and static audit checks so they distinguish baseline Pull-before-Push/local-save evidence from branch-switch-only backup evidence.
+- Hardened side-by-side Steam branch cache naming so branch install slots use a case-stable storage identity across managed launcher code, bootstrap routing, and Android native startup diagnostics.
+- Preserved the selected Steam branch value for Steam requests and user-facing diagnostics while preventing duplicate caches from casing-only dropdown/metadata differences such as `Beta` versus `beta`.
+- Removed the normal fallback `beta` dropdown injection so non-public versions are discovery-led from Steam app-info; default/public remains always available, and an already-saved branch remains visible for recovery/retry diagnostics.
+- Tightened Android native startup gating so a selected game version with a valid PCK but missing/mismatched branch provenance returns to the launcher instead of consuming a launch request or falling through toward stale branch startup.
+- Tightened native Autofill lifecycle cleanup so one-shot Steam login values are cleared when the Android activity stops or is destroyed, in addition to consume/cancel/TTL cleanup.
+- Cleared the Godot password field immediately after capturing a login request so Autofill/manual passwords do not remain in the launcher UI while Steam authentication runs.
+- Extended the Steam version-selection static audit to guard discovery-led dropdown behavior, case-stable branch storage identity, native selected-branch launch gating, and Autofill credential cleanup.
+- Updated version-selection status and validation docs to describe the discovery-led dropdown, selected-branch native launch gate, and stricter Autofill cleanup lifecycle without removing the ARM64 validation blockers.
+- Improved selected-version helper text for saved branches that are absent from the refreshed Steam app-info catalog, explicitly naming stale/private/inaccessible/password-protected/unavailable possibilities before download.
+- Added concise Steam app-info metadata badges to refreshed game-version dropdown labels so visible options can show ready/build/password/unavailable status before selection.
+- Added a pre-download selected-branch gate that blocks known password-protected, no-Windows-manifest, or absent saved non-public branches when refreshed Steam app-info evidence already proves the branch is not downloadable for the account.
+- Applied the same selected-branch availability gate to game-version update checks while still allowing APK/app update checks to complete.
+- Kept selected-cache cleanup available for blocked branches with bad local branch metadata, while preventing the replacement download from starting until branch availability evidence becomes valid.
+- Tightened Push confirmation wording after branch switches so it names the selected version slot and the required selected-version Pull/local-save/backup evidence before any Steam Cloud overwrite.
+- Recorded important Android local save evidence counts inside completed and blocked Push markers so Pull-before-Push artifacts preserve the local-save evidence behind the gate decision.
+- Added live current important Android local save evidence count/presence diagnostics alongside baseline manual Push prerequisite status.
+- Updated Android status/release-validation docs to call out the baseline manual Push evidence gate and required diagnostics for current Pull/local-save evidence.
+- Updated baseline Push block status/log text to name the selected game version when Pull or Android local-save evidence is missing.
+- Added a baseline manual Push gate requiring Pull-from-Cloud evidence for the currently selected version and Android local save evidence before any Steam Cloud upload, even when no branch switch marker exists.
+- Added a generic `Manual Pull completed before Push` evidence flag while preserving the existing branch-switch Pull flag for stricter cross-version validation.
+- Exposed the generic Pull-before-Push completion flag in launcher diagnostics and static audit coverage.
+- Added a baseline manual Push prerequisite aggregate to diagnostics so reports show whether current-version Pull evidence and Android local save evidence are both present before upload.
+- Recorded baseline manual Push prerequisite status inside completed and blocked Push evidence markers so artifacts preserve the decision state at the time of Push.
+- Updated public README/status/release-note wording for discovery-led branch selection, metadata badges, unavailable-branch gates, native launch gating, stricter Autofill cleanup, and baseline Pull-before-Push safety evidence.
+
 ## 2026-06-11 - Steam version selection hardening docs
 
 - Documented the Steam game version selection hardening path: default/public versus `beta` selection, branch-aware manifest resolution, side-by-side non-public caches, selected-version diagnostics, branch marker provenance, and safe branch-switch/Push guardrails.

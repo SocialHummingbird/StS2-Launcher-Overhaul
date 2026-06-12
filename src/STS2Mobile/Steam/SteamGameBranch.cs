@@ -53,9 +53,6 @@ internal static class SteamGameBranch
                 branches.Add(branch);
         }
 
-        if (!branches.Exists(branch => string.Equals(branch, Beta, StringComparison.OrdinalIgnoreCase)))
-            branches.Add(Beta);
-
         if (!branches.Exists(branch => string.Equals(branch, selectedBranch, StringComparison.OrdinalIgnoreCase)))
             branches.Add(selectedBranch);
 
@@ -87,16 +84,16 @@ internal static class SteamGameBranch
 
     internal static string StateDirectoryName(string branch)
     {
-        branch = Normalize(branch);
-        if (string.Equals(branch, Public, StringComparison.OrdinalIgnoreCase))
+        var storageBranch = StorageIdentity(branch);
+        if (string.Equals(storageBranch, Public, StringComparison.OrdinalIgnoreCase))
             return Public;
 
-        if (string.Equals(branch, Beta, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(storageBranch, Beta, StringComparison.OrdinalIgnoreCase))
             return Beta;
 
-        var sb = new StringBuilder(branch.Length);
+        var sb = new StringBuilder(storageBranch.Length);
 
-        foreach (var ch in branch)
+        foreach (var ch in storageBranch)
         {
             if (char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.')
                 sb.Append(ch);
@@ -111,8 +108,11 @@ internal static class SteamGameBranch
         if (safePrefix.Length == 0)
             safePrefix = "branch";
 
-        return $"{safePrefix}-{StableBranchHash(branch)}";
+        return $"{safePrefix}-{StableBranchHash(storageBranch)}";
     }
+
+    internal static string StorageIdentity(string branch)
+        => Normalize(branch).ToLowerInvariant();
 
     private static string StableBranchHash(string branch)
     {

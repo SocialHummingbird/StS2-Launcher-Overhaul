@@ -5,7 +5,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private const string CopyRawErrorLogButton = "COPY RAW ERROR LOG";
+    private const string CopyRawErrorLogButton = "COPY RAW LOG (REVIEW BEFORE SHARING)";
     private const string ExportDiagnosticsButton = "EXPORT STARTUP DIAGNOSTICS";
     private const string HideControlsButton = "HIDE RECOVERY CONTROLS";
     private const string RestartSafeLaunchButton = "RESTART WITH SAFE LAUNCH";
@@ -79,7 +79,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     private static Label CreateDetail()
     {
         var detail = CreateLabel(
-            "If this screen does not change, copy the raw error log, export diagnostics, or restart with safe launch. These controls hide automatically after a successful startup.",
+            "If this screen does not change, export diagnostics, copy the raw error log for local review, or restart with safe launch. Raw logs can contain identifying data; review/redact before sharing. These controls hide automatically after a successful startup.",
             DetailFontSize,
             DetailColor
         );

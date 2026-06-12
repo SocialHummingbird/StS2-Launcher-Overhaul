@@ -4,6 +4,8 @@ This guide explains the current Steam game version selector in StS2 Launcher.
 
 The feature is implemented for validation and hardening. It is not release-signed yet. ARM64 device evidence is still required for beta/password behavior, inaccessible/private branches, save compatibility, and Steam Cloud Push safety across branch switches.
 
+For the current release gate and evidence matrix, see [Steam version selection release readiness](steam-version-selection-release-readiness.md).
+
 ## What is supported now
 
 - Select the default/public Steam branch.
@@ -16,7 +18,7 @@ The feature is implemented for validation and hardening. It is not release-signe
 - Clear inactive non-public cached versions.
 - Show selected-version diagnostics.
 - Warn before switching branches.
-- Show wrapped helper text under the game-version selector explaining current public/beta limitations and the active install slot.
+- Show wrapped helper text under the game-version selector explaining current public/non-public branch limitations and the active install slot.
 - Enable local backup before branch switches.
 - Block manual Push after a branch switch when backup storage permission is unavailable.
 
@@ -39,8 +41,17 @@ The dropdown intentionally keeps labels short for phone screens. Detailed select
 - Whether Steam marked the branch as password-protected.
 - Build ID and description when Steam exposes them.
 - Whether metadata has not been refreshed yet.
+- Whether a previously saved branch was not listed in the latest Steam app-info catalog and may be stale, private, inaccessible, password-protected, or unavailable.
+
+When Steam app-info metadata is available, dropdown labels may include short badges such as `(ready)`, `(build <id>)`, `(password)`, or `(unavailable)`. These badges are only summaries; use the helper text and diagnostics for the full selected-branch evidence.
+
+The selected-version helper text should treat password-protected, no-Windows-manifest, and not-listed branches as blocked states. A branch must not be described as safe to download when Steam marks it password-protected and the launcher has no beta password entry support.
 
 `public` remains available even when Steam branch metadata has not been captured. A previously saved custom branch remains selectable for compatibility with older validation builds.
+
+The launcher blocks selected-version download/update attempts before contacting Steam when refreshed app-info evidence already proves the selected non-public branch is password-protected, exposes no Windows depot manifest to the account, or is a saved branch absent from the latest account-visible catalog. APK/app update checks can still run when the selected game-version update check is blocked. If no refreshed catalog exists yet, the launcher still allows a game-version attempt so it can gather live branch availability evidence.
+
+If the selected local cache has missing or mismatched branch metadata while the branch is also blocked by app-info evidence, the launcher can still delete the selected cache. It does not start a replacement download until the selected branch becomes account-visible/downloadable or a different version is selected.
 
 ## Steam login Autofill
 
@@ -48,9 +59,11 @@ Android builds include `USE ANDROID AUTOFILL` on the login screen. This opens a 
 
 The launcher does not create a separate Autofill password store and does not log the filled values. The native dialog keeps filled username/password values in memory only until the existing Steam login flow consumes them.
 
-If the native Autofill dialog is cancelled, dismissed, consumed by login, or left pending for 60 seconds, the pending username/password values are cleared from the Java bridge buffer.
+If the native Autofill dialog is cancelled, dismissed, consumed by login, the Android activity stops/destroys, or the result is left pending for 60 seconds, the pending username/password values are cleared from the Java bridge buffer. The Godot password field is also cleared immediately after the login request captures the value.
 
 The launcher still stores Steam session credentials/tokens for normal SteamKit login and Steam Cloud use using the existing encrypted Android Keystore path. That is separate from password-manager Autofill and must not be described as Autofill password storage.
+
+SteamKit debug logging is disabled by default to keep normal diagnostics quieter. If a developer enables it with the Android global setting `sts2_steamkit_debug_logs=1`, SteamKit messages are sanitized before they enter launcher diagnostics. Diagnostics should show `SteamKit debug logs opt-in enabled` and `SteamKit debug logs sanitized for credentials/tokens: true` alongside the Autofill fields.
 
 ## Storage model
 
@@ -118,6 +131,10 @@ Before using Push to Cloud after branch switching:
 
 If any step is missing, do not Push.
 
+Manual Push also requires the baseline evidence even without a branch switch: Pull from Cloud must have completed for the currently selected version, and Android local save evidence must exist before upload. If either prerequisite is missing, the launcher blocks Push with status/log text naming the selected game version. The Pull evidence marker records `Manual Pull completed before Push: true`; branch-switch validation also keeps the stricter branch-switch Pull flag.
+
+The Push confirmation should name the selected game version, the selected version slot, and the required selected-version safety evidence: Pull-after-switch, Android local save evidence, backup storage permission, local pre-Push backup evidence, and cloud pre-Push backup evidence.
+
 ## Diagnostics to capture
 
 When reporting version-selection behavior, capture launcher diagnostics and include:
@@ -141,6 +158,8 @@ Native Android Autofill overlay supported:
 Launcher stores Steam password for Autofill:
 Native Android Autofill result TTL seconds:
 Android credential Autofill implementation note:
+SteamKit debug logs opt-in enabled:
+SteamKit debug logs sanitized for credentials/tokens:
 Selected game branch storage directory:
 Selected game version slot kind:
 Selected game version slot directory:
@@ -236,9 +255,13 @@ Manual Pull evidence selected version:
 Manual Pull evidence selected version slot kind:
 Manual Pull evidence selected version slot directory:
 Manual Pull completion flag recorded:
+Manual Pull completed before Push:
 Manual Pull evidence is after branch switch:
 Manual Pull evidence matches selected branch:
 Manual Pull completed after branch switch for selected version:
+Current important Android local save evidence count:
+Current important Android local save evidence present:
+Baseline manual Push prerequisites satisfied:
 Manual Push evidence marker filename:
 
 `last_manual_cloud_push.txt`
@@ -269,6 +292,8 @@ Manual Push evidence recorded local backup count:
 Manual Push evidence recorded cloud backup count:
 Manual Push evidence recorded latest local backup UTC:
 Manual Push evidence recorded latest cloud backup UTC:
+Manual Push evidence recorded important local save evidence count:
+Manual Push evidence recorded baseline prerequisites satisfied:
 Manual Push completion flag recorded:
 Manual Push evidence is after branch switch:
 Manual Push evidence matches selected branch:
@@ -291,6 +316,8 @@ Manual Push blocked evidence recorded local backup count:
 Manual Push blocked evidence recorded cloud backup count:
 Manual Push blocked evidence recorded latest local backup UTC:
 Manual Push blocked evidence recorded latest cloud backup UTC:
+Manual Push blocked evidence recorded important local save evidence count:
+Manual Push blocked evidence recorded baseline prerequisites satisfied:
 Manual Push blocked evidence recorded pre-Push backup evidence satisfied:
 Manual Push blocked evidence reason:
 Manual Push blocked before upload evidence recorded:
@@ -339,3 +366,4 @@ The version selector is not release-ready until evidence proves:
 - Pull-after-switch, local-save, and backup evidence protects Steam Cloud state.
 
 Track save behavior with `docs/steam-version-selection-save-compatibility.md`.
+Track implementation-versus-evidence status with `docs/steam-version-selection-release-readiness.md`.

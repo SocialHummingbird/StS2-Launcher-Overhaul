@@ -51,6 +51,9 @@ Purpose:
 
 - Creates a timestamped validation folder under `artifacts/android/`.
 - Copies the evidence template into `evidence.md`.
+- Points the generated README at `docs/steam-version-selection-release-readiness.md` so each evidence run starts from the current release gate.
+- Creates `ARTIFACT_HYGIENE.txt` with local-only/raw-log and public-sharing guidance.
+- Creates `PUBLIC_SHARE_MANIFEST.txt` with preferred public artifacts and local-only/manual-review artifacts.
 - Creates subfolders for logs, diagnostics, branch markers, screenshots, and backup evidence.
 
 Command:
@@ -70,6 +73,8 @@ Output shape:
 ```text
 artifacts/android/steam-version-selection-<timestamp>/
   evidence.md
+  ARTIFACT_HYGIENE.txt
+  PUBLIC_SHARE_MANIFEST.txt
   README.md
   logs/
   diagnostics/
@@ -83,7 +88,13 @@ artifacts/android/steam-version-selection-<timestamp>/
 Purpose:
 
 - Captures `adb devices -l`.
-- Captures full and focused logcat snapshots.
+- Writes `ARTIFACT_HYGIENE.txt` so the bundle labels raw logs as local-only and points public reports to the redacted focused log.
+- Writes `PUBLIC_SHARE_MANIFEST.txt` so testers can see which generated artifacts are the safer public-sharing defaults.
+- Captures `sts2_steamkit_debug_logs` global setting state so evidence records whether SteamKit debug logging was disabled, or explicitly enabled for sanitized auth diagnostics.
+- Captures focused logcat snapshots and a redacted focused logcat. Raw full logcat is omitted by default and only captured when `-IncludeRawLogcat` is passed for local diagnostics.
+- Creates `logs/logcat-steam-version-focused-redacted.txt` as the safer default log excerpt for public GitHub issue sharing. The generated file includes a warning header because this is best-effort pattern-based redaction for common credentials, tokens, account/username fields, serial-like fields, email addresses, and local user paths, not a guarantee that every identifier is removed.
+- Writes `diagnostics/logcat-redaction-summary.txt` with focused-line and changed-line counts so reviewers can see whether best-effort redaction changed the generated public-log artifact.
+- Writes `diagnostics/launcher-diagnostics-index.txt` to list available launcher diagnostics reports without automatically copying full report contents.
 - Captures coarse app game/cache directory listings through `run-as`.
 - Captures app-private Steam branch markers, including the latest branch availability result from app info.
 - Captures bounded non-public branch cache tree and cache-size snapshots.
@@ -105,6 +116,14 @@ Command:
   -EvidenceDir "artifacts\android\steam-version-selection-<timestamp>"
 ```
 
+To include raw full logcat for local-only diagnostics:
+
+```powershell
+.\scripts\capture-steam-version-selection-evidence.ps1 `
+  -EvidenceDir "artifacts\android\steam-version-selection-<timestamp>" `
+  -IncludeRawLogcat
+```
+
 With explicit package and device serial:
 
 ```powershell
@@ -118,8 +137,14 @@ Captured files:
 
 ```text
 logs/adb-devices.txt
-logs/logcat-full.txt
+ARTIFACT_HYGIENE.txt
+PUBLIC_SHARE_MANIFEST.txt
+diagnostics/steamkit-debug-log-setting.txt
+diagnostics/logcat-redaction-summary.txt
+diagnostics/launcher-diagnostics-index.txt
+logs/logcat-full.txt (placeholder by default; raw only with -IncludeRawLogcat)
 logs/logcat-steam-version-focused.txt
+logs/logcat-steam-version-focused-redacted.txt
 diagnostics/app-game-cache-listing.txt
 diagnostics/game-version-cache-tree.txt
 diagnostics/game-version-cache-sizes.txt
@@ -143,17 +168,24 @@ Use the tools in this order:
 
 1. Run the static audit only when you want a static guardrail check.
 2. Create an evidence folder before touching device state.
-3. Follow `docs/steam-version-selection-runbook.md`.
-4. Capture device evidence after each meaningful phase.
-5. Fill `evidence.md` as results are observed.
-6. Do not perform manual Push after a branch switch until Pull, local-save existence, backup permission, local pre-Push backup, and cloud pre-Push backup evidence are captured.
+3. Review `docs/steam-version-selection-release-readiness.md` and decide which gates this run can prove.
+4. Follow `docs/steam-version-selection-runbook.md`.
+5. Capture device evidence after each meaningful phase.
+6. Fill `evidence.md` as results are observed.
+7. Do not perform manual Push after a branch switch until Pull, local-save existence, backup permission, local pre-Push backup, and cloud pre-Push backup evidence are captured.
 
 ## Artifact hygiene
 
 - Do not store Steam credentials.
 - Do not store refresh tokens.
 - Do not copy shared preferences.
+- Keep SteamKit debug logging disabled by default; use `adb shell settings put global sts2_steamkit_debug_logs 1` only for focused sanitized auth diagnostics and reset it to `0` before routine evidence capture.
 - Prefer scrubbed summaries when sharing evidence publicly.
+- Prefer `logs/logcat-steam-version-focused-redacted.txt` over raw logcat when attaching evidence publicly, but review it manually before posting.
+- Treat full launcher diagnostics and startup-recovery diagnostics reports as manual attachments; review/redact them before sharing because they can contain account names, local paths, device details, and log excerpts. These reports include a public-sharing warning, but that warning is not a substitute for manual review.
+- Treat copied raw error logs the same way: they include a warning, but must be reviewed/redacted before public posting.
+- The launcher support UI labels raw-log copy as review-before-sharing.
+- The startup recovery UI labels raw-log copy as review-before-sharing because raw logs can contain identifying data.
 - Keep raw logs local if they contain account-identifying paths, usernames, or device identifiers.
 
 ## Autofill versus local credential handoff

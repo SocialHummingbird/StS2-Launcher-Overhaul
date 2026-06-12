@@ -41,8 +41,16 @@ internal sealed partial class LauncherController
     {
         RefreshGameBranchOptions();
         _view.SetActionPreferences(LauncherPreferences.ReadActionPreferences());
-        _view.SetStatus("Steam game version list refreshed.");
-        _view.AppendLog("Steam game version list refreshed from account-visible app-info metadata.");
+        var selectedBranch = LauncherPreferences.ReadGameBranch();
+        var branches = LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir);
+        var selectedVersion = STS2Mobile.Steam.SteamGameBranch.DisplayName(selectedBranch);
+        var selectedStatus = LauncherBranchCatalog.SelectedOptionStatus(selectedBranch, branches);
+        var selectedProblem = LauncherBranchCatalog.SelectedOptionDownloadProblem(selectedBranch, branches);
+
+        _view.SetStatus(string.IsNullOrWhiteSpace(selectedProblem)
+            ? $"Steam game version list refreshed. Selected version: {selectedVersion}."
+            : selectedProblem);
+        _view.AppendLog($"Steam game version list refreshed from account-visible app-info metadata. Selected version: {selectedVersion}. {selectedStatus}");
     }
 
     private void FailBranchCatalogRefresh(string message)

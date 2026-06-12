@@ -113,15 +113,21 @@ internal sealed class DownloadSection : VBoxContainer
     {
         _gameBranch = SteamGameBranch.Normalize(branch);
         PopulateBranchDropdown();
-        _branchHelpLabel.Text = SteamGameBranch.SelectorInstallSlotHelpText(_gameBranch)
-            + "\n"
-            + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches);
+        UpdateBranchHelpText();
     }
 
     internal void SetAvailableBranches(IReadOnlyList<LauncherBranchCatalog.BranchOption> branches)
     {
         _availableBranches = branches ?? Array.Empty<LauncherBranchCatalog.BranchOption>();
         PopulateBranchDropdown();
+        UpdateBranchHelpText();
+    }
+
+    private void UpdateBranchHelpText()
+    {
+        _branchHelpLabel.Text = SteamGameBranch.SelectorInstallSlotHelpText(_gameBranch)
+            + "\n"
+            + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches);
     }
 
     internal void Reset(string buttonText = DefaultDownloadButtonText)

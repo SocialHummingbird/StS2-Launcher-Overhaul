@@ -38,7 +38,27 @@ internal static class LauncherBranchCatalog
         internal string Source { get; }
 
         internal string Label
-            => SteamGameBranch.DropdownLabel(Branch);
+            => DropdownLabelWithMetadata();
+
+        private string DropdownLabelWithMetadata()
+        {
+            var label = SteamGameBranch.DropdownLabel(Branch);
+            if (!string.Equals(Source, "Steam app-info", StringComparison.OrdinalIgnoreCase))
+                return label;
+
+            if (string.Equals(Branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
+                return WindowsManifestDepotCount > 0 ? $"{label} (ready)" : label;
+
+            if (PasswordRequired.Equals("true", StringComparison.OrdinalIgnoreCase))
+                return $"{label} (password)";
+
+            if (WindowsManifestDepotCount <= 0)
+                return $"{label} (unavailable)";
+
+            return !string.IsNullOrWhiteSpace(BuildId)
+                ? $"{label} (build {BuildId})"
+                : $"{label} (ready)";
+        }
 
         internal string StatusText
         {
@@ -48,17 +68,28 @@ internal static class LauncherBranchCatalog
 
                 if (Source == "Steam app-info")
                 {
-                    details.Add(WindowsManifestDepotCount > 0
-                        ? $"Downloadable for this account ({WindowsManifestDepotCount} Windows depot manifest(s))."
-                        : MetadataVisible
-                            ? "Visible to this account, but no Windows depot manifest was exposed."
-                            : "Not listed in Steam branch metadata for this account.");
-
                     if (PasswordRequired.Equals("true", StringComparison.OrdinalIgnoreCase))
-                        details.Add("Steam marks this branch as password-protected; beta password entry is not implemented yet.");
-                    else if (PasswordRequired.Equals("false", StringComparison.OrdinalIgnoreCase))
-                        details.Add("Steam did not report a password requirement.");
+                    {
+                        details.Add("Download blocked: Steam marks this branch as password-protected, and beta password entry is not implemented yet.");
+                        if (WindowsManifestDepotCount > 0)
+                            details.Add($"Steam exposed {WindowsManifestDepotCount} Windows depot manifest(s), but the password gate still blocks this launcher from downloading it.");
+                    }
+                    else if (WindowsManifestDepotCount <= 0)
+                    {
+                        details.Add(MetadataVisible
+                            ? "Download blocked: this branch is visible to this account, but no Windows depot manifest was exposed."
+                            : "Download blocked: this branch was not listed in Steam branch metadata for this account.");
+                    }
                     else
+                    {
+                        details.Add($"Downloadable for this account ({WindowsManifestDepotCount} Windows depot manifest(s)).");
+                    }
+
+                    if (PasswordRequired.Equals("false", StringComparison.OrdinalIgnoreCase))
+                    {
+                        details.Add("Steam did not report a password requirement.");
+                    }
+                    else if (!PasswordRequired.Equals("true", StringComparison.OrdinalIgnoreCase))
                         details.Add("Steam did not expose password status.");
 
                     if (!string.IsNullOrWhiteSpace(BuildId))
@@ -126,7 +157,6 @@ internal static class LauncherBranchCatalog
         foreach (var branch in discoveredBranches ?? Array.Empty<BranchOption>())
             AddOrReplace(options, branch);
 
-        AddIfMissing(options, new BranchOption(SteamGameBranch.Beta, source: "fallback"));
         AddIfMissing(options, new BranchOption(selectedBranch, source: "saved selection"));
 
         return options;
@@ -207,12 +237,44 @@ internal static class LauncherBranchCatalog
     internal static string SelectedOptionStatus(string selectedBranch, IReadOnlyList<BranchOption> discoveredBranches)
     {
         selectedBranch = SteamGameBranch.Normalize(selectedBranch);
+        var hasRefreshedCatalog = (discoveredBranches ?? Array.Empty<BranchOption>()).Count > 0;
         var option = DropdownOptions(selectedBranch, discoveredBranches)
             .FirstOrDefault(candidate => string.Equals(candidate.Branch, selectedBranch, StringComparison.OrdinalIgnoreCase));
+
+        if (
+            hasRefreshedCatalog
+            && string.Equals(option.Source, "saved selection", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(selectedBranch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase)
+        )
+            return "Selected saved branch was not listed in the latest Steam app-info catalog for this account. It may be stale, private, inaccessible, password-protected, or unavailable; Refresh Game Versions again or choose an account-visible branch before downloading.";
 
         return string.IsNullOrWhiteSpace(option.Branch)
             ? "Steam app-info metadata is unavailable for the selected game version."
             : option.StatusText;
+    }
+
+    internal static string SelectedOptionDownloadProblem(string selectedBranch, IReadOnlyList<BranchOption> discoveredBranches)
+    {
+        selectedBranch = SteamGameBranch.Normalize(selectedBranch);
+        if (string.Equals(selectedBranch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
+            return "";
+
+        var branches = discoveredBranches ?? Array.Empty<BranchOption>();
+        var hasRefreshedCatalog = branches.Count > 0;
+        var option = branches.FirstOrDefault(candidate => string.Equals(candidate.Branch, selectedBranch, StringComparison.OrdinalIgnoreCase));
+
+        if (string.IsNullOrWhiteSpace(option.Branch))
+            return hasRefreshedCatalog
+                ? "Download blocked: selected saved branch was not listed in the latest Steam app-info catalog for this account. Refresh Game Versions again or choose an account-visible branch."
+                : "";
+
+        if (option.PasswordRequired.Equals("true", StringComparison.OrdinalIgnoreCase))
+            return "Download blocked: selected branch is password-protected, and Steam beta password entry is not implemented yet.";
+
+        if (option.WindowsManifestDepotCount <= 0)
+            return "Download blocked: selected branch has no Windows depot manifest visible to this Steam account.";
+
+        return "";
     }
 
     internal static string DropdownOptionMetadata(string selectedBranch, IReadOnlyList<BranchOption> discoveredBranches)
@@ -231,6 +293,4 @@ internal static class LauncherBranchCatalog
 
     private static string ValueOrNone(string value)
         => string.IsNullOrWhiteSpace(value) ? "<none>" : value.Trim();
-}
-    }
 }
