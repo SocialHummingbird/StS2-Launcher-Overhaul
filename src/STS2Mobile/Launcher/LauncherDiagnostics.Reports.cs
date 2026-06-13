@@ -33,11 +33,11 @@ internal static partial class LauncherDiagnostics
 
         internal string WriteDiagnosticsReport()
             => CreateTimestampedText(
-                "STS2 Launcher diagnostics",
+                "StS2 Mobile diagnostics",
                 GeneratedUtcLabel,
                 AppendFullLauncherDiagnostics
             ).Write(
-                "sts2-launcher-diagnostics",
+                "sts2-mobile-diagnostics",
                 _state.DataDir
             );
 

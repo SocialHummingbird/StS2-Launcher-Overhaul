@@ -1,6 +1,6 @@
 # Steam Version Selection Architecture
 
-This note documents the intended architecture for Steam game version selection in StS2 Launcher. It is the implementation contract used by validation, diagnostics, and release readiness.
+This note documents the intended architecture for Steam game version selection in StS2 Mobile. It is the implementation contract used by validation, diagnostics, and release readiness.
 
 ## Design goals
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-13 - Public-beta launch validation
+
+- Fixed Android selected-version marker provenance checks so app-private path aliases under `/data/data/<package>` and `/data/user/0/<package>` compare as the same install location.
+- Validated `public-beta` side-by-side launch on an ARM64 local hardening build: marker provenance passed, `SlayTheSpire2.pck` loaded from `game_versions/public-beta-8128824d/game`, startup patching completed `17/17`, and the game reached the main menu.
+- Clarified that the stale `Previous game launch did not finish` recovery banner can remain after a prior failed launch and is not by itself evidence of a current startup crash.
+
 ## 2026-06-12 - Steam branch storage hardening
 
 - Added refreshed selected-branch availability/status details to the branch-switch confirmation so password-protected, no-manifest, and not-listed branch blockers are visible before switching.

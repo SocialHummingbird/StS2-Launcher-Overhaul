@@ -1,8 +1,8 @@
 # Steam Version Selection User Guide
 
-This guide explains the current Steam game version selector in StS2 Launcher.
+This guide explains the current Steam game version selector in StS2 Mobile.
 
-The feature is implemented for validation and hardening. It is not release-signed yet. ARM64 device evidence is still required for beta/password behavior, inaccessible/private branches, save compatibility, and Steam Cloud Push safety across branch switches.
+The feature is implemented for validation and hardening. The local ARM64 hardening path now has evidence that selected `public-beta` launches from its side-by-side cache. It is not release-signed yet. ARM64 device evidence is still required for beta/password behavior, inaccessible/private branches, save compatibility, Steam Cloud Push safety across branch switches, and release-candidate retest.
 
 For the current release gate and evidence matrix, see [Steam version selection release readiness](steam-version-selection-release-readiness.md).
 
@@ -21,12 +21,14 @@ For the current release gate and evidence matrix, see [Steam version selection r
 - Show wrapped helper text under the game-version selector explaining current public/non-public branch limitations and the active install slot.
 - Enable local backup before branch switches.
 - Block manual Push after a branch switch when backup storage permission is unavailable.
+- Launch selected `public-beta` from `game_versions/public-beta-8128824d/game` on the local ARM64 hardening build.
 
 ## What is not supported yet
 
 - Steam beta password entry.
 - Release-signed device proof for refreshed dropdown metadata and private/password/unavailable branch behavior.
 - Release-signed behavior for private, inaccessible, or password-protected branches.
+- Release-candidate proof for selected-version launch/failure routing beyond the local `public-beta` hardening run.
 - Proven save compatibility between public and beta game versions.
 - Treating Steam Cloud Push as safe after a branch switch without Pull and backup evidence.
 
@@ -88,6 +90,8 @@ steam_branch.txt
 ```
 
 For non-public branches, the launcher should not treat a cache as ready unless the marker matches the selected branch and includes install-slot and depot manifest provenance.
+
+On Android, native startup normalizes `/data/data/<package>` and `/data/user/0/<package>` as equivalent app-private path aliases before comparing install-slot marker provenance.
 
 ## Expected branch marker evidence
 

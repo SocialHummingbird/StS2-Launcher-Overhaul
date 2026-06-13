@@ -51,7 +51,7 @@ public class NativeFallbackActivity extends Activity {
 		String reasonTitle = getIntent().getStringExtra(EXTRA_REASON_TITLE);
 		String reasonMessage = getIntent().getStringExtra(EXTRA_REASON_MESSAGE);
 		if (reasonTitle == null || reasonTitle.isEmpty()) {
-			reasonTitle = "StS2 Launcher";
+			reasonTitle = "StS2 Mobile";
 		}
 		if (reasonMessage == null || reasonMessage.isEmpty()) {
 			reasonMessage =
@@ -143,7 +143,7 @@ public class NativeFallbackActivity extends Activity {
 			return;
 		}
 
-		clipboard.setPrimaryClip(ClipData.newPlainText("StS2 Launcher diagnostics", diagnostics));
+		clipboard.setPrimaryClip(ClipData.newPlainText("StS2 Mobile diagnostics", diagnostics));
 		Toast.makeText(this, "Diagnostics copied", Toast.LENGTH_SHORT).show();
 	}
 

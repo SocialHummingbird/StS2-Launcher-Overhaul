@@ -13,7 +13,7 @@ The implementation is substantially in place, but release readiness is not prove
 | Branch metadata | Refreshed Steam app-info can expose branch visibility, build IDs, password flags, Windows depot manifests, and availability problems. | Requires account-visible branch evidence for public, available beta, and inaccessible/private/password cases where possible. |
 | Blocked branches | Known password-protected, no-manifest, or absent saved branches are blocked before download/update attempts when refreshed app-info proves they are unavailable. | Requires runtime evidence that no silent public fallback occurs. |
 | Side-by-side storage | Non-public branches use `files/game_versions/<branch>/game` and matching download-state storage. | Requires beta/non-public install evidence and branch marker contents. |
-| Native startup routing | Native startup is expected to block selected-version launch when marker provenance is missing or mismatched. | Requires logcat/native routing evidence for selected public and non-public branches. |
+| Native startup routing | Native startup blocks selected-version launch when marker provenance is missing or mismatched. Local ARM64 evidence now proves selected `public-beta` launch from its side-by-side cache after Android app-private path alias normalization. | Requires release-candidate repeat evidence, public/default retest, and negative-case evidence for missing or untrusted selected slots. |
 | Cache cleanup | Selected-version redownload and inactive cache cleanup are branch-aware by design. | Requires evidence that selected cache is preserved or cleared only when intended. |
 | Steam Cloud safety | Manual Push requires selected-version Pull evidence and Android local save evidence; branch-switch Push adds backup evidence gates. | Requires Pull-before-Push, blocked-Push, and successful-Push evidence on the selected version before signoff. |
 | Autofill | Android builds expose one-shot native Autofill handoff and do not store Steam passwords for Autofill. | Requires Samsung/Android/password-manager provider validation on device. |
@@ -35,7 +35,7 @@ The implementation is substantially in place, but release readiness is not prove
 
 4. Available non-public branch.
 
-   If the account can see a non-public branch, evidence must show branch-aware download into the side-by-side cache, a matching `steam_branch.txt` marker with depot manifest provenance, and launch routing to that selected branch.
+   If the account can see a non-public branch, evidence must show branch-aware download into the side-by-side cache, a matching `steam_branch.txt` marker with depot manifest provenance, and launch routing to that selected branch. Local `public-beta` evidence is captured; release-candidate repeat evidence is still required.
 
 5. Unavailable/private/password branch handling.
 
@@ -65,7 +65,7 @@ The implementation is substantially in place, but release readiness is not prove
 
 - ARM64 validation has not yet proven refreshed dropdown behavior on the current implementation.
 - Public/default branch must still be revalidated on the current APK after the latest branch-selector and login-hardening changes.
-- Non-public branch download, startup routing, marker provenance, and cleanup still need current-device evidence.
+- Non-public branch cleanup, private/password failure handling, and release-candidate startup routing still need current-device evidence.
 - Private, inaccessible, password-protected, or no-manifest branch behavior is not release-proven.
 - Save compatibility across Steam branches is unknown and must remain user-facing until proven.
 - Branch-switch Steam Cloud Push remains blocked from release signoff until Pull-before-Push, local-save, and backup evidence is captured on the current implementation.

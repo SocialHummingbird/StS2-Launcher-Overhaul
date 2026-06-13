@@ -1,8 +1,8 @@
-﻿# Reddit announcement prep - 2026-06-09
+# Reddit announcement prep - 2026-06-09
 
 ## Current public claim
 
-StS2 Launcher now works on the validated ARM64 Android path: install, Steam login, game download, Pull from Cloud, local hardening Push to Cloud, Pull-after-Push, local save handoff, and game launch/profile visibility have been validated. The newest public release asset is published, structurally verified, and installed/launched on ARM64 hardware, but full newest-public-release Pull/Push/game-launch smoke is still pending before release-candidate signoff.
+StS2 Mobile now works on the validated ARM64 Android path: install, Steam login, game download, Pull from Cloud, local hardening Push to Cloud, Pull-after-Push, local save handoff, and game launch/profile visibility have been validated. The newest public release asset is published, structurally verified, and installed/launched on ARM64 hardware, but full newest-public-release Pull/Push/game-launch smoke is still pending before release-candidate signoff.
 
 ## Public release to link
 
@@ -35,7 +35,7 @@ StS2 Launcher now works on the validated ARM64 Android path: install, Steam logi
 
 ## Suggested Reddit title
 
-StS2 Launcher now runs Slay the Spire 2 on ARM64 Android - working, but still in polish/hardening
+StS2 Mobile now runs Slay the Spire 2 on ARM64 Android - working, but still in polish/hardening
 
 ## Suggested Reddit body
 

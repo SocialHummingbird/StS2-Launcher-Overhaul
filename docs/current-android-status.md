@@ -1,6 +1,6 @@
 ﻿# Current Android Status
 
-_Last updated: 2026-06-11_
+_Last updated: 2026-06-13_
 
 Current device evidence ledgers:
 
@@ -27,6 +27,7 @@ Validated locally on ARM64 hardware:
 - Pull after Push downloads and writes the pushed cloud state back to Android local storage.
 - Android local save handoff works.
 - The downloaded game launches and shows the pulled `Profile 1` in-game.
+- The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -45,6 +46,7 @@ upgradeBaseline=v0.2.184-loading-scale / versionCode=218400
 
 Latest device evidence folders:
 
+- `artifacts/android/startup-crash-20260612-233812`
 - `artifacts/android/github-release-v0.2.185-responsive-ui`
 - `artifacts/android/responsive-ui-check-20260609`
 - `artifacts/android/phone-diagnostics-20260609-204439`
@@ -60,16 +62,13 @@ Latest device evidence folders:
 The latest local hardening build proved that the phone was running the freshly installed runtime and managed assemblies:
 
 ```text
-versionName=0.2.0-local-hardening-freshness2-20260608
-versionCode=2260810
+versionName=0.2.0-local-version-selection-20260612-pathfix
+versionCode=2261213
 schema=22
-storedSchema=22
-storedVersionCode=2260810
 arch=arm64
-sts2MobileBytes=622080
 ```
 
-The startup freshness probe and assembly cache diagnostics now report the installed package/version/schema, cache presence, `STS2Mobile.dll` size, and expected source/byte counts for required assemblies. This addresses the previous ambiguity where the phone could appear to be running a newer APK while still using stale cached managed assemblies.
+The startup freshness probe and assembly cache diagnostics report the installed package/version/schema, cache presence, `STS2Mobile.dll` size, and expected source/byte counts for required assemblies. The latest selected-version startup evidence also proves that Android native routing treats `/data/data/<package>` and `/data/user/0/<package>` as equivalent app-private paths before comparing branch marker provenance. The validated `public-beta` run loaded `game_versions/public-beta-8128824d/game/SlayTheSpire2.pck`, completed startup patch orchestration with `17/17` patches applied, and reached the game main menu.
 
 ## Cloud-save posture
 
@@ -92,7 +91,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 
 ## Remaining release-readiness blockers
 
-- Steam game version selection is in hardening: selected branch is persisted and used for manifest resolution/update checks, non-public branches download into side-by-side `game_versions/<branch>/game` caches, completed branch downloads write `steam_branch.txt` marker/provenance metadata, inactive cached versions can be cleared from support options, and local backup is enabled before branch switches. The launcher now uses a discovery-led dropdown Steam branch selector instead of normal-user text entry: default/public remains always available, account-visible options refresh from Steam app-info branch availability evidence, and existing saved custom branch values remain selectable only for compatibility/retry diagnostics. It includes a non-mutating `REFRESH GAME VERSIONS` action, concise ready/build/password/unavailable dropdown badges, selected-branch helper text, pre-download/update gates for known unavailable branches, wrapped selector guidance for private/password branch hardening and unproven save compatibility, and branch availability diagnostics after failed downloads. Native Android startup now blocks selected-version launch when branch marker provenance is missing or mismatched instead of falling through toward stale branch startup. The same selected-version guidance is captured in launcher diagnostics, branch-switch marker evidence, manual Pull evidence, native pre-routing/startup logs, and native fallback diagnostics. Static CI guardrails cover version-selection docs, release blockers, discovery-led dropdown behavior, unavailable-branch gates, native launch gating, Autofill cleanup, and managed/native selector-guidance parity. Refresh-game-versions device validation, Steam beta/password behavior, inaccessible/private branch handling, startup routing, cache cleanup, Pull-before-Push/current-backup safety, and save compatibility across branches still need ARM64 device validation before release-candidate signoff; see [Steam version selection validation](steam-version-selection-validation.md) and [Steam version selection runbook](steam-version-selection-runbook.md).
+- Steam game version selection is in hardening: selected branch is persisted and used for manifest resolution/update checks, non-public branches download into side-by-side `game_versions/<branch>/game` caches, completed branch downloads write `steam_branch.txt` marker/provenance metadata, inactive cached versions can be cleared from support options, and local backup is enabled before branch switches. The launcher now uses a discovery-led dropdown Steam branch selector instead of normal-user text entry: default/public remains always available, account-visible options refresh from Steam app-info branch availability evidence, and existing saved custom branch values remain selectable only for compatibility/retry diagnostics. It includes a non-mutating `REFRESH GAME VERSIONS` action, concise ready/build/password/unavailable dropdown badges, selected-branch helper text, pre-download/update gates for known unavailable branches, wrapped selector guidance for private/password branch hardening and unproven save compatibility, and branch availability diagnostics after failed downloads. Native Android startup now blocks selected-version launch when branch marker provenance is missing or mismatched instead of falling through toward stale branch startup, and the local ARM64 build has validated selected `public-beta` launch from its side-by-side slot. The same selected-version guidance is captured in launcher diagnostics, branch-switch marker evidence, manual Pull evidence, native pre-routing/startup logs, and native fallback diagnostics. Static CI guardrails cover version-selection docs, release blockers, discovery-led dropdown behavior, unavailable-branch gates, native launch gating, Autofill cleanup, and managed/native selector-guidance parity. Refresh-game-versions device validation, Steam beta/password behavior, inaccessible/private branch handling, cache cleanup, Pull-before-Push/current-backup safety, save compatibility across branches, and release-candidate public/default retest still need ARM64 device validation before release-candidate signoff; see [Steam version selection validation](steam-version-selection-validation.md) and [Steam version selection runbook](steam-version-selection-runbook.md).
 - The current Steam version-selection release gate is tracked in [Steam version selection release readiness](steam-version-selection-release-readiness.md). Treat that tracker as the source of truth for what is implemented, what is unvalidated, and what evidence is required before release-candidate signoff.
 - Re-run full login/Pull/confirmed-Push/game-launch smoke on the clean public `v0.2.185-responsive-ui` release-facing build.
 - Keep Push treated as destructive. The newest public APK has confirmation/cancel safety evidence, but confirmed Push mutation still needs an explicit newest-public smoke before release-candidate signoff.

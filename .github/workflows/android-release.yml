@@ -606,7 +606,7 @@ jobs:
         with:
           tag_name: ${{ needs.build-android-release.outputs.release_tag }}
           target_commitish: ${{ github.sha }}
-          name: "StS2 Launcher ${{ needs.build-android-release.outputs.version_name }}"
+          name: "StS2 Mobile ${{ needs.build-android-release.outputs.version_name }}"
           files: |
             release-artifacts/**/*.apk
             release-artifacts/**/*.sha256

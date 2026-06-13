@@ -8,7 +8,7 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamAuth
 {
-    private const string AndroidDeviceFriendlyName = "StS2 Launcher Android";
+    private const string AndroidDeviceFriendlyName = "StS2 Mobile Android";
     private const string SteamClientWebsiteId = "Client";
 
     private Task<CredentialsAuthSession> BeginCredentialAuthSessionAsync(

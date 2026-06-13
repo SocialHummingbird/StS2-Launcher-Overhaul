@@ -155,7 +155,7 @@ public class GodotApp extends GodotActivity {
 			} catch (RuntimeException ex2) {
 				Log.e(TAG, "Assembly setup failed after recovery. Routing to native diagnostics instead of starting Godot.", ex2);
 				showNativeFailure(
-					"StS2 Launcher diagnostics",
+					"StS2 Mobile diagnostics",
 					"The launcher could not prepare the Android .NET assemblies required by native Godot.\n\nNative Godot was not started, because continuing would only trigger the generic '.NET assemblies not found' failure.",
 					Log.getStackTraceString(ex2)
 				);
@@ -1644,7 +1644,7 @@ public class GodotApp extends GodotActivity {
 			Intent intent = new Intent(Intent.ACTION_SEND);
 			intent.setType("text/plain");
 			intent.putExtra(Intent.EXTRA_STREAM, uri);
-			intent.putExtra(Intent.EXTRA_SUBJECT, "StS2 Launcher diagnostics");
+			intent.putExtra(Intent.EXTRA_SUBJECT, "StS2 Mobile diagnostics");
 			intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 			startActivity(Intent.createChooser(intent, "Share diagnostics"));
 			return true;
