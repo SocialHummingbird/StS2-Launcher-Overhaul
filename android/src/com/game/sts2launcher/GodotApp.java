@@ -886,6 +886,13 @@ public class GodotApp extends GodotActivity {
 		while (normalized.endsWith("/") && normalized.length() > 1) {
 			normalized = normalized.substring(0, normalized.length() - 1);
 		}
+
+		String packageName = getPackageName();
+		String dataDataRoot = "/data/data/" + packageName;
+		String dataUserRoot = "/data/user/0/" + packageName;
+		if (normalized.equals(dataDataRoot) || normalized.startsWith(dataDataRoot + "/")) {
+			normalized = dataUserRoot + normalized.substring(dataDataRoot.length());
+		}
 		return normalized;
 	}
 
