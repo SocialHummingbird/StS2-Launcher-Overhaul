@@ -40,7 +40,36 @@ Beta/non-public branch:
 | Beta download writes selected branch marker |  |  |  |
 | Marker includes install slot kind, install slot directory, depot manifest count, and IDs |  |  |  |
 | Native startup logs selected branch, selected branch note, startup directory, marker readiness, and depot manifest count |  |  |  |
-| Beta launches only when marker branch, install-slot provenance, and depot manifest provenance are valid |  |  |  |
+| Beta launches only when marker branch, install-slot provenance, depot manifest provenance, and branch-integrity provenance are valid |  |  |  |
+
+Public-vs-beta branch integrity:
+
+| Check | Evidence | Result | Notes |
+| --- | --- | --- | --- |
+| Beta slot was clean-redownloaded before integrity capture |  |  |  |
+| `beta-integrity-summary.txt` clean-redownload fields show marker present, investigated branch match, and selected directories cleared |  |  |  |
+| `beta-integrity-summary.txt` branch-availability fields show marker present, investigated branch match, selected-branch visibility, Windows depot manifest count, and visible-branch count |  |  |  |
+| `beta-integrity-summary.txt` names public/default and selected branch marker paths when present |  |  |  |
+| `beta-integrity-summary.txt` includes bounded public/default and selected branch depot manifest rows |  |  |  |
+| Focused beta-integrity logcat captured selected branch routing, marker readiness, manifest provenance, fallback, or public-inherited lines where available |  |  |  |
+| Marker records `selectedBranchManifest`, `publicManifest`, `manifestSource`, `manifestRequestBranch`, `selectedMatchesPublic`, and `effectiveMatchesPublic` for depot rows |  |  |  |
+| Marker records depots matching public, differing from public, inherited from public, missing selected branch manifest, and without public comparison |  |  |  |
+| Launcher diagnostics include selected branch marker depot manifest rows |  |  |  |
+| Download completion log includes selected-branch integrity summary |  |  |  |
+| Public/default file inventory captured with SHA-256 hashes |  |  |  |
+| Public/default cache tree captured for stale-cache/fallback comparison |  |  |  |
+| Selected beta file inventory captured with SHA-256 hashes |  |  |  |
+| Selected beta cache tree captured for stale-cache/fallback investigation |  |  |  |
+| Public-vs-beta inventory comparison captured |  |  |  |
+| `public-vs-<branch>-key-assets.tsv` captures focused PCK/art/audio/data/font hash states |  |  |  |
+| `beta-integrity-summary.txt` includes bounded changed key-asset rows |  |  |  |
+| `SlayTheSpire2.pck` hash compared between public and beta |  |  |  |
+| Affected art asset paths/hashes compared where known |  |  |  |
+| `beta-integrity-summary.txt` records a `Classification:` line for Steam partial branch, stale cache, launcher fallback, runtime remote/config behavior, or inconclusive evidence |  |  |  |
+| `beta-integrity-summary.txt` records `Evidence readiness:` and `Evidence missing/weak:` lines |  |  |  |
+| `scripts/review-beta-integrity-summary.ps1` verdict captured for `beta-integrity-summary.txt` |  |  |  |
+| `beta-integrity-summary.txt` records classification input metrics for branch availability, depot counters, inventory differences, and art/bundle hash differences |  |  |  |
+| Classification is inconclusive unless clean-redownload proof belongs to the investigated branch and selected directories were cleared, except for branch-availability issues proven by app-info |  |  |  |
 
 Missing/private/password branch behavior:
 
@@ -85,8 +114,8 @@ Cache switching and cleanup:
 | Launcher status/log names the selected version preserved by cleanup |  |  |  |
 | Logcat records removed inactive cache paths and preserved selected cache path |  |  |  |
 | Evidence bundle includes bounded `game-version-cache-tree.txt`, `game-version-cache-sizes.txt`, and `last_game_version_cache_cleanup.txt` before/after cleanup where possible |  |  |  |
-| Diagnostics show cached cache `selected`, `inactive`, `branchMarkerPresent`, `branchMarkerBranch`, `branchMarkerExpectedInstallSlotKind`, `branchMarkerExpectedInstallSlotDirectory`, `branchMarkerMatchingInstallSlotProvenance`, `branchMarkerDepotManifests`, and `branchMarkerReady` flags |  |  |  |
-| Cached `branchMarkerReady` requires matching cache directory, install-slot provenance, and depot manifest provenance |  |  |  |
+| Diagnostics show cached cache `selected`, `inactive`, `branchMarkerPresent`, `branchMarkerBranch`, `branchMarkerExpectedInstallSlotKind`, `branchMarkerExpectedInstallSlotDirectory`, `branchMarkerMatchingInstallSlotProvenance`, `branchMarkerDepotManifests`, `branchMarkerIntegrityProvenance`, public/differing/inherited/missing selected manifest counts, and `branchMarkerReady` flags |  |  |  |
+| Cached non-public `branchMarkerReady` requires matching cache directory, install-slot provenance, depot manifest provenance, and branch-integrity provenance |  |  |  |
 
 Readiness and recovery:
 
@@ -100,7 +129,7 @@ Readiness and recovery:
 | Native startup logs selected branch note, marker readiness, depot manifest presence, and depot manifest entry count |  |  |  |
 | Native fallback diagnostics show selected branch note, marker readiness, depot manifest presence, and depot manifest entry count |  |  |  |
 | Missing/mismatched non-public marker blocks readiness |  |  |  |
-| Missing non-public depot provenance blocks readiness |  |  |  |
+| Missing non-public depot provenance or branch-integrity provenance blocks readiness |  |  |  |
 | Metadata mismatch shows `REDOWNLOAD SELECTED VERSION` |  |  |  |
 | Confirming metadata rebuild clears selected cache before replacement download |  |  |  |
 | Redownload writes `last_game_version_redownload.txt` with parseable UTC and diagnostics expose current selected branch context, UTC parseability, selected branch, selected-branch match, selected version, selected version slot kind, selected version slot directory, deleted game directory, pre/post-delete game directory existence, deleted download state directory, pre/post-delete download state existence, and selected directories cleared status |  |  |  |
@@ -145,6 +174,7 @@ Artifact hygiene:
 | Redacted focused logcat includes its best-effort/manual-review warning header |  |  |  |
 | Evidence bundle includes `ARTIFACT_HYGIENE.txt` and raw logs are treated as local-only unless manually reviewed and redacted |  |  |  |
 | Evidence bundle includes `PUBLIC_SHARE_MANIFEST.txt` listing preferred public artifacts and local-only/manual-review artifacts |  |  |  |
+| Beta-integrity summary public-sharing warning reviewed; focused logcat, marker paths, cache tree, and inventory paths manually checked before public posting |  |  |  |
 | Evidence bundle includes `logcat-redaction-summary.txt` with focused-line and changed-line counts |  |  |  |
 | Evidence bundle includes `launcher-diagnostics-index.txt`; any full launcher diagnostics report attached publicly was manually reviewed/redacted |  |  |  |
 | Full launcher diagnostics and startup-recovery diagnostics reports include a public-sharing warning before detailed state/evidence/log sections |  |  |  |
@@ -248,3 +278,10 @@ Use these exact labels when collecting validation screenshots or notes so the st
 - Manual Push blocked evidence recorded pre-Push backup evidence satisfied
 - Manual Push blocked evidence reason
 - Manual Push blocked before upload evidence recorded
+- Selected game branch marker depots matching public
+- Selected game branch marker depots differing from public
+- Selected game branch marker depots without public comparison
+- Selected game branch marker depots inherited from public
+- Selected game branch marker depots missing selected branch manifest
+- Selected game branch marker partial Steam branch evidence
+- Selected game branch marker depot manifest rows

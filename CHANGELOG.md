@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-06-14 - Steam beta branch integrity diagnostics
+
+- Added per-depot public-manifest comparison evidence to selected Steam branch markers so `public-beta` can show whether each downloaded depot is branch-specific, public-identical, or missing public comparison data.
+- Changed non-public depot resolution so a depot with no explicit selected-branch manifest but a public manifest is downloaded as an explicit `public-inherited` depot instead of being skipped.
+- Added launcher diagnostics for partial Steam branch evidence, including counts of selected depots matching public, differing from public, and lacking public comparison.
+- Clarified the beta integrity investigation path so mixed beta/public behavior and art asset issues can be distinguished between Steam-served partial branches, launcher fallback, stale cache files, or runtime remote/config behavior.
+- Tightened non-public launch readiness so old branch markers without public-vs-selected integrity counters no longer satisfy managed or native startup checks.
+- Expanded beta integrity evidence capture with an availability-aware, clean-redownload-gated, auditable `Classification:` summary, evidence-readiness verdict, public-sharing warning, classifier input metrics, bounded public/default and selected depot manifest rows, branch-availability marker proof, clean-redownload marker proof, public/default marker status, selected cache tree capture, focused beta-integrity logcat capture, and focused PCK/art/audio/data/font key-asset hash comparison.
+- Added a beta-integrity summary review helper so release-gate checks can read `Evidence readiness:` and fail when the captured evidence is not ready for final classification.
+- Added optional beta-integrity capture switches to run the summary review immediately after capture and fail the step when `Evidence readiness:` is not ready.
+
 ## 2026-06-13 - Public-beta launch validation
 
 - Fixed Android selected-version marker provenance checks so app-private path aliases under `/data/data/<package>` and `/data/user/0/<package>` compare as the same install location.

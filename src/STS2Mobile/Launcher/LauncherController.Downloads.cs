@@ -237,6 +237,9 @@ internal sealed partial class LauncherController
             filesReady,
             LauncherGameFiles.ReadinessProblem(_model.DataDir, branch)
         ).Apply(this);
+        var integritySummary = LauncherGameFiles.BranchIntegritySummary(_model.DataDir, branch);
+        if (!string.IsNullOrWhiteSpace(integritySummary))
+            _view.AppendLog(integritySummary);
     }
 
     private void FailDownload(string message)

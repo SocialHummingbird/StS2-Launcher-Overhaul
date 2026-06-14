@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.MessageDigest;
 
 public class NativeFallbackActivity extends Activity {
 	private static final String TAG = "STS2Mobile";
@@ -172,6 +173,8 @@ public class NativeFallbackActivity extends Activity {
 		if (pck.exists() && pck.isFile()) {
 			state.append("\nPCK bytes: ");
 			state.append(pck.length());
+			state.append("\nPCK SHA-256: ");
+			state.append(sha256Hex(pck));
 			state.append("\nPCK magic valid: ");
 			state.append(describePckMagicStatus(pck));
 		}
@@ -211,12 +214,14 @@ public class NativeFallbackActivity extends Activity {
 					state.append(hasInstallSlotProvenance(marker, selectedBranch) ? "yes" : "no");
 					state.append("\nSteam branch marker has depot manifests: ");
 					state.append(hasDepotManifestProvenance(marker) ? "yes" : "no");
+					state.append("\nSteam branch marker has branch integrity provenance: ");
+					state.append(hasBranchIntegrityProvenance(marker) ? "yes" : "no");
 					state.append("\nSteam branch marker depot manifest entries: ");
 					state.append(depotManifestCount(marker));
 					state.append("\nSteam branch marker ready: ");
 					state.append(
 						markerBranch.equalsIgnoreCase(selectedBranch)
-							&& ("public".equalsIgnoreCase(selectedBranch) || (hasInstallSlotProvenance(marker, selectedBranch) && hasDepotManifestProvenance(marker)))
+							&& ("public".equalsIgnoreCase(selectedBranch) || (hasInstallSlotProvenance(marker, selectedBranch) && hasDepotManifestProvenance(marker) && hasBranchIntegrityProvenance(marker)))
 							? "yes"
 							: "no"
 					);
@@ -226,6 +231,7 @@ public class NativeFallbackActivity extends Activity {
 			state.append("\nSteam branch marker branch: <missing>");
 			state.append("\nSteam branch marker has matching install slot provenance: no");
 			state.append("\nSteam branch marker has depot manifests: no");
+			state.append("\nSteam branch marker has branch integrity provenance: no");
 			state.append("\nSteam branch marker depot manifest entries: 0");
 			state.append("\nSteam branch marker ready: no");
 		} catch (IOException e) {
@@ -233,6 +239,7 @@ public class NativeFallbackActivity extends Activity {
 			state.append("\nSteam branch marker branch: <read failed>");
 			state.append("\nSteam branch marker has matching install slot provenance: no");
 			state.append("\nSteam branch marker has depot manifests: no");
+			state.append("\nSteam branch marker has branch integrity provenance: no");
 			state.append("\nSteam branch marker depot manifest entries: 0");
 			state.append("\nSteam branch marker ready: no");
 		}
@@ -240,6 +247,18 @@ public class NativeFallbackActivity extends Activity {
 
 	private boolean hasDepotManifestProvenance(File marker) {
 		return depotManifestCount(marker) > 0;
+	}
+
+	private boolean hasBranchIntegrityProvenance(File marker) {
+		return markerHasValue(marker, "Depot manifests matching public count:")
+			&& markerHasValue(marker, "Depot manifests differing from public count:")
+			&& markerHasValue(marker, "Depot manifests without public comparison count:")
+			&& markerHasValue(marker, "Depot manifests inherited from public count:")
+			&& markerHasValue(marker, "Depot manifests missing selected branch manifest count:");
+	}
+
+	private boolean markerHasValue(File marker, String prefix) {
+		return !readMarkerValue(marker, prefix).isEmpty();
 	}
 
 	private boolean hasInstallSlotProvenance(File marker, String branch) {
@@ -396,6 +415,32 @@ public class NativeFallbackActivity extends Activity {
 			Log.w(TAG, "Failed to inspect game PCK magic", e);
 			return "unknown (" + e.getClass().getSimpleName() + ")";
 		}
+	}
+
+	private String sha256Hex(File file) {
+		try (InputStream in = new FileInputStream(file)) {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] buffer = new byte[65536];
+			int read;
+			while ((read = in.read(buffer)) != -1) {
+				digest.update(buffer, 0, read);
+			}
+			return bytesToHex(digest.digest());
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to compute game PCK SHA-256 for native fallback diagnostics", e);
+			return "<unavailable:" + e.getClass().getSimpleName() + ">";
+		}
+	}
+
+	private String bytesToHex(byte[] bytes) {
+		char[] hex = new char[bytes.length * 2];
+		final char[] alphabet = "0123456789abcdef".toCharArray();
+		for (int i = 0; i < bytes.length; i++) {
+			int value = bytes[i] & 0xff;
+			hex[i * 2] = alphabet[value >>> 4];
+			hex[i * 2 + 1] = alphabet[value & 0x0f];
+		}
+		return new String(hex);
 	}
 
 	private String describeAppVersion() {

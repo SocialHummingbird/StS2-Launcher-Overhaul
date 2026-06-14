@@ -103,7 +103,15 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Selected game branch marker expected install slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch)}");
         sb.AppendLine($"Selected game branch marker has matching install slot provenance: {BoolText(BranchMarkerHasInstallSlotProvenance(branchMarkerPath, SteamGameInstallPaths.VersionSlotKind(branch), SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch)))}");
         sb.AppendLine($"Selected game branch marker has depot manifests: {BoolText(BranchMarkerHasDepotManifestProvenance(branchMarkerPath))}");
+        sb.AppendLine($"Selected game branch marker has branch integrity provenance: {BoolText(BranchMarkerHasIntegrityProvenance(branchMarkerPath))}");
         sb.AppendLine($"Selected game branch marker depot manifest entries: {BranchMarkerDepotManifestCount(branchMarkerPath)}");
+        sb.AppendLine($"Selected game branch marker depots matching public: {ReadBranchMarkerValue(branchMarkerPath, "Depot manifests matching public count:")}");
+        sb.AppendLine($"Selected game branch marker depots differing from public: {ReadBranchMarkerValue(branchMarkerPath, "Depot manifests differing from public count:")}");
+        sb.AppendLine($"Selected game branch marker depots without public comparison: {ReadBranchMarkerValue(branchMarkerPath, "Depot manifests without public comparison count:")}");
+        sb.AppendLine($"Selected game branch marker depots inherited from public: {ReadBranchMarkerValue(branchMarkerPath, "Depot manifests inherited from public count:")}");
+        sb.AppendLine($"Selected game branch marker depots missing selected branch manifest: {ReadBranchMarkerValue(branchMarkerPath, "Depot manifests missing selected branch manifest count:")}");
+        sb.AppendLine($"Selected game branch marker partial Steam branch evidence: {BranchMarkerPartialSteamBranchEvidence(branchMarkerPath)}");
+        sb.AppendLine($"Selected game branch marker depot manifest rows: {ReadBranchMarkerValues(branchMarkerPath, "Depot manifest:", 32)}");
         sb.AppendLine($"Selected game branch marker ready: {BoolText(LauncherGameFiles.BranchMarkerReady(dataDir, branch))}");
         AppendBranchSwitchSafety(sb, dataDir);
         AppendCachedGameVersions(sb, dataDir);
@@ -220,6 +228,13 @@ internal static partial class LauncherDiagnostics
     private static bool BranchMarkerHasDepotManifestProvenance(string markerPath)
         => BranchMarkerDepotManifestCount(markerPath) > 0;
 
+    private static bool BranchMarkerHasIntegrityProvenance(string markerPath)
+        => ReadMarkerInt(markerPath, "Depot manifests matching public count:").HasValue
+        && ReadMarkerInt(markerPath, "Depot manifests differing from public count:").HasValue
+        && ReadMarkerInt(markerPath, "Depot manifests without public comparison count:").HasValue
+        && ReadMarkerInt(markerPath, "Depot manifests inherited from public count:").HasValue
+        && ReadMarkerInt(markerPath, "Depot manifests missing selected branch manifest count:").HasValue;
+
     private static bool BranchMarkerHasInstallSlotProvenance(string markerPath, string expectedSlotKind, string expectedSlotDirectory)
         => string.Equals(
             ReadBranchMarkerValue(markerPath, "Install slot kind:"),
@@ -258,6 +273,77 @@ internal static partial class LauncherDiagnostics
         }
     }
 
+    private static string BranchMarkerPartialSteamBranchEvidence(string markerPath)
+    {
+        var matching = ReadMarkerInt(markerPath, "Depot manifests matching public count:");
+        var differing = ReadMarkerInt(markerPath, "Depot manifests differing from public count:");
+        var inherited = ReadMarkerInt(markerPath, "Depot manifests inherited from public count:");
+        var selectedMissing = ReadMarkerInt(markerPath, "Depot manifests missing selected branch manifest count:");
+        if (!matching.HasValue || !differing.HasValue)
+            return MissingDiagnosticValue;
+
+        if ((inherited ?? 0) > 0 && differing.Value > 0)
+            return "selected branch inherits public depot manifests and overrides other depots";
+
+        if ((selectedMissing ?? 0) > 0 && differing.Value > 0)
+            return "selected branch has missing explicit branch manifests and branch-specific depot manifests";
+
+        if ((inherited ?? 0) > 0 && differing.Value == 0)
+            return "selected branch inherits public depot manifests only";
+
+        if (matching.Value > 0 && differing.Value > 0)
+            return "selected branch has both public-identical and branch-specific depot manifests";
+
+        if (matching.Value > 0 && differing.Value == 0)
+            return "selected branch depot manifests all match public";
+
+        if (matching.Value == 0 && differing.Value > 0)
+            return "selected branch depot manifests all differ from public";
+
+        return "selected branch has no public comparison evidence";
+    }
+
+    private static string ReadBranchMarkerValues(string markerPath, string prefix, int maxValues)
+    {
+        if (!File.Exists(markerPath))
+            return MissingDiagnosticValue;
+
+        try
+        {
+            var values = new System.Collections.Generic.List<string>();
+            foreach (var line in File.ReadLines(markerPath))
+            {
+                if (!line.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                values.Add(ValueOrMissing(line.Substring(prefix.Length).Trim()));
+                if (values.Count >= maxValues)
+                    break;
+            }
+
+            return values.Count == 0
+                ? $"<missing {prefix.TrimEnd(':')} lines>"
+                : string.Join(" | ", values);
+        }
+        catch
+        {
+            return "<read failed>";
+        }
+    }
+
+    private static int? ReadMarkerInt(string markerPath, string prefix)
+    {
+        var value = ReadBranchMarkerValue(markerPath, prefix);
+        return int.TryParse(
+            value,
+            System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var parsed
+        )
+            ? parsed
+            : null;
+    }
+
     private static bool CachedBranchMarkerReady(string cacheDirectoryName, string markerBranch, string markerPath, string cachePath)
     {
         if (string.IsNullOrWhiteSpace(markerBranch) || markerBranch.StartsWith("<"))
@@ -269,7 +355,11 @@ internal static partial class LauncherDiagnostics
             System.StringComparison.OrdinalIgnoreCase
         )
         && BranchMarkerHasDepotManifestProvenance(markerPath)
-        && BranchMarkerHasInstallSlotProvenance(markerPath, SteamGameInstallPaths.VersionSlotKind(markerBranch), cachePath);
+        && BranchMarkerHasInstallSlotProvenance(markerPath, SteamGameInstallPaths.VersionSlotKind(markerBranch), cachePath)
+        && (
+            string.Equals(markerBranch, SteamGameBranch.Public, System.StringComparison.OrdinalIgnoreCase)
+            || BranchMarkerHasIntegrityProvenance(markerPath)
+        );
     }
 
     private static void AppendBranchSwitchSafety(StringBuilder sb, string dataDir)
@@ -448,6 +538,11 @@ internal static partial class LauncherDiagnostics
                     + $"branchMarkerExpectedInstallSlotDirectory={cache.Path} "
                     + $"branchMarkerMatchingInstallSlotProvenance={BoolText(BranchMarkerHasInstallSlotProvenance(markerPath, SteamGameInstallPaths.VersionSlotKind(markerBranch), cache.Path))} "
                     + $"branchMarkerDepotManifests={BranchMarkerDepotManifestCount(markerPath)} "
+                    + $"branchMarkerIntegrityProvenance={BoolText(BranchMarkerHasIntegrityProvenance(markerPath))} "
+                    + $"branchMarkerDepotsMatchingPublic={ReadBranchMarkerValue(markerPath, "Depot manifests matching public count:")} "
+                    + $"branchMarkerDepotsDifferingFromPublic={ReadBranchMarkerValue(markerPath, "Depot manifests differing from public count:")} "
+                    + $"branchMarkerDepotsInheritedFromPublic={ReadBranchMarkerValue(markerPath, "Depot manifests inherited from public count:")} "
+                    + $"branchMarkerDepotsMissingSelectedManifest={ReadBranchMarkerValue(markerPath, "Depot manifests missing selected branch manifest count:")} "
                     + $"branchMarkerReady={BoolText(CachedBranchMarkerReady(cache.DirectoryName, markerBranch, markerPath, cache.Path))}"
             );
         }

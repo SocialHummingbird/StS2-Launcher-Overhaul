@@ -11,6 +11,7 @@ param(
     [ValidateSet("arm64-v8a", "x86_64", "universal")]
     [string]$Abi = "arm64-v8a",
     [switch]$Install,
+    [switch]$EvidenceDebuggable,
     [string]$DeviceSerial = ""
 )
 
@@ -235,16 +236,22 @@ Write-Host "Stopping existing Gradle daemons..."
 & $GradlePath "--stop" | Out-Null
 
 Write-Host "Building Android APK..."
-& $GradlePath `
-    "-p" "$androidDir" `
-    "assembleMonoRelease" `
-    "-Pexport_version_name=$VersionName" `
-    "-Pexport_version_code=$VersionCode" `
-    "-Pexport_package_name=$PackageName" `
-    "-Pexport_enabled_abis=$gradleAbiList" `
-    "-Prelease_keystore_file=$resolvedKeystore" `
-    "-Prelease_keystore_password=$KeystorePassword" `
+$gradleArgs = @(
+    "-p", "$androidDir",
+    "assembleMonoRelease",
+    "-Pexport_version_name=$VersionName",
+    "-Pexport_version_code=$VersionCode",
+    "-Pexport_package_name=$PackageName",
+    "-Pexport_enabled_abis=$gradleAbiList",
+    "-Prelease_keystore_file=$resolvedKeystore",
+    "-Prelease_keystore_password=$KeystorePassword",
     "-Prelease_keystore_alias=$KeystoreAlias"
+)
+if ($EvidenceDebuggable) {
+    $gradleArgs += "-Psts2_evidence_debuggable=true"
+}
+
+& $GradlePath @gradleArgs
 
 if ($LASTEXITCODE -ne 0) {
     throw "Gradle build failed"

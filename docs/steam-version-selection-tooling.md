@@ -162,6 +162,90 @@ branch-markers/last_steam_branch_availability.txt
 capture-summary.txt
 ```
 
+## Capture beta branch integrity evidence
+
+Purpose:
+
+- Captures app-private `steam_branch.txt` markers for all installed branch caches.
+- Names both public/default and selected branch marker paths in `beta-integrity-summary.txt` when present.
+- Embeds bounded public/default and selected branch depot manifest rows in `beta-integrity-summary.txt`.
+- Captures `last_steam_branch_availability.txt` and summarizes selected-branch visibility, Windows depot manifest count, visible-branch count, and whether the marker matches the investigated branch.
+- Captures `last_game_version_redownload.txt` and summarizes whether the clean redownload marker matches the investigated branch and cleared the selected game/download-state directories.
+- Captures best-effort focused logcat lines for selected branch routing, marker readiness, manifest provenance, fallback, and public-inherited evidence.
+- Writes a public-sharing warning into `beta-integrity-summary.txt`; manually review the summary, focused logcat, branch markers, cache tree, and inventory paths before posting.
+- Builds a public/default file inventory from `files/game`.
+- Captures a bounded public/default cache tree for stale-cache and fallback comparison.
+- Builds a selected beta file inventory from the selected branch cache.
+- Captures a bounded selected-branch cache tree for stale-cache and fallback investigation.
+- Records file size and SHA-256 for each installed file.
+- Compares public/default files against the selected beta cache.
+- Summarizes identical, different, public-only, selected-only, and art/bundle-like file differences.
+- Writes `inventories/public-vs-<branch>-key-assets.tsv` for focused PCK, art, audio, data, font, and bundle hash comparison.
+- Embeds bounded changed key-asset rows in `beta-integrity-summary.txt`.
+- Writes a conservative `Classification:` line in `beta-integrity-summary.txt` using branch-availability evidence, clean-redownload proof, marker counters, and inventory differences.
+- Writes `Evidence readiness:` and `Evidence missing/weak:` lines so the summary states whether the package is ready for branch-availability or manifest/cache/art classification.
+- Gates manifest/cache/art classifications on `last_game_version_redownload.txt` proving the investigated branch was redownloaded and its selected game/download-state directories were cleared.
+- Writes the classification input metrics into `beta-integrity-summary.txt` so the final cause label can be audited without reopening the full inventory files.
+- Helps classify mixed beta/public behavior as Steam-served partial branch content, stale branch-cache files, launcher fallback, or possible runtime remote/config behavior.
+
+Runtime checklist: `docs/steam-beta-integrity-runtime-checklist.md`
+
+Review command:
+
+```powershell
+.\scripts\review-beta-integrity-summary.ps1 `
+  -SummaryPath "artifacts\android\steam-beta-integrity-<timestamp>\beta-integrity-summary.txt"
+```
+
+Use `-FailOnNotReady` when CI or a release-gate checklist should fail if `Evidence readiness:` is not ready. Exit code `2` means the evidence package is not ready for final classification, not that the parser crashed. Exit code `3` means the evidence is otherwise ready but the public-sharing warning is missing. The review output also reports whether the beta-integrity public-sharing warning is present. The capture helper accepts `-ReviewSummary` and `-FailOnNotReady` to run the same review immediately after writing `beta-integrity-summary.txt`.
+
+Command:
+
+```powershell
+.\scripts\capture-steam-beta-integrity-evidence.ps1 `
+  -EvidenceDir "artifacts\android\steam-beta-integrity-<timestamp>" `
+  -Branch "public-beta" `
+  -ReviewSummary
+```
+
+With explicit package and device serial:
+
+```powershell
+.\scripts\capture-steam-beta-integrity-evidence.ps1 `
+  -EvidenceDir "artifacts\android\steam-beta-integrity-<timestamp>" `
+  -PackageName "com.sts2launcher.overhaul.fork.dev" `
+  -Branch "public-beta" `
+  -DeviceSerial "<adb-serial>"
+```
+
+Captured files:
+
+```text
+branch-markers/steam-branch-marker-list.txt
+branch-markers/last_steam_branch_availability.txt
+branch-markers/<copied-marker-files>
+logs/beta-integrity-logcat-focused.txt
+inventories/public-files.tsv
+inventories/public-cache-tree.txt
+inventories/<branch>-files.tsv
+inventories/<branch>-cache-tree.txt
+inventories/public-vs-<branch>-comparison.txt
+inventories/public-vs-<branch>-key-assets.tsv
+beta-integrity-summary.txt
+```
+
+Interpretation:
+
+- `manifestSource=selected` means the selected branch supplied that depot manifest.
+- `manifestSource=public-inherited` means Steam exposed no explicit selected-branch manifest for that depot and the launcher intentionally used the public manifest as inherited branch content.
+- Public-identical and branch-specific depots in the same marker are evidence of a partial Steam branch.
+- File inventory differences show whether the installed beta cache actually differs from public for PCK, art, audio, JSON, font, or other bundle-like files.
+- Treat an `inconclusive` summary classification as a requirement to clean-redownload, capture stronger marker evidence, or inspect runtime logs before claiming a cause. Strong manifest/cache/art classifications require clean-redownload proof for the investigated branch.
+- Treat `Evidence readiness: not ready for final classification` as a release blocker until the missing/weak evidence line is resolved or explicitly accepted as a blocker note.
+- Treat the public-sharing warning as part of the evidence contract: filtered logs and marker paths are still not automatically safe to publish.
+- If a clean-redownloaded beta slot still has public-inherited depot markers and public-identical art hashes, the likely cause is Steam-served partial branch content.
+- If marker evidence says selected manifests differ but files remain stale or public-only, investigate cache cleanup and download replacement.
+
 ## Safe validation sequence
 
 Use the tools in this order:
@@ -171,8 +255,9 @@ Use the tools in this order:
 3. Review `docs/steam-version-selection-release-readiness.md` and decide which gates this run can prove.
 4. Follow `docs/steam-version-selection-runbook.md`.
 5. Capture device evidence after each meaningful phase.
-6. Fill `evidence.md` as results are observed.
-7. Do not perform manual Push after a branch switch until Pull, local-save existence, backup permission, local pre-Push backup, and cloud pre-Push backup evidence are captured.
+6. Run beta-integrity capture after a clean selected-branch redownload if public-beta appears mixed or art assets look wrong.
+7. Fill `evidence.md` as results are observed.
+8. Do not perform manual Push after a branch switch until Pull, local-save existence, backup permission, local pre-Push backup, and cloud pre-Push backup evidence are captured.
 
 ## Artifact hygiene
 

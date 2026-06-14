@@ -143,7 +143,7 @@ internal sealed partial class DepotDownloader
     {
         var depotId = depot.DepotId;
 
-        Log($"Processing depot {depotId} for branch '{depot.Branch}'...");
+        Log($"Processing depot {depotId} for branch '{depot.Branch}' source={depot.ManifestSource} requestBranch='{depot.ManifestRequestBranch}'...");
 
         bool isUpdate = _stateStore.ManifestChanged(depot);
 
@@ -179,7 +179,7 @@ internal sealed partial class DepotDownloader
         var manifestRequestCode = await GetManifestRequestCodeAsync(
             depot.DepotId,
             depot.ManifestId,
-            depot.Branch
+            depot.ManifestRequestBranch
         );
         var manifest = await DownloadManifestWithRetriesAsync(
             new ManifestDownloadRequest(

@@ -273,6 +273,79 @@ Add-Check `
     )
 
 Add-Check `
+    "src\STS2Mobile\Steam\DepotDownloader.cs" `
+    "writes beta branch integrity and public-inheritance marker evidence" `
+    @(
+        "Depot manifests matching public count",
+        "Depot manifests differing from public count",
+        "Depot manifests without public comparison count",
+        "Depot manifests inherited from public count",
+        "Depot manifests missing selected branch manifest count",
+        "selectedBranchManifest=",
+        "publicManifest=",
+        "manifestSource=",
+        "manifestRequestBranch=",
+        "selectedMatchesPublic=",
+        "effectiveMatchesPublic="
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\DepotDownloader.Depots.cs" `
+    "uses explicit public inheritance for selected branches with missing depot manifests" `
+    @(
+        "public-inherited",
+        "manifestRequestBranch = SteamGameBranch\.Public",
+        "has no explicit branch manifest; inheriting public manifest",
+        "source=\{manifestSource\}",
+        "requestBranch='\{manifestRequestBranch\}'"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\DepotDownloader.DepotDownload.cs" `
+    "requests inherited public manifests against the branch that owns the manifest" `
+    @(
+        "ManifestRequestBranch",
+        "source=\{depot\.ManifestSource\}",
+        "requestBranch='\{depot\.ManifestRequestBranch\}'",
+        "GetManifestRequestCodeAsync",
+        "depot\.ManifestRequestBranch"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\DepotDownloader.DepotManifestReference.cs" `
+    "tracks selected, public, effective, and request-branch manifest provenance" `
+    @(
+        "SelectedBranchManifestId",
+        "PublicManifestId",
+        "ManifestSource",
+        "ManifestRequestBranch",
+        "HasSelectedBranchManifest",
+        "EffectiveMatchesPublicManifest",
+        "SelectedBranchManifestMatchesPublic",
+        "InheritedFromPublic"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.Reports.cs" `
+    "surfaces partial Steam branch and inherited-public depot evidence" `
+    @(
+        "Selected game branch marker depots matching public",
+        "Selected game branch marker depots differing from public",
+        "Selected game branch marker depots without public comparison",
+        "Selected game branch marker depots inherited from public",
+        "Selected game branch marker depots missing selected branch manifest",
+        "Selected game branch marker partial Steam branch evidence",
+        "Selected game branch marker depot manifest rows",
+        "branchMarkerDepotsMatchingPublic",
+        "branchMarkerDepotsDifferingFromPublic",
+        "branchMarkerDepotsInheritedFromPublic",
+        "branchMarkerDepotsMissingSelectedManifest",
+        "BranchMarkerPartialSteamBranchEvidence",
+        "ReadBranchMarkerValues",
+        "selected branch inherits public depot manifests"
+    )
+
+Add-Check `
     "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.cs" `
     "surfaces compact Steam branch availability diagnoses in launcher failure status" `
     @(
@@ -318,6 +391,10 @@ Add-Check `
     "blocks ambiguous non-public caches without marker provenance" `
     @(
         "BranchMarkerReady",
+        "BranchIntegritySummary",
+        "Selected branch appears partial",
+        "inherits public content",
+        "Selected branch depot manifests all match public",
         "BranchMarkerHasInstallSlotProvenance",
         "ReadinessProblem",
         "HasBranchMetadataProblem",
@@ -372,6 +449,15 @@ Add-Check `
         "DeleteInactiveVersionCaches",
         "Selected version preserved",
         "SteamGameBranch\.DisplayName"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Downloads.cs" `
+    "logs selected-branch integrity summary after non-public downloads" `
+    @(
+        "BranchIntegritySummary",
+        "integritySummary",
+        "AppendLog"
     )
 
 Add-Check `
@@ -1517,6 +1603,19 @@ Add-Check `
         "Game version cache cleanup marker selected cache preserved where applicable",
         "Pull from Cloud first",
         "steam_branch\.txt",
+        "selectedBranchManifest",
+        "publicManifest",
+        "manifestSource=public-inherited",
+        "manifestRequestBranch=public",
+        "branch-integrity provenance",
+        "Branch marker depots inherited from public",
+        "Branch marker depots missing selected branch manifest",
+        "Branch marker depot manifest rows",
+        "Classification:",
+        "Evidence readiness: not ready for final classification",
+        "Clean redownload matches investigated branch: true",
+        "Clean redownload selected directories cleared: true",
+        "Public-vs-beta key asset comparison captured",
         "Steam credentials",
         "refresh tokens",
         "shared preferences",
@@ -1525,11 +1624,173 @@ Add-Check `
     )
 
 Add-Check `
+    "docs\steam-version-selection-release-readiness.md" `
+    "requires beta branch integrity evidence before release signoff" `
+    @(
+        "Beta branch integrity",
+        "effective manifest",
+        "selected-branch manifest",
+        "public manifest",
+        "manifest source",
+        "inherits public",
+        "file inventory",
+        "key asset or PCK hashes",
+        "Public versus public-beta branch integrity is not yet classified"
+    )
+
+Add-Check `
+    "scripts\capture-steam-beta-integrity-evidence.ps1" `
+    "captures public versus selected branch inventories and marker evidence" `
+    @(
+        "public-files\.tsv",
+        "public-cache-tree\.txt",
+        "selected inventory",
+        "cache-tree\.txt",
+        "sha256sum",
+        "public-vs-",
+        "key-assets\.tsv",
+        "Changed key asset rows",
+        "Art/bundle-like files",
+        "Public sharing warning:",
+        "ReviewSummary",
+        "FailOnNotReady",
+        "review-beta-integrity-summary\.ps1",
+        "Classification:",
+        "Evidence readiness:",
+        "Evidence missing/weak:",
+        "Classification inputs:",
+        "clean redownload not proven",
+        "Public branch marker:",
+        "Selected branch marker:",
+        "Clean redownload marker:",
+        "Clean redownload selected directories cleared:",
+        "Branch availability marker:",
+        "Branch availability matches investigated branch:",
+        "Branch availability selected branch Windows depot manifests:",
+        "likely Steam branch availability issue",
+        "Focused logcat:",
+        "Public branch depot manifest rows",
+        "Selected branch depot manifest rows",
+        "steam_branch\.txt",
+        "last_steam_branch_availability\.txt",
+        "manifestSource=public-inherited",
+        "runtime remote/config",
+        "Read-Inventory",
+        "Write-InventoryComparison"
+    )
+
+Add-Check `
+    "scripts\review-beta-integrity-summary.ps1" `
+    "reviews beta-integrity summary readiness without manually scanning the artifact" `
+    @(
+        "Evidence readiness:",
+        "Evidence missing/weak:",
+        "Public sharing warning present:",
+        "Clean redownload matches investigated branch:",
+        "Clean redownload selected directories cleared:",
+        "Branch availability matches investigated branch:",
+        "FailOnNotReady",
+        "Exit code: 2",
+        "Exit code: 3"
+    )
+
+Add-Check `
+    "docs\steam-version-selection-tooling.md" `
+    "documents beta-integrity evidence capture workflow" `
+    @(
+        "Capture beta branch integrity evidence",
+        "capture-steam-beta-integrity-evidence\.ps1",
+        "review-beta-integrity-summary\.ps1",
+        "ReviewSummary",
+        "FailOnNotReady",
+        "public-files\.tsv",
+        "public-cache-tree\.txt",
+        "<branch>-cache-tree\.txt",
+        "public-vs-<branch>-comparison\.txt",
+        "key-assets\.tsv",
+        "Changed key asset rows",
+        "manifestSource=selected",
+        "manifestSource=public-inherited",
+        "partial Steam branch",
+        "Classification:",
+        "Evidence readiness:",
+        "review-beta-integrity-summary\.ps1",
+        "clean-redownload proof",
+        "public-sharing warning",
+        "branch-availability evidence",
+        "classification input metrics",
+        "clean selected-branch redownload",
+        "art assets look wrong"
+    )
+
+Add-Check `
+    "docs\steam-beta-integrity-runtime-checklist.md" `
+    "documents remaining runtime pass for beta-integrity classification" `
+    @(
+        "capture-steam-beta-integrity-evidence\.ps1",
+        "ReviewSummary",
+        "FailOnNotReady",
+        "Evidence readiness:",
+        "Clean redownload matches investigated branch: true",
+        "Clean redownload selected directories cleared: true",
+        "Changed key asset rows",
+        "likely Steam partial branch",
+        "likely Steam branch availability issue",
+        "Do not mark beta branch integrity complete"
+    )
+
+Add-Check `
+    "docs\steam-version-selection-evidence-template.md" `
+    "captures beta-integrity evidence in validation packages" `
+    @(
+        "Public-vs-beta branch integrity",
+        "Beta slot was clean-redownloaded",
+        "clean-redownload fields",
+        "branch-availability fields",
+        "public/default and selected branch marker paths",
+        "bounded public/default and selected branch depot manifest rows",
+        "Focused beta-integrity logcat",
+        "selectedBranchManifest",
+        "publicManifest",
+        "manifestSource",
+        "manifestRequestBranch",
+        "Selected beta cache tree captured",
+        "Public-vs-beta inventory comparison captured",
+        "public-vs-<branch>-key-assets\.tsv",
+        "bounded changed key-asset rows",
+        "SlayTheSpire2\.pck",
+        "Affected art asset paths/hashes",
+        "Classification:",
+        "Evidence readiness:",
+        "review-beta-integrity-summary\.ps1",
+        "clean-redownload proof",
+        "classification input metrics",
+        "Steam partial branch",
+        "runtime remote/config behavior",
+        "Selected game branch marker depot manifest rows"
+    )
+
+Add-Check `
+    "scripts\new-steam-version-selection-evidence.ps1" `
+    "scaffolds beta-integrity inventory evidence folder" `
+    @(
+        "inventories",
+        "capture-steam-beta-integrity-evidence\.ps1",
+        "review-beta-integrity-summary\.ps1",
+        "Evidence readiness: not ready for final classification",
+        "SHA-256 comparison summaries"
+    )
+
+Add-Check `
     ".github\ISSUE_TEMPLATE\steam_version_selection_report.md" `
     "keeps public Steam version-selection reports free of secrets and identifiers" `
     @(
         "Release-readiness gate covered",
         "No silent fallback to public/default",
+        "Public-vs-beta depot manifest integrity",
+        "Public-vs-beta file inventory",
+        "Did any game behavior, UI, or art asset look like public/mainline",
+        "Was the beta slot clean-redownloaded",
         "Android/Samsung/password-manager Autofill behavior",
         "Public-share artifact hygiene reviewed",
         "Artifact hygiene",
@@ -1568,6 +1829,19 @@ Add-Check `
         "Game version redownload marker selected version",
         "Game version redownload marker selected version slot kind",
         "Game version redownload marker selected version slot directory",
+        "Selected game branch marker depots matching public",
+        "Selected game branch marker depots differing from public",
+        "Selected game branch marker depots without public comparison",
+        "Selected game branch marker depots inherited from public",
+        "Selected game branch marker depots missing selected branch manifest",
+        "Selected game branch marker partial Steam branch evidence",
+        "Selected game branch marker depot manifest rows",
+        "manifestSource=<selected|public-inherited>",
+        "manifestRequestBranch=<selected|public>",
+        "Public-vs-beta file and art evidence",
+        "Public-sharing warning reviewed",
+        "SlayTheSpire2.pck",
+        "Art/bundle-like files",
         "Branch switch marker filename",
         "Manual Pull evidence marker filename",
         "Manual Pull evidence marker path",
@@ -1725,6 +1999,10 @@ Add-Check `
         "not release-signed",
         "discovery-led dropdown selector",
         "REFRESH GAME VERSIONS",
+        "public-inherited",
+        "public-vs-beta integrity classification",
+        "steam-beta-integrity-runtime-checklist\.md",
+        "mixed beta/public behavior",
         "Autofill",
         "SteamKit debug logs are disabled by default",
         "Steam beta password entry",

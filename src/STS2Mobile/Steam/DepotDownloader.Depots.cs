@@ -32,16 +32,53 @@ internal sealed partial class DepotDownloader
             if (ShouldSkip())
                 return null;
 
-            var manifestId = await DepotManifestSource.GetSelectedManifestIdAsync(
+            var manifest = await DepotManifestSource.GetManifestEvidenceAsync(
                 Owner,
                 Depot,
                 DepotId
             );
-            if (!manifestId.HasValue)
+            var effectiveManifestId = manifest.SelectedManifestId;
+            var manifestSource = "selected";
+            var manifestRequestBranch = Owner._branch;
+            if (!effectiveManifestId.HasValue
+                && !string.Equals(Owner._branch, SteamGameBranch.Public, System.StringComparison.OrdinalIgnoreCase)
+                && manifest.PublicManifestId.HasValue)
+            {
+                effectiveManifestId = manifest.PublicManifestId;
+                manifestSource = "public-inherited";
+                manifestRequestBranch = SteamGameBranch.Public;
+                Owner.Log($"Depot {DepotId} branch '{Owner._branch}' has no explicit branch manifest; inheriting public manifest {effectiveManifestId.Value}");
+            }
+
+            if (!effectiveManifestId.HasValue)
                 return null;
 
-            Owner.Log($"Found depot {DepotId} manifest {manifestId.Value} for branch '{Owner._branch}'");
-            return new DepotManifestReference(DepotId, manifestId.Value, Owner._branch);
+            Owner.Log($"Found depot {DepotId} manifest {effectiveManifestId.Value} for branch '{Owner._branch}' source={manifestSource} requestBranch='{manifestRequestBranch}'");
+            if (!string.Equals(Owner._branch, SteamGameBranch.Public, System.StringComparison.OrdinalIgnoreCase))
+            {
+                if (!manifest.PublicManifestId.HasValue)
+                {
+                    Owner.Log($"Depot {DepotId} has no public manifest to compare with branch '{Owner._branch}'");
+                }
+                else if (manifest.PublicManifestId.Value == effectiveManifestId.Value)
+                {
+                    Owner.Log($"Depot {DepotId} branch '{Owner._branch}' uses the same effective manifest as public ({effectiveManifestId.Value}) source={manifestSource}");
+                }
+                else
+                {
+                    Owner.Log($"Depot {DepotId} branch '{Owner._branch}' differs from public: effective={effectiveManifestId.Value} public={manifest.PublicManifestId.Value} source={manifestSource}");
+                }
+            }
+
+            return new DepotManifestReference(
+                DepotId,
+                effectiveManifestId.Value,
+                Owner._branch,
+                manifest.SelectedManifestId,
+                manifest.PublicManifestId,
+                manifestSource,
+                manifestRequestBranch
+            );
         }
 
         private bool ShouldSkip()

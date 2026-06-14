@@ -129,12 +129,14 @@ public class GodotApp extends GodotActivity {
 		Log.i(TAG, "Selected game version slot kind: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Selected game version slot directory: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
 		Log.i(TAG, "Resolved game directory: " + gameDir);
+		Log.i(TAG, "Selected game PCK before Godot init: " + describeGamePck(new File(gameDir, PCK_FILE)));
 		Log.i(TAG, "Steam branch marker install slot kind: " + readMarkerValue(branchMarker, "Install slot kind:"));
 		Log.i(TAG, "Steam branch marker expected install slot kind: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Steam branch marker install slot directory: " + readMarkerValue(branchMarker, "Install slot directory:"));
 		Log.i(TAG, "Steam branch marker expected install slot directory: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
 		Log.i(TAG, "Steam branch marker has matching install slot provenance: " + hasInstallSlotProvenance(branchMarker, selectedBranch));
 		Log.i(TAG, "Steam branch marker has depot manifests: " + hasDepotManifestProvenance(branchMarker));
+		Log.i(TAG, "Steam branch marker has branch integrity provenance: " + hasBranchIntegrityProvenance(branchMarker));
 		Log.i(TAG, "Steam branch marker depot manifest entries: " + depotManifestCount(branchMarker));
 		Log.i(TAG, "Steam branch marker ready: " + isBranchMarkerReady(selectedBranch));
 		configureTempDirectory();
@@ -837,7 +839,7 @@ public class GodotApp extends GodotActivity {
 				if (!ready) {
 					Log.w(TAG, "Steam branch marker mismatch: selected=" + branch + " marker=" + markerBranch);
 				}
-				return ready && ("public".equalsIgnoreCase(branch) || (hasInstallSlotProvenance(marker, branch) && hasDepotManifestProvenance(marker)));
+				return ready && ("public".equalsIgnoreCase(branch) || (hasInstallSlotProvenance(marker, branch) && hasDepotManifestProvenance(marker) && hasBranchIntegrityProvenance(marker)));
 			}
 			Log.w(TAG, "Steam branch marker has no Branch line: " + marker.getAbsolutePath());
 		} catch (IOException e) {
@@ -849,6 +851,18 @@ public class GodotApp extends GodotActivity {
 
 	private boolean hasDepotManifestProvenance(File marker) {
 		return depotManifestCount(marker) > 0;
+	}
+
+	private boolean hasBranchIntegrityProvenance(File marker) {
+		return markerHasValue(marker, "Depot manifests matching public count:")
+			&& markerHasValue(marker, "Depot manifests differing from public count:")
+			&& markerHasValue(marker, "Depot manifests without public comparison count:")
+			&& markerHasValue(marker, "Depot manifests inherited from public count:")
+			&& markerHasValue(marker, "Depot manifests missing selected branch manifest count:");
+	}
+
+	private boolean markerHasValue(File marker, String prefix) {
+		return !readMarkerValue(marker, prefix).isEmpty();
 	}
 
 	private boolean hasInstallSlotProvenance(File marker, String branch) {
@@ -955,12 +969,14 @@ public class GodotApp extends GodotActivity {
 		Log.i(TAG, "Selected game version slot kind for startup: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Selected game version slot directory for startup: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
 		Log.i(TAG, "Resolved startup game directory: " + gameDir);
+		Log.i(TAG, "Selected game PCK for startup: " + describeGamePck(pckFile));
 		Log.i(TAG, "Steam branch marker install slot kind for startup: " + readMarkerValue(branchMarker, "Install slot kind:"));
 		Log.i(TAG, "Steam branch marker expected install slot kind for startup: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Steam branch marker install slot directory for startup: " + readMarkerValue(branchMarker, "Install slot directory:"));
 		Log.i(TAG, "Steam branch marker expected install slot directory for startup: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
 		Log.i(TAG, "Steam branch marker has matching install slot provenance for startup: " + hasInstallSlotProvenance(branchMarker, selectedBranch));
 		Log.i(TAG, "Steam branch marker has depot manifests for startup: " + hasDepotManifestProvenance(branchMarker));
+		Log.i(TAG, "Steam branch marker has branch integrity provenance for startup: " + hasBranchIntegrityProvenance(branchMarker));
 		Log.i(TAG, "Steam branch marker depot manifest entries for startup: " + depotManifestCount(branchMarker));
 		boolean branchMarkerReady = isBranchMarkerReady(selectedBranch);
 		boolean gamePckReady = isGamePckReady();
@@ -2381,6 +2397,49 @@ public class GodotApp extends GodotActivity {
 			Log.e(TAG, "File SHA-1 bridge failed", e);
 			return null;
 		}
+	}
+
+	private static String describeGamePck(File pckFile) {
+		if (pckFile == null) {
+			return "<null>";
+		}
+		StringBuilder state = new StringBuilder();
+		state.append(pckFile.getAbsolutePath());
+		state.append(" exists=");
+		state.append(pckFile.exists() && pckFile.isFile());
+		if (pckFile.exists() && pckFile.isFile()) {
+			state.append(" bytes=");
+			state.append(pckFile.length());
+			state.append(" sha256=");
+			state.append(sha256Hex(pckFile));
+		}
+		return state.toString();
+	}
+
+	private static String sha256Hex(File file) {
+		try (InputStream in = new FileInputStream(file)) {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] buffer = new byte[65536];
+			int read;
+			while ((read = in.read(buffer)) != -1) {
+				digest.update(buffer, 0, read);
+			}
+			return bytesToHex(digest.digest());
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to compute game PCK SHA-256: " + file.getAbsolutePath(), e);
+			return "<unavailable:" + e.getClass().getSimpleName() + ">";
+		}
+	}
+
+	private static String bytesToHex(byte[] bytes) {
+		char[] hex = new char[bytes.length * 2];
+		final char[] alphabet = "0123456789abcdef".toCharArray();
+		for (int i = 0; i < bytes.length; i++) {
+			int value = bytes[i] & 0xff;
+			hex[i * 2] = alphabet[value >>> 4];
+			hex[i * 2 + 1] = alphabet[value & 0x0f];
+		}
+		return new String(hex);
 	}
 
 	public String aesCryptBase64(

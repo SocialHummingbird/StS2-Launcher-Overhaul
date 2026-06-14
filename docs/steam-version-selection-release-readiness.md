@@ -14,6 +14,7 @@ The implementation is substantially in place, but release readiness is not prove
 | Blocked branches | Known password-protected, no-manifest, or absent saved branches are blocked before download/update attempts when refreshed app-info proves they are unavailable. | Requires runtime evidence that no silent public fallback occurs. |
 | Side-by-side storage | Non-public branches use `files/game_versions/<branch>/game` and matching download-state storage. | Requires beta/non-public install evidence and branch marker contents. |
 | Native startup routing | Native startup blocks selected-version launch when marker provenance is missing or mismatched. Local ARM64 evidence now proves selected `public-beta` launch from its side-by-side cache after Android app-private path alias normalization. | Requires release-candidate repeat evidence, public/default retest, and negative-case evidence for missing or untrusted selected slots. |
+| Beta branch integrity | Selected branch markers record per-depot effective manifest, selected-branch manifest, public manifest, manifest source, and whether each depot matches or inherits public. Beta-integrity evidence capture now emits a clean-redownload-gated `Classification:`, `Evidence readiness:`, and `Evidence missing/weak:` summary. Local ARM64 evidence classifies `public-beta` as branch-specific installed content and runtime startup now logs the selected PCK path/byte count/SHA-256 mounted by Godot. Public/default and public-beta both reach the visible main menu; public loads the run-history `doormaker_boss` imported textures while public-beta lacks those entries and contains `aeonglass_boss` instead. Runtime patching falls back to branch-local `unknown_monster` art for missing run-history icon paths. | Requires release-candidate repeat evidence and continued user-facing caution that visible beta/public art differences are a game-content/runtime question, not proof of launcher fallback, unless the runtime selected-PCK evidence contradicts the selected branch. |
 | Cache cleanup | Selected-version redownload and inactive cache cleanup are branch-aware by design. | Requires evidence that selected cache is preserved or cleared only when intended. |
 | Steam Cloud safety | Manual Push requires selected-version Pull evidence and Android local save evidence; branch-switch Push adds backup evidence gates. | Requires Pull-before-Push, blocked-Push, and successful-Push evidence on the selected version before signoff. |
 | Autofill | Android builds expose one-shot native Autofill handoff and do not store Steam passwords for Autofill. | Requires Samsung/Android/password-manager provider validation on device. |
@@ -45,19 +46,23 @@ The implementation is substantially in place, but release readiness is not prove
 
    Evidence must show selected non-public branch failures do not silently start, update, or redownload the public/default branch.
 
-7. Cache mutation safety.
+7. Beta branch integrity.
+
+   Evidence must show whether selected branch depots are public-identical, branch-specific, or explicitly inherited from public by comparing selected and public manifest IDs per depot. If art assets look public while other behavior looks beta, evidence must include the branch marker public-comparison counts, selected branch file inventory, public branch file inventory, focused logcat, key asset or PCK hashes, runtime selected-PCK path/byte count/SHA-256, and `Evidence readiness:` not blocked in `beta-integrity-summary.txt`. Runtime PCK hashes can differ from raw Steam inventory hashes because Android download completion patches the PCK in place before launch.
+
+8. Cache mutation safety.
 
    Evidence must show redownload clears only the selected version, inactive cleanup preserves the selected cache, and switch-back-to-public leaves non-public caches alone unless cleanup is explicitly invoked.
 
-8. Save and Steam Cloud safety.
+9. Save and Steam Cloud safety.
 
    Evidence must show selected-version Pull-before-Push, Android local save evidence, branch-switch backup requirements, blocked-Push markers when prerequisites are missing, and successful Push only after the required selected-version evidence exists.
 
-9. Autofill behavior.
+10. Autofill behavior.
 
    Evidence must show the native Autofill dialog can receive credentials from Android/Samsung/password-manager providers, feed the existing Steam login flow, and clear pending values after consume/cancel/timeout/activity stop.
 
-10. Artifact hygiene.
+11. Artifact hygiene.
 
     Public evidence must use the redacted/focused artifacts where possible. Raw logs, full diagnostics, private saves, credentials, tokens, account names, local paths, and device-identifying details must remain local or be manually reviewed and redacted before sharing.
 
@@ -66,6 +71,7 @@ The implementation is substantially in place, but release readiness is not prove
 - ARM64 validation has not yet proven refreshed dropdown behavior on the current implementation.
 - Public/default branch must still be revalidated on the current APK after the latest branch-selector and login-hardening changes.
 - Non-public branch cleanup, private/password failure handling, and release-candidate startup routing still need current-device evidence.
+- Public versus public-beta branch integrity is classified locally as branch-specific installed content, and runtime evidence proves Godot mounted the selected beta PCK. Release-candidate repeat evidence is still required. Current resource-chain evidence shows `doormaker_boss` run-history image entries exist in public but not in `public-beta`; runtime patching now falls back to branch-local `unknown_monster` art for missing run-history icon paths. Mixed-looking beta/public behavior or art asset differences should now be treated as beta game-side content/import-runtime behavior unless selected-PCK evidence contradicts the selected branch.
 - Private, inaccessible, password-protected, or no-manifest branch behavior is not release-proven.
 - Save compatibility across Steam branches is unknown and must remain user-facing until proven.
 - Branch-switch Steam Cloud Push remains blocked from release signoff until Pull-before-Push, local-save, and backup evidence is captured on the current implementation.

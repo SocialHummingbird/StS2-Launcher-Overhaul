@@ -30,19 +30,33 @@ internal sealed partial class DepotDownloader
             => new DepotManifestSource(owner, depot, depotId)
                 .GetSelectedManifestIdAsync();
 
+        internal static Task<DepotManifestEvidence> GetManifestEvidenceAsync(
+            DepotDownloader owner,
+            KeyValue depot,
+            uint depotId
+        )
+            => new DepotManifestSource(owner, depot, depotId)
+                .GetManifestEvidenceAsync();
+
         private async Task<ulong?> GetSelectedManifestIdAsync()
+            => (await GetManifestEvidenceAsync()).SelectedManifestId;
+
+        private async Task<DepotManifestEvidence> GetManifestEvidenceAsync()
         {
             var manifests = await GetManifestSectionAsync();
             if (manifests == KeyValue.Invalid)
-                return null;
+                return new DepotManifestEvidence(null, null);
 
             var manifestId = DepotDownloader.ReadKeyValueUInt64(
                 manifests[Owner._branch]["gid"]
             );
+            var publicManifestId = DepotDownloader.ReadKeyValueUInt64(
+                manifests[SteamGameBranch.Public]["gid"]
+            );
             if (!manifestId.HasValue)
                 Owner.Log($"Depot {DepotId} has no manifest for branch '{Owner._branch}'");
 
-            return manifestId;
+            return new DepotManifestEvidence(manifestId, publicManifestId);
         }
 
         private async Task<KeyValue> GetManifestSectionAsync()

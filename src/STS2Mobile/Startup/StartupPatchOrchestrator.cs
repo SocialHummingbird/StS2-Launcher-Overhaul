@@ -118,6 +118,7 @@ internal static class StartupPatchOrchestrator
                 new("Font substitution", FontSubstitutionPatches.Apply),
                 new("UI scaling", UiScalePatches.Apply),
                 new("Mobile layout", MobileLayoutPatches.Apply),
+                new("Run history asset fallback", RunHistoryAssetPatches.Apply),
                 new("Event layout", EventLayoutPatches.Apply),
                 new("Merchant layout", MerchantLayoutPatches.Apply),
                 new("App lifecycle", AppLifecyclePatches.Apply),

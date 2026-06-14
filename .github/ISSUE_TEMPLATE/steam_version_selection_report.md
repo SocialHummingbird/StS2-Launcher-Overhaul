@@ -18,6 +18,8 @@ Check every gate this report provides direct evidence for. Leave unchecked if th
 - [ ] `REFRESH GAME VERSIONS` dropdown refresh without downloading or deleting game files
 - [ ] Account-visible non-public branch metadata/status
 - [ ] Available non-public branch download/startup routing
+- [ ] Public-vs-beta depot manifest integrity / partial branch evidence
+- [ ] Public-vs-beta file inventory or key art/PCK hash comparison
 - [ ] Missing/private/inaccessible/password-protected branch blocked clearly
 - [ ] No silent fallback to public/default after selected-version failure
 - [ ] Selected-version redownload or inactive cache cleanup safety
@@ -55,6 +57,8 @@ If beta was selected:
 - Did the beta branch appear downloadable?
 - Did Steam report the branch as missing, private, inaccessible, or password-protected?
 - Was a beta password expected for this branch?
+- Did any game behavior, UI, or art asset look like public/mainline while other behavior looked beta?
+- Was the beta slot clean-redownloaded before this observation?
 
 Paste branch availability lines from logcat/download failure if available:
 
@@ -154,6 +158,13 @@ Selected game branch marker expected install slot directory:
 Selected game branch marker has matching install slot provenance:
 Selected game branch marker has depot manifests:
 Selected game branch marker depot manifest entries:
+Selected game branch marker depots matching public:
+Selected game branch marker depots differing from public:
+Selected game branch marker depots without public comparison:
+Selected game branch marker depots inherited from public:
+Selected game branch marker depots missing selected branch manifest:
+Selected game branch marker partial Steam branch evidence:
+Selected game branch marker depot manifest rows:
 Selected game branch marker ready:
 Current selected branch for version marker comparison:
 Game version redownload marker filename:
@@ -274,6 +285,87 @@ Latest pre-Push cloud backup UTC:
 Pre-Push local backup evidence after branch switch:
 Pre-Push cloud backup evidence after branch switch:
 Branch-switch pre-Push backup evidence satisfied:
+```
+
+If the beta branch looked mixed or art assets looked wrong, paste relevant `steam_branch.txt` depot rows:
+
+```text
+Depot manifest: depot=<id> manifest=<effective> branch=<selected> selectedBranchManifest=<id|missing> publicManifest=<id|missing> manifestSource=<selected|public-inherited> manifestRequestBranch=<selected|public> selectedMatchesPublic=<true|false|unknown> effectiveMatchesPublic=<true|false|unknown>
+```
+
+## Public-vs-beta file and art evidence
+
+Use `scripts/capture-steam-beta-integrity-evidence.ps1` when possible. Attach or paste the non-secret summary rows.
+Manually review `beta-integrity-summary.txt`, focused logcat, branch markers, cache tree, and inventory paths before posting publicly.
+
+- [ ] Public inventory captured
+- [ ] Public cache tree captured
+- [ ] Selected beta inventory captured
+- [ ] Selected beta cache tree captured
+- [ ] Public-vs-beta comparison captured
+- [ ] Public-vs-beta key asset comparison captured
+- [ ] Focused beta-integrity logcat captured and manually reviewed before sharing
+- [ ] `SlayTheSpire2.pck` hash compared
+- [ ] Affected art asset paths/hashes compared
+- [ ] `beta-integrity-summary.txt` `Classification:` line pasted below
+- [ ] Classification is based on clean-redownload proof for the investigated branch, unless it reports a branch availability issue
+- [ ] Public-sharing warning reviewed and identifying details removed before posting
+
+Paste comparison summary:
+
+```text
+Public sharing warning:
+Classification:
+Evidence readiness:
+Evidence missing/weak:
+Public branch marker:
+Selected branch marker:
+Clean redownload marker:
+Clean redownload selected branch:
+Clean redownload matches investigated branch:
+Clean redownload selected directories cleared:
+Branch availability marker:
+Branch availability selected branch:
+Branch availability matches investigated branch:
+Branch availability selected branch visibility:
+Branch availability selected branch Windows depot manifests:
+Branch availability visible branch count:
+Focused logcat:
+Classification inputs:
+Depot manifests matching public count:
+Depot manifests differing from public count:
+Depot manifests without public comparison count:
+Depot manifests inherited from public count:
+Depot manifests missing selected branch manifest count:
+Total public files:
+Total selected files:
+Files identical in both:
+Files present in both but different:
+Files only in public:
+Files only in selected branch:
+Art/bundle-like files identical in both:
+Art/bundle-like files present in both but different:
+```
+
+Paste bounded depot manifest rows from `beta-integrity-summary.txt`:
+
+```text
+Public branch depot manifest rows (first 32):
+
+Selected branch depot manifest rows (first 32):
+```
+
+Paste focused key asset rows for `SlayTheSpire2.pck` and affected art/assets paths:
+
+```text
+Changed key asset rows (first 64):
+state	path	public_sha256	selected_sha256
+```
+
+List affected art/assets paths if known:
+
+```text
+
 ```
 
 ## Cached version behavior

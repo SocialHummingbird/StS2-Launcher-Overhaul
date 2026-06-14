@@ -11,6 +11,7 @@ The Steam version-selection goal is complete only when every requirement below h
 | Requirement | Static status | Runtime evidence needed | Current completion state |
 | --- | --- | --- | --- |
 | Branch-aware downloader metadata and manifest resolution | Implemented for selected branch with branch marker/provenance contract documented | Build passes; public/default update check; beta update/download check; inaccessible/private/password branch behavior | Not complete |
+| Public-vs-beta branch integrity classification | Implemented with selected/public manifest comparison, explicit public-inherited depot provenance, manifest request branch evidence, diagnostics rows, clean-redownload-gated evidence-readiness summary, file inventory helper, issue template, and validation docs | Clean public-beta redownload, `Evidence readiness:` not blocked, per-depot marker evidence, public/default file inventory, beta file inventory, key art/PCK hash comparison, focused logcat, and final cause classification | Not complete |
 | Persist selected branch | Implemented through launcher preferences and documented diagnostics | Device session proves selected branch persists across app restart and update/download flows | Not complete |
 | Expose selected branch in launcher UI | Implemented as an account-visible Steam branch dropdown with public/default always available, branch metadata/status labels, wrapped/non-interactive selector guidance shown in managed UI, branch-switch confirmation, logs, diagnostics, native routing logs, and native fallback diagnostics | Visual/device evidence for discovered dropdown contents, public/default fallback option, metadata/status labels, switch warning, wrapped helper text, persisted selected-version display, native pre-routing logs, and fallback diagnostics | Not complete |
 | Branch-aware update/download/redownload flows | Implemented and documented through selected-version wording and cache rules | Public/default and beta download/update/redownload logs prove selected branch paths and messages | Not complete |
@@ -38,6 +39,7 @@ Static artifacts now in place:
 - `.github/ISSUE_TEMPLATE/steam_version_selection_report.md`
 - `scripts/audit-steam-version-selection.ps1`
 - `scripts/audit-steam-branch-guidance-parity.ps1`
+- `scripts/capture-steam-beta-integrity-evidence.ps1`
 - `.github/workflows/steam-version-selection-static-audit.yml`
 - `.github/workflows/overhaul-governance-ci.yml` required-scaffold checks for version-selection guardrails.
 - README, roadmap, status, changelog, release-validation, and release-policy references.
@@ -50,6 +52,10 @@ Runtime evidence still required:
 - Public/default branch download/update/launch.
 - Beta branch download/update/launch.
 - Branch marker/provenance contents for completed downloads.
+- Public-vs-beta selected/public manifest comparison after clean beta redownload.
+- Public/default and beta file inventories with SHA-256 hashes.
+- Key art asset and `SlayTheSpire2.pck` hash comparisons for the reported art issue.
+- Classification of partial beta behavior as Steam partial branch, launcher fallback, stale cache, or runtime remote/config behavior.
 - Native selected-PCK startup routing.
 - Marker failure recovery/redownload behavior.
 - Selected-version redownload behavior.

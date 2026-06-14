@@ -70,6 +70,31 @@ internal sealed partial class DepotDownloader : IDisposable
     private void WriteBranchMarker(IReadOnlyList<DepotManifestReference> depots)
     {
         var markerPath = SteamGameInstallPaths.BranchMarkerPath(_dataDir, _branch);
+        var publicMatchCount = 0;
+        var publicDifferentCount = 0;
+        var publicMissingCount = 0;
+        var publicInheritedCount = 0;
+        var selectedMissingCount = 0;
+        foreach (var depot in depots)
+        {
+            if (depot.InheritedFromPublic)
+                publicInheritedCount++;
+
+            if (!depot.HasSelectedBranchManifest)
+                selectedMissingCount++;
+
+            if (!depot.HasPublicManifest)
+            {
+                publicMissingCount++;
+                continue;
+            }
+
+            if (depot.EffectiveMatchesPublicManifest)
+                publicMatchCount++;
+            else
+                publicDifferentCount++;
+        }
+
         var text =
             $"Branch: {_branch}\n"
                 + $"Display name: {SteamGameBranch.DisplayName(_branch)}\n"
@@ -78,8 +103,31 @@ internal sealed partial class DepotDownloader : IDisposable
                 + $"Install slot directory: {SteamGameInstallPaths.VersionSlotDirectory(_dataDir, _branch)}\n"
                 + $"Updated UTC: {DateTime.UtcNow:O}\n"
                 + $"Depot manifest count: {depots.Count}\n";
+        if (!IsPublicBranch)
+        {
+            text += $"Depot manifests matching public count: {publicMatchCount}\n"
+                + $"Depot manifests differing from public count: {publicDifferentCount}\n"
+                + $"Depot manifests without public comparison count: {publicMissingCount}\n"
+                + $"Depot manifests inherited from public count: {publicInheritedCount}\n"
+                + $"Depot manifests missing selected branch manifest count: {selectedMissingCount}\n";
+        }
+
         foreach (var depot in depots)
-            text += $"Depot manifest: depot={depot.DepotId} manifest={depot.ManifestId} branch={depot.Branch}\n";
+        {
+            var publicManifest = depot.PublicManifestId.HasValue
+                ? depot.PublicManifestId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : "missing";
+            var selectedBranchManifest = depot.SelectedBranchManifestId.HasValue
+                ? depot.SelectedBranchManifestId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : "missing";
+            var selectedMatchesPublic = depot.SelectedBranchManifestId.HasValue && depot.PublicManifestId.HasValue
+                ? depot.SelectedBranchManifestMatchesPublic.ToString().ToLowerInvariant()
+                : "unknown";
+            var effectiveMatchesPublic = depot.PublicManifestId.HasValue
+                ? depot.EffectiveMatchesPublicManifest.ToString().ToLowerInvariant()
+                : "unknown";
+            text += $"Depot manifest: depot={depot.DepotId} manifest={depot.ManifestId} branch={depot.Branch} selectedBranchManifest={selectedBranchManifest} publicManifest={publicManifest} manifestSource={depot.ManifestSource} manifestRequestBranch={depot.ManifestRequestBranch} selectedMatchesPublic={selectedMatchesPublic} effectiveMatchesPublic={effectiveMatchesPublic}\n";
+        }
 
         File.WriteAllText(markerPath, text);
         Log($"Wrote Steam branch marker: {markerPath}");

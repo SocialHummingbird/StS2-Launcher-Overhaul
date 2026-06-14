@@ -29,12 +29,14 @@ $diagnosticsDir = Join-Path $evidenceDir "diagnostics"
 $markersDir = Join-Path $evidenceDir "branch-markers"
 $screenshotsDir = Join-Path $evidenceDir "screenshots"
 $backupsDir = Join-Path $evidenceDir "backup-evidence"
+$inventoriesDir = Join-Path $evidenceDir "inventories"
 
 New-Item -ItemType Directory -Force $logsDir | Out-Null
 New-Item -ItemType Directory -Force $diagnosticsDir | Out-Null
 New-Item -ItemType Directory -Force $markersDir | Out-Null
 New-Item -ItemType Directory -Force $screenshotsDir | Out-Null
 New-Item -ItemType Directory -Force $backupsDir | Out-Null
+New-Item -ItemType Directory -Force $inventoriesDir | Out-Null
 
 $templatePath = Join-Path $root "docs\steam-version-selection-evidence-template.md"
 $evidencePath = Join-Path $evidenceDir "evidence.md"
@@ -127,6 +129,8 @@ Use this folder for one validation run. Do not place Steam credentials or person
 - ``branch-markers/``: copied ``last_game_version_redownload.txt`` evidence when selected-version redownload validation runs.
 - ``screenshots/``: launcher, fallback, selector, warning, and game-launch screenshots.
 - ``backup-evidence/``: local pre-Push and cloud pre-Push backup summaries only. Do not include secrets.
+- ``inventories/``: public/default and selected beta file inventories plus SHA-256 comparison summaries from ``scripts/capture-steam-beta-integrity-evidence.ps1``.
+- Review beta integrity evidence with ``scripts/review-beta-integrity-summary.ps1`` after capture. Treat ``Evidence readiness: not ready for final classification`` as unresolved runtime evidence unless it is explicitly carried as a release blocker.
 
 ## Reference docs
 

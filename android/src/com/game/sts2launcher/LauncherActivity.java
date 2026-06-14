@@ -7,6 +7,9 @@ import android.provider.Settings;
 import android.util.Log;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.security.MessageDigest;
 
 public class LauncherActivity extends Activity {
 	private static final String TAG = "STS2Mobile";
@@ -70,12 +73,14 @@ public class LauncherActivity extends Activity {
 		Log.i(TAG, "Selected game version slot kind before routing: " + SteamBranchInfo.installSlotKind(branch));
 		Log.i(TAG, "Selected game version slot directory before routing: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), branch).getAbsolutePath());
 		Log.i(TAG, "Resolved game directory before routing: " + gameDir.getAbsolutePath());
+		Log.i(TAG, "Selected game PCK before routing: " + describeGamePck(new File(gameDir, PCK_FILE)));
 		Log.i(TAG, "Steam branch marker install slot kind before routing: " + readMarkerValue(branchMarker, "Install slot kind:"));
 		Log.i(TAG, "Steam branch marker expected install slot kind before routing: " + SteamBranchInfo.installSlotKind(branch));
 		Log.i(TAG, "Steam branch marker install slot directory before routing: " + readMarkerValue(branchMarker, "Install slot directory:"));
 		Log.i(TAG, "Steam branch marker expected install slot directory before routing: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), branch).getAbsolutePath());
 		Log.i(TAG, "Steam branch marker has matching install slot provenance before routing: " + hasInstallSlotProvenance(branchMarker, branch));
 		Log.i(TAG, "Steam branch marker has depot manifests before routing: " + hasDepotManifestProvenance(branchMarker));
+		Log.i(TAG, "Steam branch marker has branch integrity provenance before routing: " + hasBranchIntegrityProvenance(branchMarker));
 		Log.i(TAG, "Steam branch marker depot manifest entries before routing: " + depotManifestCount(branchMarker));
 		Log.i(TAG, "Steam branch marker ready before routing: " + isBranchMarkerReady(gameDir, branch));
 	}
@@ -104,7 +109,7 @@ public class LauncherActivity extends Activity {
 				if (!ready) {
 					Log.w(TAG, "Steam branch marker mismatch before routing: selected=" + branch + " marker=" + markerBranch);
 				}
-				return ready && ("public".equalsIgnoreCase(branch) || (hasInstallSlotProvenance(marker, branch) && hasDepotManifestProvenance(marker)));
+				return ready && ("public".equalsIgnoreCase(branch) || (hasInstallSlotProvenance(marker, branch) && hasDepotManifestProvenance(marker) && hasBranchIntegrityProvenance(marker)));
 			}
 			Log.w(TAG, "Steam branch marker has no Branch line before routing: " + marker.getAbsolutePath());
 		} catch (Exception e) {
@@ -116,6 +121,18 @@ public class LauncherActivity extends Activity {
 
 	private boolean hasDepotManifestProvenance(File marker) {
 		return depotManifestCount(marker) > 0;
+	}
+
+	private boolean hasBranchIntegrityProvenance(File marker) {
+		return markerHasValue(marker, "Depot manifests matching public count:")
+			&& markerHasValue(marker, "Depot manifests differing from public count:")
+			&& markerHasValue(marker, "Depot manifests without public comparison count:")
+			&& markerHasValue(marker, "Depot manifests inherited from public count:")
+			&& markerHasValue(marker, "Depot manifests missing selected branch manifest count:");
+	}
+
+	private boolean markerHasValue(File marker, String prefix) {
+		return !readMarkerValue(marker, prefix).isEmpty();
 	}
 
 	private boolean hasInstallSlotProvenance(File marker, String branch) {
@@ -181,6 +198,49 @@ public class LauncherActivity extends Activity {
 			Log.w(TAG, "Failed to inspect Steam branch marker depot provenance before routing: " + marker.getAbsolutePath(), e);
 		}
 		return 0;
+	}
+
+	private String describeGamePck(File pckFile) {
+		if (pckFile == null) {
+			return "<null>";
+		}
+		StringBuilder state = new StringBuilder();
+		state.append(pckFile.getAbsolutePath());
+		state.append(" exists=");
+		state.append(pckFile.exists() && pckFile.isFile());
+		if (pckFile.exists() && pckFile.isFile()) {
+			state.append(" bytes=");
+			state.append(pckFile.length());
+			state.append(" sha256=");
+			state.append(sha256Hex(pckFile));
+		}
+		return state.toString();
+	}
+
+	private String sha256Hex(File file) {
+		try (InputStream in = new FileInputStream(file)) {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] buffer = new byte[65536];
+			int read;
+			while ((read = in.read(buffer)) != -1) {
+				digest.update(buffer, 0, read);
+			}
+			return bytesToHex(digest.digest());
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to compute game PCK SHA-256 before routing: " + file.getAbsolutePath(), e);
+			return "<unavailable:" + e.getClass().getSimpleName() + ">";
+		}
+	}
+
+	private String bytesToHex(byte[] bytes) {
+		char[] hex = new char[bytes.length * 2];
+		final char[] alphabet = "0123456789abcdef".toCharArray();
+		for (int i = 0; i < bytes.length; i++) {
+			int value = bytes[i] & 0xff;
+			hex[i * 2] = alphabet[value >>> 4];
+			hex[i * 2 + 1] = alphabet[value & 0x0f];
+		}
+		return new String(hex);
 	}
 
 	private File resolveGameDir() {

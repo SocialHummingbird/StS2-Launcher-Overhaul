@@ -40,6 +40,7 @@ Known limitations:
 - Android/Samsung/password-manager Autofill provider behavior still needs ARM64 device evidence.
 - Missing/private/password-protected branch behavior still needs ARM64 evidence.
 - Release-candidate startup and failure routing still need broader ARM64 evidence beyond the local `public-beta` proof.
+- Public-beta branch integrity is still under investigation: Steam may serve some depots with public-identical or public-inherited manifests, and art asset issues require per-depot manifest/file evidence before claiming the beta branch is complete.
 - Save compatibility between public and beta branches is not proven.
 - Manual Push must remain treated as destructive until current-version Pull evidence, local-save existence, storage permission, local/cloud pre-Push backup evidence, `last_manual_cloud_push.txt`, and aggregate successful selected-version Push evidence are captured. Branch switches additionally require Pull-after-switch evidence for the selected version and successful post-switch Push evidence.
 

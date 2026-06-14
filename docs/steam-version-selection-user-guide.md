@@ -93,6 +93,21 @@ For non-public branches, the launcher should not treat a cache as ready unless t
 
 On Android, native startup normalizes `/data/data/<package>` and `/data/user/0/<package>` as equivalent app-private path aliases before comparing install-slot marker provenance.
 
+For beta-integrity reports, the marker should also record public comparison evidence for each depot:
+
+- `publicManifest=<id>` when Steam exposes a public manifest for the same depot.
+- `selectedMatchesPublic=true` when Steam serves the same manifest for the selected branch and public.
+- `selectedMatchesPublic=false` when the selected branch has a different manifest for that depot.
+- `selectedMatchesPublic=unknown` when public comparison data was unavailable.
+- `manifestSource=public-inherited` when Steam exposes no explicit selected-branch manifest for a depot and the launcher intentionally downloads the public manifest as inherited branch content.
+- `manifestRequestBranch=public` for inherited public depots, so Steam manifest authorization is requested against the branch that actually owns the effective manifest.
+
+If a beta branch has both public-identical and branch-specific depot manifests, the launcher should describe that as partial Steam branch evidence rather than silently implying every depot differs from public.
+
+Inherited public depots are not treated as a full-branch public fallback. They are recorded per depot so users can tell when Steam appears to serve a partial beta branch: some depots are branch-specific, while others are intentionally inherited from public.
+
+After a non-public download completes, the launcher should log a selected-branch integrity summary. If the branch is partial, inherited from public, public-identical, or missing explicit selected-branch manifests, the log should say that plainly and direct testers to diagnostics/file-hash evidence instead of implying the install is fully branch-specific.
+
 ## Expected branch marker evidence
 
 The marker should identify:
@@ -142,6 +157,18 @@ The Push confirmation should name the selected game version, the selected versio
 ## Diagnostics to capture
 
 When reporting version-selection behavior, capture launcher diagnostics and include:
+
+- Selected branch.
+- Branch marker depot manifest count.
+- Branch marker depots matching public.
+- Branch marker depots differing from public.
+- Branch marker depots without public comparison.
+- Branch marker depots inherited from public.
+- Branch marker depots missing selected branch manifest.
+- Branch marker depot manifest rows.
+- Any art/assets paths that look public while code/UI looks beta.
+
+For mixed public-beta behavior or art asset reports, run `scripts/capture-steam-beta-integrity-evidence.ps1` after a clean selected-version redownload and read `beta-integrity-summary.txt` first. Treat `Evidence readiness: not ready for final classification` as unresolved evidence, not as a final cause. Strong manifest/cache/art conclusions require `Clean redownload matches investigated branch: true` and `Clean redownload selected directories cleared: true`; branch-availability issues can be classified from app-info evidence when Steam reports the selected branch is absent or exposes no Windows depot manifests.
 
 ```text
 Selected game branch:
