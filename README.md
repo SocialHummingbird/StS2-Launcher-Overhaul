@@ -1,12 +1,12 @@
-# StS2 Launcher Overhaul
+# StS2 Mobile
 
 <p align="center">
-  <img src="docs/assets/sts2-launcher-icon.svg" alt="StS2 Launcher icon" width="128" height="128">
+  <img src="docs/assets/sts2-mobile-icon.svg" alt="StS2 Mobile icon" width="128" height="128">
 </p>
 
 ## Project note (independent copy)
 
-This repository is a full copy of [Ekyso/StS2-Launcher](https://github.com/Ekyso/StS2-Launcher), created to continue and broaden development as a focused rewrite project.
+This repository is a full copy of [Ekyso/StS2-Launcher](https://github.com/Ekyso/StS2-Launcher), created to continue and broaden development as StS2 Mobile: a focused Android rewrite project.
 The goal is a **drastic architecture and reliability overhaul** that is harder to do in the upstream repo while maintaining compatibility and delivering incremental improvements back when possible.
 
 ## Migration and governance
