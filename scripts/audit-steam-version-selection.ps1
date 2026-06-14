@@ -236,11 +236,7 @@ Add-Check `
         "SetRefreshVersionsButtonDisabled",
         "SelectedOptionStatus",
         "UpdateBranchHelpText",
-        "OptionButton",
-        "_branchDropdown",
-        "LauncherBranchCatalog\.DropdownOptions",
-        "SteamGameBranch\.SelectorInstallSlotHelpText",
-        "ItemSelected"
+        "SteamGameBranch\.SelectorInstallSlotHelpText"
     )
 
 Add-Check `
@@ -440,7 +436,7 @@ Add-Check `
     "reports selected-version preservation when clearing inactive caches" `
     @(
         "SelectedOptionDownloadProblem",
-        "Download blocked",
+        "blocked",
         "BlockedRedownloadConfirmationMessage",
         "ApplyRedownloadBlockedByBranchProblem",
         "replacement download remains blocked",
@@ -1106,7 +1102,7 @@ Add-Check `
         "Artifact hygiene",
         "ARM64",
         "Pull-before-Push",
-        "not release-ready"
+        "not release-candidate signed off"
     )
 
 Add-Check `
@@ -1184,51 +1180,24 @@ Add-Check `
     )
 
 Add-Check `
-    "scripts\capture-steam-version-selection-evidence.ps1" `
-    "captures non-secret device evidence for version-selection validation" `
+    "scripts\new-steam-version-selection-evidence.ps1" `
+    "scaffolds non-secret device evidence review for version-selection validation" `
     @(
-        "logcat-steam-version-focused",
-        "logcat-steam-version-focused-redacted\.txt",
-        "-split '\\r\?\\n'",
-        "best-effort pattern-based redaction",
-        "warning header",
-        "account/username fields",
-        "local user paths",
-        "Redact-LogLine",
         "ARTIFACT_HYGIENE\.txt",
-        "local-only raw diagnostics",
+        "Raw logs and full launcher diagnostics are local-only",
         "PUBLIC_SHARE_MANIFEST\.txt",
         "preferred public artifacts",
-        "IncludeRawLogcat",
-        "Raw full logcat omitted by default",
-        "logcat-redaction-summary\.txt",
-        "Focused log lines changed by best-effort redaction",
-        "launcher-diagnostics-index\.txt",
-        "Attach full reports manually only after review/redaction",
-        "steamkit-debug-log-setting\.txt",
-        "sts2_steamkit_debug_logs",
-        "Expected routine evidence value",
         "steam_branch\.txt",
         "last_game_branch_switch\.txt",
-        "manualPullMarkerFileName",
+        "last_manual_cloud_pull\.txt",
         "last_manual_cloud_push\.txt",
         "last_manual_cloud_push_blocked\.txt",
         "last_steam_branch_availability\.txt",
-        "game-version-cache-tree\.txt",
-        "game-version-cache-sizes\.txt",
         "last_game_version_cache_cleanup\.txt",
         "last_game_version_redownload\.txt",
-        "branchAvailabilityMarkerFileName",
         "backup-evidence",
-        "pre-push-backup-list\.txt",
-        "pre-push-backup-counts\.txt",
-        "local-pre-push",
-        "cloud-pre-push",
-        "branchSwitchMarkerFileName",
         "Resolve-RepoPath",
-        "branch-markers",
-        "avoids shared preferences",
-        "run-as"
+        "branch-markers"
     )
 
 Add-Check `
@@ -1605,7 +1574,7 @@ Add-Check `
         "steam_branch\.txt",
         "selectedBranchManifest",
         "publicManifest",
-        "manifestSource=public-inherited",
+        "public-inherited",
         "manifestRequestBranch=public",
         "branch-integrity provenance",
         "Branch marker depots inherited from public",
@@ -1635,7 +1604,7 @@ Add-Check `
         "inherits public",
         "file inventory",
         "key asset or PCK hashes",
-        "Public versus public-beta branch integrity is not yet classified"
+        "Runtime patching now falls back to branch-local"
     )
 
 Add-Check `
@@ -1673,7 +1642,7 @@ Add-Check `
         "Selected branch depot manifest rows",
         "steam_branch\.txt",
         "last_steam_branch_availability\.txt",
-        "manifestSource=public-inherited",
+        "public-inherited",
         "runtime remote/config",
         "Read-Inventory",
         "Write-InventoryComparison"
@@ -1710,7 +1679,7 @@ Add-Check `
         "key-assets\.tsv",
         "Changed key asset rows",
         "manifestSource=selected",
-        "manifestSource=public-inherited",
+        "public-inherited",
         "partial Steam branch",
         "Classification:",
         "Evidence readiness:",
@@ -1980,7 +1949,7 @@ Add-Check `
     "docs\current-android-status.md" `
     "keeps Android status current for version selection, Autofill, and credential-log hardening" `
     @(
-        "Steam beta/version selection is in hardening",
+        "Steam game version selection is in hardening",
         "steam-version-selection-release-readiness\.md",
         "discovery-led dropdown Steam branch selector",
         "Autofill",
@@ -1992,11 +1961,11 @@ Add-Check `
 
 Add-Check `
     "README.md" `
-    "advertises version selection as validation-stage, not release-signed" `
+    "advertises version selection as published but not release-candidate signed off" `
     @(
         "implemented for validation",
         "steam-version-selection-release-readiness\.md",
-        "not release-signed",
+        "not release-candidate signed off",
         "discovery-led dropdown selector",
         "REFRESH GAME VERSIONS",
         "public-inherited",

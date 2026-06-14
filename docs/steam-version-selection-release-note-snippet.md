@@ -4,7 +4,7 @@ Use this wording when a build includes Steam game version selection but has not 
 
 ## Short release note
 
-Steam game version selection is now available for validation. The launcher uses a discovery-led dropdown selector, can refresh account-visible Steam branch metadata with `REFRESH GAME VERSIONS`, keeps non-public branch downloads in side-by-side caches, reports selected-version diagnostics, shows selected-branch availability/password/build metadata in labels/helper text, blocks known unavailable selected branches before download/update attempts, records selected-version notes in branch-switch and Push/Pull evidence, and warns before branch switches. The latest local ARM64 hardening build validates selected `public-beta` startup from its side-by-side cache after fixing Android app-private path alias checks.
+Steam game version selection is now available for validation. The launcher uses a discovery-led, dropdown-first selector, can refresh account-visible Steam branch metadata with `REFRESH GAME VERSIONS`, keeps non-public branch downloads in side-by-side caches, reports selected-version diagnostics, shows selected-branch availability/password/build metadata in labels/helper text, blocks known unavailable selected branches before download/update attempts, records selected-version notes in branch-switch and Push/Pull evidence, and warns before branch switches. The latest local ARM64 hardening build validates selected `public-beta` startup from its side-by-side cache after fixing Android app-private path alias checks.
 
 This is still a hardening feature, not release-candidate signoff. Beta password entry, inaccessible/private branch behavior, release-candidate startup/failure routing, cache cleanup, Android/Samsung/password-manager Autofill behavior, save compatibility across branches, and Steam Cloud Push safety after branch switching still require ARM64 validation evidence.
 
@@ -42,7 +42,7 @@ Known limitations:
 - Release-candidate startup and failure routing still need broader ARM64 evidence beyond the local `public-beta` proof.
 - Public-beta branch integrity is still under investigation: Steam may serve some depots with public-identical or public-inherited manifests, and art asset issues require per-depot manifest/file evidence before claiming the beta branch is complete.
 - Save compatibility between public and beta branches is not proven.
-- Manual Push must remain treated as destructive until current-version Pull evidence, local-save existence, storage permission, local/cloud pre-Push backup evidence, `last_manual_cloud_push.txt`, and aggregate successful selected-version Push evidence are captured. Branch switches additionally require Pull-after-switch evidence for the selected version and successful post-switch Push evidence.
+- Manual Push must remain treated as destructive until current-version Pull evidence, local-save existence, storage permission, local/cloud pre-Push backup evidence, `last_manual_cloud_push.txt`, and aggregate successful selected-version Push evidence are captured. Branch switches additionally require Pull-after-switch evidence for the selected version and aggregate successful post-switch Push evidence.
 
 Validation references:
 

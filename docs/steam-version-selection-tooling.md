@@ -238,6 +238,7 @@ Interpretation:
 
 - `manifestSource=selected` means the selected branch supplied that depot manifest.
 - `manifestSource=public-inherited` means Steam exposed no explicit selected-branch manifest for that depot and the launcher intentionally used the public manifest as inherited branch content.
+- `Changed key asset rows` in the beta-integrity summary highlights bounded public-vs-selected asset hash differences for review.
 - Public-identical and branch-specific depots in the same marker are evidence of a partial Steam branch.
 - File inventory differences show whether the installed beta cache actually differs from public for PCK, art, audio, JSON, font, or other bundle-like files.
 - Treat an `inconclusive` summary classification as a requirement to clean-redownload, capture stronger marker evidence, or inspect runtime logs before claiming a cause. Strong manifest/cache/art classifications require clean-redownload proof for the investigated branch.

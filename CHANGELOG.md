@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-14 - Public-beta Android art fallback release
+
+- Published `v0.2.187-beta-art-fallback`, an ARM64 public APK with Steam beta branch hardening and the validated Android run-history art fallback.
+- Added a branch-local fallback for missing selected-branch run-history room icons so `public-beta` no longer errors on older/current save references to missing `doormaker_boss` art.
+- Validated on ARM64 hardware that `public-beta` still mounts its own side-by-side PCK, applies the `gameplay/Run history asset fallback` patch, reaches the main menu, and no longer emits the old `doormaker_boss` loader errors.
+- Updated current release docs and verification commands to point at `v0.2.187-beta-art-fallback`.
+
 ## 2026-06-14 - Steam beta branch integrity diagnostics
 
 - Added per-depot public-manifest comparison evidence to selected Steam branch markers so `public-beta` can show whether each downloaded depot is branch-specific, public-identical, or missing public comparison data.

@@ -49,7 +49,7 @@ Each completed row should include:
 Use this wording until the matrix is complete:
 
 ```text
-Save compatibility between public and beta Steam branches is not yet proven. Pull from Cloud for the selected version and verify Android local saves exist before any Push. After switching branches, do not Push unless Pull-after-switch evidence, backup storage permission, local/cloud pre-Push backup evidence, and successful Push marker evidence are present.
+Save compatibility between public and beta Steam branches is not yet proven. Pull from Cloud for the selected version and verify Android local saves exist before any Push. After switching branches, do not Push unless Pull from Cloud after the branch switch, Pull-after-switch evidence, backup storage permission, local/cloud pre-Push backup evidence, and successful Push marker evidence are present.
 ```
 
 Only soften this wording after ARM64 evidence proves the relevant rows.

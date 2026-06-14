@@ -7,11 +7,11 @@ StS2 Mobile now works on the validated ARM64 Android path: install, Steam login,
 ## Public release to link
 
 - Repository: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul
-- Release: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.185-responsive-ui
-- APK: `StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk`
+- Release: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.187-beta-art-fallback
+- APK: `StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk`
 - Package: `com.sts2launcher.overhaul.fork.dev`
-- Version: `0.2.185-responsive-ui` / `versionCode=218500`
-- SHA-256: `7f15f28c5f7307a798d29c4ce00930cc45322c68867e0c1171435bbadf62afb0`
+- Version: `0.2.187-beta-art-fallback` / `versionCode=218700`
+- SHA-256: `f2ef1c3ef2149d4901fc1051058d44cfdb2e45afb1c7a9ef5693d4714d31dffe`
 - Target: ARM64 Android phones only for real validation.
 
 ## Posting constraints checked
@@ -55,7 +55,7 @@ Important caveats:
 - Do not post credentials, guard codes, tokens, private save contents, or full unsanitized logs publicly.
 
 Latest public APK:
-https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.185-responsive-ui
+https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.187-beta-art-fallback
 
 If you try it, the most useful feedback is device model, Android version, whether install/login/download/Pull/game launch worked, and any scrubbed crash log snippets. Please keep reports sanitized.
 

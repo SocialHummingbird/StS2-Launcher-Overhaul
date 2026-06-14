@@ -1,4 +1,4 @@
-﻿# Android runtime findings
+# Android runtime findings
 
 Current posture: the app works on the validated ARM64 path and is in polish/hardening. Treat this document as runtime findings supporting [current Android status](current-android-status.md), not as a claim that release-candidate validation is complete.
 
@@ -62,25 +62,25 @@ This is still a hardening state, not a finished release-candidate signoff. Newes
 
 The current published APK release is:
 
-- Release: `v0.2.185-responsive-ui`
-- Asset: `StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk`
-- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.185-responsive-ui
-- SHA-256: `7f15f28c5f7307a798d29c4ce00930cc45322c68867e0c1171435bbadf62afb0`
+- Release: `v0.2.187-beta-art-fallback`
+- Asset: `StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk`
+- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.187-beta-art-fallback
+- SHA-256: `f2ef1c3ef2149d4901fc1051058d44cfdb2e45afb1c7a9ef5693d4714d31dffe`
 
 Before installing, verify the uploaded GitHub release asset itself:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.185-responsive-ui" `
-  -AssetName "StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.187-beta-art-fallback" `
+  -AssetName "StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
 Expected result:
 
 ```text
-Release digest OK: 7f15f28c5f7307a798d29c4ce00930cc45322c68867e0c1171435bbadf62afb0
-Release APK verification passed: v0.2.185-responsive-ui/StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk
+Release digest OK: f2ef1c3ef2149d4901fc1051058d44cfdb2e45afb1c7a9ef5693d4714d31dffe
+Release APK verification passed: v0.2.187-beta-art-fallback/StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk
 Verified ABIs: arm64-v8a
 ```
 
@@ -88,8 +88,8 @@ Install the verified release APK to a connected phone and capture diagnostics in
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.185-responsive-ui" `
-  -AssetName "StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.187-beta-art-fallback" `
+  -AssetName "StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -133,8 +133,8 @@ The smoke test writes:
 
 ## Remaining proof
 
-- Repeat confirmed Push to Cloud behavior on the newest public APK, including Steam Cloud metadata/file mutation after explicit user approval. Confirmation/cancel safety is already visually checked on `v0.2.185-responsive-ui`.
-- Keep cancel/no-confirm Push safety evidence in every release-candidate pass; `v0.2.185-responsive-ui` has visual confirmation/cancel evidence showing upload requires explicit approval.
+- Repeat confirmed Push to Cloud behavior on the newest public APK, including Steam Cloud metadata/file mutation after explicit user approval. Confirmation/cancel safety is already visually checked on `v0.2.187-beta-art-fallback`.
+- Keep cancel/no-confirm Push safety evidence in every release-candidate pass; `v0.2.187-beta-art-fallback` has visual confirmation/cancel evidence showing upload requires explicit approval.
 - Upgrade install evidence showing package `lastUpdateTime` advances and stale app-private assembly cache behavior does not recur.
 - Locked-screen interruption behavior showing Android focus loss does not get misclassified as a game crash.
 - Repeated release-readiness pass covering fresh install, upgrade install, Pull, Push, game launch, and diagnostics.

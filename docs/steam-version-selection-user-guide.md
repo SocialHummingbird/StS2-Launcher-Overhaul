@@ -99,7 +99,10 @@ For beta-integrity reports, the marker should also record public comparison evid
 - `selectedMatchesPublic=true` when Steam serves the same manifest for the selected branch and public.
 - `selectedMatchesPublic=false` when the selected branch has a different manifest for that depot.
 - `selectedMatchesPublic=unknown` when public comparison data was unavailable.
+- `selectedBranchManifest`, `publicManifest`, `manifestRequestBranch`, and `manifestSource` identify branch-integrity provenance for which Steam depot manifest was selected and why.
 - `manifestSource=public-inherited` when Steam exposes no explicit selected-branch manifest for a depot and the launcher intentionally downloads the public manifest as inherited branch content.
+- `Classification:` in beta-integrity evidence summarizes whether the selected branch looks branch-specific, public-inherited, partial, unavailable, or not ready for final classification.
+- `Public-vs-beta key asset comparison captured` should be true before treating art differences as classified evidence.
 - `manifestRequestBranch=public` for inherited public depots, so Steam manifest authorization is requested against the branch that actually owns the effective manifest.
 
 If a beta branch has both public-identical and branch-specific depot manifests, the launcher should describe that as partial Steam branch evidence rather than silently implying every depot differs from public.

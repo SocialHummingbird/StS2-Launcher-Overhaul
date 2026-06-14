@@ -6,6 +6,8 @@ The implementation is substantially in place, but release readiness is not prove
 
 ## Current status
 
+Steam game version selection is published in the latest ARM64 APK, but it is not release-candidate signed off until the evidence gates below are repeated on the release candidate.
+
 | Area | Current state | Release posture |
 | --- | --- | --- |
 | Public/default branch | Public/default remains available and keeps the legacy `files/game` install path. | Requires fresh public/default download, update, and launch evidence on the current APK. |

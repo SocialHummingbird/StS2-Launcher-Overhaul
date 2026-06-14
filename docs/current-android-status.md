@@ -1,4 +1,4 @@
-﻿# Current Android Status
+# Current Android Status
 
 _Last updated: 2026-06-14_
 
@@ -19,7 +19,7 @@ Validated locally on ARM64 hardware:
 
 - Fresh APK/runtime install reaches the launcher.
 - The latest public release APK verifies structurally, installs, launches, and has captured ARM64 launcher visual checks for login, active download progress, diagnostics drawer, ready-state layout, and Push confirmation/cancel.
-- Public release upgrade compatibility has advanced through `v0.2.185-responsive-ui` with `versionCode=218500`; the latest signed dev APK installed over the previous dev package while preserving app data. Earlier proof showed `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6` preserving install state.
+- Public release upgrade compatibility has advanced through `v0.2.187-beta-art-fallback` with `versionCode=218700`; the latest signed dev APK installed over the previous dev package while preserving app data. Earlier proof showed `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6` preserving install state.
 - Locked-screen interruption returns to the app after manual unlock without app-specific crash markers.
 - Steam login and game depot download complete.
 - Pull from Cloud downloads real Steam Cloud files.
@@ -35,19 +35,19 @@ Validated locally on ARM64 hardware:
 Latest public release evidence:
 
 ```text
-release=v0.2.185-responsive-ui
-asset=StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk
-sha256=7f15f28c5f7307a798d29c4ce00930cc45322c68867e0c1171435bbadf62afb0
+release=v0.2.187-beta-art-fallback
+asset=StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk
+sha256=f2ef1c3ef2149d4901fc1051058d44cfdb2e45afb1c7a9ef5693d4714d31dffe
 package=com.sts2launcher.overhaul.fork.dev
-versionName=0.2.185-responsive-ui
-versionCode=218500
-upgradeBaseline=v0.2.184-loading-scale / versionCode=218400
+versionName=0.2.187-beta-art-fallback
+versionCode=218700
+upgradeBaseline=v0.2.186-sts2-mobile-version-selection / versionCode=218600
 ```
 
 Latest device evidence folders:
 
 - `artifacts/android/startup-crash-20260612-233812`
-- `artifacts/android/github-release-v0.2.185-responsive-ui`
+- `artifacts/android/github-release-v0.2.187-beta-art-fallback`
 - `artifacts/android/responsive-ui-check-20260609`
 - `artifacts/android/phone-diagnostics-20260609-204439`
 - `artifacts/android/loading-scale-release-visual-20260609`
@@ -112,7 +112,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Steam game version selection is in hardening: selected branch is persisted and used for manifest resolution/update checks, non-public branches download into side-by-side `game_versions/<branch>/game` caches, completed branch downloads write `steam_branch.txt` marker/provenance metadata, inactive cached versions can be cleared from support options, and local backup is enabled before branch switches. The launcher now uses a discovery-led dropdown Steam branch selector instead of normal-user text entry: default/public remains always available, account-visible options refresh from Steam app-info branch availability evidence, and existing saved custom branch values remain selectable only for compatibility/retry diagnostics. It includes a non-mutating `REFRESH GAME VERSIONS` action, concise ready/build/password/unavailable dropdown badges, selected-branch helper text, pre-download/update gates for known unavailable branches, wrapped selector guidance for private/password branch hardening and unproven save compatibility, and branch availability diagnostics after failed downloads. Native Android startup now blocks selected-version launch when branch marker provenance is missing or mismatched instead of falling through toward stale branch startup, and the local ARM64 build has validated selected `public-beta` launch from its side-by-side slot. Beta-integrity hardening now records per-depot selected/public manifest comparison, explicit public-inherited depot provenance, manifest request branch evidence, selected-branch integrity log summaries, clean-redownload-gated `Classification:` and `Evidence readiness:` summaries, focused logcat, runtime selected-PCK path/hash evidence, and public-vs-beta file inventory/hash capture guidance so mixed beta/public behavior and art asset issues can be classified from evidence. The same selected-version guidance is captured in launcher diagnostics, branch-switch marker evidence, manual Pull evidence, native pre-routing/startup logs, and native fallback diagnostics. Static CI guardrails cover version-selection docs, release blockers, discovery-led dropdown behavior, unavailable-branch gates, native launch gating, Autofill cleanup, beta-integrity evidence fields, and managed/native selector-guidance parity. Refresh-game-versions device validation, Steam beta/password behavior, inaccessible/private branch handling, cache cleanup, Pull-before-Push/current-backup safety, save compatibility across branches, and release-candidate public/default retest still need ARM64 device validation before release-candidate signoff; see [Steam version selection validation](steam-version-selection-validation.md) and [Steam version selection runbook](steam-version-selection-runbook.md).
 - The current Steam version-selection release gate is tracked in [Steam version selection release readiness](steam-version-selection-release-readiness.md). Treat that tracker as the source of truth for what is implemented, what is unvalidated, and what evidence is required before release-candidate signoff. The remaining public-beta integrity device pass is summarized in [Steam beta integrity runtime checklist](steam-beta-integrity-runtime-checklist.md).
 - Current public-beta runtime evidence rules out silent public fallback for the tested local ARM64 path: native routing selected `public-beta`, Godot mounted the selected beta PCK, startup patches completed, and the game reached the main menu. A public/default auto-launch baseline on the same build reached the same visible main menu but successfully loaded the run-history `doormaker_boss` imported textures where `public-beta` logged loader failures after mounting the selected beta PCK. PCK directory inspection shows `doormaker_boss` run-history imports exist in public but not in `public-beta`; `public-beta` contains `aeonglass_boss` instead and still contains shared `unknown_monster` fallback art. Runtime patching now falls back to branch-local `unknown_monster` art when the game returns a missing run-history icon path. This is a beta content/import compatibility fix, not public-content fallback.
-- Re-run full login/Pull/confirmed-Push/game-launch smoke on the clean public `v0.2.185-responsive-ui` release-facing build.
+- Re-run full login/Pull/confirmed-Push/game-launch smoke on the clean public `v0.2.187-beta-art-fallback` release-facing build.
 - Keep Push treated as destructive. The newest public APK has confirmation/cancel safety evidence, but confirmed Push mutation still needs an explicit newest-public smoke before release-candidate signoff.
 - Repeated local stale assembly cache/freshness checks across in-place local upgrade once signing continuity is restored.
 - Repeat release asset hygiene on every new release: signer, package name, versionCode monotonicity, checksums, structural verifier, and GitHub release notes.

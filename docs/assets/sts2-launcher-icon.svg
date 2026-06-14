@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108" role="img" aria-labelledby="title desc">
+  <title id="title">StS2 Mobile icon</title>
+  <desc id="desc">An ember-orange key shaped like a fantasy spire in front of a cyan cloud outline on a dark rounded square.</desc>
+  <rect width="108" height="108" rx="10" fill="#0E141D"/>
+  <rect x="7" y="7" width="94" height="94" rx="5" fill="#111A25"/>
+  <rect x="14" y="13" width="80" height="82" rx="4" fill="#101720"/>
+  <path d="M17 71c-4.8 0-8.7-4-8.7-8.9 0-7.7 6.2-13.9 13.9-13.9 2.4 0 4.7.6 6.7 1.7 1.5-10 10.1-17.7 20.6-17.7 11 0 20 8.4 20.8 19.2 1.8-.8 3.9-1.2 6-1.2 8 0 14.4 6.5 14.4 14.5 0 1.9-.4 3.8-1.1 5.4" fill="none" stroke="#2FE5F4" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>
+  <path d="M17 71c-4.8 0-8.7-4-8.7-8.9 0-7.7 6.2-13.9 13.9-13.9 2.4 0 4.7.6 6.7 1.7 1.5-10 10.1-17.7 20.6-17.7 11 0 20 8.4 20.8 19.2 1.8-.8 3.9-1.2 6-1.2 8 0 14.4 6.5 14.4 14.5 0 1.9-.4 3.8-1.1 5.4" fill="none" stroke="#28DFF0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M54 7l6.2 30 4.4-3.8 1.9 13.1 7.7-4-4 12.2c7 4.8 11.2 11.8 11.2 19.7 0 10-8 18.1-18.3 19v10.2l-6 4.6-5.9-4.6V93.2c-10.8-.7-19-9-19-19.1 0-8 4.5-15.2 11.5-19.9l-4-11.9 7.7 4 2-13.1 4.4 3.8z" fill="#FF8A00" stroke="#FFD34A" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M57.1 36.5l3 .5 4.5-3.8 1.9 13.1 7.7-4-4 12.2c7 4.8 11.2 11.8 11.2 19.7 0 10-8 18.1-18.3 19v10.2l-6 4.6z" fill="#F06A00"/>
+  <path d="M53.7 10l2 27.2-4.5 2.1v-24z" fill="#FF9C12"/>
+  <path d="M58.6 80.6h17v7.1h-8.8v5.7h8.8v7.1h-17z" fill="#FF8A00" stroke="#FFD34A" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M50.3 46.7c0-4.3 7.8-4.3 7.8 0v19.4c4.5 1.7 7.6 6 7.6 11.1 0 6.5-5.2 11.8-11.6 11.8s-11.6-5.3-11.6-11.8c0-5.1 3.2-9.5 7.8-11.1z" fill="#101720"/>
+  <path d="M51.2 77.2h6.9v28.1h-6.9z" fill="#101720"/>
+  <path d="M37.2 73.2c0-6 3.2-11.5 8.5-15.1l4.3-20.4-2.6 8.6-7.7-4 4 11.9c-7 4.7-11.5 11.9-11.5 19.9 0 10.1 8.2 18.4 19 19.1v10.2l2.1 1.6V91.6c-9.5-1.1-16.1-8.7-16.1-18.4z" fill="#FFD34A" opacity=".34"/>
+  <path d="M74.5 70.8s6.9-.1 14.4-.7c.7-1.6 1.1-3.5 1.1-5.4 0-8-6.4-14.5-14.4-14.5-2.1 0-4.2.4-6 1.2-.1-1.8-.5-3.5-1.1-5.1 6.4-.8 12.9.9 17.8 5.4 6.3 5.8 8.1 14.8 5.4 22.4-6 1.3-11.8 1-17.2-3.3z" fill="#2FE5F4" opacity=".24"/>
+</svg>
