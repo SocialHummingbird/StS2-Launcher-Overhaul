@@ -4,8 +4,16 @@ namespace STS2Mobile.Launcher.Components;
 
 internal sealed class StyledLineEdit : LineEdit
 {
-    internal StyledLineEdit(string placeholder, float scale, bool secret = false)
+    private readonly DisplayServer.VirtualKeyboardType _keyboardType;
+
+    internal StyledLineEdit(
+        string placeholder,
+        float scale,
+        bool secret = false,
+        DisplayServer.VirtualKeyboardType keyboardType = DisplayServer.VirtualKeyboardType.Default
+    )
     {
+        _keyboardType = keyboardType;
         PlaceholderText = placeholder;
         Secret = secret;
         CustomMinimumSize = new Vector2(
@@ -34,7 +42,7 @@ internal sealed class StyledLineEdit : LineEdit
             DisplayServer.VirtualKeyboardShow(
                 Text,
                 new Rect2(GlobalPosition, Size),
-                DisplayServer.VirtualKeyboardType.Default,
+                _keyboardType,
                 MaxLength,
                 CaretColumn,
                 CaretColumn

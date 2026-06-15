@@ -23,7 +23,7 @@ internal partial class LauncherModel
     }
 
     internal string LaunchButtonText()
-        => InGameMode ? "PLAY" : "START GAME";
+        => "START GAME";
 
     internal Task WaitForLaunch()
     {

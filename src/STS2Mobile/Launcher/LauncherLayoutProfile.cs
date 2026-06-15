@@ -40,9 +40,11 @@ internal readonly struct LauncherLayoutProfile
         var compact = shortEdge <= 1150f || aspect >= 1.55f;
         var scaleCeiling = compact ? 1.08f : 1.22f;
         var scale = Math.Clamp(shortEdge / ReferenceShortEdge, 0.82f, scaleCeiling);
-        var panelWidth = compact ? 0.92f : 0.78f;
-        var panelHeight = compact ? 0.92f : 0.88f;
-        var contentMaxWidth = compact ? 760 : 860;
+        var panelWidth = compact ? 0.98f : 0.78f;
+        var panelHeight = compact ? 0.98f : 0.88f;
+        var contentMaxWidth = compact
+            ? Math.Max(1, (int)Math.Min(safeViewport.X * 0.94f, 1120f))
+            : Math.Max(860, (int)Math.Min(safeViewport.X * 0.84f, 1180f));
 
         return new LauncherLayoutProfile(
             safeViewport,

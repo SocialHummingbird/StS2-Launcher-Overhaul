@@ -11,45 +11,69 @@ internal sealed class LoginSection : VBoxContainer
 
     private readonly LineEdit _usernameField;
     private readonly LineEdit _passwordField;
-    private readonly Button _autofillButton;
+    private readonly Button _nativeLoginButton;
     private readonly Button _loginButton;
-    private readonly Timer _autofillPollTimer;
-    private int _autofillPollsRemaining;
+    private readonly Timer _nativeCredentialPollTimer;
+    private int _nativeCredentialPollsRemaining;
 
-    internal LoginSection(float scale)
+    internal LoginSection(float scale, bool compact = false)
     {
-        LauncherSectionSetup.ConfigureHiddenSection(this, scale);
+        LauncherSectionSetup.ConfigureHiddenSection(
+            this,
+            scale,
+            "Steam Sign-in",
+            "Use Steam once, then launch from cached encrypted session data when possible.",
+            LauncherComponentTheme.OrangeAccent,
+            compact
+        );
+        var useNativeAndroidCredentialPanel = OperatingSystem.IsAndroid();
 
-        _usernameField = new StyledLineEdit("Steam Username", scale);
-        LauncherAutofillSupport.ConfigureUsernameField(_usernameField);
+        _usernameField = new StyledLineEdit(
+            "Steam Username",
+            scale,
+            keyboardType: DisplayServer.VirtualKeyboardType.EmailAddress
+        );
+        _usernameField.Visible = !useNativeAndroidCredentialPanel;
+        LauncherCredentialEntrySupport.ConfigureUsernameField(_usernameField);
         AddChild(_usernameField);
 
-        _passwordField = new StyledLineEdit("Password", scale, secret: true);
-        LauncherAutofillSupport.ConfigurePasswordField(_passwordField);
+        _passwordField = new StyledLineEdit(
+            "Password",
+            scale,
+            secret: true,
+            keyboardType: DisplayServer.VirtualKeyboardType.Password
+        );
+        _passwordField.Visible = !useNativeAndroidCredentialPanel;
+        LauncherCredentialEntrySupport.ConfigurePasswordField(_passwordField);
         AddChild(_passwordField);
 
-        _autofillButton = new StyledButton(
-            "USE ANDROID AUTOFILL",
+        AddChild(CreateCredentialHelpLabel(scale, compact));
+
+        _nativeLoginButton = new StyledButton(
+            "SIGN IN WITH STEAM",
             scale,
             fontSize: LauncherSectionMetrics.SecondaryButtonFontSize,
-            height: LauncherSectionMetrics.SecondaryButtonHeight
+            height: LauncherSectionMetrics.PrimaryButtonHeight
         );
-        _autofillButton.Visible = OperatingSystem.IsAndroid();
-        _autofillButton.Disabled = !OperatingSystem.IsAndroid();
-        _autofillButton.Pressed += OnAutofillPressed;
-        AddChild(_autofillButton);
+        LauncherButtonStyles.ApplyPrimaryAction(_nativeLoginButton, scale);
+        _nativeLoginButton.Visible = useNativeAndroidCredentialPanel;
+        _nativeLoginButton.Disabled = !useNativeAndroidCredentialPanel;
+        _nativeLoginButton.Pressed += OnNativeLoginPressed;
+        AddChild(_nativeLoginButton);
 
-        _loginButton = new StyledButton("LOGIN", scale);
+        _loginButton = new StyledButton("SIGN IN", scale);
+        LauncherButtonStyles.ApplyPrimaryAction(_loginButton, scale);
+        _loginButton.Visible = !useNativeAndroidCredentialPanel;
         AddChild(_loginButton);
 
-        _autofillPollTimer = new Timer
+        _nativeCredentialPollTimer = new Timer
         {
-            WaitTime = 0.5,
+            WaitTime = 0.25,
             OneShot = false,
             Autostart = false,
         };
-        _autofillPollTimer.Timeout += PollAutofillResult;
-        AddChild(_autofillPollTimer);
+        _nativeCredentialPollTimer.Timeout += PollNativeCredentialResult;
+        AddChild(_nativeCredentialPollTimer);
 
         _usernameField.TextSubmitted += _ => _passwordField.GrabFocus();
         _passwordField.TextSubmitted += _ => OnLoginPressed();
@@ -59,12 +83,23 @@ internal sealed class LoginSection : VBoxContainer
     internal void SetDisabled(bool disabled)
     {
         _loginButton.Disabled = disabled;
-        _autofillButton.Disabled = disabled || !OperatingSystem.IsAndroid();
+        _nativeLoginButton.Disabled = disabled || !OperatingSystem.IsAndroid();
+        if (disabled)
+            StopNativeCredentialPolling(hidePanel: true);
     }
 
     internal void ClearPassword()
     {
         _passwordField.Text = "";
+        StopNativeCredentialPolling(hidePanel: true);
+    }
+
+    internal void SetFormVisible(bool visible, bool disabled)
+    {
+        Visible = visible;
+        SetDisabled(disabled);
+        if (visible && !disabled && OperatingSystem.IsAndroid())
+            OpenNativeCredentialPanel();
     }
 
     private void OnLoginPressed()
@@ -88,53 +123,87 @@ internal sealed class LoginSection : VBoxContainer
         }
     }
 
-    private void OnAutofillPressed()
+    private void OnNativeLoginPressed()
     {
         if (!OperatingSystem.IsAndroid())
             return;
 
+        OpenNativeCredentialPanel();
+    }
+
+    private void OpenNativeCredentialPanel()
+    {
         try
         {
-            _autofillButton.Disabled = true;
-            _autofillPollsRemaining = 120;
-            AndroidGodotAppBridge.ShowSteamLoginAutofillDialog();
-            _autofillPollTimer.Start();
+            _nativeLoginButton.Disabled = true;
+            _nativeCredentialPollsRemaining = 720;
+            AndroidGodotAppBridge.ShowSteamLoginCredentialPanel();
+            _nativeCredentialPollTimer.Start();
         }
         catch (Exception ex)
         {
-            _autofillButton.Disabled = false;
-            PatchHelper.Log($"[Launcher] Could not open Android Autofill login dialog: {ex.Message}");
+            _nativeLoginButton.Disabled = false;
+            PatchHelper.Log($"[Launcher] Could not open native Steam login panel: {ex.Message}");
         }
     }
 
-    private void PollAutofillResult()
+    private void PollNativeCredentialResult()
     {
-        if (--_autofillPollsRemaining <= 0)
+        if (--_nativeCredentialPollsRemaining <= 0)
         {
-            StopAutofillPolling();
+            StopNativeCredentialPolling(hidePanel: false);
             return;
         }
 
         try
         {
-            if (!AndroidGodotAppBridge.TryConsumeSteamLoginAutofillResult(out var username, out var password))
-                return;
+            if (!AndroidGodotAppBridge.TryConsumeSteamLoginCredentialResult(out var username, out var password))
+            {
+                if (!AndroidGodotAppBridge.IsSteamLoginCredentialPanelVisible())
+                    StopNativeCredentialPolling(hidePanel: false);
 
-            StopAutofillPolling();
-            _usernameField.Text = username;
-            _passwordField.Text = password;
-            OnLoginPressed();
+                return;
+            }
+
+            StopNativeCredentialPolling(hidePanel: true);
+            _nativeLoginButton.Disabled = true;
+            LoginRequested?.Invoke(username, password);
         }
         catch (Exception ex)
         {
-            StopAutofillPolling();
-            PatchHelper.Log($"[Launcher] Android Autofill login result failed: {ex.Message}");
+            StopNativeCredentialPolling(hidePanel: true);
+            _nativeLoginButton.Disabled = false;
+            PatchHelper.Log($"[Launcher] Native Steam login panel result failed: {ex.Message}");
         }
     }
 
-    private void StopAutofillPolling()
+    private void StopNativeCredentialPolling(bool hidePanel)
     {
-        _autofillPollTimer.Stop();
-        _autofillButton.Disabled = !OperatingSystem.IsAndroid();
+        _nativeCredentialPollTimer.Stop();
+        _nativeLoginButton.Disabled = !OperatingSystem.IsAndroid();
+        if (hidePanel && OperatingSystem.IsAndroid())
+        {
+            try
+            {
+                AndroidGodotAppBridge.HideSteamLoginCredentialPanel();
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Launcher] Could not hide native Steam login panel: {ex.Message}");
+            }
+        }
     }
+
+    private static Label CreateCredentialHelpLabel(float scale, bool compact)
+        => new()
+        {
+            Text = OperatingSystem.IsAndroid()
+                ? (compact
+                    ? "Android/Samsung/Google password suggestions may appear in the Steam sign-in panel. Passwords are not stored."
+                    : "Use the integrated Steam login panel. Android/Samsung/Google password suggestions may appear there; StS2 Mobile does not store your Steam password.")
+                : "Use the visible Steam fields above. StS2 Mobile does not store your Steam password.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            CustomMinimumSize = new Vector2(0, compact ? 26f * scale : 34f * scale),
+        };
 }

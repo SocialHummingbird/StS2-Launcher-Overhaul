@@ -11,8 +11,6 @@ internal static class AndroidGodotAppBridge
     private const string HasStoragePermissionMethod = "hasStoragePermission";
     private const string JavaClassWrapper = "JavaClassWrapper";
     private const string RequestStoragePermissionMethod = "requestStoragePermission";
-    private const string ShowSteamLoginAutofillDialogMethod = "showSteamLoginAutofillDialog";
-    private const string ConsumeSteamLoginAutofillResultMethod = "consumeSteamLoginAutofillResult";
     private const string WrapMethod = "wrap";
 
     internal static void RestartApp() => CallVoid("restartApp");
@@ -55,16 +53,24 @@ internal static class AndroidGodotAppBridge
     internal static void RequestStoragePermission()
         => CallVoid(RequestStoragePermissionMethod);
 
-    internal static void ShowSteamLoginAutofillDialog()
-        => CallVoid(ShowSteamLoginAutofillDialogMethod);
+    internal static void ShowSteamLoginCredentialPanel()
+        => CallVoid("showSteamLoginCredentialPanel");
 
-    internal static bool TryConsumeSteamLoginAutofillResult(out string username, out string password)
+    internal static void HideSteamLoginCredentialPanel()
+        => CallVoid("hideSteamLoginCredentialPanel");
+
+    internal static bool IsSteamLoginCredentialPanelVisible()
+        => AndroidBridgeDispatcher.Run(
+            () => (bool)(GetInstanceOnCurrentThread()?.Call("isSteamLoginCredentialPanelVisible") ?? false)
+        );
+
+    internal static bool TryConsumeSteamLoginCredentialResult(out string username, out string password)
     {
         username = "";
         password = "";
 
         var result = AndroidBridgeDispatcher.Run(
-            () => (string)(GetInstanceOnCurrentThread()?.Call(ConsumeSteamLoginAutofillResultMethod) ?? "")
+            () => (string)(GetInstanceOnCurrentThread()?.Call("consumeSteamLoginCredentialResult") ?? "")
         );
         if (string.IsNullOrWhiteSpace(result))
             return false;

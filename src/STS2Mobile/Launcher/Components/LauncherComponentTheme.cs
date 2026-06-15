@@ -6,7 +6,7 @@ internal static class LauncherComponentTheme
 {
     internal const int ButtonDefaultFontSize = 14;
     internal const int ButtonDefaultHeight = 42;
-    internal const int ButtonRadius = 4;
+    internal const int ButtonRadius = 8;
     internal const int DialogButtonFontSize = 14;
     internal const int DialogButtonHeight = 44;
     internal const int DialogButtonWidth = 120;
@@ -42,6 +42,8 @@ internal static class LauncherComponentTheme
     internal static readonly Color ButtonHover = new(0.13f, 0.22f, 0.3f);
     internal static readonly Color ButtonNormal = new(0.08f, 0.14f, 0.2f);
     internal static readonly Color ButtonPressed = new(0.05f, 0.1f, 0.16f);
+    internal static readonly Color BrandGlowCyan = new(0.02f, 0.62f, 0.72f, 0.16f);
+    internal static readonly Color BrandGlowOrange = new(1.0f, 0.28f, 0.02f, 0.14f);
     internal static readonly Color CyanAccent = new(0.04f, 0.84f, 0.95f);
     internal static readonly Color CyanDim = new(0.03f, 0.42f, 0.52f);
     internal static readonly Color DarkInk = new(0.02f, 0.04f, 0.06f);

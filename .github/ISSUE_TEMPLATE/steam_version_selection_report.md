@@ -25,7 +25,7 @@ Check every gate this report provides direct evidence for. Leave unchecked if th
 - [ ] Selected-version redownload or inactive cache cleanup safety
 - [ ] Pull-before-Push and Android local-save evidence
 - [ ] Branch-switch backup/blocked-Push safety evidence
-- [ ] Android/Samsung/password-manager Autofill behavior
+- [ ] Android/Samsung/password-manager suggestion behavior in the native credential panel
 - [ ] Public-share artifact hygiene reviewed
 
 If any checked gate has partial, uncertain, or contradictory evidence, explain it in the relevant section instead of treating it as passed.
@@ -103,12 +103,19 @@ Steam branch selector mode:
 Paste non-secret credential-safety diagnostics if available:
 
 ```text
-Android credential Autofill provider model:
-Godot login field Autofill hints configured:
-Native Android Autofill overlay supported:
-Launcher stores Steam password for Autofill:
-Native Android Autofill result TTL seconds:
-Android credential Autofill implementation note:
+Android credential provider model:
+Native integrated credential panel supported:
+Native credential fields Autofill hints configured:
+Steam credential web domain configured:
+Godot login field credential metadata configured:
+Android keyboard credential hints configured:
+Godot fields are native Android Autofill targets:
+Password-manager suggestions device validated:
+Native credential handoff popup supported:
+Launcher stores Steam password for credential providers:
+Native credential handoff result TTL seconds:
+Android credential provider implementation note:
+Android credential provider capability boundary:
 SteamKit debug logs opt-in enabled:
 SteamKit debug logs sanitized for credentials/tokens:
 ```

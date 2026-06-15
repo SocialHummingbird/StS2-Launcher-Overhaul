@@ -7,11 +7,16 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection
 {
-    internal ActionSection(float scale)
+    internal ActionSection(float scale, bool compact = false)
     {
-        AddThemeConstantOverride(
-            LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.SectionSeparation, scale)
+        _compact = compact;
+        LauncherSectionSetup.ConfigureHiddenSection(
+            this,
+            scale,
+            "Play and Sync",
+            "Launch, update, switch versions, and move cloud saves only when you choose.",
+            LauncherComponentTheme.OrangeHot,
+            compact
         );
 
         var toggleRadius = (int)(4 * scale);
@@ -39,14 +44,14 @@ internal sealed partial class ActionSection
 
         _launchButton = AddPrimaryHiddenButton(
             this,
-            "LAUNCH",
+            "START GAME",
             scale,
             () => LaunchPressed?.Invoke()
         );
         LauncherButtonStyles.ApplyPrimaryAction(_launchButton, scale);
         _safeLaunchButton = AddSecondaryHiddenButton(
             this,
-            "SAFE LAUNCH",
+            "SAFE START",
             scale,
             () => SafeLaunchPressed?.Invoke()
         );
@@ -76,16 +81,22 @@ internal sealed partial class ActionSection
         );
         _branchHelpLabel.Visible = false;
         AddChild(_branchHelpLabel);
+
+        _branchDetailsToggle = new StyledButton(
+            "SHOW VERSION DETAILS",
+            scale,
+            fontSize: LauncherSectionMetrics.ProgressFontSize,
+            height: LauncherSectionMetrics.SecondaryButtonHeight
+        );
+        LauncherButtonStyles.ApplySupportAction(_branchDetailsToggle, scale);
+        _branchDetailsToggle.Visible = false;
+        _branchDetailsToggle.Pressed += ToggleBranchDetails;
+        AddChild(_branchDetailsToggle);
         SetGameBranch(_gameBranch);
 
         _cloudGroup = BuildActionGroup(scale);
         _cloudGroup.Visible = false;
         AddChild(_cloudGroup);
-
-        _localBackupToggle = AddSecondaryHiddenButton(_cloudGroup, "Local Backup: OFF", scale, null);
-        _cloudSyncToggle = AddSecondaryHiddenButton(_cloudGroup, "Game Cloud Sync: OFF", scale, null);
-        ConfigureLocalBackupToggle();
-        ConfigureCloudSyncToggle();
 
         _pushPullRow = new VBoxContainer();
         _pushPullRow.Visible = false;
@@ -93,23 +104,9 @@ internal sealed partial class ActionSection
             LauncherViewLayoutMetrics.ThemeSeparation,
             LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.PushPullRowSeparation, scale)
         );
-        _pushButton = AddPushPullButton(
-            _pushPullRow,
-            PushButtonText,
-            scale,
-            ArmCloudPush
-        );
-        _confirmPushButton = AddPushPullButton(
-            _pushPullRow,
-            PushConfirmButtonText,
-            scale,
-            ConfirmCloudPush
-        );
-        _confirmPushButton.Visible = false;
-        LauncherButtonStyles.ApplyPrimaryAction(_confirmPushButton, scale);
         _pullButton = AddPushPullButton(
             _pushPullRow,
-            "Pull from Cloud",
+            compact ? "Pull Saves" : "Pull Saves from Steam Cloud",
             scale,
             () =>
             {
@@ -117,11 +114,83 @@ internal sealed partial class ActionSection
                 CloudPullPressed?.Invoke();
             }
         );
+        _pushButton = AddPushPullButton(
+            _pushPullRow,
+            compact ? "Push Saves" : PushButtonText,
+            scale,
+            ArmCloudPush
+        );
+        _confirmPushButton = AddPushPullButton(
+            _pushPullRow,
+            compact ? "Confirm Cloud Overwrite" : PushConfirmButtonText,
+            scale,
+            ConfirmCloudPush
+        );
+        _confirmPushButton.Visible = false;
+        LauncherButtonStyles.ApplyPrimaryAction(_confirmPushButton, scale);
+        _pushConfirmationLabel = new StyledLabel(
+            compact
+                ? "Push will overwrite Steam Cloud saves for this version. Confirm only after Pull/local saves are verified."
+                : "Confirming Push uploads Android saves to Steam Cloud for the selected version and can overwrite remote Steam Cloud saves. Continue only after Pull and local save evidence are verified.",
+            scale,
+            fontSize: LauncherSectionMetrics.ProgressFontSize,
+            align: HorizontalAlignment.Left
+        );
+        _pushConfirmationLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _pushConfirmationLabel.MouseFilter = MouseFilterEnum.Ignore;
+        _pushConfirmationLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.OrangeHot
+        );
+        _pushConfirmationLabel.Visible = false;
+        _pushPullRow.AddChild(_pushConfirmationLabel);
         _cloudGroup.AddChild(_pushPullRow);
+
+        _cloudSafetyLabel = new StyledLabel(
+            "",
+            scale,
+            fontSize: LauncherSectionMetrics.ProgressFontSize,
+            align: HorizontalAlignment.Left
+        );
+        _cloudSafetyLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _cloudSafetyLabel.MouseFilter = MouseFilterEnum.Ignore;
+        _cloudSafetyLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.OrangeHot
+        );
+        _cloudGroup.AddChild(_cloudSafetyLabel);
+
+        _cloudSafetyToggle = new StyledButton(
+            "SHOW CLOUD SAFETY",
+            scale,
+            fontSize: LauncherSectionMetrics.ProgressFontSize,
+            height: LauncherSectionMetrics.SecondaryButtonHeight
+        );
+        LauncherButtonStyles.ApplySupportAction(_cloudSafetyToggle, scale);
+        _cloudSafetyToggle.Visible = compact;
+        _cloudSafetyToggle.Pressed += ToggleCloudSafety;
+        _cloudGroup.AddChild(_cloudSafetyToggle);
+
+        _cloudOptionsToggle = new StyledButton(
+            "SHOW CLOUD OPTIONS",
+            scale,
+            fontSize: LauncherSectionMetrics.ProgressFontSize,
+            height: LauncherSectionMetrics.SecondaryButtonHeight
+        );
+        LauncherButtonStyles.ApplySupportAction(_cloudOptionsToggle, scale);
+        _cloudOptionsToggle.Visible = compact;
+        _cloudOptionsToggle.Pressed += ToggleCloudOptions;
+        _cloudGroup.AddChild(_cloudOptionsToggle);
+
+        _localBackupToggle = AddSecondaryHiddenButton(_cloudGroup, "Local Backup: OFF", scale, null);
+        _cloudSyncToggle = AddSecondaryHiddenButton(_cloudGroup, "Game Cloud Sync: OFF", scale, null);
+        ConfigureLocalBackupToggle();
+        ConfigureCloudSyncToggle();
+        UpdateBranchHelpText();
 
         _supportToggle = AddSecondaryHiddenButton(
             this,
-            "MORE SUPPORT OPTIONS",
+            compact ? "SUPPORT OPTIONS" : "MORE SUPPORT OPTIONS",
             scale,
             ToggleSupportOptions
         );
@@ -133,26 +202,26 @@ internal sealed partial class ActionSection
 
         _updateButton = AddPrimaryHiddenButton(
             _supportGroup,
-            "CHECK FOR UPDATES",
+            compact ? "CHECK UPDATES" : "CHECK FOR UPDATES",
             scale,
             () => CheckForUpdatesPressed?.Invoke()
         );
         LauncherButtonStyles.ApplySupportAction(_updateButton, scale);
         _refreshVersionsButton = AddSecondaryHiddenButton(
             _supportGroup,
-            "REFRESH GAME VERSIONS",
+            compact ? "REFRESH VERSIONS" : "REFRESH GAME VERSIONS",
             scale,
             () => RefreshGameVersionsPressed?.Invoke()
         );
         _redownloadButton = AddSecondaryHiddenButton(
             _supportGroup,
-            "REDOWNLOAD SELECTED VERSION",
+            compact ? "REDOWNLOAD VERSION" : "REDOWNLOAD SELECTED VERSION",
             scale,
             () => RedownloadPressed?.Invoke()
         );
         _clearCachedVersionsButton = AddSecondaryHiddenButton(
             _supportGroup,
-            "CLEAR CACHED VERSIONS",
+            compact ? "CLEAR VERSION CACHE" : "CLEAR CACHED VERSIONS",
             scale,
             () => ClearCachedVersionsPressed?.Invoke()
         );
@@ -170,7 +239,7 @@ internal sealed partial class ActionSection
         );
         _copyRawLogButton = AddSecondaryHiddenButton(
             _supportGroup,
-            "COPY RAW LOG (REVIEW BEFORE SHARING)",
+            compact ? "COPY RAW LOG" : "COPY RAW LOG (REVIEW BEFORE SHARING)",
             scale,
             () => CopyRawLogPressed?.Invoke()
         );
@@ -191,13 +260,16 @@ internal sealed partial class ActionSection
     {
         _supportExpanded = !_supportExpanded;
         _supportGroup.Visible = _supportExpanded;
-        _supportToggle.Text = _supportExpanded ? "HIDE SUPPORT OPTIONS" : "MORE SUPPORT OPTIONS";
+        _supportToggle.Text = _supportExpanded
+            ? "HIDE SUPPORT OPTIONS"
+            : (_compact ? "SUPPORT OPTIONS" : "MORE SUPPORT OPTIONS");
     }
 
     private void ArmCloudPush()
     {
         _pushButton.Visible = false;
         _confirmPushButton.Visible = true;
+        _pushConfirmationLabel.Visible = true;
     }
 
     private void ConfirmCloudPush()
@@ -210,6 +282,7 @@ internal sealed partial class ActionSection
     {
         _pushButton.Visible = showPushButton;
         _confirmPushButton.Visible = false;
+        _pushConfirmationLabel.Visible = false;
     }
 
     private void ApplyGameBranch(long index)

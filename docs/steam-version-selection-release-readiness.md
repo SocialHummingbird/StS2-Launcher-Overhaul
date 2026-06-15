@@ -19,7 +19,7 @@ Steam game version selection is published in the latest ARM64 APK, but it is not
 | Beta branch integrity | Selected branch markers record per-depot effective manifest, selected-branch manifest, public manifest, manifest source, and whether each depot matches or inherits public. Beta-integrity evidence capture now emits a clean-redownload-gated `Classification:`, `Evidence readiness:`, and `Evidence missing/weak:` summary. Local ARM64 evidence classifies `public-beta` as branch-specific installed content and runtime startup now logs the selected PCK path/byte count/SHA-256 mounted by Godot. Public/default and public-beta both reach the visible main menu; public loads the run-history `doormaker_boss` imported textures while public-beta lacks those entries and contains `aeonglass_boss` instead. Runtime patching falls back to branch-local `unknown_monster` art for missing run-history icon paths. | Requires release-candidate repeat evidence and continued user-facing caution that visible beta/public art differences are a game-content/runtime question, not proof of launcher fallback, unless the runtime selected-PCK evidence contradicts the selected branch. |
 | Cache cleanup | Selected-version redownload and inactive cache cleanup are branch-aware by design. | Requires evidence that selected cache is preserved or cleared only when intended. |
 | Steam Cloud safety | Manual Push requires selected-version Pull evidence and Android local save evidence; branch-switch Push adds backup evidence gates. | Requires Pull-before-Push, blocked-Push, and successful-Push evidence on the selected version before signoff. |
-| Autofill | Android builds expose one-shot native Autofill handoff and do not store Steam passwords for Autofill. | Requires Samsung/Android/password-manager provider validation on device. |
+| Login credential providers | Android builds use an integrated in-app native Steam credential panel with real username/password fields, Android Autofill credential-provider hints, and Steam web-domain metadata. The old native handoff popup is not user-facing, and the launcher does not store or inject Steam passwords. | Requires Samsung/Android/password-manager suggestion behavior validation on device. |
 | Credential/log safety | SteamKit debug logging is disabled by default and sanitized when explicitly enabled; diagnostics and raw-log copy paths warn before sharing. | Requires evidence capture review before public issue/release artifacts are posted. |
 
 ## Evidence required before release-candidate signoff
@@ -60,9 +60,9 @@ Steam game version selection is published in the latest ARM64 APK, but it is not
 
    Evidence must show selected-version Pull-before-Push, Android local save evidence, branch-switch backup requirements, blocked-Push markers when prerequisites are missing, and successful Push only after the required selected-version evidence exists.
 
-10. Autofill behavior.
+10. Login/password-manager behavior.
 
-   Evidence must show the native Autofill dialog can receive credentials from Android/Samsung/password-manager providers, feed the existing Steam login flow, and clear pending values after consume/cancel/timeout/activity stop.
+   Evidence must show the integrated native Steam credential panel supports manual entry, keyboard/password-manager suggestion behavior where available, Steam Guard prompts, failed-login recovery, successful return to the launcher, and immediate password-field clearing after request capture. The separate native handoff popup must remain absent from the normal user-facing login flow.
 
 11. Artifact hygiene.
 
@@ -77,7 +77,7 @@ Steam game version selection is published in the latest ARM64 APK, but it is not
 - Private, inaccessible, password-protected, or no-manifest branch behavior is not release-proven.
 - Save compatibility across Steam branches is unknown and must remain user-facing until proven.
 - Branch-switch Steam Cloud Push remains blocked from release signoff until Pull-before-Push, local-save, and backup evidence is captured on the current implementation.
-- Android Autofill provider behavior is implemented but not provider-validated.
+- Android/Samsung/password-manager suggestion behavior in the native credential panel is not provider-validated.
 - SteamKit debug log sanitizer and public-sharing warnings are implemented, but public evidence packages still require manual review before posting.
 
 ## Release rule

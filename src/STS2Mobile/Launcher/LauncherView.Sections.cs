@@ -56,8 +56,7 @@ internal sealed partial class LauncherView
 
     internal void SetLoginFormVisible(bool visible, bool disabled)
     {
-        Login.Visible = visible;
-        Login.SetDisabled(disabled);
+        Login.SetFormVisible(visible, disabled);
     }
 
     internal void ShowCodePrompt(bool wasIncorrect)

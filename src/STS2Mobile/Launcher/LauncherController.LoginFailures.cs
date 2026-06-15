@@ -10,18 +10,21 @@ internal sealed partial class LauncherController
         private LoginFormFailure(
             string logContext,
             string statusPrefix,
+            string recoveryMessage,
             bool logFullException,
             bool showBaseException
         )
         {
             LogContext = logContext;
             StatusPrefix = statusPrefix;
+            RecoveryMessage = recoveryMessage;
             LogFullException = logFullException;
             ShowBaseException = showBaseException;
         }
 
         private string LogContext { get; }
         private string StatusPrefix { get; }
+        private string RecoveryMessage { get; }
         private bool LogFullException { get; }
         private bool ShowBaseException { get; }
 
@@ -29,6 +32,7 @@ internal sealed partial class LauncherController
             => new(
                 "Login handler failed",
                 "Login failed",
+                "Retry sign-in; Steam passwords are not stored by StS2 Mobile.",
                 logFullException: true,
                 showBaseException: true
             );
@@ -37,6 +41,7 @@ internal sealed partial class LauncherController
             => new(
                 "Auto-connect failed",
                 "Connection failed",
+                "Check the connection or sign in again if prompted; Steam passwords are not stored by StS2 Mobile.",
                 logFullException: true,
                 showBaseException: true
             );
@@ -45,6 +50,7 @@ internal sealed partial class LauncherController
             => new(
                 "Local Steam credential handoff failed",
                 "Login failed",
+                "Retry sign-in; Steam passwords are not stored by StS2 Mobile.",
                 logFullException: true,
                 showBaseException: true
             );
@@ -52,7 +58,9 @@ internal sealed partial class LauncherController
         internal void Show(LauncherController controller, Exception ex)
         {
             PatchHelper.Log($"[Launcher] {LogContext}: {LogDetail(ex)}");
-            controller.ShowLoginForm($"{StatusPrefix}: {StatusMessage(ex)}");
+            controller.ShowLoginForm(
+                $"{StatusPrefix}: {StatusMessage(ex)}. {RecoveryMessage}"
+            );
         }
 
         private string LogDetail(Exception ex)

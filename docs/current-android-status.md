@@ -118,7 +118,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Repeat release asset hygiene on every new release: signer, package name, versionCode monotonicity, checksums, structural verifier, and GitHub release notes.
 - Further diagnostics polish so normal successful startup/cloud-save behavior is not hidden by remaining low-value platform logs.
 - Improve persisted Steam session/update UX so game update checks do not appear to require unnecessary re-login when a saved session is still valid.
-- Validate Android/Samsung/password-manager Autofill on ARM64. The Godot login fields now carry username/password metadata, Android builds expose a one-shot native Autofill login dialog, diagnostics prove the app does not store Steam passwords for Autofill, and SteamKit debug logs are disabled by default with opt-in sanitized diagnostics via `sts2_steamkit_debug_logs=1`, but provider behavior still needs device validation.
+- Validate Android/Samsung/password-manager login behavior on ARM64; see [Android Steam login validation](android-steam-login-validation.md). Android now uses an integrated native credential panel with real username/password fields, credential-provider hints, and Steam web-domain metadata; the old native one-shot handoff popup is no longer user-facing. Diagnostics prove the app does not store or inject Steam passwords, and SteamKit debug logs are disabled by default with opt-in sanitized diagnostics via `sts2_steamkit_debug_logs=1`, but manual entry, password-manager suggestions, Steam Guard, failed login, and successful return to launcher still need device validation.
 
 ## Device-independent polish completed after baseline proof
 

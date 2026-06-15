@@ -236,7 +236,9 @@ Add-Check `
         "SetRefreshVersionsButtonDisabled",
         "SelectedOptionStatus",
         "UpdateBranchHelpText",
-        "SteamGameBranch\.SelectorInstallSlotHelpText"
+        "SteamGameBranch\.SelectorInstallSlotHelpText",
+        "Version/download actions affect local game files only",
+        "Steam Cloud saves move only through Pull/Push"
     )
 
 Add-Check `
@@ -712,21 +714,54 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherAutofillSupport.cs" `
-    "declares Android password-manager Autofill support without app-owned password storage" `
+    "src\STS2Mobile\Launcher\LauncherCredentialEntrySupport.cs" `
+    "declares native Android credential panel support without app-owned password storage" `
     @(
         "AppStoresSteamPassword\s*=\s*false",
-        "NativeAndroidAutofillOverlaySupported\s*=\s*true",
-        "GodotFieldAutofillHintsConfigured\s*=\s*true",
-        "NativeDialogResultTtlSeconds",
-        "Android/Samsung/password-manager Autofill only",
+        "NativeCredentialHandoffPopupSupported\s*=\s*false",
+        "NativeIntegratedCredentialPanelSupported\s*=\s*true",
+        "NativeCredentialFieldsAutofillHintsConfigured\s*=\s*true",
+        "SteamCredentialWebDomainConfigured\s*=\s*true",
+        "NativeCredentialPanelInlineStatusConfigured\s*=\s*true",
+        "NativeCredentialPanelKeyboardSafeLayoutConfigured\s*=\s*true",
+        "NativeCredentialPanelImeInsetScrollSupported\s*=\s*true",
+        "NativeCredentialPanelTouchTargetLayoutConfigured\s*=\s*true",
+        "NativeCredentialPanelRequestsBothAutofillFields\s*=\s*true",
+        "NativeCredentialPanelFocusAutofillRequestsSupported\s*=\s*true",
+        "NativeCredentialPanelTaskLedButtonsSupported\s*=\s*true",
+        "NativeCredentialPanelPasswordVisibilityToggleSupported\s*=\s*true",
+        "NativeCredentialPanelPasswordFocusButtonSupported\s*=\s*true",
+        "NativeCredentialPanelBackDismissSupported\s*=\s*true",
+        "NativeCredentialPanelDismissRetrySupported\s*=\s*true",
+        "NativeCredentialPanelDismissHidesKeyboardSupported\s*=\s*true",
+        "NativeCredentialPanelSuppressesPreAuthSavePrompt\s*=\s*true",
+        "SteamGuardOneShotCodeGuidanceSupported\s*=\s*true",
+        "FailedLoginRetryGuidanceSupported\s*=\s*true",
+        "ContextSpecificLoginRecoveryGuidanceSupported\s*=\s*true",
+        "GodotFieldCredentialMetadataConfigured\s*=\s*true",
+        "AndroidKeyboardCredentialHintsConfigured\s*=\s*true",
+        "GodotFieldsAreNativeAndroidAutofillTargets\s*=\s*false",
+        "PasswordManagerSuggestionsDeviceValidated\s*=\s*false",
+        "NativeCredentialHandoffResultTtlSeconds",
+        "NativeCredentialHandoffResultTtlSeconds\s*=\s*60",
+        "Integrated native Android credential panel",
         "must not store or inject Steam passwords",
-        "native one-shot Autofill dialog",
-        "activity stops/destroys",
-        "password field is cleared immediately",
-        "autofill_hint",
+        "real username/password EditText fields",
+        "Steam web-domain metadata",
+        "inline status/error guidance",
+        "keyboard-safe scrollable top-weighted layout with IME inset padding and focus scrolling",
+        "branded task-led full-width touch controls",
+        "manual password visibility toggle that resets to hidden",
+        "one-shot Steam Guard code guidance",
+        "context-specific failed-login and connection-recovery guidance",
+        "keyboard/focus cleanup on native panel dismiss",
+        "old user-facing native credential popup is disabled",
+        "provider behavior is device/provider dependent",
+        "Native username/password fields",
+        "cleared after submit/cancel/expiry",
+        "credential_hint",
         "credential_storage_owner",
-        "android_autofill_provider"
+        "android_credential_provider"
     )
 
 Add-Check `
@@ -739,42 +774,341 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\AndroidGodotAppBridge.cs" `
-    "bridges native Android Autofill dialog results without persistence" `
+    "src\STS2Mobile\Launcher\Sections\LoginSection.cs" `
+    "uses integrated native Steam login panel instead of a separate credential popup on Android" `
     @(
-        "showSteamLoginAutofillDialog",
-        "consumeSteamLoginAutofillResult",
-        "TryConsumeSteamLoginAutofillResult",
-        "DecodeBase64Utf8"
+        "ConfigureUsernameField",
+        "ConfigurePasswordField",
+        "VirtualKeyboardType\.EmailAddress",
+        "VirtualKeyboardType\.Password",
+        "SIGN IN WITH STEAM",
+        "ShowSteamLoginCredentialPanel",
+        "TryConsumeSteamLoginCredentialResult",
+        "IsSteamLoginCredentialPanelVisible",
+        "StopNativeCredentialPolling\(hidePanel: false\)",
+        "integrated Steam login panel",
+        "does not store your Steam password",
+        "ClearPassword",
+        "LoginRequested"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LauncherSectionSetup.cs" `
+    "frames launcher states with explicit titled portal sections" `
+    @(
+        "ConfigureHiddenSection",
+        "BuildSectionHeader",
+        "bool compact",
+        "!compact",
+        "title",
+        "subtitle",
+        "accent",
+        "BuildHeaderStyle",
+        "StyledLabel",
+        "TextSecondary",
+        "SetBorderWidthAll"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "wraps launcher status in a readable portal status capsule" `
+    @(
+        "BuildStatusCapsule",
+        "BuildStatusStyle",
+        "BuildFirstRunGuide",
+        "BuildCollapsedFirstRunGuide",
+        "BuildFirstRunGuidePanel",
+        "SHOW SAFE FLOW",
+        "HIDE SAFE FLOW",
+        "profile\.Compact",
+        "Safe flow: Sign in -> Download version -> Pull saves -> Launch",
+        "Safe first-run flow",
+        "Pull saves before any Push",
+        "Initializing\.\.\.",
+        "Status",
+        "CyanAccent",
+        "TextSecondary",
+        "SetBorderWidthAll"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.LogColumn.cs" `
+    "keeps diagnostics hidden behind a clearly labeled console drawer" `
+    @(
+        "SHOW DIAGNOSTICS CONSOLE",
+        "HIDE DIAGNOSTICS CONSOLE",
+        "Diagnostics Console",
+        "Hidden by default",
+        "Export sanitized diagnostics",
+        "drawer\.Visible = false"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.cs" `
+    "presents launcher as a polished Steam/version/cloud portal instead of a generic debug shell" `
+    @(
+        "StS2 Mobile",
+        "STEAM \| CLOUD \| PLAY",
+        "STEAM LOGIN\s*\|\s*VERSION SLOTS\s*\|\s*CLOUD SAVES",
+        "BuildBrandMark",
+        "profile\.Compact",
+        "compact \? 40 : 50",
+        "profile\.Compact \? 1 : 2",
+        "OrangeAccent",
+        "CyanAccent"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherLayoutProfile.cs" `
+    "uses more available phone screen space for compact launcher layouts" `
+    @(
+        "panelWidth = compact \? 0\.98f",
+        "panelHeight = compact \? 0\.98f",
+        "Math\.Min\(safeViewport\.X \* 0\.94f, 1120f\)",
+        "Math\.Min\(safeViewport\.X \* 0\.84f, 1180f\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Components\StyledPanel.cs" `
+    "reduces compact-mode panel padding and avoids a short fixed-height phone panel" `
+    @(
+        "MaxHeight = 2200f",
+        "compact \? 12",
+        "BuildStyle\(scale, compact\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
+    "states that version downloads affect local files and do not mutate Steam Cloud saves" `
+    @(
+        "SHOW VERSION DETAILS",
+        "HIDE VERSION DETAILS",
+        "CompactDownloadButtonText",
+        "REFRESH VERSIONS",
+        "DOWNLOAD",
+        "ToggleBranchDetails",
+        "_branchDetailsExpanded",
+        "Download/update changes local files for the selected game version only",
+        "does not change Steam Cloud saves",
+        "SelectedOptionStatus",
+        "SelectorInstallSlotHelpText"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalStatusFormatter.cs" `
+    "formats launcher status text with clear user-facing phase labels" `
+    @(
+        "PhaseLabelStatusSupported\s*=\s*true",
+        "StructuredStatusChipSupported\s*=\s*true",
+        "STEAM AUTH",
+        "VERSION",
+        "INSTALL",
+        "CLOUD",
+        "READY",
+        "DIAGNOSTICS",
+        "ATTENTION",
+        "Could not",
+        "Waiting for launcher state",
+        "MessageFor",
+        "ColorFor",
+        "PhaseFor"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.cs" `
+    "declares secret-safe diagnostic metadata for portal UX hardening" `
+    @(
+        "StatusLedPortalSupported\s*=\s*true",
+        "PhaseLabelStatusSupported",
+        "StructuredStatusChipSupported",
+        "GuidedNextActionStatusSupported",
+        "ErrorFirstGuidedStatusSupported",
+        "TitledStateSectionsSupported\s*=\s*true",
+        "SafeFirstRunGuidanceSupported\s*=\s*true",
+        "CompactSafeFlowCollapsibleSupported\s*=\s*true",
+        "MobileFirstCompactLayoutSupported\s*=\s*true",
+        "CompactDynamicContentWidthSupported\s*=\s*true",
+        "TabletWideContentLayoutSupported\s*=\s*true",
+        "PortalTopAnchoredContentSupported\s*=\s*true",
+        "CompactVerticalStatusHeroSupported\s*=\s*true",
+        "TouchFirstActionTargetsSupported\s*=\s*true",
+        "PrimaryActionWordingSupported\s*=\s*true",
+        "ConsistentStartGameCtaSupported\s*=\s*true",
+        "BrandedAtmosphericBackgroundSupported\s*=\s*true",
+        "BrandedBackgroundExplicitRgbaSupported\s*=\s*true",
+        "HighContrastRoundedActionsSupported\s*=\s*true",
+        "CompactHeaderChromeReductionSupported\s*=\s*true",
+        "CompactSectionHeaderSubtitleSuppressionSupported\s*=\s*true",
+        "CompactVersionDetailsCollapsibleSupported\s*=\s*true",
+        "CompactCloudSafetyCollapsibleSupported\s*=\s*true",
+        "CompactCloudOptionsCollapsibleSupported\s*=\s*true",
+        "PrimaryCloudActionsBeforeCloudOptionsSupported\s*=\s*true",
+        "SaferPullBeforePushOrderingSupported\s*=\s*true",
+        "ManualPushArmedOverwriteWarningSupported\s*=\s*true",
+        "VersionInstallCloudSeparationGuidanceSupported\s*=\s*true",
+        "DiagnosticsConsoleHiddenByDefault\s*=\s*true",
+        "StartupFallbackRawBannerSuppressed\s*=\s*true",
+        "PortalUxDeviceValidated\s*=\s*false",
+        "Status-led launcher portal",
+        "Steam sign-in",
+        "Steam Guard",
+        "game install",
+        "play/sync",
+        "ARM64 visual validation"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Components\StyledPanel.cs" `
+    "uses a framed launcher shell rather than a flat unbounded panel" `
+    @(
+        "PanelBackground",
+        "BorderColor",
+        "SetBorderWidthAll",
+        "PanelRadius"
+    )
+
+Add-Check `
+    "src\STS2Mobile\ModEntry.cs" `
+    "suppresses raw startup fallback banner behind the launcher portal" `
+    @(
+        "Startup fallback raw banner suppressed",
+        "launcher diagnostics retain the startup failure detail"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "reveals the framed play/sync action section when launch or retry actions are available" `
+    @(
+        "internal void ShowLaunch",
+        "internal void ShowRetry",
+        "internal void HideAll",
+        "Visible = true",
+        "Visible = false",
+        "SetCloudControlsVisible",
+        "ShowLaunchButtons",
+        "ShowRetryButtons",
+        "HideSecondaryButtons"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "uses explicit Steam Cloud direction and overwrite-risk wording in the portal" `
+    @(
+        "_pushPullRow",
+        "_pushButton",
+        "_confirmPushButton",
+        "_pushConfirmationLabel",
+        "Push Saves",
+        "Confirm Cloud Overwrite",
+        "Pull Saves",
+        "PushButtonText",
+        "PushConfirmButtonText",
+        "Pull Saves from Steam Cloud",
+        "ArmCloudPush",
+        "ConfirmCloudPush",
+        "ResetCloudPushArm",
+        "Pull/local saves are verified",
+        "can overwrite remote Steam Cloud saves"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "uses explicit Steam Cloud direction wording in ready/action state" `
+    @(
+        "Pull copies Steam Cloud saves to Android",
+        "Push copies Android saves to Steam Cloud",
+        "can overwrite remote saves",
+        "Version/download actions affect local game files only",
+        "Steam Cloud saves move only through Pull/Push"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "shows cloud-save safety guidance beside Pull/Push actions" `
+    @(
+        "_cloudSafetyLabel",
+        "_cloudGroup.AddChild\(_pushPullRow\)",
+        "OrangeHot",
+        "Pull Saves from Steam Cloud",
+        "PushButtonText",
+        "PushConfirmButtonText",
+        "SHOW CLOUD OPTIONS"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.cs" `
+    "uses numeric keyboard for Steam Guard code entry" `
+    @(
+        "VirtualKeyboardType\.Number",
+        "Enter Steam Guard code",
+        "CodeSubmitted"
     )
 
 Add-Check `
     "android\src\com\game\sts2launcher\GodotApp.java" `
-    "shows native Android Autofill login dialog without logging or storing credentials" `
+    "provides integrated native Steam credential panel with Android credential-provider hints" `
     @(
-        "showSteamLoginAutofillDialog",
-        "EditText",
-        "setAutofillHints",
+        "showSteamLoginCredentialPanel",
+        "hideSteamLoginCredentialPanel",
+        "consumeSteamLoginCredentialResult",
+        "SteamLoginCredentialEditText",
         "AUTOFILL_HINT_USERNAME",
         "AUTOFILL_HINT_PASSWORD",
-        "consumeSteamLoginAutofillResult",
-        "pendingAutofillLoginUsername",
-        "pendingAutofillLoginPassword",
-        "AUTOFILL_LOGIN_RESULT_TTL_MS",
-        "clearAutofillLoginLocked"
-    )
-
-Add-Check `
-    "src\STS2Mobile\Launcher\Sections\LoginSection.cs" `
-    "marks Steam login fields for password-manager Autofill metadata" `
-    @(
-        "ConfigureUsernameField",
-        "ConfigurePasswordField",
-        "USE ANDROID AUTOFILL",
-        "ShowSteamLoginAutofillDialog",
-        "TryConsumeSteamLoginAutofillResult",
-        "ClearPassword",
-        "LoginRequested"
+        "setContentDescription",
+        "setSaveEnabled\(false\)",
+        "requestSteamLoginCredentialAutofill",
+        "requestSteamLoginCredentialAutofillField",
+        "setOnFocusChangeListener",
+        "requestSteamLoginCredentialAutofillField\(steamLoginCredentialUsernameField\)",
+        "requestSteamLoginCredentialAutofillField\(steamLoginCredentialPasswordField\)",
+        "autofillManager\.requestAutofill\(field\)",
+        "SIGN IN WITH STEAM",
+        "NEXT: PASSWORD",
+        "focusSteamLoginPasswordField",
+        "cancelSteamLoginCredentialAutofillSession",
+        "autofillManager\.cancel\(\)",
+        "SHOW PASSWORD",
+        "HIDE PASSWORD",
+        "toggleSteamLoginCredentialPasswordVisibility",
+        "TYPE_TEXT_VARIATION_VISIBLE_PASSWORD",
+        "onBackPressed",
+        "dispatchKeyEvent",
+        "KEYCODE_BACK",
+        "dismissSteamLoginCredentialPanelFromBack",
+        "isSteamLoginCredentialPanelVisible",
+        "public boolean isSteamLoginCredentialPanelVisible",
+        "hideKeyboardForSteamLoginCredentialPanel",
+        "focusedView\.clearFocus\(\)",
+        "styleSteamLoginCredentialButton",
+        "ScrollView",
+        "steamLoginCredentialScrollView",
+        "updateSteamLoginCredentialKeyboardInsets",
+        "scheduleSteamLoginCredentialFocusScroll",
+        "Gravity\.TOP \| Gravity\.CENTER_HORIZONTAL",
+        "scroll\.setClipToPadding\(false\)",
+        "buttons\.setOrientation\(LinearLayout\.VERTICAL\)",
+        "buttonLayoutParams",
+        "setSteamLoginCredentialStatus",
+        "Android password suggestions may appear",
+        "Enter your Steam username to continue",
+        "Enter your Steam password to continue",
+        "Submitting to Steam",
+        "IME_ACTION_NEXT",
+        "IME_ACTION_DONE",
+        "setWebDomain",
+        "structure\.setHint",
+        "store\.steampowered\.com",
+        "Steam password is never stored by StS2 Mobile",
+        "pendingSteamLoginCredentialUsername",
+        "pendingSteamLoginCredentialPassword",
+        "clearSteamLoginCredentialPanelSensitiveFields",
+        'steamLoginCredentialUsernameField\.setText\(\"\"\)',
+        'steamLoginCredentialPasswordField\.setText\(\"\"\)',
+        "STEAM_LOGIN_CREDENTIAL_RESULT_TTL_MS",
+        "pendingSteamLoginCredentialExpiresAtMs",
+        "clearPendingSteamLoginCredentialsLocked",
+        "Native Steam login credential panel shown",
+        "Native Steam login credentials submitted to managed login flow"
     )
 
 Add-Check `
@@ -831,12 +1165,60 @@ Add-Check `
         "Selected game version note",
         "Steam branch selector mode",
         "Steam beta password entry supported",
-        "Android credential Autofill provider model",
-        "Godot login field Autofill hints configured",
-        "Native Android Autofill overlay supported",
-        "Launcher stores Steam password for Autofill",
-        "Native Android Autofill result TTL seconds",
-        "Android credential Autofill implementation note",
+        "Android credential provider model",
+        "Native credential panel inline status configured",
+        "Native credential panel keyboard-safe layout configured",
+        "Native credential panel touch-target layout configured",
+        "Native credential panel requests both Autofill fields",
+        "Native credential panel focus Autofill requests supported",
+        "Native credential panel task-led buttons supported",
+        "Native credential panel password visibility toggle supported",
+        "Steam Guard one-shot code guidance supported",
+        "Failed-login retry guidance supported",
+        "Context-specific login recovery guidance supported",
+        "Godot login field credential metadata configured",
+        "Android keyboard credential hints configured",
+        "Godot fields are native Android Autofill targets",
+        "Password-manager suggestions device validated",
+        "Native credential handoff popup supported",
+        "Launcher stores Steam password for credential providers",
+        "Native credential handoff result TTL seconds",
+        "Android credential provider implementation note",
+        "Android credential provider capability boundary",
+        "Launcher portal UX model",
+        "Launcher status-led portal supported",
+        "Launcher phase-labeled status supported",
+        "Launcher structured status chip supported",
+        "Launcher guided next-action status supported",
+        "Launcher error-first guided status supported",
+        "Launcher titled state sections supported",
+        "Launcher safe first-run guidance supported",
+        "Launcher compact safe-flow guidance collapsible",
+        "Launcher mobile-first compact layout supported",
+        "Launcher compact dynamic content width supported",
+        "Launcher tablet/wide content layout supported",
+        "Launcher top-anchored portal content supported",
+        "Launcher compact vertical status hero supported",
+        "Launcher touch-first action targets supported",
+        "Launcher primary action wording supported",
+        "Launcher consistent START GAME CTA supported",
+        "Launcher branded atmospheric background supported",
+        "Launcher branded background explicit RGBA supported",
+        "Launcher high-contrast rounded actions supported",
+        "Launcher compact header chrome reduction supported",
+        "Launcher compact section-header subtitle suppression supported",
+        "Launcher compact version details collapsible",
+        "Launcher compact cloud-safety guidance collapsible",
+        "Launcher compact cloud options collapsible",
+        "Launcher primary cloud actions before cloud options",
+        "Launcher safer Pull-before-Push cloud ordering supported",
+        "Launcher manual Push armed overwrite warning supported",
+        "Launcher version-install/cloud-save separation guidance supported",
+        "Launcher diagnostics console hidden by default",
+        "Launcher startup fallback raw banner suppressed",
+        "Launcher portal UX device validated",
+        "Launcher portal UX implementation note",
+        "Launcher portal UX validation boundary",
         "SteamKit debug logs opt-in enabled",
         "SteamKit debug logs sanitized for credentials/tokens",
         "Public sharing warning",
@@ -1239,7 +1621,7 @@ Add-Check `
         "Do not store Steam credentials",
         "sts2_steamkit_debug_logs",
         "disabled by default",
-        "Autofill versus local credential handoff",
+        "Credential providers versus local credential handoff",
         "developer-only automation aids"
     )
 
@@ -1252,18 +1634,6 @@ Add-Check `
         "branchMarkerReady && gamePckReady && consumeGameLaunchRequest\(\)",
         "Blocking selected game version startup because branch marker provenance is missing or mismatched",
         "returning to launcher instead of falling back to another branch"
-    )
-
-Add-Check `
-    "android\src\com\game\sts2launcher\GodotApp.java" `
-    "clears one-shot native Autofill login values on lifecycle exit" `
-    @(
-        "protected void onStop\(\)",
-        "protected void onDestroy\(\)",
-        "clearAutofillLogin\(\)",
-        "pendingAutofillLoginUsername = """"",
-        "pendingAutofillLoginPassword = """"",
-        "AUTOFILL_LOGIN_RESULT_TTL_MS"
     )
 
 Add-Check `
@@ -1340,8 +1710,8 @@ Add-Check `
     @(
         "Selector mode",
         "Branch discovery",
-        "Android credential Autofill",
-        "Launcher stores Steam password for Autofill",
+        "Android credential provider model",
+        "Launcher stores Steam password for credential providers",
         "SteamKit debug logs opt-in status",
         "disabled by default",
         "Steam branch dropdown option metadata",
@@ -1482,9 +1852,13 @@ Add-Check `
         "steam-version-selection-release-readiness\.md",
         "What is not supported yet",
         "REFRESH GAME VERSIONS",
-        "Steam login Autofill",
-        "Android credential Autofill provider model",
-        "Native Android Autofill result TTL seconds",
+        "Steam login credential entry",
+        "Android credential provider model",
+        "Godot login field credential metadata configured",
+        "Godot fields are native Android Autofill targets",
+        "Password-manager suggestions device validated",
+        "Native credential handoff result TTL seconds",
+        "Android credential provider capability boundary",
         "blocked states",
         "Steam beta password entry",
         "Selected game version note",
@@ -1760,7 +2134,7 @@ Add-Check `
         "Public-vs-beta file inventory",
         "Did any game behavior, UI, or art asset look like public/mainline",
         "Was the beta slot clean-redownloaded",
-        "Android/Samsung/password-manager Autofill behavior",
+        "Android/Samsung/password-manager suggestion behavior",
         "Public-share artifact hygiene reviewed",
         "Artifact hygiene",
         "Steam credentials",
@@ -1768,8 +2142,8 @@ Add-Check `
         "shared preferences",
         "device identifiers",
         "local user paths",
-        "Android credential Autofill provider model",
-        "Launcher stores Steam password for Autofill",
+        "Android credential provider model",
+        "Launcher stores Steam password for credential providers",
         "SteamKit debug logs opt-in enabled",
         "SteamKit debug logs sanitized for credentials/tokens",
         "adb logcat",
@@ -1888,7 +2262,7 @@ Add-Check `
     @(
         "Steam version selection and branch cache hardening",
         "REFRESH GAME VERSIONS",
-        "Autofill",
+        "Login credential providers",
         "SteamKit debug logs disabled by default",
         "sts2_steamkit_debug_logs=1",
         "branch marker/provenance",
@@ -1913,6 +2287,212 @@ Add-Check `
     )
 
 Add-Check `
+    "docs\android-steam-login-validation.md" `
+    "defines Android Steam login validation proof contract" `
+    @(
+        "android-login-portal-evidence-template\.md",
+        "integrated in-app native Steam credential panel",
+        "real Android username and password fields",
+        "no user-facing native credential handoff popup",
+        "does not store or inject Steam passwords",
+        "real `EditText` fields",
+        "Android Autofill hints",
+        "Steam web-domain metadata",
+        "launcher portal uses explicit status and titled state sections",
+        "Diagnostics are hidden behind the diagnostics console drawer",
+        "portal clearly exposes the next action",
+        "Password-manager suggestions",
+        "Steam Guard",
+        "Failed login",
+        "Successful return",
+        "Native integrated credential panel supported:",
+        "Native credential fields Autofill hints configured:",
+        "Steam credential web domain configured:",
+        "Native credential panel inline status configured:",
+        "Native credential panel keyboard-safe layout configured:",
+        "Native credential panel IME inset scroll supported:",
+        "Native credential panel touch-target layout configured:",
+        "Native credential panel requests both Autofill fields:",
+        "Native credential panel focus Autofill requests supported:",
+        "Native credential panel task-led buttons supported:",
+        "Native credential panel password visibility toggle supported:",
+        "Native credential panel password-focus button supported:",
+        "Native credential panel Back dismiss supported:",
+        "Native credential panel dismiss retry supported:",
+        "Native credential panel dismiss hides keyboard:",
+        "Native credential panel suppresses pre-auth save prompt:",
+        "Steam Guard one-shot code guidance supported:",
+        "Failed-login retry guidance supported:",
+        "Context-specific login recovery guidance supported:",
+        "Native credential handoff popup supported:",
+        "Password-manager suggestions device validated:",
+        "Launcher portal UX model:",
+        "Launcher status-led portal supported:",
+        "Launcher phase-labeled status supported:",
+        "Launcher structured status chip supported:",
+        "Launcher guided next-action status supported:",
+        "Launcher error-first guided status supported:",
+        "Launcher titled state sections supported:",
+        "Launcher safe first-run guidance supported:",
+        "Launcher compact safe-flow guidance collapsible:",
+        "Launcher mobile-first compact layout supported:",
+        "Launcher compact dynamic content width supported:",
+        "Launcher tablet/wide content layout supported:",
+        "Launcher top-anchored portal content supported:",
+        "Launcher compact vertical status hero supported:",
+        "Launcher touch-first action targets supported:",
+        "Launcher primary action wording supported:",
+        "Launcher consistent START GAME CTA supported:",
+        "Launcher branded atmospheric background supported:",
+        "Launcher branded background explicit RGBA supported:",
+        "Launcher high-contrast rounded actions supported:",
+        "Launcher compact header chrome reduction supported:",
+        "Launcher compact section-header subtitle suppression supported:",
+        "Launcher compact version details collapsible:",
+        "Launcher compact cloud-safety guidance collapsible:",
+        "Launcher compact cloud options collapsible:",
+        "Launcher primary cloud actions before cloud options:",
+        "Launcher safer Pull-before-Push cloud ordering supported:",
+        "Launcher manual Push armed overwrite warning supported:",
+        "Launcher version-install/cloud-save separation guidance supported:",
+        "Launcher diagnostics console hidden by default:",
+        "Launcher startup fallback raw banner suppressed:",
+        "Launcher portal UX device validated:",
+        "Launcher portal UX validation boundary:",
+        "SteamKit debug logs sanitized for credentials/tokens:",
+        "portal scaling/readability/next-action clarity",
+        "hidden diagnostics behavior",
+        "not complete until ARM64 evidence covers"
+    )
+
+Add-Check `
+    "docs\android-login-portal-evidence-template.md" `
+    "captures ARM64 login, portal, cloud, and launch proof without secrets" `
+    @(
+        "Do not use emulator evidence for signoff",
+        "Steam username/email redacted",
+        "Steam password absent",
+        "Steam Guard code absent",
+        "Native integrated Steam login panel opens automatically",
+        "No USE ANDROID AUTOFILL popup/helper dialog visible",
+        "Inline status guidance visible",
+        "Native login panel remains usable when the keyboard is open",
+        "Native login panel can scroll if keyboard or small screen reduces available height",
+        "Native login panel keeps Sign In and Cancel reachable with the keyboard open",
+        "Native login controls are stacked/full-width and easy to tap",
+        "Native login primary button says SIGN IN WITH STEAM",
+        "Native login panel requests suggestions for username and password fields",
+        "Native login panel requests suggestions again when username/password fields gain focus",
+        "Native login NEXT: PASSWORD control focuses password field",
+        "Back/Cancel dismissal hides the soft keyboard before returning to launcher",
+        "Provider does not prompt to save unverified credentials before Steam authentication",
+        "Password visibility toggle shows/hides password without storing it",
+        "Password visibility resets to hidden after submit/cancel/reopen",
+        "Safe first-run flow guidance visible",
+        "On compact phone layout, safe-flow guidance starts collapsed",
+        "Safe-flow guidance expands/collapses without hiding the primary task",
+        "Compact phone layout uses most of the usable screen height",
+        "Compact phone layout avoids excessive internal panel margins",
+        "Compact phone layout uses dynamic content width instead of a narrow fixed column",
+        "Tablet/wide layout avoids a narrow fixed inner column",
+        "Portal task flow is top anchored rather than vertically stranded",
+        "Compact phone status appears as a readable vertical next-step card",
+        "Status card shows a clear guided next action for the current state",
+        "Failure/blocked/crash statuses show attention/fix guidance before normal install/cloud/launch guidance",
+        "Primary actions use clear task wording, for example sign in/start game/verify code",
+        "Primary launch action consistently says START GAME",
+        "Primary and secondary actions are large enough to tap comfortably",
+        "Launcher background has visible branded atmosphere without reducing readability",
+        "Buttons use high-contrast rounded action styling",
+        "Compact phone header uses shortened subtitle/chrome",
+        "Compact phone section headers avoid repeated subtitle blocks",
+        "Compact phone version details start collapsed",
+        "Version details expand/collapse without changing selected version",
+        "Compact phone cloud safety starts collapsed",
+        "Cloud safety expands/collapses while preserving Pull/Push controls",
+        "Compact phone cloud options start collapsed",
+        "Cloud options expand/collapse while preserving Pull/Push controls",
+        "Pull/Push controls appear before lower-frequency cloud options",
+        "Pull from Cloud appears before Push to Cloud",
+        "Armed Push state shows overwrite warning before final confirmation",
+        "Diagnostics console hidden by default",
+        "Raw startup fallback failure text hidden from portal",
+        "Username keyboard next action focuses password",
+        "NEXT: PASSWORD button focuses password and requests password suggestions",
+        "Password keyboard done action attempts submit",
+        "Password-manager suggestions",
+        "Samsung Pass",
+        "Google Password Manager",
+        "Steam Guard prompt visible",
+        "Wrong password produces recoverable failure",
+        "Failed-login status gives clear retry guidance",
+        "Failed-login status states Steam passwords are not stored",
+        "Connection/session failure gives connection-specific recovery guidance",
+        "Steam Guard section states code is submitted once and never stored",
+        "Wrong Steam Guard code asks for the latest Steam Guard code",
+        "Successful login returns to launcher",
+        "Game version dropdown visible/readable",
+        "Version/download guidance states local game files are separate from Steam Cloud saves",
+        "Ready-state version details repeat that Steam Cloud saves move only through Pull/Push",
+        "Play and Sync section appears when actions are available",
+        "Pull from Cloud completed",
+        "Push to Cloud guarded by confirmation",
+        "Game launch completed",
+        "Native credential panel inline status configured",
+        "Native credential panel keyboard-safe layout configured",
+        "Native credential panel IME inset scroll supported",
+        "Native credential panel touch-target layout configured",
+        "Native credential panel requests both Autofill fields",
+        "Native credential panel focus Autofill requests supported",
+        "Native credential panel task-led buttons supported",
+        "Native credential panel password visibility toggle supported",
+        "Native credential panel password-focus button supported",
+        "Native credential panel Back dismiss supported",
+        "Native credential panel dismiss retry supported",
+        "Native credential panel dismiss hides keyboard",
+        "Native credential panel suppresses pre-auth save prompt",
+        "Steam Guard one-shot code guidance supported",
+        "Failed-login retry guidance supported",
+        "Context-specific login recovery guidance supported",
+        "Launcher portal UX model",
+        "Launcher phase-labeled status supported",
+        "Launcher structured status chip supported",
+        "Launcher guided next-action status supported",
+        "Launcher error-first guided status supported",
+        "Launcher safe first-run guidance supported",
+        "Launcher compact safe-flow guidance collapsible",
+        "Launcher mobile-first compact layout supported",
+        "Launcher compact dynamic content width supported",
+        "Launcher tablet/wide content layout supported",
+        "Launcher top-anchored portal content supported",
+        "Launcher compact vertical status hero supported",
+        "Launcher touch-first action targets supported",
+        "Launcher primary action wording supported",
+        "Launcher consistent START GAME CTA supported",
+        "Launcher branded atmospheric background supported",
+        "Launcher branded background explicit RGBA supported",
+        "Launcher high-contrast rounded actions supported",
+        "Launcher compact header chrome reduction supported",
+        "Launcher compact section-header subtitle suppression supported",
+        "Launcher compact version details collapsible",
+        "Launcher version-install/cloud-save separation guidance supported",
+        "SteamKit debug logs sanitized for credentials/tokens",
+        "Release signoff is not valid"
+    )
+
+Add-Check `
+    "docs\steam-version-selection-release-note-snippet.md" `
+    "describes the current polished launcher portal UX alongside version-selection limitations" `
+    @(
+        "cleaner status-led portal",
+        "titled action sections",
+        "hidden diagnostics drawer",
+        "stronger branded header",
+        "Steam sign-in/Steam Guard/install/play-sync sections",
+        "Android/Samsung/password-manager suggestion behavior"
+    )
+
+Add-Check `
     "docs\release-and-backport-policy.md" `
     "requires release notes to name branch/version limitations" `
     @(
@@ -1932,7 +2512,7 @@ Add-Check `
         "Do not say yet",
         "REFRESH GAME VERSIONS",
         "dropdown-first",
-        "Android Autofill",
+        "password-manager suggestion behavior",
         "SteamKit debug logs are disabled by default",
         "sts2_steamkit_debug_logs=1",
         "wrapped selector guidance",
@@ -1947,13 +2527,14 @@ Add-Check `
 
 Add-Check `
     "docs\current-android-status.md" `
-    "keeps Android status current for version selection, Autofill, and credential-log hardening" `
+    "keeps Android status current for version selection, credential providers, and credential-log hardening" `
     @(
         "Steam game version selection is in hardening",
         "steam-version-selection-release-readiness\.md",
+        "android-steam-login-validation\.md",
         "discovery-led dropdown Steam branch selector",
-        "Autofill",
-        "does not store Steam passwords for Autofill",
+        "password-manager login behavior",
+        "does not store or inject Steam passwords",
         "SteamKit debug logs are disabled by default",
         "sts2_steamkit_debug_logs=1",
         "ARM64 device validation"

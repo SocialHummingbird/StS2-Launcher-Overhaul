@@ -63,7 +63,7 @@ internal static class LauncherButtonStyles
         normal.BorderWidthTop = width;
 
         var hover = filled
-            ? LauncherStyleBoxes.MakeFilled(body.Lightened(0.12f), radius)
+            ? LauncherStyleBoxes.MakeFilled(body.Lightened(0.16f), radius)
             : LauncherStyleBoxes.MakeOutline(border.Lightened(0.1f), radius, width);
         hover.BorderColor = border.Lightened(0.15f);
         hover.BorderWidthBottom = width;
@@ -72,7 +72,7 @@ internal static class LauncherButtonStyles
         hover.BorderWidthTop = width;
 
         var pressed = filled
-            ? LauncherStyleBoxes.MakeFilled(body.Darkened(0.12f), radius)
+            ? LauncherStyleBoxes.MakeFilled(body.Darkened(0.18f), radius)
             : LauncherStyleBoxes.MakeOutline(border.Darkened(0.08f), radius, width);
         pressed.BorderColor = border.Darkened(0.08f);
         pressed.BorderWidthBottom = width;

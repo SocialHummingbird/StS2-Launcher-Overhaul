@@ -62,8 +62,7 @@ internal sealed partial class ActionSection
     private void SetCloudControlsVisible(bool visible)
     {
         _cloudGroup.Visible = visible;
-        _localBackupToggle.Visible = visible;
-        _cloudSyncToggle.Visible = visible;
+        ApplyCloudOptionVisibility(visible);
         _pushPullRow.Visible = visible;
         ResetCloudPushArm(visible);
     }
@@ -82,7 +81,8 @@ internal sealed partial class ActionSection
         ShowUpdateButton(visibility.Update);
         _redownloadButton.Visible = visibility.Redownload;
         _branchDropdown.Visible = visibility.Branch;
-        _branchHelpLabel.Visible = visibility.Branch;
+        _branchHelpLabel.Visible = visibility.Branch && (!_compact || _branchDetailsExpanded);
+        _branchDetailsToggle.Visible = visibility.Branch && _compact;
         SetSupportButtonsVisible(visibility.Support);
         _safeLaunchButton.Visible = visibility.SafeLaunch;
         _launchButton.Visible = visibility.Launch;
@@ -92,7 +92,7 @@ internal sealed partial class ActionSection
     {
         _updateButton.Visible = visible;
         _updateButton.Disabled = false;
-        _updateButton.Text = "CHECK FOR UPDATES";
+        _updateButton.Text = _compact ? "CHECK UPDATES" : "CHECK FOR UPDATES";
     }
 
     private void SetSupportButtonsVisible(bool visible)

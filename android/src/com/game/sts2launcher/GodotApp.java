@@ -34,6 +34,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.nio.charset.StandardCharsets;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -46,15 +47,26 @@ import java.security.spec.X509EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 
 import android.content.Context;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
-import android.util.Base64;
-import android.view.View;
-import android.view.autofill.AutofillManager;
 import android.text.InputType;
+import android.util.Base64;
+import android.view.Gravity;
+import android.view.KeyEvent;
+import android.view.View;
+import android.view.ViewStructure;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.view.autofill.AutofillManager;
+import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.app.AlertDialog;
+import android.widget.ScrollView;
+import android.widget.TextView;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -95,11 +107,22 @@ public class GodotApp extends GodotActivity {
 	private static final int MAX_BUFFERED_HTTP_RESPONSE_BYTES = 1024 * 1024;
 	private static boolean exceptionHandlerInstalled;
 	private long lastHttpResponseCleanupAt;
-	private final Object autofillLoginLock = new Object();
-	private String pendingAutofillLoginUsername = "";
-	private String pendingAutofillLoginPassword = "";
-	private long pendingAutofillLoginExpiresAtMs = 0L;
-	private static final long AUTOFILL_LOGIN_RESULT_TTL_MS = 60L * 1000L;
+	private final Object steamLoginCredentialLock = new Object();
+	private String pendingSteamLoginCredentialUsername = "";
+	private String pendingSteamLoginCredentialPassword = "";
+	private long pendingSteamLoginCredentialExpiresAtMs = 0L;
+	private FrameLayout steamLoginCredentialOverlay;
+	private ScrollView steamLoginCredentialScrollView;
+	private EditText steamLoginCredentialUsernameField;
+	private EditText steamLoginCredentialPasswordField;
+	private TextView steamLoginCredentialStatusText;
+	private Button steamLoginCredentialSubmitButton;
+	private Button steamLoginCredentialCancelButton;
+	private Button steamLoginCredentialNextPasswordButton;
+	private Button steamLoginCredentialPasswordVisibilityButton;
+	private boolean steamLoginCredentialPasswordVisible;
+	private static final String STEAM_CREDENTIAL_WEB_DOMAIN_STORE = "store.steampowered.com";
+	private static final long STEAM_LOGIN_CREDENTIAL_RESULT_TTL_MS = 60L * 1000L;
 	private static final String[] BOOTSTRAP_REQUIRED_ASSEMBLIES = {
 		"STS2Mobile.dll",
 		"SteamKit2.dll",
@@ -1510,14 +1533,8 @@ public class GodotApp extends GodotActivity {
 	}
 
 	@Override
-	protected void onStop() {
-		clearAutofillLogin();
-		super.onStop();
-	}
-
-	@Override
 	protected void onDestroy() {
-		clearAutofillLogin();
+		clearSteamLoginCredentialPanel();
 		if (multicastLock != null && multicastLock.isHeld()) {
 			multicastLock.release();
 			Log.i(TAG, "WiFi MulticastLock released");
@@ -1800,73 +1817,557 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
-	public void showSteamLoginAutofillDialog() {
+	public void showSteamLoginCredentialPanel() {
 		runOnUiThread(() -> {
-			try {
-				final EditText username = new EditText(this);
-				username.setHint("Steam Username");
-				username.setSingleLine(true);
-				username.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
-				if (android.os.Build.VERSION.SDK_INT >= 26) {
-					username.setAutofillHints(View.AUTOFILL_HINT_USERNAME, View.AUTOFILL_HINT_EMAIL_ADDRESS);
-					username.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
-				}
+			ensureSteamLoginCredentialPanel();
+			if (steamLoginCredentialOverlay == null) {
+				Log.w(TAG, "Native Steam login panel unavailable");
+				return;
+			}
+			steamLoginCredentialOverlay.setVisibility(View.VISIBLE);
+			updateSteamLoginCredentialKeyboardInsets();
+			setSteamLoginCredentialPanelEnabled(true);
+			setSteamLoginCredentialStatus("Android password suggestions may appear when your provider recognizes Steam.");
+			steamLoginCredentialUsernameField.requestFocus();
+			scheduleSteamLoginCredentialFocusScroll(steamLoginCredentialUsernameField);
+			InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+			if (inputMethodManager != null) {
+				inputMethodManager.showSoftInput(steamLoginCredentialUsernameField, InputMethodManager.SHOW_IMPLICIT);
+			}
+			requestSteamLoginCredentialAutofill();
+			Log.i(TAG, "Native Steam login credential panel shown");
+		});
+	}
 
-				final EditText password = new EditText(this);
-				password.setHint("Steam Password");
-				password.setSingleLine(true);
-				password.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-				if (android.os.Build.VERSION.SDK_INT >= 26) {
-					password.setAutofillHints(View.AUTOFILL_HINT_PASSWORD);
-					password.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
-				}
-
-				LinearLayout layout = new LinearLayout(this);
-				layout.setOrientation(LinearLayout.VERTICAL);
-				int padding = (int)(24 * getResources().getDisplayMetrics().density);
-				layout.setPadding(padding, padding / 2, padding, 0);
-				layout.addView(username);
-				layout.addView(password);
-
-				AlertDialog dialog = new AlertDialog.Builder(this)
-					.setTitle("Steam login")
-					.setMessage("Use Android/Samsung/password-manager Autofill. The launcher does not save this password for Autofill.")
-					.setView(layout)
-					.setPositiveButton("Login", (d, which) -> storeAutofillLogin(username.getText().toString(), password.getText().toString()))
-					.setNegativeButton("Cancel", (d, which) -> clearAutofillLogin())
-					.setOnCancelListener(d -> clearAutofillLogin())
-					.create();
-				dialog.setOnShowListener(d -> {
-					username.requestFocus();
-					if (android.os.Build.VERSION.SDK_INT >= 26) {
-						AutofillManager autofillManager = getSystemService(AutofillManager.class);
-						if (autofillManager != null) {
-							autofillManager.requestAutofill(username);
-						}
-					}
-				});
-				dialog.show();
-			} catch (Exception e) {
-				Log.w(TAG, "Could not show Steam login Autofill dialog", e);
+	public void hideSteamLoginCredentialPanel() {
+		runOnUiThread(() -> {
+			if (steamLoginCredentialOverlay != null) {
+				hideKeyboardForSteamLoginCredentialPanel();
+				clearSteamLoginCredentialPanelSensitiveFields();
+				steamLoginCredentialOverlay.setVisibility(View.GONE);
 			}
 		});
 	}
 
-	public String consumeSteamLoginAutofillResult() {
-		synchronized (autofillLoginLock) {
-			if (pendingAutofillLoginExpiresAtMs > 0L && System.currentTimeMillis() > pendingAutofillLoginExpiresAtMs) {
-				clearAutofillLoginLocked();
+	@Override
+	public void onBackPressed() {
+		if (isSteamLoginCredentialPanelVisible()) {
+			dismissSteamLoginCredentialPanelFromBack();
+			return;
+		}
+
+		super.onBackPressed();
+	}
+
+	@Override
+	public boolean dispatchKeyEvent(KeyEvent event) {
+		if (event.getKeyCode() == KeyEvent.KEYCODE_BACK
+				&& event.getAction() == KeyEvent.ACTION_UP
+				&& isSteamLoginCredentialPanelVisible()) {
+			dismissSteamLoginCredentialPanelFromBack();
+			return true;
+		}
+
+		return super.dispatchKeyEvent(event);
+	}
+
+	public String consumeSteamLoginCredentialResult() {
+		synchronized (steamLoginCredentialLock) {
+			if (pendingSteamLoginCredentialExpiresAtMs > 0L && System.currentTimeMillis() > pendingSteamLoginCredentialExpiresAtMs) {
+				clearPendingSteamLoginCredentialsLocked();
 				return "";
 			}
 
-			if (pendingAutofillLoginUsername.isEmpty() && pendingAutofillLoginPassword.isEmpty()) {
+			if (pendingSteamLoginCredentialUsername.isEmpty() && pendingSteamLoginCredentialPassword.isEmpty()) {
 				return "";
 			}
 
-			String result = base64Utf8(pendingAutofillLoginUsername) + "\n" + base64Utf8(pendingAutofillLoginPassword);
-			clearAutofillLoginLocked();
+			String result = base64Utf8(pendingSteamLoginCredentialUsername) + "\n" + base64Utf8(pendingSteamLoginCredentialPassword);
+			clearPendingSteamLoginCredentialsLocked();
 			return result;
 		}
+	}
+
+	private String base64Utf8(String value) {
+		String safeValue = value == null ? "" : value;
+		return Base64.encodeToString(safeValue.getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
+	}
+
+	public boolean isSteamLoginCredentialPanelVisible() {
+		return steamLoginCredentialOverlay != null && steamLoginCredentialOverlay.getVisibility() == View.VISIBLE;
+	}
+
+	private void hideKeyboardForSteamLoginCredentialPanel() {
+		View focusedView = getCurrentFocus();
+		if (focusedView == null && steamLoginCredentialOverlay != null) {
+			focusedView = steamLoginCredentialOverlay;
+		}
+		if (focusedView == null) {
+			return;
+		}
+
+		InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+		if (inputMethodManager != null) {
+			inputMethodManager.hideSoftInputFromWindow(focusedView.getWindowToken(), 0);
+		}
+		focusedView.clearFocus();
+	}
+
+	private void dismissSteamLoginCredentialPanelFromBack() {
+		hideKeyboardForSteamLoginCredentialPanel();
+		cancelSteamLoginCredentialAutofillSession();
+		setSteamLoginCredentialStatus("Steam login cancelled. No password was stored.");
+		hideSteamLoginCredentialPanel();
+	}
+
+	private void ensureSteamLoginCredentialPanel() {
+		if (steamLoginCredentialOverlay != null) {
+			return;
+		}
+
+		FrameLayout overlay = new FrameLayout(this);
+		overlay.setVisibility(View.GONE);
+		overlay.setClickable(true);
+		overlay.setBackgroundColor(Color.argb(172, 5, 8, 14));
+		overlay.getViewTreeObserver().addOnGlobalLayoutListener(this::updateSteamLoginCredentialKeyboardInsets);
+
+		LinearLayout card = new LinearLayout(this);
+		card.setOrientation(LinearLayout.VERTICAL);
+		card.setPadding(dp(22), dp(14), dp(22), dp(14));
+		GradientDrawable cardBackground = new GradientDrawable(
+			GradientDrawable.Orientation.TL_BR,
+			new int[] { Color.rgb(17, 24, 35), Color.rgb(8, 11, 17) }
+		);
+		cardBackground.setCornerRadius(dp(22));
+		cardBackground.setStroke(dp(1), Color.rgb(35, 225, 240));
+		card.setBackground(cardBackground);
+
+		TextView title = new TextView(this);
+		title.setText("Steam login");
+		title.setTextColor(Color.WHITE);
+		title.setTextSize(22);
+		title.setTypeface(Typeface.DEFAULT_BOLD);
+		card.addView(title);
+
+		TextView subtitle = new TextView(this);
+		subtitle.setText("Choose a saved Steam credential if Android, Samsung, or Google offers it here. Credentials are handed to SteamKit once, then cleared.");
+		subtitle.setTextColor(Color.rgb(188, 201, 213));
+		subtitle.setTextSize(12);
+		subtitle.setPadding(0, dp(4), 0, dp(8));
+		card.addView(subtitle);
+
+		TextView trust = new TextView(this);
+		trust.setText("Steam password is never stored by StS2 Mobile.");
+		trust.setTextColor(Color.rgb(35, 225, 240));
+		trust.setTextSize(12);
+		trust.setTypeface(Typeface.DEFAULT_BOLD);
+		trust.setPadding(0, 0, 0, dp(6));
+		card.addView(trust);
+
+		steamLoginCredentialStatusText = new TextView(this);
+		steamLoginCredentialStatusText.setText("Password-manager suggestions are requested for both fields when the provider supports Steam.");
+		steamLoginCredentialStatusText.setTextColor(Color.rgb(155, 178, 188));
+		steamLoginCredentialStatusText.setTextSize(12);
+		steamLoginCredentialStatusText.setPadding(0, 0, 0, dp(6));
+		card.addView(steamLoginCredentialStatusText);
+
+		steamLoginCredentialUsernameField = new SteamLoginCredentialEditText(this, STEAM_CREDENTIAL_WEB_DOMAIN_STORE);
+		steamLoginCredentialUsernameField.setContentDescription("Steam username");
+		steamLoginCredentialUsernameField.setHint("Steam username or email");
+		steamLoginCredentialUsernameField.setSingleLine(true);
+		steamLoginCredentialUsernameField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+		steamLoginCredentialUsernameField.setImeOptions(EditorInfo.IME_ACTION_NEXT);
+		steamLoginCredentialUsernameField.setOnEditorActionListener((v, actionId, event) -> {
+			if (actionId == EditorInfo.IME_ACTION_NEXT) {
+				steamLoginCredentialPasswordField.requestFocus();
+				scheduleSteamLoginCredentialFocusScroll(steamLoginCredentialPasswordField);
+				requestSteamLoginCredentialAutofillField(steamLoginCredentialPasswordField);
+				return true;
+			}
+			return false;
+		});
+		steamLoginCredentialUsernameField.setOnFocusChangeListener((v, hasFocus) -> {
+			if (hasFocus) {
+				scheduleSteamLoginCredentialFocusScroll(steamLoginCredentialUsernameField);
+				requestSteamLoginCredentialAutofillField(steamLoginCredentialUsernameField);
+			}
+		});
+		configureCredentialField(steamLoginCredentialUsernameField, View.AUTOFILL_HINT_USERNAME);
+		card.addView(steamLoginCredentialUsernameField, fieldLayoutParams());
+
+		steamLoginCredentialNextPasswordButton = new Button(this);
+		steamLoginCredentialNextPasswordButton.setText("NEXT: PASSWORD");
+		steamLoginCredentialNextPasswordButton.setContentDescription("Move to Steam password field");
+		styleSteamLoginCredentialButton(steamLoginCredentialNextPasswordButton, false);
+		steamLoginCredentialNextPasswordButton.setOnClickListener(v -> focusSteamLoginPasswordField());
+		card.addView(steamLoginCredentialNextPasswordButton, buttonLayoutParams(4));
+
+		steamLoginCredentialPasswordField = new SteamLoginCredentialEditText(this, STEAM_CREDENTIAL_WEB_DOMAIN_STORE);
+		steamLoginCredentialPasswordField.setContentDescription("Steam password");
+		steamLoginCredentialPasswordField.setHint("Steam password");
+		steamLoginCredentialPasswordField.setSingleLine(true);
+		steamLoginCredentialPasswordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+		steamLoginCredentialPasswordField.setImeOptions(EditorInfo.IME_ACTION_DONE);
+		steamLoginCredentialPasswordField.setOnEditorActionListener((v, actionId, event) -> {
+			if (actionId == EditorInfo.IME_ACTION_DONE) {
+				submitSteamLoginCredentials();
+				return true;
+			}
+			return false;
+		});
+		steamLoginCredentialPasswordField.setOnFocusChangeListener((v, hasFocus) -> {
+			if (hasFocus) {
+				scheduleSteamLoginCredentialFocusScroll(steamLoginCredentialPasswordField);
+				requestSteamLoginCredentialAutofillField(steamLoginCredentialPasswordField);
+			}
+		});
+		configureCredentialField(steamLoginCredentialPasswordField, View.AUTOFILL_HINT_PASSWORD);
+		card.addView(steamLoginCredentialPasswordField, fieldLayoutParams());
+
+		steamLoginCredentialPasswordVisibilityButton = new Button(this);
+		steamLoginCredentialPasswordVisibilityButton.setText("SHOW PASSWORD");
+		steamLoginCredentialPasswordVisibilityButton.setContentDescription("Show or hide Steam password while typing");
+		styleSteamLoginCredentialButton(steamLoginCredentialPasswordVisibilityButton, false);
+		steamLoginCredentialPasswordVisibilityButton.setOnClickListener(v -> toggleSteamLoginCredentialPasswordVisibility());
+		card.addView(steamLoginCredentialPasswordVisibilityButton, buttonLayoutParams(6));
+
+		LinearLayout buttons = new LinearLayout(this);
+		buttons.setOrientation(LinearLayout.VERTICAL);
+		buttons.setGravity(Gravity.CENTER_HORIZONTAL);
+		buttons.setPadding(0, dp(8), 0, 0);
+
+		steamLoginCredentialSubmitButton = new Button(this);
+		steamLoginCredentialSubmitButton.setText("SIGN IN WITH STEAM");
+		steamLoginCredentialSubmitButton.setContentDescription("Sign in with Steam");
+		styleSteamLoginCredentialButton(steamLoginCredentialSubmitButton, true);
+		steamLoginCredentialSubmitButton.setOnClickListener(v -> submitSteamLoginCredentials());
+		buttons.addView(steamLoginCredentialSubmitButton, buttonLayoutParams(0));
+
+		steamLoginCredentialCancelButton = new Button(this);
+		steamLoginCredentialCancelButton.setText("CANCEL");
+		steamLoginCredentialCancelButton.setContentDescription("Cancel Steam login");
+		styleSteamLoginCredentialButton(steamLoginCredentialCancelButton, false);
+		steamLoginCredentialCancelButton.setOnClickListener(v -> {
+			cancelSteamLoginCredentialAutofillSession();
+			setSteamLoginCredentialStatus("Steam login cancelled. No password was stored.");
+			hideSteamLoginCredentialPanel();
+		});
+		buttons.addView(steamLoginCredentialCancelButton, buttonLayoutParams(6));
+		card.addView(buttons);
+
+		ScrollView scroll = new ScrollView(this);
+		scroll.setFillViewport(false);
+		scroll.setClipToPadding(false);
+		scroll.setPadding(0, dp(8), 0, dp(18));
+		steamLoginCredentialScrollView = scroll;
+
+		FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(
+			Math.min(getResources().getDisplayMetrics().widthPixels - dp(40), dp(540)),
+			FrameLayout.LayoutParams.WRAP_CONTENT,
+			Gravity.TOP | Gravity.CENTER_HORIZONTAL
+		);
+		cardParams.topMargin = dp(10);
+		cardParams.bottomMargin = dp(18);
+		scroll.addView(card, cardParams);
+
+		overlay.addView(
+			scroll,
+			new FrameLayout.LayoutParams(
+				FrameLayout.LayoutParams.MATCH_PARENT,
+				FrameLayout.LayoutParams.MATCH_PARENT
+			)
+		);
+
+		addContentView(
+			overlay,
+			new FrameLayout.LayoutParams(
+				FrameLayout.LayoutParams.MATCH_PARENT,
+				FrameLayout.LayoutParams.MATCH_PARENT
+			)
+		);
+		steamLoginCredentialOverlay = overlay;
+	}
+
+	private void configureCredentialField(EditText field, String autofillHint) {
+		field.setTextColor(Color.WHITE);
+		field.setHintTextColor(Color.rgb(136, 151, 166));
+		field.setTextSize(16);
+		field.setSaveEnabled(false);
+		field.setFocusableInTouchMode(true);
+		field.setSelectAllOnFocus(false);
+		if (android.os.Build.VERSION.SDK_INT >= 26) {
+			field.setAutofillHints(autofillHint);
+			field.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
+		}
+	}
+
+	private void styleSteamLoginCredentialButton(Button button, boolean primary) {
+		if (button == null) {
+			return;
+		}
+
+		GradientDrawable background = new GradientDrawable(
+			GradientDrawable.Orientation.LEFT_RIGHT,
+			primary
+				? new int[] { Color.rgb(255, 126, 16), Color.rgb(255, 184, 42) }
+				: new int[] { Color.rgb(16, 30, 42), Color.rgb(9, 16, 24) }
+		);
+		background.setCornerRadius(dp(14));
+		background.setStroke(
+			dp(1),
+			primary ? Color.rgb(255, 208, 78) : Color.rgb(35, 225, 240)
+		);
+		button.setBackground(background);
+		button.setTextColor(primary ? Color.rgb(5, 8, 14) : Color.rgb(232, 248, 250));
+		button.setTextSize(14);
+		button.setTypeface(Typeface.DEFAULT_BOLD);
+		button.setMinHeight(dp(48));
+		button.setPadding(dp(12), dp(6), dp(12), dp(6));
+	}
+
+	private LinearLayout.LayoutParams fieldLayoutParams() {
+		LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+			LinearLayout.LayoutParams.MATCH_PARENT,
+			LinearLayout.LayoutParams.WRAP_CONTENT
+		);
+		params.setMargins(0, dp(8), 0, 0);
+		return params;
+	}
+
+	private LinearLayout.LayoutParams buttonLayoutParams(int topMarginDp) {
+		LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+			LinearLayout.LayoutParams.MATCH_PARENT,
+			LinearLayout.LayoutParams.WRAP_CONTENT
+		);
+		params.setMargins(0, dp(topMarginDp), 0, 0);
+		return params;
+	}
+
+	private void submitSteamLoginCredentials() {
+		String username = steamLoginCredentialUsernameField == null ? "" : steamLoginCredentialUsernameField.getText().toString().trim();
+		String password = steamLoginCredentialPasswordField == null ? "" : steamLoginCredentialPasswordField.getText().toString();
+		if (username.isEmpty()) {
+			setSteamLoginCredentialStatus("Enter your Steam username to continue.");
+			steamLoginCredentialUsernameField.setError("Enter your Steam username");
+			steamLoginCredentialUsernameField.requestFocus();
+			scheduleSteamLoginCredentialFocusScroll(steamLoginCredentialUsernameField);
+			return;
+		}
+		if (password.isEmpty()) {
+			setSteamLoginCredentialStatus("Enter your Steam password to continue.");
+			steamLoginCredentialPasswordField.setError("Enter your Steam password");
+			steamLoginCredentialPasswordField.requestFocus();
+			scheduleSteamLoginCredentialFocusScroll(steamLoginCredentialPasswordField);
+			return;
+		}
+
+		setSteamLoginCredentialStatus("Submitting to Steam. StS2 Mobile is clearing these fields now.");
+		cancelSteamLoginCredentialAutofillSession();
+		synchronized (steamLoginCredentialLock) {
+			pendingSteamLoginCredentialUsername = username;
+			pendingSteamLoginCredentialPassword = password;
+			pendingSteamLoginCredentialExpiresAtMs = System.currentTimeMillis() + STEAM_LOGIN_CREDENTIAL_RESULT_TTL_MS;
+		}
+		clearSteamLoginCredentialPanelSensitiveFields();
+		setSteamLoginCredentialPanelEnabled(false);
+		if (steamLoginCredentialOverlay != null) {
+			steamLoginCredentialOverlay.setVisibility(View.GONE);
+		}
+		Log.i(TAG, "Native Steam login credentials submitted to managed login flow");
+	}
+
+	private void cancelSteamLoginCredentialAutofillSession() {
+		if (android.os.Build.VERSION.SDK_INT < 26) {
+			return;
+		}
+
+		AutofillManager autofillManager = getSystemService(AutofillManager.class);
+		if (autofillManager != null) {
+			autofillManager.cancel();
+		}
+	}
+
+	private void toggleSteamLoginCredentialPasswordVisibility() {
+		if (steamLoginCredentialPasswordField == null || steamLoginCredentialPasswordVisibilityButton == null) {
+			return;
+		}
+
+		int cursor = steamLoginCredentialPasswordField.getSelectionStart();
+		if (!steamLoginCredentialPasswordVisible) {
+			steamLoginCredentialPasswordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+			steamLoginCredentialPasswordVisible = true;
+			steamLoginCredentialPasswordVisibilityButton.setText("HIDE PASSWORD");
+			steamLoginCredentialPasswordVisibilityButton.setContentDescription("Hide Steam password");
+		} else {
+			steamLoginCredentialPasswordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+			steamLoginCredentialPasswordVisible = false;
+			steamLoginCredentialPasswordVisibilityButton.setText("SHOW PASSWORD");
+			steamLoginCredentialPasswordVisibilityButton.setContentDescription("Show Steam password while typing");
+		}
+		steamLoginCredentialPasswordField.setSelection(Math.max(0, Math.min(cursor, steamLoginCredentialPasswordField.length())));
+	}
+
+	private void requestSteamLoginCredentialAutofill() {
+		if (android.os.Build.VERSION.SDK_INT < 26) {
+			return;
+		}
+
+		requestSteamLoginCredentialAutofillField(steamLoginCredentialUsernameField);
+		requestSteamLoginCredentialAutofillField(steamLoginCredentialPasswordField);
+	}
+
+	private void requestSteamLoginCredentialAutofillField(EditText field) {
+		if (android.os.Build.VERSION.SDK_INT < 26 || field == null) {
+			return;
+		}
+
+		AutofillManager autofillManager = getSystemService(AutofillManager.class);
+		if (autofillManager == null) {
+			return;
+		}
+
+		autofillManager.requestAutofill(field);
+	}
+
+	private void focusSteamLoginPasswordField() {
+		if (steamLoginCredentialPasswordField == null) {
+			return;
+		}
+
+		steamLoginCredentialPasswordField.requestFocus();
+		scheduleSteamLoginCredentialFocusScroll(steamLoginCredentialPasswordField);
+		InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+		if (inputMethodManager != null) {
+			inputMethodManager.showSoftInput(steamLoginCredentialPasswordField, InputMethodManager.SHOW_IMPLICIT);
+		}
+		requestSteamLoginCredentialAutofillField(steamLoginCredentialPasswordField);
+		setSteamLoginCredentialStatus("Enter your Steam password. StS2 Mobile will clear it after handoff.");
+	}
+
+	private void setSteamLoginCredentialStatus(String text) {
+		if (steamLoginCredentialStatusText != null) {
+			steamLoginCredentialStatusText.setText(text == null ? "" : text);
+		}
+	}
+
+	private void updateSteamLoginCredentialKeyboardInsets() {
+		if (steamLoginCredentialOverlay == null || steamLoginCredentialScrollView == null) {
+			return;
+		}
+
+		android.graphics.Rect visibleFrame = new android.graphics.Rect();
+		steamLoginCredentialOverlay.getWindowVisibleDisplayFrame(visibleFrame);
+		View rootView = steamLoginCredentialOverlay.getRootView();
+		int rootHeight = rootView == null ? steamLoginCredentialOverlay.getHeight() : rootView.getHeight();
+		int keyboardHeight = Math.max(0, rootHeight - visibleFrame.bottom);
+		int bottomPadding = Math.max(dp(18), keyboardHeight + dp(18));
+		if (steamLoginCredentialScrollView.getPaddingBottom() == bottomPadding) {
+			return;
+		}
+
+		steamLoginCredentialScrollView.setPadding(
+			steamLoginCredentialScrollView.getPaddingLeft(),
+			steamLoginCredentialScrollView.getPaddingTop(),
+			steamLoginCredentialScrollView.getPaddingRight(),
+			bottomPadding
+		);
+	}
+
+	private void scheduleSteamLoginCredentialFocusScroll(View target) {
+		if (target == null || steamLoginCredentialScrollView == null) {
+			return;
+		}
+
+		steamLoginCredentialScrollView.postDelayed(() -> {
+			updateSteamLoginCredentialKeyboardInsets();
+			if (steamLoginCredentialScrollView != null && target.isShown()) {
+				int targetScroll = target == steamLoginCredentialUsernameField ? 0 : Math.max(0, target.getBottom() - dp(96));
+				steamLoginCredentialScrollView.smoothScrollTo(0, targetScroll);
+			}
+		}, 180L);
+	}
+
+	private void setSteamLoginCredentialPanelEnabled(boolean enabled) {
+		if (steamLoginCredentialUsernameField != null) {
+			steamLoginCredentialUsernameField.setEnabled(enabled);
+		}
+		if (steamLoginCredentialPasswordField != null) {
+			steamLoginCredentialPasswordField.setEnabled(enabled);
+		}
+		if (steamLoginCredentialNextPasswordButton != null) {
+			steamLoginCredentialNextPasswordButton.setEnabled(enabled);
+		}
+		if (steamLoginCredentialSubmitButton != null) {
+			steamLoginCredentialSubmitButton.setEnabled(enabled);
+		}
+		if (steamLoginCredentialCancelButton != null) {
+			steamLoginCredentialCancelButton.setEnabled(enabled);
+		}
+		if (steamLoginCredentialPasswordVisibilityButton != null) {
+			steamLoginCredentialPasswordVisibilityButton.setEnabled(enabled);
+		}
+	}
+
+	private void clearSteamLoginCredentialPanel() {
+		synchronized (steamLoginCredentialLock) {
+			clearPendingSteamLoginCredentialsLocked();
+		}
+		clearSteamLoginCredentialPanelSensitiveFields();
+	}
+
+	private void clearPendingSteamLoginCredentialsLocked() {
+		pendingSteamLoginCredentialUsername = "";
+		pendingSteamLoginCredentialPassword = "";
+		pendingSteamLoginCredentialExpiresAtMs = 0L;
+	}
+
+	private void clearSteamLoginCredentialPanelSensitiveFields() {
+		if (steamLoginCredentialUsernameField != null) {
+			steamLoginCredentialUsernameField.setText("");
+			steamLoginCredentialUsernameField.setError(null);
+		}
+		if (steamLoginCredentialPasswordField != null) {
+			steamLoginCredentialPasswordField.setText("");
+			steamLoginCredentialPasswordField.setError(null);
+			steamLoginCredentialPasswordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+		}
+		steamLoginCredentialPasswordVisible = false;
+		if (steamLoginCredentialPasswordVisibilityButton != null) {
+			steamLoginCredentialPasswordVisibilityButton.setText("SHOW PASSWORD");
+			steamLoginCredentialPasswordVisibilityButton.setContentDescription("Show Steam password while typing");
+		}
+		setSteamLoginCredentialStatus("Password-manager suggestions are requested for both fields when the provider supports Steam.");
+	}
+
+	private static void setSteamCredentialWebDomain(ViewStructure structure, String webDomain) {
+		if (android.os.Build.VERSION.SDK_INT >= 26 && structure != null) {
+			structure.setWebDomain(webDomain);
+		}
+	}
+
+	private static final class SteamLoginCredentialEditText extends EditText {
+		private final String webDomain;
+
+		SteamLoginCredentialEditText(Context context, String webDomain) {
+			super(context);
+			this.webDomain = webDomain;
+		}
+
+		@Override
+		public void onProvideAutofillStructure(ViewStructure structure, int flags) {
+			super.onProvideAutofillStructure(structure, flags);
+			setSteamCredentialWebDomain(structure, webDomain);
+			if (android.os.Build.VERSION.SDK_INT >= 26 && structure != null) {
+				CharSequence description = getContentDescription();
+				if (description != null) {
+					structure.setHint(description);
+				}
+			}
+		}
+	}
+
+	private int dp(int value) {
+		return (int)(value * getResources().getDisplayMetrics().density + 0.5f);
 	}
 
 	private void setSteamKitDebugLogMode() {
@@ -1883,34 +2384,6 @@ public class GodotApp extends GodotActivity {
 				android.system.Os.setenv(ENV_STEAMKIT_DEBUG_LOGS, "0", true);
 			} catch (Exception ignored) {
 			}
-		}
-	}
-
-	private void storeAutofillLogin(String username, String password) {
-		synchronized (autofillLoginLock) {
-			pendingAutofillLoginUsername = username == null ? "" : username.trim();
-			pendingAutofillLoginPassword = password == null ? "" : password;
-			pendingAutofillLoginExpiresAtMs = System.currentTimeMillis() + AUTOFILL_LOGIN_RESULT_TTL_MS;
-		}
-	}
-
-	private void clearAutofillLogin() {
-		synchronized (autofillLoginLock) {
-			clearAutofillLoginLocked();
-		}
-	}
-
-	private void clearAutofillLoginLocked() {
-		pendingAutofillLoginUsername = "";
-		pendingAutofillLoginPassword = "";
-		pendingAutofillLoginExpiresAtMs = 0L;
-	}
-
-	private static String base64Utf8(String value) {
-		try {
-			return Base64.encodeToString((value == null ? "" : value).getBytes("UTF-8"), Base64.NO_WRAP);
-		} catch (Exception e) {
-			return "";
 		}
 	}
 

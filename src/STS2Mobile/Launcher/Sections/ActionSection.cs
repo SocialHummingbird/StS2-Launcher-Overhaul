@@ -7,8 +7,8 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection : VBoxContainer
 {
-    private const string PushButtonText = "Push to Cloud";
-    private const string PushConfirmButtonText = "ARE YOU SURE? PUSH TO CLOUD";
+    private const string PushButtonText = "Push Saves to Steam Cloud";
+    private const string PushConfirmButtonText = "CONFIRM: OVERWRITE STEAM CLOUD";
 
     internal event Action LaunchPressed;
     internal event Action RetryPressed;
@@ -29,12 +29,18 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _launchButton;
     private readonly Button _safeLaunchButton;
     private readonly Button _retryButton;
+    private readonly bool _compact;
     private readonly OptionButton _branchDropdown;
     private readonly Label _branchHelpLabel;
+    private readonly Button _branchDetailsToggle;
+    private readonly Label _cloudSafetyLabel;
+    private readonly Button _cloudSafetyToggle;
+    private readonly Button _cloudOptionsToggle;
     private readonly Button _localBackupToggle;
     private readonly Button _cloudSyncToggle;
     private readonly Button _pushButton;
     private readonly Button _confirmPushButton;
+    private readonly Label _pushConfirmationLabel;
     private readonly Button _pullButton;
     private readonly Button _updateButton;
     private readonly Button _refreshVersionsButton;
@@ -52,6 +58,9 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly List<LauncherBranchCatalog.BranchOption> _branchOptions = new();
     private IReadOnlyList<LauncherBranchCatalog.BranchOption> _availableBranches = Array.Empty<LauncherBranchCatalog.BranchOption>();
     private bool _supportExpanded;
+    private bool _branchDetailsExpanded;
+    private bool _cloudSafetyExpanded;
+    private bool _cloudOptionsExpanded;
     private string _gameBranch = SteamGameBranch.Public;
 
     internal void SetLocalBackupChecked(bool value)
@@ -78,11 +87,33 @@ internal sealed partial class ActionSection : VBoxContainer
     {
         _branchHelpLabel.Text = SteamGameBranch.SelectorInstallSlotHelpText(_gameBranch)
             + "\n"
-            + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches);
+            + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches)
+            + "\n"
+            + "Version/download actions affect local game files only. Steam Cloud saves move only through Pull/Push.";
+        _branchHelpLabel.Visible = _branchDropdown.Visible && (!_compact || _branchDetailsExpanded);
+        if (_branchDetailsToggle != null)
+        {
+            _branchDetailsToggle.Text = _branchDetailsExpanded
+                ? "HIDE VERSION DETAILS"
+                : "SHOW VERSION DETAILS";
+        }
+        if (_cloudSafetyLabel != null)
+        {
+            _cloudSafetyLabel.Text = $"Steam Cloud actions apply to selected version: {SteamGameBranch.DisplayName(_gameBranch)}.\nPull copies Steam Cloud saves to Android. Push copies Android saves to Steam Cloud and can overwrite remote saves.";
+            _cloudSafetyLabel.Visible = !_compact || _cloudSafetyExpanded;
+        }
+        if (_cloudSafetyToggle != null)
+        {
+            _cloudSafetyToggle.Visible = _compact;
+            _cloudSafetyToggle.Text = _cloudSafetyExpanded
+                ? "HIDE CLOUD SAFETY"
+                : "SHOW CLOUD SAFETY";
+        }
     }
 
     internal void ShowLaunch(string text, bool showUpdate)
     {
+        Visible = true;
         _launchButton.Text = text;
         SetCloudControlsVisible(true);
         ShowLaunchButtons(showUpdate);
@@ -91,6 +122,7 @@ internal sealed partial class ActionSection : VBoxContainer
 
     internal void ShowRetry()
     {
+        Visible = true;
         _retryButton.Visible = true;
         SetCloudControlsVisible(false);
         ShowRetryButtons();
@@ -98,6 +130,7 @@ internal sealed partial class ActionSection : VBoxContainer
 
     internal void HideAll()
     {
+        Visible = false;
         _retryButton.Visible = false;
         SetCloudControlsVisible(false);
         HideSecondaryButtons();
@@ -120,4 +153,37 @@ internal sealed partial class ActionSection : VBoxContainer
     internal void SetUpdateButtonDisabled(bool disabled) => _updateButton.Disabled = disabled;
 
     internal void SetRefreshVersionsButtonDisabled(bool disabled) => _refreshVersionsButton.Disabled = disabled;
+
+    private void ToggleCloudOptions()
+    {
+        _cloudOptionsExpanded = !_cloudOptionsExpanded;
+        ApplyCloudOptionVisibility(_cloudGroup.Visible);
+    }
+
+    private void ApplyCloudOptionVisibility(bool cloudControlsVisible)
+    {
+        if (_cloudOptionsToggle != null)
+        {
+            _cloudOptionsToggle.Visible = cloudControlsVisible && _compact;
+            _cloudOptionsToggle.Text = _cloudOptionsExpanded
+                ? "HIDE CLOUD OPTIONS"
+                : "SHOW CLOUD OPTIONS";
+        }
+
+        var showOptions = cloudControlsVisible && (!_compact || _cloudOptionsExpanded);
+        _localBackupToggle.Visible = showOptions;
+        _cloudSyncToggle.Visible = showOptions;
+    }
+
+    private void ToggleBranchDetails()
+    {
+        _branchDetailsExpanded = !_branchDetailsExpanded;
+        UpdateBranchHelpText();
+    }
+
+    private void ToggleCloudSafety()
+    {
+        _cloudSafetyExpanded = !_cloudSafetyExpanded;
+        UpdateBranchHelpText();
+    }
 }

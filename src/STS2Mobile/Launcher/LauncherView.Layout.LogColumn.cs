@@ -35,6 +35,31 @@ internal sealed partial class LauncherView
         };
         root.AddChild(toggle);
 
+        var title = new StyledLabel(
+            "Diagnostics Console",
+            scale,
+            fontSize: LauncherViewLayoutMetrics.LogTitleFontSize,
+            align: HorizontalAlignment.Left
+        );
+        title.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextSecondary
+        );
+        drawer.AddChild(title);
+
+        var help = new StyledLabel(
+            "Hidden by default. Export sanitized diagnostics when reporting launcher issues.",
+            scale,
+            fontSize: 11,
+            align: HorizontalAlignment.Left
+        );
+        help.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        help.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextMuted
+        );
+        drawer.AddChild(help);
+
         var log = BuildLogView(scale);
         log.CustomMinimumSize = new Vector2(
             0,

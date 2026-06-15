@@ -93,10 +93,10 @@ Missing/private/password branch behavior:
 | Dropdown labels remain concise, while selected-version helper text shows availability, password status, build ID, and description where Steam exposes them |  |  |  |
 | Selected-version helper text treats password-protected, no-Windows-manifest, and not-listed branches as blocked states |  |  |  |
 | `REFRESH GAME VERSIONS` fetches Steam app-info branch metadata, refreshes dropdown options, and does not download/delete game files |  |  |  |
-| Diagnostics show Android credential Autofill provider model, Godot login field Autofill hints configured, native Android Autofill overlay supported, launcher stores Steam password for Autofill, SteamKit debug logs opt-in status, and SteamKit debug logs are disabled by default/sanitized for credentials and tokens when enabled |  |  |  |
-| `USE ANDROID AUTOFILL` opens a native Android username/password dialog with password-manager Autofill hints |  |  |  |
-| Native Autofill-filled credentials are consumed by the existing login flow, cancelled, cleared when the Android activity stops/destroys, or expired after 60 seconds without being logged or written to artifact files; the Godot password field clears after request capture |  |  |  |
-| Android/Samsung/password-manager Autofill behavior is validated on device or remains an explicit blocker |  |  |  |
+| Diagnostics show Android credential provider model, native integrated credential panel supported, native credential fields Autofill hints configured, Steam credential web domain configured, Godot login field credential metadata configured, Android keyboard credential hints configured, Godot fields are native Android Autofill targets false, password-manager suggestions device validated false until proven, native credential handoff popup unsupported/user-facing disabled, launcher stores Steam password for credential providers false, Android credential provider capability boundary, SteamKit debug logs opt-in status, and SteamKit debug logs are disabled by default/sanitized for credentials and tokens when enabled |  |  |  |
+| Normal Android login uses the integrated native Steam credential panel and does not show the native `USE ANDROID AUTOFILL` handoff popup |  |  |  |
+| Manual username/password entry reaches Steam login, Steam Guard if required, failed-login recovery, and successful return to launcher; the Godot password field clears after request capture |  |  |  |
+| Android/Samsung/password-manager suggestion behavior in the native credential panel is validated on device or remains an explicit blocker |  |  |  |
 | Diagnostics show `Steam branch selector mode: Steam branch dropdown` |  |  |  |
 
 Cache switching and cleanup:

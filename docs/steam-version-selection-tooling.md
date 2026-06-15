@@ -274,8 +274,8 @@ Use the tools in this order:
 - The startup recovery UI labels raw-log copy as review-before-sharing because raw logs can contain identifying data.
 - Keep raw logs local if they contain account-identifying paths, usernames, or device identifiers.
 
-## Autofill versus local credential handoff
+## Credential providers versus local credential handoff
 
-Android/Samsung/password-manager Autofill is the user-facing login convenience path. It uses the native `USE ANDROID AUTOFILL` dialog and must not create a launcher-owned Autofill password store.
+Android/Samsung/password-manager support targets the integrated native Android credential panel. The launcher no longer exposes the native `USE ANDROID AUTOFILL` handoff dialog as the user-facing path, and it must not create a launcher-owned password store or inject Steam passwords.
 
 Local credential handoff files are developer-only automation aids for repeatable test runs. Do not describe them as Autofill, do not include them in evidence bundles, and do not copy them into public artifacts.

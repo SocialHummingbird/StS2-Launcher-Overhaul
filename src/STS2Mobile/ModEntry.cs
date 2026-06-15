@@ -451,23 +451,9 @@ public static class ModEntry
         if (string.IsNullOrWhiteSpace(_startupFallbackReason))
             return;
 
-        var banner = new Label
-        {
-            Text = "Game launch failed before startup completed.\n" + _startupFallbackReason,
-            ZIndex = 1000,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        };
-        banner.SetAnchorsPreset(Control.LayoutPreset.TopWide);
-        banner.OffsetLeft = 18;
-        banner.OffsetTop = 18;
-        banner.OffsetRight = -18;
-        banner.OffsetBottom = 190;
-        banner.AddThemeColorOverride("font_color", Colors.White);
-        banner.AddThemeColorOverride("font_shadow_color", Colors.Black);
-        banner.AddThemeConstantOverride("shadow_offset_x", 2);
-        banner.AddThemeConstantOverride("shadow_offset_y", 2);
-        tree.Root.AddChild(banner);
-        PatchHelper.Log("Startup fallback banner displayed");
+        PatchHelper.Log(
+            "Startup fallback raw banner suppressed; launcher diagnostics retain the startup failure detail."
+        );
     }
 
     private static bool TryBeginApply()

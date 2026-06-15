@@ -18,16 +18,27 @@ internal sealed class DownloadSection : VBoxContainer
     private readonly OptionButton _branchDropdown;
     private readonly Button _refreshBranchesButton;
     private readonly Label _branchHelpLabel;
+    private readonly Button _branchDetailsToggle;
     private readonly Button _downloadButton;
     private readonly ProgressBar _progressBar;
     private readonly Label _progressLabel;
     private readonly List<LauncherBranchCatalog.BranchOption> _branchOptions = new();
     private IReadOnlyList<LauncherBranchCatalog.BranchOption> _availableBranches = Array.Empty<LauncherBranchCatalog.BranchOption>();
+    private readonly bool _compact;
+    private bool _branchDetailsExpanded;
     private string _gameBranch = SteamGameBranch.Public;
 
-    internal DownloadSection(float scale)
+    internal DownloadSection(float scale, bool compact = false)
     {
-        LauncherSectionSetup.ConfigureHiddenSection(this, scale);
+        _compact = compact;
+        LauncherSectionSetup.ConfigureHiddenSection(
+            this,
+            scale,
+            "Game Install",
+            "Choose the Steam branch, download files, and keep separate installs isolated.",
+            LauncherComponentTheme.CyanAccent,
+            compact
+        );
 
         _branchDropdown = new OptionButton();
         _branchDropdown.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -39,7 +50,7 @@ internal sealed class DownloadSection : VBoxContainer
         AddChild(_branchDropdown);
 
         _refreshBranchesButton = new StyledButton(
-            "REFRESH GAME VERSIONS",
+            compact ? "REFRESH VERSIONS" : "REFRESH GAME VERSIONS",
             scale,
             fontSize: LauncherSectionMetrics.SecondaryButtonFontSize,
             height: LauncherSectionMetrics.SecondaryButtonHeight
@@ -60,10 +71,21 @@ internal sealed class DownloadSection : VBoxContainer
             LauncherViewLayoutMetrics.LogTitleColor
         );
         AddChild(_branchHelpLabel);
+
+        _branchDetailsToggle = new StyledButton(
+            "SHOW VERSION DETAILS",
+            scale,
+            fontSize: LauncherSectionMetrics.ProgressFontSize,
+            height: LauncherSectionMetrics.SecondaryButtonHeight
+        );
+        LauncherButtonStyles.ApplySupportAction(_branchDetailsToggle, scale);
+        _branchDetailsToggle.Visible = compact;
+        _branchDetailsToggle.Pressed += ToggleBranchDetails;
+        AddChild(_branchDetailsToggle);
         SetGameBranch(_gameBranch);
 
         _downloadButton = new StyledButton(
-            DefaultDownloadButtonText,
+            CompactDownloadButtonText(DefaultDownloadButtonText, compact),
             scale,
             height: LauncherSectionMetrics.DownloadButtonHeight
         );
@@ -127,7 +149,16 @@ internal sealed class DownloadSection : VBoxContainer
     {
         _branchHelpLabel.Text = SteamGameBranch.SelectorInstallSlotHelpText(_gameBranch)
             + "\n"
-            + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches);
+            + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches)
+            + "\n"
+            + "Download/update changes local files for the selected game version only; it does not change Steam Cloud saves.";
+        _branchHelpLabel.Visible = !_compact || _branchDetailsExpanded;
+        if (_branchDetailsToggle != null)
+        {
+            _branchDetailsToggle.Text = _branchDetailsExpanded
+                ? "HIDE VERSION DETAILS"
+                : "SHOW VERSION DETAILS";
+        }
     }
 
     internal void Reset(string buttonText = DefaultDownloadButtonText)
@@ -135,9 +166,19 @@ internal sealed class DownloadSection : VBoxContainer
         _downloadButton.Disabled = false;
         _branchDropdown.Disabled = false;
         _refreshBranchesButton.Disabled = false;
-        _downloadButton.Text = buttonText;
+        _downloadButton.Text = CompactDownloadButtonText(buttonText, _compact);
         HideProgress();
         _progressBar.Value = 0;
+    }
+
+    private static string CompactDownloadButtonText(string text, bool compact)
+    {
+        if (!compact)
+            return text;
+
+        return string.Equals(text, DefaultDownloadButtonText, StringComparison.OrdinalIgnoreCase)
+            ? "DOWNLOAD"
+            : text;
     }
 
     private void ShowProgress(double pct, string text)
@@ -177,5 +218,11 @@ internal sealed class DownloadSection : VBoxContainer
         }
 
         _branchDropdown.Select(selectedIndex);
+    }
+
+    private void ToggleBranchDetails()
+    {
+        _branchDetailsExpanded = !_branchDetailsExpanded;
+        UpdateBranchHelpText();
     }
 }

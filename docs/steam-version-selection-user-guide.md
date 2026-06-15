@@ -55,13 +55,13 @@ The launcher blocks selected-version download/update attempts before contacting 
 
 If the selected local cache has missing or mismatched branch metadata while the branch is also blocked by app-info evidence, the launcher can still delete the selected cache. It does not start a replacement download until the selected branch becomes account-visible/downloadable or a different version is selected.
 
-## Steam login Autofill
+## Steam login credential entry
 
-Android builds include `USE ANDROID AUTOFILL` on the login screen. This opens a native Android username/password dialog with Autofill hints so Samsung Pass, Google Password Manager, Bitwarden, 1Password, and similar providers can offer credentials.
+Android builds use an integrated in-app native Steam credential panel as the normal credential target. The panel uses real Android username/password fields with credential-provider hints and Steam web-domain metadata so Samsung Pass, Google Password Manager, and similar providers can offer saved Steam credentials where supported. The previous native `USE ANDROID AUTOFILL` popup is no longer user-facing because it was a separate helper dialog instead of the login surface.
 
-The launcher does not create a separate Autofill password store and does not log the filled values. The native dialog keeps filled username/password values in memory only until the existing Steam login flow consumes them.
+The launcher does not create a separate password store, does not inject Steam passwords, and does not log password values. Use the integrated Steam login panel directly; keyboard or password-manager suggestions may appear depending on the Android provider and device.
 
-If the native Autofill dialog is cancelled, dismissed, consumed by login, the Android activity stops/destroys, or the result is left pending for 60 seconds, the pending username/password values are cleared from the Java bridge buffer. The Godot password field is also cleared immediately after the login request captures the value.
+The native username/password fields are cleared after submit/cancel/expiry, and the non-Android fallback Godot password field is cleared immediately after the login request captures the value. Android/Samsung/password-manager suggestion behavior in the native panel still needs ARM64 device validation.
 
 The launcher still stores Steam session credentials/tokens for normal SteamKit login and Steam Cloud use using the existing encrypted Android Keystore path. That is separate from password-manager Autofill and must not be described as Autofill password storage.
 
@@ -186,12 +186,19 @@ Steam branch catalog source:
 Steam branch dropdown options:
 Steam branch dropdown option metadata:
 Steam beta password entry supported:
-Android credential Autofill provider model:
-Godot login field Autofill hints configured:
-Native Android Autofill overlay supported:
-Launcher stores Steam password for Autofill:
-Native Android Autofill result TTL seconds:
-Android credential Autofill implementation note:
+Android credential provider model:
+Native integrated credential panel supported:
+Native credential fields Autofill hints configured:
+Steam credential web domain configured:
+Godot login field credential metadata configured:
+Android keyboard credential hints configured:
+Godot fields are native Android Autofill targets:
+Password-manager suggestions device validated:
+Native credential handoff popup supported:
+Launcher stores Steam password for credential providers:
+Native credential handoff result TTL seconds:
+Android credential provider implementation note:
+Android credential provider capability boundary:
 SteamKit debug logs opt-in enabled:
 SteamKit debug logs sanitized for credentials/tokens:
 Selected game branch storage directory:

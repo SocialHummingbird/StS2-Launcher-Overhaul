@@ -19,7 +19,10 @@ internal sealed partial class LauncherView
     private readonly float _panelBaseY;
     private readonly float _scale;
     private readonly LauncherLayoutProfile _profile;
+    private readonly StyledLabel _statusPhaseLabel;
+    private readonly StyledLabel _statusActionLabel;
     private readonly StyledLabel _statusLabel;
+    private readonly ColorRect _statusAccent;
 
     internal LauncherView(Control parent, LauncherLayoutProfile profile)
     {
@@ -31,7 +34,10 @@ internal sealed partial class LauncherView
         _scale = profile.Scale;
         _profile = profile;
         var primary = BuildPrimaryColumn(profile, shell.Content);
+        _statusPhaseLabel = primary.StatusPhase;
+        _statusActionLabel = primary.StatusAction;
         _statusLabel = primary.Status;
+        _statusAccent = primary.StatusAccent;
         Login = primary.Login;
         Code = primary.Code;
         Download = primary.Download;
@@ -39,7 +45,16 @@ internal sealed partial class LauncherView
         Log = BuildLogColumn(profile, shell.Content, dismissKeyboard);
     }
 
-    internal void SetStatus(string text) => _statusLabel.Text = text;
+    internal void SetStatus(string text)
+    {
+        var phase = LauncherPortalStatusFormatter.PhaseFor(text);
+        var color = LauncherPortalStatusFormatter.ColorFor(phase);
+        _statusPhaseLabel.Text = phase;
+        _statusPhaseLabel.AddThemeColorOverride(LauncherViewLayoutMetrics.ThemeFontColor, color);
+        _statusActionLabel.Text = LauncherPortalStatusFormatter.ActionFor(text);
+        _statusAccent.Color = color;
+        _statusLabel.Text = LauncherPortalStatusFormatter.MessageFor(text);
+    }
 
     internal void AppendLog(string msg) => AppendLogLine(Log, msg);
 
