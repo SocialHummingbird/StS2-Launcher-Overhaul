@@ -19,6 +19,7 @@ internal partial class LauncherModel : IDisposable
     private readonly string _dataDir;
     private readonly SteamCredentialStore _credentialStore;
     private readonly LauncherSteamSession _steamSession;
+    private readonly string _processGameBranch;
     private int _sessionAttemptId;
     private string _failReason;
     private SessionState _sessionState = SessionState.Disconnected;
@@ -28,6 +29,7 @@ internal partial class LauncherModel : IDisposable
     internal LauncherModel(string dataDir)
     {
         _dataDir = dataDir;
+        _processGameBranch = LauncherPreferences.ReadGameBranch();
         _credentialStore = new SteamCredentialStore(dataDir);
         _steamSession = new LauncherSteamSession(dataDir, _credentialStore);
     }

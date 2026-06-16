@@ -88,6 +88,7 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_INSTALLED_VERSION_CODE = "installed_version_code";
 	private static final String KEY_INSTALLED_PACKAGE_NAME = "installed_package_name";
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
+	private static final String KEY_ASSEMBLY_CACHE_BRANCH = "assembly_cache_branch";
 	private static final String KEY_LAUNCH_GAME_ON_NEXT_START = "launch_game_on_next_start";
 	private static final String KEY_SAFE_LAUNCH_ON_NEXT_START = "safe_launch_on_next_start";
 	private static final String GAME_BRANCH_FILE = "game_branch";
@@ -439,6 +440,7 @@ public class GodotApp extends GodotActivity {
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		prefs.edit()
 			.putInt(KEY_ASSEMBLY_CACHE_SCHEMA, ASSEMBLY_CACHE_SCHEMA)
+			.putString(KEY_ASSEMBLY_CACHE_BRANCH, readSelectedBranch())
 			.putInt(KEY_INSTALLED_VERSION_CODE, currentVersion)
 			.putString(KEY_INSTALLED_PACKAGE_NAME, getPackageName())
 			.apply();
@@ -446,7 +448,12 @@ public class GodotApp extends GodotActivity {
 
 	private void resetAssemblyCacheState() {
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-		prefs.edit().remove(KEY_ASSEMBLY_CACHE_SCHEMA).remove(KEY_INSTALLED_VERSION_CODE).remove(KEY_INSTALLED_PACKAGE_NAME).apply();
+		prefs.edit()
+			.remove(KEY_ASSEMBLY_CACHE_SCHEMA)
+			.remove(KEY_ASSEMBLY_CACHE_BRANCH)
+			.remove(KEY_INSTALLED_VERSION_CODE)
+			.remove(KEY_INSTALLED_PACKAGE_NAME)
+			.apply();
 		File destDir = new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir());
 		clearAssemblyCache(destDir);
 	}
@@ -511,7 +518,7 @@ public class GodotApp extends GodotActivity {
 		boolean requiresGameAssemblies = gameReady && hasGameAssemblies(srcDir);
 		Set<String> packagedBclNames = getPackagedBclNames();
 
-		boolean refreshCache = shouldRefreshAssemblyCache();
+		boolean refreshCache = shouldRefreshAssemblyCache() || shouldRefreshAssemblyCacheForSelectedBranch();
 		logAssemblyCacheState("before-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
 
 		File patcherMarker = new File(destDir, "STS2Mobile.dll");
@@ -533,7 +540,7 @@ public class GodotApp extends GodotActivity {
 		}
 
 		if (refreshCache) {
-			Log.i(TAG, "New version detected, re-copying all assemblies");
+			Log.i(TAG, "Assembly cache refresh required, re-copying all assemblies");
 			clearAssemblyCache(destDir);
 		}
 
@@ -599,6 +606,26 @@ public class GodotApp extends GodotActivity {
 
 		logAssemblyCacheState("after-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
 		markAssemblyCacheStateAsCurrent(currentVersion);
+	}
+
+	private boolean shouldRefreshAssemblyCacheForSelectedBranch() {
+		String selectedBranch = readSelectedBranch();
+		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		String cachedBranch = prefs.getString(KEY_ASSEMBLY_CACHE_BRANCH, "");
+		if (cachedBranch == null || cachedBranch.trim().isEmpty()) {
+			if (isGamePckReady()) {
+				Log.i(TAG, "Assembly cache has no selected-branch marker; refreshing for branch: " + selectedBranch);
+				return true;
+			}
+			return false;
+		}
+
+		if (!cachedBranch.trim().equalsIgnoreCase(selectedBranch)) {
+			Log.i(TAG, "Assembly cache branch changed from " + cachedBranch + " to " + selectedBranch + "; refreshing game assemblies");
+			return true;
+		}
+
+		return false;
 	}
 
 	private Set<String> getPackagedBclNames() {

@@ -1,4 +1,6 @@
 using System.Threading.Tasks;
+using STS2Mobile.Patches;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -70,6 +72,17 @@ internal partial class LauncherModel
     {
         if (_launchTcs == null)
             return false;
+
+        var selectedBranch = LauncherPreferences.ReadGameBranch();
+        if (!string.Equals(_processGameBranch, selectedBranch, System.StringComparison.OrdinalIgnoreCase))
+        {
+            PatchHelper.Log(
+                "[Launcher] Selected game branch changed from process-loaded "
+                    + $"{SteamGameBranch.DisplayName(_processGameBranch)} to {SteamGameBranch.DisplayName(selectedBranch)}; "
+                    + "restarting so Godot loads the selected version from disk."
+            );
+            return false;
+        }
 
         _launchTcs.TrySetResult(true);
         return true;
