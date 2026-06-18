@@ -100,6 +100,9 @@ function Copy-ReviewedImageFile([System.IO.FileInfo]$File, [string]$RelativePath
 $localOnlyPatterns = @(
     "(^|\\)logs\\logcat-full\.txt$",
     "(^|\\)logs\\logcat-steam-version-focused\.txt$",
+    "(^|\\)logs\\logcat-(?!steam-version-focused-redacted).*\.txt$",
+    "(^|\\)logs\\.*focused-after-launch\.txt$",
+    "(^|\\)logs\\startup-routing-focused\.txt$",
     "shared[_-]?prefs",
     "steam_login_credentials",
     "steam_guard_code",

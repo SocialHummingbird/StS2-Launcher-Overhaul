@@ -90,7 +90,7 @@ artifacts/android/steam-version-selection-<timestamp>/
 Purpose:
 
 - Fails a public-share candidate when `PUBLIC_EVIDENCE_REDACTION_REVIEW.txt` is missing or incomplete.
-- Fails raw/local-only evidence such as `logs/logcat-full.txt`, credential handoff files, token-like files, private save dumps, local user paths, device-private Android paths, known device serials, email addresses, and credential/token assignments.
+- Fails raw/local-only evidence such as `logs/logcat-full.txt`, `logs/logcat-steam-version-focused.txt`, ad hoc raw logcat captures like `logs/logcat-after-launch.txt`, focused raw startup extracts like `logs/startup-routing-focused.txt`, credential handoff files, token-like files, private save dumps, local user paths, device-private Android paths, known device serials, email addresses, and credential/token assignments.
 - Requires screenshots/images to have completed manual review fields before they are treated as shareable.
 - Does not mutate artifacts and does not replace manual review.
 
@@ -107,7 +107,7 @@ Purpose:
 
 - Copies a raw/local evidence folder into a separate public-share candidate folder without mutating the source evidence.
 - Sanitizes text artifacts for local Windows/user paths, Android app-private package paths, known device serials, email addresses, and common credential/token assignment patterns.
-- Skips local-only raw-log and credential/token-like artifact paths.
+- Skips local-only raw-log, ad hoc raw logcat/focused startup extracts, and credential/token-like artifact paths. The generated `logs/logcat-steam-version-focused-redacted.txt` remains the default public log excerpt.
 - Omits images by default; use `-IncludeImages` only after direct visual review.
 - Writes `PUBLIC_EVIDENCE_REDACTION_REVIEW.txt` and `PUBLIC_SHARE_MANIFEST.txt` into the export folder, then the export must still pass `review-public-evidence-redaction.ps1`.
 
@@ -315,7 +315,7 @@ Use the tools in this order:
 - Prefer scrubbed summaries when sharing evidence publicly.
 - Prefer `logs/logcat-steam-version-focused-redacted.txt` over raw logcat when attaching evidence publicly, but review it manually before posting.
 - Treat full launcher diagnostics and startup-recovery diagnostics reports as manual attachments; review/redact them before sharing because they can contain account names, local paths, device details, and log excerpts. These reports include a public-sharing warning, but that warning is not a substitute for manual review.
-- Treat copied raw error logs the same way: they include a warning, but must be reviewed/redacted before public posting.
+- Treat copied raw error logs, ad hoc `logcat-*` captures, and raw focused startup extracts as local-only unless they are manually redacted into a separate reviewed artifact.
 - The launcher support UI labels raw-log copy as review-before-sharing.
 - The startup recovery UI labels raw-log copy as review-before-sharing because raw logs can contain identifying data.
 - Keep raw logs local if they contain account-identifying paths, usernames, or device identifiers.
