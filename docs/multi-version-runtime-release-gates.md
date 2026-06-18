@@ -219,3 +219,13 @@ SHA-256: 69df0581cf2a8cb3843317ddf0a34e789ffce54ba596cfe1a0a26be7f8e8dc3b
 ```
 
 Before publishing the APK, `scripts/audit-multi-version-runtime.ps1` passed all 29 checks. No additional device runtime evidence was captured specifically for fix21; use the fix20 ARM64 public/public-beta/public-after-beta launch evidence as the matching code-level device validation for this commit.
+
+## Fix23 prerelease evidence note
+
+The `v0.2.188-local-runtime-beta-fix23` ARM64 hardening build fixes the crash observed immediately after confirming a switch to the locally installed `public-beta` slot. The root cause was the non-public runtime-slot inspector falling back to direct selected-PCK hashing when stale public runtime-cache evidence did not match the selected beta branch. On the connected ARM64 device that path died in native JNI before managed exception handling could catch it. Fix23 uses branch-local `.android_patch_validation.json` and `runtime_packs/<branch>/compatibility.json` hash evidence for non-public branches before any direct hash fallback; if that evidence is missing or mismatched, the branch remains not playable instead of being treated as success.
+
+Device evidence captured on 2026-06-18:
+
+- `artifacts/android/fix23-public-beta-startup-crash-retest-20260618`: launcher-only startup with selected `public-beta` stayed foreground, wrote fresh `current_runtime_slot.json`, and had no `JNI DETECTED`, `SIGSEGV`, `NativeFallback`, or fatal package log lines.
+- `artifacts/android/fix23-public-beta-game-launch-20260618`: auto-launch mounted `/files/game_versions/public-beta-8128824d/game/SlayTheSpire2.pck`, reached `NGame.GameStartup completed`, and showed the main menu. Runtime slot evidence recorded source PCK SHA-256 `a263c68cfdeb6e94af9029088e1bab0c4c72a1641bc1c1ff72c180396a7b134c`; runtime cache/patch validation recorded Android-patched PCK SHA-256 `957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a`; source, runtime-pack, and active Android `sts2.dll` SHA-256 all matched `4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3`.
+- `artifacts/android/fix23-public-beta-compendium-route-20260618`: route retest attempts were not deterministic enough for signoff. Several raw-touch coordinate attempts hit the wrong menu region or Quit; D-pad relaunch evidence only proved main-menu startup and Bestiary resource preload, not a confirmed Compendium/Bestiary route. Do not count this as asset-route pass or asset-route failure.

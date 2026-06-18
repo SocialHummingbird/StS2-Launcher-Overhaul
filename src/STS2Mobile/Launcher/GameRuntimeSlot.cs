@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using STS2Mobile.Patches;
 using STS2Mobile.Steam;
 
@@ -211,7 +212,7 @@ internal sealed class GameRuntimeSlot
         var runtimePackManifestPath = BuildRuntimePackManifestPath(dataDir, branch);
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: paths pck='{pckPath}' source='{sourceAssemblyPath}' active='{activeAssemblyPath}' manifest='{runtimePackManifestPath}'");
         PatchHelper.Log("[Launcher] Runtime slot inspect phase: PCK SHA256");
-        var pckSha256 = PckSha256OrMissing(dataDir, branch, pckPath);
+        var pckSha256 = PckSha256OrMissing(dataDir, branch, gameDirectory, pckPath, runtimePackManifestPath);
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: PCK SHA256 -> {pckSha256}");
         if (!HasUsableHash(pckSha256))
         {
@@ -507,20 +508,47 @@ internal sealed class GameRuntimeSlot
         }
     }
 
-    private static string PckSha256OrMissing(string dataDir, string branch, string pckPath)
+    private static string PckSha256OrMissing(string dataDir, string branch, string gameDirectory, string pckPath, string runtimePackManifestPath)
     {
         var cached = CachedSelectedPckSha256(dataDir, branch, pckPath);
-        return HasUsableHash(cached)
-            ? cached
-            : Sha256OrMissing(pckPath);
+        if (HasUsableHash(cached))
+            return cached;
+
+        if (!string.Equals(branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
+        {
+            var validated = ValidatedGameDirectoryPckSha256(gameDirectory, branch);
+            if (HasUsableHash(validated))
+                return validated;
+
+            var runtimePack = RuntimePackSourcePckSha256(runtimePackManifestPath, branch);
+            return HasUsableHash(runtimePack)
+                ? runtimePack
+                : "<missing>";
+        }
+
+        return Sha256OrMissing(pckPath);
     }
 
     private static string SourceAssemblySha256OrMissing(string dataDir, string branch, string sourceAssemblyPath)
     {
         var cached = CachedSelectedSourceAssemblySha256(dataDir, branch, sourceAssemblyPath);
-        return HasUsableHash(cached)
-            ? cached
-            : Sha256OrMissing(sourceAssemblyPath);
+        if (HasUsableHash(cached))
+            return cached;
+
+        if (!string.Equals(branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
+        {
+            var gameDirectory = Directory.GetParent(Path.GetDirectoryName(sourceAssemblyPath) ?? string.Empty)?.FullName;
+            var validated = ValidatedGameDirectorySourceAssemblySha256(gameDirectory, branch);
+            if (HasUsableHash(validated))
+                return validated;
+
+            var runtimePackManifestPath = BuildRuntimePackManifestPath(dataDir, branch);
+            var runtimePack = RuntimePackSourceAssemblySha256(runtimePackManifestPath, branch);
+            if (HasUsableHash(runtimePack))
+                return runtimePack;
+        }
+
+        return Sha256OrMissing(sourceAssemblyPath);
     }
 
     private static string ActiveAndroidAssemblySha256OrMissing(string dataDir, string activeAssemblyPath)
@@ -566,6 +594,117 @@ internal sealed class GameRuntimeSlot
         {
             return null;
         }
+    }
+
+    private static string ValidatedGameDirectoryPckSha256(string gameDirectory, string branch)
+        => ValidatedGameDirectoryHash(
+            gameDirectory,
+            branch,
+            "pckSha256",
+            "pck_sha256",
+            "sourcePckSha256",
+            "source_pck_sha256"
+        );
+
+    private static string ValidatedGameDirectorySourceAssemblySha256(string gameDirectory, string branch)
+        => ValidatedGameDirectoryHash(
+            gameDirectory,
+            branch,
+            "sourceAssemblySha256",
+            "source_assembly_sha256",
+            "desktopAssemblySha256",
+            "desktop_assembly_sha256"
+        );
+
+    private static string ValidatedGameDirectoryHash(string gameDirectory, string branch, params string[] hashProperties)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(gameDirectory))
+                return null;
+
+            var markerPath = Path.Combine(gameDirectory, PatchCompatibilityEvidence.GameDirectoryMarkerFileName);
+            if (!File.Exists(markerPath))
+                return null;
+
+            using var document = JsonDocument.Parse(File.ReadAllText(markerPath));
+            var root = document.RootElement;
+            var status = ReadJsonString(root, "status", "result", "patchValidationStatus", "patch_validation_status");
+            if (!string.Equals(status, "passed", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var validatedBranch = ReadJsonString(root, "branch", "sourceBranch", "source_branch", "validatedBranch", "validated_branch");
+            if (!string.Equals(SteamGameBranch.Normalize(validatedBranch), SteamGameBranch.Normalize(branch), StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var hash = ReadJsonString(root, hashProperties);
+            return HasUsableHash(hash)
+                ? hash.ToLowerInvariant()
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string RuntimePackSourcePckSha256(string runtimePackManifestPath, string branch)
+        => RuntimePackSourceHash(
+            runtimePackManifestPath,
+            branch,
+            "sourcePckSha256",
+            "source_pck_sha256",
+            "pckSha256",
+            "pck_sha256"
+        );
+
+    private static string RuntimePackSourceAssemblySha256(string runtimePackManifestPath, string branch)
+        => RuntimePackSourceHash(
+            runtimePackManifestPath,
+            branch,
+            "sourceAssemblySha256",
+            "source_assembly_sha256",
+            "desktopAssemblySha256",
+            "desktop_assembly_sha256"
+        );
+
+    private static string RuntimePackSourceHash(string runtimePackManifestPath, string branch, params string[] hashProperties)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(runtimePackManifestPath) || !File.Exists(runtimePackManifestPath))
+                return null;
+
+            using var document = JsonDocument.Parse(File.ReadAllText(runtimePackManifestPath));
+            var root = document.RootElement;
+            var sourceBranch = ReadJsonString(root, "sourceBranch", "source_branch", "branch");
+            if (!string.Equals(SteamGameBranch.Normalize(sourceBranch), SteamGameBranch.Normalize(branch), StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var patchStatus = ReadJsonString(root, "patchValidationStatus", "patch_validation_status", "patchStatus", "patch_status");
+            if (!string.Equals(patchStatus, "passed", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var hash = ReadJsonString(root, hashProperties);
+            return HasUsableHash(hash)
+                ? hash.ToLowerInvariant()
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string ReadJsonString(JsonElement root, params string[] properties)
+    {
+        foreach (var property in properties)
+        {
+            if (root.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String)
+                return value.GetString() ?? string.Empty;
+        }
+
+        return string.Empty;
     }
 
     private static string CachedSelectedSourceAssemblySha256(string dataDir, string branch, string sourceAssemblyPath)

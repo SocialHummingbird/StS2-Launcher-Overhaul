@@ -11,7 +11,7 @@ internal sealed partial class LauncherController
     }
 
     private void RefreshGameBranchOptions()
-        => _view.SetGameBranchOptions(LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir));
+        => _view.SetGameBranchOptions(LauncherBranchCatalog.ReadSelectableBranches(_model.DataDir));
 
     private void StartSessionFlow()
     {
@@ -82,9 +82,12 @@ internal sealed partial class LauncherController
         var previous = STS2Mobile.Steam.SteamGameBranch.DisplayName(previousBranch);
         var selected = STS2Mobile.Steam.SteamGameBranch.DisplayName(branch);
         var selectedNote = STS2Mobile.Steam.SteamGameBranch.SelectorInstallSlotHelpText(branch);
-        var availableBranches = LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir);
+        var availableBranches = LauncherBranchCatalog.ReadSelectableBranches(_model.DataDir);
         var selectedStatus = LauncherBranchCatalog.SelectedOptionStatus(branch, availableBranches);
-        var selectedProblem = LauncherBranchCatalog.SelectedOptionDownloadProblem(branch, availableBranches);
+        var selectedProblem = LauncherBranchCatalog.SelectedOptionDownloadProblem(
+            branch,
+            LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir)
+        );
         var message =
             $"Switch game version from {previous} to {selected}?\n"
             + "This can require another download, and saves may not be compatible between Steam branches. "

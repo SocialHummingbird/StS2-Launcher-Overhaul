@@ -28,7 +28,7 @@ Validated locally on ARM64 hardware:
 - Android local save handoff works.
 - The downloaded game launches and shows the pulled `Profile 1` in-game.
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
-- The latest local runtime-pack prerelease proves public-after-beta and public-beta launch with matched PCK/runtime evidence on ARM64 hardware.
+- The latest local runtime-pack prerelease proves public-after-beta and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix23 also proves the public-beta launcher startup crash after branch-switch confirmation is fixed.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -36,14 +36,13 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.188-local-runtime-beta-fix21
-asset=StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk
-sha256=69df0581cf2a8cb3843317ddf0a34e789ffce54ba596cfe1a0a26be7f8e8dc3b
+release=v0.2.188-local-runtime-beta-fix23
+asset=StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk
+sha256=9c912ed70f4e9add0f6780a81382c388c4b8f51a2d3b63786524ca5a9cd78302
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.188-local-runtime-beta-fix21
-versionCode=218847
-sourceCommit=d1fedc1
-validation=scripts/audit-multi-version-runtime.ps1 passed 29 checks
+versionName=0.2.188-local-runtime-beta-fix23
+versionCode=218849
+validation=dotnet build passed; ARM64 public-beta launcher startup and game launch evidence captured
 upgradeBaseline=local runtime-pack validation line
 ```
 
@@ -64,6 +63,9 @@ Latest device evidence folders:
 - `artifacts/android/public-after-beta-fix20-20260618`
 - `artifacts/android/public-beta-fix20-retry-20260618`
 - `artifacts/android/public-beta-compendium-fix20-20260618`
+- `artifacts/android/fix23-public-beta-startup-crash-retest-20260618`
+- `artifacts/android/fix23-public-beta-game-launch-20260618`
+- `artifacts/android/fix23-public-beta-compendium-route-20260618`
 - `artifacts/android/startup-crash-20260612-233812`
 - `artifacts/android/github-release-v0.2.187-beta-art-fallback`
 - `artifacts/android/responsive-ui-check-20260609`
@@ -127,7 +129,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 
 ## Remaining release-readiness blockers
 
-- Steam game version selection is in hardening: selected branch is persisted and used for manifest resolution/update checks, non-public branches download into side-by-side `game_versions/<branch>/game` caches, completed branch downloads write `steam_branch.txt` marker/provenance metadata, inactive cached versions can be cleared from support options, and local backup is enabled before branch switches. The launcher now uses a discovery-led dropdown Steam branch selector instead of normal-user text entry: default/public remains always available, account-visible options refresh from Steam app-info branch availability evidence, and existing saved custom branch values remain selectable only for compatibility/retry diagnostics. It includes a non-mutating `REFRESH GAME VERSIONS` action, concise ready/build/password/unavailable dropdown badges, selected-branch helper text, pre-download/update gates for known unavailable branches, wrapped selector guidance for private/password branch hardening and unproven save compatibility, and branch availability diagnostics after failed downloads. Native Android startup now blocks selected-version launch when branch marker provenance is missing or mismatched instead of falling through toward stale branch startup, and the local ARM64 build has validated selected `public-beta` launch from its side-by-side slot. Beta-integrity hardening now records per-depot selected/public manifest comparison, explicit public-inherited depot provenance, manifest request branch evidence, selected-branch integrity log summaries, clean-redownload-gated `Classification:` and `Evidence readiness:` summaries, focused logcat, runtime selected-PCK path/hash evidence, and public-vs-beta file inventory/hash capture guidance so mixed beta/public behavior and art asset issues can be classified from evidence. The same selected-version guidance is captured in launcher diagnostics, branch-switch marker evidence, manual Pull evidence, native pre-routing/startup logs, and native fallback diagnostics. Static CI guardrails cover version-selection docs, release blockers, discovery-led dropdown behavior, unavailable-branch gates, native launch gating, Autofill cleanup, beta-integrity evidence fields, and managed/native selector-guidance parity. Refresh-game-versions device validation, Steam beta/password behavior, inaccessible/private branch handling, cache cleanup, Pull-before-Push/current-backup safety, save compatibility across branches, and release-candidate public/default retest still need ARM64 device validation before release-candidate signoff; see [Steam version selection validation](steam-version-selection-validation.md) and [Steam version selection runbook](steam-version-selection-runbook.md).
+- Steam game version selection is in hardening: selected branch is persisted and used for manifest resolution/update checks, non-public branches download into side-by-side `game_versions/<branch>/game` caches, completed branch downloads write `steam_branch.txt` marker/provenance metadata, inactive cached versions can be cleared from support options, and local backup is enabled before branch switches. The launcher now uses a discovery-led dropdown Steam branch selector instead of normal-user text entry: default/public remains always available, account-visible options refresh from Steam app-info branch availability evidence, and locally installed non-public branch slots remain selectable as recovery/downloaded-cache options. It includes a non-mutating `REFRESH GAME VERSIONS` action, concise ready/build/password/unavailable/installed dropdown badges, selected-branch helper text, pre-download/update gates for known unavailable branches, wrapped selector guidance for private/password branch hardening and unproven save compatibility, and branch availability diagnostics after failed downloads. Native Android startup now blocks selected-version launch when branch marker provenance is missing or mismatched instead of falling through toward stale branch startup, and the local ARM64 build has validated selected `public-beta` launch from its side-by-side slot. Fix23 also fixes the Android JNI crash seen after confirming a switch to locally installed `public-beta` by using branch-local patch-validation/runtime-pack hashes before any direct non-public PCK hash fallback. Beta-integrity hardening records per-depot selected/public manifest comparison, explicit public-inherited depot provenance, manifest request branch evidence, selected-branch integrity log summaries, clean-redownload-gated `Classification:` and `Evidence readiness:` summaries, focused logcat, runtime selected-PCK path/hash evidence, and public-vs-beta file inventory/hash capture guidance so mixed beta/public behavior and art asset issues can be classified from evidence. The same selected-version guidance is captured in launcher diagnostics, branch-switch marker evidence, manual Pull evidence, native pre-routing/startup logs, and native fallback diagnostics. Static CI guardrails cover version-selection docs, release blockers, discovery-led dropdown behavior, unavailable-branch gates, native launch gating, Autofill cleanup, beta-integrity evidence fields, and managed/native selector-guidance parity. Refresh-game-versions negative cases, Steam beta/password behavior, inaccessible/private branch handling, cache cleanup, Pull-before-Push/current-backup safety, save compatibility across branches, deterministic Compendium/Bestiary route reproduction, and release-candidate public/default retest still need ARM64 device validation before release-candidate signoff; see [Steam version selection validation](steam-version-selection-validation.md) and [Steam version selection runbook](steam-version-selection-runbook.md).
 - The current Steam version-selection release gate is tracked in [Steam version selection release readiness](steam-version-selection-release-readiness.md). Treat that tracker as the source of truth for what is implemented, what is unvalidated, and what evidence is required before release-candidate signoff. The remaining public-beta integrity device pass is summarized in [Steam beta integrity runtime checklist](steam-beta-integrity-runtime-checklist.md).
 - Current public-beta runtime evidence rules out silent public fallback for the tested local ARM64 path: native routing selected `public-beta`, Godot mounted the selected beta PCK, startup patches completed, and the game reached the main menu. A public/default auto-launch baseline on the same build reached the same visible main menu but successfully loaded the run-history `doormaker_boss` imported textures where `public-beta` logged loader failures after mounting the selected beta PCK. PCK directory inspection shows `doormaker_boss` run-history imports exist in public but not in `public-beta`; `public-beta` contains `aeonglass_boss` instead and still contains shared `unknown_monster` fallback art. Runtime patching now falls back to branch-local `unknown_monster` art when the game returns a missing run-history icon path. This is a beta content/import compatibility fix, not public-content fallback.
 - Re-run full login/Pull/confirmed-Push/game-launch smoke on the clean public `v0.2.187-beta-art-fallback` release-facing build.

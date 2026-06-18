@@ -43,6 +43,9 @@ internal static class LauncherBranchCatalog
         private string DropdownLabelWithMetadata()
         {
             var label = SteamGameBranch.DropdownLabel(Branch);
+            if (string.Equals(Source, "local install", StringComparison.OrdinalIgnoreCase))
+                return $"{label} (installed)";
+
             if (!string.Equals(Source, "Steam app-info", StringComparison.OrdinalIgnoreCase))
                 return label;
 
@@ -100,7 +103,15 @@ internal static class LauncherBranchCatalog
                 }
                 else if (!string.Equals(Branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
                 {
-                    details.Add("Steam app-info metadata has not been captured for this option yet. Use Refresh Game Versions before downloading.");
+                    if (string.Equals(Source, "local install", StringComparison.OrdinalIgnoreCase))
+                    {
+                        details.Add("Downloaded local install slot is available on this device.");
+                        details.Add("Use Refresh Game Versions before redownloading or updating this branch.");
+                    }
+                    else
+                    {
+                        details.Add("Steam app-info metadata has not been captured for this option yet. Use Refresh Game Versions before downloading.");
+                    }
                 }
                 else
                 {
@@ -142,6 +153,62 @@ internal static class LauncherBranchCatalog
         => ReadVisibleBranches(dataDir)
             .Select(option => option.Branch)
             .ToArray();
+
+    internal static IReadOnlyList<BranchOption> ReadSelectableBranches(string dataDir)
+    {
+        var options = new List<BranchOption>();
+
+        foreach (var branch in ReadVisibleBranches(dataDir))
+            AddOrReplace(options, branch);
+
+        foreach (var branch in ReadInstalledBranches(dataDir))
+            AddIfMissing(options, branch);
+
+        return options
+            .OrderBy(option => string.Equals(option.Branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(option => option.Branch, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<BranchOption> ReadInstalledBranches(string dataDir)
+    {
+        var versionsDir = Path.Combine(dataDir, LauncherStorageNames.GameVersionsDirectory);
+        if (!Directory.Exists(versionsDir))
+            return Array.Empty<BranchOption>();
+
+        var options = new List<BranchOption>();
+        try
+        {
+            foreach (var slotDir in Directory.GetDirectories(versionsDir))
+            {
+                var markerPath = Path.Combine(
+                    slotDir,
+                    SteamGameInstallPaths.LegacyPublicGameDirectory,
+                    SteamGameInstallPaths.BranchMarkerFileName
+                );
+                var branch = ReadMarkerValue(markerPath, "Branch:");
+                if (string.IsNullOrWhiteSpace(branch))
+                    continue;
+
+                branch = SteamGameBranch.Normalize(branch);
+                if (string.Equals(branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var expectedDirectoryName = SteamGameBranch.StateDirectoryName(branch);
+                var actualDirectoryName = Path.GetFileName(slotDir);
+                if (!string.Equals(actualDirectoryName, expectedDirectoryName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                AddIfMissing(options, new BranchOption(branch, source: "local install"));
+            }
+        }
+        catch
+        {
+            return Array.Empty<BranchOption>();
+        }
+
+        return options;
+    }
 
     internal static IReadOnlyList<BranchOption> DropdownOptions(
         string selectedBranch,
@@ -230,6 +297,27 @@ internal static class LauncherBranchCatalog
 
     private static string Value(Dictionary<string, string> values, string key)
         => values.TryGetValue(key, out var value) ? value : "";
+
+    private static string ReadMarkerValue(string path, string prefix)
+    {
+        try
+        {
+            if (!File.Exists(path))
+                return "";
+
+            foreach (var line in File.ReadLines(path))
+            {
+                if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    return line[prefix.Length..].Trim();
+            }
+        }
+        catch
+        {
+            return "";
+        }
+
+        return "";
+    }
 
     internal static string DropdownOptionLabels(string selectedBranch, IReadOnlyList<BranchOption> discoveredBranches)
         => string.Join(" | ", DropdownOptions(selectedBranch, discoveredBranches).Select(option => option.Label));

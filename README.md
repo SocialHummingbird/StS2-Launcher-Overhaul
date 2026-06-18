@@ -40,14 +40,14 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, Steam beta/version selection validation, best-in-class login/portal UX, quieter diagnostics, repeatable release asset hygiene, and full newest-public Pull/confirmed-Push/game-launch smoke.
 
-- Latest published APK prerelease: `v0.2.188-local-runtime-beta-fix21`
-- Current APK asset: `StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk`
+- Latest published APK prerelease: `v0.2.188-local-runtime-beta-fix23`
+- Current APK asset: `StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Release asset SHA-256: `69df0581cf2a8cb3843317ddf0a34e789ffce54ba596cfe1a0a26be7f8e8dc3b`
+- Release asset SHA-256: `9c912ed70f4e9add0f6780a81382c388c4b8f51a2d3b63786524ca5a9cd78302`
 - Latest verified public release: `0.2.187-beta-art-fallback` / `versionCode=218700`
 - Validated locally/publicly: fresh APK/runtime install, public `v0.2.186 -> v0.2.187` update-compatible release build, responsive launcher login/download-progress/diagnostics/ready-state visual checks on ARM64 hardware, Push-to-Cloud confirmation/cancel safety on the public `v0.2.187` APK, Steam login to Steam Guard on public `v0.2.183`, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
 - Still hardening: Samsung A53/S25+/S24 Ultra reporter retests, repeated public-release Pull/confirmed-Push/game-launch smoke on the newest APK, persisted Steam session/update UX, Steam beta/version selection validation, richer launch progress UI, diagnostics polish, and release-candidate signoff.
-- Steam beta/version selection is implemented for validation, with a discovery-led dropdown selector, `REFRESH GAME VERSIONS` Steam app-info discovery, concise branch metadata badges, selected-branch metadata/status helper text, branch-aware downloads/update checks/redownloads, side-by-side non-public caches, selected-version diagnostics, `last_steam_branch_availability.txt` evidence, native routing/fallback diagnostics, branch-switch marker evidence, and safe branch-switch warnings. Public/default remains always available; non-public branches come from account-visible Steam app-info or an existing saved branch retained for retry/recovery diagnostics. Known password-protected, no-manifest, or absent saved branches are blocked before game-version download attempts when refreshed app-info evidence proves they are unavailable. Native startup blocks selected-version launch when branch marker provenance is missing or mismatched. The latest local ARM64 hardening build validates `public-beta` launch from `game_versions/public-beta-8128824d/game` after fixing Android app-private path alias checks for `/data/data/<package>` versus `/data/user/0/<package>`. Current beta-integrity hardening records selected/public depot manifest comparison, explicit `public-inherited` depot evidence, manifest request branch provenance, clean-redownload-gated `Classification:` and `Evidence readiness:` summaries, focused beta-integrity logcat, selected cache tree capture, and public-vs-beta file/key-asset hash comparison so public-vs-beta integrity classification and mixed beta/public behavior and art asset issues can be classified from evidence instead of guessed. Static CI guardrails cover version-selection docs, release blockers, unavailable-branch gates, credential-provider guardrails, native launch gating, beta-integrity evidence fields, and managed/native selector-guidance parity. It is now published in the latest ARM64 APK, but not release-candidate signed off: beta password behavior, inaccessible/private branch handling, refresh/dropdown negative cases, cache cleanup, Push backup evidence, password-manager suggestion behavior in the native credential panel, save compatibility across branches, confirmed public-beta release smoke, and release-candidate public/default retest still require ARM64 device validation.
+- Steam beta/version selection is implemented for validation, with a discovery-led dropdown selector, `REFRESH GAME VERSIONS` Steam app-info discovery, concise branch metadata badges, selected-branch metadata/status helper text, branch-aware downloads/update checks/redownloads, side-by-side non-public caches, selected-version diagnostics, `last_steam_branch_availability.txt` evidence, native routing/fallback diagnostics, branch-switch marker evidence, and safe branch-switch warnings. Public/default remains always available; non-public branches come from account-visible Steam app-info or locally installed side-by-side branch slots retained for retry/recovery diagnostics. Known password-protected, no-manifest, or absent saved branches are blocked before game-version download attempts when refreshed app-info evidence proves they are unavailable. Native startup blocks selected-version launch when branch marker provenance is missing or mismatched. The latest local ARM64 hardening build validates `public-beta` launch from `game_versions/public-beta-8128824d/game` with a usable `runtime_packs/public-beta-8128824d` pack and avoids the branch-switch JNI crash by using branch-local validation/runtime-pack hash evidence instead of falling back to direct large-PCK hashing for non-public branches. Current beta-integrity hardening records selected/public depot manifest comparison, explicit `public-inherited` depot evidence, manifest request branch provenance, clean-redownload-gated `Classification:` and `Evidence readiness:` summaries, focused beta-integrity logcat, selected cache tree capture, and public-vs-beta file/key-asset hash comparison so public-vs-beta integrity classification and mixed beta/public behavior and art asset issues can be classified from evidence instead of guessed. Static CI guardrails cover version-selection docs, release blockers, unavailable-branch gates, credential-provider guardrails, native launch gating, beta-integrity evidence fields, and managed/native selector-guidance parity. It is now published in the latest ARM64 APK, but not release-candidate signed off: beta password behavior, inaccessible/private branch handling, refresh/dropdown negative cases, cache cleanup, Push backup evidence, password-manager suggestion behavior in the native credential panel, save compatibility across branches, deterministic Compendium/Bestiary asset-route reproduction, and release-candidate public/default retest still require ARM64 device validation.
 - Steam version selection user guide: [docs/steam-version-selection-user-guide.md](docs/steam-version-selection-user-guide.md).
 - Branch validation checklist: [docs/steam-version-selection-validation.md](docs/steam-version-selection-validation.md).
 - Branch validation runbook: [docs/steam-version-selection-runbook.md](docs/steam-version-selection-runbook.md).
@@ -220,13 +220,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.188-local-runtime-beta-fix21" `
-  -AssetName "StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.188-local-runtime-beta-fix23" `
+  -AssetName "StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.188-local-runtime-beta-fix21" `
-  -AssetName "StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.188-local-runtime-beta-fix23" `
+  -AssetName "StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -235,12 +235,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.188-local-runtime-beta-fix21
-Asset: StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk
+Release: v0.2.188-local-runtime-beta-fix23
+Asset: StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.188-local-runtime-beta-fix21
-VersionCode: 218847
-SHA-256: 69df0581cf2a8cb3843317ddf0a34e789ffce54ba596cfe1a0a26be7f8e8dc3b
+VersionName: 0.2.188-local-runtime-beta-fix23
+VersionCode: 218849
+SHA-256: 9c912ed70f4e9add0f6780a81382c388c4b8f51a2d3b63786524ca5a9cd78302
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.
