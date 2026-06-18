@@ -224,6 +224,28 @@ $backupCountsPath = Join-Path $backupsDir "pre-push-backup-counts.txt"
 Invoke-DeviceShell -Command "echo local-pre-push:; timeout 10 find /storage/emulated/0/StS2Launcher/Saves -maxdepth 6 -type f -name '*.local-pre-push.bak' 2>/dev/null | wc -l; echo cloud-pre-push:; timeout 10 find /storage/emulated/0/StS2Launcher/Saves -maxdepth 6 -type f -name '*.cloud-pre-push.bak' 2>/dev/null | wc -l" -AllowFailure |
     Set-Content -LiteralPath $backupCountsPath -Encoding UTF8
 
+$markerEvidenceStatus = [System.Collections.Generic.List[string]]::new()
+
+function Save-RunAsMarkerFile([string]$DevicePath, [string]$Destination, [string]$Label) {
+    $content = @(
+        Invoke-RunAsShell -Command "if [ -s '$DevicePath' ]; then cat '$DevicePath'; elif [ -e '$DevicePath' ]; then echo '<empty marker>'; else echo '<missing marker>'; fi" -AllowFailure
+    )
+    $content | Set-Content -LiteralPath $Destination -Encoding UTF8
+
+    $trimmed = @($content | ForEach-Object { ([string]$_).Trim() } | Where-Object { $_.Length -gt 0 })
+    if ($trimmed.Count -eq 1 -and $trimmed[0] -eq "<missing marker>") {
+        $markerEvidenceStatus.Add("${Label}: missing") | Out-Null
+        return
+    }
+
+    if ($trimmed.Count -eq 1 -and $trimmed[0] -eq "<empty marker>") {
+        $markerEvidenceStatus.Add("${Label}: empty") | Out-Null
+        return
+    }
+
+    $markerEvidenceStatus.Add("${Label}: present ($($trimmed.Count) non-empty line(s))") | Out-Null
+}
+
 $markerListText = Invoke-RunAsShell -Command "find files -name steam_branch.txt -type f 2>/dev/null || true" -AllowFailure
 $markerListPath = Join-Path $markersDir "steam-branch-marker-list.txt"
 $markerListText | Set-Content -LiteralPath $markerListPath -Encoding UTF8
@@ -232,37 +254,32 @@ $markerPaths = $markerListText -split '\r?\n' | Where-Object { $_.Trim().Length 
 foreach ($markerPath in $markerPaths) {
     $safeName = ($markerPath.Trim() -replace "[^A-Za-z0-9._-]", "_")
     $destination = Join-Path $markersDir $safeName
-    Invoke-RunAsShell -Command "cat '$($markerPath.Trim())' 2>/dev/null || true" -AllowFailure |
-        Set-Content -LiteralPath $destination -Encoding UTF8
+    Save-RunAsMarkerFile -DevicePath $markerPath.Trim() -Destination $destination -Label "branch marker $($markerPath.Trim())"
 }
 
 $branchSwitchMarkerPath = Join-Path $markersDir $branchSwitchMarkerFileName
-Invoke-RunAsShell -Command "cat files/$branchSwitchMarkerFileName 2>/dev/null || true" -AllowFailure |
-    Set-Content -LiteralPath $branchSwitchMarkerPath -Encoding UTF8
+Save-RunAsMarkerFile -DevicePath "files/$branchSwitchMarkerFileName" -Destination $branchSwitchMarkerPath -Label $branchSwitchMarkerFileName
 
 $manualPullMarkerPath = Join-Path $markersDir $manualPullMarkerFileName
-Invoke-RunAsShell -Command "cat files/$manualPullMarkerFileName 2>/dev/null || true" -AllowFailure |
-    Set-Content -LiteralPath $manualPullMarkerPath -Encoding UTF8
+Save-RunAsMarkerFile -DevicePath "files/$manualPullMarkerFileName" -Destination $manualPullMarkerPath -Label $manualPullMarkerFileName
 
 $manualPushMarkerPath = Join-Path $markersDir $manualPushMarkerFileName
-Invoke-RunAsShell -Command "cat files/$manualPushMarkerFileName 2>/dev/null || true" -AllowFailure |
-    Set-Content -LiteralPath $manualPushMarkerPath -Encoding UTF8
+Save-RunAsMarkerFile -DevicePath "files/$manualPushMarkerFileName" -Destination $manualPushMarkerPath -Label $manualPushMarkerFileName
 
 $manualPushBlockedMarkerPath = Join-Path $markersDir $manualPushBlockedMarkerFileName
-Invoke-RunAsShell -Command "cat files/$manualPushBlockedMarkerFileName 2>/dev/null || true" -AllowFailure |
-    Set-Content -LiteralPath $manualPushBlockedMarkerPath -Encoding UTF8
+Save-RunAsMarkerFile -DevicePath "files/$manualPushBlockedMarkerFileName" -Destination $manualPushBlockedMarkerPath -Label $manualPushBlockedMarkerFileName
 
 $cacheCleanupMarkerPath = Join-Path $markersDir $cacheCleanupMarkerFileName
-Invoke-RunAsShell -Command "cat files/$cacheCleanupMarkerFileName 2>/dev/null || true" -AllowFailure |
-    Set-Content -LiteralPath $cacheCleanupMarkerPath -Encoding UTF8
+Save-RunAsMarkerFile -DevicePath "files/$cacheCleanupMarkerFileName" -Destination $cacheCleanupMarkerPath -Label $cacheCleanupMarkerFileName
 
 $redownloadMarkerPath = Join-Path $markersDir $redownloadMarkerFileName
-Invoke-RunAsShell -Command "cat files/$redownloadMarkerFileName 2>/dev/null || true" -AllowFailure |
-    Set-Content -LiteralPath $redownloadMarkerPath -Encoding UTF8
+Save-RunAsMarkerFile -DevicePath "files/$redownloadMarkerFileName" -Destination $redownloadMarkerPath -Label $redownloadMarkerFileName
 
 $branchAvailabilityMarkerPath = Join-Path $markersDir $branchAvailabilityMarkerFileName
-Invoke-RunAsShell -Command "cat files/$branchAvailabilityMarkerFileName 2>/dev/null || true" -AllowFailure |
-    Set-Content -LiteralPath $branchAvailabilityMarkerPath -Encoding UTF8
+$markerEvidenceStatusPath = Join-Path $markersDir "marker-evidence-status.txt"
+Save-RunAsMarkerFile -DevicePath "files/$branchAvailabilityMarkerFileName" -Destination $branchAvailabilityMarkerPath -Label $branchAvailabilityMarkerFileName
+$markerEvidenceStatus |
+    Set-Content -LiteralPath $markerEvidenceStatusPath -Encoding UTF8
 
 Add-Content -LiteralPath $summaryPath -Value @(
     "",
@@ -289,7 +306,11 @@ Add-Content -LiteralPath $summaryPath -Value @(
     "- $cacheCleanupMarkerPath ($cacheCleanupMarkerFileName)",
     "- $redownloadMarkerPath ($redownloadMarkerFileName)",
     "- $branchAvailabilityMarkerPath ($branchAvailabilityMarkerFileName)",
-    "- $($markerPaths.Count) branch marker file(s)"
+    "- $markerEvidenceStatusPath",
+    "- $($markerPaths.Count) branch marker file(s)",
+    "",
+    "Marker evidence status:",
+    ($markerEvidenceStatus | ForEach-Object { "- $_" })
 ) -Encoding UTF8
 
 Write-Host "Captured Steam version-selection evidence:"

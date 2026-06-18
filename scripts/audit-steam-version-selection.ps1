@@ -1586,6 +1586,10 @@ Add-Check `
         "last_game_version_cache_cleanup\.txt",
         "last_game_version_redownload\.txt",
         "last_steam_branch_availability\.txt",
+        "marker-evidence-status\.txt",
+        "Marker evidence status",
+        "<missing marker>",
+        "<empty marker>",
         "timeout 10 find",
         "StS2Launcher/Saves -maxdepth 6",
         "pre-push-backup-counts\.txt"
@@ -1663,6 +1667,7 @@ Add-Check `
         "android-app-private",
         "redacted-device-serial",
         "redacted-email",
+        "saveData",
         "IncludeImages"
     )
 

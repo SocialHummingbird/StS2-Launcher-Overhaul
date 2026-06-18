@@ -148,6 +148,7 @@ Purpose:
 - Copies `last_manual_cloud_push_blocked.txt` blocked Push evidence when present.
 - Copies `last_game_version_cache_cleanup.txt` cleanup evidence when present.
 - Copies `last_game_version_redownload.txt` selected-version redownload evidence when present.
+- Writes `branch-markers/marker-evidence-status.txt` so missing or empty optional marker files are explicit and cannot be mistaken for completed refresh, redownload, Pull, Push, or blocked-Push evidence.
 - Avoids shared preferences and credential-bearing files.
 - Normalizes local evidence-folder paths across Windows and PowerShell Core.
 
@@ -202,6 +203,7 @@ branch-markers/last_manual_cloud_push_blocked.txt
 branch-markers/last_game_version_cache_cleanup.txt
 branch-markers/last_game_version_redownload.txt
 branch-markers/last_steam_branch_availability.txt
+branch-markers/marker-evidence-status.txt
 capture-summary.txt
 ```
 

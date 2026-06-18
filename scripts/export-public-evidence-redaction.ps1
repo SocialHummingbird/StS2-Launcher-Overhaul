@@ -78,6 +78,7 @@ function Redact-PublicEvidenceText([string]$Text) {
     $redacted = $redacted -replace '\bRFCY[0-9A-Z]{7,}\b', '<redacted-device-serial>'
     $redacted = $redacted -replace '(?i)\b[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}\b', '<redacted-email>'
     $redacted = $redacted -replace '(?i)\b(password|passwd|guard_code|shared_secret|refresh_token|access_token|session_token)\b\s*[:=]\s*[''"]?[A-Za-z0-9+/_=.\-]{4,}', '$1=<redacted>'
+    $redacted = $redacted -replace '(?i)\b(saveData|profileData|saveContent|profileContent)\b\s*[:=][^\r\n]*', '$1=<redacted>'
     return $redacted
 }
 
