@@ -129,7 +129,7 @@ When enabled, diagnostics must still show `SteamKit debug logs sanitized for cre
 
 21. Final evidence package
 
-   Fill the evidence template with concrete pass/fail results, linked diagnostics, branch marker contents, logs, and unresolved blockers. Do not mark release-ready while Steam beta password behavior, save compatibility, or Push safety evidence is missing.
+   Fill the evidence template with concrete pass/fail results, linked diagnostics, branch marker contents, logs, and unresolved blockers. Complete `PUBLIC_EVIDENCE_REDACTION_REVIEW.txt`, then run `scripts\review-public-evidence-redaction.ps1 -EvidenceDir <evidence-folder>` before posting or attaching any public artifact. Do not mark release-ready while Steam beta password behavior, save compatibility, Push safety evidence, or artifact hygiene review is missing.
 
 ## Stop conditions
 
@@ -142,6 +142,7 @@ When enabled, diagnostics must still show `SteamKit debug logs sanitized for cre
 - Pull evidence or local save existence is missing before Push.
 - Pre-Push backup evidence is missing before Push.
 - Diagnostics do not expose enough branch, marker, cache, and backup state to debug failures.
+- Public evidence redaction review fails, or screenshots/logs have not been manually reviewed for credentials, account identifiers, device notifications, private save/profile data, local paths, and device IDs.
 
 ## Release-readiness rule
 

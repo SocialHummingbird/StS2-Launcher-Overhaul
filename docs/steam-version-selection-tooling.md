@@ -54,6 +54,7 @@ Purpose:
 - Points the generated README at `docs/steam-version-selection-release-readiness.md` so each evidence run starts from the current release gate.
 - Creates `ARTIFACT_HYGIENE.txt` with local-only/raw-log and public-sharing guidance.
 - Creates `PUBLIC_SHARE_MANIFEST.txt` with preferred public artifacts and local-only/manual-review artifacts.
+- Creates `PUBLIC_EVIDENCE_REDACTION_REVIEW.txt` for the manual review fields required before public sharing.
 - Creates subfolders for logs, diagnostics, branch markers, screenshots, and backup evidence.
 
 Command:
@@ -75,12 +76,29 @@ artifacts/android/steam-version-selection-<timestamp>/
   evidence.md
   ARTIFACT_HYGIENE.txt
   PUBLIC_SHARE_MANIFEST.txt
+  PUBLIC_EVIDENCE_REDACTION_REVIEW.txt
   README.md
   logs/
   diagnostics/
   branch-markers/
   screenshots/
   backup-evidence/
+```
+
+## Review public evidence redaction
+
+Purpose:
+
+- Fails a public-share candidate when `PUBLIC_EVIDENCE_REDACTION_REVIEW.txt` is missing or incomplete.
+- Fails raw/local-only evidence such as `logs/logcat-full.txt`, credential handoff files, token-like files, private save dumps, local user paths, device-private Android paths, known device serials, email addresses, and credential/token assignments.
+- Requires screenshots/images to have completed manual review fields before they are treated as shareable.
+- Does not mutate artifacts and does not replace manual review.
+
+Command:
+
+```powershell
+.\scripts\review-public-evidence-redaction.ps1 `
+  -EvidenceDir "artifacts\android\steam-version-selection-<timestamp>"
 ```
 
 ## Capture non-secret device evidence

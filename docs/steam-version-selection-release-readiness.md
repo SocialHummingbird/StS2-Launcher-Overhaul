@@ -66,7 +66,7 @@ Steam game version selection is published in the latest ARM64 APK, but it is not
 
 11. Artifact hygiene.
 
-    Public evidence must use the redacted/focused artifacts where possible. Raw logs, full diagnostics, private saves, credentials, tokens, account names, local paths, and device-identifying details must remain local or be manually reviewed and redacted before sharing.
+    Public evidence must use the redacted/focused artifacts where possible. Raw logs, full diagnostics, private saves, credentials, tokens, account names, local paths, and device-identifying details must remain local or be manually reviewed and redacted before sharing. The evidence folder must include a completed `PUBLIC_EVIDENCE_REDACTION_REVIEW.txt`, and `scripts\review-public-evidence-redaction.ps1 -EvidenceDir <evidence-folder>` must pass before any artifact is posted publicly or counted for release signoff.
 
 ## Known release blockers
 

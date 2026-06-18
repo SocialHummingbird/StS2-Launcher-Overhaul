@@ -55,6 +55,10 @@ Do not store or publish Steam credentials, guard codes, refresh tokens, shared p
 
 Raw logs and full launcher diagnostics are local-only unless they have been manually reviewed and redacted before sharing.
 
+Before posting any artifact publicly, complete PUBLIC_EVIDENCE_REDACTION_REVIEW.txt and run:
+
+scripts\review-public-evidence-redaction.ps1 -EvidenceDir "$evidenceDir"
+
 Prefer public attachments from this folder in this order:
 
 1. evidence.md after completing non-secret result fields.
@@ -69,6 +73,31 @@ The release-readiness contract is docs/steam-version-selection-release-readiness
 
 Set-Content -LiteralPath $artifactHygienePath -Value $artifactHygiene -Encoding UTF8
 
+$redactionReviewPath = Join-Path $evidenceDir "PUBLIC_EVIDENCE_REDACTION_REVIEW.txt"
+$redactionReview = @"
+Public Evidence Redaction Review
+
+Set every field to true only after direct manual review of the public share candidate. Keep raw files local when any field is false.
+
+Screenshots manually reviewed: false
+Credential suggestions absent: false
+Account identifiers redacted: false
+Device notifications absent: false
+Private save/profile contents absent: false
+Steam credentials absent: false
+Steam Guard codes absent: false
+Refresh/session tokens absent: false
+Local user paths redacted: false
+Device identifiers redacted: false
+Only sanitized diagnostics selected for public sharing: false
+
+Reviewer:
+UTC:
+Notes:
+"@
+
+Set-Content -LiteralPath $redactionReviewPath -Value $redactionReview -Encoding UTF8
+
 $publicShareManifestPath = Join-Path $evidenceDir "PUBLIC_SHARE_MANIFEST.txt"
 $publicShareManifest = @"
 Steam Version Selection Public Share Manifest
@@ -77,6 +106,7 @@ Preferred public artifacts after manual review:
 
 - evidence.md
 - ARTIFACT_HYGIENE.txt
+- PUBLIC_EVIDENCE_REDACTION_REVIEW.txt
 - logs/logcat-steam-version-focused-redacted.txt
 - diagnostics/logcat-redaction-summary.txt
 - diagnostics/steamkit-debug-log-setting.txt
@@ -96,6 +126,8 @@ Local-only or manual-review artifacts:
 - any artifact containing credentials, guard codes, refresh tokens, shared preferences, account names, local user paths, or device identifiers
 
 Before public posting, compare the evidence against docs/steam-version-selection-release-readiness.md and only mark a release-readiness gate as covered when the artifact directly proves that gate.
+
+Run scripts\review-public-evidence-redaction.ps1 against this folder before posting. The script is a guardrail, not a substitute for manual review.
 "@
 
 Set-Content -LiteralPath $publicShareManifestPath -Value $publicShareManifest -Encoding UTF8
@@ -114,6 +146,7 @@ Use this folder for one validation run. Do not place Steam credentials or person
 - ``evidence.md`` copied from ``docs/steam-version-selection-evidence-template.md``.
 - Review ``docs/steam-version-selection-release-readiness.md`` and mark only gates this folder directly proves.
 - Review ``ARTIFACT_HYGIENE.txt`` and ``PUBLIC_SHARE_MANIFEST.txt`` before sharing anything publicly.
+- Complete ``PUBLIC_EVIDENCE_REDACTION_REVIEW.txt`` and run ``scripts\review-public-evidence-redaction.ps1 -EvidenceDir "<this folder>"`` before posting public artifacts.
 
 ## Put artifacts here
 
