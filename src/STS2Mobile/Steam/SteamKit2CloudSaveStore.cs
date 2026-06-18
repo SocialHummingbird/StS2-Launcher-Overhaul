@@ -4,7 +4,7 @@ using MegaCrit.Sts2.Core.Saves;
 namespace STS2Mobile.Steam;
 
 // ICloudSaveStore backed by SteamKit2 CCloud unified messages.
-internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
+internal partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveStore, IDisposable
 {
     private static SteamKit2CloudSaveStore _instance;
 
@@ -45,6 +45,19 @@ internal sealed partial class SteamKit2CloudSaveStore : ICloudSaveStore, ISaveSt
 
     internal static bool FlushActive(int timeoutMs)
         => _instance?.Flush(timeoutMs) ?? true;
+
+    internal static void DisposeActive(string reason)
+    {
+        var instance = _instance;
+        if (instance == null)
+            return;
+
+        PatchHelper.Log(reason);
+        instance.Dispose();
+    }
+
+    public virtual bool HasUserEnabledCloudSync()
+        => true;
 
     private bool Flush(int timeoutMs = 5000)
     {

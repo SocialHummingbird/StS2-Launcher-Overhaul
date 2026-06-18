@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     private readonly struct CloudHttpRequestTarget
     {

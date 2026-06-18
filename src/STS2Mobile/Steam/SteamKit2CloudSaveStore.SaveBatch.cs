@@ -2,7 +2,7 @@ using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     void ICloudSaveStore.BeginSaveBatch()
         => _saveBatch.BeginCollecting();

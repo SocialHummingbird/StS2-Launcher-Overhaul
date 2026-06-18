@@ -2,7 +2,7 @@ using System;
 
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     private static readonly string WriteQueueDisposedDrop =
         CloudStoreMessage("Write queue is disposed; dropping queued write action");

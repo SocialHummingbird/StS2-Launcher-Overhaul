@@ -101,6 +101,7 @@ internal static class LauncherBranchSwitchSafety
         return HasRequiredEvidence(dataDir, selectedBranch)
             && LauncherCloudSyncEvidence.HasManualPullAfterBranchSwitch(dataDir, selectedBranch)
             && LauncherLocalSaveEvidence.HasImportantSaveEvidence(dataDir)
+            && LauncherSaveOriginEvidence.CurrentLocalSavesMatchSelectedRuntime(dataDir, selectedBranch)
             && STS2Mobile.AppPaths.HasStoragePermission();
     }
 
@@ -123,6 +124,7 @@ internal static class LauncherBranchSwitchSafety
                 + "Warning acknowledged: branch switch can require another download and saves may not be compatible between Steam branches.\n"
                 + "Non-public branch warning acknowledged: branch may be private or password-protected; beta password entry is not implemented.\n";
             File.WriteAllText(MarkerPath(dataDir), text);
+            LauncherSaveOriginEvidence.WriteBranchSwitchPendingOrigin(dataDir, previousBranch, selectedBranch);
         }
         catch (Exception ex)
         {

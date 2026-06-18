@@ -11,13 +11,15 @@ internal sealed partial class LauncherController
     private void ShowLoggedIn()
     {
         _model.MarkConnectionResolved();
-        if (LauncherGameFiles.Ready())
+        if (RefreshSelectedRuntimeAndCheckReady())
         {
             ShowReadyToLaunch(SelectedVersionReadyStatus(), LaunchUpdateAction.Visible);
             return;
         }
 
-        _view.SetStatus(SelectedVersionDownloadRequiredStatus());
+        var branch = LauncherPreferences.ReadGameBranch();
+        var readinessProblem = LauncherGameFiles.ReadinessProblem(_model.DataDir, branch);
+        _view.SetStatus(readinessProblem ?? SelectedVersionDownloadRequiredStatus());
         ShowDownloadReadyAction();
     }
 

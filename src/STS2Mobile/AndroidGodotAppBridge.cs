@@ -35,6 +35,11 @@ internal static class AndroidGodotAppBridge
             () => (string)GetInstanceOnCurrentThread()?.Call("getExternalFilesDirPath")
         );
 
+    internal static string GetInternalFilesDirPath()
+        => AndroidBridgeDispatcher.Run(
+            () => (string)GetInstanceOnCurrentThread()?.Call("getInternalFilesDirPath")
+        );
+
     internal static string GetVersionName()
         => AndroidBridgeDispatcher.Run(
             () => (string)GetInstanceOnCurrentThread()?.Call("getVersionName")

@@ -2,7 +2,7 @@ using SteamKit2.Internal;
 
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     private static CCloud_ClientBeginFileUpload_Request CreateBeginFileUploadRequest(
         CloudFileUpload upload

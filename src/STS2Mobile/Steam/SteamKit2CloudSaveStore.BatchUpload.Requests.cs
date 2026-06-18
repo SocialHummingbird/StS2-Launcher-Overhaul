@@ -3,7 +3,7 @@ using SteamKit2.Internal;
 
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     private static CCloud_BeginAppUploadBatch_Request CreateBeginAppUploadBatchRequest(
         IReadOnlyList<SaveBatchFile> files

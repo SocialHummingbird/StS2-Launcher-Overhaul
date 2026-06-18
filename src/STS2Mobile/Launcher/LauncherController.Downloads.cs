@@ -232,10 +232,14 @@ internal sealed partial class LauncherController
     {
         RefreshGameBranchOptions();
         var branch = LauncherPreferences.ReadGameBranch();
+        if (LauncherGameFiles.DownloadedForValidation(_model.DataDir, branch))
+            PatchCompatibilityValidator.ValidateSelectedVersion(_model.DataDir, branch);
         var filesReady = LauncherGameFiles.Ready(_model.DataDir, branch);
+        var readinessProblem = LauncherGameFiles.ReadinessProblem(_model.DataDir, branch);
+        LauncherRuntimeSlotEvidence.Write(_model.DataDir, branch, filesReady, readinessProblem);
         DownloadViewUpdate.Completed(
             filesReady,
-            LauncherGameFiles.ReadinessProblem(_model.DataDir, branch)
+            readinessProblem
         ).Apply(this);
         var integritySummary = LauncherGameFiles.BranchIntegritySummary(_model.DataDir, branch);
         if (!string.IsNullOrWhiteSpace(integritySummary))

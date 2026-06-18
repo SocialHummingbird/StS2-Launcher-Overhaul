@@ -32,7 +32,7 @@ internal sealed class LauncherUI : Control
             SetAnchorsPreset(LayoutPreset.FullRect);
             Size = viewportSize;
             var layoutProfile = LauncherLayoutProfile.ForViewport(viewportSize);
-            _model = new LauncherModel(OS.GetDataDir());
+            _model = new LauncherModel(ResolveLauncherDataDirectory());
             _model.InGameMode = _inGameMode;
             _view = new LauncherView(this, layoutProfile);
             _controller = new LauncherController(
@@ -53,8 +53,14 @@ internal sealed class LauncherUI : Control
         tree.AutoAcceptQuit = false;
         tree.ProcessFrame += OnProcessFrame;
         TreeExiting += OnExitTree;
+        Callable.From(StartControllerSafely).CallDeferred();
+    }
+
+    private void StartControllerSafely()
+    {
         try
         {
+            PatchHelper.Log("Launcher controller starting");
             _controller.Start();
             PatchHelper.Log("Launcher controller started");
             AutoLaunchIfRequested();
@@ -75,7 +81,8 @@ internal sealed class LauncherUI : Control
     {
         AndroidBridgeDispatcher.Pump();
         DrainMainThreadActions();
-        _view?.UpdateKeyboardOffset();
+        if (!OperatingSystem.IsAndroid())
+            _view?.UpdateKeyboardOffset();
     }
 
     private void EnqueueMainThreadAction(Action action) => _mainThreadActions.Enqueue(action);
@@ -106,6 +113,41 @@ internal sealed class LauncherUI : Control
 
     private Vector2 GetViewportSize()
         => GetViewport()?.GetVisibleRect().Size ?? DefaultViewportSize;
+
+    private static string ResolveLauncherDataDirectory()
+    {
+        if (OperatingSystem.IsAndroid())
+        {
+            try
+            {
+                var bridgedFilesDir = AndroidGodotAppBridge.GetInternalFilesDirPath();
+                if (BootstrapTrace.TryNormalizeDirectory(bridgedFilesDir, out var normalizedBridgedFilesDir))
+                    return normalizedBridgedFilesDir;
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"Launcher internal files dir bridge unavailable: {ex.Message}");
+            }
+
+            var androidFilesDir = System.Environment.GetEnvironmentVariable("STS2_ANDROID_FILES_DIR");
+            if (BootstrapTrace.TryNormalizeDirectory(androidFilesDir, out var normalizedAndroidFilesDir))
+                return normalizedAndroidFilesDir;
+
+            return BootstrapTrace.ResolveFallbackDataDirectory();
+        }
+
+        try
+        {
+            var dataDir = OS.GetDataDir();
+            if (BootstrapTrace.TryNormalizeDirectory(dataDir, out var normalized))
+                return normalized;
+        }
+        catch
+        {
+        }
+
+        return BootstrapTrace.ResolveFallbackDataDirectory();
+    }
 
     private void AutoLaunchIfRequested()
     {

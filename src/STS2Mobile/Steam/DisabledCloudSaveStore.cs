@@ -5,7 +5,7 @@ using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
 
-internal sealed class DisabledCloudSaveStore : ICloudSaveStore
+internal class DisabledCloudSaveStore : ICloudSaveStore
 {
     private readonly ISaveStore _local;
 
@@ -106,6 +106,9 @@ internal sealed class DisabledCloudSaveStore : ICloudSaveStore
     }
 
     bool ICloudSaveStore.IsFilePersisted(string path)
+        => false;
+
+    public virtual bool HasUserEnabledCloudSync()
         => false;
 
     private static FileNotFoundException Missing(string path)

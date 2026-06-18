@@ -8,7 +8,7 @@ using SteamKit2.Internal;
 
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     private readonly HttpClient _http = OperatingSystem.IsAndroid()
         ? AndroidJavaHttpMessageHandler.CreateCdnClient()

@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     private const int MaxCloudOperationAttempts = 3;
     private const int DeleteThrottleDelayMs = 1000;

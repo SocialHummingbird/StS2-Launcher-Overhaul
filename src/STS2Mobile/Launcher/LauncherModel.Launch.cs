@@ -35,6 +35,9 @@ internal partial class LauncherModel
 
     internal void Launch()
     {
+        if (!SelectedGameVersionReadyForLaunch())
+            return;
+
         LauncherLaunchMarkers.ClearManualSafeLaunchMarker();
         SaveLaunchCredentials();
 
@@ -46,6 +49,9 @@ internal partial class LauncherModel
 
     internal void LaunchSafe()
     {
+        if (!SelectedGameVersionReadyForLaunch())
+            return;
+
         LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
         SaveLaunchCredentials();
 
@@ -86,5 +92,20 @@ internal partial class LauncherModel
 
         _launchTcs.TrySetResult(true);
         return true;
+    }
+
+    private bool SelectedGameVersionReadyForLaunch()
+    {
+        var branch = LauncherPreferences.ReadGameBranch();
+        if (LauncherGameFiles.DownloadedForValidation(_dataDir, branch))
+            PatchCompatibilityValidator.ValidateSelectedVersion(_dataDir, branch);
+
+        if (LauncherGameFiles.Ready(_dataDir))
+            return true;
+
+        var problem = LauncherGameFiles.ReadinessProblem(_dataDir, branch)
+            ?? "Selected game version is not ready to launch.";
+        PatchHelper.Log($"[Launcher] Launch blocked: {problem}");
+        return false;
     }
 }

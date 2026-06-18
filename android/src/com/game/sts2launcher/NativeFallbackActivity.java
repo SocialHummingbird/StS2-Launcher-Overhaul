@@ -21,10 +21,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
+
+import org.json.JSONObject;
 
 public class NativeFallbackActivity extends Activity {
 	private static final String TAG = "STS2Mobile";
@@ -32,6 +35,8 @@ public class NativeFallbackActivity extends Activity {
 	private static final String GAME_BRANCH_FILE = "game_branch";
 	private static final String GAME_VERSIONS_DIR = "game_versions";
 	private static final String BRANCH_MARKER_FILE = "steam_branch.txt";
+	private static final String CURRENT_RUNTIME_SLOT_MARKER = "current_runtime_slot.json";
+	private static final String GAME_CODE_ASSEMBLY = "sts2.dll";
 	public static final String EXTRA_REASON_TITLE = "com.game.sts2launcher.REASON_TITLE";
 	public static final String EXTRA_REASON_MESSAGE = "com.game.sts2launcher.REASON_MESSAGE";
 	public static final String EXTRA_REASON_DIAGNOSTICS = "com.game.sts2launcher.REASON_DIAGNOSTICS";
@@ -178,8 +183,103 @@ public class NativeFallbackActivity extends Activity {
 			state.append("\nPCK magic valid: ");
 			state.append(describePckMagicStatus(pck));
 		}
+		appendRuntimeSlotState(state);
 		appendAssemblyCacheState(state);
 		return state.toString();
+	}
+
+	private void appendRuntimeSlotState(StringBuilder state) {
+		File marker = new File(getFilesDir(), CURRENT_RUNTIME_SLOT_MARKER);
+		state.append("\nRuntime slot evidence: ");
+		state.append(marker.getAbsolutePath());
+		state.append("\nRuntime slot evidence exists: ");
+		state.append(marker.exists() && marker.isFile() ? "yes" : "no");
+		if (!marker.exists() || !marker.isFile()) {
+			return;
+		}
+
+		try {
+			JSONObject json = new JSONObject(readSmallTextFile(marker, 64 * 1024));
+			state.append("\nRuntime slot branch: ");
+			state.append(json.optString("branch", "<missing>"));
+			state.append("\nRuntime slot ID: ");
+			state.append(json.optString("runtimeSlotId", "<missing>"));
+			state.append("\nRuntime slot files ready: ");
+			state.append(json.optBoolean("filesReady", false) ? "yes" : "no");
+			state.append("\nRuntime slot playable: ");
+			state.append(json.optBoolean("playable", false) ? "yes" : "no");
+			state.append("\nRuntime slot runtime compatible: ");
+			state.append(json.optBoolean("runtimeCompatible", false) ? "yes" : "no");
+			state.append("\nRuntime slot patch compatible: ");
+			state.append(json.optBoolean("patchCompatible", false) ? "yes" : "no");
+			String markerPckSha256 = json.optString("pckSha256", "");
+			String markerSourceAssemblySha256 = json.optString("sourceAssemblySha256", "");
+			File currentPck = new File(resolveGameDir(), PCK_FILE);
+			String currentPckSha256 = currentPck.exists() && currentPck.isFile() ? sha256Hex(currentPck) : "";
+			File currentSourceAssembly = findSelectedSourceAssembly();
+			String currentSourceAssemblySha256 = currentSourceAssembly != null && currentSourceAssembly.exists() && currentSourceAssembly.isFile()
+				? sha256Hex(currentSourceAssembly)
+				: "";
+			state.append("\nRuntime slot marker PCK SHA-256: ");
+			state.append(markerPckSha256);
+			state.append("\nRuntime slot current PCK SHA-256: ");
+			state.append(currentPckSha256);
+			state.append("\nRuntime slot PCK hash matches selected file: ");
+			state.append(!markerPckSha256.isEmpty() && markerPckSha256.equalsIgnoreCase(currentPckSha256) ? "yes" : "no");
+			state.append("\nRuntime slot marker source sts2.dll SHA-256: ");
+			state.append(markerSourceAssemblySha256);
+			state.append("\nRuntime slot current source sts2.dll: ");
+			state.append(currentSourceAssembly == null ? "<missing>" : currentSourceAssembly.getAbsolutePath());
+			state.append("\nRuntime slot current source sts2.dll SHA-256: ");
+			state.append(currentSourceAssemblySha256);
+			state.append("\nRuntime slot source sts2.dll hash matches selected file: ");
+			state.append(!markerSourceAssemblySha256.isEmpty() && markerSourceAssemblySha256.equalsIgnoreCase(currentSourceAssemblySha256) ? "yes" : "no");
+			state.append("\nRuntime slot readiness problem: ");
+			state.append(json.optString("readinessProblem", ""));
+			state.append("\nRuntime slot runtime pack usability: ");
+			state.append(json.optString("runtimePackUsabilityStatus", ""));
+			state.append("\nRuntime slot patch compatibility status: ");
+			state.append(json.optString("patchCompatibilityStatus", ""));
+		} catch (Exception e) {
+			state.append("\nRuntime slot evidence readable: no");
+			state.append("\nRuntime slot evidence read error: ");
+			state.append(e.getMessage());
+		}
+	}
+
+	private File findSelectedSourceAssembly() {
+		File gameDir = resolveGameDir();
+		if (!gameDir.exists() || !gameDir.isDirectory()) {
+			return null;
+		}
+
+		File[] children = gameDir.listFiles();
+		if (children == null) {
+			return null;
+		}
+
+		File fallback = null;
+		for (File child : children) {
+			if (!child.isDirectory() || !child.getName().startsWith("data_")) {
+				continue;
+			}
+			if (child.getName().contains("android") && containsAssemblies(child)) {
+				return new File(child, GAME_CODE_ASSEMBLY);
+			}
+			if (fallback == null && containsAssemblies(child)) {
+				fallback = child;
+			}
+		}
+
+		return fallback == null ? null : new File(fallback, GAME_CODE_ASSEMBLY);
+	}
+
+	private boolean containsAssemblies(File dir) {
+		if (dir == null || !dir.exists() || !dir.isDirectory()) {
+			return false;
+		}
+		File[] files = dir.listFiles((file, name) -> name.endsWith(".dll"));
+		return files != null && files.length > 0;
 	}
 
 	private void appendBranchMarkerState(StringBuilder state) {
@@ -374,6 +474,20 @@ public class NativeFallbackActivity extends Activity {
 		}
 		state.append(file.length());
 		state.append(" bytes");
+	}
+
+	private String readSmallTextFile(File file, int maxBytes) throws IOException {
+		try (InputStream input = new FileInputStream(file); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+			byte[] buffer = new byte[4096];
+			int total = 0;
+			int read;
+			while ((read = input.read(buffer)) != -1 && total < maxBytes) {
+				int toWrite = Math.min(read, maxBytes - total);
+				output.write(buffer, 0, toWrite);
+				total += toWrite;
+			}
+			return output.toString("UTF-8");
+		}
 	}
 
 	private String getRuntimeGodotArchDir() {

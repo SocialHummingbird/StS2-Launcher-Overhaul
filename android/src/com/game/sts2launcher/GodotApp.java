@@ -89,6 +89,7 @@ public class GodotApp extends GodotActivity {
 	private static final String KEY_INSTALLED_PACKAGE_NAME = "installed_package_name";
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
 	private static final String KEY_ASSEMBLY_CACHE_BRANCH = "assembly_cache_branch";
+	private static final String KEY_ASSEMBLY_CACHE_RUNTIME_ID = "assembly_cache_runtime_id";
 	private static final String KEY_LAUNCH_GAME_ON_NEXT_START = "launch_game_on_next_start";
 	private static final String KEY_SAFE_LAUNCH_ON_NEXT_START = "safe_launch_on_next_start";
 	private static final String GAME_BRANCH_FILE = "game_branch";
@@ -97,11 +98,14 @@ public class GodotApp extends GodotActivity {
 	private static final String ENV_LAUNCHER_BOOTSTRAP = "STS2_LAUNCHER_BOOTSTRAP";
 	private static final String ENV_AUTO_LAUNCH_GAME = "STS2_AUTO_LAUNCH_GAME";
 	private static final String ENV_AUTO_SAFE_LAUNCH = "STS2_AUTO_SAFE_LAUNCH";
+	private static final String ENV_ANDROID_FILES_DIR = "STS2_ANDROID_FILES_DIR";
+	private static final String ENV_BOOTSTRAP_UI_MODE = "STS2_BOOTSTRAP_UI_MODE";
+	private static final String ENV_MINIMAL_BOOTSTRAP_UI = "STS2_MINIMAL_BOOTSTRAP_UI";
 	private static final String ENV_FORCE_CRITICAL_PATCH_FAILURE = "STS2_FORCE_CRITICAL_PATCH_FAILURE";
 	private static final String ENV_STEAMKIT_DEBUG_LOGS = "STS2_STEAMKIT_DEBUG_LOGS";
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String EXTRA_SAFE_LAUNCH_ON_START = "sts2_safe_launch";
-    private static final int ASSEMBLY_CACHE_SCHEMA = 22;
+    private static final int ASSEMBLY_CACHE_SCHEMA = 23;
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v29";
 	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
@@ -140,6 +144,15 @@ public class GodotApp extends GodotActivity {
 		"Steamworks.NET.dll",
 		"Sentry.dll"
 	};
+	private static final String[] BRANCH_GAME_CODE_ASSEMBLIES = {
+		"sts2.dll"
+	};
+	private static final String RUNTIME_PACKS_DIRECTORY = "runtime_packs";
+	private static final String RUNTIME_PACK_ANDROID_ASSEMBLY = "sts2.dll";
+	private static final String RUNTIME_PACK_COMPATIBILITY_MANIFEST = "compatibility.json";
+	private static final String RUNTIME_PACK_PATCH_VALIDATION_REPORT = "patch_validation.json";
+	private static final String CURRENT_RUNTIME_SLOT_MARKER = "current_runtime_slot.json";
+	private static final String CURRENT_RUNTIME_CACHE_MARKER = "current_runtime_cache.txt";
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -288,6 +301,12 @@ public class GodotApp extends GodotActivity {
 			getPackageName().equals(prefs.getString(KEY_INSTALLED_PACKAGE_NAME, ""))
 		) {
 			File destDir = new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir());
+			String cachedRuntimeId = prefs.getString(KEY_ASSEMBLY_CACHE_RUNTIME_ID, "");
+			String currentRuntimeId = currentRuntimeCacheId();
+			if (!currentRuntimeId.equals(cachedRuntimeId)) {
+				Log.i(TAG, "Assembly cache runtime changed from " + cachedRuntimeId + " to " + currentRuntimeId);
+				return true;
+			}
 			return !hasRequiredCacheFiles(destDir);
 		}
 
@@ -310,6 +329,8 @@ public class GodotApp extends GodotActivity {
 					+ " storedSchema=" + prefs.getInt(KEY_ASSEMBLY_CACHE_SCHEMA, -1)
 					+ " storedVersionCode=" + prefs.getInt(KEY_INSTALLED_VERSION_CODE, -1)
 					+ " storedPackage=" + prefs.getString(KEY_INSTALLED_PACKAGE_NAME, "")
+					+ " storedRuntimeId=" + prefs.getString(KEY_ASSEMBLY_CACHE_RUNTIME_ID, "")
+					+ " currentRuntimeId=" + currentRuntimeCacheId()
 					+ " arch=" + arch
 					+ " cacheDirExists=" + destDir.isDirectory()
 					+ " sts2MobileBytes=" + (patcher.exists() ? patcher.length() : -1)
@@ -393,6 +414,7 @@ public class GodotApp extends GodotActivity {
 		sb.append(" destIsDir=").append(destDir != null && destDir.isDirectory());
 		sb.append(" src=").append(srcDir == null ? "<none>" : srcDir.getAbsolutePath());
 		sb.append(" srcExists=").append(srcDir != null && srcDir.exists());
+		sb.append(" runtimeId=").append(currentRuntimeCacheId());
 		sb.append(" packagedBclCount=").append(packagedBclNames == null ? 0 : packagedBclNames.size());
 		sb.append(" requireGameAssemblies=").append(requireGameAssemblies);
 		Log.i(TAG, sb.toString());
@@ -402,14 +424,24 @@ public class GodotApp extends GodotActivity {
 			required.addAll(java.util.Arrays.asList(GAME_REQUIRED_ASSEMBLIES));
 		for (String name : required.toArray(new String[0])) {
 			File file = destDir == null ? null : new File(destDir, name);
-			boolean packagedBcl = packagedBclNames != null && packagedBclNames.contains(name);
 			File sourceFile = srcDir == null ? null : new File(srcDir, name);
-			long sourceBytes = packagedBcl
+			boolean branchGameCodeBlocked = selectedBranchRequiresRuntimePack() && isBranchGameCodeAssembly(name);
+			boolean branchGameCode = isBranchGameCodeAssembly(name) && sourceFile != null && sourceFile.exists() && !branchGameCodeBlocked;
+			boolean packagedBcl = packagedBclNames != null && packagedBclNames.contains(name) && !branchGameCode;
+			long sourceBytes = branchGameCodeBlocked
+				? 0
+				: branchGameCode
+				? sourceFile.length()
+				: packagedBcl
 				? packagedAssetLength("dotnet_bcl/" + name)
 				: sourceFile != null && sourceFile.exists()
 					? sourceFile.length()
 					: packagedAssetLength("dotnet_bcl/" + name);
-			String expectedSource = packagedBcl
+			String expectedSource = branchGameCodeBlocked
+				? "no-usable-runtime"
+				: branchGameCode
+				? "selected-game"
+				: packagedBcl
 				? "packaged-bcl"
 				: sourceFile != null && sourceFile.exists()
 					? "game"
@@ -438,12 +470,63 @@ public class GodotApp extends GodotActivity {
 
 	private void markAssemblyCacheStateAsCurrent(int currentVersion) {
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		String currentRuntimeId = currentRuntimeCacheId();
 		prefs.edit()
 			.putInt(KEY_ASSEMBLY_CACHE_SCHEMA, ASSEMBLY_CACHE_SCHEMA)
 			.putString(KEY_ASSEMBLY_CACHE_BRANCH, readSelectedBranch())
+			.putString(KEY_ASSEMBLY_CACHE_RUNTIME_ID, currentRuntimeId)
 			.putInt(KEY_INSTALLED_VERSION_CODE, currentVersion)
 			.putString(KEY_INSTALLED_PACKAGE_NAME, getPackageName())
 			.apply();
+		writeRuntimeCacheMarker(currentVersion, currentRuntimeId);
+	}
+
+	private void writeRuntimeCacheMarker(int currentVersion, String currentRuntimeId) {
+		try {
+			String selectedBranch = readSelectedBranch();
+			File pck = new File(gameDir, PCK_FILE);
+			File srcDir = findAssembliesDir();
+			File runtimePackDir = findRuntimePackDir();
+			File runtimePackGameAssembly = runtimePackGameAssembly(runtimePackDir);
+			File selectedSourceAssembly = srcDir == null ? null : new File(srcDir, "sts2.dll");
+			boolean selectedBranchRequiresRuntimePack = selectedBranchRequiresRuntimePack();
+			File activeSourceAssembly = runtimePackGameAssembly != null && runtimePackGameAssembly.exists()
+				? runtimePackGameAssembly
+				: selectedBranchRequiresRuntimePack
+					? null
+					: selectedSourceAssembly;
+			File publishDir = new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir());
+			String runtimeSource = runtimePackGameAssembly != null && runtimePackGameAssembly.exists()
+				? "runtime-pack"
+				: selectedBranchRequiresRuntimePack
+					? "no-usable-runtime"
+					: "selected-game";
+			String text =
+				"UTC millis: " + System.currentTimeMillis() + "\n"
+				+ "Package: " + getPackageName() + "\n"
+				+ "Version name: " + BuildConfig.VERSION_NAME + "\n"
+				+ "Version code: " + currentVersion + "\n"
+				+ "Assembly cache schema: " + ASSEMBLY_CACHE_SCHEMA + "\n"
+				+ "Selected branch: " + selectedBranch + "\n"
+				+ "Runtime ID: " + currentRuntimeId + "\n"
+				+ "Runtime source: " + runtimeSource + "\n"
+				+ "Runtime pack directory: " + (runtimePackDir == null ? "<none>" : runtimePackDir.getAbsolutePath()) + "\n"
+				+ "Runtime pack game assembly: " + (runtimePackGameAssembly == null ? "<none>" : runtimePackGameAssembly.getAbsolutePath()) + "\n"
+				+ "Selected branch requires runtime pack: " + selectedBranchRequiresRuntimePack + "\n"
+				+ "Game directory: " + gameDir + "\n"
+				+ "Selected PCK path: " + pck.getAbsolutePath() + "\n"
+				+ "Selected PCK identity: " + fileIdentity(pck) + "\n"
+				+ "Selected PCK SHA256: " + (pck.exists() && pck.isFile() ? sha256Hex(pck) : "<missing>") + "\n"
+				+ "Selected source sts2.dll: " + (selectedSourceAssembly == null ? "<none>" : selectedSourceAssembly.getAbsolutePath()) + "\n"
+				+ "Selected source sts2.dll SHA256: " + (selectedSourceAssembly != null && selectedSourceAssembly.exists() ? sha256Hex(selectedSourceAssembly) : "<missing>") + "\n"
+				+ "Active source sts2.dll: " + (activeSourceAssembly == null ? "<none>" : activeSourceAssembly.getAbsolutePath()) + "\n"
+				+ "Active source sts2.dll SHA256: " + (activeSourceAssembly != null && activeSourceAssembly.exists() ? sha256Hex(activeSourceAssembly) : "<missing>") + "\n"
+				+ "Publish cache directory: " + publishDir.getAbsolutePath() + "\n"
+				+ "Publish cache active sts2.dll SHA256: " + sha256Hex(new File(publishDir, "sts2.dll")) + "\n";
+			writeInternalTextFile(CURRENT_RUNTIME_CACHE_MARKER, text);
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to write runtime cache marker", e);
+		}
 	}
 
 	private void resetAssemblyCacheState() {
@@ -451,6 +534,7 @@ public class GodotApp extends GodotActivity {
 		prefs.edit()
 			.remove(KEY_ASSEMBLY_CACHE_SCHEMA)
 			.remove(KEY_ASSEMBLY_CACHE_BRANCH)
+			.remove(KEY_ASSEMBLY_CACHE_RUNTIME_ID)
 			.remove(KEY_INSTALLED_VERSION_CODE)
 			.remove(KEY_INSTALLED_PACKAGE_NAME)
 			.apply();
@@ -512,14 +596,39 @@ public class GodotApp extends GodotActivity {
 	// changed.
 	private void setupAssemblies() {
 		File srcDir = findAssembliesDir();
+		File runtimePackDir = findRuntimePackDir();
+		File runtimePackGameAssembly = runtimePackGameAssembly(runtimePackDir);
 		File destDir = new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir());
 		int currentVersion = BuildConfig.VERSION_CODE;
 		boolean gameReady = isGamePckReady();
-		boolean requiresGameAssemblies = gameReady && hasGameAssemblies(srcDir);
+		boolean hasRuntimePackGameAssembly = runtimePackGameAssembly != null
+			&& runtimePackGameAssembly.exists()
+			&& runtimePackGameAssembly.isFile();
+		boolean selectedBranchRequiresRuntimePack = gameReady
+			&& !"public".equalsIgnoreCase(readSelectedBranch());
+		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
+		boolean requiresGameAssemblies = gameReady
+			&& (hasGameAssemblies(srcDir) || hasRuntimePackGameAssembly)
+			&& (!selectedBranchRequiresRuntimePack || hasRuntimePackGameAssembly);
 		Set<String> packagedBclNames = getPackagedBclNames();
 
 		boolean refreshCache = shouldRefreshAssemblyCache() || shouldRefreshAssemblyCacheForSelectedBranch();
 		logAssemblyCacheState("before-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
+		Log.i(TAG, "Runtime pack directory: " + (runtimePackDir == null ? "<none>" : runtimePackDir.getAbsolutePath()));
+		Log.i(TAG, "Runtime pack game assembly: " + (hasRuntimePackGameAssembly ? runtimePackGameAssembly.getAbsolutePath() : "<none>"));
+		if (selectedBranchRequiresRuntimePack && !hasRuntimePackGameAssembly && pendingGameLaunch) {
+			Log.w(TAG, "Selected non-public branch requires a usable runtime pack for game launch; selected-game sts2.dll fallback will not be copied.");
+			clearAssemblyCache(destDir);
+			logAssemblyCacheState("blocked-no-runtime-pack", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
+			writeRuntimeCacheMarker(currentVersion, currentRuntimeCacheId());
+			throw new RuntimeException(
+				"Selected Steam branch '" + readSelectedBranch()
+					+ "' has no usable Android runtime pack. Native Godot startup was blocked to avoid loading stale or public sts2.dll code against the selected branch PCK."
+			);
+		}
+		if (selectedBranchRequiresRuntimePack && !hasRuntimePackGameAssembly) {
+			Log.w(TAG, "Selected non-public branch has no usable runtime pack yet; starting launcher-only bootstrap without selected-game sts2.dll so managed validation can regenerate runtime-pack evidence.");
+		}
 
 		File patcherMarker = new File(destDir, "STS2Mobile.dll");
 		File sts2Marker = new File(destDir, "sts2.dll");
@@ -531,7 +640,7 @@ public class GodotApp extends GodotActivity {
 			!refreshCache
 				&& hasRequiredCacheFiles(destDir, requiresGameAssemblies)
 				&& hasCurrentPackagedRequiredAssemblies(destDir)
-				&& (!requiresGameAssemblies || hasCachedGameAssemblies(destDir, srcDir, packagedBclNames))
+				&& (!requiresGameAssemblies || hasCachedGameAssemblies(destDir, srcDir, packagedBclNames, runtimePackDir, runtimePackGameAssembly))
 		) {
 			Log.i(TAG, "Assemblies already set up at: " + destDir.getAbsolutePath());
 			logAssemblyCacheState("cache-hit", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
@@ -582,6 +691,13 @@ public class GodotApp extends GodotActivity {
 				for (File src : files) {
 					if (src.isFile()) {
 						String name = src.getName();
+						if (hasRuntimePackGameAssembly && isBranchGameCodeAssembly(name)) {
+							continue;
+						}
+						if (selectedBranchRequiresRuntimePack && !hasRuntimePackGameAssembly && isBranchGameCodeAssembly(name)) {
+							Log.w(TAG, "Skipping selected-game branch code assembly without usable runtime pack: " + name);
+							continue;
+						}
 						if (!shouldCopyGameAssemblyFile(name, packagedBclNames)) {
 							continue;
 						}
@@ -595,6 +711,33 @@ public class GodotApp extends GodotActivity {
 					}
 				}
 				Log.i(TAG, "Copied " + count + " game assembly files");
+			}
+		}
+
+		if (hasRuntimePackGameAssembly) {
+			Set<String> runtimePackDeclaredAssemblies = runtimePackDeclaredAssemblyNames(runtimePackDir);
+			File[] files = runtimePackDir.listFiles();
+			if (files != null) {
+				int count = 0;
+				for (File src : files) {
+					if (!src.isFile()) {
+						continue;
+					}
+					if (!runtimePackDeclaredAssemblies.contains(src.getName().toLowerCase(java.util.Locale.ROOT))) {
+						continue;
+					}
+					if (!shouldCopyGameAssemblyFile(src.getName(), packagedBclNames)) {
+						continue;
+					}
+					File dest = new File(destDir, src.getName());
+					try {
+						copyFile(src, dest);
+						count++;
+					} catch (IOException e) {
+						Log.e(TAG, "Failed to copy runtime-pack assembly: " + src.getName(), e);
+					}
+				}
+				Log.i(TAG, "Copied " + count + " runtime-pack assembly files");
 			}
 		}
 
@@ -644,11 +787,15 @@ public class GodotApp extends GodotActivity {
 	}
 
 	private boolean shouldCopyGameAssemblyFile(String name, Set<String> packagedBclNames) {
-		if (name == null || packagedBclNames.contains(name)) {
+		if (name == null) {
 			return false;
 		}
 
 		String lower = name.toLowerCase(java.util.Locale.ROOT);
+		if (packagedBclNames.contains(name) && !isBranchGameCodeAssembly(lower)) {
+			return false;
+		}
+
 		if (!lower.endsWith(".dll") && !lower.endsWith(".json")) {
 			return false;
 		}
@@ -680,6 +827,81 @@ public class GodotApp extends GodotActivity {
 		return true;
 	}
 
+	private boolean isBranchGameCodeAssembly(String name) {
+		if (name == null) {
+			return false;
+		}
+		String lower = name.toLowerCase(java.util.Locale.ROOT);
+		for (String gameCodeAssembly : BRANCH_GAME_CODE_ASSEMBLIES) {
+			if (lower.equals(gameCodeAssembly.toLowerCase(java.util.Locale.ROOT))) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private String currentRuntimeCacheId() {
+		String selectedBranch = readSelectedBranch();
+		File pck = new File(gameDir, PCK_FILE);
+		File srcDir = findAssembliesDir();
+		File runtimePackDir = findRuntimePackDir();
+		File runtimePackGameAssembly = runtimePackGameAssembly(runtimePackDir);
+		boolean selectedBranchRequiresRuntimePack = selectedBranchRequiresRuntimePack();
+		File sourceGameAssembly = runtimePackGameAssembly != null && runtimePackGameAssembly.exists()
+			? runtimePackGameAssembly
+			: selectedBranchRequiresRuntimePack
+				? null
+			: (srcDir == null ? null : new File(srcDir, "sts2.dll"));
+		String pckIdentity = fileIdentity(pck);
+		String sourceHash = sourceGameAssembly != null && sourceGameAssembly.exists()
+			? sha256Hex(sourceGameAssembly)
+			: "<no-source-sts2>";
+		String runtimeSource = runtimePackGameAssembly != null && runtimePackGameAssembly.exists()
+			? "runtime-pack"
+			: selectedBranchRequiresRuntimePack
+				? "no-usable-runtime"
+				: "selected-game";
+		return selectedBranch
+			+ "|pck=" + pckIdentity
+			+ "|runtimeSource=" + runtimeSource
+			+ "|runtimePack=" + runtimePackIdentity(runtimePackDir)
+			+ "|sts2=" + sourceHash;
+	}
+
+	private boolean selectedBranchRequiresRuntimePack() {
+		return isGamePckReady() && !"public".equalsIgnoreCase(readSelectedBranch());
+	}
+
+	private String runtimePackIdentity(File runtimePackDir) {
+		if (runtimePackDir == null || !runtimePackDir.exists() || !runtimePackDir.isDirectory()) {
+			return "<none>";
+		}
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("dir=").append(runtimePackDir.getName());
+		appendRuntimePackFileIdentity(sb, new File(runtimePackDir, "compatibility.json"));
+		appendRuntimePackFileIdentity(sb, new File(runtimePackDir, "patch_validation.json"));
+		File[] files = runtimePackDir.listFiles((dir, name) -> name.toLowerCase(java.util.Locale.ROOT).endsWith(".dll"));
+		if (files != null) {
+			java.util.Arrays.sort(files, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+			for (File file : files) {
+				appendRuntimePackFileIdentity(sb, file);
+			}
+		}
+		return sb.toString();
+	}
+
+	private void appendRuntimePackFileIdentity(StringBuilder sb, File file) {
+		sb.append("|").append(file.getName()).append("=").append(fileIdentity(file));
+	}
+
+	private String fileIdentity(File file) {
+		if (file == null || !file.exists() || !file.isFile()) {
+			return "<missing>";
+		}
+		return "bytes=" + file.length() + ",mtime=" + file.lastModified();
+	}
+
 	private File findAssembliesDir() {
 		if (!isGamePckReady()) {
 			return null;
@@ -709,6 +931,264 @@ public class GodotApp extends GodotActivity {
 				}
 			}
 		}
+		return null;
+	}
+
+	private File findRuntimePackDir() {
+		if (!isGamePckReady()) {
+			return null;
+		}
+
+		File runtimePackDir = new File(
+			new File(getFilesDir(), RUNTIME_PACKS_DIRECTORY),
+			SteamBranchInfo.stateDirectoryName(readSelectedBranch())
+		);
+		if (runtimePackDir.exists() && runtimePackDir.isDirectory()) {
+			if (!isRuntimePackManifestUsable(runtimePackDir)) {
+				Log.w(TAG, "Ignoring runtime pack with incomplete or mismatched manifest: " + runtimePackDir.getAbsolutePath());
+				return null;
+			}
+			return runtimePackDir;
+		}
+
+		return null;
+	}
+
+	private boolean isRuntimePackManifestUsable(File runtimePackDir) {
+		if (runtimePackDir == null || !runtimePackDir.exists() || !runtimePackDir.isDirectory()) {
+			return false;
+		}
+
+		File manifest = new File(runtimePackDir, RUNTIME_PACK_COMPATIBILITY_MANIFEST);
+		File report = new File(runtimePackDir, RUNTIME_PACK_PATCH_VALIDATION_REPORT);
+		File gameAssembly = new File(runtimePackDir, RUNTIME_PACK_ANDROID_ASSEMBLY);
+		if (!manifest.exists() || !manifest.isFile() || !report.exists() || !report.isFile() || !gameAssembly.exists() || !gameAssembly.isFile()) {
+			Log.w(TAG, "Runtime pack missing required manifest/report/assembly files: " + runtimePackDir.getAbsolutePath());
+			return false;
+		}
+
+		try {
+			org.json.JSONObject json = new org.json.JSONObject(readSmallTextFile(manifest, 64 * 1024));
+			String packId = json.optString("packId", "");
+			String sourceRuntimeSlotId = json.optString("sourceRuntimeSlotId", "");
+			String sourceBranch = json.optString("sourceBranch", "");
+			String sourcePckSha256 = json.optString("sourcePckSha256", "");
+			String sourceAssemblySha256 = json.optString("sourceAssemblySha256", "");
+			String androidAssemblySha256 = json.optString("androidAssemblySha256", "");
+			String patchValidationStatus = json.optString("patchValidationStatus", "");
+			boolean generatedFromCleanDirectory = json.optBoolean("generatedFromCleanDirectory", false);
+			org.json.JSONArray supportAssemblies = json.optJSONArray("supportAssemblies");
+			org.json.JSONObject supportAssemblySha256 = json.optJSONObject("supportAssemblySha256");
+			if (packId.trim().isEmpty()
+				|| sourceRuntimeSlotId.trim().isEmpty()
+				|| sourceBranch.trim().isEmpty()
+				|| sourcePckSha256.trim().isEmpty()
+				|| sourceAssemblySha256.trim().isEmpty()
+				|| androidAssemblySha256.trim().isEmpty()) {
+				Log.w(TAG, "Runtime pack manifest is missing required runtime identity/hash fields: " + manifest.getAbsolutePath());
+				return false;
+			}
+			if (!generatedFromCleanDirectory) {
+				Log.w(TAG, "Runtime pack was not generated from a clean directory: " + manifest.getAbsolutePath());
+				return false;
+			}
+			if (!runtimePackSupportAssembliesUsable(runtimePackDir, supportAssemblies, supportAssemblySha256)) {
+				return false;
+			}
+			String selectedBranch = readSelectedBranch();
+			if (!sourceBranch.equalsIgnoreCase(selectedBranch)) {
+				Log.w(TAG, "Runtime pack branch mismatch: declared=" + sourceBranch + " selected=" + selectedBranch);
+				return false;
+			}
+			File selectedPck = new File(gameDir, PCK_FILE);
+			if (!selectedPck.exists() || !selectedPck.isFile()) {
+				Log.w(TAG, "Runtime pack cannot be matched because selected PCK is missing: " + selectedPck.getAbsolutePath());
+				return false;
+			}
+			String selectedPckSha256 = sha256Hex(selectedPck);
+			if (!sourcePckSha256.equalsIgnoreCase(selectedPckSha256)) {
+				Log.w(TAG, "Runtime pack selected PCK hash mismatch: declared=" + sourcePckSha256 + " selected=" + selectedPckSha256);
+				return false;
+			}
+			File srcDir = findAssembliesDir();
+			File selectedSourceAssembly = srcDir == null ? null : new File(srcDir, RUNTIME_PACK_ANDROID_ASSEMBLY);
+			if (selectedSourceAssembly == null || !selectedSourceAssembly.exists() || !selectedSourceAssembly.isFile()) {
+				Log.w(TAG, "Runtime pack cannot be matched because selected source sts2.dll is missing: " + (selectedSourceAssembly == null ? "<none>" : selectedSourceAssembly.getAbsolutePath()));
+				return false;
+			}
+			String selectedSourceAssemblySha256 = sha256Hex(selectedSourceAssembly);
+			if (!sourceAssemblySha256.equalsIgnoreCase(selectedSourceAssemblySha256)) {
+				Log.w(TAG, "Runtime pack selected source assembly hash mismatch: declared=" + sourceAssemblySha256 + " selected=" + selectedSourceAssemblySha256);
+				return false;
+			}
+			if (!"passed".equalsIgnoreCase(patchValidationStatus)) {
+				Log.w(TAG, "Runtime pack manifest patch validation did not pass: " + patchValidationStatus);
+				return false;
+			}
+			org.json.JSONObject reportJson = new org.json.JSONObject(readSmallTextFile(report, 64 * 1024));
+			String reportStatus = reportJson.optString("status", "");
+			if (!"passed".equalsIgnoreCase(reportStatus)) {
+				Log.w(TAG, "Runtime pack patch validation report did not pass: " + reportStatus);
+				return false;
+			}
+			if (!packId.equalsIgnoreCase(reportJson.optString("runtimePackId", ""))
+				|| !sourceRuntimeSlotId.equalsIgnoreCase(reportJson.optString("sourceRuntimeSlotId", ""))
+				|| !sourceBranch.equalsIgnoreCase(reportJson.optString("branch", ""))
+				|| !sourcePckSha256.equalsIgnoreCase(reportJson.optString("pckSha256", ""))
+				|| !sourceAssemblySha256.equalsIgnoreCase(reportJson.optString("sourceAssemblySha256", ""))
+				|| !androidAssemblySha256.equalsIgnoreCase(reportJson.optString("androidAssemblySha256", ""))
+				|| !json.optString("patchSetVersion", "").equalsIgnoreCase(reportJson.optString("patchSetVersion", ""))
+				|| !json.optString("validationSurfaceVersion", "").equalsIgnoreCase(reportJson.optString("validationSurfaceVersion", ""))
+				|| !jsonArrayStringsEqual(supportAssemblies, reportJson.optJSONArray("supportAssemblies"))
+				|| !jsonStringObjectEqual(supportAssemblySha256, reportJson.optJSONObject("supportAssemblySha256"))
+				|| reportJson.optBoolean("generatedFromCleanDirectory", false) != generatedFromCleanDirectory) {
+				Log.w(TAG, "Runtime pack patch validation report does not match compatibility manifest.");
+				return false;
+			}
+			String actualAssemblySha256 = sha256Hex(gameAssembly);
+			if (!androidAssemblySha256.equalsIgnoreCase(actualAssemblySha256)) {
+				Log.w(TAG, "Runtime pack Android assembly hash mismatch: declared=" + androidAssemblySha256 + " actual=" + actualAssemblySha256);
+				return false;
+			}
+			return true;
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to parse runtime pack compatibility manifest: " + manifest.getAbsolutePath(), e);
+			return false;
+		}
+	}
+
+	private boolean runtimePackSupportAssembliesUsable(File runtimePackDir, org.json.JSONArray supportAssemblies, org.json.JSONObject supportAssemblySha256) {
+		if (supportAssemblies == null || supportAssemblySha256 == null) {
+			Log.w(TAG, "Runtime pack manifest is missing support assembly declarations.");
+			return false;
+		}
+
+		HashSet<String> declaredDlls = new HashSet<>();
+		HashSet<String> declaredSupportAssemblies = new HashSet<>();
+		declaredDlls.add(RUNTIME_PACK_ANDROID_ASSEMBLY.toLowerCase(java.util.Locale.ROOT));
+		for (int i = 0; i < supportAssemblies.length(); i++) {
+			String name = supportAssemblies.optString(i, "");
+			String lowerName = name.toLowerCase(java.util.Locale.ROOT);
+			if (name.trim().isEmpty() || name.contains("/") || name.contains("\\") || !name.endsWith(".dll")) {
+				Log.w(TAG, "Runtime pack support assembly has unsafe name: " + name);
+				return false;
+			}
+			if (lowerName.equals(RUNTIME_PACK_ANDROID_ASSEMBLY.toLowerCase(java.util.Locale.ROOT))) {
+				Log.w(TAG, "Runtime pack support assemblies must not redeclare sts2.dll.");
+				return false;
+			}
+			if (!declaredDlls.add(lowerName)) {
+				Log.w(TAG, "Runtime pack support assembly is duplicated: " + name);
+				return false;
+			}
+			declaredSupportAssemblies.add(lowerName);
+
+			File supportAssembly = new File(runtimePackDir, name);
+			if (!supportAssembly.exists() || !supportAssembly.isFile()) {
+				Log.w(TAG, "Runtime pack support assembly missing: " + supportAssembly.getAbsolutePath());
+				return false;
+			}
+			String declaredSha256 = supportAssemblySha256.optString(name, "");
+			if (declaredSha256.trim().isEmpty()) {
+				Log.w(TAG, "Runtime pack support assembly hash missing: " + name);
+				return false;
+			}
+			String actualSha256 = sha256Hex(supportAssembly);
+			if (!declaredSha256.equalsIgnoreCase(actualSha256)) {
+				Log.w(TAG, "Runtime pack support assembly hash mismatch: " + name + " declared=" + declaredSha256 + " actual=" + actualSha256);
+				return false;
+			}
+		}
+		if (supportAssemblySha256.length() != declaredSupportAssemblies.size()) {
+			Log.w(TAG, "Runtime pack support assembly hash set does not match declared support assemblies.");
+			return false;
+		}
+		Iterator<String> supportHashKeys = supportAssemblySha256.keys();
+		while (supportHashKeys.hasNext()) {
+			String key = supportHashKeys.next();
+			if (!declaredSupportAssemblies.contains(key.toLowerCase(java.util.Locale.ROOT))) {
+				Log.w(TAG, "Runtime pack support assembly hash is undeclared: " + key);
+				return false;
+			}
+		}
+
+		File[] runtimePackDlls = runtimePackDir.listFiles((dir, name) -> name.toLowerCase(java.util.Locale.ROOT).endsWith(".dll"));
+		if (runtimePackDlls != null) {
+			for (File dll : runtimePackDlls) {
+				String lowerName = dll.getName().toLowerCase(java.util.Locale.ROOT);
+				if (!declaredDlls.contains(lowerName)) {
+					Log.w(TAG, "Runtime pack contains undeclared DLL: " + dll.getAbsolutePath());
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	private Set<String> runtimePackDeclaredAssemblyNames(File runtimePackDir) {
+		Set<String> names = new HashSet<>();
+		names.add(RUNTIME_PACK_ANDROID_ASSEMBLY.toLowerCase(java.util.Locale.ROOT));
+
+		if (runtimePackDir == null) {
+			return names;
+		}
+
+		File manifest = new File(runtimePackDir, RUNTIME_PACK_COMPATIBILITY_MANIFEST);
+		try {
+			org.json.JSONObject json = new org.json.JSONObject(readSmallTextFile(manifest, 64 * 1024));
+			org.json.JSONArray supportAssemblies = json.optJSONArray("supportAssemblies");
+			if (supportAssemblies != null) {
+				for (int i = 0; i < supportAssemblies.length(); i++) {
+					String name = supportAssemblies.optString(i, "").trim();
+					if (!name.isEmpty()) {
+						names.add(name.toLowerCase(java.util.Locale.ROOT));
+					}
+				}
+			}
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to read manifest-declared runtime-pack assemblies; copying runtime-pack sts2.dll only.", e);
+		}
+
+		return names;
+	}
+
+	private boolean jsonArrayStringsEqual(org.json.JSONArray left, org.json.JSONArray right) {
+		if (left == null || right == null || left.length() != right.length()) {
+			return false;
+		}
+		for (int i = 0; i < left.length(); i++) {
+			if (!left.optString(i, "").equalsIgnoreCase(right.optString(i, ""))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private boolean jsonStringObjectEqual(org.json.JSONObject left, org.json.JSONObject right) {
+		if (left == null || right == null || left.length() != right.length()) {
+			return false;
+		}
+		Iterator<String> keys = left.keys();
+		while (keys.hasNext()) {
+			String key = keys.next();
+			if (!left.optString(key, "").equalsIgnoreCase(right.optString(key, ""))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private File runtimePackGameAssembly(File runtimePackDir) {
+		if (runtimePackDir == null) {
+			return null;
+		}
+
+		File candidate = new File(runtimePackDir, RUNTIME_PACK_ANDROID_ASSEMBLY);
+		if (candidate.exists() && candidate.isFile()) {
+			return candidate;
+		}
+
 		return null;
 	}
 
@@ -769,31 +1249,64 @@ public class GodotApp extends GodotActivity {
 		return files != null && files.length > 0;
 	}
 
-	private boolean hasCachedGameAssemblies(File destDir, File srcDir, Set<String> packagedBclNames) {
-		if (destDir == null || srcDir == null || !srcDir.exists() || !srcDir.isDirectory()) {
+	private boolean hasCachedGameAssemblies(File destDir, File srcDir, Set<String> packagedBclNames, File runtimePackDir, File runtimePackGameAssembly) {
+		if (destDir == null) {
 			return false;
 		}
 
-		File[] files = srcDir.listFiles();
-		if (files == null || files.length == 0) {
+		if (selectedBranchRequiresRuntimePack()
+			&& (runtimePackGameAssembly == null || !runtimePackGameAssembly.exists() || !runtimePackGameAssembly.isFile())) {
+			Log.i(TAG, "Game assembly cache is not current because selected non-public branch has no usable runtime pack.");
 			return false;
 		}
 
-		for (File src : files) {
-			if (!src.isFile()) {
-				continue;
-			}
-			if (!shouldCopyGameAssemblyFile(src.getName(), packagedBclNames)) {
-				continue;
-			}
-			File dest = new File(destDir, src.getName());
-			if (!filesMatch(src, dest)) {
-				Log.i(TAG, "Game assembly cache is stale or incomplete: " + src.getName());
+		boolean hasAnyExpectedGameAssembly = false;
+		if (runtimePackGameAssembly != null && runtimePackGameAssembly.exists() && runtimePackGameAssembly.isFile()) {
+			File[] runtimePackFiles = runtimePackDir == null ? null : runtimePackDir.listFiles();
+			if (runtimePackFiles == null || runtimePackFiles.length == 0) {
 				return false;
 			}
+
+			for (File src : runtimePackFiles) {
+				if (!src.isFile()) {
+					continue;
+				}
+				if (!shouldCopyGameAssemblyFile(src.getName(), packagedBclNames)) {
+					continue;
+				}
+				hasAnyExpectedGameAssembly = true;
+				File dest = new File(destDir, src.getName());
+				if (!filesMatch(src, dest)) {
+					Log.i(TAG, "Runtime-pack assembly cache is stale or incomplete: " + src.getName());
+					return false;
+				}
+			}
 		}
 
-		return true;
+		if (srcDir != null && srcDir.exists() && srcDir.isDirectory()) {
+			File[] files = srcDir.listFiles();
+			if (files != null) {
+				for (File src : files) {
+					if (!src.isFile()) {
+						continue;
+					}
+					if (runtimePackGameAssembly != null && runtimePackGameAssembly.exists() && isBranchGameCodeAssembly(src.getName())) {
+						continue;
+					}
+					if (!shouldCopyGameAssemblyFile(src.getName(), packagedBclNames)) {
+						continue;
+					}
+					hasAnyExpectedGameAssembly = true;
+					File dest = new File(destDir, src.getName());
+					if (!filesMatch(src, dest)) {
+						Log.i(TAG, "Game assembly cache is stale or incomplete: " + src.getName());
+						return false;
+					}
+				}
+			}
+		}
+
+		return hasAnyExpectedGameAssembly;
 	}
 
 	private boolean filesMatch(File expected, File current) {
@@ -868,6 +1381,59 @@ public class GodotApp extends GodotActivity {
 			return true;
 		} catch (IOException e) {
 			Log.w(TAG, "Failed to inspect game PCK", e);
+			return false;
+		}
+	}
+
+	private boolean isRuntimeSlotEvidenceReadyForLaunch(String selectedBranch) {
+		File marker = new File(getFilesDir(), CURRENT_RUNTIME_SLOT_MARKER);
+		if (!marker.exists() || !marker.isFile()) {
+			Log.w(TAG, "Blocking selected game startup because runtime slot evidence is missing: " + marker.getAbsolutePath());
+			return false;
+		}
+
+		try {
+			JSONObject json = new JSONObject(readSmallTextFile(marker, 64 * 1024));
+			String markerBranch = json.optString("branch", "");
+			boolean branchMatches = markerBranch.equalsIgnoreCase(selectedBranch);
+			boolean filesReady = json.optBoolean("filesReady", false);
+			boolean playable = json.optBoolean("playable", false);
+			boolean runtimeCompatible = json.optBoolean("runtimeCompatible", false);
+			boolean patchCompatible = json.optBoolean("patchCompatible", false);
+			String markerPckSha256 = json.optString("pckSha256", "");
+			String markerSourceAssemblySha256 = json.optString("sourceAssemblySha256", "");
+			File selectedPck = new File(gameDir, PCK_FILE);
+			String selectedPckSha256 = selectedPck.exists() && selectedPck.isFile() ? sha256Hex(selectedPck) : "";
+			File srcDir = findAssembliesDir();
+			File selectedSourceAssembly = srcDir == null ? null : new File(srcDir, RUNTIME_PACK_ANDROID_ASSEMBLY);
+			String selectedSourceAssemblySha256 = selectedSourceAssembly != null && selectedSourceAssembly.exists() && selectedSourceAssembly.isFile()
+				? sha256Hex(selectedSourceAssembly)
+				: "";
+			boolean pckMatches = !markerPckSha256.trim().isEmpty() && markerPckSha256.equalsIgnoreCase(selectedPckSha256);
+			boolean sourceAssemblyMatches = !markerSourceAssemblySha256.trim().isEmpty() && markerSourceAssemblySha256.equalsIgnoreCase(selectedSourceAssemblySha256);
+			if (branchMatches && filesReady && playable && runtimeCompatible && patchCompatible && pckMatches && sourceAssemblyMatches) {
+				Log.i(TAG, "Runtime slot evidence ready for selected game startup: slot=" + json.optString("runtimeSlotId", "") + " branch=" + markerBranch);
+				return true;
+			}
+
+			Log.w(
+				TAG,
+				"Blocking selected game startup because runtime slot evidence is not playable: "
+					+ "selectedBranch=" + selectedBranch
+					+ " markerBranch=" + markerBranch
+					+ " filesReady=" + filesReady
+					+ " playable=" + playable
+					+ " runtimeCompatible=" + runtimeCompatible
+					+ " patchCompatible=" + patchCompatible
+					+ " pckMatches=" + pckMatches
+					+ " sourceAssemblyMatches=" + sourceAssemblyMatches
+					+ " readinessProblem=" + json.optString("readinessProblem", "")
+					+ " runtimePackStatus=" + json.optString("runtimePackUsabilityStatus", "")
+					+ " patchStatus=" + json.optString("patchCompatibilityStatus", "")
+			);
+			return false;
+		} catch (Exception e) {
+			Log.w(TAG, "Blocking selected game startup because runtime slot evidence is unreadable: " + marker.getAbsolutePath(), e);
 			return false;
 		}
 	}
@@ -1011,6 +1577,7 @@ public class GodotApp extends GodotActivity {
 	@Override
 	public List<String> getCommandLine() {
 		List<String> commands = new ArrayList<>(super.getCommandLine());
+		setAndroidFilesDirMode();
 		File pckFile = new File(gameDir, PCK_FILE);
 		String selectedBranch = readSelectedBranch();
 		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
@@ -1031,9 +1598,15 @@ public class GodotApp extends GodotActivity {
 		boolean branchMarkerReady = isBranchMarkerReady(selectedBranch);
 		boolean gamePckReady = isGamePckReady();
 		Log.i(TAG, "Steam branch marker ready for startup: " + branchMarkerReady);
-		boolean launchRequested = branchMarkerReady && gamePckReady && consumeGameLaunchRequest();
+		boolean runtimeSlotReady = branchMarkerReady && gamePckReady && isRuntimeSlotEvidenceReadyForLaunch(selectedBranch);
+		Log.i(TAG, "Runtime slot evidence ready for startup: " + runtimeSlotReady);
+		boolean gameLaunchRequested = branchMarkerReady && gamePckReady && consumeGameLaunchRequest();
+		boolean launchRequested = gameLaunchRequested && runtimeSlotReady;
 		if (gamePckReady && !branchMarkerReady) {
 			Log.w(TAG, "Blocking selected game version startup because branch marker provenance is missing or mismatched; returning to launcher instead of falling back to another branch.");
+		}
+		if (gameLaunchRequested && !runtimeSlotReady) {
+			Log.w(TAG, "Blocking selected game version startup because runtime slot evidence is missing, stale, or not playable; returning to launcher instead of mounting the selected PCK.");
 		}
 		setAutoLaunchGameMode(launchRequested);
 		setForcedCriticalPatchFailureMode();
@@ -1075,6 +1648,7 @@ public class GodotApp extends GodotActivity {
 			// Start in the launcher unless a one-shot game launch was requested; use bootstrap PCK so Godot can initialize for the
 			// launcher.
 			setLauncherBootstrapMode(true);
+			setMinimalBootstrapUiMode();
 			String bootstrapPck = extractBootstrapPck();
 			if (bootstrapPck != null) {
 				commands.add("--main-pack");
@@ -1091,6 +1665,35 @@ public class GodotApp extends GodotActivity {
 			Log.i(TAG, "Launcher bootstrap mode: " + enabled);
 		} catch (Exception e) {
 			Log.w(TAG, "Failed to set launcher bootstrap mode", e);
+		}
+	}
+
+	private void setAndroidFilesDirMode() {
+		try {
+			String filesDir = getFilesDir().getAbsolutePath();
+			android.system.Os.setenv(ENV_ANDROID_FILES_DIR, filesDir, true);
+			Log.i(TAG, "Android files dir env: " + filesDir);
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to set Android files dir env", e);
+		}
+	}
+
+	private void setMinimalBootstrapUiMode() {
+		int mode = 0;
+		try {
+			mode = android.provider.Settings.Global.getInt(getContentResolver(), "sts2_bootstrap_ui_mode", 0);
+			boolean enabled = mode == 1 || android.provider.Settings.Global.getInt(getContentResolver(), "sts2_minimal_bootstrap_ui", 0) == 1;
+			android.system.Os.setenv(ENV_BOOTSTRAP_UI_MODE, Integer.toString(enabled && mode == 0 ? 1 : mode), true);
+			android.system.Os.setenv(ENV_MINIMAL_BOOTSTRAP_UI, enabled ? "1" : "0", true);
+			Log.i(TAG, "Bootstrap UI diagnostic mode: " + mode);
+			Log.i(TAG, "Minimal bootstrap UI mode: " + enabled);
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to set minimal bootstrap UI mode", e);
+			try {
+				android.system.Os.setenv(ENV_BOOTSTRAP_UI_MODE, "0", true);
+				android.system.Os.setenv(ENV_MINIMAL_BOOTSTRAP_UI, "0", true);
+			} catch (Exception ignored) {
+			}
 		}
 	}
 
@@ -1163,6 +1766,16 @@ public class GodotApp extends GodotActivity {
 		prefs.edit().remove(KEY_LAUNCH_GAME_ON_NEXT_START).apply();
 		Log.i(TAG, "Consuming one-shot game launch request");
 		return true;
+	}
+
+	private boolean hasPendingGameLaunchRequest() {
+		Intent intent = getIntent();
+		if (intent != null && intent.getBooleanExtra(EXTRA_LAUNCH_GAME_ON_START, false)) {
+			return true;
+		}
+
+		return getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+			.getBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, false);
 	}
 
 	private boolean consumeSafeGameLaunchRequest() {
@@ -1685,6 +2298,11 @@ public class GodotApp extends GodotActivity {
 
 	public String getExternalFilesDirPath() {
 		File dir = getExternalFilesDir(null);
+		return dir != null ? dir.getAbsolutePath() : null;
+	}
+
+	public String getInternalFilesDirPath() {
+		File dir = getFilesDir();
 		return dir != null ? dir.getAbsolutePath() : null;
 	}
 

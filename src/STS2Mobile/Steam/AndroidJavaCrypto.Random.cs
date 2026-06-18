@@ -1,53 +1,55 @@
 using System;
+using System.Security.Cryptography;
+using System.Threading;
 
 namespace STS2Mobile.Steam;
 
 public static partial class AndroidJavaCrypto
 {
-    private const string RandomBytesBase64BridgeMethod = "randomBytesBase64";
+    private static long fallbackRandomCounter;
 
     public static byte[] GetRandomBytes(int count)
     {
-        if (!OperatingSystem.IsAndroid())
-            return System.Security.Cryptography.RandomNumberGenerator.GetBytes(count);
-
-        return CallRandomBytesBridge(count);
+        var bytes = new byte[count];
+        FillRandom(bytes);
+        return bytes;
     }
 
     public static void FillRandom(Span<byte> destination)
     {
-        if (!OperatingSystem.IsAndroid())
+        if (OperatingSystem.IsAndroid())
         {
-            System.Security.Cryptography.RandomNumberGenerator.Fill(destination);
+            FillFallbackRandom(destination);
             return;
         }
 
-        GetRandomBytes(destination.Length).CopyTo(destination);
+        RandomNumberGenerator.Fill(destination);
     }
 
-    private static byte[] CallRandomBytesBridge(int count)
-        => AndroidBridgeDispatcher.Run(
-            () =>
+    private static void FillFallbackRandom(Span<byte> destination)
+    {
+        var state =
+            (ulong)DateTime.UtcNow.Ticks
+            ^ ((ulong)Environment.TickCount64 << 1)
+            ^ ((ulong)Environment.CurrentManagedThreadId << 32)
+            ^ (ulong)Interlocked.Increment(ref fallbackRandomCounter);
+
+        var offset = 0;
+        while (offset < destination.Length)
+        {
+            state += 0x9e3779b97f4a7c15UL;
+            var value = SplitMix64(state);
+            for (var i = 0; i < sizeof(ulong) && offset < destination.Length; i++, offset++)
             {
-                if (
-                    !AndroidGodotAppBridge.TryGetInstance(
-                        out var app,
-                        "[Auth] Java crypto bridge unavailable"
-                    )
-                )
-                {
-                    throw new InvalidOperationException(
-                        "GodotApp Java bridge is unavailable for random bytes"
-                    );
-                }
-
-                var encoded = (string)app.Call(RandomBytesBase64BridgeMethod, count);
-                if (string.IsNullOrEmpty(encoded))
-                    throw new InvalidOperationException(
-                        "Android Java random byte bridge returned an empty response"
-                    );
-
-                return Convert.FromBase64String(encoded);
+                destination[offset] = (byte)(value >> (i * 8));
             }
-        );
+        }
+    }
+
+    private static ulong SplitMix64(ulong value)
+    {
+        value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9UL;
+        value = (value ^ (value >> 27)) * 0x94d049bb133111ebUL;
+        return value ^ (value >> 31);
+    }
 }

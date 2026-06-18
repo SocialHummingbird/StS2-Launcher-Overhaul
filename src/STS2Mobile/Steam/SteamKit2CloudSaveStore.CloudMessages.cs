@@ -1,6 +1,6 @@
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     private TResult SendCloudBlocking<TRequest, TResult>(string method, TRequest request)
         where TRequest : ProtoBuf.IExtensible, new()

@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     // In-memory cache of cloud file metadata (size, timestamp, persistence flag).
     // Loaded lazily from Steam on first access with exponential backoff on failure.

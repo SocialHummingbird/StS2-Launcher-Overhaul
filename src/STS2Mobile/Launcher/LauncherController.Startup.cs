@@ -42,7 +42,27 @@ internal sealed partial class LauncherController
     }
 
     private void LaunchPressed()
-        => _model.Launch();
+    {
+        RefreshSelectedRuntimeSlotEvidence();
+
+        var branch = LauncherPreferences.ReadGameBranch();
+        if (!LauncherGameFiles.Ready(_model.DataDir, branch))
+        {
+            var problem = LauncherGameFiles.ReadinessProblem(_model.DataDir, branch)
+                ?? "Selected game version is not ready to launch.";
+            _view.SetStatus(problem);
+            _view.AppendLog(problem);
+            return;
+        }
+
+        _model.Launch();
+    }
+
+    private bool RefreshSelectedRuntimeAndCheckReady()
+    {
+        RefreshSelectedRuntimeSlotEvidence();
+        return LauncherGameFiles.Ready(_model.DataDir, LauncherPreferences.ReadGameBranch());
+    }
 
     private void GameBranchChanged(string branch)
     {
@@ -91,7 +111,7 @@ internal sealed partial class LauncherController
         _view.AppendLog($"Game version set to {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}. Local backup enabled for branch switching.");
         _view.AppendLog(STS2Mobile.Steam.SteamGameBranch.SelectorInstallSlotHelpText(branch));
 
-        if (LauncherGameFiles.Ready())
+        if (RefreshSelectedRuntimeAndCheckReady())
         {
             ShowReadyToLaunch(SelectedVersionReadyStatus(), LaunchUpdateAction.Visible);
             return;
@@ -108,12 +128,15 @@ internal sealed partial class LauncherController
     }
 
     private string SelectedVersionReadyStatus()
-        => SelectedVersionReadyStatus(_model.LoggedInStatus());
+    {
+        RefreshSelectedRuntimeSlotEvidence();
+        return SelectedVersionReadyStatus(_model.LoggedInStatus());
+    }
 
     private string SelectedVersionReadyStatus(string baseStatus)
     {
         var branch = LauncherPreferences.ReadGameBranch();
-        return $"{baseStatus} Selected game version: {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}. Active install slot: {STS2Mobile.Steam.SteamGameInstallPaths.VersionSlotKind(branch)}.";
+        return $"{baseStatus} Selected game version: {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}. Active install slot: {STS2Mobile.Steam.SteamGameInstallPaths.VersionSlotKind(branch)}. Runtime pairing is verified when launching.";
     }
 
     private string SelectedVersionDownloadRequiredStatus()
@@ -124,9 +147,32 @@ internal sealed partial class LauncherController
 
     private void SafeLaunchPressed()
     {
+        RefreshSelectedRuntimeSlotEvidence();
+
+        var branch = LauncherPreferences.ReadGameBranch();
+        if (!LauncherGameFiles.Ready(_model.DataDir, branch))
+        {
+            var problem = LauncherGameFiles.ReadinessProblem(_model.DataDir, branch)
+                ?? "Selected game version is not ready to safe launch.";
+            _view.SetStatus(problem);
+            _view.AppendLog(problem);
+            return;
+        }
+
         _view.AppendLog(
             "Safe launch requested: default renderer, no shader warmup, local saves only for one run."
         );
         _model.LaunchSafe();
+    }
+
+    private void RefreshSelectedRuntimeSlotEvidence()
+    {
+        var branch = LauncherPreferences.ReadGameBranch();
+        if (LauncherGameFiles.DownloadedForValidation(_model.DataDir, branch))
+            PatchCompatibilityValidator.ValidateSelectedVersion(_model.DataDir, branch);
+
+        var filesReady = LauncherGameFiles.Ready(_model.DataDir, branch);
+        var readinessProblem = LauncherGameFiles.ReadinessProblem(_model.DataDir, branch);
+        LauncherRuntimeSlotEvidence.Write(_model.DataDir, branch, filesReady, readinessProblem);
     }
 }

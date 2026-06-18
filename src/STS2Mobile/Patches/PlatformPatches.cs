@@ -228,6 +228,13 @@ internal static class PlatformPatches
             return;
         }
 
+        if (string.Equals(methodName, GetPlatformBranch, StringComparison.Ordinal)
+            && method.ReturnType != typeof(string))
+        {
+            PatchHelper.Log($"PlatformUtil.{methodName} patch skipped; return type is {method.ReturnType.FullName}");
+            return;
+        }
+
         harmony.Patch(method, prefix: new HarmonyMethod(prefix));
         PatchHelper.Log($"Patched PlatformUtil.{methodName}");
     }

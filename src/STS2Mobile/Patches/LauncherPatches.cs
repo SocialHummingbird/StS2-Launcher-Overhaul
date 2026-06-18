@@ -4,6 +4,7 @@ using MegaCrit.Sts2.Core.Saves;
 using STS2Mobile.Launcher;
 using STS2Mobile.Steam;
 using System;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace STS2Mobile.Patches;
@@ -62,15 +63,25 @@ internal static class LauncherPatches
             )
         );
 
-        PatchHelper.PatchCritical(
-            harmony,
-            typeof(SaveManager),
+        var firstTimeCloudSync = typeof(SaveManager).GetMethod(
             "TryFirstTimeCloudSync",
-            prefix: PatchHelper.Method(
-                typeof(LauncherPatches),
-                nameof(TryFirstTimeCloudSync)
-            )
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static
         );
+        if (firstTimeCloudSync == null)
+        {
+            PatchHelper.Log("[Cloud] SaveManager.TryFirstTimeCloudSync not present; skipping first-time cloud sync patch");
+        }
+        else
+        {
+            harmony.Patch(
+                firstTimeCloudSync,
+                prefix: new HarmonyMethod(PatchHelper.Method(
+                    typeof(LauncherPatches),
+                    nameof(TryFirstTimeCloudSync)
+                ))
+            );
+            PatchHelper.Log("Patched SaveManager.TryFirstTimeCloudSync");
+        }
 
         PatchHelper.PatchCritical(
             harmony,
@@ -140,6 +151,7 @@ internal static class LauncherPatches
 
         __result = Task.CompletedTask;
         PatchHelper.Log("[Cloud] Skipping upstream startup cloud sync on Android");
+        SteamKit2CloudSaveStore.DisposeActive("[Cloud] Disposing SteamKit cloud store after skipped Android startup sync");
         return false;
     }
 

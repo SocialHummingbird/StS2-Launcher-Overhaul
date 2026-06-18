@@ -4,7 +4,7 @@ using SteamKit2.Internal;
 
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     private async Task<CCloud_ClientBeginFileUpload_Response?> BeginFileUploadAsync(
         CloudFileUpload upload

@@ -29,6 +29,7 @@ internal partial class LauncherModel : IDisposable
     internal LauncherModel(string dataDir)
     {
         _dataDir = dataDir;
+        PatchHelper.Log($"[Launcher] Model data dir: '{_dataDir}' length={(_dataDir == null ? -1 : _dataDir.Length)} rooted={(!string.IsNullOrWhiteSpace(_dataDir) && System.IO.Path.IsPathRooted(_dataDir))}");
         _processGameBranch = LauncherPreferences.ReadGameBranch();
         _credentialStore = new SteamCredentialStore(dataDir);
         _steamSession = new LauncherSteamSession(dataDir, _credentialStore);

@@ -11,6 +11,9 @@ internal static partial class LauncherGameFiles
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(path) || !Path.IsPathRooted(path) || !File.Exists(path))
+                return false;
+
             using var fs = File.OpenRead(path);
             using var reader = new BinaryReader(fs);
 

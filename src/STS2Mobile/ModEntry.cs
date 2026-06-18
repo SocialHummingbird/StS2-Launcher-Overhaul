@@ -29,6 +29,8 @@ public static class ModEntry
     private const string GameVersionsDirectoryName = "game_versions";
     private const string GamePckFileName = "SlayTheSpire2.pck";
     private const string LauncherBootstrapVariable = "STS2_LAUNCHER_BOOTSTRAP";
+    private const string BootstrapUiModeVariable = "STS2_BOOTSTRAP_UI_MODE";
+    private const string MinimalBootstrapUiVariable = "STS2_MINIMAL_BOOTSTRAP_UI";
     private const int StartupFallbackShieldZIndex = 4090;
     private const int StartupFallbackLauncherZIndex = 4092;
     private const int MinimumPckHeaderLength = 96;
@@ -150,10 +152,19 @@ public static class ModEntry
         try
         {
             ConfigureWritableTempDirectory();
+            var launcherBootstrapRequested = IsLauncherBootstrapRequested();
+            if (launcherBootstrapRequested)
+            {
+                PatchHelper.Log("Launcher bootstrap mode requested; skipping game startup patch orchestration.");
+                ScheduleStandaloneLauncher();
+                return;
+            }
+
             var harmony = new Harmony(HarmonyId);
             BootstrapTrace.Log("Starting startup patch orchestration");
             var patchResult = StartupPatchOrchestrator.Apply(harmony);
             BootstrapTrace.Log("Finished startup patch orchestration");
+            LauncherRuntimePatchValidationEvidence.Write(OS.GetDataDir(), patchResult);
 
             if (patchResult.CriticalFailed)
             {
@@ -177,12 +188,7 @@ public static class ModEntry
             }
 
             PatchHelper.Log("Startup patch orchestration complete.");
-            if (IsLauncherBootstrapRequested())
-            {
-                PatchHelper.Log("Launcher bootstrap mode requested; showing launcher UI.");
-                ScheduleStandaloneLauncher();
-            }
-            else if (IsStandaloneLauncherRequired())
+            if (IsStandaloneLauncherRequired())
             {
                 ScheduleStandaloneLauncher("Game files are not ready. Launcher-only mode started.");
             }
@@ -411,6 +417,25 @@ public static class ModEntry
             return;
         }
 
+        var bootstrapUiMode = BootstrapUiMode();
+        if (bootstrapUiMode == "1")
+        {
+            AddMinimalBootstrapUi(tree);
+            return;
+        }
+
+        if (bootstrapUiMode == "2")
+        {
+            AddPlainControlsBootstrapUi(tree);
+            return;
+        }
+
+        if (bootstrapUiMode == "3")
+        {
+            AddStyledControlsBootstrapUi(tree);
+            return;
+        }
+
         var launcher = new LauncherUI();
         AddStartupFallbackShield(tree);
         tree.Root.AddChild(launcher);
@@ -418,6 +443,144 @@ public static class ModEntry
         RaiseStartupFallbackLauncher(launcher);
         AddStartupFallbackBanner(tree);
         PatchHelper.Log("Standalone launcher displayed");
+    }
+
+    private static bool IsMinimalBootstrapUiRequested()
+        => string.Equals(
+            System.Environment.GetEnvironmentVariable(MinimalBootstrapUiVariable),
+            "1",
+            StringComparison.Ordinal
+        );
+
+    private static string BootstrapUiMode()
+    {
+        var mode = System.Environment.GetEnvironmentVariable(BootstrapUiModeVariable);
+        if (!string.IsNullOrWhiteSpace(mode))
+            return mode.Trim();
+
+        return IsMinimalBootstrapUiRequested() ? "1" : "0";
+    }
+
+    private static void AddMinimalBootstrapUi(SceneTree tree)
+    {
+        var root = new Control
+        {
+            Name = "STS2MobileMinimalBootstrapUi",
+        };
+        root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+
+        var background = new ColorRect
+        {
+            Name = "STS2MobileMinimalBootstrapBackground",
+            Color = new Color(0.02f, 0.025f, 0.03f, 1f),
+        };
+        background.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        root.AddChild(background);
+
+        tree.Root.AddChild(root);
+        PatchHelper.Log("Minimal bootstrap UI displayed");
+    }
+
+    private static void AddPlainControlsBootstrapUi(SceneTree tree)
+    {
+        var root = new Control
+        {
+            Name = "STS2MobilePlainControlsBootstrapUi",
+        };
+        root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+
+        var background = new ColorRect
+        {
+            Name = "STS2MobilePlainControlsBackground",
+            Color = new Color(0.02f, 0.025f, 0.03f, 1f),
+        };
+        background.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        root.AddChild(background);
+
+        var panel = new VBoxContainer
+        {
+            Name = "STS2MobilePlainControlsPanel",
+            Position = new Vector2(80f, 80f),
+            Size = new Vector2(900f, 900f),
+        };
+        root.AddChild(panel);
+
+        panel.AddChild(new Label
+        {
+            Text = "StS2 Mobile bootstrap controls probe",
+        });
+
+        panel.AddChild(new LineEdit
+        {
+            PlaceholderText = "Username field probe",
+        });
+
+        panel.AddChild(new Button
+        {
+            Text = "Button probe",
+        });
+
+        var dropdown = new OptionButton();
+        dropdown.AddItem("public");
+        dropdown.AddItem("public-beta");
+        panel.AddChild(dropdown);
+
+        var log = new RichTextLabel
+        {
+            Text = "RichTextLabel probe\nIf this screen stays open, built-in text controls are safe.",
+            CustomMinimumSize = new Vector2(800f, 300f),
+        };
+        panel.AddChild(log);
+
+        tree.Root.AddChild(root);
+        PatchHelper.Log("Plain controls bootstrap UI displayed");
+    }
+
+    private static void AddStyledControlsBootstrapUi(SceneTree tree)
+    {
+        var root = new Control
+        {
+            Name = "STS2MobileStyledControlsBootstrapUi",
+        };
+        root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+
+        var background = new ColorRect
+        {
+            Name = "STS2MobileStyledControlsBackground",
+            Color = Launcher.Components.LauncherComponentTheme.ScreenBackground,
+        };
+        background.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        root.AddChild(background);
+
+        var panel = new Launcher.Components.StyledPanel(1f, widthRatio: 0.9f, compact: false);
+        panel.UpdateSizeFromViewport(new Vector2(1920f, 1730f), 0.88f);
+        root.AddChild(panel);
+
+        var content = new VBoxContainer();
+        content.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        content.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+        content.AddThemeConstantOverride("separation", 12);
+        panel.AddContent(content);
+
+        content.AddChild(new Launcher.Components.StyledLabel(
+            "Styled launcher controls probe",
+            1f,
+            fontSize: 24,
+            align: HorizontalAlignment.Left
+        ));
+        content.AddChild(new Launcher.Sections.LoginSection(1f, compact: false));
+        content.AddChild(new Launcher.Sections.DownloadSection(1f, compact: false));
+        content.AddChild(new Launcher.Sections.ActionSection(1f, compact: false));
+
+        var log = new RichTextLabel
+        {
+            Text = "Styled controls probe\nIf this stays open, styled sections are safe outside the full launcher view.",
+            CustomMinimumSize = new Vector2(1000f, 220f),
+        };
+        content.AddChild(log);
+
+        tree.Root.AddChild(root);
+        PatchHelper.Log("Styled controls bootstrap UI displayed");
     }
 
     private static void AddStartupFallbackShield(SceneTree tree)

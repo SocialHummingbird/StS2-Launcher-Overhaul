@@ -236,7 +236,8 @@ internal static class LauncherCloudSyncEvidence
     internal static bool BaselineManualPushPrerequisitesSatisfied(string dataDir, string selectedBranch)
         => LastManualPullCompletionRecorded(dataDir)
             && LastManualPullMatchesSelectedBranch(dataDir, selectedBranch)
-            && LauncherLocalSaveEvidence.HasImportantSaveEvidence(dataDir);
+            && LauncherLocalSaveEvidence.HasImportantSaveEvidence(dataDir)
+            && LauncherSaveOriginEvidence.CurrentLocalSavesMatchSelectedRuntime(dataDir, selectedBranch);
 
     internal static bool LastManualPushCompletionRecorded(string dataDir)
         => HasCompletionFlag(LastManualPushMarkerPath(dataDir), "Manual Push completed after branch-switch safety gates:");
@@ -326,6 +327,7 @@ internal static class LauncherCloudSyncEvidence
     {
         try
         {
+            LauncherSaveOriginEvidence.WriteManualPullOrigin(dataDir, selectedBranch);
             var text =
                 $"UTC: {DateTime.UtcNow:O}\n"
                 + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"
@@ -349,6 +351,7 @@ internal static class LauncherCloudSyncEvidence
     {
         try
         {
+            LauncherSaveOriginEvidence.WriteManualPushOrigin(dataDir, selectedBranch);
             var text =
                 $"UTC: {DateTime.UtcNow:O}\n"
                 + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"

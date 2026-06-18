@@ -1,6 +1,6 @@
 namespace STS2Mobile.Steam;
 
-internal sealed partial class SteamKit2CloudSaveStore
+internal partial class SteamKit2CloudSaveStore
 {
     private sealed partial class CloudWriteQueue
     {

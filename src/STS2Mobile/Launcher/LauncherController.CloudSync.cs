@@ -169,6 +169,15 @@ internal sealed partial class LauncherController
             return false;
         }
 
+        if (!LauncherSaveOriginEvidence.CurrentLocalSavesMatchSelectedRuntime(_model.DataDir, selectedBranch))
+        {
+            const string reason = "Manual Push blocked: Android local save origin evidence does not match the selected runtime.";
+            LauncherCloudSyncEvidence.WriteManualPushBlockedMarker(_model.DataDir, selectedBranch, reason);
+            _view.SetStatus($"Push blocked: Android local save origin is not verified for the selected {selectedVersion} runtime.");
+            _view.AppendLog($"Push blocked: Pull from Cloud for {selectedVersion} must complete against this exact PCK/runtime assembly before Push can upload Android local saves.");
+            return false;
+        }
+
         return true;
     }
 
@@ -205,6 +214,15 @@ internal sealed partial class LauncherController
             LauncherCloudSyncEvidence.WriteManualPushBlockedMarker(_model.DataDir, selectedBranch, reason);
             _view.SetStatus("Push blocked: branch switch detected but no Android local save files were found.");
             _view.AppendLog("Push blocked after branch switch: Pull from Cloud first, launch or inspect the game until Android local saves exist, then retry Push.");
+            return false;
+        }
+
+        if (!LauncherSaveOriginEvidence.CurrentLocalSavesMatchSelectedRuntime(_model.DataDir, selectedBranch))
+        {
+            const string reason = "Manual Push blocked: save-origin evidence is missing or belongs to a different selected runtime after branch switch.";
+            LauncherCloudSyncEvidence.WriteManualPushBlockedMarker(_model.DataDir, selectedBranch, reason);
+            _view.SetStatus("Push blocked: branch switch detected but Android local save origin is not verified for the selected runtime.");
+            _view.AppendLog("Push blocked after branch switch: Pull from Cloud for the selected version must complete against this exact PCK/runtime assembly before Push can upload Android local saves.");
             return false;
         }
 

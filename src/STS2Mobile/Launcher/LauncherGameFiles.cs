@@ -23,9 +23,55 @@ internal static partial class LauncherGameFiles
 
     internal static bool Ready(string dataDir, string branch)
     {
+        if (!DownloadedForValidation(dataDir, branch))
+            return false;
+
+        PatchHelper.Log($"[Launcher] Game files ready phase: inspect runtime slot for branch '{SteamGameBranch.Normalize(branch)}'");
+        var slot = GameRuntimeSlot.Inspect(dataDir, branch);
+        PatchHelper.Log($"[Launcher] Game files ready phase complete: inspect runtime slot -> playable={slot.Playable} runtime={slot.RuntimePairingStatus} patch={slot.PatchCompatibility?.Status ?? "<none>"} pck={slot.PckSha256} source={slot.SourceAssemblySha256}");
+        return slot.Playable;
+    }
+
+    internal static bool DownloadedForValidation(string dataDir, string branch)
+    {
         branch = SteamGameBranch.Normalize(branch);
-        return IsValidPck(PckPath(dataDir, branch))
-            && BranchMarkerReady(dataDir, branch);
+        PatchHelper.Log($"[Launcher] Game files ready phase: resolve PCK path for branch '{branch}'");
+        var pckPath = PckPath(dataDir, branch);
+        PatchHelper.Log($"[Launcher] Game files ready phase complete: resolve PCK path -> '{pckPath}' length={(pckPath == null ? -1 : pckPath.Length)} rooted={(!string.IsNullOrWhiteSpace(pckPath) && Path.IsPathRooted(pckPath))}");
+        PatchHelper.Log("[Launcher] Game files ready phase: validate PCK");
+        if (!IsValidPck(pckPath))
+        {
+            PatchHelper.Log("[Launcher] Game files ready phase complete: validate PCK -> false");
+            return false;
+        }
+
+        PatchHelper.Log("[Launcher] Game files ready phase complete: validate PCK -> true");
+        PatchHelper.Log("[Launcher] Game files ready phase: branch marker");
+        if (!BranchMarkerReady(dataDir, branch))
+        {
+            PatchHelper.Log("[Launcher] Game files ready phase complete: branch marker -> false");
+            return false;
+        }
+
+        PatchHelper.Log("[Launcher] Game files ready phase complete: branch marker -> true");
+        PatchHelper.Log("[Launcher] Game files ready phase: source assembly exists");
+        var sourceAssemblyExists = SourceAssemblyExists(GameDirectoryPath(dataDir, branch));
+        PatchHelper.Log($"[Launcher] Game files ready phase complete: source assembly exists -> {sourceAssemblyExists}");
+        return sourceAssemblyExists;
+    }
+
+    private static bool SourceAssemblyExists(string gameDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(gameDirectory) || !Directory.Exists(gameDirectory))
+            return false;
+
+        foreach (var directory in Directory.EnumerateDirectories(gameDirectory, "data_*", SearchOption.TopDirectoryOnly))
+        {
+            if (File.Exists(Path.Combine(directory, "sts2.dll")))
+                return true;
+        }
+
+        return false;
     }
 
     internal static string ReadinessProblem(string dataDir, string branch)
@@ -36,6 +82,10 @@ internal static partial class LauncherGameFiles
 
         if (HasBranchMetadataProblem(dataDir, branch))
             return "Selected game version has missing or mismatched branch metadata. Redownload selected version to rebuild the cache safely.";
+
+        var runtimeProblem = GameRuntimeSlot.Inspect(dataDir, branch).ReadinessProblem();
+        if (!string.IsNullOrWhiteSpace(runtimeProblem))
+            return runtimeProblem;
 
         return null;
     }
@@ -169,16 +219,65 @@ internal static partial class LauncherGameFiles
             SteamGameInstallPaths.VersionSlotKind(branch),
             System.StringComparison.OrdinalIgnoreCase
         )
-        && string.Equals(
-            NormalizeMarkerPath(ReadMarkerValue(markerPath, "Install slot directory:")),
-            NormalizeMarkerPath(SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch)),
-            System.StringComparison.OrdinalIgnoreCase
+        && MarkerPathsEquivalent(
+            ReadMarkerValue(markerPath, "Install slot directory:"),
+            SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch),
+            dataDir
         );
 
     private static string NormalizeMarkerPath(string path)
         => string.IsNullOrWhiteSpace(path) || path.StartsWith("<", System.StringComparison.Ordinal)
             ? string.Empty
             : path.Trim().Replace('\\', '/').TrimEnd('/');
+
+    private static bool MarkerPathsEquivalent(string markerPath, string expectedPath, string dataDir)
+    {
+        var marker = NormalizeMarkerPath(markerPath);
+        var expected = NormalizeMarkerPath(expectedPath);
+        if (string.Equals(marker, expected, System.StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var alternateExpected = AndroidAppPrivatePathAlias(expected, dataDir);
+        return !string.IsNullOrWhiteSpace(alternateExpected)
+            && string.Equals(marker, alternateExpected, System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string AndroidAppPrivatePathAlias(string path, string dataDir)
+    {
+        var normalizedDataDir = NormalizeMarkerPath(dataDir);
+        if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(normalizedDataDir))
+            return string.Empty;
+
+        const string dataUserPrefix = "/data/user/0/";
+        const string dataDataPrefix = "/data/data/";
+        if (normalizedDataDir.StartsWith(dataUserPrefix, System.StringComparison.OrdinalIgnoreCase))
+        {
+            var packageEnd = normalizedDataDir.IndexOf('/', dataUserPrefix.Length);
+            if (packageEnd < 0)
+                return string.Empty;
+            var packageName = normalizedDataDir.Substring(dataUserPrefix.Length, packageEnd - dataUserPrefix.Length);
+            var dataDataRoot = dataDataPrefix + packageName;
+            var dataUserRoot = dataUserPrefix + packageName;
+            return path.StartsWith(dataUserRoot, System.StringComparison.OrdinalIgnoreCase)
+                ? dataDataRoot + path.Substring(dataUserRoot.Length)
+                : string.Empty;
+        }
+
+        if (normalizedDataDir.StartsWith(dataDataPrefix, System.StringComparison.OrdinalIgnoreCase))
+        {
+            var packageEnd = normalizedDataDir.IndexOf('/', dataDataPrefix.Length);
+            if (packageEnd < 0)
+                return string.Empty;
+            var packageName = normalizedDataDir.Substring(dataDataPrefix.Length, packageEnd - dataDataPrefix.Length);
+            var dataDataRoot = dataDataPrefix + packageName;
+            var dataUserRoot = dataUserPrefix + packageName;
+            return path.StartsWith(dataDataRoot, System.StringComparison.OrdinalIgnoreCase)
+                ? dataUserRoot + path.Substring(dataDataRoot.Length)
+                : string.Empty;
+        }
+
+        return string.Empty;
+    }
 
     internal static void DeleteDownloadedState(string dataDir)
         => DeleteDownloadedState(dataDir, LauncherPreferences.ReadGameBranch());
@@ -188,8 +287,10 @@ internal static partial class LauncherGameFiles
         branch = SteamGameBranch.Normalize(branch);
         var gameDirectory = GameDirectoryPath(dataDir, branch);
         var downloadStateDirectory = SteamGameInstallPaths.DownloadStateDirectoryPath(dataDir, branch);
+        var runtimePackDirectory = GameRuntimeSlot.RuntimePackDirectoryPath(dataDir, branch);
         var gameDirectoryExisted = Directory.Exists(gameDirectory);
         var downloadStateDirectoryExisted = Directory.Exists(downloadStateDirectory);
+        var runtimePackDirectoryExisted = Directory.Exists(runtimePackDirectory);
         WriteRedownloadMarker(
             dataDir,
             branch,
@@ -198,10 +299,17 @@ internal static partial class LauncherGameFiles
             null,
             downloadStateDirectory,
             downloadStateDirectoryExisted,
+            null,
+            runtimePackDirectory,
+            runtimePackDirectoryExisted,
             null
         );
         DeleteDirectory(gameDirectory);
         DeleteDirectory(downloadStateDirectory);
+        DeleteDirectory(runtimePackDirectory);
+        LauncherRuntimeSlotEvidence.Clear(dataDir);
+        LauncherRuntimeCacheEvidence.Clear(dataDir);
+        LauncherRuntimePatchValidationEvidence.Clear(dataDir);
         WriteRedownloadMarker(
             dataDir,
             branch,
@@ -210,7 +318,10 @@ internal static partial class LauncherGameFiles
             Directory.Exists(gameDirectory),
             downloadStateDirectory,
             downloadStateDirectoryExisted,
-            Directory.Exists(downloadStateDirectory)
+            Directory.Exists(downloadStateDirectory),
+            runtimePackDirectory,
+            runtimePackDirectoryExisted,
+            Directory.Exists(runtimePackDirectory)
         );
         LauncherLaunchMarkers.ClearStartupMarker();
         PatchHelper.Log($"[Launcher] Deleted downloaded game files and download state for branch '{branch}'");
@@ -257,6 +368,15 @@ internal static partial class LauncherGameFiles
 
     internal static string RedownloadMarkerDownloadStateDirectoryExistsAfterDelete(string dataDir)
         => ReadMarkerValue(RedownloadMarkerPath(dataDir), "Download state directory exists after delete:");
+
+    internal static string RedownloadMarkerRuntimePackDirectory(string dataDir)
+        => ReadMarkerValue(RedownloadMarkerPath(dataDir), "Deleted runtime pack directory:");
+
+    internal static string RedownloadMarkerRuntimePackDirectoryExisted(string dataDir)
+        => ReadMarkerValue(RedownloadMarkerPath(dataDir), "Runtime pack directory existed before delete:");
+
+    internal static string RedownloadMarkerRuntimePackDirectoryExistsAfterDelete(string dataDir)
+        => ReadMarkerValue(RedownloadMarkerPath(dataDir), "Runtime pack directory exists after delete:");
 
     internal static bool RedownloadMarkerSelectedDirectoriesCleared(string dataDir)
         => string.Equals(
@@ -321,13 +441,16 @@ internal static partial class LauncherGameFiles
         var versionsDir = Path.Combine(dataDir, LauncherStorageNames.GameVersionsDirectory);
         if (!Directory.Exists(versionsDir))
         {
+            var removedRuntimePacksWithoutVersions = DeleteInactiveRuntimePacks(dataDir, selectedBranch, markerLines);
             markerLines.Add("Game versions directory present: false");
             markerLines.Add("Removed count: 0");
+            markerLines.Add($"Removed runtime pack count: {removedRuntimePacksWithoutVersions}");
             WriteCacheCleanupMarker(dataDir, markerLines);
             return 0;
         }
 
         var removed = 0;
+        var removedRuntimePacks = 0;
         foreach (var cache in LauncherGameVersionCache.Enumerate(dataDir, selectedBranch))
         {
             if (!cache.Selected || string.Equals(selectedBranch, SteamGameBranch.Public, System.StringComparison.OrdinalIgnoreCase))
@@ -335,6 +458,14 @@ internal static partial class LauncherGameFiles
                 PatchHelper.Log($"[Launcher] Removing inactive game version cache: {cache.DirectoryName} -> {cache.Path}");
                 markerLines.Add($"Removed cache: {cache.DirectoryName} -> {cache.Path}");
                 DeleteDirectory(cache.Path);
+                var runtimePackDirectory = RuntimePackDirectoryPathForStateDirectory(dataDir, cache.DirectoryName);
+                var runtimePackExisted = Directory.Exists(runtimePackDirectory);
+                if (runtimePackExisted)
+                {
+                    DeleteDirectory(runtimePackDirectory);
+                    removedRuntimePacks++;
+                }
+                markerLines.Add($"Removed runtime pack: {cache.DirectoryName} -> {runtimePackDirectory} existed={runtimePackExisted.ToString().ToLowerInvariant()} existsAfterDelete={Directory.Exists(runtimePackDirectory).ToString().ToLowerInvariant()}");
                 removed++;
                 continue;
             }
@@ -343,10 +474,44 @@ internal static partial class LauncherGameFiles
             markerLines.Add($"Preserved selected cache: {cache.DirectoryName} -> {cache.Path}");
         }
 
+        removedRuntimePacks += DeleteInactiveRuntimePacks(dataDir, selectedBranch, markerLines);
         markerLines.Add("Game versions directory present: true");
         markerLines.Add($"Removed count: {removed}");
+        markerLines.Add($"Removed runtime pack count: {removedRuntimePacks}");
         WriteCacheCleanupMarker(dataDir, markerLines);
-        PatchHelper.Log($"[Launcher] Removed {removed} inactive game version cache(s); selected branch '{selectedBranch}' preserved");
+        PatchHelper.Log($"[Launcher] Removed {removed} inactive game version cache(s) and {removedRuntimePacks} runtime pack cache(s); selected branch '{selectedBranch}' preserved");
+        return removed;
+    }
+
+    private static string RuntimePackDirectoryPathForStateDirectory(string dataDir, string stateDirectoryName)
+        => Path.Combine(dataDir, "runtime_packs", stateDirectoryName ?? string.Empty);
+
+    private static int DeleteInactiveRuntimePacks(
+        string dataDir,
+        string selectedBranch,
+        System.Collections.Generic.ICollection<string> markerLines
+    )
+    {
+        var runtimePacksDir = Path.Combine(dataDir, "runtime_packs");
+        if (!Directory.Exists(runtimePacksDir))
+            return 0;
+
+        var selectedStateDirectoryName = SteamGameBranch.StateDirectoryName(selectedBranch);
+        var removed = 0;
+        foreach (var runtimePackDirectory in Directory.GetDirectories(runtimePacksDir))
+        {
+            var directoryName = Path.GetFileName(runtimePackDirectory);
+            if (string.Equals(directoryName, selectedStateDirectoryName, System.StringComparison.OrdinalIgnoreCase))
+            {
+                markerLines.Add($"Preserved selected runtime pack: {directoryName} -> {runtimePackDirectory}");
+                continue;
+            }
+
+            DeleteDirectory(runtimePackDirectory);
+            markerLines.Add($"Removed orphan runtime pack: {directoryName} -> {runtimePackDirectory} existsAfterDelete={Directory.Exists(runtimePackDirectory).ToString().ToLowerInvariant()}");
+            removed++;
+        }
+
         return removed;
     }
 
@@ -380,7 +545,10 @@ internal static partial class LauncherGameFiles
         bool? gameDirectoryExistsAfterDelete,
         string downloadStateDirectory,
         bool downloadStateDirectoryExisted,
-        bool? downloadStateDirectoryExistsAfterDelete
+        bool? downloadStateDirectoryExistsAfterDelete,
+        string runtimePackDirectory,
+        bool runtimePackDirectoryExisted,
+        bool? runtimePackDirectoryExistsAfterDelete
     )
     {
         try
@@ -396,6 +564,8 @@ internal static partial class LauncherGameFiles
                 $"Game directory existed before delete: {gameDirectoryExisted.ToString().ToLowerInvariant()}",
                 $"Deleted download state directory: {downloadStateDirectory}",
                 $"Download state directory existed before delete: {downloadStateDirectoryExisted.ToString().ToLowerInvariant()}",
+                $"Deleted runtime pack directory: {runtimePackDirectory}",
+                $"Runtime pack directory existed before delete: {runtimePackDirectoryExisted.ToString().ToLowerInvariant()}",
             };
 
             if (gameDirectoryExistsAfterDelete.HasValue)
@@ -403,6 +573,9 @@ internal static partial class LauncherGameFiles
 
             if (downloadStateDirectoryExistsAfterDelete.HasValue)
                 lines.Add($"Download state directory exists after delete: {downloadStateDirectoryExistsAfterDelete.Value.ToString().ToLowerInvariant()}");
+
+            if (runtimePackDirectoryExistsAfterDelete.HasValue)
+                lines.Add($"Runtime pack directory exists after delete: {runtimePackDirectoryExistsAfterDelete.Value.ToString().ToLowerInvariant()}");
 
             File.WriteAllLines(RedownloadMarkerPath(dataDir), lines);
         }

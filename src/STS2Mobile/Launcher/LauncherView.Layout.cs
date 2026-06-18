@@ -14,7 +14,11 @@ internal sealed partial class LauncherView
     {
         parent.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 
-        var background = new ScreenBackground();
+        var background = new ColorRect
+        {
+            Color = LauncherComponentTheme.ScreenBackground,
+        };
+        background.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         background.GuiInput += input => dismissKeyboard(input);
         parent.AddChild(background);
 
