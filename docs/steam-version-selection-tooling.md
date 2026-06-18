@@ -101,6 +101,30 @@ Command:
   -EvidenceDir "artifacts\android\steam-version-selection-<timestamp>"
 ```
 
+## Export a sanitized public evidence candidate
+
+Purpose:
+
+- Copies a raw/local evidence folder into a separate public-share candidate folder without mutating the source evidence.
+- Sanitizes text artifacts for local Windows/user paths, Android app-private package paths, known device serials, email addresses, and common credential/token assignment patterns.
+- Skips local-only raw-log and credential/token-like artifact paths.
+- Omits images by default; use `-IncludeImages` only after direct visual review.
+- Writes `PUBLIC_EVIDENCE_REDACTION_REVIEW.txt` and `PUBLIC_SHARE_MANIFEST.txt` into the export folder, then the export must still pass `review-public-evidence-redaction.ps1`.
+
+Command:
+
+```powershell
+.\scripts\export-public-evidence-redaction.ps1 `
+  -SourceEvidenceDir "artifacts\android\<raw-evidence-folder>" `
+  -OutputDir "artifacts\android\<raw-evidence-folder>-public-redacted" `
+  -Force
+
+.\scripts\review-public-evidence-redaction.ps1 `
+  -EvidenceDir "artifacts\android\<raw-evidence-folder>-public-redacted"
+```
+
+The raw evidence remains local. Treat the export script as a repeatable sanitizer for text artifacts, not a substitute for release-readiness review.
+
 ## Capture non-secret device evidence
 
 Purpose:

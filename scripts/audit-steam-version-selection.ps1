@@ -1647,6 +1647,26 @@ Add-Check `
     )
 
 Add-Check `
+    "scripts\export-public-evidence-redaction.ps1" `
+    "exports a sanitized public-share evidence candidate without mutating raw evidence" `
+    @(
+        "SourceEvidenceDir",
+        "PUBLIC_EVIDENCE_REDACTION_REVIEW\.txt",
+        "PUBLIC_SHARE_MANIFEST\.txt",
+        "Redact-PublicEvidenceText",
+        "Raw evidence remains local",
+        "Local user paths redacted",
+        "Device identifiers redacted",
+        "Only sanitized diagnostics selected for public sharing",
+        "logs\\\\logcat-full",
+        "logs\\\\logcat-steam-version-focused",
+        "android-app-private",
+        "redacted-device-serial",
+        "redacted-email",
+        "IncludeImages"
+    )
+
+Add-Check `
     "scripts\review-public-evidence-redaction.ps1" `
     "fails public-share candidates without completed redaction review or with local-only artifacts" `
     @(
@@ -1675,6 +1695,7 @@ Add-Check `
         "audit-steam-version-selection\.ps1",
         "audit-steam-branch-guidance-parity\.ps1",
         "new-steam-version-selection-evidence\.ps1",
+        "export-public-evidence-redaction\.ps1",
         "review-public-evidence-redaction\.ps1",
         "capture-steam-version-selection-evidence\.ps1",
         "steam-version-selection-release-readiness\.md",
@@ -1683,6 +1704,8 @@ Add-Check `
         "PUBLIC_SHARE_MANIFEST\.txt",
         "PUBLIC_EVIDENCE_REDACTION_REVIEW\.txt",
         "Review public evidence redaction",
+        "Export a sanitized public evidence candidate",
+        "Raw evidence remains local",
         "Does not mutate artifacts and does not replace manual review",
         "safer public-sharing defaults",
         "logcat-steam-version-focused-redacted\.txt",
