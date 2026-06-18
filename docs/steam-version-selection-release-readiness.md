@@ -10,7 +10,7 @@ Steam game version selection is published in the latest ARM64 APK, but it is not
 
 | Area | Current state | Release posture |
 | --- | --- | --- |
-| Public/default branch | Public/default remains available and keeps the legacy `files/game` install path. | Requires fresh public/default download, update, and launch evidence on the current APK. |
+| Public/default branch | Public/default remains available and keeps the legacy `files/game` install path. Local fix27 ARM64 evidence proves public/default launcher startup and game main-menu launch with matched PCK/runtime hashes. | Requires release-candidate repeat evidence for public/default download or update check, launch, and cloud Pull posture. |
 | Branch selector | Normal users select from a discovered dropdown; manual branch text entry is no longer the normal path. Local fix27 ARM64 evidence proves `REFRESH GAME VERSIONS` updates the dropdown with public and public-beta branch metadata. | Requires release-candidate repeat evidence for refresh/dropdown behavior and selected-helper text. |
 | Branch metadata | Refreshed Steam app-info can expose branch visibility, build IDs, password flags, Windows depot manifests, and availability problems. | Requires account-visible branch evidence for public, available beta, and inaccessible/private/password cases where possible. |
 | Blocked branches | Known password-protected, no-manifest, or absent saved branches are blocked before download/update attempts when refreshed app-info proves they are unavailable. Local fix27 ARM64 evidence proves a synthetic stale saved branch is surfaced as unavailable and blocked before selected-version download/update. | Requires release-candidate repeat evidence plus true account-side private/password/no-manifest branch coverage where possible. |
@@ -71,7 +71,7 @@ Steam game version selection is published in the latest ARM64 APK, but it is not
 ## Known release blockers
 
 - Local fix27 ARM64 validation now proves refreshed dropdown behavior with public and public-beta branch metadata; release-candidate repeat evidence is still required.
-- Public/default branch must still be revalidated on the current APK after the latest branch-selector and login-hardening changes.
+- Public/default branch has local fix27 ARM64 launch evidence with matched runtime/PCK hashes; release-candidate repeat evidence is still required after the latest branch-selector and login-hardening changes.
 - Non-public branch cleanup, true private/password/no-manifest failure handling, and release-candidate startup routing still need current-device evidence. Local fix27 evidence covers only the synthetic stale saved-branch block path.
 - Public versus public-beta branch integrity is classified locally as branch-specific installed content, and runtime evidence proves Godot mounted the selected beta PCK. Release-candidate repeat evidence is still required. Current resource-chain evidence shows `doormaker_boss` run-history image entries exist in public but not in `public-beta`; runtime patching now falls back to branch-local `unknown_monster` art for missing run-history icon paths. Mixed-looking beta/public behavior or art asset differences should now be treated as beta game-side content/import-runtime behavior unless selected-PCK evidence contradicts the selected branch.
 - Private, inaccessible, password-protected, or no-manifest branch behavior is not release-proven. The synthetic stale saved-branch path is locally proven to block before selected-version download/update, restore to `public`, and avoid Steam Cloud Push.
