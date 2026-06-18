@@ -69,15 +69,15 @@ Run the read-only evidence collector after each meaningful branch/runtime change
 
 ```powershell
 .\scripts\capture-multi-version-runtime-evidence.ps1 `
-  -PackageName com.sts2launcher.overhaul.fork.dev `
+  -PackageName <installed.package.name> `
   -RunLabel public
 
 .\scripts\capture-multi-version-runtime-evidence.ps1 `
-  -PackageName com.sts2launcher.overhaul.fork.dev `
+  -PackageName <installed.package.name> `
   -RunLabel public-beta
 
 .\scripts\capture-multi-version-runtime-evidence.ps1 `
-  -PackageName com.sts2launcher.overhaul.fork.dev `
+  -PackageName <installed.package.name> `
   -RunLabel branch-switch
 ```
 
@@ -191,3 +191,7 @@ Block the release claim if any of these are true:
 ## Current known limitation
 
 The current architecture performs static patch compatibility validation before launch and records runtime Harmony patch validation after startup. Full runtime Harmony validation is still post-startup; it does not yet run full runtime Harmony patch application as a pre-launch gate. Treat that as a known hardening limitation unless and until the launcher can safely execute full runtime patch validation before marking a non-public slot playable.
+
+## Fix16 prerelease evidence note
+
+The `v0.2.188-local-runtime-beta-fix16` GitHub prerelease is a local ARM64 validation build for `com.sts2launcher.overhaul.fork.local`. It proved that public-beta no longer routes to `NativeFallbackActivity` when a usable branch runtime pack exists, and the launch evidence showed matched beta PCK/runtime hashes plus save-backed main-menu state after Pull from Cloud. It must not be described as full public/beta coexistence release signoff until fresh public, public-beta, and public-after-beta artifacts all pass the wrapper with branch-specific evidence directories and resolved classification.

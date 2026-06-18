@@ -113,15 +113,15 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 
 ```powershell
 .\scripts\capture-multi-version-runtime-evidence.ps1 `
-  -PackageName com.sts2launcher.overhaul.fork.dev `
+  -PackageName <installed.package.name> `
   -RunLabel public
 
 .\scripts\capture-multi-version-runtime-evidence.ps1 `
-  -PackageName com.sts2launcher.overhaul.fork.dev `
+  -PackageName <installed.package.name> `
   -RunLabel public-beta
 
 .\scripts\capture-multi-version-runtime-evidence.ps1 `
-  -PackageName com.sts2launcher.overhaul.fork.dev `
+  -PackageName <installed.package.name> `
   -RunLabel branch-switch
 
 .\scripts\run-multi-version-runtime-release-gates.ps1 `
