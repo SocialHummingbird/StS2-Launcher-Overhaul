@@ -41,48 +41,44 @@ Invoke-RepoScript -RelativePath "scripts\audit-steam-branch-guidance-parity.ps1"
 function Invoke-EvidenceReview {
     param(
         [Parameter(Mandatory = $true)][string]$EvidenceDir,
-        [switch]$Public,
-        [switch]$PublicBeta,
-        [switch]$BranchSwitch
+        [bool]$PublicRequired,
+        [bool]$PublicBetaRequired,
+        [bool]$BranchSwitchRequired
     )
 
-    $reviewArgs = @("-EvidenceDir", $evidenceDir)
-    if ($Public -or $RequirePublic) {
-        $reviewArgs += "-RequirePublic"
+    $reviewScriptRelativePath = "scripts\review-multi-version-runtime-evidence.ps1"
+    $reviewScriptPath = Join-Path $root $reviewScriptRelativePath
+    if (-not (Test-Path -LiteralPath $reviewScriptPath)) {
+        throw "Missing required gate script: $reviewScriptRelativePath"
     }
-    if ($PublicBeta -or $RequirePublicBeta) {
-        $reviewArgs += "-RequirePublicBeta"
-    }
-    if ($BranchSwitch -or $RequireBranchSwitch) {
-        $reviewArgs += "-RequireBranchSwitch"
-    }
-    if ($RequireSaveSafety) {
-        $reviewArgs += "-RequireSaveSafety"
-    }
-    if ($RequireResolvedClassification) {
-        $reviewArgs += "-RequireResolvedClassification"
-    }
-    if ($Quiet) {
-        $reviewArgs += "-Quiet"
+    if (-not $Quiet) {
+        Write-Host "Running $reviewScriptRelativePath"
     }
 
-    Invoke-RepoScript -RelativePath "scripts\review-multi-version-runtime-evidence.ps1" -Arguments $reviewArgs
+    & $reviewScriptPath `
+        -EvidenceDir "$EvidenceDir" `
+        -RequirePublic:$PublicRequired `
+        -RequirePublicBeta:$PublicBetaRequired `
+        -RequireBranchSwitch:$BranchSwitchRequired `
+        -RequireSaveSafety:$RequireSaveSafety `
+        -RequireResolvedClassification:$RequireResolvedClassification `
+        -Quiet:$Quiet
 }
 
 foreach ($evidenceDir in $EvidenceDirs) {
-    Invoke-EvidenceReview -EvidenceDir $evidenceDir
+    Invoke-EvidenceReview "$evidenceDir" $RequirePublic.IsPresent $RequirePublicBeta.IsPresent $RequireBranchSwitch.IsPresent
 }
 
 foreach ($evidenceDir in $PublicEvidenceDirs) {
-    Invoke-EvidenceReview -EvidenceDir $evidenceDir -Public
+    Invoke-EvidenceReview "$evidenceDir" $true $RequirePublicBeta.IsPresent $RequireBranchSwitch.IsPresent
 }
 
 foreach ($evidenceDir in $PublicBetaEvidenceDirs) {
-    Invoke-EvidenceReview -EvidenceDir $evidenceDir -PublicBeta
+    Invoke-EvidenceReview "$evidenceDir" $RequirePublic.IsPresent $true $RequireBranchSwitch.IsPresent
 }
 
 foreach ($evidenceDir in $BranchSwitchEvidenceDirs) {
-    Invoke-EvidenceReview -EvidenceDir $evidenceDir -BranchSwitch
+    Invoke-EvidenceReview "$evidenceDir" $RequirePublic.IsPresent $RequirePublicBeta.IsPresent $true
 }
 
 if (-not $Quiet) {
