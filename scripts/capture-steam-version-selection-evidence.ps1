@@ -56,7 +56,13 @@ function Invoke-AdbText([string[]]$Arguments, [switch]$AllowFailure) {
 }
 
 function Invoke-RunAsShell([string]$Command, [switch]$AllowFailure) {
-    return Invoke-AdbText -Arguments @("shell", "run-as", $PackageName, "sh", "-c", $Command) -AllowFailure:$AllowFailure
+    $quotedCommand = "'" + ($Command -replace "'", "'\''") + "'"
+    return Invoke-AdbText -Arguments @("shell", "run-as $PackageName sh -c $quotedCommand") -AllowFailure:$AllowFailure
+}
+
+function Invoke-DeviceShell([string]$Command, [switch]$AllowFailure) {
+    $quotedCommand = "'" + ($Command -replace "'", "'\''") + "'"
+    return Invoke-AdbText -Arguments @("shell", "sh -c $quotedCommand") -AllowFailure:$AllowFailure
 }
 
 function Redact-LogLine([string]$Line) {
@@ -211,11 +217,11 @@ Invoke-RunAsShell -Command "du -sk files/game_versions/* 2>/dev/null || true" -A
     Set-Content -LiteralPath $cacheSizePath -Encoding UTF8
 
 $backupListPath = Join-Path $backupsDir "pre-push-backup-list.txt"
-Invoke-AdbText -Arguments @("shell", "sh", "-c", "find /storage/emulated/0/StS2Launcher/Saves -type f \( -name '*.local-pre-push.bak' -o -name '*.cloud-pre-push.bak' \) 2>/dev/null | sort | head -300 || true") -AllowFailure |
+Invoke-DeviceShell -Command "timeout 10 find /storage/emulated/0/StS2Launcher/Saves -maxdepth 6 -type f \( -name '*.local-pre-push.bak' -o -name '*.cloud-pre-push.bak' \) 2>/dev/null | sort | head -300 || true" -AllowFailure |
     Set-Content -LiteralPath $backupListPath -Encoding UTF8
 
 $backupCountsPath = Join-Path $backupsDir "pre-push-backup-counts.txt"
-Invoke-AdbText -Arguments @("shell", "sh", "-c", "printf 'local-pre-push: '; find /storage/emulated/0/StS2Launcher/Saves -type f -name '*.local-pre-push.bak' 2>/dev/null | wc -l; printf 'cloud-pre-push: '; find /storage/emulated/0/StS2Launcher/Saves -type f -name '*.cloud-pre-push.bak' 2>/dev/null | wc -l") -AllowFailure |
+Invoke-DeviceShell -Command "echo local-pre-push:; timeout 10 find /storage/emulated/0/StS2Launcher/Saves -maxdepth 6 -type f -name '*.local-pre-push.bak' 2>/dev/null | wc -l; echo cloud-pre-push:; timeout 10 find /storage/emulated/0/StS2Launcher/Saves -maxdepth 6 -type f -name '*.cloud-pre-push.bak' 2>/dev/null | wc -l" -AllowFailure |
     Set-Content -LiteralPath $backupCountsPath -Encoding UTF8
 
 $markerListText = Invoke-RunAsShell -Command "find files -name steam_branch.txt -type f 2>/dev/null || true" -AllowFailure

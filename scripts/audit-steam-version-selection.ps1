@@ -1572,6 +1572,26 @@ Add-Check `
     )
 
 Add-Check `
+    "scripts\capture-steam-version-selection-evidence.ps1" `
+    "captures branch evidence with resolved adb and bounded backup scans" `
+    @(
+        "Resolve-AndroidAdbPath",
+        "AdbPath",
+        "quotedCommand",
+        'run-as \$PackageName sh -c',
+        "Invoke-DeviceShell",
+        'sh -c \$quotedCommand',
+        "echo local-pre-push:",
+        "echo cloud-pre-push:",
+        "last_game_version_cache_cleanup\.txt",
+        "last_game_version_redownload\.txt",
+        "last_steam_branch_availability\.txt",
+        "timeout 10 find",
+        "StS2Launcher/Saves -maxdepth 6",
+        "pre-push-backup-counts\.txt"
+    )
+
+Add-Check `
     "scripts\new-steam-version-selection-evidence.ps1" `
     "creates a structured artifact folder for ARM64 validation evidence" `
     @(
