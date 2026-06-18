@@ -123,6 +123,10 @@ Add-Check `
         "LauncherRuntimeCacheEvidence\.Clear\(dataDir\)",
         "LauncherRuntimePatchValidationEvidence\.Clear\(dataDir\)",
         "Removed runtime pack count",
+        "Runtime packs directory present",
+        "Selected runtime pack present before cleanup",
+        "Preserved selected runtime pack",
+        "CacheCleanupMarkerSelectedRuntimePackPreservedWhereApplicable",
         "RuntimePackDirectoryPathForStateDirectory",
         "DeleteInactiveRuntimePacks",
         "Removed orphan runtime pack"

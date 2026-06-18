@@ -397,8 +397,13 @@ Game version cache cleanup marker selected version:
 Game version cache cleanup marker selected version slot kind:
 Game version cache cleanup marker selected version slot directory:
 Game version cache cleanup marker game_versions present:
+Game version cache cleanup marker runtime_packs present:
+Game version cache cleanup marker selected runtime pack directory:
+Game version cache cleanup marker selected runtime pack present before cleanup:
 Game version cache cleanup marker removed count:
+Game version cache cleanup marker removed runtime pack count:
 Game version cache cleanup marker selected cache preserved where applicable:
+Game version cache cleanup marker selected runtime pack preserved where applicable:
 ```
 
 If a branch switch occurred, paste relevant `last_game_branch_switch.txt` lines:

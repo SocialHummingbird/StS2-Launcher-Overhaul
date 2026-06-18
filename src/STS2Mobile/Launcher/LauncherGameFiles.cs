@@ -420,8 +420,20 @@ internal static partial class LauncherGameFiles
     internal static string CacheCleanupMarkerGameVersionsDirectoryPresent(string dataDir)
         => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Game versions directory present:");
 
+    internal static string CacheCleanupMarkerRuntimePacksDirectoryPresent(string dataDir)
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Runtime packs directory present:");
+
+    internal static string CacheCleanupMarkerSelectedRuntimePackDirectory(string dataDir)
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Selected runtime pack directory:");
+
+    internal static string CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanup(string dataDir)
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Selected runtime pack present before cleanup:");
+
     internal static string CacheCleanupMarkerRemovedCount(string dataDir)
         => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Removed count:");
+
+    internal static string CacheCleanupMarkerRemovedRuntimePackCount(string dataDir)
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Removed runtime pack count:");
 
     internal static bool CacheCleanupMarkerSelectedCachePreservedWhereApplicable(string dataDir)
     {
@@ -440,7 +452,27 @@ internal static partial class LauncherGameFiles
         return MarkerHasLine(markerPath, "Preserved selected cache:");
     }
 
+    internal static bool CacheCleanupMarkerSelectedRuntimePackPreservedWhereApplicable(string dataDir)
+    {
+        var markerPath = CacheCleanupMarkerPath(dataDir);
+        var selectedBranch = CacheCleanupMarkerSelectedBranch(dataDir);
+        if (string.IsNullOrWhiteSpace(selectedBranch) || selectedBranch.StartsWith("<", System.StringComparison.Ordinal))
+            return false;
+
+        selectedBranch = SteamGameBranch.Normalize(selectedBranch);
+        if (string.Equals(selectedBranch, SteamGameBranch.Public, System.StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (!string.Equals(CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanup(dataDir), "true", System.StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return MarkerHasLine(markerPath, "Preserved selected runtime pack:");
+    }
+
     internal static int DeleteInactiveVersionCaches(string dataDir, string selectedBranch)
+        => DeleteInactiveVersionCaches(dataDir, selectedBranch, out _);
+
+    internal static int DeleteInactiveVersionCaches(string dataDir, string selectedBranch, out int removedRuntimePacks)
     {
         selectedBranch = SteamGameBranch.Normalize(selectedBranch);
         var markerLines = NewCacheCleanupMarkerLines(dataDir, selectedBranch);
@@ -452,11 +484,13 @@ internal static partial class LauncherGameFiles
             markerLines.Add("Removed count: 0");
             markerLines.Add($"Removed runtime pack count: {removedRuntimePacksWithoutVersions}");
             WriteCacheCleanupMarker(dataDir, markerLines);
+            removedRuntimePacks = removedRuntimePacksWithoutVersions;
+            PatchHelper.Log($"[Launcher] Removed 0 inactive game version cache(s) and {removedRuntimePacks} runtime pack cache(s); selected branch '{selectedBranch}' preserved");
             return 0;
         }
 
         var removed = 0;
-        var removedRuntimePacks = 0;
+        removedRuntimePacks = 0;
         foreach (var cache in LauncherGameVersionCache.Enumerate(dataDir, selectedBranch))
         {
             if (!cache.Selected || string.Equals(selectedBranch, SteamGameBranch.Public, System.StringComparison.OrdinalIgnoreCase))
@@ -522,14 +556,25 @@ internal static partial class LauncherGameFiles
     }
 
     private static System.Collections.Generic.List<string> NewCacheCleanupMarkerLines(string dataDir, string selectedBranch)
-        => new()
+    {
+        var runtimePacksDir = Path.Combine(dataDir, "runtime_packs");
+        var selectedRuntimePackDirectory = RuntimePackDirectoryPathForStateDirectory(
+            dataDir,
+            SteamGameBranch.StateDirectoryName(selectedBranch)
+        );
+
+        return new()
         {
             $"UTC: {System.DateTime.UtcNow:O}",
             $"Selected branch: {selectedBranch}",
             $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}",
             $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}",
             $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}",
+            $"Runtime packs directory present: {Directory.Exists(runtimePacksDir).ToString().ToLowerInvariant()}",
+            $"Selected runtime pack directory: {selectedRuntimePackDirectory}",
+            $"Selected runtime pack present before cleanup: {Directory.Exists(selectedRuntimePackDirectory).ToString().ToLowerInvariant()}",
         };
+    }
 
     private static void WriteCacheCleanupMarker(string dataDir, System.Collections.Generic.IEnumerable<string> lines)
     {

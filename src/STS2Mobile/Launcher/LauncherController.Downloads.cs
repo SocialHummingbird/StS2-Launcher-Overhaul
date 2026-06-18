@@ -182,10 +182,12 @@ internal sealed partial class LauncherController
         var selectedVersion = STS2Mobile.Steam.SteamGameBranch.DisplayName(selectedBranch);
         var removed = LauncherGameFiles.DeleteInactiveVersionCaches(
             _model.DataDir,
-            selectedBranch
+            selectedBranch,
+            out var removedRuntimePacks
         );
-        _view.SetStatus($"Removed {removed} inactive cached game version(s). Selected version preserved: {selectedVersion}.");
-        _view.AppendLog($"Removed {removed} inactive cached game version(s). Selected version preserved: {selectedVersion}.");
+        var message = $"Removed {removed} inactive cached game version(s) and {removedRuntimePacks} runtime pack cache(s). Selected version preserved: {selectedVersion}.";
+        _view.SetStatus(message);
+        _view.AppendLog(message);
     }
 
     private void ApplyRedownload()

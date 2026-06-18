@@ -740,8 +740,13 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Game version cache cleanup marker selected version slot kind: {LauncherGameFiles.CacheCleanupMarkerVersionSlotKind(dataDir)}");
         sb.AppendLine($"Game version cache cleanup marker selected version slot directory: {LauncherGameFiles.CacheCleanupMarkerVersionSlotDirectory(dataDir)}");
         sb.AppendLine($"Game version cache cleanup marker game_versions present: {LauncherGameFiles.CacheCleanupMarkerGameVersionsDirectoryPresent(dataDir)}");
+        sb.AppendLine($"Game version cache cleanup marker runtime_packs present: {LauncherGameFiles.CacheCleanupMarkerRuntimePacksDirectoryPresent(dataDir)}");
+        sb.AppendLine($"Game version cache cleanup marker selected runtime pack directory: {LauncherGameFiles.CacheCleanupMarkerSelectedRuntimePackDirectory(dataDir)}");
+        sb.AppendLine($"Game version cache cleanup marker selected runtime pack present before cleanup: {LauncherGameFiles.CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanup(dataDir)}");
         sb.AppendLine($"Game version cache cleanup marker removed count: {LauncherGameFiles.CacheCleanupMarkerRemovedCount(dataDir)}");
+        sb.AppendLine($"Game version cache cleanup marker removed runtime pack count: {LauncherGameFiles.CacheCleanupMarkerRemovedRuntimePackCount(dataDir)}");
         sb.AppendLine($"Game version cache cleanup marker selected cache preserved where applicable: {BoolText(LauncherGameFiles.CacheCleanupMarkerSelectedCachePreservedWhereApplicable(dataDir))}");
+        sb.AppendLine($"Game version cache cleanup marker selected runtime pack preserved where applicable: {BoolText(LauncherGameFiles.CacheCleanupMarkerSelectedRuntimePackPreservedWhereApplicable(dataDir))}");
         if (!Directory.Exists(versionsDir))
         {
             sb.AppendLine("Cached non-public game versions: 0");

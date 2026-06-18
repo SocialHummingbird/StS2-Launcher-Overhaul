@@ -97,7 +97,7 @@ When enabled, diagnostics must still show `SteamKit debug logs sanitized for cre
 
 13. Inactive cache cleanup
 
-   Confirm `CLEAR CACHED VERSIONS` removes inactive non-public caches and preserves the currently selected branch cache. Capture the launcher status/log line naming the selected version preserved, logcat lines for removed inactive cache paths and the preserved selected cache path, the diagnostics line `Game version cache cleanup marker selected cache preserved where applicable`, and `last_game_version_cache_cleanup.txt`.
+   Confirm `CLEAR CACHED VERSIONS` removes inactive non-public caches plus stale runtime packs and preserves the currently selected branch cache plus selected runtime pack when present. Capture the launcher status/log line naming the selected version preserved and reporting both removed game-version cache count and removed runtime-pack cache count, logcat lines for removed inactive cache/runtime-pack paths and preserved selected cache/runtime-pack paths, the diagnostics lines `Game version cache cleanup marker selected cache preserved where applicable` and `Game version cache cleanup marker selected runtime pack preserved where applicable`, and `last_game_version_cache_cleanup.txt`.
 
 14. Switch back to public/default
 

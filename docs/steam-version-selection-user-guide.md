@@ -261,8 +261,13 @@ Game version cache cleanup marker selected version:
 Game version cache cleanup marker selected version slot kind:
 Game version cache cleanup marker selected version slot directory:
 Game version cache cleanup marker game_versions present:
+Game version cache cleanup marker runtime_packs present:
+Game version cache cleanup marker selected runtime pack directory:
+Game version cache cleanup marker selected runtime pack present before cleanup:
 Game version cache cleanup marker removed count:
+Game version cache cleanup marker removed runtime pack count:
 Game version cache cleanup marker selected cache preserved where applicable:
+Game version cache cleanup marker selected runtime pack preserved where applicable:
 Branch switch marker filename:
 Branch switch marker path:
 Branch switch marker present:
@@ -401,7 +406,7 @@ The version selector is not release-ready until evidence proves:
 - Native startup routes to the selected branch PCK.
 - Non-public caches without matching marker provenance are blocked.
 - Selected-version redownload only clears the selected cache.
-- Inactive cache cleanup preserves the selected cache.
+- Inactive cache cleanup preserves the selected cache and selected runtime pack while removing stale runtime packs.
 - Missing/private/password-protected beta behavior is understood.
 - Save compatibility across branches is known or explicitly unsupported.
 - Pull-after-switch, local-save, and backup evidence protects Steam Cloud state.
