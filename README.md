@@ -40,10 +40,10 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, Steam beta/version selection validation, best-in-class login/portal UX, quieter diagnostics, repeatable release asset hygiene, and full newest-public Pull/confirmed-Push/game-launch smoke.
 
-- Latest published APK release: `v0.2.187-beta-art-fallback`
-- Current APK asset: `StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk`
-- Package name: `com.sts2launcher.overhaul.fork.dev`
-- Release asset SHA-256: `f2ef1c3ef2149d4901fc1051058d44cfdb2e45afb1c7a9ef5693d4714d31dffe`
+- Latest published APK prerelease: `v0.2.188-local-runtime-beta-fix21`
+- Current APK asset: `StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk`
+- Package name: `com.sts2launcher.overhaul.fork.local`
+- Release asset SHA-256: `69df0581cf2a8cb3843317ddf0a34e789ffce54ba596cfe1a0a26be7f8e8dc3b`
 - Latest verified public release: `0.2.187-beta-art-fallback` / `versionCode=218700`
 - Validated locally/publicly: fresh APK/runtime install, public `v0.2.186 -> v0.2.187` update-compatible release build, responsive launcher login/download-progress/diagnostics/ready-state visual checks on ARM64 hardware, Push-to-Cloud confirmation/cancel safety on the public `v0.2.187` APK, Steam login to Steam Guard on public `v0.2.183`, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
 - Still hardening: Samsung A53/S25+/S24 Ultra reporter retests, repeated public-release Pull/confirmed-Push/game-launch smoke on the newest APK, persisted Steam session/update UX, Steam beta/version selection validation, richer launch progress UI, diagnostics polish, and release-candidate signoff.
@@ -220,13 +220,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.187-beta-art-fallback" `
-  -AssetName "StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.188-local-runtime-beta-fix21" `
+  -AssetName "StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.187-beta-art-fallback" `
-  -AssetName "StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.188-local-runtime-beta-fix21" `
+  -AssetName "StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -235,10 +235,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.187-beta-art-fallback
-Asset: StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk
-Package: com.sts2launcher.overhaul.fork.dev
-SHA-256: f2ef1c3ef2149d4901fc1051058d44cfdb2e45afb1c7a9ef5693d4714d31dffe
+Release: v0.2.188-local-runtime-beta-fix21
+Asset: StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk
+Package: com.sts2launcher.overhaul.fork.local
+VersionName: 0.2.188-local-runtime-beta-fix21
+VersionCode: 218847
+SHA-256: 69df0581cf2a8cb3843317ddf0a34e789ffce54ba596cfe1a0a26be7f8e8dc3b
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.

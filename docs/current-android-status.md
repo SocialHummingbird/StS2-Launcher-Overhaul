@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-06-14_
+_Last updated: 2026-06-18_
 
 Current device evidence ledgers:
 
@@ -28,11 +28,26 @@ Validated locally on ARM64 hardware:
 - Android local save handoff works.
 - The downloaded game launches and shows the pulled `Profile 1` in-game.
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
+- The latest local runtime-pack prerelease proves public-after-beta and public-beta launch with matched PCK/runtime evidence on ARM64 hardware.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
 
-Latest public release evidence:
+Latest GitHub APK prerelease evidence:
+
+```text
+release=v0.2.188-local-runtime-beta-fix21
+asset=StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk
+sha256=69df0581cf2a8cb3843317ddf0a34e789ffce54ba596cfe1a0a26be7f8e8dc3b
+package=com.sts2launcher.overhaul.fork.local
+versionName=0.2.188-local-runtime-beta-fix21
+versionCode=218847
+sourceCommit=d1fedc1
+validation=scripts/audit-multi-version-runtime.ps1 passed 29 checks
+upgradeBaseline=local runtime-pack validation line
+```
+
+Latest verified public release evidence remains:
 
 ```text
 release=v0.2.187-beta-art-fallback
@@ -46,6 +61,9 @@ upgradeBaseline=v0.2.186-sts2-mobile-version-selection / versionCode=218600
 
 Latest device evidence folders:
 
+- `artifacts/android/public-after-beta-fix20-20260618`
+- `artifacts/android/public-beta-fix20-retry-20260618`
+- `artifacts/android/public-beta-compendium-fix20-20260618`
 - `artifacts/android/startup-crash-20260612-233812`
 - `artifacts/android/github-release-v0.2.187-beta-art-fallback`
 - `artifacts/android/responsive-ui-check-20260609`

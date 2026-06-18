@@ -205,3 +205,17 @@ The `v0.2.188-local-runtime-beta-fix20` local ARM64 validation build adds Androi
 - stale public or public-beta `current_runtime_slot.json` evidence blocked direct launch and returned to launcher until managed readiness inspection wrote fresh selected-branch evidence; this is expected and must not be counted as launch success
 
 The beta Compendium route rendered from the synced-save main menu. The follow-up Bestiary tap evidence was inconclusive because the device returned to Android home without package-side missing-resource or fatal logs; do not use that tap as proof of a remaining game asset crash without a focused reproduction capture.
+
+## Fix21 prerelease evidence note
+
+The `v0.2.188-local-runtime-beta-fix21` GitHub prerelease is a fresh ARM64 APK build from commit `d1fedc1` on `codex/android-release-bootstrap`. It contains the same runtime-pack evidence fixes as fix20 and was published as:
+
+```text
+Asset: StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk
+Package: com.sts2launcher.overhaul.fork.local
+VersionName: 0.2.188-local-runtime-beta-fix21
+VersionCode: 218847
+SHA-256: 69df0581cf2a8cb3843317ddf0a34e789ffce54ba596cfe1a0a26be7f8e8dc3b
+```
+
+Before publishing the APK, `scripts/audit-multi-version-runtime.ps1` passed all 29 checks. No additional device runtime evidence was captured specifically for fix21; use the fix20 ARM64 public/public-beta/public-after-beta launch evidence as the matching code-level device validation for this commit.
