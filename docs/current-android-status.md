@@ -67,6 +67,7 @@ Latest device evidence folders:
 - `artifacts/android/fix23-public-beta-game-launch-20260618`
 - `artifacts/android/fix23-public-beta-compendium-route-20260618`
 - `artifacts/android/fix23-public-beta-compendium-route-retry-20260618`
+- `artifacts/android/multi-version-runtime-branch-switch-20260618-211533`
 - `artifacts/android/startup-crash-20260612-233812`
 - `artifacts/android/github-release-v0.2.187-beta-art-fallback`
 - `artifacts/android/responsive-ui-check-20260609`
@@ -108,6 +109,7 @@ startupResult=main menu reached
 runtimeArtFindings=public and public-beta main-menu screenshots are visually equivalent at this level; public loads run-history doormaker_boss imported textures successfully, while public-beta reports loader failures for the same resource names after selected beta PCK mount. Treat as beta game-content/import-runtime behavior, not launcher public fallback, unless future selected-PCK evidence contradicts this run.
 runtimeArtFix=run-history room icon helpers now fall back to branch-local unknown_monster art when a selected branch returns a missing run-history icon path; this avoids loading public assets while keeping older saves usable on beta branches.
 fix23CompendiumBestiary=artifacts/android/fix23-public-beta-compendium-route-retry-20260618 proves the synced-save public-beta main menu can enter Compendium and Bestiary on ARM64. Bestiary rendered Assassin Raider with enemy list/model, active/source/runtime-pack sts2.dll all matched beta hash 4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3, focused logs showed no NativeFallback/SIGSEGV/JNI/fatal package failure, old doormaker/no-loader failure count was 0, and unknown_monster fallback resources loaded instead.
+fix23BranchSwitchSafety=artifacts/android/multi-version-runtime-branch-switch-20260618-211533 passed 34 branch-switch/save-safety review checks. It proves public-beta source PCK a263c68cfdeb6e94af9029088e1bab0c4c72a1641bc1c1ff72c180396a7b134c maps through runtime-pack evidence to Android-patched mounted PCK 957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a, runtime-pack/source/active sts2.dll all match beta hash 4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3, stale downloader cache/wrong launch path/shared runtime cache are ruled out, and Steam Cloud Push safety is do-not-push until selected-runtime Pull/save evidence is current.
 ```
 
 ## Cloud-save posture
@@ -127,6 +129,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Current launcher Push/Pull UI status text now names direction explicitly: Push makes Steam Cloud reflect Android local saves, and Pull makes Android local saves reflect Steam Cloud.
 - Push confirmation now tells testers to Pull first and verify Android local saves exist before pushing, because Push can overwrite Steam Cloud state. The launcher also requires a separate `ARE YOU SURE?` arming tap before that confirmation can appear.
 - Manual Push now has a baseline evidence gate before upload: Pull from Cloud must have completed for the currently selected game version, and important Android local save evidence must be present. Diagnostics expose live current local-save evidence count/presence, baseline manual Push prerequisite status, and recorded completed/blocked Push marker values for the same evidence.
+- Branch-switch safety evidence now covers the pending-Pull posture after switching public -> public-beta: `current_android_save_origin.txt` records `branch switch pending Pull`, the review report classifies Steam Cloud Push as `do-not-push`, and no Push-to-Cloud control was exercised during the branch-runtime investigation.
 - Save discovery now skips app runtime/cache trees such as `.godot`, `cache`, `game`, and `tmp` during fallback enumeration so cloud-save diagnostics stay focused on save candidates.
 
 ## Remaining release-readiness blockers

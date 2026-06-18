@@ -112,15 +112,17 @@ For every public-beta signoff observation, the artifact must show:
 
 - selected branch is `public-beta`
 - selected PCK path is under `files/game_versions/public-beta-*/game/SlayTheSpire2.pck`
-- selected PCK SHA-256 matches `current_runtime_slot.json`
+- installed source PCK SHA-256 matches `current_runtime_slot.json` and the runtime-pack source manifest
+- Android-patched selected PCK SHA-256 matches runtime validation and the native runtime-cache marker
 - selected source `sts2.dll` SHA-256 matches `current_runtime_slot.json`
 - `current_runtime_slot.json` has `filesReady=true`
 - `current_runtime_slot.json` has `playable=true`
 - `current_runtime_slot.json` has `runtimeCompatible=true`
 - `current_runtime_slot.json` has `patchCompatible=true`
 - runtime pack status is usable
-- runtime pack source runtime slot ID matches the selected runtime slot ID
-- runtime pack selected branch/PCK/source assembly hashes match the selected on-device files
+- runtime pack source runtime slot ID matches the installed selected runtime slot ID
+- runtime pack selected branch/source PCK/source assembly hashes match `current_runtime_slot.json`
+- mounted selected PCK hash matches runtime validation and native runtime-cache evidence
 - runtime pack was generated from a clean directory
 - runtime pack manifest and patch-validation report match
 - runtime pack closed DLL set passes
@@ -230,3 +232,4 @@ Device evidence captured on 2026-06-18:
 - `artifacts/android/fix23-public-beta-game-launch-20260618`: auto-launch mounted `/files/game_versions/public-beta-8128824d/game/SlayTheSpire2.pck`, reached `NGame.GameStartup completed`, and showed the main menu. Runtime slot evidence recorded source PCK SHA-256 `a263c68cfdeb6e94af9029088e1bab0c4c72a1641bc1c1ff72c180396a7b134c`; runtime cache/patch validation recorded Android-patched PCK SHA-256 `957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a`; source, runtime-pack, and active Android `sts2.dll` SHA-256 all matched `4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3`.
 - `artifacts/android/fix23-public-beta-compendium-route-20260618`: route retest attempts were not deterministic enough for signoff. Several raw-touch coordinate attempts hit the wrong menu region or Quit; D-pad relaunch evidence only proved main-menu startup and Bestiary resource preload, not a confirmed Compendium/Bestiary route. Do not count this as asset-route pass or asset-route failure.
 - `artifacts/android/fix23-public-beta-compendium-route-retry-20260618`: corrected display capture and tap coordinates proved the synced-save public-beta route. The run launched selected `public-beta`, captured the main menu on display `4630946449689556883`, tapped Compendium at `853,1497`, then tapped Bestiary at `1815,760`. `after-bestiary-tap.png` shows the Bestiary screen with `Assassin Raider`, enemy list, and rendered model. Runtime markers show selected beta PCK/runtime and active Android `sts2.dll` matched the beta runtime hash `4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3`; focused logs had no `NativeFallback`, `SIGSEGV`, `JNI DETECTED`, or package fatal, old doormaker/no-loader failure count was `0`, and `unknown_monster` fallback resources loaded instead.
+- `artifacts/android/multi-version-runtime-branch-switch-20260618-211533`: read-only branch-switch capture passed `review-multi-version-runtime-evidence.ps1 -RequireBranchSwitch -RequireSaveSafety` with 34 checks. It accepts the expected non-public Android split where `current_runtime_slot.json` and `runtime_packs/public-beta-8128824d/compatibility.json` record source PCK SHA-256 `a263c68cfdeb6e94af9029088e1bab0c4c72a1641bc1c1ff72c180396a7b134c`, while runtime validation and native cache record mounted Android-patched PCK SHA-256 `957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a`. It rules out stale downloader cache, wrong launch path, and shared assembly/runtime cache for that snapshot. Save-origin evidence remains `branch switch pending Pull`; the report classifies Steam Cloud Push as `do-not-push`, and no Push-to-Cloud mutation was attempted for this evidence.

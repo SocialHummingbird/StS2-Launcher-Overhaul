@@ -168,7 +168,7 @@ if ($RequireBranchSwitch) {
 }
 
 if ($RequireSaveSafety) {
-    Require-Pattern "diagnostics/current_android_save_origin.txt" "has save-origin evidence" "runtime slot ID|Selected runtime playable|Current Android local saves verified for selected runtime"
+    Require-Pattern "diagnostics/current_android_save_origin.txt" "has save-origin evidence" "runtime slot ID|Selected runtime playable|Current Android local saves verified for selected runtime|Origin action:\s*branch switch pending Pull|Current Android local saves verified for selected branch:\s*false|Required next action:\s*Pull from Cloud"
     Require-Pattern "validation-report.md" "save-origin safety is classified" "Steam Cloud Push save-origin safety"
 }
 

@@ -49,8 +49,10 @@ function Invoke-RunAsText {
         [switch]$AllowFailure
     )
 
+    $quotedCommand = "'" + ($Command -replace "'", "'\''") + "'"
+    $remoteCommand = "run-as $PackageName sh -c $quotedCommand"
     return Invoke-AdbText `
-        -Arguments @("shell", "run-as", $PackageName, "sh", "-c", $Command) `
+        -Arguments @("shell", $remoteCommand) `
         -AllowFailure:$AllowFailure
 }
 
@@ -396,12 +398,15 @@ if ($runtimeSlotEvidence) {
 if ($runtimeSlotEvidence) {
     $slotMarkerPck = "$($runtimeSlotEvidence.pckSha256)"
     $slotMarkerSourceAssembly = "$($runtimeSlotEvidence.sourceAssemblySha256)"
-    $slotPckFresh = -not [string]::IsNullOrWhiteSpace($slotMarkerPck) -and $slotMarkerPck -eq $runtimeSlotPckActualSha256
+    $runtimePackSourcePck = if ($runtimePackManifest) { "$($runtimePackManifest.sourcePckSha256)" } else { "" }
+    $slotPckMatchesSelectedFile = -not [string]::IsNullOrWhiteSpace($slotMarkerPck) -and $slotMarkerPck -eq $runtimeSlotPckActualSha256
+    $slotPckMatchesRuntimePackSource = -not [string]::IsNullOrWhiteSpace($slotMarkerPck) -and -not [string]::IsNullOrWhiteSpace($runtimePackSourcePck) -and $slotMarkerPck -eq $runtimePackSourcePck
+    $slotPckFresh = $slotPckMatchesSelectedFile -or $slotPckMatchesRuntimePackSource
     $slotSourceAssemblyFresh = -not [string]::IsNullOrWhiteSpace($slotMarkerSourceAssembly) -and $slotMarkerSourceAssembly -eq $runtimeSlotSourceAssemblyActualSha256
     if ($slotPckFresh -and $slotSourceAssemblyFresh) {
-        Add-ValidationRow -Lines $validationLines -Area "Runtime slot marker matches selected files" -Status "fresh" -Evidence "markerPck=$slotMarkerPck; actualPck=$runtimeSlotPckActualSha256; markerSourceAssembly=$slotMarkerSourceAssembly; actualSourceAssembly=$runtimeSlotSourceAssemblyActualSha256" -RequiredNextAction "Use marker hashes as proof that current_runtime_slot.json still describes selected files on disk."
+        Add-ValidationRow -Lines $validationLines -Area "Runtime slot marker matches selected files" -Status "fresh" -Evidence "markerPck=$slotMarkerPck; actualPck=$runtimeSlotPckActualSha256; runtimePackSourcePck=$runtimePackSourcePck; pckMatchesSelectedFile=$slotPckMatchesSelectedFile; pckMatchesRuntimePackSource=$slotPckMatchesRuntimePackSource; markerSourceAssembly=$slotMarkerSourceAssembly; actualSourceAssembly=$runtimeSlotSourceAssemblyActualSha256" -RequiredNextAction "Use marker hashes as proof that current_runtime_slot.json still describes selected source files; for Android-patched PCKs, use runtime/cache validation for the mounted PCK hash."
     } else {
-        Add-ValidationRow -Lines $validationLines -Area "Runtime slot marker matches selected files" -Status "stale-or-unreadable" -Evidence "pckFresh=$slotPckFresh; sourceAssemblyFresh=$slotSourceAssemblyFresh; markerPck=$slotMarkerPck; actualPck=$runtimeSlotPckActualSha256; markerSourceAssembly=$slotMarkerSourceAssembly; actualSourceAssembly=$runtimeSlotSourceAssemblyActualSha256" -RequiredNextAction "Redownload selected version or regenerate runtime-slot evidence before launching/classifying branch assets."
+        Add-ValidationRow -Lines $validationLines -Area "Runtime slot marker matches selected files" -Status "stale-or-unreadable" -Evidence "pckFresh=$slotPckFresh; sourceAssemblyFresh=$slotSourceAssemblyFresh; markerPck=$slotMarkerPck; actualPck=$runtimeSlotPckActualSha256; runtimePackSourcePck=$runtimePackSourcePck; pckMatchesSelectedFile=$slotPckMatchesSelectedFile; pckMatchesRuntimePackSource=$slotPckMatchesRuntimePackSource; markerSourceAssembly=$slotMarkerSourceAssembly; actualSourceAssembly=$runtimeSlotSourceAssemblyActualSha256" -RequiredNextAction "Redownload selected version or regenerate runtime-slot evidence before launching/classifying branch assets."
     }
 } else {
     Add-ValidationRow -Lines $validationLines -Area "Runtime slot marker matches selected files" -Status "missing" -Evidence "current_runtime_slot.json missing or unreadable" -RequiredNextAction "Download or redownload selected version to regenerate selected-file hash evidence."
@@ -416,16 +421,25 @@ if ($runtimeSlotEvidence -and $runtimeValidation) {
     $validatedPck = "$($runtimeValidation.selectedPckSha256)"
     $installedSourceAssembly = "$($runtimeSlotEvidence.sourceAssemblySha256)"
     $validatedSourceAssembly = "$($runtimeValidation.selectedSourceAssemblySha256)"
-    if (
+    $runtimePackSourcePck = if ($runtimePackManifest) { "$($runtimePackManifest.sourcePckSha256)" } else { "" }
+    $runtimePackSourceSlot = if ($runtimePackManifest) { "$($runtimePackManifest.sourceRuntimeSlotId)" } else { "" }
+    $installedSlotMatchesRuntimeValidation = $installedRuntimeSlotId -eq $validatedRuntimeSlotId
+    $installedSlotMatchesRuntimePackSource = -not [string]::IsNullOrWhiteSpace($runtimePackSourceSlot) -and $installedRuntimeSlotId -eq $runtimePackSourceSlot
+    $installedBranchMatches = $installedBranch -eq $validatedBranch
+    $installedPckMatchesRuntimeValidation = $installedPck -eq $validatedPck
+    $installedPckMatchesRuntimePackSource = -not [string]::IsNullOrWhiteSpace($runtimePackSourcePck) -and $installedPck -eq $runtimePackSourcePck
+    $runtimeValidationPckMatchesCache = -not [string]::IsNullOrWhiteSpace($runtimeCachePck) -and $validatedPck -eq $runtimeCachePck
+    $installedSourceMatches = $installedSourceAssembly -eq $validatedSourceAssembly
+    $installedRuntimeMatchesForReport =
         -not [string]::IsNullOrWhiteSpace($installedRuntimeSlotId) -and
-        $installedRuntimeSlotId -eq $validatedRuntimeSlotId -and
-        $installedBranch -eq $validatedBranch -and
-        $installedPck -eq $validatedPck -and
-        $installedSourceAssembly -eq $validatedSourceAssembly
-    ) {
-        Add-ValidationRow -Lines $validationLines -Area "Installed slot matches runtime patch validation" -Status "matched" -Evidence "slot=$installedRuntimeSlotId; branch=$installedBranch; pck=$installedPck; sourceAssembly=$installedSourceAssembly" -RequiredNextAction "Use this pairing as proof that download-time readiness and launch-time patch validation refer to the same matched runtime unit."
+        $installedBranchMatches -and
+        $installedSourceMatches -and
+        ($installedSlotMatchesRuntimeValidation -or $installedSlotMatchesRuntimePackSource) -and
+        ($installedPckMatchesRuntimeValidation -or ($installedPckMatchesRuntimePackSource -and $runtimeValidationPckMatchesCache))
+    if ($installedRuntimeMatchesForReport) {
+        Add-ValidationRow -Lines $validationLines -Area "Installed slot matches runtime patch validation" -Status "matched" -Evidence "installedSlot=$installedRuntimeSlotId; validationSlot=$validatedRuntimeSlotId; runtimePackSourceSlot=$runtimePackSourceSlot; branch=$installedBranch; installedPck=$installedPck; validationPck=$validatedPck; runtimePackSourcePck=$runtimePackSourcePck; cachePck=$runtimeCachePck; sourceAssembly=$installedSourceAssembly" -RequiredNextAction "Use this pairing as proof that download-time readiness and launch-time patch validation refer to the same matched runtime unit."
     } else {
-        Add-ValidationRow -Lines $validationLines -Area "Installed slot matches runtime patch validation" -Status "mismatch" -Evidence "installedSlot=$installedRuntimeSlotId; validationSlot=$validatedRuntimeSlotId; installedBranch=$installedBranch; validationBranch=$validatedBranch; installedPck=$installedPck; validationPck=$validatedPck; installedSourceAssembly=$installedSourceAssembly; validationSourceAssembly=$validatedSourceAssembly" -RequiredNextAction "Treat runtime evidence as stale or mixed until the selected version is redownloaded and relaunched."
+        Add-ValidationRow -Lines $validationLines -Area "Installed slot matches runtime patch validation" -Status "mismatch" -Evidence "installedSlot=$installedRuntimeSlotId; validationSlot=$validatedRuntimeSlotId; runtimePackSourceSlot=$runtimePackSourceSlot; installedBranch=$installedBranch; validationBranch=$validatedBranch; installedPck=$installedPck; validationPck=$validatedPck; runtimePackSourcePck=$runtimePackSourcePck; cachePck=$runtimeCachePck; installedSourceAssembly=$installedSourceAssembly; validationSourceAssembly=$validatedSourceAssembly; slotDirect=$installedSlotMatchesRuntimeValidation; slotRuntimePackSource=$installedSlotMatchesRuntimePackSource; pckDirect=$installedPckMatchesRuntimeValidation; pckRuntimePackSource=$installedPckMatchesRuntimePackSource; validationPckCache=$runtimeValidationPckMatchesCache" -RequiredNextAction "Treat runtime evidence as stale or mixed until the selected version is redownloaded and relaunched."
     }
 }
 
@@ -467,8 +481,13 @@ if ($runtimeValidation) {
 if ($runtimeCacheSource -eq "runtime-pack") {
     Add-ValidationRow -Lines $validationLines -Area "Runtime source" -Status "runtime-pack" -Evidence "cacheBranch=$runtimeCacheBranch; requiresPack=$runtimeCacheBranchRequiresRuntimePack; source=$runtimeCacheSource; selectedSourceSha=$runtimeCacheSelectedSource" -RequiredNextAction "Confirm runtime pack manifest/report hashes in diagnostics/runtime-marker-contents.txt."
     if ($runtimeValidation -and $runtimePackManifest) {
-        $packSlotMatches = "$($runtimePackManifest.sourceRuntimeSlotId)" -eq "$($runtimeValidation.runtimeSlotId)"
-        $packPckMatches = "$($runtimePackManifest.sourcePckSha256)" -eq "$($runtimeValidation.selectedPckSha256)"
+        $packSlotMatchesRuntimeValidation = "$($runtimePackManifest.sourceRuntimeSlotId)" -eq "$($runtimeValidation.runtimeSlotId)"
+        $packSlotMatchesInstalledSlot = $runtimeSlotEvidence -and "$($runtimePackManifest.sourceRuntimeSlotId)" -eq "$($runtimeSlotEvidence.runtimeSlotId)"
+        $packSlotMatches = $packSlotMatchesRuntimeValidation -or $packSlotMatchesInstalledSlot
+        $packPckMatchesRuntimeValidation = "$($runtimePackManifest.sourcePckSha256)" -eq "$($runtimeValidation.selectedPckSha256)"
+        $packPckMatchesInstalledSource = $runtimeSlotEvidence -and "$($runtimePackManifest.sourcePckSha256)" -eq "$($runtimeSlotEvidence.pckSha256)"
+        $packPckMatchesSelectedCache = "$($runtimeValidation.selectedPckSha256)" -eq "$runtimeCachePck"
+        $packPckMatches = $packPckMatchesRuntimeValidation -or ($packPckMatchesInstalledSource -and $packPckMatchesSelectedCache)
         $packSourceMatches = "$($runtimePackManifest.sourceAssemblySha256)" -eq "$($runtimeValidation.selectedSourceAssemblySha256)"
         $packAndroidMatches = "$($runtimePackManifest.androidAssemblySha256)" -eq "$($runtimeValidation.activeAndroidAssemblySha256)"
         $packPatchPassed = "$($runtimePackManifest.patchValidationStatus)" -eq "passed"
@@ -491,9 +510,9 @@ if ($runtimeCacheSource -eq "runtime-pack") {
                 "$($runtimePackValidation.generatedFromCleanDirectory)" -eq "$($runtimePackManifest.generatedFromCleanDirectory)"
         }
         if ($packSlotMatches -and $packPckMatches -and $packSourceMatches -and $packAndroidMatches -and $packPatchPassed -and $packClean -and $packClosedDllSet -and $packReportMatches) {
-            Add-ValidationRow -Lines $validationLines -Area "Selected runtime pack manifest" -Status "matched" -Evidence "pack=$($runtimePackManifest.packId); slot=$($runtimePackManifest.sourceRuntimeSlotId); patch=$($runtimePackManifest.patchValidationStatus); clean=$($runtimePackManifest.generatedFromCleanDirectory); closedDllSet=$($runtimePackClosedDllSet.Status); reportMatches=$packReportMatches" -RequiredNextAction "Keep compatibility manifest/report with this runtime evidence."
+            Add-ValidationRow -Lines $validationLines -Area "Selected runtime pack manifest" -Status "matched" -Evidence "pack=$($runtimePackManifest.packId); sourceSlot=$($runtimePackManifest.sourceRuntimeSlotId); runtimeSlot=$($runtimeValidation.runtimeSlotId); sourcePck=$($runtimePackManifest.sourcePckSha256); runtimePck=$($runtimeValidation.selectedPckSha256); cachePck=$runtimeCachePck; slotDirect=$packSlotMatchesRuntimeValidation; slotInstalled=$packSlotMatchesInstalledSlot; pckDirect=$packPckMatchesRuntimeValidation; pckInstalledSource=$packPckMatchesInstalledSource; pckCache=$packPckMatchesSelectedCache; patch=$($runtimePackManifest.patchValidationStatus); clean=$($runtimePackManifest.generatedFromCleanDirectory); closedDllSet=$($runtimePackClosedDllSet.Status); reportMatches=$packReportMatches" -RequiredNextAction "Keep compatibility manifest/report with this runtime evidence."
         } else {
-            Add-ValidationRow -Lines $validationLines -Area "Selected runtime pack manifest" -Status "mismatch" -Evidence "packSlot=$($runtimePackManifest.sourceRuntimeSlotId); runtimeSlot=$($runtimeValidation.runtimeSlotId); packPck=$($runtimePackManifest.sourcePckSha256); runtimePck=$($runtimeValidation.selectedPckSha256); packAndroid=$($runtimePackManifest.androidAssemblySha256); runtimeAndroid=$($runtimeValidation.activeAndroidAssemblySha256); patch=$($runtimePackManifest.patchValidationStatus); clean=$($runtimePackManifest.generatedFromCleanDirectory); closedDllSet=$($runtimePackClosedDllSet.Status); reportMatches=$packReportMatches; $($runtimePackClosedDllSet.Evidence)" -RequiredNextAction "Reject this runtime pack for release; rebuild or redownload selected branch/runtime pack."
+            Add-ValidationRow -Lines $validationLines -Area "Selected runtime pack manifest" -Status "mismatch" -Evidence "packSlot=$($runtimePackManifest.sourceRuntimeSlotId); runtimeSlot=$($runtimeValidation.runtimeSlotId); installedSlot=$($runtimeSlotEvidence.runtimeSlotId); packPck=$($runtimePackManifest.sourcePckSha256); runtimePck=$($runtimeValidation.selectedPckSha256); installedPck=$($runtimeSlotEvidence.pckSha256); cachePck=$runtimeCachePck; slotDirect=$packSlotMatchesRuntimeValidation; slotInstalled=$packSlotMatchesInstalledSlot; pckDirect=$packPckMatchesRuntimeValidation; pckInstalledSource=$packPckMatchesInstalledSource; pckCache=$packPckMatchesSelectedCache; packAndroid=$($runtimePackManifest.androidAssemblySha256); runtimeAndroid=$($runtimeValidation.activeAndroidAssemblySha256); patch=$($runtimePackManifest.patchValidationStatus); clean=$($runtimePackManifest.generatedFromCleanDirectory); closedDllSet=$($runtimePackClosedDllSet.Status); reportMatches=$packReportMatches; $($runtimePackClosedDllSet.Evidence)" -RequiredNextAction "Reject this runtime pack for release; rebuild or redownload selected branch/runtime pack."
         }
     } elseif ($runtimePackManifest) {
         Add-ValidationRow -Lines $validationLines -Area "Selected runtime pack manifest" -Status "needs-runtime-validation" -Evidence "pack=$($runtimePackManifest.packId); slot=$($runtimePackManifest.sourceRuntimeSlotId); patch=$($runtimePackManifest.patchValidationStatus)" -RequiredNextAction "Launch selected branch and recapture runtime validation before release classification."
@@ -529,11 +548,27 @@ $runtimeSlotReady = $runtimeSlotEvidence -and (
 )
 $installedRuntimeMatches = $false
 if ($runtimeSlotEvidence -and $runtimeValidation) {
+    $installedRuntimeSlotId = "$($runtimeSlotEvidence.runtimeSlotId)"
+    $validatedRuntimeSlotId = "$($runtimeValidation.runtimeSlotId)"
+    $installedBranch = "$($runtimeSlotEvidence.branch)"
+    $validatedBranch = "$($runtimeValidation.selectedBranch)"
+    $installedPck = "$($runtimeSlotEvidence.pckSha256)"
+    $validatedPck = "$($runtimeValidation.selectedPckSha256)"
+    $installedSourceAssembly = "$($runtimeSlotEvidence.sourceAssemblySha256)"
+    $validatedSourceAssembly = "$($runtimeValidation.selectedSourceAssemblySha256)"
+    $runtimePackSourcePck = if ($runtimePackManifest) { "$($runtimePackManifest.sourcePckSha256)" } else { "" }
+    $runtimePackSourceSlot = if ($runtimePackManifest) { "$($runtimePackManifest.sourceRuntimeSlotId)" } else { "" }
+    $installedSlotMatchesRuntimeValidation = $installedRuntimeSlotId -eq $validatedRuntimeSlotId
+    $installedSlotMatchesRuntimePackSource = -not [string]::IsNullOrWhiteSpace($runtimePackSourceSlot) -and $installedRuntimeSlotId -eq $runtimePackSourceSlot
+    $installedPckMatchesRuntimeValidation = $installedPck -eq $validatedPck
+    $installedPckMatchesRuntimePackSource = -not [string]::IsNullOrWhiteSpace($runtimePackSourcePck) -and $installedPck -eq $runtimePackSourcePck
+    $runtimeValidationPckMatchesCache = -not [string]::IsNullOrWhiteSpace($runtimeCachePck) -and $validatedPck -eq $runtimeCachePck
     $installedRuntimeMatches =
-        "$($runtimeSlotEvidence.runtimeSlotId)" -eq "$($runtimeValidation.runtimeSlotId)" -and
-        "$($runtimeSlotEvidence.branch)" -eq "$($runtimeValidation.selectedBranch)" -and
-        "$($runtimeSlotEvidence.pckSha256)" -eq "$($runtimeValidation.selectedPckSha256)" -and
-        "$($runtimeSlotEvidence.sourceAssemblySha256)" -eq "$($runtimeValidation.selectedSourceAssemblySha256)"
+        -not [string]::IsNullOrWhiteSpace($installedRuntimeSlotId) -and
+        $installedBranch -eq $validatedBranch -and
+        $installedSourceAssembly -eq $validatedSourceAssembly -and
+        ($installedSlotMatchesRuntimeValidation -or $installedSlotMatchesRuntimePackSource) -and
+        ($installedPckMatchesRuntimeValidation -or ($installedPckMatchesRuntimePackSource -and $runtimeValidationPckMatchesCache))
 }
 
 $cacheMatchesRuntime = $false
@@ -548,6 +583,13 @@ if ($runtimeValidation) {
 $runtimePackMatchesRuntime = $false
 if ($runtimeValidation -and $runtimePackManifest) {
     $runtimePackClean = "$($runtimePackManifest.generatedFromCleanDirectory)" -eq "True" -or "$($runtimePackManifest.generatedFromCleanDirectory)" -eq "true"
+    $packSlotMatchesRuntimeValidation = "$($runtimePackManifest.sourceRuntimeSlotId)" -eq "$($runtimeValidation.runtimeSlotId)"
+    $packSlotMatchesInstalledSlot = $runtimeSlotEvidence -and "$($runtimePackManifest.sourceRuntimeSlotId)" -eq "$($runtimeSlotEvidence.runtimeSlotId)"
+    $packSlotMatches = $packSlotMatchesRuntimeValidation -or $packSlotMatchesInstalledSlot
+    $packPckMatchesRuntimeValidation = "$($runtimePackManifest.sourcePckSha256)" -eq "$($runtimeValidation.selectedPckSha256)"
+    $packPckMatchesInstalledSource = $runtimeSlotEvidence -and "$($runtimePackManifest.sourcePckSha256)" -eq "$($runtimeSlotEvidence.pckSha256)"
+    $packPckMatchesSelectedCache = "$($runtimeValidation.selectedPckSha256)" -eq "$runtimeCachePck"
+    $packPckMatches = $packPckMatchesRuntimeValidation -or ($packPckMatchesInstalledSource -and $packPckMatchesSelectedCache)
     $runtimePackReportMatches = $false
     if ($runtimePackValidation) {
         $runtimePackReportMatches =
@@ -565,8 +607,8 @@ if ($runtimeValidation -and $runtimePackManifest) {
             "$($runtimePackValidation.generatedFromCleanDirectory)" -eq "$($runtimePackManifest.generatedFromCleanDirectory)"
     }
     $runtimePackMatchesRuntime =
-        "$($runtimePackManifest.sourceRuntimeSlotId)" -eq "$($runtimeValidation.runtimeSlotId)" -and
-        "$($runtimePackManifest.sourcePckSha256)" -eq "$($runtimeValidation.selectedPckSha256)" -and
+        $packSlotMatches -and
+        $packPckMatches -and
         "$($runtimePackManifest.sourceAssemblySha256)" -eq "$($runtimeValidation.selectedSourceAssemblySha256)" -and
         "$($runtimePackManifest.androidAssemblySha256)" -eq "$($runtimeValidation.activeAndroidAssemblySha256)" -and
         "$($runtimePackManifest.patchValidationStatus)" -eq "passed" -and
@@ -602,7 +644,7 @@ if ($runtimeMarkerContents -match "Depot manifests inherited from public count:\
 if ($runtimeSlotEvidence -and -not $runtimeSlotReady) {
     Add-HypothesisRow -Lines $validationLines -Hypothesis "Stale/incomplete downloader cache" -Status "confirmed" -Evidence "Installed runtime slot evidence is not ready: $($runtimeSlotEvidence.readinessProblem)" -NextProof "Force selected-version redownload and confirm current_runtime_slot.json becomes ready for the selected runtime."
 } elseif ($installedRuntimeMatches) {
-    Add-HypothesisRow -Lines $validationLines -Hypothesis "Stale/incomplete downloader cache" -Status "ruled out" -Evidence "Installed-slot marker matches runtime patch validation on slot ID, branch, PCK hash, and source assembly hash." -NextProof "Only reopen this hypothesis if later file hashes or branch markers change."
+    Add-HypothesisRow -Lines $validationLines -Hypothesis "Stale/incomplete downloader cache" -Status "ruled out" -Evidence "Installed-slot marker matches runtime patch validation on branch/source assembly and on direct hashes or source-PCK plus Android-patched cache hash." -NextProof "Only reopen this hypothesis if later file hashes or branch markers change."
 } else {
     Add-HypothesisRow -Lines $validationLines -Hypothesis "Stale/incomplete downloader cache" -Status "unknown" -Evidence "Installed-slot marker and runtime validation are missing or do not form a complete matched pair." -NextProof "Redownload selected version, launch it once, and recapture evidence."
 }
