@@ -123,7 +123,7 @@ internal sealed partial class DepotDownloader
                 ? "<none returned>"
                 : string.Join(
                     ", ",
-                    _branches.Select(branch => branch.Downloadable ? $"{branch.Name} (downloadable)" : $"{branch.Name} (no Windows manifest)")
+                    _branches.Select(branch => $"{branch.Name} ({branch.DownloadabilityText})")
                 );
 
             return $"Selected branch visibility: {selected.VisibilityText}; "
@@ -254,7 +254,14 @@ internal sealed partial class DepotDownloader
         private string BuildId { get; }
         private string PasswordRequired { get; }
         internal int WindowsManifestDepotCount { get; }
-        internal bool Downloadable => WindowsManifestDepotCount > 0;
+        internal bool Downloadable => WindowsManifestDepotCount > 0
+            && !PasswordRequired.Equals("true", StringComparison.OrdinalIgnoreCase);
+        internal string DownloadabilityText
+            => PasswordRequired.Equals("true", StringComparison.OrdinalIgnoreCase)
+                ? "password-protected"
+                : WindowsManifestDepotCount > 0
+                    ? "downloadable"
+                    : "no Windows manifest";
 
         internal string VisibilityText
             => MetadataVisible ? "visible in Steam branch metadata" : "not listed in Steam branch metadata";
