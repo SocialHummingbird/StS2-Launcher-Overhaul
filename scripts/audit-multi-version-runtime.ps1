@@ -89,9 +89,20 @@ Add-Check `
         "RuntimePackUsable",
         "missing source runtime slot ID",
         "ReadinessProblem",
+        "AndroidJavaCrypto\.Sha256FileHashData",
         "SteamGameInstallPaths\.GameDirectory",
         "RuntimePackManifestPath",
         "RuntimePackDirectoryPath"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\AndroidJavaCrypto.Sha256.cs" `
+    "hashes large Android files through Java SHA-256 instead of Mono file-stream SHA-256" `
+    @(
+        "Sha256FileHashData",
+        "sha256FileBase64",
+        "CallBase64Bridge",
+        "file SHA-256"
     )
 
 Add-Check `
@@ -287,6 +298,10 @@ Add-Check `
         "KEY_ASSEMBLY_CACHE_RUNTIME_ID",
         "CURRENT_RUNTIME_CACHE_MARKER",
         "BRANCH_GAME_CODE_ASSEMBLIES",
+        "hasStaleCachedBranchGameCodeAssemblies",
+        "matchesPackagedAsset",
+        "Launcher bootstrap assembly cache contains stale branch game-code assembly",
+        "sha256FileBase64",
         "RUNTIME_PACKS_DIRECTORY",
         "RUNTIME_PACK_COMPATIBILITY_MANIFEST",
         "RUNTIME_PACK_PATCH_VALIDATION_REPORT",
@@ -408,6 +423,7 @@ Add-Check `
         "activeAndroidAssemblySha256",
         "runtimePackId",
         "runtimeSlotId",
+        "runtimeCacheId",
         "failureMessages",
         "Clear"
     )

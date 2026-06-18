@@ -28,7 +28,7 @@ Validated locally on ARM64 hardware:
 - Android local save handoff works.
 - The downloaded game launches and shows the pulled `Profile 1` in-game.
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
-- The latest local runtime-pack prerelease proves public-after-beta and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix23 also proves the public-beta launcher startup crash after branch-switch confirmation is fixed.
+- The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix27 also proves the public-after-beta startup crash is fixed after branch switching from public-beta.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -36,13 +36,13 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.188-local-runtime-beta-fix23
-asset=StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk
-sha256=9c912ed70f4e9add0f6780a81382c388c4b8f51a2d3b63786524ca5a9cd78302
+release=v0.2.188-local-runtime-beta-fix27
+asset=StS2Launcher-v0.2.188-local-runtime-beta-fix27-arm64-v8a.apk
+sha256=a4067fc02b2823061cf4af0872a1bc42eece1044c552c396ac086d0f641df3ca
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.188-local-runtime-beta-fix23
-versionCode=218849
-validation=dotnet build passed; ARM64 public-beta launcher startup and game launch evidence captured
+versionName=0.2.188-local-runtime-beta-fix27
+versionCode=218853
+validation=dotnet build passed; ARM64 public/default, public-after-beta, public-beta, and branch-switch runtime evidence passed release gates
 upgradeBaseline=local runtime-pack validation line
 ```
 
@@ -68,6 +68,9 @@ Latest device evidence folders:
 - `artifacts/android/fix23-public-beta-compendium-route-20260618`
 - `artifacts/android/fix23-public-beta-compendium-route-retry-20260618`
 - `artifacts/android/multi-version-runtime-branch-switch-20260618-211533`
+- `artifacts/android/multi-version-runtime-public-20260618-231242`
+- `artifacts/android/multi-version-runtime-public-beta-20260618-224239`
+- `artifacts/android/public-after-beta-game-launch-20260618-230719`
 - `artifacts/android/startup-crash-20260612-233812`
 - `artifacts/android/github-release-v0.2.187-beta-art-fallback`
 - `artifacts/android/responsive-ui-check-20260609`
@@ -110,6 +113,7 @@ runtimeArtFindings=public and public-beta main-menu screenshots are visually equ
 runtimeArtFix=run-history room icon helpers now fall back to branch-local unknown_monster art when a selected branch returns a missing run-history icon path; this avoids loading public assets while keeping older saves usable on beta branches.
 fix23CompendiumBestiary=artifacts/android/fix23-public-beta-compendium-route-retry-20260618 proves the synced-save public-beta main menu can enter Compendium and Bestiary on ARM64. Bestiary rendered Assassin Raider with enemy list/model, active/source/runtime-pack sts2.dll all matched beta hash 4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3, focused logs showed no NativeFallback/SIGSEGV/JNI/fatal package failure, old doormaker/no-loader failure count was 0, and unknown_monster fallback resources loaded instead.
 fix23BranchSwitchSafety=artifacts/android/multi-version-runtime-branch-switch-20260618-211533 passed 34 branch-switch/save-safety review checks. It proves public-beta source PCK a263c68cfdeb6e94af9029088e1bab0c4c72a1641bc1c1ff72c180396a7b134c maps through runtime-pack evidence to Android-patched mounted PCK 957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a, runtime-pack/source/active sts2.dll all match beta hash 4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3, stale downloader cache/wrong launch path/shared runtime cache are ruled out, and Steam Cloud Push safety is do-not-push until selected-runtime Pull/save evidence is current.
+fix27PublicAfterBeta=artifacts/android/multi-version-runtime-public-20260618-231242 passed public/save-safety review after launching public from the same app data that previously held public-beta runtime evidence. It proves selected branch public, PCK files/game/SlayTheSpire2.pck hash 8f0dbfef10a31994eb0f58e8d811db08712153c5c0d4491bc5fc4732be530f68, source/cache sts2.dll hash 81c8f3443c4504e38a17570df688489414fceb6ea7fcf5b044d8117318ea8e49, runtime patch validation passed, and canonical runtime slot public-d8a7082fc63977cc bound to the native runtime cache identity. The wrapper passed with public, public-beta, and branch-switch evidence: scripts/run-multi-version-runtime-release-gates.ps1 -PublicEvidenceDirs artifacts/android/multi-version-runtime-public-20260618-231242 -PublicBetaEvidenceDirs artifacts/android/multi-version-runtime-public-beta-20260618-224239 -BranchSwitchEvidenceDirs artifacts/android/multi-version-runtime-branch-switch-20260618-211533 -RequireSaveSafety -Quiet.
 ```
 
 ## Cloud-save posture
@@ -139,7 +143,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Current public-beta runtime evidence rules out silent public fallback for the tested local ARM64 path: native routing selected `public-beta`, Godot mounted the selected beta PCK, startup patches completed, and the game reached the main menu. A public/default auto-launch baseline on the same build reached the same visible main menu but successfully loaded the run-history `doormaker_boss` imported textures where `public-beta` logged loader failures after mounting the selected beta PCK. PCK directory inspection shows `doormaker_boss` run-history imports exist in public but not in `public-beta`; `public-beta` contains `aeonglass_boss` instead and still contains shared `unknown_monster` fallback art. Runtime patching now falls back to branch-local `unknown_monster` art when the game returns a missing run-history icon path. This is a beta content/import compatibility fix, not public-content fallback.
 - Current evidence tooling resolves `adb` from explicit `-AdbPath`, PATH, common Android SDK roots, and the repo-local `.w40k-android-toolchain` SDK path. A locked-device read-only capture on `com.sts2launcher.overhaul.fork.local` (`artifacts/android/multi-version-runtime-locked-readonly-cache-runtime-20260618-215544`) still shows matched `public-beta` runtime slot, runtime pack, active `sts2.dll`, and branch-switch pending-Pull save-origin posture, but it is not release signoff: the device was locked, no UI cleanup action was run, focused startup logcat was stale/missing, and no `last_game_version_cache_cleanup.txt` existed yet to prove runtime-pack cleanup on device.
 - ARM64 branch-cache cleanup evidence now exists for the local fix23 package: after injecting a controlled dummy orphan runtime-pack directory, `artifacts/android/multi-version-runtime-after-stale-runtime-pack-cleanup-20260618-221746` shows `last_game_version_cache_cleanup.txt` preserving selected `public-beta` cache `public-beta-8128824d`, preserving selected runtime pack `public-beta-8128824d`, removing orphan runtime pack `stale-proof-runtime-pack` with `existsAfterDelete=false`, and recording `Removed runtime pack count: 1`. This proves runtime-pack cleanup/preservation on the local debug build only; release-candidate public/default cleanup, fresh startup logcat, and full public evidence review remain open.
-- Fresh public-beta runtime evidence on the local ARM64 fix23 package now passes the branch-specific review wrapper: `artifacts/android/multi-version-runtime-public-beta-20260618-224239` passed `review-multi-version-runtime-evidence.ps1 -RequirePublicBeta -RequireSaveSafety` with 42 checks after a clean package restart. It proves selected branch `public-beta`, selected beta PCK SHA-256 `957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a`, active beta `sts2.dll` SHA-256 `4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3`, matched runtime pack `public-beta-8128824d`, closed runtime-pack DLL set, patch validation pass, and no silent public fallback for that local debug build. The combined gate `scripts/run-multi-version-runtime-release-gates.ps1 -PublicBetaEvidenceDirs artifacts/android/multi-version-runtime-public-beta-20260618-224239 -BranchSwitchEvidenceDirs artifacts/android/multi-version-runtime-branch-switch-20260618-211533 -RequireSaveSafety` now passes, with the branch-switch artifact still classifying save origin as pending Pull/do-not-push. This is not release-candidate signoff because public/default current-build evidence, private/password/no-manifest negative cases, and public redaction review remain open.
+- Fresh public and public-beta runtime evidence on the local ARM64 fix27/fix23 package line now passes the branch-specific review wrapper. Public evidence `artifacts/android/multi-version-runtime-public-20260618-231242` passed `review-multi-version-runtime-evidence.ps1 -RequirePublic -RequireSaveSafety` with 30 checks after a public game launch. Public-beta evidence `artifacts/android/multi-version-runtime-public-beta-20260618-224239` passed `review-multi-version-runtime-evidence.ps1 -RequirePublicBeta -RequireSaveSafety` with 42 checks after a clean package restart. Together with `artifacts/android/multi-version-runtime-branch-switch-20260618-211533`, the combined gate now passes with public, public-beta, branch-switch, and save-safety evidence. This is not release-candidate signoff because these are local debug package artifacts; private/password/no-manifest negative cases, release-candidate APK evidence, and public redaction review remain open.
 - Re-run full login/Pull/confirmed-Push/game-launch smoke on the clean public `v0.2.187-beta-art-fallback` release-facing build.
 - Keep Push treated as destructive. The newest public APK has confirmation/cancel safety evidence, but confirmed Push mutation still needs an explicit newest-public smoke before release-candidate signoff.
 - Repeated local stale assembly cache/freshness checks across in-place local upgrade once signing continuity is restored.

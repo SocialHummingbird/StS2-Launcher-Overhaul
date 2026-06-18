@@ -259,7 +259,7 @@ internal sealed class GameRuntimeSlot
         var sourceAssemblySha256 = SourceAssemblySha256OrMissing(dataDir, branch, sourceAssemblyPath);
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: source assembly SHA256 -> {sourceAssemblySha256}");
         PatchHelper.Log("[Launcher] Runtime slot inspect phase: active Android assembly SHA256");
-        var activeAndroidAssemblySha256 = ActiveAndroidAssemblySha256OrMissing(dataDir, activeAssemblyPath);
+        var activeAndroidAssemblySha256 = ActiveAndroidAssemblySha256OrMissing(dataDir, branch, activeAssemblyPath);
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: active Android assembly SHA256 -> {activeAndroidAssemblySha256}");
         PatchHelper.Log("[Launcher] Runtime slot inspect phase: metadata");
         var metadata = RuntimeSlotMetadata.Inspect(
@@ -498,9 +498,17 @@ internal sealed class GameRuntimeSlot
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return "<missing>";
 
-            using var stream = File.OpenRead(path);
-            using var sha = SHA256.Create();
-            return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", string.Empty).ToLowerInvariant();
+            byte[] hash;
+            if (OperatingSystem.IsAndroid())
+            {
+                hash = AndroidJavaCrypto.Sha256FileHashData(path);
+            }
+            else
+            {
+                using var stream = File.OpenRead(path);
+                hash = SHA256.HashData(stream);
+            }
+            return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
         }
         catch (Exception ex)
         {
@@ -551,9 +559,9 @@ internal sealed class GameRuntimeSlot
         return Sha256OrMissing(sourceAssemblyPath);
     }
 
-    private static string ActiveAndroidAssemblySha256OrMissing(string dataDir, string activeAssemblyPath)
+    private static string ActiveAndroidAssemblySha256OrMissing(string dataDir, string branch, string activeAssemblyPath)
     {
-        var cached = CachedActiveAndroidAssemblySha256(dataDir, activeAssemblyPath);
+        var cached = CachedActiveAndroidAssemblySha256(dataDir, branch, activeAssemblyPath);
         return HasUsableHash(cached)
             ? cached
             : Sha256OrMissing(activeAssemblyPath);
@@ -737,10 +745,21 @@ internal sealed class GameRuntimeSlot
         }
     }
 
-    private static string CachedActiveAndroidAssemblySha256(string dataDir, string activeAssemblyPath)
+    private static string CachedActiveAndroidAssemblySha256(string dataDir, string branch, string activeAssemblyPath)
     {
         try
         {
+            var cachedBranch = LauncherRuntimeCacheEvidence.SelectedBranch(dataDir);
+            if (HasMarkerValue(cachedBranch)
+                && !string.Equals(
+                    SteamGameBranch.Normalize(cachedBranch),
+                    SteamGameBranch.Normalize(branch),
+                    StringComparison.OrdinalIgnoreCase
+                ))
+            {
+                return null;
+            }
+
             var publishDirectory = LauncherRuntimeCacheEvidence.PublishCacheDirectory(dataDir);
             if (!HasMarkerValue(publishDirectory) || string.IsNullOrWhiteSpace(activeAssemblyPath))
                 return null;

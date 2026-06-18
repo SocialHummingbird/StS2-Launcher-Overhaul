@@ -50,6 +50,7 @@ internal static class LauncherRuntimePatchValidationEvidence
             var activeAndroidAssemblySha256 = RuntimeCacheValue(dataDir, "Active source sts2.dll SHA256:");
             var runtimePackDirectory = RuntimeCacheValue(dataDir, "Runtime pack directory:");
             var runtimePackGameAssembly = RuntimeCacheValue(dataDir, "Runtime pack game assembly:");
+            var slot = GameRuntimeSlot.Inspect(dataDir, branch);
 
             var payload = new
             {
@@ -59,11 +60,12 @@ internal static class LauncherRuntimePatchValidationEvidence
                 selectedVersion = SteamGameBranch.DisplayName(branch),
                 selectedVersionSlotKind = SteamGameInstallPaths.VersionSlotKind(branch),
                 selectedVersionSlotDirectory = SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch),
-                runtimeSlotId = runtimeId,
+                runtimeSlotId = slot.RuntimeSlotId,
+                runtimeCacheId = runtimeId,
                 selectedPckSha256,
                 selectedSourceAssemblySha256,
                 activeAndroidAssemblySha256,
-                runtimePackId = runtimePackDirectory,
+                runtimePackId = slot.RuntimePack?.PackId ?? runtimePackDirectory,
                 runtimePackStatus = RuntimePackStatus(runtimePackDirectory, runtimePackGameAssembly),
                 patchCompatibleBeforeLaunch = !result.CriticalFailed,
                 runtimeCompatibleBeforeLaunch = !string.IsNullOrWhiteSpace(activeAndroidAssemblySha256)

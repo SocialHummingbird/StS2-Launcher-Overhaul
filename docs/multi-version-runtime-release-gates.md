@@ -237,3 +237,30 @@ Device evidence captured on 2026-06-18:
 - `artifacts/android/fix23-public-beta-compendium-route-retry-20260618`: corrected display capture and tap coordinates proved the synced-save public-beta route. The run launched selected `public-beta`, captured the main menu on display `4630946449689556883`, tapped Compendium at `853,1497`, then tapped Bestiary at `1815,760`. `after-bestiary-tap.png` shows the Bestiary screen with `Assassin Raider`, enemy list, and rendered model. Runtime markers show selected beta PCK/runtime and active Android `sts2.dll` matched the beta runtime hash `4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3`; focused logs had no `NativeFallback`, `SIGSEGV`, `JNI DETECTED`, or package fatal, old doormaker/no-loader failure count was `0`, and `unknown_monster` fallback resources loaded instead.
 - `artifacts/android/multi-version-runtime-branch-switch-20260618-211533`: read-only branch-switch capture passed `review-multi-version-runtime-evidence.ps1 -RequireBranchSwitch -RequireSaveSafety` with 34 checks. It accepts the expected non-public Android split where `current_runtime_slot.json` and `runtime_packs/public-beta-8128824d/compatibility.json` record source PCK SHA-256 `a263c68cfdeb6e94af9029088e1bab0c4c72a1641bc1c1ff72c180396a7b134c`, while runtime validation and native cache record mounted Android-patched PCK SHA-256 `957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a`. It rules out stale downloader cache, wrong launch path, and shared assembly/runtime cache for that snapshot. Save-origin evidence remains `branch switch pending Pull`; the report classifies Steam Cloud Push as `do-not-push`, and no Push-to-Cloud mutation was attempted for this evidence.
 - `artifacts/android/multi-version-runtime-public-beta-20260618-224239`: fresh read-only public-beta capture after a clean package restart passed `review-multi-version-runtime-evidence.ps1 -RequirePublicBeta -RequireSaveSafety` with 42 checks. It shows selected branch `public-beta`, selected beta PCK SHA-256 `957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a`, active Android `sts2.dll` SHA-256 `4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3`, selected runtime pack `public-beta-8128824d`, closed runtime-pack DLL set, and patch validation `passed`. The wrapper command `scripts/run-multi-version-runtime-release-gates.ps1 -PublicBetaEvidenceDirs artifacts/android/multi-version-runtime-public-beta-20260618-224239 -BranchSwitchEvidenceDirs artifacts/android/multi-version-runtime-branch-switch-20260618-211533 -RequireSaveSafety` now passes. This is local debug ARM64 evidence only; current public/default release-candidate evidence and public-share redaction review remain required before signoff.
+
+## Fix27 prerelease evidence note
+
+The `v0.2.188-local-runtime-beta-fix27` ARM64 hardening build fixes the public-after-beta startup crash seen after switching the selected branch from `public-beta` back to `public`. The root causes were:
+
+- launcher-only bootstrap could leave a previous branch game-code assembly in the Godot publish cache until the next game-launch request
+- public runtime-slot inspection hashed the 1.8 GB PCK through Mono `SHA256.ComputeHash(FileStream)`, which crashed the Android process on the connected ARM64 device
+- runtime patch validation wrote the native runtime cache identity into `runtimeSlotId`, making evidence reports show a false installed-slot mismatch
+
+Fix27 refreshes stale launcher bootstrap game-code assemblies while allowing the packaged public `sts2.dll`, hashes large Android files through a Java SHA-256 bridge, and records canonical runtime-slot ID plus separate native runtime-cache ID.
+
+Device evidence captured on 2026-06-18:
+
+- `artifacts/android/public-after-beta-game-launch-20260618-230719`: public auto-launch from app data that previously held public-beta runtime evidence stayed foreground, completed startup patch orchestration, reached observed game startup, and wrote public runtime-cache evidence.
+- `artifacts/android/multi-version-runtime-public-20260618-231242`: read-only public capture passed `review-multi-version-runtime-evidence.ps1 -RequirePublic -RequireSaveSafety` with 30 checks. It shows selected branch `public`, selected PCK SHA-256 `8f0dbfef10a31994eb0f58e8d811db08712153c5c0d4491bc5fc4732be530f68`, selected source/cache `sts2.dll` SHA-256 `81c8f3443c4504e38a17570df688489414fceb6ea7fcf5b044d8117318ea8e49`, runtime patch validation `passed`, installed slot `public-d8a7082fc63977cc`, and native runtime cache bound to that canonical slot.
+- Combined gate passed:
+
+```powershell
+.\scripts\run-multi-version-runtime-release-gates.ps1 `
+  -PublicEvidenceDirs artifacts\android\multi-version-runtime-public-20260618-231242 `
+  -PublicBetaEvidenceDirs artifacts\android\multi-version-runtime-public-beta-20260618-224239 `
+  -BranchSwitchEvidenceDirs artifacts\android\multi-version-runtime-branch-switch-20260618-211533 `
+  -RequireSaveSafety `
+  -Quiet
+```
+
+This is still local debug ARM64 evidence. It does not replace release-candidate APK evidence, private/password/no-manifest negative-case validation, cross-branch save compatibility validation after Pull/restore, or public-share redaction review.

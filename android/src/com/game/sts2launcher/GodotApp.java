@@ -627,7 +627,10 @@ public class GodotApp extends GodotActivity {
 		Set<String> packagedBclNames = getPackagedBclNames();
 		String assemblyCacheRuntimeId = pendingGameLaunch ? currentRuntimeCacheId() : bootstrapRuntimeCacheId();
 
-		boolean refreshCache = shouldRefreshAssemblyCache(assemblyCacheRuntimeId) || (pendingGameLaunch && shouldRefreshAssemblyCacheForSelectedBranch());
+		boolean launcherBootstrapHasGameCodeAssemblies = !requiresGameAssemblies && hasStaleCachedBranchGameCodeAssemblies(destDir);
+		boolean refreshCache = shouldRefreshAssemblyCache(assemblyCacheRuntimeId)
+			|| shouldRefreshAssemblyCacheForSelectedBranch()
+			|| launcherBootstrapHasGameCodeAssemblies;
 		logAssemblyCacheState("before-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames, assemblyCacheRuntimeId);
 		Log.i(TAG, "Runtime pack directory: " + (runtimePackDir == null ? "<none>" : runtimePackDir.getAbsolutePath()));
 		Log.i(TAG, "Runtime pack game assembly: " + (hasRuntimePackGameAssembly ? runtimePackGameAssembly.getAbsolutePath() : "<none>"));
@@ -792,6 +795,52 @@ public class GodotApp extends GodotActivity {
 		}
 
 		return false;
+	}
+
+	private boolean hasStaleCachedBranchGameCodeAssemblies(File destDir) {
+		if (destDir == null || !destDir.exists() || !destDir.isDirectory()) {
+			return false;
+		}
+
+		for (String gameCodeAssembly : BRANCH_GAME_CODE_ASSEMBLIES) {
+			File cached = new File(destDir, gameCodeAssembly);
+			if (cached.exists() && cached.isFile() && !matchesPackagedAsset(cached, "dotnet_bcl/" + gameCodeAssembly)) {
+				Log.i(TAG, "Launcher bootstrap assembly cache contains stale branch game-code assembly; refreshing: " + cached.getAbsolutePath());
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private boolean matchesPackagedAsset(File file, String assetPath) {
+		if (file == null || assetPath == null || !file.exists() || !file.isFile()) {
+			return false;
+		}
+		long assetLength = packagedAssetLength(assetPath);
+		if (assetLength < 0 || file.length() != assetLength) {
+			return false;
+		}
+		try {
+			return sha256Hex(file).equalsIgnoreCase(sha256HexAsset(assetPath));
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to compare cached assembly with packaged asset: " + assetPath, e);
+			return false;
+		}
+	}
+
+	private String sha256HexAsset(String assetPath) throws IOException {
+		try (InputStream in = getAssets().open(assetPath)) {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] buffer = new byte[65536];
+			int read;
+			while ((read = in.read(buffer)) != -1) {
+				digest.update(buffer, 0, read);
+			}
+			return bytesToHex(digest.digest());
+		} catch (java.security.NoSuchAlgorithmException e) {
+			throw new IOException("SHA-256 unavailable", e);
+		}
 	}
 
 	private Set<String> getPackagedBclNames() {
@@ -3585,6 +3634,21 @@ public class GodotApp extends GodotActivity {
 			return Base64.encodeToString(digest.digest(), Base64.NO_WRAP);
 		} catch (Exception e) {
 			Log.e(TAG, "File SHA-1 bridge failed", e);
+			return null;
+		}
+	}
+
+	public String sha256FileBase64(String path) {
+		try (InputStream in = new FileInputStream(new File(path))) {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] buffer = new byte[65536];
+			int read;
+			while ((read = in.read(buffer)) != -1) {
+				digest.update(buffer, 0, read);
+			}
+			return Base64.encodeToString(digest.digest(), Base64.NO_WRAP);
+		} catch (Exception e) {
+			Log.e(TAG, "File SHA-256 bridge failed", e);
 			return null;
 		}
 	}
