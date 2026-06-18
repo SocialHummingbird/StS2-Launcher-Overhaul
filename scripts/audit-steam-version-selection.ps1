@@ -1555,6 +1555,8 @@ Add-Check `
         "steam-version-selection-release-readiness\.md",
         "ARTIFACT_HYGIENE\.txt",
         "PUBLIC_SHARE_MANIFEST\.txt",
+        "PUBLIC_EVIDENCE_REDACTION_REVIEW\.txt",
+        "review-public-evidence-redaction\.ps1",
         "Preferred public artifacts",
         "Local-only or manual-review artifacts",
         "Manual Push evidence marker filename",
@@ -1568,6 +1570,9 @@ Add-Check `
         "ARTIFACT_HYGIENE\.txt",
         "Raw logs and full launcher diagnostics are local-only",
         "PUBLIC_SHARE_MANIFEST\.txt",
+        "PUBLIC_EVIDENCE_REDACTION_REVIEW\.txt",
+        "Only sanitized diagnostics selected for public sharing",
+        "Device notifications absent",
         "preferred public artifacts",
         "steam_branch\.txt",
         "last_game_branch_switch\.txt",
@@ -1594,17 +1599,43 @@ Add-Check `
     )
 
 Add-Check `
+    "scripts\review-public-evidence-redaction.ps1" `
+    "fails public-share candidates without completed redaction review or with local-only artifacts" `
+    @(
+        "PUBLIC_EVIDENCE_REDACTION_REVIEW\.txt",
+        "Screenshots manually reviewed",
+        "Credential suggestions absent",
+        "Device notifications absent",
+        "Private save/profile contents absent",
+        "Steam credentials absent",
+        "Refresh/session tokens absent",
+        "Local user paths redacted",
+        "Device identifiers redacted",
+        "Only sanitized diagnostics selected for public sharing",
+        "logs\\\\logcat-full",
+        "logs\\\\logcat-steam-version-focused",
+        "Android package-private data path",
+        "known connected device serial",
+        "credential/token assignment",
+        "Screenshot/image requires completed"
+    )
+
+Add-Check `
     "docs\steam-version-selection-tooling.md" `
     "documents static audit and evidence capture helper usage" `
     @(
         "audit-steam-version-selection\.ps1",
         "audit-steam-branch-guidance-parity\.ps1",
         "new-steam-version-selection-evidence\.ps1",
+        "review-public-evidence-redaction\.ps1",
         "capture-steam-version-selection-evidence\.ps1",
         "steam-version-selection-release-readiness\.md",
         "ARTIFACT_HYGIENE\.txt",
         "local-only/raw-log",
         "PUBLIC_SHARE_MANIFEST\.txt",
+        "PUBLIC_EVIDENCE_REDACTION_REVIEW\.txt",
+        "Review public evidence redaction",
+        "Does not mutate artifacts and does not replace manual review",
         "safer public-sharing defaults",
         "logcat-steam-version-focused-redacted\.txt",
         "IncludeRawLogcat",
