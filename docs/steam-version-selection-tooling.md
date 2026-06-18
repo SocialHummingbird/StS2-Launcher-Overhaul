@@ -4,7 +4,7 @@ This page lists the local helper scripts used by the Steam version-selection val
 
 These tools do not replace ARM64 runtime validation. They only make static guardrails and evidence capture repeatable.
 
-The PowerShell helpers normalize local path separators so they can be run from Windows PowerShell or PowerShell Core on CI/Linux. Android `adb shell` paths intentionally remain Android-style paths.
+The PowerShell helpers normalize local path separators so they can be run from Windows PowerShell or PowerShell Core on CI/Linux. Android `adb shell` paths intentionally remain Android-style paths. Device evidence helpers resolve `adb` from an explicit `-AdbPath`, PATH, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, the standard local Android SDK path, or the repo local `.w40k-android-toolchain` SDK path. If none is available, they fail before capture with an actionable SDK/platform-tools message.
 
 ## Static guardrail audit
 
@@ -148,7 +148,8 @@ With explicit package and device serial:
 .\scripts\capture-steam-version-selection-evidence.ps1 `
   -EvidenceDir "artifacts\android\steam-version-selection-<timestamp>" `
   -PackageName "com.sts2launcher.overhaul.fork.dev" `
-  -DeviceSerial "<adb-serial>"
+  -DeviceSerial "<adb-serial>" `
+  -AdbPath "C:\path\to\platform-tools\adb.exe"
 ```
 
 Captured files:
@@ -233,7 +234,8 @@ With explicit package and device serial:
   -EvidenceDir "artifacts\android\steam-beta-integrity-<timestamp>" `
   -PackageName "com.sts2launcher.overhaul.fork.dev" `
   -Branch "public-beta" `
-  -DeviceSerial "<adb-serial>"
+  -DeviceSerial "<adb-serial>" `
+  -AdbPath "C:\path\to\platform-tools\adb.exe"
 ```
 
 Captured files:

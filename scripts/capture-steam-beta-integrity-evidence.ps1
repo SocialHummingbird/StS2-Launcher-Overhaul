@@ -479,14 +479,7 @@ function Write-FocusedLogcatEvidence([string]$OutputPath) {
     }
 }
 
-if (-not (Test-Path -LiteralPath $AdbPath)) {
-    $adbCommand = Get-Command $AdbPath -ErrorAction SilentlyContinue
-    if ($adbCommand -and $adbCommand.Source) {
-        $AdbPath = $adbCommand.Source
-    }
-}
-
-Assert-AndroidAdbPath -AdbPath $AdbPath
+$AdbPath = Resolve-AndroidAdbPath -AdbPath $AdbPath
 $script:ResolvedDevice = Resolve-AndroidTargetDevice -AdbPath $AdbPath -DeviceSerial $DeviceSerial -WaitForDeviceSeconds 2
 
 $runAsProbe = Invoke-AndroidAdbCapture `

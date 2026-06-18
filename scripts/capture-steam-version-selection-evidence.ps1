@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$EvidenceDir,
+    [string]$AdbPath = "adb",
     [string]$PackageName = "com.sts2launcher.overhaul.fork.dev",
     [string]$DeviceSerial = "",
     [switch]$IncludeRawLogcat
@@ -9,6 +10,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
+. (Join-Path $PSScriptRoot "android-adb-utils.ps1")
+$AdbPath = Resolve-AndroidAdbPath -AdbPath $AdbPath
 
 function Resolve-RepoPath([string]$RelativePath) {
     $normalized = $RelativePath -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
@@ -43,7 +46,7 @@ if ($DeviceSerial.Trim().Length -gt 0) {
 }
 
 function Invoke-AdbText([string[]]$Arguments, [switch]$AllowFailure) {
-    $output = & adb @adbPrefix @Arguments 2>&1
+    $output = & $AdbPath @adbPrefix @Arguments 2>&1
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0 -and -not $AllowFailure) {
         throw "adb $($Arguments -join ' ') failed with exit code $exitCode`: $output"

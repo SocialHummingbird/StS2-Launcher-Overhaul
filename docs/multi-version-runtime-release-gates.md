@@ -70,15 +70,18 @@ Run the read-only evidence collector after each meaningful branch/runtime change
 ```powershell
 .\scripts\capture-multi-version-runtime-evidence.ps1 `
   -PackageName <installed.package.name> `
-  -RunLabel public
+  -RunLabel public `
+  -AdbPath "C:\path\to\platform-tools\adb.exe"
 
 .\scripts\capture-multi-version-runtime-evidence.ps1 `
   -PackageName <installed.package.name> `
-  -RunLabel public-beta
+  -RunLabel public-beta `
+  -AdbPath "C:\path\to\platform-tools\adb.exe"
 
 .\scripts\capture-multi-version-runtime-evidence.ps1 `
   -PackageName <installed.package.name> `
-  -RunLabel branch-switch
+  -RunLabel branch-switch `
+  -AdbPath "C:\path\to\platform-tools\adb.exe"
 ```
 
 Then review the collected artifact:

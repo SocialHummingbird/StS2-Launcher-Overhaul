@@ -9,6 +9,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "android-adb-utils.ps1")
+$AdbPath = Resolve-AndroidAdbPath -AdbPath $AdbPath
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $generatedUtc = (Get-Date).ToUniversalTime().ToString('O')
 $safeRunLabel = ($RunLabel -replace '[^A-Za-z0-9._-]', '-').Trim('-')
@@ -298,7 +300,7 @@ Save-AdbText -Path (Join-Path $logsDir "adb-devices.txt") -Arguments @("devices"
 Save-AdbText -Path (Join-Path $diagnosticsDir "package.txt") -Arguments @("shell", "dumpsys", "package", $PackageName) -AllowFailure
 Save-RunAsText -Path (Join-Path $diagnosticsDir "run-as-pwd.txt") -Command "pwd" -AllowFailure
 
-$markerFind = "find files -maxdepth 8 -type f \( -name 'steam_branch.txt' -o -name 'release_info.json' -o -name 'compatibility.json' -o -name 'patch_validation.json' -o -name '.android_patch_validation.json' -o -name 'current_runtime_slot.json' -o -name 'current_runtime_cache.txt' -o -name 'current_android_save_origin.txt' -o -name 'last_runtime_patch_validation.json' -o -name 'last_manual_cloud_pull.txt' -o -name 'last_manual_cloud_push.txt' -o -name 'last_manual_cloud_push_blocked.txt' -o -name 'last_game_branch_switch.txt' \) -print 2>/dev/null | sort"
+$markerFind = "find files -maxdepth 8 -type f \( -name 'steam_branch.txt' -o -name 'release_info.json' -o -name 'compatibility.json' -o -name 'patch_validation.json' -o -name '.android_patch_validation.json' -o -name 'current_runtime_slot.json' -o -name 'current_runtime_cache.txt' -o -name 'current_android_save_origin.txt' -o -name 'last_runtime_patch_validation.json' -o -name 'last_manual_cloud_pull.txt' -o -name 'last_manual_cloud_push.txt' -o -name 'last_manual_cloud_push_blocked.txt' -o -name 'last_game_branch_switch.txt' -o -name 'last_game_version_cache_cleanup.txt' -o -name 'last_game_version_redownload.txt' \) -print 2>/dev/null | sort"
 Save-RunAsText -Path (Join-Path $diagnosticsDir "runtime-marker-files.txt") -Command $markerFind -AllowFailure
 
 $markerDump = "$markerFind | while IFS= read -r f; do echo `"===== `$f`"; sed -n '1,160p' `"`$f`" 2>/dev/null || true; done"

@@ -1,3 +1,42 @@
+function Resolve-AndroidAdbPath {
+    param(
+        [string]$AdbPath = "adb"
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($AdbPath)) {
+        if (Test-Path -LiteralPath $AdbPath) {
+            return (Resolve-Path -LiteralPath $AdbPath).Path
+        }
+
+        $adbCommand = Get-Command $AdbPath -ErrorAction SilentlyContinue
+        if ($adbCommand -and $adbCommand.Source) {
+            return (Resolve-Path -LiteralPath $adbCommand.Source).Path
+        }
+    }
+
+    $candidateRoots = @(
+        $env:ANDROID_HOME,
+        $env:ANDROID_SDK_ROOT,
+        (Join-Path $env:LOCALAPPDATA "Android\Sdk"),
+        (Join-Path $env:USERPROFILE ".w40k-android-toolchain\android-sdk")
+    ) |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        ForEach-Object { (Resolve-Path -LiteralPath $_ -ErrorAction SilentlyContinue).Path } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Sort-Object -Unique
+
+    foreach ($root in $candidateRoots) {
+        foreach ($name in @("adb.exe", "adb")) {
+            $candidate = Join-Path $root (Join-Path "platform-tools" $name)
+            if (Test-Path -LiteralPath $candidate) {
+                return (Resolve-Path -LiteralPath $candidate).Path
+            }
+        }
+    }
+
+    throw "ADB not found. Pass -AdbPath with an adb executable or set ANDROID_HOME/ANDROID_SDK_ROOT to an Android SDK with platform-tools installed."
+}
+
 function Assert-AndroidAdbPath {
     param(
         [Parameter(Mandatory = $true)]

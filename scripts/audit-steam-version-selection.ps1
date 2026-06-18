@@ -1560,6 +1560,18 @@ Add-ForbiddenCheck `
     )
 
 Add-Check `
+    "scripts\android-adb-utils.ps1" `
+    "resolves adb from explicit path, PATH, or common Android SDK roots" `
+    @(
+        "Resolve-AndroidAdbPath",
+        "ANDROID_HOME",
+        "ANDROID_SDK_ROOT",
+        "platform-tools",
+        "\.w40k-android-toolchain",
+        "Pass -AdbPath"
+    )
+
+Add-Check `
     "scripts\new-steam-version-selection-evidence.ps1" `
     "creates a structured artifact folder for ARM64 validation evidence" `
     @(
@@ -1660,6 +1672,10 @@ Add-Check `
         "steamkit-debug-log-setting\.txt",
         "logcat-redaction-summary\.txt",
         "launcher-diagnostics-index\.txt",
+        "AdbPath",
+        "ANDROID_HOME",
+        "ANDROID_SDK_ROOT",
+        "\.w40k-android-toolchain",
         "last_game_branch_switch\.txt",
         "last_manual_cloud_push\.txt",
         "last_manual_cloud_push_blocked\.txt",
@@ -2044,6 +2060,7 @@ Add-Check `
         "Public sharing warning:",
         "ReviewSummary",
         "FailOnNotReady",
+        "Resolve-AndroidAdbPath",
         "review-beta-integrity-summary\.ps1",
         "Classification:",
         "Evidence readiness:",
@@ -2090,6 +2107,7 @@ Add-Check `
     @(
         "Capture beta branch integrity evidence",
         "capture-steam-beta-integrity-evidence\.ps1",
+        "AdbPath",
         "review-beta-integrity-summary\.ps1",
         "ReviewSummary",
         "FailOnNotReady",
