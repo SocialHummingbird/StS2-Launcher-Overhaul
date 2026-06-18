@@ -160,13 +160,14 @@ public class GodotApp extends GodotActivity {
 		installAndroidExceptionHandler();
 		gameDir = resolveGameDir().getAbsolutePath();
 		String selectedBranch = readSelectedBranch();
+		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
 		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
 		Log.i(TAG, "Selected Steam branch: " + selectedBranch);
 		Log.i(TAG, "Selected Steam branch note: " + SteamBranchInfo.selectorHelpText(selectedBranch));
 		Log.i(TAG, "Selected game version slot kind: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Selected game version slot directory: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
 		Log.i(TAG, "Resolved game directory: " + gameDir);
-		Log.i(TAG, "Selected game PCK before Godot init: " + describeGamePck(new File(gameDir, PCK_FILE)));
+		Log.i(TAG, "Selected game PCK before Godot init: " + describeGamePck(new File(gameDir, PCK_FILE), pendingGameLaunch));
 		Log.i(TAG, "Steam branch marker install slot kind: " + readMarkerValue(branchMarker, "Install slot kind:"));
 		Log.i(TAG, "Steam branch marker expected install slot kind: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Steam branch marker install slot directory: " + readMarkerValue(branchMarker, "Install slot directory:"));
@@ -179,7 +180,7 @@ public class GodotApp extends GodotActivity {
 		configureTempDirectory();
 		configureMonoForEmulator();
 		cleanupStaleHttpResponseFiles();
-		logStartupFreshnessProbe();
+		logStartupFreshnessProbe(pendingGameLaunch);
 
 		SplashScreen.installSplashScreen(this);
 		EdgeToEdge.enable(this);
@@ -289,7 +290,7 @@ public class GodotApp extends GodotActivity {
 		finish();
 	}
 
-	private boolean shouldRefreshAssemblyCache() {
+	private boolean shouldRefreshAssemblyCache(String currentRuntimeId) {
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		int lastSchema = prefs.getInt(KEY_ASSEMBLY_CACHE_SCHEMA, -1);
 		int lastVersion = prefs.getInt(KEY_INSTALLED_VERSION_CODE, -1);
@@ -302,7 +303,6 @@ public class GodotApp extends GodotActivity {
 		) {
 			File destDir = new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir());
 			String cachedRuntimeId = prefs.getString(KEY_ASSEMBLY_CACHE_RUNTIME_ID, "");
-			String currentRuntimeId = currentRuntimeCacheId();
 			if (!currentRuntimeId.equals(cachedRuntimeId)) {
 				Log.i(TAG, "Assembly cache runtime changed from " + cachedRuntimeId + " to " + currentRuntimeId);
 				return true;
@@ -313,7 +313,15 @@ public class GodotApp extends GodotActivity {
 		return true;
 	}
 
-	private void logStartupFreshnessProbe() {
+	private String bootstrapRuntimeCacheId() {
+		return "bootstrap"
+			+ "|package=" + getPackageName()
+			+ "|version=" + BuildConfig.VERSION_CODE
+			+ "|schema=" + ASSEMBLY_CACHE_SCHEMA
+			+ "|arch=" + getRuntimeGodotArchDir();
+	}
+
+	private void logStartupFreshnessProbe(boolean includeSelectedRuntime) {
 		try {
 			SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 			String arch = getRuntimeGodotArchDir();
@@ -330,7 +338,7 @@ public class GodotApp extends GodotActivity {
 					+ " storedVersionCode=" + prefs.getInt(KEY_INSTALLED_VERSION_CODE, -1)
 					+ " storedPackage=" + prefs.getString(KEY_INSTALLED_PACKAGE_NAME, "")
 					+ " storedRuntimeId=" + prefs.getString(KEY_ASSEMBLY_CACHE_RUNTIME_ID, "")
-					+ " currentRuntimeId=" + currentRuntimeCacheId()
+					+ " currentRuntimeId=" + (includeSelectedRuntime ? currentRuntimeCacheId() : bootstrapRuntimeCacheId())
 					+ " arch=" + arch
 					+ " cacheDirExists=" + destDir.isDirectory()
 					+ " sts2MobileBytes=" + (patcher.exists() ? patcher.length() : -1)
@@ -402,7 +410,7 @@ public class GodotApp extends GodotActivity {
 		return hasRequiredCacheFiles(destDir, false);
 	}
 
-	private void logAssemblyCacheState(String phase, File destDir, File srcDir, boolean requireGameAssemblies, Set<String> packagedBclNames) {
+	private void logAssemblyCacheState(String phase, File destDir, File srcDir, boolean requireGameAssemblies, Set<String> packagedBclNames, String runtimeCacheId) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("Assembly cache diagnostics [").append(phase).append("]");
 		sb.append(" schema=").append(ASSEMBLY_CACHE_SCHEMA);
@@ -414,7 +422,7 @@ public class GodotApp extends GodotActivity {
 		sb.append(" destIsDir=").append(destDir != null && destDir.isDirectory());
 		sb.append(" src=").append(srcDir == null ? "<none>" : srcDir.getAbsolutePath());
 		sb.append(" srcExists=").append(srcDir != null && srcDir.exists());
-		sb.append(" runtimeId=").append(currentRuntimeCacheId());
+		sb.append(" runtimeId=").append(runtimeCacheId);
 		sb.append(" packagedBclCount=").append(packagedBclNames == null ? 0 : packagedBclNames.size());
 		sb.append(" requireGameAssemblies=").append(requireGameAssemblies);
 		Log.i(TAG, sb.toString());
@@ -469,8 +477,11 @@ public class GodotApp extends GodotActivity {
 	}
 
 	private void markAssemblyCacheStateAsCurrent(int currentVersion) {
+		markAssemblyCacheStateAsCurrent(currentVersion, currentRuntimeCacheId(), true);
+	}
+
+	private void markAssemblyCacheStateAsCurrent(int currentVersion, String currentRuntimeId, boolean writeRuntimeMarker) {
 		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-		String currentRuntimeId = currentRuntimeCacheId();
 		prefs.edit()
 			.putInt(KEY_ASSEMBLY_CACHE_SCHEMA, ASSEMBLY_CACHE_SCHEMA)
 			.putString(KEY_ASSEMBLY_CACHE_BRANCH, readSelectedBranch())
@@ -478,7 +489,9 @@ public class GodotApp extends GodotActivity {
 			.putInt(KEY_INSTALLED_VERSION_CODE, currentVersion)
 			.putString(KEY_INSTALLED_PACKAGE_NAME, getPackageName())
 			.apply();
-		writeRuntimeCacheMarker(currentVersion, currentRuntimeId);
+		if (writeRuntimeMarker) {
+			writeRuntimeCacheMarker(currentVersion, currentRuntimeId);
+		}
 	}
 
 	private void writeRuntimeCacheMarker(int currentVersion, String currentRuntimeId) {
@@ -595,8 +608,9 @@ public class GodotApp extends GodotActivity {
 	// into the location Godot expects. Skips if already done unless the APK version
 	// changed.
 	private void setupAssemblies() {
-		File srcDir = findAssembliesDir();
-		File runtimePackDir = findRuntimePackDir();
+		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
+		File srcDir = pendingGameLaunch ? findAssembliesDir() : null;
+		File runtimePackDir = pendingGameLaunch ? findRuntimePackDir() : null;
 		File runtimePackGameAssembly = runtimePackGameAssembly(runtimePackDir);
 		File destDir = new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir());
 		int currentVersion = BuildConfig.VERSION_CODE;
@@ -606,27 +620,28 @@ public class GodotApp extends GodotActivity {
 			&& runtimePackGameAssembly.isFile();
 		boolean selectedBranchRequiresRuntimePack = gameReady
 			&& !"public".equalsIgnoreCase(readSelectedBranch());
-		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
 		boolean requiresGameAssemblies = gameReady
+			&& pendingGameLaunch
 			&& (hasGameAssemblies(srcDir) || hasRuntimePackGameAssembly)
 			&& (!selectedBranchRequiresRuntimePack || hasRuntimePackGameAssembly);
 		Set<String> packagedBclNames = getPackagedBclNames();
+		String assemblyCacheRuntimeId = pendingGameLaunch ? currentRuntimeCacheId() : bootstrapRuntimeCacheId();
 
-		boolean refreshCache = shouldRefreshAssemblyCache() || shouldRefreshAssemblyCacheForSelectedBranch();
-		logAssemblyCacheState("before-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
+		boolean refreshCache = shouldRefreshAssemblyCache(assemblyCacheRuntimeId) || (pendingGameLaunch && shouldRefreshAssemblyCacheForSelectedBranch());
+		logAssemblyCacheState("before-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames, assemblyCacheRuntimeId);
 		Log.i(TAG, "Runtime pack directory: " + (runtimePackDir == null ? "<none>" : runtimePackDir.getAbsolutePath()));
 		Log.i(TAG, "Runtime pack game assembly: " + (hasRuntimePackGameAssembly ? runtimePackGameAssembly.getAbsolutePath() : "<none>"));
 		if (selectedBranchRequiresRuntimePack && !hasRuntimePackGameAssembly && pendingGameLaunch) {
 			Log.w(TAG, "Selected non-public branch requires a usable runtime pack for game launch; selected-game sts2.dll fallback will not be copied.");
 			clearAssemblyCache(destDir);
-			logAssemblyCacheState("blocked-no-runtime-pack", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
-			writeRuntimeCacheMarker(currentVersion, currentRuntimeCacheId());
+			logAssemblyCacheState("blocked-no-runtime-pack", destDir, srcDir, requiresGameAssemblies, packagedBclNames, assemblyCacheRuntimeId);
+			writeRuntimeCacheMarker(currentVersion, assemblyCacheRuntimeId);
 			throw new RuntimeException(
 				"Selected Steam branch '" + readSelectedBranch()
 					+ "' has no usable Android runtime pack. Native Godot startup was blocked to avoid loading stale or public sts2.dll code against the selected branch PCK."
 			);
 		}
-		if (selectedBranchRequiresRuntimePack && !hasRuntimePackGameAssembly) {
+		if (selectedBranchRequiresRuntimePack && !hasRuntimePackGameAssembly && pendingGameLaunch) {
 			Log.w(TAG, "Selected non-public branch has no usable runtime pack yet; starting launcher-only bootstrap without selected-game sts2.dll so managed validation can regenerate runtime-pack evidence.");
 		}
 
@@ -643,8 +658,12 @@ public class GodotApp extends GodotActivity {
 				&& (!requiresGameAssemblies || hasCachedGameAssemblies(destDir, srcDir, packagedBclNames, runtimePackDir, runtimePackGameAssembly))
 		) {
 			Log.i(TAG, "Assemblies already set up at: " + destDir.getAbsolutePath());
-			logAssemblyCacheState("cache-hit", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
-			markAssemblyCacheStateAsCurrent(currentVersion);
+			logAssemblyCacheState("cache-hit", destDir, srcDir, requiresGameAssemblies, packagedBclNames, assemblyCacheRuntimeId);
+			markAssemblyCacheStateAsCurrent(
+				currentVersion,
+				assemblyCacheRuntimeId,
+				pendingGameLaunch
+			);
 			return;
 		}
 
@@ -742,13 +761,17 @@ public class GodotApp extends GodotActivity {
 		}
 
 		if (!hasRequiredCacheFiles(destDir, requiresGameAssemblies)) {
-			logAssemblyCacheState("missing-after-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
+			logAssemblyCacheState("missing-after-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames, assemblyCacheRuntimeId);
 			String mode = requiresGameAssemblies ? "game" : "launcher-only";
 			throw new RuntimeException("Missing required Mono/cache assemblies after copy for " + mode + " mode.");
 		}
 
-		logAssemblyCacheState("after-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames);
-		markAssemblyCacheStateAsCurrent(currentVersion);
+		logAssemblyCacheState("after-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames, assemblyCacheRuntimeId);
+		markAssemblyCacheStateAsCurrent(
+			currentVersion,
+			assemblyCacheRuntimeId,
+			pendingGameLaunch
+		);
 	}
 
 	private boolean shouldRefreshAssemblyCacheForSelectedBranch() {
@@ -869,7 +892,7 @@ public class GodotApp extends GodotActivity {
 	}
 
 	private boolean selectedBranchRequiresRuntimePack() {
-		return isGamePckReady() && !"public".equalsIgnoreCase(readSelectedBranch());
+		return !"public".equalsIgnoreCase(readSelectedBranch());
 	}
 
 	private String runtimePackIdentity(File runtimePackDir) {
@@ -1006,7 +1029,7 @@ public class GodotApp extends GodotActivity {
 				return false;
 			}
 			String selectedPckSha256 = sha256Hex(selectedPck);
-			if (!sourcePckSha256.equalsIgnoreCase(selectedPckSha256)) {
+			if (!pckMatchesRuntimeSource(selectedPck, sourcePckSha256, selectedPckSha256)) {
 				Log.w(TAG, "Runtime pack selected PCK hash mismatch: declared=" + sourcePckSha256 + " selected=" + selectedPckSha256);
 				return false;
 			}
@@ -1409,7 +1432,7 @@ public class GodotApp extends GodotActivity {
 			String selectedSourceAssemblySha256 = selectedSourceAssembly != null && selectedSourceAssembly.exists() && selectedSourceAssembly.isFile()
 				? sha256Hex(selectedSourceAssembly)
 				: "";
-			boolean pckMatches = !markerPckSha256.trim().isEmpty() && markerPckSha256.equalsIgnoreCase(selectedPckSha256);
+			boolean pckMatches = pckMatchesRuntimeSource(selectedPck, markerPckSha256, selectedPckSha256);
 			boolean sourceAssemblyMatches = !markerSourceAssemblySha256.trim().isEmpty() && markerSourceAssemblySha256.equalsIgnoreCase(selectedSourceAssemblySha256);
 			if (branchMatches && filesReady && playable && runtimeCompatible && patchCompatible && pckMatches && sourceAssemblyMatches) {
 				Log.i(TAG, "Runtime slot evidence ready for selected game startup: slot=" + json.optString("runtimeSlotId", "") + " branch=" + markerBranch);
@@ -1580,13 +1603,14 @@ public class GodotApp extends GodotActivity {
 		setAndroidFilesDirMode();
 		File pckFile = new File(gameDir, PCK_FILE);
 		String selectedBranch = readSelectedBranch();
+		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
 		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
 		Log.i(TAG, "Selected Steam branch for startup: " + selectedBranch);
 		Log.i(TAG, "Selected Steam branch note for startup: " + SteamBranchInfo.selectorHelpText(selectedBranch));
 		Log.i(TAG, "Selected game version slot kind for startup: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Selected game version slot directory for startup: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
 		Log.i(TAG, "Resolved startup game directory: " + gameDir);
-		Log.i(TAG, "Selected game PCK for startup: " + describeGamePck(pckFile));
+		Log.i(TAG, "Selected game PCK for startup: " + describeGamePck(pckFile, pendingGameLaunch));
 		Log.i(TAG, "Steam branch marker install slot kind for startup: " + readMarkerValue(branchMarker, "Install slot kind:"));
 		Log.i(TAG, "Steam branch marker expected install slot kind for startup: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Steam branch marker install slot directory for startup: " + readMarkerValue(branchMarker, "Install slot directory:"));
@@ -1598,9 +1622,9 @@ public class GodotApp extends GodotActivity {
 		boolean branchMarkerReady = isBranchMarkerReady(selectedBranch);
 		boolean gamePckReady = isGamePckReady();
 		Log.i(TAG, "Steam branch marker ready for startup: " + branchMarkerReady);
-		boolean runtimeSlotReady = branchMarkerReady && gamePckReady && isRuntimeSlotEvidenceReadyForLaunch(selectedBranch);
-		Log.i(TAG, "Runtime slot evidence ready for startup: " + runtimeSlotReady);
 		boolean gameLaunchRequested = branchMarkerReady && gamePckReady && consumeGameLaunchRequest();
+		boolean runtimeSlotReady = gameLaunchRequested && isRuntimeSlotEvidenceReadyForLaunch(selectedBranch);
+		Log.i(TAG, "Runtime slot evidence ready for startup: " + runtimeSlotReady);
 		boolean launchRequested = gameLaunchRequested && runtimeSlotReady;
 		if (gamePckReady && !branchMarkerReady) {
 			Log.w(TAG, "Blocking selected game version startup because branch marker provenance is missing or mismatched; returning to launcher instead of falling back to another branch.");
@@ -1665,6 +1689,46 @@ public class GodotApp extends GodotActivity {
 			Log.i(TAG, "Launcher bootstrap mode: " + enabled);
 		} catch (Exception e) {
 			Log.w(TAG, "Failed to set launcher bootstrap mode", e);
+		}
+	}
+
+	private boolean pckMatchesRuntimeSource(File selectedPck, String expectedSourcePckSha256, String selectedPckSha256) {
+		if (expectedSourcePckSha256 == null || expectedSourcePckSha256.trim().isEmpty()) {
+			return false;
+		}
+		if (selectedPckSha256 != null && expectedSourcePckSha256.equalsIgnoreCase(selectedPckSha256)) {
+			return true;
+		}
+		if (selectedPck == null || !selectedPck.exists() || !selectedPck.isFile()) {
+			return false;
+		}
+		File marker = new File(selectedPck.getParentFile(), PCK_ANDROID_PATCH_MARKER);
+		if (!marker.exists() || !marker.isFile() || marker.lastModified() < selectedPck.lastModified()) {
+			return false;
+		}
+
+		String markerSource = readPckPatchMarkerHash(marker, "sourcePckSha256");
+		if (!markerSource.trim().isEmpty()) {
+			boolean matched = expectedSourcePckSha256.equalsIgnoreCase(markerSource);
+			if (!matched) {
+				Log.w(TAG, "Android PCK patch marker source hash mismatch: expected=" + expectedSourcePckSha256 + " marker=" + markerSource);
+			}
+			return matched;
+		}
+
+		Log.i(TAG, "Accepting legacy Android-patched PCK marker for runtime source hash " + expectedSourcePckSha256);
+		return true;
+	}
+
+	private String readPckPatchMarkerHash(File marker, String name) {
+		try {
+			if (marker == null || !marker.exists() || !marker.isFile() || marker.length() <= 0) {
+				return "";
+			}
+			JSONObject json = new JSONObject(readSmallTextFile(marker, 16 * 1024));
+			return json.optString(name, "").trim();
+		} catch (Exception e) {
+			return "";
 		}
 	}
 
@@ -1803,6 +1867,7 @@ public class GodotApp extends GodotActivity {
 			return;
 		}
 
+		String sourcePckSha256 = pckFile.exists() && pckFile.isFile() ? sha256Hex(pckFile) : "";
 		try (RandomAccessFile raf = new RandomAccessFile(pckFile, "rw")) {
 			long magic = readUInt32LE(raf);
 			if (magic != 0x43504447L) {
@@ -1881,8 +1946,15 @@ public class GodotApp extends GodotActivity {
 		}
 
 		try {
-			if (!marker.exists()) {
-				marker.createNewFile();
+			String androidPckSha256 = pckFile.exists() && pckFile.isFile() ? sha256Hex(pckFile) : "";
+			JSONObject json = new JSONObject();
+			json.put("markerVersion", 1);
+			json.put("sourcePckSha256", sourcePckSha256);
+			json.put("androidPckSha256", androidPckSha256);
+			json.put("pckBytes", pckFile.exists() ? pckFile.length() : -1);
+			json.put("utcMillis", System.currentTimeMillis());
+			try (OutputStream out = new FileOutputStream(marker, false)) {
+				out.write(json.toString(2).getBytes(StandardCharsets.UTF_8));
 			}
 			marker.setLastModified(System.currentTimeMillis());
 		} catch (Exception e) {
@@ -3518,6 +3590,10 @@ public class GodotApp extends GodotActivity {
 	}
 
 	private static String describeGamePck(File pckFile) {
+		return describeGamePck(pckFile, true);
+	}
+
+	private static String describeGamePck(File pckFile, boolean includeSha256) {
 		if (pckFile == null) {
 			return "<null>";
 		}
@@ -3528,8 +3604,12 @@ public class GodotApp extends GodotActivity {
 		if (pckFile.exists() && pckFile.isFile()) {
 			state.append(" bytes=");
 			state.append(pckFile.length());
-			state.append(" sha256=");
-			state.append(sha256Hex(pckFile));
+			if (includeSha256) {
+				state.append(" sha256=");
+				state.append(sha256Hex(pckFile));
+			} else {
+				state.append(" sha256=<skipped>");
+			}
 		}
 		return state.toString();
 	}

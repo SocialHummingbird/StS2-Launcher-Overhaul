@@ -177,6 +177,9 @@ internal sealed class GameRuntimeSlot
 
     private string RuntimeReadinessProblem()
     {
+        if (!HasUsableHash(PckSha256))
+            return "Selected game version is not downloaded or the downloaded PCK is invalid. Download selected version to continue.";
+
         if (!SourceAssemblyExists)
         {
             if (RuntimePackManifestExists && !RuntimePackUsable)
@@ -210,6 +213,47 @@ internal sealed class GameRuntimeSlot
         PatchHelper.Log("[Launcher] Runtime slot inspect phase: PCK SHA256");
         var pckSha256 = PckSha256OrMissing(dataDir, branch, pckPath);
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: PCK SHA256 -> {pckSha256}");
+        if (!HasUsableHash(pckSha256))
+        {
+            PatchHelper.Log("[Launcher] Runtime slot inspect phase: selected PCK missing or invalid; skipping source/runtime file probes");
+            var incompleteMetadata = RuntimeSlotMetadata.Inspect(
+                releaseInfoPath,
+                SteamGameInstallPaths.BranchMarkerPath(dataDir, branch)
+            );
+            var incompleteRuntimePack = RuntimePackManifest.NotInstalled(runtimePackManifestPath, branch);
+            var incompletePatchCompatibility = PatchCompatibilityEvidence.Missing(
+                branch,
+                Path.Combine(gameDirectory, PatchCompatibilityEvidence.GameDirectoryMarkerFileName),
+                "selected game directory validation marker"
+            );
+            var incompleteRuntimeSlotIdentity = BuildRuntimeSlotIdentity(branch, incompleteMetadata, incompleteRuntimePack, false, incompletePatchCompatibility, pckSha256, "<missing>");
+            var incompleteRuntimeSlotId = BuildRuntimeSlotId(branch, incompleteRuntimeSlotIdentity);
+            PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: incomplete files -> {incompleteRuntimeSlotId}");
+            return new GameRuntimeSlot(
+                branch,
+                SteamGameBranch.DisplayName(branch),
+                SteamGameInstallPaths.VersionSlotKind(branch),
+                SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch),
+                gameDirectory,
+                pckPath,
+                releaseInfoPath,
+                sourceAssemblyPath,
+                activeAssemblyPath,
+                runtimePackManifestPath,
+                incompleteMetadata,
+                incompleteRuntimePack,
+                incompletePatchCompatibility,
+                false,
+                incompleteRuntimeSlotId,
+                incompleteRuntimeSlotIdentity,
+                pckSha256,
+                "<missing>",
+                "<missing>",
+                false,
+                false,
+                false
+            );
+        }
         PatchHelper.Log("[Launcher] Runtime slot inspect phase: source assembly SHA256");
         var sourceAssemblySha256 = SourceAssemblySha256OrMissing(dataDir, branch, sourceAssemblyPath);
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: source assembly SHA256 -> {sourceAssemblySha256}");
@@ -227,9 +271,17 @@ internal sealed class GameRuntimeSlot
             runtimePackManifestPath,
             branch,
             pckSha256,
-            sourceAssemblySha256
+            sourceAssemblySha256,
+            pckPath
         );
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: runtime pack manifest -> {runtimePack?.Status ?? "<none>"}");
+        if (runtimePack?.Usable == true
+            && HasUsableHash(runtimePack.SourcePckSha256)
+            && !string.Equals(runtimePack.SourcePckSha256, pckSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            PatchHelper.Log($"[Launcher] Runtime slot inspect phase: canonicalizing Android-patched PCK hash {pckSha256} to runtime source PCK hash {runtimePack.SourcePckSha256}");
+            pckSha256 = runtimePack.SourcePckSha256.ToLowerInvariant();
+        }
         PatchHelper.Log("[Launcher] Runtime slot inspect phase: runtime pack slot ID");
         var runtimePackSlotIdMatches = RuntimePackSlotIdMatchesFor(metadata, runtimePack, branch, pckSha256, sourceAssemblySha256);
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: runtime pack slot ID -> {runtimePackSlotIdMatches}");
@@ -497,6 +549,13 @@ internal sealed class GameRuntimeSlot
             var cachedPath = LauncherRuntimeCacheEvidence.SelectedPckPath(dataDir);
             if (!PathsEquivalent(cachedPath, pckPath, dataDir))
                 return null;
+
+            var cachedRuntimeSource = LauncherRuntimeCacheEvidence.RuntimeSource(dataDir);
+            if (HasMarkerValue(cachedRuntimeSource)
+                && string.Equals(cachedRuntimeSource, "no-usable-runtime", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
 
             var cachedHash = LauncherRuntimeCacheEvidence.SelectedPckSha256(dataDir);
             return HasUsableHash(cachedHash)

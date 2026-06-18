@@ -28,7 +28,8 @@ public class LauncherActivity extends Activity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		logSelectedBranchBeforeRouting();
+		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
+		logSelectedBranchBeforeRouting(pendingGameLaunch);
 
 		Intent intent = new Intent(this, routeTargetActivity());
 		Intent sourceIntent = getIntent();
@@ -152,7 +153,7 @@ public class LauncherActivity extends Activity {
 		return false;
 	}
 
-	private void logSelectedBranchBeforeRouting() {
+	private void logSelectedBranchBeforeRouting(boolean includeExpensiveHashes) {
 		File gameDir = resolveGameDir();
 		String branch = readSelectedBranch();
 		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
@@ -161,7 +162,7 @@ public class LauncherActivity extends Activity {
 		Log.i(TAG, "Selected game version slot kind before routing: " + SteamBranchInfo.installSlotKind(branch));
 		Log.i(TAG, "Selected game version slot directory before routing: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), branch).getAbsolutePath());
 		Log.i(TAG, "Resolved game directory before routing: " + gameDir.getAbsolutePath());
-		Log.i(TAG, "Selected game PCK before routing: " + describeGamePck(new File(gameDir, PCK_FILE)));
+		Log.i(TAG, "Selected game PCK before routing: " + describeGamePck(new File(gameDir, PCK_FILE), includeExpensiveHashes));
 		Log.i(TAG, "Steam branch marker install slot kind before routing: " + readMarkerValue(branchMarker, "Install slot kind:"));
 		Log.i(TAG, "Steam branch marker expected install slot kind before routing: " + SteamBranchInfo.installSlotKind(branch));
 		Log.i(TAG, "Steam branch marker install slot directory before routing: " + readMarkerValue(branchMarker, "Install slot directory:"));
@@ -289,6 +290,10 @@ public class LauncherActivity extends Activity {
 	}
 
 	private String describeGamePck(File pckFile) {
+		return describeGamePck(pckFile, true);
+	}
+
+	private String describeGamePck(File pckFile, boolean includeSha256) {
 		if (pckFile == null) {
 			return "<null>";
 		}
@@ -299,8 +304,12 @@ public class LauncherActivity extends Activity {
 		if (pckFile.exists() && pckFile.isFile()) {
 			state.append(" bytes=");
 			state.append(pckFile.length());
-			state.append(" sha256=");
-			state.append(sha256Hex(pckFile));
+			if (includeSha256) {
+				state.append(" sha256=");
+				state.append(sha256Hex(pckFile));
+			} else {
+				state.append(" sha256=<skipped>");
+			}
 		}
 		return state.toString();
 	}

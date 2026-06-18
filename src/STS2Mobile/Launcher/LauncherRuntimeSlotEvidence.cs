@@ -36,6 +36,19 @@ internal static class LauncherRuntimeSlotEvidence
         {
             branch = SteamGameBranch.Normalize(branch);
             var slot = GameRuntimeSlot.Inspect(dataDir, branch);
+            Write(dataDir, slot, filesReady, readinessProblem);
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Failed to write runtime slot evidence marker: {ex.Message}");
+        }
+    }
+
+    internal static void Write(string dataDir, GameRuntimeSlot slot, bool filesReady, string readinessProblem)
+    {
+        try
+        {
+            var branch = SteamGameBranch.Normalize(slot.Branch);
             var payload = new
             {
                 utc = DateTime.UtcNow.ToString("O"),
@@ -86,6 +99,7 @@ internal static class LauncherRuntimeSlotEvidence
                 MarkerPath(dataDir),
                 JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true })
             );
+            PatchHelper.Log($"[Launcher] Runtime slot evidence marker written: branch={branch} slot={slot.RuntimeSlotId} playable={slot.Playable} path={MarkerPath(dataDir)}");
         }
         catch (Exception ex)
         {

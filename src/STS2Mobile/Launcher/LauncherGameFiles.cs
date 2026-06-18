@@ -29,6 +29,12 @@ internal static partial class LauncherGameFiles
         PatchHelper.Log($"[Launcher] Game files ready phase: inspect runtime slot for branch '{SteamGameBranch.Normalize(branch)}'");
         var slot = GameRuntimeSlot.Inspect(dataDir, branch);
         PatchHelper.Log($"[Launcher] Game files ready phase complete: inspect runtime slot -> playable={slot.Playable} runtime={slot.RuntimePairingStatus} patch={slot.PatchCompatibility?.Status ?? "<none>"} pck={slot.PckSha256} source={slot.SourceAssemblySha256}");
+        LauncherRuntimeSlotEvidence.Write(
+            dataDir,
+            slot,
+            slot.Playable,
+            slot.Playable ? string.Empty : slot.ReadinessProblem()
+        );
         return slot.Playable;
     }
 

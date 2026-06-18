@@ -195,3 +195,13 @@ The current architecture performs static patch compatibility validation before l
 ## Fix16 prerelease evidence note
 
 The `v0.2.188-local-runtime-beta-fix16` GitHub prerelease is a local ARM64 validation build for `com.sts2launcher.overhaul.fork.local`. It proved that public-beta no longer routes to `NativeFallbackActivity` when a usable branch runtime pack exists, and the launch evidence showed matched beta PCK/runtime hashes plus save-backed main-menu state after Pull from Cloud. It must not be described as full public/beta coexistence release signoff until fresh public, public-beta, and public-after-beta artifacts all pass the wrapper with branch-specific evidence directories and resolved classification.
+
+## Fix20 prerelease evidence note
+
+The `v0.2.188-local-runtime-beta-fix20` local ARM64 validation build adds Android-patched PCK source-hash acceptance and writes `current_runtime_slot.json` immediately after selected-runtime readiness inspection. Device evidence captured on 2026-06-18 showed:
+
+- public-after-beta launched with selected branch `public`, PCK `files/game/SlayTheSpire2.pck`, PCK SHA-256 `8f0dbfef10a31994eb0f58e8d811db08712153c5c0d4491bc5fc4732be530f68`, source/active `sts2.dll` SHA-256 `81c8f3443c4504e38a17570df688489414fceb6ea7fcf5b044d8117318ea8e49`, and runtime patch validation `passed`
+- public-beta launched with selected branch `public-beta`, PCK `files/game_versions/public-beta-8128824d/game/SlayTheSpire2.pck`, Android-patched PCK SHA-256 `957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a`, runtime source PCK SHA-256 `a263c68cfdeb6e94af9029088e1bab0c4c72a1641bc1c1ff72c180396a7b134c`, runtime-pack/source/active `sts2.dll` SHA-256 `4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3`, and runtime patch validation `passed`
+- stale public or public-beta `current_runtime_slot.json` evidence blocked direct launch and returned to launcher until managed readiness inspection wrote fresh selected-branch evidence; this is expected and must not be counted as launch success
+
+The beta Compendium route rendered from the synced-save main menu. The follow-up Bestiary tap evidence was inconclusive because the device returned to Android home without package-side missing-resource or fatal logs; do not use that tap as proof of a remaining game asset crash without a focused reproduction capture.

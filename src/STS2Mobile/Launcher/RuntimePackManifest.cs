@@ -10,6 +10,7 @@ namespace STS2Mobile.Launcher;
 internal sealed class RuntimePackManifest
 {
     private const string AndroidAssemblyFileName = "sts2.dll";
+    private const string AndroidPckPatchMarkerFileName = ".android_pck_patch_v29";
 
     private RuntimePackManifest(
         string path,
@@ -123,11 +124,51 @@ internal sealed class RuntimePackManifest
     internal bool PatchValidationPassed =>
         string.Equals(PatchValidationStatus, "passed", StringComparison.OrdinalIgnoreCase);
 
+    internal static RuntimePackManifest NotInstalled(string path, string expectedBranch)
+    {
+        expectedBranch = SteamGameBranch.Normalize(expectedBranch);
+        var androidAssemblyPath = System.IO.Path.Combine(
+            System.IO.Path.GetDirectoryName(path) ?? string.Empty,
+            AndroidAssemblyFileName
+        );
+        return new RuntimePackManifest(
+            path,
+            expectedBranch,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            Array.Empty<string>(),
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+            supportAssembliesDeclared: false,
+            supportAssemblySha256Declared: false,
+            0,
+            0,
+            0,
+            string.Empty,
+            generatedFromCleanDirectory: false,
+            "not installed",
+            exists: false,
+            readable: false,
+            androidAssemblyExists: false,
+            androidAssemblyPath,
+            "<missing>"
+        );
+    }
+
     internal static RuntimePackManifest Inspect(
         string path,
         string expectedBranch,
         string selectedPckSha256,
-        string selectedSourceAssemblySha256
+        string selectedSourceAssemblySha256,
+        string selectedPckPath
     )
     {
         expectedBranch = SteamGameBranch.Normalize(expectedBranch);
@@ -139,36 +180,7 @@ internal sealed class RuntimePackManifest
 
         if (!File.Exists(path))
         {
-            return new RuntimePackManifest(
-                path,
-                expectedBranch,
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                Array.Empty<string>(),
-                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
-                supportAssembliesDeclared: false,
-                supportAssemblySha256Declared: false,
-                0,
-                0,
-                0,
-                string.Empty,
-                generatedFromCleanDirectory: false,
-                "not installed",
-                exists: false,
-                readable: false,
-                androidAssemblyExists,
-                androidAssemblyPath,
-                androidAssemblyExists ? "<not inspected>" : "<missing>"
-            );
+            return NotInstalled(path, expectedBranch);
         }
 
         try
@@ -207,7 +219,7 @@ internal sealed class RuntimePackManifest
                 androidAssemblyExists ? declaredAndroidAssemblySha256 : "<missing>"
             );
 
-            return manifest.WithStatus(RuntimePackStatus(manifest, selectedPckSha256, selectedSourceAssemblySha256));
+            return manifest.WithStatus(RuntimePackStatus(manifest, selectedPckSha256, selectedSourceAssemblySha256, selectedPckPath));
         }
         catch (Exception ex)
         {
@@ -276,7 +288,7 @@ internal sealed class RuntimePackManifest
             ActualAndroidAssemblySha256
         );
 
-    private static string RuntimePackStatus(RuntimePackManifest manifest, string selectedPckSha256, string selectedSourceAssemblySha256)
+    private static string RuntimePackStatus(RuntimePackManifest manifest, string selectedPckSha256, string selectedSourceAssemblySha256, string selectedPckPath)
     {
         if (!manifest.Exists)
             return "not installed";
@@ -305,7 +317,7 @@ internal sealed class RuntimePackManifest
             return supportAssemblyProblem;
         if (string.IsNullOrWhiteSpace(manifest.SourcePckSha256))
             return "missing source PCK hash";
-        if (!MatchesDeclared(manifest.SourcePckSha256, selectedPckSha256))
+        if (!SourcePckMatches(manifest.SourcePckSha256, selectedPckSha256, selectedPckPath))
             return "PCK hash mismatch";
         if (string.IsNullOrWhiteSpace(manifest.SourceAssemblySha256))
             return "missing source assembly hash";
@@ -323,6 +335,49 @@ internal sealed class RuntimePackManifest
         if (!PatchValidationReportMatches(reportPath, manifest))
             return "patch validation report mismatch";
         return "usable";
+    }
+
+    private static bool SourcePckMatches(string declaredSourcePckSha256, string selectedPckSha256, string selectedPckPath)
+    {
+        if (MatchesDeclared(declaredSourcePckSha256, selectedPckSha256))
+            return true;
+
+        if (string.IsNullOrWhiteSpace(declaredSourcePckSha256)
+            || string.IsNullOrWhiteSpace(selectedPckPath)
+            || !File.Exists(selectedPckPath))
+        {
+            return false;
+        }
+
+        var markerPath = System.IO.Path.Combine(
+            System.IO.Path.GetDirectoryName(selectedPckPath) ?? string.Empty,
+            AndroidPckPatchMarkerFileName
+        );
+        if (!File.Exists(markerPath))
+            return false;
+
+        try
+        {
+            if (File.GetLastWriteTimeUtc(markerPath) < File.GetLastWriteTimeUtc(selectedPckPath))
+                return false;
+
+            var markerText = File.ReadAllText(markerPath);
+            if (string.IsNullOrWhiteSpace(markerText))
+                return true;
+
+            using var document = JsonDocument.Parse(markerText);
+            if (!document.RootElement.TryGetProperty("sourcePckSha256", out var sourceHash)
+                || sourceHash.ValueKind != JsonValueKind.String)
+            {
+                return true;
+            }
+
+            return string.Equals(sourceHash.GetString(), declaredSourcePckSha256, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool PatchValidationReportMatches(string reportPath, RuntimePackManifest manifest)
