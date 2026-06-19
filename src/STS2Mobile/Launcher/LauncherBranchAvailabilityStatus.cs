@@ -63,9 +63,11 @@ internal static class LauncherBranchAvailabilityStatus
                 .Select(VisibleBranchStatus)
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .ToArray();
+            var selectedBranchMarker = ReadValues(lines, "Visible branch:")
+                .FirstOrDefault(value => MarkerValueMatchesBranch(value, selectedBranch));
             var overflow = ReadValue(lines, "Visible branch overflow count:");
 
-            var selectedStatus = SelectedStatus(selectedBranch, visibility, manifestCount);
+            var selectedStatus = SelectedStatus(selectedBranch, visibility, manifestCount, selectedBranchMarker);
             var visibleStatus = visibleBranches.Length == 0
                 ? "visible branches: none reported"
                 : "visible branches: " + string.Join(", ", visibleBranches);
@@ -82,13 +84,21 @@ internal static class LauncherBranchAvailabilityStatus
         }
     }
 
-    private static string SelectedStatus(string selectedBranch, string visibility, string manifestCount)
+    private static string SelectedStatus(
+        string selectedBranch,
+        string visibility,
+        string manifestCount,
+        string selectedBranchMarker
+    )
     {
         selectedBranch = string.IsNullOrWhiteSpace(selectedBranch) ? "selected branch" : selectedBranch.Trim();
         manifestCount = string.IsNullOrWhiteSpace(manifestCount) ? "0" : manifestCount.Trim();
 
         if (!int.TryParse(manifestCount, out var windowsManifests))
             windowsManifests = 0;
+
+        if (MarkerValuePasswordProtected(selectedBranchMarker))
+            return $"{selectedBranch} is password-protected and cannot be downloaded until Steam beta password entry is supported";
 
         if (windowsManifests > 0)
             return $"{selectedBranch} has {windowsManifests} Windows depot manifest(s)";
@@ -119,9 +129,30 @@ internal static class LauncherBranchAvailabilityStatus
 
         var nameEnd = markerValue.IndexOf(" [", StringComparison.Ordinal);
         var name = nameEnd > 0 ? markerValue[..nameEnd] : markerValue;
+        if (MarkerValuePasswordProtected(markerValue))
+            return $"{name} (password-protected)";
+
         var downloadable = !markerValue.Contains("windowsManifestDepots=0", StringComparison.OrdinalIgnoreCase);
         return downloadable ? $"{name} (downloadable)" : $"{name} (no Windows manifest)";
     }
+
+    private static bool MarkerValueMatchesBranch(string markerValue, string branch)
+    {
+        if (string.IsNullOrWhiteSpace(markerValue) || string.IsNullOrWhiteSpace(branch))
+            return false;
+
+        var nameEnd = markerValue.IndexOf(" [", StringComparison.Ordinal);
+        var name = nameEnd > 0 ? markerValue[..nameEnd] : markerValue;
+        return string.Equals(
+            SteamGameBranch.Normalize(name),
+            SteamGameBranch.Normalize(branch),
+            StringComparison.OrdinalIgnoreCase
+        );
+    }
+
+    private static bool MarkerValuePasswordProtected(string markerValue)
+        => !string.IsNullOrWhiteSpace(markerValue)
+            && markerValue.Contains("passwordRequired=true", StringComparison.OrdinalIgnoreCase);
 
     private static string RemoveRawBranchAvailabilitySummary(string message)
     {

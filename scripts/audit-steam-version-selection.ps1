@@ -358,6 +358,10 @@ Add-Check `
         "Windows depot manifests for selected branch:",
         "Visible branch:",
         "MaxVisibleBranchesInStatus",
+        "MarkerValuePasswordProtected",
+        "passwordRequired=true",
+        "password-protected",
+        "Steam beta password entry is supported",
         "RemoveRawBranchAvailabilitySummary"
     )
 
