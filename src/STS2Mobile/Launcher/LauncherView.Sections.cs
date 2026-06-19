@@ -14,6 +14,7 @@ internal sealed partial class LauncherView
         Action retryPressed,
         Action<bool> localBackupToggled,
         Action<bool> cloudSyncToggled,
+        Func<bool> cloudPushArmRequested,
         Action cloudPushPressed,
         Action cloudPullPressed,
         Action checkForUpdatesPressed,
@@ -36,6 +37,7 @@ internal sealed partial class LauncherView
         Actions.RetryPressed += retryPressed;
         Actions.LocalBackupToggled += localBackupToggled;
         Actions.CloudSyncToggled += cloudSyncToggled;
+        Actions.CloudPushArmRequested += cloudPushArmRequested;
         Actions.CloudPushPressed += cloudPushPressed;
         Actions.CloudPullPressed += cloudPullPressed;
         Actions.CheckForUpdatesPressed += checkForUpdatesPressed;

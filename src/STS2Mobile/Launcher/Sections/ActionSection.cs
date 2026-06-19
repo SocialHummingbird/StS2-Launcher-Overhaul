@@ -15,6 +15,7 @@ internal sealed partial class ActionSection : VBoxContainer
     internal event Action<string> GameBranchChanged;
     internal event Action<bool> LocalBackupToggled;
     internal event Action<bool> CloudSyncToggled;
+    internal event Func<bool> CloudPushArmRequested;
     internal event Action CloudPushPressed;
     internal event Action CloudPullPressed;
     internal event Action CheckForUpdatesPressed;

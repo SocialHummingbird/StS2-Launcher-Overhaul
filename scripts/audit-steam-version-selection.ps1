@@ -1015,6 +1015,8 @@ Add-Check `
         "PushButtonText",
         "PushConfirmButtonText",
         "Pull Saves from Steam Cloud",
+        "CloudPushArmRequested",
+        "CloudPushArmRequested\?\.Invoke\(\) == false",
         "ArmCloudPush",
         "ConfirmCloudPush",
         "ResetCloudPushArm",

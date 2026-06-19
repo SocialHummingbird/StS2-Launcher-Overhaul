@@ -143,6 +143,17 @@ internal sealed partial class LauncherController
         ));
     }
 
+    private bool CanArmCloudPush()
+    {
+        if (!CanPushWithBaselineEvidence())
+            return false;
+
+        if (!CanPushAfterBranchSwitch())
+            return false;
+
+        return true;
+    }
+
     private bool CanPushWithBaselineEvidence()
     {
         var selectedBranch = LauncherPreferences.ReadGameBranch();

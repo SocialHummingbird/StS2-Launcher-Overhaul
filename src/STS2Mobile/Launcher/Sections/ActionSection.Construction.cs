@@ -267,6 +267,9 @@ internal sealed partial class ActionSection
 
     private void ArmCloudPush()
     {
+        if (CloudPushArmRequested?.Invoke() == false)
+            return;
+
         _pushButton.Visible = false;
         _confirmPushButton.Visible = true;
         _pushConfirmationLabel.Visible = true;

@@ -13,6 +13,7 @@ internal sealed partial class LauncherController
             RetryPressed,
             LocalBackupToggled,
             CloudSyncToggled,
+            CanArmCloudPush,
             CloudPushPressed,
             CloudPullPressed,
             RunUpdateCheck,
