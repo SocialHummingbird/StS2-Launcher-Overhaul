@@ -25,6 +25,7 @@ internal static partial class LauncherStartupFlow
         }
 
         var gameNode = (Node)game;
+        AndroidBridgePump.EnsureInstalled(gameNode);
 
         var launcher = await ShowLauncherAndWaitForLaunchAsync(gameNode);
         var startup = CreateStartupContext(game, gameNode);

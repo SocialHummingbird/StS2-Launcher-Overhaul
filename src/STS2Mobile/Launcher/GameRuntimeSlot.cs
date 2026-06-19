@@ -529,9 +529,10 @@ internal sealed class GameRuntimeSlot
                 return validated;
 
             var runtimePack = RuntimePackSourcePckSha256(runtimePackManifestPath, branch);
-            return HasUsableHash(runtimePack)
-                ? runtimePack
-                : "<missing>";
+            if (HasUsableHash(runtimePack))
+                return runtimePack;
+
+            return Sha256OrMissing(pckPath);
         }
 
         return Sha256OrMissing(pckPath);
@@ -584,6 +585,10 @@ internal sealed class GameRuntimeSlot
 
             var cachedPath = LauncherRuntimeCacheEvidence.SelectedPckPath(dataDir);
             if (!PathsEquivalent(cachedPath, pckPath, dataDir))
+                return null;
+
+            var cachedIdentity = LauncherRuntimeCacheEvidence.SelectedPckIdentity(dataDir);
+            if (!FileIdentityMatches(cachedIdentity, pckPath))
                 return null;
 
             var cachedRuntimeSource = LauncherRuntimeCacheEvidence.RuntimeSource(dataDir);
@@ -789,6 +794,21 @@ internal sealed class GameRuntimeSlot
         var leftAlias = AndroidAppPrivatePathAlias(left, dataDir);
         return !string.IsNullOrWhiteSpace(leftAlias)
             && string.Equals(leftAlias, right, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool FileIdentityMatches(string cachedIdentity, string path)
+    {
+        if (!HasMarkerValue(cachedIdentity) || string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return false;
+
+        return string.Equals(cachedIdentity, FileIdentity(path), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FileIdentity(string path)
+    {
+        var info = new FileInfo(path);
+        var mtime = new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeMilliseconds();
+        return $"bytes={info.Length},mtime={mtime}";
     }
 
     private static string AndroidAppPrivatePathAlias(string path, string dataDir)

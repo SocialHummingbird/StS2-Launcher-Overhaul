@@ -108,7 +108,8 @@ internal sealed class LauncherUI : Control
         tree.ProcessFrame -= OnProcessFrame;
         tree.AutoAcceptQuit = true;
         _model?.Dispose();
-        AndroidBridgeDispatcher.UnregisterCurrentThread();
+        if (!_inGameMode)
+            AndroidBridgeDispatcher.UnregisterCurrentThread();
     }
 
     private Vector2 GetViewportSize()
