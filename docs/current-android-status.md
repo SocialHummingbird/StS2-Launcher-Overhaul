@@ -89,6 +89,8 @@ Latest device evidence folders:
 - `artifacts/android/fix28-blocked-push-save-origin-20260619-111828`
 - `artifacts/android/fix28-evidence-blocked-push-save-origin-20260619-112107`
 - `artifacts/android/fix28-evidence-blocked-push-save-origin-20260619-112107-public-redacted`
+- `artifacts/android/fix28-native-login-panel-cancel-20260619-112725`
+- `artifacts/android/fix28-native-login-panel-cancel-20260619-112725-public-redacted`
 - `artifacts/android/public-after-beta-game-launch-20260618-230719`
 - `artifacts/android/startup-crash-20260612-233812`
 - `artifacts/android/github-release-v0.2.187-beta-art-fallback`
@@ -179,7 +181,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Steam branch availability summaries now classify password-protected branches as `password-protected` instead of `downloadable` even if Steam exposes Windows depot manifests; download/update gates already block those branches until beta password entry is implemented.
 - Further diagnostics polish so normal successful startup/cloud-save behavior is not hidden by remaining low-value platform logs.
 - Improve persisted Steam session/update UX so game update checks do not appear to require unnecessary re-login when a saved session is still valid.
-- Validate Android/Samsung/password-manager login behavior on ARM64; see [Android Steam login validation](android-steam-login-validation.md). Android now uses an integrated native credential panel with real username/password fields, credential-provider hints, and Steam web-domain metadata; the old native one-shot handoff popup is no longer user-facing. Diagnostics prove the app does not store or inject Steam passwords, and SteamKit debug logs are disabled by default with opt-in sanitized diagnostics via `sts2_steamkit_debug_logs=1`, but manual entry, password-manager suggestions, Steam Guard, failed login, and successful return to launcher still need device validation.
+- Validate Android/Samsung/password-manager login behavior on ARM64; see [Android Steam login validation](android-steam-login-validation.md). Android now uses an integrated native credential panel with real username/password fields, credential-provider hints, and Steam web-domain metadata; the old native one-shot handoff popup is no longer user-facing. Diagnostics prove the app does not store or inject Steam passwords, and SteamKit debug logs are disabled by default with opt-in sanitized diagnostics via `sts2_steamkit_debug_logs=1`. Local fix28 evidence at `artifacts/android/fix28-native-login-panel-cancel-20260619-112725` proves the native panel appears after saved-session removal, Back/Cancel dismiss it without exiting the app, it can reopen immediately, empty submit is handled inline without Steam authentication, and Samsung Pass/Android Autofill recognize the Steam web domain plus username/password fields. The provider reported no matched saved Steam credential, so matched credential suggestion behavior remains unproven. Manual real credential entry, Steam Guard, failed login, successful return to launcher, Google Password Manager behavior, and release-candidate repeat evidence remain open.
 
 ## Device-independent polish completed after baseline proof
 

@@ -33,11 +33,30 @@ The intended user-facing path on Android is:
 - Submitted native credential handoff values are in-memory only and expire after 60 seconds if managed login does not consume them.
 - The Godot `LineEdit` username/password fields remain the non-Android fallback.
 - The Steam Guard field requests a numeric virtual keyboard.
-- Samsung Pass, Google Password Manager, and other provider suggestions are still best-effort until validated on ARM64 hardware.
+- Samsung Pass, Google Password Manager, and other provider suggestions are still best-effort until validated on ARM64 hardware. Local fix28 evidence validates Samsung Pass/Android Autofill field recognition only; matched saved-credential suggestion behavior is still unproven because the provider reported no matched saved Steam credential.
 - Steam refresh/session credentials are still saved through the encrypted Android Keystore path after successful SteamKit authentication. This is separate from password-manager behavior.
 - The Steam Guard section states that codes are submitted once and never stored, and wrong-code recovery asks for the latest Steam Guard code.
 - Failed login returns to sign-in with clear retry guidance and repeats that Steam passwords are not stored.
 - Connection/session recovery failures use connection-specific guidance rather than treating every failure as a wrong-password case.
+
+## Current ARM64 evidence
+
+Local fix28 evidence is captured at `artifacts/android/fix28-native-login-panel-cancel-20260619-112725`, with a text-only public-redacted summary at `artifacts/android/fix28-native-login-panel-cancel-20260619-112725-public-redacted`.
+
+This evidence proves:
+
+- Removing the saved encrypted Steam session files shows the integrated native Steam login panel on ARM64 hardware.
+- The panel exposes real Android username and masked password fields, full-width sign-in/cancel controls, the password-focus control, the password visibility control, and inline text that the Steam password is never stored by StS2 Mobile.
+- Empty submit stays local and shows inline username guidance without starting Steam authentication.
+- Android Back dismisses the panel without exiting the app.
+- After Back dismissal, the launcher can reopen the native panel immediately.
+- Cancel dismisses the panel and returns to the launcher surface.
+- Samsung Pass/Android Autofill were active, recognized the Steam web domain, identified one username field and one password field, validated the expected hints, and enabled inline keyboard suggestions.
+- Samsung Pass reported no matched saved Steam credential, so no account-specific credential suggestion appeared.
+- The saved encrypted Steam session files were restored after the test with matching pre-test and post-restore hashes.
+- No Steam Cloud Push was performed during this pass.
+
+This evidence does not prove manual real credential entry through SteamKit, Steam Guard, failed-login recovery, successful authenticated return to the launcher, Google Password Manager behavior, or matched Samsung Pass saved-credential selection.
 
 ## Required evidence
 
