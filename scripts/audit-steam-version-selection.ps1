@@ -1592,9 +1592,19 @@ Add-Check `
         "Marker evidence status",
         "<missing marker>",
         "<empty marker>",
+        "launcher-diagnostics-index\.txt",
+        'Android/data/\$PackageName/files/diagnostics',
+        'Invoke-DeviceShell -Command "find /storage/emulated/0/Android/data/\$PackageName/files/diagnostics',
         "timeout 10 find",
         "StS2Launcher/Saves -maxdepth 6",
         "pre-push-backup-counts\.txt"
+    )
+
+Add-ForbiddenCheck `
+    "scripts\capture-steam-version-selection-evidence.ps1" `
+    "does not let external diagnostics find run from device root" `
+    @(
+        'Invoke-AdbText\s+-Arguments\s+@\("shell",\s*"sh",\s*"-c",\s*"find /storage/emulated/0/Android/data/\$PackageName/files/diagnostics'
     )
 
 Add-Check `

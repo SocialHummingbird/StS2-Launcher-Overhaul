@@ -202,7 +202,7 @@ Set-Content -LiteralPath $launcherDiagnosticsIndexPath -Value @(
     (Invoke-RunAsShell -Command "find files/diagnostics -maxdepth 1 -type f -name '*diagnostics*.txt' -print 2>/dev/null | sort || true" -AllowFailure),
     "",
     "External diagnostics files:",
-    (Invoke-AdbText -Arguments @("shell", "sh", "-c", "find /storage/emulated/0/Android/data/$PackageName/files/diagnostics -maxdepth 1 -type f -name '*diagnostics*.txt' -print 2>/dev/null | sort || true") -AllowFailure),
+    (Invoke-DeviceShell -Command "find /storage/emulated/0/Android/data/$PackageName/files/diagnostics -maxdepth 1 -type f -name '*diagnostics*.txt' -print 2>/dev/null | sort || true" -AllowFailure),
     "",
     "Full launcher diagnostics reports can contain account names, local paths, device details, and log excerpts.",
     "Attach full reports manually only after review/redaction."

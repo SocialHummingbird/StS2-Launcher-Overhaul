@@ -137,6 +137,7 @@ Purpose:
 - Creates `logs/logcat-steam-version-focused-redacted.txt` as the safer default log excerpt for public GitHub issue sharing. The generated file includes a warning header because this is best-effort pattern-based redaction for common credentials, tokens, account/username fields, serial-like fields, email addresses, and local user paths, not a guarantee that every identifier is removed.
 - Writes `diagnostics/logcat-redaction-summary.txt` with focused-line and changed-line counts so reviewers can see whether best-effort redaction changed the generated public-log artifact.
 - Writes `diagnostics/launcher-diagnostics-index.txt` to list available launcher diagnostics reports without automatically copying full report contents.
+- External diagnostics indexing must run through the quoted device-shell helper so `find` is scoped to `/storage/emulated/0/Android/data/<package>/files/diagnostics`; do not call `adb shell sh -c find ...` as split arguments, because that can run `find` from device root and collect a broad root listing.
 - Captures coarse app game/cache directory listings through `run-as`.
 - Captures app-private Steam branch markers, including the latest branch availability result from app info.
 - Captures bounded non-public branch cache tree and cache-size snapshots.
