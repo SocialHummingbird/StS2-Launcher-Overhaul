@@ -28,7 +28,7 @@ Validated locally on ARM64 hardware:
 - Android local save handoff works.
 - The downloaded game launches and shows the pulled `Profile 1` in-game.
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
-- The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix27 also proves the public-after-beta startup crash is fixed after branch switching from public-beta.
+- The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix30 also proves public can launch immediately after a `public-beta` runtime-cache switch without routing to `NativeFallbackActivity`.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -36,13 +36,13 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.188-local-runtime-beta-fix27
-asset=StS2Launcher-v0.2.188-local-runtime-beta-fix27-arm64-v8a.apk
-sha256=a4067fc02b2823061cf4af0872a1bc42eece1044c552c396ac086d0f641df3ca
+release=v0.2.188-local-runtime-beta-fix30-public-after-beta
+asset=StS2Launcher-v0.2.188-local-runtime-beta-fix30-public-after-beta-arm64-v8a.apk
+sha256=b3f0b645356dfd72e6bcddc735a07352a4b911720f84532b499e543358ce4515
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.188-local-runtime-beta-fix27
-versionCode=218853
-validation=dotnet build passed; ARM64 public/default, public-after-beta, public-beta, and branch-switch runtime evidence passed release gates
+versionName=0.2.188-local-runtime-beta-fix30-public-after-beta
+versionCode=218857
+validation=Android build/APK verification passed; ARM64 public/default, public-after-beta, public-beta, and branch-switch runtime evidence passed release gates
 upgradeBaseline=local runtime-pack validation line
 ```
 
@@ -97,6 +97,12 @@ Latest device evidence folders:
 - `artifacts/android/fix28-readonly-capture-script-diagnostics-index-20260619-1200-public-redacted`
 - `artifacts/android/fix29-readonly-current-marker-status-20260619-115426`
 - `artifacts/android/fix29-readonly-current-marker-status-20260619-115426-public-redacted`
+- `artifacts/android/fix30-beta-before-public-20260619-120921`
+- `artifacts/android/fix30-beta-active-runtime-20260619-121052`
+- `artifacts/android/fix30-public-after-beta-20260619-121225`
+- `artifacts/android/multi-version-runtime-public-20260619-121256`
+- `artifacts/android/fix30-public-beta-game-launch-20260619-121514`
+- `artifacts/android/multi-version-runtime-public-beta-20260619-121531`
 - `artifacts/android/public-after-beta-game-launch-20260618-230719`
 - `artifacts/android/startup-crash-20260612-233812`
 - `artifacts/android/github-release-v0.2.187-beta-art-fallback`
@@ -141,6 +147,7 @@ runtimeArtFix=run-history room icon helpers now fall back to branch-local unknow
 fix23CompendiumBestiary=artifacts/android/fix23-public-beta-compendium-route-retry-20260618 proves the synced-save public-beta main menu can enter Compendium and Bestiary on ARM64. Bestiary rendered Assassin Raider with enemy list/model, active/source/runtime-pack sts2.dll all matched beta hash 4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3, focused logs showed no NativeFallback/SIGSEGV/JNI/fatal package failure, old doormaker/no-loader failure count was 0, and unknown_monster fallback resources loaded instead.
 fix23BranchSwitchSafety=artifacts/android/multi-version-runtime-branch-switch-20260618-211533 passed 34 branch-switch/save-safety review checks. It proves public-beta source PCK a263c68cfdeb6e94af9029088e1bab0c4c72a1641bc1c1ff72c180396a7b134c maps through runtime-pack evidence to Android-patched mounted PCK 957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a, runtime-pack/source/active sts2.dll all match beta hash 4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3, stale downloader cache/wrong launch path/shared runtime cache are ruled out, and Steam Cloud Push safety is do-not-push until selected-runtime Pull/save evidence is current.
 fix27PublicAfterBeta=artifacts/android/multi-version-runtime-public-20260618-231242 passed public/save-safety review after launching public from the same app data that previously held public-beta runtime evidence. It proves selected branch public, PCK files/game/SlayTheSpire2.pck hash 8f0dbfef10a31994eb0f58e8d811db08712153c5c0d4491bc5fc4732be530f68, source/cache sts2.dll hash 81c8f3443c4504e38a17570df688489414fceb6ea7fcf5b044d8117318ea8e49, runtime patch validation passed, and canonical runtime slot public-d8a7082fc63977cc bound to the native runtime cache identity. The wrapper passed with public, public-beta, and branch-switch evidence: scripts/run-multi-version-runtime-release-gates.ps1 -PublicEvidenceDirs artifacts/android/multi-version-runtime-public-20260618-231242 -PublicBetaEvidenceDirs artifacts/android/multi-version-runtime-public-beta-20260618-224239 -BranchSwitchEvidenceDirs artifacts/android/multi-version-runtime-branch-switch-20260618-211533 -RequireSaveSafety -Quiet.
+fix30PublicAfterBeta=artifacts/android/fix30-public-after-beta-20260619-121225 proves direct public startup after a beta runtime-cache launch no longer falls through to `NativeFallbackActivity`: native startup switched assembly cache identity from public-beta/runtime-pack to public/selected-game, allowed the public legacy runtime path only because active `sts2.dll` matched public source hash 81c8f3443c4504e38a17570df688489414fceb6ea7fcf5b044d8117318ea8e49, mounted files/game/SlayTheSpire2.pck, applied 19/19 runtime patches, and reached the main menu. Structured public evidence artifacts/android/multi-version-runtime-public-20260619-121256 passed 30 public/save-safety checks with PCK hash 8f0dbfef10a31994eb0f58e8d811db08712153c5c0d4491bc5fc4732be530f68. Current fix30 public-beta evidence artifacts/android/multi-version-runtime-public-beta-20260619-121531 passed 42 public-beta/save-safety checks with runtime-pack ID public-beta-a263c68cfdeb-4ad31f07b718-startup-orchestrator-v1, mounted PCK hash 957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a, and active/source/runtime-pack sts2.dll hash 4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3. The combined gate passed with current public/current public-beta and branch-switch evidence: scripts/run-multi-version-runtime-release-gates.ps1 -PublicEvidenceDirs artifacts/android/multi-version-runtime-public-20260619-121256 -PublicBetaEvidenceDirs artifacts/android/multi-version-runtime-public-beta-20260619-121531 -BranchSwitchEvidenceDirs artifacts/android/multi-version-runtime-branch-switch-20260618-211533 -RequireSaveSafety -Quiet. No Steam Cloud Push was performed.
 ```
 
 ## Cloud-save posture

@@ -1481,10 +1481,26 @@ public class GodotApp extends GodotActivity {
 			String selectedSourceAssemblySha256 = selectedSourceAssembly != null && selectedSourceAssembly.exists() && selectedSourceAssembly.isFile()
 				? sha256Hex(selectedSourceAssembly)
 				: "";
+			File activeAndroidAssembly = activeAndroidAssemblyFile();
+			String activeAndroidAssemblySha256 = activeAndroidAssembly.exists() && activeAndroidAssembly.isFile()
+				? sha256Hex(activeAndroidAssembly)
+				: "";
 			boolean pckMatches = pckMatchesRuntimeSource(selectedPck, markerPckSha256, selectedPckSha256);
 			boolean sourceAssemblyMatches = !markerSourceAssemblySha256.trim().isEmpty() && markerSourceAssemblySha256.equalsIgnoreCase(selectedSourceAssemblySha256);
 			if (branchMatches && filesReady && playable && runtimeCompatible && patchCompatible && pckMatches && sourceAssemblyMatches) {
 				Log.i(TAG, "Runtime slot evidence ready for selected game startup: slot=" + json.optString("runtimeSlotId", "") + " branch=" + markerBranch);
+				return true;
+			}
+
+			boolean publicLegacyRuntimeReady = "public".equalsIgnoreCase(selectedBranch)
+				&& !selectedSourceAssemblySha256.trim().isEmpty()
+				&& selectedSourceAssemblySha256.equalsIgnoreCase(activeAndroidAssemblySha256);
+			if (!branchMatches && publicLegacyRuntimeReady) {
+				Log.i(
+					TAG,
+					"Runtime slot evidence marker belongs to '" + markerBranch
+						+ "', but selected public runtime cache matches the public source assembly; allowing public legacy startup after branch switch."
+				);
 				return true;
 			}
 
@@ -1499,6 +1515,7 @@ public class GodotApp extends GodotActivity {
 					+ " patchCompatible=" + patchCompatible
 					+ " pckMatches=" + pckMatches
 					+ " sourceAssemblyMatches=" + sourceAssemblyMatches
+					+ " activeAndroidAssemblyMatchesPublic=" + publicLegacyRuntimeReady
 					+ " readinessProblem=" + json.optString("readinessProblem", "")
 					+ " runtimePackStatus=" + json.optString("runtimePackUsabilityStatus", "")
 					+ " patchStatus=" + json.optString("patchCompatibilityStatus", "")
@@ -1508,6 +1525,13 @@ public class GodotApp extends GodotActivity {
 			Log.w(TAG, "Blocking selected game startup because runtime slot evidence is unreadable: " + marker.getAbsolutePath(), e);
 			return false;
 		}
+	}
+
+	private File activeAndroidAssemblyFile() {
+		return new File(
+			new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir()),
+			RUNTIME_PACK_ANDROID_ASSEMBLY
+		);
 	}
 
 	private boolean isBranchMarkerReady(String branch) {
