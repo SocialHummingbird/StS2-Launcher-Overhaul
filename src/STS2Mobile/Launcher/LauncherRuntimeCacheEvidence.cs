@@ -110,8 +110,14 @@ internal static class LauncherRuntimeCacheEvidence
             return false;
 
         var slot = GameRuntimeSlot.Inspect(dataDir, selectedBranch);
-        return HasValue(slot.PckSha256)
-            && string.Equals(markerHash, slot.PckSha256, StringComparison.OrdinalIgnoreCase);
+        if (HasValue(slot.PckSha256)
+            && string.Equals(markerHash, slot.PckSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return slot.RuntimePackUsable
+            && slot.RuntimePack.SourcePckMatchesSelectedPck(markerHash, slot.PckPath);
     }
 
     internal static bool SourceAssemblyMatchesSelectedRuntime(string dataDir, string selectedBranch)

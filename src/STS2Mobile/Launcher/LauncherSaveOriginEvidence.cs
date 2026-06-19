@@ -84,8 +84,14 @@ internal static class LauncherSaveOriginEvidence
             return false;
 
         var slot = GameRuntimeSlot.Inspect(dataDir, selectedBranch);
-        return HasValue(slot.PckSha256)
-            && string.Equals(markerHash, slot.PckSha256, StringComparison.OrdinalIgnoreCase);
+        if (HasValue(slot.PckSha256)
+            && string.Equals(markerHash, slot.PckSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return slot.RuntimePackUsable
+            && slot.RuntimePack.SourcePckMatchesSelectedPck(markerHash, slot.PckPath);
     }
 
     internal static bool SourceAssemblyMatchesSelectedRuntime(string dataDir, string selectedBranch)
@@ -119,18 +125,16 @@ internal static class LauncherSaveOriginEvidence
             return false;
 
         var markerSlotId = SelectedRuntimeSlotId(dataDir);
-        var markerPckSha256 = SelectedPckSha256(dataDir);
         var markerSourceAssemblySha256 = SelectedSourceAssemblySha256(dataDir);
-        if (!HasValue(markerSlotId) || !HasValue(markerPckSha256) || !HasValue(markerSourceAssemblySha256))
+        if (!HasValue(markerSlotId) || !HasValue(markerSourceAssemblySha256))
             return false;
 
         var slot = GameRuntimeSlot.Inspect(dataDir, selectedBranch);
         return slot.Playable
             && HasValue(slot.RuntimeSlotId)
-            && HasValue(slot.PckSha256)
             && HasValue(slot.SourceAssemblySha256)
             && string.Equals(markerSlotId, slot.RuntimeSlotId, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(markerPckSha256, slot.PckSha256, StringComparison.OrdinalIgnoreCase)
+            && PckMatchesSelectedRuntime(dataDir, selectedBranch)
             && string.Equals(markerSourceAssemblySha256, slot.SourceAssemblySha256, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -185,7 +189,7 @@ internal static class LauncherSaveOriginEvidence
                 + $"Selected PCK SHA256: {slot.PckSha256}\n"
                 + $"Selected source sts2.dll SHA256: {slot.SourceAssemblySha256}\n"
                 + $"Selected runtime playable: {selectedRuntimePlayable.ToString().ToLowerInvariant()}\n"
-                + $"Selected runtime readiness problem: {slot.ReadinessProblem}\n"
+                + $"Selected runtime readiness problem: {slot.ReadinessProblem() ?? string.Empty}\n"
                 + $"Important Android local save evidence count: {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n"
                 + $"Current Android local saves verified for selected branch: {selectedBranchVerified.ToString().ToLowerInvariant()}\n"
                 + $"Current Android local saves verified for selected runtime: {selectedRuntimeVerified.ToString().ToLowerInvariant()}\n";

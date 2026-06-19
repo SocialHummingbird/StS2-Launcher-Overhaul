@@ -465,13 +465,19 @@ if ($runtimeValidation) {
         Add-ValidationRow -Lines $validationLines -Area "Canonical slot bound to native cache identity" -Status "unbound" -Evidence "canonicalSlot=$($runtimeValidation.runtimeSlotId); nativeRuntimeId=$runtimeCacheId; branch=$runtimeCacheBranch" -RequiredNextAction "Do not use native cache evidence for branch classification until cache/runtime hashes match."
     }
 
-    $saveOriginIdentityMatches = $saveOriginRuntimeSlotId -eq "$($runtimeValidation.runtimeSlotId)" -and $saveOriginPck -eq "$($runtimeValidation.selectedPckSha256)" -and $saveOriginSourceAssembly -eq "$($runtimeValidation.selectedSourceAssemblySha256)"
+    $saveOriginPckMatchesRuntime = $saveOriginPck -eq "$($runtimeValidation.selectedPckSha256)"
+    $runtimeValidationPckMatchesCacheForSaveOrigin = -not [string]::IsNullOrWhiteSpace($runtimeCachePck) -and "$($runtimeValidation.selectedPckSha256)" -eq $runtimeCachePck
+    $saveOriginPckMatchesRuntimePackSource =
+        -not [string]::IsNullOrWhiteSpace($runtimePackSourcePck) -and
+        $saveOriginPck -eq $runtimePackSourcePck -and
+        $runtimeValidationPckMatchesCacheForSaveOrigin
+    $saveOriginIdentityMatches = $saveOriginRuntimeSlotId -eq "$($runtimeValidation.runtimeSlotId)" -and ($saveOriginPckMatchesRuntime -or $saveOriginPckMatchesRuntimePackSource) -and $saveOriginSourceAssembly -eq "$($runtimeValidation.selectedSourceAssemblySha256)"
     $saveOriginPlayable = $saveOriginRuntimePlayable -eq "true"
     $saveOriginVerified = $saveOriginRuntimeVerified -eq "true"
     if ($saveOriginIdentityMatches -and $saveOriginPlayable -and $saveOriginVerified) {
-        Add-ValidationRow -Lines $validationLines -Area "Steam Cloud Push save-origin safety" -Status "matched" -Evidence "saveOriginAction=$saveOriginAction; slot=$saveOriginRuntimeSlotId; runtimePlayable=$saveOriginRuntimePlayable; savesVerified=$saveOriginRuntimeVerified" -RequiredNextAction "Push still requires user intent and backup evidence; this only proves selected-runtime save origin."
+        Add-ValidationRow -Lines $validationLines -Area "Steam Cloud Push save-origin safety" -Status "matched" -Evidence "saveOriginAction=$saveOriginAction; slot=$saveOriginRuntimeSlotId; runtimePlayable=$saveOriginRuntimePlayable; savesVerified=$saveOriginRuntimeVerified; pckDirect=$saveOriginPckMatchesRuntime; pckRuntimePackSource=$saveOriginPckMatchesRuntimePackSource" -RequiredNextAction "Push still requires user intent and backup evidence; this only proves selected-runtime save origin."
     } else {
-        Add-ValidationRow -Lines $validationLines -Area "Steam Cloud Push save-origin safety" -Status "do-not-push" -Evidence "identityMatches=$saveOriginIdentityMatches; runtimePlayable=$saveOriginRuntimePlayable; savesVerified=$saveOriginRuntimeVerified; saveSlot=$saveOriginRuntimeSlotId; runtimeSlot=$($runtimeValidation.runtimeSlotId); savePck=$saveOriginPck; runtimePck=$($runtimeValidation.selectedPckSha256)" -RequiredNextAction "Pull from Cloud for a playable selected runtime and verify local saves before any Push."
+        Add-ValidationRow -Lines $validationLines -Area "Steam Cloud Push save-origin safety" -Status "do-not-push" -Evidence "identityMatches=$saveOriginIdentityMatches; runtimePlayable=$saveOriginRuntimePlayable; savesVerified=$saveOriginRuntimeVerified; saveSlot=$saveOriginRuntimeSlotId; runtimeSlot=$($runtimeValidation.runtimeSlotId); savePck=$saveOriginPck; runtimePck=$($runtimeValidation.selectedPckSha256); runtimePackSourcePck=$runtimePackSourcePck; pckDirect=$saveOriginPckMatchesRuntime; pckRuntimePackSource=$saveOriginPckMatchesRuntimePackSource" -RequiredNextAction "Pull from Cloud for a playable selected runtime and verify local saves before any Push."
     }
 } else {
     Add-ValidationRow -Lines $validationLines -Area "Runtime patch validation" -Status "missing" -Evidence "last_runtime_patch_validation.json missing or unreadable" -RequiredNextAction "Launch selected branch and recapture evidence."
@@ -621,10 +627,7 @@ if ($runtimeValidation -and $runtimePackManifest) {
 
 $saveOriginMatchesRuntime = $false
 if ($runtimeValidation) {
-    $saveOriginMatchesRuntime =
-        $saveOriginRuntimeSlotId -eq "$($runtimeValidation.runtimeSlotId)" -and
-        $saveOriginPck -eq "$($runtimeValidation.selectedPckSha256)" -and
-        $saveOriginSourceAssembly -eq "$($runtimeValidation.selectedSourceAssemblySha256)"
+    $saveOriginMatchesRuntime = $saveOriginIdentityMatches
 }
 
 $validationLines.Add("")

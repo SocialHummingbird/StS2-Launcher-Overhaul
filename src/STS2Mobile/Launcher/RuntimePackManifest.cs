@@ -124,6 +124,9 @@ internal sealed class RuntimePackManifest
     internal bool PatchValidationPassed =>
         string.Equals(PatchValidationStatus, "passed", StringComparison.OrdinalIgnoreCase);
 
+    internal bool SourcePckMatchesSelectedPck(string selectedPckSha256, string selectedPckPath)
+        => SourcePckMatches(SourcePckSha256, selectedPckSha256, selectedPckPath);
+
     internal static RuntimePackManifest NotInstalled(string path, string expectedBranch)
     {
         expectedBranch = SteamGameBranch.Normalize(expectedBranch);
