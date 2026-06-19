@@ -387,10 +387,17 @@ internal static partial class LauncherDiagnostics
     }
 
     private static string BranchAvailabilitySelectedBranchDownloadable(string dataDir)
-        => BranchAvailabilitySelectedBranchManifestCount(dataDir) > 0 ? "true" : "false";
+        => BranchAvailabilitySelectedBranchPasswordProtected(dataDir)
+            ? "false"
+            : BranchAvailabilitySelectedBranchManifestCount(dataDir) > 0
+                ? "true"
+                : "false";
 
     private static string BranchAvailabilitySelectedBranchProblem(string dataDir)
     {
+        if (BranchAvailabilitySelectedBranchPasswordProtected(dataDir))
+            return "selected branch is password-protected";
+
         var manifestCount = BranchAvailabilitySelectedBranchManifestCount(dataDir);
         if (manifestCount > 0)
             return "downloadable";
@@ -413,6 +420,60 @@ internal static partial class LauncherDiagnostics
         )
             ? count
             : 0;
+
+    private static bool BranchAvailabilitySelectedBranchPasswordProtected(string dataDir)
+    {
+        var selectedBranch = ReadBranchAvailabilityMarkerValue(dataDir, "Selected branch:");
+        if (string.IsNullOrWhiteSpace(selectedBranch) || selectedBranch.StartsWith("<", System.StringComparison.Ordinal))
+            return false;
+
+        foreach (var value in ReadBranchAvailabilityMarkerRawValues(dataDir, "Visible branch:"))
+        {
+            if (!BranchAvailabilityMarkerValueMatchesBranch(value, selectedBranch))
+                continue;
+
+            return value.Contains("passwordRequired=true", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
+    }
+
+    private static bool BranchAvailabilityMarkerValueMatchesBranch(string markerValue, string branch)
+    {
+        if (string.IsNullOrWhiteSpace(markerValue) || string.IsNullOrWhiteSpace(branch))
+            return false;
+
+        var nameEnd = markerValue.IndexOf(" [", System.StringComparison.Ordinal);
+        var name = nameEnd > 0 ? markerValue[..nameEnd] : markerValue;
+        return string.Equals(
+            SteamGameBranch.Normalize(name),
+            SteamGameBranch.Normalize(branch),
+            System.StringComparison.OrdinalIgnoreCase
+        );
+    }
+
+    private static System.Collections.Generic.IEnumerable<string> ReadBranchAvailabilityMarkerRawValues(string dataDir, string prefix)
+    {
+        var markerPath = SteamGameInstallPaths.BranchAvailabilityMarkerPath(dataDir);
+        if (!File.Exists(markerPath))
+            yield break;
+
+        string[] lines;
+        try
+        {
+            lines = File.ReadAllLines(markerPath);
+        }
+        catch
+        {
+            yield break;
+        }
+
+        foreach (var line in lines)
+        {
+            if (line.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
+                yield return line.Substring(prefix.Length).Trim();
+        }
+    }
 
     private static string ReadBranchMarkerValue(string markerPath, string prefix)
     {
