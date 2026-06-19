@@ -40,10 +40,11 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, Steam beta/version selection validation, best-in-class login/portal UX, quieter diagnostics, repeatable release asset hygiene, and full newest-public Pull/confirmed-Push/game-launch smoke.
 
-- Latest published APK prerelease: `v0.2.188-local-runtime-beta-fix23`
-- Current APK asset: `StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk`
+- Latest published APK prerelease: `v0.2.188-local-runtime-beta-fix30-public-after-beta`
+- Current APK asset: `StS2Launcher-v0.2.188-local-runtime-beta-fix30-public-after-beta-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Release asset SHA-256: `9c912ed70f4e9add0f6780a81382c388c4b8f51a2d3b63786524ca5a9cd78302`
+- Release asset SHA-256: `b3f0b645356dfd72e6bcddc735a07352a4b911720f84532b499e543358ce4515`
+- Latest local ARM64 validation APK: `0.2.188-local-runtime-beta-fix31-save-origin-pck` / `versionCode=218858`, artifact `artifacts/android/StS2Launcher-v0.2.188-local-runtime-beta-fix31-save-origin-pck-arm64-v8a.apk`, SHA-256 `33fa866b5d8b9462f2aa83cd34606b84b3f7f8b8a5a8da159d08cecc2ed04ae6`. This local build is not currently published as a GitHub release.
 - Latest verified public release: `0.2.187-beta-art-fallback` / `versionCode=218700`
 - Validated locally/publicly: fresh APK/runtime install, public `v0.2.186 -> v0.2.187` update-compatible release build, responsive launcher login/download-progress/diagnostics/ready-state visual checks on ARM64 hardware, Push-to-Cloud confirmation/cancel safety on the public `v0.2.187` APK, Steam login to Steam Guard on public `v0.2.183`, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
 - Still hardening: Samsung A53/S25+/S24 Ultra reporter retests, repeated public-release Pull/confirmed-Push/game-launch smoke on the newest APK, persisted Steam session/update UX, Steam beta/version selection validation, richer launch progress UI, diagnostics polish, and release-candidate signoff.
@@ -221,13 +222,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.188-local-runtime-beta-fix23" `
-  -AssetName "StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.188-local-runtime-beta-fix30-public-after-beta" `
+  -AssetName "StS2Launcher-v0.2.188-local-runtime-beta-fix30-public-after-beta-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.188-local-runtime-beta-fix23" `
-  -AssetName "StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.188-local-runtime-beta-fix30-public-after-beta" `
+  -AssetName "StS2Launcher-v0.2.188-local-runtime-beta-fix30-public-after-beta-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -236,12 +237,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.188-local-runtime-beta-fix23
-Asset: StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk
+Release: v0.2.188-local-runtime-beta-fix30-public-after-beta
+Asset: StS2Launcher-v0.2.188-local-runtime-beta-fix30-public-after-beta-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.188-local-runtime-beta-fix23
-VersionCode: 218849
-SHA-256: 9c912ed70f4e9add0f6780a81382c388c4b8f51a2d3b63786524ca5a9cd78302
+VersionName: 0.2.188-local-runtime-beta-fix30-public-after-beta
+VersionCode: 218857
+SHA-256: b3f0b645356dfd72e6bcddc735a07352a4b911720f84532b499e543358ce4515
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.

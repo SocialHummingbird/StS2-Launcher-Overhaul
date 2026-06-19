@@ -264,3 +264,65 @@ Device evidence captured on 2026-06-18:
 ```
 
 This is still local debug ARM64 evidence. It does not replace release-candidate APK evidence, private/password/no-manifest negative-case validation, cross-branch save compatibility validation after Pull/restore, or public-share redaction review.
+
+## Fix30 prerelease evidence note
+
+The `v0.2.188-local-runtime-beta-fix30-public-after-beta` ARM64 prerelease is published on the fork and proves the public-after-beta native startup repair on the connected ARM64 device. It confirms that a direct `public` launch after a `public-beta` runtime-cache launch switches the active assembly cache back to public instead of routing to `NativeFallbackActivity`, mounts `files/game/SlayTheSpire2.pck`, applies 19/19 runtime patches, and reaches the main menu with active Android `sts2.dll` SHA-256 `81c8f3443c4504e38a17570df688489414fceb6ea7fcf5b044d8117318ea8e49`.
+
+Published asset:
+
+```text
+Release: v0.2.188-local-runtime-beta-fix30-public-after-beta
+Asset: StS2Launcher-v0.2.188-local-runtime-beta-fix30-public-after-beta-arm64-v8a.apk
+SHA-256: b3f0b645356dfd72e6bcddc735a07352a4b911720f84532b499e543358ce4515
+VersionName: 0.2.188-local-runtime-beta-fix30-public-after-beta
+VersionCode: 218857
+```
+
+Device evidence captured on 2026-06-19:
+
+- `artifacts/android/fix30-public-after-beta-20260619-121225`: direct public startup after beta runtime-cache state reached the main menu without `NativeFallbackActivity`.
+- `artifacts/android/multi-version-runtime-public-20260619-121256`: read-only public capture passed `review-multi-version-runtime-evidence.ps1 -RequirePublic -RequireSaveSafety` with 30 checks.
+- `artifacts/android/fix30-public-beta-pull-cloud-complete-20260619-122423` and `artifacts/android/fix30-public-beta-synced-compendium-route-20260619-122605`: Pull completed first, the synced save opened on `Profile 1`, Compendium opened, Bestiary opened, and Assassin Raider rendered with matched beta PCK/runtime evidence. The earlier doormaker/no-loader hard-lock route did not reproduce.
+- `artifacts/android/multi-version-runtime-public-beta-20260619-123054`: post-Pull public-beta runtime evidence passed 42 public-beta/save-safety checks with side-by-side PCK `files/game_versions/public-beta-8128824d/game/SlayTheSpire2.pck`, mounted PCK SHA-256 `957bd95f2bbe97fad18ea467e67b8525861a49aec08a0f31448e276925cb684a`, and source/runtime-pack/active `sts2.dll` SHA-256 `4ad31f07b71820060b178ce3961f8589dbc94b3f8109428eaec8e7037ae2fdb3`.
+
+Combined gate passed:
+
+```powershell
+.\scripts\run-multi-version-runtime-release-gates.ps1 `
+  -PublicEvidenceDirs artifacts\android\multi-version-runtime-public-20260619-121256 `
+  -PublicBetaEvidenceDirs artifacts\android\multi-version-runtime-public-beta-20260619-123054 `
+  -BranchSwitchEvidenceDirs artifacts\android\multi-version-runtime-branch-switch-20260618-211533 `
+  -RequireSaveSafety `
+  -Quiet
+```
+
+No Steam Cloud Push was performed for this evidence.
+
+## Fix31 local validation evidence note
+
+The `0.2.188-local-runtime-beta-fix31-save-origin-pck` ARM64 build is a local validation APK, not a published GitHub release. It fixes the false save-origin mismatch for non-public Android-patched PCKs: save-origin markers may record the source PCK hash while runtime patch validation and native cache markers record the mounted Android-patched PCK hash, and that pairing is accepted only through a usable runtime-pack source-PCK mapping plus the same runtime slot/source assembly.
+
+Local artifact:
+
+```text
+Artifact: artifacts/android/StS2Launcher-v0.2.188-local-runtime-beta-fix31-save-origin-pck-arm64-v8a.apk
+SHA-256: 33fa866b5d8b9462f2aa83cd34606b84b3f7f8b8a5a8da159d08cecc2ed04ae6
+VersionName: 0.2.188-local-runtime-beta-fix31-save-origin-pck
+VersionCode: 218858
+```
+
+Device evidence `artifacts/android/multi-version-runtime-public-beta-20260619-124816` passed `review-multi-version-runtime-evidence.ps1 -RequirePublicBeta -RequireSaveSafety` with 42 checks and reports `Steam Cloud Push save-origin safety` as `matched` with `pckDirect=False` and `pckRuntimePackSource=True`. The save/config asset-reference hypothesis is now `unknown` instead of falsely confirmed.
+
+Combined gate passed:
+
+```powershell
+.\scripts\run-multi-version-runtime-release-gates.ps1 `
+  -PublicEvidenceDirs artifacts\android\multi-version-runtime-public-20260619-121256 `
+  -PublicBetaEvidenceDirs artifacts\android\multi-version-runtime-public-beta-20260619-124816 `
+  -BranchSwitchEvidenceDirs artifacts\android\multi-version-runtime-branch-switch-20260618-211533 `
+  -RequireSaveSafety `
+  -Quiet
+```
+
+No Steam Cloud Push was performed. Successful branch-switch Push remains release-open until Pull-before-Push, local-save, and backup evidence are captured on the selected version.
