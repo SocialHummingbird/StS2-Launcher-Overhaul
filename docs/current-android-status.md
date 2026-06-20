@@ -18,7 +18,7 @@ The app now works on the validated ARM64 Android path, but it is still in polish
 Validated locally on ARM64 hardware:
 
 - Fresh APK/runtime install reaches the launcher.
-- The latest public release APK verifies structurally, installs, launches, and has captured ARM64 launcher visual checks for login, active download progress, diagnostics drawer, ready-state layout, and Push confirmation/cancel.
+- The latest local launcher UI APK verifies structurally, installs, launches, and has captured ARM64 launcher visual checks for login, active download progress, diagnostics drawer, ready-state layout, Push confirmation/cancel, public startup overlay cleanup, public main menu, and a deeper public UI route.
 - Public release upgrade compatibility has advanced through `v0.2.187-beta-art-fallback` with `versionCode=218700`; the latest signed dev APK installed over the previous dev package while preserving app data. Earlier proof showed `v0.2.175-refactor-apk` to `v0.2.177-login-a8729d6` preserving install state.
 - Locked-screen interruption returns to the app after manual unlock without app-specific crash markers.
 - Steam login and game depot download complete.
@@ -29,11 +29,26 @@ Validated locally on ARM64 hardware:
 - The downloaded game launches and shows the pulled `Profile 1` in-game.
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
 - The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix30 also proves public can launch immediately after a `public-beta` runtime-cache switch without routing to `NativeFallbackActivity`.
+- The latest local UI/public-startup prerelease proves fresh public redownload of `v0.107.1` reaches the game main menu with branch-matched managed runtime evidence and removes the launcher startup status overlay after startup observation.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
 
 Latest GitHub APK prerelease evidence:
+
+```text
+release=v0.2.274-local-status-docs
+asset=StS2Launcher-v0.2.274-local-status-docs-arm64-v8a.apk
+sha256=83dd5d9ab24c6d3dff54ae4d708f40c355d1b42ac6106fed55dea075b03069bb
+package=com.sts2launcher.overhaul.fork.local
+versionName=0.2.274-local-status-docs
+versionCode=219010
+validation=Android build/APK verification passed; build-only GitHub release refresh from the same launcher code line as v0.2.273-local-startup-overlay-fix plus current status/audit documentation; ARM64 device install/run evidence remains v0.2.273 because no device was attached for this build. v0.2.273 ARM64 evidence installed over existing app data on SM-F966B; public/default clean redownload selected Steam manifest 4733892780027453168 and game release v0.107.1 commit 59260271; public PCK SHA-256 d987bde8376b1de07269c9b790cdca8a575e3783dfb2aa998c7f5a17f3c7704c; source and active Android sts2.dll SHA-256 a1f9e653f1e28e4076558fee1e60d218619cb7e057b887c6417f62c62c6d7a52; runtime slot marker reported playable=true, runtimePairingStatus=branch-matched runtime, patchCompatibilityStatus=passed; main menu and deeper public UI route launched without NativeFallback; startup status overlay cleanup logged statusCleared=true
+cloudSafety=No Push to Cloud was run during this validation.
+evidence=artifacts/android/public-redownload-evidence-20260620
+```
+
+Latest full public/public-beta runtime gate evidence:
 
 ```text
 release=v0.2.188-local-runtime-beta-fix30-public-after-beta
@@ -49,12 +64,12 @@ upgradeBaseline=local runtime-pack validation line
 Latest local launcher UI hardening evidence:
 
 ```text
-build=0.2.271-local-ui-mobile-pass178-cloud-cue-parent-fix
-asset=StS2Launcher-v0.2.271-local-ui-mobile-pass178-cloud-cue-parent-fix-arm64-v8a.apk
-sha256=e7e71aa329907b04c46d26538e998fe77c447d82d8637b2fcfd9da56d600c334
-scope=compact Android launcher polish, including structured compact install CTA labels, stable two-line download progress status, stable compact armed Push warning label, direct-parent-safe compact Cloud Safety cue reordering before Pull/Push controls, bounded compact Cloud Safety detail copy, bounded two-line Install target / Launch target version helper labels, bounded compact Steam Guard helper copy, bounded compact setup safe-flow guide copy, short compact current-task GO TO LOGIN/GUARD/FILES/PLAY title labels, readable shared compact detail-label font, readable compact workflow step number badges, shared touch-safe compact height for the inline current-task bar, padded compact scroll anchors so workflow/current-task jumps land active sections below the sticky header instead of flush against the viewport edge, viewport-aware compact status headline reflow after rotation or keyboard viewport changes, viewport-aware sticky task header reflow after rotation or keyboard viewport changes, viewport-aware compact task re-anchoring after rotation or keyboard viewport changes, viewport-aware compact Steam Guard code/action row reflow after rotation or keyboard viewport changes, rounded shared metric scaling so compact fonts, touch targets, separators, and margins keep fractional Android scale instead of being floored, current-viewport confirmation dialog sizing so branch/cache/cloud warnings stay sized correctly after rotation or keyboard-driven viewport changes, keyboard-focused managed input scrolling so Steam Guard/fallback fields stay reachable above the Android soft keyboard, a readable bounded compact diagnostics log viewport, and viewport-aware diagnostics log resizing after Android rotation or keyboard viewport changes
-validation=static audit, managed Release build, ARM64 APK build, Android crypto verification, APK SHA-256 metadata, APK signature verification, ARM64 install over existing app data on SM-F966B, launcher screenshot capture, resumed `GodotApp` window-state capture, and focused/PID log scan with no `NativeFallbackActivity`, fatal exception, crash marker, or previous `Child is not a child` Godot UI error
-evidence=artifacts/evidence/ui-pass178-device-view
+build=0.2.273-local-startup-overlay-fix
+asset=StS2Launcher-v0.2.273-local-startup-overlay-fix-arm64-v8a.apk
+sha256=46dbb6b05a6f477a105d29356ab25c228b55c80bd094b63589bfe70e0e0ebe12
+scope=compact Android launcher polish, including structured compact install CTA labels, stable two-line download progress status, stable compact armed Push warning label, direct-parent-safe compact Cloud Safety cue reordering before Pull/Push controls, bounded compact Cloud Safety detail copy, bounded two-line Install target / Launch target version helper labels, bounded compact Steam Guard helper copy, bounded compact setup safe-flow guide copy, short compact current-task GO TO LOGIN/GUARD/FILES/PLAY title labels, readable shared compact detail-label font, readable compact workflow step number badges, shared touch-safe compact height for the inline current-task bar, padded compact scroll anchors so workflow/current-task jumps land active sections below the sticky header instead of flush against the viewport edge, viewport-aware compact status headline reflow after rotation or keyboard viewport changes, viewport-aware sticky task header reflow after rotation or keyboard viewport changes, viewport-aware compact task re-anchoring after rotation or keyboard viewport changes, viewport-aware compact Steam Guard code/action row reflow after rotation or keyboard viewport changes, rounded shared metric scaling so compact fonts, touch targets, separators, and margins keep fractional Android scale instead of being floored, current-viewport confirmation dialog sizing so branch/cache/cloud warnings stay sized correctly after rotation or keyboard-driven viewport changes, keyboard-focused managed input scrolling so Steam Guard/fallback fields stay reachable above the Android soft keyboard, a readable bounded compact diagnostics log viewport, viewport-aware diagnostics log resizing after Android rotation or keyboard viewport changes, Android-readable post-launch startup status card, and successful cleanup of that card after main-menu startup observation
+validation=static audit, managed Release build, ARM64 APK build, Android crypto verification, APK SHA-256 metadata, APK signature verification, ARM64 install over existing app data on SM-F966B, launcher screenshot capture from pass178, public redownload/startup screenshot capture on v0.2.273, resumed `GodotApp` window-state capture, and focused/PID log scan with no `NativeFallbackActivity`, fatal exception, crash marker, or previous `Child is not a child` Godot UI error
+evidence=artifacts/evidence/ui-pass178-device-view; artifacts/android/public-redownload-evidence-20260620
 not_yet_proven=touch validation, public/public-beta branch-switch runtime evidence on this UI build, rotated/keyboard viewport confirmation-dialog capture, focused input soft-keyboard capture, compact status headline rotation/keyboard reflow capture, compact Steam Guard code/action row rotation/keyboard reflow capture, sticky task header rotation/keyboard reflow capture, compact task re-anchor rotation/keyboard capture, and diagnostics log rotation/keyboard resize capture
 ```
 
@@ -72,6 +87,7 @@ upgradeBaseline=v0.2.186-sts2-mobile-version-selection / versionCode=218600
 
 Latest device evidence folders:
 
+- `artifacts/android/public-redownload-evidence-20260620`
 - `artifacts/evidence/ui-pass178-device-view`
 - `artifacts/android/public-after-beta-fix20-20260618`
 - `artifacts/android/public-beta-fix20-retry-20260618`

@@ -2032,6 +2032,27 @@ Add-Check `
     )
 
 Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupStatus.cs" `
+    "cleans up the full Android startup status card after observed game startup" `
+    @(
+        "internal static bool QueueFree\(Label label\)",
+        "FindStatusRoot\(label\)",
+        "for \(Node current = label; current != null; current = current\.GetParent\(\)\)",
+        "current\.Name == NodeName",
+        "target\.QueueFree\(\)",
+        "Startup status cleanup failed"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameStartupRecovery.State.cs" `
+    "uses startup-status root cleanup instead of freeing only the message label" `
+    @(
+        "LauncherStartupStatus\.QueueFree\(StartupStatus\)",
+        "Post-startup recovery UI cleanup finished after game startup was observed",
+        "statusCleared"
+    )
+
+Add-Check `
     "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
     "keeps compact version drawer toggle before expanded ready-state version details" `
     @(
@@ -5100,7 +5121,8 @@ Add-Check `
         "Android shader warmup uses the launcher compact touch-scale floor",
         "mobile-width compact panel",
         "styled percentage progress bar",
-        "Android game startup status now uses a framed mobile-width status card"
+        "Android game startup status now uses a framed mobile-width status card",
+        "Successful startup cleanup now frees the whole Android startup status root container"
     )
 
 Add-Check `
