@@ -26,6 +26,7 @@ internal sealed partial class LauncherController
     {
         view.SetStatus("Last error summary printed in console.");
         view.AppendLog(summary);
+        view.ShowDiagnosticsConsole();
     }
 
     private static void CopyRawLogToClipboard(LauncherView view, string rawLog)
@@ -40,5 +41,6 @@ internal sealed partial class LauncherController
         view.AppendLog(
             $"Raw error log copied to clipboard ({clipboardText.Length:N0} chars). Review/redact before public posting."
         );
+        view.ShowDiagnosticsConsole();
     }
 }

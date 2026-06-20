@@ -19,6 +19,7 @@ internal sealed class LauncherUI : Control
     private LauncherModel _model;
     private LauncherView _view;
     private LauncherController _controller;
+    private Vector2 _lastViewportSize;
     private bool _inGameMode;
 
     internal void Initialize()
@@ -29,6 +30,7 @@ internal sealed class LauncherUI : Control
         try
         {
             var viewportSize = GetViewportSize();
+            _lastViewportSize = viewportSize;
             SetAnchorsPreset(LayoutPreset.FullRect);
             Size = viewportSize;
             var layoutProfile = LauncherLayoutProfile.ForViewport(viewportSize);
@@ -81,8 +83,19 @@ internal sealed class LauncherUI : Control
     {
         AndroidBridgeDispatcher.Pump();
         DrainMainThreadActions();
-        if (!OperatingSystem.IsAndroid())
-            _view?.UpdateKeyboardOffset();
+        SyncViewportSize();
+        _view?.UpdateKeyboardOffset();
+    }
+
+    private void SyncViewportSize()
+    {
+        var viewportSize = GetViewportSize();
+        if (_lastViewportSize.DistanceSquaredTo(viewportSize) <= 1f)
+            return;
+
+        _lastViewportSize = viewportSize;
+        Size = viewportSize;
+        _view?.UpdateViewportSize(viewportSize);
     }
 
     private void EnqueueMainThreadAction(Action action) => _mainThreadActions.Enqueue(action);

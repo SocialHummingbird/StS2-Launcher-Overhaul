@@ -13,6 +13,8 @@ internal sealed partial class LauncherController
     {
         private ManualCloudSyncRequest(
             string confirmationMessage,
+            string confirmText,
+            string cancelText,
             string name,
             string startMessage,
             string completeMessage,
@@ -23,6 +25,8 @@ internal sealed partial class LauncherController
         )
         {
             ConfirmationMessage = confirmationMessage;
+            ConfirmText = confirmText;
+            CancelText = cancelText;
             Name = name;
             StartMessage = startMessage;
             CompleteMessage = completeMessage;
@@ -33,6 +37,8 @@ internal sealed partial class LauncherController
         }
 
         internal string ConfirmationMessage { get; }
+        internal string ConfirmText { get; }
+        internal string CancelText { get; }
         internal bool BypassConfirmation { get; }
         private string Name { get; }
         private string StartMessage { get; }
@@ -44,6 +50,8 @@ internal sealed partial class LauncherController
         internal static ManualCloudSyncRequest Push(string dataDir, string selectedBranch)
             => new(
                 PushConfirmationMessage(dataDir, selectedBranch),
+                "PUSH TO CLOUD",
+                "CANCEL PUSH",
                 "Push",
                 "Pushing Android local saves to Steam Cloud...",
                 "Push complete. Steam Cloud now reflects Android local saves.",
@@ -56,6 +64,8 @@ internal sealed partial class LauncherController
         internal static ManualCloudSyncRequest Pull(string dataDir, string selectedBranch)
             => new(
                 "Pull Steam Cloud saves to Android local storage?\nThis overwrites Android local saves with the current Steam Cloud state.",
+                "PULL FROM CLOUD",
+                "CANCEL PULL",
                 "Pull",
                 "Pulling Steam Cloud saves to Android local storage...",
                 "Pull complete. Android local saves now reflect Steam Cloud.",
@@ -272,7 +282,9 @@ internal sealed partial class LauncherController
 
         _view.ShowConfirmation(
             request.ConfirmationMessage,
-            () => _ = ExecuteCloudSyncAsync(request)
+            () => _ = ExecuteCloudSyncAsync(request),
+            request.ConfirmText,
+            request.CancelText
         );
     }
 

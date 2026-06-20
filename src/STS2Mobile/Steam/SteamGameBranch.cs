@@ -33,6 +33,15 @@ internal static class SteamGameBranch
             : branch;
     }
 
+    internal static string CompactDisplayName(string branch, int maxLength = 24)
+    {
+        var displayName = DisplayName(branch);
+        if (displayName.Length <= maxLength)
+            return displayName;
+
+        return displayName[..Math.Max(1, maxLength - 3)] + "...";
+    }
+
     internal static string SelectionKind(string branch)
         => string.Equals(Normalize(branch), Public, StringComparison.OrdinalIgnoreCase)
             ? "dropdown default/public branch"

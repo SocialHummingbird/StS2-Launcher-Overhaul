@@ -147,12 +147,19 @@ internal sealed partial class LauncherController
             {
                 _view.ShowConfirmation(
                     BlockedRedownloadConfirmationMessage + "\n\n" + downloadProblem,
-                    () => ApplyRedownloadBlockedByBranchProblem(downloadProblem)
+                    () => ApplyRedownloadBlockedByBranchProblem(downloadProblem),
+                    "DELETE CACHE",
+                    "KEEP CACHE"
                 );
                 return;
             }
 
-            _view.ShowConfirmation(RedownloadConfirmationMessage, ApplyRedownloadAndDownload);
+            _view.ShowConfirmation(
+                RedownloadConfirmationMessage,
+                ApplyRedownloadAndDownload,
+                "REDOWNLOAD VERSION",
+                "KEEP FILES"
+            );
             return;
         }
 
@@ -168,12 +175,19 @@ internal sealed partial class LauncherController
     }
 
     private void RedownloadPressed()
-        => _view.ShowConfirmation(RedownloadConfirmationMessage, ApplyRedownload);
+        => _view.ShowConfirmation(
+            RedownloadConfirmationMessage,
+            ApplyRedownload,
+            "REDOWNLOAD VERSION",
+            "KEEP FILES"
+        );
 
     private void ClearCachedVersionsPressed()
         => _view.ShowConfirmation(
             "Clear inactive cached game versions?\nThis keeps the selected version and removes other downloaded branch caches.",
-            ClearCachedVersions
+            ClearCachedVersions,
+            "CLEAR CACHE",
+            "KEEP CACHE"
         );
 
     private void ClearCachedVersions()

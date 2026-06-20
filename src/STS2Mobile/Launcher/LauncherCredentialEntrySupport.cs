@@ -13,9 +13,15 @@ internal static class LauncherCredentialEntrySupport
     internal const bool NativeCredentialPanelKeyboardSafeLayoutConfigured = true;
     internal const bool NativeCredentialPanelImeInsetScrollSupported = true;
     internal const bool NativeCredentialPanelTouchTargetLayoutConfigured = true;
+    internal const bool NativeCredentialPanelLargeFieldTargetsSupported = true;
     internal const bool NativeCredentialPanelRequestsBothAutofillFields = true;
     internal const bool NativeCredentialPanelFocusAutofillRequestsSupported = true;
     internal const bool NativeCredentialPanelTaskLedButtonsSupported = true;
+    internal const bool NativeCredentialPanelResponsiveActionRowsSupported = true;
+    internal const bool NativeCredentialPanelOrientationReflowSupported = true;
+    internal const bool NativeCredentialPanelShortHeightCopySupported = true;
+    internal const bool NativeCredentialPanelShortHeightReflowSupported = true;
+    internal const bool NativeCredentialPanelImeHeightReflowSupported = true;
     internal const bool NativeCredentialPanelPasswordVisibilityToggleSupported = true;
     internal const bool NativeCredentialPanelPasswordFocusButtonSupported = true;
     internal const bool NativeCredentialPanelBackDismissSupported = true;
@@ -23,6 +29,7 @@ internal static class LauncherCredentialEntrySupport
     internal const bool NativeCredentialPanelDismissHidesKeyboardSupported = true;
     internal const bool NativeCredentialPanelSuppressesPreAuthSavePrompt = true;
     internal const bool SteamGuardOneShotCodeGuidanceSupported = true;
+    internal const bool SteamGuardAlphanumericKeyboardSupported = true;
     internal const bool FailedLoginRetryGuidanceSupported = true;
     internal const bool ContextSpecificLoginRecoveryGuidanceSupported = true;
     internal const bool GodotFieldCredentialMetadataConfigured = true;
@@ -31,7 +38,7 @@ internal static class LauncherCredentialEntrySupport
     internal const bool PasswordManagerSuggestionsDeviceValidated = false;
     internal const int NativeCredentialHandoffResultTtlSeconds = 60;
     internal const string ProviderModel = "Integrated native Android credential panel on Android; Godot login fields remain the non-Android fallback. The launcher must not store or inject Steam passwords.";
-    internal const string CurrentImplementation = "Android login uses an integrated in-app native credential panel with real username/password EditText fields, Android Autofill hints requested for both credential fields on panel open and again when each field gains focus, Steam web-domain metadata, accessible field labels, inline status/error guidance, keyboard-safe scrollable top-weighted layout with IME inset padding and focus scrolling, branded task-led full-width touch controls, next/done keyboard actions, a manual password visibility toggle that resets to hidden when fields clear, one-shot Steam Guard code guidance, context-specific failed-login and connection-recovery guidance, keyboard/focus cleanup on native panel dismiss, and clear no-password-storage copy before one-shot handoff into the existing SteamKit login flow. The old user-facing native credential popup is disabled. Native username/password fields and the managed fallback password field are cleared after submit/cancel/expiry, and pending native credential handoff values expire after 60 seconds if not consumed.";
+    internal const string CurrentImplementation = "Android login uses an integrated in-app native credential panel with real username/password EditText fields, Android Autofill hints requested for both credential fields on panel open and again when each field gains focus, Steam web-domain metadata, accessible field labels, inline status/error guidance, explicit large styled credential-field touch targets, keyboard-safe scrollable top-weighted layout with IME inset padding and focus scrolling, branded task-led controls that stay full-width on portrait phones and switch to responsive credential/action rows on wide landscape Android viewports, short-height landscape copy compression so credential fields and primary actions stay higher on phone screens, short-height copy reflow when the landscape height class changes, IME-visible height reflow when the keyboard reduces usable landscape height, orientation and screen-size changes rebuild the native credential panel when the width class changes while clearing stale view fields, next/done keyboard actions, a manual password visibility toggle that resets to hidden when fields clear, one-shot Steam Guard code guidance with alphanumeric keyboard entry and uppercase/separator normalization, context-specific failed-login and connection-recovery guidance, keyboard/focus cleanup on native panel dismiss, and clear no-password-storage copy before one-shot handoff into the existing SteamKit login flow. The old user-facing native credential popup is disabled. Native username/password fields and the managed fallback password field are cleared after submit/cancel/expiry, and pending native credential handoff values expire after 60 seconds if not consumed.";
     internal const string CapabilityBoundary = "Native Android credential fields can request Android/Samsung/Google password-manager suggestions, but provider behavior is device/provider dependent and requires ARM64 validation.";
     internal const string UsernamePurpose = "username";
     internal const string PasswordPurpose = "password";

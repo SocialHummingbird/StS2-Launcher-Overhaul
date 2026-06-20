@@ -139,6 +139,7 @@ Add-Check `
         "DropdownOptions",
         "DropdownOptionMetadata",
         "SelectedOptionStatus",
+        "SelectedOptionCompactStatus",
         "SelectedOptionDownloadProblem",
         "DropdownLabelWithMetadata",
         "StatusText",
@@ -148,6 +149,9 @@ Add-Check `
         "\(password\)",
         "\(unavailable\)",
         "\(ready\)",
+        "Password branch blocked",
+        "Ready in Steam catalog",
+        "Refresh before download",
         "Steam app-info visible branch catalog",
         "GroupBy",
         "saved selection",
@@ -217,6 +221,7 @@ Add-Check `
         "REFRESH GAME VERSIONS",
         "RefreshGameVersionsRequested",
         "SelectedOptionStatus",
+        "SelectedOptionCompactStatus",
         "UpdateBranchHelpText",
         "OptionButton",
         "_branchDropdown",
@@ -235,6 +240,7 @@ Add-Check `
         "RefreshGameVersionsPressed",
         "SetRefreshVersionsButtonDisabled",
         "SelectedOptionStatus",
+        "SelectedOptionCompactStatus",
         "UpdateBranchHelpText",
         "SteamGameBranch\.SelectorInstallSlotHelpText",
         "Version/download actions affect local game files only",
@@ -471,6 +477,80 @@ Add-Check `
         "BranchIntegritySummary",
         "integritySummary",
         "AppendLog"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Dialog.cs" `
+    "accepts contextual confirmation button labels" `
+    @(
+        "confirmText",
+        "cancelText",
+        "DialogButtonText",
+        "BuildDialogButtons"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Dialog.cs" `
+    "keeps compact confirmation warnings scroll-safe with reachable buttons" `
+    @(
+        "CompactDialogWidthRatio = 0\.9f",
+        "CompactDialogMaxMessageHeightRatio = 0\.44f",
+        "CompactDialogMessageMinScrollHeight = 96",
+        "BuildDialogMessageArea",
+        "ShouldScrollDialogMessage",
+        "DialogMessageScrollHeight",
+        "new ScrollContainer",
+        "DialogMessageWidth\(profile\)",
+        "profile\.ViewportSize\.Y \* CompactDialogMaxMessageHeightRatio",
+        "button\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "exposes contextual confirmation button label overloads" `
+    @(
+        "confirmText",
+        "cancelText",
+        "BuildConfirmationDialog"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "sizes confirmation dialogs from the current visible viewport" `
+    @(
+        "CurrentConfirmationProfile",
+        "GetVisibleRect\(\)\.Size",
+        "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
+        "BuildConfirmationDialog\(message,\s*CurrentConfirmationProfile\(\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Downloads.cs" `
+    "labels redownload and cache confirmations with explicit compact actions" `
+    @(
+        "REDOWNLOAD VERSION",
+        "KEEP FILES",
+        "DELETE CACHE",
+        "CLEAR CACHE",
+        "KEEP CACHE"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Startup.cs" `
+    "labels branch-switch confirmation with explicit compact actions" `
+    @(
+        "SWITCH VERSION",
+        "KEEP CURRENT"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.cs" `
+    "labels final cloud confirmation with explicit compact actions" `
+    @(
+        "ConfirmText",
+        "CancelText",
+        "PUSH TO CLOUD",
+        "CANCEL PUSH"
     )
 
 Add-Check `
@@ -741,9 +821,15 @@ Add-Check `
         "NativeCredentialPanelKeyboardSafeLayoutConfigured\s*=\s*true",
         "NativeCredentialPanelImeInsetScrollSupported\s*=\s*true",
         "NativeCredentialPanelTouchTargetLayoutConfigured\s*=\s*true",
+        "NativeCredentialPanelLargeFieldTargetsSupported\s*=\s*true",
         "NativeCredentialPanelRequestsBothAutofillFields\s*=\s*true",
         "NativeCredentialPanelFocusAutofillRequestsSupported\s*=\s*true",
         "NativeCredentialPanelTaskLedButtonsSupported\s*=\s*true",
+        "NativeCredentialPanelResponsiveActionRowsSupported\s*=\s*true",
+        "NativeCredentialPanelOrientationReflowSupported\s*=\s*true",
+        "NativeCredentialPanelShortHeightCopySupported\s*=\s*true",
+        "NativeCredentialPanelShortHeightReflowSupported\s*=\s*true",
+        "NativeCredentialPanelImeHeightReflowSupported\s*=\s*true",
         "NativeCredentialPanelPasswordVisibilityToggleSupported\s*=\s*true",
         "NativeCredentialPanelPasswordFocusButtonSupported\s*=\s*true",
         "NativeCredentialPanelBackDismissSupported\s*=\s*true",
@@ -751,6 +837,7 @@ Add-Check `
         "NativeCredentialPanelDismissHidesKeyboardSupported\s*=\s*true",
         "NativeCredentialPanelSuppressesPreAuthSavePrompt\s*=\s*true",
         "SteamGuardOneShotCodeGuidanceSupported\s*=\s*true",
+        "SteamGuardAlphanumericKeyboardSupported\s*=\s*true",
         "FailedLoginRetryGuidanceSupported\s*=\s*true",
         "ContextSpecificLoginRecoveryGuidanceSupported\s*=\s*true",
         "GodotFieldCredentialMetadataConfigured\s*=\s*true",
@@ -764,10 +851,15 @@ Add-Check `
         "real username/password EditText fields",
         "Steam web-domain metadata",
         "inline status/error guidance",
+        "explicit large styled credential-field touch targets",
         "keyboard-safe scrollable top-weighted layout with IME inset padding and focus scrolling",
-        "branded task-led full-width touch controls",
+        "branded task-led controls that stay full-width on portrait phones and switch to responsive credential/action rows on wide landscape Android viewports",
+        "short-height landscape copy compression so credential fields and primary actions stay higher on phone screens",
+        "short-height copy reflow when the landscape height class changes",
+        "IME-visible height reflow when the keyboard reduces usable landscape height",
+        "orientation and screen-size changes rebuild the native credential panel when the width class changes while clearing stale view fields",
         "manual password visibility toggle that resets to hidden",
-        "one-shot Steam Guard code guidance",
+        "one-shot Steam Guard code guidance with alphanumeric keyboard entry and uppercase/separator normalization",
         "context-specific failed-login and connection-recovery guidance",
         "keyboard/focus cleanup on native panel dismiss",
         "old user-facing native credential popup is disabled",
@@ -797,6 +889,8 @@ Add-Check `
         "VirtualKeyboardType\.EmailAddress",
         "VirtualKeyboardType\.Password",
         "SIGN IN WITH STEAM",
+        "credentialHelpLabel",
+        "MoveChild\(_nativeLoginButton, credentialHelpLabel\.GetIndex\(\)\)",
         "ShowSteamLoginCredentialPanel",
         "TryConsumeSteamLoginCredentialResult",
         "IsSteamLoginCredentialPanelVisible",
@@ -808,18 +902,61 @@ Add-Check `
     )
 
 Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LoginSection.cs" `
+    "promotes compact Android Steam sign-in to a large primary CTA with a readable two-line helper" `
+    @(
+        "CompactNativeLoginButtonHeight = LauncherSectionMetrics\.CodeInputHeight",
+        "CompactNativeLoginText",
+        "SetCompactNativeLoginButtonText",
+        "SIGN IN WITH STEAM",
+        "Android login",
+        "LauncherSectionMetrics\.CompactCredentialHelpHeight",
+        "compactNativeLogin",
+        "LauncherSectionMetrics\.PrimaryButtonFontSize",
+        "TextServer\.AutowrapMode\.WordSmart",
+        "ClipText = false",
+        "VerticalAlignment\.Center",
+        "ScaleInt\(LauncherSectionMetrics\.CompactCredentialHelpHeight, scale\)",
+        "Password manager can appear\.",
+        "Steam password is not stored\."
+    )
+
+Add-Check `
     "src\STS2Mobile\Launcher\Sections\LauncherSectionSetup.cs" `
-    "frames launcher states with explicit titled portal sections" `
+    "frames launcher states with explicit titled portal sections and readable compact task cues" `
     @(
         "ConfigureHiddenSection",
         "BuildSectionHeader",
+        "BuildCompactSectionHeader",
         "bool compact",
         "!compact",
         "title",
         "subtitle",
         "accent",
-        "BuildHeaderStyle",
+        "CompactSectionHeaderMinHeight = 42",
+        "CompactSectionHeaderCueFontSize = 12",
+        "CompactSectionHeaderTitleFontSize = 14",
+        "CompactSectionHeaderTitleMinWidth = 106",
+        "CompactSectionHeaderAccentWidth = 3",
+        "LauncherSectionMetrics\.CompactSectionSeparation",
+        "new HBoxContainer",
+        "new VBoxContainer",
+        "BuildCompactSectionHeader\(title, subtitle, scale, accent\)",
+        "BuildHeaderStyle\(scale, compact\)",
+        "compact \? 2 : 4",
+        "compact \? 2 : 3",
+        "compact \? 15 : 13",
+        "compact \? 6 : 8",
+        "compact \? 4 : 8",
+        "compact \? 4 : 9",
         "StyledLabel",
+        "TextServer\.AutowrapMode\.WordSmart",
+        "cueLabel\.AutowrapMode = TextServer\.AutowrapMode\.Off",
+        "cueLabel\.ClipText = true",
+        "cueLabel\.TooltipText = subtitle",
+        "titleLabel\.SizeFlagsHorizontal = Control\.SizeFlags\.ShrinkBegin",
+        "TextServer\.OverrunBehavior\.TrimEllipsis",
+        "SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
         "TextSecondary",
         "SetBorderWidthAll"
     )
@@ -833,12 +970,33 @@ Add-Check `
         "BuildFirstRunGuide",
         "BuildCollapsedFirstRunGuide",
         "BuildFirstRunGuidePanel",
-        "SHOW SAFE FLOW",
-        "HIDE SAFE FLOW",
+        "CompactSafeFlowGuideText",
+        "CompactSafeFlowGuideTextHeight",
+        "BuildFirstRunGuideStyle\(scale, compact\)",
+        "Setup: sign in -> download version -> Pull saves",
+        "Push stays locked until verified",
+        "SetCompactSafeFlowToggleText",
+        "EnsureCompactSafeFlowToggleLabels",
+        "CompactSafeFlowToggleBodyName",
+        "CompactSafeFlowToggleTitleName",
+        "CompactSafeFlowToggleDetailName",
+        "CompactSafeFlowToggleDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        'toggle\.Text = ""',
+        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "guidance\.CustomMinimumSize = new Vector2",
+        "LauncherComponentTheme\.TextSecondary",
+        "`"SAFE FLOW`"",
+        "`"Pull then play`"",
+        "`"HIDE SAFE FLOW`"",
+        "`"Pull-first guard`"",
+        "LauncherSectionMetrics\.CompactDrawerToggleHeight",
+        "LauncherSectionMetrics\.CompactDetailButtonFontSize",
         "profile\.Compact",
-        "Safe flow: Sign in -> Download version -> Pull saves -> Launch",
+        "CompactPrimaryColumnSeparation",
+        "Setup: sign in -> download version -> Pull saves",
         "Safe first-run flow",
-        "Pull saves before any Push",
+        "Push stays hidden until local saves are verified",
         "Initializing\.\.\.",
         "Status",
         "CyanAccent",
@@ -855,7 +1013,115 @@ Add-Check `
         "Diagnostics Console",
         "Hidden by default",
         "Export sanitized diagnostics",
-        "drawer\.Visible = false"
+        "drawer\.Visible = false",
+        "DiagnosticsToggleText",
+        "SetDiagnosticsToggleText",
+        "EnsureCompactDiagnosticsToggleLabels",
+        "CompactDiagnosticsToggleBodyName",
+        "CompactDiagnosticsToggleTitleName",
+        "CompactDiagnosticsToggleDetailName",
+        "CompactDiagnosticsToggleDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        'toggle\.Text = ""',
+        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "LauncherComponentTheme\.TextSecondary",
+        "LauncherSectionMetrics\.CompactDetailButtonFontSize",
+        "LauncherSectionMetrics\.CompactDrawerToggleHeight",
+        "`"Log \+ export context`"",
+        "`"Keep log closed`"",
+        "return \(log, drawer, toggle\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "hosts compact diagnostics inside the primary scroll body instead of fixed root chrome" `
+    @(
+        "VBoxContainer CompactDiagnosticsHost",
+        "compactDiagnosticsHost = new VBoxContainer",
+        "compactDiagnosticsHost\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "left\.AddChild\(compactDiagnosticsHost\)",
+        "compactDiagnosticsHost"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.LogColumn.cs" `
+    "bounds the compact diagnostics log viewport from the current launcher profile" `
+    @(
+        "CompactDiagnosticsLogViewportHeightRatio = 0\.28f",
+        "CompactDiagnosticsLogMinHeight = 220",
+        "CompactDiagnosticsLogMaxHeight = 340",
+        "DiagnosticsLogHeight\(LauncherLayoutProfile profile\)",
+        "profile\.ViewportSize\.Y \* CompactDiagnosticsLogViewportHeightRatio",
+        "Math\.Clamp\(viewportHeight, minHeight, maxHeight\)",
+        "BuildLogView\(profile\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "refreshes diagnostics log viewport height after Android viewport changes" `
+    @(
+        "UpdateViewportSize\(Vector2 viewportSize\)",
+        "_panel\.UpdateSizeFromViewport\(viewportSize, _profile\.PanelHeightRatio\)",
+        "UpdateDiagnosticsLogViewport\(viewportSize\)",
+        "UpdateKeyboardOffset\(\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.LogColumn.cs" `
+    "keeps open compact diagnostics readable after viewport resize" `
+    @(
+        "UpdateDiagnosticsLogViewport\(Vector2 viewportSize\)",
+        "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
+        "Log\.CustomMinimumSize = new Vector2\(0, DiagnosticsLogHeight\(profile\)\)",
+        "_profile\.Compact && DiagnosticsDrawer\.Visible",
+        "ScrollCompactPrimaryTo\(DiagnosticsDrawer\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Log.cs" `
+    "renders compact diagnostics logs with readable Android text and padding" `
+    @(
+        "CompactDiagnosticsLogFontSize = 15",
+        "CompactDiagnosticsLogMarginHorizontal = 12",
+        "CompactDiagnosticsLogMarginVertical = 10",
+        "BuildLogView\(LauncherLayoutProfile profile\)",
+        "var compact = profile\.Compact",
+        "compact \? CompactDiagnosticsLogFontSize : LauncherComponentTheme\.LogFontSize",
+        "BuildLogStyle\(scale, compact\)",
+        "compact\s*\?\s*CompactDiagnosticsLogMarginHorizontal",
+        "compact\s*\?\s*CompactDiagnosticsLogMarginVertical",
+        "SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.cs" `
+    "can reveal the hidden diagnostics console after explicit diagnostics actions" `
+    @(
+        "DiagnosticsDrawer",
+        "DiagnosticsToggle",
+        "ShowDiagnosticsConsole",
+        "var diagnosticsRoot = profile\.Compact",
+        "primary\.CompactDiagnosticsHost",
+        "DiagnosticsDrawer\.Visible = true",
+        "SetDiagnosticsToggleText\(DiagnosticsToggle, _profile, visible: true\)",
+        "ScrollCompactPrimaryTo\(DiagnosticsDrawer\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Diagnostics.cs" `
+    "opens diagnostics console when error summary or raw-log actions write output" `
+    @(
+        "ShowDiagnosticsSummary",
+        "CopyRawLogToClipboard",
+        "view\.ShowDiagnosticsConsole\(\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Diagnostics.Export.cs" `
+    "opens diagnostics console after manual diagnostics export writes output" `
+    @(
+        "ShowDiagnosticsExportResult",
+        "_view\.ShowDiagnosticsConsole\(\)"
     )
 
 Add-Check `
@@ -865,22 +1131,43 @@ Add-Check `
         "StS2 Mobile",
         "STEAM \| CLOUD \| PLAY",
         "STEAM LOGIN\s*\|\s*VERSION SLOTS\s*\|\s*CLOUD SAVES",
+        "CompactBrandTitleFontSize = 18",
+        "CompactBrandSubtitleFontSize = 12",
+        "CompactBrandMarkHeight = 26",
+        "CompactBrandRowSeparation = 6",
+        "CompactBrandHeaderSeparation = 2",
+        "BuildCompactBrandHeader",
         "BuildBrandMark",
         "profile\.Compact",
-        "compact \? 40 : 50",
-        "profile\.Compact \? 1 : 2",
+        "if \(profile\.Compact\)",
+        "return BuildCompactBrandHeader\(profile\)",
+        "fontSize: CompactBrandTitleFontSize",
+        "fontSize: CompactBrandSubtitleFontSize",
+        "title\.ClipText = true",
+        "subtitle\.ClipText = true",
+        "CompactRootColumnSeparation",
+        "compact \? CompactBrandMarkHeight : 50",
+        "compact \? 12 : 16",
         "OrangeAccent",
         "CyanAccent"
     )
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherLayoutProfile.cs" `
-    "uses more available phone screen space for compact launcher layouts" `
+    "uses the full available Android viewport for compact launcher layouts" `
     @(
-        "panelWidth = compact \? 0\.98f",
-        "panelHeight = compact \? 0\.98f",
-        "Math\.Min\(safeViewport\.X \* 0\.94f, 1120f\)",
-        "Math\.Min\(safeViewport\.X \* 0\.84f, 1180f\)"
+        "mobileShell = OperatingSystem\.IsAndroid\(\)",
+        "compact = mobileShell",
+        "AndroidCompactTouchScaleFloor = 1\.06f",
+        "mobileShell \? AndroidCompactTouchScaleFloor : CompactScaleFloor",
+        "CompactStackedActionRowsWidth = 560f",
+        "CompactStackedActionRows",
+        "contentMaxWidth < MathF\.Round\(CompactStackedActionRowsWidth \* scale\)",
+        "panelWidth = compact \? 1\.0f",
+        "panelHeight = compact \? 1\.0f",
+        "Math\.Min\(safeViewport\.X \* 0\.96f, 1600f\)",
+        "Math\.Min\(safeViewport\.X \* 0\.84f, 1180f\)",
+        "CompactStackedActionRows=\{CompactStackedActionRows\}"
     )
 
 Add-Check `
@@ -888,8 +1175,576 @@ Add-Check `
     "reduces compact-mode panel padding and avoids a short fixed-height phone panel" `
     @(
         "MaxHeight = 2200f",
-        "compact \? 12",
+        "CompactPanelHorizontalMargin = 10",
+        "CompactPanelTopMargin = 10",
+        "CompactPanelBottomMargin = 12",
+        "compact \? CompactPanelHorizontalMargin : LauncherComponentTheme\.PanelHorizontalMargin",
+        "compact \? CompactPanelTopMargin : LauncherComponentTheme\.PanelTopMargin",
+        "compact \? CompactPanelBottomMargin : LauncherComponentTheme\.PanelBottomMargin",
+        "_compact\s*\?\s*vpSize\.Y \* heightRatio",
         "BuildStyle\(scale, compact\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "adds compact-only bottom scroll breathing room for phone gesture areas" `
+    @(
+        "profile\.Compact",
+        "BuildCompactBottomScrollSpacer",
+        "LauncherViewLayoutMetrics\.ScaleInt\(72, scale\)",
+        "MouseFilterEnum\.Ignore"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "uses a low-profile compact status card with responsive headline and narrow stacked fallback" `
+    @(
+        "BuildCompactStatusCapsule",
+        "CompactStatusBodySeparation = 5",
+        "CompactStatusAccentHeight = 3",
+        "CompactStatusHeadlineSeparation = 3",
+        "CompactStatusHeadlineInlineSeparation = 6",
+        "CompactStatusPhaseInlineWidth = 112",
+        "CompactStatusPhaseHorizontalMargin = 7",
+        "CompactStatusPhaseVerticalMargin = 3",
+        "CompactStatusActionMinHeight = 24",
+        "profile\.CompactStackedActionRows",
+        "ApplyCompactStatusHeadlineLayout",
+        "GridContainer CompactHeadline",
+        "PanelContainer CompactPhasePanel",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStatusBodySeparation, scale\)",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStatusAccentHeight, scale\)",
+        "var headline = new GridContainer",
+        "headline\.Columns = stacked \? 1 : 2",
+        "LauncherViewLayoutMetrics\.ScaleInt\(\s*stacked\s*\?\s*CompactStatusHeadlineSeparation\s*:\s*CompactStatusHeadlineInlineSeparation",
+        "LauncherViewLayoutMetrics\.ScaleInt\(stacked \? 0 : CompactStatusPhaseInlineWidth, scale\)",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStatusActionMinHeight, scale\)",
+        "var stacked = profile\.CompactStackedActionRows",
+        "phasePanel\.SizeFlagsHorizontal = stacked",
+        "Control\.SizeFlags\.ShrinkBegin",
+        "headline\.AddChild\(phasePanel\)",
+        "BuildStatusPhaseStyle\(scale, compact: true\)",
+        "statusActionLabel\.VerticalAlignment = VerticalAlignment\.Center",
+        "statusActionLabel\.AutowrapMode = TextServer\.AutowrapMode\.WordSmart",
+        "statusActionLabel\.ClipText = false",
+        "statusActionLabel\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "statusActionLabel\.CustomMinimumSize = new Vector2",
+        "headline\.AddChild\(statusActionLabel\)",
+        "body\.AddChild\(headline\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "reflows the compact status headline after viewport changes" `
+    @(
+        "UpdateCompactStatusHeadline\(viewportSize\)",
+        "private void UpdateCompactStatusHeadline\(Vector2 viewportSize\)",
+        "_compactStatusHeadline",
+        "_compactStatusPhasePanel",
+        "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
+        "ApplyCompactStatusHeadlineLayout"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "keeps normal compact status details to a stable one-line row" `
+    @(
+        "CompactStatusDetailHeight = 28",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStatusDetailHeight, scale\)",
+        "statusLabel\.AutowrapMode = TextServer\.AutowrapMode\.Off",
+        "statusLabel\.ClipText = true",
+        "statusLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.cs" `
+    "lets compact attention statuses expand while normal status details stay stable" `
+    @(
+        "_statusLabel\.TooltipText = message",
+        "string\.Equals\(phase, `"ATTENTION`", StringComparison\.Ordinal\)",
+        "TextServer\.AutowrapMode\.WordSmart",
+        "TextServer\.AutowrapMode\.Off",
+        "_statusLabel\.ClipText = !attention"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "adds a touch-safe responsive compact workflow step strip so phone users can see and tap the current launcher step without hover tooltips" `
+    @(
+        "BuildCompactWorkflowStrip",
+        "CompactWorkflowStepHeight = LauncherSectionMetrics\.CompactDrawerToggleHeight",
+        "CompactWorkflowStepDenseHeight = LauncherSectionMetrics\.CompactDrawerToggleHeight",
+        "CompactWorkflowStepLabelFontSize = 13",
+        "CompactWorkflowStepNumberFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        "CompactWorkflowStepNumberMinWidth = 16",
+        "CompactWorkflowStepAccentHeight = 2",
+        "CompactWorkflowStepSeparation = 1",
+        "CompactWorkflowStepCellGap = 2",
+        "CompactWorkflowStepNumberGap = 2",
+        "CompactWorkflowStepHorizontalMargin = 3",
+        "CompactWorkflowStepVerticalMargin = 2",
+        "GridContainer",
+        "bool denseNarrowWorkflow",
+        "Columns = CompactWorkflowStepNames\.Length",
+        "var stepHeight = denseNarrowWorkflow",
+        "\? CompactWorkflowStepDenseHeight",
+        ": CompactWorkflowStepHeight",
+        "Button\[\] StepButtons",
+        "BuildCompactWorkflowStepButton\(i, scale, stepHeight\)",
+        "BuildCompactWorkflowStepButton\(int index, float scale, int height\)",
+        "ApplyWorkflowStepButtonStyle",
+        "CompactWorkflowStepTooltips",
+        "CompactWorkflowStepNumbers",
+        "MouseDefaultCursorShape = Control\.CursorShape\.PointingHand",
+        "Go to \{CompactWorkflowStepTooltips\[index\]\}",
+        "StyledLabel\[\] StepNumberLabels",
+        "StyledLabel\[\] StepLabels",
+        "ColorRect\[\] StepAccents",
+        "SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "new HBoxContainer",
+        "OffsetLeft",
+        "OffsetRight",
+        "numberLabels\[i\] = numberLabel",
+        "label\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "label\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "LauncherViewLayoutMetrics\.ScaleInt\(height, scale\)",
+        "fontSize: CompactWorkflowStepNumberFontSize",
+        "fontSize: CompactWorkflowStepLabelFontSize",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactWorkflowStepAccentHeight, scale\)",
+        "BuildWorkflowStepStyle"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.cs" `
+    "makes compact workflow steps tappable direct navigation controls" `
+    @(
+        "_workflowStepButtons",
+        "WireCompactWorkflowStepNavigation",
+        "ScrollCompactWorkflowStep",
+        "Pressed \+= \(\) => ScrollCompactWorkflowStep\(capturedStep\)",
+        "CompactWorkflowStep\.SignIn => Login\.Visible",
+        "CompactWorkflowStep\.Code => Code\.Visible",
+        "CompactWorkflowStep\.Files => Download\.Visible",
+        "CompactWorkflowStep\.Play => _compactCurrentTaskTarget",
+        "ScrollCompactPrimaryTo\(target\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "anchors the compact workflow step strip outside the scrolling body so progress remains visible" `
+    @(
+        "var workflowStrip = BuildCompactWorkflowStrip\(scale, profile\.Compact, profile\.CompactStackedActionRows\)",
+        "BuildCompactStickyTaskHeader\(profile, compactCurrentTaskButton, workflowStrip\.Strip\)",
+        "root\.AddChild\(leftScroll\)",
+        "if \(!profile\.Compact\)",
+        "left\.AddChild\(workflowStrip\.Strip\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "adds a low-profile compact current-task jump button so phone users can reach the active section quickly" `
+    @(
+        "BuildCompactCurrentTaskButton",
+        "SetCompactCurrentTaskButtonText",
+        "EnsureCompactCurrentTaskButtonLabels",
+        "CompactCurrentTaskButtonBodyName",
+        "CompactCurrentTaskButtonTitleName",
+        "CompactCurrentTaskButtonDetailName",
+        "CompactCurrentTaskButtonDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        'button\.Text = ""',
+        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "LauncherComponentTheme\.TextSecondary",
+        'SetCompactCurrentTaskButtonText\(button, scale, "GO TO SETUP", "Setup guide"\)',
+        "LauncherSectionMetrics\.CompactDetailButtonHeight",
+        "LauncherSectionMetrics\.CompactDetailButtonFontSize",
+        "LauncherButtonStyles\.ApplyPrimaryAction",
+        "compactCurrentTaskButton"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "anchors the compact current-task jump button outside the scrolling body so it remains reachable" `
+    @(
+        "var compactCurrentTaskButton = BuildCompactCurrentTaskButton\(scale, profile\.Compact\)",
+        "if \(profile\.Compact\)",
+        "BuildCompactStickyTaskHeader\(profile, compactCurrentTaskButton, workflowStrip\.Strip\)",
+        "root\.AddChild\(leftScroll\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "builds the compact current-task button and workflow strip as one viewport-reflowable sticky header grid" `
+    @(
+        "CompactStickyTaskHeaderGridName",
+        "GridContainer CompactStickyTaskHeader",
+        "Control CompactWorkflowStrip",
+        "var stickyHeader = BuildCompactStickyTaskHeader\(profile, compactCurrentTaskButton, workflowStrip\.Strip\)",
+        "compactStickyTaskHeader = stickyHeader\.Header",
+        "root\.AddChild\(stickyHeader\.Toolbar\)",
+        "BuildCompactStickyTaskHeader",
+        "new GridContainer",
+        "Name = CompactStickyTaskHeaderGridName",
+        "ApplyCompactStickyTaskHeaderLayout",
+        "header\.Columns = stacked \? 1 : 2",
+        "CompactStickyTaskHeaderInlineGap = 6",
+        "CompactStickyTaskButtonMinWidth = 176",
+        "CompactInlineCurrentTaskHeight = LauncherSectionMetrics\.CompactDrawerToggleHeight",
+        "compactCurrentTaskButton\.SizeFlagsHorizontal = Control\.SizeFlags\.ShrinkBegin",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStickyTaskButtonMinWidth, scale\)",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactInlineCurrentTaskHeight, scale\)",
+        "workflowStrip\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "header\.AddChild\(compactCurrentTaskButton\)",
+        "header\.AddChild\(workflowStrip\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "wraps the compact sticky task header in a low-profile toolbar shell" `
+    @(
+        "WrapCompactStickyTaskHeader",
+        "BuildCompactStickyTaskHeaderStyle",
+        "CompactStickyTaskToolbarRadius = 7",
+        "CompactStickyTaskToolbarHorizontalMargin = 5",
+        "CompactStickyTaskToolbarVerticalMargin = 4",
+        "new PanelContainer",
+        "BuildCompactStickyTaskHeaderStyle\(scale\)",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStickyTaskToolbarHorizontalMargin, scale\)",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStickyTaskToolbarVerticalMargin, scale\)",
+        "return \(WrapCompactStickyTaskHeader\(scale, header\), header\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "stacks the compact sticky task header on narrow compact viewports so task and workflow controls stay readable" `
+    @(
+        "CompactStickyTaskHeaderStackGap = 3",
+        "CompactStickyTaskHeaderStackWidth = 560",
+        "ShouldStackCompactStickyTaskHeader",
+        "profile\.ContentMaxWidth < LauncherViewLayoutMetrics\.ScaleInt",
+        "ApplyCompactStickyTaskHeaderLayout",
+        "header\.Columns = stacked \? 1 : 2",
+        "stacked \? CompactStickyTaskHeaderStackGap : CompactStickyTaskHeaderInlineGap",
+        "CompactStackedCurrentTaskHeight = CompactWorkflowStepDenseHeight",
+        "stacked \? CompactStickyTaskHeaderStackGap : CompactStickyTaskHeaderInlineGap",
+        "compactCurrentTaskButton\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStackedCurrentTaskHeight, scale\)",
+        "workflowStrip\.SizeFlagsVertical = Control\.SizeFlags\.ShrinkBegin"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "reflows the compact sticky task header after Android viewport changes" `
+    @(
+        "UpdateCompactStickyTaskHeader\(viewportSize\)",
+        "UpdateCompactStickyTaskHeader\(Vector2 viewportSize\)",
+        "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
+        "ApplyCompactStickyTaskHeaderLayout",
+        "_compactStickyTaskHeader",
+        "_compactWorkflowStrip"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.cs" `
+    "tracks compact workflow step labels and updates active/completed step colors" `
+    @(
+        "CompactWorkflowStepNames",
+        "CompactWorkflowStepNumbers",
+        "CompactWorkflowStep",
+        "SetCompactWorkflowStep",
+        '"SIGN IN"',
+        '"GUARD"',
+        '"FILES"',
+        '"PLAY"',
+        '"1"',
+        '"2"',
+        '"3"',
+        '"4"',
+        "CompactWorkflowStepTooltips",
+        "_workflowStepNumberLabels",
+        "Sign in",
+        "Steam Guard",
+        "Files",
+        "Play",
+        "_workflowStepNumberLabels\[i\]\.AddThemeColorOverride",
+        "LauncherComponentTheme\.OrangeHot",
+        "LauncherComponentTheme\.CyanAccent",
+        "LauncherComponentTheme\.TextMuted"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.cs" `
+    "tracks the compact current-task jump target without invoking launcher actions directly" `
+    @(
+        "_compactCurrentTaskButton",
+        "_compactCurrentTaskTarget",
+        "SetCompactCurrentTask",
+        "SetCompactCurrentTaskButtonText",
+        "string detail",
+        "SetCompactCurrentTaskButtonText\(_compactCurrentTaskButton, _scale, text, detail\)",
+        "ScrollCompactPrimaryTo\(_compactCurrentTaskTarget\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
+    "updates the compact workflow step strip from existing section state transitions" `
+    @(
+        "SetCompactWorkflowStep\(CompactWorkflowStep\.SignIn\)",
+        "SetCompactWorkflowStep\(CompactWorkflowStep\.Code\)",
+        "SetCompactWorkflowStep\(CompactWorkflowStep\.Files\)",
+        "SetCompactWorkflowStep\(CompactWorkflowStep\.Play\)",
+        "ShowDownloadProgress",
+        "SetDownloadProgress",
+        "ShowLaunchActions",
+        "ShowRetry"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
+    "updates the compact current-task jump button from existing section state transitions" `
+    @(
+        'SetCompactCurrentTask\("GO TO LOGIN", Login, "Steam login"\)',
+        'SetCompactCurrentTask\("GO TO GUARD", Code, "Verification code"\)',
+        'SetCompactCurrentTask\("GO TO FILES", Download, "Game files"\)',
+        'SetCompactCurrentTask\("GO TO RETRY", Actions\.RetryScrollTarget, "Recovery action"\)',
+        'SetCompactCurrentTask\("GO TO PLAY", Actions\.ReadyScrollTarget, "Play and saves"\)'
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
+    "labels compact current-task jumps as navigation rather than direct launcher actions" `
+    @(
+        '"GO TO LOGIN"',
+        '"GO TO GUARD"',
+        '"GO TO FILES"',
+        '"GO TO RETRY"',
+        '"GO TO PLAY"'
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "promotes compact retry recovery to a primary structured action" `
+    @(
+        'compact \? CompactRetryButtonText\(\) : "RETRY"',
+        "LauncherButtonStyles\.ApplyPrimaryAction\(_retryButton, scale\)",
+        "SetCompactActionButtonText\(_retryButton, _retryButton\.Text\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "labels compact retry recovery as TRY AGAIN with restart-task detail" `
+    @(
+        "CompactRetryButtonText",
+        'CompactPlaySyncDrawerText\("TRY AGAIN", "Restart task"\)'
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "labels compact launch CTA with selected-version detail" `
+    @(
+        "SetCompactActionButtonText\(_launchButton",
+        "CompactLaunchButtonText\(text\)",
+        "CompactLaunchButtonText",
+        "START GAME",
+        "Selected version"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
+    "suppresses compact first-run safe-flow guidance during active task states while preserving setup guidance" `
+    @(
+        "SetFirstRunGuideVisible\(true\)",
+        "SetFirstRunGuideVisible\(false\)",
+        "SetLoginFormVisible\(bool visible, bool disabled\)[\s\S]*SetFirstRunGuideVisible\(false\)[\s\S]*HideCompactCompletedAuthSections",
+        "ShowCodePrompt\(bool wasIncorrect\)[\s\S]*SetFirstRunGuideVisible\(false\)",
+        "ShowDownloadAction\(string buttonText\)[\s\S]*SetFirstRunGuideVisible\(false\)",
+        "ShowLaunchActions",
+        "ShowRetry",
+        "ShowDownloadAction",
+        "SetLoginFormVisible",
+        "FirstRunGuide\.Visible = !_profile\.Compact \|\| visible"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.cs" `
+    "uses larger compact Steam Guard code entry and verification controls" `
+    @(
+        "bool compactStackedActionRows = false",
+        "_compactStackedActionRows = compact && compactStackedActionRows",
+        "compact \? `"ABC123`" : `"Steam Guard code`"",
+        "CodeInputHeight",
+        "CodeInputFontSize",
+        "CodeSubmitFontSize",
+        "CompactCodePromptHeight",
+        "CompactCodeHelpHeight",
+        "CompactCodeSubmitText",
+        "SetCompactCodeSubmitButtonText",
+        "One-shot submit; code is not stored",
+        "_codeLabel\.CustomMinimumSize = new Vector2",
+        "_codeHelpLabel\.CustomMinimumSize = new Vector2",
+        "_codeHelpLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "inputHeight",
+        "inputFontSize",
+        "height: inputHeight",
+        "VERIFY CODE",
+        "Submit once",
+        "CompactCodeActionRowSeparation = 6",
+        "BuildCompactCodeActionRow",
+        "GridContainer _compactCodeActionRow",
+        "new GridContainer",
+        "ApplyCompactCodeActionRowLayout",
+        "row\.Columns = compactStackedActionRows \? 1 : 2",
+        "codeActionParent\.AddChild\(_codeField\)",
+        "codeActionParent\.AddChild\(submitButton\)",
+        "_codeField\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "submitButton\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "MoveChild\(_codeHelpLabel, compactCodeActionRow\.GetIndex\(\) \+ 1\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.cs" `
+    "reflows compact Steam Guard code controls after viewport changes" `
+    @(
+        "UpdateViewportProfile\(LauncherLayoutProfile profile\)",
+        "GodotObject\.IsInstanceValid\(_compactCodeActionRow\)",
+        "_compactStackedActionRows = profile\.Compact && profile\.CompactStackedActionRows",
+        "ApplyCompactCodeActionRowLayout\(_compactCodeActionRow, profile\.Scale, _compactStackedActionRows\)",
+        "row\.Columns = compactStackedActionRows \? 1 : 2",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactCodeActionRowSeparation, scale\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "updates compact section responsive rows after viewport changes" `
+    @(
+        "UpdateCompactSectionResponsiveRows\(viewportSize\)",
+        "private void UpdateCompactSectionResponsiveRows\(Vector2 viewportSize\)",
+        "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
+        "Code\.UpdateViewportProfile\(profile\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.cs" `
+    "keeps compact Steam Guard retry guidance short and readable" `
+    @(
+        "CompactIncorrectPrompt",
+        "Code rejected",
+        "CompactIncorrectHelp",
+        "Use newest Steam Guard code",
+        "Old codes can expire; spaces removed",
+        "CodePromptText\(_compact, wasIncorrect\)",
+        "CodeHelpText\(_compact, wasIncorrect\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "passes compact width class into the Steam Guard code section for responsive verification controls" `
+    @(
+        "new CodeSection\(scale, profile\.Compact, profile\.CompactStackedActionRows\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LauncherSectionMetrics.cs" `
+    "defines compact Steam Guard touch target metrics" `
+    @(
+        "CodeInputFontSize\s*=\s*22",
+        "CodeInputHeight\s*=\s*76",
+        "CodeSubmitFontSize\s*=\s*19",
+        "CompactDetailLabelFontSize\s*=\s*12",
+        "CompactDrawerToggleHeight\s*=\s*54"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
+    "suppresses compact install section after launch-ready while restoring it for downloads" `
+    @(
+        "SetCompactReadyInstallSectionVisible",
+        "ShowDownloadAction",
+        "SetCompactReadyInstallSectionVisible\(true\)",
+        "ShowLaunchActions",
+        "SetCompactReadyInstallSectionVisible\(false\)",
+        "!_profile\.Compact",
+        "Download\.Visible = visible"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
+    "suppresses completed compact auth sections after advancing past sign-in or Steam Guard" `
+    @(
+        "HideCompactCompletedAuthSections",
+        "ShowCodePrompt",
+        "HideCompactCompletedAuthSections\(showCode: true\)",
+        "ShowDownloadAction",
+        "ShowRetry",
+        "ShowLaunchActions",
+        "HideCompactCompletedAuthSections\(showCode: false\)",
+        "Login\.SetFormVisible\(false, disabled: true\)",
+        "Code\.Visible = showCode"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
+    "scrolls compact state transitions to the active section" `
+    @(
+        "CompactScrollAnchorTopPadding = 14",
+        "ScrollCompactPrimaryTo",
+        "ApplyCompactScrollAnchorPadding",
+        "!_profile\.Compact",
+        "Callable\.From",
+        "PrimaryScroll\.EnsureControlVisible\(target\)",
+        "PrimaryScroll\.ScrollVertical",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactScrollAnchorTopPadding, _scale\)",
+        "ScrollCompactPrimaryTo\(Login\)",
+        "ScrollCompactPrimaryTo\(Code\)",
+        "ScrollCompactPrimaryTo\(Download\)",
+        "ScrollCompactPrimaryTo\(Actions\.RetryScrollTarget\)",
+        "ScrollCompactPrimaryTo\(Actions\.ReadyScrollTarget\)",
+        "ScrollCompactPrimaryTo\(FirstRunGuide\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
+    "remembers the latest compact scroll anchor for viewport-change re-anchoring" `
+    @(
+        "ScrollCompactPrimaryTo\(Control target\)",
+        "!GodotObject\.IsInstanceValid\(target\)",
+        "_compactScrollAnchorTarget = target",
+        "PrimaryScroll\.EnsureControlVisible\(target\)",
+        "ApplyCompactScrollAnchorPadding\(target\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.cs" `
+    "tracks compact scroll anchor state separately from the current task target" `
+    @(
+        "_compactScrollAnchorTarget",
+        "_compactScrollAnchorTarget = FirstRunGuide",
+        "_compactCurrentTaskTarget = FirstRunGuide",
+        "_compactCurrentTaskTarget = target",
+        "_compactScrollAnchorTarget = target"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "re-anchors compact task scroll position after Android viewport changes without fighting focused keyboard input" `
+    @(
+        "ReanchorCompactScrollTargetAfterViewportChange\(\)",
+        "DisplayServer\.VirtualKeyboardGetHeight\(\) > 0",
+        "GuiGetFocusOwner",
+        "PrimaryScroll\.IsAncestorOf\(focusOwner\)",
+        "CompactViewportReanchorTarget",
+        "IsUsableCompactAnchor",
+        "ScrollCompactPrimaryTo\(target\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "anchors compact ready/retry scrolling to the actual primary controls" `
+    @(
+        "ReadyScrollTarget",
+        "_compact \? _cloudGroup : _launchButton",
+        "RetryScrollTarget",
+        "_retryButton"
     )
 
 Add-Check `
@@ -899,6 +1754,13 @@ Add-Check `
         "SHOW VERSION DETAILS",
         "HIDE VERSION DETAILS",
         "CompactDownloadButtonText",
+        "CompactDownloadButtonTitleDetail",
+        "SetCompactDownloadButtonText",
+        "EnsureCompactDownloadButtonLabels",
+        "CompactDownloadActionBodyName",
+        "CompactDownloadActionTitleName",
+        "CompactDownloadActionDetailName",
+        "CompactDownloadActionHeight = LauncherSectionMetrics\.CodeInputHeight",
         "REFRESH VERSIONS",
         "DOWNLOAD",
         "ToggleBranchDetails",
@@ -906,7 +1768,518 @@ Add-Check `
         "Download/update changes local files for the selected game version only",
         "does not change Steam Cloud saves",
         "SelectedOptionStatus",
-        "SelectorInstallSlotHelpText"
+        "SelectedOptionCompactStatus",
+        "SelectorInstallSlotHelpText",
+        "CompactInstallVersionHelpText",
+        "CompactVersionHelpHeight",
+        "CompactVersionHelpFontSize",
+        "Install target:",
+        "local files only",
+        "_branchHelpLabel\.ClipText = compact",
+        "_branchHelpLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "_branchHelpLabel\.CustomMinimumSize = new Vector2",
+        "_compactSelectedVersionLabel",
+        "Selected version:",
+        "Install slot:",
+        "Downloads do not change Steam Cloud saves",
+        "_compactSelectedVersionPanel",
+        "_compactVersionControlsRow",
+        "BuildCompactVersionControlsRow",
+        "compactStackedActionRows \? new VBoxContainer\(\) : new HBoxContainer\(\)",
+        "_compactVersionControlsRow\.AddChild\(_branchDropdown\)",
+        "_compactVersionControlsRow\.AddChild\(_refreshBranchesButton\)",
+        "_compactVersionControlsRow\.Visible = controlsVisible",
+        "BuildSelectedVersionSummaryStyle",
+        "CompactVersionSummaryFontSize",
+        "CompactVersionSummaryHeight",
+        "CompactStackedVersionSummaryHeight",
+        "CompactVersionSummaryHorizontalMargin",
+        "CompactVersionSummaryVerticalMargin",
+        "CompactSelectedVersionBranchLimit = 18",
+        "CompactSelectedVersionStackedBranchLimit = 28",
+        "_compactStackedActionRows = compact && compactStackedActionRows",
+        "compactStackedActionRows = false",
+        "AutowrapMode\.Off",
+        "TextServer\.AutowrapMode\.WordSmart",
+        "TextServer\.OverrunBehavior\.TrimEllipsis",
+        "ClipText = compact && !_compactStackedActionRows",
+        "CompactStackedVersionSummaryHeight",
+        "CompactSelectedVersionStackedBranchLimit",
+        "CompactSelectedVersionHeadline",
+        "SetCompactVersionActionButtonText",
+        "EnsureCompactVersionActionButtonLabels",
+        "CompactVersionActionBodyName",
+        "CompactVersionActionTitleName",
+        "CompactVersionActionDetailName",
+        "CompactVersionActionDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        'button\.Text = ""',
+        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "LauncherComponentTheme\.TextSecondary",
+        "`"CHANGE VERSION`"",
+        "`"REFRESH VERSIONS`"",
+        "`"DOWNLOAD VERSION`"",
+        "`"REDOWNLOAD VERSION`"",
+        "`"RETRY DOWNLOAD`"",
+        "`"DOWNLOADING\.\.\.`"",
+        "Local files only",
+        "Rebuild local files",
+        "Steam files",
+        "Update branch list",
+        "Keep selection",
+        "CompactDrawerToggleHeight",
+        "CompactDetailButtonFontSize",
+        "Cloud unchanged",
+        "local files only",
+        "CompactInstallSlotKind",
+        "public slot",
+        "branch slot",
+        "branchChanged",
+        "_branchDetailsExpanded = false",
+        "CollapseCompactBranchDetailsAfterSelection",
+        "ApplyBranchControlVisibility\(\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "passes compact width class into the Game Install section for responsive selected-version summaries" `
+    @(
+        "new DownloadSection\(scale, profile\.Compact, profile\.CompactStackedActionRows\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
+    "keeps compact version drawer toggle before expanded install-version details" `
+    @(
+        "_branchDetailsToggle = new StyledButton",
+        "CompactDrawerToggleHeight",
+        "SetCompactVersionActionButtonText",
+        "EnsureCompactVersionActionButtonLabels",
+        "CompactVersionActionBodyName",
+        "CompactVersionActionTitleName",
+        "CompactVersionActionDetailName",
+        "CompactVersionActionDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        'button\.Text = ""',
+        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "LauncherComponentTheme\.TextSecondary",
+        "`"CHANGE VERSION`"",
+        "`"REFRESH VERSIONS`"",
+        "Local files only",
+        "Update branch list",
+        "AddChild\(_branchDetailsToggle\)",
+        "_branchDropdown = new OptionButton",
+        "(?s)_branchDetailsToggle = new StyledButton.*AddChild\(_branchDetailsToggle\).*_branchDropdown = new OptionButton"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
+    "uses primary compact touch-target sizing for the install-version dropdown" `
+    @(
+        "compact \? LauncherSectionMetrics\.PrimaryButtonHeight : LauncherSectionMetrics\.SecondaryButtonHeight",
+        "compact \? LauncherSectionMetrics\.PrimaryButtonFontSize : LauncherSectionMetrics\.SecondaryButtonFontSize",
+        "ApplyDropdownAction",
+        "(?s)ApplyDropdownAction\(\s*_branchDropdown,\s*scale,.*?,\s*compact\s*\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
+    "puts the compact install primary action before optional version details" `
+    @(
+        "MoveCompactPrimaryInstallControlsBeforeVersionDetails",
+        "MoveChild\(_compactSelectedVersionPanel, _branchDetailsToggle\.GetIndex\(\)\)",
+        "MoveChild\(_downloadButton, _branchDetailsToggle\.GetIndex\(\)\)",
+        "DOWNLOAD VERSION",
+        "CHANGE VERSION"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
+    "renders compact install primary actions as structured title/detail labels" `
+    @(
+        "CompactDownloadActionHeight = LauncherSectionMetrics\.CodeInputHeight",
+        "CompactDownloadActionBodyName",
+        "CompactDownloadActionTitleName",
+        "CompactDownloadActionDetailName",
+        "CompactDownloadActionTitleFontSize = LauncherSectionMetrics\.PrimaryButtonFontSize",
+        "CompactDownloadActionDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        "CompactDownloadButtonTitleDetail",
+        "CompactDownloadButtonText",
+        "SetCompactDownloadButtonText",
+        "TrySplitCompactDownloadButtonText",
+        "HideCompactDownloadButtonLabels",
+        "EnsureCompactDownloadButtonLabels",
+        'button\.Text = ""',
+        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "LauncherComponentTheme\.TextSecondary",
+        "`"DOWNLOAD SELECTED VERSION`"",
+        "`"DOWNLOAD VERSION`"",
+        "`"Local files only`"",
+        "`"REDOWNLOAD SELECTED VERSION`"",
+        "`"REDOWNLOAD VERSION`"",
+        "`"Rebuild local files`"",
+        "`"RETRY DOWNLOAD`"",
+        "`"DOWNLOADING\.\.\.`"",
+        "`"Steam files`""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
+    "promotes compact download progress directly under the active primary action" `
+    @(
+        "MoveCompactProgressControlsNearPrimaryAction",
+        "MoveChild\(_progressLabel, _downloadButton\.GetIndex\(\) \+ 1\)",
+        "MoveChild\(_progressBar, _progressLabel\.GetIndex\(\) \+ 1\)",
+        "new StyledProgressBar\(scale, compact\)",
+        "CompactDownloadProgressButtonText",
+        "CompactDownloadProgressText",
+        "CompactDownloadProgressDetail",
+        "NormalizeCompactProgressText",
+        "CompactDownloadProgressLabelHeight = 50",
+        "CompactDownloadProgressDetailLimit = 54",
+        "_progressLabel\.AutowrapMode = TextServer\.AutowrapMode\.WordSmart",
+        "_progressLabel\.ClipText = compact",
+        "_progressLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "_progressLabel\.CustomMinimumSize = new Vector2",
+        "_progressLabel\.Text = _compact \? CompactDownloadProgressText\(text\) : text",
+        "Downloading selected version",
+        "SetCompactDownloadButtonText\(_downloadButton, CompactDownloadProgressButtonText\(\)\)",
+        "compact\s*\?\s*LauncherSectionMetrics\.SecondaryButtonFontSize",
+        "compact\s*\?\s*LauncherComponentTheme\.CyanAccent"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Components\LauncherComponentTheme.cs" `
+    "defines compact readable download progress bar metrics and colors" `
+    @(
+        "ProgressBarHeight = 24",
+        "CompactProgressBarHeight = 34",
+        "ProgressBarFontSize = 12",
+        "CompactProgressBarFontSize = 14",
+        "ProgressBarRadius = 6",
+        "ProgressBackground",
+        "ProgressFill",
+        "ProgressFillCompact"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Components\LauncherComponentTheme.cs" `
+    "rounds shared component scaling instead of flooring compact Android metrics" `
+    @(
+        "using System;",
+        "MathF\.Round\(value \* scale, MidpointRounding\.AwayFromZero\)",
+        "Math\.Max\(0,"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherViewLayoutMetrics.cs" `
+    "rounds shared layout scaling instead of flooring compact Android metrics" `
+    @(
+        "using System;",
+        "MathF\.Round\(value \* scale, MidpointRounding\.AwayFromZero\)",
+        "Math\.Max\(0,"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Components\StyledProgressBar.cs" `
+    "uses a taller styled compact percentage progress bar" `
+    @(
+        "internal StyledProgressBar\(float scale, bool compact = false\)",
+        "compact\s*\?\s*LauncherComponentTheme\.CompactProgressBarHeight",
+        "ShowPercentage = true",
+        "CompactProgressBarFontSize",
+        "BackgroundStyle",
+        "FillStyle",
+        "ProgressFillCompact",
+        "BuildProgressStyle"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\ShaderWarmupScreen.UI.cs" `
+    "uses Android-readable compact sizing and styled progress for shader warmup" `
+    @(
+        "OperatingSystem\.IsAndroid\(\)",
+        "AndroidMinimumScale = 1\.06f",
+        "AndroidMinimumPanelWidth = 320f",
+        "AndroidPanelWidthRatio = 0\.94f",
+        "CalculateAdaptiveScale\(vpSize, androidCompact\)",
+        "widthRatio: CalculatePanelWidthRatio\(vpSize, androidCompact\)",
+        "compact: androidCompact",
+        "CalculateWarmupPanelSize\(vpSize, androidCompact\)",
+        "new StyledProgressBar\(scale, androidCompact\)",
+        "androidCompact \? AndroidMinimumScale : MinimumScale",
+        "return AndroidPanelWidthRatio"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupStatus.cs" `
+    "uses an Android-readable framed startup status card after launcher close" `
+    @(
+        "OperatingSystem\.IsAndroid\(\)",
+        "CreateAndroidStatusCard\(parent, viewportSize\)",
+        "CreateLegacyLabel\(parent, viewportSize\)",
+        "AndroidMinimumScale = 1\.06f",
+        "AndroidWidthRatio = 0\.94f",
+        "AndroidMessageFontSize = 18",
+        "AndroidPanelHeight = 98",
+        "PanelContainer",
+        "BuildAndroidPanelStyle",
+        "STARTING GAME",
+        "LauncherComponentTheme\.TextPrimary",
+        "CalculateAndroidPanelWidth",
+        "MouseFilterEnum\.Ignore"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "keeps compact version drawer toggle before expanded ready-state version details" `
+    @(
+        "_branchDetailsToggle = new StyledButton",
+        "CompactDrawerToggleHeight",
+        "CompactDetailButtonFontSize",
+        "CompactPlaySyncDrawerText",
+        "_cloudSafetyToggle = new StyledButton",
+        "_cloudOptionsToggle = new StyledButton",
+        "_supportToggle = AddHiddenButton",
+        "SupportToggleText\(\)",
+        "AddChild\(_branchDetailsToggle\)",
+        "_branchDropdown = new OptionButton",
+        "branchChanged",
+        "CollapseCompactBranchDetailsAfterSelection",
+        "_branchDetailsExpanded = false",
+        "(?s)_branchDetailsToggle = new StyledButton.*AddChild\(_branchDetailsToggle\).*_branchDropdown = new OptionButton"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "uses primary compact touch-target sizing for the ready-state version dropdown" `
+    @(
+        "compact \? LauncherSectionMetrics\.PrimaryButtonHeight : LauncherSectionMetrics\.SecondaryButtonHeight",
+        "compact \? LauncherSectionMetrics\.PrimaryButtonFontSize : LauncherSectionMetrics\.SecondaryButtonFontSize",
+        "ApplyDropdownAction",
+        "(?s)ApplyDropdownAction\(\s*_branchDropdown,\s*scale,.*?,\s*compact\s*\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Components\LauncherButtonStyles.cs" `
+    "uses touch-safe compact dropdown popup row spacing and padding" `
+    @(
+        "ApplyDropdownAction",
+        "bool compact = false",
+        "PopupVerticalSeparation",
+        "PopupHorizontalSeparation",
+        "PopupItemStartPadding",
+        "PopupItemEndPadding",
+        "PopupHover",
+        "CompactDropdownPopupVerticalSeparation = 16",
+        "CompactDropdownPopupHorizontalSeparation = 12",
+        "CompactDropdownPopupHorizontalPadding = 20",
+        "compact\s*\?\s*CompactDropdownPopupVerticalSeparation",
+        "compact\s*\?\s*CompactDropdownPopupHorizontalSeparation",
+        "compact\s*\?\s*CompactDropdownPopupHorizontalPadding",
+        "LauncherComponentTheme\.ButtonHover"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "configures compact ready-version summary as a readable responsive summary card" `
+    @(
+        "BuildReadyVersionSummaryStyle\(scale, compact\)",
+        "CompactVersionSummaryFontSize",
+        "VerticalAlignment\.Center",
+        "CompactReadyVersionHelpHeight",
+        "CompactReadyVersionHelpFontSize",
+        "_branchHelpLabel\.ClipText = compact",
+        "_branchHelpLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "_branchHelpLabel\.CustomMinimumSize = new Vector2",
+        "_compactStackedActionRows\s*\?\s*TextServer\.AutowrapMode\.WordSmart",
+        "_readyVersionSummaryLabel\.ClipText = compact && !_compactStackedActionRows",
+        "TextServer\.OverrunBehavior\.TrimEllipsis",
+        "CompactStackedVersionSummaryHeight",
+        "CompactVersionSummaryHeight"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "uses a responsive compact ready-version headline with Pull-first and Push-locked state" `
+    @(
+        "CompactReadySummaryBranchLimit = 14",
+        "CompactReadyStackedSummaryBranchLimit = 28",
+        "CompactVersionSummaryRadius",
+        "CompactVersionSummaryHorizontalMargin",
+        "CompactVersionSummaryVerticalMargin",
+        "CompactReadyVersionSummary\(\)",
+        "CompactReadyVersionHelpText\(\)",
+        "SelectedOptionCompactStatus",
+        "Launch target:",
+        "cloud via Pull/Push",
+        "_compactStackedActionRows",
+        "Ready:",
+        "Pull first \| Push locked",
+        "no auto cloud upload",
+        "BuildReadyVersionSummaryStyle\(float scale, bool compact\)",
+        "compact \? LauncherSectionMetrics\.CompactVersionSummaryRadius : 8",
+        "compact \? LauncherSectionMetrics\.CompactVersionSummaryHorizontalMargin : 12",
+        "compact \? LauncherSectionMetrics\.CompactVersionSummaryVerticalMargin : 9"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "uses compact Play and Sync drawer detail labels for version, cloud-safety, cloud-options, and tools" `
+    @(
+        "CompactPlaySyncDrawerText",
+        "Launch \+ cloud target",
+        "Pull-first guard",
+        "Push stays locked",
+        "CompactCloudSafetyDetailText",
+        "Cloud target:",
+        "PULL downloads to Android\. PUSH can overwrite Steam\.",
+        "Backup \+ sync",
+        "Keep active"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "packs compact recovery and support tools into a responsive grid that becomes full-width on narrow compact viewports" `
+    @(
+        "compactStackedActionRows = false",
+        "_compactStackedActionRows = compact && compactStackedActionRows",
+        "_supportToolsGrid = BuildCompactSupportToolsGrid\(scale, compact, _compactStackedActionRows\)",
+        "if \(compact\)",
+        "_supportGroup\.AddChild\(_supportToolsGrid\)",
+        "supportToolsParent = compact",
+        "GridContainer",
+        "Columns = compactStackedActionRows \? 1 : 2",
+        "AddCompactSupportToolButton",
+        "`"UPDATES`"",
+        "`"VERSIONS`"",
+        "`"REDOWNLOAD`"",
+        "`"CLEAR CACHE`"",
+        "`"DIAGNOSTICS`"",
+        "`"LAST ERROR`"",
+        "`"COPY LOG`"",
+        "`"Check files`"",
+        "`"Refresh list`"",
+        "`"Rebuild slot`"",
+        "`"Old versions`"",
+        "`"Export report`"",
+        "`"Open details`"",
+        "`"Review first`""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Buttons.cs" `
+    "uses readable fill-width buttons inside the compact support grid" `
+    @(
+        "AddCompactSupportToolButton",
+        "SetCompactActionButtonText",
+        "EnsureCompactActionButtonLabels",
+        "CompactActionButtonBodyName",
+        "CompactActionButtonTitleName",
+        "CompactActionButtonDetailName",
+        "CompactActionButtonDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        "TrySplitCompactActionButtonText",
+        'button\.Text = ""',
+        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "LauncherComponentTheme\.TextSecondary",
+        "CompactSupportToolHeight",
+        "CompactSupportToolFontSize",
+        "CompactSupportToolText",
+        "SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "keeps dynamic compact Play and Sync drawer labels synced with structured title/detail button labels" `
+    @(
+        "private readonly float _scale",
+        "SetCompactActionButtonText\(_branchDetailsToggle",
+        "SetCompactActionButtonText\(_cloudSafetyToggle",
+        "SetCompactActionButtonText\(_updateButton, text\)",
+        "SetCompactActionButtonText\(_cloudOptionsToggle"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Toggles.cs" `
+    "keeps compact Backup and Sync option toggles synced with structured title/detail button labels" `
+    @(
+        "SetCompactActionButtonText\(button, text\)",
+        "CompactCloudOptionText",
+        "Local saves",
+        "Game cloud"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "uses explicit compact cloud direction labels while keeping Push locked" `
+    @(
+        "CompactCloudPullText\(\)",
+        "CompactCloudPushToggleText\(expanded: false\)",
+        "CompactCloudPushDangerText\(\)",
+        "CompactCloudPushConfirmText\(\)",
+        "SetCompactActionButtonText\(_pullButton, _pullButton\.Text\)",
+        "SetCompactActionButtonText\(_pushButton, _pushButton\.Text\)",
+        "SetCompactActionButtonText\(_confirmPushButton, _confirmPushButton\.Text\)",
+        "CompactCloudPushWarningText\(\)",
+        "CompactCloudPushWarningFontSize",
+        "CompactCloudPushWarningHeight",
+        "_pushConfirmationLabel\.ClipText = compact",
+        "_pushConfirmationLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "_pushConfirmationLabel\.CustomMinimumSize = new Vector2"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "defines compact Pull label as an explicit title/detail Android download action" `
+    @(
+        "CompactCloudPullText",
+        "PULL TO ANDROID",
+        "Download saves"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "defines compact dangerous Push labels as explicit title/detail actions" `
+    @(
+        "CompactCloudPushDangerText",
+        "PUSH TO STEAM",
+        "Upload Android",
+        "CompactCloudPushConfirmText",
+        "CONFIRM OVERWRITE",
+        "Final upload",
+        "CompactCloudPushWarningText",
+        "STEAM CLOUD OVERWRITE",
+        "Confirm only after Pull/local saves are verified"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "keeps compact Push relock label direction-aware and structured after reset" `
+    @(
+        "CompactCloudPushToggleText",
+        "STEAM PUSH LOCKED",
+        "Open overwrite",
+        "HIDE PUSH",
+        "Close overwrite",
+        "SetCompactActionButtonText\(_cloudPushToggle, _compact"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "packs compact Pull and locked Steam Push into responsive action rows while preserving Pull-first order" `
+    @(
+        "BuildCompactCloudPrimaryActionsRow",
+        "compactStackedActionRows",
+        "new VBoxContainer\(\) : new HBoxContainer\(\)",
+        "CompactCloudPrimaryActionSeparation",
+        "cloudPrimaryActionsParent = compact",
+        "BuildCompactCloudPrimaryActionsRow\(_pushPullRow, scale, _compactStackedActionRows\)",
+        "CompactCloudPullText\(\)",
+        "CompactCloudPushToggleText\(expanded: false\)",
+        "CompactCloudPushDangerText\(\)",
+        "parent\.AddChild\(row\)"
     )
 
 Add-Check `
@@ -941,27 +2314,161 @@ Add-Check `
         "TitledStateSectionsSupported\s*=\s*true",
         "SafeFirstRunGuidanceSupported\s*=\s*true",
         "CompactSafeFlowCollapsibleSupported\s*=\s*true",
+        "CompactSafeFlowToggleDetailLabelsSupported\s*=\s*true",
+        "CompactStructuredSafeFlowToggleLabelsSupported\s*=\s*true",
+        "CompactSafeFlowBoundedGuideSupported\s*=\s*true",
         "MobileFirstCompactLayoutSupported\s*=\s*true",
+        "CompactDensePanelPaddingSupported\s*=\s*true",
+        "CompactDenseVerticalRhythmSupported\s*=\s*true",
+        "RoundedScaledLauncherMetricsSupported\s*=\s*true",
+        "AndroidCompactTouchScaleFloorSupported\s*=\s*true",
         "CompactDynamicContentWidthSupported\s*=\s*true",
         "TabletWideContentLayoutSupported\s*=\s*true",
         "PortalTopAnchoredContentSupported\s*=\s*true",
         "CompactVerticalStatusHeroSupported\s*=\s*true",
+        "CompactStackedStatusHeaderSupported\s*=\s*true",
+        "CompactLowProfileStatusCardSupported\s*=\s*true",
+        "CompactStatusHeadlineRowSupported\s*=\s*true",
+        "CompactStackedStatusHeadlineSupported\s*=\s*true",
+        "ViewportAwareCompactStatusHeadlineReflowSupported\s*=\s*true",
+        "CompactStableStatusDetailRowSupported\s*=\s*true",
+        "CompactWorkflowStepStripSupported\s*=\s*true",
+        "CompactTwoColumnWorkflowStripSupported\s*=\s*false",
+        "CompactSingleRowNumberedWorkflowStripSupported\s*=\s*true",
+        "CompactNarrowWorkflowSingleRowSupported\s*=\s*true",
+        "CompactVisibleWorkflowStepLabelsSupported\s*=\s*true",
+        "CompactWorkflowStepNumberBadgesSupported\s*=\s*true",
+        "CompactReadableWorkflowStepNumberBadgesSupported\s*=\s*true",
+        "CompactStickyWorkflowStepStripSupported\s*=\s*true",
+        "CompactLowProfileWorkflowStepStripSupported\s*=\s*true",
+        "CompactLowProfileTwoColumnWorkflowStepStripSupported\s*=\s*false",
+        "CompactWorkflowStepDirectNavigationSupported\s*=\s*true",
+        "CompactCurrentTaskJumpSupported\s*=\s*true",
+        "CompactStickyCurrentTaskBarSupported\s*=\s*true",
+        "CompactLowProfileCurrentTaskBarSupported\s*=\s*true",
+        "CompactDenseInlineCurrentTaskBarSupported\s*=\s*true",
+        "CompactCurrentTaskSharedTouchHeightSupported\s*=\s*true",
+        "CompactLowProfileStackedCurrentTaskBarSupported\s*=\s*true",
+        "CompactCurrentTaskContextLabelsSupported\s*=\s*true",
+        "CompactStructuredCurrentTaskLabelsSupported\s*=\s*true",
+        "CompactCurrentTaskShortTitleLabelsSupported\s*=\s*true",
+        "CompactTouchSafeStickyHeaderControlsSupported\s*=\s*true",
+        "CompactGroupedStickyTaskHeaderSupported\s*=\s*true",
+        "CompactStickyTaskToolbarShellSupported\s*=\s*true",
+        "CompactInlineStickyTaskHeaderSupported\s*=\s*true",
+        "CompactResponsiveStickyTaskHeaderSupported\s*=\s*true",
+        "ViewportAwareStickyTaskHeaderReflowSupported\s*=\s*true",
+        "ViewportAwareCompactTaskReanchorSupported\s*=\s*true",
+        "CompactDenseStickyTaskHeaderSupported\s*=\s*true",
+        "CompactTaskJumpNavigationLabelsSupported\s*=\s*true",
+        "CompactReadableDetailLabelFontSupported\s*=\s*true",
+        "CompactTouchSafeConfirmationDialogsSupported\s*=\s*true",
+        "CompactScrollSafeConfirmationDialogsSupported\s*=\s*true",
+        "CompactContextualConfirmationLabelsSupported\s*=\s*true",
+        "ViewportAwareConfirmationDialogsSupported\s*=\s*true",
+        "CompactSteamGuardLargeInputSupported\s*=\s*true",
+        "CompactSteamGuardActionFirstSupported\s*=\s*true",
+        "CompactSteamGuardInlineActionRowSupported\s*=\s*true",
+        "CompactResponsiveSteamGuardActionLayoutSupported\s*=\s*true",
+        "ViewportAwareCompactSteamGuardActionRowReflowSupported\s*=\s*true",
+        "CompactSteamGuardSubmitDetailLabelSupported\s*=\s*true",
+        "CompactSteamGuardRetryGuidanceSupported\s*=\s*true",
+        "CompactSteamGuardBoundedHelperSupported\s*=\s*true",
+        "CompactPrimaryRetryActionSupported\s*=\s*true",
+        "CompactStructuredRetryActionLabelsSupported\s*=\s*true",
+        "CompactPrimaryLoginActionFirstSupported\s*=\s*true",
+        "CompactAndroidLoginPrimaryCtaSupported\s*=\s*true",
+        "CompactAndroidLoginDetailLabelSupported\s*=\s*true",
+        "CompactAndroidLoginHelperDetailLabelSupported\s*=\s*true",
+        "CompactCompletedAuthSectionSuppressionSupported\s*=\s*true",
+        "CompactLowProfileSafeFlowToggleSupported\s*=\s*true",
         "TouchFirstActionTargetsSupported\s*=\s*true",
         "PrimaryActionWordingSupported\s*=\s*true",
         "ConsistentStartGameCtaSupported\s*=\s*true",
+        "CompactLaunchDetailLabelSupported\s*=\s*true",
         "BrandedAtmosphericBackgroundSupported\s*=\s*true",
         "BrandedBackgroundExplicitRgbaSupported\s*=\s*true",
         "HighContrastRoundedActionsSupported\s*=\s*true",
         "CompactHeaderChromeReductionSupported\s*=\s*true",
+        "CompactCondensedBrandHeaderSupported\s*=\s*true",
+        "CompactSingleLineBrandHeaderSupported\s*=\s*true",
+        "CompactReadableBrandSubtitleSupported\s*=\s*true",
         "CompactSectionHeaderSubtitleSuppressionSupported\s*=\s*true",
+        "CompactLowProfileSectionHeadersSupported\s*=\s*true",
+        "CompactSingleRowSectionHeadersSupported\s*=\s*true",
+        "CompactSectionHeaderTaskCueSupported\s*=\s*true",
+        "CompactReadableSectionHeaderCuesSupported\s*=\s*true",
+        "AndroidReadableWarmupScreenSupported\s*=\s*true",
+        "AndroidReadableStartupStatusCardSupported\s*=\s*true",
+        "CompactInstallPrimaryActionFirstSupported\s*=\s*true",
+        "CompactInstallPrimaryDetailLabelSupported\s*=\s*true",
+        "CompactDownloadProgressHeroSupported\s*=\s*true",
+        "CompactDownloadProgressStatusLabelSupported\s*=\s*true",
+        "CompactReadableDownloadProgressBarSupported\s*=\s*true",
+        "CompactInlineInstallVersionControlsSupported\s*=\s*true",
         "CompactVersionDetailsCollapsibleSupported\s*=\s*true",
+        "CompactVersionDrawerDetailLabelsSupported\s*=\s*true",
+        "CompactVersionDrawerBoundedHelpLabelSupported\s*=\s*true",
+        "CompactSelectedVersionSummarySupported\s*=\s*true",
+        "CompactSelectedVersionHeadlineSupported\s*=\s*true",
+        "CompactResponsiveSelectedVersionSummarySupported\s*=\s*true",
+        "CompactStructuredInstallVersionActionLabelsSupported\s*=\s*true",
+        "CompactReadyVersionSummarySupported\s*=\s*true",
+        "CompactReadyVersionSummaryPanelSupported\s*=\s*true",
+        "CompactReadyVersionSummaryHeadlineSupported\s*=\s*true",
+        "CompactResponsiveReadyVersionSummarySupported\s*=\s*true",
+        "CompactPlaySyncDrawerDetailLabelsSupported\s*=\s*true",
+        "CompactStructuredPlaySyncActionLabelsSupported\s*=\s*true",
+        "CompactReadyStateInstallSectionSuppressionSupported\s*=\s*true",
+        "CompactTouchSafeVersionDropdownSupported\s*=\s*true",
+        "CompactTouchSafeDropdownPopupSupported\s*=\s*true",
         "CompactCloudSafetyCollapsibleSupported\s*=\s*true",
+        "CompactCloudSafetyCueBeforeActionsSupported\s*=\s*true",
+        "CompactCloudSafetyDetailLabelSupported\s*=\s*true",
         "CompactCloudOptionsCollapsibleSupported\s*=\s*true",
         "PrimaryCloudActionsBeforeCloudOptionsSupported\s*=\s*true",
         "SaferPullBeforePushOrderingSupported\s*=\s*true",
+        "CompactCloudDirectionLabelsSupported\s*=\s*true",
+        "CompactCloudPrimaryActionsRowSupported\s*=\s*true",
+        "CompactCloudPullDetailLabelSupported\s*=\s*true",
+        "CompactCloudPushLockDetailLabelsSupported\s*=\s*true",
+        "CompactCloudPushDangerDetailLabelsSupported\s*=\s*true",
+        "CompactCloudPushWarningDetailLabelSupported\s*=\s*true",
+        "CompactResponsiveActionRowsSupported\s*=\s*true",
         "ManualPushArmedOverwriteWarningSupported\s*=\s*true",
+        "CompactButtonLabelsSupported\s*=\s*true",
+        "CompactCloudOptionLabelsSupported\s*=\s*true",
+        "CompactCloudOptionDetailLabelsSupported\s*=\s*true",
+        "CompactCloudOptionsRowSupported\s*=\s*true",
+        "CompactDrawerStateResetSupported\s*=\s*true",
+        "CompactDrawerToggleFirstSupported\s*=\s*true",
+        "CompactLowProfileDrawerTogglesSupported\s*=\s*true",
+        "CompactDenseDrawerToggleHeightSupported\s*=\s*true",
+        "CompactTouchSafeDrawerToggleSizingSupported\s*=\s*true",
+        "CompactSupportToolsGridSupported\s*=\s*true",
+        "CompactSupportToolDetailLabelsSupported\s*=\s*true",
+        "CompactRawLogReviewLabelSupported\s*=\s*true",
+        "CompactDrawerSelectionCollapseSupported\s*=\s*true",
+        "CompactActiveSectionScrollSupported\s*=\s*true",
+        "CompactPrimaryActionScrollAnchorsSupported\s*=\s*true",
+        "CompactPaddedScrollAnchorsSupported\s*=\s*true",
+        "CompactBottomScrollBreathingRoomSupported\s*=\s*true",
+        "CompactLowProfileAttributionSupported\s*=\s*true",
+        "ViewportAwareKeyboardOffsetSupported\s*=\s*true",
+        "KeyboardFocusedInputScrollSupported\s*=\s*true",
+        "CompactReadyStateSafeFlowSuppressionSupported\s*=\s*true",
+        "CompactActiveTaskSafeFlowSuppressionSupported\s*=\s*true",
+        "NativeFallbackRecoveryActionsStyledSupported\s*=\s*true",
+        "NativeFallbackDiagnosticsCollapsedSupported\s*=\s*true",
+        "NativeFallbackResponsiveRecoveryRowsSupported\s*=\s*true",
+        "StartupRecoveryScrollSafeControlsSupported\s*=\s*true",
         "VersionInstallCloudSeparationGuidanceSupported\s*=\s*true",
         "DiagnosticsConsoleHiddenByDefault\s*=\s*true",
+        "DiagnosticsConsoleAutoOpensForDiagnosticsActionsSupported\s*=\s*true",
+        "CompactLowProfileDiagnosticsToggleSupported\s*=\s*true",
+        "CompactDiagnosticsToggleDetailLabelsSupported\s*=\s*true",
+        "CompactStructuredDiagnosticsToggleLabelsSupported\s*=\s*true",
+        "CompactDiagnosticsScrollHostedSupported\s*=\s*true",
         "StartupFallbackRawBannerSuppressed\s*=\s*true",
         "PortalUxDeviceValidated\s*=\s*false",
         "Status-led launcher portal",
@@ -969,7 +2476,369 @@ Add-Check `
         "Steam Guard",
         "game install",
         "play/sync",
+        "low-profile status card",
+        "stacked phase and next-action labels",
+        "stable one-line non-attention detail row",
+        "compact touch-safe responsive numbered workflow step strip with visible short step labels and separate readable number badges",
+        "stays one dense row even on narrow compact viewports",
+        "tappable compact workflow steps that directly navigate to visible or fallback task sections",
+        "dense inline current-task jump button that uses the shared compact touch-safe control height in a low-profile toolbar shell around the touch-safe sticky compact task header",
+        "reflows between inline and stacked layouts after Android rotation or keyboard viewport changes",
+        "compact current-task jump button",
+        "touch-safe sticky compact task bar",
+        "structured two-line GO TO title/detail navigation labels",
+        "contextual task detail labels",
+        "compact touch-safe confirmation dialogs with wider scroll-safe warning text, contextual confirm/cancel labels, and current-viewport sizing after rotation or keyboard viewport changes",
+        "compact Android sign-in primary action before helper copy",
+        "compact Android sign-in CTA promoted to a large primary action with SIGN IN WITH STEAM / Android login detail labels before the readable two-line password-manager safety helper",
+        "larger compact Steam Guard code entry and VERIFY CODE controls before helper copy, inline where width allows and stacked full-width on narrow compact viewports",
+        "compact Steam Guard submit detail labels that keep VERIFY CODE / Submit once action-first",
+        "compact Steam Guard bounded two-line helper labels that keep one-shot/no-storage and newest-code retry guidance below the action row",
+        "compact failure recovery promoted to a primary TRY AGAIN / Restart task action while cloud controls remain hidden",
+        "compact completed-auth section suppression",
+        "consistent START GAME primary CTA with compact START GAME / Selected version detail labels",
+        "Android compact touch-scale floor for small-device readability",
+        "Android-readable shader warmup/loading screen",
+        "Android-readable startup status card",
+        "verbose native fallback diagnostics collapsed until requested",
+        "responsive recovery rows on narrow landscape screens",
+        "bounded compact setup safe-flow panel",
+        "collapsible compact safe-flow guidance with structured Pull-then-play title/detail labels",
+        "compact active-task safe-flow suppression after setup",
+        "compact install step ordering with selected-version summary and a large DOWNLOAD VERSION / Local files only primary action before optional version details",
+        "compact install primary action detail labels for download, redownload, retry, and disabled downloading states",
+        "compact install-version drawer controls with structured title/detail labels that keep the version dropdown and refresh action inline where width allows and stack on narrow compact viewports",
+        "collapsible compact version details with structured local-files-only drawer labels and bounded two-line Install target / Launch target helper labels",
+        "compact download progress promoted directly under the disabled DOWNLOADING primary action with a stable two-line Downloading selected version status label",
+        "compact readable selected-version and ready-version summary cards",
+        "compact responsive selected-version summary that stays one-line where space allows and becomes a two-line local-files-only cue on narrow compact viewports",
+        "compact ready-version summary",
+        "compact ready-version summary panel",
+        "compact responsive ready-version summary that stays one-line where space allows and becomes a two-line Pull-first, Push-locked cloud-safety cue on narrow compact viewports",
+        "compact Play/Sync drawer detail labels rendered as structured title/detail action labels",
+        "compact support tool detail labels including COPY LOG / Review first for raw-log safety",
+        "compact responsive action rows that keep Pull/Push, Backup/Sync, and support tools side-by-side where space allows and stack them into full-width controls on narrow compact viewports",
+        "compact ready-state install-section suppression",
+        "touch-safe compact version dropdowns with larger opened popup row spacing/padding",
+        "collapsible compact cloud-safety guidance shown before Pull/Push actions with a stable two-line Cloud target / PULL downloads to Android / PUSH can overwrite Steam detail label",
+        "compact cloud action labels that name Android as the Pull destination and Steam as the Push destination",
+        "compact Pull detail labels that keep PULL TO ANDROID / Download saves direction-explicit",
+        "compact locked Push toggle labels that stay structured as STEAM PUSH LOCKED / Open overwrite and HIDE PUSH / Close overwrite",
+        "compact dangerous Push detail labels that keep PUSH TO STEAM / Upload Android and CONFIRM OVERWRITE / Final upload direction-explicit after unlock",
+        "compact armed Push overwrite warning rendered as a stable STEAM CLOUD OVERWRITE / Confirm only after Pull/local saves are verified label",
+        "compact drawer state reset",
+        "compact touch-safe dense drawer toggles before expanded drawer details",
+        "compact drawer collapse after version selection",
+        "compact state-transition active-section scroll",
+        "compact primary-action scroll anchors",
+        "padded compact scroll anchors that keep jumped-to task sections below the sticky header",
+        "viewport-aware compact task re-anchoring after rotation or keyboard viewport changes",
+        "rounded shared metric scaling",
+        "compact bottom scroll breathing room",
+        "compact low-profile attribution footer",
+        "compact scroll-hosted diagnostics with structured touch-safe drawer title/detail labels, a readable bounded compact diagnostics log viewport, and viewport-aware diagnostics log resizing",
+        "compact dense vertical rhythm with single-row section headers and readable clipped task cues",
+        "mobile-first compact panel sizing with dense compact shell padding",
+        "viewport-aware keyboard offset refresh",
+        "keyboard-focused input scrolling so managed Steam Guard and fallback credential fields stay reachable above the soft keyboard",
+        "compact ready-state safe-flow suppression",
+        "scroll-safe startup recovery controls",
+        "hidden diagnostics drawer with automatic opening for explicit diagnostics actions",
+        "styled native fallback recovery actions",
         "ARM64 visual validation"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.Reports.cs" `
+    "exports launcher UI hardening support flags in diagnostics" `
+    @(
+        "compact cloud option labels supported",
+        "CompactCloudOptionLabelsSupported",
+        "compact cloud option detail labels supported",
+        "CompactCloudOptionDetailLabelsSupported",
+        "compact cloud options row supported",
+        "CompactCloudOptionsRowSupported",
+        "compact stacked status header supported",
+        "CompactStackedStatusHeaderSupported",
+        "compact low-profile status card supported",
+        "CompactLowProfileStatusCardSupported",
+        "compact status headline row supported",
+        "CompactStatusHeadlineRowSupported",
+        "compact stacked status headline supported",
+        "CompactStackedStatusHeadlineSupported",
+        "viewport-aware compact status headline reflow supported",
+        "ViewportAwareCompactStatusHeadlineReflowSupported",
+        "compact stable status detail row supported",
+        "CompactStableStatusDetailRowSupported",
+        "compact workflow step strip supported",
+        "CompactWorkflowStepStripSupported",
+        "compact two-column workflow step strip supported",
+        "CompactTwoColumnWorkflowStripSupported",
+        "compact single-row numbered workflow step strip supported",
+        "CompactSingleRowNumberedWorkflowStripSupported",
+        "compact narrow workflow single-row supported",
+        "CompactNarrowWorkflowSingleRowSupported",
+        "compact visible workflow step labels supported",
+        "CompactVisibleWorkflowStepLabelsSupported",
+        "compact sticky workflow step strip supported",
+        "CompactStickyWorkflowStepStripSupported",
+        "compact low-profile workflow step strip supported",
+        "CompactLowProfileWorkflowStepStripSupported",
+        "compact workflow step direct navigation supported",
+        "CompactWorkflowStepDirectNavigationSupported",
+        "compact workflow step number badges supported",
+        "CompactWorkflowStepNumberBadgesSupported",
+        "compact readable workflow step number badges supported",
+        "CompactReadableWorkflowStepNumberBadgesSupported",
+        "compact current-task jump supported",
+        "CompactCurrentTaskJumpSupported",
+        "compact sticky current-task bar supported",
+        "CompactStickyCurrentTaskBarSupported",
+        "compact low-profile current-task bar supported",
+        "CompactLowProfileCurrentTaskBarSupported",
+        "compact dense inline current-task bar supported",
+        "CompactDenseInlineCurrentTaskBarSupported",
+        "compact current-task shared touch height supported",
+        "CompactCurrentTaskSharedTouchHeightSupported",
+        "compact low-profile stacked current-task bar supported",
+        "CompactLowProfileStackedCurrentTaskBarSupported",
+        "compact current-task context labels supported",
+        "CompactCurrentTaskContextLabelsSupported",
+        "compact structured current-task labels supported",
+        "CompactStructuredCurrentTaskLabelsSupported",
+        "compact current-task short title labels supported",
+        "CompactCurrentTaskShortTitleLabelsSupported",
+        "compact touch-safe sticky header controls supported",
+        "CompactTouchSafeStickyHeaderControlsSupported",
+        "compact grouped sticky task header supported",
+        "CompactGroupedStickyTaskHeaderSupported",
+        "compact sticky task toolbar shell supported",
+        "CompactStickyTaskToolbarShellSupported",
+        "compact responsive sticky task header supported",
+        "CompactResponsiveStickyTaskHeaderSupported",
+        "viewport-aware sticky task header reflow supported",
+        "ViewportAwareStickyTaskHeaderReflowSupported",
+        "viewport-aware compact task re-anchor supported",
+        "ViewportAwareCompactTaskReanchorSupported",
+        "compact dense sticky task header supported",
+        "CompactDenseStickyTaskHeaderSupported",
+        "compact task-jump navigation labels supported",
+        "CompactTaskJumpNavigationLabelsSupported",
+        "compact readable detail label font supported",
+        "CompactReadableDetailLabelFontSupported",
+        "compact touch-safe confirmation dialogs supported",
+        "CompactTouchSafeConfirmationDialogsSupported",
+        "compact scroll-safe confirmation dialogs supported",
+        "CompactScrollSafeConfirmationDialogsSupported",
+        "compact contextual confirmation labels supported",
+        "CompactContextualConfirmationLabelsSupported",
+        "viewport-aware confirmation dialogs supported",
+        "ViewportAwareConfirmationDialogsSupported",
+        "compact Steam Guard large input supported",
+        "CompactSteamGuardLargeInputSupported",
+        "compact Steam Guard action-first layout supported",
+        "CompactSteamGuardActionFirstSupported",
+        "compact Steam Guard inline action row supported",
+        "CompactSteamGuardInlineActionRowSupported",
+        "compact responsive Steam Guard action layout supported",
+        "CompactResponsiveSteamGuardActionLayoutSupported",
+        "viewport-aware compact Steam Guard action row reflow supported",
+        "ViewportAwareCompactSteamGuardActionRowReflowSupported",
+        "compact Steam Guard submit detail label supported",
+        "CompactSteamGuardSubmitDetailLabelSupported",
+        "compact Steam Guard retry guidance supported",
+        "CompactSteamGuardRetryGuidanceSupported",
+        "compact Steam Guard bounded helper supported",
+        "CompactSteamGuardBoundedHelperSupported",
+        "compact primary retry action supported",
+        "CompactPrimaryRetryActionSupported",
+        "compact structured retry action labels supported",
+        "CompactStructuredRetryActionLabelsSupported",
+        "compact primary login action first supported",
+        "CompactPrimaryLoginActionFirstSupported",
+        "compact Android login primary CTA supported",
+        "CompactAndroidLoginPrimaryCtaSupported",
+        "compact Android login detail label supported",
+        "CompactAndroidLoginDetailLabelSupported",
+        "compact Android login helper detail label supported",
+        "CompactAndroidLoginHelperDetailLabelSupported",
+        "compact completed-auth section suppression supported",
+        "CompactCompletedAuthSectionSuppressionSupported",
+        "compact dense vertical rhythm supported",
+        "CompactDenseVerticalRhythmSupported",
+        "Android-readable warmup screen supported",
+        "AndroidReadableWarmupScreenSupported",
+        "Android-readable startup status card supported",
+        "AndroidReadableStartupStatusCardSupported",
+        "compact low-profile safe-flow toggle supported",
+        "CompactLowProfileSafeFlowToggleSupported",
+        "compact safe-flow toggle detail labels supported",
+        "CompactSafeFlowToggleDetailLabelsSupported",
+        "compact structured safe-flow toggle labels supported",
+        "CompactStructuredSafeFlowToggleLabelsSupported",
+        "compact safe-flow bounded guide supported",
+        "CompactSafeFlowBoundedGuideSupported",
+        "compact single-row section headers supported",
+        "CompactSingleRowSectionHeadersSupported",
+        "compact section-header task cues supported",
+        "CompactSectionHeaderTaskCueSupported",
+        "compact install primary action first supported",
+        "CompactInstallPrimaryActionFirstSupported",
+        "compact install primary detail label supported",
+        "CompactInstallPrimaryDetailLabelSupported",
+        "compact download progress hero supported",
+        "CompactDownloadProgressHeroSupported",
+        "compact download progress status label supported",
+        "CompactDownloadProgressStatusLabelSupported",
+        "compact readable download progress bar supported",
+        "CompactReadableDownloadProgressBarSupported",
+        "compact inline install-version controls supported",
+        "CompactInlineInstallVersionControlsSupported",
+        "compact selected-version summary supported",
+        "CompactSelectedVersionSummarySupported",
+        "compact version summary cards supported",
+        "CompactVersionSummaryCardsSupported",
+        "compact selected-version headline supported",
+        "CompactSelectedVersionHeadlineSupported",
+        "compact responsive selected-version summary supported",
+        "CompactResponsiveSelectedVersionSummarySupported",
+        "compact structured install-version action labels supported",
+        "CompactStructuredInstallVersionActionLabelsSupported",
+        "compact ready-version summary supported",
+        "CompactReadyVersionSummarySupported",
+        "compact ready-version summary panel supported",
+        "CompactReadyVersionSummaryPanelSupported",
+        "compact ready-version headline supported",
+        "CompactReadyVersionSummaryHeadlineSupported",
+        "compact responsive ready-version summary supported",
+        "CompactResponsiveReadyVersionSummarySupported",
+        "compact ready-state install-section suppression supported",
+        "CompactReadyStateInstallSectionSuppressionSupported",
+        "compact touch-safe version dropdown supported",
+        "CompactTouchSafeVersionDropdownSupported",
+        "compact touch-safe dropdown popup supported",
+        "CompactTouchSafeDropdownPopupSupported",
+        "compact cloud-safety cue before actions supported",
+        "CompactCloudSafetyCueBeforeActionsSupported",
+        "compact cloud-safety detail label supported",
+        "CompactCloudSafetyDetailLabelSupported",
+        "compact cloud direction labels supported",
+        "CompactCloudDirectionLabelsSupported",
+        "compact cloud primary actions row supported",
+        "CompactCloudPrimaryActionsRowSupported",
+        "compact Pull detail label supported",
+        "CompactCloudPullDetailLabelSupported",
+        "compact locked Push detail labels supported",
+        "CompactCloudPushLockDetailLabelsSupported",
+        "compact dangerous Push detail labels supported",
+        "CompactCloudPushDangerDetailLabelsSupported",
+        "compact armed Push warning detail label supported",
+        "CompactCloudPushWarningDetailLabelSupported",
+        "compact responsive action rows supported",
+        "CompactResponsiveActionRowsSupported",
+        "compact drawer state reset supported",
+        "CompactDrawerStateResetSupported",
+        "compact drawer toggle-first ordering supported",
+        "CompactDrawerToggleFirstSupported",
+        "compact dense drawer toggle height supported",
+        "CompactDenseDrawerToggleHeightSupported",
+        "compact touch-safe drawer toggle sizing supported",
+        "CompactTouchSafeDrawerToggleSizingSupported",
+        "compact support tools grid supported",
+        "CompactSupportToolsGridSupported",
+        "compact raw-log review label supported",
+        "CompactRawLogReviewLabelSupported",
+        "compact drawer selection collapse supported",
+        "CompactDrawerSelectionCollapseSupported",
+        "compact active-section scroll supported",
+        "CompactActiveSectionScrollSupported",
+        "compact primary-action scroll anchors supported",
+        "CompactPrimaryActionScrollAnchorsSupported",
+        "compact padded scroll anchors supported",
+        "CompactPaddedScrollAnchorsSupported",
+        "compact bottom scroll breathing room supported",
+        "CompactBottomScrollBreathingRoomSupported",
+        "compact dense panel padding supported",
+        "CompactDensePanelPaddingSupported",
+        "compact dense vertical rhythm supported",
+        "CompactDenseVerticalRhythmSupported",
+        "rounded scaled metrics supported",
+        "RoundedScaledLauncherMetricsSupported",
+        "compact low-profile attribution footer supported",
+        "CompactLowProfileAttributionSupported",
+        "viewport-aware keyboard offset supported",
+        "ViewportAwareKeyboardOffsetSupported",
+        "keyboard-focused input scroll supported",
+        "KeyboardFocusedInputScrollSupported",
+        "compact ready-state safe-flow suppression supported",
+        "CompactReadyStateSafeFlowSuppressionSupported",
+        "compact active-task safe-flow suppression supported",
+        "CompactActiveTaskSafeFlowSuppressionSupported",
+        "native fallback recovery actions styled",
+        "NativeFallbackRecoveryActionsStyledSupported",
+        "native fallback diagnostics collapsed by default",
+        "NativeFallbackDiagnosticsCollapsedSupported",
+        "native fallback responsive recovery rows supported",
+        "NativeFallbackResponsiveRecoveryRowsSupported",
+        "startup recovery scroll-safe controls supported",
+        "StartupRecoveryScrollSafeControlsSupported",
+        "diagnostics console auto-opens for diagnostics actions",
+        "DiagnosticsConsoleAutoOpensForDiagnosticsActionsSupported",
+        "compact diagnostics toggle detail labels supported",
+        "CompactDiagnosticsToggleDetailLabelsSupported",
+        "compact structured diagnostics toggle labels supported",
+        "CompactStructuredDiagnosticsToggleLabelsSupported",
+        "compact readable diagnostics log supported",
+        "CompactReadableDiagnosticsLogSupported",
+        "compact bounded diagnostics log viewport supported",
+        "CompactBoundedDiagnosticsLogViewportSupported",
+        "viewport-aware diagnostics log resize supported",
+        "ViewportAwareDiagnosticsLogResizeSupported"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.FmodAttribution.cs" `
+    "keeps compact FMOD attribution low-profile without expanding the phone layout" `
+    @(
+        "BuildFmodAttributionSection\(float scale, bool compact\)",
+        "Control\.SizeFlags\.ShrinkBegin",
+        "Control\.SizeFlags\.ExpandFill",
+        "if \(!compact\)",
+        "CompactFmodCreditFontSize",
+        "AutowrapMode"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "refreshes keyboard offset anchor after viewport size changes" `
+    @(
+        "_panelBaseY = _panel\.Position\.Y \+ _keyboardOffset",
+        "_panel\.UpdateSizeFromViewport",
+        "UpdateKeyboardOffset\(\)",
+        "_keyboardOffset = Math\.Min",
+        "_panelBaseY - _keyboardOffset",
+        "_keyboardOffset = 0f"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "scrolls focused managed inputs above the Android keyboard" `
+    @(
+        "ScrollFocusedInputAboveKeyboard",
+        "GuiGetFocusOwner",
+        "PrimaryScroll\.IsAncestorOf\(focusOwner\)",
+        "PrimaryScroll\.EnsureControlVisible\(focusOwner\)",
+        "GodotObject\.IsInstanceValid\(focusOwner\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.cs" `
+    "tracks mutable keyboard offset state for viewport-aware Android keyboard avoidance" `
+    @(
+        "private float _panelBaseY",
+        "private float _keyboardOffset",
+        "private Control _keyboardFocusScrollTarget",
+        "private float _keyboardFocusScrollOffset"
     )
 
 Add-Check `
@@ -1013,18 +2882,16 @@ Add-Check `
         "_pushButton",
         "_confirmPushButton",
         "_pushConfirmationLabel",
-        "Push Saves",
-        "Confirm Cloud Overwrite",
-        "Pull Saves",
-        "PushButtonText",
-        "PushConfirmButtonText",
+        "PUSH LOCKED",
+        "CompactCloudPushDangerText\(\)",
+        "CompactCloudPushConfirmText\(\)",
+        "CompactCloudPushWarningText\(\)",
         "Pull Saves from Steam Cloud",
         "CloudPushArmRequested",
         "CloudPushArmRequested\?\.Invoke\(\) == false",
         "ArmCloudPush",
         "ConfirmCloudPush",
         "ResetCloudPushArm",
-        "Pull/local saves are verified",
         "can overwrite remote Steam Cloud saves"
     )
 
@@ -1032,11 +2899,49 @@ Add-Check `
     "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
     "uses explicit Steam Cloud direction wording in ready/action state" `
     @(
+        "_readyVersionSummaryLabel",
+        "_readyVersionSummaryPanel",
+        "BuildReadyVersionSummaryStyle",
+        "Ready version:",
+        "START GAME and Pull/Push use this version",
+        "Push stays locked until explicitly opened",
+        "SteamGameInstallPaths\.VersionSlotKind",
         "Pull copies Steam Cloud saves to Android",
         "Push copies Android saves to Steam Cloud",
         "can overwrite remote saves",
         "Version/download actions affect local game files only",
-        "Steam Cloud saves move only through Pull/Push"
+        "Steam Cloud saves move only through Pull/Push",
+        "_cloudOptionsExpanded = false",
+        "_branchDetailsExpanded = false",
+        "_cloudPushExpanded = false"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Toggles.cs" `
+    "uses compact cloud option labels that fit phone touch targets" `
+    @(
+        "_compact",
+        "CompactCloudOptionText",
+        "BACKUP",
+        "Local saves",
+        "SYNC",
+        "Game cloud",
+        "Local Backup: \{OnOff\(value\)\}",
+        "Game Cloud Sync: \{OnOff\(value\)\}"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "packs compact Backup and Sync cloud options into responsive action rows" `
+    @(
+        "BuildCompactCloudOptionsRow",
+        "compactStackedActionRows",
+        "CompactCloudOptionToggleSeparation",
+        "_compactCloudOptionsRow = BuildCompactCloudOptionsRow\(_cloudGroup, scale, _compactStackedActionRows\)",
+        "AddCompactSupportToolButton\(cloudOptionsParent, ""BACKUP OFF""",
+        "AddCompactSupportToolButton\(cloudOptionsParent, ""SYNC OFF""",
+        "Visible = false",
+        "new VBoxContainer\(\) : new HBoxContainer\(\)"
     )
 
 Add-Check `
@@ -1047,17 +2952,39 @@ Add-Check `
         "_cloudGroup.AddChild\(_pushPullRow\)",
         "OrangeHot",
         "Pull Saves from Steam Cloud",
-        "PushButtonText",
-        "PushConfirmButtonText",
+        "PUSH LOCKED",
+        "CompactCloudPushConfirmText\(\)",
+        "BACKUP OFF",
+        "SYNC OFF",
         "SHOW CLOUD OPTIONS"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\CodeSection.cs" `
-    "uses numeric keyboard for Steam Guard code entry" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "moves compact cloud-safety cue before Pull/Push controls" `
     @(
-        "VirtualKeyboardType\.Number",
+        "MoveCompactCloudSafetyCueBeforeCloudActions",
+        "_cloudGroup\.MoveChild\(_cloudSafetyLabel, _pushPullRow\.GetIndex\(\)\)",
+        "_cloudGroup\.MoveChild\(_cloudSafetyToggle, _cloudSafetyLabel\.GetIndex\(\)\)",
+        "CompactCloudSafetySummary\(\)",
+        "CompactCloudSafetyDetailHeight",
+        "CompactCloudSafetyDetailFontSize",
+        "_cloudSafetyLabel\.ClipText = compact",
+        "_cloudSafetyLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "_cloudSafetyLabel\.CustomMinimumSize = new Vector2",
+        "_cloudGroup.AddChild\(_pushPullRow\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.cs" `
+    "uses alphanumeric keyboard and normalization for Steam Guard code entry" `
+    @(
+        "VirtualKeyboardType\.Default",
         "Enter Steam Guard code",
+        "TextChanged \+= NormalizeCodeText",
+        "NormalizeCode\(string text\)",
+        "char\.IsLetterOrDigit",
+        "char\.ToUpperInvariant",
         "CodeSubmitted"
     )
 
@@ -1088,6 +3015,43 @@ Add-Check `
         "HIDE PASSWORD",
         "toggleSteamLoginCredentialPasswordVisibility",
         "TYPE_TEXT_VARIATION_VISIBLE_PASSWORD",
+        "boolean wideCredentialLayout = useSteamLoginCredentialWideLayout\(\)",
+        "steamLoginCredentialShortHeightLayout",
+        "boolean shortHeightCredentialLayout = wideCredentialLayout && useSteamLoginCredentialShortHeightLayout\(\)",
+        "useSteamLoginCredentialWideLayout",
+        "width > height && width >= dp\(640\)",
+        "useSteamLoginCredentialShortHeightLayout",
+        "height < dp\(430\)",
+        "steamLoginCredentialUsableHeightPixels",
+        "getWindow\(\)",
+        "getDecorView\(\)",
+        "getWindowVisibleDisplayFrame\(visibleFrame\)",
+        "visibleWideLayout != steamLoginCredentialWideLayout",
+        "visibleShortHeightLayout != steamLoginCredentialShortHeightLayout",
+        "shortHeightCredentialLayout == steamLoginCredentialShortHeightLayout",
+        "translateSteamLoginCredentialStatusForLayout",
+        "steamLoginCredentialDefaultStatusText\(boolean shortHeightLayout\)",
+        "steamLoginCredentialShownStatusText\(boolean shortHeightLayout\)",
+        "Use Android password suggestions here\. Credentials clear after one Steam handoff\.",
+        "Not stored by StS2 Mobile\.",
+        "steamLoginCredentialDefaultStatusText",
+        "steamLoginCredentialShownStatusText",
+        "steamLoginCredentialPanelWidth\(wideCredentialLayout\)",
+        "createSteamLoginCredentialInputRow\(wideCredentialLayout\)",
+        "credentialFieldLayoutParams\(wideCredentialLayout\)",
+        "credentialInlineActionLayoutParams\(wideCredentialLayout, 4\)",
+        "credentialInlineActionLayoutParams\(wideCredentialLayout, 6\)",
+        "credentialSubmitButtonLayoutParams\(wideCredentialLayout\)",
+        "credentialCancelButtonLayoutParams\(wideCredentialLayout\)",
+        "new LinearLayout\.LayoutParams\(dp\(178\), LinearLayout\.LayoutParams\.WRAP_CONTENT\)",
+        "onConfigurationChanged",
+        "Configuration newConfig",
+        "reflowSteamLoginCredentialPanelForCurrentWindow",
+        "wideCredentialLayout == steamLoginCredentialWideLayout",
+        "clearSteamLoginCredentialVisibleFieldText",
+        "parent\.removeView\(steamLoginCredentialOverlay\)",
+        "clearSteamLoginCredentialViewReferences",
+        "setSteamLoginCredentialPasswordVisibilityState",
         "onBackPressed",
         "dispatchKeyEvent",
         "KEYCODE_BACK",
@@ -1097,13 +3061,17 @@ Add-Check `
         "hideKeyboardForSteamLoginCredentialPanel",
         "focusedView\.clearFocus\(\)",
         "styleSteamLoginCredentialButton",
+        "field\.setMinHeight\(dp\(56\)\)",
+        "field\.setPadding\(dp\(14\), 0, dp\(14\), 0\)",
+        "field\.setBackground\(background\)",
+        "button\.setMinHeight\(dp\(primary \? 60 : 56\)\)",
         "ScrollView",
         "steamLoginCredentialScrollView",
         "updateSteamLoginCredentialKeyboardInsets",
         "scheduleSteamLoginCredentialFocusScroll",
         "Gravity\.TOP \| Gravity\.CENTER_HORIZONTAL",
         "scroll\.setClipToPadding\(false\)",
-        "buttons\.setOrientation\(LinearLayout\.VERTICAL\)",
+        "buttons\.setOrientation\(wideCredentialLayout \? LinearLayout\.HORIZONTAL : LinearLayout\.VERTICAL\)",
         "buttonLayoutParams",
         "setSteamLoginCredentialStatus",
         "Android password suggestions may appear",
@@ -1147,6 +3115,25 @@ Add-Check `
     )
 
 Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Construction.cs" `
+    "keeps startup recovery controls reachable with a scroll-safe Android layout" `
+    @(
+        "CreateScrollContainer",
+        "ScrollContainer",
+        "FollowFocus = true",
+        "SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "CreateFrame",
+        "MarginContainer",
+        "RecoveryMargin",
+        "RecoveryTopMargin",
+        "UseCompactRecoveryCopy",
+        "OperatingSystem\.IsAndroid\(\)",
+        "SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "scroll\.AddChild\(frame\)",
+        "frame\.AddChild\(box\)"
+    )
+
+Add-Check `
     "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
     "labels launcher support raw-log copy as review-before-sharing" `
     @(
@@ -1186,11 +3173,18 @@ Add-Check `
         "Native credential panel inline status configured",
         "Native credential panel keyboard-safe layout configured",
         "Native credential panel touch-target layout configured",
+        "Native credential panel large field targets supported",
         "Native credential panel requests both Autofill fields",
         "Native credential panel focus Autofill requests supported",
         "Native credential panel task-led buttons supported",
+        "Native credential panel responsive action rows supported",
+        "Native credential panel orientation reflow supported",
+        "Native credential panel short-height copy supported",
+        "Native credential panel short-height reflow supported",
+        "Native credential panel IME height reflow supported",
         "Native credential panel password visibility toggle supported",
         "Steam Guard one-shot code guidance supported",
+        "Steam Guard alphanumeric keyboard supported",
         "Failed-login retry guidance supported",
         "Context-specific login recovery guidance supported",
         "Godot login field credential metadata configured",
@@ -1211,27 +3205,65 @@ Add-Check `
         "Launcher titled state sections supported",
         "Launcher safe first-run guidance supported",
         "Launcher compact safe-flow guidance collapsible",
+        "Launcher compact safe-flow toggle detail labels supported",
+        "Launcher compact structured safe-flow toggle labels supported",
+        "Launcher compact safe-flow bounded guide supported",
+        "Launcher compact active-task safe-flow suppression supported",
         "Launcher mobile-first compact layout supported",
+        "Launcher compact dense panel padding supported",
+        "Launcher Android compact touch-scale floor supported",
         "Launcher compact dynamic content width supported",
         "Launcher tablet/wide content layout supported",
         "Launcher top-anchored portal content supported",
         "Launcher compact vertical status hero supported",
+        "Launcher compact Steam Guard retry guidance supported",
+        "Launcher compact Steam Guard bounded helper supported",
+        "Launcher compact primary retry action supported",
+        "Launcher compact structured retry action labels supported",
+        "Launcher compact completed-auth section suppression supported",
         "Launcher touch-first action targets supported",
         "Launcher primary action wording supported",
         "Launcher consistent START GAME CTA supported",
+        "Launcher compact launch detail label supported",
         "Launcher branded atmospheric background supported",
         "Launcher branded background explicit RGBA supported",
         "Launcher high-contrast rounded actions supported",
         "Launcher compact header chrome reduction supported",
+        "Launcher compact condensed brand header supported",
+        "Launcher compact single-line brand header supported",
+        "Launcher compact readable brand subtitle supported",
         "Launcher compact section-header subtitle suppression supported",
+        "Launcher compact low-profile section headers supported",
+        "Launcher compact section-header task cues supported",
+        "Launcher compact readable section-header cues supported",
+        "Launcher compact install primary detail label supported",
         "Launcher compact version details collapsible",
+        "Launcher compact version drawer bounded help label supported",
+        "Launcher compact structured install-version action labels supported",
+        "Launcher compact version summary cards supported",
+        "Launcher compact ready-version summary panel supported",
+        "Launcher compact ready-version headline supported",
+        "Launcher compact responsive ready-version summary supported",
+        "Launcher compact structured Play/Sync action labels supported",
+        "Launcher compact ready-state install-section suppression supported",
         "Launcher compact cloud-safety guidance collapsible",
+        "Launcher compact cloud-safety detail label supported",
         "Launcher compact cloud options collapsible",
         "Launcher primary cloud actions before cloud options",
+        "Launcher compact cloud option detail labels supported",
         "Launcher safer Pull-before-Push cloud ordering supported",
+        "Launcher compact dangerous Push detail labels supported",
+        "Launcher compact armed Push warning detail label supported",
         "Launcher manual Push armed overwrite warning supported",
         "Launcher version-install/cloud-save separation guidance supported",
         "Launcher diagnostics console hidden by default",
+        "Launcher diagnostics console auto-opens for diagnostics actions",
+        "Launcher compact low-profile drawer toggles supported",
+        "Launcher compact support tools grid supported",
+        "Launcher compact low-profile diagnostics toggle supported",
+        "Launcher compact diagnostics toggle detail labels supported",
+        "Launcher compact structured diagnostics toggle labels supported",
+        "Launcher compact diagnostics scroll-hosted supported",
         "Launcher startup fallback raw banner suppressed",
         "Launcher portal UX device validated",
         "Launcher portal UX implementation note",
@@ -1472,6 +3504,35 @@ Add-Check `
         "Steam branch marker expected install slot directory",
         "Steam branch marker has matching install slot provenance",
         "depotManifestCount"
+    )
+
+Add-Check `
+    "android\src\com\game\sts2launcher\NativeFallbackActivity.java" `
+    "keeps native fallback recovery controls visible before verbose diagnostics" `
+    @(
+        "boolean landscape",
+        "boolean compactActionRows",
+        "LinearLayout actions",
+        "actions\.setOrientation\(compactActionRows \? LinearLayout\.VERTICAL : \(landscape \? LinearLayout\.HORIZONTAL : LinearLayout\.VERTICAL\)\)",
+        "createFallbackActionRow",
+        "addFallbackActionRow",
+        "useCompactFallbackActionRows",
+        "width < dp\(900\)",
+        "Copy diagnostics",
+        "Restart launcher",
+        "Clear files",
+        "Show diagnostics",
+        "Hide diagnostics",
+        "styleActionButton",
+        "setMinHeight\(dp\(48\)\)",
+        "GradientDrawable",
+        "addActionButton",
+        "root\.addView\(actions, actionsParams\)",
+        "createDiagnosticsView",
+        "diagnosticsView\.setVisibility\(View\.GONE\)",
+        "diagnosticsView\.setVisibility\(show \? View\.VISIBLE : View\.GONE\)",
+        "copyDiagnostics\(diagnosticsText\)",
+        "root\.addView\(diagnosticsView"
     )
 
 Add-Check `
@@ -2441,7 +4502,49 @@ Add-Check `
         "Steam web-domain metadata",
         "launcher portal uses explicit status and titled state sections",
         "Diagnostics are hidden behind the diagnostics console drawer",
+        "Android warmup/loading uses a mobile-width compact panel with readable styled percentage progress.",
+        "Android post-launch startup status uses a framed mobile-width readable card after the launcher closes.",
+        "Native fallback keeps verbose diagnostics collapsed until explicitly requested",
+        "Native fallback recovery actions split into two touch-friendly rows on narrow landscape screens.",
+        "The compact diagnostics toggle uses a touch-safe two-line detail label without exposing diagnostics by default.",
+        "Compact diagnostics lives inside the scroll body rather than consuming fixed phone viewport chrome, and explicit diagnostics actions scroll to it.",
+        "The compact status card stays readable while using low-profile spacing so more current task content remains visible.",
+        "The compact status card stacks the phase chip and guided next action so neither is squeezed on narrow screens.",
+        "Compact status details keep normal progress text to one stable line while attention/failure guidance can expand.",
+        "Compact safe-flow guidance starts collapsed behind a touch-safe two-line toggle that says `SAFE FLOW` and `Pull then play`.",
+        "Compact safe-flow toggle renders SAFE FLOW / Pull then play as structured title/detail labels",
+        "Compact sign-in, Steam Guard, and download task screens suppress the safe-flow drawer so the current primary controls stay higher in the viewport.",
+        "The compact workflow strip stays in one dense row on narrow compact viewports instead of taking a second fixed header row.",
+        "Tapping compact workflow step labels scrolls directly to the visible matching task section or the current safe fallback task.",
+        "Compact recovery/tools actions use a two-column support grid when width allows and full-width stacked tools on narrow compact viewports.",
+        "Compact Play and Sync shows the ready version, Pull-first guidance, and Push-locked state in a readable summary card that stays one line when width allows and becomes a readable two-line cloud-safety cue on narrow compact viewports.",
+        "Compact Pull action renders .*PULL TO ANDROID / Download saves.* as a structured title/detail label",
+        "Compact locked Push toggle renders STEAM PUSH LOCKED / Open overwrite and HIDE PUSH / Close overwrite as structured title/detail labels:",
+        "Compact unlocked Push actions render .*PUSH TO STEAM / Upload Android.* and .*CONFIRM OVERWRITE / Final upload.* as structured title/detail labels after the Push overwrite drawer is explicitly opened",
+        "Compact armed Push warning says STEAM CLOUD OVERWRITE / Confirm only after Pull/local saves are verified",
+        "Compact Pull and locked Steam Push share one two-button row when width allows and stack with Pull first on narrow compact viewports.",
+        "Compact Backup and Sync cloud options use detail labels and share one low-profile row when width allows and stack full-width on narrow compact viewports.",
+        "Compact Android sign-in shows .*SIGN IN WITH STEAM.* before password-manager helper copy",
+        "Compact Android sign-in CTA renders .*SIGN IN WITH STEAM / Android login.* as a structured title/detail label",
+        "Compact Android sign-in uses a large primary .*SIGN IN WITH STEAM.* CTA and a readable two-line password-manager safety helper",
+        "Compact Steam Guard submit action renders .*VERIFY CODE / Submit once.* as a structured title/detail label",
+        "Compact Steam Guard retry keeps the rejected-code title short and moves latest-code guidance into the helper below the code controls",
+        "Compact retry/failure state promotes .*TRY AGAIN.*Restart task.* primary recovery action while support tools remain secondary",
+        "Compact raw-log copy keeps the short .*COPY LOG.* label but uses .*Review first.* detail text before copying diagnostics",
+        "The compact current-task bar stays reachable, uses two-line .*GO TO.* navigation wording, and is touch-safe without wasting vertical space",
+        "The compact current-task bar uses short title labels such as .*GO TO LOGIN.*, .*GO TO GUARD.*, .*GO TO FILES.*, and .*GO TO PLAY.*",
+        "The compact current-task bar uses contextual detail labels such as .*Steam login.*, .*Verification code.*, .*Game files.*, and .*Play and saves.*.",
+        "The compact current-task bar renders .*GO TO.* and contextual details as structured title/detail labels",
+        "The compact inline current-task bar uses dense height while staying touch-safe, so the persistent header does not crowd active controls.",
+        "The compact current-task bar and workflow strip share a tight sticky header instead of being separated as independent chrome rows.",
+        "When width allows, the compact current-task bar and workflow strip share one inline sticky row, reducing header height while keeping controls readable and tappable.",
+        "On narrow compact viewports, the stacked current-task row stays low-profile while remaining touch-safe.",
+        "The compact sticky task header is grouped inside a low-profile toolbar shell so the persistent task controls read as one toolbar.",
+        "On narrow compact viewports, the compact sticky task header stacks into a dense current-task row plus one dense workflow row instead of a two-row workflow grid.",
+        "The compact sticky task header reflows between inline and stacked task/workflow layouts after Android rotation or keyboard viewport changes.",
+        "The compact active task or last compact scroll target re-anchors after Android rotation or keyboard viewport changes without stealing focus from keyboard input fields.",
         "portal clearly exposes the next action",
+        "Compact section headers keep title and readable task cue in one dense row without restoring bulky repeated subtitle cards",
         "Password-manager suggestions",
         "Steam Guard",
         "Failed login",
@@ -2453,9 +4556,18 @@ Add-Check `
         "Native credential panel keyboard-safe layout configured:",
         "Native credential panel IME inset scroll supported:",
         "Native credential panel touch-target layout configured:",
+        "Launcher Android-readable warmup screen supported:",
+        "Launcher Android-readable startup status card supported:",
+        "Launcher native fallback diagnostics collapsed by default:",
+        "Launcher native fallback responsive recovery rows supported:",
         "Native credential panel requests both Autofill fields:",
         "Native credential panel focus Autofill requests supported:",
         "Native credential panel task-led buttons supported:",
+        "Native credential panel responsive action rows supported:",
+        "Native credential panel orientation reflow supported:",
+        "Native credential panel short-height copy supported:",
+        "Native credential panel short-height reflow supported:",
+        "Native credential panel IME height reflow supported:",
         "Native credential panel password visibility toggle supported:",
         "Native credential panel password-focus button supported:",
         "Native credential panel Back dismiss supported:",
@@ -2476,27 +4588,128 @@ Add-Check `
         "Launcher titled state sections supported:",
         "Launcher safe first-run guidance supported:",
         "Launcher compact safe-flow guidance collapsible:",
+        "Launcher compact low-profile safe-flow toggle supported:",
+        "Launcher compact safe-flow toggle detail labels supported:",
+        "Launcher compact structured safe-flow toggle labels supported:",
+        "Launcher compact safe-flow bounded guide supported:",
+        "Launcher compact active-task safe-flow suppression supported:",
         "Launcher mobile-first compact layout supported:",
+        "Launcher compact dense panel padding supported:",
+        "Launcher compact dense vertical rhythm supported:",
+        "Launcher rounded scaled metrics supported:",
+        "Launcher Android compact touch-scale floor supported:",
         "Launcher compact dynamic content width supported:",
         "Launcher tablet/wide content layout supported:",
         "Launcher top-anchored portal content supported:",
         "Launcher compact vertical status hero supported:",
+        "Launcher compact low-profile status card supported:",
+        "Launcher compact status headline row supported:",
+        "Launcher compact stacked status headline supported:",
+        "Launcher viewport-aware compact status headline reflow supported:",
+        "Launcher compact stable status detail row supported:",
+        "Launcher compact sticky workflow step strip supported:",
+        "Launcher compact low-profile workflow step strip supported:",
+        "Launcher compact low-profile two-column workflow step strip supported:",
+        "Launcher compact workflow step direct navigation supported:",
+        "Launcher compact narrow workflow single-row supported:",
+        "Launcher compact visible workflow step labels supported:",
+        "Launcher compact workflow step number badges supported:",
+        "Launcher compact current-task jump supported:",
+        "Launcher compact sticky current-task bar supported:",
+        "Launcher compact low-profile current-task bar supported:",
+        "Launcher compact dense inline current-task bar supported:",
+        "Launcher compact current-task shared touch height supported:",
+        "Launcher compact low-profile stacked current-task bar supported:",
+        "Launcher compact current-task context labels supported:",
+        "Launcher compact structured current-task labels supported:",
+        "Launcher compact touch-safe sticky header controls supported:",
+        "Launcher compact grouped sticky task header supported:",
+        "Launcher compact sticky task toolbar shell supported:",
+        "Launcher compact inline sticky task header supported:",
+        "Launcher compact responsive sticky task header supported:",
+        "Launcher viewport-aware sticky task header reflow supported:",
+        "Launcher viewport-aware compact task re-anchor supported:",
+        "Launcher compact dense sticky task header supported:",
+        "Launcher compact task-jump navigation labels supported:",
+        "Launcher compact padded scroll anchors supported:",
+        "Launcher keyboard-focused input scroll supported:",
+        "Launcher compact contextual confirmation labels supported:",
+        "Launcher compact scroll-safe confirmation dialogs supported:",
+        "Launcher viewport-aware confirmation dialogs supported:",
+        "Launcher compact Steam Guard large input supported:",
+        "Launcher compact Steam Guard action-first layout supported:",
+        "Launcher compact Steam Guard inline action row supported:",
+        "Launcher compact responsive Steam Guard action layout supported:",
+        "Launcher viewport-aware compact Steam Guard action row reflow supported:",
+        "Launcher compact Steam Guard submit detail label supported:",
+        "Launcher compact Steam Guard retry guidance supported:",
+        "Launcher compact Steam Guard bounded helper supported:",
+        "Launcher compact primary retry action supported:",
+        "Launcher compact structured retry action labels supported:",
+        "Launcher compact primary login action first supported:",
+        "Launcher compact Android login primary CTA supported:",
+        "Launcher compact Android login detail label supported:",
+        "Launcher compact Android login helper detail label supported:",
+        "Launcher compact completed-auth section suppression supported:",
         "Launcher touch-first action targets supported:",
         "Launcher primary action wording supported:",
         "Launcher consistent START GAME CTA supported:",
+        "Launcher compact launch detail label supported:",
         "Launcher branded atmospheric background supported:",
         "Launcher branded background explicit RGBA supported:",
         "Launcher high-contrast rounded actions supported:",
         "Launcher compact header chrome reduction supported:",
+        "Launcher compact condensed brand header supported:",
+        "Launcher compact single-line brand header supported:",
+        "Launcher compact readable brand subtitle supported:",
         "Launcher compact section-header subtitle suppression supported:",
+        "Launcher compact low-profile section headers supported:",
+        "Launcher compact single-row section headers supported:",
+        "Launcher compact section-header task cues supported:",
+        "Launcher compact readable section-header cues supported:",
+        "Launcher compact install primary detail label supported:",
+        "Launcher compact download progress hero supported:",
+        "Launcher compact download progress status label supported:",
+        "Launcher compact readable download progress bar supported:",
+        "Launcher compact inline install-version controls supported:",
         "Launcher compact version details collapsible:",
+        "Launcher compact version drawer bounded help label supported:",
+        "Launcher compact structured install-version action labels supported:",
+        "Launcher compact version summary cards supported:",
+        "Launcher compact selected-version headline supported:",
+        "Launcher compact responsive selected-version summary supported:",
+        "Launcher compact ready-version summary panel supported:",
+        "Launcher compact ready-version headline supported:",
+        "Launcher compact responsive ready-version summary supported:",
+        "Launcher compact structured Play/Sync action labels supported:",
+        "Launcher compact ready-state install-section suppression supported:",
+        "Launcher compact touch-safe version dropdown supported:",
+        "Launcher compact touch-safe dropdown popup supported:",
         "Launcher compact cloud-safety guidance collapsible:",
+        "Launcher compact cloud-safety detail label supported:",
         "Launcher compact cloud options collapsible:",
         "Launcher primary cloud actions before cloud options:",
+        "Launcher compact cloud option detail labels supported:",
         "Launcher safer Pull-before-Push cloud ordering supported:",
+        "Launcher compact cloud direction labels supported:",
+        "Launcher compact cloud primary actions row supported:",
+        "Launcher compact Pull detail label supported:",
+        "Launcher compact responsive action rows supported:",
+        "Launcher compact dangerous Push detail labels supported:",
+        "Launcher compact armed Push warning detail label supported:",
         "Launcher manual Push armed overwrite warning supported:",
+        "Launcher compact cloud options row supported:",
         "Launcher version-install/cloud-save separation guidance supported:",
         "Launcher diagnostics console hidden by default:",
+        "Launcher diagnostics console auto-opens for diagnostics actions:",
+        "Compact diagnostics toggle renders .*DIAGNOSTICS.*Log \+ export context.*structured title/detail labels",
+        "Launcher compact low-profile drawer toggles supported:",
+        "Launcher compact dense drawer toggle height supported:",
+        "Launcher compact support tools grid supported:",
+        "Launcher compact raw-log review label supported:",
+        "Launcher compact low-profile diagnostics toggle supported:",
+        "Launcher compact diagnostics toggle detail labels supported:",
+        "Launcher compact structured diagnostics toggle labels supported:",
         "Launcher startup fallback raw banner suppressed:",
         "Launcher portal UX device validated:",
         "Launcher portal UX validation boundary:",
@@ -2520,8 +4733,11 @@ Add-Check `
         "Native login panel remains usable when the keyboard is open",
         "Native login panel can scroll if keyboard or small screen reduces available height",
         "Native login panel keeps Sign In and Cancel reachable with the keyboard open",
-        "Native login controls are stacked/full-width and easy to tap",
+        "Native login controls are stacked/full-width in portrait and use responsive wide rows in landscape",
         "Native login primary button says SIGN IN WITH STEAM",
+        "Compact launcher sign-in shows SIGN IN WITH STEAM before helper copy",
+        "Compact launcher sign-in says SIGN IN WITH STEAM / Android login",
+        "Compact launcher sign-in uses a large primary SIGN IN WITH STEAM CTA and a readable two-line password-manager safety helper",
         "Native login panel requests suggestions for username and password fields",
         "Native login panel requests suggestions again when username/password fields gain focus",
         "Native login NEXT: PASSWORD control focuses password field",
@@ -2531,13 +4747,52 @@ Add-Check `
         "Password visibility resets to hidden after submit/cancel/reopen",
         "Safe first-run flow guidance visible",
         "On compact phone layout, safe-flow guidance starts collapsed",
+        "Compact safe-flow toggle says SAFE FLOW / Pull then play and is touch-safe",
+        "Compact safe-flow toggle renders SAFE FLOW / Pull then play as structured title/detail labels",
+        "Compact expanded safe-flow guide stays bounded and says Setup: sign in -> download version -> Pull saves",
+        "Compact active task screens suppress the safe-flow drawer so primary controls stay higher",
         "Safe-flow guidance expands/collapses without hiding the primary task",
         "Compact phone layout uses most of the usable screen height",
         "Compact phone layout avoids excessive internal panel margins",
+        "Compact phone shell uses dense panel padding",
+        "Compact phone layout uses dense vertical spacing between repeated launcher regions",
         "Compact phone layout uses dynamic content width instead of a narrow fixed column",
         "Tablet/wide layout avoids a narrow fixed inner column",
+        "Android warmup/loading screen uses a mobile-width compact panel with readable styled progress",
+        "Android post-launch startup status uses a framed mobile-width readable card",
+        "Native fallback verbose diagnostics collapsed until requested",
+        "Native fallback recovery actions split into responsive rows on narrow landscape screens",
         "Portal task flow is top anchored rather than vertically stranded",
         "Compact phone status appears as a readable vertical next-step card",
+        "Compact phone status card is low-profile but still readable",
+        "Compact status card uses an inline phase and next-action headline where width allows",
+        "Compact status card stacks phase and next action without squeezing either label on narrow compact screens",
+        "Compact responsive numbered workflow step strip remains visible while scrolling",
+        "Compact workflow step strip stays in one dense row on narrow compact viewports",
+        "Compact workflow step strip uses low-profile single-row cells on narrow compact viewports",
+        "Compact workflow step strip shows short visible labels, not only numbers/tooltips",
+        "Compact workflow step strip separates step numbers into small badges next to readable labels",
+        "Tapping compact workflow step labels scrolls directly to visible matching task sections or the current safe fallback task",
+        "Compact workflow step strip is touch-safe but still readable",
+        "Compact current-task bar remains reachable while scrolling",
+        "Compact current-task bar uses GO TO navigation wording",
+        "Compact current-task bar uses contextual task detail labels",
+        "Compact current-task bar renders GO TO/context labels as structured title/detail labels",
+        "Compact current-task bar is touch-safe but still compact",
+        "Compact inline current-task bar is dense while remaining touch-safe",
+        "Compact current-task bar and workflow strip share a tight sticky header",
+        "Compact current-task bar and workflow strip share one inline sticky row when width allows",
+        "Compact stacked current-task row is low-profile on narrow compact viewports",
+        "Compact sticky task header is grouped inside a low-profile toolbar shell",
+        "Compact sticky task header stacks on narrow compact viewports",
+        "Compact sticky task header keeps the narrow workflow row dense enough to leave action content visible",
+        "Compact sticky task header reflows between inline and stacked layouts after rotation or keyboard viewport changes",
+        "Compact active task remains re-anchored after rotation or keyboard viewport changes",
+        "Compact Game Install selected-version summary is a readable card with Cloud unchanged cue when width allows",
+        "Compact Game Install selected-version summary becomes a two-line local-files-only cue on narrow compact viewports",
+        "Compact install-version dropdown and refresh controls share one row when width allows",
+        "Compact version drawer controls render CHANGE VERSION / Local files only and REFRESH VERSIONS / Update branch list as structured title/detail labels",
+        "Compact expanded version helper says Install target / Launch target with short branch status",
         "Status card shows a clear guided next action for the current state",
         "Failure/blocked/crash statuses show attention/fix guidance before normal install/cloud/launch guidance",
         "Primary actions use clear task wording, for example sign in/start game/verify code",
@@ -2546,18 +4801,63 @@ Add-Check `
         "Launcher background has visible branded atmosphere without reducing readability",
         "Buttons use high-contrast rounded action styling",
         "Compact phone header uses shortened subtitle/chrome",
+        "Compact phone brand header is a single low-profile row",
+        "Compact phone brand subtitle remains readable at phone scale",
+        "Compact phone header leaves more first-action area visible",
         "Compact phone section headers avoid repeated subtitle blocks",
+        "Compact phone section headers stay compact and leave controls visible",
+        "Compact phone section headers keep title and readable task cue in one dense row without clipping the title",
+        "Compact Game Install shows selected version and Download before optional version details",
+        "Compact version dropdown is large enough to read and tap when expanded",
+        "Opened compact game-version dropdown popup rows have larger spacing/padding and are touch-safe",
         "Compact phone version details start collapsed",
         "Version details expand/collapse without changing selected version",
+        "Compact download progress appears directly below the disabled DOWNLOADING primary action",
+        "Compact download progress uses a taller styled percentage bar",
+        "Compact optional drawer toggles are low-profile but still tappable",
+        "Compact optional drawer toggles use dense touch-safe height",
+        "Compact optional drawer toggles are shorter than primary action buttons",
+        "Compact Play/Sync action buttons render title/detail labels as structured two-line controls",
+        "Compact launch CTA says START GAME / Selected version",
+        "Compact recovery/tools actions use a two-column support grid when width allows",
+        "Compact recovery/tools actions stack full-width on narrow compact viewports",
         "Compact phone cloud safety starts collapsed",
+        "Compact cloud-safety cue appears before Pull/Push controls",
+        "Compact expanded cloud-safety detail says Cloud target and PULL downloads to Android / PUSH can overwrite Steam",
         "Cloud safety expands/collapses while preserving Pull/Push controls",
         "Compact phone cloud options start collapsed",
         "Cloud options expand/collapse while preserving Pull/Push controls",
+        "Compact Backup and Sync cloud options use detail labels and share one low-profile row when width allows",
+        "Compact Backup and Sync cloud options stack full-width on narrow compact viewports",
         "Pull/Push controls appear before lower-frequency cloud options",
         "Pull from Cloud appears before Push to Cloud",
+        "Compact cloud labels name Pull as Android-directed and Push as Steam-directed",
+        "Compact Pull action says PULL TO ANDROID / Download saves",
+        "Compact locked Push toggle renders STEAM PUSH LOCKED / Open overwrite and HIDE PUSH / Close overwrite as structured title/detail labels",
+        "Compact unlocked Push actions say PUSH TO STEAM / Upload Android and CONFIRM OVERWRITE / Final upload",
+        "Compact armed Push warning says STEAM CLOUD OVERWRITE / Confirm only after Pull/local saves are verified",
+        "Compact Pull and locked Steam Push share one two-button row when width allows",
+        "Compact Pull and locked Steam Push stack with Pull first on narrow compact viewports",
         "Armed Push state shows overwrite warning before final confirmation",
+        "Branch, redownload, cache, and final Push confirmations use contextual confirm/cancel labels instead of generic OK/Cancel buttons",
+        "Long compact confirmation warnings are scroll-safe and keep confirm/cancel buttons reachable",
+        "Confirmation dialogs use the current visible viewport after rotation or keyboard-driven viewport changes",
+        "Focused managed Steam Guard/fallback input stays visible above the Android soft keyboard",
+        "Compact optional drawer toggles remain tappable without taking full primary-action height.",
+        "Compact optional drawer toggles use a dense touch-safe height instead of the older tiny drawer rows.",
+        "Compact drawer toggles and dense workflow controls share the same touch-safe compact height:",
+        "Compact optional drawer toggles are visibly shorter than primary action buttons while still tappable.",
         "Diagnostics console hidden by default",
+        "Compact diagnostics toggle uses a touch-safe two-line detail label",
+        "Compact diagnostics toggle renders title/detail labels as structured controls",
+        "Compact diagnostics is inside the scroll body rather than fixed root chrome",
         "Raw startup fallback failure text hidden from portal",
+        "The compact workflow strip shows short visible step labels such as `SIGN IN`, `GUARD`, `FILES`, and `PLAY`; it does not rely on hover-only tooltips",
+        "The compact workflow strip is touch-safe enough for Android while keeping step labels readable",
+        "The compact game-version dropdown is large enough to read and tap when the version drawer is expanded",
+        "Opening the compact game-version dropdown shows larger touch-safe popup row spacing and horizontal padding",
+        "Compact Play and Sync ready-version summary is a readable card when width allows",
+        "Compact Play and Sync ready-version summary becomes a readable two-line Pull-first, Push-locked cue on narrow compact viewports",
         "Username keyboard next action focuses password",
         "NEXT: PASSWORD button focuses password and requests password suggestions",
         "Password keyboard done action attempts submit",
@@ -2565,6 +4865,15 @@ Add-Check `
         "Samsung Pass",
         "Google Password Manager",
         "Steam Guard prompt visible",
+        "Steam Guard field accepts alphanumeric input",
+        "Compact Steam Guard code field and Verify button are large enough to tap comfortably",
+        "Compact Steam Guard shows code field and VERIFY CODE before helper copy",
+        "Compact Steam Guard code field and VERIFY CODE share one touch-safe action row when width allows",
+        "Compact Steam Guard code field and VERIFY CODE stack full-width on narrow compact viewports",
+        "Compact Steam Guard submit action says VERIFY CODE / Submit once",
+        "Compact Steam Guard retry keeps the rejected-code title short and moves latest-code guidance into the helper below the code controls",
+        "Compact retry/failure recovery button is primary and uses TRY AGAIN / Restart task labels",
+        "Compact raw-log copy action says COPY LOG / Review first",
         "Wrong password produces recoverable failure",
         "Failed-login status gives clear retry guidance",
         "Failed-login status states Steam passwords are not stored",
@@ -2586,6 +4895,11 @@ Add-Check `
         "Native credential panel requests both Autofill fields",
         "Native credential panel focus Autofill requests supported",
         "Native credential panel task-led buttons supported",
+        "Native credential panel responsive action rows supported",
+        "Native credential panel orientation reflow supported",
+        "Native credential panel short-height copy supported",
+        "Native credential panel short-height reflow supported",
+        "Native credential panel IME height reflow supported",
         "Native credential panel password visibility toggle supported",
         "Native credential panel password-focus button supported",
         "Native credential panel Back dismiss supported",
@@ -2602,20 +4916,116 @@ Add-Check `
         "Launcher error-first guided status supported",
         "Launcher safe first-run guidance supported",
         "Launcher compact safe-flow guidance collapsible",
+        "Launcher compact low-profile safe-flow toggle supported",
+        "Launcher compact safe-flow toggle detail labels supported",
+        "Launcher compact structured safe-flow toggle labels supported",
+        "Launcher compact safe-flow bounded guide supported",
+        "Launcher compact active-task safe-flow suppression supported",
         "Launcher mobile-first compact layout supported",
+        "Launcher compact dense panel padding supported",
+        "Launcher compact dense vertical rhythm supported",
+        "Launcher rounded scaled metrics supported",
+        "Launcher Android compact touch-scale floor supported",
+        "Launcher Android-readable warmup screen supported",
+        "Launcher Android-readable startup status card supported",
         "Launcher compact dynamic content width supported",
         "Launcher tablet/wide content layout supported",
         "Launcher top-anchored portal content supported",
         "Launcher compact vertical status hero supported",
+        "Launcher compact low-profile status card supported",
+        "Launcher compact status headline row supported",
+        "Launcher compact stacked status headline supported",
+        "Launcher viewport-aware compact status headline reflow supported",
+        "Launcher compact stable status detail row supported",
+        "Launcher compact sticky workflow step strip supported",
+        "Launcher compact low-profile workflow step strip supported",
+        "Launcher compact low-profile two-column workflow step strip supported",
+        "Launcher compact workflow step direct navigation supported",
+        "Launcher compact single-row numbered workflow step strip supported",
+        "Launcher compact two-column workflow step strip supported",
+        "Launcher compact narrow workflow single-row supported",
+        "Launcher compact visible workflow step labels supported",
+        "Launcher compact workflow step number badges supported",
+        "Launcher compact current-task jump supported",
+        "Launcher compact sticky current-task bar supported",
+        "Launcher compact low-profile current-task bar supported",
+        "Launcher compact dense inline current-task bar supported",
+        "Launcher compact current-task shared touch height supported",
+        "Launcher compact low-profile stacked current-task bar supported",
+        "Launcher compact current-task context labels supported",
+        "Launcher compact structured current-task labels supported",
+        "Launcher compact current-task short title labels supported",
+        "Launcher compact touch-safe sticky header controls supported",
+        "Launcher compact grouped sticky task header supported",
+        "Launcher compact sticky task toolbar shell supported",
+        "Launcher compact inline sticky task header supported",
+        "Launcher compact responsive sticky task header supported",
+        "Launcher viewport-aware sticky task header reflow supported",
+        "Launcher viewport-aware compact task re-anchor supported",
+        "Launcher compact dense sticky task header supported",
+        "Launcher compact task-jump navigation labels supported",
+        "Launcher compact readable detail label font supported",
+        "Launcher compact padded scroll anchors supported",
+        "Launcher keyboard-focused input scroll supported",
+        "Launcher compact selected-version headline supported",
+        "Launcher compact responsive selected-version summary supported",
+        "Launcher compact contextual confirmation labels supported",
+        "Launcher compact scroll-safe confirmation dialogs supported",
+        "Launcher viewport-aware confirmation dialogs supported",
+        "Launcher compact Steam Guard large input supported",
+        "Launcher compact Steam Guard action-first layout supported",
+        "Launcher compact Steam Guard inline action row supported",
+        "Launcher compact responsive Steam Guard action layout supported",
+        "Launcher viewport-aware compact Steam Guard action row reflow supported",
+        "Launcher compact Steam Guard submit detail label supported",
+        "Launcher compact Steam Guard retry guidance supported",
+        "Launcher compact Steam Guard bounded helper supported",
+        "Launcher compact primary retry action supported",
+        "Launcher compact structured retry action labels supported",
+        "Launcher compact primary login action first supported",
+        "Launcher compact Android login primary CTA supported",
+        "Launcher compact Android login detail label supported",
+        "Launcher compact Android login helper detail label supported",
+        "Launcher compact completed-auth section suppression supported",
         "Launcher touch-first action targets supported",
         "Launcher primary action wording supported",
         "Launcher consistent START GAME CTA supported",
+        "Launcher compact launch detail label supported",
         "Launcher branded atmospheric background supported",
         "Launcher branded background explicit RGBA supported",
         "Launcher high-contrast rounded actions supported",
         "Launcher compact header chrome reduction supported",
+        "Launcher compact condensed brand header supported",
+        "Launcher compact single-line brand header supported",
+        "Launcher compact readable brand subtitle supported",
         "Launcher compact section-header subtitle suppression supported",
+        "Launcher compact low-profile section headers supported",
+        "Launcher compact single-row section headers supported",
+        "Launcher compact section-header task cues supported",
+        "Launcher compact install primary action first supported",
+        "Launcher compact install primary detail label supported",
+        "Launcher compact download progress hero supported",
+        "Launcher compact download progress status label supported",
+        "Launcher compact inline install-version controls supported",
         "Launcher compact version details collapsible",
+        "Launcher compact structured install-version action labels supported",
+        "Launcher compact ready-version summary panel supported",
+        "Launcher compact ready-version headline supported",
+        "Launcher compact responsive ready-version summary supported",
+        "Launcher compact ready-state install-section suppression supported",
+        "Launcher compact touch-safe version dropdown supported",
+        "Launcher compact touch-safe dropdown popup supported",
+        "Launcher compact cloud-safety cue before actions supported",
+        "Launcher compact cloud-safety detail label supported",
+        "Launcher compact cloud direction labels supported",
+        "Launcher compact cloud primary actions row supported",
+        "Launcher compact Pull detail label supported",
+        "Launcher compact responsive action rows supported",
+        "Launcher compact dangerous Push detail labels supported",
+        "Launcher compact armed Push warning detail label supported",
+        "Launcher compact raw-log review label supported",
+        "Launcher compact cloud options row supported",
+        "Launcher compact cloud option detail labels supported",
         "Launcher version-install/cloud-save separation guidance supported",
         "SteamKit debug logs sanitized for credentials/tokens",
         "Release signoff is not valid"
@@ -2628,9 +5038,69 @@ Add-Check `
         "cleaner status-led portal",
         "titled action sections",
         "hidden diagnostics drawer",
+        "readable bounded compact diagnostics log viewport",
         "stronger branded header",
+        "single-line compact brand",
+        "readable compact brand subtitle",
+        "responsive compact status headline row with stacked narrow-screen fallback",
+        "viewport-aware compact status headline reflow after rotation or keyboard viewport changes",
+        "stable one-line compact status detail row",
+        "Android compact touch-scale floor for small-device readability",
+        "Android-readable shader warmup/loading",
+        "Android-readable post-launch startup status card",
+        "responsive touch-safe compact sticky task header in a low-profile toolbar shell with a dense inline current-task button that uses the shared compact touch-safe control height",
+        "contextual current-task detail labels",
+        "low-profile stacked current-task row",
+        "dense single-row compact workflow strip on narrow screens",
+        "viewport-aware sticky task header reflow after rotation or keyboard viewport changes",
+        "viewport-aware compact task re-anchoring after rotation or keyboard viewport changes",
+        "readable step-number badges",
+        "SIGN IN WITH STEAM / Android login",
+        "VERIFY CODE / Submit once",
+        "START GAME / Selected version",
+        "structured Play/Sync title/detail action labels",
+        "Cloud target / PULL downloads to Android / PUSH can overwrite Steam",
+        "PULL TO ANDROID / Download saves",
+        "structured locked-Push title/detail labels",
+        "PUSH TO STEAM / Upload Android",
+        "CONFIRM OVERWRITE / Final upload",
+        "STEAM CLOUD OVERWRITE / Confirm only after Pull/local saves are verified",
+        "responsive compact action rows",
+        "responsive selected-version install summary",
+        "touch-safe compact version dropdown popups",
+        "inline compact install-version dropdown/refresh controls with structured title/detail labels",
+        "version details with structured compact local-files-only drawer labels",
+        "responsive ready-version summary",
+        "large compact Android sign-in CTA with readable two-line",
+        "responsive compact Steam Guard code controls",
+        "viewport-aware compact Steam Guard code/action row reflow after rotation or keyboard viewport changes",
+        "compact Steam Guard bounded two-line helper labels",
+        "primary structured compact retry recovery",
+        "compact support tool detail labels including raw-log review labeling",
+        "short-height copy on cramped landscape screens",
+        "short-height copy reflow when the landscape height class changes",
+        "keyboard-reduced usable height",
+        "scroll-safe compact confirmations",
+        "bounded compact setup safe-flow panel",
+        "collapsible setup safe-flow guidance with structured compact Pull-then-play title/detail labels that suppresses during active compact task screens",
+        "dense compact drawer toggles",
+        "structured compact title/detail labels",
+        "native fallback recovery screens that keep verbose diagnostics collapsed until requested and split actions into responsive rows on narrow landscape screens",
+        "dense compact vertical rhythm",
+        "single-row compact section headers with readable task cues",
+        "mobile-first compact panel sizing with dense compact shell padding",
         "Steam sign-in/Steam Guard/install/play-sync sections",
         "Android/Samsung/password-manager suggestion behavior"
+    )
+
+Add-Check `
+    "docs\launcher-loading-screen-staging.md" `
+    "documents Android-readable shader warmup staging" `
+    @(
+        "Android shader warmup uses the launcher compact touch-scale floor",
+        "mobile-width compact panel",
+        "styled percentage progress bar",
+        "Android game startup status now uses a framed mobile-width status card"
     )
 
 Add-Check `
@@ -2663,7 +5133,8 @@ Add-Check `
         "Password-protected beta branches",
         "Steam Cloud Push is safe",
         "last_manual_cloud_push\.txt",
-        "aggregate successful post-switch Push evidence"
+        "aggregate successful post-switch Push evidence",
+        "bounded two-line Install target / Launch target helper labels"
     )
 
 Add-Check `
@@ -2678,6 +5149,7 @@ Add-Check `
         "does not store or inject Steam passwords",
         "SteamKit debug logs are disabled by default",
         "sts2_steamkit_debug_logs=1",
+        "native fallback keeps verbose diagnostics collapsed until requested",
         "ARM64 device validation"
     )
 

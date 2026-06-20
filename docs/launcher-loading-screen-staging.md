@@ -17,7 +17,9 @@ Implemented in this stage:
 - Shader warmup panel scales from the short viewport edge, not only the long edge, so short/wide Samsung-style landscape screens do not inflate text and controls beyond the available height.
 - Shader warmup panel width is clamped with safe side margins and keeps a bounded aspect-friendly layout.
 - Warmup status/detail labels use word wrapping.
+- Android shader warmup uses the launcher compact touch-scale floor, a mobile-width compact panel, compact panel padding, and the styled percentage progress bar.
 - Game startup status is anchored top-wide with viewport-derived safe margins instead of a fixed `(24, 24)` position.
+- Android game startup status now uses a framed mobile-width status card after the launcher closes, instead of floating unframed text.
 
 ## Remaining stages
 

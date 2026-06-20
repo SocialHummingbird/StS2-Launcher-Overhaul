@@ -9,11 +9,14 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -44,6 +47,7 @@ public class NativeFallbackActivity extends Activity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		Log.w(TAG, "Showing native x86 fallback instead of starting Godot.");
 		setContentView(createContentView());
 	}
@@ -64,7 +68,9 @@ public class NativeFallbackActivity extends Activity {
 				"This Android x86 emulator cannot safely run the Godot/.NET runtime. It crashes inside the Mono/GodotSharp native layer before the launcher can take over.\n\n" +
 				"Use an ARM64 Android device/build to test the launcher and game runtime. This screen is expected on x86 emulator builds.";
 		}
-		final String diagnosticsText = diagnostics;
+		final String diagnosticsText = reasonTitle + "\n\n" + reasonMessage + "\n\n" + diagnostics;
+		boolean landscape = getResources().getDisplayMetrics().widthPixels > getResources().getDisplayMetrics().heightPixels;
+		boolean compactActionRows = landscape && useCompactFallbackActionRows();
 
 		ScrollView scroll = new ScrollView(this);
 		scroll.setFillViewport(true);
@@ -76,17 +82,17 @@ public class NativeFallbackActivity extends Activity {
 
 		LinearLayout root = new LinearLayout(this);
 		root.setOrientation(LinearLayout.VERTICAL);
-		root.setGravity(Gravity.CENTER);
-		root.setPadding(48, 48, 48, 48);
+		root.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+		root.setPadding(dp(20), dp(landscape ? 14 : 20), dp(20), dp(24));
 		root.setLayoutParams(new ScrollView.LayoutParams(
 			ViewGroup.LayoutParams.MATCH_PARENT,
-			ViewGroup.LayoutParams.MATCH_PARENT
+			ViewGroup.LayoutParams.WRAP_CONTENT
 		));
 
 		TextView title = new TextView(this);
 		title.setText(reasonTitle);
 		title.setTextColor(Color.rgb(245, 230, 190));
-		title.setTextSize(28);
+		title.setTextSize(landscape ? 20 : 22);
 		title.setTypeface(Typeface.DEFAULT_BOLD);
 		title.setGravity(Gravity.CENTER);
 		root.addView(title, new LinearLayout.LayoutParams(
@@ -95,51 +101,146 @@ public class NativeFallbackActivity extends Activity {
 		));
 
 		TextView message = new TextView(this);
-		message.setText(reasonMessage + "\n\n" + diagnostics);
+		message.setText(reasonMessage);
 		message.setTextColor(Color.rgb(220, 220, 210));
-		message.setTextSize(16);
+		message.setTextSize(14);
 		message.setGravity(Gravity.CENTER);
-		message.setPadding(0, 28, 0, 28);
+		message.setLineSpacing(0, 1.08f);
+		message.setPadding(0, dp(landscape ? 10 : 14), 0, dp(landscape ? 10 : 14));
 		root.addView(message, new LinearLayout.LayoutParams(
 			ViewGroup.LayoutParams.MATCH_PARENT,
 			ViewGroup.LayoutParams.WRAP_CONTENT
 		));
 
-		Button copyButton = new Button(this);
-		copyButton.setText("Copy diagnostics");
-		copyButton.setOnClickListener(v -> copyDiagnostics(diagnosticsText));
-		root.addView(copyButton, new LinearLayout.LayoutParams(
-			ViewGroup.LayoutParams.MATCH_PARENT,
-			ViewGroup.LayoutParams.WRAP_CONTENT
-		));
+		final TextView diagnosticsView = createDiagnosticsView(diagnostics);
 
-		Button restartButton = new Button(this);
-		restartButton.setText("Restart launcher");
-		restartButton.setOnClickListener(v -> restartApp());
-		LinearLayout.LayoutParams restartParams = new LinearLayout.LayoutParams(
+		LinearLayout actions = new LinearLayout(this);
+		actions.setOrientation(compactActionRows ? LinearLayout.VERTICAL : (landscape ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL));
+		actions.setGravity(Gravity.CENTER);
+		LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(
 			ViewGroup.LayoutParams.MATCH_PARENT,
 			ViewGroup.LayoutParams.WRAP_CONTENT
 		);
-		restartParams.topMargin = 18;
-		root.addView(restartButton, restartParams);
+		actionsParams.bottomMargin = dp(landscape ? 10 : 14);
+		root.addView(actions, actionsParams);
+
+		LinearLayout firstActionTarget = actions;
+		LinearLayout secondActionTarget = actions;
+		if (compactActionRows) {
+			firstActionTarget = createFallbackActionRow();
+			secondActionTarget = createFallbackActionRow();
+			addFallbackActionRow(actions, firstActionTarget, 0);
+			addFallbackActionRow(actions, secondActionTarget, 8);
+		}
+
+		Button copyButton = new Button(this);
+		copyButton.setText("Copy diagnostics");
+		styleActionButton(copyButton, Color.rgb(40, 78, 92), Color.rgb(105, 220, 235), Color.rgb(230, 248, 248));
+		copyButton.setOnClickListener(v -> copyDiagnostics(diagnosticsText));
+		addActionButton(firstActionTarget, copyButton, landscape, 0);
+
+		Button restartButton = new Button(this);
+		restartButton.setText("Restart launcher");
+		styleActionButton(restartButton, Color.rgb(42, 58, 76), Color.rgb(120, 168, 210), Color.rgb(235, 244, 250));
+		restartButton.setOnClickListener(v -> restartApp());
+		addActionButton(firstActionTarget, restartButton, landscape, 8);
 
 		Button clearButton = new Button(this);
-		clearButton.setText("Clear downloaded files");
+		clearButton.setText(landscape ? "Clear files" : "Clear downloaded files");
+		styleActionButton(clearButton, Color.rgb(82, 48, 28), Color.rgb(245, 150, 70), Color.rgb(255, 236, 220));
 		clearButton.setOnClickListener(v -> {
 			deleteRecursive(new File(getFilesDir(), "game"));
 			deleteRecursive(new File(getFilesDir(), GAME_VERSIONS_DIR));
 			deleteRecursive(new File(getFilesDir(), ".godot"));
 			restartApp();
 		});
-		LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(
+		addActionButton(secondActionTarget, clearButton, landscape, compactActionRows ? 0 : 8);
+
+		final Button detailsButton = new Button(this);
+		detailsButton.setText(landscape ? "Diagnostics" : "Show diagnostics");
+		styleActionButton(detailsButton, Color.rgb(34, 48, 56), Color.rgb(120, 176, 190), Color.rgb(230, 248, 248));
+		detailsButton.setOnClickListener(v -> {
+			boolean show = diagnosticsView.getVisibility() != View.VISIBLE;
+			diagnosticsView.setVisibility(show ? View.VISIBLE : View.GONE);
+			detailsButton.setText(show ? (landscape ? "Hide" : "Hide diagnostics") : (landscape ? "Diagnostics" : "Show diagnostics"));
+		});
+		addActionButton(secondActionTarget, detailsButton, landscape, 8);
+
+		root.addView(diagnosticsView, new LinearLayout.LayoutParams(
 			ViewGroup.LayoutParams.MATCH_PARENT,
 			ViewGroup.LayoutParams.WRAP_CONTENT
-		);
-		clearParams.topMargin = 18;
-		root.addView(clearButton, clearParams);
+		));
 
 		scroll.addView(root);
 		return scroll;
+	}
+
+	private boolean useCompactFallbackActionRows() {
+		int width = getResources().getDisplayMetrics().widthPixels;
+		return width < dp(900);
+	}
+
+	private LinearLayout createFallbackActionRow() {
+		LinearLayout row = new LinearLayout(this);
+		row.setOrientation(LinearLayout.HORIZONTAL);
+		row.setGravity(Gravity.CENTER);
+		return row;
+	}
+
+	private void addFallbackActionRow(LinearLayout actions, LinearLayout row, int topMargin) {
+		LinearLayout.LayoutParams parameters = new LinearLayout.LayoutParams(
+			ViewGroup.LayoutParams.MATCH_PARENT,
+			ViewGroup.LayoutParams.WRAP_CONTENT
+		);
+		parameters.topMargin = dp(topMargin);
+		actions.addView(row, parameters);
+	}
+
+	private TextView createDiagnosticsView(String diagnostics) {
+		TextView diagnosticsView = new TextView(this);
+		diagnosticsView.setText(diagnostics);
+		diagnosticsView.setTextColor(Color.rgb(196, 205, 202));
+		diagnosticsView.setTextSize(12);
+		diagnosticsView.setTypeface(Typeface.MONOSPACE);
+		diagnosticsView.setGravity(Gravity.START);
+		diagnosticsView.setLineSpacing(0, 1.04f);
+		diagnosticsView.setPadding(dp(12), dp(12), dp(12), dp(12));
+		diagnosticsView.setBackgroundColor(Color.rgb(12, 16, 18));
+		diagnosticsView.setVisibility(View.GONE);
+		return diagnosticsView;
+	}
+
+	private void styleActionButton(Button button, int fillColor, int borderColor, int textColor) {
+		GradientDrawable background = new GradientDrawable();
+		background.setShape(GradientDrawable.RECTANGLE);
+		background.setColor(fillColor);
+		background.setCornerRadius(dp(8));
+		background.setStroke(dp(1), borderColor);
+		button.setBackground(background);
+		button.setTextColor(textColor);
+		button.setTextSize(14);
+		button.setTypeface(Typeface.DEFAULT_BOLD);
+		button.setAllCaps(false);
+		button.setMinHeight(dp(48));
+		button.setPadding(dp(10), 0, dp(10), 0);
+	}
+
+	private void addActionButton(LinearLayout actions, Button button, boolean landscape, int margin) {
+		LinearLayout.LayoutParams parameters = new LinearLayout.LayoutParams(
+			landscape ? 0 : ViewGroup.LayoutParams.MATCH_PARENT,
+			ViewGroup.LayoutParams.WRAP_CONTENT,
+			landscape ? 1f : 0f
+		);
+		if (landscape) {
+			parameters.leftMargin = dp(margin);
+		} else {
+			parameters.topMargin = dp(margin);
+		}
+		actions.addView(button, parameters);
+	}
+
+	private int dp(int value) {
+		return Math.round(value * getResources().getDisplayMetrics().density);
 	}
 
 	private void copyDiagnostics(String diagnostics) {

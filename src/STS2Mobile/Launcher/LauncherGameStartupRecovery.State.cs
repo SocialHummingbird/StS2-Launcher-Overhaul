@@ -76,7 +76,7 @@ internal static partial class LauncherGameStartupRecovery
             LauncherLaunchMarkers.ClearStartupMarker();
 
             var controlsCleared = QueueFreeIfAlive(RecoveryControls, "recovery controls");
-            var statusCleared = QueueFreeIfAlive(StartupStatus, "startup status");
+            var statusCleared = LauncherStartupStatus.QueueFree(StartupStatus);
 
             PatchHelper.Log(
                 "Post-startup recovery UI cleanup finished after game startup was observed; " +

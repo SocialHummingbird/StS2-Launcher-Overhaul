@@ -5,24 +5,34 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
-    private static RichTextLabel BuildLogView(float scale)
+    private const int CompactDiagnosticsLogFontSize = 15;
+    private const int CompactDiagnosticsLogMarginHorizontal = 12;
+    private const int CompactDiagnosticsLogMarginVertical = 10;
+
+    private static RichTextLabel BuildLogView(LauncherLayoutProfile profile)
     {
+        var scale = profile.Scale;
+        var compact = profile.Compact;
         var log = new RichTextLabel
         {
             CustomMinimumSize = new Vector2(
                 0,
                 LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LogHeight)
             ),
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             ScrollFollowing = true,
             BbcodeEnabled = true,
         };
 
         log.AddThemeFontSizeOverride(
             LauncherComponentTheme.NormalFontSize,
-            LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LogFontSize)
+            LauncherComponentTheme.ScaleInt(
+                scale,
+                compact ? CompactDiagnosticsLogFontSize : LauncherComponentTheme.LogFontSize
+            )
         );
         log.AddThemeColorOverride(LauncherComponentTheme.DefaultColor, LauncherComponentTheme.LogText);
-        log.AddThemeStyleboxOverride(LauncherComponentTheme.StateNormal, BuildLogStyle(scale));
+        log.AddThemeStyleboxOverride(LauncherComponentTheme.StateNormal, BuildLogStyle(scale, compact));
         return log;
     }
 
@@ -36,28 +46,34 @@ internal sealed partial class LauncherView
         log.Pop();
     }
 
-    private static StyleBoxFlat BuildLogStyle(float scale)
+    private static StyleBoxFlat BuildLogStyle(float scale, bool compact)
     {
         var background = new StyleBoxFlat();
         background.BgColor = LauncherComponentTheme.LogBackground;
         background.SetCornerRadiusAll(
             LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LogRadius)
         );
+        var horizontalMargin = compact
+            ? CompactDiagnosticsLogMarginHorizontal
+            : LauncherComponentTheme.LogMarginHorizontal;
+        var verticalMargin = compact
+            ? CompactDiagnosticsLogMarginVertical
+            : LauncherComponentTheme.LogMarginVertical;
         background.ContentMarginLeft = LauncherComponentTheme.ScaleInt(
             scale,
-            LauncherComponentTheme.LogMarginHorizontal
+            horizontalMargin
         );
         background.ContentMarginRight = LauncherComponentTheme.ScaleInt(
             scale,
-            LauncherComponentTheme.LogMarginHorizontal
+            horizontalMargin
         );
         background.ContentMarginTop = LauncherComponentTheme.ScaleInt(
             scale,
-            LauncherComponentTheme.LogMarginVertical
+            verticalMargin
         );
         background.ContentMarginBottom = LauncherComponentTheme.ScaleInt(
             scale,
-            LauncherComponentTheme.LogMarginVertical
+            verticalMargin
         );
         return background;
     }

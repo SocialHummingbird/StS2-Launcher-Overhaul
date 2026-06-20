@@ -64,7 +64,13 @@ internal sealed partial class ActionSection
         _cloudGroup.Visible = visible;
         ApplyCloudOptionVisibility(visible);
         _pushPullRow.Visible = visible;
+        if (!visible)
+        {
+            _cloudPushExpanded = false;
+            _cloudSafetyExpanded = false;
+        }
         ResetCloudPushArm(visible);
+        UpdateBranchHelpText();
     }
 
     private void ShowLaunchButtons(bool showUpdate)
@@ -80,19 +86,21 @@ internal sealed partial class ActionSection
     {
         ShowUpdateButton(visibility.Update);
         _redownloadButton.Visible = visibility.Redownload;
-        _branchDropdown.Visible = visibility.Branch;
-        _branchHelpLabel.Visible = visibility.Branch && (!_compact || _branchDetailsExpanded);
-        _branchDetailsToggle.Visible = visibility.Branch && _compact;
+        _branchControlsAvailable = visibility.Branch;
+        ApplyBranchControlVisibility();
         SetSupportButtonsVisible(visibility.Support);
         _safeLaunchButton.Visible = visibility.SafeLaunch;
         _launchButton.Visible = visibility.Launch;
+        _readyVersionSummaryPanel.Visible = _compact && visibility.Launch;
     }
 
     private void ShowUpdateButton(bool visible)
     {
         _updateButton.Visible = visible;
         _updateButton.Disabled = false;
-        _updateButton.Text = _compact ? "CHECK UPDATES" : "CHECK FOR UPDATES";
+        SetCompactActionButtonText(_updateButton, _compact
+            ? CompactSupportToolText("UPDATES", "Check files")
+            : "CHECK FOR UPDATES");
     }
 
     private void SetSupportButtonsVisible(bool visible)
@@ -102,7 +110,7 @@ internal sealed partial class ActionSection
         {
             _supportExpanded = false;
             _supportGroup.Visible = false;
-            _supportToggle.Text = "MORE SUPPORT OPTIONS";
+            SetCompactActionButtonText(_supportToggle, SupportToggleText());
         }
         else
         {

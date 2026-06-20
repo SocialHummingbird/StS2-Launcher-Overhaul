@@ -10,28 +10,41 @@ internal sealed partial class LauncherView
 {
     private const string FmodCreditText = "Made using FMOD Studio by Firelight Technologies Pty Ltd.";
     private const int FmodCreditFontSize = 8;
+    private const int CompactFmodCreditFontSize = 9;
     private const string FmodLogoFileName = "fmod_logo.png";
     private const int FmodLogoHeight = 30;
     private const int FmodLogoWidth = 120;
     private static readonly Color FmodCreditColor = new(0.5f, 0.5f, 0.55f);
 
-    private static VBoxContainer BuildFmodAttributionSection(float scale)
+    private static VBoxContainer BuildFmodAttributionSection(float scale, bool compact)
     {
         var section = new VBoxContainer
         {
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.End,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = compact
+                ? Control.SizeFlags.ShrinkBegin
+                : Control.SizeFlags.ExpandFill,
+            Alignment = compact
+                ? BoxContainer.AlignmentMode.Begin
+                : BoxContainer.AlignmentMode.End,
         };
 
-        var logo = LoadFmodLogo(scale);
-        if (logo != null)
-            section.AddChild(logo);
+        if (!compact)
+        {
+            var logo = LoadFmodLogo(scale);
+            if (logo != null)
+                section.AddChild(logo);
+        }
 
         var credit = new StyledLabel(
             FmodCreditText,
             scale,
-            fontSize: FmodCreditFontSize
+            fontSize: compact ? CompactFmodCreditFontSize : FmodCreditFontSize,
+            align: compact ? HorizontalAlignment.Center : HorizontalAlignment.Left
         );
+        credit.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        credit.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        credit.MouseFilter = Control.MouseFilterEnum.Ignore;
         credit.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
             FmodCreditColor

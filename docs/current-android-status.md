@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-06-19_
+_Last updated: 2026-06-20_
 
 Current device evidence ledgers:
 
@@ -46,6 +46,18 @@ validation=Android build/APK verification passed; ARM64 public/default, public-a
 upgradeBaseline=local runtime-pack validation line
 ```
 
+Latest local launcher UI hardening evidence:
+
+```text
+build=0.2.271-local-ui-mobile-pass178-cloud-cue-parent-fix
+asset=StS2Launcher-v0.2.271-local-ui-mobile-pass178-cloud-cue-parent-fix-arm64-v8a.apk
+sha256=e7e71aa329907b04c46d26538e998fe77c447d82d8637b2fcfd9da56d600c334
+scope=compact Android launcher polish, including structured compact install CTA labels, stable two-line download progress status, stable compact armed Push warning label, direct-parent-safe compact Cloud Safety cue reordering before Pull/Push controls, bounded compact Cloud Safety detail copy, bounded two-line Install target / Launch target version helper labels, bounded compact Steam Guard helper copy, bounded compact setup safe-flow guide copy, short compact current-task GO TO LOGIN/GUARD/FILES/PLAY title labels, readable shared compact detail-label font, readable compact workflow step number badges, shared touch-safe compact height for the inline current-task bar, padded compact scroll anchors so workflow/current-task jumps land active sections below the sticky header instead of flush against the viewport edge, viewport-aware compact status headline reflow after rotation or keyboard viewport changes, viewport-aware sticky task header reflow after rotation or keyboard viewport changes, viewport-aware compact task re-anchoring after rotation or keyboard viewport changes, viewport-aware compact Steam Guard code/action row reflow after rotation or keyboard viewport changes, rounded shared metric scaling so compact fonts, touch targets, separators, and margins keep fractional Android scale instead of being floored, current-viewport confirmation dialog sizing so branch/cache/cloud warnings stay sized correctly after rotation or keyboard-driven viewport changes, keyboard-focused managed input scrolling so Steam Guard/fallback fields stay reachable above the Android soft keyboard, a readable bounded compact diagnostics log viewport, and viewport-aware diagnostics log resizing after Android rotation or keyboard viewport changes
+validation=static audit, managed Release build, ARM64 APK build, Android crypto verification, APK SHA-256 metadata, APK signature verification, ARM64 install over existing app data on SM-F966B, launcher screenshot capture, resumed `GodotApp` window-state capture, and focused/PID log scan with no `NativeFallbackActivity`, fatal exception, crash marker, or previous `Child is not a child` Godot UI error
+evidence=artifacts/evidence/ui-pass178-device-view
+not_yet_proven=touch validation, public/public-beta branch-switch runtime evidence on this UI build, rotated/keyboard viewport confirmation-dialog capture, focused input soft-keyboard capture, compact status headline rotation/keyboard reflow capture, compact Steam Guard code/action row rotation/keyboard reflow capture, sticky task header rotation/keyboard reflow capture, compact task re-anchor rotation/keyboard capture, and diagnostics log rotation/keyboard resize capture
+```
+
 Latest verified public release evidence remains:
 
 ```text
@@ -60,6 +72,7 @@ upgradeBaseline=v0.2.186-sts2-mobile-version-selection / versionCode=218600
 
 Latest device evidence folders:
 
+- `artifacts/evidence/ui-pass178-device-view`
 - `artifacts/android/public-after-beta-fix20-20260618`
 - `artifacts/android/public-beta-fix20-retry-20260618`
 - `artifacts/android/public-beta-compendium-fix20-20260618`
@@ -215,7 +228,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Manual cloud-sync start/complete/failure status updates now keep the launcher header aligned with the operation result instead of leaving stale generic status text behind.
 - Recovery cleanup logging now describes normal post-startup cleanup as success-path UI cleanup.
 - Diagnostics filters retain startup freshness, assembly cache, expectedSource/expectedBytes, cloud sync, and crash evidence while reducing broad log noise.
-- Native splash now uses the scalable launcher vector icon, shader-warmup/loading panel sizing is short-edge aware, startup status text is safe-margin anchored for short/wide Android screens, and the launcher itself now uses a short-edge-aware responsive shell with collapsible diagnostics.
+- Native splash now uses the scalable launcher vector icon, shader-warmup/loading uses an Android-readable mobile-width compact panel, post-launch startup status uses a framed mobile-width card, native fallback keeps verbose diagnostics collapsed until requested and splits recovery actions into responsive rows on narrow landscape screens, the native Steam login panel uses portrait full-width controls plus responsive wide credential/action rows in landscape, short-height copy on cramped landscape screens, short-height copy reflow when the landscape height class or IME-visible usable height changes, and reflows when Android orientation/screen size changes, and the launcher itself now uses a short-edge-aware responsive shell with collapsible diagnostics, readable bounded compact diagnostics log output with viewport-aware resizing, viewport-aware compact status headline reflow, viewport-aware sticky task header reflow, viewport-aware compact task re-anchoring, viewport-aware compact Steam Guard code/action row reflow, structured compact SIGN IN WITH STEAM / Android login labeling, compact Steam Guard bounded two-line helper labels, structured compact VERIFY CODE / Submit once labeling, compact START GAME / Selected version launch CTA labeling, structured compact PULL TO ANDROID / Download saves labeling, primary structured compact retry recovery, compact raw-log review labeling, structured compact locked-Push title/detail labels, and structured compact dangerous-Push title/detail labels after explicit unlock.
 
 ## Static upgrade/cache freshness review
 

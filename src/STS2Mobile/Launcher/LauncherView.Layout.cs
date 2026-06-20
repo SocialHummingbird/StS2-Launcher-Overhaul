@@ -6,6 +6,12 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
+    private const int CompactBrandTitleFontSize = 18;
+    private const int CompactBrandSubtitleFontSize = 12;
+    private const int CompactBrandMarkHeight = 26;
+    private const int CompactBrandRowSeparation = 6;
+    private const int CompactBrandHeaderSeparation = 2;
+
     private static (StyledPanel Panel, VBoxContainer Content) BuildShell(
         Control parent,
         LauncherLayoutProfile profile,
@@ -35,7 +41,12 @@ internal sealed partial class LauncherView
         content.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         content.AddThemeConstantOverride(
             LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(LauncherViewLayoutMetrics.RootColumnSeparation, profile.Scale)
+            LauncherViewLayoutMetrics.ScaleInt(
+                profile.Compact
+                    ? LauncherViewLayoutMetrics.CompactRootColumnSeparation
+                    : LauncherViewLayoutMetrics.RootColumnSeparation,
+                profile.Scale
+            )
         );
         panel.AddContent(content);
 
@@ -45,6 +56,9 @@ internal sealed partial class LauncherView
 
     private static Control BuildBrandHeader(LauncherLayoutProfile profile)
     {
+        if (profile.Compact)
+            return BuildCompactBrandHeader(profile);
+
         var scale = profile.Scale;
         var header = new VBoxContainer();
         header.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -57,10 +71,10 @@ internal sealed partial class LauncherView
         row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         row.AddThemeConstantOverride(
             LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(profile.Compact ? 8 : 10, scale)
+            LauncherViewLayoutMetrics.ScaleInt(10, scale)
         );
 
-        var mark = BuildBrandMark(scale, profile.Compact);
+        var mark = BuildBrandMark(scale, compact: false);
         row.AddChild(mark);
 
         var copy = new VBoxContainer();
@@ -70,7 +84,7 @@ internal sealed partial class LauncherView
             LauncherViewLayoutMetrics.ScaleInt(0, scale)
         );
 
-        var title = new StyledLabel("StS2 Mobile", scale, fontSize: profile.Compact ? 20 : 26);
+        var title = new StyledLabel("StS2 Mobile", scale, fontSize: 26);
         title.HorizontalAlignment = HorizontalAlignment.Left;
         title.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
@@ -79,9 +93,9 @@ internal sealed partial class LauncherView
         copy.AddChild(title);
 
         var subtitle = new StyledLabel(
-            profile.Compact ? "STEAM | CLOUD | PLAY" : "STEAM LOGIN  |  VERSION SLOTS  |  CLOUD SAVES",
+            "STEAM LOGIN  |  VERSION SLOTS  |  CLOUD SAVES",
             scale,
-            fontSize: profile.Compact ? 10 : 11
+            fontSize: 11
         );
         subtitle.HorizontalAlignment = HorizontalAlignment.Left;
         subtitle.AddThemeColorOverride(
@@ -96,7 +110,63 @@ internal sealed partial class LauncherView
         line.Color = LauncherComponentTheme.CyanDim;
         line.CustomMinimumSize = new Vector2(
             0,
-            LauncherViewLayoutMetrics.ScaleInt(profile.Compact ? 1 : 2, scale)
+            LauncherViewLayoutMetrics.ScaleInt(2, scale)
+        );
+        header.AddChild(line);
+        return header;
+    }
+
+    private static Control BuildCompactBrandHeader(LauncherLayoutProfile profile)
+    {
+        var scale = profile.Scale;
+        var header = new VBoxContainer();
+        header.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        header.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(CompactBrandHeaderSeparation, scale)
+        );
+
+        var row = new HBoxContainer();
+        row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        row.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(CompactBrandRowSeparation, scale)
+        );
+        row.AddChild(BuildBrandMark(scale, compact: true));
+
+        var title = new StyledLabel("StS2 Mobile", scale, fontSize: CompactBrandTitleFontSize);
+        title.HorizontalAlignment = HorizontalAlignment.Left;
+        title.VerticalAlignment = VerticalAlignment.Center;
+        title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        title.ClipText = true;
+        title.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        title.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextPrimary
+        );
+        row.AddChild(title);
+
+        var subtitle = new StyledLabel(
+            "STEAM | CLOUD | PLAY",
+            scale,
+            fontSize: CompactBrandSubtitleFontSize,
+            align: HorizontalAlignment.Right
+        );
+        subtitle.VerticalAlignment = VerticalAlignment.Center;
+        subtitle.ClipText = true;
+        subtitle.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        subtitle.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.CyanAccent
+        );
+        row.AddChild(subtitle);
+        header.AddChild(row);
+
+        var line = new ColorRect();
+        line.Color = LauncherComponentTheme.CyanDim;
+        line.CustomMinimumSize = new Vector2(
+            0,
+            LauncherViewLayoutMetrics.ScaleInt(1, scale)
         );
         header.AddChild(line);
         return header;
@@ -104,21 +174,21 @@ internal sealed partial class LauncherView
 
     private static Control BuildBrandMark(float scale, bool compact)
     {
-        var height = compact ? 40 : 50;
+        var height = compact ? CompactBrandMarkHeight : 50;
         var mark = new HBoxContainer();
         mark.CustomMinimumSize = new Vector2(
-            LauncherViewLayoutMetrics.ScaleInt(16, scale),
+            LauncherViewLayoutMetrics.ScaleInt(compact ? 12 : 16, scale),
             LauncherViewLayoutMetrics.ScaleInt(height, scale)
         );
         mark.AddThemeConstantOverride(
             LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(3, scale)
+            LauncherViewLayoutMetrics.ScaleInt(compact ? 2 : 3, scale)
         );
 
         var hot = new ColorRect();
         hot.Color = LauncherComponentTheme.OrangeAccent;
         hot.CustomMinimumSize = new Vector2(
-            LauncherViewLayoutMetrics.ScaleInt(6, scale),
+            LauncherViewLayoutMetrics.ScaleInt(compact ? 5 : 6, scale),
             LauncherViewLayoutMetrics.ScaleInt(height, scale)
         );
         mark.AddChild(hot);
@@ -126,7 +196,7 @@ internal sealed partial class LauncherView
         var cold = new ColorRect();
         cold.Color = LauncherComponentTheme.CyanAccent;
         cold.CustomMinimumSize = new Vector2(
-            LauncherViewLayoutMetrics.ScaleInt(3, scale),
+            LauncherViewLayoutMetrics.ScaleInt(compact ? 2 : 3, scale),
             LauncherViewLayoutMetrics.ScaleInt(height, scale)
         );
         mark.AddChild(cold);

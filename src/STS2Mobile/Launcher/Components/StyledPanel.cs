@@ -5,6 +5,9 @@ namespace STS2Mobile.Launcher.Components;
 
 internal sealed class StyledPanel : CenterContainer
 {
+    private const int CompactPanelHorizontalMargin = 10;
+    private const int CompactPanelTopMargin = 10;
+    private const int CompactPanelBottomMargin = 12;
     private const float MaxWidth = 1400f;
     private const float MaxHeight = 2200f;
 
@@ -32,10 +35,12 @@ internal sealed class StyledPanel : CenterContainer
         // Defer viewport-based sizing until in tree
         _panelContainer = panelContainer;
         _widthRatio = widthRatio;
+        _compact = compact;
     }
 
     private readonly PanelContainer _panelContainer;
     private readonly float _widthRatio;
+    private readonly bool _compact;
 
     internal void AddContent(Control control)
         => Content.AddChild(control);
@@ -45,15 +50,25 @@ internal sealed class StyledPanel : CenterContainer
 
     internal void UpdateSizeFromViewport(Vector2 vpSize)
         => _panelContainer.CustomMinimumSize = new Vector2(
-            Math.Min(vpSize.X * _widthRatio, MaxWidth),
-            Math.Min(vpSize.Y * 0.85f, MaxHeight)
+            ConstrainWidth(vpSize),
+            ConstrainHeight(vpSize, 0.85f)
         );
 
     internal void UpdateSizeFromViewport(Vector2 vpSize, float heightRatio)
         => _panelContainer.CustomMinimumSize = new Vector2(
-            Math.Min(vpSize.X * _widthRatio, MaxWidth),
-            Math.Min(vpSize.Y * heightRatio, MaxHeight)
+            ConstrainWidth(vpSize),
+            ConstrainHeight(vpSize, heightRatio)
         );
+
+    private float ConstrainWidth(Vector2 vpSize)
+        => _compact
+            ? vpSize.X * _widthRatio
+            : Math.Min(vpSize.X * _widthRatio, MaxWidth);
+
+    private float ConstrainHeight(Vector2 vpSize, float heightRatio)
+        => _compact
+            ? vpSize.Y * heightRatio
+            : Math.Min(vpSize.Y * heightRatio, MaxHeight);
 
     private static StyleBoxFlat BuildStyle(float scale)
         => BuildStyle(scale, compact: false);
@@ -66,9 +81,9 @@ internal sealed class StyledPanel : CenterContainer
         );
         style.BorderColor = new Color(0.05f, 0.5f, 0.58f, 0.55f);
         style.SetBorderWidthAll(Math.Max(1, LauncherComponentTheme.ScaleInt(scale, 1)));
-        var horizontalMargin = compact ? 12 : LauncherComponentTheme.PanelHorizontalMargin;
-        var topMargin = compact ? 12 : LauncherComponentTheme.PanelTopMargin;
-        var bottomMargin = compact ? 12 : LauncherComponentTheme.PanelBottomMargin;
+        var horizontalMargin = compact ? CompactPanelHorizontalMargin : LauncherComponentTheme.PanelHorizontalMargin;
+        var topMargin = compact ? CompactPanelTopMargin : LauncherComponentTheme.PanelTopMargin;
+        var bottomMargin = compact ? CompactPanelBottomMargin : LauncherComponentTheme.PanelBottomMargin;
         style.ContentMarginLeft = LauncherComponentTheme.ScaleInt(scale, horizontalMargin);
         style.ContentMarginRight = LauncherComponentTheme.ScaleInt(scale, horizontalMargin);
         style.ContentMarginTop = LauncherComponentTheme.ScaleInt(scale, topMargin);

@@ -7,6 +7,15 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed class LoginSection : VBoxContainer
 {
+    private const int CompactNativeLoginButtonHeight = LauncherSectionMetrics.CodeInputHeight;
+    private const string CompactNativeLoginBodyName = "CompactNativeLoginBody";
+    private const string CompactNativeLoginTitleName = "CompactNativeLoginTitle";
+    private const string CompactNativeLoginDetailName = "CompactNativeLoginDetail";
+    private const int CompactNativeLoginTitleFontSize = LauncherSectionMetrics.CompactDetailButtonFontSize;
+    private const int CompactNativeLoginDetailFontSize = LauncherSectionMetrics.CompactDetailLabelFontSize;
+    private const int CompactNativeLoginHorizontalMargin = 6;
+    private const int CompactNativeLoginVerticalMargin = 4;
+
     internal event Action<string, string> LoginRequested;
 
     private readonly LineEdit _usernameField;
@@ -47,19 +56,28 @@ internal sealed class LoginSection : VBoxContainer
         LauncherCredentialEntrySupport.ConfigurePasswordField(_passwordField);
         AddChild(_passwordField);
 
-        AddChild(CreateCredentialHelpLabel(scale, compact));
+        var credentialHelpLabel = CreateCredentialHelpLabel(scale, compact);
+        AddChild(credentialHelpLabel);
 
+        var compactNativeLogin = compact && useNativeAndroidCredentialPanel;
         _nativeLoginButton = new StyledButton(
-            "SIGN IN WITH STEAM",
+            compactNativeLogin ? CompactNativeLoginText() : "SIGN IN WITH STEAM",
             scale,
-            fontSize: LauncherSectionMetrics.SecondaryButtonFontSize,
-            height: LauncherSectionMetrics.PrimaryButtonHeight
+            fontSize: compactNativeLogin
+                ? LauncherSectionMetrics.PrimaryButtonFontSize
+                : LauncherSectionMetrics.SecondaryButtonFontSize,
+            height: compactNativeLogin
+                ? CompactNativeLoginButtonHeight
+                : LauncherSectionMetrics.PrimaryButtonHeight
         );
         LauncherButtonStyles.ApplyPrimaryAction(_nativeLoginButton, scale);
+        SetCompactNativeLoginButtonText(_nativeLoginButton, _nativeLoginButton.Text, scale, compactNativeLogin);
         _nativeLoginButton.Visible = useNativeAndroidCredentialPanel;
         _nativeLoginButton.Disabled = !useNativeAndroidCredentialPanel;
         _nativeLoginButton.Pressed += OnNativeLoginPressed;
         AddChild(_nativeLoginButton);
+        if (compact && useNativeAndroidCredentialPanel)
+            MoveChild(_nativeLoginButton, credentialHelpLabel.GetIndex());
 
         _loginButton = new StyledButton("SIGN IN", scale);
         LauncherButtonStyles.ApplyPrimaryAction(_loginButton, scale);
@@ -131,6 +149,123 @@ internal sealed class LoginSection : VBoxContainer
         OpenNativeCredentialPanel();
     }
 
+    private static string CompactNativeLoginText()
+        => "SIGN IN WITH STEAM\nAndroid login";
+
+    private static void SetCompactNativeLoginButtonText(
+        Button button,
+        string text,
+        float scale,
+        bool compactNativeLogin
+    )
+    {
+        if (!compactNativeLogin || !TrySplitCompactNativeLoginText(text, out var title, out var detail))
+        {
+            HideCompactNativeLoginButtonLabels(button);
+            button.Text = text;
+            return;
+        }
+
+        var labels = EnsureCompactNativeLoginButtonLabels(button, scale);
+        button.Text = "";
+        labels.Body.Visible = true;
+        labels.Title.Text = title;
+        labels.Detail.Text = detail;
+    }
+
+    private static bool TrySplitCompactNativeLoginText(
+        string text,
+        out string title,
+        out string detail
+    )
+    {
+        title = text ?? "";
+        detail = "";
+        var separator = title.IndexOf('\n');
+        if (separator < 0)
+            return false;
+
+        detail = title[(separator + 1)..].Trim();
+        title = title[..separator].Trim();
+        return title.Length > 0 && detail.Length > 0;
+    }
+
+    private static void HideCompactNativeLoginButtonLabels(Button button)
+    {
+        var body = button.GetNodeOrNull<VBoxContainer>(new NodePath(CompactNativeLoginBodyName));
+        if (body != null)
+            body.Visible = false;
+    }
+
+    private static (VBoxContainer Body, StyledLabel Title, StyledLabel Detail) EnsureCompactNativeLoginButtonLabels(
+        Button button,
+        float scale
+    )
+    {
+        var body = button.GetNodeOrNull<VBoxContainer>(new NodePath(CompactNativeLoginBodyName));
+        if (body != null)
+        {
+            return (
+                body,
+                body.GetNode<StyledLabel>(new NodePath(CompactNativeLoginTitleName)),
+                body.GetNode<StyledLabel>(new NodePath(CompactNativeLoginDetailName))
+            );
+        }
+
+        body = new VBoxContainer
+        {
+            Name = CompactNativeLoginBodyName,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        body.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        body.OffsetLeft = LauncherViewLayoutMetrics.ScaleInt(CompactNativeLoginHorizontalMargin, scale);
+        body.OffsetRight = -LauncherViewLayoutMetrics.ScaleInt(CompactNativeLoginHorizontalMargin, scale);
+        body.OffsetTop = LauncherViewLayoutMetrics.ScaleInt(CompactNativeLoginVerticalMargin, scale);
+        body.OffsetBottom = -LauncherViewLayoutMetrics.ScaleInt(CompactNativeLoginVerticalMargin, scale);
+        body.AddThemeConstantOverride(LauncherViewLayoutMetrics.ThemeSeparation, 0);
+
+        var title = new StyledLabel(
+            "",
+            scale,
+            fontSize: CompactNativeLoginTitleFontSize,
+            align: HorizontalAlignment.Center
+        )
+        {
+            Name = CompactNativeLoginTitleName,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            VerticalAlignment = VerticalAlignment.Center,
+            ClipText = true,
+            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+        };
+        title.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextPrimary
+        );
+        body.AddChild(title);
+
+        var detail = new StyledLabel(
+            "",
+            scale,
+            fontSize: CompactNativeLoginDetailFontSize,
+            align: HorizontalAlignment.Center
+        )
+        {
+            Name = CompactNativeLoginDetailName,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            VerticalAlignment = VerticalAlignment.Center,
+            ClipText = true,
+            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+        };
+        detail.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextSecondary
+        );
+        body.AddChild(detail);
+
+        button.AddChild(body);
+        return (body, title, detail);
+    }
+
     private void OpenNativeCredentialPanel()
     {
         try
@@ -195,15 +330,39 @@ internal sealed class LoginSection : VBoxContainer
     }
 
     private static Label CreateCredentialHelpLabel(float scale, bool compact)
-        => new()
-        {
-            Text = OperatingSystem.IsAndroid()
-                ? (compact
-                    ? "Android/Samsung/Google password suggestions may appear in the Steam sign-in panel. Passwords are not stored."
-                    : "Use the integrated Steam login panel. Android/Samsung/Google password suggestions may appear there; StS2 Mobile does not store your Steam password.")
-                : "Use the visible Steam fields above. StS2 Mobile does not store your Steam password.",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            CustomMinimumSize = new Vector2(0, compact ? 26f * scale : 34f * scale),
-        };
+    {
+        var compactAndroid = compact && OperatingSystem.IsAndroid();
+        var label = new StyledLabel(
+            CredentialHelpText(compact),
+            scale,
+            fontSize: LauncherSectionMetrics.ProgressFontSize,
+            align: HorizontalAlignment.Left
+        );
+        label.AutowrapMode = compactAndroid
+            ? TextServer.AutowrapMode.WordSmart
+            : TextServer.AutowrapMode.WordSmart;
+        label.ClipText = false;
+        label.VerticalAlignment = VerticalAlignment.Center;
+        label.CustomMinimumSize = new Vector2(
+            0,
+            compactAndroid
+                ? LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.CompactCredentialHelpHeight, scale)
+                : (compact ? 30f * scale : 38f * scale)
+        );
+        label.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextSecondary
+        );
+        return label;
+    }
+
+    private static string CredentialHelpText(bool compact)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return "Use the visible Steam fields above. StS2 Mobile does not store your Steam password.";
+
+        return compact
+            ? "Password manager can appear.\nSteam password is not stored."
+            : "Use the integrated Steam login panel. Android/Samsung/Google password suggestions may appear there; StS2 Mobile does not store your Steam password.";
+    }
 }

@@ -9,21 +9,39 @@ internal sealed partial class ActionSection
         => ConfigureToggle(
             _localBackupToggle,
             LocalBackupText,
-            pressed => LocalBackupToggled?.Invoke(pressed)
+            pressed =>
+            {
+                _localBackupEnabled = pressed;
+                UpdateCloudOptionsToggleText();
+                LocalBackupToggled?.Invoke(pressed);
+            }
         );
 
     private void ConfigureCloudSyncToggle()
         => ConfigureToggle(
             _cloudSyncToggle,
             CloudSyncText,
-            pressed => CloudSyncToggled?.Invoke(pressed)
+            pressed =>
+            {
+                _cloudSyncEnabled = pressed;
+                UpdateCloudOptionsToggleText();
+                CloudSyncToggled?.Invoke(pressed);
+            }
         );
 
     private void ApplyLocalBackupToggle(bool value)
-        => SetToggleChecked(_localBackupToggle, LocalBackupText, value);
+    {
+        _localBackupEnabled = value;
+        UpdateCloudOptionsToggleText();
+        SetToggleChecked(_localBackupToggle, LocalBackupText, value);
+    }
 
     private void ApplyCloudSyncToggle(bool value)
-        => SetToggleChecked(_cloudSyncToggle, CloudSyncText, value);
+    {
+        _cloudSyncEnabled = value;
+        UpdateCloudOptionsToggleText();
+        SetToggleChecked(_cloudSyncToggle, CloudSyncText, value);
+    }
 
     private void ConfigureToggle(
         Button button,
@@ -52,7 +70,7 @@ internal sealed partial class ActionSection
 
     private void ApplyToggle(Button button, bool value, string text)
     {
-        button.Text = text;
+        SetCompactActionButtonText(button, text);
         var style = value ? _toggleOnStyle : _toggleOffStyle;
         button.AddThemeStyleboxOverride("normal", style);
         button.AddThemeStyleboxOverride("hover", style);
@@ -60,9 +78,16 @@ internal sealed partial class ActionSection
         button.AddThemeStyleboxOverride("disabled", style);
     }
 
-    private static string LocalBackupText(bool value)
-        => value ? "Local Backup: ON" : "Local Backup: OFF";
+    private string LocalBackupText(bool value)
+        => _compact
+            ? CompactCloudOptionText("BACKUP", OnOff(value), "Local saves")
+            : $"Local Backup: {OnOff(value)}";
 
-    private static string CloudSyncText(bool value)
-        => value ? "Game Cloud Sync: ON" : "Game Cloud Sync: OFF";
+    private string CloudSyncText(bool value)
+        => _compact
+            ? CompactCloudOptionText("SYNC", OnOff(value), "Game cloud")
+            : $"Game Cloud Sync: {OnOff(value)}";
+
+    private static string CompactCloudOptionText(string label, string state, string detail)
+        => $"{label} {state}\n{detail}";
 }

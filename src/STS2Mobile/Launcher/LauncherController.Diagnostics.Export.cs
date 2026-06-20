@@ -17,6 +17,7 @@ internal sealed partial class LauncherController
     {
         _view.SetStatus("Diagnostics exported.");
         _view.AppendLog($"Diagnostics exported: {path}");
+        _view.ShowDiagnosticsConsole();
         ShareDiagnosticsIfAndroid(path);
     }
 

@@ -47,6 +47,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -57,7 +58,9 @@ import android.util.Base64;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewStructure;
+import android.view.Window;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.view.autofill.AutofillManager;
@@ -126,6 +129,8 @@ public class GodotApp extends GodotActivity {
 	private Button steamLoginCredentialNextPasswordButton;
 	private Button steamLoginCredentialPasswordVisibilityButton;
 	private boolean steamLoginCredentialPasswordVisible;
+	private boolean steamLoginCredentialWideLayout;
+	private boolean steamLoginCredentialShortHeightLayout;
 	private static final String STEAM_CREDENTIAL_WEB_DOMAIN_STORE = "store.steampowered.com";
 	private static final long STEAM_LOGIN_CREDENTIAL_RESULT_TTL_MS = 60L * 1000L;
 	private static final String[] BOOTSTRAP_REQUIRED_ASSEMBLIES = {
@@ -2610,6 +2615,7 @@ public class GodotApp extends GodotActivity {
 	public void showSteamLoginCredentialPanel() {
 		runOnUiThread(() -> {
 			ensureSteamLoginCredentialPanel();
+			reflowSteamLoginCredentialPanelForCurrentWindow();
 			if (steamLoginCredentialOverlay == null) {
 				Log.w(TAG, "Native Steam login panel unavailable");
 				return;
@@ -2617,7 +2623,7 @@ public class GodotApp extends GodotActivity {
 			steamLoginCredentialOverlay.setVisibility(View.VISIBLE);
 			updateSteamLoginCredentialKeyboardInsets();
 			setSteamLoginCredentialPanelEnabled(true);
-			setSteamLoginCredentialStatus("Android password suggestions may appear when your provider recognizes Steam.");
+			setSteamLoginCredentialStatus(steamLoginCredentialShownStatusText());
 			steamLoginCredentialUsernameField.requestFocus();
 			scheduleSteamLoginCredentialFocusScroll(steamLoginCredentialUsernameField);
 			InputMethodManager inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -2659,6 +2665,12 @@ public class GodotApp extends GodotActivity {
 		}
 
 		return super.dispatchKeyEvent(event);
+	}
+
+	@Override
+	public void onConfigurationChanged(Configuration newConfig) {
+		super.onConfigurationChanged(newConfig);
+		reflowSteamLoginCredentialPanelForCurrentWindow();
 	}
 
 	public String consumeSteamLoginCredentialResult() {
@@ -2715,6 +2727,14 @@ public class GodotApp extends GodotActivity {
 			return;
 		}
 
+		steamLoginCredentialWideLayout = useSteamLoginCredentialWideLayout();
+		boolean wideCredentialLayout = steamLoginCredentialWideLayout;
+		steamLoginCredentialShortHeightLayout = wideCredentialLayout && useSteamLoginCredentialShortHeightLayout();
+		boolean shortHeightCredentialLayout = steamLoginCredentialShortHeightLayout;
+		int horizontalPadding = wideCredentialLayout ? (shortHeightCredentialLayout ? 20 : 24) : 22;
+		int verticalPadding = wideCredentialLayout ? (shortHeightCredentialLayout ? 12 : 16) : 14;
+		int fieldGroupMarginDp = shortHeightCredentialLayout ? 6 : 8;
+
 		FrameLayout overlay = new FrameLayout(this);
 		overlay.setVisibility(View.GONE);
 		overlay.setClickable(true);
@@ -2723,7 +2743,12 @@ public class GodotApp extends GodotActivity {
 
 		LinearLayout card = new LinearLayout(this);
 		card.setOrientation(LinearLayout.VERTICAL);
-		card.setPadding(dp(22), dp(14), dp(22), dp(14));
+		card.setPadding(
+			dp(horizontalPadding),
+			dp(verticalPadding),
+			dp(horizontalPadding),
+			dp(verticalPadding)
+		);
 		GradientDrawable cardBackground = new GradientDrawable(
 			GradientDrawable.Orientation.TL_BR,
 			new int[] { Color.rgb(17, 24, 35), Color.rgb(8, 11, 17) }
@@ -2735,30 +2760,32 @@ public class GodotApp extends GodotActivity {
 		TextView title = new TextView(this);
 		title.setText("Steam login");
 		title.setTextColor(Color.WHITE);
-		title.setTextSize(22);
+		title.setTextSize(shortHeightCredentialLayout ? 20 : 22);
 		title.setTypeface(Typeface.DEFAULT_BOLD);
 		card.addView(title);
 
 		TextView subtitle = new TextView(this);
-		subtitle.setText("Choose a saved Steam credential if Android, Samsung, or Google offers it here. Credentials are handed to SteamKit once, then cleared.");
+		subtitle.setText(shortHeightCredentialLayout
+			? "Use Android password suggestions here. Credentials clear after one Steam handoff."
+			: "Choose a saved Steam credential if Android, Samsung, or Google offers it here. Credentials are handed to SteamKit once, then cleared.");
 		subtitle.setTextColor(Color.rgb(188, 201, 213));
-		subtitle.setTextSize(12);
-		subtitle.setPadding(0, dp(4), 0, dp(8));
+		subtitle.setTextSize(shortHeightCredentialLayout ? 11 : 12);
+		subtitle.setPadding(0, dp(shortHeightCredentialLayout ? 2 : 4), 0, dp(shortHeightCredentialLayout ? 4 : 8));
 		card.addView(subtitle);
 
 		TextView trust = new TextView(this);
-		trust.setText("Steam password is never stored by StS2 Mobile.");
+		trust.setText(shortHeightCredentialLayout ? "Not stored by StS2 Mobile." : "Steam password is never stored by StS2 Mobile.");
 		trust.setTextColor(Color.rgb(35, 225, 240));
 		trust.setTextSize(12);
 		trust.setTypeface(Typeface.DEFAULT_BOLD);
-		trust.setPadding(0, 0, 0, dp(6));
+		trust.setPadding(0, 0, 0, dp(shortHeightCredentialLayout ? 3 : 6));
 		card.addView(trust);
 
 		steamLoginCredentialStatusText = new TextView(this);
-		steamLoginCredentialStatusText.setText("Password-manager suggestions are requested for both fields when the provider supports Steam.");
+		steamLoginCredentialStatusText.setText(steamLoginCredentialDefaultStatusText());
 		steamLoginCredentialStatusText.setTextColor(Color.rgb(155, 178, 188));
-		steamLoginCredentialStatusText.setTextSize(12);
-		steamLoginCredentialStatusText.setPadding(0, 0, 0, dp(6));
+		steamLoginCredentialStatusText.setTextSize(shortHeightCredentialLayout ? 11 : 12);
+		steamLoginCredentialStatusText.setPadding(0, 0, 0, dp(shortHeightCredentialLayout ? 4 : 6));
 		card.addView(steamLoginCredentialStatusText);
 
 		steamLoginCredentialUsernameField = new SteamLoginCredentialEditText(this, STEAM_CREDENTIAL_WEB_DOMAIN_STORE);
@@ -2783,14 +2810,17 @@ public class GodotApp extends GodotActivity {
 			}
 		});
 		configureCredentialField(steamLoginCredentialUsernameField, View.AUTOFILL_HINT_USERNAME);
-		card.addView(steamLoginCredentialUsernameField, fieldLayoutParams());
 
 		steamLoginCredentialNextPasswordButton = new Button(this);
 		steamLoginCredentialNextPasswordButton.setText("NEXT: PASSWORD");
 		steamLoginCredentialNextPasswordButton.setContentDescription("Move to Steam password field");
 		styleSteamLoginCredentialButton(steamLoginCredentialNextPasswordButton, false);
 		steamLoginCredentialNextPasswordButton.setOnClickListener(v -> focusSteamLoginPasswordField());
-		card.addView(steamLoginCredentialNextPasswordButton, buttonLayoutParams(4));
+
+		LinearLayout usernameRow = createSteamLoginCredentialInputRow(wideCredentialLayout);
+		usernameRow.addView(steamLoginCredentialUsernameField, credentialFieldLayoutParams(wideCredentialLayout));
+		usernameRow.addView(steamLoginCredentialNextPasswordButton, credentialInlineActionLayoutParams(wideCredentialLayout, 4));
+		card.addView(usernameRow, credentialGroupLayoutParams(fieldGroupMarginDp));
 
 		steamLoginCredentialPasswordField = new SteamLoginCredentialEditText(this, STEAM_CREDENTIAL_WEB_DOMAIN_STORE);
 		steamLoginCredentialPasswordField.setContentDescription("Steam password");
@@ -2812,26 +2842,29 @@ public class GodotApp extends GodotActivity {
 			}
 		});
 		configureCredentialField(steamLoginCredentialPasswordField, View.AUTOFILL_HINT_PASSWORD);
-		card.addView(steamLoginCredentialPasswordField, fieldLayoutParams());
 
 		steamLoginCredentialPasswordVisibilityButton = new Button(this);
 		steamLoginCredentialPasswordVisibilityButton.setText("SHOW PASSWORD");
 		steamLoginCredentialPasswordVisibilityButton.setContentDescription("Show or hide Steam password while typing");
 		styleSteamLoginCredentialButton(steamLoginCredentialPasswordVisibilityButton, false);
 		steamLoginCredentialPasswordVisibilityButton.setOnClickListener(v -> toggleSteamLoginCredentialPasswordVisibility());
-		card.addView(steamLoginCredentialPasswordVisibilityButton, buttonLayoutParams(6));
+
+		LinearLayout passwordRow = createSteamLoginCredentialInputRow(wideCredentialLayout);
+		passwordRow.addView(steamLoginCredentialPasswordField, credentialFieldLayoutParams(wideCredentialLayout));
+		passwordRow.addView(steamLoginCredentialPasswordVisibilityButton, credentialInlineActionLayoutParams(wideCredentialLayout, 6));
+		card.addView(passwordRow, credentialGroupLayoutParams(fieldGroupMarginDp));
 
 		LinearLayout buttons = new LinearLayout(this);
-		buttons.setOrientation(LinearLayout.VERTICAL);
-		buttons.setGravity(Gravity.CENTER_HORIZONTAL);
-		buttons.setPadding(0, dp(8), 0, 0);
+		buttons.setOrientation(wideCredentialLayout ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+		buttons.setGravity(wideCredentialLayout ? Gravity.CENTER_VERTICAL : Gravity.CENTER_HORIZONTAL);
+		buttons.setPadding(0, dp(shortHeightCredentialLayout ? 8 : (wideCredentialLayout ? 10 : 8)), 0, 0);
 
 		steamLoginCredentialSubmitButton = new Button(this);
 		steamLoginCredentialSubmitButton.setText("SIGN IN WITH STEAM");
 		steamLoginCredentialSubmitButton.setContentDescription("Sign in with Steam");
 		styleSteamLoginCredentialButton(steamLoginCredentialSubmitButton, true);
 		steamLoginCredentialSubmitButton.setOnClickListener(v -> submitSteamLoginCredentials());
-		buttons.addView(steamLoginCredentialSubmitButton, buttonLayoutParams(0));
+		buttons.addView(steamLoginCredentialSubmitButton, credentialSubmitButtonLayoutParams(wideCredentialLayout));
 
 		steamLoginCredentialCancelButton = new Button(this);
 		steamLoginCredentialCancelButton.setText("CANCEL");
@@ -2842,22 +2875,22 @@ public class GodotApp extends GodotActivity {
 			setSteamLoginCredentialStatus("Steam login cancelled. No password was stored.");
 			hideSteamLoginCredentialPanel();
 		});
-		buttons.addView(steamLoginCredentialCancelButton, buttonLayoutParams(6));
+		buttons.addView(steamLoginCredentialCancelButton, credentialCancelButtonLayoutParams(wideCredentialLayout));
 		card.addView(buttons);
 
 		ScrollView scroll = new ScrollView(this);
 		scroll.setFillViewport(false);
 		scroll.setClipToPadding(false);
-		scroll.setPadding(0, dp(8), 0, dp(18));
+		scroll.setPadding(0, dp(shortHeightCredentialLayout ? 4 : 8), 0, dp(shortHeightCredentialLayout ? 12 : 18));
 		steamLoginCredentialScrollView = scroll;
 
 		FrameLayout.LayoutParams cardParams = new FrameLayout.LayoutParams(
-			Math.min(getResources().getDisplayMetrics().widthPixels - dp(40), dp(540)),
+			steamLoginCredentialPanelWidth(wideCredentialLayout),
 			FrameLayout.LayoutParams.WRAP_CONTENT,
 			Gravity.TOP | Gravity.CENTER_HORIZONTAL
 		);
-		cardParams.topMargin = dp(10);
-		cardParams.bottomMargin = dp(18);
+		cardParams.topMargin = dp(shortHeightCredentialLayout ? 4 : (wideCredentialLayout ? 8 : 10));
+		cardParams.bottomMargin = dp(shortHeightCredentialLayout ? 12 : 18);
 		scroll.addView(card, cardParams);
 
 		overlay.addView(
@@ -2878,13 +2911,159 @@ public class GodotApp extends GodotActivity {
 		steamLoginCredentialOverlay = overlay;
 	}
 
+	private void reflowSteamLoginCredentialPanelForCurrentWindow() {
+		if (steamLoginCredentialOverlay == null) {
+			return;
+		}
+
+		boolean wideCredentialLayout = useSteamLoginCredentialWideLayout();
+		boolean shortHeightCredentialLayout = wideCredentialLayout && useSteamLoginCredentialShortHeightLayout();
+		if (wideCredentialLayout == steamLoginCredentialWideLayout
+				&& shortHeightCredentialLayout == steamLoginCredentialShortHeightLayout) {
+			updateSteamLoginCredentialKeyboardInsets();
+			return;
+		}
+
+		boolean wasVisible = isSteamLoginCredentialPanelVisible();
+		boolean wasEnabled = steamLoginCredentialSubmitButton == null || steamLoginCredentialSubmitButton.isEnabled();
+		boolean usernameFocused = steamLoginCredentialUsernameField != null && steamLoginCredentialUsernameField.hasFocus();
+		boolean passwordFocused = steamLoginCredentialPasswordField != null && steamLoginCredentialPasswordField.hasFocus();
+		boolean passwordVisible = steamLoginCredentialPasswordVisible;
+		String status = steamLoginCredentialStatusText == null ? "" : steamLoginCredentialStatusText.getText().toString();
+		status = translateSteamLoginCredentialStatusForLayout(status, shortHeightCredentialLayout);
+		String username = steamLoginCredentialUsernameField == null ? "" : steamLoginCredentialUsernameField.getText().toString();
+		String password = steamLoginCredentialPasswordField == null ? "" : steamLoginCredentialPasswordField.getText().toString();
+
+		clearSteamLoginCredentialVisibleFieldText();
+		ViewGroup parent = (ViewGroup)steamLoginCredentialOverlay.getParent();
+		if (parent != null) {
+			parent.removeView(steamLoginCredentialOverlay);
+		}
+		clearSteamLoginCredentialViewReferences();
+
+		ensureSteamLoginCredentialPanel();
+		if (steamLoginCredentialOverlay == null) {
+			return;
+		}
+
+		if (steamLoginCredentialUsernameField != null) {
+			steamLoginCredentialUsernameField.setText(username);
+		}
+		if (steamLoginCredentialPasswordField != null) {
+			steamLoginCredentialPasswordField.setText(password);
+			setSteamLoginCredentialPasswordVisibilityState(passwordVisible);
+			steamLoginCredentialPasswordField.setSelection(steamLoginCredentialPasswordField.length());
+		}
+
+		setSteamLoginCredentialPanelEnabled(wasEnabled);
+		setSteamLoginCredentialStatus(status);
+		steamLoginCredentialOverlay.setVisibility(wasVisible ? View.VISIBLE : View.GONE);
+		updateSteamLoginCredentialKeyboardInsets();
+
+		if (wasVisible) {
+			View focusTarget = passwordFocused ? steamLoginCredentialPasswordField : (usernameFocused ? steamLoginCredentialUsernameField : null);
+			if (focusTarget != null) {
+				focusTarget.requestFocus();
+				scheduleSteamLoginCredentialFocusScroll(focusTarget);
+				if (focusTarget instanceof EditText) {
+					requestSteamLoginCredentialAutofillField((EditText)focusTarget);
+				}
+			}
+		}
+	}
+
+	private boolean useSteamLoginCredentialWideLayout() {
+		int width = getResources().getDisplayMetrics().widthPixels;
+		int height = getResources().getDisplayMetrics().heightPixels;
+		return width > height && width >= dp(640);
+	}
+
+	private boolean useSteamLoginCredentialShortHeightLayout() {
+		int width = getResources().getDisplayMetrics().widthPixels;
+		int height = steamLoginCredentialUsableHeightPixels();
+		return width > height && height < dp(430);
+	}
+
+	private int steamLoginCredentialUsableHeightPixels() {
+		int height = getResources().getDisplayMetrics().heightPixels;
+		try {
+			Window window = getWindow();
+			View decorView = window == null ? null : window.getDecorView();
+			if (decorView != null) {
+				android.graphics.Rect visibleFrame = new android.graphics.Rect();
+				decorView.getWindowVisibleDisplayFrame(visibleFrame);
+				if (visibleFrame.height() > 0) {
+					height = Math.min(height, visibleFrame.height());
+				}
+			}
+		} catch (Exception e) {
+			Log.w(TAG, "Unable to read Steam login usable height", e);
+		}
+		return height;
+	}
+
+	private String steamLoginCredentialDefaultStatusText() {
+		return steamLoginCredentialDefaultStatusText(useSteamLoginCredentialWideLayout() && useSteamLoginCredentialShortHeightLayout());
+	}
+
+	private String steamLoginCredentialDefaultStatusText(boolean shortHeightLayout) {
+		return shortHeightLayout
+			? "Password-manager suggestions requested for both fields."
+			: "Password-manager suggestions are requested for both fields when the provider supports Steam.";
+	}
+
+	private String steamLoginCredentialShownStatusText() {
+		return steamLoginCredentialShownStatusText(useSteamLoginCredentialWideLayout() && useSteamLoginCredentialShortHeightLayout());
+	}
+
+	private String steamLoginCredentialShownStatusText(boolean shortHeightLayout) {
+		return shortHeightLayout
+			? "Android password suggestions may appear here."
+			: "Android password suggestions may appear when your provider recognizes Steam.";
+	}
+
+	private String translateSteamLoginCredentialStatusForLayout(String status, boolean shortHeightLayout) {
+		if (steamLoginCredentialDefaultStatusText(true).equals(status)
+				|| steamLoginCredentialDefaultStatusText(false).equals(status)) {
+			return steamLoginCredentialDefaultStatusText(shortHeightLayout);
+		}
+		if (steamLoginCredentialShownStatusText(true).equals(status)
+				|| steamLoginCredentialShownStatusText(false).equals(status)) {
+			return steamLoginCredentialShownStatusText(shortHeightLayout);
+		}
+		return status;
+	}
+
+	private int steamLoginCredentialPanelWidth(boolean wideLayout) {
+		int screenWidth = getResources().getDisplayMetrics().widthPixels;
+		int sideMargins = dp(wideLayout ? 48 : 40);
+		int maxWidth = dp(wideLayout ? 720 : 540);
+		int availableWidth = Math.max(dp(280), screenWidth - sideMargins);
+		return Math.min(availableWidth, maxWidth);
+	}
+
+	private LinearLayout createSteamLoginCredentialInputRow(boolean wideLayout) {
+		LinearLayout row = new LinearLayout(this);
+		row.setOrientation(wideLayout ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+		row.setGravity(wideLayout ? Gravity.CENTER_VERTICAL : Gravity.CENTER_HORIZONTAL);
+		return row;
+	}
+
 	private void configureCredentialField(EditText field, String autofillHint) {
 		field.setTextColor(Color.WHITE);
 		field.setHintTextColor(Color.rgb(136, 151, 166));
-		field.setTextSize(16);
+		field.setTextSize(17);
 		field.setSaveEnabled(false);
 		field.setFocusableInTouchMode(true);
 		field.setSelectAllOnFocus(false);
+		field.setMinHeight(dp(56));
+		field.setPadding(dp(14), 0, dp(14), 0);
+		GradientDrawable background = new GradientDrawable();
+		background.setShape(GradientDrawable.RECTANGLE);
+		background.setColor(Color.rgb(8, 15, 23));
+		background.setCornerRadius(dp(8));
+		background.setStroke(dp(1), Color.rgb(62, 126, 148));
+		field.setBackground(background);
 		if (android.os.Build.VERSION.SDK_INT >= 26) {
 			field.setAutofillHints(autofillHint);
 			field.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
@@ -2911,7 +3090,7 @@ public class GodotApp extends GodotActivity {
 		button.setTextColor(primary ? Color.rgb(5, 8, 14) : Color.rgb(232, 248, 250));
 		button.setTextSize(14);
 		button.setTypeface(Typeface.DEFAULT_BOLD);
-		button.setMinHeight(dp(48));
+		button.setMinHeight(dp(primary ? 60 : 56));
 		button.setPadding(dp(12), dp(6), dp(12), dp(6));
 	}
 
@@ -2921,6 +3100,68 @@ public class GodotApp extends GodotActivity {
 			LinearLayout.LayoutParams.WRAP_CONTENT
 		);
 		params.setMargins(0, dp(8), 0, 0);
+		return params;
+	}
+
+	private LinearLayout.LayoutParams credentialGroupLayoutParams(int topMarginDp) {
+		LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+			LinearLayout.LayoutParams.MATCH_PARENT,
+			LinearLayout.LayoutParams.WRAP_CONTENT
+		);
+		params.setMargins(0, dp(topMarginDp), 0, 0);
+		return params;
+	}
+
+	private LinearLayout.LayoutParams credentialFieldLayoutParams(boolean wideLayout) {
+		if (!wideLayout) {
+			return new LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT
+			);
+		}
+
+		return new LinearLayout.LayoutParams(
+			0,
+			LinearLayout.LayoutParams.WRAP_CONTENT,
+			1f
+		);
+	}
+
+	private LinearLayout.LayoutParams credentialInlineActionLayoutParams(boolean wideLayout, int stackedTopMarginDp) {
+		LinearLayout.LayoutParams params = wideLayout
+			? new LinearLayout.LayoutParams(dp(178), LinearLayout.LayoutParams.WRAP_CONTENT)
+			: new LinearLayout.LayoutParams(
+				LinearLayout.LayoutParams.MATCH_PARENT,
+				LinearLayout.LayoutParams.WRAP_CONTENT
+			);
+
+		params.setMargins(wideLayout ? dp(10) : 0, wideLayout ? 0 : dp(stackedTopMarginDp), 0, 0);
+		return params;
+	}
+
+	private LinearLayout.LayoutParams credentialSubmitButtonLayoutParams(boolean wideLayout) {
+		if (!wideLayout) {
+			return buttonLayoutParams(0);
+		}
+
+		return new LinearLayout.LayoutParams(
+			0,
+			LinearLayout.LayoutParams.WRAP_CONTENT,
+			1.35f
+		);
+	}
+
+	private LinearLayout.LayoutParams credentialCancelButtonLayoutParams(boolean wideLayout) {
+		if (!wideLayout) {
+			return buttonLayoutParams(6);
+		}
+
+		LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+			0,
+			LinearLayout.LayoutParams.WRAP_CONTENT,
+			0.85f
+		);
+		params.setMargins(dp(10), 0, 0, 0);
 		return params;
 	}
 
@@ -2983,18 +3224,23 @@ public class GodotApp extends GodotActivity {
 		}
 
 		int cursor = steamLoginCredentialPasswordField.getSelectionStart();
-		if (!steamLoginCredentialPasswordVisible) {
-			steamLoginCredentialPasswordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
-			steamLoginCredentialPasswordVisible = true;
-			steamLoginCredentialPasswordVisibilityButton.setText("HIDE PASSWORD");
-			steamLoginCredentialPasswordVisibilityButton.setContentDescription("Hide Steam password");
-		} else {
-			steamLoginCredentialPasswordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-			steamLoginCredentialPasswordVisible = false;
-			steamLoginCredentialPasswordVisibilityButton.setText("SHOW PASSWORD");
-			steamLoginCredentialPasswordVisibilityButton.setContentDescription("Show Steam password while typing");
-		}
+		setSteamLoginCredentialPasswordVisibilityState(!steamLoginCredentialPasswordVisible);
 		steamLoginCredentialPasswordField.setSelection(Math.max(0, Math.min(cursor, steamLoginCredentialPasswordField.length())));
+	}
+
+	private void setSteamLoginCredentialPasswordVisibilityState(boolean visible) {
+		steamLoginCredentialPasswordVisible = visible;
+		if (steamLoginCredentialPasswordField != null) {
+			steamLoginCredentialPasswordField.setInputType(
+				visible
+					? InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+					: InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
+			);
+		}
+		if (steamLoginCredentialPasswordVisibilityButton != null) {
+			steamLoginCredentialPasswordVisibilityButton.setText(visible ? "HIDE PASSWORD" : "SHOW PASSWORD");
+			steamLoginCredentialPasswordVisibilityButton.setContentDescription(visible ? "Hide Steam password" : "Show Steam password while typing");
+		}
 	}
 
 	private void requestSteamLoginCredentialAutofill() {
@@ -3050,6 +3296,15 @@ public class GodotApp extends GodotActivity {
 		View rootView = steamLoginCredentialOverlay.getRootView();
 		int rootHeight = rootView == null ? steamLoginCredentialOverlay.getHeight() : rootView.getHeight();
 		int keyboardHeight = Math.max(0, rootHeight - visibleFrame.bottom);
+		boolean visibleWideLayout = useSteamLoginCredentialWideLayout();
+		boolean visibleShortHeightLayout = visibleWideLayout && useSteamLoginCredentialShortHeightLayout();
+		if (isSteamLoginCredentialPanelVisible()
+				&& (visibleWideLayout != steamLoginCredentialWideLayout
+					|| visibleShortHeightLayout != steamLoginCredentialShortHeightLayout)) {
+			reflowSteamLoginCredentialPanelForCurrentWindow();
+			return;
+		}
+
 		int bottomPadding = Math.max(dp(18), keyboardHeight + dp(18));
 		if (steamLoginCredentialScrollView.getPaddingBottom() == bottomPadding) {
 			return;
@@ -3112,6 +3367,12 @@ public class GodotApp extends GodotActivity {
 	}
 
 	private void clearSteamLoginCredentialPanelSensitiveFields() {
+		clearSteamLoginCredentialVisibleFieldText();
+		setSteamLoginCredentialPasswordVisibilityState(false);
+		setSteamLoginCredentialStatus(steamLoginCredentialDefaultStatusText());
+	}
+
+	private void clearSteamLoginCredentialVisibleFieldText() {
 		if (steamLoginCredentialUsernameField != null) {
 			steamLoginCredentialUsernameField.setText("");
 			steamLoginCredentialUsernameField.setError(null);
@@ -3119,14 +3380,22 @@ public class GodotApp extends GodotActivity {
 		if (steamLoginCredentialPasswordField != null) {
 			steamLoginCredentialPasswordField.setText("");
 			steamLoginCredentialPasswordField.setError(null);
-			steamLoginCredentialPasswordField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
 		}
+	}
+
+	private void clearSteamLoginCredentialViewReferences() {
+		steamLoginCredentialOverlay = null;
+		steamLoginCredentialScrollView = null;
+		steamLoginCredentialUsernameField = null;
+		steamLoginCredentialPasswordField = null;
+		steamLoginCredentialStatusText = null;
+		steamLoginCredentialSubmitButton = null;
+		steamLoginCredentialCancelButton = null;
+		steamLoginCredentialNextPasswordButton = null;
+		steamLoginCredentialPasswordVisibilityButton = null;
 		steamLoginCredentialPasswordVisible = false;
-		if (steamLoginCredentialPasswordVisibilityButton != null) {
-			steamLoginCredentialPasswordVisibilityButton.setText("SHOW PASSWORD");
-			steamLoginCredentialPasswordVisibilityButton.setContentDescription("Show Steam password while typing");
-		}
-		setSteamLoginCredentialStatus("Password-manager suggestions are requested for both fields when the provider supports Steam.");
+		steamLoginCredentialWideLayout = false;
+		steamLoginCredentialShortHeightLayout = false;
 	}
 
 	private static void setSteamCredentialWebDomain(ViewStructure structure, String webDomain) {
