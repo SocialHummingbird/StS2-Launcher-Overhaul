@@ -326,3 +326,16 @@ Combined gate passed:
 ```
 
 No Steam Cloud Push was performed. Successful branch-switch Push remains release-open until Pull-before-Push, local-save, and backup evidence are captured on the selected version.
+
+## Refactor-audits prerelease evidence note
+
+The `v0.2.276-local-refactor-audits` ARM64 prerelease packages the accumulated launcher/runtime/UI refactor split work plus the branch-availability diagnostics helper split. It is published as a local-package build for `com.sts2launcher.overhaul.fork.local`:
+
+```text
+Asset: StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk
+SHA-256: 5c80aa0db679db1b29a5e2c9856bc04f5cc96c18bbacf94dae7dcd9997dc7e36
+VersionName: 0.2.276-local-refactor-audits
+VersionCode: 276000
+```
+
+Validation for this prerelease is build/static-gate only: `audit-steam-version-selection.ps1 -Quiet` passed 454 checks, `audit-multi-version-runtime.ps1 -Quiet` passed 148 checks, the managed Release build reran cleanly with zero warnings/errors, the local ARM64 APK build passed structural verification, and Android crypto patch verification passed. No ARM64 device branch-switch/runtime route evidence was captured for this specific APK, and no Steam Cloud Push was performed. Continue to use the fix30/fix31 public/public-beta evidence notes above for runtime behavior until this APK has matching device evidence.

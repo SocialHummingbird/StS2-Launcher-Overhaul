@@ -38,15 +38,15 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.274-local-status-docs
-asset=StS2Launcher-v0.2.274-local-status-docs-arm64-v8a.apk
-sha256=83dd5d9ab24c6d3dff54ae4d708f40c355d1b42ac6106fed55dea075b03069bb
+release=v0.2.276-local-refactor-audits
+asset=StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk
+sha256=5c80aa0db679db1b29a5e2c9856bc04f5cc96c18bbacf94dae7dcd9997dc7e36
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.274-local-status-docs
-versionCode=219010
-validation=Android build/APK verification passed; build-only GitHub release refresh from the same launcher code line as v0.2.273-local-startup-overlay-fix plus current status/audit documentation; ARM64 device install/run evidence remains v0.2.273 because no device was attached for this build. v0.2.273 ARM64 evidence installed over existing app data on SM-F966B; public/default clean redownload selected Steam manifest 4733892780027453168 and game release v0.107.1 commit 59260271; public PCK SHA-256 d987bde8376b1de07269c9b790cdca8a575e3783dfb2aa998c7f5a17f3c7704c; source and active Android sts2.dll SHA-256 a1f9e653f1e28e4076558fee1e60d218619cb7e057b887c6417f62c62c6d7a52; runtime slot marker reported playable=true, runtimePairingStatus=branch-matched runtime, patchCompatibilityStatus=passed; main menu and deeper public UI route launched without NativeFallback; startup status overlay cleanup logged statusCleared=true
+versionName=0.2.276-local-refactor-audits
+versionCode=276000
+validation=Android build/APK verification passed; Steam version-selection static audit passed 454 checks; multi-version runtime audit passed 148 checks; managed Release build passed with zero warnings on rerun; APK crypto patch verification passed. This prerelease packages the accumulated launcher/runtime/UI refactor splits and the branch-availability diagnostics helper split. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
 cloudSafety=No Push to Cloud was run during this validation.
-evidence=artifacts/android/public-redownload-evidence-20260620
+evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:

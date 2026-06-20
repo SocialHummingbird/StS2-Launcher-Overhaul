@@ -62,6 +62,161 @@ function Add-ForbiddenCheck([string]$RelativePath, [string]$Description, [string
 }
 
 Add-Check `
+    "src\STS2Mobile\Launcher\LauncherMarkerFile.cs" `
+    "declares shared marker-file sentinel values" `
+    @(
+        "internal static partial class LauncherMarkerFile",
+        "MissingFileValue = ""<none>""",
+        "MissingLineValue = ""<missing>""",
+        "ReadFailedValue = ""<read failed>"""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherMarkerFile.Read.cs" `
+    "centralizes scalar marker-file value parsing" `
+    @(
+        "ReadValue",
+        "ReadOptionalValue",
+        "File\.ReadLines",
+        "StringComparison\.OrdinalIgnoreCase"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherMarkerFile.Typed.cs" `
+    "centralizes typed marker-file parsing" `
+    @(
+        "ReadInt",
+        "NumberStyles\.Integer",
+        "CultureInfo\.InvariantCulture",
+        "ReadUtc",
+        "UtcParseable",
+        "DateTimeStyles\.AdjustToUniversal",
+        "ReadBoolFlag"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherMarkerFile.Values.cs" `
+    "centralizes marker-file repeated-value reads" `
+    @(
+        "ReadJoinedValues",
+        "ReadValues",
+        "File\.ReadLines",
+        "valueFormatter",
+        "maxValues"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherMarkerFile.Predicates.cs" `
+    "centralizes marker-file predicates and counts" `
+    @(
+        "CountLines",
+        "HasLine",
+        "HasConcreteValue"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.Markers.cs" `
+    "keeps game-file marker evidence readers as thin shared-helper wrappers" `
+    @(
+        "ReadMarkerValue",
+        "LauncherMarkerFile\.ReadValue",
+        "ReadMarkerInt",
+        "LauncherMarkerFile\.ReadInt",
+        "MarkerUtcParseable",
+        "LauncherMarkerFile\.UtcParseable",
+        "MarkerHasLine",
+        "LauncherMarkerFile\.HasLine"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherUI.cs" `
+    "keeps launcher root control as a thin partial wrapper around MVC state" `
+    @(
+        "internal sealed partial class LauncherUI : Control",
+        "AutoLaunchVariable",
+        "AutoSafeLaunchVariable",
+        "LauncherZIndex",
+        "DefaultViewportSize",
+        "ConcurrentQueue<Action>",
+        "LauncherModel _model",
+        "LauncherView _view",
+        "LauncherController _controller",
+        "SetGameMode",
+        "WaitForLaunch"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherUI.Lifecycle.cs" `
+    "isolates launcher lifecycle registration and controller startup" `
+    @(
+        "internal void Initialize",
+        "AndroidBridgeDispatcher\.RegisterCurrentThread",
+        "LauncherLayoutProfile\.ForViewport",
+        "ResolveLauncherDataDirectory",
+        "new LauncherController",
+        "tree\.AutoAcceptQuit = false",
+        "tree\.ProcessFrame \+= OnProcessFrame",
+        "Callable\.From\(StartControllerSafely\)\.CallDeferred",
+        "StartControllerSafely",
+        "AutoLaunchIfRequested",
+        "TreeExiting \+= OnExitTree",
+        "AndroidBridgeDispatcher\.UnregisterCurrentThread"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherUI.MainThread.cs" `
+    "isolates main-thread queue pumping from lifecycle wiring" `
+    @(
+        "OnProcessFrame",
+        "AndroidBridgeDispatcher\.Pump",
+        "DrainMainThreadActions",
+        "SyncViewportSize",
+        "UpdateKeyboardOffset",
+        "EnqueueMainThreadAction",
+        "_mainThreadActions\.Enqueue",
+        "_mainThreadActions\.TryDequeue",
+        "UI update error"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherUI.Viewport.cs" `
+    "isolates viewport synchronization and fallback sizing" `
+    @(
+        "SyncViewportSize",
+        "GetViewportSize",
+        "DistanceSquaredTo",
+        "UpdateViewportSize",
+        "DefaultViewportSize"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherUI.Paths.cs" `
+    "isolates launcher data-directory resolution for Android and desktop" `
+    @(
+        "ResolveLauncherDataDirectory",
+        "OperatingSystem\.IsAndroid",
+        "AndroidGodotAppBridge\.GetInternalFilesDirPath",
+        "STS2_ANDROID_FILES_DIR",
+        "System\.Environment\.GetEnvironmentVariable",
+        "OS\.GetDataDir",
+        "BootstrapTrace\.ResolveFallbackDataDirectory"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherUI.AutoLaunch.cs" `
+    "isolates launch-request environment handling from controller startup" `
+    @(
+        "AutoLaunchIfRequested",
+        "_inGameMode",
+        "Environment\.GetEnvironmentVariable\(AutoLaunchVariable\)",
+        "Environment\.SetEnvironmentVariable\(AutoLaunchVariable, ""0""\)",
+        "Environment\.GetEnvironmentVariable\(AutoSafeLaunchVariable\)",
+        "Environment\.SetEnvironmentVariable\(AutoSafeLaunchVariable, ""0""\)",
+        "LaunchSafe",
+        "_model\.Launch"
+    )
+
+Add-Check `
     "src\STS2Mobile\Steam\SteamGameBranch.cs" `
     "declares current selector capabilities and unsupported beta features" `
     @(
@@ -129,47 +284,150 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherBranchCatalog.cs" `
-    "reads account-visible Steam branch catalog from app-info marker evidence" `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Option.cs" `
+    "describes selectable Steam branch option identity and metadata fields" `
     @(
-        "BranchAvailabilityMarkerPath",
-        "Visible branch:",
-        "ReadVisibleBranches",
-        "BranchOption",
-        "DropdownOptions",
-        "DropdownOptionMetadata",
-        "SelectedOptionStatus",
-        "SelectedOptionCompactStatus",
-        "SelectedOptionDownloadProblem",
+        "internal readonly partial struct BranchOption",
+        "SteamGameBranch\.Normalize",
+        "MetadataVisible",
+        "WindowsManifestDepotCount",
+        "PasswordRequired",
+        "BuildId",
+        "Description",
+        "Source"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Option.Label.cs" `
+    "keeps selectable Steam branch dropdown label formatting isolated" `
+    @(
+        "Label",
         "DropdownLabelWithMetadata",
-        "StatusText",
-        "windowsManifestDepots",
-        "passwordRequired",
-        "buildId",
+        "SteamGameBranch\.DropdownLabel",
+        "\(installed\)",
         "\(password\)",
         "\(unavailable\)",
-        "\(ready\)",
-        "Password branch blocked",
-        "Ready in Steam catalog",
-        "Refresh before download",
-        "Steam app-info visible branch catalog",
-        "GroupBy",
-        "saved selection",
-        "not listed in the latest Steam app-info catalog",
-        "private, inaccessible, password-protected, or unavailable",
+        "\(ready\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Option.Status.cs" `
+    "keeps selectable Steam branch status text and download blockers isolated" `
+    @(
+        "StatusText",
         "Download blocked: Steam marks this branch as password-protected",
         "password gate still blocks this launcher from downloading it",
         "Download blocked: this branch is visible to this account, but no Windows depot manifest was exposed",
         "Download blocked: this branch was not listed in Steam branch metadata",
-        "Download blocked: selected saved branch was not listed",
-        "Download blocked: selected branch is password-protected",
-        "Download blocked: selected branch has no Windows depot manifest",
         "Steam app-info metadata has not been captured",
         "SteamGameBranch\.Public"
     )
 
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Read.cs" `
+    "reads account-visible Steam branch catalog and merges it with installed branch slots" `
+    @(
+        "BranchAvailabilityMarkerPath",
+        "VisibleBranchPrefix",
+        "ReadVisibleBranches",
+        "ReadVisibleBranchNames",
+        "ReadSelectableBranches",
+        "SourceDescription",
+        "Steam app-info visible branch catalog",
+        "GroupBy"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Read.Installed.cs" `
+    "discovers locally installed non-public branch slots without adding public duplicates" `
+    @(
+        "ReadInstalledBranches",
+        "LauncherStorageNames\.GameVersionsDirectory",
+        "BranchMarkerBranchPrefix = ""Branch:""",
+        "SteamGameInstallPaths\.BranchMarkerFileName",
+        "SteamGameBranch\.Normalize",
+        "SteamGameBranch\.Public",
+        "SteamGameBranch\.StateDirectoryName",
+        "local install",
+        "ReadMarkerValue",
+        "LauncherMarkerFile\.ReadValue",
+        "missingFileValue: string\.Empty",
+        "missingLineValue: string\.Empty",
+        "readFailedValue: string\.Empty"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Read.Marker.cs" `
+    "parses Steam app-info branch marker metadata into dropdown options" `
+    @(
+        "BranchOptionFromMarkerValue",
+        "ParseMetadata",
+        "metadataVisible",
+        "windowsManifestDepots",
+        "passwordRequired",
+        "buildId",
+        "description",
+        "Steam app-info"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Read.Merge.cs" `
+    "keeps branch option replacement and fallback merge behavior isolated" `
+    @(
+        "AddIfMissing",
+        "AddOrReplace",
+        "StringComparison\.OrdinalIgnoreCase",
+        "FindIndex",
+        "options\[existingIndex\] = option"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Dropdown.cs" `
+    "builds branch dropdown options without treating gated branches as available" `
+    @(
+        "DropdownOptions",
+        "DropdownOptionLabels",
+        "new\(SteamGameBranch\.Public, source: ""fallback""\)",
+        "AddOrReplace\(options, branch\)",
+        "AddIfMissing\(options, new BranchOption\(selectedBranch, source: ""saved selection""\)\)",
+        "SteamGameBranch\.Public"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Dropdown.Status.cs" `
+    "keeps selected branch dropdown status and download blockers isolated" `
+    @(
+        "SelectedOptionStatus",
+        "SelectedOptionCompactStatus",
+        "SelectedOptionDownloadProblem",
+        "Password branch blocked",
+        "Ready in Steam catalog",
+        "Refresh before download",
+        "saved selection",
+        "not listed in the latest Steam app-info catalog",
+        "private, inaccessible, password-protected, or unavailable",
+        "Download blocked: selected saved branch was not listed",
+        "Download blocked: selected branch is password-protected",
+        "Download blocked: selected branch has no Windows depot manifest",
+        "SteamGameBranch\.Public"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Dropdown.Metadata.cs" `
+    "keeps branch dropdown diagnostics metadata formatting isolated" `
+    @(
+        "DropdownOptionMetadata",
+        "DropdownOptions\(selectedBranch, discoveredBranches\)",
+        "metadataVisible=",
+        "windowsManifestDepots=",
+        "passwordRequired=",
+        "buildId=",
+        "ValueOrUnknown",
+        "ValueOrNone"
+    )
+
 Add-ForbiddenCheck `
-    "src\STS2Mobile\Launcher\LauncherBranchCatalog.cs" `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Dropdown.cs" `
     "does not inject hardcoded beta as a normal dropdown fallback" `
     @(
         "SteamGameBranch\.Beta,\s*source:\s*""fallback""",
@@ -193,7 +451,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\ModEntry.cs" `
+    "src\STS2Mobile\ModEntry.RuntimeFiles.cs" `
     "keeps managed startup branch cache routing aligned with downloader paths" `
     @(
         "GameVersionsDirectoryName",
@@ -207,40 +465,153 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherPreferences.cs" `
-    "persists selected Steam game branch" `
+    "declares launcher preference keys and typed preference storage roots" `
     @(
+        "LocalBackupPreferenceKey",
+        "CloudSyncPreferenceKey",
         "game_branch",
-        "SteamGameBranch\.Normalize"
+        "GameBranchPreference",
+        "BooleanPreference",
+        "OperatingSystem\.IsAndroid"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
-    "shows selector limitations before downloading a selected version" `
+    "src\STS2Mobile\Launcher\LauncherPreferences.GameBranch.cs" `
+    "persists selected Steam game branch through normalized storage" `
     @(
-        "_branchHelpLabel",
-        "Refresh Game Versions",
-        "RefreshGameVersionsRequested",
-        "SelectedOptionStatus",
-        "SelectedOptionCompactStatus",
-        "UpdateBranchHelpText",
+        "ReadGameBranch",
+        "SaveGameBranch",
+        "GameBranchPreferenceExists",
+        "SteamGameBranch\.Normalize",
+        "SteamGameBranch\.Public",
+        "GameBranchPreference\.WriteText"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPreferences.ActionPreferences.cs" `
+    "keeps aggregate launcher action preferences typed" `
+    @(
+        "internal readonly struct ActionPreferences",
+        "LocalBackupEnabled",
+        "CloudSyncEnabled",
+        "GameBranch",
+        "ReadActionPreferences",
+        "LoadAndApplyActionPreferences"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPreferences.BooleanPreference.cs" `
+    "isolates boolean preference read apply and save behavior" `
+    @(
+        "internal BooleanPreference",
+        "Func<bool> defaultValue",
+        "Action<bool> apply",
+        "Action<bool>\? beforeSave = null",
+        "LoadAndApply",
+        "BeforeSave\?\.Invoke",
+        "Storage\.WriteBoolean"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPreferences.LocalBackup.cs" `
+    "keeps local-backup preference effects isolated from branch selection" `
+    @(
+        "SaveLocalBackupEnabled",
+        "RequestStoragePermissionForLocalBackup",
+        "AppPaths\.HasStoragePermission",
+        "AppPaths\.RequestStoragePermission",
+        "CloudSyncCoordinator\.SetLocalBackupEnabled",
+        "AppPaths\.EnsureExternalDirectories"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPreferences.CloudSync.cs" `
+    "keeps cloud-sync preference application isolated from branch selection" `
+    @(
+        "LoadAndApplyCloudSyncEnabled",
+        "SaveCloudSyncEnabled",
+        "ApplyCloudSync",
+        "LauncherCloudSaveState\.SetCloudSyncEnabled"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Construction.Version.Dropdown.cs" `
+    "constructs selected-version selector controls before downloading" `
+    @(
         "OptionButton",
-        "_branchDropdown",
-        "LauncherBranchCatalog\.DropdownOptions",
-        "SteamGameBranch\.SelectorInstallSlotHelpText",
-        "AutowrapMode",
-        "MouseFilterEnum\.Ignore",
+        "BuildBranchDropdown",
         "ItemSelected"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Branches.cs" `
+    "keeps install branch selection and compact drawer mechanics isolated" `
+    @(
+        "SetGameBranch",
+        "SetAvailableBranches",
+        "UpdateBranchHelpText",
+        "LauncherBranchDropdown\.Populate",
+        "LauncherBranchDropdown\.NormalizeSelection",
+        "selection\.Changed",
+        "LauncherBranchDropdown\.TryGetBranch",
+        "CollapseCompactBranchDetailsAfterSelection",
+        "ApplyBranchControlVisibility",
+        "_branchDetailsExpanded = true",
+        "_branchDetailsExpanded = false",
+        "GameBranchChanged\?\.Invoke"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Branches.Text.cs" `
+    "shows selector limitations before downloading a selected version" `
+    @(
+        "SelectedOptionStatus",
+        "UpdateBranchHelpText",
+        "SteamGameBranch\.SelectorInstallSlotHelpText"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LauncherBranchDropdown.cs" `
+    "centralizes shared Steam branch dropdown population and safe selection lookup" `
+    @(
+        "internal static class LauncherBranchDropdown",
+        "SelectionUpdate",
+        "NormalizeSelection",
+        "SteamGameBranch\.Normalize",
+        "NormalizeAvailableBranches",
+        "LauncherBranchCatalog\.DropdownOptions",
+        "dropdown\.Clear\(\)",
+        "branchOptions\.Clear\(\)",
+        "dropdown\.AddItem\(option\.Label\)",
+        "dropdown\.Select\(selectedIndex\)",
+        "TryGetBranch",
+        "index < 0 \|\| index >= branchOptions\.Count"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Branches.cs" `
+    "keeps ready/action branch selection and visibility mechanics isolated" `
+    @(
+        "SetGameBranch",
+        "SetAvailableBranches",
+        "UpdateBranchHelpText",
+        "PopulateBranchDropdown",
+        "LauncherBranchDropdown\.NormalizeSelection",
+        "selection\.Changed",
+        "LauncherBranchDropdown\.TryGetBranch",
+        "LauncherBranchDropdown\.Populate",
+        "CollapseCompactBranchDetailsAfterSelection",
+        "_branchDetailsExpanded = false",
+        "ApplyBranchControlVisibility",
+        "GameBranchChanged\?\.Invoke"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Branches.Text.cs" `
     "updates selector help text in ready/action state" `
     @(
         "_branchHelpLabel",
-        "RefreshGameVersionsPressed",
-        "SetRefreshVersionsButtonDisabled",
         "SelectedOptionStatus",
-        "SelectedOptionCompactStatus",
         "UpdateBranchHelpText",
         "SteamGameBranch\.SelectorInstallSlotHelpText",
         "Version/download actions affect local game files only",
@@ -248,14 +619,13 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Branch.cs" `
     "creates dropdown branch selector and wrapped selector help text in ready/action state" `
     @(
         "OptionButton",
         "ItemSelected",
-        "Refresh Game Versions",
-        "PopulateBranchDropdown",
-        "_branchHelpLabel",
+        "ApplyGameBranch",
+        "branchHelpLabel",
         "AutowrapMode",
         "MouseFilterEnum\.Ignore",
         "HorizontalAlignment\.Left"
@@ -330,7 +700,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherDiagnostics.Reports.cs" `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportLauncherPreferences.cs" `
     "surfaces partial Steam branch and inherited-public depot evidence" `
     @(
         "Selected game branch marker depots matching public",
@@ -339,91 +709,318 @@ Add-Check `
         "Selected game branch marker depots inherited from public",
         "Selected game branch marker depots missing selected branch manifest",
         "Selected game branch marker partial Steam branch evidence",
-        "Selected game branch marker depot manifest rows",
-        "branchMarkerDepotsMatchingPublic",
-        "branchMarkerDepotsDifferingFromPublic",
-        "branchMarkerDepotsInheritedFromPublic",
-        "branchMarkerDepotsMissingSelectedManifest",
+        "Selected game branch marker depot manifest rows"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchMarkers.cs" `
+    "parses partial Steam branch and inherited-public depot marker evidence" `
+    @(
         "BranchMarkerPartialSteamBranchEvidence",
         "ReadBranchMarkerValues",
+        "LauncherMarkerFile\.ReadJoinedValues",
+        "LauncherMarkerFile\.CountLines",
+        "LauncherMarkerFile\.ReadInt",
         "selected branch inherits public depot manifests"
     )
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.cs" `
-    "surfaces compact Steam branch availability diagnoses in launcher failure status" `
+    "orchestrates compact Steam branch availability diagnoses in launcher failure status" `
     @(
         "BranchAvailabilityMarkerPath",
         "CompactFailureMessage",
         "Clear",
-        "MarkerBranchMatchesCurrentSelection",
-        "LauncherPreferences\.ReadGameBranch",
         "Failed to clear Steam branch availability marker",
-        "Branch availability:",
-        "Selected branch visibility:",
-        "Windows depot manifests for selected branch:",
-        "Visible branch:",
-        "MaxVisibleBranchesInStatus",
-        "MarkerValuePasswordProtected",
-        "passwordRequired=true",
-        "password-protected",
-        "Steam beta password entry is supported",
+        "ReadDiagnosis",
         "RemoveRawBranchAvailabilitySummary"
     )
 
 Add-Check `
-    "src\STS2Mobile\Steam\DepotDownloader.BranchAvailability.cs" `
-    "surfaces account-visible Steam branch availability from app info" `
+    "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.Fields.cs" `
+    "defines Steam branch availability marker prefixes and compact-status constants" `
+    @(
+        "SelectedBranchPrefix",
+        "SelectedBranchVisibilityPrefix",
+        "SelectedBranchWindowsDepotManifestsPrefix",
+        "VisibleBranchPrefix",
+        "VisibleBranchOverflowCountPrefix",
+        "RawSelectedBranchVisibilitySummaryMarker",
+        "MaxVisibleBranchesInStatus",
+        "PasswordRequiredTrueMarker",
+        "ZeroWindowsManifestsMarker",
+        "Selected branch visibility:",
+        "Windows depot manifests for selected branch:",
+        "Visible branch:",
+        "passwordRequired=true",
+        "windowsManifestDepots=0"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.Read.cs" `
+    "reads Steam branch availability markers for launcher failure diagnosis" `
+    @(
+        "ReadDiagnosis",
+        "BranchAvailabilityMarkerPath",
+        "File\.ReadAllLines",
+        "SelectedBranchPrefix",
+        "SelectedBranchVisibilityPrefix",
+        "SelectedBranchWindowsDepotManifestsPrefix",
+        "VisibleBranchPrefix",
+        "VisibleBranchOverflowCountPrefix",
+        "MarkerBranchMatchesCurrentSelection",
+        "MarkerValueMatchesBranch",
+        "VisibleBranchStatus",
+        "SelectedStatus",
+        "ReadValue",
+        "ReadValues",
+        "Branch availability:"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.Format.cs" `
+    "formats compact Steam branch availability user-facing status" `
+    @(
+        "SelectedStatus",
+        "VisibleBranchStatus",
+        "MarkerValuePasswordProtected",
+        "password-protected",
+        "Steam beta password entry is supported",
+        "no Windows manifest",
+        "ZeroWindowsManifestsMarker",
+        "RemoveRawBranchAvailabilitySummary",
+        "RawSelectedBranchVisibilitySummaryMarker"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.Match.cs" `
+    "matches Steam branch availability marker rows against the selected branch" `
+    @(
+        "MarkerBranchMatchesCurrentSelection",
+        "LauncherPreferences\.ReadGameBranch",
+        "MarkerValueMatchesBranch",
+        "MarkerValuePasswordProtected",
+        "SteamGameBranch\.Normalize",
+        "PasswordRequiredTrueMarker"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\DepotDownloader.BranchAvailability.Report.cs" `
+    "builds account-visible Steam branch availability from app info" `
     @(
         "BranchAvailabilityReport",
-        "WriteMarker",
-        "BranchAvailabilityMarkerPath",
-        "MaxBranchAvailabilityMarkerBranches",
-        "MaxBranchAvailabilityMarkerValueLength",
-        "SafeMarkerValue",
-        "Visible branch overflow count",
         "Visible Steam branches",
         "Selected branch visibility",
         "Windows depot manifests for selected branch",
         "visible branches",
+        "DepotIsWindowsCompatible"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\DepotDownloader.BranchAvailability.Marker.cs" `
+    "persists Steam branch availability marker evidence" `
+    @(
+        "WriteMarker",
+        "BranchAvailabilityMarkerPath",
+        "MaxBranchAvailabilityMarkerBranches",
+        "Visible branch overflow count",
+        "Selected branch visibility",
+        "Windows depot manifests for selected branch"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\DepotDownloader.BranchAvailability.Model.cs" `
+    "formats branch availability marker values safely" `
+    @(
+        "MaxBranchAvailabilityMarkerValueLength",
+        "SafeMarkerValue",
         "passwordRequired",
         "DownloadabilityText",
         "password-protected",
         "!PasswordRequired\.Equals\(""true""",
         "windowsManifestDepots",
-        "metadataVisible",
-        "DepotIsWindowsCompatible",
+        "metadataVisible"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\DepotDownloader.BranchAvailability.Builder.cs" `
+    "parses Steam branch metadata including beta password flags" `
+    @(
+        "BranchAvailabilityBuilder",
         "pwdrequired",
         "password_required"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherGameFiles.cs" `
-    "blocks ambiguous non-public caches without marker provenance" `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.BranchMarker.cs" `
+    "blocks ambiguous non-public caches without branch marker readiness" `
     @(
         "BranchMarkerReady",
+        "HasBranchMetadataProblem",
+        "BranchMarkerBranchPrefix",
+        "BranchMarkerHasDepotManifestProvenance",
+        "BranchMarkerHasInstallSlotProvenance",
+        "BranchMarkerHasIntegrityProvenance"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.BranchMarker.Fields.cs" `
+    "keeps branch marker field prefixes centralized for readiness and integrity checks" `
+    @(
+        "BranchMarkerBranchPrefix = ""Branch:""",
+        "BranchMarkerDepotManifestCountPrefix = ""Depot manifest count:""",
+        "BranchMarkerDepotManifestRowPrefix = ""Depot manifest:""",
+        "BranchMarkerDepotsMatchingPublicPrefix = ""Depot manifests matching public count:""",
+        "BranchMarkerDepotsDifferingFromPublicPrefix = ""Depot manifests differing from public count:""",
+        "BranchMarkerDepotsWithoutPublicComparisonPrefix = ""Depot manifests without public comparison count:""",
+        "BranchMarkerDepotsInheritedFromPublicPrefix = ""Depot manifests inherited from public count:""",
+        "BranchMarkerDepotsMissingSelectedManifestPrefix = ""Depot manifests missing selected branch manifest count:""",
+        "BranchMarkerInstallSlotKindPrefix = ""Install slot kind:""",
+        "BranchMarkerInstallSlotDirectoryPrefix = ""Install slot directory:"""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.BranchMarker.Provenance.cs" `
+    "checks branch marker depot, integrity, and install-slot provenance through centralized fields" `
+    @(
+        "BranchMarkerHasDepotManifestProvenance",
+        "BranchMarkerDepotManifestRowPrefix",
+        "BranchMarkerHasIntegrityProvenance",
+        "BranchMarkerDepotsMatchingPublicPrefix",
+        "BranchMarkerDepotsDifferingFromPublicPrefix",
+        "BranchMarkerDepotsWithoutPublicComparisonPrefix",
+        "BranchMarkerDepotsInheritedFromPublicPrefix",
+        "BranchMarkerDepotsMissingSelectedManifestPrefix",
+        "BranchMarkerHasInstallSlotProvenance",
+        "BranchMarkerInstallSlotKindPrefix",
+        "BranchMarkerInstallSlotDirectoryPrefix",
+        "MarkerPathsEquivalent"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.BranchMarker.Paths.cs" `
+    "isolates Android private-path alias matching for branch marker install-slot provenance" `
+    @(
+        "NormalizeMarkerPath",
+        "MarkerPathsEquivalent",
+        "AndroidAppPrivatePathAlias",
+        "AndroidDataUserPrefix",
+        "AndroidDataDataPrefix",
+        "sourceRootPrefix",
+        "aliasRootPrefix"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.BranchIntegrity.cs" `
+    "surfaces ambiguous non-public cache integrity evidence" `
+    @(
         "BranchIntegritySummary",
+        "BranchMarkerDepotManifestCountPrefix",
+        "BranchMarkerDepotsMatchingPublicPrefix",
+        "BranchMarkerDepotsDifferingFromPublicPrefix",
+        "BranchMarkerDepotsInheritedFromPublicPrefix",
+        "BranchMarkerDepotsMissingSelectedManifestPrefix",
+        "BranchMarkerDepotsWithoutPublicComparisonPrefix",
         "Selected branch appears partial",
         "inherits public content",
         "Selected branch depot manifests all match public",
-        "BranchMarkerHasInstallSlotProvenance",
+        "Depot manifest"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.Readiness.cs" `
+    "reports readiness failure when selected branch metadata is unsafe" `
+    @(
         "ReadinessProblem",
-        "HasBranchMetadataProblem",
-        "DeleteInactiveVersionCaches",
+        "HasBranchMetadataProblem"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.Redownload.cs" `
+    "orchestrates selected-version redownload cleanup without touching other branch caches" `
+    @(
+        "DeleteDownloadedState",
+        "SteamGameBranch\.Normalize",
+        "GameDirectoryPath\(dataDir, branch\)",
+        "SteamGameInstallPaths\.DownloadStateDirectoryPath\(dataDir, branch\)",
+        "GameRuntimeSlot\.RuntimePackDirectoryPath\(dataDir, branch\)",
+        "WriteRedownloadMarker",
+        "DeleteDirectory\(runtimePackDirectory\)",
+        "LauncherRuntimeSlotEvidence\.Clear\(dataDir\)",
+        "LauncherRuntimeCacheEvidence\.Clear\(dataDir\)",
+        "LauncherRuntimePatchValidationEvidence\.Clear\(dataDir\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.Redownload.Marker.Fields.cs" `
+    "centralizes selected-version redownload marker prefixes" `
+    @(
+        "RedownloadMarkerUtcPrefix = ""UTC:""",
+        "RedownloadMarkerSelectedBranchPrefix = ""Selected branch:""",
+        "RedownloadMarkerVersionSlotKindPrefix = ""Selected version slot kind:""",
+        "RedownloadMarkerVersionSlotDirectoryPrefix = ""Selected version slot directory:""",
+        "RedownloadMarkerGameDirectoryPrefix = ""Deleted game directory:""",
+        "RedownloadMarkerGameDirectoryExistedPrefix = ""Game directory existed before delete:""",
+        "RedownloadMarkerGameDirectoryExistsAfterDeletePrefix = ""Game directory exists after delete:""",
+        "RedownloadMarkerDownloadStateDirectoryPrefix = ""Deleted download state directory:""",
+        "RedownloadMarkerDownloadStateDirectoryExistedPrefix = ""Download state directory existed before delete:""",
+        "RedownloadMarkerDownloadStateDirectoryExistsAfterDeletePrefix = ""Download state directory exists after delete:""",
+        "RedownloadMarkerRuntimePackDirectoryPrefix = ""Deleted runtime pack directory:""",
+        "RedownloadMarkerRuntimePackDirectoryExistedPrefix = ""Runtime pack directory existed before delete:""",
+        "RedownloadMarkerRuntimePackDirectoryExistsAfterDeletePrefix = ""Runtime pack directory exists after delete:"""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.Redownload.Marker.Read.cs" `
+    "reads selected-version redownload cleanup marker evidence" `
+    @(
         "RedownloadMarkerFileName",
         "RedownloadMarkerUtcParseable",
         "RedownloadMarkerVersionSlotKind",
         "RedownloadMarkerVersionSlotDirectory",
         "last_game_version_redownload\.txt",
-        "Selected version slot kind",
-        "Selected version slot directory",
-        "Deleted game directory",
-        "Game directory existed before delete",
-        "Game directory exists after delete",
-        "Deleted download state directory",
-        "Download state directory existed before delete",
-        "Download state directory exists after delete",
-        "RedownloadMarkerSelectedDirectoriesCleared",
+        "RedownloadMarkerRuntimePackDirectory",
+        "RedownloadMarkerSelectedDirectoriesCleared"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.Redownload.Marker.Write.cs" `
+    "writes selected-version redownload cleanup marker evidence" `
+    @(
+        "WriteRedownloadMarker",
+        "RedownloadMarkerSelectedBranchPrefix",
+        "RedownloadMarkerVersionSlotKindPrefix",
+        "RedownloadMarkerVersionSlotDirectoryPrefix",
+        "RedownloadMarkerGameDirectoryPrefix",
+        "RedownloadMarkerGameDirectoryExistsAfterDeletePrefix",
+        "RedownloadMarkerDownloadStateDirectoryPrefix",
+        "RedownloadMarkerDownloadStateDirectoryExistsAfterDeletePrefix",
+        "RedownloadMarkerRuntimePackDirectoryPrefix",
+        "RedownloadMarkerRuntimePackDirectoryExistsAfterDeletePrefix",
+        "File\.WriteAllLines",
+        "Failed to write game version redownload marker"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.CacheCleanup.cs" `
+    "orchestrates inactive cache cleanup while preserving selected non-public cache state" `
+    @(
+        "DeleteInactiveVersionCaches",
+        "NewCacheCleanupMarkerLines",
+        "DeleteInactiveRuntimePacks",
+        "WriteCacheCleanupMarker",
+        "Removed count",
+        "Removed runtime pack count",
+        "Removing inactive game version cache",
+        "Preserving selected game version cache",
+        "Preserved selected cache",
+        "selected branch"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.CacheCleanup.Markers.cs" `
+    "records and reads cache cleanup marker evidence for selected cache/runtime pack preservation" `
+    @(
         "CacheCleanupMarkerFileName",
         "CacheCleanupMarkerPath",
         "CacheCleanupMarkerUtc",
@@ -441,20 +1038,221 @@ Add-Check `
         "CacheCleanupMarkerSelectedCachePreservedWhereApplicable",
         "CacheCleanupMarkerSelectedRuntimePackPreservedWhereApplicable",
         "last_game_version_cache_cleanup\.txt",
-        "Preserved selected cache",
-        "Preserved selected runtime pack",
-        "Removed count",
-        "Removed runtime pack count",
-        "Removing inactive game version cache",
-        "Preserving selected game version cache",
-        "selected branch",
-        "Depot manifest",
-        "Install slot kind:",
-        "Install slot directory:"
+        "Selected runtime pack directory",
+        "Selected runtime pack present before cleanup",
+        "Runtime packs directory present"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherController.Downloads.cs" `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.CacheCleanup.RuntimePacks.cs" `
+    "removes inactive runtime-pack caches while preserving the selected runtime pack" `
+    @(
+        "RuntimePackDirectoryPathForStateDirectory",
+        "DeleteInactiveRuntimePacks",
+        "runtime_packs",
+        "Preserved selected runtime pack",
+        "Removed orphan runtime pack",
+        "existsAfterDelete"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherModel.Downloads.cs" `
+    "keeps launcher download model state and events centralized" `
+    @(
+        "_downloadCts",
+        "_downloader",
+        "_downloadRunning",
+        "DownloadProgressChanged",
+        "DownloadLogReceived",
+        "DownloadCompleted",
+        "DownloadFailed",
+        "DownloadCancelled",
+        "UpdateCheckCompleted",
+        "UpdateCheckFailed",
+        "BranchCatalogRefreshCompleted",
+        "BranchCatalogRefreshFailed",
+        "DownloadIsRunning",
+        "Interlocked\.CompareExchange"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherModel.Downloads.Action.cs" `
+    "centralizes depot connection actions for download, update check, and branch refresh" `
+    @(
+        "NotConnectedMessage = ""Not connected""",
+        "DepotConnectionAction",
+        "Download\(LauncherModel model\)",
+        "BeginDownload\(connection\)",
+        "RunDownloadAsync\(\)",
+        "UpdateCheck\(LauncherModel model\)",
+        "CheckForUpdatesWithConnectionAsync",
+        "BranchCatalogRefresh\(LauncherModel model\)",
+        "RefreshBranchCatalogWithConnectionAsync",
+        "FailNotConnected"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherModel.Downloads.RunGuard.cs" `
+    "isolates download concurrency guard acquisition and release" `
+    @(
+        "DownloadRunGuard",
+        "TryAcquire\(LauncherModel model\)",
+        "Interlocked\.Exchange\(ref model\._downloadRunning, 1\) == 0",
+        "Release\(\)",
+        "Interlocked\.Exchange\(ref Model\._downloadRunning, 0\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherModel.Downloads.Start.cs" `
+    "routes public download, update check, and branch refresh starts through depot connection actions" `
+    @(
+        "StartDownloadAsync",
+        "DownloadRunGuard\.TryAcquire\(this\)",
+        "Download already running",
+        "DepotConnectionAction\.Download\(this\)",
+        "run\.Release\(\)",
+        "CheckForUpdatesAsync",
+        "DepotConnectionAction\.UpdateCheck\(this\)",
+        "RefreshBranchCatalogAsync",
+        "DepotConnectionAction\.BranchCatalogRefresh\(this\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherModel.Downloads.Catalog.cs" `
+    "keeps update checks and branch catalog refreshes as non-download depot workflows" `
+    @(
+        "CheckForUpdatesWithConnectionAsync",
+        "using var downloader = CreateDownloader\(connection\)",
+        "CheckForUpdatesAsync",
+        "RaiseUpdateCheckCompleted",
+        "RaiseUpdateCheckFailed",
+        "RefreshBranchCatalogWithConnectionAsync",
+        "RefreshBranchCatalogAsync",
+        "RaiseBranchCatalogRefreshCompleted",
+        "RaiseBranchCatalogRefreshFailed"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherModel.Downloads.Connection.cs" `
+    "keeps depot connection validation before download-related operations" `
+    @(
+        "RunWithDepotConnectionAsync",
+        "GetDepotConnectionAsync",
+        "EnsureConnectedAsync",
+        "_steamSession\.TryGetConnection",
+        "action\.FailNotConnected",
+        "action\.RunAsync\(connection\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherModel.SessionAuth.cs" `
+    "keeps launcher session authentication entry points together" `
+    @(
+        "ConnectAsync",
+        "ConnectSavedCredentialsAndVerifyAsync",
+        "SessionState\.Connecting",
+        "LoginAsync\(string username, string password\)",
+        "LoginWithTimeoutAsync",
+        "SessionState\.Authenticating",
+        "RunLoginAttemptAsync",
+        "LoginAndVerifyAsync",
+        "RaiseLogReceived",
+        "RaiseCodeNeeded",
+        "SubmitCode\(string code\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherModel.SessionAuth.Result.cs" `
+    "isolates session attempt result application and stale-failure logging" `
+    @(
+        "ConnectionAttemptResult",
+        "Ignored stale session failure",
+        "PatchHelper\.Log",
+        "SessionState\.LoggedIn",
+        "SessionState\.Failed",
+        "_connectionResolved = Succeeded",
+        "SetSessionState\(State, Failure\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherModel.SessionAuth.Attempt.cs" `
+    "centralizes session attempt identity and ownership-verification transition handling" `
+    @(
+        "RunConnectionAttemptAsync",
+        "BeginSessionAttempt\(state\)",
+        "CreateConnectionAttemptResult",
+        "IsCurrentSessionAttempt\(attemptId\)",
+        "ApplyConnectionAttemptResult",
+        "BeginOwnershipVerification",
+        "SessionState\.VerifyingOwnership"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherModel.SessionAuth.Connection.cs" `
+    "reuses an existing logged-in Steam connection before starting depot connection attempts" `
+    @(
+        "EnsureConnectedAsync",
+        "IsLoggedIn",
+        "_steamSession\.TryGetConnection",
+        "RunConnectionAttemptAsync",
+        "SessionState\.Connecting",
+        "_steamSession\.EnsureConnectedAsync"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherSteamSession.Connection.cs" `
+    "keeps saved Steam connection retry policy centralized" `
+    @(
+        "SavedConnectionVerifyAttempts = 3"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherSteamSession.Connection.SavedCredentials.cs" `
+    "retries saved-credential login and verifies ownership before adopting a Steam connection" `
+    @(
+        "ConnectSavedCredentialsAndVerifyAsync",
+        "SavedConnectionVerifyAttempts",
+        "Retrying saved Steam connection",
+        "UseConnectionAndVerifyOwnershipAsync",
+        "CreateSavedCredentialConnection",
+        "Saved Steam connection attempt",
+        "Could not connect to Steam"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherSteamSession.Connection.Ensure.cs" `
+    "validates existing or saved Steam connections before depot operations" `
+    @(
+        "EnsureConnectedAsync",
+        "EnsureExistingConnectionAsync",
+        "AdoptSavedConnectionAfterAccessCheckAsync",
+        "_connection != null",
+        "_credentialStore\.TryCreateConnection",
+        "No saved credentials",
+        "EnsureAppAccessTokenNotDeniedAsync",
+        "DropConnection",
+        "Retrying Steam access check",
+        "AdoptConnectionAfterVerificationAsync"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherSteamSession.Connection.Adoption.cs" `
+    "adopts verified Steam connections and disposes failed candidates" `
+    @(
+        "AdoptConnectionAfterVerificationAsync",
+        "beforeAdoptAsync",
+        "UseConnection\(connection\)",
+        "adopted = true",
+        "if \(!adopted\)",
+        "connection\.Dispose\(\)",
+        "DropConnection",
+        "ReferenceEquals\(_connection, connection\)",
+        "CreateSavedCredentialConnection",
+        "throw new InvalidOperationException\(""No saved credentials""\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Downloads.Actions.cs" `
     "reports selected-version preservation when clearing inactive caches" `
     @(
         "SelectedOptionDownloadProblem",
@@ -471,7 +1269,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherController.Downloads.cs" `
+    "src\STS2Mobile\Launcher\LauncherController.Downloads.Execution.cs" `
     "logs selected-branch integrity summary after non-public downloads" `
     @(
         "BranchIntegritySummary",
@@ -480,18 +1278,141 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Dialog.cs" `
+    "src\STS2Mobile\Launcher\LauncherController.Automation.cs" `
+    "keeps launcher automation entry point thin around request consumption and execution" `
+    @(
+        "AutomationFileName = ""launcher_automation_action\.txt""",
+        "AutomationMarkerFileName = ""last_launcher_automation\.txt""",
+        "TryStartAutomation",
+        "LauncherAutomationRequest\.TryConsume",
+        "RunAutomationAsync"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Automation.Request.cs" `
+    "parses and consumes launcher automation requests from data-directory files" `
+    @(
+        "LauncherAutomationRequest",
+        "Path\.Combine\(dataDir, AutomationFileName\)",
+        "File\.ReadAllLines",
+        "File\.Delete",
+        "ReadValue\(lines, ""action""\)",
+        "ReadValue\(lines, ""branch""\)",
+        "SteamGameBranch\.Public",
+        "RefreshCatalog",
+        "CheckUpdates",
+        "Redownload",
+        "Download",
+        "LaunchSafe"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Automation.Run.cs" `
+    "runs launcher automation through normal branch, catalog, download, and safe-launch paths" `
+    @(
+        "RunAutomationAsync",
+        "WriteAutomationMarker\(request, ""started""\)",
+        "LauncherPreferences\.SaveGameBranch",
+        "LauncherBranchAvailabilityStatus\.Clear",
+        "RefreshGameBranchOptions",
+        "RefreshBranchCatalogAsync",
+        "CheckForUpdatesAsync",
+        "ResetGameFilesForRedownload",
+        "StartDownloadAsync",
+        "RefreshSelectedRuntimeSlotEvidence",
+        "LaunchSafe",
+        "WriteAutomationMarker\(request, ""completed""\)",
+        "WriteAutomationMarker\(request, ""failed"""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Automation.Marker.cs" `
+    "records launcher automation status without driving cloud push side effects" `
+    @(
+        "WriteAutomationMarker",
+        "Path\.Combine\(_model\.DataDir, AutomationMarkerFileName\)",
+        "UTC:",
+        "Status:",
+        "Action:",
+        "Selected branch:",
+        "Requested branch:",
+        "Message:",
+        "SteamGameBranch\.Normalize\(LauncherPreferences\.ReadGameBranch\(\)\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.LocalLogin.cs" `
+    "keeps local Steam credential handoff state and polling constants centralized" `
+    @(
+        "LocalLoginPollDelayMs = 500",
+        "LocalLoginPollTimeout = TimeSpan\.FromSeconds\(180\)",
+        "_localLoginHandoffStarted"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.LocalLogin.Start.cs" `
+    "starts Android local credential handoff once and supports immediate credential consumption" `
+    @(
+        "StartLocalLoginHandoff",
+        "TryStartImmediateLocalLoginHandoff",
+        "OperatingSystem\.IsAndroid",
+        "Interlocked\.CompareExchange",
+        "Volatile\.Read",
+        "ConsumeLocalSteamCredentials",
+        "Volatile\.Write\(ref _localLoginHandoffStarted, 0\)",
+        "Starting immediate local Steam credential handoff",
+        "SessionState\.Authenticating",
+        "StartObservedLocalLoginTask"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.LocalLogin.Handoff.cs" `
+    "wraps local credential handoff execution with failure display and flag reset" `
+    @(
+        "RunLocalLoginHandoffAsync",
+        "WatchLocalLoginHandoffAsync",
+        "RunLocalLoginAsync",
+        "LoginFormFailure\.LocalCredentialHandoff\(\)\.Show",
+        "Volatile\.Write\(ref _localLoginHandoffStarted, 0\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.LocalLogin.Watch.cs" `
+    "polls for local credential files only while the connection is pending" `
+    @(
+        "WatchLocalLoginHandoffAsync",
+        "DateTime\.UtcNow \+ LocalLoginPollTimeout",
+        "_model\.IsConnectionPending\(\)",
+        "ConsumeLocalSteamCredentials",
+        "Task\.Delay\(LocalLoginPollDelayMs\)",
+        "Local Steam credential handoff watcher timed out",
+        "connection no longer pending"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.LocalLogin.Run.cs" `
+    "performs local Steam credential login through the normal model timeout path" `
+    @(
+        "RunLocalLoginAsync",
+        "Consumed local Steam credential file",
+        "SessionState\.Authenticating",
+        "localLogin\.LoginAsync\(_model, StartConnectionTimeout\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Dialog.Buttons.cs" `
     "accepts contextual confirmation button labels" `
     @(
         "confirmText",
         "cancelText",
         "DialogButtonText",
-        "BuildDialogButtons"
+        "BuildDialogButtons",
+        "TryGetPressedPointerPosition"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Dialog.cs" `
-    "keeps compact confirmation warnings scroll-safe with reachable buttons" `
+    "src\STS2Mobile\Launcher\LauncherView.Dialog.Message.cs" `
+    "keeps compact confirmation warning messages scroll-safe" `
     @(
         "CompactDialogWidthRatio = 0\.9f",
         "CompactDialogMaxMessageHeightRatio = 0\.44f",
@@ -501,12 +1422,35 @@ Add-Check `
         "DialogMessageScrollHeight",
         "new ScrollContainer",
         "DialogMessageWidth\(profile\)",
-        "profile\.ViewportSize\.Y \* CompactDialogMaxMessageHeightRatio",
-        "button\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
+        "profile\.ViewportSize\.Y \* CompactDialogMaxMessageHeightRatio"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Dialog.ButtonFactory.cs" `
+    "keeps compact confirmation button sizing isolated below scroll-safe warnings" `
+    @(
+        "BuildDialogButton",
+        "ApplyDialogButtonLayout",
+        "DialogMessageWidth\(profile\)",
+        "button\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "LauncherComponentTheme\.DialogButtonWidth",
+        "button\.Pressed \+= callback"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Dialog.Pointer.cs" `
+    "keeps touch and mouse confirmation dialog pointer forwarding isolated" `
+    @(
+        "TryGetPressedPointerPosition",
+        "InputEventScreenTouch",
+        "InputEventMouseButton",
+        "Pressed: true",
+        "position = touch\.Position",
+        "position = mouse\.Position"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.Confirmation.cs" `
     "exposes contextual confirmation button label overloads" `
     @(
         "confirmText",
@@ -515,7 +1459,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.Confirmation.cs" `
     "sizes confirmation dialogs from the current visible viewport" `
     @(
         "CurrentConfirmationProfile",
@@ -525,7 +1469,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherController.Downloads.cs" `
+    "src\STS2Mobile\Launcher\LauncherController.Downloads.Actions.cs" `
     "labels redownload and cache confirmations with explicit compact actions" `
     @(
         "Redownload Version",
@@ -536,7 +1480,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherController.Startup.cs" `
+    "src\STS2Mobile\Launcher\LauncherController.Startup.BranchSwitch.cs" `
     "labels branch-switch confirmation with explicit compact actions" `
     @(
         "Switch Version",
@@ -544,28 +1488,84 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherController.CloudSync.cs" `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.Request.Factory.cs" `
     "labels final cloud confirmation with explicit compact actions" `
     @(
-        "ConfirmText",
-        "CancelText",
         "Push to Cloud",
         "Cancel Push",
-        "Open Help & Reports for details"
+        "Pull from Cloud",
+        "Cancel Pull"
     )
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.cs" `
+    "keeps update-check button labels and running state centralized" `
+    @(
+        "UpdateCheckFailedButtonText = ""Check Failed""",
+        "UpdateCheckBlockedButtonText = ""Check Blocked""",
+        "UpToDateButtonText = ""Up to Date""",
+        "UpdateGameFilesButtonText = ""Update Selected Version""",
+        "_updateCheckRunning"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.ViewUpdate.cs" `
+    "formats update-check view changes without running update logic" `
+    @(
+        "UpdateCheckViewUpdate",
+        "Completed\(bool hasUpdate\)",
+        "UpdateGameFilesButtonText",
+        "Update available for selected game version",
+        "Selected game version is up to date",
+        "Failed\(string message\)",
+        "UpdateCheckFailedButtonText",
+        "Blocked\(string message\)",
+        "UpdateCheckBlockedButtonText",
+        "Check Blocked",
+        "Update check blocked for selected game version",
+        "view\.AppendLog",
+        "view\.HideActions",
+        "view\.ShowDownloadAction",
+        "view\.SetStatus",
+        "view\.SetUpdateButtonText"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.Run.cs" `
+    "runs selected-version update checks with busy-state and failure recovery" `
+    @(
+        "RunUpdateCheck",
+        "RunUpdateCheckAsync",
+        "_updateCheckRunning",
+        "SetUpdateCheckBusy\(busy: true\)",
+        "CheckForUpdatesAsync",
+        "PatchHelper\.Log",
+        "FailUpdateCheck\(ex\.Message\)",
+        "SetUpdateCheckBusy\(busy: false\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.Workflow.cs" `
     "blocks selected-version update checks for known unavailable branches while preserving app update checks" `
     @(
         "CheckForAppUpdatesAsync",
         "SelectedOptionDownloadProblem",
         "Update check blocked:",
-        "Check Blocked",
-        "Update check blocked for selected game version",
         "LauncherBranchCatalog\.ReadVisibleBranches",
         "_model\.CheckForUpdatesAsync",
         "await appUpdateTask"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.Results.cs" `
+    "applies update-check completion and failure events after refreshing branch options" `
+    @(
+        "CompleteUpdateCheck",
+        "FailUpdateCheck",
+        "RefreshGameBranchOptions",
+        "UpdateCheckViewUpdate\.Completed",
+        "UpdateCheckViewUpdate\.Failed",
+        "LauncherBranchAvailabilityStatus\.CompactFailureMessage"
     )
 
 Add-Check `
@@ -579,10 +1579,38 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherBranchSwitchSafety.cs" `
-    "records branch-switch safety posture for later Push gating" `
+    "keeps branch-switch safety marker identity isolated" `
     @(
+        "internal static partial class LauncherBranchSwitchSafety",
         "last_game_branch_switch\.txt",
         "internal const string MarkerFileName",
+        "MarkerPath",
+        "HasMarker"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchSwitchSafety.Fields.cs" `
+    "centralizes branch-switch safety marker field prefixes" `
+    @(
+        "UtcPrefix = ""UTC:""",
+        "PreviousBranchPrefix = ""Previous branch:""",
+        "SelectedBranchPrefix = ""Selected branch:""",
+        "SelectedBranchSelectionKindPrefix = ""Selected branch selection kind:""",
+        "SelectorModePrefix = ""Steam branch selector mode:""",
+        "SelectedVersionPrefix = ""Selected version:""",
+        "SelectedVersionSlotKindPrefix = ""Selected version slot kind:""",
+        "SelectedVersionSlotDirectoryPrefix = ""Selected version slot directory:""",
+        "SelectedBranchNotePrefix = ""Selected branch note:""",
+        "LocalBackupForcedPrefix = ""Local backup forced on:""",
+        "ManualPushRequiresBackupStoragePrefix = ""Manual Push requires backup storage:""",
+        "WarningAcknowledgedPrefix = ""Warning acknowledged:""",
+        "NonPublicBranchWarningAcknowledgedPrefix = ""Non-public branch warning acknowledged:"""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchSwitchSafety.Read.cs" `
+    "reads and parses branch-switch safety marker evidence" `
+    @(
         "MarkerUtc",
         "MarkerUtcParseable",
         "PreviousBranch",
@@ -597,12 +1625,37 @@ Add-Check `
         "ManualPushRequiresBackupStorage",
         "WarningAcknowledged",
         "NonPublicBranchWarningAcknowledged",
+        "ReadMarkerValue",
+        "LauncherMarkerFile\.ReadValue",
+        "LauncherMarkerFile\.HasConcreteValue",
+        "ReadMarkerBool",
+        "TryReadMarkerUtc",
+        "DateTimeStyles\.AdjustToUniversal"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchSwitchSafety.Gates.cs" `
+    "enforces branch-switch safety gates before manual Push" `
+    @(
         "HasRequiredEvidence",
         "SelectedBranchMatches",
         "ManualPushPrerequisitesSatisfied",
+        "SteamGameBranch\.Normalize",
+        "LauncherCloudSyncEvidence\.HasManualPullAfterBranchSwitch",
+        "LauncherLocalSaveEvidence\.HasImportantSaveEvidence",
+        "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime",
+        "AppPaths\.HasStoragePermission"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchSwitchSafety.Write.cs" `
+    "writes branch-switch safety marker and marks save-origin pending" `
+    @(
+        "WriteMarker",
         "Local backup forced on:",
         "Manual Push requires backup storage:",
         "Warning acknowledged:",
+        "Non-public branch warning acknowledged:",
         "Selected branch selection kind:",
         "Steam branch selector mode:",
         "Selected branch note",
@@ -610,25 +1663,60 @@ Add-Check `
         "Selected version slot kind:",
         "Selected version slot directory:",
         "SelectorHelpText",
+        "WriteBranchSwitchPendingOrigin",
+        "beta password entry is not implemented",
+        "Failed to write branch switch safety marker",
         "Local backup forced on",
         "Manual Push requires backup storage"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherController.CloudSync.cs" `
-    "guards manual Push after branch switches until backup storage is available" `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.cs" `
+    "keeps manual Push entry points routed through shared safety gates" `
     @(
         "CloudPushPressed",
+        "CanArmCloudPush",
+        "CloudPushSafetyContext\.Create",
+        "CanPushWithBaselineEvidence\(pushContext\)",
+        "CanPushAfterBranchSwitch\(pushContext\)",
+        "ManualCloudSyncRequest\.Push"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.Context.cs" `
+    "captures selected branch context for Push safety markers" `
+    @(
+        "CloudPushSafetyContext",
+        "LauncherPreferences\.ReadGameBranch\(\)",
+        "SteamGameBranch\.DisplayName",
+        "SelectedBranch",
+        "SelectedVersion",
+        "WriteBlockedMarker",
+        "WriteManualPushBlockedMarker"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.Baseline.cs" `
+    "guards baseline manual Push until Pull, local save, and save-origin evidence match" `
+    @(
         "CanPushWithBaselineEvidence",
-        "BranchSwitchSafety",
-        "Selected version slot:",
-        "Pull-after-switch for",
-        "Android local save evidence",
         "Pull from Cloud must complete for the selected game version before Push",
-        "selected game version \{selectedVersion\}",
+        "selected game version \{pushContext\.SelectedVersion\}",
         "no Android local save evidence exists before Push",
         "LastManualPullCompletionRecorded",
         "LastManualPullMatchesSelectedBranch",
+        "WriteBlockedMarker",
+        "LauncherLocalSaveEvidence\.HasImportantSaveEvidence",
+        "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime",
+        "Manual Push blocked: Android local save origin evidence does not match the selected runtime"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.BranchSwitch.cs" `
+    "guards manual Push after branch switches until backup storage is available" `
+    @(
+        "CanPushAfterBranchSwitch",
+        "BranchSwitchSafety",
         "LauncherBranchSwitchSafety\.HasRequiredEvidence",
         "branch switch marker is missing required safety evidence",
         "does not match the selected game version",
@@ -636,29 +1724,104 @@ Add-Check `
         "no Android local save evidence exists",
         "backup storage permission is unavailable",
         "LauncherCloudSyncEvidence\.HasManualPullAfterBranchSwitch",
-        "ManualCloudSyncRequest\.Pull\(",
-        "LauncherPreferences\.ReadGameBranch\(\)",
+        "WriteBlockedMarker",
         "Pull from Cloud must complete after this game-version switch before Push",
         "HasManualPullAfterBranchSwitch",
-        "WriteManualPushMarker",
-        "WriteManualPushBlockedMarker",
-        "A game version switch was recorded",
-        "cross-version/destructive",
         "LauncherLocalSaveEvidence\.HasImportantSaveEvidence",
         "no Android local save files were found",
-        "local pre-Push backup",
-        "cloud pre-Push backup",
+        "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime",
+        "Manual Push blocked: save-origin evidence is missing or belongs to a different selected runtime after branch switch",
         "backup storage",
         "Push"
     )
 
 Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.Request.cs" `
+    "keeps manual cloud sync request state and confirmation properties typed" `
+    @(
+        "CloudSyncTimeoutMs = 180_000",
+        "private readonly partial struct ManualCloudSyncRequest",
+        "ConfirmationMessage",
+        "ConfirmText",
+        "CancelText",
+        "BypassConfirmation",
+        "Func<Task<string>> run",
+        "Action<Exception>\? onFailed = null"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.Request.Factory.cs" `
+    "routes manual Pull and Push requests through explicit markers and request callbacks" `
+    @(
+        "ManualCloudSyncRequest Push",
+        "ManualCloudSyncRequest Pull",
+        "PushConfirmationMessage\(dataDir, selectedBranch\)",
+        "LauncherCloudSaveState\.ManualPushAllAsync",
+        "LauncherCloudSaveState\.ManualPullAllAsync",
+        "WriteManualPushMarker",
+        "WriteManualPushBlockedMarker",
+        "WriteManualPullMarker",
+        "Pull Steam Cloud saves to Android local storage"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.Request.PushConfirmation.cs" `
+    "warns final Push confirmation about selected version, branch switches, and save overwrite risk" `
+    @(
+        "Selected version slot:",
+        "Pull-after-switch for",
+        "Android local save evidence",
+        "local pre-Push backup",
+        "cloud pre-Push backup",
+        "A game version switch was recorded",
+        "cross-version/destructive",
+        "LauncherBranchSwitchSafety\.HasMarker",
+        "SteamGameInstallPaths\.VersionSlotKind",
+        "Pull from Cloud first and verify the Android saves exist before pushing"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.Request.Lifecycle.cs" `
+    "keeps manual cloud sync lifecycle UI updates and timeout execution isolated" `
+    @(
+        "ShowStarted",
+        "ShowComplete",
+        "ShowFailed",
+        "ShowFinished",
+        "RunWithTimeoutAsync",
+        "SetPushPullDisabled\(true\)",
+        "SetPushPullDisabled\(false\)",
+        "Open Help & Reports for details",
+        "PatchHelper\.Log",
+        "LauncherTimeout\.RunOrThrowAsync",
+        "CloudSyncTimeoutMs"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.CloudSync.Execution.cs" `
+    "executes Pull/Push cloud sync requests without bypassing Push confirmation" `
+    @(
+        "ManualCloudSyncRequest\.Pull\(",
+        "RequestCloudSync",
+        "ExecuteCloudSyncAsync",
+        "request\.BypassConfirmation",
+        "ShowConfirmation",
+        "RunOnMainThread"
+    )
+
+Add-Check `
     "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.cs" `
-    "records successful manual Pull evidence for branch-switch Push safety" `
+    "declares manual cloud evidence marker filenames and paths" `
     @(
         "last_manual_cloud_pull\.txt",
         "LastManualPushMarkerFileName",
-        "last_manual_cloud_push_blocked\.txt",
+        "last_manual_cloud_push_blocked\.txt"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Pull.cs" `
+    "records successful manual Pull evidence for branch-switch Push safety" `
+    @(
         "HasManualPullAfterBranchSwitch",
         "LastManualPullUtc",
         "LastManualPullUtcParseable",
@@ -674,8 +1837,26 @@ Add-Check `
         "Manual Pull completed before Push",
         "LastManualPullIsAfterBranchSwitch",
         "LastManualPullMatchesSelectedBranch",
+        "WriteManualPullMarker",
+        "Manual Pull completed before branch-switch Push",
+        "Selected version:",
+        "Selected branch note"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Push.cs" `
+    "reads successful manual Push timestamps from the Push marker" `
+    @(
         "LastManualPushUtc",
         "LastManualPushUtcParseable",
+        "LastManualPushMarkerPath",
+        "CultureInfo\.InvariantCulture"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Push.Latest.cs" `
+    "selects latest manual Push evidence between completed and blocked outcomes" `
+    @(
         "LatestManualPushEvidenceOutcome",
         "LatestManualPushEvidenceUtc",
         "LatestManualPushEvidenceSelectedBranch",
@@ -686,6 +1867,14 @@ Add-Check `
         "LatestManualPushEvidenceSelectedVersionSlotDirectory",
         "LatestManualPushEvidenceReason",
         "blocked-before-upload",
+        "Manual Push completed",
+        "LatestManualPushEvidenceBlocked"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Push.Read.cs" `
+    "reads completed manual Push marker metadata and backup evidence" `
+    @(
         "LastManualPushSelectedBranch",
         "LastManualPushSelectedBranchSelectionKind",
         "LastManualPushSelectorMode",
@@ -699,11 +1888,51 @@ Add-Check `
         "LastManualPushRecordedImportantLocalSaveEvidenceCount",
         "LastManualPushRecordedBaselinePrerequisitesSatisfied",
         "LastManualPushCompletionRecorded",
+        "LastManualPushPrePushBackupEvidenceSatisfied",
+        "Pre-Push local backup evidence count:",
+        "Pre-Push cloud backup evidence count:",
+        "Latest pre-Push local backup UTC:",
+        "Latest pre-Push cloud backup UTC:",
+        "Important Android local save evidence count:",
+        "Baseline manual Push prerequisites satisfied:",
+        "Manual Push completed after branch-switch safety gates"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Push.Safety.cs" `
+    "requires completed selected-branch Push evidence after branch switches" `
+    @(
         "LastManualPushIsAfterBranchSwitch",
         "LastManualPushMatchesSelectedBranch",
-        "LastManualPushPrePushBackupEvidenceSatisfied",
         "HasManualPushAfterBranchSwitch",
         'LatestManualPushEvidenceOutcome\(dataDir\), "completed"',
+        "LastManualPushCompletionRecorded",
+        "LastManualPushPrePushBackupEvidenceSatisfied",
+        "SteamGameBranch\.Normalize"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Push.Write.cs" `
+    "records successful manual Push evidence after save-origin and backup gates" `
+    @(
+        "WriteManualPushMarker",
+        "LauncherSaveOriginEvidence\.WriteManualPushOrigin",
+        "Pre-Push local backup evidence count:",
+        "Pre-Push cloud backup evidence count:",
+        "Latest pre-Push local backup UTC:",
+        "Latest pre-Push cloud backup UTC:",
+        "Important Android local save evidence count:",
+        "Baseline manual Push prerequisites satisfied:",
+        "Branch-switch pre-Push backup evidence satisfied:",
+        "Manual Push completed after branch-switch safety gates",
+        "Selected version:",
+        "Selected branch note"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.BlockedPush.cs" `
+    "records blocked-before-upload manual Push evidence" `
+    @(
         "LastManualPushBlockedUtc",
         "LastManualPushBlockedUtcParseable",
         "LastManualPushBlockedSelectedBranch",
@@ -723,9 +1952,6 @@ Add-Check `
         "LastManualPushBlockedReason",
         "LastManualPushBlockedBeforeUpload",
         "LastManualPushBlockedMatchesSelectedBranch",
-        "HasCompletionFlag",
-        "WriteManualPullMarker",
-        "WriteManualPushMarker",
         "WriteManualPushBlockedMarker",
         "WriteManualPushBlockedMarker\(string dataDir, string selectedBranch, string reason\)",
         "Manual Push blocked before upload",
@@ -736,34 +1962,86 @@ Add-Check `
         "Latest pre-Push cloud backup UTC:",
         "Important Android local save evidence count:",
         "Baseline manual Push prerequisites satisfied:",
-        'string\? ReadSelectedBranch',
-        "return false",
-        "Manual Pull completed before branch-switch Push",
-        "Manual Pull completed before Push",
-        "Manual Push completed after branch-switch safety gates",
         "Selected version:",
         "Selected branch note"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherLocalSaveEvidence.cs" `
-    "detects local save evidence before branch-switch Push" `
+    "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Markers.cs" `
+    "keeps manual cloud evidence marker parsing isolated" `
     @(
-        "HasImportantSaveEvidence",
-        "CountImportantSaveEvidence",
-        "\.save",
-        "\.run",
-        "prefs",
+        "HasCompletionFlag",
+        'string\? ReadSelectedBranch',
+        "ReadMarkerValue",
+        "LauncherMarkerFile\.ReadOptionalValue",
+        "ReadUtc",
+        "LauncherMarkerFile\.ReadUtc",
+        "LauncherMarkerFile\.ReadBoolFlag",
+        "SanitizeSingleLine"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherLocalSaveEvidence.cs" `
+    "exposes bounded local save evidence counts for branch-switch Push safety" `
+    @(
+        "internal static partial class LauncherLocalSaveEvidence",
+        "MaxFilesToInspect = 1000",
+        "MaxDirectoriesToInspect = 250",
         "IgnoredDirectoryNames",
+        "HasImportantSaveEvidence",
+        "CountImportantSaveEvidence"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherLocalSaveEvidence.Classify.cs" `
+    "classifies non-empty Android save artifacts as important local save evidence" `
+    @(
+        "IsImportantSaveEvidence",
+        "Path\.GetRelativePath",
+        "ToLowerInvariant",
+        "FileHasContent",
+        "\.save",
+        "\.save\.backup",
+        "\.run",
+        "\.bak",
+        "prefs",
+        "prefs\.save",
+        "prefs\.backup",
+        "prefs\.save\.backup",
+        "new FileInfo\(file\)\.Length > 0"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherLocalSaveEvidence.Enumeration.cs" `
+    "walks local save directories with runtime-directory exclusions and scan limits" `
+    @(
+        "EnumerateFilesSafely",
+        "new Stack<string>",
+        "MaxFilesToInspect",
         "MaxDirectoriesToInspect",
+        "IsIgnoredRuntimeDirectory",
+        "IgnoredDirectoryNames",
+        "StringComparison\.OrdinalIgnoreCase",
         "SafeFiles",
         "SafeDirectories"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherBackupEvidence.cs" `
-    "reports local/cloud pre-Push backup evidence after branch switching" `
+    "src\STS2Mobile\Launcher\LauncherLocalSaveEvidence.FileSystem.cs" `
+    "swallows filesystem enumeration failures when scanning local save evidence" `
     @(
+        "SafeFiles",
+        "Directory\.GetFiles",
+        "SafeDirectories",
+        "Directory\.GetDirectories",
+        "Array\.Empty<string>\(\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBackupEvidence.cs" `
+    "exposes local/cloud pre-Push backup evidence after branch switching" `
+    @(
+        "internal static partial class LauncherBackupEvidence",
         "local-pre-push",
         "cloud-pre-push",
         "MaxBackupFilesToInspect",
@@ -773,8 +2051,54 @@ Add-Check `
         "LatestCloudPrePushBackupUtc",
         "HasLocalPrePushBackupAfterBranchSwitch",
         "HasCloudPrePushBackupAfterBranchSwitch",
-        "HasPrePushBackupEvidenceAfterBranchSwitch",
-        "LauncherBranchSwitchSafety\.MarkerUtc"
+        "HasPrePushBackupEvidenceAfterBranchSwitch"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBackupEvidence.Counts.cs" `
+    "counts pre-Push backup files through bounded backup enumeration" `
+    @(
+        "CountBackups",
+        "EnumerateBackups\(source\)",
+        "count\+\+"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBackupEvidence.BranchSwitch.cs" `
+    "compares pre-Push backup timestamps against branch-switch evidence" `
+    @(
+        "HasBackupAfterBranchSwitch",
+        "TryReadBranchSwitchUtc",
+        "LauncherBranchSwitchSafety\.MarkerUtc",
+        "DateTimeStyles\.AdjustToUniversal",
+        "TryReadBackupUtc\(backupPath, source, out var backupUtc\)",
+        "backupUtc >= branchSwitchUtc"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBackupEvidence.Enumeration.cs" `
+    "enumerates pre-Push backup files without walking unbounded backup trees" `
+    @(
+        "EnumerateBackups",
+        "Directory\.Exists\(BackupDirectory\)",
+        "Array\.Empty<string>\(\)",
+        "Directory\.EnumerateFiles",
+        "\*\.\{source\}\.bak",
+        "SearchOption\.AllDirectories",
+        "inspected >= MaxBackupFilesToInspect"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBackupEvidence.Timestamp.cs" `
+    "parses backup UTC evidence from backup filenames before falling back to file mtime" `
+    @(
+        "LatestBackupUtc",
+        "TryReadBackupUtc",
+        "ToString\(""O"", CultureInfo\.InvariantCulture\)",
+        "<none>",
+        "EndsWith\(suffix, StringComparison\.OrdinalIgnoreCase\)",
+        "DateTimeOffset\.FromUnixTimeSeconds",
+        "File\.GetLastWriteTimeUtc"
     )
 
 Add-Check `
@@ -793,7 +2117,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherController.Startup.cs" `
+    "src\STS2Mobile\Launcher\LauncherController.Startup.BranchSwitch.cs" `
     "uses centralized selector guidance in branch-switch confirmation" `
     @(
         "BranchSwitchConfirmationMessage",
@@ -802,11 +2126,19 @@ Add-Check `
         "SelectedOptionStatus",
         "SelectedOptionDownloadProblem",
         "AppendLog\(STS2Mobile\.Steam\.SteamGameBranch\.SelectorInstallSlotHelpText",
+        "Steam Cloud Push will require backup storage permission"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherController.Startup.RuntimeEvidence.cs" `
+    "uses selected-version runtime evidence in ready and download-required status copy" `
+    @(
         "SelectedVersionReadyStatus",
         "SelectedVersionDownloadRequiredStatus",
         "SteamGameInstallPaths\.VersionSlotKind",
         "Active install slot",
-        "Steam Cloud Push will require backup storage permission"
+        "RefreshSelectedRuntimeSlotEvidence",
+        "LauncherRuntimeSlotEvidence\.Write"
     )
 
 Add-Check `
@@ -873,7 +2205,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\LoginSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\LoginSection.Submission.cs" `
     "clears captured Steam password from Godot login UI before authentication handoff" `
     @(
         "var password = _passwordField\.Text",
@@ -883,7 +2215,7 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\LoginSection.cs" `
-    "uses integrated native Steam login panel instead of a separate credential popup on Android" `
+    "wires Godot fallback credential fields and the Android native panel entry point" `
     @(
         "ConfigureUsernameField",
         "ConfigurePasswordField",
@@ -891,29 +2223,93 @@ Add-Check `
         "VirtualKeyboardType\.Password",
         "Sign in with Steam",
         "credentialHelpLabel",
-        "MoveChild\(_nativeLoginButton, credentialHelpLabel\.GetIndex\(\)\)",
+        "MoveChild\(_nativeLoginButton, credentialHelpLabel\.GetIndex\(\)\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LoginSection.NativePanel.cs" `
+    "uses integrated native Steam login panel instead of a separate credential popup on Android" `
+    @(
         "ShowSteamLoginCredentialPanel",
         "TryConsumeSteamLoginCredentialResult",
         "IsSteamLoginCredentialPanelVisible",
         "StopNativeCredentialPolling\(hidePanel: false\)",
-        "integrated Steam login panel",
-        "does not store your Steam password",
-        "ClearPassword",
+        "HideSteamLoginCredentialPanel",
+        "OpenNativeCredentialPanel",
+        "PollNativeCredentialResult",
         "LoginRequested"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\LoginSection.cs" `
-    "promotes compact Android Steam sign-in to a large primary CTA with a readable two-line helper" `
+    "src\STS2Mobile\Launcher\Sections\LoginSection.Help.cs" `
+    "keeps native Steam login help explicit about integrated panel and password storage boundaries" `
+    @(
+        "integrated Steam login panel",
+        "does not store your Steam password",
+        "Password manager can appear\.",
+        "Steam password is not stored\.",
+        "LauncherSectionMetrics\.CompactCredentialHelpHeight"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LoginSection.State.cs" `
+    "clears and hides native credential panel when login state is disabled or password is cleared" `
+    @(
+        "ClearPassword",
+        "_passwordField\.Text = """"",
+        "StopNativeCredentialPolling\(hidePanel: true\)",
+        "SetFormVisible",
+        "OpenNativeCredentialPanel"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CompactButtonDetailLabelSpec.cs" `
+    "keeps compact two-line button label configuration typed" `
+    @(
+        "internal readonly struct CompactButtonDetailLabelSpec",
+        "BodyName",
+        "TitleName",
+        "DetailName",
+        "TitleFontSize",
+        "DetailFontSize",
+        "HorizontalMargin",
+        "VerticalMargin"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CompactButtonDetailLabels.cs" `
+    "centralizes reusable compact two-line button label rendering" `
+    @(
+        "CompactButtonDetailLabels",
+        "TrySplitText",
+        "Hide\(Button button, CompactButtonDetailLabelSpec spec\)",
+        "Ensure\(",
+        "BuildBody",
+        "BuildLabel",
+        "LauncherComponentTheme\.TextPrimary",
+        "LauncherComponentTheme\.TextSecondary",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LoginSection.CompactNativeButton.cs" `
+    "wires compact Android Steam sign-in to shared two-line CTA labels" `
     @(
         "CompactNativeLoginButtonHeight = LauncherSectionMetrics\.CodeInputHeight",
+        "CompactNativeLoginLabels",
+        "CompactButtonDetailLabelSpec",
         "CompactNativeLoginText",
         "SetCompactNativeLoginButtonText",
         "Sign in with Steam",
         "Android login",
+        "CompactButtonDetailLabels\.Apply"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LoginSection.Help.cs" `
+    "uses a readable two-line compact Android credential helper" `
+    @(
         "LauncherSectionMetrics\.CompactCredentialHelpHeight",
-        "compactNativeLogin",
-        "LauncherSectionMetrics\.PrimaryButtonFontSize",
         "TextServer\.AutowrapMode\.WordSmart",
         "ClipText = false",
         "VerticalAlignment\.Center",
@@ -924,44 +2320,68 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\LauncherSectionSetup.cs" `
-    "frames launcher states with explicit titled portal sections and readable compact task cues" `
+    "frames hidden launcher states through a small section setup entrypoint" `
     @(
         "ConfigureHiddenSection",
-        "BuildSectionHeader",
-        "BuildCompactSectionHeader",
+        "internal static partial class LauncherSectionSetup",
         "bool compact",
-        "!compact",
-        "title",
-        "subtitle",
         "compactCue",
         "accent",
+        "LauncherSectionMetrics\.CompactSectionSeparation",
+        "LauncherSectionMetrics\.SectionSeparation",
+        "section\.Visible = false",
+        "BuildSectionHeader\(title, subtitle, scale, accent, compact, compactCue\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LauncherSectionSetup.Header.cs" `
+    "builds desktop launcher section headers separately from compact mobile headers" `
+    @(
+        "BuildSectionHeader",
+        "if \(compact\)",
+        "BuildCompactSectionHeader\(title, CompactCueText\(compactCue, subtitle\), subtitle, scale, accent\)",
+        "new PanelContainer",
+        "new VBoxContainer",
+        "BuildHeaderStyle\(scale, compact\)",
+        "BuildDesktopSectionAccent",
+        "BuildDesktopSectionTitle",
+        "AddDesktopSectionSubtitle",
+        "fontSize: 13",
+        "AutowrapMode = TextServer\.AutowrapMode\.WordSmart",
+        "LauncherComponentTheme\.TextSecondary"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LauncherSectionSetup.Header.Compact.cs" `
+    "keeps compact launcher section headers readable and fixed-size on mobile" `
+    @(
+        "BuildCompactSectionHeader",
         "CompactSectionHeaderMinHeight = 42",
         "CompactSectionHeaderCueFontSize = 12",
         "CompactSectionHeaderTitleFontSize = 14",
         "CompactSectionHeaderTitleMinWidth = 106",
         "CompactSectionHeaderAccentWidth = 3",
-        "LauncherSectionMetrics\.CompactSectionSeparation",
         "new HBoxContainer",
-        "new VBoxContainer",
-        "BuildCompactSectionHeader\(title, CompactCueText\(compactCue, subtitle\), subtitle, scale, accent\)",
+        "BuildCompactSectionAccent",
+        "BuildCompactSectionTitle",
+        "BuildCompactSectionCue",
         "CompactCueText",
-        "BuildHeaderStyle\(scale, compact\)",
-        "compact \? 2 : 4",
-        "compact \? 2 : 3",
-        "compact \? 15 : 13",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "TooltipText = tooltip",
+        "SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\LauncherSectionSetup.Header.Style.cs" `
+    "isolates section header style metrics for compact and desktop layouts" `
+    @(
+        "BuildHeaderStyle\(float scale, bool compact\)",
+        "LauncherStyleBoxes\.MakeFilled",
         "compact \? 6 : 8",
+        "SetBorderWidthAll",
+        "compact \? 7 : 10",
         "compact \? 4 : 8",
-        "compact \? 4 : 9",
-        "StyledLabel",
-        "TextServer\.AutowrapMode\.WordSmart",
-        "cueLabel\.AutowrapMode = TextServer\.AutowrapMode\.Off",
-        "cueLabel\.ClipText = true",
-        "cueLabel\.TooltipText = tooltip",
-        "titleLabel\.SizeFlagsHorizontal = Control\.SizeFlags\.ShrinkBegin",
-        "TextServer\.OverrunBehavior\.TrimEllipsis",
-        "SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
-        "TextSecondary",
-        "SetBorderWidthAll"
+        "compact \? 4 : 9"
     )
 
 Add-Check `
@@ -997,25 +2417,59 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.StatusCapsule.cs" `
     "wraps launcher status in a readable portal status capsule" `
     @(
         "BuildStatusCapsule",
+        "BuildCompactStatusCapsule",
+        "new PanelContainer",
+        "BuildStatusStyle\(scale, compact: false\)",
+        "BuildStatusPhaseStyle\(scale, compact: false\)",
+        "statusAccent\.CustomMinimumSize",
+        "statusLabel\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.StatusCapsule.Styles.cs" `
+    "keeps status capsule visual styles in focused helpers" `
+    @(
         "BuildStatusStyle",
+        "BuildStatusPhaseStyle",
+        "BuildCompactStatusDetailButtonStyle",
+        "SetBorderWidthAll"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.cs" `
+    "builds the quick-start safe-flow guide panel" `
+    @(
         "BuildFirstRunGuide",
-        "BuildCollapsedFirstRunGuide",
         "BuildFirstRunGuidePanel",
+        "CompactSafeFlowGuideTitleHeight",
+        "CompactSafeFlowGuideTitleFontSize",
+        "BuildFirstRunGuideStyle\(scale, compact\)",
+        "`"Quick start guide`"",
+        "new PanelContainer",
+        "AddCompactSafeFlowSteps\(body, scale\)",
+        "choose a game version, get Steam saves, then start the game",
+        "Upload stays locked until you deliberately open it after checking local saves"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.Steps.cs" `
+    "declares typed compact quick-start safe-flow step rows" `
+    @(
         "AddCompactSafeFlowSteps",
-        "BuildCompactSafeFlowStep",
-        "BuildCompactSafeFlowStepStyle",
+        "private readonly record struct CompactSafeFlowStepSpec",
+        "CompactSafeFlowSteps",
+        "foreach \(var step in CompactSafeFlowSteps\)",
+        "BuildCompactSafeFlowStep\(scale, step\)",
         "CompactSafeFlowGuideStepHeight",
         "CompactSafeFlowGuideStepAccentWidth",
         "CompactSafeFlowGuideStepNumberWidth",
         "CompactSafeFlowGuideStepRadius",
         "CompactSafeFlowGuideStepHorizontalMargin",
         "CompactSafeFlowGuideStepVerticalMargin",
-        "BuildFirstRunGuideStyle\(scale, compact\)",
-        "`"Quick start guide`"",
         "`"Sign in`"",
         "`"Steam account`"",
         "`"Get files`"",
@@ -1025,49 +2479,136 @@ Add-Check `
         "`"Play`"",
         "`"Ready version`"",
         "`"Upload locked`"",
-        "Review before uploading",
-        "SetCompactSafeFlowToggleText",
-        "EnsureCompactSafeFlowToggleLabels",
-        "CompactSafeFlowToggleBodyName",
-        "CompactSafeFlowToggleTitleName",
-        "CompactSafeFlowToggleDetailName",
-        "CompactSafeFlowToggleDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
-        'toggle\.Text = ""',
-        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "Review before uploading"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.StepCard.cs" `
+    "builds bounded compact quick-start safe-flow step card layout" `
+    @(
+        "BuildCompactSafeFlowStep",
+        "BuildCompactSafeFlowStepText",
+        "CompactSafeFlowStepSpec step",
+        "step\.Title",
+        "step\.Detail",
+        "step\.Accent",
+        "CustomMinimumSize = new Vector2"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.StepCard.Decor.cs" `
+    "builds compact quick-start safe-flow step accent and marker decoration" `
+    @(
+        "BuildCompactSafeFlowStepAccent",
+        "BuildCompactSafeFlowStepMarker",
+        "Color accent",
+        "step\.Marker",
+        "step\.Accent",
+        "CompactSafeFlowGuideStepAccentWidth",
+        "CompactSafeFlowGuideStepNumberWidth"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.StepCard.Labels.cs" `
+    "builds bounded compact quick-start safe-flow step title and detail labels" `
+    @(
+        "BuildCompactSafeFlowStepTitle",
+        "BuildCompactSafeFlowStepDetail",
         "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "new PanelContainer",
-        "BuildCompactSafeFlowStepStyle\(scale, accent\)",
-        "CustomMinimumSize = new Vector2",
-        "LauncherComponentTheme\.TextSecondary",
+        "LauncherComponentTheme\.TextPrimary",
+        "LauncherComponentTheme\.TextSecondary"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.StepStyle.cs" `
+    "keeps bounded compact quick-start safe-flow step styling isolated" `
+    @(
+        "BuildCompactSafeFlowStepStyle",
+        "Color accent",
+        "CompactSafeFlowGuideStepRadius",
+        "CompactSafeFlowGuideStepHorizontalMargin",
+        "CompactSafeFlowGuideStepVerticalMargin",
+        "LauncherStyleBoxes\.MakeFilled",
+        "SetBorderWidthAll"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.Toggle.cs" `
+    "builds the collapsible compact quick-start guide toggle shell" `
+    @(
+        "BuildCollapsedFirstRunGuide",
+        "BuildFirstRunGuidePanel\(scale, compact: true\)",
+        "toggle\.Pressed \+= \(\) =>",
+        "guide\.Visible = !guide\.Visible",
         "`"Quick Start`"",
         "`"Get saves first`"",
         "`"Hide Guide`"",
         "`"Safe order`"",
         "LauncherSectionMetrics\.CompactDrawerToggleHeight",
-        "LauncherSectionMetrics\.CompactDetailButtonFontSize",
-        "profile\.Compact",
-        "CompactPrimaryColumnSeparation",
-        "AddCompactSafeFlowSteps\(body, scale\)",
-        "choose a game version, get Steam saves, then start the game",
-        "Upload stays locked until you deliberately open it after checking local saves",
-        "Initializing\.\.\.",
-        "Status",
-        "CyanAccent",
-        "TextSecondary",
-        "SetBorderWidthAll"
+        "LauncherSectionMetrics\.CompactDetailButtonFontSize"
     )
 
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.Toggle.Result.cs" `
+    "keeps compact quick-start toggle labels in a typed result" `
+    @(
+        "LauncherViewSafeFlowToggleLabels",
+        "VBoxContainer Body",
+        "StyledLabel Title",
+        "StyledLabel Detail"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.Toggle.Text.cs" `
+    "sets compact quick-start guide toggle text through structured labels" `
+    @(
+        "SetCompactSafeFlowToggleText",
+        'toggle\.Text = ""',
+        "EnsureCompactSafeFlowToggleLabels",
+        "labels\.Body\.Visible = true",
+        "labels\.Title\.Text = title",
+        "labels\.Detail\.Text = detail"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.Toggle.Labels.cs" `
+    "builds structured compact quick-start guide toggle labels" `
+    @(
+        "EnsureCompactSafeFlowToggleLabels",
+        "BuildCompactSafeFlowToggleBody",
+        "BuildCompactSafeFlowToggleTitle",
+        "BuildCompactSafeFlowToggleDetail",
+        "new LauncherViewSafeFlowToggleLabels",
+        "CompactSafeFlowToggleBodyName",
+        "CompactSafeFlowToggleTitleName",
+        "CompactSafeFlowToggleDetailName",
+        "CompactSafeFlowToggleDetailFontSize",
+        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "LauncherComponentTheme\.TextSecondary",
+        "toggle\.AddChild\(body\)"
+    )
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherView.Layout.LogColumn.cs" `
     "keeps diagnostics hidden behind a clearly labeled Help & Reports drawer" `
     @(
-        "Show Help & Reports",
-        "Hide Help & Reports",
         "Hidden by default",
         "Create a help report",
         "Problem details and help reports",
         "Review before sharing",
         "drawer\.Visible = false",
+        "SetDiagnosticsToggleText",
+        "LauncherSectionMetrics\.CompactDrawerToggleHeight",
+        "BuildLogView\(profile\)",
+        "return \(log, drawer, toggle\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.LogColumn.Toggle.cs" `
+    "renders compact diagnostics drawer toggle labels as structured title/detail controls" `
+    @(
+        "Show Help & Reports",
+        "Hide Help & Reports",
         "DiagnosticsToggleText",
         "SetDiagnosticsToggleText",
         "EnsureCompactDiagnosticsToggleLabels",
@@ -1080,19 +2621,53 @@ Add-Check `
         "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
         "LauncherComponentTheme\.TextSecondary",
         "LauncherSectionMetrics\.CompactDetailButtonFontSize",
-        "LauncherSectionMetrics\.CompactDrawerToggleHeight",
         "`"Help & Reports`"",
         "`"Private until opened`"",
         "`"Hide Help`"",
-        "`"Back to launcher`"",
-        "return \(log, drawer, toggle\)"
+        "`"Back to launcher`""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.Result.cs" `
+    "uses a typed primary-column layout result instead of a large positional tuple" `
+    @(
+        "LauncherViewPrimaryColumn",
+        "CompactStatusDetailsButton",
+        "WorkflowStepNumberLabels",
+        "CompactStickyTaskHeader",
+        "PrimaryScroll",
+        "CompactDiagnosticsHost"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.StatusResult.cs" `
+    "keeps primary status result fields isolated from full column layout result fields" `
+    @(
+        "LauncherViewPrimaryStatus",
+        "StyledLabel Phase",
+        "StyledLabel Action",
+        "StyledLabel Message",
+        "ColorRect Accent",
+        "Control Capsule",
+        "CompactDetailButton",
+        "CompactHeadline",
+        "CompactPhasePanel"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.BodyResult.cs" `
+    "keeps primary body scroll result isolated from full column layout result fields" `
+    @(
+        "LauncherViewPrimaryBody",
+        "ScrollContainer PrimaryScroll",
+        "VBoxContainer Body"
     )
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
     "hosts compact diagnostics inside the primary scroll body instead of fixed root chrome" `
     @(
-        "VBoxContainer CompactDiagnosticsHost",
+        "VBoxContainer compactDiagnosticsHost",
         "compactDiagnosticsHost = new VBoxContainer",
         "compactDiagnosticsHost\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
         "left\.AddChild\(compactDiagnosticsHost\)",
@@ -1100,7 +2675,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.LogColumn.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.LogColumn.Sizing.cs" `
     "bounds the compact diagnostics log viewport from the current launcher profile" `
     @(
         "CompactDiagnosticsLogViewportHeightRatio = 0\.28f",
@@ -1108,8 +2683,7 @@ Add-Check `
         "CompactDiagnosticsLogMaxHeight = 340",
         "DiagnosticsLogHeight\(LauncherLayoutProfile profile\)",
         "profile\.ViewportSize\.Y \* CompactDiagnosticsLogViewportHeightRatio",
-        "Math\.Clamp\(viewportHeight, minHeight, maxHeight\)",
-        "BuildLogView\(profile\)"
+        "Math\.Clamp\(viewportHeight, minHeight, maxHeight\)"
     )
 
 Add-Check `
@@ -1123,7 +2697,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.LogColumn.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.LogColumn.Sizing.cs" `
     "keeps open compact diagnostics readable after viewport resize" `
     @(
         "UpdateDiagnosticsLogViewport\(Vector2 viewportSize\)",
@@ -1151,13 +2725,19 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherView.cs" `
-    "can reveal the hidden Help & Reports drawer after explicit diagnostics actions" `
+    "hosts compact diagnostics drawer under the primary compact body" `
     @(
         "DiagnosticsDrawer",
         "DiagnosticsToggle",
-        "ShowDiagnosticsConsole",
         "var diagnosticsRoot = profile\.Compact",
-        "primary\.CompactDiagnosticsHost",
+        "primary\.CompactDiagnosticsHost"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Diagnostics.cs" `
+    "can reveal the hidden Help & Reports drawer after explicit diagnostics actions" `
+    @(
+        "ShowDiagnosticsConsole",
         "DiagnosticsDrawer\.Visible = true",
         "SetDiagnosticsToggleText\(DiagnosticsToggle, _profile, visible: true\)",
         "ScrollCompactPrimaryTo\(DiagnosticsDrawer\)"
@@ -1185,26 +2765,76 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherView.Layout.cs" `
-    "presents launcher as a polished Steam/version/cloud portal instead of a generic debug shell" `
+    "keeps launcher shell rooted as a polished portal layout" `
     @(
-        "StS2 Mobile",
-        "Saves safe\. Ready to play\.",
-        "Sign in\. Save safely\. Play\.",
+        "BuildShell",
+        "StyledPanel",
+        "ScreenBackground",
+        "BuildBrandHeader\(profile\)",
+        "CompactRootColumnSeparation",
+        "RootColumnSeparation",
+        "panel\.AddContent\(content\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.BrandHeader.cs" `
+    "keeps brand-header entry point split between compact and desktop layouts" `
+    @(
         "CompactBrandTitleFontSize = 18",
         "CompactBrandSubtitleFontSize = 12",
-        "CompactBrandMarkHeight = 26",
         "CompactBrandRowSeparation = 6",
         "CompactBrandHeaderSeparation = 2",
         "BuildCompactBrandHeader",
-        "BuildBrandMark",
+        "BuildDesktopBrandCopy",
+        "BuildBrandDivider",
         "profile\.Compact",
         "if \(profile\.Compact\)",
         "return BuildCompactBrandHeader\(profile\)",
+        "BuildBrandMark\(scale, compact: false\)",
+        "BuildBrandDivider\(scale, height: 2\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.BrandHeader.Desktop.cs" `
+    "presents desktop launcher brand copy as a polished Steam/version/cloud portal" `
+    @(
+        "BuildDesktopBrandCopy",
+        "StS2 Mobile",
+        "Sign in\. Save safely\. Play\.",
+        "fontSize: 26",
+        "fontSize: 11",
+        "HorizontalAlignment\.Left",
+        "LauncherComponentTheme\.TextPrimary",
+        "LauncherComponentTheme\.CyanAccent"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.BrandHeader.Compact.cs" `
+    "presents compact launcher brand copy in one condensed mobile row" `
+    @(
+        "BuildCompactBrandHeader",
+        "CompactBrandHeaderSeparation",
+        "CompactBrandRowSeparation",
+        "BuildBrandMark\(scale, compact: true\)",
+        "BuildCompactBrandTitle",
+        "BuildCompactBrandSubtitle",
+        "BuildBrandDivider\(scale, height: 1\)",
+        "StS2 Mobile",
+        "Saves safe\. Ready to play\.",
         "fontSize: CompactBrandTitleFontSize",
         "fontSize: CompactBrandSubtitleFontSize",
         "title\.ClipText = true",
         "subtitle\.ClipText = true",
-        "CompactRootColumnSeparation",
+        "CyanAccent"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.BrandMark.cs" `
+    "renders compact and desktop launcher brand mark consistently" `
+    @(
+        "CompactBrandMarkHeight = 26",
+        "BuildBrandMark",
+        "BuildBrandMarkStripe",
         "compact \? CompactBrandMarkHeight : 50",
         "compact \? 12 : 16",
         "OrangeAccent",
@@ -1245,20 +2875,18 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.Support.cs" `
     "adds compact-only bottom scroll breathing room for phone gesture areas" `
     @(
-        "profile\.Compact",
         "BuildCompactBottomScrollSpacer",
         "LauncherViewLayoutMetrics\.ScaleInt\(72, scale\)",
         "MouseFilterEnum\.Ignore"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
-    "uses a low-profile compact status card with responsive headline and narrow stacked fallback" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.StatusCapsule.cs" `
+    "centralizes compact status capsule sizing constants" `
     @(
-        "BuildCompactStatusCapsule",
         "CompactStatusBodySeparation = 5",
         "CompactStatusAccentHeight = 3",
         "CompactStatusHeadlineSeparation = 3",
@@ -1267,6 +2895,20 @@ Add-Check `
         "CompactStatusPhaseHorizontalMargin = 7",
         "CompactStatusPhaseVerticalMargin = 3",
         "CompactStatusActionMinHeight = 24",
+        "CompactStatusDetailHeight = 44",
+        "CompactStatusDetailCueWidth = 62",
+        "CompactStatusDetailCueFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        "CompactStatusDetailHorizontalMargin = 8",
+        "CompactStatusDetailVerticalMargin = 5",
+        "CompactStatusDetailRowGap = 6",
+        "CompactStatusDetailRadius = 7"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.StatusCapsule.Compact.cs" `
+    "uses a low-profile compact status card with responsive headline and narrow stacked fallback" `
+    @(
+        "BuildCompactStatusCapsule",
         "profile\.CompactStackedActionRows",
         "ApplyCompactStatusHeadlineLayout",
         "GridContainer CompactHeadline",
@@ -1293,10 +2935,9 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.Responsive.cs" `
     "reflows the compact status headline after viewport changes" `
     @(
-        "UpdateCompactStatusHeadline\(viewportSize\)",
         "private void UpdateCompactStatusHeadline\(Vector2 viewportSize\)",
         "_compactStatusHeadline",
         "_compactStatusPhasePanel",
@@ -1305,10 +2946,9 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.StatusCapsule.Detail.cs" `
     "keeps normal compact status details to a stable one-line row" `
     @(
-        "CompactStatusDetailHeight = 44",
         "LauncherViewLayoutMetrics\.ScaleInt\(CompactStatusDetailHeight, scale\)",
         "statusLabel\.AutowrapMode = TextServer\.AutowrapMode\.Off",
         "statusLabel\.ClipText = true",
@@ -1316,7 +2956,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Status.cs" `
     "uses short compact status details with tap-to-expand full details for touch devices" `
     @(
         "var fullMessage = LauncherPortalStatusFormatter\.MessageFor\(text\)",
@@ -1345,34 +2985,47 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
-    "renders compact status details as a discoverable touch-safe Details/Hide control" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.StatusCapsule.Detail.cs" `
+    "renders compact status details as a discoverable touch-safe Details cue" `
     @(
-        "CompactStatusDetailHeight = 44",
-        "CompactStatusDetailCueWidth = 62",
-        "CompactStatusDetailCueFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
-        "CompactStatusDetailHorizontalMargin = 8",
-        "CompactStatusDetailVerticalMargin = 5",
-        "CompactStatusDetailRowGap = 6",
-        "CompactStatusDetailRadius = 7",
-        "CompactStatusDetailsButton",
-        "CompactStatusDetailsCue",
         "BuildCompactStatusDetailButton",
         "ApplyCompactStatusDetailButtonStyle",
-        "BuildCompactStatusDetailButtonStyle",
         "TooltipText = `"Show full launcher status`"",
         "MouseDefaultCursorShape = Control\.CursorShape\.PointingHand",
         "detailCue",
         "`"Details`"",
-        "LauncherComponentTheme\.CyanAccent",
+        "LauncherComponentTheme\.CyanAccent"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.StatusCapsule.Styles.cs" `
+    "styles compact status detail control for touch-safe affordance states" `
+    @(
+        "ApplyCompactStatusDetailButtonStyle",
+        "BuildCompactStatusDetailButtonStyle",
+        "CompactStatusDetailRadius",
+        "CompactStatusDetailHorizontalMargin",
+        "CompactStatusDetailVerticalMargin",
+        "SetBorderWidthAll"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.StatusCapsule.Compact.cs" `
+    "wires compact status detail toggle into the capsule layout" `
+    @(
+        "Button CompactDetailButton",
+        "StyledLabel CompactDetailCue",
+        "var detailButton = BuildCompactStatusDetailButton",
+        "var detailRow = BuildCompactStatusDetailRow",
+        "var detailCue = BuildCompactStatusDetailCue",
         "detailButton\.AddChild\(detailRow\)",
         "body\.AddChild\(detailButton\)",
         "return \(panel, headline, phasePanel, detailButton, detailCue\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
-    "adds a touch-safe responsive compact workflow step strip so phone users can see and tap the current launcher step without hover tooltips" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.CompactWorkflow.cs" `
+    "orchestrates the touch-safe responsive compact workflow step strip" `
     @(
         "BuildCompactWorkflowStrip",
         "CompactWorkflowStepHeight = LauncherSectionMetrics\.CompactDetailButtonHeight",
@@ -1393,38 +3046,102 @@ Add-Check `
         "var stepHeight = denseNarrowWorkflow",
         "\? CompactWorkflowStepDenseHeight",
         ": CompactWorkflowStepHeight",
-        "Button\[\] StepButtons",
-        "BuildCompactWorkflowStepButton\(i, scale, stepHeight\)",
-        "BuildCompactWorkflowStepButton\(int index, float scale, int height\)",
-        "ApplyWorkflowStepButtonStyle",
-        "CompactWorkflowStepTooltips",
-        "CompactWorkflowStepNumbers",
-        "MouseDefaultCursorShape = Control\.CursorShape\.PointingHand",
-        "Go to \{CompactWorkflowStepTooltips\[index\]\}",
-        "StyledLabel\[\] StepNumberLabels",
-        "StyledLabel\[\] StepLabels",
-        "StyledLabel\[\] StepDetailLabels",
-        "ColorRect\[\] StepAccents",
+        "new LauncherViewCompactWorkflowStrip",
+        "BuildCompactWorkflowStepCell",
+        "numberLabels\[i\] = cell\.NumberLabel",
+        "labels\[i\] = cell\.Label",
+        "detailLabels\[i\] = cell\.DetailLabel",
+        "accents\[i\] = cell\.Accent",
+        "buttons\[i\] = cell\.Button",
+        "grid\.AddChild\(cell\.Button\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.CompactWorkflow.Result.cs" `
+    "uses typed compact workflow strip and step-cell layout results instead of out-parameter construction" `
+    @(
+        "LauncherViewCompactWorkflowStrip",
+        "LauncherViewCompactWorkflowStepCell",
+        "StepNumberLabels",
+        "StepLabels",
+        "StepDetailLabels",
+        "StepAccents",
+        "StepButtons",
+        "NumberLabel",
+        "DetailLabel",
+        "ColorRect Accent"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.CompactWorkflow.Cells.cs" `
+    "builds compact workflow step cells from typed button, label, detail, and accent parts" `
+    @(
+        "BuildCompactWorkflowStepCell",
+        "BuildCompactWorkflowStepButton",
+        "BuildCompactWorkflowStepBody",
+        "BuildCompactWorkflowLabelRow",
+        "BuildCompactWorkflowNumberLabel",
+        "BuildCompactWorkflowLabel",
+        "BuildCompactWorkflowDetailLabel",
+        "BuildCompactWorkflowAccent",
+        "new LauncherViewCompactWorkflowStepCell",
+        "button\.AddChild\(body\)",
+        "labelRow\.AddChild\(numberLabel\)",
+        "body\.AddChild\(detail\)",
+        "body\.AddChild\(accent\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.CompactWorkflow.Cells.Body.cs" `
+    "builds compact workflow cell body, label row, and accent layout chrome" `
+    @(
+        "BuildCompactWorkflowStepBody",
+        "BuildCompactWorkflowLabelRow",
+        "BuildCompactWorkflowAccent",
         "SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
         "new HBoxContainer",
         "OffsetLeft",
         "OffsetRight",
-        "numberLabels\[i\] = numberLabel",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactWorkflowStepAccentHeight, scale\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.CompactWorkflow.Cells.Labels.cs" `
+    "builds compact workflow number, title, and detail labels without hover-only hints" `
+    @(
+        "BuildCompactWorkflowNumberLabel",
+        "BuildCompactWorkflowLabel",
+        "BuildCompactWorkflowDetailLabel",
+        "CompactWorkflowStepNumbers\[index\]",
+        "CompactWorkflowStepNames\[index\]",
+        "CompactWorkflowStepDetails\[index\]",
         "label\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
         "label\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "CompactWorkflowStepDetails\[i\]",
-        "detailLabels\[i\] = detail",
         "detail\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "LauncherViewLayoutMetrics\.ScaleInt\(height, scale\)",
         "fontSize: CompactWorkflowStepNumberFontSize",
         "fontSize: CompactWorkflowStepLabelFontSize",
-        "fontSize: CompactWorkflowStepDetailFontSize",
-        "LauncherViewLayoutMetrics\.ScaleInt\(CompactWorkflowStepAccentHeight, scale\)",
+        "fontSize: CompactWorkflowStepDetailFontSize"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.CompactWorkflow.Style.cs" `
+    "keeps compact workflow step buttons touch-targeted and state-styled" `
+    @(
+        "BuildCompactWorkflowStepButton\(int index, float scale, int height\)",
+        "ApplyWorkflowStepButtonStyle",
+        "CompactWorkflowStepTooltips",
+        "MouseDefaultCursorShape = Control\.CursorShape\.PointingHand",
+        "Go to \{CompactWorkflowStepTooltips\[index\]\}",
+        "LauncherViewLayoutMetrics\.ScaleInt\(height, scale\)",
+        "LauncherComponentTheme\.StateNormal",
+        "LauncherComponentTheme\.StateHover",
+        "LauncherComponentTheme\.StatePressed",
+        "LauncherComponentTheme\.StateDisabled",
         "BuildWorkflowStepStyle"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.CompactWorkflow.Navigation.cs" `
     "makes compact workflow steps tappable direct navigation controls" `
     @(
         "_workflowStepButtons",
@@ -1444,26 +3161,27 @@ Add-Check `
     @(
         "var workflowStrip = BuildCompactWorkflowStrip\(scale, profile\.Compact, profile\.CompactStackedActionRows\)",
         "BuildCompactStickyTaskHeader\(profile, compactCurrentTaskButton, workflowStrip\.Strip\)",
-        "root\.AddChild\(leftScroll\)",
+        "BuildPrimaryColumnBody\(profile, root\)",
         "if \(!profile\.Compact\)",
         "left\.AddChild\(workflowStrip\.Strip\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
-    "adds a low-profile compact current-task jump button so phone users can reach the active section quickly" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.CompactTaskHeader.Button.cs" `
+    "adds a low-profile compact current-task jump button through shared two-line labels" `
     @(
+        "CompactCurrentTaskButtonLabels",
+        "CompactButtonDetailLabelSpec",
         "BuildCompactCurrentTaskButton",
         "SetCompactCurrentTaskButtonText",
-        "EnsureCompactCurrentTaskButtonLabels",
         "CompactCurrentTaskButtonBodyName",
         "CompactCurrentTaskButtonTitleName",
         "CompactCurrentTaskButtonDetailName",
-        "CompactCurrentTaskButtonDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
-        'button\.Text = ""',
-        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
-        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "LauncherComponentTheme\.TextSecondary",
+        "CompactCurrentTaskButtonDetailFontSize",
+        "CompactCurrentTaskButtonHorizontalMargin",
+        "CompactCurrentTaskButtonVerticalMargin",
+        "CompactButtonDetailLabels\.Apply",
+        "enabled: true",
         'SetCompactCurrentTaskButtonText\(button, scale, "Start here", "Setup guide"\)',
         "LauncherSectionMetrics\.CompactDetailButtonHeight",
         "LauncherSectionMetrics\.CompactDetailButtonFontSize",
@@ -1478,90 +3196,104 @@ Add-Check `
         "var compactCurrentTaskButton = BuildCompactCurrentTaskButton\(scale, profile\.Compact\)",
         "if \(profile\.Compact\)",
         "BuildCompactStickyTaskHeader\(profile, compactCurrentTaskButton, workflowStrip\.Strip\)",
-        "root\.AddChild\(leftScroll\)"
+        "BuildPrimaryColumnBody\(profile, root\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.Body.cs" `
+    "builds the primary scroll container and centered body after compact sticky chrome" `
+    @(
+        "BuildPrimaryColumnBody",
+        "new ScrollContainer",
+        "leftScroll\.FollowFocus = true",
+        "root\.AddChild\(leftScroll\)",
+        "new MarginContainer",
+        "leftFrame\.AddChild\(left\)",
+        "LauncherViewLayoutMetrics\.CompactPrimaryColumnSeparation",
+        "LauncherViewLayoutMetrics\.PrimaryColumnSeparation",
+        "return new LauncherViewPrimaryBody"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.CompactTaskHeader.cs" `
     "builds the compact current-task button and workflow strip as one viewport-reflowable sticky header grid" `
     @(
+        "CompactStickyTaskHeaderInlineGap = 6",
+        "CompactStickyTaskHeaderStackGap = 3",
+        "CompactStickyTaskButtonMinWidth = 176",
+        "CompactInlineCurrentTaskHeight = LauncherSectionMetrics\.CompactDetailButtonHeight",
+        "CompactStackedCurrentTaskHeight = CompactWorkflowStepDenseHeight",
+        "CompactStickyTaskHeaderStackWidth = 560",
         "CompactStickyTaskHeaderGridName",
-        "GridContainer CompactStickyTaskHeader",
-        "Control CompactWorkflowStrip",
-        "var stickyHeader = BuildCompactStickyTaskHeader\(profile, compactCurrentTaskButton, workflowStrip\.Strip\)",
-        "compactStickyTaskHeader = stickyHeader\.Header",
-        "root\.AddChild\(stickyHeader\.Toolbar\)",
+        "CompactStickyTaskToolbarRadius = 7",
+        "CompactStickyTaskToolbarHorizontalMargin = 5",
+        "CompactStickyTaskToolbarVerticalMargin = 4",
+        "CompactCurrentTaskButtonDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        "GridContainer Header",
+        "Control workflowStrip",
+        "return \(WrapCompactStickyTaskHeader\(scale, header\), header\)",
         "BuildCompactStickyTaskHeader",
         "new GridContainer",
         "Name = CompactStickyTaskHeaderGridName",
         "ApplyCompactStickyTaskHeaderLayout",
-        "header\.Columns = stacked \? 1 : 2",
-        "CompactStickyTaskHeaderInlineGap = 6",
-        "CompactStickyTaskButtonMinWidth = 176",
-        "CompactInlineCurrentTaskHeight = LauncherSectionMetrics\.CompactDetailButtonHeight",
-        "compactCurrentTaskButton\.SizeFlagsHorizontal = Control\.SizeFlags\.ShrinkBegin",
-        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStickyTaskButtonMinWidth, scale\)",
-        "LauncherViewLayoutMetrics\.ScaleInt\(CompactInlineCurrentTaskHeight, scale\)",
-        "workflowStrip\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
         "header\.AddChild\(compactCurrentTaskButton\)",
         "header\.AddChild\(workflowStrip\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.CompactTaskHeader.Style.cs" `
     "wraps the compact sticky task header in a low-profile toolbar shell" `
     @(
         "WrapCompactStickyTaskHeader",
         "BuildCompactStickyTaskHeaderStyle",
-        "CompactStickyTaskToolbarRadius = 7",
-        "CompactStickyTaskToolbarHorizontalMargin = 5",
-        "CompactStickyTaskToolbarVerticalMargin = 4",
         "new PanelContainer",
         "BuildCompactStickyTaskHeaderStyle\(scale\)",
+        "LauncherComponentTheme\.Panel",
+        "LauncherStyleBoxes\.MakeFilled",
+        "CompactStickyTaskToolbarRadius",
+        "SetBorderWidthAll",
         "LauncherViewLayoutMetrics\.ScaleInt\(CompactStickyTaskToolbarHorizontalMargin, scale\)",
-        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStickyTaskToolbarVerticalMargin, scale\)",
-        "return \(WrapCompactStickyTaskHeader\(scale, header\), header\)"
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStickyTaskToolbarVerticalMargin, scale\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Layout.CompactTaskHeader.Layout.cs" `
     "stacks the compact sticky task header on narrow compact viewports so task and workflow controls stay readable" `
     @(
-        "CompactStickyTaskHeaderStackGap = 3",
-        "CompactStickyTaskHeaderStackWidth = 560",
         "ShouldStackCompactStickyTaskHeader",
         "profile\.ContentMaxWidth < LauncherViewLayoutMetrics\.ScaleInt",
         "ApplyCompactStickyTaskHeaderLayout",
         "header\.Columns = stacked \? 1 : 2",
         "stacked \? CompactStickyTaskHeaderStackGap : CompactStickyTaskHeaderInlineGap",
-        "CompactStackedCurrentTaskHeight = CompactWorkflowStepDenseHeight",
         "stacked \? CompactStickyTaskHeaderStackGap : CompactStickyTaskHeaderInlineGap",
         "compactCurrentTaskButton\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
         "LauncherViewLayoutMetrics\.ScaleInt\(CompactStackedCurrentTaskHeight, scale\)",
-        "workflowStrip\.SizeFlagsVertical = Control\.SizeFlags\.ShrinkBegin"
+        "workflowStrip\.SizeFlagsVertical = Control\.SizeFlags\.ShrinkBegin",
+        "compactCurrentTaskButton\.SizeFlagsHorizontal = Control\.SizeFlags\.ShrinkBegin",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactStickyTaskButtonMinWidth, scale\)",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactInlineCurrentTaskHeight, scale\)",
+        "workflowStrip\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.Responsive.cs" `
     "reflows the compact sticky task header after Android viewport changes" `
     @(
-        "UpdateCompactStickyTaskHeader\(viewportSize\)",
         "UpdateCompactStickyTaskHeader\(Vector2 viewportSize\)",
         "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
         "ApplyCompactStickyTaskHeaderLayout",
         "_compactStickyTaskHeader",
         "_compactWorkflowStrip"
-    )
+)
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.cs" `
-    "tracks compact workflow step labels and updates active/completed step colors" `
+    "src\STS2Mobile\Launcher\LauncherView.CompactWorkflow.Data.cs" `
+    "defines compact workflow step labels, details, and navigation enum" `
     @(
         "CompactWorkflowStepNames",
         "CompactWorkflowStepNumbers",
         "CompactWorkflowStepDetails",
         "CompactWorkflowStep",
-        "SetCompactWorkflowStep",
         '"Sign in"',
         '"Verify"',
         '"Files"',
@@ -1571,23 +3303,41 @@ Add-Check `
         '"3"',
         '"4"',
         "CompactWorkflowStepTooltips",
-        "_workflowStepNumberLabels",
         "Sign in",
         "Steam Guard",
         "Game files",
         "Saves safe",
-        "Files",
-        "Play",
+        "Open sign-in",
+        "Open Steam Guard",
+        "Open game files",
+        "Open play and saves"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.CompactWorkflow.State.cs" `
+    "updates compact workflow active/completed step colors" `
+    @(
+        "SetCompactWorkflowStep",
+        "_workflowStepNumberLabels",
         "_workflowStepNumberLabels\[i\]\.AddThemeColorOverride",
         "_workflowStepDetailLabels\[i\]\.AddThemeColorOverride",
         "LauncherComponentTheme\.OrangeHot",
         "LauncherComponentTheme\.CyanAccent",
         "LauncherComponentTheme\.CyanDim",
         "LauncherComponentTheme\.TextMuted"
+)
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.CompactWorkflow.Navigation.cs" `
+    "wires the compact current-task jump button without invoking launcher actions directly" `
+    @(
+        "_compactCurrentTaskButton",
+        "WireCompactCurrentTaskNavigation",
+        "ScrollCompactPrimaryTo\(_compactCurrentTaskTarget\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.CompactWorkflow.State.cs" `
     "tracks the compact current-task jump target without invoking launcher actions directly" `
     @(
         "_compactCurrentTaskButton",
@@ -1595,57 +3345,98 @@ Add-Check `
         "SetCompactCurrentTask",
         "SetCompactCurrentTaskButtonText",
         "string detail",
-        "SetCompactCurrentTaskButtonText\(_compactCurrentTaskButton, _scale, text, detail\)",
-        "ScrollCompactPrimaryTo\(_compactCurrentTaskTarget\)"
+        "SetCompactCurrentTaskButtonText\(_compactCurrentTaskButton, _scale, text, detail\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
-    "updates the compact workflow step strip from existing section state transitions" `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Auth.cs" `
+    "updates compact workflow steps during auth section transitions" `
     @(
         "SetCompactWorkflowStep\(CompactWorkflowStep\.SignIn\)",
         "SetCompactWorkflowStep\(CompactWorkflowStep\.Code\)",
+        "SetLoginFormVisible",
+        "ShowCodePrompt"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Download.cs" `
+    "updates compact workflow steps during download section transitions" `
+    @(
         "SetCompactWorkflowStep\(CompactWorkflowStep\.Files\)",
-        "SetCompactWorkflowStep\(CompactWorkflowStep\.Play\)",
         "ShowDownloadProgress",
-        "SetDownloadProgress",
+        "SetDownloadProgress"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Actions.cs" `
+    "updates compact workflow steps during play and retry section transitions" `
+    @(
+        "SetCompactWorkflowStep\(CompactWorkflowStep\.SignIn\)",
+        "SetCompactWorkflowStep\(CompactWorkflowStep\.Play\)",
         "ShowLaunchActions",
         "ShowRetry"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
-    "updates the compact current-task jump button from existing section state transitions" `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Auth.cs" `
+    "updates compact current-task jump button during auth transitions" `
     @(
         'SetCompactCurrentTask\("Sign in", Login, "Steam account"\)',
-        'SetCompactCurrentTask\("Verify", Code, "Steam Guard code"\)',
+        'SetCompactCurrentTask\("Verify", Code, "Steam Guard code"\)'
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Download.cs" `
+    "updates compact current-task jump button during download transitions" `
+    @(
         'SetCompactCurrentTask\("Files", Download, "Download version"\)',
+        "ShowDownloadAction",
+        "ShowDownloadProgress"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Actions.cs" `
+    "updates compact current-task jump button during play and retry transitions" `
+    @(
         'SetCompactCurrentTask\("Retry", Actions\.RetryScrollTarget, "Restart safely"\)',
         'SetCompactCurrentTask\("Play", Actions\.ReadyScrollTarget, "Play and saves"\)'
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
-    "labels compact current-task jumps as navigation rather than direct launcher actions" `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Auth.cs" `
+    "labels compact auth current-task jumps as navigation rather than direct launcher actions" `
     @(
         '"Sign in"',
-        '"Verify"',
+        '"Verify"'
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Download.cs" `
+    "labels compact download current-task jumps as navigation rather than direct launcher actions" `
+    @(
         '"Files"',
+        "Download version"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Actions.cs" `
+    "labels compact play current-task jumps as navigation rather than direct launcher actions" `
+    @(
         '"Retry"',
         '"Play"'
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Primary.cs" `
     "promotes compact retry recovery to a primary structured action" `
     @(
         'compact \? CompactRetryButtonText\(\) : "RETRY"',
-        "LauncherButtonStyles\.ApplyPrimaryAction\(_retryButton, scale\)",
-        "SetCompactActionButtonText\(_retryButton, _retryButton\.Text\)"
+        "LauncherButtonStyles\.ApplyPrimaryAction\(retryButton, scale\)",
+        "SetCompactActionButtonText\(retryButton, retryButton\.Text\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.ReadySummary.cs" `
     "labels compact retry recovery as TRY AGAIN with restart-task detail" `
     @(
         "CompactRetryButtonText",
@@ -1653,70 +3444,126 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.ReadySummary.cs" `
     "labels compact launch CTA with selected-version detail" `
     @(
-        "SetCompactActionButtonText\(_launchButton",
-        "CompactLaunchButtonText\(text\)",
+        "CompactLaunchButtonText\(string text\)",
         "CompactLaunchButtonText",
         "Start Game",
         "Ready version"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
-    "suppresses compact first-run safe-flow guidance during active task states while preserving setup guidance" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Visibility.cs" `
+    "applies compact launch CTA text to the launch button" `
     @(
-        "SetFirstRunGuideVisible\(true\)",
+        "SetCompactActionButtonText\(_launchButton",
+        "CompactLaunchButtonText\(text\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Auth.cs" `
+    "suppresses compact first-run safe-flow guidance during active auth states" `
+    @(
         "SetFirstRunGuideVisible\(false\)",
         "SetLoginFormVisible\(bool visible, bool disabled\)[\s\S]*SetFirstRunGuideVisible\(false\)[\s\S]*HideCompactCompletedAuthSections",
         "ShowCodePrompt\(bool wasIncorrect\)[\s\S]*SetFirstRunGuideVisible\(false\)",
-        "ShowDownloadAction\(string buttonText\)[\s\S]*SetFirstRunGuideVisible\(false\)",
-        "ShowLaunchActions",
-        "ShowRetry",
-        "ShowDownloadAction",
         "SetLoginFormVisible",
         "FirstRunGuide\.Visible = !_profile\.Compact \|\| visible"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\CodeSection.cs" `
-    "uses larger compact Steam Guard code entry and verification controls" `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Download.cs" `
+    "suppresses compact first-run safe-flow guidance during active download states" `
     @(
-        "bool compactStackedActionRows = false",
-        "_compactStackedActionRows = compact && compactStackedActionRows",
-        "compact \? `"ABC123`" : `"Steam Guard code`"",
-        "CodeInputHeight",
-        "CodeInputFontSize",
-        "CodeSubmitFontSize",
-        "CompactCodePromptHeight",
-        "CompactCodeHelpHeight",
-        "CompactCodeSubmitText",
-        "SetCompactCodeSubmitButtonText",
-        "One-shot submit; code is not stored",
-        "_codeLabel\.CustomMinimumSize = new Vector2",
-        "_codeHelpLabel\.CustomMinimumSize = new Vector2",
-        "_codeHelpLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "inputHeight",
-        "inputFontSize",
-        "height: inputHeight",
-        "Verify Code",
-        "Submit once",
-        "CompactCodeActionRowSeparation = 6",
-        "BuildCompactCodeActionRow",
-        "GridContainer _compactCodeActionRow",
-        "new GridContainer",
-        "ApplyCompactCodeActionRowLayout",
-        "row\.Columns = compactStackedActionRows \? 1 : 2",
-        "codeActionParent\.AddChild\(_codeField\)",
-        "codeActionParent\.AddChild\(submitButton\)",
-        "_codeField\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
-        "submitButton\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
-        "MoveChild\(_codeHelpLabel, compactCodeActionRow\.GetIndex\(\) \+ 1\)"
+        "ShowDownloadAction\(string buttonText\)[\s\S]*SetFirstRunGuideVisible\(false\)",
+        "ShowDownloadAction"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Actions.cs" `
+    "restores compact setup guidance only when no active action section is shown" `
+    @(
+        "SetFirstRunGuideVisible\(true\)",
+        "SetFirstRunGuideVisible\(false\)",
+        "ShowLaunchActions",
+        "ShowRetry",
+        "HideActions"
     )
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\CodeSection.cs" `
+    "orchestrates compact Steam Guard code entry layout and submission wiring" `
+    @(
+        "bool compactStackedActionRows = false",
+        "_compactStackedActionRows = compact && compactStackedActionRows",
+        "CreateCodePromptLabel\(scale, compact\)",
+        "CreateCodeHelpLabel\(scale, compact\)",
+        "CreateCodeField\(scale, compact\)",
+        "CreateCodeSubmitButton\(scale, compact\)",
+        "BuildCompactCodeActionRow",
+        "GridContainer _compactCodeActionRow",
+        "codeActionParent\.AddChild\(_codeField\)",
+        "codeActionParent\.AddChild\(submitButton\)",
+        "MoveChild\(_codeHelpLabel, compactCodeActionRow\.GetIndex\(\) \+ 1\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.Labels.cs" `
+    "isolates compact Steam Guard prompt and help label construction" `
+    @(
+        "CreateCodePromptLabel\(float scale, bool compact\)",
+        "CreateCodeHelpLabel\(float scale, bool compact\)",
+        "CompactCodePromptHeight",
+        "CompactCodeHelpHeight",
+        "AutowrapMode = TextServer\.AutowrapMode\.Off",
+        "AutowrapMode = TextServer\.AutowrapMode\.WordSmart",
+        "ConfigureCompactCodeLabel",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.Input.cs" `
+    "isolates Steam Guard code input sizing and keyboard configuration" `
+    @(
+        "CreateCodeField\(float scale, bool compact\)",
+        "compact \? `"ABC123`" : `"Steam Guard code`"",
+        "VirtualKeyboardType\.Default",
+        "CodeInputHeight\(bool compact\)",
+        "CodeInputFontSize\(bool compact\)",
+        "CodeInputHeight",
+        "CodeInputFontSize",
+        "field\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.SubmitButton.cs" `
+    "isolates Steam Guard verification button construction and compact labels" `
+    @(
+        "CreateCodeSubmitButton\(float scale, bool compact\)",
+        "CodeSubmitFontSize",
+        "CompactCodeSubmitText",
+        "SetCompactCodeSubmitButtonText",
+        "height: CodeInputHeight\(compact\)",
+        "Verify Code",
+        "button\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.SubmitButton.cs" `
+    "wires compact Steam Guard submit to shared two-line labels" `
+    @(
+        "CompactCodeSubmitLabels",
+        "CompactButtonDetailLabelSpec",
+        "CompactCodeSubmitText",
+        "Verify Code",
+        "Submit once",
+        "SetCompactCodeSubmitButtonText",
+        "CompactButtonDetailLabels\.Apply"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.Layout.cs" `
     "reflows compact Steam Guard code controls after viewport changes" `
     @(
         "UpdateViewportProfile\(LauncherLayoutProfile profile\)",
@@ -1728,17 +3575,16 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.Responsive.cs" `
     "updates compact section responsive rows after viewport changes" `
     @(
-        "UpdateCompactSectionResponsiveRows\(viewportSize\)",
         "private void UpdateCompactSectionResponsiveRows\(Vector2 viewportSize\)",
         "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
         "Code\.UpdateViewportProfile\(profile\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\CodeSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.Prompt.cs" `
     "keeps compact Steam Guard retry guidance short and readable" `
     @(
         "CompactIncorrectPrompt",
@@ -1746,6 +3592,7 @@ Add-Check `
         "CompactIncorrectHelp",
         "Use newest Steam Guard code",
         "Old codes can expire; spaces removed",
+        "One-shot submit; code is not stored",
         "CodePromptText\(_compact, wasIncorrect\)",
         "CodeHelpText\(_compact, wasIncorrect\)"
     )
@@ -1769,12 +3616,18 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
-    "suppresses compact install section after launch-ready while restoring it for downloads" `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Download.cs" `
+    "restores compact install section for downloads" `
+    @(
+        "ShowDownloadAction",
+        "SetCompactReadyInstallSectionVisible\(true\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Actions.cs" `
+    "suppresses compact install section after launch-ready" `
     @(
         "SetCompactReadyInstallSectionVisible",
-        "ShowDownloadAction",
-        "SetCompactReadyInstallSectionVisible\(true\)",
         "ShowLaunchActions",
         "SetCompactReadyInstallSectionVisible\(false\)",
         "!_profile\.Compact",
@@ -1782,23 +3635,36 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
-    "suppresses completed compact auth sections after advancing past sign-in or Steam Guard" `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Auth.cs" `
+    "defines completed compact auth section suppression" `
     @(
         "HideCompactCompletedAuthSections",
         "ShowCodePrompt",
         "HideCompactCompletedAuthSections\(showCode: true\)",
-        "ShowDownloadAction",
-        "ShowRetry",
-        "ShowLaunchActions",
-        "HideCompactCompletedAuthSections\(showCode: false\)",
         "Login\.SetFormVisible\(false, disabled: true\)",
         "Code\.Visible = showCode"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
-    "scrolls compact state transitions to the active section" `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Download.cs" `
+    "suppresses completed compact auth sections before download work" `
+    @(
+        "ShowDownloadAction",
+        "HideCompactCompletedAuthSections\(showCode: false\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Actions.cs" `
+    "suppresses completed compact auth sections before play or retry work" `
+    @(
+        "ShowRetry",
+        "ShowLaunchActions",
+        "HideCompactCompletedAuthSections\(showCode: false\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Scroll.cs" `
+    "defines compact active-section scrolling and anchor padding" `
     @(
         "CompactScrollAnchorTopPadding = 14",
         "ScrollCompactPrimaryTo",
@@ -1807,17 +3673,36 @@ Add-Check `
         "Callable\.From",
         "PrimaryScroll\.EnsureControlVisible\(target\)",
         "PrimaryScroll\.ScrollVertical",
-        "LauncherViewLayoutMetrics\.ScaleInt\(CompactScrollAnchorTopPadding, _scale\)",
+        "LauncherViewLayoutMetrics\.ScaleInt\(CompactScrollAnchorTopPadding, _scale\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Auth.cs" `
+    "scrolls compact auth transitions to the active section" `
+    @(
         "ScrollCompactPrimaryTo\(Login\)",
-        "ScrollCompactPrimaryTo\(Code\)",
+        "ScrollCompactPrimaryTo\(Code\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Download.cs" `
+    "scrolls compact download transitions to the active section" `
+    @(
         "ScrollCompactPrimaryTo\(Download\)",
+        "SetCompactCurrentTask"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Actions.cs" `
+    "scrolls compact play and retry transitions to the active section" `
+    @(
         "ScrollCompactPrimaryTo\(Actions\.RetryScrollTarget\)",
         "ScrollCompactPrimaryTo\(Actions\.ReadyScrollTarget\)",
         "ScrollCompactPrimaryTo\(FirstRunGuide\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Sections.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Sections.Scroll.cs" `
     "remembers the latest compact scroll anchor for viewport-change re-anchoring" `
     @(
         "ScrollCompactPrimaryTo\(Control target\)",
@@ -1829,17 +3714,26 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherView.cs" `
-    "tracks compact scroll anchor state separately from the current task target" `
+    "initializes compact workflow scroll anchors to the first-run guide" `
     @(
         "_compactScrollAnchorTarget",
         "_compactScrollAnchorTarget = FirstRunGuide",
-        "_compactCurrentTaskTarget = FirstRunGuide",
+        "_compactCurrentTaskTarget = FirstRunGuide"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.CompactWorkflow.State.cs" `
+    "tracks compact scroll anchor state separately from the current task target" `
+    @(
+        "_compactScrollAnchorTarget",
+        "_compactCurrentTaskTarget",
+        "SetCompactCurrentTask",
         "_compactCurrentTaskTarget = target",
         "_compactScrollAnchorTarget = target"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.Reanchor.cs" `
     "re-anchors compact task scroll position after Android viewport changes without fighting focused keyboard input" `
     @(
         "ReanchorCompactScrollTargetAfterViewportChange\(\)",
@@ -1852,7 +3746,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Visibility.cs" `
     "anchors compact ready/retry scrolling to the actual primary controls" `
     @(
         "ReadyScrollTarget",
@@ -1863,104 +3757,161 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
-    "states that version downloads affect local files and do not mutate Steam Cloud saves" `
+    "centralizes compact install control sizing constants and width class state" `
     @(
-        "SHOW VERSION DETAILS",
-        "HIDE VERSION DETAILS",
-        "CompactDownloadButtonText",
-        "CompactDownloadButtonTitleDetail",
-        "SetCompactDownloadButtonText",
-        "EnsureCompactDownloadButtonLabels",
         "CompactDownloadActionBodyName",
         "CompactDownloadActionTitleName",
         "CompactDownloadActionDetailName",
         "CompactDownloadActionHeight = LauncherSectionMetrics\.CodeInputHeight",
-        "REFRESH VERSIONS",
-        "DOWNLOAD",
-        "ToggleBranchDetails",
-        "_branchDetailsExpanded",
-        "Download/update changes local files for the selected game version only",
-        "does not change Steam Cloud saves",
-        "SelectedOptionStatus",
-        "SelectedOptionCompactStatus",
-        "SelectorInstallSlotHelpText",
-        "CompactInstallVersionHelpText",
         "CompactVersionHelpHeight",
         "CompactVersionHelpFontSize",
-        "Files for:",
-        "Saves unchanged",
-        "_branchHelpLabel\.ClipText = compact",
-        "_branchHelpLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "_branchHelpLabel\.CustomMinimumSize = new Vector2",
         "_compactSelectedVersionLabel",
-        "Selected version:",
-        "Install slot:",
-        "Downloads do not change Steam Cloud saves",
         "_compactSelectedVersionPanel",
         "_compactVersionControlsRow",
         "BuildCompactVersionControlsRow",
-        "compactStackedActionRows \? new VBoxContainer\(\) : new HBoxContainer\(\)",
-        "_compactVersionControlsRow\.AddChild\(_branchDropdown\)",
-        "_compactVersionControlsRow\.AddChild\(_refreshBranchesButton\)",
-        "_compactVersionControlsRow\.Visible = controlsVisible",
-        "BuildSelectedVersionSummaryStyle",
+        "CompactSelectedVersionBranchLimit = 18",
+        "CompactSelectedVersionStackedBranchLimit = 28",
+        "_compactStackedActionRows = compact && compactStackedActionRows",
+        "compactStackedActionRows = false"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Construction.Version.cs" `
+    "constructs the compact install version details toggle" `
+    @(
+        "BuildBranchDetailsToggle",
+        "Show Version Details",
+        "LauncherSectionMetrics\.CompactDrawerToggleHeight",
+        "LauncherButtonStyles\.ApplySupportAction",
+        "button\.Pressed \+= ToggleBranchDetails"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Construction.Version.Selected.cs" `
+    "constructs compact selected-version summary controls with local-file cues" `
+    @(
+        "BuildCompactSelectedVersionPanel",
+        "BuildCompactSelectedVersionLabel",
         "ApplySelectedVersionSummaryButtonStyle",
-        "OpenCompactBranchDetailsFromSelectedVersion",
-        "_compactSelectedVersionPanel\.Pressed \+= OpenCompactBranchDetailsFromSelectedVersion",
+        "button\.Pressed \+= OpenCompactBranchDetailsFromSelectedVersion",
         "TooltipText = `"Change game version for local files`"",
         "MouseDefaultCursorShape = Control\.CursorShape\.PointingHand",
-        "_compactSelectedVersionPanel\.Disabled = true",
-        "_compactSelectedVersionPanel\.Disabled = false",
-        "_branchDetailsExpanded = true",
         "CompactVersionSummaryFontSize",
         "CompactVersionSummaryHeight",
         "CompactStackedVersionSummaryHeight",
         "CompactVersionSummaryHorizontalMargin",
         "CompactVersionSummaryVerticalMargin",
-        "CompactSelectedVersionBranchLimit = 18",
-        "CompactSelectedVersionStackedBranchLimit = 28",
-        "_compactStackedActionRows = compact && compactStackedActionRows",
-        "compactStackedActionRows = false",
+        "label\.ClipText = compact",
+        "label\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "label\.CustomMinimumSize = new Vector2",
         "AutowrapMode\.Off",
         "TextServer\.AutowrapMode\.WordSmart",
         "TextServer\.OverrunBehavior\.TrimEllipsis",
-        "ClipText = compact && !_compactStackedActionRows",
-        "CompactStackedVersionSummaryHeight",
+        "ClipText = compact && !_compactStackedActionRows"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Construction.Version.Dropdown.cs" `
+    "constructs and places the install-version dropdown in compact and full layouts" `
+    @(
+        "BuildBranchDropdown",
+        "_compactVersionControlsRow\.AddChild\(_branchDropdown\)",
+        "AddChild\(_compactVersionControlsRow\)",
+        "AddChild\(_branchDropdown\)",
+        "dropdown\.ItemSelected \+= ApplyGameBranch"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Construction.Version.Refresh.cs" `
+    "constructs refresh-version and bounded branch help controls" `
+    @(
+        "BuildRefreshBranchesButton",
+        "_compactVersionControlsRow\.AddChild\(_refreshBranchesButton\)",
+        "RefreshGameVersionsRequested\?\.Invoke",
+        "SetCompactVersionActionButtonText",
+        "Refresh Versions",
+        "Update branch list",
+        "BuildBranchHelpLabel",
+        "CompactVersionHelpFontSize",
+        "CompactVersionHelpHeight"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Branches.Text.cs" `
+    "states that version downloads affect local files and do not mutate Steam Cloud saves" `
+    @(
+        "_branchDetailsExpanded",
+        "Download/update changes local files for the selected game version only",
+        "does not change Steam Cloud saves",
+        "SelectedOptionStatus",
+        "SelectorInstallSlotHelpText",
+        "CompactInstallVersionHelpText",
+        "Selected version:",
+        "Install slot:",
+        "Downloads do not change Steam Cloud saves",
+        "SetCompactVersionActionButtonText",
+        "ApplyBranchControlVisibility\(\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactVersion.cs" `
+    "builds compact selected-version layout rows and primary-action placement" `
+    @(
+        "compactStackedActionRows \? new VBoxContainer\(\) : new HBoxContainer\(\)",
+        "BuildCompactVersionControlsRow",
+        "MoveCompactPrimaryInstallControlsBeforeVersionDetails",
+        "MoveChild\(_compactSelectedVersionPanel, _branchDetailsToggle\.GetIndex\(\)\)",
+        "MoveChild\(_downloadButton, _branchDetailsToggle\.GetIndex\(\)\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactVersion.Summary.cs" `
+    "renders compact selected-version summary style and local-file copy" `
+    @(
+        "ApplySelectedVersionSummaryButtonStyle",
+        "BuildSelectedVersionSummaryStyle",
         "CompactSelectedVersionStackedBranchLimit",
         "CompactSelectedVersionHeadline",
+        "Files for:",
+        "SelectedOptionCompactStatus",
+        "Saves unchanged",
+        "Cloud unchanged",
+        "Change version",
+        "Change",
+        "CompactInstallFileScope",
+        "Default files",
+        "Separate files"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactVersion.ActionButton.cs" `
+    "renders compact version action labels as structured title/detail controls" `
+    @(
         "SetCompactVersionActionButtonText",
         "EnsureCompactVersionActionButtonLabels",
         "CompactVersionActionBodyName",
         "CompactVersionActionTitleName",
         "CompactVersionActionDetailName",
-        "CompactVersionActionDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        "CompactVersionActionDetailFontSize",
         'button\.Text = ""',
         "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
         "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "LauncherComponentTheme\.TextSecondary",
-        "`"Change Version`"",
-        "`"Refresh Versions`"",
+        "LauncherComponentTheme\.TextSecondary"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactDownload.Text.cs" `
+    "maps compact download action copy to local-file-only title/detail labels" `
+    @(
+        "CompactDownloadButtonText",
+        "CompactDownloadButtonTitleDetail",
         "`"Download Version`"",
         "`"Redownload Version`"",
         "`"Retry Download`"",
         "`"Downloading\.\.\.`"",
         "Local files only",
         "Rebuild local files",
-        "Steam files",
-        "Update branch list",
-        "Keep selection",
-        "CompactDrawerToggleHeight",
-        "CompactDetailButtonFontSize",
-        "Cloud unchanged",
-        "Change version",
-        "Change",
-        "CompactInstallFileScope",
-        "Default files",
-        "Separate files",
-        "branchChanged",
-        "_branchDetailsExpanded = false",
-        "CollapseCompactBranchDetailsAfterSelection",
-        "ApplyBranchControlVisibility\(\)"
+        "Steam files"
     )
 
 Add-Check `
@@ -1972,70 +3923,57 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
-    "keeps compact version drawer toggle before expanded install-version details" `
+    "keeps compact version drawer toggle before expanded install-version controls" `
     @(
-        "_branchDetailsToggle = new StyledButton",
-        "CompactDrawerToggleHeight",
-        "SetCompactVersionActionButtonText",
-        "EnsureCompactVersionActionButtonLabels",
-        "CompactVersionActionBodyName",
-        "CompactVersionActionTitleName",
-        "CompactVersionActionDetailName",
-        "CompactVersionActionDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
-        'button\.Text = ""',
-        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
-        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "LauncherComponentTheme\.TextSecondary",
-        "`"Change Version`"",
-        "`"Refresh Versions`"",
-        "Local files only",
-        "Update branch list",
+        "_branchDetailsToggle = BuildBranchDetailsToggle",
         "AddChild\(_branchDetailsToggle\)",
-        "_branchDropdown = new OptionButton",
-        "(?s)_branchDetailsToggle = new StyledButton.*AddChild\(_branchDetailsToggle\).*_branchDropdown = new OptionButton"
+        "_branchDropdown = BuildBranchDropdown",
+        "(?s)_branchDetailsToggle = BuildBranchDetailsToggle.*AddChild\(_branchDetailsToggle\).*_branchDropdown = BuildBranchDropdown"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Construction.Version.Dropdown.cs" `
     "uses primary compact touch-target sizing for the install-version dropdown" `
     @(
+        "BuildBranchDropdown",
         "compact \? LauncherSectionMetrics\.PrimaryButtonHeight : LauncherSectionMetrics\.SecondaryButtonHeight",
         "compact \? LauncherSectionMetrics\.PrimaryButtonFontSize : LauncherSectionMetrics\.SecondaryButtonFontSize",
         "ApplyDropdownAction",
-        "(?s)ApplyDropdownAction\(\s*_branchDropdown,\s*scale,.*?,\s*compact\s*\)"
+        "(?s)ApplyDropdownAction\(\s*dropdown,\s*scale,.*?,\s*compact\s*\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactVersion.cs" `
     "puts the compact install primary action before optional version details" `
     @(
         "MoveCompactPrimaryInstallControlsBeforeVersionDetails",
         "MoveChild\(_compactSelectedVersionPanel, _branchDetailsToggle\.GetIndex\(\)\)",
-        "MoveChild\(_downloadButton, _branchDetailsToggle\.GetIndex\(\)\)",
-        "Download Version",
-        "Change Version"
+        "MoveChild\(_downloadButton, _branchDetailsToggle\.GetIndex\(\)\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactDownload.ActionButton.cs" `
     "renders compact install primary actions as structured title/detail labels" `
     @(
-        "CompactDownloadActionHeight = LauncherSectionMetrics\.CodeInputHeight",
+        "CompactDownloadActionLabels",
+        "CompactButtonDetailLabelSpec",
         "CompactDownloadActionBodyName",
         "CompactDownloadActionTitleName",
         "CompactDownloadActionDetailName",
-        "CompactDownloadActionTitleFontSize = LauncherSectionMetrics\.PrimaryButtonFontSize",
-        "CompactDownloadActionDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        "CompactDownloadActionTitleFontSize",
+        "CompactDownloadActionDetailFontSize",
+        "CompactDownloadActionHorizontalMargin",
+        "CompactDownloadActionVerticalMargin",
+        "SetCompactDownloadButtonText",
+        "CompactButtonDetailLabels\.Apply"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactDownload.Text.cs" `
+    "keeps compact install primary-action copy as structured title/detail text" `
+    @(
         "CompactDownloadButtonTitleDetail",
         "CompactDownloadButtonText",
-        "SetCompactDownloadButtonText",
-        "TrySplitCompactDownloadButtonText",
-        "HideCompactDownloadButtonLabels",
-        "EnsureCompactDownloadButtonLabels",
-        'button\.Text = ""',
-        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
-        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "LauncherComponentTheme\.TextSecondary",
         "`"DOWNLOAD SELECTED VERSION`"",
         "`"Download Version`"",
         "`"Local files only`"",
@@ -2048,28 +3986,47 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\DownloadSection.cs" `
-    "promotes compact download progress directly under the active primary action" `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactDownload.cs" `
+    "promotes compact download progress controls directly under the active primary action" `
     @(
         "MoveCompactProgressControlsNearPrimaryAction",
         "MoveChild\(_progressLabel, _downloadButton\.GetIndex\(\) \+ 1\)",
-        "MoveChild\(_progressBar, _progressLabel\.GetIndex\(\) \+ 1\)",
-        "new StyledProgressBar\(scale, compact\)",
+        "MoveChild\(_progressBar, _progressLabel\.GetIndex\(\) \+ 1\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactDownload.Text.cs" `
+    "keeps compact download progress copy concise and bounded" `
+    @(
         "CompactDownloadProgressButtonText",
         "CompactDownloadProgressText",
         "CompactDownloadProgressDetail",
         "NormalizeCompactProgressText",
-        "CompactDownloadProgressLabelHeight = 50",
-        "CompactDownloadProgressDetailLimit = 54",
-        "_progressLabel\.AutowrapMode = TextServer\.AutowrapMode\.WordSmart",
-        "_progressLabel\.ClipText = compact",
-        "_progressLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "_progressLabel\.CustomMinimumSize = new Vector2",
-        "_progressLabel\.Text = _compact \? CompactDownloadProgressText\(text\) : text",
-        "Downloading selected version",
-        "SetCompactDownloadButtonText\(_downloadButton, CompactDownloadProgressButtonText\(\)\)",
+        "Downloading selected version"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Construction.Download.cs" `
+    "constructs compact download progress controls with readable mobile sizing" `
+    @(
+        "new StyledProgressBar\(scale, compact\)",
+        "BuildProgressLabel",
+        "label\.AutowrapMode = TextServer\.AutowrapMode\.WordSmart",
+        "label\.ClipText = compact",
+        "label\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "label\.CustomMinimumSize = new Vector2",
         "compact\s*\?\s*LauncherSectionMetrics\.SecondaryButtonFontSize",
         "compact\s*\?\s*LauncherComponentTheme\.CyanAccent"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.Progress.cs" `
+    "updates compact download progress state next to the disabled primary action" `
+    @(
+        "_progressLabel\.Text = _compact \? CompactDownloadProgressText\(text\) : text",
+        "SetCompactDownloadButtonText\(_downloadButton, CompactDownloadProgressButtonText\(\)\)",
+        "_compactSelectedVersionPanel\.Disabled = true",
+        "_compactSelectedVersionPanel\.Disabled = false"
     )
 
 Add-Check `
@@ -2105,6 +4062,130 @@ Add-Check `
     )
 
 Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupFlow.StartupMode.cs" `
+    "keeps startup safe-mode decisions in a small marker-driven shell" `
+    @(
+        "private sealed partial class StartupMode",
+        "CreateFromMarkers",
+        "PreviousStartupPhase\.FromMarkers",
+        "ConsumeManualSafeLaunchMarker",
+        "SafeLaunchRequested",
+        "ShouldForceLocalSaves",
+        "PhaseSettingsAndSaves",
+        "PhaseGameStartup",
+        "ShouldSkipShaderWarmup",
+        "PhaseShaderWarmup",
+        "SafeLaunchMessage"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupFlow.StartupMode.PreviousPhase.cs" `
+    "isolates previous startup phase marker reads and comparisons" `
+    @(
+        "PreviousStartupPhase",
+        "LauncherLaunchMarkers\.ReadStartupPhase",
+        "StringComparison\.OrdinalIgnoreCase",
+        "Matches\(string phase\)",
+        "DescribePreviousStall\(string message\)",
+        "\$""\{message\} \{Phase\}"""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupFlow.StartupMode.SaveModePlan.cs" `
+    "isolates startup local-save safe-mode application" `
+    @(
+        "StartupSaveModePlan",
+        "Loading settings and saves in local-only safe mode",
+        "Loading settings and saves",
+        "LauncherPreferences\.LoadAndApplyCloudSyncEnabled",
+        "LauncherCloudSaveState\.DisableCloudSyncForLaunch",
+        "PatchHelper\.Log\(ReasonLog\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\ShaderWarmupScreen.cs" `
+    "keeps shader warmup screen root limited to state and entry point" `
+    @(
+        "internal sealed partial class ShaderWarmupScreen : Control",
+        "WarmupVersion = 5",
+        "TaskCompletionSource<bool> _tcs",
+        "Label _statusLabel",
+        "Label _detailLabel",
+        "ProgressBar _progressBar",
+        "RunAsync",
+        "Initialize\(\)",
+        "await _tcs\.Task"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\ShaderWarmupScreen.Run.cs" `
+    "isolates shader warmup screen initialization and deferred execution" `
+    @(
+        "private void Initialize\(\)",
+        "ZIndex = 100",
+        "GetViewport\(\)\?\.GetVisibleRect\(\)\.Size",
+        "BuildUI\(vpSize\)",
+        "PatchHelper\.Log\(Message\.ScreenInitialized\)",
+        "PatchHelper\.Log\(Message\.ScreenBuildFailed\(ex\)\)",
+        "_tcs\?\.TrySetResult\(false\)",
+        "Callable\.From\(RunWarmup\)\.CallDeferred\(\)",
+        "RunWarmupTaskAsync",
+        "PatchHelper\.Log\(Message\.RunFailed\(ex\)\)",
+        "_tcs\?\.TrySetResult\(true\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\ShaderWarmupScreen.WarmupRun.cs" `
+    "isolates shader warmup run context and completion reporting" `
+    @(
+        "WarmupCompletion",
+        "MaterialCount",
+        "ElapsedMilliseconds",
+        "WarmupRun",
+        "SceneTree Tree",
+        "ShaderWarmupProgress Progress",
+        "Stopwatch Stopwatch",
+        "CompleteAndReport",
+        "Progress\.Complete\(completion\)",
+        "PatchHelper\.Log\(Message\.Completed\(completion\)\)",
+        "CreateWarmupRun",
+        "Stopwatch\.StartNew\(\)",
+        "CreateProgress",
+        "ShaderWarmupProgress\.ForLabels"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\ShaderWarmupScreen.Execution.cs" `
+    "isolates shader warmup collection, rendering, and marker completion flow" `
+    @(
+        "RunWarmupAsync",
+        "CreateWarmupRun",
+        "CollectWarmupMaterialsAsync",
+        "materials\.Count == 0",
+        "MarkWarmupComplete\(\)",
+        "RenderWarmupMaterialsAsync",
+        "warmup\.CompleteAndReport\(materials\.Count\)",
+        "WaitFinishDelayAsync",
+        "progress\.ShowScanning\(\)",
+        "ShaderWarmupMaterialScanner\.CollectAsync",
+        "PatchHelper\.Log\(Message\.Collected\(materials\.Count\)\)",
+        "progress\.ShowCompiling\(\)",
+        "ShaderWarmupRenderer\.ForScreen",
+        "WriteWarmupVersion\(\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\ShaderWarmupScreen.Timing.cs" `
+    "isolates shader warmup frame and finish-delay waits" `
+    @(
+        "WaitPostDrawAsync",
+        "RenderingServer\.SignalName\.FramePostDraw",
+        "WaitFinishDelayAsync",
+        "GetTree\(\)\.CreateTimer\(0\.5\)",
+        "SceneTreeTimer\.SignalName\.Timeout"
+    )
+
+Add-Check `
     "src\STS2Mobile\Launcher\Components\StyledProgressBar.cs" `
     "uses a taller styled compact percentage progress bar" `
     @(
@@ -2137,21 +4218,86 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherStartupStatus.cs" `
-    "uses an Android-readable framed startup status card after launcher close" `
+    "routes startup status creation between Android card and legacy label" `
     @(
+        "internal static partial class LauncherStartupStatus",
         "OperatingSystem\.IsAndroid\(\)",
         "CreateAndroidStatusCard\(parent, viewportSize\)",
         "CreateLegacyLabel\(parent, viewportSize\)",
+        "Startup status label creation failed",
+        "CalculateSafeMargin"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupStatus.Android.cs" `
+    "composes an Android-readable framed startup status card after launcher close" `
+    @(
+        "internal static partial class LauncherStartupStatus",
         "AndroidMinimumScale = 1\.06f",
         "AndroidWidthRatio = 0\.94f",
         "AndroidMessageFontSize = 18",
         "AndroidPanelHeight = 98",
+        "CreateAndroidStatusCard",
         "PanelContainer",
         "BuildAndroidPanelStyle",
-        "Starting Game",
-        "LauncherComponentTheme\.TextPrimary",
+        "CreateAndroidTitleLabel",
+        "CreateAndroidMessageLabel",
         "CalculateAndroidPanelWidth",
         "MouseFilterEnum\.Ignore"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupStatus.Android.Metrics.cs" `
+    "isolates Android startup status scale and width math" `
+    @(
+        "CalculateAndroidScale",
+        "ReferenceShortEdge",
+        "AndroidMinimumScale",
+        "AndroidMaximumScale",
+        "Math\.Clamp",
+        "CalculateAndroidPanelWidth",
+        "AndroidWidthRatio"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupStatus.Android.Labels.cs" `
+    "isolates Android startup status title and message labels" `
+    @(
+        "CreateAndroidTitleLabel",
+        "Starting Game",
+        "AndroidTitleFontSize",
+        "LauncherComponentTheme\.OrangeHot",
+        "CreateAndroidMessageLabel",
+        "MessageNodeName",
+        "AndroidMessageFontSize",
+        "AutowrapMode = TextServer\.AutowrapMode\.WordSmart",
+        "LauncherComponentTheme\.TextPrimary"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupStatus.Android.Style.cs" `
+    "isolates Android startup status card frame styling" `
+    @(
+        "BuildAndroidPanelStyle",
+        "LauncherStyleBoxes\.MakeFilled",
+        "PanelBackground",
+        "0\.92f",
+        "AndroidPanelRadius",
+        "LauncherComponentTheme\.CyanDim",
+        "AndroidPanelHorizontalMargin",
+        "AndroidPanelVerticalMargin"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupStatus.Legacy.cs" `
+    "keeps the desktop startup status label fallback isolated" `
+    @(
+        "CreateLegacyLabel",
+        "CalculateFontSize",
+        "AutowrapMode = TextServer\.AutowrapMode\.WordSmart",
+        "Control\.LayoutPreset\.TopWide",
+        "font_size",
+        "new Color\(0\.55f, 0\.85f, 1f\)"
     )
 
 Add-Check `
@@ -2177,36 +4323,50 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
-    "keeps compact version drawer toggle before expanded ready-state version details" `
+    "keeps compact action construction ordered as branch details before ready/cloud/support controls" `
     @(
-        "_branchDetailsToggle = new StyledButton",
-        "CompactDrawerToggleHeight",
-        "CompactDetailButtonFontSize",
-        "CompactPlaySyncDrawerText",
-        "_cloudSafetyToggle = new StyledButton",
-        "_cloudOptionsToggle = new StyledButton",
-        "_supportToggle = AddHiddenButton",
-        "SupportToggleText\(\)",
-        "AddChild\(_branchDetailsToggle\)",
-        "_branchDropdown = new OptionButton",
-        "branchChanged",
-        "CollapseCompactBranchDetailsAfterSelection",
-        "_branchDetailsExpanded = false",
-        "(?s)_branchDetailsToggle = new StyledButton.*AddChild\(_branchDetailsToggle\).*_branchDropdown = new OptionButton"
+        "BuildBranchControls\(scale, compact\)",
+        "_branchDetailsToggle = branchControls\.DetailsToggle",
+        "_branchDropdown = branchControls\.Dropdown",
+        "BuildReadyVersionSummaryControls\(scale, compact\)",
+        "SetGameBranch\(_gameBranch\)",
+        "BuildCloudControls\(scale, compact\)",
+        "_cloudSafetyToggle = cloudControls\.CloudSafetyToggle",
+        "_cloudOptionsToggle = cloudControls\.CloudOptionsToggle",
+        "BuildSupportControls\(scale, compact, supportToolsParent\)",
+        "_supportToggle = supportControls\.SupportToggle",
+        "(?s)BuildBranchControls\(scale, compact\).*BuildReadyVersionSummaryControls\(scale, compact\).*SetGameBranch\(_gameBranch\).*BuildCloudControls\(scale, compact\).*BuildSupportControls\(scale, compact, supportToolsParent\).*ArrangeCompactReadyStatePriority\(\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Branch.cs" `
     "uses primary compact touch-target sizing for the ready-state version dropdown" `
     @(
         "compact \? LauncherSectionMetrics\.PrimaryButtonHeight : LauncherSectionMetrics\.SecondaryButtonHeight",
         "compact \? LauncherSectionMetrics\.PrimaryButtonFontSize : LauncherSectionMetrics\.SecondaryButtonFontSize",
         "ApplyDropdownAction",
-        "(?s)ApplyDropdownAction\(\s*_branchDropdown,\s*scale,.*?,\s*compact\s*\)"
+        "(?s)ApplyDropdownAction\(\s*branchDropdown,\s*scale,.*?,\s*compact\s*\)"
     )
 
 Add-Check `
     "src\STS2Mobile\Launcher\Components\LauncherButtonStyles.cs" `
+    "keeps launcher button action presets as the public styling API" `
+    @(
+        "internal static partial class LauncherButtonStyles",
+        "ApplyPrimaryAction",
+        "ApplySafeAction",
+        "ApplySupportAction",
+        "ApplyCloudPullAction",
+        "ApplyDangerAction",
+        "LauncherComponentTheme\.OrangeAccent",
+        "LauncherComponentTheme\.CyanAccent",
+        "filled: false",
+        "new Color\(0\.07f, 0\.18f, 0\.15f\)",
+        "new Color\(0\.22f, 0\.07f, 0\.07f\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Components\LauncherButtonStyles.Dropdown.cs" `
     "uses touch-safe compact dropdown popup row spacing and padding" `
     @(
         "ApplyDropdownAction",
@@ -2226,41 +4386,54 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Components\LauncherButtonStyles.State.cs" `
+    "keeps launcher button state styleboxes and text colors isolated" `
+    @(
+        "private static void Apply",
+        "BuildButtonStateStyle",
+        "button\.ClipText = true",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "LauncherComponentTheme\.StateNormal",
+        "LauncherComponentTheme\.StateHover",
+        "LauncherComponentTheme\.StatePressed",
+        "LauncherComponentTheme\.StateDisabled",
+        "FontHoverColor",
+        "FontPressedColor",
+        "FontDisabledColor",
+        "LauncherStyleBoxes\.MakeFilled",
+        "LauncherStyleBoxes\.MakeOutline",
+        "BorderWidthBottom = width",
+        "LauncherComponentTheme\.TextMuted"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Ready.cs" `
     "configures compact ready-version summary as a readable responsive summary card" `
     @(
         "new Button",
         "TooltipText = `"Open save safety check`"",
         "MouseDefaultCursorShape = Control\.CursorShape\.PointingHand",
         "ApplyReadyVersionSummaryButtonStyle",
-        "_readyVersionSummaryPanel\.Pressed \+= OpenCompactCloudSafetyFromReadySummary",
-        "ApplyReadyVersionSummaryButtonStyle\(_readyVersionSummaryPanel, scale, compact\)",
+        "readyVersionSummaryPanel\.Pressed \+= OpenCompactCloudSafetyFromReadySummary",
+        "ApplyReadyVersionSummaryButtonStyle\(readyVersionSummaryPanel, scale, compact\)",
         "CompactVersionSummaryFontSize",
         "VerticalAlignment\.Center",
-        "CompactReadyVersionHelpHeight",
-        "CompactReadyVersionHelpFontSize",
-        "_branchHelpLabel\.ClipText = compact",
-        "_branchHelpLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "_branchHelpLabel\.CustomMinimumSize = new Vector2",
         "_compactStackedActionRows\s*\?\s*TextServer\.AutowrapMode\.WordSmart",
-        "_readyVersionSummaryLabel\.ClipText = compact && !_compactStackedActionRows",
-        "_readyVersionSummaryLabel\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
-        "_readyVersionSummaryLabel\.OffsetLeft",
-        "_readyVersionSummaryLabel\.OffsetRight",
+        "readyVersionSummaryLabel\.ClipText = compact && !_compactStackedActionRows",
+        "readyVersionSummaryLabel\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "readyVersionSummaryLabel\.OffsetLeft",
+        "readyVersionSummaryLabel\.OffsetRight",
         "TextServer\.OverrunBehavior\.TrimEllipsis",
         "CompactStackedVersionSummaryHeight",
         "CompactVersionSummaryHeight"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
-    "uses a responsive compact ready-version headline with Save Check and Upload-locked state" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.ReadySummary.cs" `
+    "uses responsive compact ready-version copy with Save Check and Upload-locked state" `
     @(
-        "CompactReadySummaryBranchLimit = 14",
-        "CompactReadyStackedSummaryBranchLimit = 28",
-        "CompactVersionSummaryRadius",
-        "CompactVersionSummaryHorizontalMargin",
-        "CompactVersionSummaryVerticalMargin",
+        "CompactReadySummaryBranchLimit",
+        "CompactReadyStackedSummaryBranchLimit",
         "CompactReadyVersionSummary\(\)",
         "CompactReadyVersionHelpText\(\)",
         "SelectedOptionCompactStatus",
@@ -2272,10 +4445,21 @@ Add-Check `
         "_compactStackedActionRows",
         "Ready:",
         "Save Check \| Upload locked",
-        "no auto cloud upload",
-        "OpenCompactCloudSafetyFromReadySummary",
-        "_cloudSafetyExpanded = true",
+        "no auto cloud upload"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.ReadySummary.Style.cs" `
+    "keeps ready-version summary card skinning isolated from copy generation" `
+    @(
         "ApplyReadyVersionSummaryButtonStyle",
+        "LauncherComponentTheme\.StateNormal",
+        "LauncherComponentTheme\.StateHover",
+        "LauncherComponentTheme\.StatePressed",
+        "LauncherComponentTheme\.StateDisabled",
+        "CompactVersionSummaryRadius",
+        "CompactVersionSummaryHorizontalMargin",
+        "CompactVersionSummaryVerticalMargin",
         "Color body,",
         "Color border",
         "BuildReadyVersionSummaryStyle\(float scale, bool compact\)",
@@ -2285,7 +4469,16 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CloudSafety.cs" `
+    "opens compact cloud safety details from the ready-version summary" `
+    @(
+        "OpenCompactCloudSafetyFromReadySummary",
+        "_cloudSafetyExpanded = true",
+        "UpdateBranchHelpText\(\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Layout.cs" `
     "prioritizes compact ready state as summary, cloud safety actions, launch, then version management" `
     @(
         "ArrangeCompactCloudGroupPriority",
@@ -2308,59 +4501,146 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
-    "uses compact Play and Sync drawer detail labels for version, cloud-safety, cloud-options, and tools" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Branches.Text.cs" `
+    "uses compact Play and Sync drawer detail labels for version controls" `
     @(
-        "CompactPlaySyncDrawerText",
         "Version target",
-        "Save Check",
         "Hide Save Check",
-        "Get saves first",
         "CompactCloudSafetyDetailText",
-        "Saves for:",
-        "Get Steam saves before upload\. Upload can overwrite Steam\.",
-        "Save settings",
-        "Backup and cloud",
         "Keep active"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CloudSafety.cs" `
+    "uses compact Play and Sync drawer detail labels for cloud-save safety" `
+    @(
+        "CompactPlaySyncDrawerText",
+        "Save Check",
+        "Get saves first",
+        "CompactCloudSafetyDetailText",
+        "Saves for:",
+        "Get Steam saves before upload\. Upload can overwrite Steam\."
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CloudOptions.cs" `
+    "uses compact Play and Sync drawer detail labels for save settings" `
+    @(
+        "CompactPlaySyncDrawerText",
+        "Save settings",
+        "Backup and cloud"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Support.Foundation.cs" `
     "packs compact recovery and support tools into a responsive grid that becomes full-width on narrow compact viewports" `
     @(
-        "compactStackedActionRows = false",
-        "_compactStackedActionRows = compact && compactStackedActionRows",
-        "_supportToolsGrid = BuildCompactSupportToolsGrid\(scale, compact, _compactStackedActionRows\)",
+        "BuildSupportFoundation",
+        "BuildCompactSupportToolsGrid\(scale, compact, compactStackedActionRows\)",
         "if \(compact\)",
-        "_supportGroup\.AddChild\(_supportToolsGrid\)",
+        "supportGroup\.AddChild\(supportToolsGrid\)",
         "supportToolsParent = compact",
-        "GridContainer",
-        "Columns = compactStackedActionRows \? 1 : 2",
+        "new SupportFoundation\(supportGroup, supportToolsGrid, supportToolsParent\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Support.Types.cs" `
+    "uses typed support construction return values instead of long tuple signatures" `
+    @(
+        "private readonly struct SupportFoundation",
+        "internal VBoxContainer Group",
+        "internal GridContainer ToolsGrid",
+        "internal Container ToolsParent",
+        "private readonly struct SupportControls",
+        "internal Button SupportToggle",
+        "internal Button UpdateButton",
+        "internal Button RefreshVersionsButton",
+        "internal Button RedownloadButton",
+        "internal Button ClearCachedVersionsButton",
+        "internal Button DiagnosticsButton",
+        "internal Button ShowLastErrorButton",
+        "internal Button CopyRawLogButton"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Support.cs" `
+    "orchestrates support toggle and tool button construction through focused helpers" `
+    @(
+        "private SupportControls BuildSupportControls",
+        "BuildSupportToggle",
+        "AddChild\(_supportGroup\)",
+        "return new SupportControls",
+        "BuildUpdateSupportButton",
+        "BuildRefreshVersionsSupportButton",
+        "BuildRedownloadSupportButton",
+        "BuildClearCachedVersionsSupportButton",
+        "BuildDiagnosticsSupportButton",
+        "BuildShowLastErrorSupportButton",
+        "BuildCopyRawLogSupportButton",
+        "SupportToggleText\(\)",
+        "ToggleSupportOptions",
+        "SetCompactActionButtonText\(supportToggle, supportToggle\.Text\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Support.Tools.cs" `
+    "keeps compact update version and cache tool labels in focused button builders" `
+    @(
         "AddCompactSupportToolButton",
-        "`"Safe Start`"",
-        "`"Cloud off`"",
         "`"Check Files`"",
         "`"Game Versions`"",
         "`"Repair Files`"",
         "`"Free Space`"",
-        "`"Help Report`"",
-        "`"Last Problem`"",
-        "`"Copy Log`"",
-        "`"Fixes & Help`"",
-        "`"Hide Fixes`"",
-        "`"Repair tools`"",
-        "`"Back to play`"",
         "`"Updates`"",
         "`"Refresh list`"",
         "`"Rebuild game`"",
-        "`"Old versions`"",
+        "`"Old versions`""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Support.DiagnosticsTools.cs" `
+    "keeps compact report problem and launcher-log support labels isolated" `
+    @(
+        "AddCompactSupportToolButton",
+        "`"Help Report`"",
+        "`"Last Problem`"",
+        "`"Copy Log`"",
         "`"Share details`"",
         "`"Open details`"",
-        "`"Review first`""
+        "`"Review first`"",
+        "`"Create Help Report`"",
+        "`"Show Last Problem`"",
+        "`"Copy Launcher Log \(Review First\)`""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Support.cs" `
+    "keeps compact support drawer grid and support toggle copy responsive" `
+    @(
+        "GridContainer",
+        "Columns = compactStackedActionRows \? 1 : 2",
+        "`"Fixes & Help`"",
+        "`"Hide Fixes`"",
+        "`"Repair tools`"",
+        "`"Back to play`""
     )
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\ActionSection.Buttons.cs" `
+    "keeps base ActionSection hidden button factories and push/pull buttons isolated" `
+    @(
+        "AddPrimaryHiddenButton",
+        "AddSecondaryHiddenButton",
+        "AddHiddenButton",
+        "new StyledButton",
+        "button\.Visible = false",
+        "button\.SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "AddPushPullButton",
+        "LauncherSectionMetrics\.SecondaryButtonHeight"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CompactActionButton.cs" `
     "uses readable fill-width buttons inside the compact support grid" `
     @(
         "AddCompactSupportToolButton",
@@ -2370,26 +4650,72 @@ Add-Check `
         "CompactActionButtonTitleName",
         "CompactActionButtonDetailName",
         "CompactActionButtonDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
-        "TrySplitCompactActionButtonText",
         'button\.Text = ""',
-        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
-        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "LauncherComponentTheme\.TextSecondary",
         "CompactSupportToolHeight",
         "CompactSupportToolFontSize",
-        "CompactSupportToolText",
-        "SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
+        "CompactSupportToolText"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CompactActionButton.Result.cs" `
+    "uses a typed compact action-button label result instead of a tuple" `
+    @(
+        "ActionSectionCompactActionButtonLabels",
+        "VBoxContainer Body",
+        "StyledLabel Title",
+        "StyledLabel Detail"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CompactActionButton.Text.cs" `
+    "splits compact action-button title and detail text and hides structured labels when unavailable" `
+    @(
+        "TrySplitCompactActionButtonText",
+        "IndexOf\('\\n'\)",
+        "detail = title\[\(separator \+ 1\)\.\.\]\.Trim\(\)",
+        "title = title\[\.\.separator\]\.Trim\(\)",
+        "HideCompactActionButtonLabels",
+        "GetNodeOrNull<VBoxContainer>",
+        "body\.Visible = false"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CompactActionButton.Labels.cs" `
+    "builds compact action-button body, title, and detail labels with readable truncation" `
+    @(
+        "EnsureCompactActionButtonLabels",
+        "BuildCompactActionButtonBody",
+        "BuildCompactActionButtonTitle",
+        "BuildCompactActionButtonDetail",
+        "new ActionSectionCompactActionButtonLabels",
+        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "LauncherComponentTheme\.TextPrimary",
+        "LauncherComponentTheme\.TextSecondary",
+        "button\.AddChild\(body\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Branches.Text.cs" `
+    "keeps dynamic compact version and safety drawer labels synced with structured title/detail button labels" `
+    @(
+        "SetCompactActionButtonText\(_branchDetailsToggle",
+        "SetCompactActionButtonText\(_cloudSafetyToggle"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CloudOptions.cs" `
+    "keeps dynamic compact save-settings drawer label synced with structured title/detail button labels" `
+    @(
+        "SetCompactActionButtonText\(_cloudOptionsToggle",
+        "Backup \{OnOff\(_localBackupEnabled\)\} / Cloud \{OnOff\(_cloudSyncEnabled\)\}"
     )
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
-    "keeps dynamic compact Play and Sync drawer labels synced with structured title/detail button labels" `
+    "keeps update button text routed through structured compact button labels" `
     @(
-        "private readonly float _scale",
-        "SetCompactActionButtonText\(_branchDetailsToggle",
-        "SetCompactActionButtonText\(_cloudSafetyToggle",
-        "SetCompactActionButtonText\(_updateButton, text\)",
-        "SetCompactActionButtonText\(_cloudOptionsToggle"
+        "SetCompactActionButtonText\(_updateButton, text\)"
     )
 
 Add-Check `
@@ -2403,26 +4729,50 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Primary.cs" `
+    "keeps compact safe start as a support-grid action with Cloud-off detail" `
+    @(
+        "AddCompactSupportToolButton",
+        "supportToolsParent",
+        "`"Safe Start`"",
+        "`"Cloud off`""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.cs" `
+    "keeps cloud construction as typed orchestration rather than one mixed UI method" `
+    @(
+        "private readonly record struct CloudControls",
+        "private readonly record struct CloudPrimaryActionControls",
+        "private readonly record struct CloudSafetyControls",
+        "private readonly record struct CloudOptionControls",
+        "BuildCloudPrimaryActionControls\(cloudGroup, scale, compact\)",
+        "BuildCloudSafetyControls\(cloudGroup, scale, compact\)",
+        "BuildCloudOptionControls\(cloudGroup, scale, compact\)",
+        "return new CloudControls"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.PrimaryActions.cs" `
     "uses explicit compact cloud direction labels while keeping upload locked" `
     @(
         "CompactCloudPullText\(\)",
         "CompactCloudPushToggleText\(expanded: false\)",
         "CompactCloudPushDangerText\(\)",
         "CompactCloudPushConfirmText\(\)",
-        "SetCompactActionButtonText\(_pullButton, _pullButton\.Text\)",
-        "SetCompactActionButtonText\(_pushButton, _pushButton\.Text\)",
-        "SetCompactActionButtonText\(_confirmPushButton, _confirmPushButton\.Text\)",
+        "SetCompactActionButtonText\(pullButton, pullButton\.Text\)",
+        "SetCompactActionButtonText\(pushButton, pushButton\.Text\)",
+        "SetCompactActionButtonText\(confirmPushButton, confirmPushButton\.Text\)",
         "CompactCloudPushWarningText\(\)",
         "CompactCloudPushWarningFontSize",
         "CompactCloudPushWarningHeight",
-        "_pushConfirmationLabel\.ClipText = compact",
-        "_pushConfirmationLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "_pushConfirmationLabel\.CustomMinimumSize = new Vector2"
+        "pushConfirmationLabel\.ClipText = compact",
+        "pushConfirmationLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "pushConfirmationLabel\.CustomMinimumSize = new Vector2"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CloudSafety.cs" `
     "defines compact Pull label as an explicit title/detail Android download action" `
     @(
         "CompactCloudPullText",
@@ -2431,7 +4781,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CloudSafety.cs" `
     "defines compact dangerous Push labels as explicit title/detail actions" `
     @(
         "CompactCloudPushDangerText",
@@ -2446,76 +4796,128 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CloudPush.cs" `
     "keeps compact Push relock label direction-aware and structured after reset" `
     @(
         "CompactCloudPushToggleText",
-        "Upload Locked",
-        "Review first",
-        "Hide Upload",
-        "Keep locked",
         "SetCompactActionButtonText\(_cloudPushToggle, _compact"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
-    "packs compact Get Steam Saves and locked Steam upload into responsive action rows while preserving get-saves-first order" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.ConstructionHelpers.cs" `
+    "packs compact Get Steam Saves and locked Steam upload into responsive action rows" `
     @(
         "BuildCompactCloudPrimaryActionsRow",
         "compactStackedActionRows",
         "new VBoxContainer\(\) : new HBoxContainer\(\)",
         "CompactCloudPrimaryActionSeparation",
-        "cloudPrimaryActionsParent = compact",
-        "BuildCompactCloudPrimaryActionsRow\(_pushPullRow, scale, _compactStackedActionRows\)",
-        "CompactCloudPullText\(\)",
-        "CompactCloudPushToggleText\(expanded: false\)",
-        "CompactCloudPushDangerText\(\)",
         "parent\.AddChild\(row\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherPortalStatusFormatter.cs" `
-    "formats launcher status text with clear user-facing phase labels" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.PrimaryActions.cs" `
+    "preserves get-saves-first order when wiring compact cloud actions" `
     @(
+        "cloudPrimaryActionsParent = compact",
+        "BuildCompactCloudPrimaryActionsRow\(pushPullRow, scale, _compactStackedActionRows\)",
+        "CompactCloudPullText\(\)",
+        "CompactCloudPushToggleText\(expanded: false\)",
+        "CompactCloudPushDangerText\(\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalStatusFormatter.cs" `
+    "declares status formatter UX support flags" `
+    @(
+        "internal static partial class LauncherPortalStatusFormatter",
         "PhaseLabelStatusSupported\s*=\s*true",
         "StructuredStatusChipSupported\s*=\s*true",
+        "GuidedNextActionStatusSupported\s*=\s*true",
+        "ErrorFirstGuidedStatusSupported\s*=\s*true",
         "CompactPlainLanguageStatusCopySupported\s*=\s*true",
-        "CompactShortStatusDetailsSupported\s*=\s*true",
+        "CompactShortStatusDetailsSupported\s*=\s*true"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalStatusFormatter.Message.cs" `
+    "formats compact launcher status text as plain-language user copy" `
+    @(
+        "MessageFor",
         "CompactMessageFor",
         "CompactMessageMaxChars = 86",
         "ShortenCompactMessage",
+        "Waiting for launcher state",
         "Sign in with Steam to continue",
         "Signing in to Steam",
         "Checking game ownership",
         "Download this game version to play",
         "Ready to play this version",
         "Signed in\. Checking game files",
-        "IsDownloadRequiredStatus",
-        "IsReadyStatus",
-        "Runtime pairing is verified",
-        "Active install slot",
-        "credentials",
         "Get Steam saves before uploading",
         "Upload blocked\. Check save safety first",
         "Runtime files need repair\. Redownload this version",
-        "Last launch failed\. Open details or try Safe Start",
+        "Last launch failed\. Open details or try Safe Start"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalStatusFormatter.Action.cs" `
+    "formats launcher status next-action labels" `
+    @(
+        "ActionFor",
+        "Fix Required",
+        "Verify Code",
+        "Install Game",
+        "Start Game",
+        "Choose Version",
+        "Sync Saves",
+        "Review Details",
+        "Next Step"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalStatusFormatter.Phase.cs" `
+    "classifies launcher status into clear phase labels" `
+    @(
+        "PhaseFor",
+        "Attention",
         "Steam",
         "Version",
         "Install",
         "Cloud",
         "Ready",
         "Details",
-        "Attention",
-        "Could not",
-        "Waiting for launcher state",
-        "MessageFor",
-        "ColorFor",
-        "PhaseFor"
+        "Status"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.cs" `
-    "declares secret-safe diagnostic metadata for portal UX hardening" `
+    "src\STS2Mobile\Launcher\LauncherPortalStatusFormatter.Color.cs" `
+    "maps launcher status phases to portal colors" `
+    @(
+        "ColorFor",
+        "LauncherComponentTheme\.OrangeHot",
+        "LauncherComponentTheme\.CyanAccent",
+        "LauncherComponentTheme\.OrangeAccent",
+        "new Color\(0\.36f, 0\.9f, 0\.42f\)",
+        "LauncherComponentTheme\.TextSecondary"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalStatusFormatter.Predicates.cs" `
+    "centralizes launcher status text predicates" `
+    @(
+        "ContainsAny",
+        "StringComparison\.OrdinalIgnoreCase",
+        "ContainsFailure",
+        "Could not",
+        "IsDownloadRequiredStatus",
+        "IsReadyStatus",
+        "Runtime pairing is verified",
+        "Active install slot"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.Status.cs" `
+    "declares status, safe-flow, and compact layout portal UX support flags" `
     @(
         "StatusLedPortalSupported\s*=\s*true",
         "PhaseLabelStatusSupported",
@@ -2526,6 +4928,7 @@ Add-Check `
         "TitledStateSectionsSupported\s*=\s*true",
         "SafeFirstRunGuidanceSupported\s*=\s*true",
         "CompactSafeFlowCollapsibleSupported\s*=\s*true",
+        "CompactLowProfileSafeFlowToggleSupported\s*=\s*true",
         "CompactSafeFlowToggleDetailLabelsSupported\s*=\s*true",
         "CompactStructuredSafeFlowToggleLabelsSupported\s*=\s*true",
         "CompactSafeFlowBoundedGuideSupported\s*=\s*true",
@@ -2535,6 +4938,8 @@ Add-Check `
         "CompactDenseVerticalRhythmSupported\s*=\s*true",
         "RoundedScaledLauncherMetricsSupported\s*=\s*true",
         "AndroidCompactTouchScaleFloorSupported\s*=\s*true",
+        "AndroidReadableWarmupScreenSupported\s*=\s*true",
+        "AndroidReadableStartupStatusCardSupported\s*=\s*true",
         "CompactDynamicContentWidthSupported\s*=\s*true",
         "TabletWideContentLayoutSupported\s*=\s*true",
         "PortalTopAnchoredContentSupported\s*=\s*true",
@@ -2548,7 +4953,13 @@ Add-Check `
         "CompactShortStatusDetailsSupported",
         "CompactStatusTapToExpandDetailsSupported\s*=\s*true",
         "CompactTouchSafeStatusDetailButtonSupported\s*=\s*true",
-        "CompactStatusDetailCueSupported\s*=\s*true",
+        "CompactStatusDetailCueSupported\s*=\s*true"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.Workflow.cs" `
+    "declares compact workflow and sticky task-header portal UX support flags" `
+    @(
         "CompactWorkflowStepStripSupported\s*=\s*true",
         "CompactTwoColumnWorkflowStripSupported\s*=\s*false",
         "CompactSingleRowNumberedWorkflowStripSupported\s*=\s*true",
@@ -2580,7 +4991,13 @@ Add-Check `
         "ViewportAwareCompactTaskReanchorSupported\s*=\s*true",
         "CompactDenseStickyTaskHeaderSupported\s*=\s*true",
         "CompactTaskJumpNavigationLabelsSupported\s*=\s*true",
-        "CompactReadableDetailLabelFontSupported\s*=\s*true",
+        "CompactReadableDetailLabelFontSupported\s*=\s*true"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.AuthChrome.cs" `
+    "declares compact auth, confirmation, branding, and section chrome support flags" `
+    @(
         "CompactTouchSafeConfirmationDialogsSupported\s*=\s*true",
         "CompactScrollSafeConfirmationDialogsSupported\s*=\s*true",
         "CompactContextualConfirmationLabelsSupported\s*=\s*true",
@@ -2600,7 +5017,6 @@ Add-Check `
         "CompactAndroidLoginDetailLabelSupported\s*=\s*true",
         "CompactAndroidLoginHelperDetailLabelSupported\s*=\s*true",
         "CompactCompletedAuthSectionSuppressionSupported\s*=\s*true",
-        "CompactLowProfileSafeFlowToggleSupported\s*=\s*true",
         "TouchFirstActionTargetsSupported\s*=\s*true",
         "PrimaryActionWordingSupported\s*=\s*true",
         "ConsistentStartGameCtaSupported\s*=\s*true",
@@ -2617,9 +5033,13 @@ Add-Check `
         "CompactSingleRowSectionHeadersSupported\s*=\s*true",
         "CompactSectionHeaderTaskCueSupported\s*=\s*true",
         "CompactReadableSectionHeaderCuesSupported\s*=\s*true",
-        "CompactExplicitSectionHeaderCuesSupported\s*=\s*true",
-        "AndroidReadableWarmupScreenSupported\s*=\s*true",
-        "AndroidReadableStartupStatusCardSupported\s*=\s*true",
+        "CompactExplicitSectionHeaderCuesSupported\s*=\s*true"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.InstallCloud.cs" `
+    "declares install, ready-state, cloud-safety, drawer, and scroll support flags" `
+    @(
         "CompactInstallPrimaryActionFirstSupported\s*=\s*true",
         "CompactInstallPrimaryDetailLabelSupported\s*=\s*true",
         "CompactDownloadProgressHeroSupported\s*=\s*true",
@@ -2639,6 +5059,8 @@ Add-Check `
         "CompactReadyVersionSummaryShortcutSupported\s*=\s*true",
         "CompactReadyVersionSummaryHeadlineSupported\s*=\s*true",
         "CompactResponsiveReadyVersionSummarySupported\s*=\s*true",
+        "CompactReadyStatePrioritySupported\s*=\s*true",
+        "CompactReadyStateCloudOptionsBelowLaunchSupported\s*=\s*true",
         "CompactPlaySyncDrawerDetailLabelsSupported\s*=\s*true",
         "CompactStructuredPlaySyncActionLabelsSupported\s*=\s*true",
         "CompactPlainLanguagePlaySyncLabelsSupported\s*=\s*true",
@@ -2680,7 +5102,13 @@ Add-Check `
         "ViewportAwareKeyboardOffsetSupported\s*=\s*true",
         "KeyboardFocusedInputScrollSupported\s*=\s*true",
         "CompactReadyStateSafeFlowSuppressionSupported\s*=\s*true",
-        "CompactActiveTaskSafeFlowSuppressionSupported\s*=\s*true",
+        "CompactActiveTaskSafeFlowSuppressionSupported\s*=\s*true"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.Diagnostics.cs" `
+    "declares diagnostics, fallback recovery, startup recovery, and validation-boundary support flags" `
+    @(
         "NativeFallbackRecoveryActionsStyledSupported\s*=\s*true",
         "NativeFallbackDiagnosticsCollapsedSupported\s*=\s*true",
         "NativeFallbackResponsiveRecoveryRowsSupported\s*=\s*true",
@@ -2692,9 +5120,19 @@ Add-Check `
         "CompactLowProfileDiagnosticsToggleSupported\s*=\s*true",
         "CompactDiagnosticsToggleDetailLabelsSupported\s*=\s*true",
         "CompactStructuredDiagnosticsToggleLabelsSupported\s*=\s*true",
+        "PlainLanguageHelpReportCopySupported\s*=\s*true",
         "CompactDiagnosticsScrollHostedSupported\s*=\s*true",
+        "CompactReadableDiagnosticsLogSupported\s*=\s*true",
+        "CompactBoundedDiagnosticsLogViewportSupported\s*=\s*true",
+        "ViewportAwareDiagnosticsLogResizeSupported\s*=\s*true",
         "StartupFallbackRawBannerSuppressed\s*=\s*true",
-        "PortalUxDeviceValidated\s*=\s*false",
+        "PortalUxDeviceValidated\s*=\s*false"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.cs" `
+    "keeps secret-safe portal UX narrative and validation boundary text" `
+    @(
         "Status-led launcher portal",
         "compact plain-language status copy for sign-in, ownership check, install-needed, and ready-to-play states",
         "Steam sign-in",
@@ -2740,10 +5178,8 @@ Add-Check `
         "compact ready-version summary",
         "compact ready-version summary panel",
         "compact responsive ready-version summary with Save Check shortcut opens Save Check from a touch-safe Upload-locked cue without unlocking Push",
-        "CompactReadyStatePrioritySupported\s*=\s*true",
         "CompactReadyStatePriorityDescription",
         "compact ready-state priority that keeps the ready summary, Save Check shortcut, and Get-saves-first cloud controls before Start Game while moving version management below the primary launch path",
-        "CompactReadyStateCloudOptionsBelowLaunchSupported\s*=\s*true",
         "CompactReadyStateCloudOptionsBelowLaunchDescription",
         "compact ready-state cloud options stay below Start Game as an optional save-settings drawer after Get-saves-first cloud controls",
         "compact Play/Sync drawer detail labels rendered as structured title/detail action labels",
@@ -2780,283 +5216,88 @@ Add-Check `
         "styled native fallback recovery actions",
         "ARM64 visual validation"
     )
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.Features.cs" `
+    "builds launcher UI hardening diagnostics feature registry from category-owned reports" `
+    @(
+        "FeatureReports => BuildFeatureReports",
+        "new List<LauncherPortalUxFeature>",
+        "AddStatusFeatureReports\(features\)",
+        "AddWorkflowFeatureReports\(features\)",
+        "AddAuthChromeFeatureReports\(features\)",
+        "AddInstallCloudFeatureReports\(features\)",
+        "AddDiagnosticsFeatureReports\(features\)",
+        "return features\.ToArray\(\)"
+    )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherDiagnostics.Reports.cs" `
-    "exports launcher UI hardening support flags in diagnostics" `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.Features.Status.cs" `
+    "keeps status and safe-flow feature diagnostics beside status support flags" `
     @(
-        "compact cloud option labels supported",
-        "CompactCloudOptionLabelsSupported",
-        "compact cloud option detail labels supported",
-        "CompactCloudOptionDetailLabelsSupported",
-        "compact cloud options row supported",
-        "CompactCloudOptionsRowSupported",
-        "compact stacked status header supported",
+        "AddStatusFeatureReports",
+        "status-led portal supported",
         "CompactStackedStatusHeaderSupported",
-        "compact low-profile status card supported",
-        "CompactLowProfileStatusCardSupported",
-        "compact status headline row supported",
-        "CompactStatusHeadlineRowSupported",
-        "compact stacked status headline supported",
-        "CompactStackedStatusHeadlineSupported",
-        "viewport-aware compact status headline reflow supported",
         "ViewportAwareCompactStatusHeadlineReflowSupported",
-        "compact stable status detail row supported",
-        "CompactStableStatusDetailRowSupported",
-        "compact short status details supported",
         "CompactShortStatusDetailsSupported",
-        "compact status tap-to-expand details supported",
-        "CompactStatusTapToExpandDetailsSupported",
-        "compact touch-safe status detail button supported",
         "CompactTouchSafeStatusDetailButtonSupported",
-        "compact status detail cue supported",
-        "CompactStatusDetailCueSupported",
-        "compact workflow step strip supported",
+        "CompactStatusDetailCueSupported"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.Features.Workflow.cs" `
+    "keeps workflow and current-task feature diagnostics beside workflow support flags" `
+    @(
+        "AddWorkflowFeatureReports",
         "CompactWorkflowStepStripSupported",
-        "compact two-column workflow step strip supported",
-        "CompactTwoColumnWorkflowStripSupported",
-        "compact single-row numbered workflow step strip supported",
-        "CompactSingleRowNumberedWorkflowStripSupported",
-        "compact narrow workflow single-row supported",
-        "CompactNarrowWorkflowSingleRowSupported",
-        "compact visible workflow step labels supported",
-        "CompactVisibleWorkflowStepLabelsSupported",
-        "compact workflow step detail labels supported",
-        "CompactWorkflowStepDetailLabelsSupported",
-        "compact sticky workflow step strip supported",
-        "CompactStickyWorkflowStepStripSupported",
-        "compact low-profile workflow step strip supported",
-        "CompactLowProfileWorkflowStepStripSupported",
-        "compact workflow step direct navigation supported",
-        "CompactWorkflowStepDirectNavigationSupported",
-        "compact workflow step number badges supported",
         "CompactWorkflowStepNumberBadgesSupported",
-        "compact readable workflow step number badges supported",
-        "CompactReadableWorkflowStepNumberBadgesSupported",
-        "compact workflow unified touch height supported",
-        "CompactWorkflowUnifiedTouchHeightSupported",
-        "compact current-task jump supported",
         "CompactCurrentTaskJumpSupported",
-        "compact sticky current-task bar supported",
-        "CompactStickyCurrentTaskBarSupported",
-        "compact low-profile current-task bar supported",
-        "CompactLowProfileCurrentTaskBarSupported",
-        "compact dense inline current-task bar supported",
-        "CompactDenseInlineCurrentTaskBarSupported",
-        "compact current-task shared touch height supported",
-        "CompactCurrentTaskSharedTouchHeightSupported",
-        "compact low-profile stacked current-task bar supported",
-        "CompactLowProfileStackedCurrentTaskBarSupported",
-        "compact current-task context labels supported",
-        "CompactCurrentTaskContextLabelsSupported",
-        "compact structured current-task labels supported",
-        "CompactStructuredCurrentTaskLabelsSupported",
-        "compact current-task short title labels supported",
-        "CompactCurrentTaskShortTitleLabelsSupported",
-        "compact touch-safe sticky header controls supported",
-        "CompactTouchSafeStickyHeaderControlsSupported",
-        "compact grouped sticky task header supported",
-        "CompactGroupedStickyTaskHeaderSupported",
-        "compact sticky task toolbar shell supported",
         "CompactStickyTaskToolbarShellSupported",
-        "compact responsive sticky task header supported",
-        "CompactResponsiveStickyTaskHeaderSupported",
-        "viewport-aware sticky task header reflow supported",
-        "ViewportAwareStickyTaskHeaderReflowSupported",
-        "viewport-aware compact task re-anchor supported",
         "ViewportAwareCompactTaskReanchorSupported",
-        "compact dense sticky task header supported",
-        "CompactDenseStickyTaskHeaderSupported",
-        "compact task-jump navigation labels supported",
-        "CompactTaskJumpNavigationLabelsSupported",
-        "compact readable detail label font supported",
-        "CompactReadableDetailLabelFontSupported",
-        "compact touch-safe confirmation dialogs supported",
-        "CompactTouchSafeConfirmationDialogsSupported",
-        "compact scroll-safe confirmation dialogs supported",
-        "CompactScrollSafeConfirmationDialogsSupported",
-        "compact contextual confirmation labels supported",
-        "CompactContextualConfirmationLabelsSupported",
-        "viewport-aware confirmation dialogs supported",
-        "ViewportAwareConfirmationDialogsSupported",
-        "compact Steam Guard large input supported",
+        "CompactReadableDetailLabelFontSupported"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.Features.AuthChrome.cs" `
+    "keeps sign-in, action, and chrome feature diagnostics beside auth/chrome support flags" `
+    @(
+        "AddAuthChromeFeatureReports",
         "CompactSteamGuardLargeInputSupported",
-        "compact Steam Guard action-first layout supported",
-        "CompactSteamGuardActionFirstSupported",
-        "compact Steam Guard inline action row supported",
-        "CompactSteamGuardInlineActionRowSupported",
-        "compact responsive Steam Guard action layout supported",
-        "CompactResponsiveSteamGuardActionLayoutSupported",
-        "viewport-aware compact Steam Guard action row reflow supported",
         "ViewportAwareCompactSteamGuardActionRowReflowSupported",
-        "compact Steam Guard submit detail label supported",
-        "CompactSteamGuardSubmitDetailLabelSupported",
-        "compact Steam Guard retry guidance supported",
-        "CompactSteamGuardRetryGuidanceSupported",
-        "compact Steam Guard bounded helper supported",
-        "CompactSteamGuardBoundedHelperSupported",
-        "compact primary retry action supported",
-        "CompactPrimaryRetryActionSupported",
-        "compact structured retry action labels supported",
-        "CompactStructuredRetryActionLabelsSupported",
-        "compact primary login action first supported",
-        "CompactPrimaryLoginActionFirstSupported",
-        "compact Android login primary CTA supported",
         "CompactAndroidLoginPrimaryCtaSupported",
-        "compact Android login detail label supported",
-        "CompactAndroidLoginDetailLabelSupported",
-        "compact Android login helper detail label supported",
-        "CompactAndroidLoginHelperDetailLabelSupported",
-        "compact completed-auth section suppression supported",
-        "CompactCompletedAuthSectionSuppressionSupported",
-        "compact dense vertical rhythm supported",
-        "CompactDenseVerticalRhythmSupported",
-        "Android-readable warmup screen supported",
-        "AndroidReadableWarmupScreenSupported",
-        "Android-readable startup status card supported",
-        "AndroidReadableStartupStatusCardSupported",
-        "compact low-profile safe-flow toggle supported",
-        "CompactLowProfileSafeFlowToggleSupported",
-        "compact safe-flow toggle detail labels supported",
-        "CompactSafeFlowToggleDetailLabelsSupported",
-        "compact structured safe-flow toggle labels supported",
-        "CompactStructuredSafeFlowToggleLabelsSupported",
-        "compact safe-flow bounded guide supported",
-        "CompactSafeFlowBoundedGuideSupported",
-        "compact plain-language Quick Start labels supported",
-        "CompactPlainLanguageQuickStartLabelsSupported",
-        "compact single-row section headers supported",
+        "ConsistentStartGameCtaSupported",
+        "BrandedAtmosphericBackgroundSupported",
         "CompactSingleRowSectionHeadersSupported",
-        "compact section-header task cues supported",
-        "CompactSectionHeaderTaskCueSupported",
-        "compact explicit section-header cues supported",
-        "CompactExplicitSectionHeaderCuesSupported",
-        "compact install primary action first supported",
+        "CompactExplicitSectionHeaderCuesSupported"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.Features.InstallCloud.cs" `
+    "keeps install, launch, and cloud feature diagnostics beside install/cloud support flags" `
+    @(
+        "AddInstallCloudFeatureReports",
         "CompactInstallPrimaryActionFirstSupported",
-        "compact install primary detail label supported",
-        "CompactInstallPrimaryDetailLabelSupported",
-        "compact download progress hero supported",
-        "CompactDownloadProgressHeroSupported",
-        "compact download progress status label supported",
-        "CompactDownloadProgressStatusLabelSupported",
-        "compact readable download progress bar supported",
-        "CompactReadableDownloadProgressBarSupported",
-        "compact inline install-version controls supported",
-        "CompactInlineInstallVersionControlsSupported",
-        "compact selected-version summary supported",
         "CompactSelectedVersionSummarySupported",
-        "compact version summary cards supported",
-        "CompactVersionSummaryCardsSupported",
-        "compact selected-version summary shortcut supported",
-        "CompactSelectedVersionSummaryShortcutSupported",
-        "compact selected-version headline supported",
-        "CompactSelectedVersionHeadlineSupported",
-        "compact responsive selected-version summary supported",
-        "CompactResponsiveSelectedVersionSummarySupported",
-        "compact structured install-version action labels supported",
-        "CompactStructuredInstallVersionActionLabelsSupported",
-        "compact ready-version summary supported",
         "CompactReadyVersionSummarySupported",
-        "compact ready-version summary panel supported",
-        "CompactReadyVersionSummaryPanelSupported",
-        "compact ready-version summary shortcut supported",
-        "CompactReadyVersionSummaryShortcutSupported",
-        "compact ready-version headline supported",
-        "CompactReadyVersionSummaryHeadlineSupported",
-        "compact responsive ready-version summary supported",
-        "CompactResponsiveReadyVersionSummarySupported",
-        "compact ready-state priority supported",
-        "CompactReadyStatePrioritySupported",
-        "compact ready-state cloud options below launch supported",
-        "CompactReadyStateCloudOptionsBelowLaunchSupported",
-        "compact plain-language Play/Sync labels supported",
         "CompactPlainLanguagePlaySyncLabelsSupported",
-        "compact ready-state install-section suppression supported",
-        "CompactReadyStateInstallSectionSuppressionSupported",
-        "compact touch-safe version dropdown supported",
-        "CompactTouchSafeVersionDropdownSupported",
-        "compact touch-safe dropdown popup supported",
-        "CompactTouchSafeDropdownPopupSupported",
-        "compact cloud-safety cue before actions supported",
-        "CompactCloudSafetyCueBeforeActionsSupported",
-        "compact cloud-safety detail label supported",
-        "CompactCloudSafetyDetailLabelSupported",
-        "compact cloud direction labels supported",
-        "CompactCloudDirectionLabelsSupported",
-        "compact cloud primary actions row supported",
-        "CompactCloudPrimaryActionsRowSupported",
-        "compact Pull detail label supported",
-        "CompactCloudPullDetailLabelSupported",
-        "compact locked Push detail labels supported",
-        "CompactCloudPushLockDetailLabelsSupported",
-        "compact dangerous Push detail labels supported",
         "CompactCloudPushDangerDetailLabelsSupported",
-        "compact armed Push warning detail label supported",
-        "CompactCloudPushWarningDetailLabelSupported",
-        "compact responsive action rows supported",
-        "CompactResponsiveActionRowsSupported",
-        "compact drawer state reset supported",
-        "CompactDrawerStateResetSupported",
-        "compact drawer toggle-first ordering supported",
-        "CompactDrawerToggleFirstSupported",
-        "compact dense drawer toggle height supported",
-        "CompactDenseDrawerToggleHeightSupported",
-        "compact touch-safe drawer toggle sizing supported",
-        "CompactTouchSafeDrawerToggleSizingSupported",
-        "compact support tools grid supported",
         "CompactSupportToolsGridSupported",
-        "compact launcher-log review label supported",
         "CompactRawLogReviewLabelSupported",
-        "compact drawer selection collapse supported",
-        "CompactDrawerSelectionCollapseSupported",
-        "compact active-section scroll supported",
-        "CompactActiveSectionScrollSupported",
-        "compact primary-action scroll anchors supported",
-        "CompactPrimaryActionScrollAnchorsSupported",
-        "compact padded scroll anchors supported",
-        "CompactPaddedScrollAnchorsSupported",
-        "compact bottom scroll breathing room supported",
-        "CompactBottomScrollBreathingRoomSupported",
-        "compact dense panel padding supported",
-        "CompactDensePanelPaddingSupported",
-        "compact dense vertical rhythm supported",
-        "CompactDenseVerticalRhythmSupported",
-        "rounded scaled metrics supported",
-        "RoundedScaledLauncherMetricsSupported",
-        "compact low-profile attribution footer supported",
-        "CompactLowProfileAttributionSupported",
-        "viewport-aware keyboard offset supported",
         "ViewportAwareKeyboardOffsetSupported",
-        "keyboard-focused input scroll supported",
-        "KeyboardFocusedInputScrollSupported",
-        "compact ready-state safe-flow suppression supported",
-        "CompactReadyStateSafeFlowSuppressionSupported",
-        "compact active-task safe-flow suppression supported",
-        "CompactActiveTaskSafeFlowSuppressionSupported",
-        "native fallback recovery actions styled",
+        "CompactActiveTaskSafeFlowSuppressionSupported"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherPortalUxSupport.Features.Diagnostics.cs" `
+    "keeps fallback, diagnostics, and validation feature diagnostics beside diagnostics support flags" `
+    @(
+        "AddDiagnosticsFeatureReports",
         "NativeFallbackRecoveryActionsStyledSupported",
-        "native fallback diagnostics collapsed by default",
-        "NativeFallbackDiagnosticsCollapsedSupported",
-        "native fallback responsive recovery rows supported",
-        "NativeFallbackResponsiveRecoveryRowsSupported",
-        "startup recovery scroll-safe controls supported",
         "StartupRecoveryScrollSafeControlsSupported",
-        "startup recovery structured compact actions supported",
-        "StartupRecoveryStructuredCompactActionsSupported",
-        "Help & Reports drawer auto-opens for diagnostics actions",
-        "DiagnosticsConsoleAutoOpensForDiagnosticsActionsSupported",
-        "plain-language help report copy supported",
+        "VersionInstallCloudSeparationGuidanceSupported",
+        "DiagnosticsConsoleHiddenByDefault",
         "PlainLanguageHelpReportCopySupported",
-        "compact diagnostics toggle detail labels supported",
-        "CompactDiagnosticsToggleDetailLabelsSupported",
-        "compact structured diagnostics toggle labels supported",
-        "CompactStructuredDiagnosticsToggleLabelsSupported",
-        "compact readable diagnostics log supported",
-        "CompactReadableDiagnosticsLogSupported",
-        "compact bounded diagnostics log viewport supported",
-        "CompactBoundedDiagnosticsLogViewportSupported",
-        "viewport-aware diagnostics log resize supported",
-        "ViewportAwareDiagnosticsLogResizeSupported"
+        "ViewportAwareDiagnosticsLogResizeSupported",
+        "PortalUxDeviceValidated"
     )
 
 Add-Check `
@@ -3078,13 +5319,23 @@ Add-Check `
         "_panelBaseY = _panel\.Position\.Y \+ _keyboardOffset",
         "_panel\.UpdateSizeFromViewport",
         "UpdateKeyboardOffset\(\)",
-        "_keyboardOffset = Math\.Min",
-        "_panelBaseY - _keyboardOffset",
-        "_keyboardOffset = 0f"
+        "ReanchorCompactScrollTargetAfterViewportChange\(\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.Keyboard.cs" `
+    "updates Android keyboard offset and panel position from the visible viewport" `
+    @(
+        "UpdateKeyboardOffset\(\)",
+        "DisplayServer\.VirtualKeyboardGetHeight\(\)",
+        "_keyboardOffset = Math\.Min",
+        "_panelBaseY - _keyboardOffset",
+        "_keyboardOffset = 0f",
+        "_panelBaseY"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherView.Behavior.Keyboard.cs" `
     "scrolls focused managed inputs above the Android keyboard" `
     @(
         "ScrollFocusedInputAboveKeyboard",
@@ -3115,7 +5366,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\ModEntry.cs" `
+    "src\STS2Mobile\ModEntry.StandaloneLauncher.cs" `
     "suppresses raw startup fallback banner behind the launcher portal" `
     @(
         "Startup fallback raw banner suppressed",
@@ -3123,7 +5374,7 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Visibility.cs" `
     "reveals the framed play/sync action section when launch or retry actions are available" `
     @(
         "internal void ShowLaunch",
@@ -3138,33 +5389,85 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Visibility.SecondaryState.cs" `
+    "models ready, retry, and hidden secondary button visibility presets" `
+    @(
+        "SecondaryButtonVisibility",
+        "LaunchReady\(bool showUpdate\)",
+        "Retry\(\)",
+        "Hidden\(\)",
+        "redownload: true",
+        "support: true",
+        "safeLaunch: true",
+        "launch: true"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Visibility.Secondary.cs" `
+    "applies secondary ready/retry/hidden button visibility to the action section" `
+    @(
+        "ShowLaunchButtons",
+        "ShowRetryButtons",
+        "HideSecondaryButtons",
+        "SetSecondaryButtonsVisible",
+        "ShowUpdateButton\(visibility\.Update\)",
+        "_redownloadButton\.Visible = visibility\.Redownload",
+        "_branchControlsAvailable = visibility\.Branch",
+        "ApplyBranchControlVisibility",
+        "SetSupportButtonsVisible\(visibility\.Support\)",
+        "_readyVersionSummaryPanel\.Visible = _compact && visibility\.Launch"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Visibility.Support.cs" `
+    "keeps compact update and support-tool visibility together" `
+    @(
+        "ShowUpdateButton",
+        "CompactSupportToolText\(""Check Files"", ""Updates""\)",
+        "Check for Updates",
+        "SetSupportButtonsVisible",
+        "_supportExpanded = false",
+        "_supportGroup\.Visible = false",
+        "SupportToggleText\(\)",
+        "_diagnosticsButton\.Visible = visible",
+        "_refreshVersionsButton\.Visible = visible",
+        "_clearCachedVersionsButton\.Visible = visible",
+        "_showLastErrorButton\.Visible = visible",
+        "_copyRawLogButton\.Visible = visible"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.PrimaryActions.cs" `
     "uses explicit Steam Cloud direction and overwrite-risk wording in the portal" `
     @(
-        "_pushPullRow",
-        "_pushButton",
-        "_confirmPushButton",
-        "_pushConfirmationLabel",
+        "pushPullRow",
+        "pushButton",
+        "confirmPushButton",
+        "pushConfirmationLabel",
         "Push Locked",
         "CompactCloudPushDangerText\(\)",
         "CompactCloudPushConfirmText\(\)",
         "CompactCloudPushWarningText\(\)",
         "Pull Saves from Steam Cloud",
-        "CloudPushArmRequested",
-        "CloudPushArmRequested\?\.Invoke\(\) == false",
-        "ArmCloudPush",
-        "ConfirmCloudPush",
-        "ResetCloudPushArm",
         "can overwrite remote Steam Cloud saves"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CloudPush.cs" `
+    "keeps Steam Cloud Push behind an explicit arm and confirm flow" `
+    @(
+        "CloudPushArmRequested",
+        "CloudPushArmRequested\?\.Invoke\(\) == false",
+        "ArmCloudPush",
+        "ConfirmCloudPush",
+        "ResetCloudPushArm"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Branches.Text.cs" `
     "uses explicit Steam Cloud direction wording in ready/action state" `
     @(
         "_readyVersionSummaryLabel",
-        "_readyVersionSummaryPanel",
-        "BuildReadyVersionSummaryStyle",
         "Ready version:",
         "Start Game and Pull/Push use this version",
         "Push stays locked until explicitly opened",
@@ -3173,10 +5476,34 @@ Add-Check `
         "Push copies Android saves to Steam Cloud",
         "can overwrite remote saves",
         "Version/download actions affect local game files only",
-        "Steam Cloud saves move only through Pull/Push",
-        "_cloudOptionsExpanded = false",
-        "_branchDetailsExpanded = false",
-        "_cloudPushExpanded = false"
+        "Steam Cloud saves move only through Pull/Push"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Visibility.Cloud.cs" `
+    "collapses compact cloud drawers when cloud controls hide" `
+    @(
+        "SetCloudControlsVisible",
+        "_cloudGroup\.Visible = visible",
+        "ApplyCloudOptionVisibility\(visible\)",
+        "_pushPullRow\.Visible = visible",
+        "_cloudSafetyExpanded = false",
+        "_cloudPushExpanded = false",
+        "ResetCloudPushArm\(visible\)",
+        "UpdateBranchHelpText",
+        "SetPushPullDisabled",
+        "ResetCloudPushArm\(_pushPullRow\.Visible\)",
+        "_pushButton\.Disabled = disabled",
+        "_cloudPushToggle\.Disabled = disabled",
+        "_confirmPushButton\.Disabled = disabled",
+        "_pullButton\.Disabled = disabled"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.CloudOptions.cs" `
+    "collapses compact cloud option drawer when cloud controls hide" `
+    @(
+        "_cloudOptionsExpanded = false"
     )
 
 Add-Check `
@@ -3194,62 +5521,78 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.ConstructionHelpers.cs" `
     "packs compact Save Backup and Cloud Sync options into responsive action rows" `
     @(
         "BuildCompactCloudOptionsRow",
         "compactStackedActionRows",
         "CompactCloudOptionToggleSeparation",
-        "_compactCloudOptionsRow = BuildCompactCloudOptionsRow\(_cloudGroup, scale, _compactStackedActionRows\)",
-        "AddCompactSupportToolButton\(cloudOptionsParent, ""Save Backup Off""",
-        "AddCompactSupportToolButton\(cloudOptionsParent, ""Cloud Sync Off""",
         "Visible = false",
         "new VBoxContainer\(\) : new HBoxContainer\(\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
-    "shows cloud-save safety guidance beside Pull/Push actions" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.Options.cs" `
+    "wires compact Save Backup and Cloud Sync options into the cloud group" `
     @(
-        "_cloudSafetyLabel",
-        "_cloudGroup.AddChild\(_pushPullRow\)",
-        "OrangeHot",
-        "Pull Saves from Steam Cloud",
-        "Push Locked",
-        "CompactCloudPushConfirmText\(\)",
-        "Save Backup Off",
-        "Cloud Sync Off",
-        "Show Save Settings"
+        "compactCloudOptionsRow = BuildCompactCloudOptionsRow",
+        "_compactStackedActionRows",
+        "AddCompactSupportToolButton\(cloudOptionsParent, ""Save Backup Off""",
+        "AddCompactSupportToolButton\(cloudOptionsParent, ""Cloud Sync Off"""
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.PrimaryActions.cs" `
+    "keeps Pull and Push cloud actions beside the confirmation warning" `
+    @(
+        "cloudGroup.AddChild\(pushPullRow\)",
+        "Pull Saves from Steam Cloud",
+        "Push Locked",
+        "CompactCloudPushConfirmText\(\)",
+        "can overwrite remote Steam Cloud saves"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.Safety.cs" `
+    "shows cloud-save safety guidance beside Pull/Push actions" `
+    @(
+        "cloudSafetyLabel",
+        "OrangeHot",
+        "CompactCloudSafetyDetailHeight",
+        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
+        "cloudGroup.AddChild\(cloudSafetyLabel\)",
+        "CompactCloudSafetySummary\(\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Layout.cs" `
     "moves compact cloud-safety cue before Pull/Push controls" `
     @(
         "MoveCompactCloudSafetyCueBeforeCloudActions",
         "_cloudGroup\.MoveChild\(_cloudSafetyToggle, 0\)",
         "MoveChildAfter\(_cloudGroup, _cloudSafetyLabel, _cloudSafetyToggle\)",
-        "MoveChildAfter\(_cloudGroup, _pushPullRow, _cloudSafetyLabel\)",
-        "CompactCloudSafetySummary\(\)",
-        "CompactCloudSafetyDetailHeight",
-        "CompactCloudSafetyDetailFontSize",
-        "_cloudSafetyLabel\.ClipText = compact",
-        "_cloudSafetyLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "_cloudSafetyLabel\.CustomMinimumSize = new Vector2",
-        "_cloudGroup.AddChild\(_pushPullRow\)"
+        "MoveChildAfter\(_cloudGroup, _pushPullRow, _cloudSafetyLabel\)"
     )
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\CodeSection.cs" `
-    "uses alphanumeric keyboard and normalization for Steam Guard code entry" `
+    "wires Steam Guard code input to alphanumeric normalization and one-shot submit" `
     @(
-        "VirtualKeyboardType\.Default",
-        "Enter Steam Guard code",
         "TextChanged \+= NormalizeCodeText",
+        "TextSubmitted \+= _ => OnSubmit\(\)",
+        "submitButton\.Pressed \+= OnSubmit",
+        "CodeSubmitted"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CodeSection.Submission.cs" `
+    "normalizes Steam Guard codes to uppercase alphanumeric text before submitting once" `
+    @(
+        "NormalizeCodeText",
         "NormalizeCode\(string text\)",
         "char\.IsLetterOrDigit",
         "char\.ToUpperInvariant",
-        "CodeSubmitted"
+        "CodeSubmitted\?\.Invoke\(code\)"
     )
 
 Add-Check `
@@ -3371,22 +5714,35 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Construction.cs" `
+    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Text.cs" `
     "labels startup recovery launcher-log copy as review-before-sharing" `
     @(
-        "Copy Launcher Log \(Review First\)",
         "If startup stalls, restart the app, try Safe Start, or create a help report",
-        "Review logs before sharing",
+        "Review logs before sharing"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Buttons.cs" `
+    "labels startup recovery launcher-log button as review-before-sharing" `
+    @(
+        "Copy Launcher Log \(Review First\)",
         "Review first"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Construction.cs" `
-    "uses structured compact startup recovery actions instead of raw debug labels" `
+    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.CompactButton.cs" `
+    "uses structured compact startup recovery button labels instead of raw debug labels" `
     @(
         "CompactRecoveryButtonBody",
         "CompactRecoveryButtonTitle",
         "CompactRecoveryButtonDetail",
+        "AddCompactRecoveryButtonLabels"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Buttons.cs" `
+    "uses compact startup recovery action copy instead of raw debug labels" `
+    @(
         "Restart App",
         "Open launcher",
         "Safe Start",
@@ -3396,12 +5752,11 @@ Add-Check `
         "Copy Log",
         "Review first",
         "Hide Help",
-        "Keep waiting",
-        "AddCompactRecoveryButtonLabels"
+        "Keep waiting"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Construction.cs" `
+    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Layout.cs" `
     "keeps startup recovery controls reachable with a scroll-safe Android layout" `
     @(
         "CreateScrollContainer",
@@ -3414,13 +5769,22 @@ Add-Check `
         "RecoveryTopMargin",
         "UseCompactRecoveryCopy",
         "OperatingSystem\.IsAndroid\(\)",
-        "SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill",
+        "SizeFlagsHorizontal = Control\.SizeFlags\.ExpandFill"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.Construction.cs" `
+    "wires startup recovery scroll hierarchy in order" `
+    @(
+        "CreateScrollContainer",
+        "CreateFrame",
+        "CreateContainer",
         "scroll\.AddChild\(frame\)",
         "frame\.AddChild\(box\)"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Support.DiagnosticsTools.cs" `
     "labels launcher support log copy as review-before-sharing" `
     @(
         "Copy Launcher Log \(Review First\)",
@@ -3448,7 +5812,17 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherDiagnostics.Reports.cs" `
-    "reports selected branch, marker, cache, and backup state" `
+    "keeps the diagnostics report shell and public-sharing warning" `
+    @(
+        "Public sharing warning",
+        "review and redact this diagnostics report before posting publicly",
+        "AppendLauncherPreferences",
+        "AppendFullReportDiagnostics"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportLauncherPreferences.cs" `
+    "reports selected branch, credential, portal UX, and selected branch marker state" `
     @(
         "Selected game branch",
         "Selected game branch preference key",
@@ -3485,84 +5859,11 @@ Add-Check `
         "Android credential provider implementation note",
         "Android credential provider capability boundary",
         "Launcher portal UX model",
-        "Launcher status-led portal supported",
-        "Launcher phase-labeled status supported",
-        "Launcher structured status chip supported",
-        "Launcher guided next-action status supported",
-        "Launcher error-first guided status supported",
-        "Launcher compact plain-language status copy supported",
-        "Launcher titled state sections supported",
-        "Launcher safe first-run guidance supported",
-        "Launcher compact safe-flow guidance collapsible",
-        "Launcher compact safe-flow toggle detail labels supported",
-        "Launcher compact structured safe-flow toggle labels supported",
-        "Launcher compact safe-flow bounded guide supported",
-        "Launcher compact active-task safe-flow suppression supported",
-        "Launcher mobile-first compact layout supported",
-        "Launcher compact dense panel padding supported",
-        "Launcher Android compact touch-scale floor supported",
-        "Launcher compact dynamic content width supported",
-        "Launcher tablet/wide content layout supported",
-        "Launcher top-anchored portal content supported",
-        "Launcher compact vertical status hero supported",
-        "Launcher compact Steam Guard retry guidance supported",
-        "Launcher compact Steam Guard bounded helper supported",
-        "Launcher compact primary retry action supported",
-        "Launcher compact structured retry action labels supported",
-        "Launcher compact completed-auth section suppression supported",
-        "Launcher touch-first action targets supported",
-        "Launcher primary action wording supported",
-        "Launcher consistent Start Game CTA supported",
-        "Launcher compact launch detail label supported",
-        "Launcher branded atmospheric background supported",
-        "Launcher branded background explicit RGBA supported",
-        "Launcher high-contrast rounded actions supported",
-        "Launcher compact header chrome reduction supported",
-        "Launcher compact condensed brand header supported",
-        "Launcher compact single-line brand header supported",
-        "Launcher compact readable brand subtitle supported",
-        "Launcher compact section-header subtitle suppression supported",
-        "Launcher compact low-profile section headers supported",
-        "Launcher compact section-header task cues supported",
-        "Launcher compact readable section-header cues supported",
-        "Launcher compact explicit section-header cues supported",
-        "Launcher compact install primary detail label supported",
-        "Launcher compact version details collapsible",
-        "Launcher compact version drawer bounded help label supported",
-        "Launcher compact structured install-version action labels supported",
-        "Launcher compact version summary cards supported",
-        "Launcher compact ready-version summary panel supported",
-        "Launcher compact ready-version headline supported",
-        "Launcher compact responsive ready-version summary supported",
-        "Launcher compact structured Play/Sync action labels supported",
-        "Launcher compact ready-state install-section suppression supported",
-        "Launcher compact cloud-safety guidance collapsible",
-        "Launcher compact cloud-safety detail label supported",
-        "Launcher compact cloud options collapsible",
-        "Launcher primary cloud actions before cloud options",
-        "Launcher compact cloud option detail labels supported",
-        "Launcher safer Pull-before-Push cloud ordering supported",
-        "Launcher compact dangerous Push detail labels supported",
-        "Launcher compact armed Push warning detail label supported",
-        "Launcher manual Push armed overwrite warning supported",
-        "Launcher version-install/cloud-save separation guidance supported",
-        "Launcher Help & Reports drawer hidden by default",
-        "Launcher Help & Reports drawer auto-opens for diagnostics actions",
-        "Launcher compact low-profile drawer toggles supported",
-        "Launcher compact support tools grid supported",
-        "Launcher compact low-profile diagnostics toggle supported",
-        "Launcher compact diagnostics toggle detail labels supported",
-        "Launcher compact structured diagnostics toggle labels supported",
-        "Launcher plain-language help report copy supported",
-        "Launcher compact diagnostics scroll-hosted supported",
-        "Launcher startup fallback raw banner suppressed",
-        "Launcher portal UX device validated",
+        "AppendLauncherPortalUxFeatureReports",
         "Launcher portal UX implementation note",
         "Launcher portal UX validation boundary",
         "SteamKit debug logs opt-in enabled",
         "SteamKit debug logs sanitized for credentials/tokens",
-        "Public sharing warning",
-        "review and redact this diagnostics report before posting publicly",
         "Selected game version slot kind",
         "Selected game version slot directory",
         "Selected game branch marker install slot kind",
@@ -3573,6 +5874,15 @@ Add-Check `
         "Selected game branch marker has depot manifests",
         "Selected game branch marker depot manifest entries",
         "Selected game branch marker ready",
+        "AppendBranchAvailability",
+        "AppendBranchSwitchSafety",
+        "AppendCachedGameVersions"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchAvailability.cs" `
+    "reports selected Steam branch availability state" `
+    @(
         "Steam branch availability marker filename",
         "Steam branch availability marker path",
         "Steam branch availability marker present",
@@ -3583,15 +5893,32 @@ Add-Check `
         "Steam branch availability selected branch Windows depot manifests",
         "Steam branch availability selected branch downloadable",
         "Steam branch availability selected branch problem",
-        "BranchAvailabilitySelectedBranchPasswordProtected",
-        "passwordRequired=true",
-        "selected branch is password-protected",
         "Steam branch availability visible branch count",
-        "Steam branch availability visible branches",
-        "branchMarkerExpectedInstallSlotKind",
-        "branchMarkerExpectedInstallSlotDirectory",
-        "branchMarkerMatchingInstallSlotProvenance",
-        "importantSaveEvidenceCount",
+        "Steam branch availability visible branches"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchAvailability.Marker.cs" `
+    "parses selected Steam branch availability marker state" `
+    @(
+        "ReadBranchAvailabilityMarkerValue",
+        "ReadBranchAvailabilityMarkerValues",
+        "BranchAvailabilityMarkerMatchesSelectedBranch",
+        "BranchAvailabilitySelectedBranchDownloadable",
+        "BranchAvailabilitySelectedBranchProblem",
+        "BranchAvailabilitySelectedBranchManifestCount",
+        "BranchAvailabilitySelectedBranchPasswordProtected",
+        "BranchAvailabilityMarkerValueMatchesBranch",
+        "LauncherMarkerFile\.ReadJoinedValues",
+        "LauncherMarkerFile\.ReadValues",
+        "passwordRequired=true",
+        "selected branch is password-protected"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportCachedGameVersions.cs" `
+    "reports cached game-version cleanup and redownload evidence" `
+    @(
         "Current selected branch for version marker comparison",
         "Game version cache cleanup marker filename",
         "Game version cache cleanup marker path",
@@ -3625,11 +5952,44 @@ Add-Check `
         "Game version redownload marker download state directory existed before delete",
         "Game version redownload marker download state directory exists after delete",
         "Game version redownload marker selected directories cleared",
+        "branchMarkerExpectedInstallSlotKind",
+        "branchMarkerExpectedInstallSlotDirectory",
+        "branchMarkerMatchingInstallSlotProvenance",
+        "branchMarkerDepotsMatchingPublic",
+        "branchMarkerDepotsDifferingFromPublic",
+        "branchMarkerDepotsInheritedFromPublic",
+        "branchMarkerDepotsMissingSelectedManifest",
+        "branchMarkerReady",
+        "Cached non-public game versions"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchSwitchSafety.cs" `
+    "orchestrates branch-switch cloud-sync and backup safety diagnostics" `
+    @(
+        "AppendBranchSwitchSafety",
+        "selectedBranch = LauncherPreferences\.ReadGameBranch\(\)",
+        "importantSaveEvidenceCount",
+        "AppendBranchSwitchMarkerEvidence",
+        "AppendManualPullEvidence",
+        "AppendCurrentLocalSaveEvidence",
+        "AppendSaveOriginEvidence",
+        "AppendManualPushEvidence",
+        "AppendManualPushBlockedEvidence",
+        "AppendBranchSwitchBackupEvidence"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchSwitchSafety.Marker.cs" `
+    "reports branch-switch marker safety state" `
+    @(
+        "AppendBranchSwitchMarkerEvidence",
         "Branch switch marker filename",
         "Branch switch marker path",
+        "Branch switch marker present",
         "Branch switch marker UTC",
         "Branch switch marker UTC parseable",
-        "previous branch",
+        "Branch switch previous branch",
         "Branch switch selected branch",
         "Branch switch selected branch selection kind",
         "Branch switch selector mode",
@@ -3644,8 +6004,17 @@ Add-Check `
         "Branch switch non-public warning acknowledged",
         "Branch switch marker has required safety evidence",
         "Branch switch marker has required safety evidence for selected branch",
+        "Push requires backup storage after branch switch"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchSwitchSafety.Pull.cs" `
+    "reports Manual Pull evidence for branch-switch Push safety" `
+    @(
+        "AppendManualPullEvidence",
         "Manual Pull evidence marker filename",
         "Manual Pull evidence marker path",
+        "Manual Pull evidence marker present",
         "Manual Pull evidence UTC",
         "Manual Pull evidence UTC parseable",
         "Manual Pull evidence selected branch",
@@ -3658,9 +6027,40 @@ Add-Check `
         "Manual Pull completed before Push",
         "Manual Pull evidence is after branch switch",
         "Manual Pull evidence matches selected branch",
-        "Manual Pull completed after branch switch for selected version",
+        "Manual Pull completed after branch switch for selected version"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchSwitchSafety.SaveOrigin.cs" `
+    "reports Android save-origin and current local-save evidence for branch-switch Push safety" `
+    @(
+        "AppendCurrentLocalSaveEvidence",
+        "Current important Android local save evidence count",
+        "Current important Android local save evidence present",
+        "AppendSaveOriginEvidence",
+        "Android save-origin marker filename",
+        "Android save-origin marker path",
+        "Android save-origin marker present",
+        "Android save-origin selected runtime slot ID",
+        "Android save-origin selected PCK SHA256",
+        "Android save-origin selected source sts2\.dll SHA256",
+        "Android save-origin selected runtime playable at origin",
+        "Android save-origin matches selected branch",
+        "Android save-origin selected runtime slot ID matches current runtime",
+        "Android save-origin current selected runtime is playable",
+        "Android local saves verified for selected branch",
+        "Android local saves verified for selected runtime",
+        "Baseline manual Push prerequisites satisfied"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchSwitchSafety.Push.cs" `
+    "reports Manual Push evidence for branch-switch Push safety" `
+    @(
+        "AppendManualPushEvidence",
         "Manual Push evidence marker filename",
         "Manual Push evidence marker path",
+        "Manual Push evidence marker present",
         "Manual Push evidence UTC",
         "Latest manual Push evidence outcome",
         "Latest manual Push evidence UTC",
@@ -3687,9 +6087,17 @@ Add-Check `
         "Manual Push evidence matches selected branch",
         "Manual Push evidence recorded pre-Push backup evidence satisfied",
         "Manual Push completed after branch switch for selected version with backup evidence",
-        "LatestManualPushEvidenceOutcome",
+        "LatestManualPushEvidenceOutcome"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchSwitchSafety.BlockedPush.cs" `
+    "reports blocked Manual Push evidence for branch-switch Push safety" `
+    @(
+        "AppendManualPushBlockedEvidence",
         "Manual Push blocked evidence marker filename",
         "Manual Push blocked evidence marker path",
+        "Manual Push blocked evidence marker present",
         "Manual Push blocked evidence UTC",
         "Manual Push blocked evidence UTC parseable",
         "Manual Push blocked evidence selected branch",
@@ -3706,11 +6114,19 @@ Add-Check `
         "Manual Push blocked evidence recorded baseline prerequisites satisfied",
         "Manual Push blocked evidence recorded pre-Push backup evidence satisfied",
         "Manual Push blocked evidence reason",
-        "Manual Push blocked before upload evidence recorded",
+        "Manual Push blocked before upload evidence recorded"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchSwitchSafety.Backup.cs" `
+    "reports backup storage and pre-Push backup evidence for branch-switch safety" `
+    @(
+        "AppendBranchSwitchBackupEvidence",
         "Important Android local save evidence count in bounded scan",
         "Important Android local save evidence present",
-        "branchMarkerReady",
-        "Push requires backup storage after branch switch",
+        "Backup storage permission available",
+        "Backup storage directory",
+        "Backup storage directory exists",
         "Branch-switch manual Push prerequisites satisfied",
         "Pre-Push local backup evidence count",
         "Pre-Push cloud backup evidence count",
@@ -3720,7 +6136,6 @@ Add-Check `
         "Pre-Push cloud backup evidence after branch switch",
         "Branch-switch pre-Push backup evidence satisfied"
     )
-
 Add-Check `
     "android\src\com\game\sts2launcher\GodotApp.java" `
     "routes native startup through selected branch readiness checks" `

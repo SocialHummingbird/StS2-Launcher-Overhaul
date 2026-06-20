@@ -1,71 +1,10 @@
-using System;
-using STS2Mobile.Patches;
-
 namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherStartupFlow
 {
-    private sealed class StartupMode
+    private sealed partial class StartupMode
     {
         private readonly PreviousStartupPhase _previousPhase;
-
-        private readonly struct PreviousStartupPhase
-        {
-            private PreviousStartupPhase(string phase)
-            {
-                Phase = phase;
-            }
-
-            private string Phase { get; }
-
-            private bool Is(string phase)
-                => string.Equals(Phase, phase, StringComparison.OrdinalIgnoreCase);
-
-            private string PreviousStallMessage(string message)
-                => $"{message} {Phase}";
-
-            internal static PreviousStartupPhase FromMarkers()
-                => new(LauncherLaunchMarkers.ReadStartupPhase());
-
-            internal bool Matches(string phase)
-                => Is(phase);
-
-            internal string DescribePreviousStall(string message)
-                => PreviousStallMessage(message);
-        }
-
-        private readonly struct StartupSaveModePlan
-        {
-            private StartupSaveModePlan(bool forceLocalSaves, string reasonLog)
-            {
-                ForceLocalSaves = forceLocalSaves;
-                ReasonLog = reasonLog;
-            }
-
-            private bool ForceLocalSaves { get; }
-            private string ReasonLog { get; }
-
-            internal string SettingsAndSavesStatus
-                => ForceLocalSaves
-                    ? "Loading settings and saves in local-only safe mode..."
-                    : "Loading settings and saves...";
-
-            internal static StartupSaveModePlan Create(
-                bool forceLocalSaves,
-                string reasonLog
-            )
-                => new(forceLocalSaves, reasonLog);
-
-            internal void Apply()
-            {
-                LauncherPreferences.LoadAndApplyCloudSyncEnabled();
-                if (!ForceLocalSaves)
-                    return;
-
-                LauncherCloudSaveState.DisableCloudSyncForLaunch();
-                PatchHelper.Log(ReasonLog);
-            }
-        }
 
         internal static StartupMode CreateFromMarkers()
             => new(

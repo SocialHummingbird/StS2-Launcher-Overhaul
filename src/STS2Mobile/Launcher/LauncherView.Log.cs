@@ -9,6 +9,11 @@ internal sealed partial class LauncherView
     private const int CompactDiagnosticsLogMarginHorizontal = 12;
     private const int CompactDiagnosticsLogMarginVertical = 10;
 
+    internal void AppendLog(string msg) => AppendLogLine(Log, msg);
+
+    internal void AppendColoredLog(string msg, Godot.Color color)
+        => AppendColoredLogLine(Log, msg, color);
+
     private static RichTextLabel BuildLogView(LauncherLayoutProfile profile)
     {
         var scale = profile.Scale;

@@ -4,6 +4,18 @@ Current posture: the ARM64 Android path works locally, including Steam download,
 
 Use this checklist after every release run (manual or tag-triggered) to confirm artifact publication before announcing a release.
 
+Current build-only prerelease reference:
+
+```text
+release=v0.2.276-local-refactor-audits
+asset=StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk
+sha256=5c80aa0db679db1b29a5e2c9856bc04f5cc96c18bbacf94dae7dcd9997dc7e36
+package=com.sts2launcher.overhaul.fork.local
+versionName=0.2.276-local-refactor-audits
+versionCode=276000
+validation=build/static-gate only; device runtime signoff still requires the public/public-beta evidence workflow below
+```
+
 ## 1) Verify workflow outcome
 
 1. In GitHub Actions, open the latest **Android Release** run.

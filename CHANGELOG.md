@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-20 - Launcher/runtime refactor audit prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.276-local-refactor-audits` with APK `StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk`.
+- Continued the launcher/runtime/UI refactor by splitting branch-availability diagnostics into report output and marker parsing helpers, with static audit coverage for the new boundary.
+- Preserved multi-version runtime and Steam branch selection guardrails: Steam version-selection static audit passed 454 checks, multi-version runtime audit passed 148 checks, managed Release build reran cleanly with zero warnings/errors, and the local ARM64 APK build/crypto verification passed.
+- Documented that this prerelease is build/static-gate evidence only. Public/public-beta runtime behavior still relies on the existing ARM64 evidence until this APK is device-tested.
+
 ## 2026-06-14 - Public-beta Android art fallback release
 
 - Published `v0.2.187-beta-art-fallback`, an ARM64 public APK with Steam beta branch hardening and the validated Android run-history art fallback.

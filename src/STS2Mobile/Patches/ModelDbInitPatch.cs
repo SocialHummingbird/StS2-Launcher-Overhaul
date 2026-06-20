@@ -10,7 +10,7 @@ namespace STS2Mobile.Patches;
 // Replaces ModelDb.Init() with a two-phase initialization to avoid circular dependency
 // crashes. Phase 1 pre-populates the registry with uninitialized objects so cross-type
 // references resolve during construction. Phase 2 runs the actual constructors.
-internal static class ModelDbInitPatch
+internal static partial class ModelDbInitPatch
 {
     private const string AllAbstractModelSubtypesProperty = "AllAbstractModelSubtypes";
     private const string ContainsMethodName = "Contains";
@@ -18,8 +18,6 @@ internal static class ModelDbInitPatch
     private const string GetIdMethodName = "GetId";
     private const string HarmonyId = "com.sts2mobile.modeldb";
     private const string SetItemMethod = "set_Item";
-
-    private static bool _suppressContains = false;
 
     internal static void Apply(Harmony harmony)
     {
@@ -29,16 +27,6 @@ internal static class ModelDbInitPatch
             "Init",
             prefix: PatchHelper.Method(typeof(ModelDbInitPatch), nameof(InitPrefix))
         );
-    }
-
-    private static bool ContainsPrefix(ref bool __result)
-    {
-        if (_suppressContains)
-        {
-            __result = false;
-            return false;
-        }
-        return true;
     }
 
     private static bool InitPrefix()
@@ -95,148 +83,11 @@ internal static class ModelDbInitPatch
         }
         harmony.Patch(containsMethod, new HarmonyMethod(containsPrefix));
 
-        // Phase 2: Run constructors on pre-allocated objects
-        PatchHelper.Log("Phase 2: Running constructors");
-
-        _suppressContains = true;
-
-        int successCount = 0;
-        var failed = new List<Type>();
-
-        foreach (var type in types)
-        {
-            if (!typeObjects.ContainsKey(type))
-                continue;
-
-            try
-            {
-                RuntimeHelpers.RunClassConstructor(type.TypeHandle);
-
-                var ctor = type.GetConstructor(
-                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
-                    null,
-                    Type.EmptyTypes,
-                    null
-                );
-                if (ctor != null)
-                {
-                    ctor.Invoke(typeObjects[type], null);
-                }
-
-                successCount++;
-            }
-            catch (Exception ex)
-            {
-                failed.Add(type);
-                var inner = ex;
-                while (inner.InnerException != null)
-                    inner = inner.InnerException;
-                PatchHelper.Log(
-                    $"Phase 2 - Failed {type.Name}: {inner.GetType().Name}: {inner.Message}"
-                );
-            }
-        }
-
-        _suppressContains = false;
+        var phase2 = RunConstructors(types, typeObjects);
         harmony.Unpatch(containsMethod, containsPrefix);
 
-        if (failed.Count > 0)
-        {
-            PatchHelper.Log($"WARNING: {failed.Count}/{types.Length} types had constructor errors:");
-            foreach (var type in failed)
-                PatchHelper.Log($"  - {type.FullName}");
-        }
-        else
-        {
-            PatchHelper.Log($"All {successCount} model types registered successfully");
-        }
+        LogPhase2Result(types.Length, phase2.SuccessCount, phase2.Failed);
 
         return false;
-    }
-
-    private static bool TryLoadModelDbInitAccess(
-        out Type[] types,
-        out MethodInfo getIdMethod,
-        out object contentById,
-        out MethodInfo setItemMethod,
-        out MethodInfo containsMethod
-    )
-    {
-        types = null;
-        getIdMethod = null;
-        contentById = null;
-        setItemMethod = null;
-        containsMethod = null;
-
-        var modelDbType = typeof(ModelDb);
-
-        var allSubtypesProp = modelDbType.GetProperty(
-            AllAbstractModelSubtypesProperty,
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
-        );
-        if (allSubtypesProp == null)
-        {
-            PatchHelper.Log("ModelDb.Init fallback: AllAbstractModelSubtypes property missing");
-            return false;
-        }
-
-        types = (Type[])allSubtypesProp.GetValue(null);
-        if (types == null || types.Length == 0)
-        {
-            PatchHelper.Log("ModelDb.Init fallback: no model subtypes were exposed");
-            return false;
-        }
-
-        getIdMethod = modelDbType.GetMethod(
-            GetIdMethodName,
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
-            null,
-            new[] { typeof(Type) },
-            null
-        );
-        if (getIdMethod == null)
-        {
-            PatchHelper.Log("ModelDb.Init fallback: GetId method missing");
-            return false;
-        }
-
-        var contentByIdField = modelDbType.GetField(
-            ContentByIdField,
-            BindingFlags.NonPublic | BindingFlags.Static
-        );
-        if (contentByIdField == null)
-        {
-            PatchHelper.Log("ModelDb.Init fallback: _contentById field missing");
-            return false;
-        }
-
-        contentById = contentByIdField.GetValue(null);
-        if (contentById == null)
-        {
-            PatchHelper.Log("ModelDb.Init fallback: _contentById is null");
-            return false;
-        }
-
-        setItemMethod = contentById.GetType().GetMethod(SetItemMethod);
-        if (setItemMethod == null)
-        {
-            PatchHelper.Log("ModelDb.Init fallback: _contentById.set_Item method missing");
-            return false;
-        }
-
-        containsMethod = modelDbType.GetMethod(
-            ContainsMethodName,
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
-            null,
-            new[] { typeof(Type) },
-            null
-        );
-        if (containsMethod == null)
-        {
-            PatchHelper.Log("ModelDb.Init fallback: Contains(Type) method missing");
-            return false;
-        }
-
-        return true;
     }
 }
