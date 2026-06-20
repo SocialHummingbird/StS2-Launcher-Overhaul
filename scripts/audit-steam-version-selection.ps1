@@ -2278,16 +2278,38 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\CompactButtonDetailLabels.cs" `
-    "centralizes reusable compact two-line button label rendering" `
+    "centralizes reusable compact two-line button label application" `
     @(
         "CompactButtonDetailLabels",
+        "Apply",
         "TrySplitText",
         "Hide\(Button button, CompactButtonDetailLabelSpec spec\)",
+        "button\.Text = text",
+        "labels\.Title\.Text = title",
+        "labels\.Detail\.Text = detail"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CompactButtonDetailLabels.Text.cs" `
+    "keeps compact two-line button label parsing isolated from Godot controls" `
+    @(
+        "TrySplitText",
+        "IndexOf\('\\n'\)",
+        "Trim\(\)",
+        "title\.Length > 0 && detail\.Length > 0"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\CompactButtonDetailLabels.Controls.cs" `
+    "keeps compact two-line button label Godot control construction isolated" `
+    @(
         "Ensure\(",
         "BuildBody",
         "BuildLabel",
         "LauncherComponentTheme\.TextPrimary",
         "LauncherComponentTheme\.TextSecondary",
+        "Control\.LayoutPreset\.FullRect",
+        "LauncherViewLayoutMetrics\.ScaleInt",
         "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis"
     )
 
@@ -3866,10 +3888,8 @@ Add-Check `
 
 Add-Check `
     "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactVersion.Summary.cs" `
-    "renders compact selected-version summary style and local-file copy" `
+    "renders compact selected-version summary local-file copy" `
     @(
-        "ApplySelectedVersionSummaryButtonStyle",
-        "BuildSelectedVersionSummaryStyle",
         "CompactSelectedVersionStackedBranchLimit",
         "CompactSelectedVersionHeadline",
         "Files for:",
@@ -3881,6 +3901,27 @@ Add-Check `
         "CompactInstallFileScope",
         "Default files",
         "Separate files"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\DownloadSection.CompactVersion.Summary.Style.cs" `
+    "keeps compact selected-version summary card skinning isolated from copy generation" `
+    @(
+        "ApplySelectedVersionSummaryButtonStyle",
+        "LauncherComponentTheme\.StateNormal",
+        "LauncherComponentTheme\.StateHover",
+        "LauncherComponentTheme\.StatePressed",
+        "LauncherComponentTheme\.StateDisabled",
+        "BuildSelectedVersionSummaryStyle",
+        "CompactVersionSummaryRadius",
+        "CompactVersionSummaryHorizontalMargin",
+        "CompactVersionSummaryVerticalMargin",
+        "Color body,",
+        "Color border",
+        "BuildSelectedVersionSummaryStyle\(float scale, bool compact\)",
+        "compact \? LauncherSectionMetrics\.CompactVersionSummaryRadius : 8",
+        "compact \? LauncherSectionMetrics\.CompactVersionSummaryHorizontalMargin : 12",
+        "compact \? LauncherSectionMetrics\.CompactVersionSummaryVerticalMargin : 9"
     )
 
 Add-Check `
@@ -4763,12 +4804,24 @@ Add-Check `
         "SetCompactActionButtonText\(pullButton, pullButton\.Text\)",
         "SetCompactActionButtonText\(pushButton, pushButton\.Text\)",
         "SetCompactActionButtonText\(confirmPushButton, confirmPushButton\.Text\)",
+        "BuildCloudPushConfirmationLabel\(scale, compact\)"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.PushConfirmation.cs" `
+    "keeps compact cloud Push confirmation warning bounded and overwrite-explicit" `
+    @(
+        "BuildCloudPushConfirmationLabel",
         "CompactCloudPushWarningText\(\)",
+        "Confirming Push uploads Android saves to Steam Cloud",
+        "can overwrite remote Steam Cloud saves",
         "CompactCloudPushWarningFontSize",
         "CompactCloudPushWarningHeight",
         "pushConfirmationLabel\.ClipText = compact",
         "pushConfirmationLabel\.TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "pushConfirmationLabel\.CustomMinimumSize = new Vector2"
+        "pushConfirmationLabel\.CustomMinimumSize = new Vector2",
+        "LauncherComponentTheme\.OrangeHot",
+        "pushConfirmationLabel\.Visible = false"
     )
 
 Add-Check `
@@ -5447,9 +5500,8 @@ Add-Check `
         "Push Locked",
         "CompactCloudPushDangerText\(\)",
         "CompactCloudPushConfirmText\(\)",
-        "CompactCloudPushWarningText\(\)",
         "Pull Saves from Steam Cloud",
-        "can overwrite remote Steam Cloud saves"
+        "BuildCloudPushConfirmationLabel\(scale, compact\)"
     )
 
 Add-Check `
@@ -5549,7 +5601,7 @@ Add-Check `
         "Pull Saves from Steam Cloud",
         "Push Locked",
         "CompactCloudPushConfirmText\(\)",
-        "can overwrite remote Steam Cloud saves"
+        "BuildCloudPushConfirmationLabel\(scale, compact\)"
     )
 
 Add-Check `

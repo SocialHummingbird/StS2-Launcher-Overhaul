@@ -40,11 +40,11 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, Steam beta/version selection validation, best-in-class login/portal UX, quieter diagnostics, repeatable release asset hygiene, and full newest-public Pull/confirmed-Push/game-launch smoke.
 
-- Latest published APK prerelease: `v0.2.276-local-refactor-audits`
-- Current APK asset: `StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk`
+- Latest published APK prerelease: `v0.2.277-local-helper-refactor`
+- Current APK asset: `StS2Launcher-v0.2.277-local-helper-refactor-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Release asset SHA-256: `5c80aa0db679db1b29a5e2c9856bc04f5cc96c18bbacf94dae7dcd9997dc7e36`
-- Latest local ARM64 build APK: `0.2.276-local-refactor-audits` / `versionCode=276000`, artifact `artifacts/android/StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk`, SHA-256 `5c80aa0db679db1b29a5e2c9856bc04f5cc96c18bbacf94dae7dcd9997dc7e36`. This is a build/static-audit prerelease for the launcher/runtime refactor split; it does not replace the existing device evidence for public/public-beta runtime behavior.
+- Release asset SHA-256: `7cd227e03c6632d61f0b525145e881f6d72185063d0472d2e33b3afd8538f5a9`
+- Latest local ARM64 build APK: `0.2.277-local-helper-refactor` / `versionCode=277000`, artifact `artifacts/android/StS2Launcher-v0.2.277-local-helper-refactor-arm64-v8a.apk`, SHA-256 `7cd227e03c6632d61f0b525145e881f6d72185063d0472d2e33b3afd8538f5a9`. This is a build/static-audit prerelease for the launcher/runtime refactor split; it does not replace the existing device evidence for public/public-beta runtime behavior.
 - Latest local ARM64 validation APK with public-beta runtime evidence: `0.2.188-local-runtime-beta-fix31-save-origin-pck` / `versionCode=218858`, artifact `artifacts/android/StS2Launcher-v0.2.188-local-runtime-beta-fix31-save-origin-pck-arm64-v8a.apk`, SHA-256 `33fa866b5d8b9462f2aa83cd34606b84b3f7f8b8a5a8da159d08cecc2ed04ae6`.
 - Latest verified public release: `0.2.187-beta-art-fallback` / `versionCode=218700`
 - Validated locally/publicly: fresh APK/runtime install, public `v0.2.186 -> v0.2.187` update-compatible release build, responsive launcher login/download-progress/diagnostics/ready-state visual checks on ARM64 hardware, Push-to-Cloud confirmation/cancel safety on the public `v0.2.187` APK, Steam login to Steam Guard on public `v0.2.183`, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.

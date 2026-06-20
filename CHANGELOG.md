@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-20 - Compact helper refactor prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.277-local-helper-refactor` with APK `StS2Launcher-v0.2.277-local-helper-refactor-arm64-v8a.apk`.
+- Split compact launcher helper code into smaller partials: selected-version summary card skinning, cloud Push confirmation warning construction, compact two-line button text parsing, and compact two-line Godot control construction now have focused files.
+- Extended the Steam version-selection static audit so those refactor boundaries remain guarded without weakening branch/runtime-pack or Steam Cloud safety checks.
+- Preserved the build/static validation posture: this APK is build and audit evidence only, and public/public-beta runtime behavior still relies on the existing ARM64 runtime evidence until this exact APK is device-tested.
+
 ## 2026-06-20 - Launcher/runtime refactor audit prerelease
 
 - Published the local-package ARM64 prerelease `v0.2.276-local-refactor-audits` with APK `StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk`.

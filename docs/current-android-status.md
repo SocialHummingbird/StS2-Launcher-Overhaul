@@ -38,15 +38,15 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.276-local-refactor-audits
-asset=StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk
-sha256=5c80aa0db679db1b29a5e2c9856bc04f5cc96c18bbacf94dae7dcd9997dc7e36
+release=v0.2.277-local-helper-refactor
+asset=StS2Launcher-v0.2.277-local-helper-refactor-arm64-v8a.apk
+sha256=7cd227e03c6632d61f0b525145e881f6d72185063d0472d2e33b3afd8538f5a9
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.276-local-refactor-audits
-versionCode=276000
-validation=Android build/APK verification passed; Steam version-selection static audit passed 454 checks; multi-version runtime audit passed 148 checks; managed Release build passed with zero warnings on rerun; APK crypto patch verification passed. This prerelease packages the accumulated launcher/runtime/UI refactor splits and the branch-availability diagnostics helper split. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
+versionName=0.2.277-local-helper-refactor
+versionCode=277000
+validation=Android build/APK verification passed; Steam version-selection static audit passed 458 checks; multi-version runtime audit passed 148 checks; managed Release build passed with zero warnings on rerun; APK crypto patch verification passed. This prerelease packages the compact launcher helper split for selected-version summary skinning, cloud Push confirmation warning construction, and shared compact two-line button label parsing/control construction. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
 cloudSafety=No Push to Cloud was run during this validation.
-evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
+evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.277-local-helper-refactor-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:
