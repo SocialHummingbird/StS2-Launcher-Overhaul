@@ -20,7 +20,7 @@ Implemented in this stage:
 - Android shader warmup uses the launcher compact touch-scale floor, a mobile-width compact panel, compact panel padding, and the styled percentage progress bar.
 - Game startup status is anchored top-wide with viewport-derived safe margins instead of a fixed `(24, 24)` position.
 - Android game startup status now uses a framed mobile-width status card after the launcher closes, instead of floating unframed text.
-- Successful startup cleanup now frees the whole Android startup status root container, not only the message label, so the `STARTING GAME` card does not remain over the main menu after `NGame.GameStartup` reaches `NMainMenu`.
+- Successful startup cleanup now frees the whole Android startup status root container, not only the message label, so the `Starting Game` card does not remain over the main menu after `NGame.GameStartup` reaches `NMainMenu`.
 
 ## Remaining stages
 

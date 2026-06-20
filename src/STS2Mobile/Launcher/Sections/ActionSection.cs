@@ -9,7 +9,7 @@ namespace STS2Mobile.Launcher.Sections;
 internal sealed partial class ActionSection : VBoxContainer
 {
     private const string PushButtonText = "Push Saves to Steam Cloud";
-    private const string PushConfirmButtonText = "CONFIRM: OVERWRITE STEAM CLOUD";
+    private const string PushConfirmButtonText = "Confirm: Overwrite Steam Cloud";
     private const int CompactReadySummaryBranchLimit = 14;
     private const int CompactReadyStackedSummaryBranchLimit = 28;
     private const int CompactReadyVersionHelpBranchLimit = 22;
@@ -49,7 +49,7 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly OptionButton _branchDropdown;
     private readonly Label _branchHelpLabel;
     private readonly Button _branchDetailsToggle;
-    private readonly PanelContainer _readyVersionSummaryPanel;
+    private readonly Button _readyVersionSummaryPanel;
     private readonly Label _readyVersionSummaryLabel;
     private readonly Label _cloudSafetyLabel;
     private readonly Button _cloudSafetyToggle;
@@ -130,14 +130,14 @@ internal sealed partial class ActionSection : VBoxContainer
         {
             SetCompactActionButtonText(_branchDetailsToggle, _compact
                 ? (_branchDetailsExpanded
-                    ? CompactPlaySyncDrawerText("HIDE VERSION", "Keep active")
+                    ? CompactPlaySyncDrawerText("Hide Version", "Keep active")
                     : CompactPlaySyncDrawerText(
-                        $"CHANGE VERSION: {SteamGameBranch.CompactDisplayName(_gameBranch, 14)}",
-                        "Launch + cloud target"
+                        $"Change Version: {SteamGameBranch.CompactDisplayName(_gameBranch, 14)}",
+                        "Version target"
                     ))
                 : (_branchDetailsExpanded
-                    ? "HIDE VERSION DETAILS"
-                    : "SHOW VERSION DETAILS"));
+                    ? "Hide Version Details"
+                    : "Show Version Details"));
         }
         if (_cloudSafetyLabel != null)
         {
@@ -151,14 +151,14 @@ internal sealed partial class ActionSection : VBoxContainer
             _readyVersionSummaryLabel.Text = _compact
                 ? CompactReadyVersionSummary()
                 : $"Ready version: {SteamGameBranch.CompactDisplayName(_gameBranch, 22)}\n"
-                    + $"Slot: {SteamGameInstallPaths.VersionSlotKind(_gameBranch)}. START GAME and Pull/Push use this version.\n"
+                    + $"Slot: {SteamGameInstallPaths.VersionSlotKind(_gameBranch)}. Start Game and Pull/Push use this version.\n"
                     + "Cloud: Pull first. Push stays locked until explicitly opened.";
         }
         if (_cloudSafetyToggle != null)
         {
             _cloudSafetyToggle.Visible = _compact;
             SetCompactActionButtonText(_cloudSafetyToggle, _cloudSafetyExpanded
-                ? CompactPlaySyncDrawerText("HIDE CLOUD SAFETY", "Pull-first guard")
+                ? CompactPlaySyncDrawerText("Hide Save Check", "Keep saves safe")
                 : CompactCloudSafetySummary());
         }
     }
@@ -270,16 +270,25 @@ internal sealed partial class ActionSection : VBoxContainer
         UpdateBranchHelpText();
     }
 
+    private void OpenCompactCloudSafetyFromReadySummary()
+    {
+        if (!_compact)
+            return;
+
+        _cloudSafetyExpanded = true;
+        UpdateBranchHelpText();
+    }
+
     private void UpdateCloudOptionsToggleText()
     {
         if (_cloudOptionsToggle == null)
             return;
 
         SetCompactActionButtonText(_cloudOptionsToggle, _cloudOptionsExpanded
-            ? CompactPlaySyncDrawerText("HIDE CLOUD OPTIONS", "Backup + sync")
+            ? CompactPlaySyncDrawerText("Hide Save Settings", "Backup and cloud")
             : CompactPlaySyncDrawerText(
-                $"BACKUP {OnOff(_localBackupEnabled)} / SYNC {OnOff(_cloudSyncEnabled)}",
-                "Backup + sync"
+                $"Backup {OnOff(_localBackupEnabled)} / Cloud {OnOff(_cloudSyncEnabled)}",
+                "Save settings"
             ));
     }
 
@@ -302,7 +311,7 @@ internal sealed partial class ActionSection : VBoxContainer
             _cloudPushToggle.Visible = cloudVisible && _compact;
             SetCompactActionButtonText(_cloudPushToggle, _compact
                 ? CompactCloudPushToggleText(_cloudPushExpanded)
-                : "PUSH LOCKED");
+                : "Push Locked");
         }
 
         var canShowPush = cloudVisible && (!_compact || _cloudPushExpanded);
@@ -315,40 +324,51 @@ internal sealed partial class ActionSection : VBoxContainer
     }
 
     private static string OnOff(bool value)
-        => value ? "ON" : "OFF";
+        => value ? "On" : "Off";
 
     private string CompactCloudSafetySummary()
         => CompactPlaySyncDrawerText(
-            $"PULL FIRST: {SteamGameBranch.CompactDisplayName(_gameBranch, 14)}",
-            "Push stays locked"
+            "Save Check",
+            $"Get saves first: {SteamGameBranch.CompactDisplayName(_gameBranch, 14)}"
         );
 
     private string CompactCloudSafetyDetailText()
-        => $"Cloud target: {SteamGameBranch.CompactDisplayName(_gameBranch, 18)}\n"
-            + "PULL downloads to Android. PUSH can overwrite Steam.";
+        => $"Saves for: {SteamGameBranch.CompactDisplayName(_gameBranch, 18)}\n"
+            + "Get Steam saves before upload. Upload can overwrite Steam.";
 
     private static string CompactCloudPullText()
-        => CompactPlaySyncDrawerText("PULL TO ANDROID", "Download saves");
+        => CompactPlaySyncDrawerText("Get Steam Saves", "Download to Android");
 
     private static string CompactCloudPushToggleText(bool expanded)
         => expanded
-            ? CompactPlaySyncDrawerText("HIDE PUSH", "Close overwrite")
-            : CompactPlaySyncDrawerText("STEAM PUSH LOCKED", "Open overwrite");
+            ? CompactPlaySyncDrawerText("Hide Upload", "Keep locked")
+            : CompactPlaySyncDrawerText("Upload Locked", "Review first");
 
     private static string CompactCloudPushDangerText()
-        => CompactPlaySyncDrawerText("PUSH TO STEAM", "Upload Android");
+        => CompactPlaySyncDrawerText("Upload to Steam", "Overwrite cloud");
 
     private static string CompactCloudPushConfirmText()
-        => CompactPlaySyncDrawerText("CONFIRM OVERWRITE", "Final upload");
+        => CompactPlaySyncDrawerText("Confirm Upload", "Overwrite cloud");
 
     private static string CompactCloudPushWarningText()
-        => "STEAM CLOUD OVERWRITE\nConfirm only after Pull/local saves are verified.";
+        => "Steam Cloud overwrite\nConfirm only after Pull/local saves are verified.";
 
     private static string CompactRetryButtonText()
-        => CompactPlaySyncDrawerText("TRY AGAIN", "Restart task");
+        => CompactPlaySyncDrawerText("Try Again", "Restart task");
 
     private static string CompactLaunchButtonText(string text)
-        => CompactPlaySyncDrawerText(string.IsNullOrWhiteSpace(text) ? "START GAME" : text.Trim(), "Selected version");
+        => CompactPlaySyncDrawerText(CompactLaunchTitle(text), "Ready version");
+
+    private static string CompactLaunchTitle(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return "Start Game";
+
+        var normalized = text.Trim();
+        return string.Equals(normalized, "Start Game", StringComparison.OrdinalIgnoreCase)
+            ? "Start Game"
+            : normalized;
+    }
 
     private static string CompactPlaySyncDrawerText(string action, string detail)
         => $"{action}\n{detail}";
@@ -358,10 +378,10 @@ internal sealed partial class ActionSection : VBoxContainer
         if (_compactStackedActionRows)
         {
             return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadyStackedSummaryBranchLimit)}\n"
-                + "Pull first | Push locked | no auto cloud upload";
+                + "Save Check | Upload locked | no auto cloud upload";
         }
 
-        return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadySummaryBranchLimit)} | Pull first | Push locked";
+        return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadySummaryBranchLimit)} | Save Check | Upload locked";
     }
 
     private string CompactReadyVersionHelpText()
@@ -370,20 +390,73 @@ internal sealed partial class ActionSection : VBoxContainer
             ? CompactReadyVersionHelpStackedBranchLimit
             : CompactReadyVersionHelpBranchLimit;
 
-        return $"Launch target: {SteamGameBranch.CompactDisplayName(_gameBranch, branchLimit)} | {SteamGameInstallPaths.VersionSlotKind(_gameBranch)}\n"
-            + $"{LauncherBranchCatalog.SelectedOptionCompactStatus(_gameBranch, _availableBranches)} | cloud via Pull/Push";
+        return $"Play version: {SteamGameBranch.CompactDisplayName(_gameBranch, branchLimit)} | {CompactReadyFileScope(_gameBranch)}\n"
+            + $"{LauncherBranchCatalog.SelectedOptionCompactStatus(_gameBranch, _availableBranches)} | Saves: Get/Upload";
+    }
+
+    private static string CompactReadyFileScope(string branch)
+        => string.Equals(SteamGameBranch.Normalize(branch), SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase)
+            ? "Default files"
+            : "Separate files";
+
+    private static void ApplyReadyVersionSummaryButtonStyle(Button button, float scale, bool compact)
+    {
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StateNormal,
+            BuildReadyVersionSummaryStyle(scale, compact)
+        );
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StateHover,
+            BuildReadyVersionSummaryStyle(
+                scale,
+                compact,
+                new Color(0.045f, 0.085f, 0.095f, 0.95f),
+                new Color(0.04f, 0.72f, 0.8f, 0.78f)
+            )
+        );
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StatePressed,
+            BuildReadyVersionSummaryStyle(
+                scale,
+                compact,
+                new Color(0.025f, 0.05f, 0.06f, 0.98f),
+                new Color(0.95f, 0.42f, 0.08f, 0.72f)
+            )
+        );
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StateDisabled,
+            BuildReadyVersionSummaryStyle(
+                scale,
+                compact,
+                new Color(0.025f, 0.04f, 0.048f, 0.58f),
+                new Color(0.05f, 0.22f, 0.26f, 0.32f)
+            )
+        );
     }
 
     private static StyleBoxFlat BuildReadyVersionSummaryStyle(float scale, bool compact)
+        => BuildReadyVersionSummaryStyle(
+            scale,
+            compact,
+            new Color(0.035f, 0.065f, 0.075f, 0.9f),
+            new Color(0.04f, 0.55f, 0.62f, 0.65f)
+        );
+
+    private static StyleBoxFlat BuildReadyVersionSummaryStyle(
+        float scale,
+        bool compact,
+        Color body,
+        Color border
+    )
     {
         var style = LauncherStyleBoxes.MakeFilled(
-            new Color(0.035f, 0.065f, 0.075f, 0.9f),
+            body,
             LauncherViewLayoutMetrics.ScaleInt(
                 compact ? LauncherSectionMetrics.CompactVersionSummaryRadius : 8,
                 scale
             )
         );
-        style.BorderColor = new Color(0.04f, 0.55f, 0.62f, 0.65f);
+        style.BorderColor = border;
         style.SetBorderWidthAll(Math.Max(1, LauncherViewLayoutMetrics.ScaleInt(1, scale)));
         style.ContentMarginLeft = LauncherViewLayoutMetrics.ScaleInt(
             compact ? LauncherSectionMetrics.CompactVersionSummaryHorizontalMargin : 12,

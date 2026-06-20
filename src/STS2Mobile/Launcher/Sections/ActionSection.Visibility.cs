@@ -99,8 +99,8 @@ internal sealed partial class ActionSection
         _updateButton.Visible = visible;
         _updateButton.Disabled = false;
         SetCompactActionButtonText(_updateButton, _compact
-            ? CompactSupportToolText("UPDATES", "Check files")
-            : "CHECK FOR UPDATES");
+            ? CompactSupportToolText("Check Files", "Updates")
+            : "Check for Updates");
     }
 
     private void SetSupportButtonsVisible(bool visible)

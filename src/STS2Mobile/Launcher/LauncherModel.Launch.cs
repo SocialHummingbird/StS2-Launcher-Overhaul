@@ -25,7 +25,7 @@ internal partial class LauncherModel
     }
 
     internal string LaunchButtonText()
-        => "START GAME";
+        => "Start Game";
 
     internal Task WaitForLaunch()
     {

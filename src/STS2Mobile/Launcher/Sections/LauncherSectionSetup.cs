@@ -19,7 +19,8 @@ internal static class LauncherSectionSetup
         string title,
         string subtitle,
         Color accent,
-        bool compact = false
+        bool compact = false,
+        string compactCue = null
     )
     {
         section.AddThemeConstantOverride(
@@ -32,7 +33,7 @@ internal static class LauncherSectionSetup
             )
         );
         section.Visible = false;
-        section.AddChild(BuildSectionHeader(title, subtitle, scale, accent, compact));
+        section.AddChild(BuildSectionHeader(title, subtitle, scale, accent, compact, compactCue));
     }
 
     private static Control BuildSectionHeader(
@@ -40,11 +41,12 @@ internal static class LauncherSectionSetup
         string subtitle,
         float scale,
         Color accent,
-        bool compact
+        bool compact,
+        string compactCue
     )
     {
         if (compact)
-            return BuildCompactSectionHeader(title, subtitle, scale, accent);
+            return BuildCompactSectionHeader(title, CompactCueText(compactCue, subtitle), subtitle, scale, accent);
 
         var panel = new PanelContainer();
         panel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -97,7 +99,8 @@ internal static class LauncherSectionSetup
 
     private static Control BuildCompactSectionHeader(
         string title,
-        string subtitle,
+        string cue,
+        string tooltip,
         float scale,
         Color accent
     )
@@ -151,7 +154,7 @@ internal static class LauncherSectionSetup
         body.AddChild(titleLabel);
 
         var cueLabel = new StyledLabel(
-            subtitle,
+            cue,
             scale,
             fontSize: CompactSectionHeaderCueFontSize,
             align: HorizontalAlignment.Left
@@ -160,7 +163,7 @@ internal static class LauncherSectionSetup
         cueLabel.AutowrapMode = TextServer.AutowrapMode.Off;
         cueLabel.ClipText = true;
         cueLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        cueLabel.TooltipText = subtitle;
+        cueLabel.TooltipText = tooltip;
         cueLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         cueLabel.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
@@ -170,6 +173,9 @@ internal static class LauncherSectionSetup
 
         return panel;
     }
+
+    private static string CompactCueText(string compactCue, string fallback)
+        => string.IsNullOrWhiteSpace(compactCue) ? fallback : compactCue;
 
     private static StyleBoxFlat BuildHeaderStyle(float scale, bool compact)
     {

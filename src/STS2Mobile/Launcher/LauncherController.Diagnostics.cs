@@ -6,7 +6,7 @@ internal sealed partial class LauncherController
 
     private void ShowLastErrorPressed()
         => RunDiagnosticsAction(
-            "Error summary failed",
+            "Problem summary failed",
             () => ShowDiagnosticsSummary(
                 _view,
                 _model.BuildDiagnosticsSummaryForDisplay()
@@ -15,7 +15,7 @@ internal sealed partial class LauncherController
 
     private void CopyRawLogPressed()
         => RunDiagnosticsAction(
-            "Raw error log copy failed",
+            "Launcher log copy failed",
             () => CopyRawLogToClipboard(
                 _view,
                 _model.BuildRawErrorLogForClipboard()
@@ -24,7 +24,7 @@ internal sealed partial class LauncherController
 
     private static void ShowDiagnosticsSummary(LauncherView view, string summary)
     {
-        view.SetStatus("Last error summary printed in console.");
+        view.SetStatus("Last problem opened.");
         view.AppendLog(summary);
         view.ShowDiagnosticsConsole();
     }
@@ -32,14 +32,14 @@ internal sealed partial class LauncherController
     private static void CopyRawLogToClipboard(LauncherView view, string rawLog)
     {
         var clipboardText = new LauncherClipboardText(
-            "Public sharing warning: review and redact this raw error log before posting publicly.\n"
+            "Public sharing warning: review and redact this launcher log before posting publicly.\n"
             + "It may include account names, local paths, device details, save/cloud state, and log excerpts.\n\n"
             + rawLog
         );
         clipboardText.CopyToClipboard();
-        view.SetStatus("Raw error log copied. Review/redact before sharing.");
+        view.SetStatus("Launcher log copied. Review before sharing.");
         view.AppendLog(
-            $"Raw error log copied to clipboard ({clipboardText.Length:N0} chars). Review/redact before public posting."
+            $"Launcher log copied to clipboard ({clipboardText.Length:N0} chars). Review/redact before public posting."
         );
         view.ShowDiagnosticsConsole();
     }

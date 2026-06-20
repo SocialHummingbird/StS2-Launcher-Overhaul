@@ -7,14 +7,14 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
     private static readonly RecoveryAction ExportDiagnosticsAction = new(
-        "diagnostics export",
-        "Diagnostics export failed",
+        "help report export",
+        "Help report failed",
         ExportDiagnosticsReport
     );
 
     private static readonly RecoveryAction CopyRawErrorLogAction = new(
-        "raw error log copy",
-        "Raw error log copy failed",
+        "launcher log copy",
+        "Launcher log copy failed",
         CopyRawErrorLogReport
     );
 

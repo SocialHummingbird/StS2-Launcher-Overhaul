@@ -9,10 +9,10 @@ internal sealed partial class LauncherController
 {
     private const string RedownloadConfirmationMessage =
         "Redownload selected game version?\nThis keeps your Steam login and other cached versions, but deletes the selected version's downloaded files.";
-    private const string DownloadGameFilesButtonText = "DOWNLOAD SELECTED VERSION";
-    private const string RedownloadSelectedVersionButtonText = "REDOWNLOAD SELECTED VERSION";
+    private const string DownloadGameFilesButtonText = "Download Selected Version";
+    private const string RedownloadSelectedVersionButtonText = "Redownload Selected Version";
     private const string DownloadCancelledStatus = "Download cancelled";
-    private const string RetryDownloadButtonText = "RETRY DOWNLOAD";
+    private const string RetryDownloadButtonText = "Retry Download";
     private const string RedownloadStatusMessage =
         "Selected game version deleted. Download again to rebuild it.";
     private const string RedownloadLogMessage =
@@ -148,8 +148,8 @@ internal sealed partial class LauncherController
                 _view.ShowConfirmation(
                     BlockedRedownloadConfirmationMessage + "\n\n" + downloadProblem,
                     () => ApplyRedownloadBlockedByBranchProblem(downloadProblem),
-                    "DELETE CACHE",
-                    "KEEP CACHE"
+                    "Delete Cache",
+                    "Keep Cache"
                 );
                 return;
             }
@@ -157,8 +157,8 @@ internal sealed partial class LauncherController
             _view.ShowConfirmation(
                 RedownloadConfirmationMessage,
                 ApplyRedownloadAndDownload,
-                "REDOWNLOAD VERSION",
-                "KEEP FILES"
+                "Redownload Version",
+                "Keep Files"
             );
             return;
         }
@@ -178,16 +178,16 @@ internal sealed partial class LauncherController
         => _view.ShowConfirmation(
             RedownloadConfirmationMessage,
             ApplyRedownload,
-            "REDOWNLOAD VERSION",
-            "KEEP FILES"
+            "Redownload Version",
+            "Keep Files"
         );
 
     private void ClearCachedVersionsPressed()
         => _view.ShowConfirmation(
             "Clear inactive cached game versions?\nThis keeps the selected version and removes other downloaded branch caches.",
             ClearCachedVersions,
-            "CLEAR CACHE",
-            "KEEP CACHE"
+            "Clear Cache",
+            "Keep Cache"
         );
 
     private void ClearCachedVersions()

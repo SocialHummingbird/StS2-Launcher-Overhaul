@@ -33,7 +33,8 @@ internal sealed class LoginSection : VBoxContainer
             "Steam Sign-in",
             "Use Steam once, then launch from cached encrypted session data when possible.",
             LauncherComponentTheme.OrangeAccent,
-            compact
+            compact,
+            "Steam account"
         );
         var useNativeAndroidCredentialPanel = OperatingSystem.IsAndroid();
 
@@ -61,7 +62,7 @@ internal sealed class LoginSection : VBoxContainer
 
         var compactNativeLogin = compact && useNativeAndroidCredentialPanel;
         _nativeLoginButton = new StyledButton(
-            compactNativeLogin ? CompactNativeLoginText() : "SIGN IN WITH STEAM",
+            compactNativeLogin ? CompactNativeLoginText() : "Sign in with Steam",
             scale,
             fontSize: compactNativeLogin
                 ? LauncherSectionMetrics.PrimaryButtonFontSize
@@ -79,7 +80,7 @@ internal sealed class LoginSection : VBoxContainer
         if (compact && useNativeAndroidCredentialPanel)
             MoveChild(_nativeLoginButton, credentialHelpLabel.GetIndex());
 
-        _loginButton = new StyledButton("SIGN IN", scale);
+        _loginButton = new StyledButton("Sign in", scale);
         LauncherButtonStyles.ApplyPrimaryAction(_loginButton, scale);
         _loginButton.Visible = !useNativeAndroidCredentialPanel;
         AddChild(_loginButton);
@@ -150,7 +151,7 @@ internal sealed class LoginSection : VBoxContainer
     }
 
     private static string CompactNativeLoginText()
-        => "SIGN IN WITH STEAM\nAndroid login";
+        => "Sign in with Steam\nAndroid login";
 
     private static void SetCompactNativeLoginButtonText(
         Button button,

@@ -2812,7 +2812,7 @@ public class GodotApp extends GodotActivity {
 		configureCredentialField(steamLoginCredentialUsernameField, View.AUTOFILL_HINT_USERNAME);
 
 		steamLoginCredentialNextPasswordButton = new Button(this);
-		steamLoginCredentialNextPasswordButton.setText("NEXT: PASSWORD");
+		steamLoginCredentialNextPasswordButton.setText("Next");
 		steamLoginCredentialNextPasswordButton.setContentDescription("Move to Steam password field");
 		styleSteamLoginCredentialButton(steamLoginCredentialNextPasswordButton, false);
 		steamLoginCredentialNextPasswordButton.setOnClickListener(v -> focusSteamLoginPasswordField());
@@ -2844,7 +2844,7 @@ public class GodotApp extends GodotActivity {
 		configureCredentialField(steamLoginCredentialPasswordField, View.AUTOFILL_HINT_PASSWORD);
 
 		steamLoginCredentialPasswordVisibilityButton = new Button(this);
-		steamLoginCredentialPasswordVisibilityButton.setText("SHOW PASSWORD");
+		steamLoginCredentialPasswordVisibilityButton.setText("Show password");
 		steamLoginCredentialPasswordVisibilityButton.setContentDescription("Show or hide Steam password while typing");
 		styleSteamLoginCredentialButton(steamLoginCredentialPasswordVisibilityButton, false);
 		steamLoginCredentialPasswordVisibilityButton.setOnClickListener(v -> toggleSteamLoginCredentialPasswordVisibility());
@@ -2860,14 +2860,14 @@ public class GodotApp extends GodotActivity {
 		buttons.setPadding(0, dp(shortHeightCredentialLayout ? 8 : (wideCredentialLayout ? 10 : 8)), 0, 0);
 
 		steamLoginCredentialSubmitButton = new Button(this);
-		steamLoginCredentialSubmitButton.setText("SIGN IN WITH STEAM");
+		steamLoginCredentialSubmitButton.setText("Sign in with Steam");
 		steamLoginCredentialSubmitButton.setContentDescription("Sign in with Steam");
 		styleSteamLoginCredentialButton(steamLoginCredentialSubmitButton, true);
 		steamLoginCredentialSubmitButton.setOnClickListener(v -> submitSteamLoginCredentials());
 		buttons.addView(steamLoginCredentialSubmitButton, credentialSubmitButtonLayoutParams(wideCredentialLayout));
 
 		steamLoginCredentialCancelButton = new Button(this);
-		steamLoginCredentialCancelButton.setText("CANCEL");
+		steamLoginCredentialCancelButton.setText("Cancel");
 		steamLoginCredentialCancelButton.setContentDescription("Cancel Steam login");
 		styleSteamLoginCredentialButton(steamLoginCredentialCancelButton, false);
 		steamLoginCredentialCancelButton.setOnClickListener(v -> {
@@ -3090,6 +3090,7 @@ public class GodotApp extends GodotActivity {
 		button.setTextColor(primary ? Color.rgb(5, 8, 14) : Color.rgb(232, 248, 250));
 		button.setTextSize(14);
 		button.setTypeface(Typeface.DEFAULT_BOLD);
+		button.setAllCaps(false);
 		button.setMinHeight(dp(primary ? 60 : 56));
 		button.setPadding(dp(12), dp(6), dp(12), dp(6));
 	}
@@ -3238,7 +3239,7 @@ public class GodotApp extends GodotActivity {
 			);
 		}
 		if (steamLoginCredentialPasswordVisibilityButton != null) {
-			steamLoginCredentialPasswordVisibilityButton.setText(visible ? "HIDE PASSWORD" : "SHOW PASSWORD");
+			steamLoginCredentialPasswordVisibilityButton.setText(visible ? "Hide password" : "Show password");
 			steamLoginCredentialPasswordVisibilityButton.setContentDescription(visible ? "Hide Steam password" : "Show Steam password while typing");
 		}
 	}

@@ -74,8 +74,8 @@ internal sealed partial class LauncherController
             BranchSwitchConfirmationMessage(previous, branch),
             () => ApplyGameBranchChanged(previous, branch),
             () => _view.SetGameBranch(previous),
-            "SWITCH VERSION",
-            "KEEP CURRENT"
+            "Switch Version",
+            "Keep Current"
         );
     }
 

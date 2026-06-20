@@ -3,7 +3,7 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class LauncherController
 {
     private const string PreviousLaunchWarningStatus =
-        "Previous game launch did not finish.";
+        "Game startup failed last time.";
 
     private void ShowPreviousLaunchWarningIfNeeded()
     {
@@ -28,16 +28,16 @@ internal sealed partial class LauncherController
             "[Launcher] Previous launch warning shown; automatic diagnostics deferred to avoid blocking launcher display."
         );
         _view.AppendLog(
-            "Diagnostics snapshot was not collected automatically to keep the launcher responsive. Use EXPORT DIAGNOSTICS after the launcher is visible."
+            "Help report was not collected automatically to keep the launcher responsive. Use Help Report after the launcher is visible."
         );
     }
 
     private readonly struct PreviousLaunchWarning
     {
         private const string LauncherAvailableMessage =
-            "The launcher is staying available so you are not trapped on a black screen.";
+            "The launcher stayed open so you are not stuck on a black screen.";
         private const string DiagnosticsActionMessage =
-            "Tap SHOW LAST ERROR to print the failure summary here, or EXPORT DIAGNOSTICS to share the full report.";
+            "Tap Last Problem to show what happened, or Help Report to share details.";
 
         internal PreviousLaunchWarning(string previousLaunchPhase)
         {

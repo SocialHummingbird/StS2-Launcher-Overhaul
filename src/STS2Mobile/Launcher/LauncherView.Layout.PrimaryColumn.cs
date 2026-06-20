@@ -7,22 +7,23 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
-    private const int CompactWorkflowStepHeight = LauncherSectionMetrics.CompactDrawerToggleHeight;
-    private const int CompactWorkflowStepDenseHeight = LauncherSectionMetrics.CompactDrawerToggleHeight;
+    private const int CompactWorkflowStepHeight = LauncherSectionMetrics.CompactDetailButtonHeight;
+    private const int CompactWorkflowStepDenseHeight = LauncherSectionMetrics.CompactDetailButtonHeight;
     private const int CompactWorkflowStepLabelFontSize = 13;
+    private const int CompactWorkflowStepDetailFontSize = LauncherSectionMetrics.CompactDetailLabelFontSize;
     private const int CompactWorkflowStepNumberFontSize = LauncherSectionMetrics.CompactDetailLabelFontSize;
-    private const int CompactWorkflowStepNumberMinWidth = 16;
+    private const int CompactWorkflowStepNumberMinWidth = 20;
     private const int CompactWorkflowStepAccentHeight = 2;
-    private const int CompactWorkflowStepSeparation = 1;
-    private const int CompactWorkflowStepCellGap = 2;
-    private const int CompactWorkflowStepNumberGap = 2;
+    private const int CompactWorkflowStepSeparation = 0;
+    private const int CompactWorkflowStepCellGap = 3;
+    private const int CompactWorkflowStepNumberGap = 3;
     private const int CompactWorkflowStepRadius = 6;
-    private const int CompactWorkflowStepHorizontalMargin = 3;
-    private const int CompactWorkflowStepVerticalMargin = 2;
+    private const int CompactWorkflowStepHorizontalMargin = 5;
+    private const int CompactWorkflowStepVerticalMargin = 4;
     private const int CompactStickyTaskHeaderInlineGap = 6;
     private const int CompactStickyTaskHeaderStackGap = 3;
     private const int CompactStickyTaskButtonMinWidth = 176;
-    private const int CompactInlineCurrentTaskHeight = LauncherSectionMetrics.CompactDrawerToggleHeight;
+    private const int CompactInlineCurrentTaskHeight = LauncherSectionMetrics.CompactDetailButtonHeight;
     private const int CompactStackedCurrentTaskHeight = CompactWorkflowStepDenseHeight;
     private const int CompactStickyTaskHeaderStackWidth = 560;
     private const int CompactStickyTaskToolbarRadius = 7;
@@ -44,7 +45,13 @@ internal sealed partial class LauncherView
     private const int CompactStatusPhaseHorizontalMargin = 7;
     private const int CompactStatusPhaseVerticalMargin = 3;
     private const int CompactStatusActionMinHeight = 24;
-    private const int CompactStatusDetailHeight = 28;
+    private const int CompactStatusDetailHeight = 44;
+    private const int CompactStatusDetailCueWidth = 62;
+    private const int CompactStatusDetailCueFontSize = LauncherSectionMetrics.CompactDetailLabelFontSize;
+    private const int CompactStatusDetailHorizontalMargin = 8;
+    private const int CompactStatusDetailVerticalMargin = 5;
+    private const int CompactStatusDetailRowGap = 6;
+    private const int CompactStatusDetailRadius = 7;
     private const string CompactSafeFlowToggleBodyName = "CompactSafeFlowToggleBody";
     private const string CompactSafeFlowToggleTitleName = "CompactSafeFlowToggleTitle";
     private const string CompactSafeFlowToggleDetailName = "CompactSafeFlowToggleDetail";
@@ -53,17 +60,27 @@ internal sealed partial class LauncherView
     private const int CompactSafeFlowToggleHorizontalMargin = 6;
     private const int CompactSafeFlowToggleVerticalMargin = 4;
     private const int CompactSafeFlowGuideTitleHeight = 24;
-    private const int CompactSafeFlowGuideTextHeight = 48;
     private const int CompactSafeFlowGuideTitleFontSize = LauncherSectionMetrics.CompactDetailButtonFontSize;
-    private const int CompactSafeFlowGuideTextFontSize = LauncherSectionMetrics.CompactVersionSummaryFontSize;
+    private const int CompactSafeFlowGuideStepHeight = 42;
+    private const int CompactSafeFlowGuideStepAccentWidth = 3;
+    private const int CompactSafeFlowGuideStepNumberWidth = 26;
+    private const int CompactSafeFlowGuideStepNumberFontSize = LauncherSectionMetrics.CompactDetailLabelFontSize;
+    private const int CompactSafeFlowGuideStepTitleFontSize = LauncherSectionMetrics.CompactDetailButtonFontSize;
+    private const int CompactSafeFlowGuideStepDetailFontSize = LauncherSectionMetrics.CompactDetailLabelFontSize;
+    private const int CompactSafeFlowGuideStepRadius = 6;
+    private const int CompactSafeFlowGuideStepHorizontalMargin = 7;
+    private const int CompactSafeFlowGuideStepVerticalMargin = 4;
 
     private static (
         StyledLabel StatusPhase,
         StyledLabel StatusAction,
         StyledLabel Status,
+        Button CompactStatusDetailsButton,
+        StyledLabel CompactStatusDetailsCue,
         ColorRect StatusAccent,
         StyledLabel[] WorkflowStepNumberLabels,
         StyledLabel[] WorkflowStepLabels,
+        StyledLabel[] WorkflowStepDetailLabels,
         ColorRect[] WorkflowStepAccents,
         Button[] WorkflowStepButtons,
         GridContainer CompactStatusHeadline,
@@ -200,9 +217,12 @@ internal sealed partial class LauncherView
             statusPhaseLabel,
             statusActionLabel,
             statusLabel,
+            statusCapsule.CompactDetailButton,
+            statusCapsule.CompactDetailCue,
             statusAccent,
             workflowStrip.StepNumberLabels,
             workflowStrip.StepLabels,
+            workflowStrip.StepDetailLabels,
             workflowStrip.StepAccents,
             workflowStrip.StepButtons,
             statusCapsule.CompactHeadline,
@@ -232,8 +252,8 @@ internal sealed partial class LauncherView
             height: LauncherSectionMetrics.CompactDetailButtonHeight
         );
         button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        LauncherButtonStyles.ApplyPrimaryAction(button, scale);
-        SetCompactCurrentTaskButtonText(button, scale, "GO TO SETUP", "Setup guide");
+        LauncherButtonStyles.ApplySupportAction(button, scale);
+        SetCompactCurrentTaskButtonText(button, scale, "Start here", "Setup guide");
         return button;
     }
 
@@ -422,6 +442,7 @@ internal sealed partial class LauncherView
         Control Strip,
         StyledLabel[] StepNumberLabels,
         StyledLabel[] StepLabels,
+        StyledLabel[] StepDetailLabels,
         ColorRect[] StepAccents,
         Button[] StepButtons
     ) BuildCompactWorkflowStrip(
@@ -433,6 +454,7 @@ internal sealed partial class LauncherView
         if (!compact)
             return (
                 new Control { Visible = false },
+                Array.Empty<StyledLabel>(),
                 Array.Empty<StyledLabel>(),
                 Array.Empty<StyledLabel>(),
                 Array.Empty<ColorRect>(),
@@ -454,6 +476,7 @@ internal sealed partial class LauncherView
             : CompactWorkflowStepHeight;
         var numberLabels = new StyledLabel[CompactWorkflowStepNames.Length];
         var labels = new StyledLabel[CompactWorkflowStepNames.Length];
+        var detailLabels = new StyledLabel[CompactWorkflowStepNames.Length];
         var accents = new ColorRect[CompactWorkflowStepNames.Length];
         var buttons = new Button[CompactWorkflowStepNames.Length];
         for (var i = 0; i < CompactWorkflowStepNames.Length; i++)
@@ -521,6 +544,24 @@ internal sealed partial class LauncherView
             labels[i] = label;
             labelRow.AddChild(label);
 
+            var detail = new StyledLabel(
+                CompactWorkflowStepDetails[i],
+                scale,
+                fontSize: CompactWorkflowStepDetailFontSize,
+                align: HorizontalAlignment.Center
+            );
+            detail.VerticalAlignment = VerticalAlignment.Center;
+            detail.MouseFilter = Control.MouseFilterEnum.Ignore;
+            detail.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            detail.ClipText = true;
+            detail.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+            detail.AddThemeColorOverride(
+                LauncherViewLayoutMetrics.ThemeFontColor,
+                LauncherComponentTheme.TextMuted
+            );
+            detailLabels[i] = detail;
+            body.AddChild(detail);
+
             var accent = new ColorRect
             {
                 Color = LauncherComponentTheme.ButtonNormal,
@@ -535,7 +576,7 @@ internal sealed partial class LauncherView
             grid.AddChild(cell);
         }
 
-        return (grid, numberLabels, labels, accents, buttons);
+        return (grid, numberLabels, labels, detailLabels, accents, buttons);
     }
 
     private static Button BuildCompactWorkflowStepButton(int index, float scale, int height)
@@ -627,7 +668,9 @@ internal sealed partial class LauncherView
     private static (
         Control Capsule,
         GridContainer CompactHeadline,
-        PanelContainer CompactPhasePanel
+        PanelContainer CompactPhasePanel,
+        Button CompactDetailButton,
+        StyledLabel CompactDetailCue
     ) BuildStatusCapsule(
         StyledLabel statusPhaseLabel,
         StyledLabel statusActionLabel,
@@ -684,13 +727,15 @@ internal sealed partial class LauncherView
 
         statusLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         body.AddChild(statusLabel);
-        return (panel, null, null);
+        return (panel, null, null, null, null);
     }
 
     private static (
         Control Capsule,
         GridContainer CompactHeadline,
-        PanelContainer CompactPhasePanel
+        PanelContainer CompactPhasePanel,
+        Button CompactDetailButton,
+        StyledLabel CompactDetailCue
     ) BuildCompactStatusCapsule(
         StyledLabel statusPhaseLabel,
         StyledLabel statusActionLabel,
@@ -748,18 +793,124 @@ internal sealed partial class LauncherView
         ApplyCompactStatusHeadlineLayout(headline, phasePanel, statusActionLabel, profile);
         body.AddChild(headline);
 
+        var detailButton = BuildCompactStatusDetailButton(scale);
+        var detailRow = new HBoxContainer
+        {
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        detailRow.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        detailRow.OffsetLeft = LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailHorizontalMargin, scale);
+        detailRow.OffsetRight = -LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailHorizontalMargin, scale);
+        detailRow.OffsetTop = LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailVerticalMargin, scale);
+        detailRow.OffsetBottom = -LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailVerticalMargin, scale);
+        detailRow.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailRowGap, scale)
+        );
+
         statusLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         statusLabel.HorizontalAlignment = HorizontalAlignment.Left;
-        statusLabel.CustomMinimumSize = new Vector2(
-            0,
-            LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailHeight, scale)
-        );
+        statusLabel.VerticalAlignment = VerticalAlignment.Center;
+        statusLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
         statusLabel.AutowrapMode = TextServer.AutowrapMode.Off;
         statusLabel.ClipText = true;
         statusLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        body.AddChild(statusLabel);
+        detailRow.AddChild(statusLabel);
 
-        return (panel, headline, phasePanel);
+        var detailCue = new StyledLabel(
+            "Details",
+            scale,
+            fontSize: CompactStatusDetailCueFontSize,
+            align: HorizontalAlignment.Center
+        );
+        detailCue.CustomMinimumSize = new Vector2(
+            LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailCueWidth, scale),
+            0
+        );
+        detailCue.VerticalAlignment = VerticalAlignment.Center;
+        detailCue.MouseFilter = Control.MouseFilterEnum.Ignore;
+        detailCue.ClipText = true;
+        detailCue.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        detailCue.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.CyanAccent
+        );
+        detailRow.AddChild(detailCue);
+
+        detailButton.AddChild(detailRow);
+        body.AddChild(detailButton);
+
+        return (panel, headline, phasePanel, detailButton, detailCue);
+    }
+
+    private static Button BuildCompactStatusDetailButton(float scale)
+    {
+        var button = new Button
+        {
+            Text = "",
+            ClipText = true,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            TooltipText = "Show full launcher status",
+            MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+            CustomMinimumSize = new Vector2(
+                0,
+                LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailHeight, scale)
+            ),
+        };
+        ApplyCompactStatusDetailButtonStyle(button, scale);
+        return button;
+    }
+
+    private static void ApplyCompactStatusDetailButtonStyle(Button button, float scale)
+    {
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StateNormal,
+            BuildCompactStatusDetailButtonStyle(
+                scale,
+                new Color(0.025f, 0.045f, 0.06f, 0.76f),
+                new Color(0.05f, 0.34f, 0.42f, 0.4f)
+            )
+        );
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StateHover,
+            BuildCompactStatusDetailButtonStyle(
+                scale,
+                new Color(0.035f, 0.075f, 0.095f, 0.86f),
+                new Color(0.06f, 0.54f, 0.62f, 0.58f)
+            )
+        );
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StatePressed,
+            BuildCompactStatusDetailButtonStyle(
+                scale,
+                new Color(0.02f, 0.035f, 0.05f, 0.94f),
+                new Color(0.95f, 0.42f, 0.08f, 0.68f)
+            )
+        );
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StateDisabled,
+            BuildCompactStatusDetailButtonStyle(
+                scale,
+                new Color(0.025f, 0.035f, 0.045f, 0.48f),
+                new Color(0.05f, 0.16f, 0.2f, 0.24f)
+            )
+        );
+    }
+
+    private static StyleBoxFlat BuildCompactStatusDetailButtonStyle(float scale, Color body, Color border)
+    {
+        var style = LauncherStyleBoxes.MakeFilled(
+            body,
+            LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailRadius, scale)
+        );
+        style.BorderColor = border;
+        style.SetBorderWidthAll(Math.Max(1, LauncherViewLayoutMetrics.ScaleInt(1, scale)));
+        style.ContentMarginLeft = LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailHorizontalMargin, scale);
+        style.ContentMarginRight = LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailHorizontalMargin, scale);
+        style.ContentMarginTop = LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailVerticalMargin, scale);
+        style.ContentMarginBottom = LauncherViewLayoutMetrics.ScaleInt(CompactStatusDetailVerticalMargin, scale);
+        return style;
     }
 
     private static void ApplyCompactStatusHeadlineLayout(
@@ -847,7 +998,7 @@ internal sealed partial class LauncherView
             height: LauncherSectionMetrics.CompactDrawerToggleHeight
         );
         LauncherButtonStyles.ApplySupportAction(toggle, scale);
-        SetCompactSafeFlowToggleText(toggle, scale, "SAFE FLOW", "Pull then play");
+        SetCompactSafeFlowToggleText(toggle, scale, "Quick Start", "Get saves first");
         wrapper.AddChild(toggle);
 
         var guide = BuildFirstRunGuidePanel(scale, compact: true);
@@ -858,9 +1009,9 @@ internal sealed partial class LauncherView
         {
             guide.Visible = !guide.Visible;
             if (guide.Visible)
-                SetCompactSafeFlowToggleText(toggle, scale, "HIDE SAFE FLOW", "Pull-first guard");
+                SetCompactSafeFlowToggleText(toggle, scale, "Hide Guide", "Safe order");
             else
-                SetCompactSafeFlowToggleText(toggle, scale, "SAFE FLOW", "Pull then play");
+                SetCompactSafeFlowToggleText(toggle, scale, "Quick Start", "Get saves first");
         };
 
         return wrapper;
@@ -965,12 +1116,12 @@ internal sealed partial class LauncherView
         body.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         body.AddThemeConstantOverride(
             LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(compact ? 3 : 5, scale)
+            LauncherViewLayoutMetrics.ScaleInt(5, scale)
         );
         panel.AddChild(body);
 
         var title = new StyledLabel(
-            "Safe first-run flow",
+            "Quick start guide",
             scale,
             fontSize: compact ? CompactSafeFlowGuideTitleFontSize : 12,
             align: HorizontalAlignment.Left
@@ -992,25 +1143,19 @@ internal sealed partial class LauncherView
         );
         body.AddChild(title);
 
+        if (compact)
+        {
+            AddCompactSafeFlowSteps(body, scale);
+            return panel;
+        }
+
         var guidance = new StyledLabel(
-            compact
-                ? CompactSafeFlowGuideText()
-                : "1. Sign in with Steam.  2. Choose/download a game version.  3. Pull saves before any Push. Push stays hidden until local saves are verified.  4. Launch when the Play and Sync section is ready.",
+            "Sign in, choose a game version, get Steam saves, then start the game. Upload stays locked until you deliberately open it after checking local saves.",
             scale,
-            fontSize: compact ? CompactSafeFlowGuideTextFontSize : 11,
+            fontSize: 11,
             align: HorizontalAlignment.Left
         );
         guidance.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        if (compact)
-        {
-            guidance.ClipText = true;
-            guidance.VerticalAlignment = VerticalAlignment.Center;
-            guidance.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-            guidance.CustomMinimumSize = new Vector2(
-                0,
-                LauncherViewLayoutMetrics.ScaleInt(CompactSafeFlowGuideTextHeight, scale)
-            );
-        }
         guidance.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
             LauncherComponentTheme.TextSecondary
@@ -1020,8 +1165,185 @@ internal sealed partial class LauncherView
         return panel;
     }
 
-    private static string CompactSafeFlowGuideText()
-        => "Setup: sign in -> download version -> Pull saves\nLaunch when ready. Push stays locked until verified.";
+    private static void AddCompactSafeFlowSteps(VBoxContainer body, float scale)
+    {
+        body.AddChild(BuildCompactSafeFlowStep(
+            scale,
+            "1",
+            "Sign in",
+            "Steam account",
+            LauncherComponentTheme.OrangeAccent
+        ));
+        body.AddChild(BuildCompactSafeFlowStep(
+            scale,
+            "2",
+            "Get files",
+            "Version on Android",
+            LauncherComponentTheme.CyanAccent
+        ));
+        body.AddChild(BuildCompactSafeFlowStep(
+            scale,
+            "3",
+            "Get saves",
+            "Steam to Android",
+            LauncherComponentTheme.CyanAccent
+        ));
+        body.AddChild(BuildCompactSafeFlowStep(
+            scale,
+            "4",
+            "Play",
+            "Ready version",
+            LauncherComponentTheme.OrangeHot
+        ));
+        body.AddChild(BuildCompactSafeFlowStep(
+            scale,
+            "5",
+            "Upload locked",
+            "Review before uploading",
+            LauncherComponentTheme.TextMuted
+        ));
+    }
+
+    private static Control BuildCompactSafeFlowStep(
+        float scale,
+        string marker,
+        string title,
+        string detail,
+        Color accent
+    )
+    {
+        var panel = new PanelContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(
+                0,
+                LauncherViewLayoutMetrics.ScaleInt(CompactSafeFlowGuideStepHeight, scale)
+            ),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        panel.AddThemeStyleboxOverride(
+            LauncherComponentTheme.Panel,
+            BuildCompactSafeFlowStepStyle(scale, accent)
+        );
+
+        var row = new HBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        row.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(7, scale)
+        );
+
+        var accentLine = new ColorRect
+        {
+            Color = accent,
+            CustomMinimumSize = new Vector2(
+                LauncherViewLayoutMetrics.ScaleInt(CompactSafeFlowGuideStepAccentWidth, scale),
+                0
+            ),
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        row.AddChild(accentLine);
+
+        var markerLabel = new StyledLabel(
+            marker,
+            scale,
+            fontSize: CompactSafeFlowGuideStepNumberFontSize,
+            align: HorizontalAlignment.Center
+        )
+        {
+            CustomMinimumSize = new Vector2(
+                LauncherViewLayoutMetrics.ScaleInt(CompactSafeFlowGuideStepNumberWidth, scale),
+                0
+            ),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        markerLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            accent
+        );
+        row.AddChild(markerLabel);
+
+        var textColumn = new VBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        textColumn.AddThemeConstantOverride(LauncherViewLayoutMetrics.ThemeSeparation, 0);
+
+        var titleLabel = new StyledLabel(
+            title,
+            scale,
+            fontSize: CompactSafeFlowGuideStepTitleFontSize,
+            align: HorizontalAlignment.Left
+        )
+        {
+            ClipText = true,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        titleLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextPrimary
+        );
+        textColumn.AddChild(titleLabel);
+
+        var detailLabel = new StyledLabel(
+            detail,
+            scale,
+            fontSize: CompactSafeFlowGuideStepDetailFontSize,
+            align: HorizontalAlignment.Left
+        )
+        {
+            ClipText = true,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+            TooltipText = detail,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        detailLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextSecondary
+        );
+        textColumn.AddChild(detailLabel);
+        row.AddChild(textColumn);
+        panel.AddChild(row);
+        return panel;
+    }
+
+    private static StyleBoxFlat BuildCompactSafeFlowStepStyle(float scale, Color accent)
+    {
+        var style = LauncherStyleBoxes.MakeFilled(
+            new Color(0.03f, 0.055f, 0.07f, 0.88f),
+            LauncherViewLayoutMetrics.ScaleInt(CompactSafeFlowGuideStepRadius, scale)
+        );
+        style.BorderColor = new Color(accent.R, accent.G, accent.B, 0.3f);
+        style.SetBorderWidthAll(Math.Max(1, LauncherViewLayoutMetrics.ScaleInt(1, scale)));
+        style.ContentMarginLeft = LauncherViewLayoutMetrics.ScaleInt(
+            CompactSafeFlowGuideStepHorizontalMargin,
+            scale
+        );
+        style.ContentMarginRight = LauncherViewLayoutMetrics.ScaleInt(
+            CompactSafeFlowGuideStepHorizontalMargin,
+            scale
+        );
+        style.ContentMarginTop = LauncherViewLayoutMetrics.ScaleInt(
+            CompactSafeFlowGuideStepVerticalMargin,
+            scale
+        );
+        style.ContentMarginBottom = LauncherViewLayoutMetrics.ScaleInt(
+            CompactSafeFlowGuideStepVerticalMargin,
+            scale
+        );
+        return style;
+    }
 
     private static StyleBoxFlat BuildFirstRunGuideStyle(float scale, bool compact)
     {

@@ -27,9 +27,12 @@ internal sealed partial class LauncherView
     private readonly StyledLabel _statusPhaseLabel;
     private readonly StyledLabel _statusActionLabel;
     private readonly StyledLabel _statusLabel;
+    private readonly Button _compactStatusDetailsButton;
+    private readonly StyledLabel _compactStatusDetailsCueLabel;
     private readonly ColorRect _statusAccent;
     private readonly StyledLabel[] _workflowStepNumberLabels;
     private readonly StyledLabel[] _workflowStepLabels;
+    private readonly StyledLabel[] _workflowStepDetailLabels;
     private readonly ColorRect[] _workflowStepAccents;
     private readonly Button[] _workflowStepButtons;
     private readonly GridContainer _compactStatusHeadline;
@@ -41,12 +44,16 @@ internal sealed partial class LauncherView
     private Control _compactScrollAnchorTarget;
     private Control _keyboardFocusScrollTarget;
     private float _keyboardFocusScrollOffset = -1f;
+    private string _compactStatusShortMessage = "";
+    private string _compactStatusFullMessage = "";
+    private string _compactStatusPhase = "Status";
+    private bool _compactStatusExpanded;
     private static readonly string[] CompactWorkflowStepNames =
     {
-        "SIGN IN",
-        "GUARD",
-        "FILES",
-        "PLAY",
+        "Sign in",
+        "Verify",
+        "Files",
+        "Play",
     };
     private static readonly string[] CompactWorkflowStepNumbers =
     {
@@ -55,12 +62,19 @@ internal sealed partial class LauncherView
         "3",
         "4",
     };
+    private static readonly string[] CompactWorkflowStepDetails =
+    {
+        "Account",
+        "Steam Guard",
+        "Game files",
+        "Saves safe",
+    };
     private static readonly string[] CompactWorkflowStepTooltips =
     {
-        "Sign in",
-        "Steam Guard",
-        "Files",
-        "Play",
+        "Open sign-in",
+        "Open Steam Guard",
+        "Open game files",
+        "Open play and saves",
     };
 
     private enum CompactWorkflowStep
@@ -84,9 +98,12 @@ internal sealed partial class LauncherView
         _statusPhaseLabel = primary.StatusPhase;
         _statusActionLabel = primary.StatusAction;
         _statusLabel = primary.Status;
+        _compactStatusDetailsButton = primary.CompactStatusDetailsButton;
+        _compactStatusDetailsCueLabel = primary.CompactStatusDetailsCue;
         _statusAccent = primary.StatusAccent;
         _workflowStepNumberLabels = primary.WorkflowStepNumberLabels;
         _workflowStepLabels = primary.WorkflowStepLabels;
+        _workflowStepDetailLabels = primary.WorkflowStepDetailLabels;
         _workflowStepAccents = primary.WorkflowStepAccents;
         _workflowStepButtons = primary.WorkflowStepButtons;
         _compactStatusHeadline = primary.CompactStatusHeadline;
@@ -111,28 +128,32 @@ internal sealed partial class LauncherView
         _compactScrollAnchorTarget = FirstRunGuide;
         _compactCurrentTaskButton.Pressed += () => ScrollCompactPrimaryTo(_compactCurrentTaskTarget);
         WireCompactWorkflowStepNavigation();
+        WireCompactStatusDetailToggle();
         SetCompactWorkflowStep(CompactWorkflowStep.SignIn);
-        SetCompactCurrentTask("GO TO SETUP", FirstRunGuide, "Setup guide");
+        SetCompactCurrentTask("Start here", FirstRunGuide, "Setup guide");
     }
 
     internal void SetStatus(string text)
     {
         var phase = LauncherPortalStatusFormatter.PhaseFor(text);
         var color = LauncherPortalStatusFormatter.ColorFor(phase);
+        var fullMessage = LauncherPortalStatusFormatter.MessageFor(text);
+        var message = _profile.Compact
+            ? LauncherPortalStatusFormatter.CompactMessageFor(text)
+            : fullMessage;
+        _compactStatusShortMessage = message;
+        _compactStatusFullMessage = fullMessage;
+        _compactStatusPhase = phase;
+        _compactStatusExpanded = ShouldAutoExpandCompactStatusDetails(phase);
         _statusPhaseLabel.Text = phase;
         _statusPhaseLabel.AddThemeColorOverride(LauncherViewLayoutMetrics.ThemeFontColor, color);
         _statusActionLabel.Text = LauncherPortalStatusFormatter.ActionFor(text);
         _statusAccent.Color = color;
-        var message = LauncherPortalStatusFormatter.MessageFor(text);
-        _statusLabel.Text = message;
-        _statusLabel.TooltipText = message;
+        _statusLabel.Text = _compactStatusExpanded ? fullMessage : message;
+        _statusLabel.TooltipText = fullMessage;
         if (_profile.Compact)
         {
-            var attention = string.Equals(phase, "ATTENTION", StringComparison.Ordinal);
-            _statusLabel.AutowrapMode = attention
-                ? TextServer.AutowrapMode.WordSmart
-                : TextServer.AutowrapMode.Off;
-            _statusLabel.ClipText = !attention;
+            ApplyCompactStatusDetailLayout();
         }
     }
 
@@ -183,6 +204,17 @@ internal sealed partial class LauncherView
                     color
                 );
             }
+            if (i < _workflowStepDetailLabels.Length)
+            {
+                _workflowStepDetailLabels[i].AddThemeColorOverride(
+                    LauncherViewLayoutMetrics.ThemeFontColor,
+                    active
+                        ? LauncherComponentTheme.TextSecondary
+                        : complete
+                            ? LauncherComponentTheme.CyanDim
+                            : LauncherComponentTheme.TextMuted
+                );
+            }
             _workflowStepAccents[i].Color = active
                 ? LauncherComponentTheme.OrangeAccent
                 : complete
@@ -202,6 +234,57 @@ internal sealed partial class LauncherView
             _workflowStepButtons[i].Pressed += () => ScrollCompactWorkflowStep(capturedStep);
         }
     }
+
+    private void WireCompactStatusDetailToggle()
+    {
+        if (!_profile.Compact)
+            return;
+
+        _compactStatusDetailsButton.Pressed += ToggleCompactStatusDetails;
+    }
+
+    private void ToggleCompactStatusDetails()
+    {
+        if (!_profile.Compact
+            || string.Equals(
+                _compactStatusShortMessage,
+                _compactStatusFullMessage,
+                StringComparison.Ordinal
+            ))
+        {
+            return;
+        }
+
+        _parent.GetViewport()?.GuiReleaseFocus();
+        _compactStatusExpanded = !_compactStatusExpanded;
+        _statusLabel.Text = _compactStatusExpanded
+            ? _compactStatusFullMessage
+            : _compactStatusShortMessage;
+        ApplyCompactStatusDetailLayout();
+    }
+
+    private void ApplyCompactStatusDetailLayout()
+    {
+        var hasFullDetails = !string.Equals(
+            _compactStatusShortMessage,
+            _compactStatusFullMessage,
+            StringComparison.Ordinal
+        );
+        var expanded = _compactStatusExpanded;
+        _statusLabel.AutowrapMode = expanded
+            ? TextServer.AutowrapMode.WordSmart
+            : TextServer.AutowrapMode.Off;
+        _statusLabel.ClipText = !expanded;
+        _compactStatusDetailsButton.Disabled = !hasFullDetails;
+        _compactStatusDetailsButton.MouseDefaultCursorShape = hasFullDetails
+            ? Control.CursorShape.PointingHand
+            : Control.CursorShape.Arrow;
+        _compactStatusDetailsCueLabel.Visible = hasFullDetails;
+        _compactStatusDetailsCueLabel.Text = expanded ? "Hide" : "Details";
+    }
+
+    private static bool ShouldAutoExpandCompactStatusDetails(string phase)
+        => string.Equals(phase, "Attention", StringComparison.Ordinal);
 
     private void ScrollCompactWorkflowStep(CompactWorkflowStep step)
     {

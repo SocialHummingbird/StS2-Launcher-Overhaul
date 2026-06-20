@@ -71,7 +71,7 @@ internal sealed partial class LauncherView
         if (visible)
         {
             SetCompactWorkflowStep(CompactWorkflowStep.SignIn);
-            SetCompactCurrentTask("GO TO LOGIN", Login, "Steam login");
+            SetCompactCurrentTask("Sign in", Login, "Steam account");
             ScrollCompactPrimaryTo(Login);
         }
     }
@@ -81,7 +81,7 @@ internal sealed partial class LauncherView
         SetFirstRunGuideVisible(false);
         HideCompactCompletedAuthSections(showCode: true);
         SetCompactWorkflowStep(CompactWorkflowStep.Code);
-        SetCompactCurrentTask("GO TO GUARD", Code, "Verification code");
+        SetCompactCurrentTask("Verify", Code, "Steam Guard code");
         Code.Show(wasIncorrect);
         ScrollCompactPrimaryTo(Code);
     }
@@ -92,7 +92,7 @@ internal sealed partial class LauncherView
         HideCompactCompletedAuthSections(showCode: false);
         SetCompactReadyInstallSectionVisible(true);
         SetCompactWorkflowStep(CompactWorkflowStep.Files);
-        SetCompactCurrentTask("GO TO FILES", Download, "Game files");
+        SetCompactCurrentTask("Files", Download, "Download version");
         Download.Visible = true;
         Download.Reset(buttonText);
         ScrollCompactPrimaryTo(Download);
@@ -113,7 +113,7 @@ internal sealed partial class LauncherView
     internal void ShowDownloadProgress(string text)
     {
         SetCompactWorkflowStep(CompactWorkflowStep.Files);
-        SetCompactCurrentTask("GO TO FILES", Download, "Game files");
+        SetCompactCurrentTask("Files", Download, "Download version");
         Download.ShowProgress(text);
     }
 
@@ -139,7 +139,7 @@ internal sealed partial class LauncherView
     {
         SetFirstRunGuideVisible(true);
         SetCompactWorkflowStep(CompactWorkflowStep.SignIn);
-        SetCompactCurrentTask("GO TO SETUP", FirstRunGuide, "Setup guide");
+        SetCompactCurrentTask("Start here", FirstRunGuide, "Setup guide");
         Actions.HideAll();
         ScrollCompactPrimaryTo(FirstRunGuide);
     }
@@ -149,7 +149,7 @@ internal sealed partial class LauncherView
         SetFirstRunGuideVisible(false);
         HideCompactCompletedAuthSections(showCode: false);
         SetCompactWorkflowStep(CompactWorkflowStep.Play);
-        SetCompactCurrentTask("GO TO RETRY", Actions.RetryScrollTarget, "Recovery action");
+        SetCompactCurrentTask("Retry", Actions.RetryScrollTarget, "Restart safely");
         Actions.ShowRetry();
         ScrollCompactPrimaryTo(Actions.RetryScrollTarget);
     }
@@ -164,7 +164,7 @@ internal sealed partial class LauncherView
         SetCompactReadyInstallSectionVisible(false);
         SetCompactWorkflowStep(CompactWorkflowStep.Play);
         Actions.ShowLaunch(launchText, showUpdate);
-        SetCompactCurrentTask("GO TO PLAY", Actions.ReadyScrollTarget, "Play and saves");
+        SetCompactCurrentTask("Play", Actions.ReadyScrollTarget, "Play and saves");
         ScrollCompactPrimaryTo(Actions.ReadyScrollTarget);
     }
 

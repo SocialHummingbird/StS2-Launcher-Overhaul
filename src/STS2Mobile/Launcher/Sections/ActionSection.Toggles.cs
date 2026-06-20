@@ -80,12 +80,12 @@ internal sealed partial class ActionSection
 
     private string LocalBackupText(bool value)
         => _compact
-            ? CompactCloudOptionText("BACKUP", OnOff(value), "Local saves")
+            ? CompactCloudOptionText("Save Backup", OnOff(value), "Local safety")
             : $"Local Backup: {OnOff(value)}";
 
     private string CloudSyncText(bool value)
         => _compact
-            ? CompactCloudOptionText("SYNC", OnOff(value), "Game cloud")
+            ? CompactCloudOptionText("Cloud Sync", OnOff(value), "Steam saves")
             : $"Game Cloud Sync: {OnOff(value)}";
 
     private static string CompactCloudOptionText(string label, string state, string detail)

@@ -50,8 +50,8 @@ internal sealed partial class LauncherController
         internal static ManualCloudSyncRequest Push(string dataDir, string selectedBranch)
             => new(
                 PushConfirmationMessage(dataDir, selectedBranch),
-                "PUSH TO CLOUD",
-                "CANCEL PUSH",
+                "Push to Cloud",
+                "Cancel Push",
                 "Push",
                 "Pushing Android local saves to Steam Cloud...",
                 "Push complete. Steam Cloud now reflects Android local saves.",
@@ -64,8 +64,8 @@ internal sealed partial class LauncherController
         internal static ManualCloudSyncRequest Pull(string dataDir, string selectedBranch)
             => new(
                 "Pull Steam Cloud saves to Android local storage?\nThis overwrites Android local saves with the current Steam Cloud state.",
-                "PULL FROM CLOUD",
-                "CANCEL PULL",
+                "Pull from Cloud",
+                "Cancel Pull",
                 "Pull",
                 "Pulling Steam Cloud saves to Android local storage...",
                 "Pull complete. Android local saves now reflect Steam Cloud.",
@@ -110,7 +110,7 @@ internal sealed partial class LauncherController
         {
             OnFailed?.Invoke(ex);
             PatchHelper.Log($"[Cloud] {Name} sync failed: {ex.Message}");
-            view.SetStatus($"{Name} failed. See console for details.");
+            view.SetStatus($"{Name} failed. Open Help & Reports for details.");
             view.AppendLog($"{Name} failed: {ex.Message}");
         }
 

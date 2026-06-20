@@ -44,7 +44,8 @@ internal sealed class CodeSection : VBoxContainer
             "Steam Guard",
             "Complete Steam's second factor challenge without storing your Steam password.",
             LauncherComponentTheme.CyanAccent,
-            compact
+            compact,
+            "Current code"
         );
 
         _codeLabel = new StyledLabel(
@@ -125,7 +126,7 @@ internal sealed class CodeSection : VBoxContainer
         codeActionParent.AddChild(_codeField);
 
         var submitButton = new StyledButton(
-            compact ? CompactCodeSubmitText() : "VERIFY CODE",
+            compact ? CompactCodeSubmitText() : "Verify Code",
             scale,
             fontSize: compact
                 ? LauncherSectionMetrics.CodeSubmitFontSize
@@ -174,7 +175,7 @@ internal sealed class CodeSection : VBoxContainer
     }
 
     private static string CompactCodeSubmitText()
-        => "VERIFY CODE\nSubmit once";
+        => "Verify Code\nSubmit once";
 
     private static void SetCompactCodeSubmitButtonText(
         Button button,

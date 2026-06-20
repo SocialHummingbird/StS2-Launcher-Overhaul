@@ -41,7 +41,7 @@ StS2 Mobile now runs Slay the Spire 2 on ARM64 Android - working, but still in p
 
 I have been working on an unofficial Android launcher for Slay the Spire 2: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul
 
-The current ARM64 Android path now works in testing: the app installs, authenticates with Steam, downloads the game files from Steam, pulls Steam Cloud saves into Android local storage, launches the game, and shows the pulled profile in-game. Push to Cloud has also been validated on the local hardening build and the fix is included in the latest public APK. Recent public builds also include Samsung-layout reachability fixes, Steam login crash-boundary hardening, adaptive native splash/loading-screen scaling, and a responsive launcher shell with active download progress and the diagnostics console collapsed by default.
+The current ARM64 Android path now works in testing: the app installs, authenticates with Steam, downloads the game files from Steam, pulls Steam Cloud saves into Android local storage, launches the game, and shows the pulled profile in-game. Push to Cloud has also been validated on the local hardening build and the fix is included in the latest public APK. Recent public builds also include Samsung-layout reachability fixes, Steam login crash-boundary hardening, adaptive native splash/loading-screen scaling, and a responsive launcher shell with active download progress and the Help Details drawer collapsed by default.
 
 This is not a finished release-candidate yet. It is in the polish/hardening phase, and I am looking for technically comfortable testers who understand the risks.
 

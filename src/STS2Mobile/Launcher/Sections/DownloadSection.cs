@@ -9,7 +9,7 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed class DownloadSection : VBoxContainer
 {
-    private const string DefaultDownloadButtonText = "DOWNLOAD GAME FILES";
+    private const string DefaultDownloadButtonText = "Download Game Files";
     private const int CompactSelectedVersionBranchLimit = 18;
     private const int CompactSelectedVersionStackedBranchLimit = 28;
     private const int CompactVersionHelpBranchLimit = 22;
@@ -43,7 +43,7 @@ internal sealed class DownloadSection : VBoxContainer
     private readonly Container _compactVersionControlsRow;
     private readonly Label _branchHelpLabel;
     private readonly Button _branchDetailsToggle;
-    private readonly PanelContainer _compactSelectedVersionPanel;
+    private readonly Button _compactSelectedVersionPanel;
     private readonly Label _compactSelectedVersionLabel;
     private readonly Button _downloadButton;
     private readonly ProgressBar _progressBar;
@@ -67,11 +67,12 @@ internal sealed class DownloadSection : VBoxContainer
             "Game Install",
             "Choose the Steam branch, download files, and keep separate installs isolated.",
             LauncherComponentTheme.CyanAccent,
-            compact
+            compact,
+            "Local files"
         );
 
         _branchDetailsToggle = new StyledButton(
-            compact ? "" : "SHOW VERSION DETAILS",
+            compact ? "" : "Show Version Details",
             scale,
             fontSize: compact
                 ? LauncherSectionMetrics.CompactDetailButtonFontSize
@@ -85,16 +86,26 @@ internal sealed class DownloadSection : VBoxContainer
         _branchDetailsToggle.Pressed += ToggleBranchDetails;
         AddChild(_branchDetailsToggle);
 
-        _compactSelectedVersionPanel = new PanelContainer
+        _compactSelectedVersionPanel = new Button
         {
+            Text = "",
+            ClipText = true,
             Visible = compact,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Ignore,
+            MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+            TooltipText = "Change game version for local files",
+            CustomMinimumSize = new Vector2(
+                0,
+                LauncherViewLayoutMetrics.ScaleInt(
+                    _compactStackedActionRows
+                        ? LauncherSectionMetrics.CompactStackedVersionSummaryHeight
+                        : LauncherSectionMetrics.CompactVersionSummaryHeight,
+                    scale
+                )
+            ),
         };
-        _compactSelectedVersionPanel.AddThemeStyleboxOverride(
-            LauncherComponentTheme.Panel,
-            BuildSelectedVersionSummaryStyle(scale, compact)
-        );
+        ApplySelectedVersionSummaryButtonStyle(_compactSelectedVersionPanel, scale, compact);
+        _compactSelectedVersionPanel.Pressed += OpenCompactBranchDetailsFromSelectedVersion;
         AddChild(_compactSelectedVersionPanel);
 
         _compactSelectedVersionLabel = new StyledLabel(
@@ -129,6 +140,23 @@ internal sealed class DownloadSection : VBoxContainer
             );
         }
         _compactSelectedVersionLabel.MouseFilter = MouseFilterEnum.Ignore;
+        _compactSelectedVersionLabel.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        _compactSelectedVersionLabel.OffsetLeft = LauncherViewLayoutMetrics.ScaleInt(
+            LauncherSectionMetrics.CompactVersionSummaryHorizontalMargin,
+            scale
+        );
+        _compactSelectedVersionLabel.OffsetRight = -LauncherViewLayoutMetrics.ScaleInt(
+            LauncherSectionMetrics.CompactVersionSummaryHorizontalMargin,
+            scale
+        );
+        _compactSelectedVersionLabel.OffsetTop = LauncherViewLayoutMetrics.ScaleInt(
+            LauncherSectionMetrics.CompactVersionSummaryVerticalMargin,
+            scale
+        );
+        _compactSelectedVersionLabel.OffsetBottom = -LauncherViewLayoutMetrics.ScaleInt(
+            LauncherSectionMetrics.CompactVersionSummaryVerticalMargin,
+            scale
+        );
         _compactSelectedVersionLabel.Visible = compact;
         _compactSelectedVersionLabel.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
@@ -166,7 +194,7 @@ internal sealed class DownloadSection : VBoxContainer
         }
 
         _refreshBranchesButton = new StyledButton(
-            compact ? "" : "REFRESH GAME VERSIONS",
+            compact ? "" : "Refresh Game Versions",
             scale,
             fontSize: compact
                 ? LauncherSectionMetrics.CompactDetailButtonFontSize
@@ -180,7 +208,7 @@ internal sealed class DownloadSection : VBoxContainer
         {
             SetCompactVersionActionButtonText(
                 _refreshBranchesButton,
-                "REFRESH VERSIONS",
+                "Refresh Versions",
                 "Update branch list"
             );
             _compactVersionControlsRow.AddChild(_refreshBranchesButton);
@@ -326,15 +354,15 @@ internal sealed class DownloadSection : VBoxContainer
             {
                 SetCompactVersionActionButtonText(
                     _branchDetailsToggle,
-                    _branchDetailsExpanded ? "HIDE VERSION" : "CHANGE VERSION",
+                    _branchDetailsExpanded ? "Hide Version" : "Change Version",
                     _branchDetailsExpanded ? "Keep selection" : "Local files only"
                 );
             }
             else
             {
                 _branchDetailsToggle.Text = _branchDetailsExpanded
-                    ? "HIDE VERSION DETAILS"
-                    : "SHOW VERSION DETAILS";
+                    ? "Hide Version Details"
+                    : "Show Version Details";
             }
         }
         if (_compactSelectedVersionLabel != null)
@@ -354,6 +382,8 @@ internal sealed class DownloadSection : VBoxContainer
         _downloadButton.Disabled = false;
         _branchDropdown.Disabled = false;
         _refreshBranchesButton.Disabled = false;
+        if (_compactSelectedVersionPanel != null)
+            _compactSelectedVersionPanel.Disabled = false;
         ApplyBranchControlVisibility();
         SetCompactDownloadButtonText(_downloadButton, CompactDownloadButtonText(buttonText, _compact));
         HideProgress();
@@ -398,7 +428,7 @@ internal sealed class DownloadSection : VBoxContainer
     }
 
     private static string CompactDownloadProgressButtonText()
-        => "DOWNLOADING...\nSteam files";
+        => "Downloading...\nSteam files";
 
     private static string CompactDownloadProgressText(string text)
     {
@@ -432,17 +462,17 @@ internal sealed class DownloadSection : VBoxContainer
             || string.Equals(normalized, DefaultDownloadButtonText, StringComparison.OrdinalIgnoreCase)
             || string.Equals(normalized, "DOWNLOAD SELECTED VERSION", StringComparison.OrdinalIgnoreCase)
             || string.Equals(normalized, "DOWNLOAD VERSION", StringComparison.OrdinalIgnoreCase))
-            return ("DOWNLOAD VERSION", "Local files only");
+            return ("Download Version", "Local files only");
 
         if (string.Equals(normalized, "REDOWNLOAD SELECTED VERSION", StringComparison.OrdinalIgnoreCase)
             || string.Equals(normalized, "REDOWNLOAD VERSION", StringComparison.OrdinalIgnoreCase))
-            return ("REDOWNLOAD VERSION", "Rebuild local files");
+            return ("Redownload Version", "Rebuild local files");
 
         if (string.Equals(normalized, "RETRY DOWNLOAD", StringComparison.OrdinalIgnoreCase))
-            return ("RETRY DOWNLOAD", "Local files only");
+            return ("Retry Download", "Local files only");
 
         if (string.Equals(normalized, "DOWNLOADING...", StringComparison.OrdinalIgnoreCase))
-            return ("DOWNLOADING...", "Steam files");
+            return ("Downloading...", "Steam files");
 
         return (normalized, "Local files only");
     }
@@ -459,16 +489,64 @@ internal sealed class DownloadSection : VBoxContainer
         return row;
     }
 
+    private static void ApplySelectedVersionSummaryButtonStyle(Button button, float scale, bool compact)
+    {
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StateNormal,
+            BuildSelectedVersionSummaryStyle(scale, compact)
+        );
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StateHover,
+            BuildSelectedVersionSummaryStyle(
+                scale,
+                compact,
+                new Color(0.045f, 0.085f, 0.095f, 0.95f),
+                new Color(0.04f, 0.72f, 0.8f, 0.78f)
+            )
+        );
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StatePressed,
+            BuildSelectedVersionSummaryStyle(
+                scale,
+                compact,
+                new Color(0.025f, 0.05f, 0.06f, 0.98f),
+                new Color(0.95f, 0.42f, 0.08f, 0.72f)
+            )
+        );
+        button.AddThemeStyleboxOverride(
+            LauncherComponentTheme.StateDisabled,
+            BuildSelectedVersionSummaryStyle(
+                scale,
+                compact,
+                new Color(0.025f, 0.04f, 0.048f, 0.58f),
+                new Color(0.05f, 0.22f, 0.26f, 0.32f)
+            )
+        );
+    }
+
     private static StyleBoxFlat BuildSelectedVersionSummaryStyle(float scale, bool compact)
+        => BuildSelectedVersionSummaryStyle(
+            scale,
+            compact,
+            new Color(0.035f, 0.065f, 0.075f, 0.9f),
+            new Color(0.04f, 0.55f, 0.62f, 0.65f)
+        );
+
+    private static StyleBoxFlat BuildSelectedVersionSummaryStyle(
+        float scale,
+        bool compact,
+        Color body,
+        Color border
+    )
     {
         var style = LauncherStyleBoxes.MakeFilled(
-            new Color(0.035f, 0.065f, 0.075f, 0.9f),
+            body,
             LauncherViewLayoutMetrics.ScaleInt(
                 compact ? LauncherSectionMetrics.CompactVersionSummaryRadius : 8,
                 scale
             )
         );
-        style.BorderColor = new Color(0.04f, 0.55f, 0.62f, 0.65f);
+        style.BorderColor = border;
         style.SetBorderWidthAll(Math.Max(1, LauncherViewLayoutMetrics.ScaleInt(1, scale)));
         style.ContentMarginLeft = LauncherViewLayoutMetrics.ScaleInt(
             compact ? LauncherSectionMetrics.CompactVersionSummaryHorizontalMargin : 12,
@@ -494,10 +572,10 @@ internal sealed class DownloadSection : VBoxContainer
         if (_compactStackedActionRows)
         {
             return $"Version: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactSelectedVersionStackedBranchLimit)}\n"
-                + $"{CompactInstallSlotKind(_gameBranch)} | Cloud unchanged | local files only";
+                + $"{CompactInstallFileScope(_gameBranch)} | Cloud unchanged | Change version";
         }
 
-        return $"Version: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactSelectedVersionBranchLimit)} | {CompactInstallSlotKind(_gameBranch)} | Cloud unchanged";
+        return $"Version: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactSelectedVersionBranchLimit)} | {CompactInstallFileScope(_gameBranch)} | Cloud unchanged | Change";
     }
 
     private string CompactInstallVersionHelpText()
@@ -506,14 +584,14 @@ internal sealed class DownloadSection : VBoxContainer
             ? CompactVersionHelpStackedBranchLimit
             : CompactVersionHelpBranchLimit;
 
-        return $"Install target: {SteamGameBranch.CompactDisplayName(_gameBranch, branchLimit)} | {CompactInstallSlotKind(_gameBranch)}\n"
-            + $"{LauncherBranchCatalog.SelectedOptionCompactStatus(_gameBranch, _availableBranches)} | local files only";
+        return $"Files for: {SteamGameBranch.CompactDisplayName(_gameBranch, branchLimit)} | {CompactInstallFileScope(_gameBranch)}\n"
+            + $"{LauncherBranchCatalog.SelectedOptionCompactStatus(_gameBranch, _availableBranches)} | Saves unchanged";
     }
 
-    private static string CompactInstallSlotKind(string branch)
+    private static string CompactInstallFileScope(string branch)
         => string.Equals(SteamGameBranch.Normalize(branch), SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase)
-            ? "public slot"
-            : "branch slot";
+            ? "Default files"
+            : "Separate files";
 
     private void SetCompactVersionActionButtonText(Button button, string title, string detail)
     {
@@ -715,6 +793,7 @@ internal sealed class DownloadSection : VBoxContainer
             _branchDetailsExpanded = false;
             ApplyBranchControlVisibility();
             UpdateBranchHelpText();
+            _compactSelectedVersionPanel.Disabled = true;
         }
 
         _progressBar.Visible = true;
@@ -769,6 +848,15 @@ internal sealed class DownloadSection : VBoxContainer
     private void ToggleBranchDetails()
     {
         _branchDetailsExpanded = !_branchDetailsExpanded;
+        UpdateBranchHelpText();
+    }
+
+    private void OpenCompactBranchDetailsFromSelectedVersion()
+    {
+        if (!_compact)
+            return;
+
+        _branchDetailsExpanded = true;
         UpdateBranchHelpText();
     }
 }

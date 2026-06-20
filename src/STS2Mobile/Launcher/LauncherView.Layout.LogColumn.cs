@@ -57,7 +57,7 @@ internal sealed partial class LauncherView
         root.AddChild(toggle);
 
         var title = new StyledLabel(
-            "Diagnostics Console",
+            "Help & Reports",
             scale,
             fontSize: profile.Compact
                 ? LauncherSectionMetrics.PromptFontSize
@@ -71,7 +71,9 @@ internal sealed partial class LauncherView
         drawer.AddChild(title);
 
         var help = new StyledLabel(
-            "Hidden by default. Export sanitized diagnostics when reporting launcher issues.",
+            profile.Compact
+                ? "Problem details and help reports. Review before sharing."
+                : "Hidden by default. Create a help report when sharing launcher issue details.",
             scale,
             fontSize: profile.Compact
                 ? LauncherSectionMetrics.ProgressFontSize
@@ -135,12 +137,12 @@ internal sealed partial class LauncherView
         toggle.Text = "";
         var labels = EnsureCompactDiagnosticsToggleLabels(toggle, profile.Scale);
         labels.Body.Visible = true;
-        labels.Title.Text = visible ? "HIDE DIAGNOSTICS" : "DIAGNOSTICS";
-        labels.Detail.Text = visible ? "Keep log closed" : "Log + export context";
+        labels.Title.Text = visible ? "Hide Help" : "Help & Reports";
+        labels.Detail.Text = visible ? "Back to launcher" : "Private until opened";
     }
 
     private static string DiagnosticsToggleText(bool visible)
-        => visible ? "HIDE DIAGNOSTICS CONSOLE" : "SHOW DIAGNOSTICS CONSOLE";
+        => visible ? "Hide Help & Reports" : "Show Help & Reports";
 
     private static (
         VBoxContainer Body,

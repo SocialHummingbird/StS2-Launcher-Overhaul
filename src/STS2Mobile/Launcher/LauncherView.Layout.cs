@@ -93,7 +93,7 @@ internal sealed partial class LauncherView
         copy.AddChild(title);
 
         var subtitle = new StyledLabel(
-            "STEAM LOGIN  |  VERSION SLOTS  |  CLOUD SAVES",
+            "Sign in. Save safely. Play.",
             scale,
             fontSize: 11
         );
@@ -147,7 +147,7 @@ internal sealed partial class LauncherView
         row.AddChild(title);
 
         var subtitle = new StyledLabel(
-            "STEAM | CLOUD | PLAY",
+            "Saves safe. Ready to play.",
             scale,
             fontSize: CompactBrandSubtitleFontSize,
             align: HorizontalAlignment.Right

@@ -188,7 +188,7 @@ internal static class LauncherStartupStatus
     {
         var label = new Label
         {
-            Text = "STARTING GAME",
+            Text = "Starting Game",
             HorizontalAlignment = HorizontalAlignment.Left,
         };
         label.AddThemeFontSizeOverride(

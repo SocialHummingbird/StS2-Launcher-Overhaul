@@ -10,7 +10,7 @@ For the current release gate and evidence matrix, see [Steam version selection r
 
 - Select the default/public Steam branch.
 - Select Steam game versions from a dropdown instead of typing branch names.
-- Refresh account-visible Steam branch/version options with `REFRESH GAME VERSIONS` before downloading.
+- Refresh account-visible Steam branch/version options with `Refresh Game Versions` before downloading.
 - See selected branch availability metadata in helper text, including downloadability, password status, build ID, and description where Steam exposes them.
 - Keep default/public files in the legacy app storage path.
 - Keep non-public branch files in side-by-side caches under `game_versions/<branch>/`.
@@ -34,7 +34,7 @@ For the current release gate and evidence matrix, see [Steam version selection r
 
 ## Version selector
 
-Use `REFRESH GAME VERSIONS` after logging in to fetch Steam app-info branch metadata for the current account. This action updates the dropdown and `last_steam_branch_availability.txt`; it does not download, delete, or modify game files.
+Use `Refresh Game Versions` after logging in to fetch Steam app-info branch metadata for the current account. This action updates the dropdown and `last_steam_branch_availability.txt`; it does not download, delete, or modify game files.
 
 The dropdown intentionally keeps labels short for phone screens. Detailed selected-version status appears below the selector and should explain:
 

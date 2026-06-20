@@ -6,33 +6,38 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private const string CopyRawErrorLogButton = "COPY RAW LOG (REVIEW BEFORE SHARING)";
-    private const string CopyRawErrorLogCompactButton = "COPY RAW LOG";
-    private const string ExportDiagnosticsButton = "EXPORT STARTUP DIAGNOSTICS";
-    private const string ExportDiagnosticsCompactButton = "EXPORT DIAGNOSTICS";
-    private const string HideControlsButton = "HIDE RECOVERY CONTROLS";
-    private const string HideControlsCompactButton = "HIDE RECOVERY";
-    private const string RestartSafeLaunchButton = "RESTART WITH SAFE LAUNCH";
-    private const string RestartSafeLaunchCompactButton = "RESTART SAFE LAUNCH";
-    private const string ReturnToLauncherButton = "RETURN TO LAUNCHER";
-    private const string ReturnToLauncherCompactButton = "RESTART APP";
+    private const string CompactRecoveryButtonBodyName = "CompactRecoveryButtonBody";
+    private const string CompactRecoveryButtonTitleName = "CompactRecoveryButtonTitle";
+    private const string CompactRecoveryButtonDetailName = "CompactRecoveryButtonDetail";
+    private const int CompactRecoveryButtonTitleFontSize = 16;
+    private const int CompactRecoveryButtonDetailFontSize = 12;
+    private const int CompactRecoveryButtonHorizontalMargin = 8;
+    private const int CompactRecoveryButtonVerticalMargin = 6;
+
+    private const string CopyRawErrorLogButton = "Copy Launcher Log (Review First)";
+    private const string ExportDiagnosticsButton = "Create Startup Help Report";
+    private const string HideControlsButton = "Hide Recovery Controls";
+    private const string RestartSafeLaunchButton = "Restart with Safe Launch";
+    private const string ReturnToLauncherButton = "Return to Launcher";
 
     private readonly struct RecoveryButtonSpec
     {
-        private RecoveryButtonSpec(string label, Action run)
+        private RecoveryButtonSpec(string label, string detail, Action run)
         {
             Label = label;
+            Detail = detail;
             Run = run;
         }
 
         private string Label { get; }
+        private string Detail { get; }
         private Action Run { get; }
 
-        private Button CreateButton(float scale, Vector2 minimumSize)
+        private Button CreateButton(float scale, Vector2 minimumSize, bool structured)
         {
             var button = new Button
             {
-                Text = Label,
+                Text = structured ? "" : Label,
                 CustomMinimumSize = minimumSize,
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             };
@@ -41,17 +46,22 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
                 LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.ButtonDefaultFontSize)
             );
             LauncherButtonStyles.ApplySupportAction(button, scale);
+            if (structured)
+                AddCompactRecoveryButtonLabels(button, scale, Label, Detail);
             button.Pressed += Run;
             return button;
         }
 
         internal static Button CreateButton(
             string label,
+            string detail,
             Action run,
             float scale,
-            Vector2 minimumSize
+            Vector2 minimumSize,
+            bool compactCopy
         )
-            => new RecoveryButtonSpec(label, run).CreateButton(scale, minimumSize);
+            => new RecoveryButtonSpec(label, detail, run)
+                .CreateButton(scale, minimumSize, compactCopy && !string.IsNullOrWhiteSpace(detail));
     }
 
     private LauncherStartupRecoveryControlPanel(Vector2 viewportSize)
@@ -148,8 +158,8 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     {
         var detail = CreateLabel(
             compact
-                ? "If startup stalls, export diagnostics, copy the raw log for local review, or restart with safe launch. Review raw logs before sharing."
-                : "If this screen does not change, export diagnostics, copy the raw error log for local review, or restart with safe launch. Raw logs can contain identifying data; review/redact before sharing. These controls hide automatically after a successful startup.",
+                ? "If startup stalls, restart the app, try Safe Start, or create a help report. Review logs before sharing."
+                : "If this screen does not change, create a help report, copy the launcher log for local review, or restart with safe launch. Logs can contain identifying data; review/redact before sharing. These controls hide automatically after a successful startup.",
             LauncherComponentTheme.ScaleInt(scale, DetailFontSize),
             DetailColor
         );
@@ -177,12 +187,77 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     private Button[] RecoveryButtons(float scale, Vector2 buttonMinimumSize, bool compactCopy)
         => new[]
         {
-            RecoveryButtonSpec.CreateButton(compactCopy ? ReturnToLauncherCompactButton : ReturnToLauncherButton, AndroidGodotAppBridge.RestartApp, scale, buttonMinimumSize),
-            RecoveryButtonSpec.CreateButton(compactCopy ? RestartSafeLaunchCompactButton : RestartSafeLaunchButton, RestartWithSafeLaunch, scale, buttonMinimumSize),
-            RecoveryButtonSpec.CreateButton(compactCopy ? ExportDiagnosticsCompactButton : ExportDiagnosticsButton, ExportDiagnostics, scale, buttonMinimumSize),
-            RecoveryButtonSpec.CreateButton(compactCopy ? CopyRawErrorLogCompactButton : CopyRawErrorLogButton, CopyRawErrorLog, scale, buttonMinimumSize),
-            RecoveryButtonSpec.CreateButton(compactCopy ? HideControlsCompactButton : HideControlsButton, HideRecoveryControls, scale, buttonMinimumSize),
+            RecoveryButtonSpec.CreateButton(compactCopy ? "Restart App" : ReturnToLauncherButton, "Open launcher", AndroidGodotAppBridge.RestartApp, scale, buttonMinimumSize, compactCopy),
+            RecoveryButtonSpec.CreateButton(compactCopy ? "Safe Start" : RestartSafeLaunchButton, "Cloud off", RestartWithSafeLaunch, scale, buttonMinimumSize, compactCopy),
+            RecoveryButtonSpec.CreateButton(compactCopy ? "Help Report" : ExportDiagnosticsButton, "Share details", ExportDiagnostics, scale, buttonMinimumSize, compactCopy),
+            RecoveryButtonSpec.CreateButton(compactCopy ? "Copy Log" : CopyRawErrorLogButton, "Review first", CopyRawErrorLog, scale, buttonMinimumSize, compactCopy),
+            RecoveryButtonSpec.CreateButton(compactCopy ? "Hide Help" : HideControlsButton, "Keep waiting", HideRecoveryControls, scale, buttonMinimumSize, compactCopy),
         };
+
+    private static void AddCompactRecoveryButtonLabels(
+        Button button,
+        float scale,
+        string titleText,
+        string detailText
+    )
+    {
+        var body = new VBoxContainer
+        {
+            Name = CompactRecoveryButtonBodyName,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        body.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        body.OffsetLeft = LauncherComponentTheme.ScaleInt(scale, CompactRecoveryButtonHorizontalMargin);
+        body.OffsetRight = -LauncherComponentTheme.ScaleInt(scale, CompactRecoveryButtonHorizontalMargin);
+        body.OffsetTop = LauncherComponentTheme.ScaleInt(scale, CompactRecoveryButtonVerticalMargin);
+        body.OffsetBottom = -LauncherComponentTheme.ScaleInt(scale, CompactRecoveryButtonVerticalMargin);
+        body.AddThemeConstantOverride(ThemeSeparation, 0);
+
+        var title = CreateStructuredButtonLabel(
+            CompactRecoveryButtonTitleName,
+            titleText,
+            scale,
+            CompactRecoveryButtonTitleFontSize,
+            LauncherComponentTheme.TextPrimary
+        );
+        body.AddChild(title);
+
+        var detail = CreateStructuredButtonLabel(
+            CompactRecoveryButtonDetailName,
+            detailText,
+            scale,
+            CompactRecoveryButtonDetailFontSize,
+            LauncherComponentTheme.TextSecondary
+        );
+        body.AddChild(detail);
+
+        button.AddChild(body);
+    }
+
+    private static Label CreateStructuredButtonLabel(
+        string name,
+        string text,
+        float scale,
+        int fontSize,
+        Color color
+    )
+    {
+        var label = new StyledLabel(
+            text,
+            scale,
+            fontSize: fontSize,
+            align: HorizontalAlignment.Center
+        )
+        {
+            Name = name,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            VerticalAlignment = VerticalAlignment.Center,
+            ClipText = true,
+            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+        };
+        label.AddThemeColorOverride(ThemeFontColor, color);
+        return label;
+    }
 
     private void HideRecoveryControls()
         => Layer.QueueFree();

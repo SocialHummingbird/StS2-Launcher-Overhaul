@@ -18,7 +18,8 @@ internal sealed partial class ActionSection
             "Play and Sync",
             "Launch, update, switch versions, and move cloud saves only when you choose.",
             LauncherComponentTheme.OrangeHot,
-            compact
+            compact,
+            "Play safely"
         );
 
         var toggleRadius = (int)(4 * scale);
@@ -44,7 +45,7 @@ internal sealed partial class ActionSection
 
         _retryButton = AddHiddenButton(
             this,
-            compact ? CompactRetryButtonText() : "RETRY",
+            compact ? CompactRetryButtonText() : "Retry",
             scale,
             LauncherSectionMetrics.PrimaryButtonFontSize,
             LauncherSectionMetrics.PrimaryButtonHeight,
@@ -55,7 +56,7 @@ internal sealed partial class ActionSection
 
         _launchButton = AddPrimaryHiddenButton(
             this,
-            "START GAME",
+            "Start Game",
             scale,
             () => LaunchPressed?.Invoke()
         );
@@ -63,21 +64,21 @@ internal sealed partial class ActionSection
         _safeLaunchButton = compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "SAFE START",
+                "Safe Start",
                 scale,
                 () => SafeLaunchPressed?.Invoke(),
-                "Backup launch"
+                "Cloud off"
             )
             : AddSecondaryHiddenButton(
                 this,
-                "SAFE START",
+                "Safe Start",
                 scale,
                 () => SafeLaunchPressed?.Invoke()
             );
         LauncherButtonStyles.ApplySafeAction(_safeLaunchButton, scale);
 
         _branchDetailsToggle = new StyledButton(
-            "SHOW VERSION DETAILS",
+            "Show Version Details",
             scale,
             fontSize: compact
                 ? LauncherSectionMetrics.CompactDetailButtonFontSize
@@ -137,16 +138,26 @@ internal sealed partial class ActionSection
         _branchHelpLabel.Visible = false;
         AddChild(_branchHelpLabel);
 
-        _readyVersionSummaryPanel = new PanelContainer
+        _readyVersionSummaryPanel = new Button
         {
+            Text = "",
+            ClipText = true,
             Visible = false,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Ignore,
+            MouseDefaultCursorShape = Control.CursorShape.PointingHand,
+            TooltipText = "Open save safety check",
+            CustomMinimumSize = new Vector2(
+                0,
+                LauncherViewLayoutMetrics.ScaleInt(
+                    _compactStackedActionRows
+                        ? LauncherSectionMetrics.CompactStackedVersionSummaryHeight
+                        : LauncherSectionMetrics.CompactVersionSummaryHeight,
+                    scale
+                )
+            ),
         };
-        _readyVersionSummaryPanel.AddThemeStyleboxOverride(
-            LauncherComponentTheme.Panel,
-            BuildReadyVersionSummaryStyle(scale, compact)
-        );
+        ApplyReadyVersionSummaryButtonStyle(_readyVersionSummaryPanel, scale, compact);
+        _readyVersionSummaryPanel.Pressed += OpenCompactCloudSafetyFromReadySummary;
         AddChild(_readyVersionSummaryPanel);
 
         _readyVersionSummaryLabel = new StyledLabel(
@@ -181,6 +192,23 @@ internal sealed partial class ActionSection
             );
         }
         _readyVersionSummaryLabel.MouseFilter = MouseFilterEnum.Ignore;
+        _readyVersionSummaryLabel.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        _readyVersionSummaryLabel.OffsetLeft = LauncherViewLayoutMetrics.ScaleInt(
+            LauncherSectionMetrics.CompactVersionSummaryHorizontalMargin,
+            scale
+        );
+        _readyVersionSummaryLabel.OffsetRight = -LauncherViewLayoutMetrics.ScaleInt(
+            LauncherSectionMetrics.CompactVersionSummaryHorizontalMargin,
+            scale
+        );
+        _readyVersionSummaryLabel.OffsetTop = LauncherViewLayoutMetrics.ScaleInt(
+            LauncherSectionMetrics.CompactVersionSummaryVerticalMargin,
+            scale
+        );
+        _readyVersionSummaryLabel.OffsetBottom = -LauncherViewLayoutMetrics.ScaleInt(
+            LauncherSectionMetrics.CompactVersionSummaryVerticalMargin,
+            scale
+        );
         _readyVersionSummaryLabel.Visible = true;
         _readyVersionSummaryLabel.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
@@ -193,9 +221,6 @@ internal sealed partial class ActionSection
         _cloudGroup = BuildActionGroup(scale);
         _cloudGroup.Visible = false;
         AddChild(_cloudGroup);
-        // Compact mode should make the Pull-first controls precede launch.
-        if (compact)
-            MoveChild(_launchButton, GetChildCount() - 1);
 
         _pushPullRow = new VBoxContainer();
         _pushPullRow.Visible = false;
@@ -223,7 +248,7 @@ internal sealed partial class ActionSection
         SetCompactActionButtonText(_pullButton, _pullButton.Text);
         _cloudPushToggle = AddPushPullButton(
             cloudPrimaryActionsParent,
-            compact ? CompactCloudPushToggleText(expanded: false) : "PUSH LOCKED",
+            compact ? CompactCloudPushToggleText(expanded: false) : "Push Locked",
             scale,
             ToggleCloudPush
         );
@@ -321,7 +346,7 @@ internal sealed partial class ActionSection
         MoveCompactCloudSafetyCueBeforeCloudActions();
 
         _cloudOptionsToggle = new StyledButton(
-            "SHOW CLOUD OPTIONS",
+            "Show Save Settings",
             scale,
             fontSize: compact
                 ? LauncherSectionMetrics.CompactDetailButtonFontSize
@@ -343,14 +368,15 @@ internal sealed partial class ActionSection
             cloudOptionsParent = _compactCloudOptionsRow;
         }
         _localBackupToggle = compact
-            ? AddCompactSupportToolButton(cloudOptionsParent, "BACKUP OFF", scale, null)
-            : AddSecondaryHiddenButton(_cloudGroup, "Local Backup: OFF", scale, null);
+            ? AddCompactSupportToolButton(cloudOptionsParent, "Save Backup Off", scale, null)
+            : AddSecondaryHiddenButton(_cloudGroup, "Local Backup: Off", scale, null);
         _cloudSyncToggle = compact
-            ? AddCompactSupportToolButton(cloudOptionsParent, "SYNC OFF", scale, null)
-            : AddSecondaryHiddenButton(_cloudGroup, "Game Cloud Sync: OFF", scale, null);
+            ? AddCompactSupportToolButton(cloudOptionsParent, "Cloud Sync Off", scale, null)
+            : AddSecondaryHiddenButton(_cloudGroup, "Game Cloud Sync: Off", scale, null);
         ConfigureLocalBackupToggle();
         ConfigureCloudSyncToggle();
         UpdateBranchHelpText();
+        ArrangeCompactCloudGroupPriority();
 
         _supportToggle = AddHiddenButton(
             this,
@@ -372,14 +398,14 @@ internal sealed partial class ActionSection
         _updateButton = compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "UPDATES",
+                "Check Files",
                 scale,
                 () => CheckForUpdatesPressed?.Invoke(),
-                "Check files"
+                "Updates"
             )
             : AddPrimaryHiddenButton(
                 _supportGroup,
-                "CHECK FOR UPDATES",
+                "Check for Updates",
                 scale,
                 () => CheckForUpdatesPressed?.Invoke()
             );
@@ -387,87 +413,89 @@ internal sealed partial class ActionSection
         _refreshVersionsButton = compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "VERSIONS",
+                "Game Versions",
                 scale,
                 () => RefreshGameVersionsPressed?.Invoke(),
                 "Refresh list"
             )
             : AddSecondaryHiddenButton(
                 _supportGroup,
-                "REFRESH GAME VERSIONS",
+                "Refresh Game Versions",
                 scale,
                 () => RefreshGameVersionsPressed?.Invoke()
             );
         _redownloadButton = compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "REDOWNLOAD",
+                "Repair Files",
                 scale,
                 () => RedownloadPressed?.Invoke(),
-                "Rebuild slot"
+                "Rebuild game"
             )
             : AddSecondaryHiddenButton(
                 _supportGroup,
-                "REDOWNLOAD SELECTED VERSION",
+                "Redownload Selected Version",
                 scale,
                 () => RedownloadPressed?.Invoke()
             );
         _clearCachedVersionsButton = compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "CLEAR CACHE",
+                "Free Space",
                 scale,
                 () => ClearCachedVersionsPressed?.Invoke(),
                 "Old versions"
             )
             : AddSecondaryHiddenButton(
                 _supportGroup,
-                "CLEAR CACHED VERSIONS",
+                "Clear Cached Versions",
                 scale,
                 () => ClearCachedVersionsPressed?.Invoke()
             );
         _diagnosticsButton = compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "DIAGNOSTICS",
+                "Help Report",
                 scale,
                 () => DiagnosticsPressed?.Invoke(),
-                "Export report"
+                "Share details"
             )
             : AddSecondaryHiddenButton(
                 _supportGroup,
-                "EXPORT DIAGNOSTICS",
+                "Create Help Report",
                 scale,
                 () => DiagnosticsPressed?.Invoke()
             );
         _showLastErrorButton = compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "LAST ERROR",
+                "Last Problem",
                 scale,
                 () => ShowLastErrorPressed?.Invoke(),
                 "Open details"
             )
             : AddSecondaryHiddenButton(
                 _supportGroup,
-                "SHOW LAST ERROR",
+                "Show Last Problem",
                 scale,
                 () => ShowLastErrorPressed?.Invoke()
             );
         _copyRawLogButton = compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "COPY LOG",
+                "Copy Log",
                 scale,
                 () => CopyRawLogPressed?.Invoke(),
                 "Review first"
             )
             : AddSecondaryHiddenButton(
                 _supportGroup,
-                "COPY RAW LOG (REVIEW BEFORE SHARING)",
+                "Copy Launcher Log (Review First)",
                 scale,
                 () => CopyRawLogPressed?.Invoke()
             );
+
+        ArrangeCompactReadyStatePriority();
     }
 
     private static VBoxContainer BuildActionGroup(float scale)
@@ -538,20 +566,72 @@ internal sealed partial class ActionSection
         _supportExpanded = !_supportExpanded;
         _supportGroup.Visible = _supportExpanded;
         SetCompactActionButtonText(_supportToggle, _supportExpanded
-            ? (_compact ? CompactPlaySyncDrawerText("HIDE TOOLS", "Advanced fixes") : "HIDE SUPPORT OPTIONS")
+            ? (_compact ? CompactPlaySyncDrawerText("Hide Fixes", "Back to play") : "Hide Support Options")
             : SupportToggleText());
     }
 
     private string SupportToggleText()
-        => _compact ? CompactPlaySyncDrawerText("RECOVERY / TOOLS", "Advanced fixes") : "MORE SUPPORT OPTIONS";
+        => _compact ? CompactPlaySyncDrawerText("Fixes & Help", "Repair tools") : "More Support Options";
 
     private void MoveCompactCloudSafetyCueBeforeCloudActions()
     {
         if (!_compact)
             return;
 
-        _cloudGroup.MoveChild(_cloudSafetyLabel, _pushPullRow.GetIndex());
-        _cloudGroup.MoveChild(_cloudSafetyToggle, _cloudSafetyLabel.GetIndex());
+        _cloudGroup.MoveChild(_cloudSafetyToggle, 0);
+        MoveChildAfter(_cloudGroup, _cloudSafetyLabel, _cloudSafetyToggle);
+        MoveChildAfter(_cloudGroup, _pushPullRow, _cloudSafetyLabel);
+    }
+
+    private void ArrangeCompactCloudGroupPriority()
+    {
+        if (!_compact)
+            return;
+
+        var launchParent = _launchButton.GetParent();
+        if (launchParent != _cloudGroup)
+        {
+            launchParent?.RemoveChild(_launchButton);
+            _cloudGroup.AddChild(_launchButton);
+        }
+
+        MoveCompactCloudSafetyCueBeforeCloudActions();
+        MoveChildAfter(_cloudGroup, _launchButton, _pushPullRow);
+        MoveChildAfter(_cloudGroup, _cloudOptionsToggle, _launchButton);
+        if (_compactCloudOptionsRow != null)
+            MoveChildAfter(_cloudGroup, _compactCloudOptionsRow, _cloudOptionsToggle);
+    }
+
+    private void ArrangeCompactReadyStatePriority()
+    {
+        if (!_compact)
+            return;
+
+        var readyPrimaryPath = _launchButton.GetParent() == _cloudGroup
+            ? _cloudGroup
+            : (Control)_launchButton;
+        MoveChild(_readyVersionSummaryPanel, _branchDetailsToggle.GetIndex());
+        MoveAfter(_branchDetailsToggle, readyPrimaryPath);
+        MoveAfter(_branchDropdown, _branchDetailsToggle);
+        MoveAfter(_branchHelpLabel, _branchDropdown);
+    }
+
+    private void MoveAfter(Control child, Control previous)
+    {
+        var previousIndex = previous.GetIndex();
+        var targetIndex = child.GetIndex() < previousIndex
+            ? previousIndex
+            : previousIndex + 1;
+        MoveChild(child, Math.Min(targetIndex, GetChildCount() - 1));
+    }
+
+    private static void MoveChildAfter(Node parent, Node child, Node previous)
+    {
+        var previousIndex = previous.GetIndex();
+        var targetIndex = child.GetIndex() < previousIndex
+            ? previousIndex
+            : previousIndex + 1;
+        parent.MoveChild(child, Math.Min(targetIndex, parent.GetChildCount() - 1));
     }
 
     private void ArmCloudPush()

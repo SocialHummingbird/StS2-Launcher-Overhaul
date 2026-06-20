@@ -51,8 +51,8 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
         private string Message()
             => File.Shared
-                ? $"Diagnostics exported and share sheet opened.\n\nSaved at:\n{File.Path}"
-                : $"Diagnostics exported, but the share sheet did not open.\n\nSaved at:\n{File.Path}";
+                ? $"Help report ready and share sheet opened.\n\nSaved at:\n{File.Path}"
+                : $"Help report ready, but the share sheet did not open.\n\nSaved at:\n{File.Path}";
 
         internal static string MessageFor(LauncherSharedTextFile file)
             => new DiagnosticsExportResult(file).Message();
@@ -73,11 +73,11 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
         private void LogCopied()
             => PatchHelper.Log(
-                $"Startup recovery raw error log copied ({Length:N0} chars)"
+                $"Startup recovery launcher log copied ({Length:N0} chars)"
             );
 
         private string Message()
-            => "Raw error log copied to clipboard. Review/redact before public posting."
+            => "Launcher log copied to clipboard. Review/redact before public posting."
                 + $"\n\nLength: {Length:N0} characters";
 
         internal static string CopyAndDescribe(string text)
