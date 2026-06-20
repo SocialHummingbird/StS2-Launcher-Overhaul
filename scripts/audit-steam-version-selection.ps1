@@ -50,6 +50,53 @@ Add-Check `
     )
 
 Add-Check `
+    "scripts\evidence-path-utils.ps1" `
+    "centralizes repo-relative and evidence-relative path helpers" `
+    @(
+        "Resolve-EvidenceRepoPath",
+        "Get-EvidenceRelativePath",
+        "ConvertTo-EvidenceSafeFileName",
+        "IsPathRooted",
+        "MakeRelativeUri",
+        "UnescapeDataString",
+        "DirectorySeparatorChar",
+        "empty",
+        "\[\^A-Za-z0-9\._-\]"
+    )
+
+Add-Check `
+    "scripts\evidence-redaction-utils.ps1" `
+    "centralizes public evidence and focused log redaction patterns" `
+    @(
+        "ConvertTo-RedactedEvidenceText",
+        "ConvertTo-RedactedLogLine",
+        "Get-EvidenceTextFileExtensions",
+        "Get-EvidenceImageFileExtensions",
+        "Get-EvidenceLocalOnlyPathPatterns",
+        "Test-EvidenceLocalOnlyPath",
+        "Get-EvidenceSensitiveTextChecks",
+        "Get-PublicEvidenceRedactionReviewFields",
+        "Format-PublicEvidenceRedactionReviewFields",
+        "Screenshots manually reviewed",
+        "Credential suggestions absent",
+        "Only sanitized diagnostics selected for public sharing",
+        "redacted-local-path",
+        "android-app-private",
+        "redacted-device-serial",
+        "redacted-email",
+        "Bearer <redacted>",
+        "logs\\\\logcat-full",
+        "logs\\\\logcat-steam-version-focused",
+        "logcat-\(\?!steam-version-focused-redacted\)",
+        "startup-routing-focused",
+        "credential/token assignment",
+        "Android package-private data path",
+        "known connected device serial",
+        "saveData",
+        "profileContent"
+    )
+
+Add-Check `
     "src\STS2Mobile\Launcher\LauncherMarkerFile.cs" `
     "declares shared marker-file sentinel values" `
     @(
@@ -6335,7 +6382,14 @@ Add-Check `
     "captures branch evidence with resolved adb and bounded backup scans" `
     @(
         "Resolve-AndroidAdbPath",
+        "android-shell-utils\.ps1",
+        "evidence-path-utils\.ps1",
+        "evidence-redaction-utils\.ps1",
         "AdbPath",
+        "Resolve-EvidenceRepoPath",
+        "ConvertTo-AndroidShellSingleQuoted",
+        "ConvertTo-AndroidShellPathSingleQuoted",
+        "ConvertTo-RedactedLogLine",
         "quotedCommand",
         'run-as \$PackageName sh -c',
         "Invoke-DeviceShell",
@@ -6371,7 +6425,9 @@ Add-Check `
         "steam-version-selection",
         "branch-markers",
         "backup-evidence",
-        "Resolve-RepoPath",
+        "evidence-path-utils\.ps1",
+        "evidence-redaction-utils\.ps1",
+        "Resolve-EvidenceRepoPath",
         "steam-version-selection-evidence-template\.md",
         "steam-version-selection-release-readiness\.md",
         "ARTIFACT_HYGIENE\.txt",
@@ -6392,8 +6448,7 @@ Add-Check `
         "Raw logs and full launcher diagnostics are local-only",
         "PUBLIC_SHARE_MANIFEST\.txt",
         "PUBLIC_EVIDENCE_REDACTION_REVIEW\.txt",
-        "Only sanitized diagnostics selected for public sharing",
-        "Device notifications absent",
+        "Format-PublicEvidenceRedactionReviewFields",
         "preferred public artifacts",
         "steam_branch\.txt",
         "last_game_branch_switch\.txt",
@@ -6404,7 +6459,7 @@ Add-Check `
         "last_game_version_cache_cleanup\.txt",
         "last_game_version_redownload\.txt",
         "backup-evidence",
-        "Resolve-RepoPath",
+        "Resolve-EvidenceRepoPath",
         "branch-markers"
     )
 
@@ -6424,21 +6479,18 @@ Add-Check `
     "exports a sanitized public-share evidence candidate without mutating raw evidence" `
     @(
         "SourceEvidenceDir",
+        "evidence-path-utils\.ps1",
+        "evidence-redaction-utils\.ps1",
         "PUBLIC_EVIDENCE_REDACTION_REVIEW\.txt",
         "PUBLIC_SHARE_MANIFEST\.txt",
-        "Redact-PublicEvidenceText",
+        "Resolve-EvidenceRepoPath",
+        "Get-EvidenceRelativePath",
+        "ConvertTo-RedactedEvidenceText",
+        "Format-PublicEvidenceRedactionReviewFields",
+        "Get-EvidenceTextFileExtensions",
+        "Get-EvidenceImageFileExtensions",
+        "Test-EvidenceLocalOnlyPath",
         "Raw evidence remains local",
-        "Local user paths redacted",
-        "Device identifiers redacted",
-        "Only sanitized diagnostics selected for public sharing",
-        "logs\\\\logcat-full",
-        "logs\\\\logcat-steam-version-focused",
-        "logcat-\(\?!steam-version-focused-redacted\)",
-        "startup-routing-focused",
-        "android-app-private",
-        "redacted-device-serial",
-        "redacted-email",
-        "saveData",
         "IncludeImages"
     )
 
@@ -6446,23 +6498,16 @@ Add-Check `
     "scripts\review-public-evidence-redaction.ps1" `
     "fails public-share candidates without completed redaction review or with local-only artifacts" `
     @(
+        "evidence-path-utils\.ps1",
+        "evidence-redaction-utils\.ps1",
         "PUBLIC_EVIDENCE_REDACTION_REVIEW\.txt",
-        "Screenshots manually reviewed",
-        "Credential suggestions absent",
-        "Device notifications absent",
-        "Private save/profile contents absent",
-        "Steam credentials absent",
-        "Refresh/session tokens absent",
-        "Local user paths redacted",
-        "Device identifiers redacted",
-        "Only sanitized diagnostics selected for public sharing",
-        "logs\\\\logcat-full",
-        "logs\\\\logcat-steam-version-focused",
-        "logcat-\(\?!steam-version-focused-redacted\)",
-        "startup-routing-focused",
-        "Android package-private data path",
-        "known connected device serial",
-        "credential/token assignment",
+        "Get-PublicEvidenceRedactionReviewFields",
+        "\[regex\]::Escape",
+        "Get-EvidenceTextFileExtensions",
+        "Get-EvidenceImageFileExtensions",
+        "Get-EvidenceSensitiveTextChecks",
+        "Test-EvidenceLocalOnlyPath",
+        "Get-EvidenceRelativePath",
         "Screenshot/image requires completed"
     )
 
@@ -6870,8 +6915,12 @@ Add-Check `
     "captures public versus selected branch inventories and marker evidence" `
     @(
         "android-shell-utils\.ps1",
+        "evidence-path-utils\.ps1",
         "evidence-marker-utils\.ps1",
         "ConvertTo-AndroidShellSingleQuoted",
+        "ConvertTo-AndroidShellPathSingleQuoted",
+        "Resolve-EvidenceRepoPath",
+        "ConvertTo-EvidenceSafeFileName",
         "public-files\.tsv",
         "public-cache-tree\.txt",
         "selected inventory",

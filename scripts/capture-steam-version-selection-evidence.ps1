@@ -11,16 +11,14 @@ $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 . (Join-Path $PSScriptRoot "android-adb-utils.ps1")
+. (Join-Path $PSScriptRoot "android-shell-utils.ps1")
+. (Join-Path $PSScriptRoot "evidence-path-utils.ps1")
+. (Join-Path $PSScriptRoot "evidence-redaction-utils.ps1")
 $AdbPath = Resolve-AndroidAdbPath -AdbPath $AdbPath
-
-function Resolve-RepoPath([string]$RelativePath) {
-    $normalized = $RelativePath -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
-    return Join-Path $root $normalized
-}
 
 $resolvedEvidenceDir = $EvidenceDir
 if (-not [System.IO.Path]::IsPathRooted($resolvedEvidenceDir)) {
-    $resolvedEvidenceDir = Resolve-RepoPath $resolvedEvidenceDir
+    $resolvedEvidenceDir = Resolve-EvidenceRepoPath -RepoRoot $root -Path $resolvedEvidenceDir
 }
 
 New-Item -ItemType Directory -Force $resolvedEvidenceDir | Out-Null
@@ -56,27 +54,13 @@ function Invoke-AdbText([string[]]$Arguments, [switch]$AllowFailure) {
 }
 
 function Invoke-RunAsShell([string]$Command, [switch]$AllowFailure) {
-    $quotedCommand = "'" + ($Command -replace "'", "'\''") + "'"
+    $quotedCommand = ConvertTo-AndroidShellSingleQuoted $Command
     return Invoke-AdbText -Arguments @("shell", "run-as $PackageName sh -c $quotedCommand") -AllowFailure:$AllowFailure
 }
 
 function Invoke-DeviceShell([string]$Command, [switch]$AllowFailure) {
-    $quotedCommand = "'" + ($Command -replace "'", "'\''") + "'"
+    $quotedCommand = ConvertTo-AndroidShellSingleQuoted $Command
     return Invoke-AdbText -Arguments @("shell", "sh -c $quotedCommand") -AllowFailure:$AllowFailure
-}
-
-function Redact-LogLine([string]$Line) {
-    if ($null -eq $Line) {
-        return ""
-    }
-
-    $redacted = $Line
-    $redacted = $redacted -replace '(?i)\b(password|passwd|refresh[_-]?token|access[_-]?token|login[_-]?key|steamLoginSecure|sessionid|shared[_-]?secret|identity[_-]?secret|guard[_-]?code|twofactorcode|authorization|account[_-]?name|username|user[_-]?name|device[_-]?serial|serial)\b\s*[:=]\s*["'']?[^"'',;&\s]+', '$1=<redacted>'
-    $redacted = $redacted -replace '(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+', 'Bearer <redacted>'
-    $redacted = $redacted -replace '[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}', '<redacted-email>'
-    $redacted = $redacted -replace '(?i)\b([A-Z]:\\Users\\)[^\\\s]+', '${1}<redacted-user>'
-    $redacted = $redacted -replace '(?i)(/Users/|/home/)[^/\s]+', '${1}<redacted-user>'
-    return $redacted
 }
 
 $summaryPath = Join-Path $resolvedEvidenceDir "capture-summary.txt"
@@ -175,7 +159,7 @@ $redactedLogHeader = @(
 $redactedLogBody = @()
 $redactedChangedLineCount = 0
 foreach ($line in $focusedLogLines) {
-    $redactedLine = Redact-LogLine $line
+    $redactedLine = ConvertTo-RedactedLogLine $line
     $redactedLogBody += $redactedLine
     if ($redactedLine -ne $line) {
         $redactedChangedLineCount += 1
@@ -227,8 +211,9 @@ Invoke-DeviceShell -Command "echo local-pre-push:; timeout 10 find /storage/emul
 $markerEvidenceStatus = [System.Collections.Generic.List[string]]::new()
 
 function Save-RunAsMarkerFile([string]$DevicePath, [string]$Destination, [string]$Label) {
+    $quotedDevicePath = ConvertTo-AndroidShellPathSingleQuoted $DevicePath
     $content = @(
-        Invoke-RunAsShell -Command "if [ -s '$DevicePath' ]; then cat '$DevicePath'; elif [ -e '$DevicePath' ]; then echo '<empty marker>'; else echo '<missing marker>'; fi" -AllowFailure
+        Invoke-RunAsShell -Command "if [ -s $quotedDevicePath ]; then cat $quotedDevicePath; elif [ -e $quotedDevicePath ]; then echo '<empty marker>'; else echo '<missing marker>'; fi" -AllowFailure
     )
     $content | Set-Content -LiteralPath $Destination -Encoding UTF8
 

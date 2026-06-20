@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-21 - Evidence redaction helper refactor prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.280-local-evidence-redaction-refactor` with APK `StS2Launcher-v0.2.280-local-evidence-redaction-refactor-arm64-v8a.apk`.
+- Split evidence path resolution, safe evidence filenames, public-evidence redaction, focused-log redaction, local-only artifact policy, sensitive-content checks, and redaction-review field formatting into shared PowerShell helpers.
+- Updated the version-selection evidence scaffold, exporter, reviewer, branch capture, and beta-integrity capture scripts to use the shared helpers instead of duplicating policy strings and path logic.
+- Preserved the build/static validation posture: this APK is build and audit evidence only, and public/public-beta runtime behavior still relies on the existing ARM64 runtime evidence until this exact APK is device-tested.
+
 ## 2026-06-20 - Audit evidence helper refactor prerelease
 
 - Published the local-package ARM64 prerelease `v0.2.279-local-audit-helper-refactor` with APK `StS2Launcher-v0.2.279-local-audit-helper-refactor-arm64-v8a.apk`.

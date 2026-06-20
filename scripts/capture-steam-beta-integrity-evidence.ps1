@@ -13,22 +13,10 @@ $ErrorActionPreference = "Stop"
 
 . "$PSScriptRoot/android-adb-utils.ps1"
 . "$PSScriptRoot/android-shell-utils.ps1"
+. "$PSScriptRoot/evidence-path-utils.ps1"
 . "$PSScriptRoot/evidence-marker-utils.ps1"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
-
-function Resolve-RepoPath([string]$RelativePath) {
-    $normalized = $RelativePath -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
-    return Join-Path $root $normalized
-}
-
-function ConvertTo-SafeFileName([string]$Value) {
-    if ([string]::IsNullOrWhiteSpace($Value)) {
-        return "empty"
-    }
-
-    return ($Value -replace '[^A-Za-z0-9._-]', '_').Trim('_')
-}
 
 function Invoke-RunAsText([string]$Command, [switch]$AllowFailure) {
     $quotedCommand = ConvertTo-AndroidShellSingleQuoted $Command
@@ -439,7 +427,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $resolvedEvidenceDir = $EvidenceDir
 if (-not [System.IO.Path]::IsPathRooted($resolvedEvidenceDir)) {
-    $resolvedEvidenceDir = Resolve-RepoPath $resolvedEvidenceDir
+    $resolvedEvidenceDir = Resolve-EvidenceRepoPath -RepoRoot $root -Path $resolvedEvidenceDir
 }
 
 New-Item -ItemType Directory -Force $resolvedEvidenceDir | Out-Null
@@ -478,9 +466,10 @@ foreach ($markerPath in ($markerList -split '\r?\n')) {
         continue
     }
 
-    $safeName = ConvertTo-SafeFileName $markerPath
+    $safeName = ConvertTo-EvidenceSafeFileName $markerPath
     $localMarkerPath = Join-Path $markersDir "$safeName.txt"
-    $markerText = Write-RunAsTextFile -Command "cat '$markerPath' 2>/dev/null || true" -Path $localMarkerPath -AllowFailure
+    $quotedMarkerPath = ConvertTo-AndroidShellPathSingleQuoted $markerPath
+    $markerText = Write-RunAsTextFile -Command "cat $quotedMarkerPath 2>/dev/null || true" -Path $localMarkerPath -AllowFailure
     $markerBranch = Read-BranchFromMarkerText $markerText
     if ($markerBranch -ieq "public") {
         $publicMarkerPath = $markerPath
@@ -516,8 +505,8 @@ $escapedInventoryCommand = $inventoryCommand.Replace("'", "'\''")
 
 $publicInventoryPath = Join-Path $inventoryDir "public-files.tsv"
 $publicCacheTreePath = Join-Path $inventoryDir "public-cache-tree.txt"
-$selectedInventoryPath = Join-Path $inventoryDir "$(ConvertTo-SafeFileName $Branch)-files.tsv"
-$selectedCacheTreePath = Join-Path $inventoryDir "$(ConvertTo-SafeFileName $Branch)-cache-tree.txt"
+$selectedInventoryPath = Join-Path $inventoryDir "$(ConvertTo-EvidenceSafeFileName $Branch)-files.tsv"
+$selectedCacheTreePath = Join-Path $inventoryDir "$(ConvertTo-EvidenceSafeFileName $Branch)-cache-tree.txt"
 Write-RunAsTextFile `
     -Command "sh -c '$escapedInventoryCommand' sh files/game" `
     -Path $publicInventoryPath `
@@ -541,9 +530,9 @@ if (-not [string]::IsNullOrWhiteSpace($selectedGameDir)) {
     Set-Content -LiteralPath $selectedCacheTreePath -Value "" -Encoding UTF8
 }
 
-$comparisonPath = Join-Path $inventoryDir "public-vs-$(ConvertTo-SafeFileName $Branch)-comparison.txt"
+$comparisonPath = Join-Path $inventoryDir "public-vs-$(ConvertTo-EvidenceSafeFileName $Branch)-comparison.txt"
 Write-InventoryComparison -PublicInventoryPath $publicInventoryPath -SelectedInventoryPath $selectedInventoryPath -OutputPath $comparisonPath
-$keyAssetComparisonPath = Join-Path $inventoryDir "public-vs-$(ConvertTo-SafeFileName $Branch)-key-assets.tsv"
+$keyAssetComparisonPath = Join-Path $inventoryDir "public-vs-$(ConvertTo-EvidenceSafeFileName $Branch)-key-assets.tsv"
 Write-KeyAssetComparison -PublicInventoryPath $publicInventoryPath -SelectedInventoryPath $selectedInventoryPath -OutputPath $keyAssetComparisonPath
 $focusedLogcatPath = Join-Path $logsDir "beta-integrity-logcat-focused.txt"
 Write-FocusedLogcatEvidence -OutputPath $focusedLogcatPath

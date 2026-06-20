@@ -5,12 +5,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$root = Resolve-Path (Join-Path $PSScriptRoot "..")
+. (Join-Path $PSScriptRoot "evidence-path-utils.ps1")
+. (Join-Path $PSScriptRoot "evidence-redaction-utils.ps1")
 
-function Resolve-RepoPath([string]$RelativePath) {
-    $normalized = $RelativePath -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
-    return Join-Path $root $normalized
-}
+$root = Resolve-Path (Join-Path $PSScriptRoot "..")
 
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $safeLabel = $Label.Trim()
@@ -22,7 +20,7 @@ if ($safeLabel.Length -gt 0) {
     $folderName = "steam-version-selection-$timestamp"
 }
 
-$outputRootPath = Resolve-RepoPath $OutputRoot
+$outputRootPath = Resolve-EvidenceRepoPath -RepoRoot $root -Path $OutputRoot
 $evidenceDir = Join-Path $outputRootPath $folderName
 $logsDir = Join-Path $evidenceDir "logs"
 $diagnosticsDir = Join-Path $evidenceDir "diagnostics"
@@ -74,29 +72,17 @@ The release-readiness contract is docs/steam-version-selection-release-readiness
 Set-Content -LiteralPath $artifactHygienePath -Value $artifactHygiene -Encoding UTF8
 
 $redactionReviewPath = Join-Path $evidenceDir "PUBLIC_EVIDENCE_REDACTION_REVIEW.txt"
-$redactionReview = @"
-Public Evidence Redaction Review
-
-Set every field to true only after direct manual review of the public share candidate. Keep raw files local when any field is false.
-
-Screenshots manually reviewed: false
-Credential suggestions absent: false
-Account identifiers redacted: false
-Device notifications absent: false
-Private save/profile contents absent: false
-Steam credentials absent: false
-Steam Guard codes absent: false
-Refresh/session tokens absent: false
-Local user paths redacted: false
-Device identifiers redacted: false
-Only sanitized diagnostics selected for public sharing: false
-
-Reviewer:
-UTC:
-Notes:
-"@
-
-Set-Content -LiteralPath $redactionReviewPath -Value $redactionReview -Encoding UTF8
+Set-Content -LiteralPath $redactionReviewPath -Value @(
+    "Public Evidence Redaction Review",
+    "",
+    "Set every field to true only after direct manual review of the public share candidate. Keep raw files local when any field is false.",
+    "",
+    (Format-PublicEvidenceRedactionReviewFields -Completed $false),
+    "",
+    "Reviewer:",
+    "UTC:",
+    "Notes:"
+) -Encoding UTF8
 
 $publicShareManifestPath = Join-Path $evidenceDir "PUBLIC_SHARE_MANIFEST.txt"
 $publicShareManifest = @"
