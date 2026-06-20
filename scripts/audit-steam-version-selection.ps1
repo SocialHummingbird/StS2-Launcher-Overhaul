@@ -4,62 +4,50 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$root = Resolve-Path (Join-Path $PSScriptRoot "..")
-$failures = New-Object System.Collections.Generic.List[string]
-$passes = 0
+. (Join-Path $PSScriptRoot "static-audit-utils.ps1")
+Initialize-StaticAudit -ScriptRoot $PSScriptRoot -Quiet:$Quiet
 
-function Resolve-RepoPath([string]$RelativePath) {
-    $normalized = $RelativePath -replace '[\\/]', [System.IO.Path]::DirectorySeparatorChar
-    return Join-Path $root $normalized
-}
+Add-Check `
+    "scripts\static-audit-utils.ps1" `
+    "keeps shared static audit harness isolated from version-selection contracts" `
+    @(
+        "Initialize-StaticAudit",
+        "Resolve-RepoPath",
+        "Read-RepoFile",
+        "Add-Check",
+        "Add-ForbiddenCheck",
+        "Complete-StaticAudit",
+        "StaticAuditFailures",
+        "StaticAuditPasses",
+        "StaticAuditQuiet",
+        "ThrowOnFailure"
+    )
 
-function Read-RepoFile([string]$RelativePath) {
-    $path = Resolve-RepoPath $RelativePath
-    if (-not (Test-Path -LiteralPath $path)) {
-        $failures.Add("Missing file: $RelativePath")
-        return $null
-    }
+Add-Check `
+    "scripts\evidence-marker-utils.ps1" `
+    "centralizes marker-text parsing for release evidence scripts" `
+    @(
+        "Read-MarkerValueFromText",
+        "Read-MarkerIntFromText",
+        "Read-MarkerRowsFromText",
+        "Read-BranchFromMarkerText",
+        "MissingValue",
+        "OrdinalIgnoreCase",
+        "\[int\]::TryParse",
+        'return @\(\$MissingValue\)'
+    )
 
-    return Get-Content -LiteralPath $path -Raw
-}
-
-function Add-Check([string]$RelativePath, [string]$Description, [string[]]$RequiredPatterns) {
-    $content = Read-RepoFile $RelativePath
-    if ($null -eq $content) {
-        return
-    }
-
-    foreach ($pattern in $RequiredPatterns) {
-        if ($content -notmatch $pattern) {
-            $failures.Add("$RelativePath - $Description - missing pattern: $pattern")
-            return
-        }
-    }
-
-    $script:passes += 1
-    if (-not $Quiet) {
-        Write-Host "PASS $RelativePath - $Description"
-    }
-}
-
-function Add-ForbiddenCheck([string]$RelativePath, [string]$Description, [string[]]$ForbiddenPatterns) {
-    $content = Read-RepoFile $RelativePath
-    if ($null -eq $content) {
-        return
-    }
-
-    foreach ($pattern in $ForbiddenPatterns) {
-        if ($content -match $pattern) {
-            $failures.Add("$RelativePath - $Description - forbidden pattern present: $pattern")
-            return
-        }
-    }
-
-    $script:passes += 1
-    if (-not $Quiet) {
-        Write-Host "PASS $RelativePath - $Description"
-    }
-}
+Add-Check `
+    "scripts\android-shell-utils.ps1" `
+    "centralizes Android shell quoting for run-as evidence capture" `
+    @(
+        "ConvertTo-AndroidShellSingleQuoted",
+        "ConvertTo-AndroidShellPathSingleQuoted",
+        "Unsupported single quote in device path",
+        "-split",
+        "-join",
+        "return ConvertTo-AndroidShellSingleQuoted"
+    )
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherMarkerFile.cs" `
@@ -6881,6 +6869,9 @@ Add-Check `
     "scripts\capture-steam-beta-integrity-evidence.ps1" `
     "captures public versus selected branch inventories and marker evidence" `
     @(
+        "android-shell-utils\.ps1",
+        "evidence-marker-utils\.ps1",
+        "ConvertTo-AndroidShellSingleQuoted",
         "public-files\.tsv",
         "public-cache-tree\.txt",
         "selected inventory",
@@ -7930,12 +7921,6 @@ Add-Check `
         "Push backup evidence"
     )
 
-if ($failures.Count -gt 0) {
-    Write-Host "Steam version-selection static audit failed:"
-    foreach ($failure in $failures) {
-        Write-Host "FAIL $failure"
-    }
-    exit 1
-}
-
-Write-Host "Steam version-selection static audit passed: $passes checks."
+Complete-StaticAudit `
+    -FailureHeading "Steam version-selection static audit failed:" `
+    -SuccessMessage "Steam version-selection static audit passed: {0} checks."

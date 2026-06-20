@@ -7,12 +7,12 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
 Current build-only prerelease reference:
 
 ```text
-release=v0.2.278-local-compact-label-refactor
-asset=StS2Launcher-v0.2.278-local-compact-label-refactor-arm64-v8a.apk
-sha256=9e85ce823c01fc0857ba6215dff9540362a4e38d82bf0297adb2aac1dedd4d76
+release=v0.2.279-local-audit-helper-refactor
+asset=StS2Launcher-v0.2.279-local-audit-helper-refactor-arm64-v8a.apk
+sha256=3e388d6f835468dd2ba88a193a1e5d08981bd38ffb0b2bfa2fe1d155dee12b9d
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.278-local-compact-label-refactor
-versionCode=278000
+versionName=0.2.279-local-audit-helper-refactor
+versionCode=279000
 validation=build/static-gate only; device runtime signoff still requires the public/public-beta evidence workflow below
 ```
 

@@ -6,6 +6,8 @@ These tools do not replace ARM64 runtime validation. They only make static guard
 
 The PowerShell helpers normalize local path separators so they can be run from Windows PowerShell or PowerShell Core on CI/Linux. Android `adb shell` paths intentionally remain Android-style paths. Device evidence helpers resolve `adb` from an explicit `-AdbPath`, PATH, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, the standard local Android SDK path, or the repo local `.w40k-android-toolchain` SDK path. If none is available, they fail before capture with an actionable SDK/platform-tools message.
 
+Shared helper boundaries are intentional release guardrails. Static audits use `scripts/static-audit-utils.ps1` for common file/pattern checks. Device evidence collectors use `scripts/android-shell-utils.ps1` for Android `run-as sh -c` quoting, `scripts/evidence-marker-utils.ps1` for marker-file parsing, and `scripts/evidence-report-utils.ps1` for Markdown evidence rows. Keep those helpers small and covered by the static audits when adding new branch/runtime evidence capture.
+
 ## Static guardrail audit
 
 Purpose:

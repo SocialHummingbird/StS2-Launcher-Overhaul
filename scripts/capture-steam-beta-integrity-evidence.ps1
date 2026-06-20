@@ -12,6 +12,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 . "$PSScriptRoot/android-adb-utils.ps1"
+. "$PSScriptRoot/android-shell-utils.ps1"
+. "$PSScriptRoot/evidence-marker-utils.ps1"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 
@@ -26,10 +28,6 @@ function ConvertTo-SafeFileName([string]$Value) {
     }
 
     return ($Value -replace '[^A-Za-z0-9._-]', '_').Trim('_')
-}
-
-function ConvertTo-AndroidShellSingleQuoted([string]$Value) {
-    return "'" + (($Value -split "'") -join "'\''") + "'"
 }
 
 function Invoke-RunAsText([string]$Command, [switch]$AllowFailure) {
@@ -48,58 +46,6 @@ function Write-RunAsTextFile([string]$Command, [string]$Path, [switch]$AllowFail
     $text = Invoke-RunAsText -Command $Command -AllowFailure:$AllowFailure
     Set-Content -LiteralPath $Path -Value $text -Encoding UTF8
     return $text
-}
-
-function Read-BranchFromMarkerText([string]$Text) {
-    foreach ($line in ($Text -split '\r?\n')) {
-        if ($line -match '^Branch:\s*(.+)$') {
-            return $Matches[1].Trim()
-        }
-    }
-
-    return ""
-}
-
-function Read-MarkerValueFromText([string]$Text, [string]$Prefix) {
-    foreach ($line in ($Text -split '\r?\n')) {
-        if ($line.StartsWith($Prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-            return $line.Substring($Prefix.Length).Trim()
-        }
-    }
-
-    return "<missing>"
-}
-
-function Read-MarkerIntFromText([string]$Text, [string]$Prefix) {
-    foreach ($line in ($Text -split '\r?\n')) {
-        if ($line.StartsWith($Prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-            $value = $line.Substring($Prefix.Length).Trim()
-            $parsed = 0
-            if ([int]::TryParse($value, [ref]$parsed)) {
-                return $parsed
-            }
-        }
-    }
-
-    return $null
-}
-
-function Read-MarkerRowsFromText([string]$Text, [string]$Prefix, [int]$Limit) {
-    $rows = New-Object System.Collections.Generic.List[string]
-    foreach ($line in ($Text -split '\r?\n')) {
-        if ($line.StartsWith($Prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-            $rows.Add($line.Trim())
-            if ($rows.Count -ge $Limit) {
-                break
-            }
-        }
-    }
-
-    if ($rows.Count -eq 0) {
-        return @("<none>")
-    }
-
-    return $rows.ToArray()
 }
 
 function Read-ComparisonMetric([string]$Path, [string]$Label) {

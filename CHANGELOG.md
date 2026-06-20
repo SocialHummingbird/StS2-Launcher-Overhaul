@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-20 - Audit evidence helper refactor prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.279-local-audit-helper-refactor` with APK `StS2Launcher-v0.2.279-local-audit-helper-refactor-arm64-v8a.apk`.
+- Split common PowerShell static-audit plumbing, Android `run-as` shell quoting, evidence marker parsing, and Markdown evidence table formatting into shared helpers used by the Steam version-selection and multi-version runtime evidence scripts.
+- Extended both static audits to guard the new helper boundaries and the evidence collector imports, preserving the non-public runtime-pack, branch-selection, and Steam Cloud safety checks.
+- Preserved the build/static validation posture: this APK is build and audit evidence only, and public/public-beta runtime behavior still relies on the existing ARM64 runtime evidence until this exact APK is device-tested.
+
 ## 2026-06-20 - Compact label helper refactor prerelease
 
 - Published the local-package ARM64 prerelease `v0.2.278-local-compact-label-refactor` with APK `StS2Launcher-v0.2.278-local-compact-label-refactor-arm64-v8a.apk`.

@@ -327,6 +327,19 @@ Combined gate passed:
 
 No Steam Cloud Push was performed. Successful branch-switch Push remains release-open until Pull-before-Push, local-save, and backup evidence are captured on the selected version.
 
+## Audit/evidence helper refactor prerelease evidence note
+
+The `v0.2.279-local-audit-helper-refactor` ARM64 prerelease packages a tooling-only refactor for the branch/runtime validation scripts. It extracts common static-audit plumbing, Android `run-as` shell quoting, marker parsing, and Markdown report row formatting into shared PowerShell helpers guarded by both static audits. It is published as a local-package build for `com.sts2launcher.overhaul.fork.local`:
+
+```text
+Asset: StS2Launcher-v0.2.279-local-audit-helper-refactor-arm64-v8a.apk
+SHA-256: 3e388d6f835468dd2ba88a193a1e5d08981bd38ffb0b2bfa2fe1d155dee12b9d
+VersionName: 0.2.279-local-audit-helper-refactor
+VersionCode: 279000
+```
+
+Validation for this prerelease is build/static-gate only: `audit-steam-version-selection.ps1 -Quiet` passed 456 checks, `audit-multi-version-runtime.ps1 -Quiet` passed 152 checks, the managed Release build passed, the local ARM64 APK build passed structural verification, and Android crypto patch verification passed. No ARM64 device branch-switch/runtime route evidence was captured for this specific APK, and no Steam Cloud Push was performed. Continue to use the fix30/fix31 public/public-beta evidence notes above for runtime behavior until this APK has matching device evidence.
+
 ## Refactor-audits prerelease evidence note
 
 The `v0.2.278-local-compact-label-refactor` ARM64 prerelease packages the compact launcher helper consolidation for shared two-line button label application. It removes the remaining bespoke compact label implementations for standard compact CTAs while keeping intentionally custom sizing explicit. It is published as a local-package build for `com.sts2launcher.overhaul.fork.local`:

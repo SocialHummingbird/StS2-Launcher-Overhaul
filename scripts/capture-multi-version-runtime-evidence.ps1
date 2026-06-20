@@ -10,6 +10,9 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "android-adb-utils.ps1")
+. (Join-Path $PSScriptRoot "android-shell-utils.ps1")
+. (Join-Path $PSScriptRoot "evidence-marker-utils.ps1")
+. (Join-Path $PSScriptRoot "evidence-report-utils.ps1")
 $AdbPath = Resolve-AndroidAdbPath -AdbPath $AdbPath
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $generatedUtc = (Get-Date).ToUniversalTime().ToString('O')
@@ -51,7 +54,7 @@ function Invoke-RunAsText {
         [switch]$AllowFailure
     )
 
-    $quotedCommand = "'" + ($Command -replace "'", "'\''") + "'"
+    $quotedCommand = ConvertTo-AndroidShellSingleQuoted $Command
     $remoteCommand = "run-as $PackageName sh -c $quotedCommand"
     return Invoke-AdbText `
         -Arguments @("shell", $remoteCommand) `
@@ -105,35 +108,6 @@ function Read-JsonFile {
     }
 }
 
-function Read-MarkerValue {
-    param(
-        [AllowNull()][string]$Text,
-        [Parameter(Mandatory = $true)][string]$Prefix
-    )
-
-    if ([string]::IsNullOrWhiteSpace($Text)) {
-        return "<missing>"
-    }
-
-    foreach ($line in ($Text -split "`r?`n")) {
-        if ($line.StartsWith($Prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-            return $line.Substring($Prefix.Length).Trim()
-        }
-    }
-
-    return "<missing>"
-}
-
-function Quote-ShellSingle {
-    param([Parameter(Mandatory = $true)][string]$Value)
-
-    if ($Value.Contains("'")) {
-        throw "Unsupported single quote in device path: $Value"
-    }
-
-    return "'$Value'"
-}
-
 function Read-DeviceSha256 {
     param([AllowNull()][string]$Path)
 
@@ -141,7 +115,7 @@ function Read-DeviceSha256 {
         return "<missing>"
     }
 
-    $quoted = Quote-ShellSingle -Value $Path
+    $quoted = ConvertTo-AndroidShellPathSingleQuoted -Value $Path
     $text = Invoke-RunAsText -Command "sha256sum $quoted 2>/dev/null | cut -d ' ' -f 1" -AllowFailure
     if ([string]::IsNullOrWhiteSpace($text)) {
         return "<missing>"
@@ -157,7 +131,7 @@ function Read-DeviceRuntimePackDllNames {
         return @()
     }
 
-    $quoted = Quote-ShellSingle -Value $Directory
+    $quoted = ConvertTo-AndroidShellPathSingleQuoted -Value $Directory
     $command = "for f in $quoted/*.dll; do [ -f `"`$f`" ] && basename `"`$f`"; done | sort"
     $text = Invoke-RunAsText -Command $command -AllowFailure
     if ([string]::IsNullOrWhiteSpace($text)) {
@@ -241,40 +215,6 @@ function Test-RuntimePackClosedDllSet {
     }
 }
 
-function Format-Cell {
-    param([AllowNull()][string]$Value)
-
-    if ($null -eq $Value) {
-        return ""
-    }
-
-    return ($Value -replace '\|', '/' -replace "`r?`n", " ").Trim()
-}
-
-function Add-ValidationRow {
-    param(
-        [Parameter(Mandatory = $true)]$Lines,
-        [Parameter(Mandatory = $true)][string]$Area,
-        [Parameter(Mandatory = $true)][string]$Status,
-        [Parameter(Mandatory = $true)][string]$Evidence,
-        [Parameter(Mandatory = $true)][string]$RequiredNextAction
-    )
-
-    $Lines.Add("| $(Format-Cell $Area) | $(Format-Cell $Status) | $(Format-Cell $Evidence) | $(Format-Cell $RequiredNextAction) |")
-}
-
-function Add-HypothesisRow {
-    param(
-        [Parameter(Mandatory = $true)]$Lines,
-        [Parameter(Mandatory = $true)][string]$Hypothesis,
-        [Parameter(Mandatory = $true)][string]$Status,
-        [Parameter(Mandatory = $true)][string]$Evidence,
-        [Parameter(Mandatory = $true)][string]$NextProof
-    )
-
-    $Lines.Add("| $(Format-Cell $Hypothesis) | $(Format-Cell $Status) | $(Format-Cell $Evidence) | $(Format-Cell $NextProof) |")
-}
-
 $metadata = [ordered]@{
     generatedUtc = $generatedUtc
     packageName = $PackageName
@@ -345,21 +285,21 @@ if ($runtimeSlotEvidence) {
     $runtimeSlotPckActualSha256 = Read-DeviceSha256 -Path "$($runtimeSlotEvidence.pckPath)"
     $runtimeSlotSourceAssemblyActualSha256 = Read-DeviceSha256 -Path "$($runtimeSlotEvidence.sourceAssemblyPath)"
 }
-$runtimeCacheBranch = Read-MarkerValue -Text $runtimeCacheText -Prefix "Selected branch:"
-$runtimeCacheBranchRequiresRuntimePack = Read-MarkerValue -Text $runtimeCacheText -Prefix "Selected branch requires runtime pack:"
-$runtimeCacheId = Read-MarkerValue -Text $runtimeCacheText -Prefix "Runtime ID:"
-$runtimeCacheSource = Read-MarkerValue -Text $runtimeCacheText -Prefix "Runtime source:"
-$runtimePackDirectory = Read-MarkerValue -Text $runtimeCacheText -Prefix "Runtime pack directory:"
-$runtimeCachePck = Read-MarkerValue -Text $runtimeCacheText -Prefix "Selected PCK SHA256:"
-$runtimeCacheSelectedSource = Read-MarkerValue -Text $runtimeCacheText -Prefix "Selected source sts2.dll SHA256:"
-$runtimeCachePublishAssembly = Read-MarkerValue -Text $runtimeCacheText -Prefix "Publish cache active sts2.dll SHA256:"
-$saveOriginAction = Read-MarkerValue -Text $saveOriginText -Prefix "Origin action:"
-$saveOriginBranch = Read-MarkerValue -Text $saveOriginText -Prefix "Selected branch:"
-$saveOriginRuntimeSlotId = Read-MarkerValue -Text $saveOriginText -Prefix "Selected runtime slot ID:"
-$saveOriginPck = Read-MarkerValue -Text $saveOriginText -Prefix "Selected PCK SHA256:"
-$saveOriginSourceAssembly = Read-MarkerValue -Text $saveOriginText -Prefix "Selected source sts2.dll SHA256:"
-$saveOriginRuntimePlayable = Read-MarkerValue -Text $saveOriginText -Prefix "Selected runtime playable:"
-$saveOriginRuntimeVerified = Read-MarkerValue -Text $saveOriginText -Prefix "Current Android local saves verified for selected runtime:"
+$runtimeCacheBranch = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Selected branch:"
+$runtimeCacheBranchRequiresRuntimePack = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Selected branch requires runtime pack:"
+$runtimeCacheId = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Runtime ID:"
+$runtimeCacheSource = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Runtime source:"
+$runtimePackDirectory = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Runtime pack directory:"
+$runtimeCachePck = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Selected PCK SHA256:"
+$runtimeCacheSelectedSource = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Selected source sts2.dll SHA256:"
+$runtimeCachePublishAssembly = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Publish cache active sts2.dll SHA256:"
+$saveOriginAction = Read-MarkerValueFromText -Text $saveOriginText -Prefix "Origin action:"
+$saveOriginBranch = Read-MarkerValueFromText -Text $saveOriginText -Prefix "Selected branch:"
+$saveOriginRuntimeSlotId = Read-MarkerValueFromText -Text $saveOriginText -Prefix "Selected runtime slot ID:"
+$saveOriginPck = Read-MarkerValueFromText -Text $saveOriginText -Prefix "Selected PCK SHA256:"
+$saveOriginSourceAssembly = Read-MarkerValueFromText -Text $saveOriginText -Prefix "Selected source sts2.dll SHA256:"
+$saveOriginRuntimePlayable = Read-MarkerValueFromText -Text $saveOriginText -Prefix "Selected runtime playable:"
+$saveOriginRuntimeVerified = Read-MarkerValueFromText -Text $saveOriginText -Prefix "Current Android local saves verified for selected runtime:"
 
 $runtimePackManifestText = ""
 $runtimePackValidationText = ""
