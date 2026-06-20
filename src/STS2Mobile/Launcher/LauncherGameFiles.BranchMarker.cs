@@ -24,10 +24,10 @@ internal static partial class LauncherGameFiles
         {
             foreach (var line in File.ReadLines(markerPath))
             {
-                if (!line.StartsWith(BranchMarkerBranchPrefix, System.StringComparison.OrdinalIgnoreCase))
+                if (!line.StartsWith(LauncherBranchMarkerFields.Branch, System.StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var markerBranch = SteamGameBranch.Normalize(line.Substring(BranchMarkerBranchPrefix.Length));
+                var markerBranch = SteamGameBranch.Normalize(line.Substring(LauncherBranchMarkerFields.Branch.Length));
                 if (!string.Equals(markerBranch, branch, System.StringComparison.OrdinalIgnoreCase))
                     return false;
 

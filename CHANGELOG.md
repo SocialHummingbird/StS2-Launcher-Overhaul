@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-21 - Branch marker/runtime cache helper refactor prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.281-local-branch-marker-refactor` with APK `StS2Launcher-v0.2.281-local-branch-marker-refactor-arm64-v8a.apk`.
+- Centralized Steam branch-marker field names and integrity-provenance parsing behind shared launcher helpers used by readiness, diagnostics, installed-branch catalog parsing, runtime metadata inspection, and static audits.
+- Centralized Android app-private path normalization and `/data/user/0/<package>` versus `/data/data/<package>` alias handling so branch marker provenance and runtime-cache identity checks use one guarded comparison path.
+- Updated the Steam version-selection and multi-version runtime static audits to guard the new helper boundaries without weakening non-public runtime-pack, branch-selection, or Steam Cloud safety checks.
+- Preserved the build/static validation posture: this APK passed static audits, managed Release build, ARM64 APK verification, and crypto patch verification, but public/public-beta runtime behavior still relies on the existing ARM64 runtime evidence until this exact APK is device-tested.
+
 ## 2026-06-21 - Evidence redaction helper refactor prerelease
 
 - Published the local-package ARM64 prerelease `v0.2.280-local-evidence-redaction-refactor` with APK `StS2Launcher-v0.2.280-local-evidence-redaction-refactor-arm64-v8a.apk`.

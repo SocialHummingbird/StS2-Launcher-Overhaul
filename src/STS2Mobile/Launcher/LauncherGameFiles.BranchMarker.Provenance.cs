@@ -12,7 +12,7 @@ internal static partial class LauncherGameFiles
         {
             foreach (var line in File.ReadLines(markerPath))
             {
-                if (line.StartsWith(BranchMarkerDepotManifestRowPrefix, System.StringComparison.OrdinalIgnoreCase))
+                if (line.StartsWith(LauncherBranchMarkerFields.DepotManifestRow, System.StringComparison.OrdinalIgnoreCase))
                     return true;
             }
         }
@@ -25,20 +25,16 @@ internal static partial class LauncherGameFiles
     }
 
     private static bool BranchMarkerHasIntegrityProvenance(string markerPath)
-        => ReadMarkerInt(markerPath, BranchMarkerDepotsMatchingPublicPrefix).HasValue
-        && ReadMarkerInt(markerPath, BranchMarkerDepotsDifferingFromPublicPrefix).HasValue
-        && ReadMarkerInt(markerPath, BranchMarkerDepotsWithoutPublicComparisonPrefix).HasValue
-        && ReadMarkerInt(markerPath, BranchMarkerDepotsInheritedFromPublicPrefix).HasValue
-        && ReadMarkerInt(markerPath, BranchMarkerDepotsMissingSelectedManifestPrefix).HasValue;
+        => LauncherBranchMarkerIntegrityProvenance.Read(markerPath).IsComplete;
 
     private static bool BranchMarkerHasInstallSlotProvenance(string markerPath, string dataDir, string branch)
         => string.Equals(
-            ReadMarkerValue(markerPath, BranchMarkerInstallSlotKindPrefix),
+            ReadMarkerValue(markerPath, LauncherBranchMarkerFields.InstallSlotKind),
             SteamGameInstallPaths.VersionSlotKind(branch),
             System.StringComparison.OrdinalIgnoreCase
         )
-        && MarkerPathsEquivalent(
-            ReadMarkerValue(markerPath, BranchMarkerInstallSlotDirectoryPrefix),
+        && LauncherAndroidAppPrivatePath.MarkerPathMatchesExpectedPath(
+            ReadMarkerValue(markerPath, LauncherBranchMarkerFields.InstallSlotDirectory),
             SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch),
             dataDir
         );

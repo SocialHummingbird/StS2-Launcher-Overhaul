@@ -7,8 +7,6 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherBranchCatalog
 {
-    private const string BranchMarkerBranchPrefix = "Branch:";
-
     private static IReadOnlyList<BranchOption> ReadInstalledBranches(string dataDir)
     {
         var versionsDir = Path.Combine(dataDir, LauncherStorageNames.GameVersionsDirectory);
@@ -25,7 +23,7 @@ internal static partial class LauncherBranchCatalog
                     SteamGameInstallPaths.LegacyPublicGameDirectory,
                     SteamGameInstallPaths.BranchMarkerFileName
                 );
-                var branch = ReadMarkerValue(markerPath, BranchMarkerBranchPrefix);
+                var branch = ReadMarkerValue(markerPath, LauncherBranchMarkerFields.Branch);
                 if (string.IsNullOrWhiteSpace(branch))
                     continue;
 

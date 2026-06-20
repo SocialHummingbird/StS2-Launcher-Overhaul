@@ -76,10 +76,10 @@ internal static partial class LauncherDiagnostics
                     + $"branchMarkerMatchingInstallSlotProvenance={BoolText(BranchMarkerHasInstallSlotProvenance(markerPath, SteamGameInstallPaths.VersionSlotKind(markerBranch), cache.Path))} "
                     + $"branchMarkerDepotManifests={BranchMarkerDepotManifestCount(markerPath)} "
                     + $"branchMarkerIntegrityProvenance={BoolText(BranchMarkerHasIntegrityProvenance(markerPath))} "
-                    + $"branchMarkerDepotsMatchingPublic={ReadBranchMarkerValue(markerPath, "Depot manifests matching public count:")} "
-                    + $"branchMarkerDepotsDifferingFromPublic={ReadBranchMarkerValue(markerPath, "Depot manifests differing from public count:")} "
-                    + $"branchMarkerDepotsInheritedFromPublic={ReadBranchMarkerValue(markerPath, "Depot manifests inherited from public count:")} "
-                    + $"branchMarkerDepotsMissingSelectedManifest={ReadBranchMarkerValue(markerPath, "Depot manifests missing selected branch manifest count:")} "
+                    + $"branchMarkerDepotsMatchingPublic={ReadBranchMarkerValue(markerPath, LauncherBranchMarkerFields.DepotsMatchingPublic)} "
+                    + $"branchMarkerDepotsDifferingFromPublic={ReadBranchMarkerValue(markerPath, LauncherBranchMarkerFields.DepotsDifferingFromPublic)} "
+                    + $"branchMarkerDepotsInheritedFromPublic={ReadBranchMarkerValue(markerPath, LauncherBranchMarkerFields.DepotsInheritedFromPublic)} "
+                    + $"branchMarkerDepotsMissingSelectedManifest={ReadBranchMarkerValue(markerPath, LauncherBranchMarkerFields.DepotsMissingSelectedManifest)} "
                     + $"branchMarkerReady={BoolText(CachedBranchMarkerReady(cache.DirectoryName, markerBranch, markerPath, cache.Path))}"
             );
         }

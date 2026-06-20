@@ -324,13 +324,27 @@ Add-Check `
     "matches cached runtime hash paths across Android private path aliases and file identity markers" `
     @(
         "PathsEquivalent",
+        "LauncherAndroidAppPrivatePath\.PathMatchesOrLeftAliasMatches",
         "FileIdentityMatches",
         "FileIdentity",
-        "AndroidAppPrivatePathAlias",
-        "/data/data/",
-        "/data/user/0/",
-        "NormalizePath",
         "HasMarkerValue"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherAndroidAppPrivatePath.cs" `
+    "centralizes Android private path normalization and alias matching" `
+    @(
+        "internal static class LauncherAndroidAppPrivatePath",
+        "NormalizePath",
+        "NormalizeMarkerPath",
+        "MarkerPathMatchesExpectedPath",
+        "PathMatchesOrLeftAliasMatches",
+        "NormalizedMarkerPathsEqual",
+        "AndroidAppPrivatePathAlias",
+        "DataDataPrefix = ""/data/data/""",
+        "DataUserPrefix = ""/data/user/0/""",
+        "sourceRootPrefix",
+        "aliasRootPrefix"
     )
 
 Add-Check `
@@ -357,15 +371,35 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\RuntimeSlotMetadata.Fields.cs" `
+    "src\STS2Mobile\Launcher\LauncherBranchMarkerFields.cs" `
     "centralizes branch-marker depot provenance prefixes used in runtime-slot identity" `
     @(
-        "DepotManifestCountPrefix = ""Depot manifest count:""",
-        "DepotsMatchingPublicPrefix = ""Depot manifests matching public count:""",
-        "DepotsDifferingFromPublicPrefix = ""Depot manifests differing from public count:""",
-        "DepotsInheritedFromPublicPrefix = ""Depot manifests inherited from public count:""",
-        "DepotsMissingSelectedManifestPrefix = ""Depot manifests missing selected branch manifest count:""",
-        "DepotManifestRowPrefix = ""Depot manifest:"""
+        "internal static class LauncherBranchMarkerFields",
+        "DepotManifestCount = ""Depot manifest count:""",
+        "DepotsMatchingPublic = ""Depot manifests matching public count:""",
+        "DepotsDifferingFromPublic = ""Depot manifests differing from public count:""",
+        "DepotsInheritedFromPublic = ""Depot manifests inherited from public count:""",
+        "DepotsMissingSelectedManifest = ""Depot manifests missing selected branch manifest count:""",
+        "DepotManifestRow = ""Depot manifest:"""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchMarkerIntegrityProvenance.cs" `
+    "reads typed branch-marker depot comparison evidence used by runtime-slot checks" `
+    @(
+        "readonly record struct LauncherBranchMarkerIntegrityProvenance",
+        "MatchingPublic",
+        "DifferingFromPublic",
+        "WithoutPublicComparison",
+        "InheritedFromPublic",
+        "MissingSelectedManifest",
+        "IsComplete",
+        "LauncherMarkerFile\.ReadInt",
+        "LauncherBranchMarkerFields\.DepotsMatchingPublic",
+        "LauncherBranchMarkerFields\.DepotsDifferingFromPublic",
+        "LauncherBranchMarkerFields\.DepotsWithoutPublicComparison",
+        "LauncherBranchMarkerFields\.DepotsInheritedFromPublic",
+        "LauncherBranchMarkerFields\.DepotsMissingSelectedManifest"
     )
 
 Add-Check `
@@ -375,8 +409,8 @@ Add-Check `
         "Inspect",
         "ReadReleaseInfo",
         "ReadMarkerValue",
-        "DepotManifestCountPrefix",
-        "DepotsDifferingFromPublicPrefix",
+        "LauncherBranchMarkerFields\.DepotManifestCount",
+        "LauncherBranchMarkerFields\.DepotsDifferingFromPublic",
         "BuildDepotManifestFingerprint"
     )
 
@@ -403,7 +437,7 @@ Add-Check `
         "File\.ReadLines",
         "StringComparison\.OrdinalIgnoreCase",
         "BuildDepotManifestFingerprint",
-        "DepotManifestRowPrefix",
+        "LauncherBranchMarkerFields\.DepotManifestRow",
         "OrderBy",
         "StableHash16"
     )

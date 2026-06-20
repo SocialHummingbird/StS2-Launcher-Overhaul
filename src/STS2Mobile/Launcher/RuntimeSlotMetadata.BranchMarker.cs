@@ -21,7 +21,7 @@ internal sealed partial class RuntimeSlotMetadata
                 return "<missing>";
 
             var manifestRows = File.ReadLines(branchMarkerPath)
-                .Where(line => line.StartsWith(DepotManifestRowPrefix, StringComparison.OrdinalIgnoreCase))
+                .Where(line => line.StartsWith(LauncherBranchMarkerFields.DepotManifestRow, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(line => line, StringComparer.Ordinal)
                 .ToArray();
             if (manifestRows.Length == 0)

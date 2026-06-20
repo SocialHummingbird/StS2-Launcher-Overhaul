@@ -5,7 +5,7 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherDiagnostics
 {
     private static string ReadBranchMarkerBranch(string markerPath)
-        => ReadBranchMarkerValue(markerPath, "Branch:");
+        => ReadBranchMarkerValue(markerPath, LauncherBranchMarkerFields.Branch);
 
     private static string ReadBranchMarkerValue(string markerPath, string prefix)
         => ValueOrMissing(LauncherMarkerFile.ReadValue(
@@ -19,38 +19,28 @@ internal static partial class LauncherDiagnostics
         => BranchMarkerDepotManifestCount(markerPath) > 0;
 
     private static bool BranchMarkerHasIntegrityProvenance(string markerPath)
-        => ReadMarkerInt(markerPath, "Depot manifests matching public count:").HasValue
-        && ReadMarkerInt(markerPath, "Depot manifests differing from public count:").HasValue
-        && ReadMarkerInt(markerPath, "Depot manifests without public comparison count:").HasValue
-        && ReadMarkerInt(markerPath, "Depot manifests inherited from public count:").HasValue
-        && ReadMarkerInt(markerPath, "Depot manifests missing selected branch manifest count:").HasValue;
+        => LauncherBranchMarkerIntegrityProvenance.Read(markerPath).IsComplete;
 
     private static bool BranchMarkerHasInstallSlotProvenance(string markerPath, string expectedSlotKind, string expectedSlotDirectory)
         => string.Equals(
-            ReadBranchMarkerValue(markerPath, "Install slot kind:"),
+            ReadBranchMarkerValue(markerPath, LauncherBranchMarkerFields.InstallSlotKind),
             expectedSlotKind,
             System.StringComparison.OrdinalIgnoreCase
         )
-        && string.Equals(
-            NormalizeMarkerPath(ReadBranchMarkerValue(markerPath, "Install slot directory:")),
-            NormalizeMarkerPath(expectedSlotDirectory),
-            System.StringComparison.OrdinalIgnoreCase
+        && LauncherAndroidAppPrivatePath.NormalizedMarkerPathsEqual(
+            ReadBranchMarkerValue(markerPath, LauncherBranchMarkerFields.InstallSlotDirectory),
+            expectedSlotDirectory
         );
 
-    private static string NormalizeMarkerPath(string path)
-        => string.IsNullOrWhiteSpace(path) || path.StartsWith("<", System.StringComparison.Ordinal)
-            ? string.Empty
-            : path.Trim().Replace('\\', '/').TrimEnd('/');
-
     private static int BranchMarkerDepotManifestCount(string markerPath)
-        => LauncherMarkerFile.CountLines(markerPath, "Depot manifest:");
+        => LauncherMarkerFile.CountLines(markerPath, LauncherBranchMarkerFields.DepotManifestRow);
 
     private static string BranchMarkerPartialSteamBranchEvidence(string markerPath)
     {
-        var matching = ReadMarkerInt(markerPath, "Depot manifests matching public count:");
-        var differing = ReadMarkerInt(markerPath, "Depot manifests differing from public count:");
-        var inherited = ReadMarkerInt(markerPath, "Depot manifests inherited from public count:");
-        var selectedMissing = ReadMarkerInt(markerPath, "Depot manifests missing selected branch manifest count:");
+        var matching = ReadMarkerInt(markerPath, LauncherBranchMarkerFields.DepotsMatchingPublic);
+        var differing = ReadMarkerInt(markerPath, LauncherBranchMarkerFields.DepotsDifferingFromPublic);
+        var inherited = ReadMarkerInt(markerPath, LauncherBranchMarkerFields.DepotsInheritedFromPublic);
+        var selectedMissing = ReadMarkerInt(markerPath, LauncherBranchMarkerFields.DepotsMissingSelectedManifest);
         if (!matching.HasValue || !differing.HasValue)
             return MissingDiagnosticValue;
 

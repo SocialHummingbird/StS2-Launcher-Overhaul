@@ -15,16 +15,17 @@ internal static partial class LauncherGameFiles
         if (!File.Exists(markerPath))
             return "Selected branch integrity evidence is unavailable because steam_branch.txt is missing.";
 
-        var total = ReadMarkerInt(markerPath, BranchMarkerDepotManifestCountPrefix);
-        var matchingPublic = ReadMarkerInt(markerPath, BranchMarkerDepotsMatchingPublicPrefix);
-        var differingPublic = ReadMarkerInt(markerPath, BranchMarkerDepotsDifferingFromPublicPrefix);
-        var inheritedPublic = ReadMarkerInt(markerPath, BranchMarkerDepotsInheritedFromPublicPrefix);
-        var missingSelected = ReadMarkerInt(markerPath, BranchMarkerDepotsMissingSelectedManifestPrefix);
-        var withoutPublicComparison = ReadMarkerInt(markerPath, BranchMarkerDepotsWithoutPublicComparisonPrefix);
+        var provenance = LauncherBranchMarkerIntegrityProvenance.Read(markerPath);
+        var total = ReadMarkerInt(markerPath, LauncherBranchMarkerFields.DepotManifestCount);
+        var matchingPublic = provenance.MatchingPublic;
+        var differingPublic = provenance.DifferingFromPublic;
+        var inheritedPublic = provenance.InheritedFromPublic;
+        var missingSelected = provenance.MissingSelectedManifest;
+        var withoutPublicComparison = provenance.WithoutPublicComparison;
 
         if (!total.HasValue)
             return "Selected branch integrity evidence is incomplete; depot manifest count is missing.";
-        if (!BranchMarkerHasIntegrityProvenance(markerPath))
+        if (!provenance.IsComplete)
             return "Selected branch integrity evidence is incomplete; public-vs-selected depot comparison fields are missing. Redownload selected version to rebuild beta integrity evidence.";
 
         if (inheritedPublic.GetValueOrDefault() > 0 && differingPublic.GetValueOrDefault() > 0)

@@ -11,11 +11,11 @@ internal sealed partial class RuntimeSlotMetadata
             release.Commit,
             release.BuildId,
             branchMarkerPath,
-            ReadMarkerValue(branchMarkerPath, DepotManifestCountPrefix),
-            ReadMarkerValue(branchMarkerPath, DepotsMatchingPublicPrefix),
-            ReadMarkerValue(branchMarkerPath, DepotsDifferingFromPublicPrefix),
-            ReadMarkerValue(branchMarkerPath, DepotsInheritedFromPublicPrefix),
-            ReadMarkerValue(branchMarkerPath, DepotsMissingSelectedManifestPrefix),
+            ReadMarkerValue(branchMarkerPath, LauncherBranchMarkerFields.DepotManifestCount),
+            ReadMarkerValue(branchMarkerPath, LauncherBranchMarkerFields.DepotsMatchingPublic),
+            ReadMarkerValue(branchMarkerPath, LauncherBranchMarkerFields.DepotsDifferingFromPublic),
+            ReadMarkerValue(branchMarkerPath, LauncherBranchMarkerFields.DepotsInheritedFromPublic),
+            ReadMarkerValue(branchMarkerPath, LauncherBranchMarkerFields.DepotsMissingSelectedManifest),
             BuildDepotManifestFingerprint(branchMarkerPath)
         );
     }

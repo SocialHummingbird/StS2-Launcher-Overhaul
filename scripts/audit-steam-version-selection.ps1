@@ -378,7 +378,7 @@ Add-Check `
     @(
         "ReadInstalledBranches",
         "LauncherStorageNames\.GameVersionsDirectory",
-        "BranchMarkerBranchPrefix = ""Branch:""",
+        "LauncherBranchMarkerFields\.Branch",
         "SteamGameInstallPaths\.BranchMarkerFileName",
         "SteamGameBranch\.Normalize",
         "SteamGameBranch\.Public",
@@ -892,26 +892,46 @@ Add-Check `
     @(
         "BranchMarkerReady",
         "HasBranchMetadataProblem",
-        "BranchMarkerBranchPrefix",
+        "LauncherBranchMarkerFields\.Branch",
         "BranchMarkerHasDepotManifestProvenance",
         "BranchMarkerHasInstallSlotProvenance",
         "BranchMarkerHasIntegrityProvenance"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherGameFiles.BranchMarker.Fields.cs" `
+    "src\STS2Mobile\Launcher\LauncherBranchMarkerFields.cs" `
     "keeps branch marker field prefixes centralized for readiness and integrity checks" `
     @(
-        "BranchMarkerBranchPrefix = ""Branch:""",
-        "BranchMarkerDepotManifestCountPrefix = ""Depot manifest count:""",
-        "BranchMarkerDepotManifestRowPrefix = ""Depot manifest:""",
-        "BranchMarkerDepotsMatchingPublicPrefix = ""Depot manifests matching public count:""",
-        "BranchMarkerDepotsDifferingFromPublicPrefix = ""Depot manifests differing from public count:""",
-        "BranchMarkerDepotsWithoutPublicComparisonPrefix = ""Depot manifests without public comparison count:""",
-        "BranchMarkerDepotsInheritedFromPublicPrefix = ""Depot manifests inherited from public count:""",
-        "BranchMarkerDepotsMissingSelectedManifestPrefix = ""Depot manifests missing selected branch manifest count:""",
-        "BranchMarkerInstallSlotKindPrefix = ""Install slot kind:""",
-        "BranchMarkerInstallSlotDirectoryPrefix = ""Install slot directory:"""
+        "internal static class LauncherBranchMarkerFields",
+        "Branch = ""Branch:""",
+        "DepotManifestCount = ""Depot manifest count:""",
+        "DepotManifestRow = ""Depot manifest:""",
+        "DepotsMatchingPublic = ""Depot manifests matching public count:""",
+        "DepotsDifferingFromPublic = ""Depot manifests differing from public count:""",
+        "DepotsWithoutPublicComparison = ""Depot manifests without public comparison count:""",
+        "DepotsInheritedFromPublic = ""Depot manifests inherited from public count:""",
+        "DepotsMissingSelectedManifest = ""Depot manifests missing selected branch manifest count:""",
+        "InstallSlotKind = ""Install slot kind:""",
+        "InstallSlotDirectory = ""Install slot directory:"""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchMarkerIntegrityProvenance.cs" `
+    "reads typed branch marker integrity provenance for launch gates and diagnostics" `
+    @(
+        "readonly record struct LauncherBranchMarkerIntegrityProvenance",
+        "MatchingPublic",
+        "DifferingFromPublic",
+        "WithoutPublicComparison",
+        "InheritedFromPublic",
+        "MissingSelectedManifest",
+        "IsComplete",
+        "LauncherMarkerFile\.ReadInt",
+        "LauncherBranchMarkerFields\.DepotsMatchingPublic",
+        "LauncherBranchMarkerFields\.DepotsDifferingFromPublic",
+        "LauncherBranchMarkerFields\.DepotsWithoutPublicComparison",
+        "LauncherBranchMarkerFields\.DepotsInheritedFromPublic",
+        "LauncherBranchMarkerFields\.DepotsMissingSelectedManifest"
     )
 
 Add-Check `
@@ -919,28 +939,29 @@ Add-Check `
     "checks branch marker depot, integrity, and install-slot provenance through centralized fields" `
     @(
         "BranchMarkerHasDepotManifestProvenance",
-        "BranchMarkerDepotManifestRowPrefix",
+        "LauncherBranchMarkerFields\.DepotManifestRow",
         "BranchMarkerHasIntegrityProvenance",
-        "BranchMarkerDepotsMatchingPublicPrefix",
-        "BranchMarkerDepotsDifferingFromPublicPrefix",
-        "BranchMarkerDepotsWithoutPublicComparisonPrefix",
-        "BranchMarkerDepotsInheritedFromPublicPrefix",
-        "BranchMarkerDepotsMissingSelectedManifestPrefix",
+        "LauncherBranchMarkerIntegrityProvenance\.Read",
+        "IsComplete",
         "BranchMarkerHasInstallSlotProvenance",
-        "BranchMarkerInstallSlotKindPrefix",
-        "BranchMarkerInstallSlotDirectoryPrefix",
-        "MarkerPathsEquivalent"
+        "LauncherBranchMarkerFields\.InstallSlotKind",
+        "LauncherBranchMarkerFields\.InstallSlotDirectory",
+        "LauncherAndroidAppPrivatePath\.MarkerPathMatchesExpectedPath"
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherGameFiles.BranchMarker.Paths.cs" `
-    "isolates Android private-path alias matching for branch marker install-slot provenance" `
+    "src\STS2Mobile\Launcher\LauncherAndroidAppPrivatePath.cs" `
+    "centralizes Android app-private path normalization and alias comparisons" `
     @(
+        "internal static class LauncherAndroidAppPrivatePath",
+        "NormalizePath",
         "NormalizeMarkerPath",
-        "MarkerPathsEquivalent",
+        "MarkerPathMatchesExpectedPath",
+        "PathMatchesOrLeftAliasMatches",
+        "NormalizedMarkerPathsEqual",
         "AndroidAppPrivatePathAlias",
-        "AndroidDataUserPrefix",
-        "AndroidDataDataPrefix",
+        "DataUserPrefix = ""/data/user/0/""",
+        "DataDataPrefix = ""/data/data/""",
         "sourceRootPrefix",
         "aliasRootPrefix"
     )
@@ -950,12 +971,14 @@ Add-Check `
     "surfaces ambiguous non-public cache integrity evidence" `
     @(
         "BranchIntegritySummary",
-        "BranchMarkerDepotManifestCountPrefix",
-        "BranchMarkerDepotsMatchingPublicPrefix",
-        "BranchMarkerDepotsDifferingFromPublicPrefix",
-        "BranchMarkerDepotsInheritedFromPublicPrefix",
-        "BranchMarkerDepotsMissingSelectedManifestPrefix",
-        "BranchMarkerDepotsWithoutPublicComparisonPrefix",
+        "LauncherBranchMarkerIntegrityProvenance\.Read",
+        "provenance\.IsComplete",
+        "LauncherBranchMarkerFields\.DepotManifestCount",
+        "provenance\.MatchingPublic",
+        "provenance\.DifferingFromPublic",
+        "provenance\.InheritedFromPublic",
+        "provenance\.MissingSelectedManifest",
+        "provenance\.WithoutPublicComparison",
         "Selected branch appears partial",
         "inherits public content",
         "Selected branch depot manifests all match public",
