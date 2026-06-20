@@ -6,15 +6,12 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
-    private static readonly CompactButtonDetailLabelSpec CompactCurrentTaskButtonLabels = new(
-        CompactCurrentTaskButtonBodyName,
-        CompactCurrentTaskButtonTitleName,
-        CompactCurrentTaskButtonDetailName,
-        CompactCurrentTaskButtonTitleFontSize,
-        CompactCurrentTaskButtonDetailFontSize,
-        CompactCurrentTaskButtonHorizontalMargin,
-        CompactCurrentTaskButtonVerticalMargin
-    );
+    private static readonly CompactButtonDetailLabelSpec CompactCurrentTaskButtonLabels =
+        CompactButtonDetailLabelSpec.Default(
+            CompactCurrentTaskButtonBodyName,
+            CompactCurrentTaskButtonTitleName,
+            CompactCurrentTaskButtonDetailName
+        );
 
     private static Button BuildCompactCurrentTaskButton(float scale, bool compact)
     {

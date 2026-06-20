@@ -2273,7 +2273,12 @@ Add-Check `
         "TitleFontSize",
         "DetailFontSize",
         "HorizontalMargin",
-        "VerticalMargin"
+        "VerticalMargin",
+        "Default\(",
+        "LauncherSectionMetrics\.CompactDetailButtonFontSize",
+        "LauncherSectionMetrics\.CompactDetailLabelFontSize",
+        "horizontalMargin: 6",
+        "verticalMargin: 4"
     )
 
 Add-Check `
@@ -2567,17 +2572,13 @@ Add-Check `
         "`"Hide Guide`"",
         "`"Safe order`"",
         "LauncherSectionMetrics\.CompactDrawerToggleHeight",
-        "LauncherSectionMetrics\.CompactDetailButtonFontSize"
-    )
-
-Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.Toggle.Result.cs" `
-    "keeps compact quick-start toggle labels in a typed result" `
-    @(
-        "LauncherViewSafeFlowToggleLabels",
-        "VBoxContainer Body",
-        "StyledLabel Title",
-        "StyledLabel Detail"
+        "LauncherSectionMetrics\.CompactDetailButtonFontSize",
+        "CompactButtonDetailLabelSpec",
+        "CompactSafeFlowToggleLabels",
+        "CompactSafeFlowToggleBodyName",
+        "CompactSafeFlowToggleTitleName",
+        "CompactSafeFlowToggleDetailName",
+        "CompactButtonDetailLabelSpec\.Default"
     )
 
 Add-Check `
@@ -2585,30 +2586,10 @@ Add-Check `
     "sets compact quick-start guide toggle text through structured labels" `
     @(
         "SetCompactSafeFlowToggleText",
-        'toggle\.Text = ""',
-        "EnsureCompactSafeFlowToggleLabels",
-        "labels\.Body\.Visible = true",
-        "labels\.Title\.Text = title",
-        "labels\.Detail\.Text = detail"
-    )
-
-Add-Check `
-    "src\STS2Mobile\Launcher\LauncherView.Layout.FirstRunGuide.Toggle.Labels.cs" `
-    "builds structured compact quick-start guide toggle labels" `
-    @(
-        "EnsureCompactSafeFlowToggleLabels",
-        "BuildCompactSafeFlowToggleBody",
-        "BuildCompactSafeFlowToggleTitle",
-        "BuildCompactSafeFlowToggleDetail",
-        "new LauncherViewSafeFlowToggleLabels",
-        "CompactSafeFlowToggleBodyName",
-        "CompactSafeFlowToggleTitleName",
-        "CompactSafeFlowToggleDetailName",
-        "CompactSafeFlowToggleDetailFontSize",
-        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
-        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "LauncherComponentTheme\.TextSecondary",
-        "toggle\.AddChild\(body\)"
+        "CompactButtonDetailLabels\.Apply",
+        '\$"\{title\}\\n\{detail\}"',
+        "enabled: true",
+        "CompactSafeFlowToggleLabels"
     )
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherView.Layout.LogColumn.cs" `
@@ -2633,20 +2614,17 @@ Add-Check `
         "Hide Help & Reports",
         "DiagnosticsToggleText",
         "SetDiagnosticsToggleText",
-        "EnsureCompactDiagnosticsToggleLabels",
+        "CompactButtonDetailLabels\.Apply",
+        "CompactButtonDetailLabelSpec",
+        "CompactDiagnosticsToggleLabels",
         "CompactDiagnosticsToggleBodyName",
         "CompactDiagnosticsToggleTitleName",
         "CompactDiagnosticsToggleDetailName",
-        "CompactDiagnosticsToggleDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
-        'toggle\.Text = ""',
-        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
-        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "LauncherComponentTheme\.TextSecondary",
-        "LauncherSectionMetrics\.CompactDetailButtonFontSize",
-        "`"Help & Reports`"",
-        "`"Private until opened`"",
-        "`"Hide Help`"",
-        "`"Back to launcher`""
+        "CompactButtonDetailLabelSpec\.Default",
+        "enabled: false",
+        "enabled: true",
+        "`"Help & Reports\\nPrivate until opened`"",
+        "`"Hide Help\\nBack to launcher`""
     )
 
 Add-Check `
@@ -3199,9 +3177,7 @@ Add-Check `
         "CompactCurrentTaskButtonBodyName",
         "CompactCurrentTaskButtonTitleName",
         "CompactCurrentTaskButtonDetailName",
-        "CompactCurrentTaskButtonDetailFontSize",
-        "CompactCurrentTaskButtonHorizontalMargin",
-        "CompactCurrentTaskButtonVerticalMargin",
+        "CompactButtonDetailLabelSpec\.Default",
         "CompactButtonDetailLabels\.Apply",
         "enabled: true",
         'SetCompactCurrentTaskButtonText\(button, scale, "Start here", "Setup guide"\)',
@@ -3250,7 +3226,6 @@ Add-Check `
         "CompactStickyTaskToolbarRadius = 7",
         "CompactStickyTaskToolbarHorizontalMargin = 5",
         "CompactStickyTaskToolbarVerticalMargin = 4",
-        "CompactCurrentTaskButtonDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
         "GridContainer Header",
         "Control workflowStrip",
         "return \(WrapCompactStickyTaskHeader\(scale, header\), header\)",
@@ -3929,15 +3904,16 @@ Add-Check `
     "renders compact version action labels as structured title/detail controls" `
     @(
         "SetCompactVersionActionButtonText",
-        "EnsureCompactVersionActionButtonLabels",
+        "CompactButtonDetailLabels\.Apply",
+        "CompactButtonDetailLabelSpec",
+        "CompactVersionActionLabels",
         "CompactVersionActionBodyName",
         "CompactVersionActionTitleName",
         "CompactVersionActionDetailName",
-        "CompactVersionActionDetailFontSize",
-        'button\.Text = ""',
-        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
-        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "LauncherComponentTheme\.TextSecondary"
+        "CompactButtonDetailLabelSpec\.Default",
+        "enabled: false",
+        "enabled: true",
+        '\$"\{title\}\\n\{detail\}"'
     )
 
 Add-Check `
@@ -4686,54 +4662,17 @@ Add-Check `
     @(
         "AddCompactSupportToolButton",
         "SetCompactActionButtonText",
-        "EnsureCompactActionButtonLabels",
+        "CompactButtonDetailLabels\.Apply",
+        "CompactButtonDetailLabelSpec",
+        "CompactActionButtonLabels",
         "CompactActionButtonBodyName",
         "CompactActionButtonTitleName",
         "CompactActionButtonDetailName",
-        "CompactActionButtonDetailFontSize = LauncherSectionMetrics\.CompactDetailLabelFontSize",
-        'button\.Text = ""',
+        "CompactButtonDetailLabelSpec\.Default",
+        "_compact",
         "CompactSupportToolHeight",
         "CompactSupportToolFontSize",
         "CompactSupportToolText"
-    )
-
-Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.CompactActionButton.Result.cs" `
-    "uses a typed compact action-button label result instead of a tuple" `
-    @(
-        "ActionSectionCompactActionButtonLabels",
-        "VBoxContainer Body",
-        "StyledLabel Title",
-        "StyledLabel Detail"
-    )
-
-Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.CompactActionButton.Text.cs" `
-    "splits compact action-button title and detail text and hides structured labels when unavailable" `
-    @(
-        "TrySplitCompactActionButtonText",
-        "IndexOf\('\\n'\)",
-        "detail = title\[\(separator \+ 1\)\.\.\]\.Trim\(\)",
-        "title = title\[\.\.separator\]\.Trim\(\)",
-        "HideCompactActionButtonLabels",
-        "GetNodeOrNull<VBoxContainer>",
-        "body\.Visible = false"
-    )
-
-Add-Check `
-    "src\STS2Mobile\Launcher\Sections\ActionSection.CompactActionButton.Labels.cs" `
-    "builds compact action-button body, title, and detail labels with readable truncation" `
-    @(
-        "EnsureCompactActionButtonLabels",
-        "BuildCompactActionButtonBody",
-        "BuildCompactActionButtonTitle",
-        "BuildCompactActionButtonDetail",
-        "new ActionSectionCompactActionButtonLabels",
-        "body\.SetAnchorsPreset\(Control\.LayoutPreset\.FullRect\)",
-        "TextOverrunBehavior = TextServer\.OverrunBehavior\.TrimEllipsis",
-        "LauncherComponentTheme\.TextPrimary",
-        "LauncherComponentTheme\.TextSecondary",
-        "button\.AddChild\(body\)"
     )
 
 Add-Check `
@@ -5788,7 +5727,11 @@ Add-Check `
         "CompactRecoveryButtonBody",
         "CompactRecoveryButtonTitle",
         "CompactRecoveryButtonDetail",
-        "AddCompactRecoveryButtonLabels"
+        "AddCompactRecoveryButtonLabels",
+        "CompactButtonDetailLabels\.Apply",
+        "CompactButtonDetailLabelSpec",
+        "CompactRecoveryButtonLabels",
+        '\$"\{titleText\}\\n\{detailText\}"'
     )
 
 Add-Check `

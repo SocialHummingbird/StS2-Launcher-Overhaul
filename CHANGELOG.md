@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-20 - Compact label helper refactor prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.278-local-compact-label-refactor` with APK `StS2Launcher-v0.2.278-local-compact-label-refactor-arm64-v8a.apk`.
+- Replaced the remaining bespoke compact two-line button label implementations with the shared `CompactButtonDetailLabels.Apply` path and `CompactButtonDetailLabelSpec.Default(...)` helper where the standard compact sizing applies.
+- Removed obsolete compact-label partials for the quick-start toggle and support/action buttons while keeping custom sizing explicit for the controls that intentionally differ.
+- Updated the Steam version-selection static audit to guard the consolidated compact-label helper boundary without weakening runtime-pack, branch-selection, or Steam Cloud safety checks.
+- Preserved the build/static validation posture: this APK is build and audit evidence only, and public/public-beta runtime behavior still relies on the existing ARM64 runtime evidence until this exact APK is device-tested.
+
 ## 2026-06-20 - Compact helper refactor prerelease
 
 - Published the local-package ARM64 prerelease `v0.2.277-local-helper-refactor` with APK `StS2Launcher-v0.2.277-local-helper-refactor-arm64-v8a.apk`.

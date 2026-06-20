@@ -8,10 +8,13 @@ internal sealed partial class ActionSection
     private const string CompactActionButtonBodyName = "CompactActionButtonBody";
     private const string CompactActionButtonTitleName = "CompactActionButtonTitle";
     private const string CompactActionButtonDetailName = "CompactActionButtonDetail";
-    private const int CompactActionButtonTitleFontSize = LauncherSectionMetrics.CompactDetailButtonFontSize;
-    private const int CompactActionButtonDetailFontSize = LauncherSectionMetrics.CompactDetailLabelFontSize;
-    private const int CompactActionButtonHorizontalMargin = 6;
-    private const int CompactActionButtonVerticalMargin = 4;
+
+    private static readonly CompactButtonDetailLabelSpec CompactActionButtonLabels =
+        CompactButtonDetailLabelSpec.Default(
+            CompactActionButtonBodyName,
+            CompactActionButtonTitleName,
+            CompactActionButtonDetailName
+        );
 
     private Button AddCompactSupportToolButton(
         Container parent,
@@ -37,18 +40,11 @@ internal sealed partial class ActionSection
         => $"{text}\n{detail}";
 
     private void SetCompactActionButtonText(Button button, string text)
-    {
-        if (!_compact || !TrySplitCompactActionButtonText(text, out var title, out var detail))
-        {
-            HideCompactActionButtonLabels(button);
-            button.Text = text;
-            return;
-        }
-
-        var labels = EnsureCompactActionButtonLabels(button);
-        button.Text = "";
-        labels.Body.Visible = true;
-        labels.Title.Text = title;
-        labels.Detail.Text = detail;
-    }
+        => CompactButtonDetailLabels.Apply(
+            button,
+            text,
+            _scale,
+            _compact,
+            CompactActionButtonLabels
+        );
 }

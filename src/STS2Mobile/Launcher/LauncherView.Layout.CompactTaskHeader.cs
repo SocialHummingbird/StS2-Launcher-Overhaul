@@ -18,10 +18,6 @@ internal sealed partial class LauncherView
     private const string CompactCurrentTaskButtonBodyName = "CompactCurrentTaskButtonBody";
     private const string CompactCurrentTaskButtonTitleName = "CompactCurrentTaskButtonTitle";
     private const string CompactCurrentTaskButtonDetailName = "CompactCurrentTaskButtonDetail";
-    private const int CompactCurrentTaskButtonTitleFontSize = LauncherSectionMetrics.CompactDetailButtonFontSize;
-    private const int CompactCurrentTaskButtonDetailFontSize = LauncherSectionMetrics.CompactDetailLabelFontSize;
-    private const int CompactCurrentTaskButtonHorizontalMargin = 6;
-    private const int CompactCurrentTaskButtonVerticalMargin = 4;
 
     private static (
         Control Toolbar,

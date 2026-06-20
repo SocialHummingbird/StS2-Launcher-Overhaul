@@ -9,10 +9,13 @@ internal sealed partial class LauncherView
     private const string CompactSafeFlowToggleBodyName = "CompactSafeFlowToggleBody";
     private const string CompactSafeFlowToggleTitleName = "CompactSafeFlowToggleTitle";
     private const string CompactSafeFlowToggleDetailName = "CompactSafeFlowToggleDetail";
-    private const int CompactSafeFlowToggleTitleFontSize = LauncherSectionMetrics.CompactDetailButtonFontSize;
-    private const int CompactSafeFlowToggleDetailFontSize = LauncherSectionMetrics.CompactDetailLabelFontSize;
-    private const int CompactSafeFlowToggleHorizontalMargin = 6;
-    private const int CompactSafeFlowToggleVerticalMargin = 4;
+
+    private static readonly CompactButtonDetailLabelSpec CompactSafeFlowToggleLabels =
+        CompactButtonDetailLabelSpec.Default(
+            CompactSafeFlowToggleBodyName,
+            CompactSafeFlowToggleTitleName,
+            CompactSafeFlowToggleDetailName
+        );
 
     private static Control BuildCollapsedFirstRunGuide(float scale)
     {

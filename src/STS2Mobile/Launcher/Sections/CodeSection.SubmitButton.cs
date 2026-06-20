@@ -5,15 +5,12 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class CodeSection
 {
-    private static readonly CompactButtonDetailLabelSpec CompactCodeSubmitLabels = new(
-        "CompactCodeSubmitBody",
-        "CompactCodeSubmitTitle",
-        "CompactCodeSubmitDetail",
-        LauncherSectionMetrics.CompactDetailButtonFontSize,
-        LauncherSectionMetrics.CompactDetailLabelFontSize,
-        horizontalMargin: 6,
-        verticalMargin: 4
-    );
+    private static readonly CompactButtonDetailLabelSpec CompactCodeSubmitLabels =
+        CompactButtonDetailLabelSpec.Default(
+            "CompactCodeSubmitBody",
+            "CompactCodeSubmitTitle",
+            "CompactCodeSubmitDetail"
+        );
 
     private static string CompactCodeSubmitText()
         => "Verify Code\nSubmit once";

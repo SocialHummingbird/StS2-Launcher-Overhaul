@@ -1,4 +1,5 @@
 using Godot;
+using STS2Mobile.Launcher.Sections;
 
 namespace STS2Mobile.Launcher;
 
@@ -10,11 +11,11 @@ internal sealed partial class LauncherView
         string title,
         string detail
     )
-    {
-        toggle.Text = "";
-        var labels = EnsureCompactSafeFlowToggleLabels(toggle, scale);
-        labels.Body.Visible = true;
-        labels.Title.Text = title;
-        labels.Detail.Text = detail;
-    }
+        => CompactButtonDetailLabels.Apply(
+            toggle,
+            $"{title}\n{detail}",
+            scale,
+            enabled: true,
+            CompactSafeFlowToggleLabels
+        );
 }

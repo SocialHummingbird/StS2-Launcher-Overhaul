@@ -19,10 +19,6 @@ internal sealed partial class DownloadSection : VBoxContainer
     private const string CompactVersionActionBodyName = "CompactVersionActionBody";
     private const string CompactVersionActionTitleName = "CompactVersionActionTitle";
     private const string CompactVersionActionDetailName = "CompactVersionActionDetail";
-    private const int CompactVersionActionTitleFontSize = LauncherSectionMetrics.CompactDetailButtonFontSize;
-    private const int CompactVersionActionDetailFontSize = LauncherSectionMetrics.CompactDetailLabelFontSize;
-    private const int CompactVersionActionHorizontalMargin = 6;
-    private const int CompactVersionActionVerticalMargin = 4;
     private const int CompactDownloadActionHeight = LauncherSectionMetrics.CodeInputHeight;
     private const string CompactDownloadActionBodyName = "CompactDownloadActionBody";
     private const string CompactDownloadActionTitleName = "CompactDownloadActionTitle";

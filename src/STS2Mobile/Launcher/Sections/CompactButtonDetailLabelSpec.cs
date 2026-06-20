@@ -2,6 +2,21 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal readonly struct CompactButtonDetailLabelSpec
 {
+    internal static CompactButtonDetailLabelSpec Default(
+        string bodyName,
+        string titleName,
+        string detailName
+    )
+        => new(
+            bodyName,
+            titleName,
+            detailName,
+            LauncherSectionMetrics.CompactDetailButtonFontSize,
+            LauncherSectionMetrics.CompactDetailLabelFontSize,
+            horizontalMargin: 6,
+            verticalMargin: 4
+        );
+
     internal CompactButtonDetailLabelSpec(
         string bodyName,
         string titleName,

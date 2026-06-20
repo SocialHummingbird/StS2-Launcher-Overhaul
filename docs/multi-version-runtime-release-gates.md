@@ -329,13 +329,13 @@ No Steam Cloud Push was performed. Successful branch-switch Push remains release
 
 ## Refactor-audits prerelease evidence note
 
-The `v0.2.277-local-helper-refactor` ARM64 prerelease packages the compact launcher helper split for selected-version summary skinning, cloud Push confirmation warning construction, and shared compact two-line button label parsing/control construction. It is published as a local-package build for `com.sts2launcher.overhaul.fork.local`:
+The `v0.2.278-local-compact-label-refactor` ARM64 prerelease packages the compact launcher helper consolidation for shared two-line button label application. It removes the remaining bespoke compact label implementations for standard compact CTAs while keeping intentionally custom sizing explicit. It is published as a local-package build for `com.sts2launcher.overhaul.fork.local`:
 
 ```text
-Asset: StS2Launcher-v0.2.277-local-helper-refactor-arm64-v8a.apk
-SHA-256: 7cd227e03c6632d61f0b525145e881f6d72185063d0472d2e33b3afd8538f5a9
-VersionName: 0.2.277-local-helper-refactor
-VersionCode: 277000
+Asset: StS2Launcher-v0.2.278-local-compact-label-refactor-arm64-v8a.apk
+SHA-256: 9e85ce823c01fc0857ba6215dff9540362a4e38d82bf0297adb2aac1dedd4d76
+VersionName: 0.2.278-local-compact-label-refactor
+VersionCode: 278000
 ```
 
-Validation for this prerelease is build/static-gate only: `audit-steam-version-selection.ps1 -Quiet` passed 458 checks, `audit-multi-version-runtime.ps1 -Quiet` passed 148 checks, the managed Release build reran cleanly with zero warnings/errors, the local ARM64 APK build passed structural verification, and Android crypto patch verification passed. No ARM64 device branch-switch/runtime route evidence was captured for this specific APK, and no Steam Cloud Push was performed. Continue to use the fix30/fix31 public/public-beta evidence notes above for runtime behavior until this APK has matching device evidence.
+Validation for this prerelease is build/static-gate only: `audit-steam-version-selection.ps1 -Quiet` passed 453 checks, `audit-multi-version-runtime.ps1 -Quiet` passed 148 checks, the managed Release build passed, the local ARM64 APK build passed structural verification, and Android crypto patch verification passed. No ARM64 device branch-switch/runtime route evidence was captured for this specific APK, and no Steam Cloud Push was performed. Continue to use the fix30/fix31 public/public-beta evidence notes above for runtime behavior until this APK has matching device evidence.

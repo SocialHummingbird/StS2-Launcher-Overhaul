@@ -6,15 +6,12 @@ internal sealed partial class LoginSection
 {
     private const int CompactNativeLoginButtonHeight = LauncherSectionMetrics.CodeInputHeight;
 
-    private static readonly CompactButtonDetailLabelSpec CompactNativeLoginLabels = new(
-        "CompactNativeLoginBody",
-        "CompactNativeLoginTitle",
-        "CompactNativeLoginDetail",
-        LauncherSectionMetrics.CompactDetailButtonFontSize,
-        LauncherSectionMetrics.CompactDetailLabelFontSize,
-        horizontalMargin: 6,
-        verticalMargin: 4
-    );
+    private static readonly CompactButtonDetailLabelSpec CompactNativeLoginLabels =
+        CompactButtonDetailLabelSpec.Default(
+            "CompactNativeLoginBody",
+            "CompactNativeLoginTitle",
+            "CompactNativeLoginDetail"
+        );
 
     private static string CompactNativeLoginText()
         => "Sign in with Steam\nAndroid login";
