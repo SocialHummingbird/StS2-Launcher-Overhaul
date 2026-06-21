@@ -1877,6 +1877,33 @@ Add-Check `
     )
 
 Add-Check `
+    "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Fields.cs" `
+    "centralizes manual cloud evidence marker prefixes" `
+    @(
+        "SelectedBranchPrefix = ""Selected branch:""",
+        "SelectedBranchSelectionKindPrefix = ""Selected branch selection kind:""",
+        "SelectorModePrefix = ""Steam branch selector mode:""",
+        "SelectedVersionPrefix = ""Selected version:""",
+        "SelectedVersionSlotKindPrefix = ""Selected version slot kind:""",
+        "SelectedVersionSlotDirectoryPrefix = ""Selected version slot directory:""",
+        "SelectedBranchNotePrefix = ""Selected branch note:""",
+        "ManualPullCompletedBeforePushPrefix = ""Manual Pull completed before Push:""",
+        "ManualPullCompletedBeforeBranchSwitchPushPrefix = ""Manual Pull completed before branch-switch Push:""",
+        "PrePushLocalBackupEvidenceCountPrefix = ""Pre-Push local backup evidence count:""",
+        "PrePushCloudBackupEvidenceCountPrefix = ""Pre-Push cloud backup evidence count:""",
+        "LatestPrePushLocalBackupUtcPrefix = ""Latest pre-Push local backup UTC:""",
+        "LatestPrePushCloudBackupUtcPrefix = ""Latest pre-Push cloud backup UTC:""",
+        "ImportantLocalSaveEvidenceCountPrefix = ""Important Android local save evidence count:""",
+        "BaselineManualPushPrerequisitesSatisfiedPrefix = ""Baseline manual Push prerequisites satisfied:""",
+        "BranchSwitchPrePushBackupEvidenceSatisfiedPrefix = ""Branch-switch pre-Push backup evidence satisfied:""",
+        "BranchSwitchManualPushPrerequisitesSatisfiedPrefix = ""Branch-switch manual Push prerequisites satisfied:""",
+        "ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix = ""Manual Push completed after branch-switch safety gates:""",
+        "BlockedReasonPrefix = ""Blocked reason:""",
+        "ManualPushBlockedBeforeUploadPrefix = ""Manual Push blocked before upload:""",
+        "ManualPushBlockedReasonPrefix = ""Manual Push blocked:"""
+    )
+
+Add-Check `
     "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Pull.cs" `
     "records successful manual Pull evidence for branch-switch Push safety" `
     @(
@@ -1892,13 +1919,13 @@ Add-Check `
         "LastManualPullCompletionRecorded",
         "LastManualPullBeforePushCompletionRecorded",
         "BaselineManualPushPrerequisitesSatisfied",
-        "Manual Pull completed before Push",
+        "ManualPullCompletedBeforePushPrefix",
         "LastManualPullIsAfterBranchSwitch",
         "LastManualPullMatchesSelectedBranch",
         "WriteManualPullMarker",
-        "Manual Pull completed before branch-switch Push",
-        "Selected version:",
-        "Selected branch note"
+        "ManualPullCompletedBeforeBranchSwitchPushPrefix",
+        "SelectedVersionPrefix",
+        "SelectedBranchNotePrefix"
     )
 
 Add-Check `
@@ -1947,13 +1974,13 @@ Add-Check `
         "LastManualPushRecordedBaselinePrerequisitesSatisfied",
         "LastManualPushCompletionRecorded",
         "LastManualPushPrePushBackupEvidenceSatisfied",
-        "Pre-Push local backup evidence count:",
-        "Pre-Push cloud backup evidence count:",
-        "Latest pre-Push local backup UTC:",
-        "Latest pre-Push cloud backup UTC:",
-        "Important Android local save evidence count:",
-        "Baseline manual Push prerequisites satisfied:",
-        "Manual Push completed after branch-switch safety gates"
+        "PrePushLocalBackupEvidenceCountPrefix",
+        "PrePushCloudBackupEvidenceCountPrefix",
+        "LatestPrePushLocalBackupUtcPrefix",
+        "LatestPrePushCloudBackupUtcPrefix",
+        "ImportantLocalSaveEvidenceCountPrefix",
+        "BaselineManualPushPrerequisitesSatisfiedPrefix",
+        "ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix"
     )
 
 Add-Check `
@@ -1975,16 +2002,16 @@ Add-Check `
     @(
         "WriteManualPushMarker",
         "LauncherSaveOriginEvidence\.WriteManualPushOrigin",
-        "Pre-Push local backup evidence count:",
-        "Pre-Push cloud backup evidence count:",
-        "Latest pre-Push local backup UTC:",
-        "Latest pre-Push cloud backup UTC:",
-        "Important Android local save evidence count:",
-        "Baseline manual Push prerequisites satisfied:",
-        "Branch-switch pre-Push backup evidence satisfied:",
-        "Manual Push completed after branch-switch safety gates",
-        "Selected version:",
-        "Selected branch note"
+        "PrePushLocalBackupEvidenceCountPrefix",
+        "PrePushCloudBackupEvidenceCountPrefix",
+        "LatestPrePushLocalBackupUtcPrefix",
+        "LatestPrePushCloudBackupUtcPrefix",
+        "ImportantLocalSaveEvidenceCountPrefix",
+        "BaselineManualPushPrerequisitesSatisfiedPrefix",
+        "BranchSwitchPrePushBackupEvidenceSatisfiedPrefix",
+        "ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix",
+        "SelectedVersionPrefix",
+        "SelectedBranchNotePrefix"
     )
 
 Add-Check `
@@ -2012,16 +2039,16 @@ Add-Check `
         "LastManualPushBlockedMatchesSelectedBranch",
         "WriteManualPushBlockedMarker",
         "WriteManualPushBlockedMarker\(string dataDir, string selectedBranch, string reason\)",
-        "Manual Push blocked before upload",
-        'StartsWith\("Manual Push blocked:',
-        "Pre-Push local backup evidence count:",
-        "Pre-Push cloud backup evidence count:",
-        "Latest pre-Push local backup UTC:",
-        "Latest pre-Push cloud backup UTC:",
-        "Important Android local save evidence count:",
-        "Baseline manual Push prerequisites satisfied:",
-        "Selected version:",
-        "Selected branch note"
+        "ManualPushBlockedBeforeUploadPrefix",
+        "ManualPushBlockedReasonPrefix",
+        "PrePushLocalBackupEvidenceCountPrefix",
+        "PrePushCloudBackupEvidenceCountPrefix",
+        "LatestPrePushLocalBackupUtcPrefix",
+        "LatestPrePushCloudBackupUtcPrefix",
+        "ImportantLocalSaveEvidenceCountPrefix",
+        "BaselineManualPushPrerequisitesSatisfiedPrefix",
+        "SelectedVersionPrefix",
+        "SelectedBranchNotePrefix"
     )
 
 Add-Check `

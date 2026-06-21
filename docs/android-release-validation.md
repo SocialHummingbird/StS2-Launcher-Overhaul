@@ -7,13 +7,13 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
 Current build-only prerelease reference:
 
 ```text
-release=v0.2.279-local-audit-helper-refactor
-asset=StS2Launcher-v0.2.279-local-audit-helper-refactor-arm64-v8a.apk
-sha256=3e388d6f835468dd2ba88a193a1e5d08981bd38ffb0b2bfa2fe1d155dee12b9d
+release=v0.2.282-local-evidence-marker-refactor
+asset=StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk
+sha256=db1a52ff4bdbe4e56b91508f9e2b34dfbda0242df4254f784f22352398e911b7
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.279-local-audit-helper-refactor
-versionCode=279000
-validation=build/static-gate only; device runtime signoff still requires the public/public-beta evidence workflow below
+versionName=0.2.282-local-evidence-marker-refactor
+versionCode=282000
+validation=build/static-gate only for runtime-cache, save-origin, and manual cloud-sync evidence marker prefix extraction; device runtime signoff still requires the public/public-beta evidence workflow below
 ```
 
 ## 1) Verify workflow outcome

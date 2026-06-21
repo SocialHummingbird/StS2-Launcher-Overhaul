@@ -9,7 +9,7 @@ internal static partial class LauncherRuntimePatchValidationEvidence
     {
         try
         {
-            var path = Path.Combine(dataDir, RuntimeCacheMarkerFileName);
+            var path = LauncherRuntimeCacheEvidence.MarkerPath(dataDir);
             if (!File.Exists(path))
                 return "<missing>";
 

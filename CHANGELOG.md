@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-21 - Evidence marker prefix refactor prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.282-local-evidence-marker-refactor` with APK `StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk`.
+- Centralized runtime-cache, save-origin, and manual cloud-sync marker prefixes behind shared launcher partials instead of duplicating marker labels across readers, writers, and validation evidence.
+- Updated the Steam version-selection and multi-version runtime static audits to guard the new evidence-marker helper boundaries while preserving non-public runtime-pack, selected-runtime save-origin, and Steam Cloud Push safety checks.
+- Preserved the build/static validation posture: this APK passed static audits, managed Release build, ARM64 APK verification, and crypto patch verification, but public/public-beta runtime behavior still relies on the existing ARM64 runtime evidence until this exact APK is device-tested. No Steam Cloud Push was run during this validation.
+
 ## 2026-06-21 - Branch marker/runtime cache helper refactor prerelease
 
 - Published the local-package ARM64 prerelease `v0.2.281-local-branch-marker-refactor` with APK `StS2Launcher-v0.2.281-local-branch-marker-refactor-arm64-v8a.apk`.

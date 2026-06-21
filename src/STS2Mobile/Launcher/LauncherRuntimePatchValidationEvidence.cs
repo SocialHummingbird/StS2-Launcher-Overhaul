@@ -7,7 +7,6 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherRuntimePatchValidationEvidence
 {
     internal const string MarkerFileName = "last_runtime_patch_validation.json";
-    private const string RuntimeCacheMarkerFileName = "current_runtime_cache.txt";
 
     internal static string MarkerPath(string dataDir)
         => Path.Combine(dataDir, MarkerFileName);

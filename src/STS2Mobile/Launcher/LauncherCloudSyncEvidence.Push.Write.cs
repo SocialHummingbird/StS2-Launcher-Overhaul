@@ -13,22 +13,22 @@ internal static partial class LauncherCloudSyncEvidence
         {
             LauncherSaveOriginEvidence.WriteManualPushOrigin(dataDir, selectedBranch);
             var text =
-                $"UTC: {DateTime.UtcNow:O}\n"
-                + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"
-                + $"Selected branch selection kind: {SteamGameBranch.SelectionKind(selectedBranch)}\n"
-                + $"Steam branch selector mode: {SteamGameBranch.SelectorMode}\n"
-                + $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}\n"
-                + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
-                + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
-                + $"Selected branch note: {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
-                + $"Pre-Push local backup evidence count: {LauncherBackupEvidence.LocalPrePushBackupCount()}\n"
-                + $"Pre-Push cloud backup evidence count: {LauncherBackupEvidence.CloudPrePushBackupCount()}\n"
-                + $"Latest pre-Push local backup UTC: {LauncherBackupEvidence.LatestLocalPrePushBackupUtc()}\n"
-                + $"Latest pre-Push cloud backup UTC: {LauncherBackupEvidence.LatestCloudPrePushBackupUtc()}\n"
-                + $"Important Android local save evidence count: {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n"
-                + $"Baseline manual Push prerequisites satisfied: {BaselineManualPushPrerequisitesSatisfied(dataDir, selectedBranch).ToString().ToLowerInvariant()}\n"
-                + $"Branch-switch pre-Push backup evidence satisfied: {LauncherBackupEvidence.HasPrePushBackupEvidenceAfterBranchSwitch(dataDir).ToString().ToLowerInvariant()}\n"
-                + "Manual Push completed after branch-switch safety gates: true\n";
+                $"{UtcPrefix} {DateTime.UtcNow:O}\n"
+                + $"{SelectedBranchPrefix} {SteamGameBranch.Normalize(selectedBranch)}\n"
+                + $"{SelectedBranchSelectionKindPrefix} {SteamGameBranch.SelectionKind(selectedBranch)}\n"
+                + $"{SelectorModePrefix} {SteamGameBranch.SelectorMode}\n"
+                + $"{SelectedVersionPrefix} {SteamGameBranch.DisplayName(selectedBranch)}\n"
+                + $"{SelectedVersionSlotKindPrefix} {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
+                + $"{SelectedVersionSlotDirectoryPrefix} {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
+                + $"{SelectedBranchNotePrefix} {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
+                + $"{PrePushLocalBackupEvidenceCountPrefix} {LauncherBackupEvidence.LocalPrePushBackupCount()}\n"
+                + $"{PrePushCloudBackupEvidenceCountPrefix} {LauncherBackupEvidence.CloudPrePushBackupCount()}\n"
+                + $"{LatestPrePushLocalBackupUtcPrefix} {LauncherBackupEvidence.LatestLocalPrePushBackupUtc()}\n"
+                + $"{LatestPrePushCloudBackupUtcPrefix} {LauncherBackupEvidence.LatestCloudPrePushBackupUtc()}\n"
+                + $"{ImportantLocalSaveEvidenceCountPrefix} {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n"
+                + $"{BaselineManualPushPrerequisitesSatisfiedPrefix} {BaselineManualPushPrerequisitesSatisfied(dataDir, selectedBranch).ToString().ToLowerInvariant()}\n"
+                + $"{BranchSwitchPrePushBackupEvidenceSatisfiedPrefix} {LauncherBackupEvidence.HasPrePushBackupEvidenceAfterBranchSwitch(dataDir).ToString().ToLowerInvariant()}\n"
+                + $"{ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix} true\n";
             File.WriteAllText(LastManualPushMarkerPath(dataDir), text);
         }
         catch (Exception ex)

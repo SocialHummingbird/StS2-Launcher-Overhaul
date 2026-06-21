@@ -38,15 +38,15 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.281-local-branch-marker-refactor
-asset=StS2Launcher-v0.2.281-local-branch-marker-refactor-arm64-v8a.apk
-sha256=3b8a21885f67fc0cf60b77e1749381960f447960e8aaf9261b88e2bef3f3af79
+release=v0.2.282-local-evidence-marker-refactor
+asset=StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk
+sha256=db1a52ff4bdbe4e56b91508f9e2b34dfbda0242df4254f784f22352398e911b7
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.281-local-branch-marker-refactor
-versionCode=281000
-validation=Android build/APK verification passed; Steam version-selection static audit passed 459 checks; multi-version runtime audit passed 154 checks; managed Release build passed; APK crypto patch verification passed. This prerelease centralizes branch marker field names, branch integrity provenance parsing, and Android app-private path alias handling for branch marker/runtime-cache validation. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
+versionName=0.2.282-local-evidence-marker-refactor
+versionCode=282000
+validation=Android build/APK verification passed; Steam version-selection static audit passed 460 checks; multi-version runtime audit passed 155 checks; managed Release build passed; APK crypto patch verification passed. This prerelease centralizes runtime-cache, save-origin, and manual cloud-sync evidence marker prefixes while preserving branch marker/runtime-cache validation helper boundaries. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
 cloudSafety=No Push to Cloud was run during this validation.
-evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.281-local-branch-marker-refactor-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
+evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:

@@ -23,26 +23,26 @@ internal static partial class LauncherCloudSyncEvidence
         => ReadSelectedBranch(LastManualPullMarkerPath(dataDir)) ?? "<none>";
 
     internal static string LastManualPullSelectedBranchSelectionKind(string dataDir)
-        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), "Selected branch selection kind:") ?? "<none>";
+        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), SelectedBranchSelectionKindPrefix) ?? "<none>";
 
     internal static string LastManualPullSelectorMode(string dataDir)
-        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), "Steam branch selector mode:") ?? "<none>";
+        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), SelectorModePrefix) ?? "<none>";
 
     internal static string LastManualPullSelectedVersion(string dataDir)
-        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), "Selected version:") ?? "<none>";
+        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), SelectedVersionPrefix) ?? "<none>";
 
     internal static string LastManualPullSelectedVersionSlotKind(string dataDir)
-        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), "Selected version slot kind:") ?? "<none>";
+        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), SelectedVersionSlotKindPrefix) ?? "<none>";
 
     internal static string LastManualPullSelectedVersionSlotDirectory(string dataDir)
-        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), "Selected version slot directory:") ?? "<none>";
+        => ReadMarkerValue(LastManualPullMarkerPath(dataDir), SelectedVersionSlotDirectoryPrefix) ?? "<none>";
 
     internal static bool LastManualPullCompletionRecorded(string dataDir)
         => LastManualPullBeforePushCompletionRecorded(dataDir)
             || HasCompletionFlag(LastManualPullMarkerPath(dataDir));
 
     internal static bool LastManualPullBeforePushCompletionRecorded(string dataDir)
-        => HasCompletionFlag(LastManualPullMarkerPath(dataDir), "Manual Pull completed before Push:");
+        => HasCompletionFlag(LastManualPullMarkerPath(dataDir), ManualPullCompletedBeforePushPrefix);
 
     internal static bool BaselineManualPushPrerequisitesSatisfied(string dataDir, string selectedBranch)
         => LastManualPullCompletionRecorded(dataDir)
@@ -85,16 +85,16 @@ internal static partial class LauncherCloudSyncEvidence
         {
             LauncherSaveOriginEvidence.WriteManualPullOrigin(dataDir, selectedBranch);
             var text =
-                $"UTC: {DateTime.UtcNow:O}\n"
-                + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"
-                + $"Selected branch selection kind: {SteamGameBranch.SelectionKind(selectedBranch)}\n"
-                + $"Steam branch selector mode: {SteamGameBranch.SelectorMode}\n"
-                + $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}\n"
-                + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
-                + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
-                + $"Selected branch note: {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
-                + "Manual Pull completed before Push: true\n"
-                + "Manual Pull completed before branch-switch Push: true\n";
+                $"{UtcPrefix} {DateTime.UtcNow:O}\n"
+                + $"{SelectedBranchPrefix} {SteamGameBranch.Normalize(selectedBranch)}\n"
+                + $"{SelectedBranchSelectionKindPrefix} {SteamGameBranch.SelectionKind(selectedBranch)}\n"
+                + $"{SelectorModePrefix} {SteamGameBranch.SelectorMode}\n"
+                + $"{SelectedVersionPrefix} {SteamGameBranch.DisplayName(selectedBranch)}\n"
+                + $"{SelectedVersionSlotKindPrefix} {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
+                + $"{SelectedVersionSlotDirectoryPrefix} {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
+                + $"{SelectedBranchNotePrefix} {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
+                + $"{ManualPullCompletedBeforePushPrefix} true\n"
+                + $"{ManualPullCompletedBeforeBranchSwitchPushPrefix} true\n";
             File.WriteAllText(LastManualPullMarkerPath(dataDir), text);
         }
         catch (Exception ex)

@@ -14,7 +14,7 @@ Validated baseline:
 - The latest public APK has visual validation for the responsive launcher login, active download-progress, ready, diagnostics-drawer, and Push confirmation/cancel states.
 - The game launches and reads the pulled profile in-game.
 - Startup freshness and assembly cache diagnostics prove the current installed runtime is being used.
-- Latest build-only prerelease: `v0.2.278-local-compact-label-refactor` packages the compact two-line button label helper consolidation and passed static/build/APK verification. It is not new device runtime signoff.
+- Latest build-only prerelease: `v0.2.282-local-evidence-marker-refactor` packages runtime-cache, save-origin, and manual cloud-sync evidence marker prefix extraction and passed static/build/APK verification. It is not new device runtime signoff.
 
 Active blockers:
 

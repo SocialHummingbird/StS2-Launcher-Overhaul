@@ -20,12 +20,12 @@ internal static partial class LauncherRuntimePatchValidationEvidence
                 : result.HasFailures
                     ? "passed_with_noncritical_failures"
                     : "passed";
-            var runtimeId = RuntimeCacheValue(dataDir, "Runtime ID:");
-            var selectedPckSha256 = RuntimeCacheValue(dataDir, "Selected PCK SHA256:");
-            var selectedSourceAssemblySha256 = RuntimeCacheValue(dataDir, "Selected source sts2.dll SHA256:");
-            var activeAndroidAssemblySha256 = RuntimeCacheValue(dataDir, "Active source sts2.dll SHA256:");
-            var runtimePackDirectory = RuntimeCacheValue(dataDir, "Runtime pack directory:");
-            var runtimePackGameAssembly = RuntimeCacheValue(dataDir, "Runtime pack game assembly:");
+            var runtimeId = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.RuntimeIdPrefix);
+            var selectedPckSha256 = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.SelectedPckSha256Prefix);
+            var selectedSourceAssemblySha256 = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.SelectedSourceAssemblySha256Prefix);
+            var activeAndroidAssemblySha256 = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.ActiveSourceAssemblySha256Prefix);
+            var runtimePackDirectory = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.RuntimePackDirectoryPrefix);
+            var runtimePackGameAssembly = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.RuntimePackGameAssemblyPrefix);
             var slot = GameRuntimeSlot.Inspect(dataDir, branch);
 
             var payload = new

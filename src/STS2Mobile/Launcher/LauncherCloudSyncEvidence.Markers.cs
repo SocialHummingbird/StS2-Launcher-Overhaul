@@ -13,13 +13,13 @@ internal static partial class LauncherCloudSyncEvidence
         => LauncherMarkerFile.ReadUtc(path);
 
     private static string? ReadSelectedBranch(string path)
-        => ReadMarkerValue(path, "Selected branch:");
+        => ReadMarkerValue(path, SelectedBranchPrefix);
 
     private static string? ReadMarkerValue(string path, string prefix)
         => LauncherMarkerFile.ReadOptionalValue(path, prefix);
 
     private static bool HasCompletionFlag(string path)
-        => HasCompletionFlag(path, "Manual Pull completed before branch-switch Push:");
+        => HasCompletionFlag(path, ManualPullCompletedBeforeBranchSwitchPushPrefix);
 
     private static bool HasCompletionFlag(string path, string prefix)
         => LauncherMarkerFile.ReadBoolFlag(path, prefix);

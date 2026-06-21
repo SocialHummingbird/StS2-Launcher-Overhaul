@@ -6,41 +6,41 @@ internal static partial class LauncherCloudSyncEvidence
         => ReadSelectedBranch(LastManualPushMarkerPath(dataDir)) ?? "<none>";
 
     internal static string LastManualPushSelectedBranchSelectionKind(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Selected branch selection kind:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), SelectedBranchSelectionKindPrefix) ?? "<none>";
 
     internal static string LastManualPushSelectorMode(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Steam branch selector mode:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), SelectorModePrefix) ?? "<none>";
 
     internal static string LastManualPushSelectedVersion(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Selected version:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), SelectedVersionPrefix) ?? "<none>";
 
     internal static string LastManualPushSelectedVersionSlotKind(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Selected version slot kind:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), SelectedVersionSlotKindPrefix) ?? "<none>";
 
     internal static string LastManualPushSelectedVersionSlotDirectory(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Selected version slot directory:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), SelectedVersionSlotDirectoryPrefix) ?? "<none>";
 
     internal static string LastManualPushRecordedLocalBackupCount(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Pre-Push local backup evidence count:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), PrePushLocalBackupEvidenceCountPrefix) ?? "<none>";
 
     internal static string LastManualPushRecordedCloudBackupCount(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Pre-Push cloud backup evidence count:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), PrePushCloudBackupEvidenceCountPrefix) ?? "<none>";
 
     internal static string LastManualPushRecordedLatestLocalBackupUtc(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Latest pre-Push local backup UTC:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), LatestPrePushLocalBackupUtcPrefix) ?? "<none>";
 
     internal static string LastManualPushRecordedLatestCloudBackupUtc(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Latest pre-Push cloud backup UTC:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), LatestPrePushCloudBackupUtcPrefix) ?? "<none>";
 
     internal static string LastManualPushRecordedImportantLocalSaveEvidenceCount(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Important Android local save evidence count:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), ImportantLocalSaveEvidenceCountPrefix) ?? "<none>";
 
     internal static string LastManualPushRecordedBaselinePrerequisitesSatisfied(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), "Baseline manual Push prerequisites satisfied:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), BaselineManualPushPrerequisitesSatisfiedPrefix) ?? "<none>";
 
     internal static bool LastManualPushCompletionRecorded(string dataDir)
-        => HasCompletionFlag(LastManualPushMarkerPath(dataDir), "Manual Push completed after branch-switch safety gates:");
+        => HasCompletionFlag(LastManualPushMarkerPath(dataDir), ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix);
 
     internal static bool LastManualPushPrePushBackupEvidenceSatisfied(string dataDir)
-        => HasCompletionFlag(LastManualPushMarkerPath(dataDir), "Branch-switch pre-Push backup evidence satisfied:");
+        => HasCompletionFlag(LastManualPushMarkerPath(dataDir), BranchSwitchPrePushBackupEvidenceSatisfiedPrefix);
 }

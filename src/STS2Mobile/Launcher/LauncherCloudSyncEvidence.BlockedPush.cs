@@ -23,49 +23,49 @@ internal static partial class LauncherCloudSyncEvidence
         => ReadSelectedBranch(LastManualPushBlockedMarkerPath(dataDir)) ?? "<none>";
 
     internal static string LastManualPushBlockedSelectedBranchSelectionKind(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Selected branch selection kind:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), SelectedBranchSelectionKindPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedSelectorMode(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Steam branch selector mode:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), SelectorModePrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedSelectedVersion(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Selected version:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), SelectedVersionPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedSelectedVersionSlotKind(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Selected version slot kind:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), SelectedVersionSlotKindPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedSelectedVersionSlotDirectory(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Selected version slot directory:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), SelectedVersionSlotDirectoryPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedRecordedPrerequisitesSatisfied(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Branch-switch manual Push prerequisites satisfied:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), BranchSwitchManualPushPrerequisitesSatisfiedPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedRecordedLocalBackupCount(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Pre-Push local backup evidence count:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), PrePushLocalBackupEvidenceCountPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedRecordedCloudBackupCount(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Pre-Push cloud backup evidence count:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), PrePushCloudBackupEvidenceCountPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedRecordedLatestLocalBackupUtc(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Latest pre-Push local backup UTC:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), LatestPrePushLocalBackupUtcPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedRecordedLatestCloudBackupUtc(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Latest pre-Push cloud backup UTC:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), LatestPrePushCloudBackupUtcPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedRecordedImportantLocalSaveEvidenceCount(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Important Android local save evidence count:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), ImportantLocalSaveEvidenceCountPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedRecordedBaselinePrerequisitesSatisfied(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Baseline manual Push prerequisites satisfied:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), BaselineManualPushPrerequisitesSatisfiedPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedRecordedPrePushBackupEvidenceSatisfied(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Branch-switch pre-Push backup evidence satisfied:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), BranchSwitchPrePushBackupEvidenceSatisfiedPrefix) ?? "<none>";
 
     internal static string LastManualPushBlockedReason(string dataDir)
-        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), "Blocked reason:") ?? "<none>";
+        => ReadMarkerValue(LastManualPushBlockedMarkerPath(dataDir), BlockedReasonPrefix) ?? "<none>";
 
     internal static bool LastManualPushBlockedBeforeUpload(string dataDir)
-        => HasCompletionFlag(LastManualPushBlockedMarkerPath(dataDir), "Manual Push blocked before upload:");
+        => HasCompletionFlag(LastManualPushBlockedMarkerPath(dataDir), ManualPushBlockedBeforeUploadPrefix);
 
     internal static bool LastManualPushBlockedMatchesSelectedBranch(string dataDir, string selectedBranch)
     {
@@ -85,28 +85,28 @@ internal static partial class LauncherCloudSyncEvidence
     {
         try
         {
-            if (!reason.StartsWith("Manual Push blocked:", StringComparison.OrdinalIgnoreCase))
+            if (!reason.StartsWith(ManualPushBlockedReasonPrefix, StringComparison.OrdinalIgnoreCase))
                 return;
 
             var text =
-                $"UTC: {DateTime.UtcNow:O}\n"
-                + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"
-                + $"Selected branch selection kind: {SteamGameBranch.SelectionKind(selectedBranch)}\n"
-                + $"Steam branch selector mode: {SteamGameBranch.SelectorMode}\n"
-                + $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}\n"
-                + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
-                + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
-                + $"Selected branch note: {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
-                + $"Branch-switch manual Push prerequisites satisfied: {LauncherBranchSwitchSafety.ManualPushPrerequisitesSatisfied(dataDir, selectedBranch).ToString().ToLowerInvariant()}\n"
-                + $"Pre-Push local backup evidence count: {LauncherBackupEvidence.LocalPrePushBackupCount()}\n"
-                + $"Pre-Push cloud backup evidence count: {LauncherBackupEvidence.CloudPrePushBackupCount()}\n"
-                + $"Latest pre-Push local backup UTC: {LauncherBackupEvidence.LatestLocalPrePushBackupUtc()}\n"
-                + $"Latest pre-Push cloud backup UTC: {LauncherBackupEvidence.LatestCloudPrePushBackupUtc()}\n"
-                + $"Important Android local save evidence count: {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n"
-                + $"Baseline manual Push prerequisites satisfied: {BaselineManualPushPrerequisitesSatisfied(dataDir, selectedBranch).ToString().ToLowerInvariant()}\n"
-                + $"Branch-switch pre-Push backup evidence satisfied: {LauncherBackupEvidence.HasPrePushBackupEvidenceAfterBranchSwitch(dataDir).ToString().ToLowerInvariant()}\n"
-                + $"Blocked reason: {SanitizeSingleLine(reason)}\n"
-                + "Manual Push blocked before upload: true\n";
+                $"{UtcPrefix} {DateTime.UtcNow:O}\n"
+                + $"{SelectedBranchPrefix} {SteamGameBranch.Normalize(selectedBranch)}\n"
+                + $"{SelectedBranchSelectionKindPrefix} {SteamGameBranch.SelectionKind(selectedBranch)}\n"
+                + $"{SelectorModePrefix} {SteamGameBranch.SelectorMode}\n"
+                + $"{SelectedVersionPrefix} {SteamGameBranch.DisplayName(selectedBranch)}\n"
+                + $"{SelectedVersionSlotKindPrefix} {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
+                + $"{SelectedVersionSlotDirectoryPrefix} {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
+                + $"{SelectedBranchNotePrefix} {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
+                + $"{BranchSwitchManualPushPrerequisitesSatisfiedPrefix} {LauncherBranchSwitchSafety.ManualPushPrerequisitesSatisfied(dataDir, selectedBranch).ToString().ToLowerInvariant()}\n"
+                + $"{PrePushLocalBackupEvidenceCountPrefix} {LauncherBackupEvidence.LocalPrePushBackupCount()}\n"
+                + $"{PrePushCloudBackupEvidenceCountPrefix} {LauncherBackupEvidence.CloudPrePushBackupCount()}\n"
+                + $"{LatestPrePushLocalBackupUtcPrefix} {LauncherBackupEvidence.LatestLocalPrePushBackupUtc()}\n"
+                + $"{LatestPrePushCloudBackupUtcPrefix} {LauncherBackupEvidence.LatestCloudPrePushBackupUtc()}\n"
+                + $"{ImportantLocalSaveEvidenceCountPrefix} {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n"
+                + $"{BaselineManualPushPrerequisitesSatisfiedPrefix} {BaselineManualPushPrerequisitesSatisfied(dataDir, selectedBranch).ToString().ToLowerInvariant()}\n"
+                + $"{BranchSwitchPrePushBackupEvidenceSatisfiedPrefix} {LauncherBackupEvidence.HasPrePushBackupEvidenceAfterBranchSwitch(dataDir).ToString().ToLowerInvariant()}\n"
+                + $"{BlockedReasonPrefix} {SanitizeSingleLine(reason)}\n"
+                + $"{ManualPushBlockedBeforeUploadPrefix} true\n";
             File.WriteAllText(LastManualPushBlockedMarkerPath(dataDir), text);
         }
         catch (Exception markerEx)

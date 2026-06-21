@@ -40,11 +40,11 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on broader Samsung/One UI retesting, persisted Steam-session/update UX, Steam beta/version selection validation, best-in-class login/portal UX, quieter diagnostics, repeatable release asset hygiene, and full newest-public Pull/confirmed-Push/game-launch smoke.
 
-- Latest published APK prerelease: `v0.2.281-local-branch-marker-refactor`
-- Current APK asset: `StS2Launcher-v0.2.281-local-branch-marker-refactor-arm64-v8a.apk`
+- Latest published APK prerelease: `v0.2.282-local-evidence-marker-refactor`
+- Current APK asset: `StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Release asset SHA-256: `3b8a21885f67fc0cf60b77e1749381960f447960e8aaf9261b88e2bef3f3af79`
-- Latest local ARM64 build APK: `0.2.281-local-branch-marker-refactor` / `versionCode=281000`, artifact `artifacts/android/StS2Launcher-v0.2.281-local-branch-marker-refactor-arm64-v8a.apk`, SHA-256 `3b8a21885f67fc0cf60b77e1749381960f447960e8aaf9261b88e2bef3f3af79`. This is a build/static-audit prerelease for branch marker field/provenance helper extraction and shared Android app-private path alias handling; it does not replace the existing device evidence for public/public-beta runtime behavior.
+- Release asset SHA-256: `db1a52ff4bdbe4e56b91508f9e2b34dfbda0242df4254f784f22352398e911b7`
+- Latest local ARM64 build APK: `0.2.282-local-evidence-marker-refactor` / `versionCode=282000`, artifact `artifacts/android/StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk`, SHA-256 `db1a52ff4bdbe4e56b91508f9e2b34dfbda0242df4254f784f22352398e911b7`. This is a build/static-audit prerelease for runtime-cache, save-origin, and manual cloud-sync evidence marker prefix extraction; it does not replace the existing device evidence for public/public-beta runtime behavior. No Steam Cloud Push was run during this validation.
 - Latest local ARM64 validation APK with public-beta runtime evidence: `0.2.188-local-runtime-beta-fix31-save-origin-pck` / `versionCode=218858`, artifact `artifacts/android/StS2Launcher-v0.2.188-local-runtime-beta-fix31-save-origin-pck-arm64-v8a.apk`, SHA-256 `33fa866b5d8b9462f2aa83cd34606b84b3f7f8b8a5a8da159d08cecc2ed04ae6`.
 - Latest verified public release: `0.2.187-beta-art-fallback` / `versionCode=218700`
 - Validated locally/publicly: fresh APK/runtime install, public `v0.2.186 -> v0.2.187` update-compatible release build, responsive launcher login/download-progress/diagnostics/ready-state visual checks on ARM64 hardware, Push-to-Cloud confirmation/cancel safety on the public `v0.2.187` APK, Steam login to Steam Guard on public `v0.2.183`, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
@@ -223,13 +223,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.281-local-branch-marker-refactor" `
-  -AssetName "StS2Launcher-v0.2.281-local-branch-marker-refactor-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.282-local-evidence-marker-refactor" `
+  -AssetName "StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.281-local-branch-marker-refactor" `
-  -AssetName "StS2Launcher-v0.2.281-local-branch-marker-refactor-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.282-local-evidence-marker-refactor" `
+  -AssetName "StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -238,12 +238,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.281-local-branch-marker-refactor
-Asset: StS2Launcher-v0.2.281-local-branch-marker-refactor-arm64-v8a.apk
+Release: v0.2.282-local-evidence-marker-refactor
+Asset: StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.281-local-branch-marker-refactor
-VersionCode: 281000
-SHA-256: 3b8a21885f67fc0cf60b77e1749381960f447960e8aaf9261b88e2bef3f3af79
+VersionName: 0.2.282-local-evidence-marker-refactor
+VersionCode: 282000
+SHA-256: db1a52ff4bdbe4e56b91508f9e2b34dfbda0242df4254f784f22352398e911b7
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.

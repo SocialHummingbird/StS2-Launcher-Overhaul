@@ -1621,7 +1621,6 @@ Add-Check `
     "tracks runtime patch validation marker lifecycle" `
     @(
         "last_runtime_patch_validation\.json",
-        "current_runtime_cache\.txt",
         "MarkerPath",
         "MarkerPresent",
         "Clear",
@@ -1638,9 +1637,12 @@ Add-Check `
         "SteamGameBranch\.Normalize",
         "SteamGameInstallPaths\.VersionSlotKind",
         "GameRuntimeSlot\.Inspect",
-        "Selected PCK SHA256:",
-        "Selected source sts2\.dll SHA256:",
-        "Active source sts2\.dll SHA256:",
+        "LauncherRuntimeCacheEvidence\.RuntimeIdPrefix",
+        "LauncherRuntimeCacheEvidence\.SelectedPckSha256Prefix",
+        "LauncherRuntimeCacheEvidence\.SelectedSourceAssemblySha256Prefix",
+        "LauncherRuntimeCacheEvidence\.ActiveSourceAssemblySha256Prefix",
+        "LauncherRuntimeCacheEvidence\.RuntimePackDirectoryPrefix",
+        "LauncherRuntimeCacheEvidence\.RuntimePackGameAssemblyPrefix",
         "selectedPckSha256",
         "selectedSourceAssemblySha256",
         "activeAndroidAssemblySha256",
@@ -1656,7 +1658,7 @@ Add-Check `
     "reads selected runtime cache values and classifies runtime pack status" `
     @(
         "RuntimeCacheValue",
-        "RuntimeCacheMarkerFileName",
+        "LauncherRuntimeCacheEvidence\.MarkerPath",
         "File\.ReadLines",
         "StringComparison\.OrdinalIgnoreCase",
         "RuntimePackStatus",
@@ -1744,6 +1746,23 @@ Add-Check `
     )
 
 Add-Check `
+    "src\STS2Mobile\Launcher\LauncherSaveOriginEvidence.Fields.cs" `
+    "centralizes selected-runtime save-origin marker prefixes" `
+    @(
+        "OriginActionPrefix = ""Origin action:""",
+        "SelectedBranchPrefix = ""Selected branch:""",
+        "SelectedRuntimeSlotIdPrefix = ""Selected runtime slot ID:""",
+        "SelectedPckSha256Prefix = ""Selected PCK SHA256:""",
+        "SelectedSourceAssemblySha256Prefix = ""Selected source sts2\.dll SHA256:""",
+        "SelectedRuntimePlayablePrefix = ""Selected runtime playable:""",
+        "SelectedRuntimeReadinessProblemPrefix = ""Selected runtime readiness problem:""",
+        "ImportantLocalSaveEvidenceCountPrefix = ""Important Android local save evidence count:""",
+        "CurrentLocalSavesVerifiedForSelectedBranchPrefix = ""Current Android local saves verified for selected branch:""",
+        "CurrentLocalSavesVerifiedForSelectedRuntimePrefix = ""Current Android local saves verified for selected runtime:""",
+        "RequiredNextActionPrefix = ""Required next action:"""
+    )
+
+Add-Check `
     "src\STS2Mobile\Launcher\LauncherSaveOriginEvidence.Read.cs" `
     "reads selected-runtime save-origin marker fields" `
     @(
@@ -1753,11 +1772,11 @@ Add-Check `
         "LauncherMarkerFile\.ReadUtc",
         "LauncherMarkerFile\.HasConcreteValue",
         "SelectedRuntimeSlotId",
-        "Selected PCK SHA256",
-        "Selected source sts2\.dll SHA256",
-        "Selected runtime playable",
-        "Selected runtime readiness problem",
-        "Important Android local save evidence count"
+        "SelectedPckSha256Prefix",
+        "SelectedSourceAssemblySha256Prefix",
+        "SelectedRuntimePlayablePrefix",
+        "SelectedRuntimeReadinessProblemPrefix",
+        "ImportantLocalSaveEvidenceCountPrefix"
     )
 
 Add-Check `
@@ -1781,13 +1800,14 @@ Add-Check `
         "WriteManualPullOrigin",
         "WriteManualPushOrigin",
         "WriteBranchSwitchPendingOrigin",
-        "Selected runtime slot ID",
-        "Selected PCK SHA256",
-        "Selected source sts2\.dll SHA256",
-        "Selected runtime playable",
-        "Selected runtime readiness problem",
-        "Current Android local saves verified for selected branch: false",
-        "Current Android local saves verified for selected runtime"
+        "SelectedRuntimeSlotIdPrefix",
+        "SelectedPckSha256Prefix",
+        "SelectedSourceAssemblySha256Prefix",
+        "SelectedRuntimePlayablePrefix",
+        "SelectedRuntimeReadinessProblemPrefix",
+        "CurrentLocalSavesVerifiedForSelectedBranchPrefix",
+        "CurrentLocalSavesVerifiedForSelectedRuntimePrefix",
+        "RequiredNextActionPrefix"
     )
 
 Add-Check `
@@ -1886,7 +1906,7 @@ Add-Check `
     @(
         "LauncherSaveOriginEvidence\.WriteManualPushOrigin",
         "WriteManualPushMarker",
-        "Manual Push completed after branch-switch safety gates"
+        "ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix"
     )
 
 Add-Check `

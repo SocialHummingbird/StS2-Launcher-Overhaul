@@ -18,15 +18,15 @@ internal static partial class LauncherSaveOriginEvidence
         try
         {
             var text =
-                $"UTC: {DateTime.UtcNow:O}\n"
-                + "Origin action: branch switch pending Pull\n"
-                + $"Previous branch: {SteamGameBranch.Normalize(previousBranch)}\n"
-                + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"
-                + $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}\n"
-                + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
-                + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
-                + "Current Android local saves verified for selected branch: false\n"
-                + "Required next action: Pull from Cloud for the selected game version before Push.\n";
+                $"{UtcPrefix} {DateTime.UtcNow:O}\n"
+                + $"{OriginActionPrefix} branch switch pending Pull\n"
+                + $"{PreviousBranchPrefix} {SteamGameBranch.Normalize(previousBranch)}\n"
+                + $"{SelectedBranchPrefix} {SteamGameBranch.Normalize(selectedBranch)}\n"
+                + $"{SelectedVersionPrefix} {SteamGameBranch.DisplayName(selectedBranch)}\n"
+                + $"{SelectedVersionSlotKindPrefix} {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
+                + $"{SelectedVersionSlotDirectoryPrefix} {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
+                + $"{CurrentLocalSavesVerifiedForSelectedBranchPrefix} false\n"
+                + $"{RequiredNextActionPrefix} Pull from Cloud for the selected game version before Push.\n";
             File.WriteAllText(MarkerPath(dataDir), text);
         }
         catch (Exception ex)
@@ -46,22 +46,22 @@ internal static partial class LauncherSaveOriginEvidence
             var selectedRuntimePlayable = slot.Playable;
             var selectedRuntimeVerified = selectedBranchVerified && selectedRuntimePlayable;
             var text =
-                $"UTC: {DateTime.UtcNow:O}\n"
-                + $"Origin action: {originAction}\n"
-                + $"Selected branch: {selectedBranch}\n"
-                + $"Selected branch selection kind: {SteamGameBranch.SelectionKind(selectedBranch)}\n"
-                + $"Steam branch selector mode: {SteamGameBranch.SelectorMode}\n"
-                + $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}\n"
-                + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
-                + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
-                + $"Selected runtime slot ID: {slot.RuntimeSlotId}\n"
-                + $"Selected PCK SHA256: {slot.PckSha256}\n"
-                + $"Selected source sts2.dll SHA256: {slot.SourceAssemblySha256}\n"
-                + $"Selected runtime playable: {selectedRuntimePlayable.ToString().ToLowerInvariant()}\n"
-                + $"Selected runtime readiness problem: {slot.ReadinessProblem() ?? string.Empty}\n"
-                + $"Important Android local save evidence count: {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n"
-                + $"Current Android local saves verified for selected branch: {selectedBranchVerified.ToString().ToLowerInvariant()}\n"
-                + $"Current Android local saves verified for selected runtime: {selectedRuntimeVerified.ToString().ToLowerInvariant()}\n";
+                $"{UtcPrefix} {DateTime.UtcNow:O}\n"
+                + $"{OriginActionPrefix} {originAction}\n"
+                + $"{SelectedBranchPrefix} {selectedBranch}\n"
+                + $"{SelectedBranchSelectionKindPrefix} {SteamGameBranch.SelectionKind(selectedBranch)}\n"
+                + $"{SelectorModePrefix} {SteamGameBranch.SelectorMode}\n"
+                + $"{SelectedVersionPrefix} {SteamGameBranch.DisplayName(selectedBranch)}\n"
+                + $"{SelectedVersionSlotKindPrefix} {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
+                + $"{SelectedVersionSlotDirectoryPrefix} {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
+                + $"{SelectedRuntimeSlotIdPrefix} {slot.RuntimeSlotId}\n"
+                + $"{SelectedPckSha256Prefix} {slot.PckSha256}\n"
+                + $"{SelectedSourceAssemblySha256Prefix} {slot.SourceAssemblySha256}\n"
+                + $"{SelectedRuntimePlayablePrefix} {selectedRuntimePlayable.ToString().ToLowerInvariant()}\n"
+                + $"{SelectedRuntimeReadinessProblemPrefix} {slot.ReadinessProblem() ?? string.Empty}\n"
+                + $"{ImportantLocalSaveEvidenceCountPrefix} {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n"
+                + $"{CurrentLocalSavesVerifiedForSelectedBranchPrefix} {selectedBranchVerified.ToString().ToLowerInvariant()}\n"
+                + $"{CurrentLocalSavesVerifiedForSelectedRuntimePrefix} {selectedRuntimeVerified.ToString().ToLowerInvariant()}\n";
             File.WriteAllText(MarkerPath(dataDir), text);
         }
         catch (Exception ex)
