@@ -12,19 +12,19 @@ internal static partial class LauncherBranchSwitchSafety
         try
         {
             var text =
-                $"UTC: {DateTime.UtcNow:O}\n"
-                + $"Previous branch: {SteamGameBranch.Normalize(previousBranch)}\n"
-                + $"Selected branch: {SteamGameBranch.Normalize(selectedBranch)}\n"
-                + $"Selected branch selection kind: {SteamGameBranch.SelectionKind(selectedBranch)}\n"
-                + $"Steam branch selector mode: {SteamGameBranch.SelectorMode}\n"
-                + $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}\n"
-                + $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
-                + $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
-                + $"Selected branch note: {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
-                + "Local backup forced on: true\n"
-                + "Manual Push requires backup storage: true\n"
-                + "Warning acknowledged: branch switch can require another download and saves may not be compatible between Steam branches.\n"
-                + "Non-public branch warning acknowledged: branch may be private or password-protected; beta password entry is not implemented.\n";
+                $"{UtcPrefix} {DateTime.UtcNow:O}\n"
+                + $"{PreviousBranchPrefix} {SteamGameBranch.Normalize(previousBranch)}\n"
+                + $"{SelectedBranchPrefix} {SteamGameBranch.Normalize(selectedBranch)}\n"
+                + $"{SelectedBranchSelectionKindPrefix} {SteamGameBranch.SelectionKind(selectedBranch)}\n"
+                + $"{SelectorModePrefix} {SteamGameBranch.SelectorMode}\n"
+                + $"{SelectedVersionPrefix} {SteamGameBranch.DisplayName(selectedBranch)}\n"
+                + $"{SelectedVersionSlotKindPrefix} {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
+                + $"{SelectedVersionSlotDirectoryPrefix} {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
+                + $"{SelectedBranchNotePrefix} {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
+                + $"{LocalBackupForcedPrefix} true\n"
+                + $"{ManualPushRequiresBackupStoragePrefix} true\n"
+                + $"{WarningAcknowledgedPrefix} branch switch can require another download and saves may not be compatible between Steam branches.\n"
+                + $"{NonPublicBranchWarningAcknowledgedPrefix} branch may be private or password-protected; beta password entry is not implemented.\n";
             File.WriteAllText(MarkerPath(dataDir), text);
             LauncherSaveOriginEvidence.WriteBranchSwitchPendingOrigin(dataDir, previousBranch, selectedBranch);
         }

@@ -12,40 +12,40 @@ internal static partial class LauncherGameFiles
         => Path.Combine(dataDir, CacheCleanupMarkerFileName);
 
     internal static string CacheCleanupMarkerUtc(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "UTC:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerUtcPrefix);
 
     internal static bool CacheCleanupMarkerUtcParseable(string dataDir)
         => MarkerUtcParseable(CacheCleanupMarkerPath(dataDir));
 
     internal static string CacheCleanupMarkerSelectedBranch(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Selected branch:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerSelectedBranchPrefix);
 
     internal static string CacheCleanupMarkerSelectedVersion(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Selected version:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerSelectedVersionPrefix);
 
     internal static string CacheCleanupMarkerVersionSlotKind(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Selected version slot kind:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerVersionSlotKindPrefix);
 
     internal static string CacheCleanupMarkerVersionSlotDirectory(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Selected version slot directory:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerVersionSlotDirectoryPrefix);
 
     internal static string CacheCleanupMarkerGameVersionsDirectoryPresent(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Game versions directory present:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerGameVersionsDirectoryPresentPrefix);
 
     internal static string CacheCleanupMarkerRuntimePacksDirectoryPresent(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Runtime packs directory present:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerRuntimePacksDirectoryPresentPrefix);
 
     internal static string CacheCleanupMarkerSelectedRuntimePackDirectory(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Selected runtime pack directory:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerSelectedRuntimePackDirectoryPrefix);
 
     internal static string CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanup(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Selected runtime pack present before cleanup:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanupPrefix);
 
     internal static string CacheCleanupMarkerRemovedCount(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Removed count:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerRemovedCountPrefix);
 
     internal static string CacheCleanupMarkerRemovedRuntimePackCount(string dataDir)
-        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), "Removed runtime pack count:");
+        => ReadMarkerValue(CacheCleanupMarkerPath(dataDir), CacheCleanupMarkerRemovedRuntimePackCountPrefix);
 
     internal static bool CacheCleanupMarkerSelectedCachePreservedWhereApplicable(string dataDir)
     {
@@ -61,7 +61,7 @@ internal static partial class LauncherGameFiles
         if (!string.Equals(CacheCleanupMarkerGameVersionsDirectoryPresent(dataDir), "true", System.StringComparison.OrdinalIgnoreCase))
             return true;
 
-        return MarkerHasLine(markerPath, "Preserved selected cache:");
+        return MarkerHasLine(markerPath, CacheCleanupMarkerPreservedSelectedCachePrefix);
     }
 
     internal static bool CacheCleanupMarkerSelectedRuntimePackPreservedWhereApplicable(string dataDir)
@@ -78,7 +78,7 @@ internal static partial class LauncherGameFiles
         if (!string.Equals(CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanup(dataDir), "true", System.StringComparison.OrdinalIgnoreCase))
             return true;
 
-        return MarkerHasLine(markerPath, "Preserved selected runtime pack:");
+        return MarkerHasLine(markerPath, CacheCleanupMarkerPreservedSelectedRuntimePackPrefix);
     }
 
     private static System.Collections.Generic.List<string> NewCacheCleanupMarkerLines(string dataDir, string selectedBranch)
@@ -91,14 +91,14 @@ internal static partial class LauncherGameFiles
 
         return new()
         {
-            $"UTC: {System.DateTime.UtcNow:O}",
-            $"Selected branch: {selectedBranch}",
-            $"Selected version: {SteamGameBranch.DisplayName(selectedBranch)}",
-            $"Selected version slot kind: {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}",
-            $"Selected version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}",
-            $"Runtime packs directory present: {Directory.Exists(runtimePacksDir).ToString().ToLowerInvariant()}",
-            $"Selected runtime pack directory: {selectedRuntimePackDirectory}",
-            $"Selected runtime pack present before cleanup: {Directory.Exists(selectedRuntimePackDirectory).ToString().ToLowerInvariant()}",
+            $"{CacheCleanupMarkerUtcPrefix} {System.DateTime.UtcNow:O}",
+            $"{CacheCleanupMarkerSelectedBranchPrefix} {selectedBranch}",
+            $"{CacheCleanupMarkerSelectedVersionPrefix} {SteamGameBranch.DisplayName(selectedBranch)}",
+            $"{CacheCleanupMarkerVersionSlotKindPrefix} {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}",
+            $"{CacheCleanupMarkerVersionSlotDirectoryPrefix} {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}",
+            $"{CacheCleanupMarkerRuntimePacksDirectoryPresentPrefix} {Directory.Exists(runtimePacksDir).ToString().ToLowerInvariant()}",
+            $"{CacheCleanupMarkerSelectedRuntimePackDirectoryPrefix} {selectedRuntimePackDirectory}",
+            $"{CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanupPrefix} {Directory.Exists(selectedRuntimePackDirectory).ToString().ToLowerInvariant()}",
         };
     }
 

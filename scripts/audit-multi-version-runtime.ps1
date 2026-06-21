@@ -480,20 +480,32 @@ Add-Check `
     "src\STS2Mobile\Launcher\LauncherGameFiles.CacheCleanup.cs" `
     "orchestrates selected-version cache cleanup without deleting selected branch state" `
     @(
-        "Removed runtime pack count",
+        "CacheCleanupMarkerRemovedRuntimePackCountPrefix",
         "DeleteInactiveRuntimePacks",
         "NewCacheCleanupMarkerLines",
-        "Preserved selected cache"
+        "CacheCleanupMarkerPreservedSelectedCachePrefix"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.CacheCleanup.Marker.Fields.cs" `
+    "centralizes selected-version cache cleanup marker prefixes" `
+    @(
+        "CacheCleanupMarkerRuntimePacksDirectoryPresentPrefix = ""Runtime packs directory present:""",
+        "CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanupPrefix = ""Selected runtime pack present before cleanup:""",
+        "CacheCleanupMarkerRemovedRuntimePackCountPrefix = ""Removed runtime pack count:""",
+        "CacheCleanupMarkerPreservedSelectedCachePrefix = ""Preserved selected cache:""",
+        "CacheCleanupMarkerPreservedSelectedRuntimePackPrefix = ""Preserved selected runtime pack:""",
+        "CacheCleanupMarkerRemovedOrphanRuntimePackPrefix = ""Removed orphan runtime pack:"""
     )
 
 Add-Check `
     "src\STS2Mobile\Launcher\LauncherGameFiles.CacheCleanup.Markers.cs" `
     "records selected runtime-pack preservation evidence in cache cleanup markers" `
     @(
-        "Runtime packs directory present",
-        "Selected runtime pack present before cleanup",
+        "CacheCleanupMarkerRuntimePacksDirectoryPresentPrefix",
+        "CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanupPrefix",
         "CacheCleanupMarkerSelectedRuntimePackPreservedWhereApplicable",
-        "Preserved selected runtime pack"
+        "CacheCleanupMarkerPreservedSelectedRuntimePackPrefix"
     )
 
 Add-Check `
@@ -502,8 +514,8 @@ Add-Check `
     @(
         "RuntimePackDirectoryPathForStateDirectory",
         "DeleteInactiveRuntimePacks",
-        "Preserved selected runtime pack",
-        "Removed orphan runtime pack"
+        "CacheCleanupMarkerPreservedSelectedRuntimePackPrefix",
+        "CacheCleanupMarkerRemovedOrphanRuntimePackPrefix"
     )
 
 Add-Check `

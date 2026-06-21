@@ -17,9 +17,9 @@ internal static partial class LauncherGameFiles
         if (!Directory.Exists(versionsDir))
         {
             var removedRuntimePacksWithoutVersions = DeleteInactiveRuntimePacks(dataDir, selectedBranch, markerLines);
-            markerLines.Add("Game versions directory present: false");
-            markerLines.Add("Removed count: 0");
-            markerLines.Add($"Removed runtime pack count: {removedRuntimePacksWithoutVersions}");
+            markerLines.Add($"{CacheCleanupMarkerGameVersionsDirectoryPresentPrefix} false");
+            markerLines.Add($"{CacheCleanupMarkerRemovedCountPrefix} 0");
+            markerLines.Add($"{CacheCleanupMarkerRemovedRuntimePackCountPrefix} {removedRuntimePacksWithoutVersions}");
             WriteCacheCleanupMarker(dataDir, markerLines);
             removedRuntimePacks = removedRuntimePacksWithoutVersions;
             PatchHelper.Log($"[Launcher] Removed 0 inactive game version cache(s) and {removedRuntimePacks} runtime pack cache(s); selected branch '{selectedBranch}' preserved");
@@ -33,7 +33,7 @@ internal static partial class LauncherGameFiles
             if (!cache.Selected || string.Equals(selectedBranch, SteamGameBranch.Public, System.StringComparison.OrdinalIgnoreCase))
             {
                 PatchHelper.Log($"[Launcher] Removing inactive game version cache: {cache.DirectoryName} -> {cache.Path}");
-                markerLines.Add($"Removed cache: {cache.DirectoryName} -> {cache.Path}");
+                markerLines.Add($"{CacheCleanupMarkerRemovedCachePrefix} {cache.DirectoryName} -> {cache.Path}");
                 DeleteDirectory(cache.Path);
                 var runtimePackDirectory = RuntimePackDirectoryPathForStateDirectory(dataDir, cache.DirectoryName);
                 var runtimePackExisted = Directory.Exists(runtimePackDirectory);
@@ -42,19 +42,19 @@ internal static partial class LauncherGameFiles
                     DeleteDirectory(runtimePackDirectory);
                     removedRuntimePacks++;
                 }
-                markerLines.Add($"Removed runtime pack: {cache.DirectoryName} -> {runtimePackDirectory} existed={runtimePackExisted.ToString().ToLowerInvariant()} existsAfterDelete={Directory.Exists(runtimePackDirectory).ToString().ToLowerInvariant()}");
+                markerLines.Add($"{CacheCleanupMarkerRemovedRuntimePackPrefix} {cache.DirectoryName} -> {runtimePackDirectory} existed={runtimePackExisted.ToString().ToLowerInvariant()} existsAfterDelete={Directory.Exists(runtimePackDirectory).ToString().ToLowerInvariant()}");
                 removed++;
                 continue;
             }
 
             PatchHelper.Log($"[Launcher] Preserving selected game version cache: {cache.DirectoryName} -> {cache.Path}");
-            markerLines.Add($"Preserved selected cache: {cache.DirectoryName} -> {cache.Path}");
+            markerLines.Add($"{CacheCleanupMarkerPreservedSelectedCachePrefix} {cache.DirectoryName} -> {cache.Path}");
         }
 
         removedRuntimePacks += DeleteInactiveRuntimePacks(dataDir, selectedBranch, markerLines);
-        markerLines.Add("Game versions directory present: true");
-        markerLines.Add($"Removed count: {removed}");
-        markerLines.Add($"Removed runtime pack count: {removedRuntimePacks}");
+        markerLines.Add($"{CacheCleanupMarkerGameVersionsDirectoryPresentPrefix} true");
+        markerLines.Add($"{CacheCleanupMarkerRemovedCountPrefix} {removed}");
+        markerLines.Add($"{CacheCleanupMarkerRemovedRuntimePackCountPrefix} {removedRuntimePacks}");
         WriteCacheCleanupMarker(dataDir, markerLines);
         PatchHelper.Log($"[Launcher] Removed {removed} inactive game version cache(s) and {removedRuntimePacks} runtime pack cache(s); selected branch '{selectedBranch}' preserved");
         return removed;

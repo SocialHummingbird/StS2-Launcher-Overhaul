@@ -38,15 +38,15 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.282-local-evidence-marker-refactor
-asset=StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk
-sha256=db1a52ff4bdbe4e56b91508f9e2b34dfbda0242df4254f784f22352398e911b7
+release=v0.2.283-local-cache-cleanup-marker-refactor
+asset=StS2Launcher-v0.2.283-local-cache-cleanup-marker-refactor-arm64-v8a.apk
+sha256=dc99adf2f28c482c88c5e989501aab74f5c0ac8c3f74a8d34d6f5fd0279a298b
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.282-local-evidence-marker-refactor
-versionCode=282000
-validation=Android build/APK verification passed; Steam version-selection static audit passed 460 checks; multi-version runtime audit passed 155 checks; managed Release build passed; APK crypto patch verification passed. This prerelease centralizes runtime-cache, save-origin, and manual cloud-sync evidence marker prefixes while preserving branch marker/runtime-cache validation helper boundaries. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
+versionName=0.2.283-local-cache-cleanup-marker-refactor
+versionCode=283000
+validation=Android build/APK verification passed; Steam version-selection static audit passed 461 checks; multi-version runtime audit passed 156 checks; Steam branch-guidance parity passed; managed Release build passed; APK crypto patch verification passed. This prerelease centralizes selected-version cache cleanup marker prefixes and uses branch-switch safety marker prefix constants while preserving branch marker/runtime-cache validation helper boundaries. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
 cloudSafety=No Push to Cloud was run during this validation.
-evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
+evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.283-local-cache-cleanup-marker-refactor-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:

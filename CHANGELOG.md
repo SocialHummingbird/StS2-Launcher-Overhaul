@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-06-21 - Cache cleanup marker refactor prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.283-local-cache-cleanup-marker-refactor` with APK `StS2Launcher-v0.2.283-local-cache-cleanup-marker-refactor-arm64-v8a.apk`.
+- Centralized selected-version cache cleanup marker prefixes behind a shared launcher partial so cleanup readers, writers, runtime-pack preservation evidence, and static audits use one marker contract.
+- Updated branch-switch safety marker writing to use the existing branch-switch marker prefix constants instead of duplicated literal labels.
+- Preserved the build/static validation posture: Steam version-selection static audit passed 461 checks, multi-version runtime audit passed 156 checks, branch-guidance parity passed, managed Release build passed, and the ARM64 APK build/verification plus crypto patch verification passed. This APK is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence. No Steam Cloud Push was run during this validation.
+
 ## 2026-06-21 - Evidence marker prefix refactor prerelease
 
 - Published the local-package ARM64 prerelease `v0.2.282-local-evidence-marker-refactor` with APK `StS2Launcher-v0.2.282-local-evidence-marker-refactor-arm64-v8a.apk`.

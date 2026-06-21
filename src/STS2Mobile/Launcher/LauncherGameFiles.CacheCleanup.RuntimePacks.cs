@@ -25,12 +25,12 @@ internal static partial class LauncherGameFiles
             var directoryName = Path.GetFileName(runtimePackDirectory);
             if (string.Equals(directoryName, selectedStateDirectoryName, System.StringComparison.OrdinalIgnoreCase))
             {
-                markerLines.Add($"Preserved selected runtime pack: {directoryName} -> {runtimePackDirectory}");
+                markerLines.Add($"{CacheCleanupMarkerPreservedSelectedRuntimePackPrefix} {directoryName} -> {runtimePackDirectory}");
                 continue;
             }
 
             DeleteDirectory(runtimePackDirectory);
-            markerLines.Add($"Removed orphan runtime pack: {directoryName} -> {runtimePackDirectory} existsAfterDelete={Directory.Exists(runtimePackDirectory).ToString().ToLowerInvariant()}");
+            markerLines.Add($"{CacheCleanupMarkerRemovedOrphanRuntimePackPrefix} {directoryName} -> {runtimePackDirectory} existsAfterDelete={Directory.Exists(runtimePackDirectory).ToString().ToLowerInvariant()}");
             removed++;
         }
 

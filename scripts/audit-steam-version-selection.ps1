@@ -1067,12 +1067,34 @@ Add-Check `
         "NewCacheCleanupMarkerLines",
         "DeleteInactiveRuntimePacks",
         "WriteCacheCleanupMarker",
-        "Removed count",
-        "Removed runtime pack count",
+        "CacheCleanupMarkerRemovedCountPrefix",
+        "CacheCleanupMarkerRemovedRuntimePackCountPrefix",
         "Removing inactive game version cache",
         "Preserving selected game version cache",
-        "Preserved selected cache",
+        "CacheCleanupMarkerPreservedSelectedCachePrefix",
         "selected branch"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGameFiles.CacheCleanup.Marker.Fields.cs" `
+    "centralizes selected-version cache cleanup marker prefixes" `
+    @(
+        "CacheCleanupMarkerUtcPrefix = ""UTC:""",
+        "CacheCleanupMarkerSelectedBranchPrefix = ""Selected branch:""",
+        "CacheCleanupMarkerSelectedVersionPrefix = ""Selected version:""",
+        "CacheCleanupMarkerVersionSlotKindPrefix = ""Selected version slot kind:""",
+        "CacheCleanupMarkerVersionSlotDirectoryPrefix = ""Selected version slot directory:""",
+        "CacheCleanupMarkerGameVersionsDirectoryPresentPrefix = ""Game versions directory present:""",
+        "CacheCleanupMarkerRuntimePacksDirectoryPresentPrefix = ""Runtime packs directory present:""",
+        "CacheCleanupMarkerSelectedRuntimePackDirectoryPrefix = ""Selected runtime pack directory:""",
+        "CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanupPrefix = ""Selected runtime pack present before cleanup:""",
+        "CacheCleanupMarkerRemovedCountPrefix = ""Removed count:""",
+        "CacheCleanupMarkerRemovedRuntimePackCountPrefix = ""Removed runtime pack count:""",
+        "CacheCleanupMarkerRemovedCachePrefix = ""Removed cache:""",
+        "CacheCleanupMarkerRemovedRuntimePackPrefix = ""Removed runtime pack:""",
+        "CacheCleanupMarkerPreservedSelectedCachePrefix = ""Preserved selected cache:""",
+        "CacheCleanupMarkerPreservedSelectedRuntimePackPrefix = ""Preserved selected runtime pack:""",
+        "CacheCleanupMarkerRemovedOrphanRuntimePackPrefix = ""Removed orphan runtime pack:"""
     )
 
 Add-Check `
@@ -1096,9 +1118,9 @@ Add-Check `
         "CacheCleanupMarkerSelectedCachePreservedWhereApplicable",
         "CacheCleanupMarkerSelectedRuntimePackPreservedWhereApplicable",
         "last_game_version_cache_cleanup\.txt",
-        "Selected runtime pack directory",
-        "Selected runtime pack present before cleanup",
-        "Runtime packs directory present"
+        "CacheCleanupMarkerSelectedRuntimePackDirectoryPrefix",
+        "CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanupPrefix",
+        "CacheCleanupMarkerRuntimePacksDirectoryPresentPrefix"
     )
 
 Add-Check `
@@ -1108,8 +1130,8 @@ Add-Check `
         "RuntimePackDirectoryPathForStateDirectory",
         "DeleteInactiveRuntimePacks",
         "runtime_packs",
-        "Preserved selected runtime pack",
-        "Removed orphan runtime pack",
+        "CacheCleanupMarkerPreservedSelectedRuntimePackPrefix",
+        "CacheCleanupMarkerRemovedOrphanRuntimePackPrefix",
         "existsAfterDelete"
     )
 
@@ -1710,22 +1732,20 @@ Add-Check `
     "writes branch-switch safety marker and marks save-origin pending" `
     @(
         "WriteMarker",
-        "Local backup forced on:",
-        "Manual Push requires backup storage:",
-        "Warning acknowledged:",
-        "Non-public branch warning acknowledged:",
-        "Selected branch selection kind:",
-        "Steam branch selector mode:",
-        "Selected branch note",
-        "Selected version:",
-        "Selected version slot kind:",
-        "Selected version slot directory:",
+        "LocalBackupForcedPrefix",
+        "ManualPushRequiresBackupStoragePrefix",
+        "WarningAcknowledgedPrefix",
+        "NonPublicBranchWarningAcknowledgedPrefix",
+        "SelectedBranchSelectionKindPrefix",
+        "SelectorModePrefix",
+        "SelectedBranchNotePrefix",
+        "SelectedVersionPrefix",
+        "SelectedVersionSlotKindPrefix",
+        "SelectedVersionSlotDirectoryPrefix",
         "SelectorHelpText",
         "WriteBranchSwitchPendingOrigin",
         "beta password entry is not implemented",
-        "Failed to write branch switch safety marker",
-        "Local backup forced on",
-        "Manual Push requires backup storage"
+        "Failed to write branch switch safety marker"
     )
 
 Add-Check `
