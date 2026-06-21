@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-06-21 - Steam version-selection audit module split prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.285-local-audit-module-split` with APK `StS2Launcher-v0.2.285-local-audit-module-split-arm64-v8a.apk`.
+- Split large Steam version-selection static audit guardrails into focused PowerShell modules for helper boundaries, launcher shell, branch selector, branch runtime/cache, branch availability, download/update workflows, and Steam session authentication.
+- Updated the tooling docs and GitHub-facing status text so the module boundaries are explicit and future guardrail additions do not keep expanding the top-level audit orchestrator.
+- Preserved the build/static validation posture: Steam version-selection static audit passed 477 checks, multi-version runtime audit passed 156 checks, branch-guidance parity passed, managed Release build passed, and the ARM64 APK build/verification plus crypto patch verification passed. This APK is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence. No Steam Cloud Push was run during this validation.
+
+## 2026-06-21 - Branch availability marker helper prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.284-local-branch-availability-marker-helpers` with APK `StS2Launcher-v0.2.284-local-branch-availability-marker-helpers-arm64-v8a.apk`.
+- Centralized Steam app-info branch availability marker labels, metadata keys, visible-row parsing, marker path/value/row reads, and branch availability report formatting behind shared helpers.
+- Routed branch dropdown options, compact failure status, diagnostics, and downloader marker/report formatting through the shared marker contract.
+- Preserved the build/static validation posture: Steam version-selection static audit passed 470 checks, multi-version runtime audit passed 156 checks, branch-guidance parity passed, managed Release build passed, and the ARM64 APK build/verification plus crypto patch verification passed. This APK is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence. No Steam Cloud Push was run during this validation.
+
 ## 2026-06-21 - Cache cleanup marker refactor prerelease
 
 - Published the local-package ARM64 prerelease `v0.2.283-local-cache-cleanup-marker-refactor` with APK `StS2Launcher-v0.2.283-local-cache-cleanup-marker-refactor-arm64-v8a.apk`.

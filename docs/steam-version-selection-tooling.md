@@ -13,6 +13,7 @@ Shared helper boundaries are intentional release guardrails. Static audits use `
 Purpose:
 
 - Checks that branch/version implementation guardrails, docs, release blockers, tester guidance, and CI coverage are still present.
+- Keeps shared helper-boundary checks in `scripts/audit-steam-version-selection.helper-boundaries.ps1`, launcher shell checks in `scripts/audit-steam-version-selection.launcher-shell.ps1`, branch-selector checks in `scripts/audit-steam-version-selection.branch-selector.ps1`, branch runtime/cache checks in `scripts/audit-steam-version-selection.branch-runtime.ps1`, branch-availability marker contract checks in `scripts/audit-steam-version-selection.branch-availability.ps1`, download/update workflow checks in `scripts/audit-steam-version-selection.download-workflows.ps1`, and Steam session authentication checks in `scripts/audit-steam-version-selection.session-auth.ps1` so focused guardrails can evolve without expanding the top-level audit orchestrator.
 - Does not prove Steam login, depot download, beta branch behavior, game launch, save compatibility, or Push safety.
 
 Command:
