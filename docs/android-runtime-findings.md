@@ -62,27 +62,27 @@ This is still a hardening state, not a finished release-candidate signoff. Newes
 
 The current published build/static prerelease APK is:
 
-- Release: `v0.2.292-local-audit-docs-split`
-- Asset: `StS2Launcher-v0.2.292-local-audit-docs-split-arm64-v8a.apk`
-- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.292-local-audit-docs-split
-- SHA-256: `b12ccba83db235266580e41b7fc8f28a061ece115b107dc17d813099fa0f52c2`
+- Release: `v0.2.293-local-audit-module-split`
+- Asset: `StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk`
+- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.293-local-audit-module-split
+- SHA-256: `581892136b538f8e57567a2c2981c31a54e980513c1030b92a0a4a926a4b8d11`
 
-This is build/static-gate evidence for the audit docs/action/helper split. It does not replace the existing ARM64 public/public-beta runtime evidence or the latest verified public-package release evidence.
+This is build/static-gate evidence for the cloud-safety, helper-boundary audit-module, and portal UX audit split. It does not replace the existing ARM64 public/public-beta runtime evidence or the latest verified public-package release evidence.
 
 Before installing, verify the uploaded GitHub release asset itself:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.292-local-audit-docs-split" `
-  -AssetName "StS2Launcher-v0.2.292-local-audit-docs-split-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.293-local-audit-module-split" `
+  -AssetName "StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
 Expected result:
 
 ```text
-Release digest OK: b12ccba83db235266580e41b7fc8f28a061ece115b107dc17d813099fa0f52c2
-Release APK verification passed: v0.2.292-local-audit-docs-split/StS2Launcher-v0.2.292-local-audit-docs-split-arm64-v8a.apk
+Release digest OK: 581892136b538f8e57567a2c2981c31a54e980513c1030b92a0a4a926a4b8d11
+Release APK verification passed: v0.2.293-local-audit-module-split/StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk
 Verified ABIs: arm64-v8a
 ```
 
@@ -90,8 +90,8 @@ Install the verified release APK to a connected phone and capture diagnostics in
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.292-local-audit-docs-split" `
-  -AssetName "StS2Launcher-v0.2.292-local-audit-docs-split-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.293-local-audit-module-split" `
+  -AssetName "StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics

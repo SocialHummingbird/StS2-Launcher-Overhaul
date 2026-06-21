@@ -329,18 +329,18 @@ Combined gate passed:
 
 No Steam Cloud Push was performed. Successful branch-switch Push remains release-open until Pull-before-Push, local-save, and backup evidence are captured on the selected version.
 
-## Audit docs/action/helper split prerelease evidence note
+## Audit module split prerelease evidence note
 
-The `v0.2.292-local-audit-docs-split` ARM64 prerelease packages a tooling-only refactor for the Steam version-selection static audit. It moves root docs/status checks, ready-state action-section checks, and helper-boundary checks into focused audit modules while keeping the top-level scripts as orchestrators. It is published as a local-package build for `com.sts2launcher.overhaul.fork.local`:
+The `v0.2.293-local-audit-module-split` ARM64 prerelease packages a tooling-only refactor for the Steam version-selection static audit. It moves cloud-safety checks, helper-boundary audit-module inventory, and portal UX support checks into focused audit submodules while keeping the top-level scripts as orchestrators. It is published as a local-package build for `com.sts2launcher.overhaul.fork.local`:
 
 ```text
-Asset: StS2Launcher-v0.2.292-local-audit-docs-split-arm64-v8a.apk
-SHA-256: b12ccba83db235266580e41b7fc8f28a061ece115b107dc17d813099fa0f52c2
-VersionName: 0.2.292-local-audit-docs-split
-VersionCode: 292000
+Asset: StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk
+SHA-256: 581892136b538f8e57567a2c2981c31a54e980513c1030b92a0a4a926a4b8d11
+VersionName: 0.2.293-local-audit-module-split
+VersionCode: 293000
 ```
 
-Validation for this prerelease is build/static-gate only: `audit-steam-version-selection.ps1 -Quiet` passed 505 checks, `run-multi-version-runtime-release-gates.ps1 -Quiet` passed, the managed Release build passed, the local ARM64 APK build passed structural verification, and Android crypto patch verification passed. No ARM64 device branch-switch/runtime route evidence was captured for this specific APK, and no Steam Cloud Push was performed. Continue to use the fix30/fix31 public/public-beta evidence notes above for runtime behavior until this APK has matching device evidence.
+Validation for this prerelease is build/static-gate only: `audit-steam-version-selection.ps1 -Quiet` passed 515 checks, `run-multi-version-runtime-release-gates.ps1 -Quiet` passed, the managed Release build passed, the local ARM64 APK build passed structural verification, and Android crypto patch verification passed. No ARM64 device branch-switch/runtime route evidence was captured for this specific APK, and no Steam Cloud Push was performed. Continue to use the fix30/fix31 public/public-beta evidence notes above for runtime behavior until this APK has matching device evidence.
 
 ## Audit/evidence helper refactor prerelease evidence note
 

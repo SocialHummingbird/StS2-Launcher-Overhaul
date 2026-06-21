@@ -38,15 +38,15 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.292-local-audit-docs-split
-asset=StS2Launcher-v0.2.292-local-audit-docs-split-arm64-v8a.apk
-sha256=b12ccba83db235266580e41b7fc8f28a061ece115b107dc17d813099fa0f52c2
+release=v0.2.293-local-audit-module-split
+asset=StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk
+sha256=581892136b538f8e57567a2c2981c31a54e980513c1030b92a0a4a926a4b8d11
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.292-local-audit-docs-split
-versionCode=292000
-validation=Android build/APK verification passed; Steam version-selection static audit passed 505 checks; multi-version runtime release gates passed; Steam branch-guidance parity passed through the gate wrapper; managed Release build passed; APK crypto patch verification passed. This prerelease continues the Steam version-selection static audit split by moving root docs/status checks, action-section checks, and helper-boundary checks into focused modules while keeping the top-level scripts as orchestrators. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
+versionName=0.2.293-local-audit-module-split
+versionCode=293000
+validation=Android build/APK verification passed; Steam version-selection static audit passed 515 checks; multi-version runtime release gates passed; Steam branch-guidance parity passed through the gate wrapper; managed Release build passed; APK crypto patch verification passed. This prerelease continues the Steam version-selection static audit split by moving cloud-safety checks, helper-boundary audit-module inventory, and portal UX support checks into focused submodules while keeping the top-level scripts as orchestrators. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
 cloudSafety=No Push to Cloud was run during this validation.
-evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.292-local-audit-docs-split-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
+evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:
