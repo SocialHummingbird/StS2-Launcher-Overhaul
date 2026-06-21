@@ -7,13 +7,13 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
 Current build-only prerelease reference:
 
 ```text
-release=v0.2.287-local-audit-orchestrator-split
-asset=StS2Launcher-v0.2.287-local-audit-orchestrator-split-arm64-v8a.apk
-sha256=a8cbcb3f8072d3639b548f07c85f9fa1da5aabd450ce49ac96e613d37e178c43
+release=v0.2.288-local-audit-ui-support-split
+asset=StS2Launcher-v0.2.288-local-audit-ui-support-split-arm64-v8a.apk
+sha256=2905c2f00f4facca8ea495a5787e60c090307dca25102c33ec9b4c978b690a76
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.287-local-audit-orchestrator-split
-versionCode=287000
-validation=build/static-gate only for the expanded Steam version-selection static-audit orchestrator split; device runtime signoff still requires the public/public-beta evidence workflow below
+versionName=0.2.288-local-audit-ui-support-split
+versionCode=288000
+validation=build/static-gate only for the focused Steam version-selection UI/support audit split; device runtime signoff still requires the public/public-beta evidence workflow below
 ```
 
 ## 1) Verify workflow outcome

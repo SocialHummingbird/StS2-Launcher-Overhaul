@@ -29,7 +29,10 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "audit-steam-version-selection.code-section.ps1",
             "audit-steam-version-selection.compact-section-flow.ps1",
             "audit-steam-version-selection.compact-install.ps1",
-            "audit-steam-version-selection.startup-warmup.ps1"
+            "audit-steam-version-selection.startup-warmup.ps1",
+            "audit-steam-version-selection.startup-recovery.ps1",
+            "audit-steam-version-selection.action-section.ps1",
+            "audit-steam-version-selection.portal-ux-support.ps1"
         )
 
     Add-Check `
@@ -311,6 +314,44 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "LauncherStartupStatus.cs",
             "LauncherStartupStatus.Android.cs",
             "LauncherGameStartupRecovery.State.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.startup-recovery.ps1" `
+        "keeps startup recovery panel and report audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionStartupRecoveryChecks",
+            "LauncherDiagnostics.StartupRecoveryReports.cs",
+            "LauncherStartupRecoveryControlPanel.Text.cs",
+            "LauncherStartupRecoveryControlPanel.Buttons.cs",
+            "LauncherStartupRecoveryControlPanel.Layout.cs",
+            "LauncherStartupRecoveryControlPanel.Construction.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.action-section.ps1" `
+        "keeps ready-state action, support, and cloud-control audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionActionSectionChecks",
+            "ActionSection.Construction.cs",
+            "ActionSection.Construction.Ready.cs",
+            "ActionSection.Construction.Support.cs",
+            "ActionSection.Construction.Cloud.PrimaryActions.cs",
+            "ActionSection.CloudSafety.cs",
+            "LauncherButtonStyles.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.portal-ux-support.ps1" `
+        "keeps portal status formatter and UX-support audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionPortalUxSupportChecks",
+            "LauncherPortalStatusFormatter.cs",
+            "LauncherPortalStatusFormatter.Message.cs",
+            "LauncherPortalUxSupport.Status.cs",
+            "LauncherPortalUxSupport.InstallCloud.cs",
+            "LauncherPortalUxSupport.Features.cs",
+            "PortalUxDeviceValidated"
         )
 
     Add-Check `
