@@ -288,6 +288,10 @@ Use the static audit before release or after changing this architecture:
 
 The audit checks that runtime-slot identity, readiness gates, runtime-pack manifests, runtime-pack generation, native assembly-cache selection, static patch validation, runtime patch evidence, save-origin safety, diagnostics, and this documentation remain wired together.
 
+The audit is split into focused modules under `scripts/audit-multi-version-runtime.*.ps1`: helper/module boundaries, runtime slot contracts, runtime-pack contracts, patch compatibility, native cache evidence, startup patch contracts, save-origin/cloud safety, diagnostics, and evidence tooling/release docs. Keep new runtime evidence checks in the matching module so the top-level audit remains an orchestrator.
+
+The read-only collector also keeps its device/JSON/hash/runtime-pack helper functions in `scripts/capture-multi-version-runtime-evidence.helpers.ps1`; the main collector should stay focused on capture ordering, validation rows, and summary output.
+
 For release-gate runs, use the wrapper after static changes and again after device evidence exists:
 
 ```powershell

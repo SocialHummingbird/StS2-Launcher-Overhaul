@@ -14,6 +14,8 @@ Run these before device validation:
 .\scripts\audit-steam-branch-guidance-parity.ps1
 ```
 
+`audit-multi-version-runtime.ps1` is intentionally only an orchestrator. Its focused modules cover helper boundaries, runtime-slot identity/readiness, runtime-pack generation/validation, patch compatibility, native prepared-cache routing, startup patch contracts, save-origin/Steam Cloud safety, diagnostics, and evidence tooling/docs.
+
 Equivalent wrapper:
 
 ```powershell
