@@ -49,16 +49,16 @@ internal sealed partial class DepotDownloader
         {
             var details = new List<string>
             {
-                $"windowsManifestDepots={WindowsManifestDepotCount}",
-                $"metadataVisible={MetadataVisible.ToString().ToLowerInvariant()}",
-                $"passwordRequired={SafeMarkerValue(PasswordRequired)}",
+                $"{SteamBranchAvailabilityMarkerFields.WindowsManifestDepotsKey}={WindowsManifestDepotCount}",
+                $"{SteamBranchAvailabilityMarkerFields.MetadataVisibleKey}={MetadataVisible.ToString().ToLowerInvariant()}",
+                $"{SteamBranchAvailabilityMarkerFields.PasswordRequiredKey}={SafeMarkerValue(PasswordRequired)}",
             };
 
             if (!string.IsNullOrWhiteSpace(BuildId))
-                details.Add($"buildId={SafeMarkerValue(BuildId)}");
+                details.Add($"{SteamBranchAvailabilityMarkerFields.BuildIdKey}={SafeMarkerValue(BuildId)}");
 
             if (!string.IsNullOrWhiteSpace(Description))
-                details.Add($"description={SafeMarkerValue(Description)}");
+                details.Add($"{SteamBranchAvailabilityMarkerFields.DescriptionKey}={SafeMarkerValue(Description)}");
 
             return $"{SafeMarkerValue(Name)} [{string.Join(", ", details)}]";
         }

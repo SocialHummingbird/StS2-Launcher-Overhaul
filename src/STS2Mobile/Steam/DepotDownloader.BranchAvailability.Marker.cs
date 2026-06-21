@@ -15,17 +15,17 @@ internal sealed partial class DepotDownloader
             try
             {
                 var text =
-                    $"UTC: {DateTime.UtcNow:O}\n"
-                    + $"Selected branch: {SelectedBranch}\n"
-                    + $"Selected branch visibility: {SelectedBranchAvailability.VisibilityText}\n"
-                    + $"Windows depot manifests for selected branch: {SelectedBranchAvailability.WindowsManifestDepotCount}\n"
-                    + $"Visible branch count: {_branches.Count}\n";
+                    $"{SteamBranchAvailabilityMarkerFields.Utc} {DateTime.UtcNow:O}\n"
+                    + $"{SteamBranchAvailabilityMarkerFields.SelectedBranch} {SelectedBranch}\n"
+                    + $"{SteamBranchAvailabilityMarkerFields.SelectedBranchVisibility} {SelectedBranchAvailability.VisibilityText}\n"
+                    + $"{SteamBranchAvailabilityMarkerFields.SelectedBranchWindowsDepotManifests} {SelectedBranchAvailability.WindowsManifestDepotCount}\n"
+                    + $"{SteamBranchAvailabilityMarkerFields.VisibleBranchCount} {_branches.Count}\n";
 
                 foreach (var branch in _branches.Take(MaxBranchAvailabilityMarkerBranches))
-                    text += $"Visible branch: {branch.Summary()}\n";
+                    text += $"{SteamBranchAvailabilityMarkerFields.VisibleBranch} {branch.Summary()}\n";
 
                 if (_branches.Count > MaxBranchAvailabilityMarkerBranches)
-                    text += $"Visible branch overflow count: {_branches.Count - MaxBranchAvailabilityMarkerBranches}\n";
+                    text += $"{SteamBranchAvailabilityMarkerFields.VisibleBranchOverflowCount} {_branches.Count - MaxBranchAvailabilityMarkerBranches}\n";
 
                 Directory.CreateDirectory(Path.GetDirectoryName(path) ?? dataDir);
                 File.WriteAllText(path, text);

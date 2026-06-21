@@ -1,4 +1,5 @@
 using System;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -8,7 +9,7 @@ internal static partial class LauncherBranchAvailabilityStatus
         string selectedBranch,
         string visibility,
         string manifestCount,
-        string selectedBranchMarker
+        SteamBranchAvailabilityMarkerRow selectedBranchMarker
     )
     {
         selectedBranch = string.IsNullOrWhiteSpace(selectedBranch) ? "selected branch" : selectedBranch.Trim();
@@ -30,18 +31,17 @@ internal static partial class LauncherBranchAvailabilityStatus
         return $"{selectedBranch} is visible but has no Windows manifest";
     }
 
-    private static string VisibleBranchStatus(string markerValue)
+    private static string VisibleBranchStatus(SteamBranchAvailabilityMarkerRow row)
     {
-        if (string.IsNullOrWhiteSpace(markerValue))
+        if (row.IsEmpty)
             return null;
 
-        var nameEnd = markerValue.IndexOf(" [", StringComparison.Ordinal);
-        var name = nameEnd > 0 ? markerValue[..nameEnd] : markerValue;
-        if (MarkerValuePasswordProtected(markerValue))
-            return $"{name} (password-protected)";
+        if (row.PasswordProtected)
+            return $"{row.Branch} (password-protected)";
 
-        var downloadable = !markerValue.Contains(ZeroWindowsManifestsMarker, StringComparison.OrdinalIgnoreCase);
-        return downloadable ? $"{name} (downloadable)" : $"{name} (no Windows manifest)";
+        return row.DownloadableOrUnspecified
+            ? $"{row.Branch} (downloadable)"
+            : $"{row.Branch} (no Windows manifest)";
     }
 
     private static string RemoveRawBranchAvailabilitySummary(string message)

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using STS2Mobile.Steam;
 
@@ -8,21 +7,15 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherBranchCatalog
 {
-    private const string VisibleBranchPrefix = "Visible branch:";
-
     internal static IReadOnlyList<BranchOption> ReadVisibleBranches(string dataDir)
     {
-        var markerPath = SteamGameInstallPaths.BranchAvailabilityMarkerPath(dataDir);
-        if (!File.Exists(markerPath))
+        if (!SteamBranchAvailabilityMarkerFile.Exists(dataDir))
             return Array.Empty<BranchOption>();
 
         try
         {
-            return File.ReadLines(markerPath)
-                .Select(line => line.Trim())
-                .Where(line => line.StartsWith(VisibleBranchPrefix, StringComparison.OrdinalIgnoreCase))
-                .Select(line => line[VisibleBranchPrefix.Length..].Trim())
-                .Select(BranchOptionFromMarkerValue)
+            return SteamBranchAvailabilityMarkerFile.ReadVisibleRows(dataDir)
+                .Select(BranchOptionFromMarkerRow)
                 .Where(option => !string.IsNullOrWhiteSpace(option.Branch))
                 .GroupBy(option => option.Branch, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.First())

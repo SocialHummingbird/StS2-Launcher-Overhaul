@@ -94,8 +94,8 @@ internal sealed partial class DepotDownloader
                     _branches.Select(branch => $"{branch.Name} ({branch.DownloadabilityText})")
                 );
 
-            return $"Selected branch visibility: {selected.VisibilityText}; "
-                + $"Windows depot manifests for selected branch: {selected.WindowsManifestDepotCount}; "
+            return $"{SteamBranchAvailabilityMarkerFields.SelectedBranchVisibility} {selected.VisibilityText}; "
+                + $"{SteamBranchAvailabilityMarkerFields.SelectedBranchWindowsDepotManifests} {selected.WindowsManifestDepotCount}; "
                 + $"visible branches: {visible}.";
         }
 

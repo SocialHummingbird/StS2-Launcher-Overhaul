@@ -45,6 +45,7 @@ This build adds validation-stage Steam game version selection:
 - Selected-version notes in launcher diagnostics, branch-switch marker evidence, native pre-routing logs, native startup logs, and native fallback diagnostics.
 - Selected-version redownload behavior.
 - Inactive non-public cache cleanup.
+- Shared Steam branch availability marker helpers keep app-info marker labels, visible-row parsing, and marker file reads aligned between the downloader, branch dropdown, compact failure status, and diagnostics.
 - Branch-switch warnings.
 - Local-backup posture before switching branches.
 - Manual Push guardrails requiring current-version Pull evidence and Android local save evidence before upload, with stricter selected-version Pull/local-save/backup gates after branch switching.

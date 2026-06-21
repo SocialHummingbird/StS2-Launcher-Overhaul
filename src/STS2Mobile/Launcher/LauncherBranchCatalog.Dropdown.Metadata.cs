@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -12,7 +13,11 @@ internal static partial class LauncherBranchCatalog
         return string.Join(
             " | ",
             options.Select(option =>
-                $"{option.Branch}:source={option.Source};metadataVisible={option.MetadataVisible.ToString().ToLowerInvariant()};windowsManifestDepots={option.WindowsManifestDepotCount};passwordRequired={ValueOrUnknown(option.PasswordRequired)};buildId={ValueOrNone(option.BuildId)}"
+                $"{option.Branch}:source={option.Source};"
+                + $"{SteamBranchAvailabilityMarkerFields.MetadataVisibleKey}={option.MetadataVisible.ToString().ToLowerInvariant()};"
+                + $"{SteamBranchAvailabilityMarkerFields.WindowsManifestDepotsKey}={option.WindowsManifestDepotCount};"
+                + $"{SteamBranchAvailabilityMarkerFields.PasswordRequiredKey}={ValueOrUnknown(option.PasswordRequired)};"
+                + $"{SteamBranchAvailabilityMarkerFields.BuildIdKey}={ValueOrNone(option.BuildId)}"
             )
         );
     }

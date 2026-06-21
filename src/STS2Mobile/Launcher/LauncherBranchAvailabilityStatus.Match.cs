@@ -17,21 +17,9 @@ internal static partial class LauncherBranchAvailabilityStatus
         );
     }
 
-    private static bool MarkerValueMatchesBranch(string markerValue, string branch)
-    {
-        if (string.IsNullOrWhiteSpace(markerValue) || string.IsNullOrWhiteSpace(branch))
-            return false;
+    private static bool MarkerValueMatchesBranch(SteamBranchAvailabilityMarkerRow row, string branch)
+        => row.BranchMatches(branch);
 
-        var nameEnd = markerValue.IndexOf(" [", StringComparison.Ordinal);
-        var name = nameEnd > 0 ? markerValue[..nameEnd] : markerValue;
-        return string.Equals(
-            SteamGameBranch.Normalize(name),
-            SteamGameBranch.Normalize(branch),
-            StringComparison.OrdinalIgnoreCase
-        );
-    }
-
-    private static bool MarkerValuePasswordProtected(string markerValue)
-        => !string.IsNullOrWhiteSpace(markerValue)
-            && markerValue.Contains(PasswordRequiredTrueMarker, StringComparison.OrdinalIgnoreCase);
+    private static bool MarkerValuePasswordProtected(SteamBranchAvailabilityMarkerRow row)
+        => row.PasswordProtected;
 }

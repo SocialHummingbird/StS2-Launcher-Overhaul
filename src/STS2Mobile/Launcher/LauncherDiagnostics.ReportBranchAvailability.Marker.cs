@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
@@ -8,21 +8,30 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherDiagnostics
 {
     private static string ReadBranchAvailabilityMarkerValue(string dataDir, string prefix)
-        => ReadBranchMarkerValue(SteamGameInstallPaths.BranchAvailabilityMarkerPath(dataDir), prefix);
+        => ValueOrMissing(SteamBranchAvailabilityMarkerFile.ReadValue(
+            dataDir,
+            prefix,
+            missingFileValue: MissingDiagnosticValue,
+            missingLineValue: $"<missing {prefix.TrimEnd(':')} line>",
+            readFailedValue: LauncherMarkerFile.ReadFailedValue
+        ));
 
     private static string ReadBranchAvailabilityMarkerValues(string dataDir, string prefix)
-        => LauncherMarkerFile.ReadJoinedValues(
-            SteamGameInstallPaths.BranchAvailabilityMarkerPath(dataDir),
-            prefix,
-            " | ",
-            MissingDiagnosticValue,
-            $"<missing {prefix.TrimEnd(':')} lines>",
-            valueFormatter: ValueOrMissing
-        );
+    {
+        var values = SteamBranchAvailabilityMarkerFile.ReadValues(dataDir, prefix);
+        if (values.Count == 0)
+        {
+            return SteamBranchAvailabilityMarkerFile.Exists(dataDir)
+                ? $"<missing {prefix.TrimEnd(':')} lines>"
+                : MissingDiagnosticValue;
+        }
+
+        return string.Join(" | ", values.Select(ValueOrMissing));
+    }
 
     private static bool BranchAvailabilityMarkerMatchesSelectedBranch(string dataDir)
     {
-        var markerBranch = ReadBranchAvailabilityMarkerValue(dataDir, "Selected branch:");
+        var markerBranch = ReadBranchAvailabilityMarkerValue(dataDir, SteamBranchAvailabilityMarkerFields.SelectedBranch);
         if (markerBranch.StartsWith("<", StringComparison.Ordinal))
             return false;
 
@@ -49,7 +58,10 @@ internal static partial class LauncherDiagnostics
         if (manifestCount > 0)
             return "downloadable";
 
-        var visibility = ReadBranchAvailabilityMarkerValue(dataDir, "Selected branch visibility:");
+        var visibility = ReadBranchAvailabilityMarkerValue(
+            dataDir,
+            SteamBranchAvailabilityMarkerFields.SelectedBranchVisibility
+        );
         if (visibility.StartsWith("<", StringComparison.Ordinal))
             return visibility;
 
@@ -60,7 +72,10 @@ internal static partial class LauncherDiagnostics
 
     private static int BranchAvailabilitySelectedBranchManifestCount(string dataDir)
         => int.TryParse(
-            ReadBranchAvailabilityMarkerValue(dataDir, "Windows depot manifests for selected branch:"),
+            ReadBranchAvailabilityMarkerValue(
+                dataDir,
+                SteamBranchAvailabilityMarkerFields.SelectedBranchWindowsDepotManifests
+            ),
             NumberStyles.Integer,
             CultureInfo.InvariantCulture,
             out var count
@@ -70,35 +85,18 @@ internal static partial class LauncherDiagnostics
 
     private static bool BranchAvailabilitySelectedBranchPasswordProtected(string dataDir)
     {
-        var selectedBranch = ReadBranchAvailabilityMarkerValue(dataDir, "Selected branch:");
+        var selectedBranch = ReadBranchAvailabilityMarkerValue(dataDir, SteamBranchAvailabilityMarkerFields.SelectedBranch);
         if (string.IsNullOrWhiteSpace(selectedBranch) || selectedBranch.StartsWith("<", StringComparison.Ordinal))
             return false;
 
-        foreach (var value in ReadBranchAvailabilityMarkerRawValues(dataDir, "Visible branch:"))
+        foreach (var row in SteamBranchAvailabilityMarkerFile.ReadVisibleRows(dataDir))
         {
-            if (!BranchAvailabilityMarkerValueMatchesBranch(value, selectedBranch))
+            if (!row.BranchMatches(selectedBranch))
                 continue;
 
-            return value.Contains("passwordRequired=true", StringComparison.OrdinalIgnoreCase);
+            return row.PasswordProtected;
         }
 
         return false;
     }
-
-    private static bool BranchAvailabilityMarkerValueMatchesBranch(string markerValue, string branch)
-    {
-        if (string.IsNullOrWhiteSpace(markerValue) || string.IsNullOrWhiteSpace(branch))
-            return false;
-
-        var nameEnd = markerValue.IndexOf(" [", StringComparison.Ordinal);
-        var name = nameEnd > 0 ? markerValue[..nameEnd] : markerValue;
-        return string.Equals(
-            SteamGameBranch.Normalize(name),
-            SteamGameBranch.Normalize(branch),
-            StringComparison.OrdinalIgnoreCase
-        );
-    }
-
-    private static IEnumerable<string> ReadBranchAvailabilityMarkerRawValues(string dataDir, string prefix)
-        => LauncherMarkerFile.ReadValues(SteamGameInstallPaths.BranchAvailabilityMarkerPath(dataDir), prefix);
 }

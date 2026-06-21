@@ -38,15 +38,15 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.283-local-cache-cleanup-marker-refactor
-asset=StS2Launcher-v0.2.283-local-cache-cleanup-marker-refactor-arm64-v8a.apk
-sha256=dc99adf2f28c482c88c5e989501aab74f5c0ac8c3f74a8d34d6f5fd0279a298b
+release=v0.2.284-local-branch-availability-marker-helpers
+asset=StS2Launcher-v0.2.284-local-branch-availability-marker-helpers-arm64-v8a.apk
+sha256=6d87aa249b75c8b3bf8750295d813c011a8441579db847ed6576393ff533c7f1
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.283-local-cache-cleanup-marker-refactor
-versionCode=283000
-validation=Android build/APK verification passed; Steam version-selection static audit passed 461 checks; multi-version runtime audit passed 156 checks; Steam branch-guidance parity passed; managed Release build passed; APK crypto patch verification passed. This prerelease centralizes selected-version cache cleanup marker prefixes and uses branch-switch safety marker prefix constants while preserving branch marker/runtime-cache validation helper boundaries. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
+versionName=0.2.284-local-branch-availability-marker-helpers
+versionCode=284000
+validation=Android build/APK verification passed; Steam version-selection static audit passed 470 checks; multi-version runtime audit passed 156 checks; Steam branch-guidance parity passed; managed Release build passed; APK crypto patch verification passed. This prerelease centralizes Steam app-info branch availability marker labels, visible-row parsing, and marker file reads so the Steam downloader, branch dropdown, compact failure status, and diagnostics share one marker contract. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
 cloudSafety=No Push to Cloud was run during this validation.
-evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.283-local-cache-cleanup-marker-refactor-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
+evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.284-local-branch-availability-marker-helpers-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:

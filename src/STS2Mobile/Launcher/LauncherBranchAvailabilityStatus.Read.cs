@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using STS2Mobile.Patches;
 using STS2Mobile.Steam;
@@ -14,27 +12,39 @@ internal static partial class LauncherBranchAvailabilityStatus
         if (string.IsNullOrWhiteSpace(dataDir))
             return null;
 
-        var markerPath = SteamGameInstallPaths.BranchAvailabilityMarkerPath(dataDir);
-        if (!File.Exists(markerPath))
+        if (!SteamBranchAvailabilityMarkerFile.Exists(dataDir))
             return null;
 
         try
         {
-            var lines = File.ReadAllLines(markerPath);
-            var selectedBranch = ReadValue(lines, SelectedBranchPrefix);
+            var lines = SteamBranchAvailabilityMarkerFile.ReadAllLines(dataDir);
+            var selectedBranch = SteamBranchAvailabilityMarkerFile.ReadValue(
+                lines,
+                SteamBranchAvailabilityMarkerFields.SelectedBranch
+            );
             if (!MarkerBranchMatchesCurrentSelection(selectedBranch))
                 return null;
 
-            var visibility = ReadValue(lines, SelectedBranchVisibilityPrefix);
-            var manifestCount = ReadValue(lines, SelectedBranchWindowsDepotManifestsPrefix);
-            var visibleBranches = ReadValues(lines, VisibleBranchPrefix)
+            var visibility = SteamBranchAvailabilityMarkerFile.ReadValue(
+                lines,
+                SteamBranchAvailabilityMarkerFields.SelectedBranchVisibility
+            );
+            var manifestCount = SteamBranchAvailabilityMarkerFile.ReadValue(
+                lines,
+                SteamBranchAvailabilityMarkerFields.SelectedBranchWindowsDepotManifests
+            );
+            var visibleRows = SteamBranchAvailabilityMarkerFile.ReadVisibleRows(lines).ToArray();
+            var visibleBranches = visibleRows
                 .Take(MaxVisibleBranchesInStatus)
                 .Select(VisibleBranchStatus)
                 .Where(value => !string.IsNullOrWhiteSpace(value))
                 .ToArray();
-            var selectedBranchMarker = ReadValues(lines, VisibleBranchPrefix)
-                .FirstOrDefault(value => MarkerValueMatchesBranch(value, selectedBranch));
-            var overflow = ReadValue(lines, VisibleBranchOverflowCountPrefix);
+            var selectedBranchMarker = visibleRows
+                .FirstOrDefault(row => MarkerValueMatchesBranch(row, selectedBranch));
+            var overflow = SteamBranchAvailabilityMarkerFile.ReadValue(
+                lines,
+                SteamBranchAvailabilityMarkerFields.VisibleBranchOverflowCount
+            );
 
             var selectedStatus = SelectedStatus(selectedBranch, visibility, manifestCount, selectedBranchMarker);
             var visibleStatus = visibleBranches.Length == 0
@@ -52,17 +62,4 @@ internal static partial class LauncherBranchAvailabilityStatus
             return null;
         }
     }
-
-    private static string ReadValue(IEnumerable<string> lines, string prefix)
-        => lines
-            .Select(line => line.Trim())
-            .Where(line => line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .Select(line => line[prefix.Length..].Trim())
-            .FirstOrDefault();
-
-    private static IEnumerable<string> ReadValues(IEnumerable<string> lines, string prefix)
-        => lines
-            .Select(line => line.Trim())
-            .Where(line => line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            .Select(line => line[prefix.Length..].Trim());
 }

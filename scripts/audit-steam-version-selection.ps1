@@ -362,14 +362,23 @@ Add-Check `
     "src\STS2Mobile\Launcher\LauncherBranchCatalog.Read.cs" `
     "reads account-visible Steam branch catalog and merges it with installed branch slots" `
     @(
-        "BranchAvailabilityMarkerPath",
-        "VisibleBranchPrefix",
+        "SteamBranchAvailabilityMarkerFile\.Exists",
+        "SteamBranchAvailabilityMarkerFile\.ReadVisibleRows",
+        "BranchOptionFromMarkerRow",
         "ReadVisibleBranches",
         "ReadVisibleBranchNames",
         "ReadSelectableBranches",
         "SourceDescription",
         "Steam app-info visible branch catalog",
         "GroupBy"
+    )
+
+Add-ForbiddenCheck `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Read.cs" `
+    "uses the shared Steam branch availability marker file helper instead of direct file reads" `
+    @(
+        "BranchAvailabilityMarkerPath",
+        "File\.ReadLines"
     )
 
 Add-Check `
@@ -395,14 +404,22 @@ Add-Check `
     "src\STS2Mobile\Launcher\LauncherBranchCatalog.Read.Marker.cs" `
     "parses Steam app-info branch marker metadata into dropdown options" `
     @(
-        "BranchOptionFromMarkerValue",
-        "ParseMetadata",
-        "metadataVisible",
-        "windowsManifestDepots",
-        "passwordRequired",
-        "buildId",
-        "description",
+        "BranchOptionFromMarkerRow",
+        "SteamBranchAvailabilityMarkerRow",
+        "row\.MetadataVisible",
+        "row\.WindowsManifestDepotCount",
+        "row\.PasswordRequired",
+        "row\.BuildId",
+        "row\.Description",
         "Steam app-info"
+    )
+
+Add-ForbiddenCheck `
+    "src\STS2Mobile\Launcher\LauncherBranchCatalog.Read.Marker.cs" `
+    "does not duplicate Steam branch availability visible-row parsing" `
+    @(
+        'IndexOf\(" \["',
+        "ParseMetadata"
     )
 
 Add-Check `
@@ -453,10 +470,10 @@ Add-Check `
     @(
         "DropdownOptionMetadata",
         "DropdownOptions\(selectedBranch, discoveredBranches\)",
-        "metadataVisible=",
-        "windowsManifestDepots=",
-        "passwordRequired=",
-        "buildId=",
+        "SteamBranchAvailabilityMarkerFields\.MetadataVisibleKey",
+        "SteamBranchAvailabilityMarkerFields\.WindowsManifestDepotsKey",
+        "SteamBranchAvailabilityMarkerFields\.PasswordRequiredKey",
+        "SteamBranchAvailabilityMarkerFields\.BuildIdKey",
         "ValueOrUnknown",
         "ValueOrNone"
     )
@@ -772,23 +789,78 @@ Add-Check `
     )
 
 Add-Check `
-    "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.Fields.cs" `
-    "defines Steam branch availability marker prefixes and compact-status constants" `
+    "src\STS2Mobile\Steam\SteamBranchAvailabilityMarkerFields.cs" `
+    "centralizes Steam branch availability marker prefixes and row metadata keys" `
     @(
-        "SelectedBranchPrefix",
-        "SelectedBranchVisibilityPrefix",
-        "SelectedBranchWindowsDepotManifestsPrefix",
-        "VisibleBranchPrefix",
-        "VisibleBranchOverflowCountPrefix",
+        "Utc = ""UTC:""",
+        "SelectedBranch = ""Selected branch:""",
+        "SelectedBranchVisibility = ""Selected branch visibility:""",
+        "SelectedBranchWindowsDepotManifests = ""Windows depot manifests for selected branch:""",
+        "VisibleBranchCount = ""Visible branch count:""",
+        "VisibleBranch = ""Visible branch:""",
+        "VisibleBranchOverflowCount = ""Visible branch overflow count:""",
+        "WindowsManifestDepotsKey = ""windowsManifestDepots""",
+        "MetadataVisibleKey = ""metadataVisible""",
+        "PasswordRequiredKey = ""passwordRequired""",
+        "BuildIdKey = ""buildId""",
+        "DescriptionKey = ""description""",
+        "PasswordRequiredTrueToken = PasswordRequiredKey \+ ""=true""",
+        "ZeroWindowsManifestDepotsToken = WindowsManifestDepotsKey \+ ""=0"""
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\SteamBranchAvailabilityMarkerRow.cs" `
+    "parses Steam branch availability visible-branch marker rows once for launcher consumers" `
+    @(
+        "SteamBranchAvailabilityMarkerRow",
+        "Parse\(string value\)",
+        "ParseMetadata",
+        "BranchMatches",
+        "MetadataVisible",
+        "WindowsManifestDepotCount",
+        "HasWindowsManifestDepotCount",
+        "PasswordRequired",
+        "PasswordProtected",
+        "DownloadableOrUnspecified",
+        "SteamBranchAvailabilityMarkerFields\.MetadataVisibleKey",
+        "SteamBranchAvailabilityMarkerFields\.WindowsManifestDepotsKey",
+        "SteamBranchAvailabilityMarkerFields\.PasswordRequiredKey",
+        "SteamBranchAvailabilityMarkerFields\.BuildIdKey",
+        "SteamBranchAvailabilityMarkerFields\.DescriptionKey",
+        "SteamGameBranch\.Normalize"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Steam\SteamBranchAvailabilityMarkerFile.cs" `
+    "centralizes Steam branch availability marker path reads and visible-row projection" `
+    @(
+        "SteamBranchAvailabilityMarkerFile",
+        "MarkerPath",
+        "Exists",
+        "ReadAllLines",
+        "ReadValue\(IEnumerable<string> lines, string prefix\)",
+        "ReadValues\(IEnumerable<string> lines, string prefix\)",
+        "ReadValue\(",
+        "missingFileValue",
+        "missingLineValue",
+        "readFailedValue",
+        "ReadValues\(",
+        "maxValues",
+        "ReadVisibleRows\(IEnumerable<string> lines\)",
+        "ReadVisibleRows\(",
+        "SteamGameInstallPaths\.BranchAvailabilityMarkerPath",
+        "SteamBranchAvailabilityMarkerFields\.VisibleBranch",
+        "SteamBranchAvailabilityMarkerRow\.Parse"
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.Fields.cs" `
+    "keeps compact Steam branch availability constants bound to shared marker fields" `
+    @(
         "RawSelectedBranchVisibilitySummaryMarker",
+        "SteamBranchAvailabilityMarkerFields\.SelectedBranchVisibility",
         "MaxVisibleBranchesInStatus",
-        "PasswordRequiredTrueMarker",
-        "ZeroWindowsManifestsMarker",
-        "Selected branch visibility:",
-        "Windows depot manifests for selected branch:",
-        "Visible branch:",
-        "passwordRequired=true",
-        "windowsManifestDepots=0"
+        """ "" \+ SteamBranchAvailabilityMarkerFields\.SelectedBranchVisibility"
     )
 
 Add-Check `
@@ -796,20 +868,28 @@ Add-Check `
     "reads Steam branch availability markers for launcher failure diagnosis" `
     @(
         "ReadDiagnosis",
-        "BranchAvailabilityMarkerPath",
-        "File\.ReadAllLines",
-        "SelectedBranchPrefix",
-        "SelectedBranchVisibilityPrefix",
-        "SelectedBranchWindowsDepotManifestsPrefix",
-        "VisibleBranchPrefix",
-        "VisibleBranchOverflowCountPrefix",
+        "SteamBranchAvailabilityMarkerFile\.Exists",
+        "SteamBranchAvailabilityMarkerFile\.ReadAllLines",
+        "SteamBranchAvailabilityMarkerFile\.ReadValue",
+        "SteamBranchAvailabilityMarkerFile\.ReadVisibleRows",
+        "SteamBranchAvailabilityMarkerFields\.SelectedBranch",
+        "SteamBranchAvailabilityMarkerFields\.SelectedBranchVisibility",
+        "SteamBranchAvailabilityMarkerFields\.SelectedBranchWindowsDepotManifests",
+        "SteamBranchAvailabilityMarkerFields\.VisibleBranchOverflowCount",
         "MarkerBranchMatchesCurrentSelection",
         "MarkerValueMatchesBranch",
         "VisibleBranchStatus",
         "SelectedStatus",
-        "ReadValue",
-        "ReadValues",
         "Branch availability:"
+    )
+
+Add-ForbiddenCheck `
+    "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.Read.cs" `
+    "uses the shared Steam branch availability marker file helper instead of direct file reads" `
+    @(
+        "BranchAvailabilityMarkerPath",
+        "\bFile\.ReadAllLines",
+        "\bFile\.ReadLines"
     )
 
 Add-Check `
@@ -817,14 +897,24 @@ Add-Check `
     "formats compact Steam branch availability user-facing status" `
     @(
         "SelectedStatus",
-        "VisibleBranchStatus",
+        "VisibleBranchStatus\(SteamBranchAvailabilityMarkerRow row\)",
         "MarkerValuePasswordProtected",
+        "SteamBranchAvailabilityMarkerRow selectedBranchMarker",
+        "row\.PasswordProtected",
+        "row\.DownloadableOrUnspecified",
         "password-protected",
         "Steam beta password entry is supported",
         "no Windows manifest",
-        "ZeroWindowsManifestsMarker",
         "RemoveRawBranchAvailabilitySummary",
         "RawSelectedBranchVisibilitySummaryMarker"
+    )
+
+Add-ForbiddenCheck `
+    "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.Format.cs" `
+    "does not duplicate Steam branch availability visible-row parsing" `
+    @(
+        'IndexOf\(" \["',
+        "ZeroWindowsManifestDepotsToken"
     )
 
 Add-Check `
@@ -836,7 +926,16 @@ Add-Check `
         "MarkerValueMatchesBranch",
         "MarkerValuePasswordProtected",
         "SteamGameBranch\.Normalize",
-        "PasswordRequiredTrueMarker"
+        "BranchMatches",
+        "PasswordProtected"
+    )
+
+Add-ForbiddenCheck `
+    "src\STS2Mobile\Launcher\LauncherBranchAvailabilityStatus.Match.cs" `
+    "does not duplicate Steam branch availability visible-row parsing" `
+    @(
+        'IndexOf\(" \["',
+        "PasswordRequiredTrueToken"
     )
 
 Add-Check `
@@ -845,8 +944,8 @@ Add-Check `
     @(
         "BranchAvailabilityReport",
         "Visible Steam branches",
-        "Selected branch visibility",
-        "Windows depot manifests for selected branch",
+        "SteamBranchAvailabilityMarkerFields\.SelectedBranchVisibility",
+        "SteamBranchAvailabilityMarkerFields\.SelectedBranchWindowsDepotManifests",
         "visible branches",
         "DepotIsWindowsCompatible"
     )
@@ -858,9 +957,9 @@ Add-Check `
         "WriteMarker",
         "BranchAvailabilityMarkerPath",
         "MaxBranchAvailabilityMarkerBranches",
-        "Visible branch overflow count",
-        "Selected branch visibility",
-        "Windows depot manifests for selected branch"
+        "SteamBranchAvailabilityMarkerFields\.VisibleBranchOverflowCount",
+        "SteamBranchAvailabilityMarkerFields\.SelectedBranchVisibility",
+        "SteamBranchAvailabilityMarkerFields\.SelectedBranchWindowsDepotManifests"
     )
 
 Add-Check `
@@ -869,12 +968,12 @@ Add-Check `
     @(
         "MaxBranchAvailabilityMarkerValueLength",
         "SafeMarkerValue",
-        "passwordRequired",
+        "SteamBranchAvailabilityMarkerFields\.PasswordRequiredKey",
         "DownloadabilityText",
         "password-protected",
         "!PasswordRequired\.Equals\(""true""",
-        "windowsManifestDepots",
-        "metadataVisible"
+        "SteamBranchAvailabilityMarkerFields\.WindowsManifestDepotsKey",
+        "SteamBranchAvailabilityMarkerFields\.MetadataVisibleKey"
     )
 
 Add-Check `
@@ -6008,11 +6107,25 @@ Add-Check `
         "BranchAvailabilitySelectedBranchProblem",
         "BranchAvailabilitySelectedBranchManifestCount",
         "BranchAvailabilitySelectedBranchPasswordProtected",
-        "BranchAvailabilityMarkerValueMatchesBranch",
-        "LauncherMarkerFile\.ReadJoinedValues",
-        "LauncherMarkerFile\.ReadValues",
-        "passwordRequired=true",
+        "SteamBranchAvailabilityMarkerFile\.ReadValue",
+        "SteamBranchAvailabilityMarkerFile\.ReadValues",
+        "SteamBranchAvailabilityMarkerFile\.ReadVisibleRows",
+        "SteamBranchAvailabilityMarkerFile\.Exists",
+        "LauncherMarkerFile\.ReadFailedValue",
+        "BranchMatches",
+        "PasswordProtected",
         "selected branch is password-protected"
+    )
+
+Add-ForbiddenCheck `
+    "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchAvailability.Marker.cs" `
+    "does not duplicate Steam branch availability visible-row parsing" `
+    @(
+        'IndexOf\(" \["',
+        "BranchAvailabilityMarkerValueMatchesBranch",
+        "PasswordRequiredTrueToken",
+        "LauncherMarkerFile\.ReadJoinedValues",
+        "LauncherMarkerFile\.ReadValues"
     )
 
 Add-Check `

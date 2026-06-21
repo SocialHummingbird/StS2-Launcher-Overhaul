@@ -34,6 +34,8 @@ Supported selector capabilities:
 - `public` remains available even when Steam app-info branch evidence is absent.
 - Previously saved custom branch values remain selectable so older validation installs do not lose their selected branch.
 
+Steam app-info branch availability evidence is written by the Steam downloader and read by launcher status, diagnostics, and branch catalog code. `SteamBranchAvailabilityMarkerFields` owns the marker labels and row metadata keys for that cross-layer file, `SteamBranchAvailabilityMarkerRow` owns visible-branch row parsing, and `SteamBranchAvailabilityMarkerFile` owns marker path/value reads so the writer and consumers cannot drift independently.
+
 Unsupported capabilities:
 
 - Steam beta password entry.
