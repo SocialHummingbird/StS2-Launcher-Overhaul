@@ -13,7 +13,17 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "audit-steam-version-selection.branch-runtime.ps1",
             "audit-steam-version-selection.branch-availability.ps1",
             "audit-steam-version-selection.download-workflows.ps1",
-            "audit-steam-version-selection.session-auth.ps1"
+            "audit-steam-version-selection.session-auth.ps1",
+            "audit-steam-version-selection.automation.ps1",
+            "audit-steam-version-selection.local-login.ps1",
+            "audit-steam-version-selection.confirmations.ps1",
+            "audit-steam-version-selection.cloud-safety.ps1",
+            "audit-steam-version-selection.login-panel.ps1",
+            "audit-steam-version-selection.compact-labels.ps1",
+            "audit-steam-version-selection.section-setup.ps1",
+            "audit-steam-version-selection.safe-flow-guide.ps1",
+            "audit-steam-version-selection.diagnostics-drawer.ps1",
+            "audit-steam-version-selection.portal-chrome.ps1"
         )
 
     Add-Check `
@@ -77,7 +87,10 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "LauncherModel.Downloads.Action.cs",
             "LauncherController.Downloads.Actions.cs",
             "LauncherController.UpdateChecks.cs",
-            "LauncherController.UpdateChecks.ViewUpdate.cs"
+            "LauncherController.UpdateChecks.ViewUpdate.cs",
+            "LauncherController.UpdateChecks.Run.cs",
+            "LauncherController.UpdateChecks.Workflow.cs",
+            "LauncherController.UpdateChecks.Results.cs"
         )
 
     Add-Check `
@@ -90,6 +103,130 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "LauncherSteamSession.Connection.SavedCredentials.cs",
             "LauncherSteamSession.Connection.Ensure.cs",
             "LauncherSteamSession.Connection.Adoption.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.automation.ps1" `
+        "keeps launcher automation audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionAutomationChecks",
+            "LauncherController.Automation.cs",
+            "LauncherController.Automation.Request.cs",
+            "LauncherController.Automation.Run.cs",
+            "LauncherController.Automation.Marker.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.local-login.ps1" `
+        "keeps local Steam credential handoff audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionLocalLoginChecks",
+            "LauncherController.LocalLogin.cs",
+            "LauncherController.LocalLogin.Start.cs",
+            "LauncherController.LocalLogin.Handoff.cs",
+            "LauncherController.LocalLogin.Watch.cs",
+            "LauncherController.LocalLogin.Run.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.confirmations.ps1" `
+        "keeps confirmation dialog and contextual-action audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionConfirmationChecks",
+            "LauncherView.Dialog.Buttons.cs",
+            "LauncherView.Dialog.Message.cs",
+            "LauncherView.Behavior.Confirmation.cs",
+            "LauncherController.Startup.BranchSwitch.cs",
+            "LauncherController.CloudSync.Request.Factory.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.cloud-safety.ps1" `
+        "keeps branch-switch and manual cloud Push safety audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionCloudSafetyChecks",
+            "LauncherBranchSwitchSafety.cs",
+            "LauncherController.CloudSync.PushSafety.cs",
+            "LauncherCloudSyncEvidence.Fields.cs",
+            "LauncherLocalSaveEvidence.cs",
+            "LauncherBackupEvidence.cs",
+            "CloudSyncCoordinator.SaveBackups.Manual.cs",
+            "LauncherController.Startup.RuntimeEvidence.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.login-panel.ps1" `
+        "keeps native credential panel and login-section audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionLoginPanelChecks",
+            "LauncherCredentialEntrySupport.cs",
+            "LoginSection.Submission.cs",
+            "LoginSection.NativePanel.cs",
+            "LoginSection.Help.cs",
+            "LoginSection.State.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.compact-labels.ps1" `
+        "keeps reusable compact two-line label audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionCompactLabelChecks",
+            "CompactButtonDetailLabelSpec.cs",
+            "CompactButtonDetailLabels.cs",
+            "CompactButtonDetailLabels.Text.cs",
+            "CompactButtonDetailLabels.Controls.cs",
+            "LoginSection.CompactNativeButton.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.section-setup.ps1" `
+        "keeps compact section setup and cue-text audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionSectionSetupChecks",
+            "LauncherSectionSetup.cs",
+            "LauncherSectionSetup.Header.cs",
+            "LauncherSectionSetup.Header.Compact.cs",
+            "LoginSection.cs",
+            "CodeSection.cs",
+            "DownloadSection.cs",
+            "ActionSection.Construction.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.safe-flow-guide.ps1" `
+        "keeps quick-start safe-flow guide audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionSafeFlowGuideChecks",
+            "LauncherView.Layout.FirstRunGuide.cs",
+            "LauncherView.Layout.FirstRunGuide.Steps.cs",
+            "LauncherView.Layout.FirstRunGuide.StepCard.cs",
+            "LauncherView.Layout.FirstRunGuide.Toggle.cs",
+            "CompactSafeFlowStepSpec"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.diagnostics-drawer.ps1" `
+        "keeps Help & Reports diagnostics drawer audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionDiagnosticsDrawerChecks",
+            "LauncherView.Layout.LogColumn.cs",
+            "LauncherView.Layout.LogColumn.Toggle.cs",
+            "LauncherView.Layout.LogColumn.Sizing.cs",
+            "LauncherView.Diagnostics.cs",
+            "LauncherController.Diagnostics.Export.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.portal-chrome.ps1" `
+        "keeps launcher shell, brand, and compact panel chrome audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionPortalChromeChecks",
+            "LauncherView.Layout.cs",
+            "LauncherView.Layout.BrandHeader.cs",
+            "LauncherView.Layout.BrandMark.cs",
+            "LauncherLayoutProfile.cs",
+            "StyledPanel.cs",
+            "LauncherView.Layout.PrimaryColumn.Support.cs"
         )
 
     Add-Check `

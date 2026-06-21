@@ -14,7 +14,7 @@ Validated baseline:
 - The latest public APK has visual validation for the responsive launcher login, active download-progress, ready, diagnostics-drawer, and Push confirmation/cancel states.
 - The game launches and reads the pulled profile in-game.
 - Startup freshness and assembly cache diagnostics prove the current installed runtime is being used.
-- Latest build-only prerelease: `v0.2.285-local-audit-module-split` splits the Steam version-selection static audit into focused modules and passed static/build/APK verification. It is not new device runtime signoff.
+- Latest build-only prerelease: `v0.2.286-local-audit-ui-module-split` expands the Steam version-selection static audit split into focused automation, local-login, confirmation, cloud-safety, login-panel, compact-label, section-setup, safe-flow-guide, diagnostics-drawer, and portal-chrome modules and passed static/build/APK verification. It is not new device runtime signoff.
 
 Active blockers:
 

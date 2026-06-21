@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-21 - Steam version-selection UI audit module split prerelease
+
+- Published the local-package ARM64 prerelease `v0.2.286-local-audit-ui-module-split` with APK `StS2Launcher-v0.2.286-local-audit-ui-module-split-arm64-v8a.apk` and SHA-256 `640d6d06131143d098ebb631d6a170f4910be9f85248b576a4b39a2bde48f769`.
+- Split more Steam version-selection static audit guardrails into focused PowerShell modules for launcher automation, local Steam credential handoff, contextual confirmations, branch-switch/manual cloud Push safety, native credential/login-panel contracts, compact detail labels, compact section setup, quick-start safe-flow guidance, Help & Reports diagnostics drawer behavior, and launcher portal chrome.
+- Moved selected-version update-check guardrails into the download/update workflow module so update-check run/block/result coverage stays with the download flow instead of the top-level orchestrator.
+- Updated the tooling docs and GitHub-facing status/checklist text to point at the expanded audit-module boundary. This APK is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence. No Steam Cloud Push was run during this validation.
+- Preserved the build/static validation posture: Steam version-selection static audit passed 487 checks, multi-version runtime audit passed 156 checks, branch-guidance parity passed, managed Release build passed, and the ARM64 APK build/verification plus crypto patch verification passed.
+
 ## 2026-06-21 - Steam version-selection audit module split prerelease
 
 - Published the local-package ARM64 prerelease `v0.2.285-local-audit-module-split` with APK `StS2Launcher-v0.2.285-local-audit-module-split-arm64-v8a.apk`.

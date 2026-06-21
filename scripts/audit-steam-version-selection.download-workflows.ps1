@@ -157,4 +157,42 @@ function Add-SteamVersionSelectionDownloadWorkflowChecks {
             "view\.SetStatus",
             "view\.SetUpdateButtonText"
         )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.Run.cs" `
+        "runs selected-version update checks with busy-state and failure recovery" `
+        @(
+            "RunUpdateCheck",
+            "RunUpdateCheckAsync",
+            "_updateCheckRunning",
+            "SetUpdateCheckBusy\(busy: true\)",
+            "CheckForUpdatesAsync",
+            "PatchHelper\.Log",
+            "FailUpdateCheck\(ex\.Message\)",
+            "SetUpdateCheckBusy\(busy: false\)"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.Workflow.cs" `
+        "blocks selected-version update checks for known unavailable branches while preserving app update checks" `
+        @(
+            "CheckForAppUpdatesAsync",
+            "SelectedOptionDownloadProblem",
+            "Update check blocked:",
+            "LauncherBranchCatalog\.ReadVisibleBranches",
+            "_model\.CheckForUpdatesAsync",
+            "await appUpdateTask"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.Results.cs" `
+        "applies update-check completion and failure events after refreshing branch options" `
+        @(
+            "CompleteUpdateCheck",
+            "FailUpdateCheck",
+            "RefreshGameBranchOptions",
+            "UpdateCheckViewUpdate\.Completed",
+            "UpdateCheckViewUpdate\.Failed",
+            "LauncherBranchAvailabilityStatus\.CompactFailureMessage"
+        )
 }
