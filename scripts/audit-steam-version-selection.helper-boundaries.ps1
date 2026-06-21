@@ -11,6 +11,7 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "audit-steam-version-selection.launcher-shell.ps1",
             "audit-steam-version-selection.branch-selector.ps1",
             "audit-steam-version-selection.branch-runtime.ps1",
+            "audit-steam-version-selection.native-routing.ps1",
             "audit-steam-version-selection.branch-availability.ps1",
             "audit-steam-version-selection.download-workflows.ps1",
             "audit-steam-version-selection.session-auth.ps1",
@@ -23,6 +24,10 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "audit-steam-version-selection.section-setup.ps1",
             "audit-steam-version-selection.safe-flow-guide.ps1",
             "audit-steam-version-selection.diagnostics-drawer.ps1",
+            "audit-steam-version-selection.diagnostics-reporting.ps1",
+            "audit-steam-version-selection.evidence-tooling.ps1",
+            "audit-steam-version-selection.release-docs.ps1",
+            "audit-steam-version-selection.beta-integrity.ps1",
             "audit-steam-version-selection.portal-chrome.ps1",
             "audit-steam-version-selection.status-capsule.ps1",
             "audit-steam-version-selection.compact-workflow.ps1",
@@ -85,6 +90,18 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "LauncherAndroidAppPrivatePath.cs",
             "LauncherGameFiles.Redownload.cs",
             "LauncherGameFiles.CacheCleanup.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.native-routing.ps1" `
+        "keeps native selected-branch routing and fallback audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionNativeRoutingChecks",
+            "GodotApp.java",
+            "SteamBranchInfo.java",
+            "LauncherActivity.java",
+            "NativeFallbackActivity.java",
+            "requires selected branch provenance before consuming native game launch requests"
         )
 
     Add-Check `
@@ -223,6 +240,61 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "LauncherView.Layout.LogColumn.Sizing.cs",
             "LauncherView.Diagnostics.cs",
             "LauncherController.Diagnostics.Export.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.diagnostics-reporting.ps1" `
+        "keeps launcher diagnostics report and branch-switch evidence audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionDiagnosticsReportingChecks",
+            "LauncherController.Diagnostics.cs",
+            "LauncherDiagnostics.Reports.cs",
+            "LauncherDiagnostics.ReportLauncherPreferences.cs",
+            "LauncherDiagnostics.ReportBranchAvailability.cs",
+            "LauncherDiagnostics.ReportCachedGameVersions.cs",
+            "LauncherDiagnostics.ReportBranchSwitchSafety.cs",
+            "LauncherDiagnostics.ReportBranchSwitchSafety.Push.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.evidence-tooling.ps1" `
+        "keeps Steam version-selection evidence tooling audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionEvidenceToolingChecks",
+            "android-adb-utils.ps1",
+            "capture-steam-version-selection-evidence.ps1",
+            "new-steam-version-selection-evidence.ps1",
+            "export-public-evidence-redaction.ps1",
+            "review-public-evidence-redaction.ps1",
+            "audit-steam-branch-guidance-parity.ps1",
+            "steam-version-selection-tooling.md"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.release-docs.ps1" `
+        "keeps Steam version-selection release/readiness documentation audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionReleaseDocsChecks",
+            "steam-version-selection-validation.md",
+            "steam-version-selection-release-readiness.md",
+            "steam-version-selection-architecture.md",
+            "steam-version-selection-completion-audit.md",
+            "steam-version-selection-runbook.md",
+            "steam-version-selection-user-guide.md",
+            "android-release-validation.md"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.beta-integrity.ps1" `
+        "keeps beta branch integrity evidence audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionBetaIntegrityChecks",
+            "capture-steam-beta-integrity-evidence.ps1",
+            "review-beta-integrity-summary.ps1",
+            "steam-beta-integrity-runtime-checklist.md",
+            "Public-vs-beta branch integrity",
+            "Public-vs-beta depot manifest integrity",
+            "Public-vs-beta file inventory"
         )
 
     Add-Check `

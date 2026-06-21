@@ -327,6 +327,19 @@ Combined gate passed:
 
 No Steam Cloud Push was performed. Successful branch-switch Push remains release-open until Pull-before-Push, local-save, and backup evidence are captured on the selected version.
 
+## Audit orchestrator split prerelease evidence note
+
+The `v0.2.289-local-audit-orchestrator-split` ARM64 prerelease packages a tooling-only refactor for the Steam version-selection static audit. It moves native routing/fallback, diagnostics reporting, evidence tooling, release/readiness documentation, and beta-integrity evidence guardrails into focused audit modules while keeping the top-level script as the orchestrator. It is published as a local-package build for `com.sts2launcher.overhaul.fork.local`:
+
+```text
+Asset: StS2Launcher-v0.2.289-local-audit-orchestrator-split-arm64-v8a.apk
+SHA-256: cc581c603e3e28b1700e6944d0d309c8b4f4c6482810f2983745f95e361ac275
+VersionName: 0.2.289-local-audit-orchestrator-split
+VersionCode: 289000
+```
+
+Validation for this prerelease is build/static-gate only: `audit-steam-version-selection.ps1 -Quiet` passed 501 checks, `audit-multi-version-runtime.ps1 -Quiet` passed 156 checks, `audit-steam-branch-guidance-parity.ps1 -Quiet` passed, the managed Release build passed, the local ARM64 APK build passed structural verification, and Android crypto patch verification passed. No ARM64 device branch-switch/runtime route evidence was captured for this specific APK, and no Steam Cloud Push was performed. Continue to use the fix30/fix31 public/public-beta evidence notes above for runtime behavior until this APK has matching device evidence.
+
 ## Audit/evidence helper refactor prerelease evidence note
 
 The `v0.2.279-local-audit-helper-refactor` ARM64 prerelease packages a tooling-only refactor for the branch/runtime validation scripts. It extracts common static-audit plumbing, Android `run-as` shell quoting, marker parsing, and Markdown report row formatting into shared PowerShell helpers guarded by both static audits. It is published as a local-package build for `com.sts2launcher.overhaul.fork.local`:
