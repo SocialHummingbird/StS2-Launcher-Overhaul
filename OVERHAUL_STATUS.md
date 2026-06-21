@@ -14,7 +14,7 @@ Validated baseline:
 - The latest public APK has visual validation for the responsive launcher login, active download-progress, ready, diagnostics-drawer, and Push confirmation/cancel states.
 - The game launches and reads the pulled profile in-game.
 - Startup freshness and assembly cache diagnostics prove the current installed runtime is being used.
-- Latest build-only prerelease: `v0.2.286-local-audit-ui-module-split` expands the Steam version-selection static audit split into focused automation, local-login, confirmation, cloud-safety, login-panel, compact-label, section-setup, safe-flow-guide, diagnostics-drawer, and portal-chrome modules and passed static/build/APK verification. It is not new device runtime signoff.
+- Latest build-only prerelease: `v0.2.287-local-audit-orchestrator-split` expands the Steam version-selection static audit split into focused status-capsule, compact-workflow, code-section, compact-section-flow, compact-install, and startup-warmup modules and passed static/build/APK verification. It is not new device runtime signoff.
 
 Active blockers:
 
@@ -49,7 +49,7 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 - Keep launcher recovery and sync status UX clear enough that successful startup and local-save runtime behavior are not presented as failures.
 - Reduce low-value diagnostics while preserving startup freshness, assembly cache, cloud-save, and release-evidence logs.
 - Maintain artifact hygiene for APKs, checksums, logs, summaries, and validation manifests.
-- Device-test the latest compact-label refactor APK before treating it as runtime or UX evidence beyond build/static gates.
+- Device-test the latest audit-orchestrator split APK before treating it as runtime or UX evidence beyond build/static gates.
 
 ## Notes
 

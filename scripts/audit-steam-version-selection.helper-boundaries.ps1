@@ -23,7 +23,13 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "audit-steam-version-selection.section-setup.ps1",
             "audit-steam-version-selection.safe-flow-guide.ps1",
             "audit-steam-version-selection.diagnostics-drawer.ps1",
-            "audit-steam-version-selection.portal-chrome.ps1"
+            "audit-steam-version-selection.portal-chrome.ps1",
+            "audit-steam-version-selection.status-capsule.ps1",
+            "audit-steam-version-selection.compact-workflow.ps1",
+            "audit-steam-version-selection.code-section.ps1",
+            "audit-steam-version-selection.compact-section-flow.ps1",
+            "audit-steam-version-selection.compact-install.ps1",
+            "audit-steam-version-selection.startup-warmup.ps1"
         )
 
     Add-Check `
@@ -227,6 +233,84 @@ function Add-SteamVersionSelectionHelperBoundaryChecks {
             "LauncherLayoutProfile.cs",
             "StyledPanel.cs",
             "LauncherView.Layout.PrimaryColumn.Support.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.status-capsule.ps1" `
+        "keeps launcher status capsule audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionStatusCapsuleChecks",
+            "LauncherView.Layout.StatusCapsule.cs",
+            "LauncherView.Layout.StatusCapsule.Compact.cs",
+            "LauncherView.Layout.StatusCapsule.Detail.cs",
+            "LauncherView.Layout.StatusCapsule.Styles.cs",
+            "LauncherView.Status.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.compact-workflow.ps1" `
+        "keeps compact workflow and current-task audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionCompactWorkflowChecks",
+            "LauncherView.Layout.CompactWorkflow.cs",
+            "LauncherView.Layout.CompactTaskHeader.cs",
+            "LauncherView.Layout.PrimaryColumn.Body.cs",
+            "LauncherView.CompactWorkflow.Data.cs",
+            "LauncherView.CompactWorkflow.State.cs",
+            "LauncherView.CompactWorkflow.Navigation.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.code-section.ps1" `
+        "keeps compact Steam Guard code-section audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionCodeSectionChecks",
+            "CodeSection.cs",
+            "CodeSection.Labels.cs",
+            "CodeSection.Input.cs",
+            "CodeSection.SubmitButton.cs",
+            "CodeSection.Layout.cs",
+            "CodeSection.Prompt.cs"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.compact-section-flow.ps1" `
+        "keeps compact section visibility and scroll-flow audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionCompactSectionFlowChecks",
+            "SetCompactReadyInstallSectionVisible",
+            "HideCompactCompletedAuthSections",
+            "ScrollCompactPrimaryTo",
+            "CompactScrollAnchorTopPadding",
+            "ReanchorCompactScrollTargetAfterViewportChange",
+            "ReadyScrollTarget"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.compact-install.ps1" `
+        "keeps compact install/version/download audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionCompactInstallChecks",
+            "DownloadSection.cs",
+            "DownloadSection.Construction.Version.cs",
+            "DownloadSection.CompactVersion.cs",
+            "DownloadSection.CompactDownload.cs",
+            "DownloadSection.Progress.cs",
+            "LauncherComponentTheme.cs",
+            "new StyledProgressBar"
+        )
+
+    Add-Check `
+        "scripts\audit-steam-version-selection.startup-warmup.ps1" `
+        "keeps startup safe-mode, shader warmup, and startup-status audit contracts in a focused module" `
+        @(
+            "function Add-SteamVersionSelectionStartupWarmupChecks",
+            "LauncherStartupFlow.StartupMode.cs",
+            "ShaderWarmupScreen.cs",
+            "StyledProgressBar.cs",
+            "LauncherStartupStatus.cs",
+            "LauncherStartupStatus.Android.cs",
+            "LauncherGameStartupRecovery.State.cs"
         )
 
     Add-Check `
