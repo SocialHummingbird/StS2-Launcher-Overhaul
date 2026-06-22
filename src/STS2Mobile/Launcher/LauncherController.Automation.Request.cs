@@ -22,6 +22,8 @@ internal sealed partial class LauncherController
         internal bool Redownload => Action.Contains("redownload", StringComparison.OrdinalIgnoreCase);
         internal bool Download => Action.Contains("download", StringComparison.OrdinalIgnoreCase);
         internal bool LaunchSafe => Action.Contains("launchsafe", StringComparison.OrdinalIgnoreCase);
+        internal bool WorkshopClear => Action.Contains("workshopclear", StringComparison.OrdinalIgnoreCase);
+        internal bool WorkshopSync => Action.Contains("workshopsync", StringComparison.OrdinalIgnoreCase);
 
         internal static LauncherAutomationRequest? TryConsume(string dataDir)
         {

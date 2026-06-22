@@ -53,6 +53,9 @@ internal sealed partial class LauncherView
     internal void SetPushPullDisabled(bool disabled)
         => Actions.SetPushPullDisabled(disabled);
 
+    internal void SetWorkshopButtonsDisabled(bool disabled)
+        => Actions.SetWorkshopButtonsDisabled(disabled);
+
     internal void SetUpdateCheckBusy(bool busy)
     {
         Actions.SetUpdateButtonDisabled(busy);

@@ -23,7 +23,9 @@ internal sealed partial class LauncherView
         Action diagnosticsPressed,
         Action showLastErrorPressed,
         Action copyRawLogPressed,
-        Action safeLaunchPressed
+        Action safeLaunchPressed,
+        Action workshopSyncPressed,
+        Action workshopClearPressed
     )
     {
         Login.LoginRequested += loginRequested;
@@ -47,5 +49,7 @@ internal sealed partial class LauncherView
         Actions.ShowLastErrorPressed += showLastErrorPressed;
         Actions.CopyRawLogPressed += copyRawLogPressed;
         Actions.SafeLaunchPressed += safeLaunchPressed;
+        Actions.WorkshopSyncPressed += workshopSyncPressed;
+        Actions.WorkshopClearPressed += workshopClearPressed;
     }
 }

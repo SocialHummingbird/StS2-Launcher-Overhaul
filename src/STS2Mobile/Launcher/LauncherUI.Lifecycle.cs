@@ -47,9 +47,9 @@ internal sealed partial class LauncherUI
         try
         {
             PatchHelper.Log("Launcher controller starting");
-            _controller.Start();
+            var automationStarted = _controller.Start();
             PatchHelper.Log("Launcher controller started");
-            AutoLaunchIfRequested();
+            AutoLaunchIfRequested(automationStarted);
         }
         catch (Exception ex)
         {

@@ -35,3 +35,4 @@
 . (Join-Path $PSScriptRoot "audit-steam-version-selection.startup-recovery.ps1")
 . (Join-Path $PSScriptRoot "audit-steam-version-selection.action-section.ps1")
 . (Join-Path $PSScriptRoot "audit-steam-version-selection.portal-ux-support.ps1")
+. (Join-Path $PSScriptRoot "audit-steam-version-selection.workshop-mods.ps1")

@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-06-21_
+_Last updated: 2026-06-22_
 
 Current device evidence ledgers:
 
@@ -10,6 +10,7 @@ Current device evidence ledgers:
 - [steam-version-selection-validation.md](steam-version-selection-validation.md)
 - [steam-version-selection-runbook.md](steam-version-selection-runbook.md)
 - [steam-version-selection-release-readiness.md](steam-version-selection-release-readiness.md)
+- [android-workshop-mods.md](android-workshop-mods.md)
 
 ## Headline
 
@@ -31,6 +32,7 @@ Validated locally on ARM64 hardware:
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
 - The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix30 also proves public can launch immediately after a `public-beta` runtime-cache switch without routing to `NativeFallbackActivity`.
 - The latest local UI/public-startup prerelease proves fresh public redownload of `v0.107.1` reaches the game main menu with branch-matched managed runtime evidence and removes the launcher startup status overlay after startup observation.
+- The latest local Workshop-mod evidence proves public-branch Workshop sync/staging/runtime loading on ARM64 hardware: `BaseLib` and `Quick Restart` load from app-private staged Workshop content, total loaded mods is 2, the main menu is reached, and Steam Cloud Push is not run.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -72,6 +74,20 @@ scope=compact Android launcher polish, including title-cased compact mobile acti
 validation=static audit, managed Release build, ARM64 APK build, Android crypto verification, APK SHA-256 metadata, APK signature verification, ARM64 install over existing app data on SM-F966B, launcher screenshot capture from pass178, public redownload/startup screenshot capture on v0.2.273, resumed `GodotApp` window-state capture, and focused/PID log scan with no `NativeFallbackActivity`, fatal exception, crash marker, or previous `Child is not a child` Godot UI error
 evidence=artifacts/evidence/ui-pass178-device-view; artifacts/android/public-redownload-evidence-20260620
 not_yet_proven=touch validation, Help & Reports/launcher-log copy pass visual proof, short compact status detail copy visual proof, public/public-beta branch-switch runtime evidence on this UI build, rotated/keyboard viewport confirmation-dialog capture, focused input soft-keyboard capture, compact status headline rotation/keyboard reflow capture, compact Steam Guard code/action row rotation/keyboard reflow capture, sticky task header rotation/keyboard reflow capture, compact task re-anchor rotation/keyboard capture, and diagnostics log rotation/keyboard resize capture
+```
+
+Latest local Workshop mod evidence:
+
+```text
+build=0.2.314-workshop-load-order
+package=com.sts2launcher.overhaul.fork.local
+device=RFCY70XQE7F
+validation=ARM64 public-branch launch loaded staged Workshop mods BaseLib and Quick Restart; Workshop scan reported discovered=2, load attempts=2, total loaded=2; NGame.GameStartup completed; main menu loaded
+unsupported=3747532120 / Vanilla and Modded Saves Merger remains unsupported because Steam exposed a legacy Workshop UGC handle but no direct URL or depot manifest
+cloudSafety=No Steam Cloud Push was run during Workshop sync, clear, or evidence capture
+evidence=artifacts/android/workshop-mods-public-0.2.314-load-order-20260622-205238
+docs=docs/android-workshop-mods.md
+not_yet_proven=public-beta/core-release Workshop branch-switch evidence, legacy UGC-only content route, and polished release UX/docs signoff
 ```
 
 Latest verified public release evidence remains:

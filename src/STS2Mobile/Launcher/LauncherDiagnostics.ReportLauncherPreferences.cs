@@ -81,6 +81,7 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Selected game files ready: {BoolText(LauncherGameFiles.Ready(dataDir, branch))}");
         sb.AppendLine($"Selected game readiness problem: {ValueOrMissing(LauncherGameFiles.ReadinessProblem(dataDir, branch))}");
         AppendGameRuntimeSlot(sb, dataDir, branch);
+        AppendWorkshopDiagnostics(sb, dataDir);
         sb.AppendLine($"Selected download state: {SteamGameInstallPaths.DownloadStateDirectoryPath(dataDir, branch)}");
         AppendBranchAvailability(sb, dataDir);
         var branchMarkerPath = SteamGameInstallPaths.BranchMarkerPath(dataDir, branch);

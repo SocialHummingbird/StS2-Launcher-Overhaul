@@ -9,6 +9,7 @@ internal static class BootstrapTrace
     private const string AndroidLogTag = "STS2Mobile";
     private const int AndroidLogInfoPriority = 4;
     private const string FileName = "sts2_bootstrap_trace.log";
+    private const string AndroidTraceFileEnv = "STS2_ANDROID_TRACE_FILE";
     private const string TempDirectoryName = "tmp";
     private const long MaxBytes = 256L * 1024L;
     private static readonly object Lock = new();
@@ -25,10 +26,21 @@ internal static class BootstrapTrace
         if (androidFailure != null)
             TryAppendTraceFile(FormatLine($"Bootstrap trace Android log sink failed: {androidFailure.Message}"));
 
+        if (!ShouldAppendTraceFile())
+            return;
+
         var fileFailure = TryAppendTraceFile(line);
         if (fileFailure != null)
             TryWriteAndroidLog($"Bootstrap trace file sink failed: {fileFailure.Message}");
     }
+
+    private static bool ShouldAppendTraceFile()
+        => !OperatingSystem.IsAndroid()
+            || string.Equals(
+                Environment.GetEnvironmentVariable(AndroidTraceFileEnv),
+                "1",
+                StringComparison.Ordinal
+            );
 
     private static string GetTracePath()
     {

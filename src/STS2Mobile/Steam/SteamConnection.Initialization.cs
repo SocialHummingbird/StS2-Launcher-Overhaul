@@ -17,8 +17,10 @@ internal sealed partial class SteamConnection
         _steamUser = _client.GetHandler<SteamUser>();
         _steamApps = _client.GetHandler<SteamApps>();
         _steamContent = _client.GetHandler<SteamContent>();
+        _steamCloud = _client.GetHandler<SteamCloud>();
         _unifiedMessages = _client.GetHandler<SteamUnifiedMessages>();
         _unifiedMessages.CreateService<Cloud>();
+        _publishedFile = _unifiedMessages.CreateService<PublishedFile>();
         _callbackPump = new SteamCallbackPump(
             _callbackManager,
             "SteamConnectionCallbacks",

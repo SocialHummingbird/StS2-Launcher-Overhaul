@@ -44,7 +44,9 @@ internal sealed partial class SteamConnection : IDisposable
     private readonly SteamUser _steamUser;
     private readonly SteamApps _steamApps;
     private readonly SteamContent _steamContent;
+    private readonly SteamCloud _steamCloud;
     private readonly SteamUnifiedMessages _unifiedMessages;
+    private readonly PublishedFile _publishedFile;
 
     private readonly SteamCallbackPump _callbackPump;
 

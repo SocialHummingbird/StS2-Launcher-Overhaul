@@ -21,7 +21,7 @@ internal sealed partial class LauncherController
         _runOnMainThread = runOnMainThread;
     }
 
-    internal void Start()
+    internal bool Start()
     {
         STS2Mobile.PatchHelper.Log("Launcher controller phase: wire model events");
         WireModelEvents();
@@ -35,6 +35,6 @@ internal sealed partial class LauncherController
         STS2Mobile.PatchHelper.Log("Launcher controller phase: start session flow");
         StartSessionFlow();
         STS2Mobile.PatchHelper.Log("Launcher controller phase complete: start session flow");
-        TryStartAutomation();
+        return TryStartAutomation();
     }
 }

@@ -38,6 +38,14 @@ internal static partial class LauncherDiagnostics
             "Selected game branch marker",
             STS2Mobile.Steam.SteamGameInstallPaths.BranchMarkerPath(dataDir, LauncherPreferences.ReadGameBranch())
         );
+        yield return new DiagnosticFile(
+            "Workshop sync manifest",
+            AppPaths.WorkshopManifestPath(dataDir)
+        );
+        yield return new DiagnosticFile(
+            "Workshop clear marker",
+            AppPaths.WorkshopClearMarkerPath(dataDir)
+        );
         yield return BootstrapTrace();
         yield return GamePck(dataDir);
     }
@@ -66,6 +74,16 @@ internal static partial class LauncherDiagnostics
             "Download state",
             STS2Mobile.Steam.SteamGameInstallPaths.DownloadStateDirectoryPath(dataDir, LauncherPreferences.ReadGameBranch()),
             1
+        );
+        yield return new DiagnosticDirectory(
+            "Workshop staged mods",
+            AppPaths.WorkshopStagedModsDir(dataDir),
+            2
+        );
+        yield return new DiagnosticDirectory(
+            "Workshop downloads",
+            AppPaths.WorkshopDownloadsDir(dataDir),
+            2
         );
         yield return new DiagnosticDirectory(
             "Mono publish root",

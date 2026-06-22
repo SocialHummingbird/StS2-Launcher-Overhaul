@@ -82,6 +82,8 @@ internal sealed partial class ActionSection
         _refreshVersionsButton = supportControls.RefreshVersionsButton;
         _redownloadButton = supportControls.RedownloadButton;
         _clearCachedVersionsButton = supportControls.ClearCachedVersionsButton;
+        _workshopSyncButton = supportControls.WorkshopSyncButton;
+        _workshopClearButton = supportControls.WorkshopClearButton;
         _diagnosticsButton = supportControls.DiagnosticsButton;
         _showLastErrorButton = supportControls.ShowLastErrorButton;
         _copyRawLogButton = supportControls.CopyRawLogButton;

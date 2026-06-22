@@ -23,7 +23,9 @@ internal sealed partial class LauncherController
             DiagnosticsPressed,
             ShowLastErrorPressed,
             CopyRawLogPressed,
-            SafeLaunchPressed
+            SafeLaunchPressed,
+            WorkshopSyncPressed,
+            WorkshopClearPressed
         );
     }
 }

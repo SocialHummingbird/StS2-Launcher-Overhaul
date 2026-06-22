@@ -19,6 +19,11 @@ internal partial class LauncherModel
     internal event Action<string> UpdateCheckFailed;
     internal event Action BranchCatalogRefreshCompleted;
     internal event Action<string> BranchCatalogRefreshFailed;
+    internal event Action<string> WorkshopSyncLogReceived;
+    internal event Action<string> WorkshopSyncCompleted;
+    internal event Action<string> WorkshopSyncFailed;
+    internal event Action<int> WorkshopClearCompleted;
+    internal event Action<string> WorkshopClearFailed;
 
     private bool DownloadIsRunning => Interlocked.CompareExchange(ref _downloadRunning, 0, 0) == 1;
 }

@@ -164,6 +164,82 @@ Steam Cloud save safety:
 | Push confirmation names selected game version and preserves destructive overwrite warning |  |  |  |
 | Cross-branch save compatibility is validated or remains a release blocker |  |  |  |
 
+Steam Workshop mod safety:
+
+Recommended capture commands for each phase:
+
+```powershell
+.\scripts\capture-workshop-mod-evidence.ps1 -Phase no-mods -Launch -ClearLogcat -Screenshot
+.\scripts\review-workshop-mod-evidence.ps1 -EvidenceDir <no-mods-dir> -RequirePhase no-mods -RequireScreenshot
+
+.\scripts\capture-workshop-mod-evidence.ps1 -Phase simple -Launch -ClearLogcat -Screenshot
+.\scripts\review-workshop-mod-evidence.ps1 -EvidenceDir <simple-dir> -RequirePhase simple -RequireScreenshot
+
+.\scripts\capture-workshop-mod-evidence.ps1 -Phase dependency -Launch -ClearLogcat -Screenshot
+.\scripts\review-workshop-mod-evidence.ps1 -EvidenceDir <dependency-dir> -RequirePhase dependency -RequireScreenshot
+
+.\scripts\capture-workshop-mod-evidence.ps1 -Phase broken -Launch -ClearLogcat -Screenshot
+.\scripts\review-workshop-mod-evidence.ps1 -EvidenceDir <broken-dir> -RequirePhase broken -RequireScreenshot
+
+.\scripts\capture-workshop-mod-evidence.ps1 -Phase public -Launch -StartGame -ClearLogcat -Screenshot
+.\scripts\review-workshop-mod-evidence.ps1 -EvidenceDir <public-dir> -RequirePhase public -RequireScreenshot
+
+.\scripts\capture-workshop-mod-evidence.ps1 -Phase public-beta -Launch -StartGame -ClearLogcat -Screenshot
+.\scripts\review-workshop-mod-evidence.ps1 -EvidenceDir <public-beta-dir> -RequirePhase public-beta -RequireScreenshot
+
+.\scripts\capture-workshop-mod-evidence.ps1 -Phase core-release -Launch -StartGame -ClearLogcat -Screenshot
+.\scripts\review-workshop-mod-evidence.ps1 -EvidenceDir <core-release-dir> -RequirePhase core-release -RequireScreenshot
+```
+
+After an initial simple/dependency Workshop sync succeeds, repeat the same sync and capture the second launch to prove unchanged items reuse the cached download instead of downloading again:
+
+```powershell
+.\scripts\capture-workshop-mod-evidence.ps1 -Phase simple -Launch -ClearLogcat -Screenshot -RunLabel cached-reuse
+.\scripts\review-workshop-mod-evidence.ps1 -EvidenceDir <simple-cached-reuse-dir> -RequirePhase simple -RequireCachedDownloadReuse -RequireScreenshot
+```
+
+For downloaded Workshop content that contains no usable `.pck`, collect it as a broken phase and require explicit `staged-no-pck` evidence. Repeating the sync should reuse the cached no-PCK directory instead of downloading it again:
+
+```powershell
+.\scripts\capture-workshop-mod-evidence.ps1 -Phase broken -Launch -ClearLogcat -Screenshot -RunLabel no-pck
+.\scripts\review-workshop-mod-evidence.ps1 -EvidenceDir <broken-no-pck-dir> -RequirePhase broken -RequireScreenshot
+
+.\scripts\capture-workshop-mod-evidence.ps1 -Phase broken -Launch -ClearLogcat -Screenshot -RunLabel no-pck-cached-reuse
+.\scripts\review-workshop-mod-evidence.ps1 -EvidenceDir <broken-no-pck-cached-reuse-dir> -RequirePhase broken -RequireCachedDownloadReuse -RequireScreenshot
+```
+
+Before collecting device evidence, run the local reviewer regression so false positives are caught without touching the device or Steam Cloud:
+
+```powershell
+.\scripts\test-workshop-mod-evidence-reviewer.ps1
+```
+
+| Check | Evidence | Result | Notes |
+| --- | --- | --- | --- |
+| No-mods baseline launches with no active Workshop staged PCK mods |  |  |  |
+| Clear Workshop Mods writes `last_workshop_mod_clear.txt`, empties active staged Workshop directories and loose staged root files, preserves downloads, and records `steamCloudPushPerformed=false` |  |  |  |
+| Workshop sync records subscription query type and query attempts |  |  |  |
+| Workshop sync records subscribed, resolved dependency, missing dependency, total discovered, and manifest item counts without counting missing dependencies as resolved |  |  |  |
+| Repeated sync for unchanged Workshop items, including `staged-no-pck` no-PCK content, records `ReusedCachedDownload=true` and logs `Using cached Workshop download` |  |  |  |
+| Interrupted-download leftovers are cleaned before sync, with no `.download`, `.tmp-*`, or `.old-*` artifacts under `files/workshop_mods/downloads` in `workshop-tree.txt` |  |  |  |
+| Simple subscribed Workshop mod downloads, stages into app-private storage, records staged path/hash, and loads through the Android mod loader path |  |  |  |
+| Dependency Workshop mod records required-by parent IDs, stages dependencies once, and does not duplicate shared dependency downloads |  |  |  |
+| Simple/dependency launch logs show the Android Workshop staged mod root was scanned by the mod loader (`Scanning Workshop staged mods`, `ModLoader`, or `Loaded mod`) |  |  |  |
+| Workshop sync removes stale loose root-level staged files so only current item directories can be loaded by the recursive mod scan |  |  |  |
+| Broken/missing dependency/no-PCK Workshop mod records missing dependency IDs, failed/unsupported status, or `staged-no-pck` status and visible launcher/diagnostic status beginning with `Workshop mods need attention` instead of silently treating sync as clean |  |  |  |
+| Workshop manifest lists each item ID, title, status, PCK presence, file count, content hash, download source kind (`direct-url`, `ugc-hcontent`, or `depot-manifest`), manifest ID when depot-backed, expected download bytes, UGC content handle, fresh-vs-cached update state, sanitized download URL presence/host, dependency flag, required-by IDs, staged directory, source directory, and error without raw signed download URLs |  |  |  |
+| Derived Workshop state records manifest active PCK count, raw staged PCK count, `workshopCloudPushLocked`, and `steamCloudPushPerformed=false` |  |  |  |
+| Required phase reviews prove `launchRequested=true` and reject focused launch logs containing `NativeFallback`, `FATAL EXCEPTION`, `SIGSEGV`, or equivalent crash/fallback signatures |  |  |  |
+| Public/public-beta/core-release game-start captures use `-StartGame` so logs prove the launcher tapped Start Game and loaded the selected PCK path |  |  |  |
+| Public/public-beta/core-release Workshop phase reviews prove staged Workshop PCK mods are present, Cloud Push is locked/off, and the Android Workshop mod-loader scan loaded staged mods |  |  |  |
+| Public/public-beta/core-release Workshop phase evidence includes `current_runtime_slot.json`, `current_runtime_cache.txt`, `last_runtime_patch_validation.json`, runtime PCK/`sts2.dll` hashes, and selected runtime-pack manifest/validation files when a runtime pack is active |  |  |  |
+| Public-beta/core-release Workshop phase review rejects evidence unless the selected runtime cache PCK path is under `files/game_versions/<branch>-*`, runtime patch validation passed, and the selected runtime pack is clean/generated/validated |  |  |  |
+| Manual Steam Cloud Push is blocked when active Workshop PCK mods are staged, and the blocked marker records the reason before upload starts |  |  |  |
+| Manual Steam Cloud Push remains blocked when raw staged Workshop `.pck` files exist even if the Workshop manifest is missing or stale |  |  |  |
+| Public branch launches after Workshop sync or clear no-mods state with expected mod loader state |  |  |  |
+| Public-beta branch launches after Workshop sync or clear no-mods state with expected mod loader state |  |  |  |
+| Core-release branch launches after Workshop sync or clear no-mods state with expected mod loader state |  |  |  |
+
 Artifact hygiene:
 
 | Check | Evidence | Result | Notes |

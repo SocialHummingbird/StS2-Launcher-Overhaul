@@ -25,7 +25,9 @@ function Add-SteamVersionSelectionAutomationChecks {
             "CheckUpdates",
             "Redownload",
             "Download",
-            "LaunchSafe"
+            "LaunchSafe",
+            "WorkshopClear",
+            "WorkshopSync"
         )
 
     Add-Check `
@@ -41,6 +43,8 @@ function Add-SteamVersionSelectionAutomationChecks {
             "CheckForUpdatesAsync",
             "ResetGameFilesForRedownload",
             "StartDownloadAsync",
+            "ClearWorkshopMods",
+            "StartWorkshopSyncAsync",
             "RefreshSelectedRuntimeSlotEvidence",
             "LaunchSafe",
             "WriteAutomationMarker\(request, ""completed""\)",

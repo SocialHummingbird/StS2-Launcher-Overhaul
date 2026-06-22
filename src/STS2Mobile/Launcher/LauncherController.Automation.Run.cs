@@ -45,6 +45,23 @@ internal sealed partial class LauncherController
             if (request.Download)
                 await _model.StartDownloadAsync().ConfigureAwait(false);
 
+            if (request.WorkshopClear)
+            {
+                _runOnMainThread(() =>
+                    _view.AppendLog("[Automation] Clearing staged Workshop mods; Steam Cloud Push is not run.")
+                );
+                _model.ClearWorkshopMods();
+            }
+
+            if (request.WorkshopSync)
+            {
+                _runOnMainThread(() =>
+                    _view.AppendLog("[Automation] Syncing Workshop mods; Steam Cloud Push is not run.")
+                );
+                WorkshopModConsent.Accept("automation-workshop-sync");
+                await _model.StartWorkshopSyncAsync().ConfigureAwait(false);
+            }
+
             if (request.LaunchSafe)
             {
                 _runOnMainThread(() =>
@@ -60,7 +77,7 @@ internal sealed partial class LauncherController
         catch (Exception ex)
         {
             PatchHelper.Log($"[Automation] {request.Action} failed: {ex}");
-            WriteAutomationMarker(request, "failed", ex.GetBaseException().Message);
+            WriteAutomationMarker(request, "failed", ex.Message);
         }
         finally
         {

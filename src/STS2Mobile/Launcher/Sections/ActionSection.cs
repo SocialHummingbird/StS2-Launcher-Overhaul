@@ -38,6 +38,8 @@ internal sealed partial class ActionSection : VBoxContainer
     internal event Action ShowLastErrorPressed;
     internal event Action CopyRawLogPressed;
     internal event Action SafeLaunchPressed;
+    internal event Action WorkshopSyncPressed;
+    internal event Action WorkshopClearPressed;
 
     private readonly Button _launchButton;
     private readonly Button _safeLaunchButton;
@@ -65,6 +67,8 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _refreshVersionsButton;
     private readonly Button _redownloadButton;
     private readonly Button _clearCachedVersionsButton;
+    private readonly Button _workshopSyncButton;
+    private readonly Button _workshopClearButton;
     private readonly Button _diagnosticsButton;
     private readonly Button _showLastErrorButton;
     private readonly Button _copyRawLogButton;
@@ -98,4 +102,10 @@ internal sealed partial class ActionSection : VBoxContainer
     internal void SetUpdateButtonDisabled(bool disabled) => _updateButton.Disabled = disabled;
 
     internal void SetRefreshVersionsButtonDisabled(bool disabled) => _refreshVersionsButton.Disabled = disabled;
+
+    internal void SetWorkshopButtonsDisabled(bool disabled)
+    {
+        _workshopSyncButton.Disabled = disabled;
+        _workshopClearButton.Disabled = disabled;
+    }
 }

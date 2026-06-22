@@ -30,4 +30,19 @@ internal partial class LauncherModel
 
     private void RaiseBranchCatalogRefreshFailed(string message)
         => Raise(BranchCatalogRefreshFailed, message, nameof(BranchCatalogRefreshFailed));
+
+    private void RaiseWorkshopSyncLogReceived(string message)
+        => Raise(WorkshopSyncLogReceived, message, nameof(WorkshopSyncLogReceived));
+
+    private void RaiseWorkshopSyncCompleted(string summary)
+        => Raise(WorkshopSyncCompleted, summary, nameof(WorkshopSyncCompleted));
+
+    private void RaiseWorkshopSyncFailed(string message)
+        => Raise(WorkshopSyncFailed, message, nameof(WorkshopSyncFailed));
+
+    private void RaiseWorkshopClearCompleted(int removedCount)
+        => Raise(WorkshopClearCompleted, removedCount, nameof(WorkshopClearCompleted));
+
+    private void RaiseWorkshopClearFailed(string message)
+        => Raise(WorkshopClearFailed, message, nameof(WorkshopClearFailed));
 }

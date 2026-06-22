@@ -72,4 +72,36 @@ internal sealed partial class ActionSection
                 scale,
                 () => ClearCachedVersionsPressed?.Invoke()
             );
+
+    private Button BuildWorkshopSyncSupportButton(float scale, bool compact, Container supportToolsParent)
+        => compact
+            ? AddCompactSupportToolButton(
+                supportToolsParent,
+                "Workshop Mods",
+                scale,
+                () => WorkshopSyncPressed?.Invoke(),
+                "Sync"
+            )
+            : AddSecondaryHiddenButton(
+                _supportGroup,
+                "Sync Workshop Mods",
+                scale,
+                () => WorkshopSyncPressed?.Invoke()
+            );
+
+    private Button BuildWorkshopClearSupportButton(float scale, bool compact, Container supportToolsParent)
+        => compact
+            ? AddCompactSupportToolButton(
+                supportToolsParent,
+                "No Mods",
+                scale,
+                () => WorkshopClearPressed?.Invoke(),
+                "Clear staged"
+            )
+            : AddSecondaryHiddenButton(
+                _supportGroup,
+                "Clear Workshop Mods",
+                scale,
+                () => WorkshopClearPressed?.Invoke()
+            );
 }

@@ -27,6 +27,8 @@ internal sealed partial class ActionSection
         _diagnosticsButton.Visible = visible;
         _refreshVersionsButton.Visible = visible;
         _clearCachedVersionsButton.Visible = visible;
+        _workshopSyncButton.Visible = visible;
+        _workshopClearButton.Visible = visible;
         _showLastErrorButton.Visible = visible;
         _copyRawLogButton.Visible = visible;
     }

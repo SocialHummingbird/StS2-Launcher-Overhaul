@@ -44,6 +44,12 @@ internal partial class LauncherModel
                 model.RefreshBranchCatalogWithConnectionAsync
             );
 
+        internal static DepotConnectionAction WorkshopSync(LauncherModel model)
+            => new(
+                model.RaiseWorkshopSyncFailed,
+                model.SyncWorkshopWithConnectionAsync
+            );
+
         internal async Task RunAsync(SteamConnection connection)
             => await Run(connection).ConfigureAwait(false);
 

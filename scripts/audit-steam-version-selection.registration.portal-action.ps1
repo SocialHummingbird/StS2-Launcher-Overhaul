@@ -18,4 +18,6 @@ function Add-SteamVersionSelectionPortalActionAuditChecks {
     Add-SteamVersionSelectionPortalUxSupportChecks
 
     Add-SteamVersionSelectionPortalBehaviorChecks
+
+    Add-SteamVersionSelectionWorkshopModChecks
 }

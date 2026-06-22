@@ -23,6 +23,11 @@ internal sealed partial class LauncherController
         _model.UpdateCheckFailed += OnMainThread<string>(FailUpdateCheck);
         _model.BranchCatalogRefreshCompleted += OnMainThread(CompleteBranchCatalogRefresh);
         _model.BranchCatalogRefreshFailed += OnMainThread<string>(FailBranchCatalogRefresh);
+        _model.WorkshopSyncLogReceived += OnMainThread<string>(_view.AppendLog);
+        _model.WorkshopSyncCompleted += OnMainThread<string>(CompleteWorkshopSync);
+        _model.WorkshopSyncFailed += OnMainThread<string>(FailWorkshopSync);
+        _model.WorkshopClearCompleted += OnMainThread<int>(CompleteWorkshopClear);
+        _model.WorkshopClearFailed += OnMainThread<string>(FailWorkshopClear);
     }
 
     private Action OnMainThread(Action action)
