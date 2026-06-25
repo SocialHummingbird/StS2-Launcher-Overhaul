@@ -1,19 +1,19 @@
 # Android release validation checklist
 
-Current posture: the ARM64 Android path works locally, including Steam download, Pull from Cloud, Push-to-Cloud hardening, Android local save handoff, and game launch. Release validation is now about hardening that baseline on the newest public APK, especially Samsung retests, persisted Steam-session/update UX, Steam version-selection validation, confirmed Push overwrite evidence, upgrade install behavior, freshness/cache checks, visual loading-screen regressions, and release artifact hygiene. See [current Android status](current-android-status.md).
+Current posture: the ARM64 Android path works locally, including Steam download, Pull from Cloud, Push-to-Cloud hardening, Android local save handoff, and game launch. Release validation is now about hardening that baseline on the newest public APK, especially Workshop/mod support, persisted Steam-session/update UX, Steam version-selection validation, confirmed Push overwrite evidence, upgrade install behavior, freshness/cache checks, visual loading-screen regressions, and release artifact hygiene. See [current Android status](current-android-status.md).
 
 Use this checklist after every release run (manual or tag-triggered) to confirm artifact publication before announcing a release.
 
 Current build-only prerelease reference:
 
 ```text
-release=v0.2.293-local-audit-module-split
-asset=StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk
-sha256=581892136b538f8e57567a2c2981c31a54e980513c1030b92a0a4a926a4b8d11
+release=v0.2.316-workshop-runtime-mod-evidence
+asset=StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk
+sha256=985c6805fceeb13b895fe942ed38594e0aad405bcccccf12a911d29c9e2a8e3e
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.293-local-audit-module-split
-versionCode=293000
-validation=build/static-gate only for the Steam version-selection cloud-safety, helper-boundary audit-module, and portal UX audit split; device runtime signoff still requires the public/public-beta evidence workflow below
+versionName=0.2.316-workshop-runtime-mod-evidence
+versionCode=316000
+validation=build/static-gate for the Workshop/mod sync, staging, runtime-loader, Cloud Push lock, and evidence-review work; device release-candidate signoff still requires the public/public-beta/core-release evidence workflow below
 ```
 
 ## 1) Verify workflow outcome

@@ -31,8 +31,12 @@ internal static partial class RuntimePackWriter
                 return false;
 
             CopyRuntimeAssembly(slot, packDirectory);
-            var copiedSupportAssemblies = CopyRuntimeSupportAssemblies(slot, packDirectory);
             var supportAssemblySha256 = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var copiedSupportAssemblies = CopyRuntimeSupportAssemblies(
+                slot,
+                packDirectory,
+                supportAssemblySha256
+            );
             var context = BuildRuntimePackWriteContext(
                 slot,
                 patchSetVersion,

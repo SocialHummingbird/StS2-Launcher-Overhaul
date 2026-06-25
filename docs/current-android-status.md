@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-06-22_
+_Last updated: 2026-06-24_
 
 Current device evidence ledgers:
 
@@ -14,7 +14,7 @@ Current device evidence ledgers:
 
 ## Headline
 
-The app now works on the validated ARM64 Android path, but it is still in polish and hardening rather than release-candidate signoff.
+The app now works on the validated ARM64 Android path, but it is still in polish and hardening rather than release-candidate signoff. The current headline work is Workshop/mod support, public/public-beta runtime-pack correctness, launcher UX polish, and release-readiness cleanup.
 
 Validated locally on ARM64 hardware:
 
@@ -32,7 +32,7 @@ Validated locally on ARM64 hardware:
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
 - The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix30 also proves public can launch immediately after a `public-beta` runtime-cache switch without routing to `NativeFallbackActivity`.
 - The latest local UI/public-startup prerelease proves fresh public redownload of `v0.107.1` reaches the game main menu with branch-matched managed runtime evidence and removes the launcher startup status overlay after startup observation.
-- The latest local Workshop-mod evidence proves public-branch Workshop sync/staging/runtime loading on ARM64 hardware: `BaseLib` and `Quick Restart` load from app-private staged Workshop content, total loaded mods is 2, the main menu is reached, and Steam Cloud Push is not run.
+- The latest Workshop/mod evidence proves public, public-after-beta, public-beta, and core-release Workshop sync/staging/runtime loading on ARM64 hardware. `BaseLib` and `Quick Restart` are staged from app-private Workshop content and scanned by the runtime mod-loader. Public-beta and core-release now pass strict matched PCK/runtime-pack/mod-initializer evidence gates with no `NativeFallbackActivity` route and no forbidden BaseLib initializer errors. Core-release still records that Steam metadata exposed an inherited public depot manifest rather than a distinct visible branch payload. The launcher also now has ARM64 visual proof of a first-class main Play-screen Mods section with active staged count, `Sync Workshop`, `Clear Staged`, and Cloud upload locked.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -40,15 +40,15 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.293-local-audit-module-split
-asset=StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk
-sha256=581892136b538f8e57567a2c2981c31a54e980513c1030b92a0a4a926a4b8d11
+release=v0.2.316-workshop-runtime-mod-evidence
+asset=StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk
+sha256=985c6805fceeb13b895fe942ed38594e0aad405bcccccf12a911d29c9e2a8e3e
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.293-local-audit-module-split
-versionCode=293000
-validation=Android build/APK verification passed; Steam version-selection static audit passed 515 checks; multi-version runtime release gates passed; Steam branch-guidance parity passed through the gate wrapper; managed Release build passed; APK crypto patch verification passed. This prerelease continues the Steam version-selection static audit split by moving cloud-safety checks, helper-boundary audit-module inventory, and portal UX support checks into focused submodules while keeping the top-level scripts as orchestrators. It is build/static-audit evidence only and does not replace ARM64 public/public-beta runtime evidence.
+versionName=0.2.316-workshop-runtime-mod-evidence
+versionCode=316000
+validation=Android build/APK verification passed; Workshop evidence reviewer regression tests passed; Workshop static audit passed; managed Release build passed; APK crypto patch verification passed. This prerelease packages the current Workshop/mod sync, staging, runtime-loader, Cloud Push lock, and evidence-review work. It is a local-package hardening prerelease and does not replace release-candidate public-package signoff.
 cloudSafety=No Push to Cloud was run during this validation.
-evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta artifacts listed below.
+evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta and Workshop artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:
@@ -76,18 +76,22 @@ evidence=artifacts/evidence/ui-pass178-device-view; artifacts/android/public-red
 not_yet_proven=touch validation, Help & Reports/launcher-log copy pass visual proof, short compact status detail copy visual proof, public/public-beta branch-switch runtime evidence on this UI build, rotated/keyboard viewport confirmation-dialog capture, focused input soft-keyboard capture, compact status headline rotation/keyboard reflow capture, compact Steam Guard code/action row rotation/keyboard reflow capture, sticky task header rotation/keyboard reflow capture, compact task re-anchor rotation/keyboard capture, and diagnostics log rotation/keyboard resize capture
 ```
 
-Latest local Workshop mod evidence:
+Latest Workshop/mod evidence:
 
 ```text
-build=0.2.314-workshop-load-order
+latestUiBuild=0.2.328-mods-main-ui-debug
+latestUiApk=artifacts/android/StS2Launcher-v0.2.328-mods-main-ui-debug-arm64-v8a.apk
+latestUiSha256=86db7d6575014c20460f72c13f6f1996046737e53258b473df2cb1ae425ec8bc
+latestUiEvidence=artifacts/android/mods-main-ui-20260624-0727
+latestRuntimeBuild=0.2.323-workshop-baselib-patch-filter-debug
 package=com.sts2launcher.overhaul.fork.local
 device=RFCY70XQE7F
-validation=ARM64 public-branch launch loaded staged Workshop mods BaseLib and Quick Restart; Workshop scan reported discovered=2, load attempts=2, total loaded=2; NGame.GameStartup completed; main menu loaded
+validation=ARM64 0.2.328 visual launcher pass installed over existing data and proved the new first-class Mods section on the main Play screen: Ready summary shows Mods 2, the Mods section shows 2 active staged Workshop mods, Sync Workshop and Clear Staged are visible before diagnostics, support drawer no longer duplicates Workshop actions, Upload remains locked, last_manual_cloud_push.txt is absent, and focused package logs have no launcher crash/fallback marker. ARM64 public-beta strict runtime evidence from 0.2.323 passed 81 checks with selected branch public-beta, selected beta PCK path/hash, selected runtime-pack compatibility, active sts2.dll hash, staged Workshop manifest/hashes, Workshop scan logs, Cloud Push lock, and no forbidden mod initializer errors. Core-release strict evidence passed 81 checks with side-by-side PCK/runtime-pack evidence and no forbidden mod initializer errors, while still recording an inherited public depot manifest. Public-after-beta strict evidence passed 66 checks after returning from beta, proving public PCK/runtime pairing and staged Workshop scan without a stuck beta route.
 unsupported=3747532120 / Vanilla and Modded Saves Merger remains unsupported because Steam exposed a legacy Workshop UGC handle but no direct URL or depot manifest
-cloudSafety=No Steam Cloud Push was run during Workshop sync, clear, or evidence capture
-evidence=artifacts/android/workshop-mods-public-0.2.314-load-order-20260622-205238
+cloudSafety=No Steam Cloud Push was run during the 0.2.328 UI validation, Workshop sync, Workshop clear, or runtime evidence capture
+evidence=artifacts/android/mods-main-ui-20260624-0727; artifacts/android/workshop-mods-public-beta-public-beta-baselib-patch-filter-20260623-113242; artifacts/android/workshop-mods-core-release-core-release-baselib-patch-filter-20260623-113020; artifacts/android/workshop-mods-public-public-after-beta-baselib-patch-filter-20260623-113508
 docs=docs/android-workshop-mods.md
-not_yet_proven=public-beta/core-release Workshop branch-switch evidence, legacy UGC-only content route, and polished release UX/docs signoff
+not_yet_proven=full mod-manager UX beyond sync/clear/status, Android support for the BaseLib patch classes currently skipped by the compatibility filter, proof of a distinct core-release Steam payload if Steam exposes one later, legacy UGC-only content route, and release UX/docs signoff
 ```
 
 Latest verified public release evidence remains:

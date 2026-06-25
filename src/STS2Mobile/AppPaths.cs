@@ -15,6 +15,9 @@ internal static class AppPaths
     private const string WorkshopManifestFileName = "workshop_sync_manifest.json";
     private const string WorkshopClearMarkerFileName = "last_workshop_mod_clear.txt";
     private const string WorkshopConsentMarkerFileName = "workshop_mods_accepted.txt";
+    private const string ModsDirectoryName = "mods";
+    private const string ModSelectionFileName = "mod_selection.json";
+    private const string LastModLaunchFileName = "last_mod_launch.json";
 
     internal const string ExternalModsDir = ExternalStorageRoot + "/Mods";
     internal const string ExternalSaveBackupsDir = ExternalStorageRoot + "/Saves";
@@ -28,6 +31,10 @@ internal static class AppPaths
         WorkshopClearMarkerPath(AppPrivateDataDir);
     internal static string AppPrivateWorkshopConsentMarkerPath =>
         WorkshopConsentMarkerPath(AppPrivateDataDir);
+    internal static string AppPrivateModSelectionPath =>
+        ModSelectionPath(AppPrivateDataDir);
+    internal static string AppPrivateLastModLaunchPath =>
+        LastModLaunchPath(AppPrivateDataDir);
 
     internal static string WorkshopDownloadsDir(string dataDir) =>
         Path.Combine(dataDir, WorkshopModsDirectoryName, WorkshopDownloadsDirectoryName);
@@ -43,6 +50,12 @@ internal static class AppPaths
 
     internal static string WorkshopConsentMarkerPath(string dataDir) =>
         Path.Combine(dataDir, WorkshopModsDirectoryName, WorkshopConsentMarkerFileName);
+
+    internal static string ModSelectionPath(string dataDir) =>
+        Path.Combine(dataDir, ModsDirectoryName, ModSelectionFileName);
+
+    internal static string LastModLaunchPath(string dataDir) =>
+        Path.Combine(dataDir, ModsDirectoryName, LastModLaunchFileName);
 
     private static string AppPrivateDataDir => ResolveAppPrivateDataDirectory();
 
@@ -88,6 +101,7 @@ internal static class AppPaths
     {
         EnsureDirectory(AppPrivateWorkshopDownloadsDir, "Workshop downloads");
         EnsureDirectory(AppPrivateWorkshopStagedModsDir, "Workshop staged mods");
+        EnsureDirectory(Path.GetDirectoryName(AppPrivateModSelectionPath), "mod selection");
     }
 
     private static void EnsureExternalDirectory(string path)

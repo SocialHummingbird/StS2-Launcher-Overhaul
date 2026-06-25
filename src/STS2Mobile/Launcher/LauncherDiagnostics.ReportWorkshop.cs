@@ -45,7 +45,10 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Workshop failed item count: {manifest.Items.Count(IsFailedWorkshopItem)}");
         sb.AppendLine($"Workshop raw staged directory count: {DirectoryCount(stagedDirectory)}");
         sb.AppendLine($"Workshop raw staged PCK file count: {RawStagedPckCount(stagedDirectory)}");
-        sb.AppendLine($"Workshop modded-save Cloud Push locked: {BoolText(LauncherWorkshopModSafety.ActiveStagedModCount() > 0)}");
+        sb.AppendLine($"Mod selector play mode: {(LauncherModSelectionState.IsModdedMode ? "modded" : "vanilla")}");
+        sb.AppendLine($"Mod selector installed mod count: {LauncherModSelectionState.InstalledModCount()}");
+        sb.AppendLine($"Mod selector enabled mod count: {LauncherModSelectionState.EnabledModCount()}");
+        sb.AppendLine($"Workshop modded-save Cloud Push locked: {BoolText(LauncherWorkshopModSafety.HasActiveStagedMods())}");
 
         foreach (var item in manifest.Items.Take(32))
         {

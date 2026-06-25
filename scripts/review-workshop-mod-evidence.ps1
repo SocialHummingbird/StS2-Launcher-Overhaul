@@ -204,6 +204,111 @@ function Require-JsonPropertyMatch(
     Add-Pass $Description
 }
 
+function Read-RuntimeHashForPathPattern([string]$PathPattern, [string]$Description) {
+    $content = Read-EvidenceFile "diagnostics/runtime-hashes.txt"
+    if ($null -eq $content) {
+        return $null
+    }
+
+    foreach ($line in ($content -split "`r?`n")) {
+        $match = [regex]::Match($line, '^(?<hash>[a-fA-F0-9]{64})\s+(?<path>.+?)\s*$')
+        if ($match.Success -and $match.Groups["path"].Value -match $PathPattern) {
+            return $match.Groups["hash"].Value.ToLowerInvariant()
+        }
+    }
+
+    $failures.Add("diagnostics/runtime-hashes.txt - $Description - missing SHA256 for path pattern: $PathPattern")
+    return $null
+}
+
+function Read-PckPatchMarkers {
+    $content = Read-EvidenceFile "diagnostics/runtime-pck-patch-markers.txt"
+    if ($null -eq $content) {
+        return @()
+    }
+
+    $markers = [System.Collections.Generic.List[object]]::new()
+    $currentPath = ""
+    $currentLines = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in ($content -split "`r?`n")) {
+        if ($line.StartsWith("===== ", [System.StringComparison]::Ordinal)) {
+            if (-not [string]::IsNullOrWhiteSpace($currentPath) -and $currentLines.Count -gt 0) {
+                $markers.Add([pscustomobject]@{
+                    Path = $currentPath
+                    Text = ($currentLines -join [Environment]::NewLine)
+                })
+            }
+
+            $currentPath = $line.Substring(6).Trim()
+            $currentLines.Clear()
+            continue
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($currentPath)) {
+            $currentLines.Add($line)
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($currentPath) -and $currentLines.Count -gt 0) {
+        $markers.Add([pscustomobject]@{
+            Path = $currentPath
+            Text = ($currentLines -join [Environment]::NewLine)
+        })
+    }
+
+    return @($markers)
+}
+
+function Read-PckPatchMarkerForPathPattern([string]$PathPattern, [string]$Description) {
+    foreach ($marker in Read-PckPatchMarkers) {
+        if ($marker.Path -match $PathPattern) {
+            try {
+                return $marker.Text | ConvertFrom-Json
+            } catch {
+                $failures.Add("diagnostics/runtime-pck-patch-markers.txt - $Description - invalid JSON for $($marker.Path): $($_.Exception.Message)")
+                return $null
+            }
+        }
+    }
+
+    $failures.Add("diagnostics/runtime-pck-patch-markers.txt - $Description - missing marker for path pattern: $PathPattern")
+    return $null
+}
+
+function Require-SelectedPckHashEvidence([string]$PhaseLabel, [string]$SelectedPckPathPattern, [string]$PatchMarkerPathPattern) {
+    $cacheHash = Read-MarkerValue "diagnostics/current_runtime_cache.txt" "Selected PCK SHA256:" "$PhaseLabel selected PCK hash evidence"
+    $actualHash = Read-RuntimeHashForPathPattern $SelectedPckPathPattern "$PhaseLabel selected mounted PCK hash"
+    if ($null -eq $cacheHash -or $null -eq $actualHash) {
+        return
+    }
+
+    $cacheHash = $cacheHash.ToLowerInvariant()
+    $actualHash = $actualHash.ToLowerInvariant()
+    if ($cacheHash -eq $actualHash) {
+        Add-Pass "$PhaseLabel runtime cache selected PCK hash matches mounted PCK file"
+        return
+    }
+
+    $marker = Read-PckPatchMarkerForPathPattern $PatchMarkerPathPattern "$PhaseLabel Android PCK patch marker explains source/mounted hash pair"
+    if ($null -eq $marker) {
+        return
+    }
+
+    $sourceHash = "$($marker.sourcePckSha256)".Trim().ToLowerInvariant()
+    $androidHash = "$($marker.androidPckSha256)".Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($sourceHash) -or [string]::IsNullOrWhiteSpace($androidHash)) {
+        $failures.Add("diagnostics/runtime-pck-patch-markers.txt - $PhaseLabel Android PCK patch marker lacks sourcePckSha256/androidPckSha256")
+        return
+    }
+
+    if ($sourceHash -ne $cacheHash -or $androidHash -ne $actualHash) {
+        $failures.Add("$PhaseLabel selected PCK hash mismatch: cache/source=$cacheHash markerSource=$sourceHash mounted=$actualHash markerAndroid=$androidHash")
+        return
+    }
+
+    Add-Pass "$PhaseLabel runtime cache source PCK hash matches mounted Android PCK via patch marker"
+}
+
 function Require-WorkshopUsableSourceEvidence([string]$PhaseLabel) {
     Require-JsonPattern "diagnostics/workshop-manifest.json" "$PhaseLabel item has usable download source kind" '(?i)"DownloadSourceKind"\s*:\s*"(direct-url|ugc-hcontent|depot-manifest)"'
     Require-JsonPattern "diagnostics/workshop-manifest.json" "$PhaseLabel item records expected download bytes field" '(?i)"ExpectedDownloadBytes"\s*:\s*[0-9]+'
@@ -216,6 +321,7 @@ function Require-LaunchEvidence([string]$PhaseLabel) {
     Require-JsonPattern "run-metadata.json" "$PhaseLabel capture launched the app" '(?i)"launchRequested"\s*:\s*true'
     Require-Pattern "logs/logcat-workshop-filtered.txt" "$PhaseLabel launch/runtime log is captured" "Loading PCK from|Selected Steam branch|Runtime|Workshop|ModLoader"
     Require-NoPattern "logs/logcat-workshop-filtered.txt" "$PhaseLabel launch avoided fallback/crash signatures" "(?i)NativeFallback|FATAL EXCEPTION|AndroidRuntime.*FATAL|SIGSEGV|signal 11|Unhandled exception"
+    Require-NoPattern "logs/logcat-workshop-filtered.txt" "$PhaseLabel launch avoided mod initializer errors" "(?i)Exception thrown when calling mod initializer|MissingMethodException|JsonPropertyInfoValues"
 }
 
 function Require-WorkshopModLoaderScanEvidence([string]$PhaseLabel) {
@@ -248,6 +354,10 @@ function Require-NonPublicRuntimeEvidence([string]$PhaseLabel) {
     Require-Pattern "diagnostics/current_runtime_cache.txt" "$PhaseLabel runtime cache marker records active sts2.dll hash" "Publish cache active sts2\.dll SHA256:"
     Require-Pattern "diagnostics/runtime-hashes.txt" "$PhaseLabel runtime hashes include selected PCK" "game_versions[/\\]$escapedPhase-.+SlayTheSpire2\.pck"
     Require-Pattern "diagnostics/runtime-hashes.txt" "$PhaseLabel runtime hashes include active sts2.dll" "sts2\.dll"
+    Require-SelectedPckHashEvidence `
+        $PhaseLabel `
+        "game_versions[/\\]$escapedPhase-.+SlayTheSpire2\.pck" `
+        "game_versions[/\\]$escapedPhase-.+[/\\]game[/\\]\.android_pck_patch_v\d+"
     Require-JsonPattern "diagnostics/last_runtime_patch_validation.json" "$PhaseLabel runtime patch validation marker is readable" "\{"
     Require-JsonPattern "diagnostics/last_runtime_patch_validation.json" "$PhaseLabel runtime patch validation selected branch matches" "(?i)`"selectedBranch`"\s*:\s*`"$escapedPhase`""
     Require-JsonPattern "diagnostics/last_runtime_patch_validation.json" "$PhaseLabel runtime patch validation passed" '(?i)"status"\s*:\s*"passed"'
@@ -289,6 +399,7 @@ Require-NoPattern "diagnostics/workshop-manifest.json" "omits raw Workshop downl
 Require-Pattern "diagnostics/cloud-push-markers.txt" "captures Cloud Push markers for safety review" "last_manual_cloud_push"
 Require-Pattern "diagnostics/runtime-markers.txt" "captures runtime markers for branch review" "current_runtime_slot|current_runtime_cache"
 Require-FileExists "diagnostics/runtime-hashes.txt" "has selected runtime hash capture"
+Require-FileExists "diagnostics/runtime-pck-patch-markers.txt" "has Android PCK patch marker capture"
 Require-FileExists "logs/logcat-workshop-filtered.txt" "has focused Workshop logcat file"
 
 foreach ($relativePath in @(
@@ -299,6 +410,7 @@ foreach ($relativePath in @(
     "diagnostics/cloud-push-markers.txt",
     "diagnostics/runtime-markers.txt",
     "diagnostics/runtime-hashes.txt",
+    "diagnostics/runtime-pck-patch-markers.txt",
     "diagnostics/current_runtime_slot.json",
     "diagnostics/current_runtime_cache.txt",
     "diagnostics/last_runtime_patch_validation.json"
@@ -380,6 +492,10 @@ if (-not [string]::IsNullOrWhiteSpace($RequirePhase)) {
             Require-Pattern "diagnostics/current_runtime_cache.txt" "public runtime cache marker records active sts2.dll hash" "Publish cache active sts2\.dll SHA256:"
             Require-Pattern "diagnostics/runtime-hashes.txt" "public runtime hashes include selected PCK" "files[/\\]game[/\\]SlayTheSpire2\.pck"
             Require-Pattern "diagnostics/runtime-hashes.txt" "public runtime hashes include active sts2.dll" "sts2\.dll"
+            Require-SelectedPckHashEvidence `
+                "public" `
+                "files[/\\]game[/\\]SlayTheSpire2\.pck" `
+                "files[/\\]game[/\\]\.android_pck_patch_v\d+"
             Require-JsonPattern "diagnostics/last_runtime_patch_validation.json" "public runtime patch validation marker is readable" "\{"
             Require-JsonPattern "diagnostics/last_runtime_patch_validation.json" "public runtime patch validation selected branch matches" '(?i)"selectedBranch"\s*:\s*"public"'
             Require-JsonPattern "diagnostics/last_runtime_patch_validation.json" "public runtime patch validation passed" '(?i)"status"\s*:\s*"passed"'

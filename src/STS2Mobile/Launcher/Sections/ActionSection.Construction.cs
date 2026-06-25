@@ -76,14 +76,21 @@ internal sealed partial class ActionSection
         UpdateBranchHelpText();
         ArrangeCompactCloudGroupPriority();
 
+        var modsControls = BuildModsControls(scale, compact);
+        _modsGroup = modsControls.Group;
+        _playVanillaButton = modsControls.PlayVanillaButton;
+        _playModdedButton = modsControls.PlayModdedButton;
+        _modsStatusLabel = modsControls.StatusLabel;
+        _modsList = modsControls.ModsList;
+        _workshopSyncButton = modsControls.WorkshopSyncButton;
+        _workshopClearButton = modsControls.WorkshopClearButton;
+
         var supportControls = BuildSupportControls(scale, compact, supportToolsParent);
         _supportToggle = supportControls.SupportToggle;
         _updateButton = supportControls.UpdateButton;
         _refreshVersionsButton = supportControls.RefreshVersionsButton;
         _redownloadButton = supportControls.RedownloadButton;
         _clearCachedVersionsButton = supportControls.ClearCachedVersionsButton;
-        _workshopSyncButton = supportControls.WorkshopSyncButton;
-        _workshopClearButton = supportControls.WorkshopClearButton;
         _diagnosticsButton = supportControls.DiagnosticsButton;
         _showLastErrorButton = supportControls.ShowLastErrorButton;
         _copyRawLogButton = supportControls.CopyRawLogButton;

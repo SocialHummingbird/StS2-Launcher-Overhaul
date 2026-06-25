@@ -105,6 +105,12 @@ function Save-Screenshot([string]$Path) {
     }
 }
 
+function Copy-FileIfPresent([string]$SourcePath, [string]$DestinationPath) {
+    if (Test-Path -LiteralPath $SourcePath) {
+        Copy-Item -LiteralPath $SourcePath -Destination $DestinationPath -Force
+    }
+}
+
 function Get-DeviceWindowState {
     return (Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "dumpsys", "window")) -join [Environment]::NewLine
 }
@@ -164,7 +170,7 @@ $artifactHygiene = @"
 Workshop mod evidence artifact hygiene
 
 This collector does not press Steam Cloud Push and does not upload save data.
-It reads app-private Workshop manifests, clear markers, staged/downloaded file trees, package metadata, focused logcat, and optional screenshots.
+It reads app-private Workshop manifests, mod selector markers, clear markers, staged/downloaded file trees, package metadata, focused logcat, and optional screenshots.
 Raw full logcat is omitted by default. If logs/logcat-full.txt exists, treat it as local-only until manually reviewed and redacted.
 Captured app-private diagnostics can include local package paths, branch names, Workshop item IDs, hashes, and device/package metadata.
 Workshop download source evidence should include only source kind, size, content handle, URL presence, and URL host. Raw signed Workshop download URLs should not be present.
@@ -202,7 +208,11 @@ if ($StartGame) {
 
 if ($Screenshot) {
     Assert-DeviceUnlocked -Stage "before-screenshot"
-    Save-Screenshot -Path (Join-Path $screenshotsDir "$Phase.png")
+    $phaseScreenshotPath = Join-Path $screenshotsDir "$Phase.png"
+    Save-Screenshot -Path $phaseScreenshotPath
+    if (-not [string]::IsNullOrWhiteSpace($safeRunLabel)) {
+        Copy-FileIfPresent -SourcePath $phaseScreenshotPath -DestinationPath (Join-Path $screenshotsDir "$safeRunLabel-screen.png")
+    }
 }
 
 Save-AdbText -Path (Join-Path $logsDir "adb-devices.txt") -Arguments @("devices", "-l") -AllowFailure
@@ -219,6 +229,8 @@ $markerPaths = @(
     "files/current_runtime_slot.json",
     "files/current_runtime_cache.txt",
     "files/last_runtime_patch_validation.json",
+    "files/mods/mod_selection.json",
+    "files/mods/last_mod_launch.json",
     "files/last_manual_cloud_push.txt",
     "files/last_manual_cloud_push_blocked.txt"
 )
@@ -238,6 +250,12 @@ Save-RunAsFileWithHeader -OutputPath (Join-Path $diagnosticsDir "workshop-marker
 Save-RunAsArgsText -Path (Join-Path $diagnosticsDir "workshop-manifest.json") -Arguments @("cat", "files/workshop_mods/workshop_sync_manifest.json") -AllowFailure
 Save-RunAsArgsText -Path (Join-Path $diagnosticsDir "workshop-clear-marker.txt") -Arguments @("cat", "files/workshop_mods/last_workshop_mod_clear.txt") -AllowFailure
 Save-RunAsArgsText -Path (Join-Path $diagnosticsDir "launcher-automation-marker.txt") -Arguments @("cat", "files/last_launcher_automation.txt") -AllowFailure
+Save-RunAsArgsText -Path (Join-Path $diagnosticsDir "mod-selection.json") -Arguments @("cat", "files/mods/mod_selection.json") -AllowFailure
+Save-RunAsArgsText -Path (Join-Path $diagnosticsDir "last-mod-launch.json") -Arguments @("cat", "files/mods/last_mod_launch.json") -AllowFailure
+if (-not [string]::IsNullOrWhiteSpace($safeRunLabel)) {
+    Copy-FileIfPresent -SourcePath (Join-Path $diagnosticsDir "mod-selection.json") -DestinationPath (Join-Path $diagnosticsDir "$safeRunLabel-mod-selection.json")
+    Copy-FileIfPresent -SourcePath (Join-Path $diagnosticsDir "last-mod-launch.json") -DestinationPath (Join-Path $diagnosticsDir "$safeRunLabel-last-mod-launch.json")
+}
 Save-RunAsArgsText -Path (Join-Path $diagnosticsDir "workshop-tree.txt") -Arguments @("find", "files/workshop_mods", "-maxdepth", "6", "-print") -AllowFailure
 if ((Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "workshop-tree.txt")) -notmatch "files/workshop_mods") {
     Save-Text -Path (Join-Path $diagnosticsDir "workshop-tree.txt") -Text "files/workshop_mods <missing>"
@@ -270,10 +288,20 @@ Save-RunAsFileWithHeader -OutputPath (Join-Path $diagnosticsDir "runtime-markers
 )
 
 Save-RunAsArgsText -Path (Join-Path $diagnosticsDir "runtime-tree.txt") -Arguments @("find", "files/game", "files/game_versions", "files/runtime_packs", "files/.godot/mono/publish", "-maxdepth", "5", "-print") -AllowFailure
+$runtimePckPatchMarkers = @(
+    Invoke-RunAsCapture -Arguments @("find", "files", "-maxdepth", "9", "-type", "f", "-name", ".android_pck_patch_v*", "-print") |
+        ForEach-Object { ([string]$_).Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+)
+if ($runtimePckPatchMarkers.Count -gt 0) {
+    Save-RunAsFileWithHeader -OutputPath (Join-Path $diagnosticsDir "runtime-pck-patch-markers.txt") -Paths $runtimePckPatchMarkers
+} else {
+    Save-Text -Path (Join-Path $diagnosticsDir "runtime-pck-patch-markers.txt") -Text "files/.android_pck_patch_v* <missing>"
+}
 $runtimeFileList = @(
     Invoke-RunAsCapture -Arguments @("find", "files", "-maxdepth", "9", "-type", "f", "-print") |
         ForEach-Object { ([string]$_).Trim() } |
-        Where-Object { $_ -match 'SlayTheSpire2\.pck$|sts2\.dll$|compatibility\.json$|patch_validation\.json$|\.android_patch_validation\.json$|current_runtime_slot\.json$|current_runtime_cache\.txt$|last_runtime_patch_validation\.json$' }
+        Where-Object { $_ -match 'SlayTheSpire2\.pck$|sts2\.dll$|System\.Text\.Json\.dll$|compatibility\.json$|patch_validation\.json$|\.android_patch_validation\.json$|\.android_pck_patch_v\d+$|current_runtime_slot\.json$|current_runtime_cache\.txt$|last_runtime_patch_validation\.json$' }
 )
 $runtimeHashes = [System.Collections.Generic.List[string]]::new()
 foreach ($path in $runtimeFileList) {
@@ -298,10 +326,13 @@ Save-RunAsFileWithHeader -OutputPath (Join-Path $diagnosticsDir "cloud-push-mark
     "files/last_manual_cloud_push_blocked.txt"
 )
 
-$focusedPatterns = "Workshop|workshop|ModLoader|Loaded mod|staged|missingDeps|Missing dependency|Manual Push blocked|Steam Cloud|Selected Steam branch|Selected game PCK|Loading PCK from|Runtime slot evidence|Runtime pack|runtime patch validation|Patch orchestration|Assembly cache|AndroidRuntime|FATAL EXCEPTION|signal "
+$focusedPatterns = "Workshop|workshop|ModLoader|Loaded mod|Android mod scan|Play Vanilla|launcher-selected|Skipping disabled|selected mods|\[Mods\]|staged|missingDeps|Missing dependency|Manual Push blocked|Steam Cloud|Selected Steam branch|Selected game PCK|Loading PCK from|Runtime slot evidence|Runtime pack|runtime patch validation|Patch orchestration|Assembly cache|Exception thrown when calling mod initializer|MissingMethodException|JsonPropertyInfoValues|AndroidRuntime|FATAL EXCEPTION|signal "
 $logcat = Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("logcat", "-d", "-v", "time")
 $filtered = @($logcat | Select-String -Pattern $focusedPatterns | ForEach-Object { $_.Line })
 Save-Text -Path (Join-Path $logsDir "logcat-workshop-filtered.txt") -Text ($filtered -join [Environment]::NewLine)
+if (-not [string]::IsNullOrWhiteSpace($safeRunLabel)) {
+    Save-Text -Path (Join-Path $logsDir "$safeRunLabel-focused.txt") -Text ($filtered -join [Environment]::NewLine)
+}
 if ($IncludeRawLogcat) {
     Save-Text -Path (Join-Path $logsDir "logcat-full.txt") -Text ($logcat -join [Environment]::NewLine)
 }
@@ -312,6 +343,8 @@ $hashText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "workshop-h
 $runtimeHashText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "runtime-hashes.txt")
 $cloudPushText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "cloud-push-markers.txt")
 $runtimeText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "runtime-markers.txt")
+$modLaunchText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "last-mod-launch.json")
+$modSelectionText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "mod-selection.json")
 
 $manifestActivePckCount = 0
 try {
@@ -365,6 +398,8 @@ $summary.Add("| Raw signed Workshop download URL omitted | $($manifestText -notm
 $summary.Add("| Stale Workshop download temp artifacts absent | $((Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir 'workshop-tree.txt')) -notmatch 'files/workshop_mods/downloads/.+(\.download|\.tmp-|\.old-)') | diagnostics/workshop-tree.txt |")
 $summary.Add("| Derived Workshop Cloud Push lock state captured | $workshopCloudPushLocked | diagnostics/workshop-derived-state.json |")
 $summary.Add("| Cloud Push marker captured for safety review | $($cloudPushText -match 'last_manual_cloud_push') | diagnostics/cloud-push-markers.txt |")
+$summary.Add("| Mod selector launch marker captured | $($modLaunchText -match 'playMode|selectedMods|workshopModdedSaveCloudPushLocked') | diagnostics/last-mod-launch.json |")
+$summary.Add("| Mod selector selection marker captured | $($modSelectionText -match 'PlayMode|EnabledMods') | diagnostics/mod-selection.json |")
 $summary.Add("| Runtime marker captured for branch/non-public review | $($runtimeText -match 'current_runtime_slot|Runtime ID|selectedBranch|Selected branch') | diagnostics/runtime-markers.txt |")
 $summary.Add("| Runtime selected PCK / active sts2.dll hashes captured | $($runtimeHashText -match 'SlayTheSpire2\.pck|sts2\.dll') | diagnostics/runtime-hashes.txt |")
 $summary.Add("| Focused Workshop logcat captured | $($filtered.Count -gt 0) | logs/logcat-workshop-filtered.txt |")

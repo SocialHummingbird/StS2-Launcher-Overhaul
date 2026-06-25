@@ -26,8 +26,6 @@ internal sealed partial class ActionSection
             Button refreshVersionsButton,
             Button redownloadButton,
             Button clearCachedVersionsButton,
-            Button workshopSyncButton,
-            Button workshopClearButton,
             Button diagnosticsButton,
             Button showLastErrorButton,
             Button copyRawLogButton
@@ -38,8 +36,6 @@ internal sealed partial class ActionSection
             RefreshVersionsButton = refreshVersionsButton;
             RedownloadButton = redownloadButton;
             ClearCachedVersionsButton = clearCachedVersionsButton;
-            WorkshopSyncButton = workshopSyncButton;
-            WorkshopClearButton = workshopClearButton;
             DiagnosticsButton = diagnosticsButton;
             ShowLastErrorButton = showLastErrorButton;
             CopyRawLogButton = copyRawLogButton;
@@ -50,8 +46,6 @@ internal sealed partial class ActionSection
         internal Button RefreshVersionsButton { get; }
         internal Button RedownloadButton { get; }
         internal Button ClearCachedVersionsButton { get; }
-        internal Button WorkshopSyncButton { get; }
-        internal Button WorkshopClearButton { get; }
         internal Button DiagnosticsButton { get; }
         internal Button ShowLastErrorButton { get; }
         internal Button CopyRawLogButton { get; }

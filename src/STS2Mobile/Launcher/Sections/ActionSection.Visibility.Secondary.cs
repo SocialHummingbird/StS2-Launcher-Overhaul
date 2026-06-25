@@ -17,6 +17,7 @@ internal sealed partial class ActionSection
         _redownloadButton.Visible = visibility.Redownload;
         _branchControlsAvailable = visibility.Branch;
         ApplyBranchControlVisibility();
+        SetModsControlsVisible(visibility.Launch);
         SetSupportButtonsVisible(visibility.Support);
         _safeLaunchButton.Visible = visibility.SafeLaunch;
         _launchButton.Visible = visibility.Launch;

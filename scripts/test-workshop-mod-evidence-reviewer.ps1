@@ -120,6 +120,7 @@ function New-WorkshopEvidenceBundle(
         runtimePackStatus = "usable"
     } | ConvertTo-Json -Depth 6)
     Save-TestText (Join-Path $BaseDir "diagnostics\runtime-markers.txt") "===== files/current_runtime_slot.json`n$($runtimeSlot | ConvertTo-Json -Compress -Depth 6)`n===== files/current_runtime_cache.txt`nSelected branch: $runtimeBranch`nRuntime ID: $runtimeBranch-synthetic-slot"
+    Save-TestText (Join-Path $BaseDir "diagnostics\runtime-pck-patch-markers.txt") "files/.android_pck_patch_v* <missing>"
     Save-TestText (Join-Path $BaseDir "diagnostics\runtime-hashes.txt") "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  $($runtimeSlot.pckPath)`nsha256sum synthetic`ndddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd  files/.godot/mono/publish/$runtimeBranch/sts2.dll"
     Save-TestText (Join-Path $BaseDir "diagnostics\runtime-tree.txt") "files/game`nfiles/game/SlayTheSpire2.pck`nfiles/runtime_packs/$runtimeBranch-synthetic-slot"
     Save-TestText (Join-Path $BaseDir "diagnostics\selected_runtime_pack_compatibility.json") (@{
@@ -129,8 +130,8 @@ function New-WorkshopEvidenceBundle(
         sourceAssemblySha256 = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
         androidAssemblySha256 = "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
         generatedFromCleanDirectory = $true
-        supportAssemblies = @("Support.dll")
-        supportAssemblySha256 = @{ "Support.dll" = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" }
+        supportAssemblies = @()
+        supportAssemblySha256 = @{}
     } | ConvertTo-Json -Depth 6)
     Save-TestText (Join-Path $BaseDir "diagnostics\selected_runtime_pack_patch_validation.json") (@{
         status = "passed"
@@ -255,6 +256,11 @@ try {
     $fallbackCrashDir = Join-Path $runRoot "negative-fallback-crash-log"
     New-WorkshopEvidenceBundle -BaseDir $fallbackCrashDir -Phase "public-beta" -FallbackCrashLog
     Invoke-ReviewShouldFail -EvidenceDir $fallbackCrashDir -Phase "public-beta" -Description "public-beta evidence containing NativeFallback/crash log"
+
+    $modInitializerErrorDir = Join-Path $runRoot "negative-mod-initializer-error"
+    New-WorkshopEvidenceBundle -BaseDir $modInitializerErrorDir -Phase "public-beta"
+    Add-Content -LiteralPath (Join-Path $modInitializerErrorDir "logs\logcat-workshop-filtered.txt") -Value "Exception thrown when calling mod initializer of type BaseLib.BaseLibMain: System.MissingMethodException: Method not found: void System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues``1.set_IsProperty(bool)"
+    Invoke-ReviewShouldFail -EvidenceDir $modInitializerErrorDir -Phase "public-beta" -Description "public-beta evidence containing mod initializer MissingMethodException"
 
     $unlockedWithStagedPckDir = Join-Path $runRoot "negative-staged-pck-unlocked"
     New-WorkshopEvidenceBundle -BaseDir $unlockedWithStagedPckDir -Phase "simple" -StagedPck -UnlockedWithStagedPck

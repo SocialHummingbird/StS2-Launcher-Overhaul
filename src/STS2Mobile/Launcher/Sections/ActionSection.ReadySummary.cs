@@ -27,13 +27,15 @@ internal sealed partial class ActionSection
 
     private string CompactReadyVersionSummary()
     {
+        var activeMods = LauncherWorkshopModSafety.ActiveSelectedModCount();
+        var modSummary = activeMods > 0 ? $" | Mods {activeMods}" : " | Mods off";
         if (_compactStackedActionRows)
         {
             return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadyStackedSummaryBranchLimit)}\n"
-                + "Save Check | Upload locked | no auto cloud upload";
+                + $"Save Check | Upload locked{modSummary}";
         }
 
-        return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadySummaryBranchLimit)} | Save Check | Upload locked";
+        return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadySummaryBranchLimit)} | Save Check | Upload locked{modSummary}";
     }
 
     private string CompactReadyVersionHelpText()

@@ -40,6 +40,7 @@ internal sealed partial class ActionSection : VBoxContainer
     internal event Action SafeLaunchPressed;
     internal event Action WorkshopSyncPressed;
     internal event Action WorkshopClearPressed;
+    internal event Action ModsSelectionChanged;
 
     private readonly Button _launchButton;
     private readonly Button _safeLaunchButton;
@@ -69,6 +70,11 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _clearCachedVersionsButton;
     private readonly Button _workshopSyncButton;
     private readonly Button _workshopClearButton;
+    private readonly VBoxContainer _modsGroup;
+    private readonly Button _playVanillaButton;
+    private readonly Button _playModdedButton;
+    private readonly Label _modsStatusLabel;
+    private readonly VBoxContainer _modsList;
     private readonly Button _diagnosticsButton;
     private readonly Button _showLastErrorButton;
     private readonly Button _copyRawLogButton;
@@ -107,5 +113,7 @@ internal sealed partial class ActionSection : VBoxContainer
     {
         _workshopSyncButton.Disabled = disabled;
         _workshopClearButton.Disabled = disabled;
+        if (!disabled && _modsGroup.Visible)
+            RefreshModsStatus();
     }
 }

@@ -32,14 +32,14 @@ internal sealed partial class LauncherController
 
     private bool CanPushWithWorkshopModSafety(CloudPushSafetyContext pushContext)
     {
-        var stagedMods = LauncherWorkshopModSafety.ActiveStagedModCount();
-        if (stagedMods <= 0)
+        var selectedMods = LauncherWorkshopModSafety.ActiveSelectedModCount();
+        if (selectedMods <= 0)
             return true;
 
-        var reason = $"Manual Push blocked: {stagedMods} active Workshop mod(s) are staged; modded-save Steam Cloud upload is not supported.";
+        var reason = $"Manual Push blocked: {selectedMods} selected mod(s) are active; modded-save Steam Cloud upload is not supported.";
         pushContext.WriteBlockedMarker(reason);
-        _view.SetStatus("Push blocked: Workshop mods are active. Steam Cloud upload stays locked for modded saves.");
-        _view.AppendLog("Push blocked: active Workshop mods were found in the Android staged mod path. Pull/download/sync remain available, but Push to Steam Cloud is blocked to protect unmodded cloud saves.");
+        _view.SetStatus("Push blocked: selected mods are active. Steam Cloud upload stays locked for modded saves.");
+        _view.AppendLog("Push blocked: selected Android mods are enabled for launch. Pull/download/sync remain available, but Push to Steam Cloud is blocked to protect unmodded cloud saves.");
         return false;
     }
 }

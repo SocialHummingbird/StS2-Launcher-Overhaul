@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -7,8 +10,6 @@ internal static partial class RuntimePackWriter
 {
     private static readonly string[] RuntimeSupportAssemblyFileNames =
     {
-        "Steamworks.NET.dll",
-        "Sentry.dll"
     };
 
     private static string PreparePackDirectory(GameRuntimeSlot slot)
@@ -30,9 +31,45 @@ internal static partial class RuntimePackWriter
             overwrite: true
         );
 
-    private static string[] CopyRuntimeSupportAssemblies(GameRuntimeSlot slot, string packDirectory)
+    private static string[] CopyRuntimeSupportAssemblies(
+        GameRuntimeSlot slot,
+        string packDirectory,
+        IDictionary<string, string> supportAssemblySha256
+    )
     {
-        // Android packages the support assemblies with the app. Runtime packs only swap the branch-specific game assembly.
-        return Array.Empty<string>();
+        var sourceDirectory = Path.GetDirectoryName(slot.SourceAssemblyPath);
+        if (string.IsNullOrWhiteSpace(sourceDirectory) || !Directory.Exists(sourceDirectory))
+            return Array.Empty<string>();
+
+        var copied = new List<string>();
+        foreach (var fileName in RuntimeSupportAssemblyFileNames)
+        {
+            var sourcePath = Path.Combine(sourceDirectory, fileName);
+            if (!File.Exists(sourcePath))
+                continue;
+
+            var destinationPath = Path.Combine(packDirectory, fileName);
+            File.Copy(sourcePath, destinationPath, overwrite: true);
+            copied.Add(fileName);
+            supportAssemblySha256[fileName] = Sha256Hex(destinationPath);
+        }
+
+        return copied.ToArray();
+    }
+
+    private static string Sha256Hex(string path)
+    {
+        byte[] hash;
+        if (OperatingSystem.IsAndroid())
+        {
+            hash = AndroidJavaCrypto.Sha256FileHashData(path);
+        }
+        else
+        {
+            using var stream = File.OpenRead(path);
+            hash = SHA256.HashData(stream);
+        }
+
+        return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
     }
 }

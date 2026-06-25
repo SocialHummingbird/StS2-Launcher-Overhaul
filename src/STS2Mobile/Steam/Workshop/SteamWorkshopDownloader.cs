@@ -202,7 +202,7 @@ internal sealed class SteamWorkshopDownloader : IDisposable
             );
         }
 
-        if (detail.hcontent_file != 0 && manifestId != 0)
+        if (detail.hcontent_file != 0)
         {
             try
             {
@@ -231,6 +231,20 @@ internal sealed class SteamWorkshopDownloader : IDisposable
                     null
                 );
             }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(
+                    $"[Workshop] UGC details unavailable for {detail.publishedfileid} and no depot manifest was exposed: {ex.Message}"
+                );
+                return new DownloadSource(
+                    "",
+                    "",
+                    DeclaredDownloadSize(detail.file_size),
+                    "no-download-source",
+                    detail.hcontent_file,
+                    "Steam exposed a legacy Workshop UGC handle but RequestUGCDetails did not resolve a download URL"
+                );
+            }
         }
 
         if (manifestId != 0)
@@ -245,22 +259,10 @@ internal sealed class SteamWorkshopDownloader : IDisposable
             );
         }
 
-        if (detail.hcontent_file != 0)
-        {
-            return new DownloadSource(
-                "",
-                "",
-                0,
-                "no-download-source",
-                detail.hcontent_file,
-                "Steam exposed a legacy Workshop UGC handle but no direct URL or depot manifest"
-            );
-        }
-
         return new DownloadSource(
             "",
             "",
-            0,
+            DeclaredDownloadSize(detail.file_size),
             "no-download-source",
             detail.hcontent_file,
             "Steam did not expose a Workshop download URL or UGC handle"

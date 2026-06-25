@@ -108,7 +108,7 @@ public class GodotApp extends GodotActivity {
 	private static final String ENV_STEAMKIT_DEBUG_LOGS = "STS2_STEAMKIT_DEBUG_LOGS";
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String EXTRA_SAFE_LAUNCH_ON_START = "sts2_safe_launch";
-    private static final int ASSEMBLY_CACHE_SCHEMA = 23;
+    private static final int ASSEMBLY_CACHE_SCHEMA = 24;
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v29";
 	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
