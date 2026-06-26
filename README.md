@@ -20,6 +20,7 @@ The goal is a **drastic architecture and reliability overhaul** that is harder t
 - Android runtime findings: [docs/android-runtime-findings.md](docs/android-runtime-findings.md)
 - Current Android status: [docs/current-android-status.md](docs/current-android-status.md)
 - Android Steam Workshop mods: [docs/android-workshop-mods.md](docs/android-workshop-mods.md)
+- Testing needed: [docs/testing-needed.md](docs/testing-needed.md)
 
 ### Suggested working remotes
 
@@ -37,22 +38,49 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 ## Current Status
 
-**Working ARM64 Android baseline:** the launcher now installs, starts, authenticates with Steam, downloads game files, pulls Steam Cloud saves into Android local app storage, pushes Android saves back to Steam Cloud on local hardening builds, and launches the game with the pulled profile visible in-game.
+**Current state:** StS2 Mobile is playable on tested ARM64 Android hardware, but it is still a prerelease community launcher. The focus is now stability, loading speed, cleaner onboarding, branch switching, Steam Cloud safety, and experimental Workshop/mod support.
 
-This is still a polish and hardening phase, not release-candidate signoff. The active work is focused on Workshop/mod support, broader Samsung/One UI retesting, persisted Steam-session/update UX, Steam beta/version selection hardening, best-in-class launcher UX, quieter diagnostics, repeatable release asset hygiene, and full newest-public Pull/confirmed-Push/game-launch smoke.
+Latest published APK prerelease: [v0.2.335-mod-selector-deps-cloud-marker-debug](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.335-mod-selector-deps-cloud-marker-debug)
 
-- Latest published APK prerelease: `v0.2.316-workshop-runtime-mod-evidence`
-- Current APK asset: `StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.335-mod-selector-deps-cloud-marker-debug-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Release asset SHA-256: `985c6805fceeb13b895fe942ed38594e0aad405bcccccf12a911d29c9e2a8e3e`
-- Latest local ARM64 build APK: `0.2.330-save-merger-fallback-debug` / `versionCode=330000`, artifact `artifacts/android/StS2Launcher-v0.2.330-save-merger-fallback-debug-arm64-v8a.apk`, SHA-256 `ad8f715b3019b6de48cb1b5427ac7e03a943223639aa4673095ca720b37bff62`. This local package proves the new first-class launcher Mods section on the connected ARM64 device, with visible active-mod status, `Sync Workshop`, `Clear Staged`, diagnostics kept below the launch workflow, and Steam Cloud upload still locked. It also proves the save-merger Workshop acquisition blocker: subscribed item `3747532120` is discovered, but Steam exposes only a legacy UGC handle with no direct URL or depot manifest, and `SteamCloud.RequestUGCDetails` does not resolve a usable Android download URL. The launcher keeps that item unsupported, shows `1 needs import`, and points users to the supported manual import folder `/storage/emulated/0/StS2Launcher/Mods`. Manual import from the PC Steam Workshop cache was then validated: `SavesMerger.dll` / `.json` / `.pck` copied to `/sdcard/StS2Launcher/Mods/3747532120`, loaded as the third mod alongside `BaseLib` and `Quick Restart`, and the game read existing `profile1/saves/progress.save` plus `prefs.save` on the modded main-menu route. This is still a local-package hardening build, not release-candidate signoff. No Steam Cloud Push was run during this validation.
-- Latest local ARM64 validation APK with public-beta runtime evidence: `0.2.188-local-runtime-beta-fix31-save-origin-pck` / `versionCode=218858`, artifact `artifacts/android/StS2Launcher-v0.2.188-local-runtime-beta-fix31-save-origin-pck-arm64-v8a.apk`, SHA-256 `33fa866b5d8b9462f2aa83cd34606b84b3f7f8b8a5a8da159d08cecc2ed04ae6`.
-- Latest verified public release: `0.2.187-beta-art-fallback` / `versionCode=218700`
-- Validated locally/publicly: fresh APK/runtime install, public `v0.2.186 -> v0.2.187` update-compatible release build, responsive launcher login/download-progress/diagnostics/ready-state visual checks on ARM64 hardware, Push-to-Cloud confirmation/cancel safety on the public `v0.2.187` APK, Steam login to Steam Guard on public `v0.2.183`, Steam game download, Pull from Cloud, Push to Cloud, Pull-after-Push round trip, Android local save handoff, game launch/profile visibility, and restart-to-launcher behavior on ARM64 hardware.
-- Still hardening: Workshop/mod UX polish beyond the new main launcher Mods section, BaseLib skipped-feature compatibility follow-up, core-release distinct-payload availability evidence, Samsung A53/S25+/S24 Ultra reporter retests if fresh reports arrive, repeated public-release Pull/confirmed-Push/game-launch smoke on the newest APK, persisted Steam session/update UX, Steam beta/version selection validation, richer launch progress UI, diagnostics polish, and release-candidate signoff.
-- Steam beta/version selection is implemented for validation, with a discovery-led dropdown selector, `Refresh Game Versions` Steam app-info discovery, concise branch metadata badges, selected-branch metadata/status helper text, branch-aware downloads/update checks/redownloads, side-by-side non-public caches, selected-version diagnostics, `last_steam_branch_availability.txt` evidence, native routing/fallback diagnostics, branch-switch marker evidence, and safe branch-switch warnings. Public/default remains always available; non-public branches come from account-visible Steam app-info or locally installed side-by-side branch slots retained for retry/recovery diagnostics. Known password-protected, no-manifest, or absent saved branches are blocked before game-version download attempts when refreshed app-info evidence proves they are unavailable. Native startup blocks selected-version launch when branch marker provenance is missing or mismatched. The latest local ARM64 hardening build validates `public-beta` launch from `game_versions/public-beta-8128824d/game` with a usable `runtime_packs/public-beta-8128824d` pack, avoids the branch-switch JNI crash by using branch-local validation/runtime-pack hash evidence instead of falling back to direct large-PCK hashing for non-public branches, and now has focused public-beta Compendium/Bestiary route evidence with matched beta PCK/runtime and no package-side fatal or missing-resource hard-lock. Current beta-integrity hardening records selected/public depot manifest comparison, explicit `public-inherited` depot evidence, manifest request branch provenance, clean-redownload-gated `Classification:` and `Evidence readiness:` summaries, focused beta-integrity logcat, selected cache tree capture, and public-vs-beta file/key-asset hash comparison so public-vs-beta integrity classification and mixed beta/public behavior and art asset issues can be classified from evidence instead of guessed. Static CI guardrails cover version-selection docs, release blockers, unavailable-branch gates, credential-provider guardrails, native launch gating, beta-integrity evidence fields, and managed/native selector-guidance parity. It is now published in the latest ARM64 APK, but not release-candidate signed off: beta password behavior, inaccessible/private branch handling, refresh/dropdown negative cases, cache cleanup, Push backup evidence, password-manager suggestion behavior in the native credential panel, save compatibility across branches, and release-candidate public/default retest still require ARM64 device validation.
-- Branch-switch Steam Cloud safety has read-only ARM64 evidence for the public -> public-beta pending-Pull posture: source PCK/runtime-pack hashes match the installed beta slot, the mounted Android-patched PCK/runtime cache matches launch validation, stale cache/wrong path/shared runtime are ruled out, and Push is classified as `do-not-push` until selected-runtime Pull/save evidence is current. No Push-to-Cloud mutation is part of that branch-runtime evidence path.
-- Steam Workshop/mod support is in progress and now has ARM64 branch-switch evidence: subscribed Workshop items are discovered, usable depot-manifest items are staged into app-private storage, staged mods are found by the Android runtime mod-loader path, `BaseLib` and `Quick Restart` load from staged Workshop storage, and strict public-beta/core-release/public-after-beta evidence passes without running Steam Cloud Push. The launcher now exposes Mods on the main play surface with active staged-mod status plus `Sync Workshop` and `Clear Staged` actions, while repair/diagnostic tools remain lower priority. This is not finished mod-manager UX yet: core-release currently records an inherited public depot manifest rather than a distinct visible branch payload, BaseLib uses an Android compatibility filter that skips known incompatible patch classes, and one known subscribed item, `3747532120` / `Vanilla and Modded Saves Merger`, remains explicitly unsupported because Steam exposes only a legacy UGC handle with no direct URL or depot manifest and `SteamCloud.RequestUGCDetails` does not resolve a URL on-device. Manual import via `/storage/emulated/0/StS2Launcher/Mods` is the supported fallback for that item until Steam exposes a usable content source. See [Android Steam Workshop mods](docs/android-workshop-mods.md).
+- Version code: `335000`
+- SHA-256: `46799153565feb414a702d590e15cc29bea2cfb5437eb4a11fa5606587db2ac1`
+- Signing channel: local debug/test channel
+
+What currently works on tested ARM64 hardware:
+
+- Steam login reaches Steam Guard/authentication flow.
+- Game files can be downloaded from Steam for owned accounts.
+- Public/default game launch has ARM64 evidence.
+- Public-beta branch launch has ARM64 evidence with matched beta PCK and matched beta runtime pack.
+- Steam Cloud Pull into Android local app storage has been validated.
+- Steam Cloud Push is intentionally guarded and is not automatic.
+- The launcher has a first-class Mods section on the main play screen.
+- Workshop/staged mods can be selected, disabled, and launched through the Android runtime mod-loader path.
+- `BaseLib`, `Quick Restart`, and manually imported `Vanilla and Modded Saves Merger` have reached the game main menu in ARM64 validation.
+
+Experimental or still hardening:
+
+- Workshop/mod support is functional but not finished. Steam discovery can stage some subscribed mods, but items exposed only as legacy UGC handles may still need manual import.
+- `Vanilla and Modded Saves Merger` is the most important current mod validation target. It has manual-import launch evidence, but broader save-merge compatibility still needs tester reports.
+- Branch switching is implemented, but beta/password/private branch behavior and save compatibility across branches still need more device evidence.
+- Samsung/One UI layouts and login behavior need more current-version reports from affected users.
+- Startup/loading speed and diagnostics are active refactor targets.
+
+Steam Cloud safety:
+
+- Pull from Steam Cloud is the preferred first action.
+- Push to Steam Cloud is never run automatically.
+- Manual Push is gated because it can overwrite Steam Cloud state.
+- Push remains locked in active modded-save risk states until the launcher has enough evidence that the local save state is safe.
+
+How to help:
+
+- Download the latest APK from [Releases](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases).
+- Read [Testing needed](docs/testing-needed.md) before filing results.
+- Use the focused GitHub issue templates for crashes, Steam Cloud, branch/download issues, mods/save-merger testing, or device compatibility reports.
+
 - Steam version selection user guide: [docs/steam-version-selection-user-guide.md](docs/steam-version-selection-user-guide.md).
 - Branch validation checklist: [docs/steam-version-selection-validation.md](docs/steam-version-selection-validation.md).
 - Branch validation runbook: [docs/steam-version-selection-runbook.md](docs/steam-version-selection-runbook.md).
@@ -227,13 +255,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.316-workshop-runtime-mod-evidence" `
-  -AssetName "StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.335-mod-selector-deps-cloud-marker-debug" `
+  -AssetName "StS2Launcher-v0.2.335-mod-selector-deps-cloud-marker-debug-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.316-workshop-runtime-mod-evidence" `
-  -AssetName "StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.335-mod-selector-deps-cloud-marker-debug" `
+  -AssetName "StS2Launcher-v0.2.335-mod-selector-deps-cloud-marker-debug-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -242,12 +270,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.316-workshop-runtime-mod-evidence
-Asset: StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk
+Release: v0.2.335-mod-selector-deps-cloud-marker-debug
+Asset: StS2Launcher-v0.2.335-mod-selector-deps-cloud-marker-debug-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.316-workshop-runtime-mod-evidence
-VersionCode: 316000
-SHA-256: 985c6805fceeb13b895fe942ed38594e0aad405bcccccf12a911d29c9e2a8e3e
+VersionName: 0.2.335-mod-selector-deps-cloud-marker-debug
+VersionCode: 335000
+SHA-256: 46799153565feb414a702d590e15cc29bea2cfb5437eb4a11fa5606587db2ac1
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.
