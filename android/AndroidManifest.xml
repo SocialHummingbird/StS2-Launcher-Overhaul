@@ -37,6 +37,7 @@
     android:isGame="true"
     android:hasFragileUserData="false"
     android:requestLegacyExternalStorage="true"
+    android:usesCleartextTraffic="true"
     tools:ignore="GoogleAppIndexingWarning"
   >
     <profileable android:shell="true" android:enabled="true" tools:targetApi="29" />
