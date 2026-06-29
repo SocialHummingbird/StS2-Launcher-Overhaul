@@ -1,6 +1,6 @@
 function Add-SteamVersionSelectionCloudSafetyPushRequestConstructionChecks {
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.Request.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.cs" `
         "keeps manual cloud sync request state and confirmation properties typed" `
         @(
             "CloudSyncTimeoutMs = 180_000",
@@ -14,7 +14,7 @@ function Add-SteamVersionSelectionCloudSafetyPushRequestConstructionChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.Request.Factory.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.Factory.cs" `
         "routes manual Pull and Push requests through explicit markers and request callbacks" `
         @(
             "ManualCloudSyncRequest Push",
@@ -29,7 +29,7 @@ function Add-SteamVersionSelectionCloudSafetyPushRequestConstructionChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.Request.PushConfirmation.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.PushConfirmation.cs" `
         "warns final Push confirmation about selected version, branch switches, and save overwrite risk" `
         @(
             "Selected version slot:",

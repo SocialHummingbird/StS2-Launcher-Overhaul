@@ -1,6 +1,6 @@
 function Add-SteamVersionSelectionDownloadWorkflowActionChecks {
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Downloads.Actions.cs" `
+        "src\STS2Mobile\Launcher\LauncherDownloadCoordinator.Actions.cs" `
         "reports selected-version preservation when clearing inactive caches" `
         @(
             "SelectedOptionDownloadProblem",
@@ -17,7 +17,7 @@ function Add-SteamVersionSelectionDownloadWorkflowActionChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Downloads.Execution.cs" `
+        "src\STS2Mobile\Launcher\LauncherDownloadCoordinator.Execution.cs" `
         "logs selected-branch integrity summary after non-public downloads" `
         @(
             "BranchIntegritySummary",
@@ -26,7 +26,7 @@ function Add-SteamVersionSelectionDownloadWorkflowActionChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Downloads.Actions.cs" `
+        "src\STS2Mobile\Launcher\LauncherDownloadCoordinator.Actions.cs" `
         "labels redownload and cache confirmations with explicit compact actions" `
         @(
             "Redownload Version",

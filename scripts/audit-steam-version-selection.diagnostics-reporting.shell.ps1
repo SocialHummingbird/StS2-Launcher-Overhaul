@@ -1,6 +1,6 @@
 function Add-SteamVersionSelectionDiagnosticsReportingShellChecks {
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Diagnostics.cs" `
+        "src\STS2Mobile\Launcher\LauncherDiagnosticsCoordinator.cs" `
         "warns before launcher logs are copied for sharing" `
         @(
             "Public sharing warning",

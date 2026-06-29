@@ -69,7 +69,7 @@ function Add-SteamVersionSelectionConfirmationChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Startup.BranchSwitch.cs" `
+        "src\STS2Mobile\Launcher\LauncherBranchSwitchCoordinator.cs" `
         "labels branch-switch confirmation with explicit compact actions" `
         @(
             "Switch Version",
@@ -77,7 +77,7 @@ function Add-SteamVersionSelectionConfirmationChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.Request.Factory.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.Factory.cs" `
         "labels final cloud confirmation with explicit compact actions" `
         @(
             "Push to Cloud",

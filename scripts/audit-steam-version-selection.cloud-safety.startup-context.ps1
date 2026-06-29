@@ -1,6 +1,6 @@
 function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Startup.BranchSwitch.cs" `
+        "src\STS2Mobile\Launcher\LauncherBranchSwitchCoordinator.cs" `
         "uses centralized selector guidance in branch-switch confirmation" `
         @(
             "BranchSwitchConfirmationMessage",
@@ -13,7 +13,7 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Startup.RuntimeEvidence.cs" `
+        "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.cs" `
         "uses selected-version runtime evidence in ready and download-required status copy" `
         @(
             "SelectedVersionReadyStatus",

@@ -136,7 +136,7 @@ function Add-SteamVersionSelectionWorkshopModChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.cs" `
         "blocks Steam Cloud Push when active Workshop PCK mods are staged" `
         @(
             "CanPushWithWorkshopModSafety",
@@ -236,10 +236,10 @@ function Add-SteamVersionSelectionWorkshopModChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Workshop.cs" `
+        "src\STS2Mobile\Launcher\LauncherWorkshopCoordinator.cs" `
         "surfaces Workshop sync and clear result counts in launcher status" `
         @(
-            "CompleteWorkshopSync\(string summary\)",
+            "CompleteSync\(string summary\)",
             "var detail = string\.IsNullOrWhiteSpace\(summary\)",
             '_view\.SetStatus\(\$"\{detail\}',
             "SetWorkshopButtonsDisabled\(true\)",

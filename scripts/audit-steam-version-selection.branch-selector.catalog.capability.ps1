@@ -34,7 +34,7 @@ function Add-SteamVersionSelectionBranchSelectorCatalogCapabilityChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.BranchCatalog.cs" `
+        "src\STS2Mobile\Launcher\LauncherVersionCoordinator.BranchCatalog.cs" `
         "wires non-mutating refresh game versions action" `
         @(
             "RunBranchCatalogRefresh",

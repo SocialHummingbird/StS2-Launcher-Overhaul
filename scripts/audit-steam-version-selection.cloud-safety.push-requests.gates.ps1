@@ -1,6 +1,6 @@
 function Add-SteamVersionSelectionCloudSafetyPushGateChecks {
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.cs" `
         "keeps manual Push entry points routed through shared safety gates" `
         @(
             "CloudPushPressed",
@@ -12,7 +12,7 @@ function Add-SteamVersionSelectionCloudSafetyPushGateChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.Context.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.Context.cs" `
         "captures selected branch context for Push safety markers" `
         @(
             "CloudPushSafetyContext",
@@ -25,7 +25,7 @@ function Add-SteamVersionSelectionCloudSafetyPushGateChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.Baseline.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.Baseline.cs" `
         "guards baseline manual Push until Pull, local save, and save-origin evidence match" `
         @(
             "CanPushWithBaselineEvidence",
@@ -41,7 +41,7 @@ function Add-SteamVersionSelectionCloudSafetyPushGateChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.BranchSwitch.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.BranchSwitch.cs" `
         "guards manual Push after branch switches until backup storage is available" `
         @(
             "CanPushAfterBranchSwitch",

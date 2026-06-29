@@ -1,17 +1,13 @@
 function Add-SteamVersionSelectionDownloadWorkflowUpdateCheckChecks {
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.cs" `
-        "keeps update-check button labels and running state centralized" `
+        "src\STS2Mobile\Launcher\LauncherUpdateCoordinator.cs" `
+        "keeps update-check running state centralized in the update coordinator" `
         @(
-            "UpdateCheckFailedButtonText = ""Check Failed""",
-            "UpdateCheckBlockedButtonText = ""Check Blocked""",
-            "UpToDateButtonText = ""Up to Date""",
-            "UpdateGameFilesButtonText = ""Update Selected Version""",
             "_updateCheckRunning"
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.ViewUpdate.cs" `
+        "src\STS2Mobile\Launcher\UpdateCheckViewUpdate.cs" `
         "formats update-check view changes without running update logic" `
         @(
             "UpdateCheckViewUpdate",
@@ -33,7 +29,7 @@ function Add-SteamVersionSelectionDownloadWorkflowUpdateCheckChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.Run.cs" `
+        "src\STS2Mobile\Launcher\LauncherUpdateCoordinator.Run.cs" `
         "runs selected-version update checks with busy-state and failure recovery" `
         @(
             "RunUpdateCheck",
@@ -42,12 +38,12 @@ function Add-SteamVersionSelectionDownloadWorkflowUpdateCheckChecks {
             "SetUpdateCheckBusy\(busy: true\)",
             "CheckForUpdatesAsync",
             "PatchHelper\.Log",
-            "FailUpdateCheck\(ex\.Message\)",
+            "_versions\.FailUpdateCheck\(ex\.Message\)",
             "SetUpdateCheckBusy\(busy: false\)"
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.Workflow.cs" `
+        "src\STS2Mobile\Launcher\LauncherUpdateCoordinator.Workflow.cs" `
         "blocks selected-version update checks for known unavailable branches while preserving app update checks" `
         @(
             "CheckForAppUpdatesAsync",
@@ -59,7 +55,7 @@ function Add-SteamVersionSelectionDownloadWorkflowUpdateCheckChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.UpdateChecks.Results.cs" `
+        "src\STS2Mobile\Launcher\LauncherVersionCoordinator.UpdateChecks.Results.cs" `
         "applies update-check completion and failure events after refreshing branch options" `
         @(
             "CompleteUpdateCheck",

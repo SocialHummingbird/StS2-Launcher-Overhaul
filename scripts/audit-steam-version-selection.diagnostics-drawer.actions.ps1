@@ -10,7 +10,7 @@ function Add-SteamVersionSelectionDiagnosticsDrawerActionChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Diagnostics.cs" `
+        "src\STS2Mobile\Launcher\LauncherDiagnosticsCoordinator.cs" `
         "opens Help & Reports when problem summary or launcher-log actions write output" `
         @(
             "ShowDiagnosticsSummary",
@@ -20,7 +20,7 @@ function Add-SteamVersionSelectionDiagnosticsDrawerActionChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Diagnostics.Export.cs" `
+        "src\STS2Mobile\Launcher\LauncherDiagnosticsCoordinator.Export.cs" `
         "opens Help & Reports after manual help report export writes output" `
         @(
             "ShowDiagnosticsExportResult",

@@ -18,7 +18,7 @@ function Add-SteamVersionSelectionSupportDocsDiagnosticsReportingBoundaryChecks 
         "keeps diagnostics public-sharing shell audit contracts focused" `
         @(
             "function Add-SteamVersionSelectionDiagnosticsReportingShellChecks",
-            "LauncherController.Diagnostics.cs",
+            "LauncherDiagnosticsCoordinator.cs",
             "LauncherStartupRecoveryControlPanel.Reports.cs",
             "LauncherDiagnostics.Reports.cs"
         )

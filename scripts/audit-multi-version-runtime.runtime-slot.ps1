@@ -403,7 +403,7 @@ function Add-MultiVersionRuntimeSlotChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Session.Actions.cs" `
+        "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.cs" `
         "shows selected-runtime readiness blockers instead of generic download-required status after login" `
         @(
             "LauncherGameFiles\.ReadinessProblem\(_model\.DataDir, branch\)",
@@ -411,7 +411,7 @@ function Add-MultiVersionRuntimeSlotChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Startup.Launch.cs" `
+        "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.cs" `
         "blocks normal and safe launch actions when selected runtime is not playable" `
         @(
             "LaunchPressed",

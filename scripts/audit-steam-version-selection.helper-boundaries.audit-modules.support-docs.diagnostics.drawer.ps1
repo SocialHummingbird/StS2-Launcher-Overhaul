@@ -51,7 +51,7 @@ function Add-SteamVersionSelectionSupportDocsDiagnosticsDrawerBoundaryChecks {
         @(
             "function Add-SteamVersionSelectionDiagnosticsDrawerActionChecks",
             "LauncherView.Diagnostics.cs",
-            "LauncherController.Diagnostics.Export.cs",
+            "LauncherDiagnosticsCoordinator.Export.cs",
             "ShowDiagnosticsConsole"
         )
 }

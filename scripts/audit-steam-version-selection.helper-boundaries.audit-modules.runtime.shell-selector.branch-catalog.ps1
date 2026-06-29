@@ -21,7 +21,7 @@ function Add-SteamVersionSelectionRuntimeBranchCatalogBoundaryChecks {
             "function Add-SteamVersionSelectionBranchSelectorCatalogCapabilityChecks",
             "SteamGameBranch.cs",
             "DepotDownloader.UpdateCheck.cs",
-            "LauncherController.BranchCatalog.cs"
+            "LauncherVersionCoordinator.BranchCatalog.cs"
         )
 
     Add-Check `

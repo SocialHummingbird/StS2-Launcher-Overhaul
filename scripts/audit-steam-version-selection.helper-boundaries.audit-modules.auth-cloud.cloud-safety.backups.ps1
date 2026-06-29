@@ -47,7 +47,7 @@ function Add-SteamVersionSelectionAuthCloudSafetyBackupBoundaryChecks {
         "keeps branch-switch startup context audit contracts focused" `
         @(
             "function Add-SteamVersionSelectionCloudSafetyStartupContextChecks",
-            "LauncherController.Startup.BranchSwitch.cs",
-            "LauncherController.Startup.RuntimeEvidence.cs"
+            "LauncherBranchSwitchCoordinator.cs",
+            "LauncherLaunchCoordinator.cs"
         )
 }

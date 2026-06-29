@@ -1,6 +1,6 @@
 function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.Request.Lifecycle.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.Lifecycle.cs" `
         "keeps manual cloud sync lifecycle UI updates and timeout execution isolated" `
         @(
             "ShowStarted",
@@ -17,7 +17,7 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.Execution.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Execution.cs" `
         "executes Pull/Push cloud sync requests without bypassing Push confirmation" `
         @(
             "ManualCloudSyncRequest\.Pull\(",

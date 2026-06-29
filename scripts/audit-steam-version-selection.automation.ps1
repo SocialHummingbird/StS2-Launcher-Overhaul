@@ -1,6 +1,6 @@
 function Add-SteamVersionSelectionAutomationChecks {
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Automation.cs" `
+        "src\STS2Mobile\Launcher\LauncherAutomationCoordinator.cs" `
         "keeps launcher automation entry point thin around request consumption and execution" `
         @(
             "AutomationFileName = ""launcher_automation_action\.txt""",
@@ -11,7 +11,7 @@ function Add-SteamVersionSelectionAutomationChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Automation.Request.cs" `
+        "src\STS2Mobile\Launcher\LauncherAutomationCoordinator.Request.cs" `
         "parses and consumes launcher automation requests from data-directory files" `
         @(
             "LauncherAutomationRequest",
@@ -31,14 +31,14 @@ function Add-SteamVersionSelectionAutomationChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Automation.Run.cs" `
+        "src\STS2Mobile\Launcher\LauncherAutomationCoordinator.Run.cs" `
         "runs launcher automation through normal branch, catalog, download, and safe-launch paths" `
         @(
             "RunAutomationAsync",
             "WriteAutomationMarker\(request, ""started""\)",
             "LauncherPreferences\.SaveGameBranch",
             "LauncherBranchAvailabilityStatus\.Clear",
-            "RefreshGameBranchOptions",
+            "_versions\.RefreshGameBranchOptions",
             "RefreshBranchCatalogAsync",
             "CheckForUpdatesAsync",
             "ResetGameFilesForRedownload",
@@ -52,7 +52,7 @@ function Add-SteamVersionSelectionAutomationChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.Automation.Marker.cs" `
+        "src\STS2Mobile\Launcher\LauncherAutomationCoordinator.Marker.cs" `
         "records launcher automation status without driving cloud push side effects" `
         @(
             "WriteAutomationMarker",

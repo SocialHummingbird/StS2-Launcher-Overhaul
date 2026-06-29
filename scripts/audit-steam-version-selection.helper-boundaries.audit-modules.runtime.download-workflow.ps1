@@ -30,8 +30,8 @@ function Add-SteamVersionSelectionRuntimeDownloadWorkflowBoundaryChecks {
         "keeps download controller action and cache workflow checks focused" `
         @(
             "function Add-SteamVersionSelectionDownloadWorkflowActionChecks",
-            "LauncherController.Downloads.Actions.cs",
-            "LauncherController.Downloads.Execution.cs"
+            "LauncherDownloadCoordinator.Actions.cs",
+            "LauncherDownloadCoordinator.Execution.cs"
         )
 
     Add-Check `
@@ -39,10 +39,10 @@ function Add-SteamVersionSelectionRuntimeDownloadWorkflowBoundaryChecks {
         "keeps selected-version update-check workflow checks focused" `
         @(
             "function Add-SteamVersionSelectionDownloadWorkflowUpdateCheckChecks",
-            "LauncherController.UpdateChecks.cs",
-            "LauncherController.UpdateChecks.ViewUpdate.cs",
-            "LauncherController.UpdateChecks.Run.cs",
-            "LauncherController.UpdateChecks.Workflow.cs",
-            "LauncherController.UpdateChecks.Results.cs"
+            "LauncherUpdateCoordinator.cs",
+            "UpdateCheckViewUpdate.cs",
+            "LauncherUpdateCoordinator.Run.cs",
+            "LauncherUpdateCoordinator.Workflow.cs",
+            "LauncherVersionCoordinator.UpdateChecks.Results.cs"
         )
 }

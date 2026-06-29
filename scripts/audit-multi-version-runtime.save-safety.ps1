@@ -127,7 +127,7 @@ function Add-MultiVersionRuntimeSaveSafetyChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.Context.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.Context.cs" `
         "shares selected branch context across Push safety gates" `
         @(
             "CloudPushSafetyContext",
@@ -138,7 +138,7 @@ function Add-MultiVersionRuntimeSaveSafetyChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.Baseline.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.Baseline.cs" `
         "blocks baseline Push when save-origin evidence is missing or belongs to another selected runtime" `
         @(
             "CanPushWithBaselineEvidence",
@@ -147,7 +147,7 @@ function Add-MultiVersionRuntimeSaveSafetyChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherController.CloudSync.PushSafety.BranchSwitch.cs" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.BranchSwitch.cs" `
         "blocks branch-switch Push when save-origin evidence belongs to another selected runtime" `
         @(
             "CanPushAfterBranchSwitch",

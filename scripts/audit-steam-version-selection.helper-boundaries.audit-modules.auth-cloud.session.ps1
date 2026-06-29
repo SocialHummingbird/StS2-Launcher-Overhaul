@@ -36,10 +36,10 @@ function Add-SteamVersionSelectionAuthCloudSessionBoundaryChecks {
         "keeps launcher automation audit contracts in a focused module" `
         @(
             "function Add-SteamVersionSelectionAutomationChecks",
-            "LauncherController.Automation.cs",
-            "LauncherController.Automation.Request.cs",
-            "LauncherController.Automation.Run.cs",
-            "LauncherController.Automation.Marker.cs"
+            "LauncherAutomationCoordinator.cs",
+            "LauncherAutomationCoordinator.Request.cs",
+            "LauncherAutomationCoordinator.Run.cs",
+            "LauncherAutomationCoordinator.Marker.cs"
         )
 
     Add-Check `
@@ -47,11 +47,9 @@ function Add-SteamVersionSelectionAuthCloudSessionBoundaryChecks {
         "keeps local Steam credential handoff audit contracts in a focused module" `
         @(
             "function Add-SteamVersionSelectionLocalLoginChecks",
-            "LauncherController.LocalLogin.cs",
-            "LauncherController.LocalLogin.Start.cs",
-            "LauncherController.LocalLogin.Handoff.cs",
-            "LauncherController.LocalLogin.Watch.cs",
-            "LauncherController.LocalLogin.Run.cs"
+            "LauncherSessionCoordinator.cs",
+            "LauncherSessionCoordinator.LocalLogin.cs",
+            "LocalSteamCredentials.cs"
         )
 
     Add-Check `
@@ -62,7 +60,7 @@ function Add-SteamVersionSelectionAuthCloudSessionBoundaryChecks {
             "LauncherView.Dialog.Buttons.cs",
             "LauncherView.Dialog.Message.cs",
             "LauncherView.Behavior.Confirmation.cs",
-            "LauncherController.Startup.BranchSwitch.cs",
-            "LauncherController.CloudSync.Request.Factory.cs"
+            "LauncherBranchSwitchCoordinator.cs",
+            "LauncherCloudSyncCoordinator.Request.Factory.cs"
         )
 }
