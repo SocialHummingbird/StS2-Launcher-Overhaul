@@ -11,7 +11,9 @@ internal static class LauncherStorageNames
     internal const string ManualSafeLaunch = "manual_safe_launch";
     internal const string MonoDirectory = "mono";
     internal const string PublishDirectory = "publish";
+    internal const string StartupContext = "last_startup_context.txt";
     internal const string ShaderWarmupVersion = "shader_warmup_version";
     internal const string StartupMarker = "last_game_start_incomplete";
     internal const string StartupSceneSnapshot = "last_game_start_scene_tree.txt";
+    internal const string StartupTimeline = "last_startup_timeline.txt";
 }

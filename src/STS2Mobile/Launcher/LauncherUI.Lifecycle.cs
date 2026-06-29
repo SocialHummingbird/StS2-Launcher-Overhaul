@@ -8,6 +8,7 @@ internal sealed partial class LauncherUI
 {
     internal void Initialize()
     {
+        LauncherLaunchMarkers.RecordPhase("launcher ui initialize", "Building managed launcher UI");
         ZIndex = LauncherZIndex;
         AndroidBridgeDispatcher.RegisterCurrentThread();
 
@@ -27,10 +28,12 @@ internal sealed partial class LauncherUI
                 EnqueueMainThreadAction
             );
 
+            LauncherLaunchMarkers.RecordPhase("launcher ui ready", layoutProfile.ToString());
             PatchHelper.Log($"LauncherUI initialized. {layoutProfile}");
         }
         catch (Exception ex)
         {
+            LauncherLaunchMarkers.RecordPhase("launcher ui failed", ex.GetBaseException().Message);
             PatchHelper.Log($"BuildUI FAILED: {ex}");
             return;
         }
@@ -46,13 +49,16 @@ internal sealed partial class LauncherUI
     {
         try
         {
+            LauncherLaunchMarkers.RecordPhase("launcher controller starting");
             PatchHelper.Log("Launcher controller starting");
             var automationStarted = _controller.Start();
+            LauncherLaunchMarkers.RecordPhase("launcher controller started", $"automationStarted={automationStarted}");
             PatchHelper.Log("Launcher controller started");
             AutoLaunchIfRequested(automationStarted);
         }
         catch (Exception ex)
         {
+            LauncherLaunchMarkers.RecordPhase("launcher controller failed", ex.GetBaseException().Message);
             PatchHelper.Log($"Launcher controller startup FAILED: {ex}");
             _view?.SetStatus("Launcher startup failed. Diagnostics are available below.");
             _view?.AppendLog(ex.ToString());

@@ -1,0 +1,135 @@
+name: Game download or Steam branch issue
+description: Report public/default, public-beta, core-release, or other Steam branch download and launch behavior.
+title: "[BRANCH] "
+labels: ["bug", "needs-triage", "category: reliability"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is for Steam branch/version issues, including wrong branch, missing/mixed assets, NativeFallback, runtime-pack mismatch, and blocked private/password branches.
+
+        Fallback/gating is useful evidence, but it is not a successful branch launch.
+  - type: dropdown
+    id: branch
+    attributes:
+      label: Branch tested
+      options:
+        - Public/default
+        - Public-beta
+        - Core-release
+        - Other visible branch
+        - Saved/custom branch that is no longer visible
+        - Private/password branch
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the download, update, branch selection, or launch issue.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Include branch refresh, branch selection, download/update, Pull, Start Game, and the failure point where relevant.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Device, app, and Steam context
+      value: |
+        Device model:
+        Android version:
+        Device ABI:
+        APK release tag:
+        APK filename:
+        Package name:
+        App version/versionCode:
+        Clean install or update install:
+        Steam account owns Slay the Spire 2:
+        Steam account could see this branch in the launcher:
+    validations:
+      required: true
+  - type: checkboxes
+    id: observed-result
+    attributes:
+      label: Observed result
+      options:
+        - label: Branch appeared in the launcher.
+        - label: Branch downloaded successfully.
+        - label: Branch was blocked clearly before download/update.
+        - label: Branch launched into game successfully.
+        - label: Launcher showed NativeFallback.
+        - label: Game looked like the wrong branch.
+        - label: Missing or mixed assets appeared.
+        - label: Startup used a public/default PCK when a non-public branch was selected.
+        - label: Runtime pack was missing or mismatched.
+  - type: textarea
+    id: branch-evidence
+    attributes:
+      label: Branch, PCK, and runtime evidence
+      description: Paste from diagnostics/logs. Do not remove unknown fields; write "not captured".
+      value: |
+        Selected game branch:
+        Selected game version display name:
+        Selected game slot kind:
+        Selected game slot directory:
+        Selected game PCK path:
+        Selected game PCK SHA-256:
+        Runtime pack path:
+        Runtime pack SHA-256:
+        Active sts2.dll path:
+        Active sts2.dll SHA-256:
+        Runtime cache marker:
+        Patch validation marker:
+        Branch marker path/value:
+        Visible Steam branches:
+        Windows depot manifests for selected branch:
+        Public-vs-selected depot integrity summary:
+    validations:
+      required: true
+  - type: textarea
+    id: assets
+    attributes:
+      label: Missing, mixed, or wrong-branch assets
+      description: For visual/content bugs, name exact screen, asset, route, or hard-lock point.
+      value: |
+        Affected screen/route:
+        Expected asset or behavior:
+        Actual asset or behavior:
+        Public branch comparison captured:
+        Selected branch comparison captured:
+        Screenshots attached:
+  - type: textarea
+    id: cloud-safety
+    attributes:
+      label: Steam Cloud safety
+      value: |
+        Pull from Cloud ran:
+        Push to Cloud ran:
+        If Push ran, why it was safe:
+        Save compatibility after branch switch tested:
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots
+      description: |
+        Attach focused logs/screenshots. Useful terms: Steam branch, Visible Steam branches, Branch marker, NativeFallback, PatchHelper, Runtime pack, PCK, AndroidRuntime.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checks
+      options:
+        - label: I removed Steam credentials, Steam Guard codes, refresh tokens, private account details, private save contents, and full unsanitized logs.
+          required: true

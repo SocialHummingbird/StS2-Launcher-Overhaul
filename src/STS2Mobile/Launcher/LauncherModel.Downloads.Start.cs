@@ -6,9 +6,14 @@ internal partial class LauncherModel
 {
     internal async Task StartDownloadAsync()
     {
+        LauncherLaunchMarkers.RecordPhase(
+            "download model start",
+            $"branch={LauncherPreferences.ReadGameBranch()}"
+        );
         var run = DownloadRunGuard.TryAcquire(this);
         if (!run.Acquired)
         {
+            LauncherLaunchMarkers.RecordPhase("download model blocked", "Download already running");
             RaiseDownloadFailed("Download already running");
             return;
         }
@@ -21,17 +26,27 @@ internal partial class LauncherModel
         }
         finally
         {
+            LauncherLaunchMarkers.RecordPhase("download model finished");
             run.Release();
         }
     }
 
     internal Task CheckForUpdatesAsync()
-        => RunWithDepotConnectionAsync(
+    {
+        LauncherLaunchMarkers.RecordPhase(
+            "update check model start",
+            $"branch={LauncherPreferences.ReadGameBranch()}"
+        );
+        return RunWithDepotConnectionAsync(
             DepotConnectionAction.UpdateCheck(this)
         );
+    }
 
     internal Task RefreshBranchCatalogAsync()
-        => RunWithDepotConnectionAsync(
+    {
+        LauncherLaunchMarkers.RecordPhase("branch catalog refresh model start");
+        return RunWithDepotConnectionAsync(
             DepotConnectionAction.BranchCatalogRefresh(this)
         );
+    }
 }

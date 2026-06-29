@@ -1,0 +1,108 @@
+name: Device compatibility report
+description: Share whether the latest APK works on your Android device.
+title: "[DEVICE] "
+labels: ["needs-triage", "category: reliability"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ARM64 physical devices are the current proof target. Android x86_64 emulator results are useful only for install/routing/native fallback diagnostics unless specifically requested.
+  - type: textarea
+    id: device
+    attributes:
+      label: Device and app version
+      description: Use the exact GitHub release tag and APK filename, not "latest".
+      value: |
+        Device model:
+        Android version:
+        Vendor skin/version, for example One UI:
+        Device ABI:
+        Display size setting:
+        Font size setting:
+        APK release tag:
+        APK filename:
+        Package name:
+        App version/versionCode:
+        Clean install or update install:
+    validations:
+      required: true
+  - type: checkboxes
+    id: result
+    attributes:
+      label: Result
+      options:
+        - label: App opens to launcher.
+        - label: Steam login works.
+        - label: Game download/update works.
+        - label: Pull from Steam Cloud works.
+        - label: Public/default branch launches.
+        - label: Public-beta/core-release branch launches.
+        - label: Mods section appears.
+        - label: Vanilla launch works.
+        - label: Modded launch works.
+        - label: Save/profile appears in-game.
+        - label: NativeFallback route appears.
+        - label: Immediate crash or hang occurs.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps tested
+      description: List the compatibility path you tried, from install/open through the last tested action.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: performance
+    attributes:
+      label: Performance and startup timing
+      value: |
+        App icon tap to launcher visible:
+        Start Game tap to game main menu:
+        Any long pause, black screen, fallback, or crash:
+        Device temperature/throttling symptoms:
+    validations:
+      required: true
+  - type: textarea
+    id: ui
+    attributes:
+      label: UI, keyboard, and password-manager notes
+      description: Include clipped buttons, unreadable text, missing controls, keyboard overlap, or password-manager suggestion behavior.
+      value: |
+        Launcher layout issue:
+        Keyboard issue:
+        Password-manager suggestions appeared:
+        Buttons/sections missing or hard to reach:
+        Screenshots attached:
+  - type: textarea
+    id: branch-mod-cloud
+    attributes:
+      label: Branch, mods, and cloud context
+      value: |
+        Selected game branch:
+        Mods enabled:
+        Pull from Cloud ran:
+        Push to Cloud ran:
+        Save/profile visible in game:
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Attach screenshots for layout reports and focused logs for crashes.
+      value: |
+        Screenshots attached:
+        Focused logcat attached:
+        Diagnostics/report file attached:
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checks
+      options:
+        - label: I removed Steam credentials, Steam Guard codes, refresh tokens, private account details, private save contents, and full unsanitized logs.
+          required: true

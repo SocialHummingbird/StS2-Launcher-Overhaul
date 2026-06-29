@@ -3,11 +3,13 @@ package com.game.sts2launcher;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Log;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.security.MessageDigest;
 
@@ -24,14 +26,19 @@ public class LauncherActivity extends Activity {
 	private static final String PREFS_NAME = "sts2mobile";
 	private static final String KEY_LAUNCH_GAME_ON_NEXT_START = "launch_game_on_next_start";
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
+	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
+	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
-		logSelectedBranchBeforeRouting(pendingGameLaunch);
+		recordStartupPhase("native launcher activity onCreate", "pendingGameLaunch=" + pendingGameLaunch);
+		logSelectedBranchBeforeRouting(false);
 
-		Intent intent = new Intent(this, routeTargetActivity());
+		Class<?> target = routeTargetActivity();
+		recordStartupPhase("native route selected", target.getSimpleName());
+		Intent intent = new Intent(this, target);
 		Intent sourceIntent = getIntent();
 		if (sourceIntent != null && sourceIntent.getExtras() != null) {
 			intent.putExtras(sourceIntent);
@@ -39,7 +46,53 @@ public class LauncherActivity extends Activity {
 		attachNativeFallbackReason(intent);
 		intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
 		startActivity(intent);
+		recordStartupPhase("native route started", target.getSimpleName());
 		finish();
+	}
+
+	private void recordStartupPhase(String phase, String detail) {
+		String safePhase = sanitizeStartupMarkerValue(phase);
+		String safeDetail = sanitizeStartupMarkerValue(detail);
+		long elapsedMs = SystemClock.elapsedRealtime();
+		long utcMillis = System.currentTimeMillis();
+		String context =
+			"StS2 Mobile native launcher routing context\n" +
+			"UTC millis: " + utcMillis + "\n" +
+			"Elapsed realtime ms: " + elapsedMs + "\n" +
+			"Phase: " + safePhase + "\n" +
+			"Detail: " + safeDetail + "\n" +
+			"Package: " + getPackageName() + "\n" +
+			"Version: " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")\n" +
+			"Selected branch: " + readSelectedBranch() + "\n";
+		writeInternalTextFile(LAST_STARTUP_CONTEXT_FILE, context);
+		appendInternalTextFile(
+			LAST_STARTUP_TIMELINE_FILE,
+			utcMillis + "\telapsedRealtimeMs=" + elapsedMs + "\tphase=" + safePhase + "\tdetail=" + safeDetail + "\n"
+		);
+		Log.i(TAG, "Native startup phase: elapsedRealtimeMs=" + elapsedMs + " phase=" + safePhase + " detail=" + safeDetail);
+	}
+
+	private String sanitizeStartupMarkerValue(String value) {
+		if (value == null || value.trim().isEmpty()) {
+			return "<none>";
+		}
+		return value.replace('\r', ' ').replace('\n', ' ').trim();
+	}
+
+	private void writeInternalTextFile(String name, String text) {
+		try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), name))) {
+			out.write(text.getBytes("UTF-8"));
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to write " + name, e);
+		}
+	}
+
+	private void appendInternalTextFile(String name, String text) {
+		try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), name), true)) {
+			out.write(text.getBytes("UTF-8"));
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to append " + name, e);
+		}
 	}
 
 	private Class<?> routeTargetActivity() {

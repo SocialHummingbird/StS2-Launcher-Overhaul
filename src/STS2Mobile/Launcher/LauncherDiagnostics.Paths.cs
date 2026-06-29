@@ -90,6 +90,18 @@ internal static partial class LauncherDiagnostics
             Path.Combine(dataDir, LauncherStorageNames.StartupMarker)
         );
 
+    private static DiagnosticFile StartupContext(string dataDir)
+        => new(
+            "Startup context",
+            Path.Combine(dataDir, LauncherStorageNames.StartupContext)
+        );
+
+    private static DiagnosticFile StartupTimeline(string dataDir)
+        => new(
+            "Startup timeline",
+            Path.Combine(dataDir, LauncherStorageNames.StartupTimeline)
+        );
+
     private static DiagnosticFile StartupSceneSnapshot(string dataDir)
         => new(
             "Startup scene snapshot",

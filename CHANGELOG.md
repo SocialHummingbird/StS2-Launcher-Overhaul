@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-06-29 - GitHub issue reporting forms
+
+- Replaced the main public Markdown issue templates with GitHub issue forms for general bugs, crashes/startup, device compatibility, game download/branch issues, Steam login/cloud saves, and Workshop/mod/save-merger reports.
+- Added required fields for exact APK identity, device/app/version context, selected Steam branch, PCK/runtime/sts2.dll evidence, runtime cache and patch validation markers, cloud Pull/Push safety state, selected mods, save-merger behavior, screenshots/logs, and redaction checks.
+- Added `.github/ISSUE_TEMPLATE/config.yml` to disable blank public issues and point reporters at current status, testing guidance, and the issue-reporting guide.
+- Added `docs/issue-reporting.md` and refreshed README/testing/log/contributor docs so users know what evidence to attach and what not to post publicly.
+
+## 2026-06-29 - GitHub release hygiene guardrails
+
+- Added `scripts/check-github-release-hygiene.ps1` to validate fork releases explicitly, avoiding the local `gh` default-repo ambiguity with upstream `Ekyso/StS2-Launcher`.
+- The checker verifies APK asset naming, GitHub SHA-256 digest, `.sha256` sidecar contents, JSON/build-info metadata, release body APK/SHA/package references, and single-APK release expectations.
+- Updated the GitHub release verification workflow to fail on missing checksum sidecars and run the new hygiene checker before structural APK verification.
+- Updated the Android release workflow to generate release notes with exact APK, SHA-256, package, versionCode, signing channel, sidecar names, and release-candidate validation boundary.
+- Added `scripts/audit-github-release-inventory.ps1` and `docs/github-release-inventory.md` so the recommended APK, GitHub's non-prerelease Latest target, historical test builds, missing sidecars, and release-body gaps are visible in one place.
+- Refreshed README/status/release-validation docs to point at `v0.2.336-cleartext-cdn-debug`, avoid the misleading `/releases/latest` shortcut for tester builds, and document the release hygiene check as a pre-announcement gate.
+- Updated the remote `v0.2.188-branch-cache-hardening` release body because GitHub still marks it as Latest; it now labels itself as a superseded baseline and points users at the current tester APK.
+
 ## 2026-06-21 - Steam version-selection UI/support audit module split prerelease
 
 - Published the local-package ARM64 prerelease `v0.2.288-local-audit-ui-support-split` with APK `StS2Launcher-v0.2.288-local-audit-ui-support-split-arm64-v8a.apk` and SHA-256 `2905c2f00f4facca8ea495a5787e60c090307dca25102c33ec9b4c978b690a76`.

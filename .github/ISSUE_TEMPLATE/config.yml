@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Current Android status
+    url: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/blob/main/docs/current-android-status.md
+    about: Check what is currently known before opening a new report.
+  - name: Testing guide
+    url: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/blob/main/docs/testing-needed.md
+    about: See the current highest-value Android test areas.
+  - name: Issue reporting guide
+    url: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/blob/main/docs/issue-reporting.md
+    about: Use this before attaching logs, screenshots, save details, or branch/mod evidence.

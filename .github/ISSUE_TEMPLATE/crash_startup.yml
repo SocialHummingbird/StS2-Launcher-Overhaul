@@ -1,0 +1,115 @@
+name: Crash, hang, or startup problem
+description: Report an immediate crash, black screen, NativeFallback route, slow startup, or launch hang.
+title: "[CRASH] "
+labels: ["bug", "needs-triage", "category: reliability"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        NativeFallback, a blocked launch, or a crash is not a successful game launch. Include the branch, APK, runtime, and log evidence that proves where startup routed.
+
+        Do not post Steam credentials, Steam Guard codes, tokens, private save files, or full unsanitized logs.
+  - type: dropdown
+    id: failure-point
+    attributes:
+      label: When did it fail?
+      multiple: true
+      options:
+        - Immediately after opening the app
+        - Before the launcher UI appeared
+        - During Steam login
+        - During game download/update
+        - After pressing Start Game
+        - After selecting or switching Steam branch
+        - After enabling mods
+        - After returning from the game to the launcher
+        - NativeFallbackActivity appeared
+        - Black screen or long hang
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Include the last visible screen and whether Android showed a crash dialog.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Give exact steps from opening the app through the crash, hang, fallback, or slow startup.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: timing
+    attributes:
+      label: Timing
+      value: |
+        App icon tap to launcher visible:
+        Start Game tap to game main menu or failure:
+        Last visible screen before failure:
+        Was this first launch after install/update:
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Device and app version
+      value: |
+        Device model:
+        Android version:
+        Vendor skin/version, for example One UI:
+        Device ABI:
+        APK release tag:
+        APK filename:
+        Package name:
+        App version/versionCode:
+        Clean install or update install:
+        Selected game branch:
+        Mods enabled:
+    validations:
+      required: true
+  - type: textarea
+    id: startup-evidence
+    attributes:
+      label: Startup and runtime evidence
+      description: Paste these from diagnostics or logcat when available. Use "not captured" rather than deleting unknown fields.
+      value: |
+        Selected game branch:
+        PCK path:
+        PCK SHA-256:
+        Runtime pack path:
+        Runtime pack SHA-256:
+        Active sts2.dll path:
+        Active sts2.dll SHA-256:
+        Runtime cache marker path/value:
+        Patch validation marker path/value:
+        NativeFallback route shown:
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Focused logs and screenshots
+      description: |
+        Attach focused logcat around the failure. Useful terms: AndroidRuntime, FATAL EXCEPTION, Godot, STS2Mobile, PatchHelper, NativeFallback, SteamKit, Workshop, Mods.
+      value: |
+        Focused logcat attached:
+        Screenshot or screen recording attached:
+        Generated diagnostics/report attached:
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checks
+      options:
+        - label: I removed Steam credentials, Steam Guard codes, refresh tokens, private account details, private save contents, and full unsanitized logs.
+          required: true
+        - label: I stated whether Steam Cloud Push ran, or confirmed it did not run.
+          required: true

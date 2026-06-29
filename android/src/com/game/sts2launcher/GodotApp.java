@@ -11,6 +11,7 @@ import androidx.core.content.FileProvider;
 import androidx.core.splashscreen.SplashScreen;
 
 import android.content.SharedPreferences;
+import android.os.SystemClock;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -85,6 +86,8 @@ public class GodotApp extends GodotActivity {
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 	private WifiManager.MulticastLock multicastLock;
 	private String gameDir;
+	private File cachedRuntimePackDir;
+	private String cachedRuntimePackValidationKey = "";
 	private static final String KEYSTORE_ALIAS = "sts2mobile_credentials";
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
 	private static final String PREFS_NAME = "sts2mobile";
@@ -111,6 +114,8 @@ public class GodotApp extends GodotActivity {
     private static final int ASSEMBLY_CACHE_SCHEMA = 24;
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v29";
 	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
+	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
+	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
 	private static final int MAX_BUFFERED_HTTP_RESPONSE_BYTES = 1024 * 1024;
 	private static boolean exceptionHandlerInstalled;
@@ -163,16 +168,18 @@ public class GodotApp extends GodotActivity {
 	public void onCreate(Bundle savedInstanceState) {
 		instance = this;
 		installAndroidExceptionHandler();
+		recordStartupPhase("native godot activity onCreate", "GodotApp.onCreate entered");
 		gameDir = resolveGameDir().getAbsolutePath();
 		String selectedBranch = readSelectedBranch();
 		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
+		recordStartupPhase("native game directory resolved", "branch=" + selectedBranch + "; pendingGameLaunch=" + pendingGameLaunch);
 		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
 		Log.i(TAG, "Selected Steam branch: " + selectedBranch);
 		Log.i(TAG, "Selected Steam branch note: " + SteamBranchInfo.selectorHelpText(selectedBranch));
 		Log.i(TAG, "Selected game version slot kind: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Selected game version slot directory: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
 		Log.i(TAG, "Resolved game directory: " + gameDir);
-		Log.i(TAG, "Selected game PCK before Godot init: " + describeGamePck(new File(gameDir, PCK_FILE), pendingGameLaunch));
+		Log.i(TAG, "Selected game PCK before Godot init: " + describeGamePck(new File(gameDir, PCK_FILE), false));
 		Log.i(TAG, "Steam branch marker install slot kind: " + readMarkerValue(branchMarker, "Install slot kind:"));
 		Log.i(TAG, "Steam branch marker expected install slot kind: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Steam branch marker install slot directory: " + readMarkerValue(branchMarker, "Install slot directory:"));
@@ -187,17 +194,24 @@ public class GodotApp extends GodotActivity {
 		cleanupStaleHttpResponseFiles();
 		logStartupFreshnessProbe(pendingGameLaunch);
 
+		recordStartupPhase("native splash setup", "Installing splash screen and edge-to-edge");
 		SplashScreen.installSplashScreen(this);
 		EdgeToEdge.enable(this);
 
 		try {
+			recordStartupPhase("native assembly setup", "Preparing Mono/.NET assembly cache");
 			setupAssemblies();
+			recordStartupPhase("native assembly setup complete", "Assembly cache prepared");
 		} catch (RuntimeException ex) {
+			recordStartupPhase("native assembly setup failed", ex.getMessage());
 			Log.e(TAG, "Assembly setup failed, attempting one-time cache reset", ex);
 			resetAssemblyCacheState();
 			try {
+				recordStartupPhase("native assembly setup retry", "Cache reset complete");
 				setupAssemblies();
+				recordStartupPhase("native assembly setup retry complete", "Assembly cache prepared after reset");
 			} catch (RuntimeException ex2) {
+				recordStartupPhase("native assembly setup fatal", ex2.getMessage());
 				Log.e(TAG, "Assembly setup failed after recovery. Routing to native diagnostics instead of starting Godot.", ex2);
 				showNativeFailure(
 					"StS2 Mobile diagnostics",
@@ -207,7 +221,9 @@ public class GodotApp extends GodotActivity {
 				return;
 			}
 		}
+		recordStartupPhase("native godot super onCreate", "Starting Godot runtime");
 		super.onCreate(savedInstanceState);
+		recordStartupPhase("native godot super onCreate complete", "Godot runtime returned from onCreate");
 
 		// Android WiFi power saving drops broadcast packets without a MulticastLock.
 		try {
@@ -215,8 +231,10 @@ public class GodotApp extends GodotActivity {
 			multicastLock = wifiMgr.createMulticastLock("sts2_lan_discovery");
 			multicastLock.setReferenceCounted(false);
 			multicastLock.acquire();
+			recordStartupPhase("native multicast lock acquired");
 			Log.i(TAG, "WiFi MulticastLock acquired for LAN discovery");
 		} catch (Exception e) {
+			recordStartupPhase("native multicast lock failed", e.getMessage());
 			Log.w(TAG, "Failed to acquire MulticastLock", e);
 		}
 	}
@@ -231,6 +249,7 @@ public class GodotApp extends GodotActivity {
 		Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
 			String text =
 				"UTC millis: " + System.currentTimeMillis() + "\n" +
+				"Startup context: " + readInternalTextFile(LAST_STARTUP_CONTEXT_FILE) + "\n" +
 				"Thread: " + (thread != null ? thread.getName() : "<unknown>") + "\n" +
 				"Package: " + getPackageName() + "\n" +
 				"Version: " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")\n\n" +
@@ -247,11 +266,78 @@ public class GodotApp extends GodotActivity {
 		Log.i(TAG, "Android uncaught exception handler installed");
 	}
 
+	private void recordStartupPhase(String phase) {
+		recordStartupPhase(phase, "");
+	}
+
+	private void recordStartupPhase(String phase, String detail) {
+		String safePhase = sanitizeStartupMarkerValue(phase);
+		String safeDetail = sanitizeStartupMarkerValue(detail);
+		long elapsedMs = SystemClock.elapsedRealtime();
+		long utcMillis = System.currentTimeMillis();
+		String context =
+			"StS2 Mobile native startup context\n" +
+			"UTC millis: " + utcMillis + "\n" +
+			"Elapsed realtime ms: " + elapsedMs + "\n" +
+			"Phase: " + safePhase + "\n" +
+			"Detail: " + safeDetail + "\n" +
+			"Package: " + getPackageName() + "\n" +
+			"Version: " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")\n" +
+			"Selected branch: " + readSelectedBranchSafely() + "\n";
+		writeInternalTextFile(LAST_STARTUP_CONTEXT_FILE, context);
+		appendInternalTextFile(
+			LAST_STARTUP_TIMELINE_FILE,
+			utcMillis + "\telapsedRealtimeMs=" + elapsedMs + "\tphase=" + safePhase + "\tdetail=" + safeDetail + "\n"
+		);
+		Log.i(TAG, "Native startup phase: elapsedRealtimeMs=" + elapsedMs + " phase=" + safePhase + " detail=" + safeDetail);
+	}
+
+	private String sanitizeStartupMarkerValue(String value) {
+		if (value == null || value.trim().isEmpty()) {
+			return "<none>";
+		}
+		return value.replace('\r', ' ').replace('\n', ' ').trim();
+	}
+
+	private String readSelectedBranchSafely() {
+		try {
+			return readSelectedBranch();
+		} catch (Exception e) {
+			return "<unavailable:" + e.getClass().getSimpleName() + ">";
+		}
+	}
+
 	private void writeInternalTextFile(String name, String text) {
 		try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), name))) {
 			out.write(text.getBytes("UTF-8"));
 		} catch (Exception e) {
 			Log.w(TAG, "Failed to write " + name, e);
+		}
+	}
+
+	private void appendInternalTextFile(String name, String text) {
+		try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), name), true)) {
+			out.write(text.getBytes("UTF-8"));
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to append " + name, e);
+		}
+	}
+
+	private String readInternalTextFile(String name) {
+		File file = new File(getFilesDir(), name);
+		if (!file.exists() || !file.isFile()) {
+			return "<missing>";
+		}
+		try (FileInputStream in = new FileInputStream(file)) {
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			byte[] buffer = new byte[4096];
+			int read;
+			while ((read = in.read(buffer)) != -1 && out.size() < 64 * 1024) {
+				out.write(buffer, 0, read);
+			}
+			return out.toString("UTF-8");
+		} catch (Exception e) {
+			return "<failed:" + e.getClass().getSimpleName() + ">";
 		}
 	}
 
@@ -1021,14 +1107,36 @@ public class GodotApp extends GodotActivity {
 			SteamBranchInfo.stateDirectoryName(readSelectedBranch())
 		);
 		if (runtimePackDir.exists() && runtimePackDir.isDirectory()) {
+			String validationKey = runtimePackValidationCacheKey(runtimePackDir);
+			if (
+				cachedRuntimePackDir != null
+					&& cachedRuntimePackDir.equals(runtimePackDir)
+					&& validationKey.equals(cachedRuntimePackValidationKey)
+			) {
+				return cachedRuntimePackDir;
+			}
 			if (!isRuntimePackManifestUsable(runtimePackDir)) {
 				Log.w(TAG, "Ignoring runtime pack with incomplete or mismatched manifest: " + runtimePackDir.getAbsolutePath());
+				cachedRuntimePackDir = null;
+				cachedRuntimePackValidationKey = "";
 				return null;
 			}
+			cachedRuntimePackDir = runtimePackDir;
+			cachedRuntimePackValidationKey = validationKey;
 			return runtimePackDir;
 		}
 
 		return null;
+	}
+
+	private String runtimePackValidationCacheKey(File runtimePackDir) {
+		File selectedPck = new File(gameDir, PCK_FILE);
+		File srcDir = findAssembliesDir();
+		File selectedSourceAssembly = srcDir == null ? null : new File(srcDir, RUNTIME_PACK_ANDROID_ASSEMBLY);
+		return "branch=" + readSelectedBranch()
+			+ "|pck=" + fileIdentity(selectedPck)
+			+ "|source=" + fileIdentity(selectedSourceAssembly)
+			+ "|runtimePack=" + runtimePackIdentity(runtimePackDir);
 	}
 
 	private boolean isRuntimePackManifestUsable(File runtimePackDir) {
@@ -1082,7 +1190,7 @@ public class GodotApp extends GodotActivity {
 				Log.w(TAG, "Runtime pack cannot be matched because selected PCK is missing: " + selectedPck.getAbsolutePath());
 				return false;
 			}
-			String selectedPckSha256 = sha256Hex(selectedPck);
+			String selectedPckSha256 = selectedPckSha256ForRuntimePackValidation(selectedPck, sourcePckSha256);
 			if (!pckMatchesRuntimeSource(selectedPck, sourcePckSha256, selectedPckSha256)) {
 				Log.w(TAG, "Runtime pack selected PCK hash mismatch: declared=" + sourcePckSha256 + " selected=" + selectedPckSha256);
 				return false;
@@ -1201,6 +1309,42 @@ public class GodotApp extends GodotActivity {
 		}
 
 		return true;
+	}
+
+	private String selectedPckSha256ForRuntimePackValidation(File selectedPck, String expectedSourcePckSha256) {
+		if (selectedPck == null || !selectedPck.exists() || !selectedPck.isFile()) {
+			return "";
+		}
+
+		try {
+			File marker = new File(getFilesDir(), CURRENT_RUNTIME_SLOT_MARKER);
+			if (marker.exists() && marker.isFile() && markerIsFreshForFile(marker, selectedPck)) {
+				JSONObject json = new JSONObject(readSmallTextFile(marker, 64 * 1024));
+				String selectedBranch = readSelectedBranch();
+				String markerBranch = json.optString("branch", "");
+				String markerPckSha256 = json.optString("pckSha256", "");
+				if (
+					markerBranch.equalsIgnoreCase(selectedBranch)
+						&& !markerPckSha256.trim().isEmpty()
+						&& pckMatchesRuntimeSource(selectedPck, expectedSourcePckSha256, markerPckSha256)
+				) {
+					Log.i(TAG, "Using current runtime slot marker PCK hash for native runtime-pack validation.");
+					return markerPckSha256;
+				}
+			}
+		} catch (Exception e) {
+			Log.w(TAG, "Current runtime slot marker could not satisfy native runtime-pack validation; hashing selected PCK.", e);
+		}
+
+		return sha256Hex(selectedPck);
+	}
+
+	private boolean markerIsFreshForFile(File marker, File file) {
+		if (marker == null || file == null || !marker.exists() || !file.exists()) {
+			return false;
+		}
+
+		return marker.lastModified() + 2000L >= file.lastModified();
 	}
 
 	private Set<String> runtimePackDeclaredAssemblyNames(File runtimePackDir) {
@@ -1480,7 +1624,7 @@ public class GodotApp extends GodotActivity {
 			String markerPckSha256 = json.optString("pckSha256", "");
 			String markerSourceAssemblySha256 = json.optString("sourceAssemblySha256", "");
 			File selectedPck = new File(gameDir, PCK_FILE);
-			String selectedPckSha256 = selectedPck.exists() && selectedPck.isFile() ? sha256Hex(selectedPck) : "";
+			String selectedPckSha256 = selectedPckSha256ForRuntimeSlotEvidence(selectedPck, marker, json, selectedBranch);
 			File srcDir = findAssembliesDir();
 			File selectedSourceAssembly = srcDir == null ? null : new File(srcDir, RUNTIME_PACK_ANDROID_ASSEMBLY);
 			String selectedSourceAssemblySha256 = selectedSourceAssembly != null && selectedSourceAssembly.exists() && selectedSourceAssembly.isFile()
@@ -1530,6 +1674,26 @@ public class GodotApp extends GodotActivity {
 			Log.w(TAG, "Blocking selected game startup because runtime slot evidence is unreadable: " + marker.getAbsolutePath(), e);
 			return false;
 		}
+	}
+
+	private String selectedPckSha256ForRuntimeSlotEvidence(File selectedPck, File marker, JSONObject json, String selectedBranch) {
+		if (selectedPck == null || !selectedPck.exists() || !selectedPck.isFile()) {
+			return "";
+		}
+
+		String markerBranch = json.optString("branch", "");
+		String markerPckSha256 = json.optString("pckSha256", "");
+		if (
+			markerBranch.equalsIgnoreCase(selectedBranch)
+				&& !markerPckSha256.trim().isEmpty()
+				&& markerIsFreshForFile(marker, selectedPck)
+		) {
+			Log.i(TAG, "Using current runtime slot marker PCK hash for startup readiness.");
+			return markerPckSha256;
+		}
+
+		Log.i(TAG, "Current runtime slot marker PCK hash is unavailable or stale; hashing selected PCK for startup readiness.");
+		return sha256Hex(selectedPck);
 	}
 
 	private File activeAndroidAssemblyFile() {
@@ -1688,7 +1852,7 @@ public class GodotApp extends GodotActivity {
 		Log.i(TAG, "Selected game version slot kind for startup: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Selected game version slot directory for startup: " + SteamBranchInfo.installSlotDirectory(getFilesDir(), selectedBranch).getAbsolutePath());
 		Log.i(TAG, "Resolved startup game directory: " + gameDir);
-		Log.i(TAG, "Selected game PCK for startup: " + describeGamePck(pckFile, pendingGameLaunch));
+		Log.i(TAG, "Selected game PCK for startup: " + describeGamePck(pckFile, false));
 		Log.i(TAG, "Steam branch marker install slot kind for startup: " + readMarkerValue(branchMarker, "Install slot kind:"));
 		Log.i(TAG, "Steam branch marker expected install slot kind for startup: " + SteamBranchInfo.installSlotKind(selectedBranch));
 		Log.i(TAG, "Steam branch marker install slot directory for startup: " + readMarkerValue(branchMarker, "Install slot directory:"));

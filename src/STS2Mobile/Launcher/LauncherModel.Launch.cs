@@ -35,24 +35,29 @@ internal partial class LauncherModel
 
     internal void Launch()
     {
+        LauncherLaunchMarkers.RecordPhase("launch model entered", "normal");
         if (!SelectedGameVersionReadyForLaunch())
             return;
 
         LauncherLaunchMarkers.ClearManualSafeLaunchMarker();
+        LauncherLaunchMarkers.RecordPhase("launch credentials saving", "normal");
         SaveLaunchCredentials();
 
         if (TrySignalInProcessLaunch())
             return;
 
+        LauncherLaunchMarkers.RecordPhase("launch restart requested", "normal");
         RestartForLaunch(safe: false);
     }
 
     internal void LaunchSafe()
     {
+        LauncherLaunchMarkers.RecordPhase("launch model entered", "safe");
         if (!SelectedGameVersionReadyForLaunch())
             return;
 
         LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
+        LauncherLaunchMarkers.RecordPhase("launch credentials saving", "safe");
         SaveLaunchCredentials();
 
         if (TrySignalInProcessLaunch())
@@ -61,6 +66,7 @@ internal partial class LauncherModel
         if (TrySafeAndroidRestart())
             return;
 
+        LauncherLaunchMarkers.RecordPhase("launch restart requested", "safe");
         RestartForLaunch(safe: true);
     }
 
@@ -82,6 +88,10 @@ internal partial class LauncherModel
         var selectedBranch = LauncherPreferences.ReadGameBranch();
         if (!string.Equals(_processGameBranch, selectedBranch, System.StringComparison.OrdinalIgnoreCase))
         {
+            LauncherLaunchMarkers.RecordPhase(
+                "launch requires restart",
+                $"processBranch={_processGameBranch}; selectedBranch={selectedBranch}"
+            );
             PatchHelper.Log(
                 "[Launcher] Selected game branch changed from process-loaded "
                     + $"{SteamGameBranch.DisplayName(_processGameBranch)} to {SteamGameBranch.DisplayName(selectedBranch)}; "
@@ -90,6 +100,7 @@ internal partial class LauncherModel
             return false;
         }
 
+        LauncherLaunchMarkers.RecordPhase("in-process launch signalled", $"branch={selectedBranch}");
         _launchTcs.TrySetResult(true);
         return true;
     }
@@ -105,6 +116,7 @@ internal partial class LauncherModel
 
         var problem = LauncherGameFiles.ReadinessProblem(_dataDir, branch)
             ?? "Selected game version is not ready to launch.";
+        LauncherLaunchMarkers.RecordPhase("launch model blocked", problem);
         PatchHelper.Log($"[Launcher] Launch blocked: {problem}");
         return false;
     }

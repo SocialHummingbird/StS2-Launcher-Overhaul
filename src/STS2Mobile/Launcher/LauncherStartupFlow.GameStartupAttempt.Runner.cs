@@ -27,13 +27,14 @@ internal static partial class LauncherStartupFlow
                 private CanvasLayer RecoveryControls { get; }
                 private Task StartupTask { get; }
 
-                internal static StartedGameStartup Begin(StartupContext startup)
+                internal static async Task<StartedGameStartup> BeginAsync(StartupContext startup)
                 {
                     startup.SetPhase(PhaseGameStartup, "Starting game scene...");
-                    PatchHelper.Log("Invoking NGame.GameStartup");
 
                     var recoveryControls = startup.ShowRecoveryControls();
                     startup.WriteSceneSnapshot("before NGame.GameStartup");
+                    await startup.WaitForVisibleStartupFrameAsync("startup recovery controls shown");
+                    PatchHelper.Log("Invoking NGame.GameStartup");
                     return new StartedGameStartup(
                         startup,
                         recoveryControls,
@@ -78,7 +79,8 @@ internal static partial class LauncherStartupFlow
 
             internal async Task RunAsync()
             {
-                await StartedGameStartup.Begin(_startup).RunAsync();
+                var started = await StartedGameStartup.BeginAsync(_startup);
+                await started.RunAsync();
             }
         }
     }

@@ -1,5 +1,6 @@
 using Godot;
 using STS2Mobile.Patches;
+using System.Threading.Tasks;
 
 namespace STS2Mobile.Launcher;
 
@@ -56,5 +57,25 @@ internal static partial class LauncherStartupFlow
 
         internal void AddChild(Node child)
             => GameNode.AddChild(child);
+
+        internal async Task WaitForVisibleStartupFrameAsync(string reason)
+        {
+            try
+            {
+                var tree = GameNode.GetTree();
+                if (tree == null)
+                    return;
+
+                PatchHelper.Log($"Waiting for rendered startup frame: {reason}");
+                await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+                await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+                await tree.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                PatchHelper.Log($"Rendered startup frame completed: {reason}");
+            }
+            catch (System.Exception ex)
+            {
+                PatchHelper.Log($"Startup frame wait skipped for {reason}: {ex.Message}");
+            }
+        }
     }
 }

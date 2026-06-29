@@ -53,6 +53,8 @@ internal static partial class LauncherDiagnostics
     private static IEnumerable<DiagnosticFile> StartupStateFiles(string dataDir)
     {
         yield return StartupMarker(dataDir);
+        yield return StartupContext(dataDir);
+        yield return StartupTimeline(dataDir);
         yield return StartupSceneSnapshot(dataDir);
     }
 

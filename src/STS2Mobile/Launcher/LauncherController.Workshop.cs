@@ -24,6 +24,7 @@ internal sealed partial class LauncherController
     {
         try
         {
+            LauncherLaunchMarkers.RecordPhase("workshop sync requested");
             WorkshopModConsent.Accept("launcher-workshop-sync");
             _view.SetWorkshopButtonsDisabled(true);
             _view.SetStatus("Syncing Steam Workshop mods...");
@@ -32,6 +33,7 @@ internal sealed partial class LauncherController
         }
         catch (Exception ex)
         {
+            LauncherLaunchMarkers.RecordPhase("workshop sync failed", ex.GetBaseException().Message);
             PatchHelper.Log($"[Launcher] Workshop sync handler failed: {ex}");
             FailWorkshopSync(ex.GetBaseException().Message);
         }
@@ -43,6 +45,7 @@ internal sealed partial class LauncherController
 
     private void CompleteWorkshopSync(string summary)
     {
+        LauncherLaunchMarkers.RecordPhase("workshop sync completed", summary);
         var detail = string.IsNullOrWhiteSpace(summary) ? "Workshop mods synced" : summary;
         _view.SetStatus($"{detail}. Restart the game if it was already running.");
         _view.AppendLog($"{detail}. Steam Cloud Push was not run.");
@@ -58,6 +61,7 @@ internal sealed partial class LauncherController
     {
         try
         {
+            LauncherLaunchMarkers.RecordPhase("workshop clear requested");
             _view.SetWorkshopButtonsDisabled(true);
             _view.SetStatus("Clearing staged Workshop mods...");
             _view.AppendLog("Clearing staged Workshop mods. Steam Cloud Push is not run.");
@@ -66,6 +70,7 @@ internal sealed partial class LauncherController
         }
         catch (Exception ex)
         {
+            LauncherLaunchMarkers.RecordPhase("workshop clear failed", ex.GetBaseException().Message);
             PatchHelper.Log($"[Launcher] Workshop clear handler failed: {ex}");
             FailWorkshopClear(ex.GetBaseException().Message);
         }
@@ -77,6 +82,7 @@ internal sealed partial class LauncherController
 
     private void CompleteWorkshopClear(int removedCount)
     {
+        LauncherLaunchMarkers.RecordPhase("workshop clear completed", $"removedCount={removedCount}");
         _view.SetStatus(
             $"Workshop mods cleared: removed {removedCount} staged entries. Restart the game if it was already running."
         );

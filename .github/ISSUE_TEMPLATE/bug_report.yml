@@ -1,0 +1,100 @@
+name: General bug report
+description: Report a reproducible problem that does not fit a more focused StS2 Mobile template.
+title: "[BUG] "
+labels: ["bug", "needs-triage", "category: reliability"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use a focused template instead when possible: crash/startup, download/branch, Steam Cloud/login, mods/save-merger, or device compatibility.
+
+        Do not post Steam passwords, Steam Guard codes, refresh tokens, private save files, or full unsanitized logs.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: State the user-visible failure and the last screen or action before it happened.
+      placeholder: The launcher...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: Give exact steps from install/open through the failure.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: Expected vs actual behavior
+      value: |
+        Expected:
+
+        Actual:
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Main area
+      multiple: true
+      options:
+        - Startup or launcher UI
+        - Steam login or ownership check
+        - Game download or update
+        - Steam branch selection
+        - Game launch/runtime
+        - Steam Cloud Pull or Push
+        - Workshop/mod loading
+        - Save compatibility
+        - Android x86 fallback/diagnostics
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Device and app version
+      description: If you installed from GitHub, use the exact release tag and APK filename, not "latest".
+      value: |
+        Device model:
+        Android version:
+        Vendor skin/version, for example One UI:
+        Device ABI:
+        Display size/font size settings:
+        APK release tag:
+        APK filename:
+        Package name:
+        App version/versionCode:
+        Clean install or update install:
+        Selected game branch:
+        Mods enabled:
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, or diagnostics
+      description: Attach focused evidence. For crashes, include 200-300 lines around the primary exception.
+      value: |
+        Attached:
+        Relevant logcat markers:
+        Screenshot/screen recording:
+        Launcher diagnostics/report file:
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety and scope checks
+      options:
+        - label: I checked whether a more focused issue template fits this report.
+          required: true
+        - label: I removed Steam credentials, Steam Guard codes, refresh tokens, private account details, and full unsanitized logs.
+          required: true
+        - label: I stated whether Steam Cloud Push ran, or confirmed it did not run.
+          required: false

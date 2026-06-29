@@ -40,15 +40,15 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.316-workshop-runtime-mod-evidence
-asset=StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk
-sha256=985c6805fceeb13b895fe942ed38594e0aad405bcccccf12a911d29c9e2a8e3e
+release=v0.2.336-cleartext-cdn-debug
+asset=StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk
+sha256=a9dc26899726b64d70a25ad827e80374f46bdb79618c0e6a935a7b171938650a
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.316-workshop-runtime-mod-evidence
-versionCode=316000
-validation=Android build/APK verification passed; Workshop evidence reviewer regression tests passed; Workshop static audit passed; managed Release build passed; APK crypto patch verification passed. This prerelease packages the current Workshop/mod sync, staging, runtime-loader, Cloud Push lock, and evidence-review work. It is a local-package hardening prerelease and does not replace release-candidate public-package signoff.
+versionName=0.2.336-cleartext-cdn-debug
+versionCode=336000
+validation=Android build/APK verification passed; packaged Android manifest includes android:usesCleartextTraffic=true for Steam CDN HTTP endpoints; APK crypto patch verification passed; GitHub release hygiene check passed with matching APK/checksum/metadata/release-body SHA-256. This prerelease targets the Android cleartext CDN download failure and is a local-package hardening prerelease, not release-candidate public-package signoff.
 cloudSafety=No Push to Cloud was run during this validation.
-evidence=build artifact metadata artifacts/android/StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk.json; latest device runtime evidence remains the public/public-beta and Workshop artifacts listed below.
+evidence=GitHub release v0.2.336-cleartext-cdn-debug assets and metadata; latest device runtime evidence remains the public/public-beta and Workshop artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:

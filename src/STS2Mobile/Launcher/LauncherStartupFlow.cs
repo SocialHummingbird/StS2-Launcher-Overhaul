@@ -53,6 +53,7 @@ internal static partial class LauncherStartupFlow
         {
             BeginLaunch();
             CloseLauncher();
+            await Startup.WaitForVisibleStartupFrameAsync("launcher closed");
             await RunStartupAsync();
         }
 

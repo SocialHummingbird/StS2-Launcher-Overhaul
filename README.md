@@ -21,6 +21,7 @@ The goal is a **drastic architecture and reliability overhaul** that is harder t
 - Current Android status: [docs/current-android-status.md](docs/current-android-status.md)
 - Android Steam Workshop mods: [docs/android-workshop-mods.md](docs/android-workshop-mods.md)
 - Testing needed: [docs/testing-needed.md](docs/testing-needed.md)
+- Issue reporting guide: [docs/issue-reporting.md](docs/issue-reporting.md)
 
 ### Suggested working remotes
 
@@ -40,12 +41,12 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 **Current state:** StS2 Mobile is playable on tested ARM64 Android hardware, but it is still a prerelease community launcher. The focus is now stability, loading speed, cleaner onboarding, branch switching, Steam Cloud safety, and experimental Workshop/mod support.
 
-Latest published APK prerelease: [v0.2.335-mod-selector-deps-cloud-marker-debug](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.335-mod-selector-deps-cloud-marker-debug)
+Latest published APK prerelease: [v0.2.336-cleartext-cdn-debug](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.336-cleartext-cdn-debug)
 
-- APK asset: `StS2Launcher-v0.2.335-mod-selector-deps-cloud-marker-debug-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `335000`
-- SHA-256: `46799153565feb414a702d590e15cc29bea2cfb5437eb4a11fa5606587db2ac1`
+- Version code: `336000`
+- SHA-256: `a9dc26899726b64d70a25ad827e80374f46bdb79618c0e6a935a7b171938650a`
 - Signing channel: local debug/test channel
 
 What currently works on tested ARM64 hardware:
@@ -79,7 +80,7 @@ How to help:
 
 - Download the latest APK from [Releases](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases).
 - Read [Testing needed](docs/testing-needed.md) before filing results.
-- Use the focused GitHub issue templates for crashes, Steam Cloud, branch/download issues, mods/save-merger testing, or device compatibility reports.
+- Use the focused GitHub issue templates for crashes, Steam Cloud, branch/download issues, mods/save-merger testing, or device compatibility reports. Read [Issue reporting](docs/issue-reporting.md) before attaching logs, save details, or branch/runtime evidence.
 
 - Steam version selection user guide: [docs/steam-version-selection-user-guide.md](docs/steam-version-selection-user-guide.md).
 - Branch validation checklist: [docs/steam-version-selection-validation.md](docs/steam-version-selection-validation.md).
@@ -245,8 +246,9 @@ adb shell pm clear com.sts2launcher.overhaul.fork
 GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
-2. Download the APK for the latest release.
-    - Direct latest URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest
+2. Download the APK named in the current published APK block below.
+    - Do not use GitHub's `/releases/latest` shortcut for current tester builds; GitHub excludes prereleases and may point at an older non-prerelease baseline.
+    - Release inventory: [docs/github-release-inventory.md](docs/github-release-inventory.md)
     - Current release assets are ARM64-only test packages, named like:
       - `StS2Launcher-v<version>-arm64-v8a.apk`
     - Older releases may include universal or x86_64 assets. Prefer ARM64 for phones.
@@ -255,13 +257,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.335-mod-selector-deps-cloud-marker-debug" `
-  -AssetName "StS2Launcher-v0.2.335-mod-selector-deps-cloud-marker-debug-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.336-cleartext-cdn-debug" `
+  -AssetName "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.335-mod-selector-deps-cloud-marker-debug" `
-  -AssetName "StS2Launcher-v0.2.335-mod-selector-deps-cloud-marker-debug-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.336-cleartext-cdn-debug" `
+  -AssetName "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -270,15 +272,15 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.335-mod-selector-deps-cloud-marker-debug
-Asset: StS2Launcher-v0.2.335-mod-selector-deps-cloud-marker-debug-arm64-v8a.apk
+Release: v0.2.336-cleartext-cdn-debug
+Asset: StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.335-mod-selector-deps-cloud-marker-debug
-VersionCode: 335000
-SHA-256: 46799153565feb414a702d590e15cc29bea2cfb5437eb4a11fa5606587db2ac1
+VersionName: 0.2.336-cleartext-cdn-debug
+VersionCode: 336000
+SHA-256: a9dc26899726b64d70a25ad827e80374f46bdb79618c0e6a935a7b171938650a
 ```
 
-The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker.
+The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker. Use `scripts\check-github-release-hygiene.ps1` before announcing a release so the APK, checksum sidecar, metadata sidecar, release body, package name, version, and SHA-256 all agree on the fork release page.
 
 Safe public trial checklist:
 

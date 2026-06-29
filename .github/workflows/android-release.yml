@@ -60,6 +60,7 @@ jobs:
       version_name: ${{ steps.version.outputs.version_name }}
       package_name: ${{ steps.version.outputs.package_name }}
       release_tag: ${{ steps.version.outputs.release_tag }}
+      version_code: ${{ steps.version.outputs.version_code }}
       apk_path: ${{ steps.build.outputs.path }}
       signed: ${{ steps.signing.outputs.enabled }}
       create_release: ${{ steps.version.outputs.create_release }}
@@ -498,7 +499,8 @@ jobs:
           } > "${ABS_APK_PATH}.build-info.txt"
 
           echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
-          sha256sum "$ABS_APK_PATH" > "${ABS_APK_PATH}.sha256"
+          APK_SHA="$(sha256sum "$ABS_APK_PATH" | awk '{print $1}')"
+          printf '%s  %s\n' "$APK_SHA" "$(basename "$ABS_APK_PATH")" > "${ABS_APK_PATH}.sha256"
 
       - name: Verify release update compatibility
         shell: bash
@@ -601,14 +603,73 @@ jobs:
           name: android-release-${{ needs.build-android-release.outputs.release_tag }}
           path: release-artifacts
 
+      - name: Write release notes
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          apk_path="$(find release-artifacts -type f -name 'StS2Launcher-v*.apk' | head -n 1)"
+          if [[ -z "${apk_path}" ]] || [[ ! -f "${apk_path}" ]]; then
+            echo "::error::No APK found in downloaded release artifacts."
+            exit 1
+          fi
+
+          apk_name="$(basename "${apk_path}")"
+          sha_path="${apk_path}.sha256"
+          build_info_path="${apk_path}.build-info.txt"
+          if [[ ! -f "${sha_path}" ]]; then
+            echo "::error::Missing checksum sidecar: ${sha_path}"
+            exit 1
+          fi
+          if [[ ! -f "${build_info_path}" ]]; then
+            echo "::error::Missing build-info sidecar: ${build_info_path}"
+            exit 1
+          fi
+
+          apk_sha="$(awk '{print $1}' "${sha_path}")"
+          package_name="$(awk -F= '$1=="package_name" {print $2}' "${build_info_path}")"
+          signing_channel="$(awk -F= '$1=="signing_channel" {print $2}' "${build_info_path}")"
+
+          {
+            printf '# StS2 Mobile %s\n\n' '${{ needs.build-android-release.outputs.version_name }}'
+            printf '## Download\n\n'
+            printf 'Use the ARM64 APK:\n\n'
+            printf '`%s`\n\n' "${apk_name}"
+            printf 'SHA-256:\n\n'
+            printf '`%s`\n\n' "${apk_sha}"
+            printf 'Package:\n\n'
+            printf '`%s`\n\n' "${package_name}"
+            printf 'Version:\n\n'
+            printf '`%s` / `versionCode=%s`\n\n' '${{ needs.build-android-release.outputs.version_name }}' '${{ needs.build-android-release.outputs.version_code }}'
+            printf 'Signing channel:\n\n'
+            printf '`%s`\n\n' "${signing_channel}"
+            printf '## Release Hygiene\n\n'
+            printf 'This release includes:\n\n'
+            printf -- '- APK asset: `%s`\n' "${apk_name}"
+            printf -- '- Checksum sidecar: `%s.sha256`\n' "${apk_name}"
+            printf -- '- Build metadata sidecar: `%s.build-info.txt`\n\n' "${apk_name}"
+            printf 'Run this before public announcement:\n\n'
+            printf '```powershell\n'
+            printf '.\\scripts\\check-github-release-hygiene.ps1 `\n'
+            printf '  -Repo "SocialHummingbird/StS2-Launcher-Overhaul" `\n'
+            printf '  -ReleaseTag "%s" `\n' '${{ needs.build-android-release.outputs.release_tag }}'
+            printf '  -AssetName "%s"\n' "${apk_name}"
+            printf '```\n\n'
+            printf '## Validation Boundary\n\n'
+            printf 'This GitHub Actions build proves APK packaging, signing, update-compatibility guardrails, and structural APK verification. Do not treat it as release-candidate gameplay signoff unless the release notes or linked evidence also prove the relevant ARM64 device flows, Steam Cloud safety, branch/runtime-pack behavior, and mod/workshop scenarios for the claim being made.\n'
+          } > release-notes.md
+
+          echo "path=release-notes.md" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub release and attach APK
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.build-android-release.outputs.release_tag }}
           target_commitish: ${{ github.sha }}
           name: "StS2 Mobile ${{ needs.build-android-release.outputs.version_name }}"
+          body_path: ${{ steps.notes.outputs.path }}
           files: |
             release-artifacts/**/*.apk
             release-artifacts/**/*.sha256
             release-artifacts/**/*.build-info.txt
-          generate_release_notes: true

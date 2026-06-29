@@ -43,7 +43,7 @@ This project needs focused Android tester reports more than broad "works for me"
 | Physical ARM64 Samsung test device | `arm64-v8a` | Public/default, public-beta runtime matching, Steam Cloud Pull, guarded Push behavior, mod selector, manually imported SavesMerger launch | Working in local validation |
 | Android x86_64 emulator | `x86_64` | Install/routing/native fallback diagnostics only | Not a game-launch proof target |
 
-Add new device results through the device compatibility issue template.
+Add new device results through the device compatibility issue template. Use [Issue reporting](issue-reporting.md) before attaching logs, branch/runtime evidence, save details, or screenshots.
 
 ## What To Include In Reports
 
@@ -57,6 +57,8 @@ Add new device results through the device compatibility issue template.
 - Selected mods and whether launch was vanilla or modded.
 - Screenshot if the problem is visual.
 - Focused logcat if the app crashes or hangs.
+- For branch reports: selected branch, PCK path/hash, runtime pack path/hash, active `sts2.dll` hash, runtime cache marker, and patch validation marker when available.
+- For mod/save-merger reports: selected mods, source of each mod, enabled/disabled state, whether existing saves became visible and loadable, and whether Push to Cloud stayed blocked or was intentionally run.
 
 ## Do Not Share
 

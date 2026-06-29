@@ -11,11 +11,11 @@ on:
       release_tag:
         description: "Release tag to verify."
         required: true
-        default: "v0.2.175-refactor-apk"
+        default: "v0.2.336-cleartext-cdn-debug"
       asset_name:
         description: "Optional exact APK asset name. If empty, the workflow prefers ARM64, then universal, then first APK."
         required: false
-        default: "StS2Launcher-v0.2.175-refactor-apk-arm64-v8a.apk"
+        default: "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk"
       abi:
         description: "Expected APK ABI set."
         type: choice
@@ -81,7 +81,8 @@ jobs:
             }
 
             if (shaAssets.length < 1) {
-              core.warning("No SHA-256 checksum file found. Add checksum assets for stronger release validation.");
+              core.setFailed("No SHA-256 checksum file found. Release APKs must include checksum sidecars.");
+              return;
             }
 
             const exactMatch = requestedAsset ? apkAssets.find((asset) => asset.name === requestedAsset) : null;
@@ -105,6 +106,16 @@ jobs:
             core.setOutput("inferred_abi", inferredAbi);
             console.log(`Selected APK for structural verification: ${preferred.name}`);
             console.log(`Inferred expected ABI: ${inferredAbi}`);
+
+      - name: Verify release hygiene
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .\scripts\check-github-release-hygiene.ps1 `
+            -Repo "${{ github.repository }}" `
+            -ReleaseTag "${{ steps.assets.outputs.release_tag }}" `
+            -AssetName "${{ steps.assets.outputs.apk_asset_name }}"
 
       - name: Verify uploaded APK structure and native Godot patch
         shell: pwsh

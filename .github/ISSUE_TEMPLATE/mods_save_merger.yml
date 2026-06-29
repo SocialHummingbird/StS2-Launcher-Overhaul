@@ -1,0 +1,144 @@
+name: Mods, Workshop, or save-merger test
+description: Report Workshop discovery, mod selection, manual import, mod loading, or Vanilla and Modded Saves Merger behavior.
+title: "[MODS] "
+labels: ["bug", "needs-triage", "category: reliability"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the preferred template for Workshop/mod reports. The highest-value current mod report is whether Vanilla and Modded Saves Merger makes existing saves usable.
+
+        Do not run Push to Cloud during mod testing unless you intentionally want to upload the tested Android save state.
+  - type: dropdown
+    id: test-type
+    attributes:
+      label: Test type
+      multiple: true
+      options:
+        - Workshop sync/discovery
+        - Manual import
+        - Mod selector UI
+        - Vanilla launch with mods disabled
+        - Modded launch with selected mods
+        - Vanilla and Modded Saves Merger
+        - Save compatibility
+        - Mod crash or hang
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the mod loading or save-merger result.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Include Workshop sync/manual import, mod selection, Pull, launch mode, save check, and whether mods were disabled afterward.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Device, app, and branch context
+      value: |
+        Device model:
+        Android version:
+        Device ABI:
+        APK release tag:
+        APK filename:
+        Package name:
+        App version/versionCode:
+        Selected game branch:
+        Clean install or update install:
+        Steam account owns Slay the Spire 2:
+    validations:
+      required: true
+  - type: textarea
+    id: mods
+    attributes:
+      label: Mods selected
+      description: List every selected mod in launch order if known.
+      value: |
+        Mod name:
+        Workshop item ID:
+        Source, Workshop sync or manual import:
+        Files present, for example .dll/.json/.pck:
+        Enabled or disabled:
+        Launcher showed unsupported/attention warning:
+
+        Repeat for each mod:
+    validations:
+      required: true
+  - type: textarea
+    id: launcher-state
+    attributes:
+      label: Launcher mod state
+      description: Paste visible status and diagnostics when available.
+      value: |
+        Mods section appeared on launcher screen:
+        Workshop sync completed:
+        Manual import used:
+        Selected mod count:
+        Active mod status text:
+        Unsupported item warning text:
+        Cloud Push locked because of mod risk:
+    validations:
+      required: true
+  - type: textarea
+    id: save-behavior
+    attributes:
+      label: Save behavior
+      description: For SavesMerger, report whether existing saves were visible and loadable. Do not attach private save files publicly.
+      value: |
+        Existing vanilla save present before test:
+        Existing modded save present before test:
+        Pull from Steam Cloud run before test:
+        Push to Steam Cloud run during test:
+        Save/profile became visible in-game:
+        Save/profile loaded successfully:
+        Disabling the mod returned expected vanilla/modded save behavior:
+    validations:
+      required: true
+  - type: checkboxes
+    id: result
+    attributes:
+      label: Result
+      options:
+        - label: Game reached main menu.
+        - label: Game loaded selected mods.
+        - label: Game launched vanilla with zero mods.
+        - label: Save merger made existing saves usable.
+        - label: Save merger did not make existing saves usable.
+        - label: App crashed or hung.
+        - label: Launcher blocked Push to Cloud because modded-save risk was active.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs, screenshots, and runtime evidence
+      description: |
+        Useful terms: Workshop, Mods, SavesMerger, BaseLib, Quick Restart, Loaded, PatchHelper, AndroidRuntime, FATAL EXCEPTION.
+      value: |
+        Focused logcat attached:
+        Screenshots attached:
+        Selected game branch:
+        Selected PCK SHA-256:
+        Runtime pack SHA-256:
+        Active sts2.dll SHA-256:
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checks
+      options:
+        - label: I did not run Push to Cloud unless I intentionally wanted to upload the tested Android save state.
+          required: true
+        - label: I removed Steam credentials, refresh tokens, private account details, private save contents, and full unsanitized logs.
+          required: true

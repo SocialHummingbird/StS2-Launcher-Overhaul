@@ -12,6 +12,7 @@ internal sealed partial class LauncherController
         if (_manualLoginInProgress)
             return;
 
+        LauncherLaunchMarkers.RecordPhase("steam login requested", "Manual login button pressed");
         _manualLoginInProgress = true;
         StartObservedLauncherTask(
             "Manual Steam login",
@@ -34,11 +35,14 @@ internal sealed partial class LauncherController
     {
         try
         {
+            LauncherLaunchMarkers.RecordPhase("steam login running", "Manual Steam authentication started");
             _view.ClearLoginPasswordAndDisable();
             await _model.LoginAsync(username, password);
+            LauncherLaunchMarkers.RecordPhase("steam login completed");
         }
         catch (Exception ex)
         {
+            LauncherLaunchMarkers.RecordPhase("steam login failed", ex.GetBaseException().Message);
             LoginFormFailure.LoginHandler().Show(this, ex);
         }
         finally

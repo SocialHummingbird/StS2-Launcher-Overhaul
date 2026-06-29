@@ -12,6 +12,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -26,6 +27,7 @@ import android.widget.Toast;
 import java.io.File;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
@@ -40,6 +42,8 @@ public class NativeFallbackActivity extends Activity {
 	private static final String BRANCH_MARKER_FILE = "steam_branch.txt";
 	private static final String CURRENT_RUNTIME_SLOT_MARKER = "current_runtime_slot.json";
 	private static final String GAME_CODE_ASSEMBLY = "sts2.dll";
+	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
+	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
 	public static final String EXTRA_REASON_TITLE = "com.game.sts2launcher.REASON_TITLE";
 	public static final String EXTRA_REASON_MESSAGE = "com.game.sts2launcher.REASON_MESSAGE";
 	public static final String EXTRA_REASON_DIAGNOSTICS = "com.game.sts2launcher.REASON_DIAGNOSTICS";
@@ -48,8 +52,54 @@ public class NativeFallbackActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
+		recordStartupPhase("native fallback shown", getIntent().getStringExtra(EXTRA_REASON_TITLE));
 		Log.w(TAG, "Showing native x86 fallback instead of starting Godot.");
 		setContentView(createContentView());
+	}
+
+	private void recordStartupPhase(String phase, String detail) {
+		String safePhase = sanitizeStartupMarkerValue(phase);
+		String safeDetail = sanitizeStartupMarkerValue(detail);
+		long elapsedMs = SystemClock.elapsedRealtime();
+		long utcMillis = System.currentTimeMillis();
+		String context =
+			"StS2 Mobile native fallback context\n" +
+			"UTC millis: " + utcMillis + "\n" +
+			"Elapsed realtime ms: " + elapsedMs + "\n" +
+			"Phase: " + safePhase + "\n" +
+			"Detail: " + safeDetail + "\n" +
+			"Package: " + getPackageName() + "\n" +
+			"Version: " + describeAppVersion() + "\n" +
+			"Selected branch: " + readSelectedBranch() + "\n";
+		writeInternalTextFile(LAST_STARTUP_CONTEXT_FILE, context);
+		appendInternalTextFile(
+			LAST_STARTUP_TIMELINE_FILE,
+			utcMillis + "\telapsedRealtimeMs=" + elapsedMs + "\tphase=" + safePhase + "\tdetail=" + safeDetail + "\n"
+		);
+		Log.i(TAG, "Native startup phase: elapsedRealtimeMs=" + elapsedMs + " phase=" + safePhase + " detail=" + safeDetail);
+	}
+
+	private String sanitizeStartupMarkerValue(String value) {
+		if (value == null || value.trim().isEmpty()) {
+			return "<none>";
+		}
+		return value.replace('\r', ' ').replace('\n', ' ').trim();
+	}
+
+	private void writeInternalTextFile(String name, String text) {
+		try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), name))) {
+			out.write(text.getBytes("UTF-8"));
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to write " + name, e);
+		}
+	}
+
+	private void appendInternalTextFile(String name, String text) {
+		try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), name), true)) {
+			out.write(text.getBytes("UTF-8"));
+		} catch (Exception e) {
+			Log.w(TAG, "Failed to append " + name, e);
+		}
 	}
 
 	private ScrollView createContentView() {

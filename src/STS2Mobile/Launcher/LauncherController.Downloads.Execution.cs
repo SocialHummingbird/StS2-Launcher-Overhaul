@@ -11,11 +11,16 @@ internal sealed partial class LauncherController
     {
         try
         {
+            LauncherLaunchMarkers.RecordPhase(
+                "game download requested",
+                $"branch={LauncherPreferences.ReadGameBranch()}"
+            );
             _view.ShowDownloadProgress("Connecting to Steam...");
             await _model.StartDownloadAsync();
         }
         catch (Exception ex)
         {
+            LauncherLaunchMarkers.RecordPhase("game download handler failed", ex.GetBaseException().Message);
             PatchHelper.Log($"[Launcher] Download handler failed: {ex}");
             FailDownload(ex.GetBaseException().Message);
         }
@@ -26,6 +31,10 @@ internal sealed partial class LauncherController
 
     private void CompleteDownload()
     {
+        LauncherLaunchMarkers.RecordPhase(
+            "game download completed",
+            $"branch={LauncherPreferences.ReadGameBranch()}"
+        );
         RefreshGameBranchOptions();
         var branch = LauncherPreferences.ReadGameBranch();
         if (LauncherGameFiles.DownloadedForValidation(_model.DataDir, branch))
@@ -44,6 +53,7 @@ internal sealed partial class LauncherController
 
     private void FailDownload(string message)
     {
+        LauncherLaunchMarkers.RecordPhase("game download failed", message);
         RefreshGameBranchOptions();
         DownloadViewUpdate.Failed(
             LauncherBranchAvailabilityStatus.CompactFailureMessage(_model.DataDir, message)
@@ -51,7 +61,10 @@ internal sealed partial class LauncherController
     }
 
     private void CancelDownload()
-        => DownloadViewUpdate.Cancelled().Apply(this);
+    {
+        LauncherLaunchMarkers.RecordPhase("game download cancelled");
+        DownloadViewUpdate.Cancelled().Apply(this);
+    }
 
     private void ShowDownloadReadyAction()
         => DownloadViewUpdate.Ready().Apply(this);

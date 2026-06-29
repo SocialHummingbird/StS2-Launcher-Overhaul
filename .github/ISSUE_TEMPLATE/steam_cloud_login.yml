@@ -1,0 +1,114 @@
+name: Steam login or Cloud save problem
+description: Report Steam authentication, ownership, Pull from Cloud, guarded Push, or cloud/save safety behavior.
+title: "[STEAM/CLOUD] "
+labels: ["bug", "needs-triage", "category: reliability"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Steam Cloud Push can overwrite remote save state. Say exactly whether Pull or Push ran. Do not post Steam credentials, Steam Guard codes, tokens, private save contents, or full unsanitized logs.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Steam login
+        - Steam Guard / 2FA
+        - Ownership check
+        - Pull from Steam Cloud to Android
+        - Push from Android to Steam Cloud
+        - Cloud conflict or stale-save warning
+        - Push was blocked by safety gates
+        - Android password-manager or keyboard behavior
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the login, ownership, Pull, Push, or safety-gate problem.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Device, app, branch, and mod context
+      value: |
+        Device model:
+        Android version:
+        Vendor skin/version, for example One UI:
+        Device ABI:
+        APK release tag:
+        APK filename:
+        Package name:
+        App version/versionCode:
+        Clean install or update install:
+        Selected game branch:
+        Mods enabled:
+        Steam account owns Slay the Spire 2:
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: cloud-result
+    attributes:
+      label: Result and cloud safety state
+      value: |
+        Expected:
+        Actual:
+        Steam Guard appeared:
+        Authentication success reached:
+        Ownership verification reached:
+        Pull from Cloud ran:
+        Pull completed:
+        Android local save/profile existed before Push:
+        Push to Cloud ran:
+        Launcher asked for overwrite confirmation:
+        Push was blocked before upload:
+        Branch switch happened before Pull/Push:
+        Modded save risk state active:
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Save and safety diagnostics
+      description: Paste available marker lines. Do not include private save contents.
+      value: |
+        Manual Pull completed before Push:
+        Current important Android local save evidence count:
+        Current important Android local save evidence present:
+        Baseline manual Push prerequisites satisfied:
+        Branch-switch manual Push prerequisites satisfied:
+        Latest manual Push evidence outcome:
+        Latest manual Push blocked reason:
+        Backup storage permission available:
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs and screenshots
+      description: |
+        Attach focused logs/screenshots. Useful terms: Steam, SteamKit, Cloud, Pull, Push, Manual Pull, Manual Push, AndroidRuntime, FATAL EXCEPTION.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checks
+      options:
+        - label: I did not include Steam credentials, Steam Guard codes, refresh tokens, private account details, private save contents, or full unsanitized logs.
+          required: true
+        - label: I explicitly stated whether Push to Cloud ran.
+          required: true

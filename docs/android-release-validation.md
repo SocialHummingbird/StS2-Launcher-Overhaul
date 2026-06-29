@@ -4,16 +4,16 @@ Current posture: the ARM64 Android path works locally, including Steam download,
 
 Use this checklist after every release run (manual or tag-triggered) to confirm artifact publication before announcing a release.
 
-Current build-only prerelease reference:
+Current GitHub APK prerelease reference:
 
 ```text
-release=v0.2.316-workshop-runtime-mod-evidence
-asset=StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk
-sha256=985c6805fceeb13b895fe942ed38594e0aad405bcccccf12a911d29c9e2a8e3e
+release=v0.2.336-cleartext-cdn-debug
+asset=StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk
+sha256=a9dc26899726b64d70a25ad827e80374f46bdb79618c0e6a935a7b171938650a
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.316-workshop-runtime-mod-evidence
-versionCode=316000
-validation=build/static-gate for the Workshop/mod sync, staging, runtime-loader, Cloud Push lock, and evidence-review work; device release-candidate signoff still requires the public/public-beta/core-release evidence workflow below
+versionName=0.2.336-cleartext-cdn-debug
+versionCode=336000
+validation=build/APK verification, packaged cleartext Android manifest check, Android crypto patch verification, and GitHub release hygiene check. This is a local/test-channel prerelease for Steam CDN cleartext retesting, not production release-candidate signoff.
 ```
 
 ## 1) Verify workflow outcome
@@ -77,8 +77,25 @@ Checklist: [multi-version runtime release gates](multi-version-runtime-release-g
 3. Confirm checksum file exists:
    - `StS2Launcher-v<version>-arm64-v8a.apk.sha256`
 4. Confirm the release body includes generated release notes.
-5. Confirm the release notes distinguish the current working ARM64 path from release-candidate status. Do not claim release-ready cloud sync until Pull and Push have both been validated, including no-accidental-upload behavior for Push.
-6. Confirm the release notes do not claim Steam beta/version selection is release-signed unless the Steam version-selection runbook has current ARM64 evidence for public/default, beta, marker provenance, cache cleanup, missing/private/password branch behavior, save compatibility, and Pull-after-switch/current-backup safety.
+5. Confirm release metadata exists:
+   - preferred local-build sidecar: `StS2Launcher-v<version>-arm64-v8a.apk.json`
+   - GitHub Actions sidecar: `StS2Launcher-v<version>-arm64-v8a.apk.build-info.txt`
+6. Run the release hygiene check against the fork explicitly:
+
+```powershell
+.\scripts\check-github-release-hygiene.ps1 `
+  -Repo "SocialHummingbird/StS2-Launcher-Overhaul" `
+  -ReleaseTag "v0.2.336-cleartext-cdn-debug" `
+  -AssetName "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk"
+
+.\scripts\audit-github-release-inventory.ps1 `
+  -Repo "SocialHummingbird/StS2-Launcher-Overhaul" `
+  -Limit 40 `
+  -OutputPath docs\github-release-inventory.md
+```
+
+7. Confirm the release notes distinguish the current working ARM64 path from release-candidate status. Do not claim release-ready cloud sync until Pull and Push have both been validated, including no-accidental-upload behavior for Push.
+8. Confirm the release notes do not claim Steam beta/version selection is release-signed unless the Steam version-selection runbook has current ARM64 evidence for public/default, beta, marker provenance, cache cleanup, missing/private/password branch behavior, save compatibility, and Pull-after-switch/current-backup safety.
 
 ## 4) Structural asset verification
 
@@ -86,8 +103,8 @@ Run the release verifier against the exact release tag and asset:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.187-beta-art-fallback" `
-  -AssetName "StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.336-cleartext-cdn-debug" `
+  -AssetName "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -107,8 +124,8 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.187-beta-art-fallback" `
-  -AssetName "StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.336-cleartext-cdn-debug" `
+  -AssetName "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
