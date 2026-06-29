@@ -18,6 +18,7 @@ internal static partial class StartupPatchOrchestrator
             new PatchStep[]
             {
                 new("Platform compatibility", PlatformPatches.Apply),
+                new("Controller input compatibility", ControllerInputPatches.Apply),
                 new("Model DB bootstrap", ModelDbInitPatch.Apply),
                 new("Launcher startup gate", LauncherPatches.Apply),
             }
