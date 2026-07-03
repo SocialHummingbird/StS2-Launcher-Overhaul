@@ -4,9 +4,9 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 
 ## Current Download
 
-- Recommended newest APK release: `v0.2.336-cleartext-cdn-debug`
-- APK: `StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk`
-- SHA-256: `a9dc26899726b64d70a25ad827e80374f46bdb79618c0e6a935a7b171938650a`
+- Recommended newest APK release: `v0.2.352-savemerger-compat-local`
+- APK: `StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk`
+- SHA-256: `25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e`
 - GitHub `/releases/latest` non-prerelease target: `v0.2.188-branch-cache-hardening`
 - Warning: GitHub `/releases/latest` does not point at the newest APK because newer APKs are prereleases.
 
@@ -22,7 +22,8 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 
 | Published | Release | Class | APK | Checksum | Metadata | Body APK/SHA | Issues |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-06-28 | `v0.2.336-cleartext-cdn-debug` | `current-prerelease` | `StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-03 | `v0.2.352-savemerger-compat-local` | `current-prerelease` | `StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-06-28 | `v0.2.336-cleartext-cdn-debug` | `historical-test-prerelease` | `StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-06-25 | `v0.2.335-mod-selector-deps-cloud-marker-debug` | `historical-test-prerelease` | `StS2Launcher-v0.2.335-mod-selector-deps-cloud-marker-debug-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-06-22 | `v0.2.316-workshop-runtime-mod-evidence` | `historical-test-prerelease` | `StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk` | yes | json | no/yes | body missing APK |
 | 2026-06-21 | `v0.2.293-local-audit-module-split` | `historical-test-prerelease` | `StS2Launcher-v0.2.293-local-audit-module-split-arm64-v8a.apk` | yes | no | yes/yes | missing metadata |

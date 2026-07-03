@@ -7,13 +7,13 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
 Current GitHub APK prerelease reference:
 
 ```text
-release=v0.2.336-cleartext-cdn-debug
-asset=StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk
-sha256=a9dc26899726b64d70a25ad827e80374f46bdb79618c0e6a935a7b171938650a
+release=v0.2.352-savemerger-compat-local
+asset=StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk
+sha256=25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.336-cleartext-cdn-debug
-versionCode=336000
-validation=build/APK verification, packaged cleartext Android manifest check, Android crypto patch verification, and GitHub release hygiene check. This is a local/test-channel prerelease for Steam CDN cleartext retesting, not production release-candidate signoff.
+versionName=0.2.352-savemerger-compat-local
+versionCode=352001
+validation=build/APK verification, Android crypto patch verification, GitHub release hygiene check, and downloaded release APK verification. This is a local/test-channel prerelease for public-beta modded launch/runtime-pack hardening and SavesMerger Android compatibility, not production release-candidate signoff.
 ```
 
 ## 1) Verify workflow outcome
@@ -85,8 +85,8 @@ Checklist: [multi-version runtime release gates](multi-version-runtime-release-g
 ```powershell
 .\scripts\check-github-release-hygiene.ps1 `
   -Repo "SocialHummingbird/StS2-Launcher-Overhaul" `
-  -ReleaseTag "v0.2.336-cleartext-cdn-debug" `
-  -AssetName "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk"
+  -ReleaseTag "v0.2.352-savemerger-compat-local" `
+  -AssetName "StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk"
 
 .\scripts\audit-github-release-inventory.ps1 `
   -Repo "SocialHummingbird/StS2-Launcher-Overhaul" `
@@ -103,8 +103,8 @@ Run the release verifier against the exact release tag and asset:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.336-cleartext-cdn-debug" `
-  -AssetName "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.352-savemerger-compat-local" `
+  -AssetName "StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -124,8 +124,8 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.336-cleartext-cdn-debug" `
-  -AssetName "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.352-savemerger-compat-local" `
+  -AssetName "StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics

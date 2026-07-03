@@ -7,7 +7,7 @@ This project needs focused Android tester reports more than broad "works for me"
 1. **Startup and loading speed**
    - Time from tapping the app icon to launcher visible.
    - Time from pressing Start Game to game main menu.
-   - Any black screen, native fallback screen, or app crash.
+   - Any black screen, native fallback screen, shader compile stall, or app crash.
 
 2. **Public/default game launch**
    - Fresh install or update install.
@@ -31,10 +31,17 @@ This project needs focused Android tester reports more than broad "works for me"
    - This is the highest-priority mod compatibility test.
    - Report whether existing vanilla saves become usable when the mod is enabled.
    - Report whether disabling the mod returns to the expected vanilla/modded save behavior.
+   - Do not treat "mod selected" or "main menu reached" as full save-merger success unless the save/profile is visible and loadable.
 
 6. **Samsung/One UI and unusual display sizes**
    - Launcher layout, keyboard, password manager suggestions, and button reachability.
    - Include display size/font size settings when reporting UI problems.
+
+7. **Controller and Android handheld input**
+   - Device, controller, and connection mode.
+   - Whether launcher navigation works.
+   - Whether in-game card/map/menu actions work.
+   - Whether behavior changes between vanilla and modded launch.
 
 ## Known Working Evidence So Far
 
@@ -55,6 +62,8 @@ Add new device results through the device compatibility issue template. Use [Iss
 - Whether Steam Cloud Pull was run.
 - Whether Steam Cloud Push was run. If you are not sure, say so.
 - Selected mods and whether launch was vanilla or modded.
+- Whether controller input was used.
+- Whether shader compilation happened before the failure.
 - Screenshot if the problem is visual.
 - Focused logcat if the app crashes or hangs.
 - For branch reports: selected branch, PCK path/hash, runtime pack path/hash, active `sts2.dll` hash, runtime cache marker, and patch validation marker when available.
@@ -104,4 +113,5 @@ Prefer a small focused excerpt around the failure over a full raw log.
 5. Launch vanilla first.
 6. If vanilla works, test selected mods.
 7. If using SavesMerger, test both enabled and disabled behavior.
-8. File a focused issue using the matching template.
+8. If using a controller, test one in-game combat/menu action rather than only launcher navigation.
+9. File a focused issue using the matching template.

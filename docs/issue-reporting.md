@@ -2,6 +2,8 @@
 
 Good StS2 Mobile reports include enough evidence to separate launcher bugs, Steam account/branch availability, Android runtime routing, Steam Cloud safety, and mod/save compatibility. Reports that only say "latest APK" or "mods do not work" usually cannot be acted on.
 
+Current recurring report themes are launcher UI scaling/scroll reachability, shader compile crashes or stalls, controller input on Android handhelds, public-beta/core branch freshness, and SavesMerger save usability. These are useful reports when they include exact APK, device, branch, mod, screenshot, and focused log details.
+
 ## Choose The Right Template
 
 | Problem | Template |
@@ -28,6 +30,12 @@ The older Steam version-selection report template remains available for deep bra
 - Focused repro steps from opening the app through the failure.
 - Screenshot for UI or visual asset problems.
 - Focused logcat or diagnostics for crashes, hangs, failed startup, failed downloads, Steam login failures, cloud failures, and mod load failures.
+
+For launcher layout reports, include whether the Start Game/Play button is reachable, whether scrolling works, orientation, display size/font scale, and a screenshot.
+
+For controller reports, include controller/device model, connection mode, whether launcher navigation works, whether in-game actions work, and whether the result differs in vanilla versus modded launch.
+
+For shader compile reports, include how long the compile screen stayed visible, whether Android showed an app-not-responding dialog, and device thermal/performance mode if known.
 
 ## Do Not Share Publicly
 
@@ -150,4 +158,5 @@ The current useful result is not just "the game reached main menu." The importan
 - Android x86_64 emulator results are diagnostic only unless a maintainer asks for a forced-Godot investigation.
 - Steam beta password entry is not currently a release-ready path.
 - Workshop/mod support is functional but still hardening. Some Workshop items exposed only as legacy UGC handles may still need manual import.
+- SavesMerger loading/scanning is not the same as full save-merge signoff. The useful report is whether existing saves become visible and loadable.
 - Push to Cloud is intentionally guarded and may stay blocked when branch-switch, modded-save, local-save, Pull, or backup evidence is incomplete.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-03 - Public-beta modded launch and release docs
+
+- Published the local-package ARM64 prerelease `v0.2.352-savemerger-compat-local` with APK `StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk` and SHA-256 `25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e`.
+- Updated GitHub-facing status and release notes to make the current public-beta support explicit: the latest tested public-beta payload is `v0.108.0`, selected PCK/runtime-pack evidence matches, runtime patch validation passes, and fallback/gating is not counted as success.
+- Updated Workshop/mod guidance to describe the current state honestly: BaseLib, Quick Restart 2, and manual SavesMerger are selected/scanned in strict public-beta modded validation, but SavesMerger real-save behavior still needs broader tester proof.
+- Added current public feedback priorities from Reddit and GitHub reports: launcher UI scaling/scroll reachability, controller input, shader compile crashes, install/update clarity, and exact-version issue reporting.
+- Preserved Steam Cloud safety guidance: no Push to Cloud was performed during validation, and active modded-save risk states remain guarded.
+
 ## 2026-06-29 - GitHub issue reporting forms
 
 - Replaced the main public Markdown issue templates with GitHub issue forms for general bugs, crashes/startup, device compatibility, game download/branch issues, Steam login/cloud saves, and Workshop/mod/save-merger reports.

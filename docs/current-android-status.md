@@ -21,7 +21,7 @@ July 3 runtime/update status:
 - The latest tested Steam public-beta payload is `v0.108.0` / build `24032229`. Public-beta fresh download, Android PCK patching, runtime-pack creation, runtime-pack validation, and launch now reach the main menu with matched beta PCK plus matched beta managed runtime. This is no longer a `NativeFallbackActivity` fallback/gating issue.
 - Public-after-beta switching was retested after the beta launch and returned to the public PCK/runtime pairing correctly.
 - Core-release can launch through its side-by-side slot, but the current Steam metadata still exposes an inherited public manifest, so it is effectively public content until Steam publishes a distinct core-release payload.
-- Workshop/mod support is not release-ready on the latest beta path. BaseLib and Quick Restart are staged, and Vanilla and Modded Saves Merger is present through manual import, but the modded public-beta launch currently terminates natively during upstream mod scanning/loading before the modded save-copy behavior can be validated.
+- Workshop/mod support is functional but still beta-quality. The latest strict public-beta modded run selects BaseLib, Quick Restart 2, and manual SavesMerger, completes Android mod scanning with three enabled mods, keeps the selected public-beta PCK/runtime-pack pairing, and no longer terminates in the previous upstream scan/load failure route. SavesMerger real-save behavior still needs broader proof across user save states.
 - No Steam Cloud Push was performed during the July 3 validation. Safe-launch testing kept cloud upload disabled/locked.
 
 Validated locally on ARM64 hardware:
@@ -40,7 +40,7 @@ Validated locally on ARM64 hardware:
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
 - The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix30 also proves public can launch immediately after a `public-beta` runtime-cache switch without routing to `NativeFallbackActivity`.
 - The latest local UI/public-startup prerelease proves fresh public redownload of `v0.107.1` reaches the game main menu with branch-matched managed runtime evidence and removes the launcher startup status overlay after startup observation.
-- Earlier Workshop/mod evidence proved staged Workshop UI and older public/public-beta/core-release scan gates, but the July 3 latest-beta modded launch regressed into a native upstream scan/load termination before `last_mod_launch.json` or first-modded-save copy could complete. Treat the current modded path as in-progress, not proven playable.
+- Latest Workshop/mod evidence proves the public-beta modded scan path writes a fresh `last_mod_launch.json` with `playMode=modded`, `scannedRoots=3`, and `enabledMods=3` for BaseLib, Quick Restart 2, and manual SavesMerger. Treat current mod support as in-progress, with SavesMerger save usability still the main unproven user-facing result.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -48,15 +48,15 @@ Validated locally on ARM64 hardware:
 Latest GitHub APK prerelease evidence:
 
 ```text
-release=v0.2.336-cleartext-cdn-debug
-asset=StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk
-sha256=a9dc26899726b64d70a25ad827e80374f46bdb79618c0e6a935a7b171938650a
+release=v0.2.352-savemerger-compat-local
+asset=StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk
+sha256=25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.336-cleartext-cdn-debug
-versionCode=336000
-validation=Android build/APK verification passed; packaged Android manifest includes android:usesCleartextTraffic=true for Steam CDN HTTP endpoints; APK crypto patch verification passed; GitHub release hygiene check passed with matching APK/checksum/metadata/release-body SHA-256. This prerelease targets the Android cleartext CDN download failure and is a local-package hardening prerelease, not release-candidate public-package signoff.
+versionName=0.2.352-savemerger-compat-local
+versionCode=352001
+validation=Android build/APK verification passed; APK crypto patch verification passed; GitHub release hygiene check passed with matching APK/checksum/metadata/release-body SHA-256; downloaded release APK verification passed. This prerelease targets public-beta modded launch/runtime-pack correctness and SavesMerger Android compatibility, and remains a local-package hardening prerelease rather than release-candidate public-package signoff.
 cloudSafety=No Push to Cloud was run during this validation.
-evidence=GitHub release v0.2.336-cleartext-cdn-debug assets and metadata; latest device runtime evidence remains the public/public-beta and Workshop artifacts listed below.
+evidence=GitHub release v0.2.352-savemerger-compat-local assets and metadata; latest device runtime evidence remains the public/public-beta and Workshop artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:
@@ -87,16 +87,24 @@ not_yet_proven=touch validation, Help & Reports/launcher-log copy pass visual pr
 Latest Workshop/mod evidence:
 
 ```text
-latestRuntimeBuild=0.2.345-beta-moddir-scan-local
+latestRuntimeBuild=0.2.352-savemerger-compat-local
 package=com.sts2launcher.overhaul.fork.local
 device=RFCY70XQE7F
-validation=Public-beta v0.108.0 launches to main menu with matched beta PCK/runtime after the adaptive ModelDb fix; public-after-beta and core-release launch paths were also retested. Modded public-beta with BaseLib, Quick Restart, and manual Saves Merger currently crashes natively during upstream scan/load before modded save-copy validation.
+validation=Public-beta v0.108.0 launches with matched beta PCK/runtime. Strict public-beta modded validation with BaseLib, Quick Restart 2, and manual SavesMerger completes Android selected-root scanning, records `last_mod_launch.json` with `playMode=modded`, `scannedRoots=3`, `enabledMods=3`, and preserves matched public-beta runtime-pack evidence. The previous native upstream scan/load termination is no longer the current blocker.
 unsupported=3747532120 / Vanilla and Modded Saves Merger remains unsupported through direct Workshop sync because Steam exposed a legacy Workshop UGC handle but no direct URL or depot manifest; manual import exists at /sdcard/StS2Launcher/Mods/3747532120
 cloudSafety=No Steam Cloud Push was run during July 3 runtime/mod validation
-evidence=artifacts/android/multi-version-runtime-public-beta-playable-modeldb-adaptive-20260703-20260703-084139; artifacts/android/workshop-mods-public-beta-public-beta-playable-modeldb-adaptive-20260703-20260703-084139; artifacts/android/multi-version-runtime-public-after-beta-modeldb-adaptive-20260703-20260703-084514; artifacts/android/workshop-mods-public-public-after-beta-modeldb-adaptive-20260703-20260703-084514; artifacts/android/multi-version-runtime-core-release-modeldb-adaptive-20260703-20260703-085147; artifacts/android/workshop-mods-core-release-core-release-modeldb-adaptive-20260703-20260703-085147; artifacts/android/workshop-mods-broken-public-beta-modded-baselib-quickrestart-savemerger-crash-20260703-20260703-085645
+evidence=artifacts/android/public-beta-modded-validation-connected-public-beta-modded-savemerger-20260703-10; artifacts/android/workshop-mods-public-beta-connected-public-beta-modded-savemerger-20260703-10-20260703-103201; artifacts/android/multi-version-runtime-public-beta-playable-modeldb-adaptive-20260703-20260703-084139; artifacts/android/workshop-mods-public-beta-public-beta-playable-modeldb-adaptive-20260703-20260703-084139; artifacts/android/multi-version-runtime-public-after-beta-modeldb-adaptive-20260703-20260703-084514; artifacts/android/workshop-mods-public-public-after-beta-modeldb-adaptive-20260703-20260703-084514; artifacts/android/multi-version-runtime-core-release-modeldb-adaptive-20260703-20260703-085147; artifacts/android/workshop-mods-core-release-core-release-modeldb-adaptive-20260703-20260703-085147
 docs=docs/android-workshop-mods.md
-not_yet_proven=latest per-enabled-root mod scan retest, public-beta modded main-menu launch, upstream first-modded-save copy, Saves Merger save usability, Android support for BaseLib patch classes currently skipped by the compatibility filter, proof of a distinct core-release Steam payload if Steam exposes one later, legacy UGC-only direct Workshop route, and release UX/docs signoff
+not_yet_proven=Saves Merger real-save usability across user save states, disabling/re-enabling SavesMerger with existing vanilla/modded saves, Android support for BaseLib patch classes currently skipped by the compatibility filter, proof of a distinct core-release Steam payload if Steam exposes one later, legacy UGC-only direct Workshop route, controller behavior with mods, shader compile stability on weaker devices, and broader release UX signoff
 ```
+
+Latest public feedback themes from Reddit/GitHub:
+
+- Launcher UI scaling and scroll reachability are visible user pain points, especially on unusual displays and foldables.
+- Controller behavior needs focused Odin/Thor/Android-handheld testing.
+- Some devices may crash or stall during first-run shader compilation.
+- Users need exact install/update/uninstall guidance and should report exact release tags rather than "latest".
+- Users are interested in Discord/community support, but GitHub issues remain the only tracked support channel for now.
 
 Latest verified public release evidence remains:
 

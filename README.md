@@ -41,12 +41,12 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 **Current state:** StS2 Mobile is playable on tested ARM64 Android hardware, but it is still a prerelease community launcher. The focus is now stability, loading speed, cleaner onboarding, branch switching, Steam Cloud safety, and experimental Workshop/mod support.
 
-Latest published APK prerelease: [v0.2.336-cleartext-cdn-debug](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.336-cleartext-cdn-debug)
+Latest published APK prerelease: [v0.2.352-savemerger-compat-local](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.352-savemerger-compat-local)
 
-- APK asset: `StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `336000`
-- SHA-256: `a9dc26899726b64d70a25ad827e80374f46bdb79618c0e6a935a7b171938650a`
+- Version code: `352001`
+- SHA-256: `25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e`
 - Signing channel: local debug/test channel
 
 What currently works on tested ARM64 hardware:
@@ -54,20 +54,20 @@ What currently works on tested ARM64 hardware:
 - Steam login reaches Steam Guard/authentication flow.
 - Game files can be downloaded from Steam for owned accounts.
 - Public/default game launch has ARM64 evidence.
-- Public-beta branch launch has ARM64 evidence with matched beta PCK and matched beta runtime pack.
+- The latest tested public-beta payload, `v0.108.0`, has ARM64 evidence with matched beta PCK and matched beta runtime pack.
 - Steam Cloud Pull into Android local app storage has been validated.
 - Steam Cloud Push is intentionally guarded and is not automatic.
 - The launcher has a first-class Mods section on the main play screen.
 - Workshop/staged mods can be selected, disabled, and launched through the Android runtime mod-loader path.
-- `BaseLib`, `Quick Restart`, and manually imported `Vanilla and Modded Saves Merger` have reached the game main menu in ARM64 validation.
+- `BaseLib`, `Quick Restart`, and manually imported `Vanilla and Modded Saves Merger` are selected and scanned in the latest public-beta modded validation without falling back to `NativeFallbackActivity`.
 
 Experimental or still hardening:
 
 - Workshop/mod support is functional but not finished. Steam discovery can stage some subscribed mods, but items exposed only as legacy UGC handles may still need manual import.
-- `Vanilla and Modded Saves Merger` is the most important current mod validation target. It has manual-import launch evidence, but broader save-merge compatibility still needs tester reports.
+- `Vanilla and Modded Saves Merger` is the most important current mod validation target. It has manual-import loading evidence, but broader save-merge compatibility still needs tester reports.
 - Branch switching is implemented, but beta/password/private branch behavior and save compatibility across branches still need more device evidence.
 - Samsung/One UI layouts and login behavior need more current-version reports from affected users.
-- Startup/loading speed and diagnostics are active refactor targets.
+- Startup/loading speed, shader compilation failures on lower-power devices, controller input, and launcher UI scaling/scroll reachability are active hardening targets.
 
 Steam Cloud safety:
 
@@ -79,8 +79,24 @@ Steam Cloud safety:
 How to help:
 
 - Download the latest APK from [Releases](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases).
+- Use the exact release tag and APK filename in reports; do not write only "latest".
 - Read [Testing needed](docs/testing-needed.md) before filing results.
 - Use the focused GitHub issue templates for crashes, Steam Cloud, branch/download issues, mods/save-merger testing, or device compatibility reports. Read [Issue reporting](docs/issue-reporting.md) before attaching logs, save details, or branch/runtime evidence.
+
+Install/update/uninstall notes:
+
+- Install the APK normally on ARM64 Android hardware.
+- Updating over an existing install should preserve app data when the package name/signing channel matches.
+- If Android reports an update-incompatible install, uninstall the old package first only after accepting that Android will remove that package's local app data.
+- To uninstall, remove the app through Android settings like any other APK. The launcher does not install a separate system service.
+
+Current high-signal reports wanted:
+
+- Launcher screen too small, cannot scroll, or Start Game/Play button unreachable.
+- Controller can navigate menus but cannot act in-game.
+- Crash or stall while compiling shaders.
+- Public-beta, public-after-beta, or core-release branch mismatch.
+- Mods selected but not scanned, not loaded, or SavesMerger saves not visible/loadable.
 
 - Steam version selection user guide: [docs/steam-version-selection-user-guide.md](docs/steam-version-selection-user-guide.md).
 - Branch validation checklist: [docs/steam-version-selection-validation.md](docs/steam-version-selection-validation.md).
@@ -257,13 +273,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.336-cleartext-cdn-debug" `
-  -AssetName "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.352-savemerger-compat-local" `
+  -AssetName "StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.336-cleartext-cdn-debug" `
-  -AssetName "StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.352-savemerger-compat-local" `
+  -AssetName "StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -272,12 +288,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.336-cleartext-cdn-debug
-Asset: StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk
+Release: v0.2.352-savemerger-compat-local
+Asset: StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.336-cleartext-cdn-debug
-VersionCode: 336000
-SHA-256: a9dc26899726b64d70a25ad827e80374f46bdb79618c0e6a935a7b171938650a
+VersionName: 0.2.352-savemerger-compat-local
+VersionCode: 352001
+SHA-256: 25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker. Use `scripts\check-github-release-hygiene.ps1` before announcing a release so the APK, checksum sidecar, metadata sidecar, release body, package name, version, and SHA-256 all agree on the fork release page.
@@ -291,12 +307,15 @@ Safe public trial checklist:
 5. Use Pull from Cloud before Push to Cloud.
 6. Confirm Android local saves/profiles exist before using Push to Cloud.
 7. Treat Push to Cloud as destructive: it makes Steam Cloud reflect Android local saves, can overwrite remote save state, now requires an `ARE YOU SURE?` arming tap, and still requires the final confirmation dialog.
+8. If testing mods, launch vanilla first, then enable selected mods, and do not push modded-save state to Steam Cloud.
+9. If reporting a problem, include the exact release tag, APK filename, device model, Android version, selected branch, and whether mods/controller/shader compilation were involved.
 
 Support boundaries for public testers:
 
 - This is an unofficial community launcher and does not include game assets.
 - Do not post Steam credentials, guard codes, refresh tokens, private save data, or full unsanitized logs in public issues or Reddit threads.
 - Current support target is ARM64 Android hardware. x86_64 emulator behavior is diagnostic-only.
+- Current known user-facing pain points are launcher UI scaling/scroll reachability, controller action input, shader compile crashes or stalls, and SavesMerger real-save compatibility.
 - If reporting a cloud-save issue, say whether you used Pull or Push, but scrub usernames, account IDs, and save contents first.
 
 3. Optional manual checksum verification:
