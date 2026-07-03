@@ -11,6 +11,7 @@ internal static partial class ModelDbInitPatch
         out MethodInfo getIdMethod,
         out object contentById,
         out MethodInfo setItemMethod,
+        out MethodInfo removeMethod,
         out MethodInfo containsMethod
     )
     {
@@ -18,6 +19,7 @@ internal static partial class ModelDbInitPatch
         getIdMethod = null;
         contentById = null;
         setItemMethod = null;
+        removeMethod = null;
         containsMethod = null;
 
         var modelDbType = typeof(ModelDb);
@@ -73,6 +75,25 @@ internal static partial class ModelDbInitPatch
         if (setItemMethod == null)
         {
             PatchHelper.Log("ModelDb.Init fallback: _contentById.set_Item method missing");
+            return false;
+        }
+
+        removeMethod = null;
+        foreach (var method in contentById.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (method.Name != RemoveMethod)
+                continue;
+
+            var parameters = method.GetParameters();
+            if (parameters.Length == 1)
+            {
+                removeMethod = method;
+                break;
+            }
+        }
+        if (removeMethod == null)
+        {
+            PatchHelper.Log("ModelDb.Init fallback: _contentById.Remove(key) method missing");
             return false;
         }
 

@@ -885,16 +885,22 @@ internal static class ModLoaderPatches
 
     private static IEnumerable<ModRoot> AndroidModRoots()
     {
-        yield return new ModRoot(
-            "Workshop staged mods",
-            AppPaths.AppPrivateWorkshopStagedModsDir,
-            requiresWorkshopConsent: true
-        );
-        yield return new ModRoot(
-            "external sideloaded mods",
-            AppPaths.ExternalModsDir,
-            requiresWorkshopConsent: false
-        );
+        var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var mod in LauncherModSelectionState.KnownMods())
+        {
+            if (!mod.Enabled || mod.IsUnsupported || string.IsNullOrWhiteSpace(mod.Path))
+                continue;
+
+            if (!emitted.Add(mod.Path))
+                continue;
+
+            var isWorkshop = mod.Source.StartsWith("Workshop", StringComparison.OrdinalIgnoreCase);
+            yield return new ModRoot(
+                $"{mod.Source} mod {mod.Title}",
+                mod.Path,
+                requiresWorkshopConsent: isWorkshop
+            );
+        }
     }
 
     private static object CreateLoadedModsList(IEnumerable allMods, Type targetListType)
@@ -1024,7 +1030,6 @@ internal static class ModLoaderPatches
                 var discovered = Count(newMods);
 
                 ApplyLoadedAssemblyCompatibilityPatches();
-                SortModsIfAvailable();
                 var attempted = TryLoadNewMods(newMods);
                 var loadedTotal = CountLoadedMods();
 
@@ -1322,11 +1327,25 @@ internal static class ModLoaderPatches
             if (_modsField.GetValue(null) is not IEnumerable allMods)
                 yield break;
 
+            var orderedNewMods = new List<object>();
             foreach (var mod in allMods)
             {
                 if (mod != null && newMods.Contains(mod))
-                    yield return mod;
+                    orderedNewMods.Add(mod);
             }
+
+            foreach (var mod in orderedNewMods
+                .OrderByDescending(IsBaseLibMod)
+                .ThenBy(DescribeMod, StringComparer.OrdinalIgnoreCase))
+            {
+                yield return mod;
+            }
+        }
+
+        private static bool IsBaseLibMod(object mod)
+        {
+            var id = TryReadManifestId(mod);
+            return string.Equals(id, "BaseLib", StringComparison.OrdinalIgnoreCase);
         }
 
         private int CountLoadedMods()

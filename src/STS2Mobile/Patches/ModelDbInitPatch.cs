@@ -17,6 +17,7 @@ internal static partial class ModelDbInitPatch
     private const string ContentByIdField = "_contentById";
     private const string GetIdMethodName = "GetId";
     private const string HarmonyId = "com.sts2mobile.modeldb";
+    private const string RemoveMethod = "Remove";
     private const string SetItemMethod = "set_Item";
 
     internal static void Apply(Harmony harmony)
@@ -38,6 +39,7 @@ internal static partial class ModelDbInitPatch
                 out var getIdMethod,
                 out var contentById,
                 out var setItemMethod,
+                out var removeMethod,
                 out var containsMethod
             ))
         {
@@ -69,8 +71,9 @@ internal static partial class ModelDbInitPatch
 
         PatchHelper.Log($"Phase 1 complete: {preRegCount} types pre-registered");
 
-        // Temporarily suppress Contains() during Phase 2 so constructors don't
-        // short-circuit when they check if their type is already registered.
+        // Temporarily patch Contains() for older game builds. Current builds also
+        // self-register in constructors, so Phase 2 removes only the current model
+        // ID before construction and leaves dependency placeholders in place.
         var harmony = new Harmony(HarmonyId);
         var containsPrefix = typeof(ModelDbInitPatch).GetMethod(
             nameof(ContainsPrefix),
@@ -83,7 +86,7 @@ internal static partial class ModelDbInitPatch
         }
         harmony.Patch(containsMethod, new HarmonyMethod(containsPrefix));
 
-        var phase2 = RunConstructors(types, typeObjects);
+        var phase2 = RunConstructors(types, typeObjects, getIdMethod, contentById, setItemMethod, removeMethod);
         harmony.Unpatch(containsMethod, containsPrefix);
 
         LogPhase2Result(types.Length, phase2.SuccessCount, phase2.Failed);

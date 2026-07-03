@@ -21,7 +21,11 @@ internal static partial class ModelDbInitPatch
 
     private static ConstructorRunResult RunConstructors(
         IEnumerable<Type> types,
-        IReadOnlyDictionary<Type, object> typeObjects
+        IReadOnlyDictionary<Type, object> typeObjects,
+        MethodInfo getIdMethod,
+        object contentById,
+        MethodInfo setItemMethod,
+        MethodInfo removeMethod
     )
     {
         // Phase 2: Run constructors on pre-allocated objects
@@ -40,7 +44,9 @@ internal static partial class ModelDbInitPatch
 
                 try
                 {
-                    RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+                    var id = getIdMethod.Invoke(null, new object[] { type });
+                    _constructingType = type;
+                    removeMethod.Invoke(contentById, new[] { id });
 
                     var ctor = type.GetConstructor(
                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
@@ -53,21 +59,46 @@ internal static partial class ModelDbInitPatch
                         ctor.Invoke(typeObjects[type], null);
                     }
 
+                    setItemMethod.Invoke(contentById, new[] { id, typeObjects[type] });
                     successCount++;
                 }
                 catch (Exception ex)
                 {
                     failed.Add(type);
+                    RestorePreRegisteredModel(type, typeObjects, getIdMethod, contentById, setItemMethod);
                     LogConstructorFailure(type, ex);
                 }
             }
         }
         finally
         {
+            _constructingType = null;
             _suppressContains = false;
         }
 
         return new ConstructorRunResult(successCount, failed);
+    }
+
+    private static void RestorePreRegisteredModel(
+        Type type,
+        IReadOnlyDictionary<Type, object> typeObjects,
+        MethodInfo getIdMethod,
+        object contentById,
+        MethodInfo setItemMethod
+    )
+    {
+        try
+        {
+            if (!typeObjects.TryGetValue(type, out var model))
+                return;
+
+            var id = getIdMethod.Invoke(null, new object[] { type });
+            setItemMethod.Invoke(contentById, new[] { id, model });
+        }
+        catch (Exception restoreEx)
+        {
+            PatchHelper.Log($"Phase 2 - Failed to restore pre-registered {type.Name}: {restoreEx.Message}");
+        }
     }
 
     private static void LogConstructorFailure(Type type, Exception ex)
