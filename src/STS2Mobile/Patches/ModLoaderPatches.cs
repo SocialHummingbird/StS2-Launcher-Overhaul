@@ -10,6 +10,7 @@ using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Modding;
+using MegaCrit.Sts2.Core.Saves;
 using STS2Mobile.Launcher;
 
 namespace STS2Mobile.Patches;
@@ -26,6 +27,7 @@ internal static class ModLoaderPatches
     private const BindingFlags LoadedMarkerFlags =
         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
     private static Harmony _harmony;
+    private static bool _savesMergerCompatibilityApplied;
     private static readonly HashSet<string> AppliedModCompatibilityPatches = new(StringComparer.Ordinal);
     private static readonly HashSet<string> BaseLibAndroidSkippedPatchTypes = new(StringComparer.Ordinal)
     {
@@ -746,6 +748,7 @@ internal static class ModLoaderPatches
 
         var tryLoadMod = FindTryLoadMod(modManagerType);
         var modType = ResolveModType(scanMethod, tryLoadMod, modsField);
+        var manifestType = ResolveManifestType(modType);
         var newModsListType = modType == null ? null : typeof(List<>).MakeGenericType(modType);
 
         access = new ModManagerAccess(
@@ -758,6 +761,8 @@ internal static class ModLoaderPatches
             modManagerType.GetField("_loadedMods", AllStatic),
             modManagerType.GetField("_settings", AllStatic),
             sourceValue,
+            modType,
+            manifestType,
             newModsListType
         );
         return true;
@@ -848,6 +853,16 @@ internal static class ModLoaderPatches
         return null;
     }
 
+    private static Type ResolveManifestType(Type modType)
+    {
+        if (modType == null)
+            return null;
+
+        return modType.GetField("manifest", AllInstance)?.FieldType
+            ?? modType.GetProperty("manifest", AllInstance)?.PropertyType
+            ?? modType.GetProperty("Manifest", AllInstance)?.PropertyType;
+    }
+
     private static object ResolveModSource(Type sourceType)
     {
         try
@@ -868,6 +883,17 @@ internal static class ModLoaderPatches
         foreach (var root in AndroidModRoots())
         {
             LogModRootSnapshot(root);
+            var androidManifestPath = FindAndroidManifestPath(root.Path);
+            if (!string.IsNullOrWhiteSpace(androidManifestPath))
+            {
+                PatchHelper.Log($"[Mods] Android manifest candidate for scanner bypass: {androidManifestPath}");
+                if (access.TryLoadManifestForAndroid(root, androidManifestPath))
+                    loadedRoots++;
+                else
+                    PatchHelper.Log($"[Mods] Android scanner bypass failed for {root.Label}; skipping game scanner to avoid known Android hangs");
+                continue;
+            }
+
             using var dirAccess = DirAccess.Open(root.Path);
             if (dirAccess == null)
             {
@@ -926,6 +952,29 @@ internal static class ModLoaderPatches
         catch
         {
             return 0;
+        }
+    }
+
+    private static string FindAndroidManifestPath(string rootPath)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
+                return null;
+
+            foreach (var candidate in Directory.EnumerateFiles(rootPath, "*.json", SearchOption.AllDirectories).Take(16))
+            {
+                var fileName = Path.GetFileName(candidate);
+                if (!fileName.StartsWith(".", StringComparison.Ordinal))
+                    return candidate;
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Mods] Android manifest probe failed for {rootPath}: {ex.Message}");
+            return null;
         }
     }
 
@@ -1031,6 +1080,8 @@ internal static class ModLoaderPatches
         private readonly FieldInfo _loadedModsField;
         private readonly FieldInfo _settingsField;
         private readonly object _sourceValue;
+        private readonly Type _modType;
+        private readonly Type _manifestType;
         private readonly Type _newModsListType;
 
         internal ModManagerAccess(
@@ -1043,6 +1094,8 @@ internal static class ModLoaderPatches
             FieldInfo loadedModsField,
             FieldInfo settingsField,
             object sourceValue,
+            Type modType,
+            Type manifestType,
             Type newModsListType
         )
         {
@@ -1055,6 +1108,8 @@ internal static class ModLoaderPatches
             _loadedModsField = loadedModsField;
             _settingsField = settingsField;
             _sourceValue = sourceValue;
+            _modType = modType;
+            _manifestType = manifestType;
             _newModsListType = newModsListType;
         }
 
@@ -1092,6 +1147,56 @@ internal static class ModLoaderPatches
             catch (Exception ex)
             {
                 PatchHelper.Log($"[Mods] {root.Label} scan failed: {ex}");
+                return false;
+            }
+        }
+
+        internal bool TryLoadManifestForAndroid(ModRoot root, string manifestPath)
+        {
+            PatchHelper.Log($"[Mods] Entering Android-safe scanner bypass: {manifestPath}");
+            return TryLoadManifestForAndroidCore(root, manifestPath);
+        }
+
+        private bool TryLoadManifestForAndroidCore(ModRoot root, string manifestPath)
+        {
+            try
+            {
+                PatchHelper.Log($"[Mods] Loading mod through Android-safe scanner bypass: {manifestPath}");
+                var manifestData = ReadBaseLibManifestData(manifestPath);
+                if (manifestData == null || string.IsNullOrWhiteSpace(manifestData.Id))
+                {
+                    PatchHelper.Log($"[Mods] Android scanner bypass ignored unreadable manifest: {manifestPath}");
+                    return false;
+                }
+
+                var modPath = Path.GetDirectoryName(manifestPath) ?? root.Path;
+                var mod = CreateSyntheticBaseLibMod(modPath, manifestData);
+                if (mod == null)
+                {
+                    PatchHelper.Log("[Mods] Android scanner bypass could not create synthetic mod object");
+                    return false;
+                }
+
+                TrySetModSource(mod);
+
+                var loaded = string.Equals(manifestData.Id, "BaseLib", StringComparison.OrdinalIgnoreCase)
+                    ? TryLoadBaseLibForAndroidObject(mod, modPath, manifestData)
+                    : IsSavesMergerMod(manifestData)
+                        ? TryLoadSavesMergerForAndroidObject(mod)
+                    : TryLoadStandardAndroidModObject(root, mod, manifestData);
+                if (!loaded || !IsLoaded(mod))
+                {
+                    PatchHelper.Log($"[Mods] Android scanner bypass did not produce a loaded mod: {manifestData.Id}");
+                    return false;
+                }
+
+                AddOrReplaceMod(mod);
+                PatchHelper.Log($"[Mods] Android scanner bypass complete. Id={manifestData.Id} Path={modPath}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Mods] Android scanner bypass failed: {ex}");
                 return false;
             }
         }
@@ -1138,6 +1243,468 @@ internal static class ModLoaderPatches
                 PatchHelper.Log($"[Mods] Failed to create new-mod capture list: {ex.Message}");
                 return null;
             }
+        }
+
+        private static string FindBaseLibManifestPath(string rootPath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
+                    return null;
+
+                foreach (var candidate in new[]
+                {
+                    Path.Combine(rootPath, "BaseLib.json"),
+                    Path.Combine(rootPath, "BaseLib", "BaseLib.json"),
+                })
+                {
+                    if (File.Exists(candidate))
+                        return candidate;
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Mods] BaseLib manifest probe failed for {rootPath}: {ex.Message}");
+                return null;
+            }
+        }
+
+        private object CreateSyntheticBaseLibMod(string modPath, BaseLibManifestData manifestData)
+        {
+            if (_modType == null || _manifestType == null)
+                return null;
+
+            try
+            {
+                var manifest = Activator.CreateInstance(_manifestType);
+                if (manifest == null)
+                    return null;
+
+                SetMemberValue(manifest, "id", manifestData.Id);
+                SetMemberValue(manifest, "name", manifestData.Name);
+                SetMemberValue(manifest, "author", manifestData.Author);
+                SetMemberValue(manifest, "description", manifestData.Description);
+                SetMemberValue(manifest, "version", manifestData.Version);
+                SetMemberValue(manifest, "hasPck", manifestData.HasPck);
+                SetMemberValue(manifest, "hasDll", manifestData.HasDll);
+                SetMemberValue(manifest, "affectsGameplay", manifestData.AffectsGameplay);
+                SetManifestDependencies(manifest, manifestData.Dependencies ?? new List<string>());
+
+                var mod = Activator.CreateInstance(_modType);
+                if (mod == null)
+                    return null;
+
+                SetMemberValue(mod, "path", modPath);
+                SetMemberValue(mod, "manifest", manifest);
+                SetMemberValue(mod, "errors", null);
+                return mod;
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Mods] BaseLib scanner bypass synthetic object creation failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        private void TrySetModSource(object mod)
+        {
+            try
+            {
+                if (_sourceValue == null)
+                    return;
+
+                SetMemberValue(mod, "modSource", _sourceValue);
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Mods] BaseLib scanner bypass could not set mod source: {ex.Message}");
+            }
+        }
+
+        private static BaseLibManifestData ReadBaseLibManifestData(string manifestPath)
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
+            var root = document.RootElement;
+            var manifest = new BaseLibManifestData
+            {
+                Id = ReadJsonString(root, "id"),
+                Name = ReadJsonString(root, "name"),
+                Author = ReadJsonString(root, "author"),
+                Description = ReadJsonString(root, "description"),
+                Version = ReadJsonString(root, "version"),
+                HasPck = ReadJsonBool(root, "hasPck") || ReadJsonBool(root, "has_pck"),
+                HasDll = ReadJsonBool(root, "hasDll") || ReadJsonBool(root, "has_dll"),
+                AffectsGameplay = ReadJsonBool(root, "affectsGameplay") || ReadJsonBool(root, "affects_gameplay"),
+                Dependencies = ReadJsonStringList(root, "dependencies"),
+            };
+
+            if (string.IsNullOrWhiteSpace(manifest.Id))
+                manifest.Id = "BaseLib";
+            if (string.IsNullOrWhiteSpace(manifest.Name))
+                manifest.Name = manifest.Id;
+
+            return manifest;
+        }
+
+        private static string ReadJsonString(JsonElement root, string propertyName)
+        {
+            if (!TryGetJsonProperty(root, propertyName, out var property)
+                || property.ValueKind != JsonValueKind.String)
+            {
+                return "";
+            }
+
+            return property.GetString() ?? "";
+        }
+
+        private static bool ReadJsonBool(JsonElement root, string propertyName)
+        {
+            if (!TryGetJsonProperty(root, propertyName, out var property))
+                return false;
+
+            return property.ValueKind switch
+            {
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.String => bool.TryParse(property.GetString(), out var value) && value,
+                _ => false,
+            };
+        }
+
+        private static List<string> ReadJsonStringList(JsonElement root, string propertyName)
+        {
+            var values = new List<string>();
+            if (!TryGetJsonProperty(root, propertyName, out var property)
+                || property.ValueKind != JsonValueKind.Array)
+            {
+                return values;
+            }
+
+            foreach (var item in property.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String)
+                    values.Add(item.GetString() ?? "");
+            }
+
+            return values;
+        }
+
+        private static bool TryGetJsonProperty(JsonElement root, string propertyName, out JsonElement property)
+        {
+            foreach (var candidate in root.EnumerateObject())
+            {
+                if (string.Equals(candidate.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    property = candidate.Value;
+                    return true;
+                }
+            }
+
+            property = default;
+            return false;
+        }
+
+        private bool TryLoadStandardAndroidModObject(ModRoot root, object mod, BaseLibManifestData manifest)
+        {
+            if (_tryLoadMod == null)
+            {
+                PatchHelper.Log($"[Mods] Android scanner bypass cannot load {manifest.Id}: ModManager.TryLoadMod was not found");
+                return false;
+            }
+
+            using var loadWindow = BeginRuntimeLoadWindow();
+            try
+            {
+                ApplyWorkshopConsentIfAvailable(root);
+                AddOrReplaceMod(mod);
+                PatchHelper.Log($"[Mods] Loading {manifest.Id} through Android-safe synthetic mod path");
+                _tryLoadMod.Invoke(null, new[] { mod });
+                ApplyLoadedAssemblyCompatibilityPatches();
+                PatchHelper.Log($"[Mods] Android-safe synthetic mod load complete: {manifest.Id} loaded={IsLoaded(mod)}");
+                return true;
+            }
+            catch (TargetInvocationException ex)
+            {
+                PatchHelper.Log($"[Mods] Android-safe synthetic mod load failed for {manifest.Id}: {ex.InnerException ?? ex}");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Mods] Android-safe synthetic mod load failed for {manifest.Id}: {ex}");
+                return false;
+            }
+        }
+
+        private static bool IsSavesMergerMod(BaseLibManifestData manifest)
+        {
+            return string.Equals(manifest?.Id, "SavesMerger", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(manifest?.Name, "SavesMerger", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(manifest?.Id, "UnifiedSavePath", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool TryLoadSavesMergerForAndroidObject(object mod)
+        {
+            try
+            {
+                ApplySavesMergerCompatibilityPatches();
+                UserDataPathProvider.IsRunningModded = false;
+                SetEnumMember(mod, "state", "Loaded");
+                SetMemberValue(mod, "assembly", null);
+                SetMemberValue(mod, "errors", null);
+                PatchHelper.Log("[Mods] SavesMerger loaded through built-in Android save-path compatibility patch");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Mods] SavesMerger Android compatibility patch failed: {ex}");
+                SetEnumMember(mod, "state", "Failed");
+                return false;
+            }
+        }
+
+        private static void ApplySavesMergerCompatibilityPatches()
+        {
+            if (_savesMergerCompatibilityApplied)
+                return;
+
+            if (_harmony == null)
+                throw new InvalidOperationException("Harmony has not been initialized for SavesMerger compatibility.");
+
+            PatchHelper.PatchGetter(
+                _harmony,
+                typeof(UserDataPathProvider),
+                "IsRunningModded",
+                PatchHelper.Method(typeof(ModManagerAccess), nameof(SavesMergerGetIsRunningModded))
+            );
+            PatchHelper.Patch(
+                _harmony,
+                typeof(UserDataPathProvider),
+                "set_IsRunningModded",
+                prefix: PatchHelper.Method(typeof(ModManagerAccess), nameof(SavesMergerSetIsRunningModded))
+            );
+            PatchHelper.Patch(
+                _harmony,
+                typeof(UserDataPathProvider),
+                "GetProfileDir",
+                prefix: PatchHelper.Method(typeof(ModManagerAccess), nameof(SavesMergerGetProfileDir))
+            );
+            _savesMergerCompatibilityApplied = true;
+            PatchHelper.Log("[Mods] SavesMerger Android compatibility patches applied");
+        }
+
+        private static bool SavesMergerGetIsRunningModded(ref bool __result)
+        {
+            __result = false;
+            return false;
+        }
+
+        private static bool SavesMergerSetIsRunningModded(ref bool value)
+        {
+            value = false;
+            return true;
+        }
+
+        private static bool SavesMergerGetProfileDir(int profileId, ref string __result)
+        {
+            __result = $"profile{profileId}";
+            return false;
+        }
+
+        private bool TryLoadBaseLibForAndroidObject(object mod, string modPath, BaseLibManifestData manifest)
+        {
+            if (mod == null
+                || manifest == null
+                || !string.Equals(manifest.Id, "BaseLib", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            Assembly assembly = null;
+            try
+            {
+                var loadedSomething = false;
+                var dllPath = Path.Combine(modPath, "BaseLib.dll");
+                if (manifest.HasDll)
+                {
+                    if (Godot.FileAccess.FileExists(dllPath))
+                    {
+                        PatchHelper.Log($"[Mods] Loading BaseLib DLL via Android-safe path: {dllPath}");
+                        var loadContext = AssemblyLoadContext.GetLoadContext(Assembly.GetExecutingAssembly());
+                        assembly = loadContext?.LoadFromAssemblyPath(dllPath) ?? Assembly.LoadFrom(dllPath);
+                        TryApplyBaseLibJsonCompatibilityPatch(assembly);
+                        loadedSomething = true;
+                    }
+                    else
+                    {
+                        PatchHelper.Log($"[Mods] BaseLib manifest declares DLL but file is missing: {dllPath}");
+                    }
+                }
+
+                var pckPath = Path.Combine(modPath, "BaseLib.pck");
+                if (manifest.HasPck)
+                {
+                    if (Godot.FileAccess.FileExists(pckPath))
+                    {
+                        PatchHelper.Log($"[Mods] Loading BaseLib PCK via Android-safe path: {pckPath}");
+                        if (!ProjectSettings.LoadResourcePack(pckPath, true, 0))
+                            throw new InvalidOperationException("Godot errored while loading BaseLib PCK.");
+
+                        loadedSomething = true;
+                    }
+                    else
+                    {
+                        PatchHelper.Log($"[Mods] BaseLib manifest declares PCK but file is missing: {pckPath}");
+                    }
+                }
+
+                if (!loadedSomething)
+                    throw new InvalidOperationException("Neither BaseLib DLL nor BaseLib PCK was loaded.");
+
+                if (assembly != null)
+                {
+                    PatchHelper.Log("[Mods] Running BaseLib Android-safe initializer through reflection loader");
+                    RunBaseLibAndroidSafeInitialize(assembly);
+                    PatchHelper.Log("[Mods] BaseLib Android-safe initializer through reflection loader complete");
+                }
+
+                SetEnumMember(mod, "state", "Loaded");
+                SetMemberValue(mod, "assembly", assembly);
+                SetMemberValue(mod, "errors", null);
+                PatchHelper.Log("[Mods] BaseLib loaded through Android-safe staged Workshop path");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Mods] BaseLib Android-safe load failed: {ex}");
+                SetEnumMember(mod, "state", "Failed");
+                SetMemberValue(mod, "assembly", assembly);
+                return true;
+            }
+        }
+
+        private static void SetManifestDependencies(object manifest, IReadOnlyCollection<string> dependencies)
+        {
+            var memberType = GetWritableMemberType(manifest, "dependencies");
+            if (memberType == null)
+                return;
+
+            try
+            {
+                if (memberType.IsAssignableFrom(typeof(List<string>)))
+                {
+                    SetMemberValue(manifest, "dependencies", dependencies?.ToList() ?? new List<string>());
+                    return;
+                }
+
+                if (!typeof(IList).IsAssignableFrom(memberType))
+                    return;
+
+                var list = Activator.CreateInstance(memberType) as IList;
+                if (list == null)
+                    return;
+
+                var itemType = memberType.IsGenericType ? memberType.GetGenericArguments()[0] : typeof(object);
+                if (itemType == typeof(string) && dependencies != null)
+                {
+                    foreach (var dependency in dependencies)
+                        list.Add(dependency);
+                }
+
+                SetMemberValue(manifest, "dependencies", list);
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Mods] Failed to set manifest dependencies: {ex.Message}");
+            }
+        }
+
+        private static void SetEnumMember(object target, string name, string enumName)
+        {
+            var memberType = GetWritableMemberType(target, name);
+            if (memberType == null || !memberType.IsEnum)
+                return;
+
+            SetMemberValue(target, name, Enum.Parse(memberType, enumName));
+        }
+
+        private static Type GetWritableMemberType(object target, string name)
+        {
+            if (target == null)
+                return null;
+
+            var type = target.GetType();
+            var field = type.GetField(name, AllInstance);
+            if (field != null)
+                return field.FieldType;
+
+            var property = type.GetProperty(name, AllInstance);
+            return property?.CanWrite == true ? property.PropertyType : null;
+        }
+
+        private static bool SetMemberValue(object target, string name, object value)
+        {
+            if (target == null)
+                return false;
+
+            try
+            {
+                var type = target.GetType();
+                var field = type.GetField(name, AllInstance);
+                if (field != null)
+                {
+                    field.SetValue(target, value);
+                    return true;
+                }
+
+                var property = type.GetProperty(name, AllInstance);
+                if (property?.CanWrite == true)
+                {
+                    property.SetValue(target, value);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Mods] Failed to set {name}: {ex.Message}");
+            }
+
+            return false;
+        }
+
+        private void AddOrReplaceMod(object mod)
+        {
+            if (_modsField.GetValue(null) is not IList mods)
+            {
+                PatchHelper.Log("[Mods] BaseLib scanner bypass could not update ModManager._mods");
+                return;
+            }
+
+            var modPath = TryReadStringMember(mod, "path") ?? TryReadStringMember(mod, "Path") ?? "";
+            for (var i = mods.Count - 1; i >= 0; i--)
+            {
+                var existingPath = TryReadStringMember(mods[i], "path") ?? TryReadStringMember(mods[i], "Path") ?? "";
+                if (string.Equals(existingPath, modPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    mods.RemoveAt(i);
+                }
+            }
+
+            mods.Add(mod);
+        }
+
+        private sealed class BaseLibManifestData
+        {
+            internal string Id { get; set; }
+            internal string Name { get; set; }
+            internal string Author { get; set; }
+            internal string Description { get; set; }
+            internal string Version { get; set; }
+            internal bool HasPck { get; set; }
+            internal bool HasDll { get; set; }
+            internal bool AffectsGameplay { get; set; }
+            internal List<string> Dependencies { get; set; }
         }
 
         private object[] BuildScanArguments(string path, DirAccess dirAccess, object newMods)

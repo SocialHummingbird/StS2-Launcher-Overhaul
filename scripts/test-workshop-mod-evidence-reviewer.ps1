@@ -31,6 +31,7 @@ function New-WorkshopEvidenceBundle(
     [switch]$MissingSourceEvidence,
     [switch]$NoLaunchRequested,
     [switch]$FallbackCrashLog,
+    [switch]$AbortSignalLog,
     [switch]$UnlockedWithStagedPck,
     [switch]$MissingWorkshopModLoaderScan,
     [switch]$CachedDownloadReuse,
@@ -171,6 +172,9 @@ function New-WorkshopEvidenceBundle(
     if ($FallbackCrashLog) {
         $launchLog += "`nNativeFallbackActivity selected after runtime pack validation failed`nFATAL EXCEPTION: main"
     }
+    if ($AbortSignalLog) {
+        $launchLog += "`nProcess 32760 exited due to signal 6 (Aborted)"
+    }
     Save-TestText (Join-Path $BaseDir "logs\logcat-workshop-filtered.txt") $launchLog
 }
 
@@ -258,6 +262,10 @@ try {
     $fallbackCrashDir = Join-Path $runRoot "negative-fallback-crash-log"
     New-WorkshopEvidenceBundle -BaseDir $fallbackCrashDir -Phase "public-beta" -FallbackCrashLog
     Invoke-ReviewShouldFail -EvidenceDir $fallbackCrashDir -Phase "public-beta" -Description "public-beta evidence containing NativeFallback/crash log"
+
+    $abortSignalDir = Join-Path $runRoot "negative-abort-signal-log"
+    New-WorkshopEvidenceBundle -BaseDir $abortSignalDir -Phase "public-beta" -AbortSignalLog
+    Invoke-ReviewShouldFail -EvidenceDir $abortSignalDir -Phase "public-beta" -Description "public-beta evidence containing signal 6 abort log"
 
     $modInitializerErrorDir = Join-Path $runRoot "negative-mod-initializer-error"
     New-WorkshopEvidenceBundle -BaseDir $modInitializerErrorDir -Phase "public-beta"

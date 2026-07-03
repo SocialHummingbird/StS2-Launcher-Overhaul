@@ -320,7 +320,7 @@ function Require-WorkshopUsableSourceEvidence([string]$PhaseLabel) {
 function Require-LaunchEvidence([string]$PhaseLabel) {
     Require-JsonPattern "run-metadata.json" "$PhaseLabel capture launched the app" '(?i)"launchRequested"\s*:\s*true'
     Require-Pattern "logs/logcat-workshop-filtered.txt" "$PhaseLabel launch/runtime log is captured" "Loading PCK from|Selected Steam branch|Runtime|Workshop|ModLoader"
-    Require-NoPattern "logs/logcat-workshop-filtered.txt" "$PhaseLabel launch avoided fallback/crash signatures" "(?i)NativeFallback|FATAL EXCEPTION|AndroidRuntime.*FATAL|SIGSEGV|signal 11|Unhandled exception"
+    Require-NoPattern "logs/logcat-workshop-filtered.txt" "$PhaseLabel launch avoided fallback/crash signatures" "(?i)NativeFallback|FATAL EXCEPTION|AndroidRuntime.*FATAL|SIGSEGV|SIGABRT|signal 11|signal 6|exited due to signal 6|Aborted|Unhandled exception"
     Require-NoPattern "logs/logcat-workshop-filtered.txt" "$PhaseLabel launch avoided mod initializer errors" "(?i)Exception thrown when calling mod initializer|MissingMethodException|JsonPropertyInfoValues"
 }
 

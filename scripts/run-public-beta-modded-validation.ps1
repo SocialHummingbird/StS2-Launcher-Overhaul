@@ -18,6 +18,7 @@ if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -Scope Global -Er
 
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "android-adb-utils.ps1")
+. (Join-Path $PSScriptRoot "android-shell-utils.ps1")
 
 function Save-Text([string]$Path, [string]$Text) {
     $parent = Split-Path -Parent $Path
@@ -37,11 +38,13 @@ function Invoke-AdbCapture([string[]]$Arguments) {
 }
 
 function Invoke-RunAsSh([string]$Command) {
-    Invoke-Adb -Arguments @("shell", "run-as", $PackageName, "sh", "-c", $Command)
+    $quotedCommand = ConvertTo-AndroidShellSingleQuoted $Command
+    Invoke-Adb -Arguments @("shell", "run-as $PackageName sh -c $quotedCommand")
 }
 
 function Invoke-RunAsShCapture([string]$Command) {
-    Invoke-AdbCapture -Arguments @("shell", "run-as", $PackageName, "sh", "-c", $Command)
+    $quotedCommand = ConvertTo-AndroidShellSingleQuoted $Command
+    Invoke-AdbCapture -Arguments @("shell", "run-as $PackageName sh -c $quotedCommand")
 }
 
 function Set-AppPrivateJsonFile([string]$DevicePath, [string]$JsonText) {
@@ -66,9 +69,72 @@ function Set-AppPrivateJsonFile([string]$DevicePath, [string]$JsonText) {
     }
 }
 
-$AdbPath = Resolve-AndroidAdbPath -AdbPath $AdbPath
-$DeviceSerial = Resolve-AndroidTargetDevice -AdbPath $AdbPath -DeviceSerial $DeviceSerial -WaitForDeviceSeconds $WaitForDeviceSeconds
-$PackageName = Resolve-AndroidInstalledLauncherPackageName -AdbPath $AdbPath -DeviceSerial $DeviceSerial -PackageName $PackageName
+function Assert-PublicBetaModdedLaunchMarker([string]$EvidenceDirectory, [datetime]$RunStartedUtc) {
+    $markerPath = Join-Path $EvidenceDirectory "diagnostics\last-mod-launch.json"
+    if (-not (Test-Path -LiteralPath $markerPath)) {
+        $validationFailures.Add("Modded launch marker was not captured: $markerPath")
+        return
+    }
+
+    try {
+        $marker = Get-Content -Raw -LiteralPath $markerPath | ConvertFrom-Json
+    } catch {
+        $validationFailures.Add("Modded launch marker is not valid JSON: $($_.Exception.Message)")
+        return
+    }
+
+    $generatedAt = [datetime]::MinValue
+    if (-not [datetime]::TryParse("$($marker.generatedAtUtc)", [ref]$generatedAt)) {
+        $validationFailures.Add("Modded launch marker is missing a readable generatedAtUtc value.")
+        return
+    }
+
+    if ($generatedAt.ToUniversalTime() -lt $RunStartedUtc) {
+        $validationFailures.Add("Modded launch marker is stale: generatedAtUtc=$($marker.generatedAtUtc), runStartedUtc=$($RunStartedUtc.ToString("O")).")
+    }
+
+    if ("$($marker.playMode)" -ne "modded") {
+        $validationFailures.Add("Modded launch marker did not record modded play mode: playMode=$($marker.playMode).")
+    }
+
+    if ([int]$marker.enabledMods -lt 3) {
+        $validationFailures.Add("Modded launch marker recorded fewer than three enabled mods: enabledMods=$($marker.enabledMods).")
+    }
+
+    if ([int]$marker.scannedRoots -lt 3) {
+        $validationFailures.Add("Modded launch marker recorded fewer than three scanned roots: scannedRoots=$($marker.scannedRoots).")
+    }
+
+    $selectedMods = @($marker.selectedMods)
+    $selectedText = ($selectedMods | ForEach-Object { @($_.Key, $_.Id, $_.Title, $_.Path) -join " " }) -join "`n"
+    foreach ($requiredPattern in @("BaseLib", "Quick\s*Restart|QuickRestart", "SavesMerger")) {
+        if ($selectedText -notmatch $requiredPattern) {
+            $validationFailures.Add("Modded launch marker is missing selected mod evidence matching '$requiredPattern'.")
+        }
+    }
+
+    foreach ($mod in $selectedMods) {
+        $name = (@($mod.Key, $mod.Id, $mod.Title) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -First 1)
+        if ([string]::IsNullOrWhiteSpace([string]$name)) {
+            $name = "<unknown>"
+        }
+
+        $rootProperty = $mod.PSObject.Properties["Root"]
+        if ($null -eq $rootProperty) {
+            $validationFailures.Add("Modded launch marker selected mod $name is missing Root snapshot.")
+            continue
+        }
+
+        $root = $rootProperty.Value
+        if ([bool]$root.Exists -ne $true) {
+            $validationFailures.Add("Modded launch marker selected mod $name root does not exist.")
+        }
+
+        if ([int]$root.ManifestCount -lt 1) {
+            $validationFailures.Add("Modded launch marker selected mod $name root has no manifest JSON.")
+        }
+    }
+}
 
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $safeRunLabel = if ([string]::IsNullOrWhiteSpace($RunLabel)) {
@@ -84,6 +150,10 @@ $selectionBackupPath = "files/mods/mod_selection.codex-backup-$timestamp.json"
 $moddedBackupPath = "files/modded.codex-backup-$timestamp"
 $newModdedPath = "files/modded.codex-newcopy-test-$timestamp"
 $cleanupLines = [System.Collections.Generic.List[string]]::new()
+$validationFailures = [System.Collections.Generic.List[string]]::new()
+$latestWorkshopEvidencePath = ""
+$deviceStateMayBeMutated = $false
+$runStartedUtc = (Get-Date).ToUniversalTime()
 $vanillaRestoreSelection = [ordered]@{
     Version = 1
     PlayMode = "vanilla"
@@ -92,6 +162,10 @@ $vanillaRestoreSelection = [ordered]@{
 } | ConvertTo-Json -Depth 6
 
 try {
+    $AdbPath = Resolve-AndroidAdbPath -AdbPath $AdbPath
+    $DeviceSerial = Resolve-AndroidTargetDevice -AdbPath $AdbPath -DeviceSerial $DeviceSerial -WaitForDeviceSeconds $WaitForDeviceSeconds
+    $PackageName = Resolve-AndroidInstalledLauncherPackageName -AdbPath $AdbPath -DeviceSerial $DeviceSerial -PackageName $PackageName
+
     Save-Text -Path (Join-Path $outputDir "run-metadata.json") -Text ([ordered]@{
         generatedUtc = (Get-Date).ToUniversalTime().ToString("O")
         collector = "run-public-beta-modded-validation.ps1"
@@ -111,6 +185,7 @@ It writes launcher-owned app-private test markers, runs the public-beta safe-lau
 "@
 
     Invoke-RunAsSh "mkdir -p files/mods && if [ -f files/mods/mod_selection.json ]; then cp files/mods/mod_selection.json $selectionBackupPath; fi"
+    $deviceStateMayBeMutated = $true
     Invoke-RunAsSh "if [ -d files/modded ]; then mv files/modded $moddedBackupPath; fi"
 
     $selection = [ordered]@{
@@ -130,22 +205,27 @@ It writes launcher-owned app-private test markers, runs the public-beta safe-lau
         (Invoke-RunAsShCapture "ls -ld files/modded $moddedBackupPath 2>/dev/null; cat files/mods/mod_selection.json; cat files/launcher_automation_action.txt") -join [Environment]::NewLine
     )
 
-    $captureArgs = @(
-        "-AdbPath", $AdbPath,
-        "-PackageName", $PackageName,
-        "-DeviceSerial", $DeviceSerial,
-        "-OutputRoot", $OutputRoot,
-        "-Phase", "public-beta",
-        "-RunLabel", $safeRunLabel,
-        "-WaitSeconds", $LaunchWaitSeconds.ToString(),
-        "-Launch",
-        "-ClearLogcat"
-    )
+    $captureArgs = @{
+        AdbPath = $AdbPath
+        PackageName = $PackageName
+        DeviceSerial = $DeviceSerial
+        OutputRoot = $OutputRoot
+        Phase = "public-beta"
+        RunLabel = $safeRunLabel
+        WaitSeconds = $LaunchWaitSeconds
+        Launch = $true
+        ClearLogcat = $true
+    }
     if (-not $SkipScreenshot) {
-        $captureArgs += "-Screenshot"
+        $captureArgs["Screenshot"] = $true
     }
 
-    & (Join-Path $PSScriptRoot "capture-workshop-mod-evidence.ps1") @captureArgs
+    try {
+        & (Join-Path $PSScriptRoot "capture-workshop-mod-evidence.ps1") @captureArgs
+    } catch {
+        $validationFailures.Add("Workshop evidence capture failed: $($_.Exception.Message)")
+        Save-Text -Path (Join-Path $diagnosticsDir "capture-workshop-result.txt") -Text "CAPTURE_FAILED: $($_.Exception.Message)"
+    }
 
     $latestWorkshopEvidence = Get-ChildItem -LiteralPath (Join-Path $root $OutputRoot) -Directory |
         Where-Object { $_.Name -like "*$safeRunLabel*" } |
@@ -153,56 +233,79 @@ It writes launcher-owned app-private test markers, runs the public-beta safe-lau
         Select-Object -First 1
 
     if ($latestWorkshopEvidence) {
+        $latestWorkshopEvidencePath = $latestWorkshopEvidence.FullName
+        $reviewArgs = @{
+            EvidenceDir = $latestWorkshopEvidence.FullName
+            RequirePhase = "public-beta"
+        }
+        if (-not $SkipScreenshot) {
+            $reviewArgs["RequireScreenshot"] = $true
+        }
+
         try {
-            & (Join-Path $PSScriptRoot "review-workshop-mod-evidence.ps1") `
-                -EvidenceDir $latestWorkshopEvidence.FullName `
-                -RequirePhase public-beta `
-                -RequireScreenshot:(!$SkipScreenshot) |
+            & (Join-Path $PSScriptRoot "review-workshop-mod-evidence.ps1") @reviewArgs |
                 Tee-Object -FilePath (Join-Path $diagnosticsDir "review-workshop-result.txt")
         } catch {
+            $validationFailures.Add("Workshop evidence review failed: $($_.Exception.Message)")
             Save-Text -Path (Join-Path $diagnosticsDir "review-workshop-result.txt") -Text "REVIEW_FAILED: $($_.Exception.Message)"
         }
+
+        Assert-PublicBetaModdedLaunchMarker -EvidenceDirectory $latestWorkshopEvidence.FullName -RunStartedUtc $runStartedUtc
+    } else {
+        $validationFailures.Add("Workshop evidence capture directory was not found for run label $safeRunLabel.")
     }
 
     if (-not $SkipSaveValidation) {
-        & (Join-Path $PSScriptRoot "collect-android-save-validation.ps1") `
-            -AdbPath $AdbPath `
-            -PackageName $PackageName `
-            -DeviceSerial $DeviceSerial `
-            -OutputRoot $OutputRoot `
-            -LogcatTailLines 100000 `
-            -DumpSaveFiles
+        try {
+            & (Join-Path $PSScriptRoot "collect-android-save-validation.ps1") `
+                -AdbPath $AdbPath `
+                -PackageName $PackageName `
+                -DeviceSerial $DeviceSerial `
+                -OutputRoot $OutputRoot `
+                -LogcatTailLines 100000 `
+                -DumpSaveFiles
+        } catch {
+            $validationFailures.Add("Save validation capture failed: $($_.Exception.Message)")
+            Save-Text -Path (Join-Path $diagnosticsDir "save-validation-result.txt") -Text "SAVE_VALIDATION_FAILED: $($_.Exception.Message)"
+        }
     }
 
     Save-Text -Path (Join-Path $diagnosticsDir "post-launch-state.txt") -Text (
         (Invoke-RunAsShCapture "ls -ld files/modded $moddedBackupPath 2>/dev/null; cat files/mods/last_mod_launch.json 2>/dev/null; cat files/last_launcher_automation.txt 2>/dev/null") -join [Environment]::NewLine
     )
+} catch {
+    $validationFailures.Add("Public-beta modded validation setup/run failed: $($_.Exception.Message)")
+    Save-Text -Path (Join-Path $diagnosticsDir "setup-run-result.txt") -Text "SETUP_OR_RUN_FAILED: $($_.Exception.Message)"
 } finally {
     if (-not $LeaveTestState) {
-        try {
-            Invoke-RunAsSh "if [ -d files/modded ]; then mv files/modded $newModdedPath; fi; if [ -d $moddedBackupPath ]; then mv $moddedBackupPath files/modded; fi"
-            $cleanupLines.Add("restored modded save directory; new copy, if any, moved to $newModdedPath")
-        } catch {
-            $cleanupLines.Add("failed to restore modded save directory: $($_.Exception.Message)")
-        }
-
-        try {
-            Invoke-RunAsSh "if [ -f $selectionBackupPath ]; then cp $selectionBackupPath files/mods/mod_selection.json; rm -f $selectionBackupPath; else exit 42; fi"
-            $cleanupLines.Add("restored previous mod selection")
-        } catch {
+        if ($deviceStateMayBeMutated) {
             try {
-                Set-AppPrivateJsonFile -DevicePath "files/mods/mod_selection.json" -JsonText $vanillaRestoreSelection
-                $cleanupLines.Add("previous mod selection backup missing; restored vanilla selection")
+                Invoke-RunAsSh "if [ -d files/modded ]; then mv files/modded $newModdedPath; fi; if [ -d $moddedBackupPath ]; then mv $moddedBackupPath files/modded; fi"
+                $cleanupLines.Add("restored modded save directory; new copy, if any, moved to $newModdedPath")
             } catch {
-                $cleanupLines.Add("failed to restore mod selection: $($_.Exception.Message)")
+                $cleanupLines.Add("failed to restore modded save directory: $($_.Exception.Message)")
             }
-        }
 
-        try {
-            Invoke-RunAsSh "rm -f files/launcher_automation_action.txt"
-            $cleanupLines.Add("removed launcher automation marker")
-        } catch {
-            $cleanupLines.Add("failed to remove launcher automation marker: $($_.Exception.Message)")
+            try {
+                Invoke-RunAsSh "if [ -f $selectionBackupPath ]; then cp $selectionBackupPath files/mods/mod_selection.json; rm -f $selectionBackupPath; else exit 42; fi"
+                $cleanupLines.Add("restored previous mod selection")
+            } catch {
+                try {
+                    Set-AppPrivateJsonFile -DevicePath "files/mods/mod_selection.json" -JsonText $vanillaRestoreSelection
+                    $cleanupLines.Add("previous mod selection backup missing; restored vanilla selection")
+                } catch {
+                    $cleanupLines.Add("failed to restore mod selection: $($_.Exception.Message)")
+                }
+            }
+
+            try {
+                Invoke-RunAsSh "rm -f files/launcher_automation_action.txt"
+                $cleanupLines.Add("removed launcher automation marker")
+            } catch {
+                $cleanupLines.Add("failed to remove launcher automation marker: $($_.Exception.Message)")
+            }
+        } else {
+            $cleanupLines.Add("skipped cleanup because device state was not mutated")
         }
     } else {
         $cleanupLines.Add("left test state in place because -LeaveTestState was used")
@@ -211,5 +314,25 @@ It writes launcher-owned app-private test markers, runs the public-beta safe-lau
     Save-Text -Path (Join-Path $diagnosticsDir "cleanup.txt") -Text ($cleanupLines -join [Environment]::NewLine)
 }
 
-Write-Host "Public-beta modded validation wrapper complete: $outputDir"
+$validationResult = [ordered]@{
+    generatedUtc = (Get-Date).ToUniversalTime().ToString("O")
+    status = if ($validationFailures.Count -eq 0) { "passed" } else { "failed" }
+    outputDirectory = $outputDir
+    workshopEvidenceDirectory = $latestWorkshopEvidencePath
+    steamCloudPushPerformed = $false
+    failures = @($validationFailures)
+    cleanup = @($cleanupLines)
+} | ConvertTo-Json -Depth 5
+Save-Text -Path (Join-Path $diagnosticsDir "validation-result.json") -Text $validationResult
+
+Write-Host "Public-beta modded validation wrapper artifacts: $outputDir"
 Write-Host "This script does not press Steam Cloud Push."
+if ($validationFailures.Count -gt 0) {
+    foreach ($failure in $validationFailures) {
+        Write-Host "VALIDATION_FAILED $failure"
+    }
+
+    throw "Public-beta modded validation failed. Artifacts were preserved at $outputDir"
+}
+
+Write-Host "Public-beta modded validation passed."

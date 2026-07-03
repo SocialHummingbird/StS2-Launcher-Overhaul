@@ -394,7 +394,30 @@ Save-RunAsFileWithHeader -OutputPath (Join-Path $diagnosticsDir "cloud-push-mark
 
 $focusedPatterns = "Workshop|workshop|ModLoader|Loaded mod|Android mod scan|Play Vanilla|launcher-selected|Skipping disabled|selected mods|\[Mods\]|staged|missingDeps|Missing dependency|Manual Push blocked|Steam Cloud|Selected Steam branch|Selected game PCK|Loading PCK from|Runtime slot evidence|Runtime pack|runtime patch validation|Patch orchestration|Assembly cache|Exception thrown when calling mod initializer|MissingMethodException|JsonPropertyInfoValues|AndroidRuntime|FATAL EXCEPTION|signal "
 $logcat = Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("logcat", "-d", "-v", "time")
-$filtered = @($logcat | Select-String -Pattern $focusedPatterns | ForEach-Object { $_.Line })
+$packagePidText = ""
+try {
+    $packagePidText = (Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "pidof", $PackageName) | Select-Object -First 1)
+} catch {
+    $packagePidText = ""
+}
+$packagePids = @(
+    ($packagePidText -split "\s+") |
+        Where-Object { $_ -match '^\d+$' } |
+        ForEach-Object { [regex]::Escape($_) }
+)
+$packagePidPattern = if ($packagePids.Count -gt 0) { "\(\s*($($packagePids -join '|'))\)" } else { "" }
+$filtered = @(
+    $logcat |
+        Select-String -Pattern $focusedPatterns |
+        ForEach-Object { $_.Line } |
+        Where-Object {
+            $_ -match "STS2Mobile|GodotPluginRegistry|$([regex]::Escape($PackageName))" -or
+                (-not [string]::IsNullOrWhiteSpace($packagePidPattern) -and $_ -match $packagePidPattern)
+        }
+)
+if ($filtered.Count -eq 0) {
+    $filtered = @($logcat | Select-String -Pattern $focusedPatterns | ForEach-Object { $_.Line })
+}
 Save-Text -Path (Join-Path $logsDir "logcat-workshop-filtered.txt") -Text ($filtered -join [Environment]::NewLine)
 if (-not [string]::IsNullOrWhiteSpace($safeRunLabel)) {
     Save-Text -Path (Join-Path $logsDir "$safeRunLabel-focused.txt") -Text ($filtered -join [Environment]::NewLine)
