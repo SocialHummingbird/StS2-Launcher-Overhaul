@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-06-24_
+_Last updated: 2026-07-03_
 
 Current device evidence ledgers:
 
@@ -15,6 +15,14 @@ Current device evidence ledgers:
 ## Headline
 
 The app now works on the validated ARM64 Android path, but it is still in polish and hardening rather than release-candidate signoff. The current headline work is Workshop/mod support, public/public-beta runtime-pack correctness, launcher UX polish, and release-readiness cleanup.
+
+July 3 runtime/update status:
+
+- The latest tested Steam public-beta payload is `v0.108.0` / build `24032229`. Public-beta fresh download, Android PCK patching, runtime-pack creation, runtime-pack validation, and launch now reach the main menu with matched beta PCK plus matched beta managed runtime. This is no longer a `NativeFallbackActivity` fallback/gating issue.
+- Public-after-beta switching was retested after the beta launch and returned to the public PCK/runtime pairing correctly.
+- Core-release can launch through its side-by-side slot, but the current Steam metadata still exposes an inherited public manifest, so it is effectively public content until Steam publishes a distinct core-release payload.
+- Workshop/mod support is not release-ready on the latest beta path. BaseLib and Quick Restart are staged, and Vanilla and Modded Saves Merger is present through manual import, but the modded public-beta launch currently terminates natively during upstream mod scanning/loading before the modded save-copy behavior can be validated.
+- No Steam Cloud Push was performed during the July 3 validation. Safe-launch testing kept cloud upload disabled/locked.
 
 Validated locally on ARM64 hardware:
 
@@ -32,7 +40,7 @@ Validated locally on ARM64 hardware:
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
 - The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix30 also proves public can launch immediately after a `public-beta` runtime-cache switch without routing to `NativeFallbackActivity`.
 - The latest local UI/public-startup prerelease proves fresh public redownload of `v0.107.1` reaches the game main menu with branch-matched managed runtime evidence and removes the launcher startup status overlay after startup observation.
-- The latest Workshop/mod evidence proves public, public-after-beta, public-beta, and core-release Workshop sync/staging/runtime loading on ARM64 hardware. `BaseLib` and `Quick Restart` are staged from app-private Workshop content and scanned by the runtime mod-loader. Public-beta and core-release now pass strict matched PCK/runtime-pack/mod-initializer evidence gates with no `NativeFallbackActivity` route and no forbidden BaseLib initializer errors. Core-release still records that Steam metadata exposed an inherited public depot manifest rather than a distinct visible branch payload. The launcher also now has ARM64 visual proof of a first-class main Play-screen Mods section with active staged count, `Sync Workshop`, `Clear Staged`, and Cloud upload locked.
+- Earlier Workshop/mod evidence proved staged Workshop UI and older public/public-beta/core-release scan gates, but the July 3 latest-beta modded launch regressed into a native upstream scan/load termination before `last_mod_launch.json` or first-modded-save copy could complete. Treat the current modded path as in-progress, not proven playable.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -79,19 +87,15 @@ not_yet_proven=touch validation, Help & Reports/launcher-log copy pass visual pr
 Latest Workshop/mod evidence:
 
 ```text
-latestUiBuild=0.2.328-mods-main-ui-debug
-latestUiApk=artifacts/android/StS2Launcher-v0.2.328-mods-main-ui-debug-arm64-v8a.apk
-latestUiSha256=86db7d6575014c20460f72c13f6f1996046737e53258b473df2cb1ae425ec8bc
-latestUiEvidence=artifacts/android/mods-main-ui-20260624-0727
-latestRuntimeBuild=0.2.323-workshop-baselib-patch-filter-debug
+latestRuntimeBuild=0.2.345-beta-moddir-scan-local
 package=com.sts2launcher.overhaul.fork.local
 device=RFCY70XQE7F
-validation=ARM64 0.2.328 visual launcher pass installed over existing data and proved the new first-class Mods section on the main Play screen: Ready summary shows Mods 2, the Mods section shows 2 active staged Workshop mods, Sync Workshop and Clear Staged are visible before diagnostics, support drawer no longer duplicates Workshop actions, Upload remains locked, last_manual_cloud_push.txt is absent, and focused package logs have no launcher crash/fallback marker. ARM64 public-beta strict runtime evidence from 0.2.323 passed 81 checks with selected branch public-beta, selected beta PCK path/hash, selected runtime-pack compatibility, active sts2.dll hash, staged Workshop manifest/hashes, Workshop scan logs, Cloud Push lock, and no forbidden mod initializer errors. Core-release strict evidence passed 81 checks with side-by-side PCK/runtime-pack evidence and no forbidden mod initializer errors, while still recording an inherited public depot manifest. Public-after-beta strict evidence passed 66 checks after returning from beta, proving public PCK/runtime pairing and staged Workshop scan without a stuck beta route.
-unsupported=3747532120 / Vanilla and Modded Saves Merger remains unsupported because Steam exposed a legacy Workshop UGC handle but no direct URL or depot manifest
-cloudSafety=No Steam Cloud Push was run during the 0.2.328 UI validation, Workshop sync, Workshop clear, or runtime evidence capture
-evidence=artifacts/android/mods-main-ui-20260624-0727; artifacts/android/workshop-mods-public-beta-public-beta-baselib-patch-filter-20260623-113242; artifacts/android/workshop-mods-core-release-core-release-baselib-patch-filter-20260623-113020; artifacts/android/workshop-mods-public-public-after-beta-baselib-patch-filter-20260623-113508
+validation=Public-beta v0.108.0 launches to main menu with matched beta PCK/runtime after the adaptive ModelDb fix; public-after-beta and core-release launch paths were also retested. Modded public-beta with BaseLib, Quick Restart, and manual Saves Merger currently crashes natively during upstream scan/load before modded save-copy validation.
+unsupported=3747532120 / Vanilla and Modded Saves Merger remains unsupported through direct Workshop sync because Steam exposed a legacy Workshop UGC handle but no direct URL or depot manifest; manual import exists at /sdcard/StS2Launcher/Mods/3747532120
+cloudSafety=No Steam Cloud Push was run during July 3 runtime/mod validation
+evidence=artifacts/android/multi-version-runtime-public-beta-playable-modeldb-adaptive-20260703-20260703-084139; artifacts/android/workshop-mods-public-beta-public-beta-playable-modeldb-adaptive-20260703-20260703-084139; artifacts/android/multi-version-runtime-public-after-beta-modeldb-adaptive-20260703-20260703-084514; artifacts/android/workshop-mods-public-public-after-beta-modeldb-adaptive-20260703-20260703-084514; artifacts/android/multi-version-runtime-core-release-modeldb-adaptive-20260703-20260703-085147; artifacts/android/workshop-mods-core-release-core-release-modeldb-adaptive-20260703-20260703-085147; artifacts/android/workshop-mods-broken-public-beta-modded-baselib-quickrestart-savemerger-crash-20260703-20260703-085645
 docs=docs/android-workshop-mods.md
-not_yet_proven=full mod-manager UX beyond sync/clear/status, Android support for the BaseLib patch classes currently skipped by the compatibility filter, proof of a distinct core-release Steam payload if Steam exposes one later, legacy UGC-only content route, and release UX/docs signoff
+not_yet_proven=latest per-enabled-root mod scan retest, public-beta modded main-menu launch, upstream first-modded-save copy, Saves Merger save usability, Android support for BaseLib patch classes currently skipped by the compatibility filter, proof of a distinct core-release Steam payload if Steam exposes one later, legacy UGC-only direct Workshop route, and release UX/docs signoff
 ```
 
 Latest verified public release evidence remains:

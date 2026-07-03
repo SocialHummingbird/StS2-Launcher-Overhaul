@@ -120,6 +120,7 @@ internal static class ModLoaderPatches
                         mod.Path,
                         mod.IsDependency,
                         mod.IsRequiredDependency,
+                        Root = InspectSelectedModRoot(mod.Path),
                     })
                     .ToArray()
                     : Array.Empty<object>(),
@@ -866,6 +867,7 @@ internal static class ModLoaderPatches
         var loadedRoots = 0;
         foreach (var root in AndroidModRoots())
         {
+            LogModRootSnapshot(root);
             using var dirAccess = DirAccess.Open(root.Path);
             if (dirAccess == null)
             {
@@ -881,6 +883,50 @@ internal static class ModLoaderPatches
         }
 
         return loadedRoots;
+    }
+
+    private static void LogModRootSnapshot(ModRoot root)
+    {
+        var snapshot = InspectSelectedModRoot(root.Path);
+        PatchHelper.Log(
+            $"[Mods] Selected root {root.Label}: exists={snapshot.Exists}, manifests={snapshot.ManifestCount}, pcks={snapshot.PckCount}, dlls={snapshot.DllCount}, path={root.Path}"
+        );
+    }
+
+    private static SelectedModRootSnapshot InspectSelectedModRoot(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return SelectedModRootSnapshot.Missing;
+
+        try
+        {
+            if (!Directory.Exists(path))
+                return SelectedModRootSnapshot.Missing;
+
+            return new SelectedModRootSnapshot(
+                exists: true,
+                manifestCount: CountFiles(path, "*.json"),
+                pckCount: CountFiles(path, "*.pck"),
+                dllCount: CountFiles(path, "*.dll")
+            );
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Mods] Failed to inspect selected mod root {path}: {ex.Message}");
+            return SelectedModRootSnapshot.Missing;
+        }
+    }
+
+    private static int CountFiles(string directory, string pattern)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(directory, pattern, SearchOption.AllDirectories).Take(128).Count();
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private static IEnumerable<ModRoot> AndroidModRoots()
@@ -1460,5 +1506,23 @@ internal static class ModLoaderPatches
         internal string Label { get; }
         internal string Path { get; }
         internal bool RequiresWorkshopConsent { get; }
+    }
+
+    private readonly struct SelectedModRootSnapshot
+    {
+        internal static SelectedModRootSnapshot Missing => new(false, 0, 0, 0);
+
+        internal SelectedModRootSnapshot(bool exists, int manifestCount, int pckCount, int dllCount)
+        {
+            Exists = exists;
+            ManifestCount = manifestCount;
+            PckCount = pckCount;
+            DllCount = dllCount;
+        }
+
+        public bool Exists { get; }
+        public int ManifestCount { get; }
+        public int PckCount { get; }
+        public int DllCount { get; }
     }
 }

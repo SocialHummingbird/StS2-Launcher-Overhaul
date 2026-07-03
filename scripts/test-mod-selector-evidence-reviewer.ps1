@@ -30,7 +30,8 @@ function New-ModSelectorEvidenceBundle(
     [switch]$DisabledStillSelected,
     [switch]$VanillaScansMods,
     [switch]$PushPerformed,
-    [switch]$CrashLog
+    [switch]$CrashLog,
+    [switch]$MissingRootSnapshots
 ) {
     New-Item -ItemType Directory -Force -Path `
         (Join-Path $BaseDir "diagnostics"), `
@@ -45,6 +46,12 @@ function New-ModSelectorEvidenceBundle(
         Path = "/data/user/0/com.example/files/workshop_mods/staged/3737335127"
         IsDependency = $false
         IsRequiredDependency = $false
+        Root = [ordered]@{
+            Exists = $true
+            ManifestCount = 1
+            PckCount = 1
+            DllCount = 1
+        }
     }
     $quickRestart = [ordered]@{
         Key = "workshop:3737322022"
@@ -54,6 +61,12 @@ function New-ModSelectorEvidenceBundle(
         Path = "/data/user/0/com.example/files/workshop_mods/staged/3737322022"
         IsDependency = $false
         IsRequiredDependency = $false
+        Root = [ordered]@{
+            Exists = $true
+            ManifestCount = 1
+            PckCount = 1
+            DllCount = 1
+        }
     }
     $savesMerger = [ordered]@{
         Key = "manual:/storage/emulated/0/StS2Launcher/Mods/3747532120:SavesMerger"
@@ -63,6 +76,18 @@ function New-ModSelectorEvidenceBundle(
         Path = "/storage/emulated/0/StS2Launcher/Mods/3747532120"
         IsDependency = $false
         IsRequiredDependency = $false
+        Root = [ordered]@{
+            Exists = $true
+            ManifestCount = 1
+            PckCount = 1
+            DllCount = 1
+        }
+    }
+
+    if ($MissingRootSnapshots) {
+        foreach ($mod in @($baseLib, $quickRestart, $savesMerger)) {
+            $mod.Remove("Root")
+        }
     }
 
     $vanilla = [ordered]@{
@@ -196,6 +221,10 @@ try {
     $crashLogDir = Join-Path $runRoot "negative-crash-log"
     New-ModSelectorEvidenceBundle -BaseDir $crashLogDir -CrashLog
     Invoke-ReviewShouldFail -EvidenceDir $crashLogDir -Description "fallback/crash signature in focused logs"
+
+    $missingRootSnapshotsDir = Join-Path $runRoot "negative-missing-root-snapshots"
+    New-ModSelectorEvidenceBundle -BaseDir $missingRootSnapshotsDir -MissingRootSnapshots
+    Invoke-ReviewShouldFail -EvidenceDir $missingRootSnapshotsDir -Description "selected mod root snapshots missing"
 } finally {
     if (-not $KeepArtifacts -and (Test-Path -LiteralPath $runRoot)) {
         Remove-Item -LiteralPath $runRoot -Recurse -Force

@@ -169,6 +169,41 @@ function Require-ModNamePresence($Mods, [string]$Pattern, [bool]$ExpectedPresent
     Add-Pass $Description
 }
 
+function Require-ModRootSnapshots($Mods, [string]$Description) {
+    foreach ($mod in @($Mods)) {
+        $name = (@($mod.Key, $mod.Id, $mod.Title) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -First 1)
+        if ([string]::IsNullOrWhiteSpace([string]$name)) {
+            $name = "<unknown>"
+        }
+
+        $rootProperty = $mod.PSObject.Properties["Root"]
+        if ($null -eq $rootProperty) {
+            $failures.Add("$Description - selected mod $name is missing Root snapshot")
+            continue
+        }
+
+        $root = $rootProperty.Value
+        foreach ($propertyName in @("Exists", "ManifestCount", "PckCount", "DllCount")) {
+            if ($null -eq $root.PSObject.Properties[$propertyName]) {
+                $failures.Add("$Description - selected mod $name Root is missing $propertyName")
+                continue
+            }
+        }
+
+        if ($null -ne $root.PSObject.Properties["Exists"] -and [bool]$root.Exists -ne $true) {
+            $failures.Add("$Description - selected mod $name root does not exist")
+            continue
+        }
+
+        if ($null -ne $root.PSObject.Properties["ManifestCount"] -and [int]$root.ManifestCount -lt 1) {
+            $failures.Add("$Description - selected mod $name root has no manifest JSON")
+            continue
+        }
+
+        Add-Pass "$Description - selected mod $name has root snapshot"
+    }
+}
+
 function Require-CommonMarkerSafety([string]$Label, $Marker) {
     $cloudLocked = Require-Property $Marker "workshopModdedSaveCloudPushLocked" "$Label marker"
     $pushPerformed = Require-Property $Marker "steamCloudPushPerformed" "$Label marker"
@@ -221,6 +256,7 @@ if ($null -ne $modded) {
     Require-Equals $moddedMods.Count ([int]$modded.enabledMods) "$ModdedLabel selected mod count matches enabledMods"
     Require-ModNamePresence $moddedMods "BaseLib" $true "$ModdedLabel includes BaseLib"
     Require-ModNamePresence $moddedMods $DisabledModNamePattern $true "$ModdedLabel includes $DisabledModNamePattern"
+    Require-ModRootSnapshots $moddedMods "$ModdedLabel marker"
     $moddedCloudLocked = Require-CommonMarkerSafety $ModdedLabel $modded
     if ($null -ne $moddedCloudLocked) {
         Require-Boolean $moddedCloudLocked $true "$ModdedLabel locks Cloud Push for active mods"
@@ -238,6 +274,7 @@ if ($null -ne $disabled) {
     Require-Equals $disabledMods.Count ([int]$disabled.enabledMods) "$DisabledModLabel selected mod count matches enabledMods"
     Require-ModNamePresence $disabledMods "BaseLib" $true "$DisabledModLabel still includes BaseLib"
     Require-ModNamePresence $disabledMods $DisabledModNamePattern $false "$DisabledModLabel excludes disabled $DisabledModNamePattern"
+    Require-ModRootSnapshots $disabledMods "$DisabledModLabel marker"
     if ($null -ne $modded -and [int]$modded.enabledMods -le [int]$disabled.enabledMods) {
         $failures.Add("$DisabledModLabel did not reduce enabled mod count below $ModdedLabel")
     } elseif ($null -ne $modded) {

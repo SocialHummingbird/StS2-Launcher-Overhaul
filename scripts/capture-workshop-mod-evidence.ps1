@@ -92,6 +92,46 @@ function Add-CapturedLines([System.Collections.Generic.List[string]]$Lines, [obj
     }
 }
 
+function Quote-ShellSingle([string]$Value) {
+    return "'" + ($Value -replace "'", "'\\''") + "'"
+}
+
+function Add-RunAsFileHashes(
+    [System.Collections.Generic.List[string]]$Lines,
+    [string[]]$Paths
+) {
+    foreach ($path in $Paths) {
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            continue
+        }
+
+        $Lines.Add($path)
+        Add-CapturedLines -Lines $Lines -Captured @(Invoke-RunAsCapture -Arguments @("sha256sum", $path))
+        Add-CapturedLines -Lines $Lines -Captured @(Invoke-RunAsCapture -Arguments @("ls", "-l", $path))
+    }
+}
+
+function Add-AdbShellFileHashes(
+    [System.Collections.Generic.List[string]]$Lines,
+    [string[]]$Paths
+) {
+    foreach ($path in $Paths) {
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            continue
+        }
+
+        $Lines.Add($path)
+        $quoted = Quote-ShellSingle $path
+        try {
+            Add-CapturedLines -Lines $Lines -Captured @(
+                Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "sh", "-c", "sha256sum $quoted && ls -l $quoted")
+            )
+        } catch {
+            $Lines.Add("CAPTURE_FAILED: $($_.Exception.Message)")
+        }
+    }
+}
+
 function Save-Screenshot([string]$Path) {
     $devicePath = "/sdcard/sts2-workshop-evidence-$timestamp.png"
     try {
@@ -264,19 +304,45 @@ if ((Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "workshop-tree.txt
 $workshopFileList = @(
     Invoke-RunAsCapture -Arguments @("find", "files/workshop_mods", "-maxdepth", "8", "-type", "f", "-print") |
         ForEach-Object { ([string]$_).Trim() } |
-        Where-Object { $_ -match '\.pck$|workshop_sync_manifest\.json$|last_workshop_mod_clear\.txt$' }
+        Where-Object { $_ -match '\.pck$|\.dll$|\.json$|workshop_sync_manifest\.json$|last_workshop_mod_clear\.txt$' }
 )
 $workshopHashes = [System.Collections.Generic.List[string]]::new()
-foreach ($path in $workshopFileList) {
-    $workshopHashes.Add($path)
-    Add-CapturedLines -Lines $workshopHashes -Captured @(Invoke-RunAsCapture -Arguments @("sha256sum", $path))
-    Add-CapturedLines -Lines $workshopHashes -Captured @(Invoke-RunAsCapture -Arguments @("ls", "-l", $path))
-}
+Add-RunAsFileHashes -Lines $workshopHashes -Paths $workshopFileList
 if ($workshopHashes.Count -eq 0) {
     $workshopHashes.Add("files/workshop_mods <missing>")
     $workshopHashes.Add("sha256sum <none>")
 }
 Save-Text -Path (Join-Path $diagnosticsDir "workshop-hashes.txt") -Text ($workshopHashes -join [Environment]::NewLine)
+
+$externalModsRoot = "/sdcard/StS2Launcher/Mods"
+Save-AdbText -Path (Join-Path $diagnosticsDir "external-mods-tree.txt") -Arguments @("shell", "find", $externalModsRoot, "-maxdepth", "6", "-print") -AllowFailure
+if ((Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "external-mods-tree.txt")) -notmatch [regex]::Escape($externalModsRoot)) {
+    Save-Text -Path (Join-Path $diagnosticsDir "external-mods-tree.txt") -Text "$externalModsRoot <missing>"
+}
+
+$externalModFileList = @()
+try {
+    $externalModFileList = @(
+        Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "find", $externalModsRoot, "-maxdepth", "8", "-type", "f", "-print") |
+            ForEach-Object { ([string]$_).Trim() } |
+            Where-Object { $_ -match '\.pck$|\.dll$|\.json$|README(\.md)?$' }
+    )
+} catch {
+    $externalModFileList = @()
+}
+
+$selectedRootHashes = [System.Collections.Generic.List[string]]::new()
+$selectedRootHashes.Add("===== app-private Workshop selected roots")
+Add-RunAsFileHashes -Lines $selectedRootHashes -Paths @(
+    $workshopFileList | Where-Object { $_ -match '^files/workshop_mods/staged/' }
+)
+$selectedRootHashes.Add("===== external manual selected roots")
+Add-AdbShellFileHashes -Lines $selectedRootHashes -Paths $externalModFileList
+if ($selectedRootHashes.Count -le 2) {
+    $selectedRootHashes.Add("selected mod roots <none>")
+    $selectedRootHashes.Add("sha256sum <none>")
+}
+Save-Text -Path (Join-Path $diagnosticsDir "selected-mod-root-hashes.txt") -Text ($selectedRootHashes -join [Environment]::NewLine)
 
 Save-RunAsArgsText -Path (Join-Path $diagnosticsDir "current_runtime_slot.json") -Arguments @("cat", "files/current_runtime_slot.json") -AllowFailure
 Save-RunAsArgsText -Path (Join-Path $diagnosticsDir "current_runtime_cache.txt") -Arguments @("cat", "files/current_runtime_cache.txt") -AllowFailure
@@ -340,6 +406,7 @@ if ($IncludeRawLogcat) {
 $manifestText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "workshop-manifest.json")
 $clearText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "workshop-clear-marker.txt")
 $hashText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "workshop-hashes.txt")
+$selectedRootHashText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "selected-mod-root-hashes.txt")
 $runtimeHashText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "runtime-hashes.txt")
 $cloudPushText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "cloud-push-markers.txt")
 $runtimeText = Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir "runtime-markers.txt")
@@ -391,6 +458,7 @@ $summary.Add("| Workshop manifest present | $($manifestText -match 'PublishedFil
 $summary.Add("| Workshop clear marker present | $($clearText -match 'clearedAtUtc=') | diagnostics/workshop-clear-marker.txt |")
 $summary.Add("| Clear marker says Steam Cloud Push was not performed | $($clearText -match 'steamCloudPushPerformed=false') | diagnostics/workshop-clear-marker.txt |")
 $summary.Add("| Staged Workshop PCK hash captured | $($hashText -match '\.pck') | diagnostics/workshop-hashes.txt |")
+$summary.Add("| Selected Workshop/manual mod root hashes captured | $($selectedRootHashText -match '\.pck|\.dll|\.json|selected mod roots <none>') | diagnostics/selected-mod-root-hashes.txt |")
 $summary.Add("| Subscription query evidence captured | $($manifestText -match 'SubscriptionQueryType|SubscriptionQueryAttempts') | diagnostics/workshop-manifest.json |")
 $summary.Add("| Missing dependency evidence captured | $($manifestText -match 'MissingDependencyIds|MissingDependencyItemCount') | diagnostics/workshop-manifest.json |")
 $summary.Add("| Download source/update provenance captured | $($manifestText -match 'DownloadSourceKind|DownloadUrlPresent|DownloadUrlHost|ExpectedDownloadBytes|HContentFile|ReusedCachedDownload') | diagnostics/workshop-manifest.json |")

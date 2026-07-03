@@ -50,6 +50,25 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Mod selector enabled mod count: {LauncherModSelectionState.EnabledModCount()}");
         sb.AppendLine($"Workshop modded-save Cloud Push locked: {BoolText(LauncherWorkshopModSafety.HasActiveStagedMods())}");
 
+        foreach (var mod in LauncherModSelectionState.KnownMods().Where(mod => mod.Enabled && !mod.IsUnsupported).Take(32))
+        {
+            sb.AppendLine(
+                "Mod selector enabled item: "
+                + $"key={mod.Key} "
+                + $"id={mod.Id} "
+                + $"title=\"{mod.Title}\" "
+                + $"source=\"{mod.Source}\" "
+                + $"dependency={BoolText(mod.IsDependency)} "
+                + $"requiredDependency={BoolText(mod.IsRequiredDependency)} "
+                + $"hasPck={BoolText(mod.HasPck)} "
+                + $"path=\"{mod.Path}\" "
+                + $"pathPresent={BoolText(Directory.Exists(mod.Path))} "
+                + $"jsonFiles={FileCount(mod.Path, "*.json")} "
+                + $"pckFiles={FileCount(mod.Path, "*.pck")} "
+                + $"dllFiles={FileCount(mod.Path, "*.dll")}"
+            );
+        }
+
         foreach (var item in manifest.Items.Take(32))
         {
             sb.AppendLine(
@@ -109,6 +128,20 @@ internal static partial class LauncherDiagnostics
         {
             return Directory.Exists(stagedDirectory)
                 ? Directory.EnumerateFiles(stagedDirectory, "*.pck", SearchOption.AllDirectories).Count()
+                : 0;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static int FileCount(string directory, string pattern)
+    {
+        try
+        {
+            return Directory.Exists(directory)
+                ? Directory.EnumerateFiles(directory, pattern, SearchOption.AllDirectories).Take(128).Count()
                 : 0;
         }
         catch

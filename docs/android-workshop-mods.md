@@ -1,50 +1,58 @@
 # Android Steam Workshop Mods
 
-_Last updated: 2026-06-24_
+_Last updated: 2026-07-03_
 
 This document tracks the Android Workshop/mod path for StS2 Mobile. It covers subscribed Steam Workshop discovery, Android staging, runtime loading, Steam Cloud safety, current compatibility limits, and the current unsupported legacy UGC blocker.
 
 ## Current State
 
-Workshop/mod support is in progress. The first proven Android Workshop path is working on ARM64 hardware for branch-switched Workshop PCK mods:
+Workshop/mod support is in progress. The first Android Workshop path can discover, stage, and present Workshop PCK mods, but the latest public-beta modded launch is not yet playable:
 
 - `Sync Workshop Mods` discovers subscribed Workshop items from Steam.
 - Usable Workshop items are downloaded from Steam depot manifests or direct UGC URLs.
 - Downloads are staged under app-private storage at `files/workshop_mods/staged`.
-- Staged mods are loaded by the runtime mod-loader patch during game startup.
-- The tested public, public-after-beta, public-beta, and core-release paths load staged Workshop mods without the previous BaseLib initializer hard failure.
-- Public-beta now has strict launch evidence with a matched beta PCK, matched beta managed runtime pack, active `sts2.dll` hash, staged Workshop manifest/hashes, Workshop scan logs, Workshop Cloud Push lock, and no forbidden mod initializer errors.
-- Core-release can be selected and launched through a side-by-side slot. Current Steam metadata still records it as inheriting the public depot manifest, but strict core-release Workshop evidence now passes the same mod-initializer gate.
+- The launcher exposes a first-class Mods section on the main Play screen, showing active staged-mod count, unsupported Workshop item count, manual-import guidance, Cloud upload lock state, and primary `Sync Workshop` / `Clear Staged` actions before repair/help diagnostics.
+- Public-beta `v0.108.0` now launches with matched beta PCK plus matched beta managed runtime after the adaptive ModelDb fix. Public-after-beta branch switching and core-release side-by-side launch were retested on July 3.
+- Core-release can be selected and launched through a side-by-side slot. Current Steam metadata still records it as inheriting the public depot manifest rather than a distinct core-release payload.
+- BaseLib and Quick Restart are staged. Vanilla and Modded Saves Merger is available through manual import, but direct Workshop acquisition for that item remains unsupported.
+- The latest public-beta modded launch with BaseLib, Quick Restart, and manual Saves Merger terminates natively during upstream mod scan/load before `last_mod_launch.json` updates and before upstream first-modded-save copy can be validated.
 - Steam Cloud Push is not run by Workshop sync, Workshop clear, or Workshop evidence capture.
-- The launcher now exposes a first-class Mods section on the main Play screen, showing active staged-mod count, unsupported Workshop item count, manual-import guidance, Cloud upload lock state, and primary `Sync Workshop` / `Clear Staged` actions before repair/help diagnostics.
 
 This is not finished mod-manager UX yet:
 
 - BaseLib compatibility is currently handled by an Android PatchAll filter that skips known Android-incompatible BaseLib patch classes and the BaseLib extended-save registration path. This keeps the staged `BaseLib`/`Quick Restart` path launchable, but those skipped BaseLib features are not proven usable on Android.
 - Core-release is not currently proven as a distinct Steam branch payload because Steam metadata exposes no separate branch manifest in the latest capture.
 - Unsupported legacy UGC-only Workshop items are visible but not downloadable through the currently implemented Steam content routes. The launcher keeps them classified as unsupported and now points users to the supported manual import folder instead of treating the sync as complete.
+- The modded public-beta startup path must be treated as blocked until a connected-device retest proves the enabled-root scan diagnostics and the game reaches main menu in modded mode.
 
 Latest device evidence:
 
 ```text
-latestUiBuild=0.2.328-mods-main-ui-debug
-latestUiApk=artifacts/android/StS2Launcher-v0.2.328-mods-main-ui-debug-arm64-v8a.apk
-latestUiSha256=86db7d6575014c20460f72c13f6f1996046737e53258b473df2cb1ae425ec8bc
-latestUiEvidence=artifacts/android/mods-main-ui-20260624-0727
-latestSaveMergerFallbackBuild=0.2.330-save-merger-fallback-debug
-latestSaveMergerFallbackApk=artifacts/android/StS2Launcher-v0.2.330-save-merger-fallback-debug-arm64-v8a.apk
-latestSaveMergerFallbackSha256=ad8f715b3019b6de48cb1b5427ac7e03a943223639aa4673095ca720b37bff62
-latestSaveMergerUgcEvidence=artifacts/android/save-merger-ugc-sync-20260624-075451
-latestSaveMergerFallbackEvidence=artifacts/android/save-merger-fallback-ui-20260624-0806
-latestRuntimeBuild=0.2.323-workshop-baselib-patch-filter-debug
+latestRuntimeBuild=0.2.345-beta-moddir-scan-local
 package=com.sts2launcher.overhaul.fork.local
 device=RFCY70XQE7F
-publicEvidence=artifacts/android/workshop-mods-public-public-after-beta-baselib-patch-filter-20260623-113508
-publicBetaEvidence=artifacts/android/workshop-mods-public-beta-public-beta-baselib-patch-filter-20260623-113242
-coreReleaseEvidence=artifacts/android/workshop-mods-core-release-core-release-baselib-patch-filter-20260623-113020
-result=UI: 0.2.330 installed and visually proves Mods on the main launch surface, support drawer diagnostics separated below it, active staged count 2, `1 needs import`, and Upload Locked with no successful manual Push marker; save-merger acquisition: subscribed item 3747532120 discovered, public Steam metadata has hcontent=4186905754413598255 and expectedBytes=6443 but no file_url or manifest, SteamCloud.RequestUGCDetails did not resolve a URL, manifest status remains unsupported with zero files and no staged/hash path; manual fallback: PC Steam Workshop cache contained README.md, SavesMerger.dll, SavesMerger.json, and SavesMerger.pck, copied to /sdcard/StS2Launcher/Mods/3747532120 with matching DLL/JSON/PCK SHA-256 hashes, game launched to main menu as Running Modded with 3 loaded mods, logs show SavesMerger manifest/DLL/PCK found and initialized, and logs show existing profile1/saves/progress.save plus prefs.save read after mod initialization; runtime: public-after-beta reviewer passed 66 checks with public PCK/runtime pairing and staged Workshop mods; public-beta reviewer passed 81 checks with matched beta PCK/runtime-pack evidence and no forbidden mod initializer errors; core-release reviewer passed 81 checks with side-by-side PCK/runtime-pack evidence and no forbidden mod initializer errors
+publicEvidence=artifacts/android/workshop-mods-public-public-after-beta-modeldb-adaptive-20260703-20260703-084514
+publicBetaEvidence=artifacts/android/workshop-mods-public-beta-public-beta-playable-modeldb-adaptive-20260703-20260703-084139
+coreReleaseEvidence=artifacts/android/workshop-mods-core-release-core-release-modeldb-adaptive-20260703-20260703-085147
+moddedCrashEvidence=artifacts/android/workshop-mods-broken-public-beta-modded-baselib-quickrestart-savemerger-crash-20260703-20260703-085645
+result=Public-beta v0.108.0 launches with matched beta PCK/runtime after ModelDb adaptive construction. Public-after-beta switching and core-release side-by-side launch pass current runtime evidence. Modded public-beta launch with BaseLib, Quick Restart, and manual Saves Merger crashes natively during upstream scan/load before modded save-copy validation.
 cloudSafety=No Steam Cloud Push was run.
 ```
+
+## Next Connected-Device Validation
+
+When the device is connected again, use the latest build containing selected-root diagnostics and run this sequence:
+
+1. Confirm the installed package is the expected local debug package and version.
+2. Keep Steam Cloud Push locked/off; do not press Push to Cloud.
+3. Select public-beta and modded mode with BaseLib, Quick Restart, and manual Saves Merger enabled.
+4. Run `scripts/run-public-beta-modded-validation.ps1` to park `files/modded`, select the known BaseLib/Quick Restart/Saves Merger set, launch public-beta with focused logs, capture `last_mod_launch.json`, `mod_selection.json`, selected root diagnostics, `diagnostics/selected-mod-root-hashes.txt`, `diagnostics/external-mods-tree.txt`, runtime cache marker, patch validation marker, PCK/runtime hashes, screenshots, and restore the prior local test state.
+5. Classify the result:
+   - root not visible: launcher/path staging issue;
+   - root visible but scan crashes before manifest load: upstream Godot/mod file-I/O scan issue;
+   - manifests load but BaseLib/Quick Restart/Saves Merger fails: mod compatibility issue;
+   - main menu reached: validate upstream first-modded-save copy and Saves Merger save usability.
+6. Restore vanilla mode and any parked `files/modded` backup before ending the device session.
 
 ## BaseLib Android Compatibility
 

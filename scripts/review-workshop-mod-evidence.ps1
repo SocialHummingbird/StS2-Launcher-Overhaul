@@ -325,7 +325,7 @@ function Require-LaunchEvidence([string]$PhaseLabel) {
 }
 
 function Require-WorkshopModLoaderScanEvidence([string]$PhaseLabel) {
-    Require-Pattern "logs/logcat-workshop-filtered.txt" "$PhaseLabel scanned the Android Workshop mod root" "Scanning Workshop staged mods|Workshop staged mods|ModLoader|Loaded mod"
+    Require-Pattern "logs/logcat-workshop-filtered.txt" "$PhaseLabel scanned the Android Workshop mod root" "Selected root Workshop|Scanning Workshop mod|Scanning Workshop dependency mod|Scanning Workshop staged mods|Workshop staged mods|ModLoader|Loaded mod"
 }
 
 function Require-WorkshopLoadedModEvidence([string]$PhaseLabel) {
@@ -393,6 +393,8 @@ Require-Pattern "diagnostics/workshop-marker-contents.txt" "has Workshop marker 
 Require-Pattern "diagnostics/workshop-tree.txt" "has Workshop tree capture" "workshop_mods"
 Require-NoPattern "diagnostics/workshop-tree.txt" "has no stale Workshop download temp artifacts" 'files/workshop_mods/downloads/.+(\.download|\.tmp-|\.old-)'
 Require-Pattern "diagnostics/workshop-hashes.txt" "has Workshop hash capture" "sha256sum|workshop_mods"
+Require-Pattern "diagnostics/external-mods-tree.txt" "has external manual mod tree capture" "/sdcard/StS2Launcher/Mods|<missing>"
+Require-Pattern "diagnostics/selected-mod-root-hashes.txt" "has selected Workshop/manual mod root hash capture" "app-private Workshop selected roots|external manual selected roots|selected mod roots <none>|\.pck|\.dll|\.json"
 Require-JsonPattern "diagnostics/workshop-derived-state.json" "has derived Workshop safety state" "\{"
 Require-JsonPattern "diagnostics/workshop-derived-state.json" "derived state proves Steam Cloud Push was not performed" '(?i)"steamCloudPushPerformed"\s*:\s*false'
 Require-NoPattern "diagnostics/workshop-manifest.json" "omits raw Workshop download URLs" '(?i)"DownloadUrl"\s*:'
@@ -407,6 +409,8 @@ foreach ($relativePath in @(
     "diagnostics/workshop-marker-contents.txt",
     "diagnostics/workshop-tree.txt",
     "diagnostics/workshop-hashes.txt",
+    "diagnostics/external-mods-tree.txt",
+    "diagnostics/selected-mod-root-hashes.txt",
     "diagnostics/cloud-push-markers.txt",
     "diagnostics/runtime-markers.txt",
     "diagnostics/runtime-hashes.txt",

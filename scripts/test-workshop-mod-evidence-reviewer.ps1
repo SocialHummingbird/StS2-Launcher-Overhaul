@@ -91,6 +91,7 @@ function New-WorkshopEvidenceBundle(
         $tree += "`nfiles/workshop_mods/downloads/111111.tmp-0123456789abcdef0123456789abcdef"
     }
     Save-TestText (Join-Path $BaseDir "diagnostics\workshop-tree.txt") $tree
+    Save-TestText (Join-Path $BaseDir "diagnostics\external-mods-tree.txt") "/sdcard/StS2Launcher/Mods`n/sdcard/StS2Launcher/Mods/3747532120"
     Save-TestText (Join-Path $BaseDir "diagnostics\cloud-push-markers.txt") "===== files/last_manual_cloud_push.txt`nmissing"
 
     $runtimeBranch = if ($Phase -eq "public-beta" -or $Phase -eq "core-release") { $Phase } else { "public" }
@@ -144,6 +145,7 @@ function New-WorkshopEvidenceBundle(
         $hashes += "`nbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  files/workshop_mods/staged/$Phase/mod.pck"
     }
     Save-TestText (Join-Path $BaseDir "diagnostics\workshop-hashes.txt") $hashes
+    Save-TestText (Join-Path $BaseDir "diagnostics\selected-mod-root-hashes.txt") "===== app-private Workshop selected roots`n$hashes`n===== external manual selected roots`neeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee  /sdcard/StS2Launcher/Mods/3747532120/SavesMerger.json`nffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff  /sdcard/StS2Launcher/Mods/3747532120/SavesMerger.dll`n1111111111111111111111111111111111111111111111111111111111111111  /sdcard/StS2Launcher/Mods/3747532120/SavesMerger.pck"
 
     $rawStagedPckCount = if ($StagedPck -or $Dependency) { 1 } else { 0 }
     $manifestActivePckCount = if ($StagedPck -or $Dependency) { 1 } else { 0 }
@@ -161,7 +163,7 @@ function New-WorkshopEvidenceBundle(
 
     $launchLog = "Selected Steam branch $runtimeBranch`nRuntime pack loaded`nLoading PCK from: $($runtimeSlot.pckPath)"
     if (($StagedPck -or $Dependency) -and -not $MissingWorkshopModLoaderScan) {
-        $launchLog += "`n[Mods] Scanning Workshop staged mods: files/workshop_mods/staged`nLoaded mod synthetic"
+        $launchLog += "`n[Mods] Selected root Workshop mod synthetic: exists=True, manifests=1, pcks=1, dlls=1, path=files/workshop_mods/staged/$Phase`n[Mods] Scanning Workshop mod synthetic: files/workshop_mods/staged/$Phase`nLoaded mod synthetic"
     }
     if ($CachedDownloadReuse) {
         $launchLog += "`n[Workshop] Using cached Workshop download for Synthetic Simple Mod (111111)"
