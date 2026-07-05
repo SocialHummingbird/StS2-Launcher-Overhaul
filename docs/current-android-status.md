@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-07-03_
+_Last updated: 2026-07-05_
 
 Current device evidence ledgers:
 
@@ -16,8 +16,13 @@ Current device evidence ledgers:
 
 The app now works on the validated ARM64 Android path, but it is still in polish and hardening rather than release-candidate signoff. The current headline work is Workshop/mod support, public/public-beta runtime-pack correctness, launcher UX polish, and release-readiness cleanup.
 
-July 3 runtime/update status:
+July 5 runtime/update status:
 
+- July 5 known-issues validation installed local evidence build `0.2.358-known-issues-fmod-marker-fix` (`versionCode=358001`) on ARM64 device `SM-F966B`. Public-beta launches to the main menu with the selected side-by-side public-beta PCK/runtime pack; this is a playable branch-routing pass, not a `NativeFallbackActivity` fallback. Patch marker `.android_pck_patch_v35` records matched source/current PCK hash `109f61f7e13a7f329c9fe10aab81dec55e4c415e9863ef5468b76dadac7c7aee`, all five desktop FMOD bank entries in the selected public-beta PCK (`Master.strings.bank`, `Master.bank`, `sfx.bank`, `temp_sfx.bank`, `ambience.bank`), and diagnostic extraction copies under `/sdcard/sts2b`. Runtime-pack evidence records public-beta `v0.108.0`, PCK hash `109f61f7e13a7f329c9fe10aab81dec55e4c415e9863ef5468b76dadac7c7aee`, runtime pack `public-beta-109f61f7e13a-51a671bfeb93-startup-orchestrator-v1`, source/runtime/active `sts2.dll` hash `51a671bfeb937271af3e643d017396b13432098ed2b9debceb110c74939bbba1`, and patch validation `passed`.
+- BGM/ambience native initialization is now fixed in local evidence build `0.2.364-fmod-audio-devices-test`. The Android FMOD Java/JNI bridge initializes `libfmod.so`, reports successful DSP buffer setup and global 3D settings, and loads the desktop FMOD banks from `res://banks/desktop/...` without the previous invalid-handle/JNI/bank-load failures. Human audible-output confirmation is still useful, but the previous log-level native FMOD blocker is closed.
+- Silent Steam sign-in failure reporting is fixed in local evidence build `0.2.366-auth-failure-reporting-test`. An invalid one-shot local credential handoff on ARM64 was consumed, connected to Steam, failed with `InvalidPassword`, wrote `last_steam_auth_failure.txt` with category `credentials`, selected branch `public-beta`, user-facing recovery text, and technical SteamKit detail, and left `last_manual_cloud_push.txt` missing.
+- Shader compile crash/stall triage now has device proof in local evidence build `0.2.368-normal-launch-automation-test`: normal public-beta launch automation reached the main menu, `last_shader_warmup_status.txt` recorded a 45-second watchdog warning during first-run warmup and then completed with `Rendered 1713 shader warmup materials`. This improves report classification, but weaker-device shader crash/stall reports still need focused validation.
+- The July 5 launcher reachability pass on the connected foldable layout shows Start Game, version selection, vanilla/mod mode controls, staged Workshop controls, Fixes & Help, and Help & Reports reachable in the main scroll area. The launcher is usable on that display but remains visually dense and still needs UX polish.
 - The latest tested Steam public-beta payload is `v0.108.0` / build `24032229`. Public-beta fresh download, Android PCK patching, runtime-pack creation, runtime-pack validation, and launch now reach the main menu with matched beta PCK plus matched beta managed runtime. This is no longer a `NativeFallbackActivity` fallback/gating issue.
 - Public-after-beta switching was retested after the beta launch and returned to the public PCK/runtime pairing correctly.
 - Core-release can launch through its side-by-side slot, but the current Steam metadata still exposes an inherited public manifest, so it is effectively public content until Steam publishes a distinct core-release payload.
@@ -44,6 +49,55 @@ Validated locally on ARM64 hardware:
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
+
+Latest local known-issues/audio evidence:
+
+```text
+build=0.2.364-fmod-audio-devices-test
+asset=artifacts/android/StS2Launcher-v0.2.364-fmod-audio-devices-test-arm64-v8a.apk
+package=com.sts2launcher.overhaul.fork.local
+versionName=0.2.364-fmod-audio-devices-test
+versionCode=364001
+device=RFCY70XQE7F / SM-F966B
+validation=Public-beta direct launch reached the Slay the Spire 2 main menu with no NativeFallbackActivity, matched public-beta PCK hash 109f61f7e13a7f329c9fe10aab81dec55e4c415e9863ef5468b76dadac7c7aee, matched source/runtime/active sts2.dll hash 51a671bfeb937271af3e643d017396b13432098ed2b9debceb110c74939bbba1, usable runtime pack public-beta-109f61f7e13a-51a671bfeb93-startup-orchestrator-v1, and patch validation passed.
+audioStatus=Fixed at log/runtime level. The Android FMOD bridge loads libfmod.so plus libsts2fmodbridge.so, records native fmod android init complete, reports FMOD Sound System successfully initialized, successfully sets global 3D settings, and loads Master.strings.bank, Master.bank, sfx.bank, temp_sfx.bank, and ambience.bank from res://banks/desktop without the previous invalid object handles, DSP buffer setup failure, JNI NoSuchMethodError aborts, or Cannot load bank errors.
+cloudSafety=No Steam Cloud Push was run during this validation; startup logs show upstream Android startup sync was skipped and the cloud write thread stopped.
+evidence=artifacts/android/known-issues-fmod-audio-devices-v364-20260705-213145; intermediate bridge crash repros: artifacts/android/known-issues-fmod-jni-bridge-v361-20260705-212010, artifacts/android/known-issues-fmod-asset-manager-v362-20260705-212403, artifacts/android/known-issues-fmod-platform-capabilities-v363-20260705-212804; earlier failed bank-path experiments: artifacts/android/known-issues-fmod-user-banks-v32-20260705-202900 and artifacts/android/known-issues-fmod-sdcard-banks-v33-20260705-203422
+```
+
+Latest local Steam auth failure reporting evidence:
+
+```text
+build=0.2.366-auth-failure-reporting-test
+asset=artifacts/android/StS2Launcher-v0.2.366-auth-failure-reporting-test-arm64-v8a.apk
+package=com.sts2launcher.overhaul.fork.local
+versionName=0.2.366-auth-failure-reporting-test
+versionCode=366001
+device=RFCY70XQE7F / SM-F966B
+validation=Invalid local credential handoff was consumed, SteamKit connected to Steam, authentication failed with InvalidPassword, and the launcher wrote last_steam_auth_failure.txt with category credentials, selected branch public-beta, user-facing retry guidance, and technical AuthenticationException detail.
+shaderTriage=Superseded by v368 normal-launch evidence below; the marker now has ARM64 proof for public-beta warmup completion, while weaker-device shader stall reports remain pending.
+cloudSafety=No Steam Cloud Push was run. last_manual_cloud_push.txt remained missing; the existing blocked-push marker was unchanged. The temporary ownership marker move used only to force auth flow was restored after capture.
+evidence=artifacts/android/auth-failure-v366-marker-20260705-215808
+```
+
+Latest local normal-launch/shader warmup evidence:
+
+```text
+build=0.2.368-normal-launch-automation-test
+asset=artifacts/android/StS2Launcher-v0.2.368-normal-launch-automation-test-arm64-v8a.apk
+package=com.sts2launcher.overhaul.fork.local
+versionName=0.2.368-normal-launch-automation-test
+versionCode=368001
+device=SM-F966B / RFCY70XQE7F
+automation=branch=public-beta + action=launch consumed from launcher_automation_action.txt; marker completed with selected/requested branch public-beta
+launch=public-beta reached the Slay the Spire 2 main menu, not NativeFallbackActivity
+runtime=selected PCK SHA256 109f61f7e13a7f329c9fe10aab81dec55e4c415e9863ef5468b76dadac7c7aee; source/runtime/active sts2.dll SHA256 51a671bfeb937271af3e643d017396b13432098ed2b9debceb110c74939bbba1; runtime pack /files/runtime_packs/public-beta-8128824d
+shaderWarmup=last_shader_warmup_status.txt completed; detail=Rendered 1713 shader warmup materials; watchdog also logged at 45s during the same run
+audio=FMOD initialized and desktop banks loaded during launch
+cloudSafety=No Steam Cloud Push; last_manual_cloud_push.txt missing and no BeginFileUpload/CommitFileUpload/upload markers in focused logs
+evidence=artifacts/android/normal-launch-automation-v368-public-beta-valid-20260705-221923
+remaining=Shader scanner emits noisy Godot error stack traces for some material/scene extraction attempts even though warmup completes and the game reaches the menu; controller action handling and weaker-device shader crash reports remain open.
+```
 
 Latest GitHub APK prerelease evidence:
 

@@ -112,12 +112,16 @@ public class GodotApp extends GodotActivity {
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String EXTRA_SAFE_LAUNCH_ON_START = "sts2_safe_launch";
     private static final int ASSEMBLY_CACHE_SCHEMA = 24;
-	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v29";
+	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v35";
 	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
 	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
 	private static final int MAX_BUFFERED_HTTP_RESPONSE_BYTES = 1024 * 1024;
+	private static final String FMOD_ANDROID_BANK_DIR = "/sdcard/sts2b";
+	private static final String FMOD_DESKTOP_BANK_PATHS = "bank_paths = [\"res://banks/desktop/Master.strings.bank\", \"res://banks/desktop/Master.bank\", \"res://banks/desktop/sfx.bank\", \"res://banks/desktop/temp_sfx.bank\", \"res://banks/desktop/ambience.bank\"]";
+	private static final String FMOD_USER_BANK_PATHS = "bank_paths = [\"user://fmod_banks/Master.strings.bank\", \"user://fmod_banks/Master.bank\", \"user://fmod_banks/sfx.bank\", \"user://fmod_banks/temp_sfx.bank\", \"user://fmod_banks/ambience.bank\"]";
+	private static final String FMOD_SDCARD_BANK_PATHS = "bank_paths = [\"/sdcard/sts2b/Master.strings.bank\", \"/sdcard/sts2b/Master.bank\", \"/sdcard/sts2b/sfx.bank\", \"/sdcard/sts2b/temp_sfx.bank\", \"/sdcard/sts2b/ambience.bank\"]";
 	private static boolean exceptionHandlerInstalled;
 	private long lastHttpResponseCleanupAt;
 	private final Object steamLoginCredentialLock = new Object();
@@ -136,6 +140,7 @@ public class GodotApp extends GodotActivity {
 	private boolean steamLoginCredentialPasswordVisible;
 	private boolean steamLoginCredentialWideLayout;
 	private boolean steamLoginCredentialShortHeightLayout;
+	private boolean fmodAndroidInitialized;
 	private static final String STEAM_CREDENTIAL_WEB_DOMAIN_STORE = "store.steampowered.com";
 	private static final long STEAM_LOGIN_CREDENTIAL_RESULT_TTL_MS = 60L * 1000L;
 	private static final String[] BOOTSTRAP_REQUIRED_ASSEMBLIES = {
@@ -221,6 +226,7 @@ public class GodotApp extends GodotActivity {
 				return;
 			}
 		}
+		initializeFmodAndroid();
 		recordStartupPhase("native godot super onCreate", "Starting Godot runtime");
 		super.onCreate(savedInstanceState);
 		recordStartupPhase("native godot super onCreate complete", "Godot runtime returned from onCreate");
@@ -236,6 +242,40 @@ public class GodotApp extends GodotActivity {
 		} catch (Exception e) {
 			recordStartupPhase("native multicast lock failed", e.getMessage());
 			Log.w(TAG, "Failed to acquire MulticastLock", e);
+		}
+	}
+
+	private void initializeFmodAndroid() {
+		try {
+			Class<?> audioDeviceClass = Class.forName("org.fmod.AudioDevice");
+			audioDeviceClass.getMethod("setContext", Context.class).invoke(null, getApplicationContext());
+			Class<?> fmodClass = Class.forName("org.fmod.FMOD");
+			fmodClass.getMethod("init", Context.class).invoke(null, this);
+			fmodAndroidInitialized = true;
+			recordStartupPhase("native fmod android init complete");
+			Log.i(TAG, "FMOD Android Java bridge initialized");
+		} catch (Throwable e) {
+			fmodAndroidInitialized = false;
+			recordStartupPhase("native fmod android init unavailable", e.getClass().getSimpleName());
+			Log.w(TAG, "FMOD Android Java bridge initialization failed; FMOD audio may be unavailable", e);
+		}
+	}
+
+	private void closeFmodAndroid() {
+		if (!fmodAndroidInitialized) {
+			return;
+		}
+
+		try {
+			Class<?> fmodClass = Class.forName("org.fmod.FMOD");
+			fmodClass.getMethod("close").invoke(null);
+			Class<?> audioDeviceClass = Class.forName("org.fmod.AudioDevice");
+			audioDeviceClass.getMethod("setContext", Context.class).invoke(null, new Object[] { null });
+			Log.i(TAG, "FMOD Android Java bridge closed");
+		} catch (Throwable e) {
+			Log.w(TAG, "FMOD Android Java bridge close failed", e);
+		} finally {
+			fmodAndroidInitialized = false;
 		}
 	}
 
@@ -2109,7 +2149,10 @@ public class GodotApp extends GodotActivity {
 			return;
 		}
 
-		String sourcePckSha256 = pckFile.exists() && pckFile.isFile() ? sha256Hex(pckFile) : "";
+		String prePatchPckSha256 = pckFile.exists() && pckFile.isFile() ? sha256Hex(pckFile) : "";
+		String sourcePckSha256 = resolveAndroidPckPatchSourceSha256(pckFile, prePatchPckSha256);
+		JSONArray fmodBankEntries = new JSONArray();
+		boolean diagnosticsEnabled = isPckDiagnosticsDumpEnabled();
 		try (RandomAccessFile raf = new RandomAccessFile(pckFile, "rw")) {
 			long magic = readUInt32LE(raf);
 			if (magic != 0x43504447L) {
@@ -2147,6 +2190,19 @@ public class GodotApp extends GodotActivity {
 				readUInt32LE(raf); // entry flags
 
 				long absOffset = relativeOffsets ? fileBase + offset : offset;
+				if (isFmodBankPath(path)) {
+					JSONObject bankEntry = new JSONObject();
+					bankEntry.put("path", path);
+					bankEntry.put("bytes", size);
+					bankEntry.put("md5", bytesToHex(md5));
+					if (diagnosticsEnabled && !isX86Runtime()) {
+						extractFmodBankForAndroid(path, raf, absOffset, size, bankEntry);
+					}
+					fmodBankEntries.put(bankEntry);
+					if (diagnosticsEnabled) {
+						Log.i(TAG, "PCK FMOD bank entry present: " + path + " bytes=" + size + " md5=" + bytesToHex(md5));
+					}
+				}
 				dumpPckEntryForDiagnostics(path, raf, absOffset, size);
 				if (isPckPath(path, "project.binary")) {
 					patched |= patchPckBinaryProjectEntry(raf, absOffset, size);
@@ -2170,13 +2226,28 @@ public class GodotApp extends GodotActivity {
 						});
 					}
 				} else if (isPckPath(path, "scenes/game.tscn")) {
-					patched |= patchPckTextEntry(raf, absOffset, size, new String[] {
+					String[] fmodSceneEntries = new String[] {
 						"[ext_resource type=\"Script\" uid=\"uid://c6blhu0io0iwp\" path=\"res://src/gdscript/audio_manager_proxy.gd\" id=\"3_xfu11\"]",
 						"[node name=\"FmodBankLoader\" type=\"FmodBankLoader\" parent=\".\"]",
-						"bank_paths = [\"res://banks/desktop/Master.strings.bank\", \"res://banks/desktop/Master.bank\", \"res://banks/desktop/sfx.bank\", \"res://banks/desktop/temp_sfx.bank\", \"res://banks/desktop/ambience.bank\"]",
+						FMOD_DESKTOP_BANK_PATHS,
 						"script = ExtResource(\"3_xfu11\")",
 						"[node name=\"FmodListener2D\" type=\"FmodListener2D\" parent=\"AudioManager\"]"
-					});
+					};
+					if (isX86Runtime()) {
+						patched |= patchPckTextEntry(raf, absOffset, size, fmodSceneEntries);
+					} else {
+						patched |= patchPckTextEntryRestorations(raf, absOffset, size, fmodSceneEntries);
+						patched |= patchPckTextEntryReplacements(raf, absOffset, size, new String[][] {
+							{
+								padPckReplacement(FMOD_DESKTOP_BANK_PATHS, FMOD_USER_BANK_PATHS),
+								FMOD_DESKTOP_BANK_PATHS
+							},
+							{
+								padPckReplacement(FMOD_DESKTOP_BANK_PATHS, FMOD_SDCARD_BANK_PATHS),
+								FMOD_DESKTOP_BANK_PATHS
+							}
+						});
+					}
 				}
 			}
 
@@ -2194,6 +2265,7 @@ public class GodotApp extends GodotActivity {
 			json.put("sourcePckSha256", sourcePckSha256);
 			json.put("androidPckSha256", androidPckSha256);
 			json.put("pckBytes", pckFile.exists() ? pckFile.length() : -1);
+			json.put("fmodBankEntries", fmodBankEntries);
 			json.put("utcMillis", System.currentTimeMillis());
 			try (OutputStream out = new FileOutputStream(marker, false)) {
 				out.write(json.toString(2).getBytes(StandardCharsets.UTF_8));
@@ -2201,6 +2273,165 @@ public class GodotApp extends GodotActivity {
 			marker.setLastModified(System.currentTimeMillis());
 		} catch (Exception e) {
 			Log.w(TAG, "Failed to write PCK Android patch marker", e);
+		}
+	}
+
+	private String resolveAndroidPckPatchSourceSha256(File pckFile, String currentPckSha256) {
+		if (pckFile == null || pckFile.getParentFile() == null || currentPckSha256 == null || currentPckSha256.trim().isEmpty()) {
+			return currentPckSha256 == null ? "" : currentPckSha256;
+		}
+
+		String resolved = currentPckSha256.trim();
+		HashSet<String> seen = new HashSet<String>();
+		boolean changed = true;
+		while (changed && seen.add(resolved.toLowerCase(java.util.Locale.ROOT))) {
+			changed = false;
+			File[] markers = pckFile.getParentFile().listFiles((dir, name) -> name.startsWith(".android_pck_patch_v"));
+			if (markers == null) {
+				break;
+			}
+			PckPatchMarkerCandidate candidate = findBestPckPatchMarkerCandidate(markers, resolved);
+			if (candidate != null && !candidate.sourcePckSha256.equalsIgnoreCase(resolved)) {
+				resolved = candidate.sourcePckSha256;
+				changed = true;
+			}
+		}
+
+		if (!resolved.equalsIgnoreCase(currentPckSha256)) {
+			Log.i(TAG, "Resolved Android PCK patch source hash through prior markers: current=" + currentPckSha256 + " source=" + resolved);
+		}
+		return resolved;
+	}
+
+	private PckPatchMarkerCandidate findBestPckPatchMarkerCandidate(File[] markers, String androidPckSha256) {
+		PckPatchMarkerCandidate best = null;
+		for (File marker : markers) {
+			String markerAndroid = readPckPatchMarkerHash(marker, "androidPckSha256").trim();
+			String markerSource = readPckPatchMarkerHash(marker, "sourcePckSha256").trim();
+			if (markerAndroid.isEmpty()
+				|| markerSource.isEmpty()
+				|| !markerAndroid.equalsIgnoreCase(androidPckSha256)) {
+				continue;
+			}
+
+			PckPatchMarkerCandidate candidate = new PckPatchMarkerCandidate(markerSource, parsePckPatchMarkerVersion(marker));
+			if (candidate.sourcePckSha256.equalsIgnoreCase(androidPckSha256)) {
+				return candidate;
+			}
+
+			if (best == null || candidate.version > best.version) {
+				best = candidate;
+			}
+		}
+
+		return best;
+	}
+
+	private int parsePckPatchMarkerVersion(File marker) {
+		if (marker == null) {
+			return -1;
+		}
+
+		String name = marker.getName();
+		int index = name.lastIndexOf("_v");
+		if (index < 0 || index + 2 >= name.length()) {
+			return -1;
+		}
+
+		try {
+			return Integer.parseInt(name.substring(index + 2));
+		} catch (Exception ignored) {
+			return -1;
+		}
+	}
+
+	private static final class PckPatchMarkerCandidate {
+		final String sourcePckSha256;
+		final int version;
+
+		PckPatchMarkerCandidate(String sourcePckSha256, int version) {
+			this.sourcePckSha256 = sourcePckSha256;
+			this.version = version;
+		}
+	}
+
+	private void extractFmodBankForAndroid(String path, RandomAccessFile raf, long offset, long size, JSONObject bankEntry) {
+		long saved = -1;
+		long fileLength;
+		try {
+			saved = raf.getFilePointer();
+			fileLength = raf.length();
+		} catch (Exception e) {
+			try {
+				bankEntry.put("extracted", false);
+				bankEntry.put("extractError", e.getClass().getSimpleName());
+			} catch (Exception ignored) {
+			}
+			Log.w(TAG, "PCK FMOD bank extraction skipped for " + path + ": failed to inspect PCK file", e);
+			return;
+		}
+
+		if (offset < 0 || size < 0 || offset + size > fileLength) {
+			try {
+				bankEntry.put("extracted", false);
+				bankEntry.put("extractError", "invalid-offset-or-size");
+			} catch (Exception ignored) {
+			}
+			Log.w(TAG, "PCK FMOD bank extraction skipped for " + path + ": offset=" + offset + " size=" + size);
+			return;
+		}
+
+		File dir = new File(FMOD_ANDROID_BANK_DIR);
+		if (!dir.exists() && !dir.mkdirs()) {
+			try {
+				bankEntry.put("extracted", false);
+				bankEntry.put("extractError", "mkdir-failed");
+			} catch (Exception ignored) {
+			}
+			Log.w(TAG, "PCK FMOD bank extraction skipped: failed to create " + dir.getAbsolutePath());
+			return;
+		}
+
+		String fileName = path;
+		int slash = Math.max(fileName.lastIndexOf('/'), fileName.lastIndexOf('\\'));
+		if (slash >= 0) {
+			fileName = fileName.substring(slash + 1);
+		}
+		File out = new File(dir, fileName);
+
+		try {
+			raf.seek(offset);
+			try (OutputStream stream = new FileOutputStream(out, false)) {
+				byte[] buffer = new byte[1024 * 1024];
+				long remaining = size;
+				while (remaining > 0) {
+					int read = raf.read(buffer, 0, (int)Math.min(buffer.length, remaining));
+					if (read <= 0) {
+						throw new IOException("unexpected EOF");
+					}
+					stream.write(buffer, 0, read);
+					remaining -= read;
+				}
+			}
+			bankEntry.put("extracted", true);
+			bankEntry.put("extractedPath", out.getAbsolutePath());
+			bankEntry.put("extractedBytes", out.length());
+			Log.i(TAG, "PCK FMOD bank extracted for Android: " + path + " -> " + out.getAbsolutePath() + " bytes=" + out.length());
+		} catch (Exception e) {
+			try {
+				bankEntry.put("extracted", false);
+				bankEntry.put("extractError", e.getClass().getSimpleName());
+			} catch (Exception ignored) {
+			}
+			Log.w(TAG, "PCK FMOD bank extraction failed for " + path, e);
+		} finally {
+			try {
+				if (saved >= 0) {
+					raf.seek(saved);
+				}
+			} catch (Exception e) {
+				Log.w(TAG, "PCK FMOD bank extraction failed to restore directory cursor for " + path, e);
+			}
 		}
 	}
 
@@ -2260,6 +2491,14 @@ public class GodotApp extends GodotActivity {
 			|| isPckPath(path, "src/gdscript/audio_manager_proxy.gdc")
 			|| isPckPath(path, "scenes/game.tscn")
 			|| isPckPath(path, "project.godot");
+	}
+
+	private boolean isFmodBankPath(String path) {
+		return isPckPath(path, "banks/desktop/Master.strings.bank")
+			|| isPckPath(path, "banks/desktop/Master.bank")
+			|| isPckPath(path, "banks/desktop/sfx.bank")
+			|| isPckPath(path, "banks/desktop/temp_sfx.bank")
+			|| isPckPath(path, "banks/desktop/ambience.bank");
 	}
 
 	private boolean isPckPath(String path, String expected) {
@@ -2375,6 +2614,29 @@ public class GodotApp extends GodotActivity {
 
 		raf.seek(saved);
 		return patched;
+	}
+
+	private boolean patchPckTextEntryRestorations(RandomAccessFile raf, long offset, long size, String[] entries) throws IOException {
+		String[][] replacements = new String[entries.length][2];
+		for (int i = 0; i < entries.length; i++) {
+			String entry = entries[i];
+			replacements[i][0] = ";" + entry.substring(1);
+			replacements[i][1] = entry;
+		}
+		return patchPckTextEntryReplacements(raf, offset, size, replacements);
+	}
+
+	private String padPckReplacement(String search, String replacement) throws IOException {
+		int searchBytes = search.getBytes("UTF-8").length;
+		int replacementBytes = replacement.getBytes("UTF-8").length;
+		if (replacementBytes > searchBytes) {
+			throw new IOException("PCK replacement too long for " + replacement);
+		}
+		StringBuilder padded = new StringBuilder(replacement);
+		for (int i = replacementBytes; i < searchBytes; i++) {
+			padded.append(' ');
+		}
+		return padded.toString();
 	}
 
 	private String spacesFor(String value) {
@@ -2493,6 +2755,7 @@ public class GodotApp extends GodotActivity {
 			multicastLock.release();
 			Log.i(TAG, "WiFi MulticastLock released");
 		}
+		closeFmodAndroid();
 		super.onDestroy();
 	}
 

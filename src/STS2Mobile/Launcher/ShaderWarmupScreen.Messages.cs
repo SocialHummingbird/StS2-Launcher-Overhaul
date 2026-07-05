@@ -23,5 +23,11 @@ internal sealed partial class ShaderWarmupScreen
 
         internal static string RunFailed(Exception ex)
             => $"[ShaderWarmup] Failed: {ex}";
+
+        internal static string StatusMarkerWriteFailed(Exception ex)
+            => $"[ShaderWarmup] Failed to write status marker: {ex.Message}";
+
+        internal static string WatchdogWarning(int seconds)
+            => $"[ShaderWarmup] Still active after {seconds}s; wrote watchdog status marker";
     }
 }

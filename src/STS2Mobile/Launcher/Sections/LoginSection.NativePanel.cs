@@ -26,6 +26,7 @@ internal sealed partial class LoginSection
         {
             _nativeLoginButton.Disabled = false;
             PatchHelper.Log($"[Launcher] Could not open native Steam login panel: {ex.Message}");
+            StatusRequested?.Invoke("Steam sign-in panel could not open. Use Retry and try again.");
         }
     }
 
@@ -34,6 +35,7 @@ internal sealed partial class LoginSection
         if (--_nativeCredentialPollsRemaining <= 0)
         {
             StopNativeCredentialPolling(hidePanel: false);
+            StatusRequested?.Invoke("Steam sign-in timed out before credentials were submitted. Try signing in again.");
             return;
         }
 
@@ -49,6 +51,7 @@ internal sealed partial class LoginSection
 
             StopNativeCredentialPolling(hidePanel: true);
             _nativeLoginButton.Disabled = true;
+            StatusRequested?.Invoke("Signing in to Steam...");
             LoginRequested?.Invoke(username, password);
         }
         catch (Exception ex)
@@ -56,6 +59,7 @@ internal sealed partial class LoginSection
             StopNativeCredentialPolling(hidePanel: true);
             _nativeLoginButton.Disabled = false;
             PatchHelper.Log($"[Launcher] Native Steam login panel result failed: {ex.Message}");
+            StatusRequested?.Invoke("Steam sign-in could not start. Try signing in again.");
         }
     }
 

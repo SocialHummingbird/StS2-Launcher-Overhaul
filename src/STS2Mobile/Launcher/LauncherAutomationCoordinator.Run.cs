@@ -71,6 +71,15 @@ internal sealed partial class LauncherAutomationCoordinator
                     _model.LaunchSafe();
                 });
             }
+            else if (request.Launch)
+            {
+                _runOnMainThread(() =>
+                {
+                    _view.AppendLog("[Automation] Launch requested after replacement download.");
+                    _launch.RefreshSelectedRuntimeSlotEvidence();
+                    _model.Launch();
+                });
+            }
 
             WriteAutomationMarker(request, "completed");
         }

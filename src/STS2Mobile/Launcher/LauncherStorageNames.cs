@@ -11,6 +11,8 @@ internal static class LauncherStorageNames
     internal const string ManualSafeLaunch = "manual_safe_launch";
     internal const string MonoDirectory = "mono";
     internal const string PublishDirectory = "publish";
+    internal const string ShaderWarmupStatus = "last_shader_warmup_status.txt";
+    internal const string SteamAuthFailure = "last_steam_auth_failure.txt";
     internal const string StartupContext = "last_startup_context.txt";
     internal const string ShaderWarmupVersion = "shader_warmup_version";
     internal const string StartupMarker = "last_game_start_incomplete";

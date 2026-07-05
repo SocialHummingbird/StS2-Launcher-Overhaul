@@ -20,6 +20,7 @@ The goal is a **drastic architecture and reliability overhaul** that is harder t
 - Android runtime findings: [docs/android-runtime-findings.md](docs/android-runtime-findings.md)
 - Current Android status: [docs/current-android-status.md](docs/current-android-status.md)
 - Android Steam Workshop mods: [docs/android-workshop-mods.md](docs/android-workshop-mods.md)
+- Reddit post log: [docs/reddit-post-log.md](docs/reddit-post-log.md)
 - Testing needed: [docs/testing-needed.md](docs/testing-needed.md)
 - Issue reporting guide: [docs/issue-reporting.md](docs/issue-reporting.md)
 
@@ -52,9 +53,12 @@ Latest published APK prerelease: [v0.2.352-savemerger-compat-local](https://gith
 What currently works on tested ARM64 hardware:
 
 - Steam login reaches Steam Guard/authentication flow.
+- Steam sign-in failures now surface actionable recovery text and are included in Help & Reports diagnostics as `last_steam_auth_failure.txt`.
 - Game files can be downloaded from Steam for owned accounts.
 - Public/default game launch has ARM64 evidence.
 - The latest tested public-beta payload, `v0.108.0`, has ARM64 evidence with matched beta PCK and matched beta runtime pack.
+- Local ARM64 evidence build `0.2.368-normal-launch-automation-test` proves normal public-beta launch reaches the main menu through the real Start Game path, with matched PCK/runtime and no `NativeFallbackActivity`.
+- First-run shader warmup now writes `last_shader_warmup_status.txt`; the latest ARM64 run completed 1713 shader warmup materials after a 45-second watchdog marker.
 - Steam Cloud Pull into Android local app storage has been validated.
 - Steam Cloud Push is intentionally guarded and is not automatic.
 - The launcher has a first-class Mods section on the main play screen.
@@ -67,7 +71,7 @@ Experimental or still hardening:
 - `Vanilla and Modded Saves Merger` is the most important current mod validation target. It has manual-import loading evidence, but broader save-merge compatibility still needs tester reports.
 - Branch switching is implemented, but beta/password/private branch behavior and save compatibility across branches still need more device evidence.
 - Samsung/One UI layouts and login behavior need more current-version reports from affected users.
-- Startup/loading speed, shader compilation failures on lower-power devices, controller input, and launcher UI scaling/scroll reachability are active hardening targets.
+- Startup/loading speed, shader-scanner log noise, shader compilation failures on lower-power devices, controller input, and launcher UI scaling/scroll reachability are active hardening targets.
 
 Steam Cloud safety:
 

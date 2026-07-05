@@ -21,6 +21,7 @@ internal sealed partial class LauncherAutomationCoordinator
         internal bool CheckUpdates => Action.Contains("check", StringComparison.OrdinalIgnoreCase);
         internal bool Redownload => Action.Contains("redownload", StringComparison.OrdinalIgnoreCase);
         internal bool Download => Action.Contains("download", StringComparison.OrdinalIgnoreCase);
+        internal bool Launch => Action.Contains("launch", StringComparison.OrdinalIgnoreCase) && !LaunchSafe;
         internal bool LaunchSafe => Action.Contains("launchsafe", StringComparison.OrdinalIgnoreCase);
         internal bool WorkshopClear => Action.Contains("workshopclear", StringComparison.OrdinalIgnoreCase);
         internal bool WorkshopSync => Action.Contains("workshopsync", StringComparison.OrdinalIgnoreCase);

@@ -8,11 +8,13 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class ShaderWarmupScreen : Control
 {
     private const int WarmupVersion = 5;
+    private const int WatchdogWarningSeconds = 45;
 
     private TaskCompletionSource<bool> _tcs;
     private Label _statusLabel;
     private Label _detailLabel;
     private ProgressBar _progressBar;
+    private volatile bool _warmupFinished;
 
     internal async Task RunAsync()
     {

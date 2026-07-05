@@ -9,6 +9,7 @@ internal sealed partial class ShaderWarmupScreen
     private void Initialize()
     {
         ZIndex = 100;
+        WriteWarmupStatus("initializing", "Building shader warmup screen");
 
         try
         {
@@ -20,6 +21,7 @@ internal sealed partial class ShaderWarmupScreen
         }
         catch (Exception ex)
         {
+            WriteWarmupStatus("ui-build-failed", ex.GetBaseException().Message);
             PatchHelper.Log(Message.ScreenBuildFailed(ex));
             _tcs?.TrySetResult(false);
             return;
@@ -33,15 +35,37 @@ internal sealed partial class ShaderWarmupScreen
 
     private async Task RunWarmupTaskAsync()
     {
+        _warmupFinished = false;
+        _ = WatchWarmupDurationAsync();
+
         try
         {
+            WriteWarmupStatus("running", "Shader warmup task started");
             await RunWarmupAsync();
         }
         catch (Exception ex)
         {
+            WriteWarmupStatus("failed", ex.GetBaseException().Message);
             PatchHelper.Log(Message.RunFailed(ex));
+        }
+        finally
+        {
+            _warmupFinished = true;
         }
 
         _tcs?.TrySetResult(true);
+    }
+
+    private async Task WatchWarmupDurationAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(WatchdogWarningSeconds));
+        if (_warmupFinished)
+            return;
+
+        WriteWarmupStatus(
+            "watchdog-warning",
+            $"Shader warmup still active after {WatchdogWarningSeconds}s"
+        );
+        PatchHelper.Log(Message.WatchdogWarning(WatchdogWarningSeconds));
     }
 }

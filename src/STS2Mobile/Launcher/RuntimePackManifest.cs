@@ -8,7 +8,7 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class RuntimePackManifest
 {
     internal const string AndroidAssemblyFileName = "sts2.dll";
-    private const string AndroidPckPatchMarkerFileName = ".android_pck_patch_v29";
+    private const string AndroidPckPatchMarkerFileName = ".android_pck_patch_v35";
 
     private RuntimePackManifest(
         string path,

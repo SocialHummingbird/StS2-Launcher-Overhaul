@@ -1,4 +1,6 @@
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace STS2Mobile.Steam;
 
@@ -29,13 +31,31 @@ internal sealed partial class DepotDownloader
         (SpacesFor(FmodExtensionListEntry), FmodExtensionListEntry),
     };
 
-    private static readonly string[] GameSceneSettingsToComment =
+    private static readonly string[] GameSceneSettingsToPatch =
     {
         "[ext_resource type=\"Script\" uid=\"uid://c6blhu0io0iwp\" path=\"res://src/gdscript/audio_manager_proxy.gd\" id=\"3_xfu11\"]",
         "[node name=\"FmodBankLoader\" type=\"FmodBankLoader\" parent=\".\"]",
-        "bank_paths = [\"res://banks/desktop/Master.strings.bank\", \"res://banks/desktop/Master.bank\", \"res://banks/desktop/sfx.bank\", \"res://banks/desktop/temp_sfx.bank\", \"res://banks/desktop/ambience.bank\"]",
+        FmodDesktopBankPaths,
         "script = ExtResource(\"3_xfu11\")",
         "[node name=\"FmodListener2D\" type=\"FmodListener2D\" parent=\"AudioManager\"]",
+    };
+
+    private const string FmodDesktopBankPaths =
+        "bank_paths = [\"res://banks/desktop/Master.strings.bank\", \"res://banks/desktop/Master.bank\", \"res://banks/desktop/sfx.bank\", \"res://banks/desktop/temp_sfx.bank\", \"res://banks/desktop/ambience.bank\"]";
+
+    private const string FmodAndroidExternalBankPaths =
+        "bank_paths = [\"/sdcard/sts2b/Master.strings.bank\", \"/sdcard/sts2b/Master.bank\", \"/sdcard/sts2b/sfx.bank\", \"/sdcard/sts2b/temp_sfx.bank\", \"/sdcard/sts2b/ambience.bank\"]";
+
+    private const string FmodAndroidUserBankPaths =
+        "bank_paths = [\"user://fmod_banks/Master.strings.bank\", \"user://fmod_banks/Master.bank\", \"user://fmod_banks/sfx.bank\", \"user://fmod_banks/temp_sfx.bank\", \"user://fmod_banks/ambience.bank\"]";
+
+    private static readonly (string Search, string Replacement)[] GameSceneSettingRestorations =
+        GameSceneSettingsToPatch.Select(setting => (";" + setting.Substring(1), setting)).ToArray();
+
+    private static readonly (string Search, string Replacement)[] Arm64FmodBankPathReplacements =
+    {
+        (PadReplacement(FmodDesktopBankPaths, FmodAndroidExternalBankPaths), FmodDesktopBankPaths),
+        (PadReplacement(FmodDesktopBankPaths, FmodAndroidUserBankPaths), FmodDesktopBankPaths),
     };
 
     private static string SpacesFor(string value) => new(' ', value.Length);
@@ -77,6 +97,9 @@ internal sealed partial class DepotDownloader
             offset,
             size,
             "scenes/game.tscn",
-            content => ApplyProjectSettingComments(content, GameSceneSettingsToComment)
+            content => RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                ? ApplyReplacementPatches(content, GameSceneSettingRestorations)
+                  | ApplyReplacementPatches(content, Arm64FmodBankPathReplacements)
+                : ApplyProjectSettingComments(content, GameSceneSettingsToPatch)
         );
 }

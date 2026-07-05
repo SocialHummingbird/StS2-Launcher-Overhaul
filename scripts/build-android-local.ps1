@@ -209,6 +209,40 @@ foreach ($targetAbi in (Resolve-AndroidApkTargetAbis -Abi $Abi)) {
     }
 }
 
+function Build-FmodBridgeLibrary([string]$TargetAbi) {
+    $ndkRoot = Get-ChildItem -LiteralPath (Join-Path $AndroidHome "ndk") -Directory |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+    if (-not $ndkRoot) {
+        throw "Android NDK not found under $AndroidHome\ndk."
+    }
+
+    $clang = Join-Path $ndkRoot.FullName "toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe"
+    if (-not (Test-Path -LiteralPath $clang)) {
+        throw "Android NDK clang not found: $clang"
+    }
+
+    $target = switch ($TargetAbi) {
+        "arm64-v8a" { "aarch64-linux-android24" }
+        "x86_64" { "x86_64-linux-android24" }
+        default { throw "Unsupported FMOD bridge ABI: $TargetAbi" }
+    }
+
+    $source = Join-Path $androidDir "native\sts2fmodbridge\sts2fmodbridge.c"
+    $outputDir = Join-Path $androidDir "libs\release\$TargetAbi"
+    $output = Join-Path $outputDir "libsts2fmodbridge.so"
+    New-Item -ItemType Directory -Force $outputDir | Out-Null
+
+    & $clang "--target=$target" "-shared" "-fPIC" "-O2" "-o" $output $source "-ldl"
+    if ($LASTEXITCODE -ne 0) {
+        throw "FMOD JNI bridge build failed for $TargetAbi"
+    }
+}
+
+foreach ($targetAbi in (Resolve-AndroidApkTargetAbis -Abi $Abi)) {
+    Build-FmodBridgeLibrary $targetAbi
+}
+
 Write-Host "Building SteamKit Android patcher..."
 dotnet build $patcherProject -c Release
 if ($LASTEXITCODE -ne 0) {

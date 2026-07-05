@@ -23,6 +23,7 @@ internal sealed partial class LoginSection
             PatchHelper.Log(
                 $"[Launcher] Login request handler failed before authentication: {ex}"
             );
+            StatusRequested?.Invoke("Steam sign-in could not start. Try signing in again.");
         }
     }
 }

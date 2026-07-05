@@ -25,6 +25,7 @@ function Add-SteamVersionSelectionAutomationChecks {
             "CheckUpdates",
             "Redownload",
             "Download",
+            "Launch",
             "LaunchSafe",
             "WorkshopClear",
             "WorkshopSync"
@@ -46,6 +47,7 @@ function Add-SteamVersionSelectionAutomationChecks {
             "ClearWorkshopMods",
             "StartWorkshopSyncAsync",
             "RefreshSelectedRuntimeSlotEvidence",
+            "_model\.Launch\(\)",
             "LaunchSafe",
             "WriteAutomationMarker\(request, ""completed""\)",
             "WriteAutomationMarker\(request, ""failed"""

@@ -9,30 +9,26 @@ internal readonly struct LoginFormFailure
         string logContext,
         string statusPrefix,
         string recoveryMessage,
-        bool logFullException,
-        bool showBaseException
+        bool logFullException
     )
     {
         LogContext = logContext;
         StatusPrefix = statusPrefix;
         RecoveryMessage = recoveryMessage;
         LogFullException = logFullException;
-        ShowBaseException = showBaseException;
     }
 
     private string LogContext { get; }
     private string StatusPrefix { get; }
     private string RecoveryMessage { get; }
     private bool LogFullException { get; }
-    private bool ShowBaseException { get; }
 
     internal static LoginFormFailure LoginHandler()
         => new(
             "Login handler failed",
             "Login failed",
             "Retry sign-in; Steam passwords are not stored by StS2 Mobile.",
-            logFullException: true,
-            showBaseException: true
+            logFullException: true
         );
 
     internal static LoginFormFailure AutoConnect()
@@ -40,8 +36,7 @@ internal readonly struct LoginFormFailure
             "Auto-connect failed",
             "Connection failed",
             "Check the connection or sign in again if prompted; Steam passwords are not stored by StS2 Mobile.",
-            logFullException: true,
-            showBaseException: true
+            logFullException: true
         );
 
     internal static LoginFormFailure LocalCredentialHandoff()
@@ -49,20 +44,18 @@ internal readonly struct LoginFormFailure
             "Local Steam credential handoff failed",
             "Login failed",
             "Retry sign-in; Steam passwords are not stored by StS2 Mobile.",
-            logFullException: true,
-            showBaseException: true
+            logFullException: true
         );
 
     internal void Show(LauncherView view, Exception ex)
     {
+        var authFailure = SteamAuthFailureReport.From(ex);
+        LauncherLaunchMarkers.RecordSteamAuthFailure(authFailure, LogContext);
         PatchHelper.Log($"[Launcher] {LogContext}: {LogDetail(ex)}");
-        view.SetStatus($"{StatusPrefix}: {StatusMessage(ex)}. {RecoveryMessage}");
+        view.SetStatus($"{StatusPrefix}: {authFailure.UserMessage} {RecoveryMessage}");
         view.SetLoginFormVisible(visible: true, disabled: false);
     }
 
     private string LogDetail(Exception ex)
         => LogFullException ? ex.ToString() : ex.Message;
-
-    private string StatusMessage(Exception ex)
-        => ShowBaseException ? ex.GetBaseException().Message : ex.Message;
 }

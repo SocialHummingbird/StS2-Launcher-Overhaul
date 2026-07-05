@@ -11,8 +11,10 @@ internal sealed partial class LauncherSteamSession
         string? userPrefix = null
     )
     {
+        var authFailure = SteamAuthFailureReport.From(ex);
+        LauncherLaunchMarkers.RecordSteamAuthFailure(authFailure, logContext);
         PatchHelper.Log($"[Launcher] {logContext}: {ex}");
-        var message = ex.GetBaseException().Message;
+        var message = authFailure.UserMessage;
         return userPrefix == null ? message : $"{userPrefix}: {message}";
     }
 }

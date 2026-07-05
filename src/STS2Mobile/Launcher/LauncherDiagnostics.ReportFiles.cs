@@ -29,6 +29,8 @@ internal static partial class LauncherDiagnostics
         foreach (var file in StartupStateFiles(dataDir))
             yield return file;
 
+        yield return SteamAuthFailure(dataDir);
+        yield return ShaderWarmupStatus(dataDir);
         yield return ManualSafeLaunchMarker(dataDir);
         yield return new DiagnosticFile(
             "Last game branch switch",

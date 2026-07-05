@@ -34,6 +34,16 @@ internal sealed partial class DepotDownloader
         return patched;
     }
 
+    private static string PadReplacement(string searchText, string replacementText)
+    {
+        var searchLength = Encode(searchText).Length;
+        var replacementLength = Encode(replacementText).Length;
+        if (replacementLength > searchLength)
+            throw new InvalidOperationException($"PCK replacement too long for {replacementText}");
+
+        return replacementText.PadRight(searchLength);
+    }
+
     private static bool CommentOutProjectSetting(byte[] content, string setting)
     {
         var search = Encode(setting);

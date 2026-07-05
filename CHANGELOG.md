@@ -1,11 +1,35 @@
 # Changelog
 
+## 2026-07-05 - Normal launch automation and shader warmup evidence
+
+- Added file-based normal launch automation with `action=launch`, separate from `action=launchsafe`, so device evidence can trigger the real Start Game path without unreliable rotated-display coordinate taps.
+- Published and installed local ARM64 evidence build `0.2.368-normal-launch-automation-test` on `SM-F966B`; `branch=public-beta` plus `action=launch` reached the public-beta main menu with matched public-beta PCK/runtime-pack/active `sts2.dll` evidence.
+- Device-proofed the shader warmup status marker: clearing `shader_warmup_version` caused first-run warmup to record a 45-second watchdog warning and then complete with `Rendered 1713 shader warmup materials`, followed by settings/saves and game startup.
+- Preserved Steam Cloud safety during the normal-launch automation test: `last_manual_cloud_push.txt` was missing before and after, no upload markers were logged, and no Push to Cloud was run.
+- Remaining cleanup: shader material/scene scanning still emits noisy Godot error stack traces during warmup even though launch completes; lower-power shader crash reports and controller action behavior still need focused validation.
+
+## 2026-07-05 - Steam auth failure reporting evidence
+
+- Added classified Steam sign-in failure reporting so login exceptions and session-returned auth failures write `last_steam_auth_failure.txt` and show user-actionable status text instead of only raw SteamKit/base exception messages.
+- Included the Steam auth failure marker in Help & Reports diagnostics attachments and full report file lists.
+- Published and installed local ARM64 evidence build `0.2.366-auth-failure-reporting-test` on `SM-F966B`; an invalid local credential handoff was consumed, connected to Steam, failed with `InvalidPassword`, and wrote a `credentials` marker for selected branch `public-beta`.
+- Preserved Steam Cloud safety during the auth test: no `last_manual_cloud_push.txt` marker was created, the existing blocked-push marker was unchanged, and no StS2 Cloud upload path was exercised.
+- Added shader warmup status diagnostics: startup now records the latest warmup phase in `last_shader_warmup_status.txt`, includes it in Help & Reports, and writes a watchdog marker if warmup is still active after 45 seconds.
+
+## 2026-07-05 - Android FMOD bridge and public-beta audio proof
+
+- Added a local Android FMOD Java/JNI bridge so `libfmod.so` can complete its Android platform initialization instead of failing with invalid handles, missing Java SDK methods, or bank-load errors.
+- Published local evidence build `0.2.364-fmod-audio-devices-test` on ARM64 device `SM-F966B`; public-beta reached the Slay the Spire 2 main menu with matched PCK/runtime-pack/source/active `sts2.dll` evidence.
+- Verified FMOD logs now show successful DSP buffer setup, successful FMOD initialization, global 3D settings, and desktop bank loads for `Master.strings.bank`, `Master.bank`, `sfx.bank`, `temp_sfx.bank`, and `ambience.bank`.
+- Preserved Steam Cloud safety during testing: no Push to Cloud was run, upstream Android startup sync was skipped, and the cloud write thread stopped.
+
 ## 2026-07-03 - Public-beta modded launch and release docs
 
 - Published the local-package ARM64 prerelease `v0.2.352-savemerger-compat-local` with APK `StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk` and SHA-256 `25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e`.
 - Updated GitHub-facing status and release notes to make the current public-beta support explicit: the latest tested public-beta payload is `v0.108.0`, selected PCK/runtime-pack evidence matches, runtime patch validation passes, and fallback/gating is not counted as success.
 - Updated Workshop/mod guidance to describe the current state honestly: BaseLib, Quick Restart 2, and manual SavesMerger are selected/scanned in strict public-beta modded validation, but SavesMerger real-save behavior still needs broader tester proof.
 - Added current public feedback priorities from Reddit and GitHub reports: launcher UI scaling/scroll reachability, controller input, shader compile crashes, install/update clarity, and exact-version issue reporting.
+- Added `docs/reddit-post-log.md` to track public Reddit posts, visible comment-derived issue themes, and reusable reply snippets for bug-hunting follow-up.
 - Preserved Steam Cloud safety guidance: no Push to Cloud was performed during validation, and active modded-save risk states remain guarded.
 
 ## 2026-06-29 - GitHub issue reporting forms

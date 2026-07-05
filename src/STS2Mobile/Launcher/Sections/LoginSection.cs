@@ -7,6 +7,7 @@ namespace STS2Mobile.Launcher.Sections;
 internal sealed partial class LoginSection : VBoxContainer
 {
     internal event Action<string, string> LoginRequested;
+    internal event Action<string> StatusRequested;
 
     private readonly LineEdit _usernameField;
     private readonly LineEdit _passwordField;

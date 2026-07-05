@@ -8,7 +8,10 @@ internal sealed partial class LauncherSessionCoordinator
     internal void LoginPressed(string username, string password)
     {
         if (_manualLoginInProgress)
+        {
+            _view.SetStatus("Steam sign-in is already running. Wait for the result or retry after it fails.");
             return;
+        }
 
         LauncherLaunchMarkers.RecordPhase("steam login requested", "Manual login button pressed");
         _manualLoginInProgress = true;

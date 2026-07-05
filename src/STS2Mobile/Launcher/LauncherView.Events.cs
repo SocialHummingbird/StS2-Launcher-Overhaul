@@ -29,6 +29,7 @@ internal sealed partial class LauncherView
     )
     {
         Login.LoginRequested += loginRequested;
+        Login.StatusRequested += SetStatus;
         Code.CodeSubmitted += codeSubmitted;
         Download.DownloadRequested += downloadRequested;
         Download.GameBranchChanged += gameBranchChanged;

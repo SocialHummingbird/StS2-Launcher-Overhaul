@@ -76,6 +76,10 @@ internal sealed partial class ShaderWarmupScreen
                     i,
                     Math.Min(i + BatchSize, total)
                 );
+                WriteWarmupStatus(
+                    "rendering-batch",
+                    $"Rendering shader warmup materials {batch.Start + 1}-{batch.End} of {total}"
+                );
                 var batchNodes = AddBatchNodes(
                     viewport,
                     whiteTexture,

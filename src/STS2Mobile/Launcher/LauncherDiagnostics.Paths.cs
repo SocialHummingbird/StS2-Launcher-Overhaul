@@ -96,6 +96,18 @@ internal static partial class LauncherDiagnostics
             Path.Combine(dataDir, LauncherStorageNames.StartupContext)
         );
 
+    private static DiagnosticFile SteamAuthFailure(string dataDir)
+        => new(
+            "Steam auth failure",
+            Path.Combine(dataDir, LauncherStorageNames.SteamAuthFailure)
+        );
+
+    private static DiagnosticFile ShaderWarmupStatus(string dataDir)
+        => new(
+            "Shader warmup status",
+            Path.Combine(dataDir, LauncherStorageNames.ShaderWarmupStatus)
+        );
+
     private static DiagnosticFile StartupTimeline(string dataDir)
         => new(
             "Startup timeline",
