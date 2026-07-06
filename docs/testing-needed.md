@@ -2,7 +2,7 @@
 
 This project needs focused Android tester reports more than broad "works for me" comments. Good reports help confirm device compatibility, Steam Cloud safety, public/beta branch behavior, and mod loading without exposing Steam account data.
 
-Current APK for tester reports: `v0.2.369-public-beta-stability` / `StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk`.
+Current APK for tester reports: `v0.2.377-shader-warmup-budget` / `StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk`.
 
 ## Current Priority
 

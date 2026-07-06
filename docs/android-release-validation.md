@@ -7,13 +7,13 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
 Current GitHub APK release reference:
 
 ```text
-release=v0.2.369-public-beta-stability
-asset=StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk
-sha256=8d9c57be197964c2a9178587723771878acfac2214ff552e2d2d9e718b055256
+release=v0.2.377-shader-warmup-budget
+asset=StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk
+sha256=66ed9e5712235eeeb5376d57dd6413dd577c834af6563d8c3d055d886341cbac
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.369-public-beta-stability
-versionCode=369001
-validation=build/APK verification, Android crypto patch verification, GitHub release hygiene check, downloaded release APK verification, and GitHub Latest publication. This is a local/test-channel APK for public-beta stability/runtime-pack hardening, FMOD/audio bridge fixes, auth-failure reporting, and shader warmup diagnostics; it is still not broad production release-candidate signoff.
+versionName=0.2.377-shader-warmup-budget
+versionCode=377001
+validation=build/APK verification, Android crypto patch verification, GitHub release hygiene check, downloaded release APK verification, and GitHub Latest publication. This is a local/test-channel APK for public-beta stability/runtime-pack hardening, FMOD/audio bridge fixes, auth-failure reporting, and bounded shader warmup diagnostics; it is still not broad production release-candidate signoff.
 ```
 
 ## 1) Verify workflow outcome
@@ -85,8 +85,8 @@ Checklist: [multi-version runtime release gates](multi-version-runtime-release-g
 ```powershell
 .\scripts\check-github-release-hygiene.ps1 `
   -Repo "SocialHummingbird/StS2-Launcher-Overhaul" `
-  -ReleaseTag "v0.2.369-public-beta-stability" `
-  -AssetName "StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk"
+  -ReleaseTag "v0.2.377-shader-warmup-budget" `
+  -AssetName "StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk"
 
 .\scripts\audit-github-release-inventory.ps1 `
   -Repo "SocialHummingbird/StS2-Launcher-Overhaul" `
@@ -103,8 +103,8 @@ Run the release verifier against the exact release tag and asset:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.369-public-beta-stability" `
-  -AssetName "StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.377-shader-warmup-budget" `
+  -AssetName "StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -124,8 +124,8 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.369-public-beta-stability" `
-  -AssetName "StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.377-shader-warmup-budget" `
+  -AssetName "StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics

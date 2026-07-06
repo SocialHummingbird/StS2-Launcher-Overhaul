@@ -121,15 +121,15 @@ remaining=Shader scanner emits noisy Godot error stack traces for some material/
 Latest GitHub APK release evidence:
 
 ```text
-release=v0.2.369-public-beta-stability
-asset=StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk
-sha256=8d9c57be197964c2a9178587723771878acfac2214ff552e2d2d9e718b055256
+release=v0.2.377-shader-warmup-budget
+asset=StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk
+sha256=66ed9e5712235eeeb5376d57dd6413dd577c834af6563d8c3d055d886341cbac
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.369-public-beta-stability
-versionCode=369001
-validation=Android build/APK verification passed; APK crypto patch verification passed; GitHub release hygiene check passed with matching APK/checksum/metadata/release-body SHA-256; downloaded release APK verification passed; GitHub /releases/latest points at this tag. This release publishes the public-beta stability, FMOD/audio bridge, auth-failure reporting, and shader warmup diagnostics work, and remains a local-package hardening APK rather than broad release-candidate public-package signoff.
+versionName=0.2.377-shader-warmup-budget
+versionCode=377001
+validation=Android build/APK verification passed; APK crypto patch verification passed; GitHub release hygiene check passed with matching APK/checksum/metadata/release-body SHA-256; downloaded release APK verification passed; GitHub /releases/latest points at this tag. This release publishes the public-beta stability, FMOD/audio bridge, auth-failure reporting, and bounded shader warmup work, and remains a local-package hardening APK rather than broad release-candidate public-package signoff.
 cloudSafety=No Push to Cloud was run during the matching public-beta launch validation.
-evidence=GitHub release v0.2.369-public-beta-stability assets and metadata; matching device launch evidence remains artifacts/android/normal-launch-automation-v368-public-beta-valid-20260705-221923, and latest strict Workshop/mod evidence remains the July 3 artifacts listed below.
+evidence=GitHub release v0.2.377-shader-warmup-budget assets and metadata; matching bounded shader evidence remains artifacts/android/shader-warmup-v6-normal-launch-evidence-device-20260706-100947, and latest strict Workshop/mod evidence remains the July 3 artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:
