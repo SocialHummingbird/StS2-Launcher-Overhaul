@@ -62,23 +62,38 @@ internal static class ModLoaderPatches
                 return;
             }
 
-            if (!LauncherModSelectionState.IsModdedMode)
+            var selection = LauncherModSelectionState.Load();
+            if (!LauncherModSelectionState.IsModdedModeFor(selection))
             {
-                WriteModLaunchMarker("vanilla", 0, 0, "Android mod scan skipped by launcher Play Vanilla mode");
+                WriteModLaunchMarker(
+                    "vanilla",
+                    0,
+                    0,
+                    "Android mod scan skipped by launcher Play Vanilla mode",
+                    selection: selection
+                );
                 PatchHelper.Log("[Mods] Android mod scan skipped: launcher Play Vanilla mode is selected");
                 return;
             }
 
-            var loadedRoots = LoadAndroidModRoots(access);
+            var knownMods = LauncherModSelectionState.KnownMods(selection);
+            var loadedRoots = LoadAndroidModRoots(access, knownMods);
             if (loadedRoots == 0)
             {
-                WriteModLaunchMarker("modded", 0, 0, "No Android mod roots were available for scanning");
+                WriteModLaunchMarker(
+                    "modded",
+                    0,
+                    0,
+                    "No Android mod roots were available for scanning",
+                    selection: selection,
+                    knownMods: knownMods
+                );
                 PatchHelper.Log("[Mods] No Android mod roots were available for scanning");
                 return;
             }
 
             access.RebuildLoadedModsCacheIfAvailable();
-            var selectedEnabledMods = LauncherModSelectionState.EnabledModCount();
+            var selectedEnabledMods = LauncherModSelectionState.EnabledModCount(knownMods);
             var loadedMods = access.LoadedModSummaries();
             WriteModLaunchMarker(
                 "modded",
@@ -86,7 +101,9 @@ internal static class ModLoaderPatches
                 loadedMods.Length,
                 "Android mod scan completed with launcher-selected mods",
                 selectedEnabledMods,
-                loadedMods
+                loadedMods,
+                selection,
+                knownMods
             );
         }
         catch (Exception ex)
@@ -101,7 +118,9 @@ internal static class ModLoaderPatches
         int enabledMods,
         string status,
         int? requestedEnabledMods = null,
-        object[] loadedMods = null
+        object[] loadedMods = null,
+        LauncherModSelectionDocument selection = null,
+        IReadOnlyList<LauncherKnownMod> knownMods = null
     )
     {
         try
@@ -120,11 +139,13 @@ internal static class ModLoaderPatches
                 requestedEnabledMods,
                 status,
                 selectionPath = AppPaths.AppPrivateModSelectionPath,
-                workshopModdedSaveCloudPushLocked = LauncherWorkshopModSafety.HasActiveStagedMods(),
+                workshopModdedSaveCloudPushLocked = knownMods == null
+                    ? LauncherWorkshopModSafety.HasActiveStagedMods(selection)
+                    : LauncherModSelectionState.PushShouldBeLocked(knownMods),
                 steamCloudPushPerformed = false,
                 loadedMods = loadedMods ?? Array.Empty<object>(),
                 selectedMods = string.Equals(playMode, "modded", StringComparison.OrdinalIgnoreCase)
-                    ? LauncherModSelectionState.KnownMods()
+                    ? (knownMods ?? LauncherModSelectionState.KnownMods(selection))
                     .Where(mod => mod.Enabled && !mod.IsUnsupported)
                     .Select(mod => new
                     {
@@ -888,12 +909,15 @@ internal static class ModLoaderPatches
         }
     }
 
-    private static int LoadAndroidModRoots(ModManagerAccess access)
+    private static int LoadAndroidModRoots(
+        ModManagerAccess access,
+        IReadOnlyList<LauncherKnownMod> knownMods
+    )
     {
         AppPaths.EnsureWorkshopDirectories();
 
         var loadedRoots = 0;
-        foreach (var root in AndroidModRoots())
+        foreach (var root in AndroidModRoots(knownMods))
         {
             LogModRootSnapshot(root);
             var androidManifestPath = FindAndroidManifestPath(root.Path);
@@ -917,7 +941,7 @@ internal static class ModLoaderPatches
             }
 
             PatchHelper.Log($"[Mods] Scanning {root.Label}: {root.Path}");
-            if (access.LoadModsInRoot(root, dirAccess))
+            if (access.LoadModsInRoot(root, dirAccess, knownMods))
                 loadedRoots++;
         }
 
@@ -991,10 +1015,10 @@ internal static class ModLoaderPatches
         }
     }
 
-    private static IEnumerable<ModRoot> AndroidModRoots()
+    private static IEnumerable<ModRoot> AndroidModRoots(IReadOnlyList<LauncherKnownMod> knownMods)
     {
         var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var mod in LauncherModSelectionState.KnownMods())
+        foreach (var mod in knownMods ?? Array.Empty<LauncherKnownMod>())
         {
             if (!mod.Enabled || mod.IsUnsupported || string.IsNullOrWhiteSpace(mod.Path))
                 continue;
@@ -1126,7 +1150,11 @@ internal static class ModLoaderPatches
             _newModsListType = newModsListType;
         }
 
-        internal bool LoadModsInRoot(ModRoot root, DirAccess dirAccess)
+        internal bool LoadModsInRoot(
+            ModRoot root,
+            DirAccess dirAccess,
+            IReadOnlyList<LauncherKnownMod> knownMods
+        )
         {
             var newMods = CreateNewModsList();
             var scanArguments = BuildScanArguments(root.Path, dirAccess, newMods);
@@ -1144,7 +1172,7 @@ internal static class ModLoaderPatches
                 var discovered = Count(newMods);
 
                 ApplyLoadedAssemblyCompatibilityPatches();
-                var attempted = TryLoadNewMods(newMods);
+                var attempted = TryLoadNewMods(newMods, knownMods);
                 var loadedTotal = CountLoadedMods();
 
                 PatchHelper.Log(
@@ -2018,7 +2046,10 @@ internal static class ModLoaderPatches
             }
         }
 
-        private int TryLoadNewMods(object newMods)
+        private int TryLoadNewMods(
+            object newMods,
+            IReadOnlyList<LauncherKnownMod> knownMods
+        )
         {
             if (_tryLoadMod == null || newMods is not IEnumerable mods)
                 return 0;
@@ -2038,7 +2069,7 @@ internal static class ModLoaderPatches
 
                 try
                 {
-                    if (!IsSelectedForLaunch(mod))
+                    if (!IsSelectedForLaunch(mod, knownMods))
                     {
                         PatchHelper.Log($"[Mods] Skipping disabled launcher-selected mod: {DescribeMod(mod)}");
                         continue;
@@ -2066,15 +2097,18 @@ internal static class ModLoaderPatches
             return attempts;
         }
 
-        private static bool IsSelectedForLaunch(object mod)
+        private static bool IsSelectedForLaunch(
+            object mod,
+            IReadOnlyList<LauncherKnownMod> knownMods
+        )
         {
             if (mod is Mod typedMod)
-                return LauncherModSelectionState.IsPathEnabled(typedMod.path);
+                return LauncherModSelectionState.IsPathEnabled(typedMod.path, knownMods);
 
             var path = TryReadStringMember(mod, "path")
                 ?? TryReadStringMember(mod, "Path")
                 ?? "";
-            return LauncherModSelectionState.IsPathEnabled(path);
+            return LauncherModSelectionState.IsPathEnabled(path, knownMods);
         }
 
         private static string DescribeMod(object mod)

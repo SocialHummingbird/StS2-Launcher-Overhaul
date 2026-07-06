@@ -12,6 +12,7 @@ internal static partial class LauncherGameFiles
     internal static void DeleteDownloadedState(string dataDir, string branch)
     {
         branch = SteamGameBranch.Normalize(branch);
+        LauncherLaunchReadinessCache.Clear($"downloaded state deleted for {branch}");
         var gameDirectory = GameDirectoryPath(dataDir, branch);
         var downloadStateDirectory = SteamGameInstallPaths.DownloadStateDirectoryPath(dataDir, branch);
         var runtimePackDirectory = GameRuntimeSlot.RuntimePackDirectoryPath(dataDir, branch);

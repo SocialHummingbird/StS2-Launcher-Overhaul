@@ -6,17 +6,17 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
-    private async Task CheckForUpdatesWithConnectionAsync(SteamConnection connection)
+    private async Task CheckForUpdatesWithConnectionAsync(SteamConnection connection, string branch)
     {
         try
         {
-            using var downloader = CreateDownloader(connection);
+            using var downloader = CreateDownloader(connection, branch);
             bool hasUpdate = await downloader.CheckForUpdatesAsync().ConfigureAwait(false);
-            RaiseUpdateCheckCompleted(hasUpdate);
+            RaiseUpdateCheckCompleted(branch, hasUpdate);
         }
         catch (Exception ex)
         {
-            RaiseUpdateCheckFailed(ex.Message);
+            RaiseUpdateCheckFailed(branch, ex.Message);
         }
     }
 

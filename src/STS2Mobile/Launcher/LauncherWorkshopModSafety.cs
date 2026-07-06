@@ -12,6 +12,12 @@ internal static class LauncherWorkshopModSafety
     internal static bool HasActiveStagedMods()
         => LauncherModSelectionState.PushShouldBeLocked();
 
+    internal static bool HasActiveStagedMods(LauncherModSelectionDocument document)
+        => LauncherModSelectionState.PushShouldBeLocked(document);
+
+    internal static bool HasActiveSelectedMods(int enabledModCount)
+        => enabledModCount > 0;
+
     internal static int ActiveSelectedModCount()
         => LauncherModSelectionState.EnabledModCount();
 

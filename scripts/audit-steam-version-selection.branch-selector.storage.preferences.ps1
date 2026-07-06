@@ -32,6 +32,7 @@ function Add-SteamVersionSelectionBranchSelectorStoragePreferenceChecks {
             "CloudSyncEnabled",
             "GameBranch",
             "ReadActionPreferences",
+            "ReadActionPreferences\(string gameBranch\)",
             "LoadAndApplyActionPreferences"
         )
 

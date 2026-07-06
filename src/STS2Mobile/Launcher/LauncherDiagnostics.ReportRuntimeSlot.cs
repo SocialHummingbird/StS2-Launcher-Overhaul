@@ -4,9 +4,14 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherDiagnostics
 {
-    private static void AppendGameRuntimeSlot(StringBuilder sb, string dataDir, string branch)
+    private static void AppendGameRuntimeSlot(
+        StringBuilder sb,
+        string dataDir,
+        string branch,
+        LauncherLaunchReadiness launchReadiness
+    )
     {
-        var slot = GameRuntimeSlot.Inspect(dataDir, branch);
+        var slot = launchReadiness?.RuntimeSlot ?? GameRuntimeSlot.Inspect(dataDir, branch);
 
         AppendRuntimeSlotSummary(sb, dataDir, branch, slot);
         AppendRuntimeSlotSelectedFiles(sb, slot);

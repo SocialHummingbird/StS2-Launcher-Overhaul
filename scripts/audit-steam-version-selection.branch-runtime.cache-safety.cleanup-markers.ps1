@@ -62,4 +62,18 @@ function Add-SteamVersionSelectionBranchRuntimeCacheCleanupMarkerChecks {
             "CacheCleanupMarkerSelectedRuntimePackPresentBeforeCleanupPrefix",
             "CacheCleanupMarkerRuntimePacksDirectoryPresentPrefix"
         )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherGameFiles.CacheCleanup.cs" `
+        "does not clear selected launch readiness when inactive cleanup preserves selected cache/runtime state" `
+        @(
+            "LauncherLaunchReadinessCache\.Clear"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherDownloadCoordinator.Actions.cs" `
+        "does not clear selected launch readiness from the inactive-cache cleanup action" `
+        @(
+            "inactive version caches cleared"
+        )
 }

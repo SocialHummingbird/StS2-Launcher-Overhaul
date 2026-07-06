@@ -12,7 +12,7 @@ internal static partial class LauncherDiagnostics
             string dataDir,
             string accountName,
             bool hasSavedCredentials,
-            bool gameFilesReady,
+            LauncherLaunchReadiness launchReadiness,
             string sessionState,
             string failReason
         )
@@ -21,7 +21,7 @@ internal static partial class LauncherDiagnostics
                 dataDir,
                 accountName,
                 hasSavedCredentials,
-                gameFilesReady,
+                launchReadiness,
                 sessionState,
                 failReason
             );
@@ -43,7 +43,7 @@ internal static partial class LauncherDiagnostics
         {
             AppendPublicSharingWarning(sb);
             AppendLauncherState(sb, LauncherStateDetail.Detailed);
-            AppendLauncherPreferences(sb, _state.DataDir);
+            AppendLauncherPreferences(sb, _state.DataDir, _state.LaunchReadiness);
             AppendFullReportDiagnostics(sb, _state.DataDir);
         }
     }

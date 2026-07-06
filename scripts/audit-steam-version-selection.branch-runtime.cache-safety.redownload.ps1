@@ -5,6 +5,7 @@ function Add-SteamVersionSelectionBranchRuntimeRedownloadCleanupChecks {
         @(
             "DeleteDownloadedState",
             "SteamGameBranch\.Normalize",
+            "LauncherLaunchReadinessCache\.Clear\(\$""downloaded state deleted for \{branch\}""\)",
             "GameDirectoryPath\(dataDir, branch\)",
             "SteamGameInstallPaths\.DownloadStateDirectoryPath\(dataDir, branch\)",
             "GameRuntimeSlot\.RuntimePackDirectoryPath\(dataDir, branch\)",

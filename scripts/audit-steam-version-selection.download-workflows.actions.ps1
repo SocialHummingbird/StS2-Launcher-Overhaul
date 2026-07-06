@@ -26,6 +26,20 @@ function Add-SteamVersionSelectionDownloadWorkflowActionChecks {
         )
 
     Add-Check `
+        "src\STS2Mobile\Launcher\LauncherDownloadCoordinator.Execution.cs" `
+        "keeps post-download runtime validation failures visible and retryable" `
+        @(
+            "try",
+            "RefreshSelectedRuntimeSlotEvidence\(branch\)",
+            "catch \(Exception ex\)",
+            "RuntimeValidationFailureMessage\(branch, ex\)",
+            "game download runtime validation failed",
+            "DownloadViewUpdate\.Completed\(",
+            "filesReady: false",
+            "Redownload selected version"
+        )
+
+    Add-Check `
         "src\STS2Mobile\Launcher\LauncherDownloadCoordinator.Actions.cs" `
         "labels redownload and cache confirmations with explicit compact actions" `
         @(

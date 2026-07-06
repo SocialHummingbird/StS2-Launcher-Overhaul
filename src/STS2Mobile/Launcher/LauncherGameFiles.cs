@@ -1,5 +1,4 @@
 using System.IO;
-using Godot;
 using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
@@ -14,6 +13,4 @@ internal static partial class LauncherGameFiles
 
     internal static string GameDirectoryPath(string dataDir, string branch) =>
         SteamGameInstallPaths.GameDirectory(dataDir, branch);
-
-    internal static bool Ready() => Ready(OS.GetDataDir());
 }

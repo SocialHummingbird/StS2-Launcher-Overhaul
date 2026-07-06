@@ -47,9 +47,12 @@ function Add-SteamVersionSelectionBranchRuntimeMarkerReadinessChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherGameFiles.Readiness.cs" `
-        "reports readiness failure when selected branch metadata is unsafe" `
+        "reports downloaded-state failure when selected branch metadata is unsafe without runtime inspection" `
         @(
-            "ReadinessProblem",
-            "HasBranchMetadataProblem"
+            "ValidateDownloadedStateForLaunch",
+            "DownloadedForValidation",
+            "BranchMarkerReady\(dataDir, branch\)",
+            "Selected game version has missing or mismatched branch metadata",
+            "DownloadValidationResult\.Blocked"
         )
 }

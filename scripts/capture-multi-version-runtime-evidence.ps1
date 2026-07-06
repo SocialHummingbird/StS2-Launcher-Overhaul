@@ -13,6 +13,7 @@ $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "android-shell-utils.ps1")
 . (Join-Path $PSScriptRoot "evidence-marker-utils.ps1")
 . (Join-Path $PSScriptRoot "evidence-report-utils.ps1")
+. (Join-Path $PSScriptRoot "evidence-launch-attempt-phases.ps1")
 . (Join-Path $PSScriptRoot "capture-multi-version-runtime-evidence.helpers.ps1")
 $AdbPath = Resolve-AndroidAdbPath -AdbPath $AdbPath
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -49,17 +50,84 @@ Do not publicly attach full diagnostics without manual review.
 "@
 Save-Text -Path (Join-Path $outputDir "ARTIFACT_HYGIENE.txt") -Text $artifactHygiene
 
+function Test-LaunchReadinessCacheStatus([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    return @(
+        "fresh",
+        "fresh-cached",
+        "memory-cache-hit"
+    ) -contains $Value.Trim().ToLowerInvariant()
+}
+
+function Test-ModReadinessCacheStatus([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    return @(
+        "not-needed-vanilla",
+        "fresh",
+        "fresh-cached",
+        "memory-cache-hit"
+    ) -contains $Value.Trim().ToLowerInvariant()
+}
+
+function Test-LaunchTimingValue([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    $parsed = 0
+    return [int]::TryParse($Value.Trim(), [ref]$parsed) -and $parsed -ge 0
+}
+
+function Test-LaunchAttemptId([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    return $Value.Trim() -match '^[0-9a-fA-F]{32}$'
+}
+
+function Test-ModPlayMode([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    return @("vanilla", "modded") -contains $Value.Trim().ToLowerInvariant()
+}
+
+function Test-BoolText([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    return @("true", "false") -contains $Value.Trim().ToLowerInvariant()
+}
+
+function Test-NonNegativeIntText([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    $parsed = 0
+    return [int]::TryParse($Value.Trim(), [ref]$parsed) -and $parsed -ge 0
+}
+
 Save-AdbText -Path (Join-Path $logsDir "adb-devices.txt") -Arguments @("devices", "-l") -AllowFailure
 Save-AdbText -Path (Join-Path $diagnosticsDir "package.txt") -Arguments @("shell", "dumpsys", "package", $PackageName) -AllowFailure
 Save-RunAsText -Path (Join-Path $diagnosticsDir "run-as-pwd.txt") -Command "pwd" -AllowFailure
 
-$markerFind = "find files -maxdepth 8 -type f \( -name 'steam_branch.txt' -o -name 'release_info.json' -o -name 'compatibility.json' -o -name 'patch_validation.json' -o -name '.android_patch_validation.json' -o -name 'current_runtime_slot.json' -o -name 'current_runtime_cache.txt' -o -name 'current_android_save_origin.txt' -o -name 'last_runtime_patch_validation.json' -o -name 'last_manual_cloud_pull.txt' -o -name 'last_manual_cloud_push.txt' -o -name 'last_manual_cloud_push_blocked.txt' -o -name 'last_game_branch_switch.txt' -o -name 'last_game_version_cache_cleanup.txt' -o -name 'last_game_version_redownload.txt' \) -print 2>/dev/null | sort"
+$markerFind = "find files -maxdepth 8 -type f \( -name 'steam_branch.txt' -o -name 'release_info.json' -o -name 'compatibility.json' -o -name 'patch_validation.json' -o -name '.android_patch_validation.json' -o -name 'current_runtime_slot.json' -o -name 'current_runtime_cache.txt' -o -name 'current_android_save_origin.txt' -o -name 'last_runtime_patch_validation.json' -o -name 'last_launch_attempt.txt' -o -name 'last_manual_cloud_pull.txt' -o -name 'last_manual_cloud_push.txt' -o -name 'last_manual_cloud_push_blocked.txt' -o -name 'last_game_branch_switch.txt' -o -name 'last_game_version_cache_cleanup.txt' -o -name 'last_game_version_redownload.txt' \) -print 2>/dev/null | sort"
 Save-RunAsText -Path (Join-Path $diagnosticsDir "runtime-marker-files.txt") -Command $markerFind -AllowFailure
 
 $markerDump = "$markerFind | while IFS= read -r f; do echo `"===== `$f`"; sed -n '1,160p' `"`$f`" 2>/dev/null || true; done"
 Save-RunAsText -Path (Join-Path $diagnosticsDir "runtime-marker-contents.txt") -Command $markerDump -AllowFailure
 
-$hashCommand = "find files -maxdepth 9 -type f \( -name 'SlayTheSpire2.pck' -o -name 'sts2.dll' -o -name 'compatibility.json' -o -name 'patch_validation.json' -o -name '.android_patch_validation.json' -o -name 'current_runtime_slot.json' -o -name 'current_runtime_cache.txt' -o -name 'last_runtime_patch_validation.json' \) -print -exec sha256sum '{}' \; -exec ls -l '{}' \; 2>/dev/null | sort"
+$hashCommand = "find files -maxdepth 9 -type f \( -name 'SlayTheSpire2.pck' -o -name 'sts2.dll' -o -name 'compatibility.json' -o -name 'patch_validation.json' -o -name '.android_patch_validation.json' -o -name 'current_runtime_slot.json' -o -name 'current_runtime_cache.txt' -o -name 'last_runtime_patch_validation.json' -o -name 'last_launch_attempt.txt' \) -print -exec sha256sum '{}' \; -exec ls -l '{}' \; 2>/dev/null | sort"
 Save-RunAsText -Path (Join-Path $diagnosticsDir "runtime-hashes.txt") -Command $hashCommand -AllowFailure
 
 $treeCommand = "find files/game files/game_versions files/runtime_packs files/.godot/mono/publish -maxdepth 5 -print 2>/dev/null | sort"
@@ -78,14 +146,17 @@ if ($IncludeRawLogcat) {
 }
 
 $runtimeValidationText = Invoke-RunAsText -Command "cat files/last_runtime_patch_validation.json 2>/dev/null || true" -AllowFailure
+$launchAttemptText = Invoke-RunAsText -Command "cat files/last_launch_attempt.txt 2>/dev/null || true" -AllowFailure
 $runtimeSlotText = Invoke-RunAsText -Command "cat files/current_runtime_slot.json 2>/dev/null || true" -AllowFailure
 $runtimeCacheText = Invoke-RunAsText -Command "cat files/current_runtime_cache.txt 2>/dev/null || true" -AllowFailure
 $saveOriginText = Invoke-RunAsText -Command "cat files/current_android_save_origin.txt 2>/dev/null || true" -AllowFailure
 $runtimeValidationPath = Join-Path $diagnosticsDir "last_runtime_patch_validation.json"
+$launchAttemptPath = Join-Path $diagnosticsDir "last_launch_attempt.txt"
 $runtimeSlotPath = Join-Path $diagnosticsDir "current_runtime_slot.json"
 $runtimeCachePath = Join-Path $diagnosticsDir "current_runtime_cache.txt"
 $saveOriginPath = Join-Path $diagnosticsDir "current_android_save_origin.txt"
 Save-Text -Path $runtimeValidationPath -Text $runtimeValidationText
+Save-Text -Path $launchAttemptPath -Text $launchAttemptText
 Save-Text -Path $runtimeSlotPath -Text $runtimeSlotText
 Save-Text -Path $runtimeCachePath -Text $runtimeCacheText
 Save-Text -Path $saveOriginPath -Text $saveOriginText
@@ -106,6 +177,29 @@ $runtimePackDirectory = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix
 $runtimeCachePck = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Selected PCK SHA256:"
 $runtimeCacheSelectedSource = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Selected source sts2.dll SHA256:"
 $runtimeCachePublishAssembly = Read-MarkerValueFromText -Text $runtimeCacheText -Prefix "Publish cache active sts2.dll SHA256:"
+$launchAttemptUtc = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "UTC:"
+$launchAttemptId = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Attempt ID:"
+$launchAttemptPhase = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Phase:"
+$launchAttemptAction = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Action:"
+$launchAttemptSourceKind = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Source:"
+$launchAttemptReady = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Files ready:"
+$launchAttemptPrepared = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Prepared readiness used:"
+$launchAttemptCacheStatus = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Readiness cache status:"
+$launchAttemptElapsed = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Launch attempt elapsed ms:"
+$launchAttemptReadinessElapsed = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Launch readiness elapsed ms:"
+$launchAttemptModElapsed = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Mod readiness elapsed ms:"
+$launchAttemptModCacheStatus = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Mod readiness cache status:"
+$launchAttemptModPlayMode = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Mod play mode:"
+$launchAttemptModEnabledCount = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Mod enabled count:"
+$launchAttemptModdedSaveCloudPushLocked = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Modded save cloud push locked:"
+$launchAttemptBranch = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Selected branch:"
+$launchAttemptPck = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "PCK SHA256:"
+$launchAttemptSource = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Source sts2.dll SHA256:"
+$launchAttemptActive = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Active Android sts2.dll SHA256:"
+$launchAttemptRuntimePackUsable = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Runtime pack usable:"
+$launchAttemptRuntimeCacheMarkerPresent = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Runtime cache marker present:"
+$launchAttemptRuntimePatchValidationMarkerPresent = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Runtime patch validation marker present:"
+$launchAttemptSuccessfulPhase = Test-SuccessfulLaunchAttemptPhase -Phase $launchAttemptPhase
 $saveOriginAction = Read-MarkerValueFromText -Text $saveOriginText -Prefix "Origin action:"
 $saveOriginBranch = Read-MarkerValueFromText -Text $saveOriginText -Prefix "Selected branch:"
 $saveOriginRuntimeSlotId = Read-MarkerValueFromText -Text $saveOriginText -Prefix "Selected runtime slot ID:"
@@ -143,6 +237,51 @@ $validationLines.Add("This report is generated from captured evidence only. It d
 $validationLines.Add("")
 $validationLines.Add("| Area | Status | Evidence | Required next action |")
 $validationLines.Add("| --- | --- | --- | --- |")
+
+$launchAttemptCaptured = -not [string]::IsNullOrWhiteSpace($launchAttemptText) -and $launchAttemptText -match "StS2 Mobile launch attempt"
+$launchAttemptPreparedReady = "$launchAttemptPrepared" -eq "true" -or "$launchAttemptPrepared" -eq "True"
+$launchAttemptReadyState = "$launchAttemptReady" -eq "true" -or "$launchAttemptReady" -eq "True"
+$launchAttemptIdValid = Test-LaunchAttemptId -Value $launchAttemptId
+$launchAttemptMeasuredTimings = (Test-LaunchTimingValue -Value $launchAttemptElapsed) `
+    -and (Test-LaunchTimingValue -Value $launchAttemptReadinessElapsed) `
+    -and (Test-LaunchTimingValue -Value $launchAttemptModElapsed)
+$launchAttemptConcreteCache = Test-LaunchReadinessCacheStatus -Value $launchAttemptCacheStatus
+$launchAttemptConcreteModState = (Test-ModReadinessCacheStatus -Value $launchAttemptModCacheStatus) `
+    -and (Test-ModPlayMode -Value $launchAttemptModPlayMode) `
+    -and (Test-NonNegativeIntText -Value $launchAttemptModEnabledCount) `
+    -and (Test-BoolText -Value $launchAttemptModdedSaveCloudPushLocked)
+$launchAttemptProofReady = $launchAttemptPreparedReady `
+    -and $launchAttemptIdValid `
+    -and $launchAttemptReadyState `
+    -and $launchAttemptSuccessfulPhase `
+    -and $launchAttemptMeasuredTimings `
+    -and $launchAttemptConcreteCache `
+    -and $launchAttemptConcreteModState
+if ($launchAttemptCaptured) {
+    if ($launchAttemptProofReady) {
+        Add-ValidationRow -Lines $validationLines -Area "Start Game launch-attempt marker" -Status "captured" -Evidence "id=$launchAttemptId; idValid=$launchAttemptIdValid; utc=$launchAttemptUtc; phase=$launchAttemptPhase; action=$launchAttemptAction; launchSource=$launchAttemptSourceKind; ready=$launchAttemptReady; prepared=$launchAttemptPrepared; cache=$launchAttemptCacheStatus; attemptMs=$launchAttemptElapsed; readinessMs=$launchAttemptReadinessElapsed; modMs=$launchAttemptModElapsed; modCache=$launchAttemptModCacheStatus; playMode=$launchAttemptModPlayMode; enabledMods=$launchAttemptModEnabledCount; moddedCloudPushLocked=$launchAttemptModdedSaveCloudPushLocked" -RequiredNextAction "Use with runtime/cache evidence to prove the explicit Start Game path used prepared readiness."
+    } else {
+        Add-ValidationRow -Lines $validationLines -Area "Start Game launch-attempt marker" -Status "blocked" -Evidence "id=$launchAttemptId; idValid=$launchAttemptIdValid; utc=$launchAttemptUtc; phase=$launchAttemptPhase; action=$launchAttemptAction; launchSource=$launchAttemptSourceKind; successfulPhase=$launchAttemptSuccessfulPhase; ready=$launchAttemptReady; prepared=$launchAttemptPrepared; cache=$launchAttemptCacheStatus; measuredTimings=$launchAttemptMeasuredTimings; modCache=$launchAttemptModCacheStatus; playMode=$launchAttemptModPlayMode; enabledMods=$launchAttemptModEnabledCount; moddedCloudPushLocked=$launchAttemptModdedSaveCloudPushLocked" -RequiredNextAction "Inspect diagnostics/last_launch_attempt.txt before treating this launch as playable evidence."
+    }
+} else {
+    Add-ValidationRow -Lines $validationLines -Area "Start Game launch-attempt marker" -Status "missing" -Evidence "last_launch_attempt.txt missing or unreadable" -RequiredNextAction "Press Start Game once with this build and recapture evidence."
+}
+
+if ($launchAttemptCaptured -and $launchAttemptProofReady -and $runtimeValidation) {
+    $launchAttemptBranchMatchesRuntime = -not [string]::IsNullOrWhiteSpace($launchAttemptBranch) -and "$launchAttemptBranch" -eq "$($runtimeValidation.selectedBranch)"
+    $launchAttemptPckMatchesRuntime = -not [string]::IsNullOrWhiteSpace($launchAttemptPck) -and "$launchAttemptPck" -eq "$($runtimeValidation.selectedPckSha256)"
+    $launchAttemptSourceMatchesRuntime = -not [string]::IsNullOrWhiteSpace($launchAttemptSource) -and "$launchAttemptSource" -eq "$($runtimeValidation.selectedSourceAssemblySha256)"
+    $launchAttemptActiveMatchesRuntime = -not [string]::IsNullOrWhiteSpace($launchAttemptActive) -and "$launchAttemptActive" -eq "$($runtimeValidation.activeAndroidAssemblySha256)"
+    if ($launchAttemptBranchMatchesRuntime -and $launchAttemptPckMatchesRuntime -and $launchAttemptSourceMatchesRuntime -and $launchAttemptActiveMatchesRuntime) {
+        Add-ValidationRow -Lines $validationLines -Area "Launch attempt matches runtime validation" -Status "matched" -Evidence "branch=$launchAttemptBranch; pck=$launchAttemptPck; source=$launchAttemptSource; active=$launchAttemptActive; runtimePackUsable=$launchAttemptRuntimePackUsable; cacheMarker=$launchAttemptRuntimeCacheMarkerPresent; patchMarker=$launchAttemptRuntimePatchValidationMarkerPresent" -RequiredNextAction "Use this as proof that Start Game readiness and launch-time runtime validation describe the same runtime."
+    } else {
+        Add-ValidationRow -Lines $validationLines -Area "Launch attempt matches runtime validation" -Status "mismatch" -Evidence "branchMatches=$launchAttemptBranchMatchesRuntime; pckMatches=$launchAttemptPckMatchesRuntime; sourceMatches=$launchAttemptSourceMatchesRuntime; activeMatches=$launchAttemptActiveMatchesRuntime; launchBranch=$launchAttemptBranch; runtimeBranch=$($runtimeValidation.selectedBranch); launchPck=$launchAttemptPck; runtimePck=$($runtimeValidation.selectedPckSha256)" -RequiredNextAction "Treat launch evidence as stale or mixed until Start Game is rerun and evidence is recaptured."
+    }
+} elseif ($launchAttemptCaptured -and -not $launchAttemptProofReady) {
+    Add-ValidationRow -Lines $validationLines -Area "Launch attempt matches runtime validation" -Status "not-launched" -Evidence "phase=$launchAttemptPhase; successfulPhase=$launchAttemptSuccessfulPhase; measuredTimings=$launchAttemptMeasuredTimings; cache=$launchAttemptCacheStatus; modCache=$launchAttemptModCacheStatus; launchBranch=$launchAttemptBranch; launchPck=$launchAttemptPck; launchActive=$launchAttemptActive" -RequiredNextAction "Rerun Start Game until the marker records restart requested, safe android restart requested, or in-process signalled with concrete cache state and measured timing."
+} elseif ($launchAttemptCaptured) {
+    Add-ValidationRow -Lines $validationLines -Area "Launch attempt matches runtime validation" -Status "needs-runtime-validation" -Evidence "launchBranch=$launchAttemptBranch; launchPck=$launchAttemptPck; launchActive=$launchAttemptActive" -RequiredNextAction "Launch selected branch fully and recapture last_runtime_patch_validation.json."
+}
 
 if ($runtimeSlotEvidence) {
     if ("$($runtimeSlotEvidence.filesReady)" -eq "True" -or "$($runtimeSlotEvidence.filesReady)" -eq "true") {
@@ -318,6 +457,7 @@ if ($runtimeValidation -and -not [string]::IsNullOrWhiteSpace($saveOriginText) -
 $validationLines.Add("")
 $validationLines.Add("Required evidence files:")
 $validationLines.Add("- diagnostics/last_runtime_patch_validation.json")
+$validationLines.Add("- diagnostics/last_launch_attempt.txt")
 $validationLines.Add("- diagnostics/current_runtime_slot.json")
 $validationLines.Add("- diagnostics/current_runtime_cache.txt")
 $validationLines.Add("- diagnostics/current_android_save_origin.txt")
@@ -371,6 +511,31 @@ if ($runtimeValidation) {
 }
 
 $summaryLines.Add("")
+if ($launchAttemptCaptured) {
+    $summaryLines.Add("Launch attempt UTC: $launchAttemptUtc")
+    $summaryLines.Add("Launch attempt ID: $launchAttemptId")
+    $summaryLines.Add("Launch attempt phase: $launchAttemptPhase")
+    $summaryLines.Add("Launch attempt action: $launchAttemptAction")
+    $summaryLines.Add("Launch attempt source: $launchAttemptSourceKind")
+    $summaryLines.Add("Launch attempt successful handoff phase: $launchAttemptSuccessfulPhase")
+    $summaryLines.Add("Launch attempt ready: $launchAttemptReady")
+    $summaryLines.Add("Launch attempt prepared readiness used: $launchAttemptPrepared")
+    $summaryLines.Add("Launch attempt readiness cache status: $launchAttemptCacheStatus")
+    $summaryLines.Add("Launch attempt selected branch: $launchAttemptBranch")
+    $summaryLines.Add("Launch attempt PCK SHA256: $launchAttemptPck")
+    $summaryLines.Add("Launch attempt source sts2.dll SHA256: $launchAttemptSource")
+    $summaryLines.Add("Launch attempt active Android sts2.dll SHA256: $launchAttemptActive")
+    $summaryLines.Add("Launch attempt timings ms: attempt=$launchAttemptElapsed readiness=$launchAttemptReadinessElapsed mod=$launchAttemptModElapsed")
+    $summaryLines.Add("Launch attempt timing measured: $launchAttemptMeasuredTimings")
+    $summaryLines.Add("Launch attempt mod readiness cache status: $launchAttemptModCacheStatus")
+    $summaryLines.Add("Launch attempt mod play mode: $launchAttemptModPlayMode")
+    $summaryLines.Add("Launch attempt enabled mod count: $launchAttemptModEnabledCount")
+    $summaryLines.Add("Launch attempt modded-save Cloud Push locked: $launchAttemptModdedSaveCloudPushLocked")
+} else {
+    $summaryLines.Add("Launch attempt marker: missing")
+}
+
+$summaryLines.Add("")
 if (-not [string]::IsNullOrWhiteSpace($saveOriginText)) {
     $summaryLines.Add("Save origin action: $saveOriginAction")
     $summaryLines.Add("Save origin branch: $saveOriginBranch")
@@ -388,6 +553,7 @@ $summaryLines.Add("- diagnostics/runtime-marker-files.txt")
 $summaryLines.Add("- diagnostics/runtime-marker-contents.txt")
 $summaryLines.Add("- diagnostics/runtime-hashes.txt")
 $summaryLines.Add("- diagnostics/runtime-tree.txt")
+$summaryLines.Add("- diagnostics/last_launch_attempt.txt")
 $summaryLines.Add("- diagnostics/current_runtime_slot.json")
 $summaryLines.Add("- diagnostics/selected_runtime_pack_compatibility.json")
 $summaryLines.Add("- diagnostics/selected_runtime_pack_patch_validation.json")
@@ -399,6 +565,7 @@ $summaryLines.Add("- See validation-report.md for the mixed/split asset hypothes
 $summaryLines.Add("")
 $summaryLines.Add("Classification guidance:")
 $summaryLines.Add("- If selected branch, selected PCK hash, runtime pack ID/status, and active Android sts2.dll hash all line up, launcher routing/cache bleed is unlikely.")
+$summaryLines.Add("- If the Start Game launch-attempt marker is missing or does not use prepared readiness, rerun Start Game before using this artifact as startup-refactor evidence.")
 $summaryLines.Add("- If canonical slot binding to native cache identity is unbound, do not use native cache evidence to classify branch bleed.")
 $summaryLines.Add("- If runtime patch validation is critical_failed, inspect failureMessages before treating assets or saves as the cause.")
 $summaryLines.Add("- If selected runtime-pack manifest slot/hash evidence does not match the runtime validation marker, reject the runtime pack and rebuild it.")

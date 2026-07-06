@@ -4,14 +4,14 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
-    private void RaiseDownloadCompleted()
-        => Raise(DownloadCompleted, nameof(DownloadCompleted));
+    private void RaiseDownloadCompleted(string branch)
+        => Raise(DownloadCompleted, branch, nameof(DownloadCompleted));
 
-    private void RaiseDownloadCancelled()
-        => Raise(DownloadCancelled, nameof(DownloadCancelled));
+    private void RaiseDownloadCancelled(string branch)
+        => Raise(DownloadCancelled, branch, nameof(DownloadCancelled));
 
-    private void RaiseDownloadFailed(string message)
-        => Raise(DownloadFailed, message, nameof(DownloadFailed));
+    private void RaiseDownloadFailed(string branch, string message)
+        => Raise(DownloadFailed, new LauncherBranchOperationFailure(branch, message), nameof(DownloadFailed));
 
     private void RaiseDownloadLogReceived(string message)
         => Raise(DownloadLogReceived, message, nameof(DownloadLogReceived));
@@ -19,11 +19,11 @@ internal partial class LauncherModel
     private void RaiseDownloadProgressChanged(DepotDownloader.DownloadProgress progress)
         => Raise(DownloadProgressChanged, progress, nameof(DownloadProgressChanged));
 
-    private void RaiseUpdateCheckCompleted(bool hasUpdate)
-        => Raise(UpdateCheckCompleted, hasUpdate, nameof(UpdateCheckCompleted));
+    private void RaiseUpdateCheckCompleted(string branch, bool hasUpdate)
+        => Raise(UpdateCheckCompleted, new LauncherUpdateCheckResult(branch, hasUpdate), nameof(UpdateCheckCompleted));
 
-    private void RaiseUpdateCheckFailed(string message)
-        => Raise(UpdateCheckFailed, message, nameof(UpdateCheckFailed));
+    private void RaiseUpdateCheckFailed(string branch, string message)
+        => Raise(UpdateCheckFailed, new LauncherBranchOperationFailure(branch, message), nameof(UpdateCheckFailed));
 
     private void RaiseBranchCatalogRefreshCompleted()
         => Raise(BranchCatalogRefreshCompleted, nameof(BranchCatalogRefreshCompleted));

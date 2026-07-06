@@ -76,12 +76,14 @@ internal sealed partial class LauncherDownloadCoordinator
 
     private void ApplyRedownload()
     {
+        LauncherLaunchReadinessCache.Clear("selected version redownload requested");
         _model.ResetGameFilesForRedownload();
         DownloadViewUpdate.RedownloadApplied().Apply(_view, _launch);
     }
 
     private void ApplyRedownloadAndDownload()
     {
+        LauncherLaunchReadinessCache.Clear("selected version redownload and download requested");
         _model.ResetGameFilesForRedownload();
         _view.SetStatus("Selected game version metadata cache cleared. Rebuilding selected version from Steam...");
         _view.AppendLog("Selected game version metadata cache cleared before replacement download.");
@@ -90,6 +92,7 @@ internal sealed partial class LauncherDownloadCoordinator
 
     private void ApplyRedownloadBlockedByBranchProblem(string downloadProblem)
     {
+        LauncherLaunchReadinessCache.Clear("selected version cache cleared while download remains blocked");
         _model.ResetGameFilesForRedownload();
         _view.SetStatus(downloadProblem);
         _view.AppendLog("Selected game version cache cleared, but replacement download remains blocked by Steam branch availability evidence.");

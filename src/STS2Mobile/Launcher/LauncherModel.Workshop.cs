@@ -42,6 +42,7 @@ internal partial class LauncherModel
             WorkshopModConsent.Clear();
             var stager = new SteamWorkshopStager();
             var removed = stager.ClearStagedMods();
+            LauncherModSelectionState.ClearKnownModsCache("workshop staged mods cleared");
             RaiseWorkshopSyncLogReceived(
                 $"Workshop mods cleared: removed {removed} staged mod entries; Steam Cloud Push was not run."
             );
@@ -62,6 +63,7 @@ internal partial class LauncherModel
         var service = new SteamWorkshopSyncService(connection);
         service.LogMessage += RaiseWorkshopSyncLogReceived;
         var manifest = await service.SyncAsync().ConfigureAwait(false);
+        LauncherModSelectionState.ClearKnownModsCache("workshop sync completed");
         var summary = WorkshopSyncSummary(manifest);
         RaiseWorkshopSyncLogReceived(summary);
         RaiseWorkshopSyncCompleted(summary);

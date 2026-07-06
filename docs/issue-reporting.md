@@ -4,6 +4,10 @@ Good StS2 Mobile reports include enough evidence to separate launcher bugs, Stea
 
 Current recurring report themes are launcher UI scaling/scroll reachability, shader compile crashes or stalls, controller input on Android handhelds, public-beta/core branch freshness, and SavesMerger save usability. These are useful reports when they include exact APK, device, branch, mod, screenshot, and focused log details.
 
+For Start Game failures, include `last_launch_attempt.txt` when available. Current source builds write a per-press attempt ID, selected branch, ready/blocked state, runtime slot ID, selected PCK path/hash, source and active `sts2.dll` paths/hashes, runtime pack path/status, runtime cache marker path/presence, runtime patch-validation marker path/presence, patch compatibility marker path/status, whether the launch used the prepared readiness result rather than repeating primary-path validation, whether that readiness came from a fresh check or a safe in-memory cache hit, and elapsed timing for total launch attempt, selected-version readiness, and mod readiness. Modded starts also include play mode, enabled mod count, selected mods, selector cache status, whether modded-save Cloud Push was locked, and cache evidence that invalidates when selector metadata, Workshop metadata, or staged/manual mod file metadata changes.
+
+When the launcher detects that the previous game startup failed, it now reads `last_launch_attempt.txt` and adds a short targeted recovery hint to the launcher log. Include that text in issue reports when available.
+
 ## Choose The Right Template
 
 | Problem | Template |
@@ -35,7 +39,7 @@ For launcher layout reports, include whether the Start Game/Play button is reach
 
 For controller reports, include controller/device model, connection mode, whether launcher navigation works, whether in-game actions work, and whether the result differs in vanilla versus modded launch.
 
-For shader compile reports, include how long the compile screen stayed visible, whether Android showed an app-not-responding dialog, device thermal/performance mode if known, and the contents of `last_shader_warmup_status.txt` when available. Current local ARM64 proof on `SM-F966B` completes v6 warmup in 40149ms; a `completed-partial` marker means the launcher hit its warmup time budget and continued with degraded shader-cache coverage. That is useful compatibility evidence, not full device signoff.
+For shader compile reports, include how long the compile screen stayed visible, whether Android showed an app-not-responding dialog, device thermal/performance mode if known, and the contents of `last_shader_warmup_status.txt` when available. Current source builds include scanner counters in that marker, including scenes scanned, unique materials, whether the scan stopped by budget, and scanner failure counts. Current local ARM64 proof on `SM-F966B` completes v6 warmup in 40149ms; a `completed-partial` marker means the launcher hit its warmup time budget and continued with degraded shader-cache coverage. That is useful compatibility evidence, not full device signoff.
 
 ## Do Not Share Publicly
 

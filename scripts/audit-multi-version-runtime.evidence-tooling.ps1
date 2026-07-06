@@ -29,6 +29,37 @@ function Add-MultiVersionRuntimeEvidenceToolingChecks {
             "Installed slot matches runtime patch validation",
             "last_game_version_cache_cleanup\.txt",
             "last_game_version_redownload\.txt",
+            "last_launch_attempt\.txt",
+            "Start Game launch-attempt marker",
+            "Launch attempt matches runtime validation",
+            "Prepared readiness used:",
+            "Launch attempt successful handoff phase:",
+            "Launch attempt UTC:",
+            "Launch attempt ID:",
+            "Launch attempt action:",
+            "Launch attempt source:",
+            "Readiness cache status:",
+            "Launch attempt elapsed ms:",
+            "Launch readiness elapsed ms:",
+            "Mod readiness elapsed ms:",
+            "Mod readiness cache status:",
+            "Mod play mode:",
+            "Mod enabled count:",
+            "Modded save cloud push locked:",
+            "Test-LaunchAttemptId",
+            "Test-LaunchReadinessCacheStatus",
+            "Test-ModReadinessCacheStatus",
+            "Test-LaunchTimingValue",
+            "Test-ModPlayMode",
+            "Test-BoolText",
+            "Test-NonNegativeIntText",
+            "launchAttemptProofReady",
+            "launchAttemptIdValid",
+            "Launch attempt timing measured:",
+            "Launch attempt mod readiness cache status:",
+            "Launch attempt mod play mode:",
+            "Launch attempt enabled mod count:",
+            "Launch attempt modded-save Cloud Push locked:",
             "installedPck",
             "validatedPck",
             "installedSourceAssembly",
@@ -127,14 +158,72 @@ function Add-MultiVersionRuntimeEvidenceToolingChecks {
         )
 
     Add-Check `
+        "scripts\capture-launch-attempt-runtime-evidence.ps1" `
+        "captures and immediately reviews Start Game launch-attempt runtime evidence without mutating device or cloud state" `
+        @(
+            "capture-multi-version-runtime-evidence\.ps1",
+            "review-multi-version-runtime-evidence\.ps1",
+            "Resolve-AndroidAdbPath",
+            "Resolve-AndroidTargetDevice",
+            "Resolve-AndroidInstalledLauncherPackageName",
+            "WaitForDeviceSeconds",
+            "Choose only one of -RequirePublic, -RequirePublicBeta, or -RequireBranchSwitch",
+            "Write-Status",
+            "Quiet",
+            "RunLabel",
+            "RequireLaunchAttempt",
+            "MaxLaunchAttemptAgeMinutes",
+            "Multi-version runtime evidence captured:",
+            "Launch-attempt runtime evidence captured and reviewed",
+            "IncludeRawLogcat"
+        )
+
+    Add-ForbiddenCheck `
+        "scripts\capture-launch-attempt-runtime-evidence.ps1" `
+        "keeps launch-attempt evidence wrapper read-only" `
+        @(
+            "adb[^\r\n]+install",
+            "pm\s+clear",
+            "am\s+start",
+            "input\s+tap",
+            "ManualPush",
+            "WriteManualPush"
+        )
+
+    Add-Check `
+        "scripts\evidence-launch-attempt-phases.ps1" `
+        "centralizes launch-attempt phase proof classification for capture and review" `
+        @(
+            "LaunchAttemptSuccessfulHandoffPhases",
+            "LaunchAttemptRejectedProofPhases",
+            "Test-SuccessfulLaunchAttemptPhase",
+            "Get-LaunchAttemptSuccessfulPhaseRegex",
+            "Get-LaunchAttemptRejectedProofPhaseRegex",
+            "restart requested",
+            "safe android restart requested",
+            "in-process signalled",
+            "setup failed",
+            "checking",
+            "blocked",
+            "blocked in model",
+            "readiness failed",
+            "in-process signal failed",
+            "launch handoff not requested",
+            "restart requested without ready files"
+        )
+
+    Add-Check `
         "scripts\review-multi-version-runtime-evidence.ps1" `
         "reviews collected multi-version runtime evidence without mutating device or cloud state" `
         @(
             "RequirePublicBeta",
             "RequireBranchSwitch",
             "RequireSaveSafety",
+            "RequireLaunchAttempt",
             "RequireResolvedClassification",
+            "MaxLaunchAttemptAgeMinutes",
             "Require-NoPattern",
+            "Require-LaunchAttemptFreshness",
             "run-metadata\.json",
             "metadata identifies collector",
             "metadata records read-only collector boundary",
@@ -152,6 +241,44 @@ function Add-MultiVersionRuntimeEvidenceToolingChecks {
             "diagnostics/selected_runtime_pack_compatibility\.json",
             "diagnostics/selected_runtime_pack_patch_validation\.json",
             "logs/logcat-runtime-filtered\.txt",
+            "diagnostics/last_launch_attempt\.txt",
+            "evidence-launch-attempt-phases\.ps1",
+            "Get-LaunchAttemptSuccessfulPhaseRegex",
+            "Get-LaunchAttemptRejectedProofPhaseRegex",
+            "summarizes launch-attempt timestamp",
+            "records launch-attempt timestamp",
+            "summarizes launch-attempt ID",
+            "records launch-attempt ID",
+            "summarizes launch-attempt action",
+            "summarizes launch-attempt source",
+            "records launch action",
+            "records launch source",
+            "launch-attempt marker is fresh enough",
+            "launch-attempt marker older than freshness window",
+            "launch-attempt marker is captured",
+            "does not accept NativeFallback or Android fatal crash logs as launch-attempt proof",
+            "records ready launch state",
+            "uses prepared readiness",
+            "records successful launch handoff phase",
+            "does not treat failed launch handoff as success",
+            "records launch attempt timing",
+            "records measured launch attempt timing",
+            "records measured launch readiness timing",
+            "records measured mod readiness timing",
+            "records concrete launch readiness cache status",
+            "records selected game directory",
+            "records selected PCK path",
+            "records selected source assembly path",
+            "records active Android assembly path",
+            "records runtime-pack directory",
+            "records runtime-pack manifest path",
+            "records mod readiness phase",
+            "records concrete mod readiness cache status",
+            "records concrete mod play mode",
+            "records numeric installed mod count",
+            "records numeric enabled mod count",
+            "records numeric unsupported mod count",
+            "records modded-save Cloud Push lock state",
             "runtime pack validation report passed",
             "Steam Cloud Push save-origin safety",
             "does not carry unknown classifications into release signoff",
@@ -179,6 +306,7 @@ function Add-MultiVersionRuntimeEvidenceToolingChecks {
             "audit-multi-version-runtime\.ps1",
             "audit-steam-version-selection\.ps1",
             "audit-steam-branch-guidance-parity\.ps1",
+            "test-multi-version-runtime-evidence-reviewer\.ps1",
             "review-multi-version-runtime-evidence\.ps1",
             "PublicEvidenceDirs",
             "PublicBetaEvidenceDirs",
@@ -187,7 +315,12 @@ function Add-MultiVersionRuntimeEvidenceToolingChecks {
             "RequirePublicBeta",
             "RequireBranchSwitch",
             "RequireSaveSafety",
+            "RequireLaunchAttempt",
             "RequireResolvedClassification",
+            "MaxLaunchAttemptAgeMinutes",
+            "quietArguments",
+            "reviewerTestArguments",
+            '\*> \$null',
             "Invoke-EvidenceReview",
             "EvidenceDirs"
         )
@@ -208,6 +341,63 @@ function Add-MultiVersionRuntimeEvidenceToolingChecks {
         )
 
     Add-Check `
+            "scripts\test-multi-version-runtime-evidence-reviewer.ps1" `
+        "regression-tests multi-version runtime evidence reviewer launch-attempt gates" `
+        @(
+            "review-multi-version-runtime-evidence\.ps1",
+            "evidence-launch-attempt-phases\.ps1",
+            "LauncherLaunchAttemptPhases\.cs",
+            "Assert-LaunchAttemptPhaseContractMatchesCSharp",
+            "Assert-LaunchAttemptCacheStatusContractMatchesCSharp",
+            "LauncherLaunchReadinessCacheStatus\.cs",
+            "LauncherModLaunchReadinessCacheStatus\.cs",
+            "Get-ReviewerStatusValues",
+            "Assert-SameStringSet",
+            "Launch-attempt readiness cache status reviewer contract",
+            "Launch-attempt mod readiness cache status reviewer contract",
+            "Normalize-LaunchAttemptPhase",
+            "LaunchAttemptSuccessfulHandoffPhases",
+            "LaunchAttemptRejectedProofPhases",
+            "C# launch-attempt phases missing reviewer classification",
+            "Reviewer launch-attempt phases missing C# constants",
+            "launch-attempt cache status contracts match C# constants",
+            "both success and rejected proof",
+            "New-MultiVersionRuntimeEvidenceBundle",
+            "RequireLaunchAttempt",
+            "Quiet",
+            "Write-TestPass",
+            "last_launch_attempt\.txt",
+            "UTC:",
+            "Attempt ID:",
+            "Action:",
+            "Source:",
+            "LaunchAttemptUnmeasuredTiming",
+            "LaunchAttemptStale",
+            "LaunchAttemptFallbackLog",
+            "MaxLaunchAttemptAgeMinutes",
+            "Prepared readiness used:",
+            "Files ready:",
+            "Mod readiness cache status:",
+            "Mod play mode:",
+            "Mod enabled count:",
+            "Modded save cloud push locked:",
+            "Start Game launch-attempt marker",
+            "Launch attempt matches runtime validation",
+            "old artifact without launch-attempt accepted when not required",
+            "launch-attempt marker older than freshness window",
+            "launch-attempt marker without prepared readiness",
+            "launch-attempt marker without measured readiness timings",
+            "launch-attempt marker that only reached pre-handoff ready phase",
+            "launch-attempt marker that only reached pre-readiness checking phase",
+            "launch-attempt marker that failed before selected-version readiness",
+            "launch-attempt marker that failed selected-version readiness",
+            "launch-attempt marker with failed in-process signal",
+            "launch-attempt marker where model returned without requesting handoff",
+            "launch-attempt marker with NativeFallbackActivity log evidence",
+            "launch-attempt report not matched to runtime validation"
+        )
+
+    Add-Check `
         "docs\multi-version-runtime-architecture.md" `
         "documents the implemented runtime-slot, pack, patch-validation, save-origin, and evidence workflow" `
         @(
@@ -217,11 +407,13 @@ function Add-MultiVersionRuntimeEvidenceToolingChecks {
             "compatibility\.json",
             "patch_validation\.json",
             "last_runtime_patch_validation\.json",
+            "last_launch_attempt\.txt",
             "current_android_save_origin\.txt",
             "capture-multi-version-runtime-evidence\.ps1",
             "review-multi-version-runtime-evidence\.ps1",
             "run-multi-version-runtime-release-gates\.ps1",
             "RequireResolvedClassification",
+            "RequireLaunchAttempt",
             "validation-report\.md",
             "read-only"
         )
@@ -244,6 +436,7 @@ function Add-MultiVersionRuntimeEvidenceToolingChecks {
             "RunLabel branch-switch",
             "RequirePublic",
             "RequireBranchSwitch",
+            "RequireLaunchAttempt",
             "RequireResolvedClassification",
             "current_runtime_slot\.json",
             "runtime pack closed DLL set passes",

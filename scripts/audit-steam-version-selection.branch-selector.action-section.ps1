@@ -5,9 +5,11 @@ function Add-SteamVersionSelectionBranchSelectorActionSectionChecks {
         @(
             "SetGameBranch",
             "SetAvailableBranches",
+            "SetGameBranchOptions",
             "UpdateBranchHelpText",
             "PopulateBranchDropdown",
             "LauncherBranchDropdown\.NormalizeSelection",
+            "LauncherBranchDropdown\.NormalizeAvailableBranches",
             "selection\.Changed",
             "LauncherBranchDropdown\.TryGetBranch",
             "LauncherBranchDropdown\.Populate",

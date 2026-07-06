@@ -4,11 +4,14 @@ param(
     [switch]$RequirePublicBeta,
     [switch]$RequireBranchSwitch,
     [switch]$RequireSaveSafety,
+    [switch]$RequireLaunchAttempt,
     [switch]$RequireResolvedClassification,
+    [int]$MaxLaunchAttemptAgeMinutes = 0,
     [switch]$Quiet
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "evidence-launch-attempt-phases.ps1")
 
 $resolvedEvidenceDir = (Resolve-Path -LiteralPath $EvidenceDir).ProviderPath
 $failures = New-Object System.Collections.Generic.List[string]
@@ -101,6 +104,63 @@ function Require-JsonPattern([string]$RelativePath, [string]$Description, [strin
     Add-Pass "$RelativePath - $Description"
 }
 
+function Require-LaunchAttemptFreshness([int]$MaxAgeMinutes) {
+    if ($MaxAgeMinutes -le 0) {
+        return
+    }
+
+    $markerContent = Read-EvidenceFile "diagnostics/last_launch_attempt.txt"
+    $metadataContent = Read-EvidenceFile "run-metadata.json"
+    if ($null -eq $markerContent -or $null -eq $metadataContent) {
+        return
+    }
+
+    $markerMatch = [regex]::Match($markerContent, "(?m)^UTC:\s*(.+?)\s*$")
+    if (-not $markerMatch.Success) {
+        $failures.Add("diagnostics/last_launch_attempt.txt - launch-attempt marker freshness - missing UTC timestamp")
+        return
+    }
+
+    try {
+        $metadata = $metadataContent | ConvertFrom-Json
+    } catch {
+        $failures.Add("run-metadata.json - launch-attempt marker freshness - invalid JSON: $($_.Exception.Message)")
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace([string]$metadata.generatedUtc)) {
+        $failures.Add("run-metadata.json - launch-attempt marker freshness - missing generatedUtc")
+        return
+    }
+
+    try {
+        $markerUtc = [datetimeoffset]::Parse($markerMatch.Groups[1].Value.Trim(), [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal)
+    } catch {
+        $failures.Add("diagnostics/last_launch_attempt.txt - launch-attempt marker freshness - invalid UTC timestamp: $($markerMatch.Groups[1].Value.Trim())")
+        return
+    }
+
+    try {
+        $captureUtc = [datetimeoffset]::Parse([string]$metadata.generatedUtc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal)
+    } catch {
+        $failures.Add("run-metadata.json - launch-attempt marker freshness - invalid generatedUtc: $($metadata.generatedUtc)")
+        return
+    }
+
+    $age = $captureUtc - $markerUtc
+    if ($age.TotalMinutes -lt -5) {
+        $failures.Add("diagnostics/last_launch_attempt.txt - launch-attempt marker freshness - marker timestamp is more than 5 minutes after capture time")
+        return
+    }
+
+    if ($age.TotalMinutes -gt $MaxAgeMinutes) {
+        $failures.Add("diagnostics/last_launch_attempt.txt - launch-attempt marker older than freshness window: age=$([math]::Round($age.TotalMinutes, 2)) minutes max=$MaxAgeMinutes minutes")
+        return
+    }
+
+    Add-Pass "diagnostics/last_launch_attempt.txt - launch-attempt marker is fresh enough"
+}
+
 Require-Pattern "summary.md" "has multi-version evidence summary" "Multi-version runtime evidence"
 Require-JsonPattern "run-metadata.json" "has readable run metadata" "\{"
 Require-JsonPattern "run-metadata.json" "metadata identifies collector" '(?i)"collector"\s*:\s*"capture-multi-version-runtime-evidence\.ps1"'
@@ -126,6 +186,63 @@ Require-Pattern "diagnostics/current_runtime_cache.txt" "has prepared runtime-ca
 Require-Pattern "diagnostics/current_runtime_cache.txt" "has selected branch in runtime-cache marker" "Selected branch:"
 Require-Pattern "diagnostics/current_runtime_cache.txt" "has active publish-cache assembly hash" "Publish cache active sts2\.dll SHA256:"
 Require-Pattern "logs/logcat-runtime-filtered.txt" "has focused runtime logcat" "Loading PCK from:|Selected PCK|Runtime slot evidence|Assembly cache"
+
+if ($RequireLaunchAttempt) {
+    $successfulPhaseRegex = Get-LaunchAttemptSuccessfulPhaseRegex
+    $rejectedProofPhaseRegex = Get-LaunchAttemptRejectedProofPhaseRegex
+    Require-Pattern "summary.md" "summarizes launch-attempt marker" "Launch attempt phase:"
+    Require-Pattern "summary.md" "summarizes launch-attempt timestamp" "Launch attempt UTC:"
+    Require-Pattern "summary.md" "summarizes launch-attempt ID" "(?m)^Launch attempt ID:\s*[0-9a-fA-F]{32}\s*$"
+    Require-Pattern "summary.md" "summarizes launch-attempt action" "(?m)^Launch attempt action:\s*(normal|safe)\s*$"
+    Require-Pattern "summary.md" "summarizes launch-attempt source" "(?m)^Launch attempt source:\s*(button|auto-launch|automation)\s*$"
+    Require-Pattern "summary.md" "summarizes successful launch handoff phase" "(?m)^Launch attempt phase:\s*$successfulPhaseRegex\s*$"
+    Require-Pattern "summary.md" "summarizes launch-attempt timings" "Launch attempt timings ms:"
+    Require-Pattern "validation-report.md" "launch-attempt marker is captured" "\|\s*Start Game launch-attempt marker\s*\|\s*captured\s*\|"
+    Require-Pattern "validation-report.md" "launch attempt matches runtime validation" "\|\s*Launch attempt matches runtime validation\s*\|\s*matched\s*\|"
+    Require-NoPattern "logs/logcat-runtime-filtered.txt" "does not accept NativeFallback or Android fatal crash logs as launch-attempt proof" "(?i)\bNativeFallback(Activity)?\b|FATAL EXCEPTION|AndroidRuntime.*FATAL|ANR in"
+    Require-Pattern "diagnostics/runtime-marker-files.txt" "has launch-attempt marker file evidence" "last_launch_attempt\.txt"
+    Require-Pattern "diagnostics/runtime-marker-contents.txt" "has launch-attempt marker content evidence" "last_launch_attempt\.txt|StS2 Mobile launch attempt"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "has launch-attempt header" "StS2 Mobile launch attempt"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records launch-attempt timestamp" "(?m)^UTC:\s*\d{4}-\d{2}-\d{2}T"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records launch-attempt ID" "(?m)^Attempt ID:\s*[0-9a-fA-F]{32}\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records launch action" "(?m)^Action:\s*(normal|safe)\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records launch source" "(?m)^Source:\s*(button|auto-launch|automation)\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records ready launch state" "Files ready:\s*true"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "uses prepared readiness" "Prepared readiness used:\s*true"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records launch-attempt phase" "Phase:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records successful launch handoff phase" "(?m)^Phase:\s*$successfulPhaseRegex\s*$"
+    Require-NoPattern "diagnostics/last_launch_attempt.txt" "does not treat failed launch handoff as success" "(?m)^Phase:\s*$rejectedProofPhaseRegex\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records launch readiness cache status" "Readiness cache status:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records concrete launch readiness cache status" "(?m)^Readiness cache status:\s*(fresh|fresh-cached|memory-cache-hit)\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records launch attempt timing" "Launch attempt elapsed ms:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records measured launch attempt timing" "(?m)^Launch attempt elapsed ms:\s*\d+\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records launch readiness timing" "Launch readiness elapsed ms:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records measured launch readiness timing" "(?m)^Launch readiness elapsed ms:\s*\d+\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records mod readiness timing" "Mod readiness elapsed ms:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records measured mod readiness timing" "(?m)^Mod readiness elapsed ms:\s*\d+\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records selected branch" "Selected branch:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records selected game directory" "Game directory:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records selected PCK path" "PCK path:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records selected PCK hash" "PCK SHA256:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records selected source assembly path" "Source sts2\.dll path:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records selected source assembly hash" "Source sts2\.dll SHA256:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records active Android assembly path" "Active Android sts2\.dll path:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records active Android assembly hash" "Active Android sts2\.dll SHA256:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records runtime-pack directory" "Runtime pack directory:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records runtime-pack manifest path" "Runtime pack manifest path:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records runtime-pack usability" "Runtime pack usable:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records runtime cache marker presence" "Runtime cache marker present:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records runtime patch-validation marker presence" "Runtime patch validation marker present:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records patch compatibility marker path" "Patch compatibility marker path:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records mod readiness phase" "Mod readiness phase:"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records concrete mod readiness cache status" "(?m)^Mod readiness cache status:\s*(not-needed-vanilla|fresh|fresh-cached|memory-cache-hit)\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records concrete mod play mode" "(?m)^Mod play mode:\s*(vanilla|modded)\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records numeric installed mod count" "(?m)^Mod installed count:\s*\d+\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records numeric enabled mod count" "(?m)^Mod enabled count:\s*\d+\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records numeric unsupported mod count" "(?m)^Mod unsupported count:\s*\d+\s*$"
+    Require-Pattern "diagnostics/last_launch_attempt.txt" "records modded-save Cloud Push lock state" "(?m)^Modded save cloud push locked:\s*(true|false)\s*$"
+    Require-LaunchAttemptFreshness $MaxLaunchAttemptAgeMinutes
+}
 
 if ($RequirePublic) {
     Require-Pattern "summary.md" "public review uses public run label" "Run label:\s*public"

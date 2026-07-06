@@ -28,30 +28,30 @@ internal readonly struct UpdateCheckViewUpdate
     private string Status { get; }
     private bool HideActions { get; }
 
-    internal static UpdateCheckViewUpdate Completed(bool hasUpdate)
+    internal static UpdateCheckViewUpdate Completed(bool hasUpdate, string selectedVersion)
         => hasUpdate
             ? new(
                 downloadButtonText: UpdateGameFilesButtonText,
-                status: $"Update available for selected game version ({LauncherGameVersionDisplay.SelectedGameVersionName()}).",
+                status: $"Update available for selected game version ({selectedVersion}).",
                 hideActions: true
             )
             : new(
-                logMessage: $"Selected game version is up to date ({LauncherGameVersionDisplay.SelectedGameVersionName()}).",
+                logMessage: $"Selected game version is up to date ({selectedVersion}).",
                 updateButtonText: UpToDateButtonText
             );
 
-    internal static UpdateCheckViewUpdate Failed(string message)
+    internal static UpdateCheckViewUpdate Failed(string message, string selectedVersion)
         => new(
-            logMessage: $"Update check failed for selected game version ({LauncherGameVersionDisplay.SelectedGameVersionName()}): {message}",
+            logMessage: $"Update check failed for selected game version ({selectedVersion}): {message}",
             updateButtonText: UpdateCheckFailedButtonText,
-            status: $"Update check failed for selected game version ({LauncherGameVersionDisplay.SelectedGameVersionName()}): {message}"
+            status: $"Update check failed for selected game version ({selectedVersion}): {message}"
         );
 
-    internal static UpdateCheckViewUpdate Blocked(string message)
+    internal static UpdateCheckViewUpdate Blocked(string message, string selectedVersion)
         => new(
-            logMessage: $"Update check blocked for selected game version ({LauncherGameVersionDisplay.SelectedGameVersionName()}): {message}",
+            logMessage: $"Update check blocked for selected game version ({selectedVersion}): {message}",
             updateButtonText: UpdateCheckBlockedButtonText,
-            status: $"Update check blocked for selected game version ({LauncherGameVersionDisplay.SelectedGameVersionName()}): {message}"
+            status: $"Update check blocked for selected game version ({selectedVersion}): {message}"
         );
 
     internal void Apply(LauncherView view)

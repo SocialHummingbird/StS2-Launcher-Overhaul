@@ -4,19 +4,30 @@ internal sealed partial class LauncherDiagnosticsCoordinator
 {
     private const string PreviousLaunchWarningStatus =
         "Game startup failed last time.";
+    private bool _previousLaunchWarningChecked;
 
     internal void ShowPreviousLaunchWarningIfNeeded()
     {
+        if (_previousLaunchWarningChecked)
+            return;
+
+        _previousLaunchWarningChecked = true;
         var previousLaunchPhase = LauncherLaunchMarkers.ReadPreviousLaunchPhase();
         if (previousLaunchPhase == null)
             return;
 
-        ShowPreviousLaunchWarning(previousLaunchPhase);
+        ShowPreviousLaunchWarning(
+            previousLaunchPhase,
+            LauncherLaunchMarkers.ReadLastLaunchAttempt()
+        );
         WriteAutomaticDiagnosticsOnce();
     }
 
-    private void ShowPreviousLaunchWarning(string previousLaunchPhase)
-        => new PreviousLaunchWarning(previousLaunchPhase).Show(_view);
+    private void ShowPreviousLaunchWarning(
+        string previousLaunchPhase,
+        LaunchAttemptSummary launchAttempt
+    )
+        => new PreviousLaunchWarning(previousLaunchPhase, launchAttempt).Show(_view);
 
     private void WriteAutomaticDiagnosticsOnce()
     {
@@ -39,12 +50,17 @@ internal sealed partial class LauncherDiagnosticsCoordinator
         private const string DiagnosticsActionMessage =
             "Tap Last Problem to show what happened, or Help Report to share details.";
 
-        internal PreviousLaunchWarning(string previousLaunchPhase)
+        internal PreviousLaunchWarning(
+            string previousLaunchPhase,
+            LaunchAttemptSummary launchAttempt
+        )
         {
             PreviousLaunchPhase = previousLaunchPhase;
+            LaunchAttempt = launchAttempt;
         }
 
         private string PreviousLaunchPhase { get; }
+        private LaunchAttemptSummary LaunchAttempt { get; }
 
         internal void Show(LauncherView view)
         {
@@ -55,12 +71,37 @@ internal sealed partial class LauncherDiagnosticsCoordinator
         }
 
         private string[] LogLines()
-            => new[]
+        {
+            var lines = new System.Collections.Generic.List<string>
             {
                 PreviousLaunchWarningStatus + PreviousLaunchPhaseSuffix(),
                 LauncherAvailableMessage,
-                DiagnosticsActionMessage,
+                DiagnosticsActionMessage
             };
+
+            if (LaunchAttempt.Present)
+            {
+                AddIfPresent(lines, LaunchAttempt.ShortLine());
+                AddIfPresent(lines, LaunchAttempt.RuntimeLine());
+                AddIfPresent(lines, LaunchAttempt.PathLine());
+                AddIfPresent(lines, LaunchAttempt.IdentityLine());
+                AddIfPresent(lines, LaunchAttempt.MarkerLine());
+                AddIfPresent(lines, LaunchAttempt.ModLine());
+                AddIfPresent(lines, LaunchAttempt.TimingLine());
+                AddIfPresent(lines, LaunchAttempt.RecoveryHint());
+            }
+
+            return lines.ToArray();
+        }
+
+        private static void AddIfPresent(
+            System.Collections.Generic.List<string> lines,
+            string value
+        )
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                lines.Add(value);
+        }
 
         private string PreviousLaunchPhaseSuffix()
             => string.IsNullOrWhiteSpace(PreviousLaunchPhase)

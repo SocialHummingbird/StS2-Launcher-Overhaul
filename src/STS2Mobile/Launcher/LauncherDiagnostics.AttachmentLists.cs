@@ -13,6 +13,7 @@ internal static partial class LauncherDiagnostics
         yield return new DiagnosticAttachment(StartupContext(dataDir), 4096);
         yield return new DiagnosticAttachment(SteamAuthFailure(dataDir), 4096);
         yield return new DiagnosticAttachment(ShaderWarmupStatus(dataDir), 4096);
+        yield return new DiagnosticAttachment(LaunchAttempt(dataDir), 8192);
         yield return new DiagnosticAttachment(StartupTimeline(dataDir), 4096);
         yield return new DiagnosticAttachment(AndroidUncaughtException(dataDir), 4096);
     }
@@ -41,6 +42,10 @@ internal static partial class LauncherDiagnostics
         );
         yield return new DiagnosticAttachment(
             ShaderWarmupStatus(dataDir),
+            SmallAttachmentMaxChars
+        );
+        yield return new DiagnosticAttachment(
+            LaunchAttempt(dataDir),
             SmallAttachmentMaxChars
         );
         yield return new DiagnosticAttachment(

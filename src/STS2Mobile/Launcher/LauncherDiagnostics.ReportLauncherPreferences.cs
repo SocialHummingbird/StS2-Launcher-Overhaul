@@ -12,7 +12,11 @@ internal static partial class LauncherDiagnostics
             sb.AppendLine($"{feature.DiagnosticLabel}: {BoolText(feature.Supported)}");
     }
 
-    private static void AppendLauncherPreferences(StringBuilder sb, string dataDir)
+    private static void AppendLauncherPreferences(
+        StringBuilder sb,
+        string dataDir,
+        LauncherLaunchReadiness launchReadiness
+    )
     {
         var preferences = LauncherPreferences.ReadActionPreferences();
         var branch = SteamGameBranch.Normalize(preferences.GameBranch);
@@ -78,9 +82,11 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Selected game version slot directory: {SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch)}");
         sb.AppendLine($"Selected game directory: {SteamGameInstallPaths.GameDirectory(dataDir, branch)}");
         sb.AppendLine($"Selected game PCK: {LauncherGameFiles.PckPath(dataDir, branch)}");
-        sb.AppendLine($"Selected game files ready: {BoolText(LauncherGameFiles.Ready(dataDir, branch))}");
-        sb.AppendLine($"Selected game readiness problem: {ValueOrMissing(LauncherGameFiles.ReadinessProblem(dataDir, branch))}");
-        AppendGameRuntimeSlot(sb, dataDir, branch);
+        sb.AppendLine($"Selected game files ready: {BoolText(launchReadiness?.Ready == true)}");
+        sb.AppendLine($"Selected game readiness problem: {ValueOrMissing(launchReadiness?.ReadinessProblem)}");
+        sb.AppendLine($"Selected game readiness cache status: {ValueOrMissing(launchReadiness?.CacheStatus)}");
+        sb.AppendLine($"Selected game readiness phase: {ValueOrMissing(launchReadiness?.EvaluationPhase)}");
+        AppendGameRuntimeSlot(sb, dataDir, branch, launchReadiness);
         AppendWorkshopDiagnostics(sb, dataDir);
         sb.AppendLine($"Selected download state: {SteamGameInstallPaths.DownloadStateDirectoryPath(dataDir, branch)}");
         AppendBranchAvailability(sb, dataDir);

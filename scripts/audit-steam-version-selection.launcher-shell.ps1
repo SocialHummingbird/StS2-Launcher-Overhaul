@@ -75,7 +75,7 @@ function Add-SteamVersionSelectionLauncherShellChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherUI.AutoLaunch.cs" `
-        "isolates launch-request environment handling from controller startup" `
+        "isolates launch-request environment handling from controller startup and delegates launch orchestration" `
         @(
             "AutoLaunchIfRequested",
             "_inGameMode",
@@ -83,7 +83,24 @@ function Add-SteamVersionSelectionLauncherShellChecks {
             "Environment\.SetEnvironmentVariable\(AutoLaunchVariable, ""0""\)",
             "Environment\.GetEnvironmentVariable\(AutoSafeLaunchVariable\)",
             "Environment\.SetEnvironmentVariable\(AutoSafeLaunchVariable, ""0""\)",
-            "LaunchSafe",
-            "_model\.Launch"
+            "_controller\.AutoLaunchRequested\(safeLaunch\)"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherController.AutoLaunch.cs" `
+        "routes launcher restart auto-launch through the shared launch coordinator" `
+        @(
+            "internal void AutoLaunchRequested\(bool safeLaunch\)",
+            "_launch\.AutoLaunchRequested\(safeLaunch\)"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherStartupCoordinator.cs" `
+        "applies startup preferences and branch options in one view update" `
+        @(
+            "InitializeActionPreferences",
+            "LoadAndApplyActionPreferences",
+            "ReadGameBranchOptions",
+            "SetActionPreferences\(preferences, branches\)"
         )
 }

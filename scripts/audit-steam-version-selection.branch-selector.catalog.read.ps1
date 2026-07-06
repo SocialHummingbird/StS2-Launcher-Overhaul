@@ -9,6 +9,9 @@ function Add-SteamVersionSelectionBranchSelectorCatalogReadChecks {
             "ReadVisibleBranches",
             "ReadVisibleBranchNames",
             "ReadSelectableBranches",
+            "ReadSelectableBranches\(dataDir, ReadVisibleBranches\(dataDir\)\)",
+            "IReadOnlyList<BranchOption> visibleBranches",
+            "visibleBranches \?\? Array\.Empty<BranchOption>\(\)",
             "SourceDescription",
             "Steam app-info visible branch catalog",
             "GroupBy"

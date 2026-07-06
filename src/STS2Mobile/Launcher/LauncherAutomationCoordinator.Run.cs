@@ -14,13 +14,18 @@ internal sealed partial class LauncherAutomationCoordinator
         {
             if (!string.IsNullOrWhiteSpace(request.Branch))
             {
+                var previousBranch = LauncherPreferences.ReadGameBranch();
                 LauncherPreferences.SaveGameBranch(request.Branch);
+                LauncherLaunchReadinessCache.Clear(
+                    $"automation branch changed from {previousBranch} to {request.Branch}"
+                );
                 LauncherBranchAvailabilityStatus.Clear(_model.DataDir);
                 _versions.RefreshGameBranchOptions();
             }
 
+            var selectedBranch = SteamGameBranch.Normalize(LauncherPreferences.ReadGameBranch());
             _runOnMainThread(() =>
-                _view.AppendLog($"[Automation] Running {request.Action} for {SteamGameBranch.DisplayName(LauncherPreferences.ReadGameBranch())}.")
+                _view.AppendLog($"[Automation] Running {request.Action} for {SteamGameBranch.DisplayName(selectedBranch)}.")
             );
 
             if (request.RefreshCatalog)
@@ -32,7 +37,7 @@ internal sealed partial class LauncherAutomationCoordinator
             }
 
             if (request.CheckUpdates)
-                await _model.CheckForUpdatesAsync().ConfigureAwait(false);
+                await _model.CheckForUpdatesAsync(selectedBranch).ConfigureAwait(false);
 
             if (request.Redownload)
             {
@@ -43,7 +48,7 @@ internal sealed partial class LauncherAutomationCoordinator
             }
 
             if (request.Download)
-                await _model.StartDownloadAsync().ConfigureAwait(false);
+                await _model.StartDownloadAsync(selectedBranch).ConfigureAwait(false);
 
             if (request.WorkshopClear)
             {
@@ -67,8 +72,7 @@ internal sealed partial class LauncherAutomationCoordinator
                 _runOnMainThread(() =>
                 {
                     _view.AppendLog("[Automation] Safe launch requested after replacement download.");
-                    _launch.RefreshSelectedRuntimeSlotEvidence();
-                    _model.LaunchSafe();
+                    _launch.AutomationLaunchRequested(safeLaunch: true);
                 });
             }
             else if (request.Launch)
@@ -76,8 +80,7 @@ internal sealed partial class LauncherAutomationCoordinator
                 _runOnMainThread(() =>
                 {
                     _view.AppendLog("[Automation] Launch requested after replacement download.");
-                    _launch.RefreshSelectedRuntimeSlotEvidence();
-                    _model.Launch();
+                    _launch.AutomationLaunchRequested(safeLaunch: false);
                 });
             }
 

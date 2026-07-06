@@ -9,7 +9,8 @@ internal sealed partial class ShaderWarmupScreen
     {
         private static void ExtractSceneMaterials(
             string scenePath,
-            WarmupMaterialCollection materials
+            WarmupMaterialCollection materials,
+            ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
             try
@@ -20,18 +21,19 @@ internal sealed partial class ShaderWarmupScreen
                     ResourceLoader.CacheMode.Reuse
                 );
                 if (packed != null)
-                    ExtractMaterials(packed, scenePath, materials);
+                    ExtractMaterials(packed, scenePath, materials, diagnostics);
             }
             catch (Exception ex)
             {
-                PatchHelper.Log(Message.SceneExtractFailed(scenePath, ex));
+                diagnostics.RecordSceneExtractionFailure(scenePath, ex);
             }
         }
 
         private static void ExtractMaterials(
             PackedScene packed,
             string scenePath,
-            WarmupMaterialCollection materials
+            WarmupMaterialCollection materials,
+            ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
             var state = packed.GetState();
@@ -51,7 +53,8 @@ internal sealed partial class ShaderWarmupScreen
                         nodeIndex,
                         propertyIndex,
                         propName,
-                        materials
+                        materials,
+                        diagnostics
                     );
                 }
             }
@@ -66,7 +69,8 @@ internal sealed partial class ShaderWarmupScreen
             int nodeIndex,
             int propertyIndex,
             string propName,
-            WarmupMaterialCollection materials
+            WarmupMaterialCollection materials,
+            ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
             try
@@ -80,7 +84,7 @@ internal sealed partial class ShaderWarmupScreen
             }
             catch (Exception ex)
             {
-                PatchHelper.Log(Message.PropertyReadFailed(propName, scenePath, ex));
+                diagnostics.RecordPropertyReadFailure(propName, scenePath, ex);
             }
         }
     }

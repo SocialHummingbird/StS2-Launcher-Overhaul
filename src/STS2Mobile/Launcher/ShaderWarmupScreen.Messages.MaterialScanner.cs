@@ -29,5 +29,18 @@ internal sealed partial class ShaderWarmupScreen
 
         internal static string ResourceLoadFailed(string cleanPath, Exception ex)
             => $"[ShaderWarmup] Failed to load {cleanPath}: {ex.Message}";
+
+        internal static string ScanSummary(
+            ShaderWarmupMaterialScanner.ShaderWarmupMaterialScanDiagnostics diagnostics
+        )
+            => "[ShaderWarmup] Scan summary: "
+                + $"scenes={diagnostics.ScannedSceneCount}/{diagnostics.SceneCount}; "
+                + $"materials={diagnostics.UniqueMaterialCount}/{diagnostics.MaterialsBeforeDedup} unique; "
+                + $"budgetStopped={diagnostics.SceneScanStoppedByBudget}; "
+                + "failures="
+                + $"directories:{diagnostics.DirectoryEnumerationFailureCount}, "
+                + $"resources:{diagnostics.ResourceLoadFailureCount}, "
+                + $"scenes:{diagnostics.SceneExtractionFailureCount}, "
+                + $"properties:{diagnostics.PropertyReadFailureCount}";
     }
 }

@@ -4,24 +4,26 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
-    internal async Task StartDownloadAsync()
+    internal async Task StartDownloadAsync(string branch)
     {
+        branch = STS2Mobile.Steam.SteamGameBranch.Normalize(branch);
         LauncherLaunchMarkers.RecordPhase(
             "download model start",
-            $"branch={LauncherPreferences.ReadGameBranch()}"
+            $"branch={branch}"
         );
         var run = DownloadRunGuard.TryAcquire(this);
         if (!run.Acquired)
         {
             LauncherLaunchMarkers.RecordPhase("download model blocked", "Download already running");
-            RaiseDownloadFailed("Download already running");
+            RaiseDownloadFailed(branch, "Download already running");
             return;
         }
 
         try
         {
+            LauncherLaunchReadinessCache.Clear("download model started");
             await RunWithDepotConnectionAsync(
-                DepotConnectionAction.Download(this)
+                DepotConnectionAction.Download(this, branch)
             );
         }
         finally
@@ -31,14 +33,15 @@ internal partial class LauncherModel
         }
     }
 
-    internal Task CheckForUpdatesAsync()
+    internal Task CheckForUpdatesAsync(string branch)
     {
+        branch = STS2Mobile.Steam.SteamGameBranch.Normalize(branch);
         LauncherLaunchMarkers.RecordPhase(
             "update check model start",
-            $"branch={LauncherPreferences.ReadGameBranch()}"
+            $"branch={branch}"
         );
         return RunWithDepotConnectionAsync(
-            DepotConnectionAction.UpdateCheck(this)
+            DepotConnectionAction.UpdateCheck(this, branch)
         );
     }
 

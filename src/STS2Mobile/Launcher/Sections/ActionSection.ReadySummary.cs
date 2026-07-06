@@ -27,7 +27,7 @@ internal sealed partial class ActionSection
 
     private string CompactReadyVersionSummary()
     {
-        var activeMods = LauncherWorkshopModSafety.ActiveSelectedModCount();
+        var activeMods = _readySummaryEnabledModCount;
         var modSummary = activeMods > 0 ? $" | Mods {activeMods}" : " | Mods off";
         if (_compactStackedActionRows)
         {

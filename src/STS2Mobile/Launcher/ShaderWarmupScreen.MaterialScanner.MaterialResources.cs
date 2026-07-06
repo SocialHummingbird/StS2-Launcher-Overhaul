@@ -10,7 +10,8 @@ internal sealed partial class ShaderWarmupScreen
         private static void TryLoadMaterialResource(
             string cleanName,
             string cleanPath,
-            WarmupMaterialCollection materials
+            WarmupMaterialCollection materials,
+            ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
             try
@@ -30,7 +31,7 @@ internal sealed partial class ShaderWarmupScreen
             }
             catch (Exception ex)
             {
-                PatchHelper.Log(Message.ResourceLoadFailed(cleanPath, ex));
+                diagnostics.RecordResourceLoadFailure(cleanPath, ex);
             }
         }
 

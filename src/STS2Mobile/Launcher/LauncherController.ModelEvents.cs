@@ -16,11 +16,11 @@ internal sealed partial class LauncherController
             _downloads.UpdateDownloadProgress
         );
         _model.DownloadLogReceived += OnMainThread<string>(_view.AppendLog);
-        _model.DownloadCompleted += OnMainThread(_downloads.CompleteDownload);
-        _model.DownloadFailed += OnMainThread<string>(_downloads.FailDownload);
-        _model.DownloadCancelled += OnMainThread(_downloads.CancelDownload);
-        _model.UpdateCheckCompleted += OnMainThread<bool>(_versions.CompleteUpdateCheck);
-        _model.UpdateCheckFailed += OnMainThread<string>(_versions.FailUpdateCheck);
+        _model.DownloadCompleted += OnMainThread<string>(_downloads.CompleteDownload);
+        _model.DownloadFailed += OnMainThread<LauncherBranchOperationFailure>(_downloads.FailDownload);
+        _model.DownloadCancelled += OnMainThread<string>(_downloads.CancelDownload);
+        _model.UpdateCheckCompleted += OnMainThread<LauncherUpdateCheckResult>(_versions.CompleteUpdateCheck);
+        _model.UpdateCheckFailed += OnMainThread<LauncherBranchOperationFailure>(_versions.FailUpdateCheck);
         _model.BranchCatalogRefreshCompleted += OnMainThread(_versions.CompleteBranchCatalogRefresh);
         _model.BranchCatalogRefreshFailed += OnMainThread<string>(_versions.FailBranchCatalogRefresh);
         _model.WorkshopSyncLogReceived += OnMainThread<string>(_view.AppendLog);

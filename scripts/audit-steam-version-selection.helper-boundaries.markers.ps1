@@ -15,6 +15,8 @@ function Add-SteamVersionSelectionMarkerBoundaryChecks {
         @(
             "ReadValue",
             "ReadOptionalValue",
+            "ReadOptionalValues",
+            "IReadOnlyDictionary<string, string>",
             "File\.ReadLines",
             "StringComparison\.OrdinalIgnoreCase"
         )

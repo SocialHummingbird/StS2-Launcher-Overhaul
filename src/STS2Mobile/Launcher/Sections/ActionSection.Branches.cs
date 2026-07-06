@@ -25,6 +25,17 @@ internal sealed partial class ActionSection
         UpdateBranchHelpText();
     }
 
+    internal void SetGameBranchOptions(
+        string branch,
+        IReadOnlyList<LauncherBranchCatalog.BranchOption> branches
+    )
+    {
+        _gameBranch = LauncherBranchDropdown.NormalizeSelection(_gameBranch, branch).Branch;
+        _availableBranches = LauncherBranchDropdown.NormalizeAvailableBranches(branches);
+        PopulateBranchDropdown();
+        UpdateBranchHelpText();
+    }
+
     private void ToggleBranchDetails()
     {
         _branchDetailsExpanded = !_branchDetailsExpanded;

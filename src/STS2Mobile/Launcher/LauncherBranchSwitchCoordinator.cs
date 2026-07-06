@@ -43,11 +43,15 @@ internal sealed class LauncherBranchSwitchCoordinator
         var previous = STS2Mobile.Steam.SteamGameBranch.DisplayName(previousBranch);
         var selected = STS2Mobile.Steam.SteamGameBranch.DisplayName(branch);
         var selectedNote = STS2Mobile.Steam.SteamGameBranch.SelectorInstallSlotHelpText(branch);
-        var availableBranches = LauncherBranchCatalog.ReadSelectableBranches(_model.DataDir);
+        var visibleBranches = LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir);
+        var availableBranches = LauncherBranchCatalog.ReadSelectableBranches(
+            _model.DataDir,
+            visibleBranches
+        );
         var selectedStatus = LauncherBranchCatalog.SelectedOptionStatus(branch, availableBranches);
         var selectedProblem = LauncherBranchCatalog.SelectedOptionDownloadProblem(
             branch,
-            LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir)
+            visibleBranches
         );
         var message =
             $"Switch game version from {previous} to {selected}?\n"
@@ -67,24 +71,29 @@ internal sealed class LauncherBranchSwitchCoordinator
     private void ApplyGameBranchChanged(string previousBranch, string branch)
     {
         LauncherPreferences.SaveGameBranch(branch);
+        LauncherLaunchReadinessCache.Clear($"branch changed from {previousBranch} to {branch}");
         LauncherPreferences.SaveLocalBackupEnabled(true);
         LauncherBranchAvailabilityStatus.Clear(_model.DataDir);
-        _versions.RefreshGameBranchOptions();
+        var branches = _versions.ReadGameBranchOptions();
         LauncherBranchSwitchSafety.WriteMarker(_model.DataDir, previousBranch, branch);
-        _view.SetActionPreferences(LauncherPreferences.ReadActionPreferences());
+        _view.SetActionPreferences(LauncherPreferences.ReadActionPreferences(branch), branches);
         _view.AppendLog($"Game version set to {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}. Local backup enabled for branch switching.");
         _view.AppendLog(STS2Mobile.Steam.SteamGameBranch.SelectorInstallSlotHelpText(branch));
 
-        if (_launch.RefreshSelectedRuntimeAndCheckReady())
+        var readiness = _launch.RefreshSelectedDownloadedStateEvidence(
+            branch,
+            "branch switch downloaded-state readiness"
+        );
+        if (readiness.Ready)
         {
             _launch.ShowReadyToLaunch(
-                _launch.SelectedVersionReadyStatus(),
+                _launch.SelectedVersionReadyStatus(readiness),
                 LaunchUpdateAction.Visible
             );
             return;
         }
 
-        var readinessProblem = LauncherGameFiles.ReadinessProblem(_model.DataDir, branch);
+        var readinessProblem = readiness.ReadinessProblem;
         _view.SetStatus(readinessProblem
             ?? "Selected game version is not downloaded. Download game files to continue.");
         _view.HideActions();

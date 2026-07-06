@@ -95,6 +95,8 @@ internal sealed partial class ActionSection : VBoxContainer
     private bool _cloudPushExpanded;
     private bool _localBackupEnabled;
     private bool _cloudSyncEnabled;
+    private bool _launchControlsDisabled;
+    private int _readySummaryEnabledModCount;
     private string _gameBranch = SteamGameBranch.Public;
 
     internal void SetLocalBackupChecked(bool value)
@@ -115,5 +117,17 @@ internal sealed partial class ActionSection : VBoxContainer
         _workshopClearButton.Disabled = disabled;
         if (!disabled && _modsGroup.Visible)
             RefreshModsStatus();
+    }
+
+    internal void SetLaunchControlsDisabled(bool disabled)
+    {
+        _launchControlsDisabled = disabled;
+        ApplyLaunchControlsDisabled();
+    }
+
+    private void ApplyLaunchControlsDisabled()
+    {
+        _launchButton.Disabled = _launchControlsDisabled;
+        _safeLaunchButton.Disabled = _launchControlsDisabled;
     }
 }

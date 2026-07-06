@@ -84,6 +84,12 @@ internal static partial class LauncherDiagnostics
             Path.Combine(dataDir, LauncherStorageNames.ManualSafeLaunch)
         );
 
+    private static DiagnosticFile LaunchAttempt(string dataDir)
+        => new(
+            "Launch attempt",
+            Path.Combine(dataDir, LauncherStorageNames.LaunchAttempt)
+        );
+
     private static DiagnosticFile StartupMarker(string dataDir)
         => new(
             "Startup marker",

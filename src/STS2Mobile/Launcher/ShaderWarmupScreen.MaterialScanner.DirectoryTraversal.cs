@@ -7,7 +7,11 @@ internal sealed partial class ShaderWarmupScreen
 {
     private static partial class ShaderWarmupMaterialScanner
     {
-        private static void VisitFiles(string dirPath, Action<string, string> visitFile)
+        private static void VisitFiles(
+            string dirPath,
+            Action<string, string> visitFile,
+            ShaderWarmupMaterialScanDiagnostics diagnostics
+        )
         {
             try
             {
@@ -24,7 +28,7 @@ internal sealed partial class ShaderWarmupScreen
 
                     if (dir.CurrentIsDir())
                     {
-                        VisitFiles(ChildPath(dirPath, fileName), visitFile);
+                        VisitFiles(ChildPath(dirPath, fileName), visitFile, diagnostics);
                         continue;
                     }
 
@@ -34,7 +38,7 @@ internal sealed partial class ShaderWarmupScreen
             }
             catch (Exception ex)
             {
-                PatchHelper.Log(Message.DirectoryEnumerationFailed(dirPath, ex));
+                diagnostics.RecordDirectoryEnumerationFailure(dirPath, ex);
             }
         }
 

@@ -21,6 +21,7 @@ internal sealed partial class ActionSection
         SetSupportButtonsVisible(visibility.Support);
         _safeLaunchButton.Visible = visibility.SafeLaunch;
         _launchButton.Visible = visibility.Launch;
+        ApplyLaunchControlsDisabled();
         _readyVersionSummaryPanel.Visible = _compact && visibility.Launch;
     }
 }

@@ -56,13 +56,13 @@ internal sealed partial class LauncherSessionCoordinator
     private void HandleSessionFlow(LauncherModel.FastPathResult result)
     {
         if (
-            result != LauncherModel.FastPathResult.ReadyToLaunch
+            !result.ReadyToLaunch
             && TryStartImmediateLocalLoginHandoff()
         )
             return;
 
         HandleFastPath(result);
-        if (result != LauncherModel.FastPathResult.ReadyToLaunch)
+        if (!result.ReadyToLaunch)
             StartLocalLoginHandoff();
     }
 

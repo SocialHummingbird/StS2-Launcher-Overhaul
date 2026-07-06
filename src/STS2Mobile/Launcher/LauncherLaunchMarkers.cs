@@ -8,16 +8,16 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherLaunchMarkers
 {
     private static string StartupMarkerPath =>
-        Path.Combine(OS.GetDataDir(), LauncherStorageNames.StartupMarker);
+        MarkerPath(LauncherStorageNames.StartupMarker);
 
     private static string StartupContextPath =>
-        Path.Combine(OS.GetDataDir(), LauncherStorageNames.StartupContext);
+        MarkerPath(LauncherStorageNames.StartupContext);
 
     private static string StartupTimelinePath =>
-        Path.Combine(OS.GetDataDir(), LauncherStorageNames.StartupTimeline);
+        MarkerPath(LauncherStorageNames.StartupTimeline);
 
     private static string ManualSafeLaunchPath =>
-        Path.Combine(OS.GetDataDir(), LauncherStorageNames.ManualSafeLaunch);
+        MarkerPath(LauncherStorageNames.ManualSafeLaunch);
 
     private static readonly Stopwatch ProcessTimer = Stopwatch.StartNew();
     private static int _phaseSequence;
@@ -66,6 +66,22 @@ internal static partial class LauncherLaunchMarkers
         {
             PatchHelper.Log($"{failureMessage}: {ex.Message}");
             return false;
+        }
+    }
+
+    private static string MarkerPath(string fileName)
+    {
+        try
+        {
+            var dataDir = OS.GetDataDir();
+            return string.IsNullOrWhiteSpace(dataDir)
+                ? fileName
+                : Path.Combine(dataDir, fileName);
+        }
+        catch (System.Exception ex)
+        {
+            PatchHelper.Log($"Failed to resolve launcher marker path for {fileName}: {ex.Message}");
+            return fileName;
         }
     }
 }

@@ -55,10 +55,14 @@ internal readonly struct DownloadViewUpdate
             hideActions: true
         );
 
-    internal static DownloadViewUpdate Completed(bool filesReady, string readinessProblem)
+    internal static DownloadViewUpdate Completed(
+        bool filesReady,
+        string readinessProblem,
+        string selectedVersion
+    )
         => new(
             status: filesReady
-                ? $"Selected game version downloaded ({LauncherGameVersionDisplay.SelectedGameVersionName()}). Start game when ready."
+                ? $"Selected game version downloaded ({selectedVersion}). Start game when ready."
                 : readinessProblem,
             hideDownload: true,
             launchAction: filesReady
@@ -67,11 +71,11 @@ internal readonly struct DownloadViewUpdate
             showRetry: !filesReady
         );
 
-    internal static DownloadViewUpdate Failed(string message)
+    internal static DownloadViewUpdate Failed(string message, string selectedVersion)
         => string.IsNullOrEmpty(message)
             ? new(resetDownload: true)
             : new(
-                status: $"Download failed for selected game version ({LauncherGameVersionDisplay.SelectedGameVersionName()}): {message}",
+                status: $"Download failed for selected game version ({selectedVersion}): {message}",
                 resetDownloadButton: LauncherDownloadCoordinator.RetryDownloadButtonText
             );
 

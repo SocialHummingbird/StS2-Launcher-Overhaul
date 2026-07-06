@@ -27,7 +27,10 @@ internal sealed partial class PatchCompatibilityEvidence
             if (!SourceAssemblyMatches)
                 return "Selected game version has Android patch validation evidence for a different game-code assembly.";
 
-            return $"Selected game version failed Android patch compatibility validation ({Status}).";
+            var detail = string.IsNullOrWhiteSpace(Detail)
+                ? Status
+                : $"{Status}: {Detail}";
+            return $"Selected game version failed Android patch compatibility validation ({detail}).";
         }
     }
 }

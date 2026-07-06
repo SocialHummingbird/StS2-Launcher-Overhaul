@@ -1,13 +1,12 @@
 using System;
 using System.IO;
-using Godot;
 
 namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherLaunchMarkers
 {
     private static string SteamAuthFailurePath =>
-        Path.Combine(OS.GetDataDir(), LauncherStorageNames.SteamAuthFailure);
+        MarkerPath(LauncherStorageNames.SteamAuthFailure);
 
     internal static void RecordSteamAuthFailure(
         SteamAuthFailureReport report,

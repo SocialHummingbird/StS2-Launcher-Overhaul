@@ -12,6 +12,7 @@ Run these before device validation:
 .\scripts\audit-multi-version-runtime.ps1
 .\scripts\audit-steam-version-selection.ps1
 .\scripts\audit-steam-branch-guidance-parity.ps1
+.\scripts\test-multi-version-runtime-evidence-reviewer.ps1
 ```
 
 `audit-multi-version-runtime.ps1` is intentionally only an orchestrator. Its focused modules cover helper boundaries, runtime-slot identity/readiness, runtime-pack generation/validation, patch compatibility, native prepared-cache routing, startup patch contracts, save-origin/Steam Cloud safety, diagnostics, and evidence tooling/docs.
@@ -93,8 +94,24 @@ Then review the collected artifact:
   -EvidenceDir artifacts\android\multi-version-runtime-public-beta-<timestamp> `
   -RequirePublicBeta `
   -RequireSaveSafety `
+  -RequireLaunchAttempt `
   -RequireResolvedClassification
 ```
+
+For the startup-refactor Start Game proof after pressing Start Game on device, capture and review in one read-only step:
+
+```powershell
+.\scripts\capture-launch-attempt-runtime-evidence.ps1 `
+  -PackageName <installed.package.name> `
+  -RunLabel public-beta-launch-attempt `
+  -WaitForDeviceSeconds 30 `
+  -MaxLaunchAttemptAgeMinutes 30 `
+  -RequirePublicBeta `
+  -RequireSaveSafety `
+  -AdbPath "C:\path\to\platform-tools\adb.exe"
+```
+
+The helper is read-only: it captures the current device state and immediately reviews it with `-RequireLaunchAttempt`. Press Start Game first, then run the helper against the same installed package. By default it also requires the launch-attempt marker to be no more than 30 minutes older than the capture metadata; use `-MaxLaunchAttemptAgeMinutes 0` only for archived evidence where freshness cannot be enforced. Use only one branch expectation per run: `-RequirePublic`, `-RequirePublicBeta`, or `-RequireBranchSwitch`.
 
 Equivalent wrapper after evidence exists:
 
@@ -104,6 +121,8 @@ Equivalent wrapper after evidence exists:
   -PublicBetaEvidenceDirs artifacts\android\multi-version-runtime-public-beta-<timestamp> `
   -BranchSwitchEvidenceDirs artifacts\android\multi-version-runtime-branch-switch-<timestamp> `
   -RequireSaveSafety `
+  -RequireLaunchAttempt `
+  -MaxLaunchAttemptAgeMinutes 30 `
   -RequireResolvedClassification
 ```
 
@@ -111,11 +130,14 @@ For one-off evidence artifact review, use `-EvidenceDirs` with `-RequirePublic`,
 
 Each collected artifact must include `run-metadata.json` with the sanitized run label, package name, generated UTC time, collector name, artifact folder name, and read-only marker. The evidence reviewer checks this metadata as well as `summary.md`, so a public artifact cannot be reused as beta or branch-switch evidence by path name alone.
 
+For startup-refactor signoff, use `-RequireLaunchAttempt`. That requires `diagnostics/last_launch_attempt.txt` from the same Start Game press as the runtime/cache evidence. Add `-MaxLaunchAttemptAgeMinutes <minutes>` when reviewing fresh device evidence so a stale but otherwise valid marker cannot pass. The marker must show its UTC timestamp, per-press attempt ID, prepared readiness was used, a concrete readiness-cache status, measured numeric launch/readiness/mod timings, selected branch, selected PCK hash, source and active Android `sts2.dll` hashes, runtime-pack usability, runtime-cache marker presence, runtime patch-validation marker presence, mod readiness phase/cache status, play mode, enabled mod count, and modded-save Cloud Push lock state. It must also show a successful handoff phase: `restart requested`, `safe android restart requested`, or `in-process signalled`. A marker that only reached `setup failed`, `checking`, `ready`, `blocked`, `blocked in model`, `readiness failed`, `mod readiness failed`, `in-process signal failed`, `launch handoff failed`, `launch handoff not requested`, or `restart requested without ready files` is not launch proof. The capture and review scripts use the shared phase contract in `scripts/evidence-launch-attempt-phases.ps1`. This prevents treating post-hoc runtime cache state, failed launch setup, pre-readiness checking, blocked selected-runtime readiness, failed selected-runtime readiness, failed in-process signalling, failed/no-op launch handoff, unmeasured timing placeholders, stale/undated launch markers, markers without a per-press attempt ID, or pre-handoff readiness as proof that the new launch orchestration path actually ran.
+
 Branch-switch artifacts must also include `last_game_branch_switch.txt` marker provenance in the collected diagnostics. A normal public or beta launch artifact is not enough to prove coexistence because it does not prove public -> public-beta -> public -> public-beta switching avoided stale runtime/cache reuse.
 
 For every public-beta signoff observation, the artifact must show:
 
 - selected branch is `public-beta`
+- `last_launch_attempt.txt` exists when `-RequireLaunchAttempt` is used and reports a timestamped successful handoff phase, per-press attempt ID, prepared readiness, selected branch, PCK/source/active assembly hashes, runtime-pack usability, cache/patch-validation marker presence, concrete cache statuses, measured launch/readiness/mod timings, play mode, enabled mod count, and modded-save Cloud Push lock state
 - selected PCK path is under `files/game_versions/public-beta-*/game/SlayTheSpire2.pck`
 - installed source PCK SHA-256 matches `current_runtime_slot.json` and the runtime-pack source manifest
 - Android-patched selected PCK SHA-256 matches runtime validation and the native runtime-cache marker

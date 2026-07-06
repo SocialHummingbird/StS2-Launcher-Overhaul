@@ -45,12 +45,17 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Workshop failed item count: {manifest.Items.Count(IsFailedWorkshopItem)}");
         sb.AppendLine($"Workshop raw staged directory count: {DirectoryCount(stagedDirectory)}");
         sb.AppendLine($"Workshop raw staged PCK file count: {RawStagedPckCount(stagedDirectory)}");
-        sb.AppendLine($"Mod selector play mode: {(LauncherModSelectionState.IsModdedMode ? "modded" : "vanilla")}");
-        sb.AppendLine($"Mod selector installed mod count: {LauncherModSelectionState.InstalledModCount()}");
-        sb.AppendLine($"Mod selector enabled mod count: {LauncherModSelectionState.EnabledModCount()}");
-        sb.AppendLine($"Workshop modded-save Cloud Push locked: {BoolText(LauncherWorkshopModSafety.HasActiveStagedMods())}");
+        var moddedMode = LauncherModSelectionState.IsModdedMode;
+        var knownMods = LauncherModSelectionState.KnownMods();
+        var enabledMods = moddedMode
+            ? knownMods.Where(mod => mod.Enabled && !mod.IsUnsupported).ToArray()
+            : Array.Empty<LauncherKnownMod>();
+        sb.AppendLine($"Mod selector play mode: {(moddedMode ? "modded" : "vanilla")}");
+        sb.AppendLine($"Mod selector installed mod count: {knownMods.Count(mod => !mod.IsUnsupported)}");
+        sb.AppendLine($"Mod selector enabled mod count: {enabledMods.Length}");
+        sb.AppendLine($"Workshop modded-save Cloud Push locked: {BoolText(LauncherWorkshopModSafety.HasActiveSelectedMods(enabledMods.Length))}");
 
-        foreach (var mod in LauncherModSelectionState.KnownMods().Where(mod => mod.Enabled && !mod.IsUnsupported).Take(32))
+        foreach (var mod in enabledMods.Take(32))
         {
             sb.AppendLine(
                 "Mod selector enabled item: "

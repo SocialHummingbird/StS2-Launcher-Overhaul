@@ -8,8 +8,8 @@ internal sealed partial class ActionSection
     {
         Visible = true;
         SetCompactActionButtonText(_launchButton, _compact ? CompactLaunchButtonText(text) : text);
-        SetCloudControlsVisible(true);
         ShowLaunchButtons(showUpdate);
+        SetCloudControlsVisible(true);
         _retryButton.Visible = false;
     }
 

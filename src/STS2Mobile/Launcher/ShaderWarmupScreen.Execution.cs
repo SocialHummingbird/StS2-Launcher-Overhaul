@@ -12,15 +12,20 @@ internal sealed partial class ShaderWarmupScreen
         var warmup = CreateWarmupRun();
         WriteWarmupStatus("collecting", "Collecting shader warmup materials");
 
-        var materials = await CollectWarmupMaterialsAsync(
+        var scan = await CollectWarmupMaterialsAsync(
             warmup.Tree,
             warmup.Progress,
             () => warmup.IsOverBudget
         );
+        var materials = scan.Materials;
 
         if (materials.Count == 0)
         {
-            WriteWarmupStatus("completed", "No shader warmup materials found");
+            WriteWarmupStatus(
+                "completed",
+                "No shader warmup materials found",
+                scan.Diagnostics.ToEvidenceLines()
+            );
             MarkWarmupComplete();
             return;
         }
@@ -40,8 +45,14 @@ internal sealed partial class ShaderWarmupScreen
             WriteWarmupStatus(
                 "completed-partial",
                 $"Rendered {rendered} of {materials.Count} shader warmup materials before the {WarmupTimeBudgetSeconds}s budget",
-                $"Elapsed ms: {warmup.ElapsedMilliseconds}",
-                "Classification: precompile time budget reached; startup continued"
+                MergeEvidence(
+                    new[]
+                    {
+                        $"Elapsed ms: {warmup.ElapsedMilliseconds}",
+                        "Classification: precompile time budget reached; startup continued",
+                    },
+                    scan.Diagnostics.ToEvidenceLines()
+                )
             );
             await WaitFinishDelayAsync();
             return;
@@ -52,13 +63,19 @@ internal sealed partial class ShaderWarmupScreen
         WriteWarmupStatus(
             "completed",
             $"Rendered {rendered} shader warmup materials",
-            $"Elapsed ms: {warmup.ElapsedMilliseconds}",
-            "Classification: full shader warmup completed"
+            MergeEvidence(
+                new[]
+                {
+                    $"Elapsed ms: {warmup.ElapsedMilliseconds}",
+                    "Classification: full shader warmup completed",
+                },
+                scan.Diagnostics.ToEvidenceLines()
+            )
         );
         await WaitFinishDelayAsync();
     }
 
-    private async Task<List<WarmupMaterial>> CollectWarmupMaterialsAsync(
+    private async Task<ShaderWarmupMaterialScanner.ShaderWarmupMaterialScanResult> CollectWarmupMaterialsAsync(
         SceneTree tree,
         ShaderWarmupProgress progress,
         Func<bool> shouldStop
@@ -69,7 +86,12 @@ internal sealed partial class ShaderWarmupScreen
         await WaitPostDrawAsync();
 
         var materials = await ShaderWarmupMaterialScanner.CollectAsync(tree, progress, shouldStop);
-        PatchHelper.Log(Message.Collected(materials.Count));
+        PatchHelper.Log(Message.Collected(materials.Materials.Count));
+        WriteWarmupStatus(
+            "collected",
+            $"Collected {materials.Materials.Count} unique shader warmup materials",
+            materials.Diagnostics.ToEvidenceLines()
+        );
         return materials;
     }
 

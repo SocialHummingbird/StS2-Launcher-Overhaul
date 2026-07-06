@@ -35,12 +35,29 @@ internal sealed class LauncherKnownMod
     internal bool Enabled { get; init; }
 }
 
+internal sealed class LauncherKnownModsSnapshot
+{
+    internal LauncherKnownModsSnapshot(
+        LauncherModSourceIdentity identity,
+        IReadOnlyList<LauncherKnownMod> mods
+    )
+    {
+        Identity = identity;
+        Mods = mods ?? Array.Empty<LauncherKnownMod>();
+    }
+
+    internal LauncherModSourceIdentity Identity { get; }
+    internal IReadOnlyList<LauncherKnownMod> Mods { get; }
+}
+
 internal static class LauncherModSelectionState
 {
     internal const int CurrentVersion = 1;
     internal const string VanillaModeName = "vanilla";
     internal const string ModdedModeName = "modded";
     private const int MaxManualMods = 32;
+    private static readonly object KnownModsGate = new();
+    private static KnownModsCacheEntry _knownModsCache;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -51,33 +68,68 @@ internal static class LauncherModSelectionState
     {
         get
         {
-            var document = Load();
-            return string.Equals(document.PlayMode, VanillaModeName, StringComparison.OrdinalIgnoreCase)
-                ? LauncherModPlayMode.Vanilla
-                : LauncherModPlayMode.Modded;
+            return PlayModeFor(Load());
         }
     }
 
     internal static bool IsModdedMode => PlayMode == LauncherModPlayMode.Modded;
 
+    internal static bool IsModdedModeFor(LauncherModSelectionDocument document)
+        => PlayModeFor(document) == LauncherModPlayMode.Modded;
+
     internal static bool PushShouldBeLocked()
-        => IsModdedMode && KnownMods().Any(mod => mod.Enabled && !mod.IsUnsupported);
+        => PushShouldBeLocked(Load());
+
+    internal static bool PushShouldBeLocked(LauncherModSelectionDocument document)
+        => IsModdedModeFor(document) && KnownMods(document).Any(mod => mod.Enabled && !mod.IsUnsupported);
+
+    internal static bool PushShouldBeLocked(IReadOnlyList<LauncherKnownMod> knownMods)
+        => EnabledModCount(knownMods) > 0;
 
     internal static int EnabledModCount()
-        => IsModdedMode
-            ? KnownMods().Count(mod => mod.Enabled && !mod.IsUnsupported)
+        => EnabledModCount(Load());
+
+    internal static int EnabledModCount(LauncherModSelectionDocument document)
+        => IsModdedModeFor(document)
+            ? KnownMods(document).Count(mod => mod.Enabled && !mod.IsUnsupported)
             : 0;
+
+    internal static int EnabledModCount(IReadOnlyList<LauncherKnownMod> knownMods)
+        => knownMods?.Count(mod => mod.Enabled && !mod.IsUnsupported) ?? 0;
 
     internal static int InstalledModCount()
         => KnownMods().Count(mod => !mod.IsUnsupported);
 
     internal static IReadOnlyList<LauncherKnownMod> KnownMods()
+        => KnownModsSnapshot().Mods;
+
+    internal static IReadOnlyList<LauncherKnownMod> KnownMods(LauncherModSelectionDocument document)
+        => KnownModsSnapshot(document).Mods;
+
+    internal static LauncherKnownModsSnapshot KnownModsSnapshot()
+        => KnownModsSnapshot(Load());
+
+    internal static LauncherKnownModsSnapshot KnownModsSnapshot(LauncherModSelectionDocument document)
+        => KnownModsSnapshot(document, LauncherModSourceIdentity.Create());
+
+    internal static LauncherKnownModsSnapshot KnownModsSnapshot(
+        LauncherModSelectionDocument document,
+        LauncherModSourceIdentity identity
+    )
     {
-        var document = Load();
+        identity ??= LauncherModSourceIdentity.Create();
+        lock (KnownModsGate)
+        {
+            if (_knownModsCache != null && _knownModsCache.Identity.Matches(identity))
+                return _knownModsCache.Snapshot;
+        }
+
+        document ??= DefaultDocument();
+        document.EnabledMods ??= new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         var mods = new List<LauncherKnownMod>();
         mods.AddRange(WorkshopMods(document));
         mods.AddRange(ManualMods(document));
-        return mods
+        var knownMods = mods
             .GroupBy(mod => mod.Key, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .OrderByDescending(mod => mod.Enabled)
@@ -85,6 +137,43 @@ internal static class LauncherModSelectionState
             .ThenByDescending(mod => mod.IsDependency)
             .ThenBy(mod => mod.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+        lock (KnownModsGate)
+        {
+            if (_knownModsCache == null || !_knownModsCache.Identity.Matches(identity))
+                _knownModsCache = new KnownModsCacheEntry(identity, knownMods);
+
+            return _knownModsCache.Snapshot;
+        }
+    }
+
+    private static LauncherModPlayMode PlayModeFor(LauncherModSelectionDocument document)
+        => string.Equals(document?.PlayMode, VanillaModeName, StringComparison.OrdinalIgnoreCase)
+            ? LauncherModPlayMode.Vanilla
+            : LauncherModPlayMode.Modded;
+
+    internal static void ClearKnownModsCache(string reason)
+    {
+        lock (KnownModsGate)
+        {
+            _knownModsCache = null;
+        }
+
+        LauncherModLaunchReadinessCache.Clear(reason);
+    }
+
+    private sealed class KnownModsCacheEntry
+    {
+        internal KnownModsCacheEntry(
+            LauncherModSourceIdentity identity,
+            IReadOnlyList<LauncherKnownMod> mods
+        )
+        {
+            Snapshot = new LauncherKnownModsSnapshot(identity, mods);
+        }
+
+        internal LauncherModSourceIdentity Identity => Snapshot.Identity;
+        internal LauncherKnownModsSnapshot Snapshot { get; }
     }
 
     internal static bool IsModEnabled(string key)
@@ -97,15 +186,18 @@ internal static class LauncherModSelectionState
     }
 
     internal static bool IsPathEnabled(string path)
-    {
-        if (!IsModdedMode)
-            return false;
+        => IsPathEnabled(path, Load());
 
+    internal static bool IsPathEnabled(string path, LauncherModSelectionDocument document)
+        => IsModdedModeFor(document) && IsPathEnabled(path, KnownMods(document));
+
+    internal static bool IsPathEnabled(string path, IReadOnlyList<LauncherKnownMod> knownMods)
+    {
         var normalized = NormalizePath(path);
         if (string.IsNullOrWhiteSpace(normalized))
             return false;
 
-        foreach (var mod in KnownMods())
+        foreach (var mod in knownMods ?? Array.Empty<LauncherKnownMod>())
         {
             var modPath = NormalizePath(mod.Path);
             if (string.IsNullOrWhiteSpace(modPath))
@@ -185,6 +277,7 @@ internal static class LauncherModSelectionState
             var tempPath = AppPaths.AppPrivateModSelectionPath + ".tmp";
             File.WriteAllText(tempPath, JsonSerializer.Serialize(document, JsonOptions));
             File.Move(tempPath, AppPaths.AppPrivateModSelectionPath, overwrite: true);
+            ClearKnownModsCache("mod selection changed");
         }
         catch (Exception ex)
         {

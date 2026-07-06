@@ -26,6 +26,17 @@ internal sealed partial class DownloadSection
         UpdateBranchHelpText();
     }
 
+    internal void SetGameBranchOptions(
+        string branch,
+        IReadOnlyList<LauncherBranchCatalog.BranchOption> branches
+    )
+    {
+        _gameBranch = LauncherBranchDropdown.NormalizeSelection(_gameBranch, branch).Branch;
+        _availableBranches = LauncherBranchDropdown.NormalizeAvailableBranches(branches);
+        PopulateBranchDropdown();
+        UpdateBranchHelpText();
+    }
+
     private void ApplyBranchControlVisibility()
     {
         var controlsVisible = !_compact || _branchDetailsExpanded;

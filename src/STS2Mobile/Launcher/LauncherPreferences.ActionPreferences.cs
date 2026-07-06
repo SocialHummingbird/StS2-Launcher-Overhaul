@@ -25,6 +25,13 @@ internal static partial class LauncherPreferences
             ReadGameBranch()
         );
 
+    internal static ActionPreferences ReadActionPreferences(string gameBranch)
+        => new(
+            LocalBackupPreference.Read(),
+            CloudSyncPreference.Read(),
+            gameBranch
+        );
+
     internal static ActionPreferences LoadAndApplyActionPreferences()
         => new(
             LocalBackupPreference.LoadAndApply(),

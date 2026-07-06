@@ -35,10 +35,16 @@ internal static partial class LauncherBranchCatalog
             .ToArray();
 
     internal static IReadOnlyList<BranchOption> ReadSelectableBranches(string dataDir)
+        => ReadSelectableBranches(dataDir, ReadVisibleBranches(dataDir));
+
+    internal static IReadOnlyList<BranchOption> ReadSelectableBranches(
+        string dataDir,
+        IReadOnlyList<BranchOption> visibleBranches
+    )
     {
         var options = new List<BranchOption>();
 
-        foreach (var branch in ReadVisibleBranches(dataDir))
+        foreach (var branch in visibleBranches ?? Array.Empty<BranchOption>())
             AddOrReplace(options, branch);
 
         foreach (var branch in ReadInstalledBranches(dataDir))

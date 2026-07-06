@@ -17,21 +17,27 @@ internal sealed partial class ShaderWarmupScreen
         private const string SceneRoot = "res://scenes";
         private const string TresExtension = ".tres";
 
-        internal static async Task<List<WarmupMaterial>> CollectAsync(
+        internal static async Task<ShaderWarmupMaterialScanResult> CollectAsync(
             SceneTree tree,
             ShaderWarmupProgress progress,
             Func<bool> shouldStop
         )
         {
             var materials = new WarmupMaterialCollection();
+            var diagnostics = new ShaderWarmupMaterialScanDiagnostics();
 
-            await ScanLooseMaterialsAsync(materials, tree, progress);
+            await ScanLooseMaterialsAsync(materials, tree, progress, diagnostics);
             if (!shouldStop())
-                await ScanScenesAsync(materials, tree, progress, shouldStop);
+                await ScanScenesAsync(materials, tree, progress, shouldStop, diagnostics);
+            else
+                diagnostics.SceneScanStoppedByBudget = true;
 
             var unique = materials.UniqueByShader();
+            diagnostics.MaterialsBeforeDedup = materials.Count;
+            diagnostics.UniqueMaterialCount = unique.Count;
             PatchHelper.Log(Message.UniqueShaders(materials.Count, unique.Count));
-            return unique;
+            diagnostics.LogSummary();
+            return new ShaderWarmupMaterialScanResult(unique, diagnostics);
         }
 
         private static bool TryCreateMaterial(Resource resource, out Material material)

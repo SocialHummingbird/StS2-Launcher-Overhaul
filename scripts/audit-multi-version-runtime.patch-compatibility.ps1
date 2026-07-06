@@ -50,11 +50,22 @@ function Add-MultiVersionRuntimePatchCompatibilityChecks {
         "creates or deletes runtime packs after non-public selected-version validation" `
         @(
             "ValidateSelectedVersion",
+            "ValidateSelectedVersionSlot",
+            "SelectedVersionSlotAlreadyValidated",
+            "current runtime pack already passed validation",
+            "slot\.RuntimePackUsable",
+            "slot\.RuntimePack\?\.PatchValidationPassed == true",
+            "slot\.PatchCompatibility\?\.Passed == true",
             "RuntimePackWriter\.WriteValidatedRuntimePack",
             "RuntimePackWriter\.DeleteRuntimePack",
-            "RuntimePackSlotIdMatches",
+            "GameRuntimeSlot\.Inspect\(dataDir, branch\)",
             "CheckSymbols",
             "WriteMarker",
+            "runtimePackWritten",
+            "runtime pack generation failed after patch compatibility validation",
+            "failures\.Count > 0",
+            "LauncherLaunchReadinessCache\.Clear",
+            "patch compatibility validation updated runtime evidence",
             "BranchMarkerReady"
         )
 
@@ -97,7 +108,8 @@ function Add-MultiVersionRuntimePatchCompatibilityChecks {
             "different PCK",
             "does not declare the validated game-code assembly",
             "different game-code assembly",
-            "failed Android patch compatibility validation"
+            "failed Android patch compatibility validation",
+            "\$""\{Status\}: \{Detail\}"""
         )
 
     Add-Check `
@@ -198,4 +210,58 @@ function Add-MultiVersionRuntimePatchCompatibilityChecks {
             "value\.TryGetInt32",
             "int\.TryParse"
         )
+
+    Add-PatchCompatibilityRuntimePackInvalidationOwnershipCheck
+}
+
+function Add-PatchCompatibilityRuntimePackInvalidationOwnershipCheck {
+    $validatorPath = "src\STS2Mobile\Launcher\PatchCompatibilityValidator.Validation.cs"
+    $validator = Read-RepoFile $validatorPath
+    if ($null -eq $validator) {
+        return
+    }
+
+    $writeCallCount = ([regex]::Matches(
+        $validator,
+        "RuntimePackWriter\.WriteValidatedRuntimePack\("
+    )).Count
+    $deleteCallCount = ([regex]::Matches(
+        $validator,
+        "RuntimePackWriter\.DeleteRuntimePack\("
+    )).Count
+    $clearCallCount = ([regex]::Matches(
+        $validator,
+        "LauncherLaunchReadinessCache\.Clear\("
+    )).Count
+
+    if ($writeCallCount -ne 1 -or $deleteCallCount -ne 1 -or $clearCallCount -ne 1) {
+        $script:StaticAuditFailures.Add(
+            "$validatorPath - keeps runtime-pack readiness invalidation owned by selected-version validation - expected one write, one delete, and one cache clear; found write=$writeCallCount delete=$deleteCallCount clear=$clearCallCount"
+        )
+        return
+    }
+
+    $launcherFiles = Get-ChildItem `
+        -LiteralPath (Resolve-RepoPath "src\STS2Mobile\Launcher") `
+        -Filter "*.cs" `
+        -File
+    foreach ($file in $launcherFiles) {
+        $relativePath = "src\STS2Mobile\Launcher\$($file.Name)"
+        $content = Get-Content -LiteralPath $file.FullName -Raw
+        if ($file.Name -eq "PatchCompatibilityValidator.Validation.cs") {
+            continue
+        }
+
+        if ($content -match "RuntimePackWriter\.(WriteValidatedRuntimePack|DeleteRuntimePack)\(") {
+            $script:StaticAuditFailures.Add(
+                "$relativePath - keeps runtime-pack readiness invalidation owned by selected-version validation - direct RuntimePackWriter mutation call bypasses cache invalidation owner"
+            )
+            return
+        }
+    }
+
+    $script:StaticAuditPasses += 1
+    if (-not $script:StaticAuditQuiet) {
+        Write-Host "PASS $validatorPath - keeps runtime-pack readiness invalidation owned by selected-version validation"
+    }
 }

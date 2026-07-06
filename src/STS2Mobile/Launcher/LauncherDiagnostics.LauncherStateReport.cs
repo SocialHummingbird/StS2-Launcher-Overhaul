@@ -18,7 +18,7 @@ internal static partial class LauncherDiagnostics
                 string dataDir,
                 string accountName,
                 bool hasSavedCredentials,
-                bool gameFilesReady,
+                LauncherLaunchReadiness launchReadiness,
                 string sessionState,
                 string failReason
             )
@@ -26,15 +26,15 @@ internal static partial class LauncherDiagnostics
                 DataDir = dataDir;
                 AccountName = accountName;
                 HasSavedCredentials = hasSavedCredentials;
-                GameFilesReady = gameFilesReady;
+                LaunchReadiness = launchReadiness;
                 SessionState = sessionState;
                 FailReason = failReason;
             }
 
             internal string DataDir { get; }
+            internal LauncherLaunchReadiness LaunchReadiness { get; }
             private string AccountName { get; }
             private bool HasSavedCredentials { get; }
-            private bool GameFilesReady { get; }
             private string SessionState { get; }
             private string FailReason { get; }
 
@@ -58,7 +58,8 @@ internal static partial class LauncherDiagnostics
 
             private void AppendCompact(StringBuilder sb)
             {
-                sb.AppendLine($"Game files ready: {GameFilesReady}");
+                sb.AppendLine($"Game files ready: {BoolText(LaunchReadiness?.Ready == true)}");
+                sb.AppendLine($"Launch readiness cache status: {ValueOrMissing(LaunchReadiness?.CacheStatus)}");
                 sb.AppendLine($"Session state: {ValueOrMissing(SessionState)}");
             }
         }

@@ -1,6 +1,5 @@
+using System;
 using System.Threading.Tasks;
-using STS2Mobile.Patches;
-using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -33,41 +32,70 @@ internal partial class LauncherModel
         return _launchTcs.Task;
     }
 
-    internal void Launch()
-    {
-        LauncherLaunchMarkers.RecordPhase("launch model entered", "normal");
-        if (!SelectedGameVersionReadyForLaunch())
-            return;
+    internal LauncherLaunchHandoffResult Launch(
+        LauncherLaunchReadiness readiness,
+        LauncherModLaunchReadiness modReadiness,
+        string launchSource,
+        string attemptId,
+        Func<LauncherLaunchAttemptTiming> timingSnapshot
+    )
+        => LaunchPrepared(
+            safe: false,
+            readiness,
+            modReadiness,
+            launchSource,
+            attemptId,
+            timingSnapshot
+        );
 
-        LauncherLaunchMarkers.ClearManualSafeLaunchMarker();
-        LauncherLaunchMarkers.RecordPhase("launch credentials saving", "normal");
+    internal LauncherLaunchHandoffResult LaunchSafe(
+        LauncherLaunchReadiness readiness,
+        LauncherModLaunchReadiness modReadiness,
+        string launchSource,
+        string attemptId,
+        Func<LauncherLaunchAttemptTiming> timingSnapshot
+    )
+        => LaunchPrepared(
+            safe: true,
+            readiness,
+            modReadiness,
+            launchSource,
+            attemptId,
+            timingSnapshot
+        );
+
+    private LauncherLaunchHandoffResult LaunchPrepared(
+        bool safe,
+        LauncherLaunchReadiness readiness,
+        LauncherModLaunchReadiness modReadiness,
+        string launchSource,
+        string attemptId,
+        Func<LauncherLaunchAttemptTiming> timingSnapshot
+    )
+    {
+        var action = safe ? "safe" : "normal";
+        LauncherLaunchMarkers.RecordPhase("launch model entered", action);
+        if (!SelectedGameVersionReadyForLaunch(readiness, out var readinessProblem))
+            return LauncherLaunchHandoffResult.Failed(
+                LauncherLaunchAttemptPhases.BlockedInModel,
+                readinessProblem,
+                writePatchLog: true
+            );
+
+        SetSafeLaunchMarker(safe);
+        LauncherLaunchMarkers.RecordPhase("launch credentials saving", action);
         SaveLaunchCredentials();
 
-        if (TrySignalInProcessLaunch())
-            return;
+        timingSnapshot ??= LauncherLaunchAttemptTiming.NotMeasured;
 
-        LauncherLaunchMarkers.RecordPhase("launch restart requested", "normal");
-        RestartForLaunch(safe: false);
-    }
+        if (TrySignalInProcessLaunch(readiness, modReadiness, safe, launchSource, attemptId, timingSnapshot))
+            return LauncherLaunchHandoffResult.Success(LauncherLaunchAttemptPhases.InProcessSignalled);
 
-    internal void LaunchSafe()
-    {
-        LauncherLaunchMarkers.RecordPhase("launch model entered", "safe");
-        if (!SelectedGameVersionReadyForLaunch())
-            return;
+        if (safe && TrySafeAndroidRestart(readiness, modReadiness, launchSource, attemptId, timingSnapshot))
+            return LauncherLaunchHandoffResult.Success(LauncherLaunchAttemptPhases.SafeAndroidRestartRequested);
 
-        LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
-        LauncherLaunchMarkers.RecordPhase("launch credentials saving", "safe");
-        SaveLaunchCredentials();
-
-        if (TrySignalInProcessLaunch())
-            return;
-
-        if (TrySafeAndroidRestart())
-            return;
-
-        LauncherLaunchMarkers.RecordPhase("launch restart requested", "safe");
-        RestartForLaunch(safe: true);
+        LauncherLaunchMarkers.RecordPhase("launch restart requested", action);
+        return RestartForLaunch(safe, readiness, modReadiness, launchSource, attemptId, timingSnapshot);
     }
 
     private bool PreserveLaunchConnection => _launchTcs != null;
@@ -80,44 +108,11 @@ internal partial class LauncherModel
         LauncherCloudSaveState.SaveCredentials(_credentialStore);
     }
 
-    private bool TrySignalInProcessLaunch()
+    private static void SetSafeLaunchMarker(bool safe)
     {
-        if (_launchTcs == null)
-            return false;
-
-        var selectedBranch = LauncherPreferences.ReadGameBranch();
-        if (!string.Equals(_processGameBranch, selectedBranch, System.StringComparison.OrdinalIgnoreCase))
-        {
-            LauncherLaunchMarkers.RecordPhase(
-                "launch requires restart",
-                $"processBranch={_processGameBranch}; selectedBranch={selectedBranch}"
-            );
-            PatchHelper.Log(
-                "[Launcher] Selected game branch changed from process-loaded "
-                    + $"{SteamGameBranch.DisplayName(_processGameBranch)} to {SteamGameBranch.DisplayName(selectedBranch)}; "
-                    + "restarting so Godot loads the selected version from disk."
-            );
-            return false;
-        }
-
-        LauncherLaunchMarkers.RecordPhase("in-process launch signalled", $"branch={selectedBranch}");
-        _launchTcs.TrySetResult(true);
-        return true;
-    }
-
-    private bool SelectedGameVersionReadyForLaunch()
-    {
-        var branch = LauncherPreferences.ReadGameBranch();
-        if (LauncherGameFiles.DownloadedForValidation(_dataDir, branch))
-            PatchCompatibilityValidator.ValidateSelectedVersion(_dataDir, branch);
-
-        if (LauncherGameFiles.Ready(_dataDir))
-            return true;
-
-        var problem = LauncherGameFiles.ReadinessProblem(_dataDir, branch)
-            ?? "Selected game version is not ready to launch.";
-        LauncherLaunchMarkers.RecordPhase("launch model blocked", problem);
-        PatchHelper.Log($"[Launcher] Launch blocked: {problem}");
-        return false;
+        if (safe)
+            LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
+        else
+            LauncherLaunchMarkers.ClearManualSafeLaunchMarker();
     }
 }

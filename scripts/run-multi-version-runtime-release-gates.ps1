@@ -7,7 +7,9 @@ param(
     [switch]$RequirePublicBeta,
     [switch]$RequireBranchSwitch,
     [switch]$RequireSaveSafety,
+    [switch]$RequireLaunchAttempt,
     [switch]$RequireResolvedClassification,
+    [int]$MaxLaunchAttemptAgeMinutes = 0,
     [switch]$Quiet
 )
 
@@ -31,12 +33,26 @@ function Invoke-RepoScript {
         Write-Host "Running $RelativePath"
     }
 
+    if ($Quiet) {
+        & $path @Arguments *> $null
+        return
+    }
+
     & $path @Arguments
 }
 
 Invoke-RepoScript -RelativePath "scripts\audit-multi-version-runtime.ps1" -Arguments @("-Quiet")
-Invoke-RepoScript -RelativePath "scripts\audit-steam-version-selection.ps1"
-Invoke-RepoScript -RelativePath "scripts\audit-steam-branch-guidance-parity.ps1"
+$quietArguments = @()
+if ($Quiet) {
+    $quietArguments += "-Quiet"
+}
+Invoke-RepoScript -RelativePath "scripts\audit-steam-version-selection.ps1" -Arguments $quietArguments
+Invoke-RepoScript -RelativePath "scripts\audit-steam-branch-guidance-parity.ps1" -Arguments $quietArguments
+$reviewerTestArguments = @()
+if ($Quiet) {
+    $reviewerTestArguments += "-Quiet"
+}
+Invoke-RepoScript -RelativePath "scripts\test-multi-version-runtime-evidence-reviewer.ps1" -Arguments $reviewerTestArguments
 
 function Invoke-EvidenceReview {
     param(
@@ -61,7 +77,9 @@ function Invoke-EvidenceReview {
         -RequirePublicBeta:$PublicBetaRequired `
         -RequireBranchSwitch:$BranchSwitchRequired `
         -RequireSaveSafety:$RequireSaveSafety `
+        -RequireLaunchAttempt:$RequireLaunchAttempt `
         -RequireResolvedClassification:$RequireResolvedClassification `
+        -MaxLaunchAttemptAgeMinutes $MaxLaunchAttemptAgeMinutes `
         -Quiet:$Quiet
 }
 

@@ -10,11 +10,22 @@ namespace STS2Mobile.Launcher;
 internal static partial class PatchCompatibilityValidator
 {
     internal static PatchCompatibilityEvidence ValidateSelectedVersion(string dataDir, string branch)
+        => ValidateSelectedVersionSlot(dataDir, branch).PatchCompatibility;
+
+    internal static GameRuntimeSlot ValidateSelectedVersionSlot(string dataDir, string branch)
     {
         branch = SteamGameBranch.Normalize(branch);
         var slot = GameRuntimeSlot.Inspect(dataDir, branch);
         if (string.Equals(branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
-            return slot.PatchCompatibility;
+            return slot;
+
+        if (SelectedVersionSlotAlreadyValidated(slot))
+        {
+            PatchHelper.Log(
+                $"[Launcher] Patch compatibility validation for '{branch}' skipped: current runtime pack already passed validation."
+            );
+            return slot;
+        }
 
         var markerPath = Path.Combine(
             slot.GameDirectory ?? string.Empty,
@@ -37,37 +48,38 @@ internal static partial class PatchCompatibilityValidator
             failures.AddRange(symbolChecks.Where(symbol => !symbol.Present).Select(symbol => symbol.FailureMessage));
         }
 
-        var status = failures.Count == 0 ? "passed" : "failed";
-        WriteMarker(markerPath, slot, status, failures, symbolChecks);
         if (failures.Count == 0)
         {
-            RuntimePackWriter.WriteValidatedRuntimePack(
+            var runtimePackWritten = RuntimePackWriter.WriteValidatedRuntimePack(
                 slot,
                 PatchSetVersion,
                 ValidationMode,
                 "Critical startup patch symbols were found in the selected source assembly.",
                 symbolChecks
             );
+            if (!runtimePackWritten)
+                failures.Add("runtime pack generation failed after patch compatibility validation");
         }
-        else
+
+        var status = failures.Count == 0 ? "passed" : "failed";
+        if (failures.Count > 0)
         {
             RuntimePackWriter.DeleteRuntimePack(slot, "selected-version patch compatibility validation failed");
         }
+        WriteMarker(markerPath, slot, status, failures, symbolChecks);
 
+        LauncherLaunchReadinessCache.Clear($"patch compatibility validation updated runtime evidence for {branch}");
         var validatedSlot = GameRuntimeSlot.Inspect(dataDir, branch);
-        var evidence = PatchCompatibilityEvidence.Inspect(
-            dataDir,
-            branch,
-            validatedSlot.GameDirectory,
-            validatedSlot.PckSha256,
-            validatedSlot.SourceAssemblySha256,
-            validatedSlot.RuntimePack,
-            validatedSlot.RuntimePackSlotIdMatches
-        );
         PatchHelper.Log(
             $"[Launcher] Patch compatibility validation for '{branch}' {status}: "
             + (failures.Count == 0 ? "critical symbols present" : string.Join("; ", failures.Take(4)))
         );
-        return evidence;
+        return validatedSlot;
     }
+
+    private static bool SelectedVersionSlotAlreadyValidated(GameRuntimeSlot slot)
+        => slot?.Playable == true
+            && slot.RuntimePackUsable
+            && slot.RuntimePack?.PatchValidationPassed == true
+            && slot.PatchCompatibility?.Passed == true;
 }

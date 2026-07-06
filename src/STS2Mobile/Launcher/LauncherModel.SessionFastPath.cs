@@ -29,19 +29,29 @@ internal partial class LauncherModel
         PatchHelper.Log("[Launcher] Fast path phase: ownership marker");
         var hasOwnershipMarker = _steamSession.HasOwnershipMarker();
         PatchHelper.Log("[Launcher] Fast path phase complete: ownership marker");
-        PatchHelper.Log("[Launcher] Fast path phase: game files ready");
-        var gameFilesReady = LauncherGameFiles.Ready(_dataDir);
-        PatchHelper.Log("[Launcher] Fast path phase complete: game files ready");
         PatchHelper.Log(
             $"[Launcher] Fast path: creds={hasCredentials}, marker={hasOwnershipMarker}"
         );
 
-        if (hasCredentials && hasOwnershipMarker && gameFilesReady)
-            return FastPathResult.ReadyToLaunch;
-
         if (hasCredentials)
-            return FastPathResult.AutoConnect;
+        {
+            if (!hasOwnershipMarker)
+                return FastPathResult.AutoConnect();
 
-        return FastPathResult.ShowLogin;
+            PatchHelper.Log("[Launcher] Fast path phase: selected downloaded-state readiness");
+            var readiness = LauncherLaunchReadiness.EvaluateDownloadedState(
+                _dataDir,
+                LauncherPreferences.ReadGameBranch(),
+                "session fast path downloaded-state readiness"
+            );
+            PatchHelper.Log("[Launcher] Fast path phase complete: selected downloaded-state readiness");
+
+            if (readiness.Ready)
+                return FastPathResult.Ready(readiness);
+
+            return FastPathResult.AutoConnect();
+        }
+
+        return FastPathResult.ShowLogin();
     }
 }

@@ -39,9 +39,7 @@ internal sealed partial class LauncherUI
                 ? "Auto-safe-launching downloaded game from launch request."
                 : "Auto-launching downloaded game from launch request."
         );
-        if (safeLaunch)
-            _model.LaunchSafe();
-        else
-            _model.Launch();
+
+        _controller.AutoLaunchRequested(safeLaunch);
     }
 }

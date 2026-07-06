@@ -8,7 +8,11 @@ internal sealed partial class ShaderWarmupScreen
 {
     private static partial class ShaderWarmupMaterialScanner
     {
-        private static void CollectScenePaths(string dirPath, List<string> paths)
+        private static void CollectScenePaths(
+            string dirPath,
+            List<string> paths,
+            ShaderWarmupMaterialScanDiagnostics diagnostics
+        )
         {
             VisitFiles(dirPath, (currentDir, fileName) =>
             {
@@ -22,7 +26,7 @@ internal sealed partial class ShaderWarmupScreen
 
                 if (ResourceLoader.Exists(cleanPath))
                     paths.Add(cleanPath);
-            });
+            }, diagnostics);
         }
 
         private static bool ShouldSkipScenePathForWarmup(string scenePath)

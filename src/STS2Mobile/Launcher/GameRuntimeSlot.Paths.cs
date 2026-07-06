@@ -18,10 +18,15 @@ internal sealed partial class GameRuntimeSlot
             SteamGameBranch.StateDirectoryName(branch)
         );
 
-    private static string FindSourceAssemblyPath(string gameDirectory)
+    internal static string FindSourceAssemblyPath(string gameDirectory)
     {
-        if (string.IsNullOrWhiteSpace(gameDirectory) || !Directory.Exists(gameDirectory))
-            return Path.Combine(gameDirectory ?? string.Empty, "data_sts2_windows_x86_64", GameAssemblyFileName);
+        var expectedPath = Path.Combine(
+            gameDirectory ?? string.Empty,
+            "data_sts2_windows_x86_64",
+            GameAssemblyFileName
+        );
+        if (File.Exists(expectedPath) || string.IsNullOrWhiteSpace(gameDirectory) || !Directory.Exists(gameDirectory))
+            return expectedPath;
 
         foreach (var directory in Directory.EnumerateDirectories(gameDirectory, "data_*", SearchOption.TopDirectoryOnly))
         {
@@ -30,12 +35,16 @@ internal sealed partial class GameRuntimeSlot
                 return candidate;
         }
 
-        return Path.Combine(gameDirectory, "data_sts2_windows_x86_64", GameAssemblyFileName);
+        return expectedPath;
     }
 
-    private static string FindActiveAndroidAssemblyPath(string dataDir)
+    internal static string FindActiveAndroidAssemblyPath(string dataDir)
     {
         var publishRoot = Path.Combine(dataDir, ".godot", "mono", "publish");
+        var expectedPath = Path.Combine(publishRoot, "arm64", GameAssemblyFileName);
+        if (File.Exists(expectedPath) || !Directory.Exists(publishRoot))
+            return expectedPath;
+
         if (Directory.Exists(publishRoot))
         {
             foreach (var directory in Directory.EnumerateDirectories(publishRoot, "*", SearchOption.TopDirectoryOnly))
@@ -46,6 +55,6 @@ internal sealed partial class GameRuntimeSlot
             }
         }
 
-        return Path.Combine(publishRoot, "arm64", GameAssemblyFileName);
+        return expectedPath;
     }
 }

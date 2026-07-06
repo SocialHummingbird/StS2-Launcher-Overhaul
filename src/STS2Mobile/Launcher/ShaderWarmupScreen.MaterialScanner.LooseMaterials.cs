@@ -10,10 +10,11 @@ internal sealed partial class ShaderWarmupScreen
         private static async Task ScanLooseMaterialsAsync(
             WarmupMaterialCollection materials,
             SceneTree tree,
-            ShaderWarmupProgress progress
+            ShaderWarmupProgress progress,
+            ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
-            CollectLooseMaterials(ResourceRoot, materials);
+            CollectLooseMaterials(ResourceRoot, materials, diagnostics);
             PatchHelper.Log(Message.FoundLooseMaterials(materials.Count));
             progress.ShowMaterialsFound(materials.Count);
             if (tree != null)

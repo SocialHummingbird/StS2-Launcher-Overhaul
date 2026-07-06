@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using STS2Mobile.Patches;
 
@@ -17,7 +18,12 @@ internal sealed partial class LauncherVersionCoordinator
     }
 
     internal void RefreshGameBranchOptions()
-        => _view.SetGameBranchOptions(LauncherBranchCatalog.ReadSelectableBranches(_model.DataDir));
+    {
+        _view.SetGameBranchOptions(ReadGameBranchOptions());
+    }
+
+    internal IReadOnlyList<LauncherBranchCatalog.BranchOption> ReadGameBranchOptions()
+        => LauncherBranchCatalog.ReadSelectableBranches(_model.DataDir);
 
     internal void RunBranchCatalogRefresh()
         => _ = RunBranchCatalogRefreshAsync();
@@ -50,10 +56,13 @@ internal sealed partial class LauncherVersionCoordinator
 
     internal void CompleteBranchCatalogRefresh()
     {
-        RefreshGameBranchOptions();
-        _view.SetActionPreferences(LauncherPreferences.ReadActionPreferences());
-        var selectedBranch = LauncherPreferences.ReadGameBranch();
         var branches = LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir);
+        var preferences = LauncherPreferences.ReadActionPreferences();
+        _view.SetActionPreferences(
+            preferences,
+            LauncherBranchCatalog.ReadSelectableBranches(_model.DataDir, branches)
+        );
+        var selectedBranch = preferences.GameBranch;
         var selectedVersion = STS2Mobile.Steam.SteamGameBranch.DisplayName(selectedBranch);
         var selectedStatus = LauncherBranchCatalog.SelectedOptionStatus(selectedBranch, branches);
         var selectedProblem = LauncherBranchCatalog.SelectedOptionDownloadProblem(selectedBranch, branches);

@@ -140,6 +140,12 @@ function Add-MultiVersionRuntimeSlotChecks {
             "FindSourceAssemblyPath",
             "FindActiveAndroidAssemblyPath",
             "data_sts2_windows_x86_64",
+            "var expectedPath = Path\.Combine",
+            "File\.Exists\(expectedPath\)",
+            "Directory\.EnumerateDirectories\(gameDirectory, ""data_\*""",
+            "var publishRoot = Path\.Combine",
+            "Path\.Combine\(publishRoot, ""arm64"", GameAssemblyFileName\)",
+            "File\.Exists\(expectedPath\) \|\| !Directory\.Exists\(publishRoot\)",
             "RuntimePacksDirectory"
         )
 
@@ -338,13 +344,26 @@ function Add-MultiVersionRuntimeSlotChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherGameFiles.Readiness.cs" `
-        "keeps selected-file readiness lightweight while surfacing runtime playability through readiness problems" `
+        "keeps selected-file downloaded-state readiness lightweight and free of runtime inspection" `
         @(
-            "IsValidPck\(PckPath\(dataDir, branch\)\)",
+            "ValidateDownloadedStateForLaunch",
+            "DownloadedForValidation",
+            "out string problem",
+            "IsValidPck\(pckPath\)",
             "BranchMarkerReady\(dataDir, branch\)",
-            "SourceAssemblyExists\(GameDirectoryPath\(dataDir, branch\)\)",
-            "GameRuntimeSlot\.Inspect\(dataDir, branch\)\.ReadinessProblem\(\)",
-            "ReadinessProblem\(string dataDir, string branch\)"
+            "GameRuntimeSlot\.FindSourceAssemblyPath\(GameDirectoryPath\(dataDir, branch\)\)",
+            "File\.Exists\(sourceAssemblyPath\)"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherGameFiles.Readiness.cs" `
+        "does not hide runtime-slot inspection inside downloaded-state readiness helpers" `
+        @(
+            "GameRuntimeSlot\.Inspect",
+            "PatchCompatibilityValidator",
+            "LauncherRuntimeSlotEvidence\.Write",
+            "ReadinessProblem\(string dataDir, string branch\)",
+            "Ready\(string dataDir"
         )
 
     Add-Check `
@@ -352,6 +371,7 @@ function Add-MultiVersionRuntimeSlotChecks {
         "clears selected game, download, and runtime-pack state with evidence markers" `
         @(
             "DeleteDownloadedState\(string dataDir, string branch\)",
+            "LauncherLaunchReadinessCache\.Clear\(\$""downloaded state deleted for \{branch\}""\)",
             "GameRuntimeSlot\.RuntimePackDirectoryPath\(dataDir, branch\)",
             "WriteRedownloadMarker",
             "DeleteDirectory\(runtimePackDirectory\)",
@@ -403,31 +423,65 @@ function Add-MultiVersionRuntimeSlotChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.cs" `
+        "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.Status.cs" `
         "shows selected-runtime readiness blockers instead of generic download-required status after login" `
         @(
-            "LauncherGameFiles\.ReadinessProblem\(_model\.DataDir, branch\)",
+            "RefreshSelectedRuntimeSlotEvidence",
+            "readiness\.Ready",
+            "readiness\.ReadinessProblem",
             "SelectedVersionDownloadRequiredStatus"
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.cs" `
+        "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.StartGame.cs" `
+        "routes normal and safe launch actions through selected-runtime readiness before handoff" `
+        @(
+            "StartGame\(LauncherStartGamePlan plan\)",
+            "TryEvaluateSelectedLaunchReadiness",
+            "TryEvaluateModLaunchReadiness",
+            "CompleteLaunchHandoff"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.Readiness.cs" `
         "blocks normal and safe launch actions when selected runtime is not playable" `
         @(
-            "LaunchPressed",
-            "SafeLaunchPressed",
-            "LauncherGameFiles\.Ready\(_model\.DataDir, branch\)",
-            "LauncherGameFiles\.ReadinessProblem\(_model\.DataDir, branch\)",
-            "Selected game version is not ready to safe launch"
+            "LauncherLaunchReadiness\.Evaluate",
+            "readiness\.Ready",
+            "BlockedTiming"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.Attempt.cs" `
+        "records selected-runtime launch blockers in the unified launch-attempt marker" `
+        @(
+            "FinishFailedLaunchAttempt",
+            "WriteLaunchAttempt",
+            "plan\.Source",
+            "SetLaunchInProgress\(false\)"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherModel.Launch.Readiness.cs" `
+        "detects model-level selected-runtime readiness blockers before handoff" `
+        @(
+            "SelectedGameVersionReadyForLaunch",
+            "LauncherLaunchReadiness readiness",
+            "selected game version readiness was not prepared",
+            "out string problem",
+            "Launch blocked"
         )
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherModel.Launch.cs" `
         "prevents in-process or restart launch paths from bypassing selected-runtime readiness" `
         @(
-            "SelectedGameVersionReadyForLaunch",
-            "LauncherGameFiles\.Ready\(_dataDir\)",
-            "LauncherGameFiles\.ReadinessProblem\(_dataDir, branch\)",
-            "Launch blocked"
+            "SelectedGameVersionReadyForLaunch\(readiness, out var readinessProblem\)",
+            "LauncherLaunchHandoffResult\.Failed",
+            "LauncherLaunchAttemptPhases\.BlockedInModel",
+            "readinessProblem",
+            "string launchSource",
+            "TrySignalInProcessLaunch\(readiness, modReadiness, safe, launchSource, attemptId, timingSnapshot\)",
+            "RestartForLaunch\(safe, readiness, modReadiness, launchSource, attemptId, timingSnapshot\)"
         )
 }

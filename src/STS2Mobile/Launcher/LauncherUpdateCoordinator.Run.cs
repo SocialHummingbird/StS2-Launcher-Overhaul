@@ -14,23 +14,24 @@ internal sealed partial class LauncherUpdateCoordinator
         if (_updateCheckRunning)
             return;
 
+        var branch = LauncherPreferences.ReadGameBranch();
         LauncherLaunchMarkers.RecordPhase(
             "update check requested",
-            $"branch={LauncherPreferences.ReadGameBranch()}"
+            $"branch={branch}"
         );
         _updateCheckRunning = true;
         SetUpdateCheckBusy(busy: true);
 
         try
         {
-            await CheckForUpdatesAsync();
-            LauncherLaunchMarkers.RecordPhase("update check completed");
+            await CheckForUpdatesAsync(branch);
+            LauncherLaunchMarkers.RecordPhase("update check completed", $"branch={branch}");
         }
         catch (Exception ex)
         {
             LauncherLaunchMarkers.RecordPhase("update check failed", ex.GetBaseException().Message);
             PatchHelper.Log($"[Launcher] Check for updates failed: {ex}");
-            _versions.FailUpdateCheck(ex.Message);
+            _versions.FailUpdateCheck(new LauncherBranchOperationFailure(branch, ex.Message));
         }
         finally
         {

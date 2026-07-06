@@ -8,20 +8,20 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
-    private async Task RunDownloadAsync()
+    private async Task RunDownloadAsync(string branch)
     {
         try
         {
             await _downloader.DownloadAsync(_downloadCts.Token).ConfigureAwait(false);
-            RaiseDownloadCompleted();
+            RaiseDownloadCompleted(branch);
         }
         catch (OperationCanceledException)
         {
-            RaiseDownloadCancelled();
+            RaiseDownloadCancelled(branch);
         }
         catch (Exception ex)
         {
-            RaiseDownloadFailed(ex.Message);
+            RaiseDownloadFailed(branch, ex.Message);
             PatchHelper.Log($"[Launcher] Download error: {ex}");
         }
         finally
@@ -30,17 +30,20 @@ internal partial class LauncherModel
         }
     }
 
-    private void BeginDownload(SteamConnection connection)
+    private void BeginDownload(SteamConnection connection, string branch)
     {
         ResetDownload();
-        _downloader = CreateDownloader(connection);
+        _downloader = CreateDownloader(connection, branch);
         _downloader.ProgressChanged += RaiseDownloadProgressChanged;
         _downloadCts = new CancellationTokenSource();
     }
 
     private DepotDownloader CreateDownloader(SteamConnection connection)
+        => CreateDownloader(connection, LauncherPreferences.ReadGameBranch());
+
+    private DepotDownloader CreateDownloader(SteamConnection connection, string branch)
     {
-        var downloader = new DepotDownloader(connection, _dataDir, LauncherPreferences.ReadGameBranch());
+        var downloader = new DepotDownloader(connection, _dataDir, branch);
         downloader.LogMessage += RaiseDownloadLogReceived;
         return downloader;
     }

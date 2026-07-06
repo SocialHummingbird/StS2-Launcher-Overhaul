@@ -86,6 +86,8 @@ function Add-MultiVersionRuntimeHelperChecks {
         @(
             "ReadValue",
             "ReadOptionalValue",
+            "ReadOptionalValues",
+            "IReadOnlyDictionary<string, string>",
             "File\.ReadLines",
             "StringComparison\.OrdinalIgnoreCase"
         )

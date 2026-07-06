@@ -13,11 +13,13 @@ internal sealed partial class ShaderWarmupScreen
             WarmupMaterialCollection materials,
             SceneTree tree,
             ShaderWarmupProgress progress,
-            Func<bool> shouldStop
+            Func<bool> shouldStop,
+            ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
             var scenePaths = new List<string>();
-            CollectScenePaths(SceneRoot, scenePaths);
+            CollectScenePaths(SceneRoot, scenePaths, diagnostics);
+            diagnostics.SceneCount = scenePaths.Count;
             PatchHelper.Log(Message.FoundScenes(scenePaths.Count));
 
             for (int i = 0; i < scenePaths.Count; i++)
@@ -25,10 +27,13 @@ internal sealed partial class ShaderWarmupScreen
                 if (shouldStop())
                 {
                     PatchHelper.Log(Message.SceneScanStoppedByBudget(i, scenePaths.Count));
+                    diagnostics.ScannedSceneCount = i;
+                    diagnostics.SceneScanStoppedByBudget = true;
                     return;
                 }
 
-                ExtractSceneMaterials(scenePaths[i], materials);
+                ExtractSceneMaterials(scenePaths[i], materials, diagnostics);
+                diagnostics.ScannedSceneCount = i + 1;
                 await ReportSceneScanProgressIfNeededAsync(tree, progress, i, scenePaths.Count);
             }
         }

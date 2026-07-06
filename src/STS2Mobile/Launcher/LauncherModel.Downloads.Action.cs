@@ -22,20 +22,20 @@ internal partial class LauncherModel
         private Action<string> RaiseFailure { get; }
         private Func<SteamConnection, Task> Run { get; }
 
-        internal static DepotConnectionAction Download(LauncherModel model)
+        internal static DepotConnectionAction Download(LauncherModel model, string branch)
             => new(
-                model.RaiseDownloadFailed,
+                message => model.RaiseDownloadFailed(branch, message),
                 connection =>
                 {
-                    model.BeginDownload(connection);
-                    return model.RunDownloadAsync();
+                    model.BeginDownload(connection, branch);
+                    return model.RunDownloadAsync(branch);
                 }
             );
 
-        internal static DepotConnectionAction UpdateCheck(LauncherModel model)
+        internal static DepotConnectionAction UpdateCheck(LauncherModel model, string branch)
             => new(
-                model.RaiseUpdateCheckFailed,
-                model.CheckForUpdatesWithConnectionAsync
+                message => model.RaiseUpdateCheckFailed(branch, message),
+                connection => model.CheckForUpdatesWithConnectionAsync(connection, branch)
             );
 
         internal static DepotConnectionAction BranchCatalogRefresh(LauncherModel model)

@@ -11,13 +11,13 @@ function Add-SteamVersionSelectionDownloadWorkflowUpdateCheckChecks {
         "formats update-check view changes without running update logic" `
         @(
             "UpdateCheckViewUpdate",
-            "Completed\(bool hasUpdate\)",
+            "Completed\(bool hasUpdate, string selectedVersion\)",
             "UpdateGameFilesButtonText",
             "Update available for selected game version",
             "Selected game version is up to date",
-            "Failed\(string message\)",
+            "Failed\(string message, string selectedVersion\)",
             "UpdateCheckFailedButtonText",
-            "Blocked\(string message\)",
+            "Blocked\(string message, string selectedVersion\)",
             "UpdateCheckBlockedButtonText",
             "Check Blocked",
             "Update check blocked for selected game version",
@@ -35,10 +35,11 @@ function Add-SteamVersionSelectionDownloadWorkflowUpdateCheckChecks {
             "RunUpdateCheck",
             "RunUpdateCheckAsync",
             "_updateCheckRunning",
+            "var branch = LauncherPreferences\.ReadGameBranch\(\)",
             "SetUpdateCheckBusy\(busy: true\)",
-            "CheckForUpdatesAsync",
+            "CheckForUpdatesAsync\(branch\)",
             "PatchHelper\.Log",
-            "_versions\.FailUpdateCheck\(ex\.Message\)",
+            "new LauncherBranchOperationFailure\(branch, ex\.Message\)",
             "SetUpdateCheckBusy\(busy: false\)"
         )
 
@@ -47,10 +48,12 @@ function Add-SteamVersionSelectionDownloadWorkflowUpdateCheckChecks {
         "blocks selected-version update checks for known unavailable branches while preserving app update checks" `
         @(
             "CheckForAppUpdatesAsync",
+            "CheckForUpdatesAsync\(string selectedBranch\)",
             "SelectedOptionDownloadProblem",
             "Update check blocked:",
+            "SteamGameBranch\.DisplayName\(selectedBranch\)",
             "LauncherBranchCatalog\.ReadVisibleBranches",
-            "_model\.CheckForUpdatesAsync",
+            "_model\.CheckForUpdatesAsync\(selectedBranch\)",
             "await appUpdateTask"
         )
 
@@ -60,9 +63,13 @@ function Add-SteamVersionSelectionDownloadWorkflowUpdateCheckChecks {
         @(
             "CompleteUpdateCheck",
             "FailUpdateCheck",
+            "LauncherUpdateCheckResult result",
+            "LauncherBranchOperationFailure failure",
             "RefreshGameBranchOptions",
             "UpdateCheckViewUpdate\.Completed",
             "UpdateCheckViewUpdate\.Failed",
+            "SteamGameBranch\.DisplayName\(result\.Branch\)",
+            "SteamGameBranch\.DisplayName\(failure\.Branch\)",
             "LauncherBranchAvailabilityStatus\.CompactFailureMessage"
         )
 }

@@ -7,20 +7,20 @@ internal sealed partial class LauncherSessionCoordinator
 {
     private void HandleFastPath(LauncherModel.FastPathResult result)
     {
-        switch (result)
+        switch (result.Outcome)
         {
-            case LauncherModel.FastPathResult.ReadyToLaunch:
+            case LauncherModel.FastPathOutcome.ReadyToLaunch:
                 _launch.ShowReadyToLaunch(
-                    _launch.SelectedVersionReadyStatus(_model.WelcomeBackStatus()),
+                    _launch.SelectedVersionReadyStatus(_model.WelcomeBackStatus(), result.Readiness),
                     LaunchUpdateAction.Visible
                 );
                 break;
 
-            case LauncherModel.FastPathResult.AutoConnect:
+            case LauncherModel.FastPathOutcome.AutoConnect:
                 StartAutoConnect();
                 break;
 
-            case LauncherModel.FastPathResult.ShowLogin:
+            case LauncherModel.FastPathOutcome.ShowLogin:
                 ShowLogin();
                 break;
         }

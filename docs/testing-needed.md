@@ -10,7 +10,8 @@ Current APK for tester reports: `v0.2.377-shader-warmup-budget` / `StS2Launcher-
    - Time from tapping the app icon to launcher visible.
    - Time from pressing Start Game to game main menu.
    - Any black screen, native fallback screen, shader compile stall, or app crash.
-   - For shader reports, attach `last_shader_warmup_status.txt` when available. `completed` means the full precompile pass finished; `completed-partial` means the launcher hit the shader warmup time budget and continued startup with degraded shader-cache coverage. Current ARM64 evidence on `SM-F966B` completes v6 warmup in about 40s; weaker-device reports are still needed.
+   - For Start Game failures, attach `last_launch_attempt.txt` when available. Current source builds record a per-press attempt ID, selected branch, ready/blocked state, runtime slot ID, selected PCK path/hash, source and active `sts2.dll` paths/hashes, runtime pack path/status, runtime cache marker path/presence, runtime patch-validation marker path/presence, patch compatibility marker path/status, whether the prepared readiness result was used, whether readiness came from a fresh check or an in-memory cache hit, and elapsed timing for total launch attempt, selected-version readiness, and mod readiness. Modded starts also record play mode, enabled mod count, selected mods, selector cache status, and whether modded-save Cloud Push was locked. Cache hits are only valid while the selected PCK, branch marker, release info, source assembly, runtime pack manifest, runtime cache marker, patch-validation marker, mod selection, Workshop manifest, and cheap metadata digests for all staged/manual `.json`, `.pck`, and `.dll` mod files are unchanged.
+   - For shader reports, attach `last_shader_warmup_status.txt` when available. `completed` means the full precompile pass finished; `completed-partial` means the launcher hit the shader warmup time budget and continued startup with degraded shader-cache coverage. Current source builds also include scanner counters such as scenes scanned, unique materials, budget-stop state, and scanner failure counts. Current ARM64 evidence on `SM-F966B` completes v6 warmup in about 40s; weaker-device reports are still needed.
 
 2. **Public/default game launch**
    - Fresh install or update install.
@@ -75,10 +76,11 @@ Add new device results through the device compatibility issue template. Use [Iss
 - Selected mods and whether launch was vanilla or modded.
 - Whether controller input was used.
 - Whether shader compilation happened before the failure.
-- Shader warmup marker status, especially `watchdog-warning`, `completed`, `completed-partial`, elapsed milliseconds, and rendered material count if present.
+- Shader warmup marker status, especially `watchdog-warning`, `completed`, `completed-partial`, elapsed milliseconds, rendered material count, scanner failure counts, and whether scanning stopped by budget if present.
 - Screenshot if the problem is visual.
 - Focused logcat if the app crashes or hangs.
 - For branch reports: selected branch, PCK path/hash, runtime pack path/hash, active `sts2.dll` hash, runtime cache marker, and patch validation marker when available.
+- For launch/startup reports: `last_launch_attempt.txt`, `last_startup_context.txt`, `last_startup_timeline.txt`, and `last_shader_warmup_status.txt` when present.
 - For mod/save-merger reports: selected mods, source of each mod, enabled/disabled state, whether existing saves became visible and loadable, and whether Push to Cloud stayed blocked or was intentionally run.
 
 ## Do Not Share

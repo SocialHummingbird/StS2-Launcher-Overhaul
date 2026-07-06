@@ -130,6 +130,19 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "Workshop sync stages into app-private storage",
             "AppPaths\.EnsureWorkshopDirectories",
             "LauncherModSelectionState\.KnownMods",
+            "var selection = LauncherModSelectionState\.Load\(\)",
+            "LauncherModSelectionState\.IsModdedModeFor\(selection\)",
+            "var knownMods = LauncherModSelectionState\.KnownMods\(selection\)",
+            "LauncherModSelectionState\.EnabledModCount\(knownMods\)",
+            "LoadAndroidModRoots\(access, knownMods\)",
+            "AndroidModRoots\(IReadOnlyList<LauncherKnownMod> knownMods\)",
+            "access\.LoadModsInRoot\(root, dirAccess, knownMods\)",
+            "IsSelectedForLaunch\(mod, knownMods\)",
+            "LauncherModSelectionState\.IsPathEnabled\(typedMod\.path, knownMods\)",
+            "knownMods: knownMods",
+            "WriteModLaunchMarker\(",
+            "selection: selection",
+            "LauncherModSelectionState\.PushShouldBeLocked\(knownMods\)",
             "requiresWorkshopConsent: isWorkshop",
             "Selected root \{root\.Label\}",
             "FindAndroidManifestPath",
@@ -153,6 +166,8 @@ function Add-SteamVersionSelectionWorkshopModChecks {
         "blocks Cloud Push from raw staged Workshop PCK files even when manifest state is stale" `
         @(
             "ActiveStagedModCount",
+            "HasActiveStagedMods\(LauncherModSelectionDocument document\)",
+            "LauncherModSelectionState\.PushShouldBeLocked\(document\)",
             "RawStagedPckCount",
             "Directory\.EnumerateFiles",
             "\*\.pck",
@@ -175,7 +190,8 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "Workshop active staged PCK mod count",
             "Workshop raw staged PCK file count",
             "Workshop modded-save Cloud Push locked",
-            "LauncherWorkshopModSafety\.HasActiveStagedMods\(\)",
+            "LauncherModSelectionState\.KnownMods\(\)",
+            "LauncherWorkshopModSafety\.HasActiveSelectedMods\(enabledMods\.Length\)",
             "ContentSha256",
             "PublishedFileId",
             "DownloadSourceKind",
@@ -198,6 +214,85 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "Clear Staged Mods",
             "WorkshopSyncPressed",
             "WorkshopClearPressed"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherModSelectionState.cs" `
+        "caches launcher known-mod snapshots and clears them when selector state changes" `
+        @(
+            "internal sealed class LauncherKnownModsSnapshot",
+            "internal LauncherModSourceIdentity Identity \{ get; \}",
+            "internal IReadOnlyList<LauncherKnownMod> Mods \{ get; \}",
+            "KnownModsGate",
+            "_knownModsCache",
+            "KnownModsCacheEntry",
+            "LauncherModSourceIdentity\.Create",
+            "Identity\.Matches\(identity\)",
+            "internal static IReadOnlyList<LauncherKnownMod> KnownMods\(\)",
+            "internal static IReadOnlyList<LauncherKnownMod> KnownMods\(LauncherModSelectionDocument document\)",
+            "PushShouldBeLocked\(LauncherModSelectionDocument document\)",
+            "PushShouldBeLocked\(IReadOnlyList<LauncherKnownMod> knownMods\)",
+            "EnabledModCount\(LauncherModSelectionDocument document\)",
+            "EnabledModCount\(IReadOnlyList<LauncherKnownMod> knownMods\)",
+            "IsPathEnabled\(string path, LauncherModSelectionDocument document\)",
+            "IsPathEnabled\(string path, IReadOnlyList<LauncherKnownMod> knownMods\)",
+            "internal static LauncherKnownModsSnapshot KnownModsSnapshot\(\)",
+            "internal static LauncherKnownModsSnapshot KnownModsSnapshot\(LauncherModSelectionDocument document\)",
+            "LauncherModSourceIdentity identity",
+            "IsModdedModeFor\(LauncherModSelectionDocument document\)",
+            "ClearKnownModsCache",
+            "LauncherModLaunchReadinessCache\.Clear\(reason\)",
+            "ClearKnownModsCache\(""mod selection changed""\)"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherModLaunchReadiness.cs" `
+        "reuses the known-mod source snapshot while preparing Start Game mod readiness" `
+        @(
+            "var document = LauncherModSelectionState\.Load\(\)",
+            "LauncherModSelectionState\.IsModdedModeFor\(document\)",
+            "var identity = LauncherModSourceIdentity\.Create\(\)",
+            "LauncherModLaunchReadinessCache\.TryGet\(identity, phase, out var cached\)",
+            "var snapshot = LauncherModSelectionState\.KnownModsSnapshot\(document, identity\)",
+            "EvaluateFresh\(phase, snapshot\.Mods\)",
+            "LauncherModLaunchReadinessCache\.Store\(snapshot\.Identity, readiness\)",
+            "IReadOnlyList<LauncherKnownMod> knownMods"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.Mods.cs" `
+        "skips launcher mod source scans in vanilla mode and refreshes modded status from one selector snapshot" `
+        @(
+            "if \(!moddedMode\)",
+            "RefreshModList\(System\.Array\.Empty<LauncherKnownMod>\(\)\)",
+            "SetCompactWorkshopButtonText\(activeCount: 0\)",
+            "var mods = LauncherModSelectionState\.KnownMods\(\)",
+            "_readySummaryEnabledModCount = enabledCount",
+            "RefreshModModeButtons\(moddedMode, enabledCount\)",
+            "RefreshModList\(mods\)",
+            "SetCompactWorkshopButtonText\(activeCount\)",
+            "private void SetCompactWorkshopButtonText\(int activeCount\)",
+            "IReadOnlyList<LauncherKnownMod> mods",
+            "CompactSupportToolText\(""Play With Mods""",
+            "\$""\{enabledCount\} enabled"""
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.ReadySummary.cs" `
+        "uses the launcher mod refresh snapshot for compact ready-summary mod count" `
+        @(
+            "var activeMods = _readySummaryEnabledModCount",
+            "Mods \{activeMods\}",
+            "Mods off"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.Visibility.cs" `
+        "refreshes launch controls before cloud summary repaint so compact ready text uses the latest mod snapshot" `
+        @(
+            "ShowLaunchButtons\(showUpdate\)",
+            "SetCloudControlsVisible\(true\)",
+            "_retryButton\.Visible = false"
         )
 
     Add-Check `
@@ -231,7 +326,9 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "Workshop mods synced",
             "hasIssues",
             "RaiseWorkshopSyncCompleted\(summary\)",
-            "MissingDependencyIds"
+            "MissingDependencyIds",
+            "ClearKnownModsCache\(""workshop sync completed""\)",
+            "ClearKnownModsCache\(""workshop staged mods cleared""\)"
         )
 
     Add-Check `

@@ -18,12 +18,33 @@ internal sealed partial class ActionSection
 
     private void RefreshModsStatus()
     {
+        var moddedMode = LauncherModSelectionState.IsModdedMode;
+        if (!moddedMode)
+        {
+            _readySummaryEnabledModCount = 0;
+            _modsStatusLabel.Text = BuildModsStatusText(
+                activeCount: 0,
+                externalManualCount: 0,
+                unsupportedCount: 0,
+                installedCount: 0,
+                enabledCount: 0,
+                moddedMode: false,
+                unsupportedSummary: ""
+            );
+            RefreshModModeButtons(moddedMode, enabledCount: 0);
+            RefreshModList(System.Array.Empty<LauncherKnownMod>());
+            SetCompactWorkshopButtonText(activeCount: 0);
+            UpdateBranchHelpText();
+            return;
+        }
+
         var activeCount = LauncherWorkshopModSafety.ActiveStagedModCount();
         var externalManualCount = LauncherWorkshopModSafety.ExternalManualModPckCount();
         var unsupportedCount = LauncherWorkshopModSafety.UnsupportedWorkshopItemCount();
-        var installedCount = LauncherModSelectionState.InstalledModCount();
-        var enabledCount = LauncherModSelectionState.EnabledModCount();
-        var moddedMode = LauncherModSelectionState.IsModdedMode;
+        var mods = LauncherModSelectionState.KnownMods();
+        var installedCount = mods.Count(mod => !mod.IsUnsupported);
+        var enabledCount = mods.Count(mod => mod.Enabled && !mod.IsUnsupported);
+        _readySummaryEnabledModCount = enabledCount;
         _modsStatusLabel.Text = BuildModsStatusText(
             activeCount,
             externalManualCount,
@@ -33,9 +54,14 @@ internal sealed partial class ActionSection
             moddedMode,
             LauncherWorkshopModSafety.UnsupportedWorkshopItemSummary()
         );
-        RefreshModModeButtons(moddedMode);
-        RefreshModList();
+        RefreshModModeButtons(moddedMode, enabledCount);
+        RefreshModList(mods);
+        SetCompactWorkshopButtonText(activeCount);
+        UpdateBranchHelpText();
+    }
 
+    private void SetCompactWorkshopButtonText(int activeCount)
+    {
         SetCompactActionButtonText(
             _workshopSyncButton,
             _compact
@@ -48,7 +74,6 @@ internal sealed partial class ActionSection
                 ? CompactSupportToolText("Clear Staged", activeCount > 0 ? $"{activeCount} active" : "No active")
                 : "Clear Staged Mods"
         );
-        UpdateBranchHelpText();
     }
 
     private string BuildModsStatusText(
@@ -94,17 +119,17 @@ internal sealed partial class ActionSection
         return $"Mods: none active. Sync Workshop or place manual mod folders/PCK files in {AppPaths.ExternalModsDir}.";
     }
 
-    private void RefreshModModeButtons(bool moddedMode)
+    private void RefreshModModeButtons(bool moddedMode, int enabledCount)
     {
         ApplyToggle(_playVanillaButton, !moddedMode, _compact
             ? CompactSupportToolText("Play Vanilla", "No mods")
             : "Play Vanilla");
         ApplyToggle(_playModdedButton, moddedMode, _compact
-            ? CompactSupportToolText("Play With Mods", $"{LauncherModSelectionState.EnabledModCount()} enabled")
+            ? CompactSupportToolText("Play With Mods", $"{enabledCount} enabled")
             : "Play With Mods");
     }
 
-    private void RefreshModList()
+    private void RefreshModList(System.Collections.Generic.IReadOnlyList<LauncherKnownMod> mods)
     {
         foreach (var child in _modsList.GetChildren().Cast<Node>().ToArray())
         {
@@ -112,7 +137,6 @@ internal sealed partial class ActionSection
             child.QueueFree();
         }
 
-        var mods = LauncherModSelectionState.KnownMods();
         if (mods.Count == 0)
             return;
 

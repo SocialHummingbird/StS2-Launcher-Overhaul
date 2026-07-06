@@ -2,22 +2,44 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
+    private enum DiagnosticsReadinessScope
+    {
+        FullRuntime,
+        DownloadedState,
+    }
+
     internal string WriteDiagnosticsReport()
-        => CreateDiagnosticsSnapshot().WriteDiagnosticsReport();
+        => CreateDiagnosticsSnapshot(DiagnosticsReadinessScope.FullRuntime).WriteDiagnosticsReport();
 
     internal string BuildDiagnosticsSummaryForDisplay()
-        => CreateDiagnosticsSnapshot().BuildDiagnosticsSummary();
+        => CreateDiagnosticsSnapshot(DiagnosticsReadinessScope.DownloadedState).BuildDiagnosticsSummary();
 
     internal string BuildRawErrorLogForClipboard()
-        => CreateDiagnosticsSnapshot().BuildRawErrorLog();
+        => CreateDiagnosticsSnapshot(DiagnosticsReadinessScope.DownloadedState).BuildRawErrorLog();
 
-    private LauncherDiagnostics.Snapshot CreateDiagnosticsSnapshot()
-        => new(
+    private LauncherDiagnostics.Snapshot CreateDiagnosticsSnapshot(DiagnosticsReadinessScope readinessScope)
+    {
+        var branch = LauncherPreferences.ReadGameBranch();
+        var readiness = readinessScope switch
+        {
+            DiagnosticsReadinessScope.FullRuntime => LauncherLaunchReadiness.Evaluate(
+                _dataDir,
+                branch,
+                "diagnostics snapshot readiness"
+            ),
+            _ => LauncherLaunchReadiness.EvaluateDownloadedState(
+                _dataDir,
+                branch,
+                "diagnostics display downloaded-state readiness"
+            ),
+        };
+        return new LauncherDiagnostics.Snapshot(
             _dataDir,
             _credentialStore.AccountNameOrEmpty(),
             _credentialStore.HasUsableCredentials(),
-            LauncherGameFiles.Ready(_dataDir),
+            readiness,
             _sessionState.ToString(),
             _failReason
         );
+    }
 }

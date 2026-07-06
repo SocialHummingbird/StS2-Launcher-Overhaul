@@ -50,11 +50,25 @@ internal sealed partial class LauncherView
         SetGameBranch(preferences.GameBranch);
     }
 
+    internal void SetActionPreferences(
+        LauncherPreferences.ActionPreferences preferences,
+        System.Collections.Generic.IReadOnlyList<LauncherBranchCatalog.BranchOption> branches
+    )
+    {
+        Actions.SetLocalBackupChecked(preferences.LocalBackupEnabled);
+        Actions.SetCloudSyncChecked(preferences.CloudSyncEnabled);
+        Download.SetGameBranchOptions(preferences.GameBranch, branches);
+        Actions.SetGameBranchOptions(preferences.GameBranch, branches);
+    }
+
     internal void SetPushPullDisabled(bool disabled)
         => Actions.SetPushPullDisabled(disabled);
 
     internal void SetWorkshopButtonsDisabled(bool disabled)
         => Actions.SetWorkshopButtonsDisabled(disabled);
+
+    internal void SetLaunchControlsDisabled(bool disabled)
+        => Actions.SetLaunchControlsDisabled(disabled);
 
     internal void SetUpdateCheckBusy(bool busy)
     {

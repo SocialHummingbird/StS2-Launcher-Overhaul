@@ -8,11 +8,36 @@ namespace STS2Mobile.Launcher;
 // Events fire from background threads; the controller marshals them to the main thread.
 internal partial class LauncherModel : IDisposable
 {
-    internal enum FastPathResult
+    internal enum FastPathOutcome
     {
         ShowLogin,
         AutoConnect,
         ReadyToLaunch,
+    }
+
+    internal readonly struct FastPathResult
+    {
+        private FastPathResult(
+            FastPathOutcome outcome,
+            LauncherLaunchReadiness readiness
+        )
+        {
+            Outcome = outcome;
+            Readiness = readiness;
+        }
+
+        internal FastPathOutcome Outcome { get; }
+        internal LauncherLaunchReadiness Readiness { get; }
+        internal bool ReadyToLaunch => Outcome == FastPathOutcome.ReadyToLaunch;
+
+        internal static FastPathResult Ready(LauncherLaunchReadiness readiness)
+            => new(FastPathOutcome.ReadyToLaunch, readiness);
+
+        internal static FastPathResult AutoConnect()
+            => new(FastPathOutcome.AutoConnect, readiness: null);
+
+        internal static FastPathResult ShowLogin()
+            => new(FastPathOutcome.ShowLogin, readiness: null);
     }
 
     private volatile bool _connectionResolved;
@@ -51,6 +76,7 @@ internal partial class LauncherModel : IDisposable
 
     internal void ResetGameFilesForRedownload()
     {
+        LauncherLaunchReadinessCache.Clear("selected version redownload reset");
         CancelDownloadForRetry();
         ResetDownload();
         LauncherGameFiles.DeleteDownloadedState(_dataDir);
