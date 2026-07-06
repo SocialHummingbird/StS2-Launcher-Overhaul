@@ -54,8 +54,13 @@ internal sealed class LauncherModLaunchReadiness
     internal static LauncherModLaunchReadiness Evaluate(string phase)
     {
         var document = LauncherModSelectionState.Load();
+        return Evaluate(phase, document);
+    }
+
+    internal static LauncherModLaunchReadiness Evaluate(string phase, LauncherModSelectionDocument document)
+    {
         if (!LauncherModSelectionState.IsModdedModeFor(document))
-            return EvaluateVanilla(phase);
+            return Vanilla(phase);
 
         var identity = LauncherModSourceIdentity.Create();
         if (LauncherModLaunchReadinessCache.TryGet(identity, phase, out var cached))
@@ -66,6 +71,9 @@ internal sealed class LauncherModLaunchReadiness
         LauncherModLaunchReadinessCache.Store(snapshot.Identity, readiness);
         return readiness;
     }
+
+    internal static LauncherModLaunchReadiness Vanilla(string phase)
+        => EvaluateVanilla(phase);
 
     internal LauncherModLaunchReadiness WithCacheStatus(string phase, string cacheStatus)
         => new(

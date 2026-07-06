@@ -11,10 +11,45 @@ internal sealed partial class LauncherLaunchCoordinator
     )
     {
         modReadiness = null;
+        LauncherLaunchMarkers.RecordPhase(
+            $"{plan.ModReadinessPhase}: entered",
+            $"branch={attempt.Branch}"
+        );
+        LauncherLaunchMarkers.WriteLaunchAttempt(
+            LauncherLaunchAttemptPhases.ModReadinessChecking,
+            plan.Action,
+            plan.Source,
+            attempt.AttemptId,
+            readiness,
+            modReadiness: null,
+            preparedReadinessUsed: true,
+            attempt.ReadyTiming(),
+            "Checking mod launch readiness before launch handoff."
+        );
         attempt.StartModReadinessTiming();
         try
         {
-            modReadiness = LauncherModLaunchReadiness.Evaluate(plan.ModReadinessPhase);
+            LauncherLaunchMarkers.RecordPhase(
+                $"{plan.ModReadinessPhase}: loading selection",
+                $"path={AppPaths.AppPrivateModSelectionPath}"
+            );
+            var selection = LauncherModSelectionState.Load();
+            if (!LauncherModSelectionState.IsModdedModeFor(selection))
+            {
+                LauncherLaunchMarkers.RecordPhase(
+                    $"{plan.ModReadinessPhase}: vanilla fast path",
+                    "mod source scan skipped"
+                );
+                modReadiness = LauncherModLaunchReadiness.Vanilla(plan.ModReadinessPhase);
+            }
+            else
+            {
+                LauncherLaunchMarkers.RecordPhase(
+                    $"{plan.ModReadinessPhase}: modded scan path",
+                    "checking selected Workshop/manual mods"
+                );
+                modReadiness = LauncherModLaunchReadiness.Evaluate(plan.ModReadinessPhase, selection);
+            }
         }
         catch (Exception ex)
         {

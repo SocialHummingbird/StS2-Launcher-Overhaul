@@ -13,11 +13,29 @@ internal sealed partial class ActionSection
         _workshopSyncButton.Visible = visible;
         _workshopClearButton.Visible = visible;
         if (visible)
-            RefreshModsStatus();
+            ShowModsStartupSummary();
+    }
+
+    private void ShowModsStartupSummary()
+    {
+        var moddedMode = LauncherModSelectionState.IsModdedMode;
+        _readySummaryEnabledModCount = 0;
+        _modsStatusLabel.Text = _compact
+            ? moddedMode
+                ? "Mods: selected | refresh from Mods controls"
+                : "Mods: vanilla"
+            : moddedMode
+                ? "Play mode: Mods. Mod details load when you change mod mode or sync Workshop; Start Game remains available immediately."
+                : "Play mode: Vanilla. Android Workshop and manual mod folders will not be scanned when the game starts.";
+        RefreshModModeButtons(moddedMode, enabledCount: 0);
+        RefreshModList(System.Array.Empty<LauncherKnownMod>());
+        SetCompactWorkshopButtonText(activeCount: 0);
+        UpdateBranchHelpText();
     }
 
     private void RefreshModsStatus()
     {
+        PatchHelper.Log("[Launcher] Mods refresh phase: status start");
         var moddedMode = LauncherModSelectionState.IsModdedMode;
         if (!moddedMode)
         {
@@ -35,9 +53,11 @@ internal sealed partial class ActionSection
             RefreshModList(System.Array.Empty<LauncherKnownMod>());
             SetCompactWorkshopButtonText(activeCount: 0);
             UpdateBranchHelpText();
+            PatchHelper.Log("[Launcher] Mods refresh phase: vanilla complete");
             return;
         }
 
+        PatchHelper.Log("[Launcher] Mods refresh phase: scan known mods");
         var activeCount = LauncherWorkshopModSafety.ActiveStagedModCount();
         var externalManualCount = LauncherWorkshopModSafety.ExternalManualModPckCount();
         var unsupportedCount = LauncherWorkshopModSafety.UnsupportedWorkshopItemCount();
@@ -58,6 +78,7 @@ internal sealed partial class ActionSection
         RefreshModList(mods);
         SetCompactWorkshopButtonText(activeCount);
         UpdateBranchHelpText();
+        PatchHelper.Log("[Launcher] Mods refresh phase: modded complete");
     }
 
     private void SetCompactWorkshopButtonText(int activeCount)
@@ -131,27 +152,29 @@ internal sealed partial class ActionSection
 
     private void RefreshModList(System.Collections.Generic.IReadOnlyList<LauncherKnownMod> mods)
     {
-        foreach (var child in _modsList.GetChildren().Cast<Node>().ToArray())
+        PatchHelper.Log("[Launcher] Mods refresh phase: update mod toggle slots");
+        for (var i = 0; i < _modToggleButtons.Count; i++)
         {
-            _modsList.RemoveChild(child);
-            child.QueueFree();
+            _modToggleKeys[i] = null;
+            _modToggleButtons[i].Visible = false;
         }
 
-        if (mods.Count == 0)
-            return;
-
-        foreach (var mod in mods.Take(12))
+        var index = 0;
+        foreach (var mod in mods.Take(MaxVisibleModToggles))
         {
+            if (index >= _modToggleButtons.Count)
+                break;
+
             var label = ModToggleText(mod);
-            var button = AddPushPullButton(
-                _modsList,
-                label,
-                _scale,
-                () => ToggleMod(mod.Key, !mod.Enabled)
-            );
+            var button = _modToggleButtons[index];
+            _modToggleKeys[index] = mod.Key;
+            button.Visible = true;
             ApplyToggle(button, mod.Enabled, label);
             button.Disabled = mod.IsUnsupported || mod.IsRequiredDependency;
+            index++;
         }
+
+        PatchHelper.Log($"[Launcher] Mods refresh phase: update mod toggle slots complete count={index}");
     }
 
     private string ModToggleText(LauncherKnownMod mod)
@@ -184,5 +207,21 @@ internal sealed partial class ActionSection
         LauncherModSelectionState.SetModEnabled(key, enabled);
         RefreshModsStatus();
         ModsSelectionChanged?.Invoke();
+    }
+
+    private void ToggleModAtIndex(int index)
+    {
+        if (index < 0 || index >= _modToggleKeys.Length)
+            return;
+
+        var key = _modToggleKeys[index];
+        if (string.IsNullOrWhiteSpace(key))
+            return;
+
+        var mod = LauncherModSelectionState.KnownMods().FirstOrDefault(candidate => candidate.Key == key);
+        if (mod == null || mod.IsUnsupported || mod.IsRequiredDependency)
+            return;
+
+        ToggleMod(key, !mod.Enabled);
     }
 }

@@ -95,6 +95,15 @@ internal static class LauncherLaunchReadinessCache
         if (readiness == null)
             return;
 
+        if (OperatingSystem.IsAndroid())
+        {
+            LauncherLaunchMarkers.RecordPhase(
+                $"{readiness.EvaluationPhase}: launch readiness cache store skipped",
+                $"branch={readiness.Branch}; reason=android runtime cache identity disabled; readiness remains validated by runtime slot evidence marker"
+            );
+            return;
+        }
+
         if (!IsCacheable(readiness))
         {
             var clearedMatchingCache = ClearMatchingTarget(dataDir, readiness.Branch);

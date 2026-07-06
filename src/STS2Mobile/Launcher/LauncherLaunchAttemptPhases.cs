@@ -4,6 +4,7 @@ internal static class LauncherLaunchAttemptPhases
 {
     internal const string SetupFailed = "setup failed";
     internal const string Checking = "checking";
+    internal const string ModReadinessChecking = "mod readiness checking";
     internal const string Ready = "ready";
     internal const string Blocked = "blocked";
     internal const string BlockedInModel = "blocked in model";

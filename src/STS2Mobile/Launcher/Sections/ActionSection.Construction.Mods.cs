@@ -83,6 +83,7 @@ internal sealed partial class ActionSection
         };
         modsList.AddThemeConstantOverride("separation", Math.Max(3, (int)(4 * scale)));
         group.AddChild(modsList);
+        BuildModToggleSlots(modsList, scale);
 
         Container actionsParent = compact && !_compactStackedActionRows
             ? BuildCompactCloudPrimaryActionsRow(group, scale, compactStackedActionRows: false)
@@ -116,5 +117,22 @@ internal sealed partial class ActionSection
             workshopSyncButton,
             workshopClearButton
         );
+    }
+
+    private void BuildModToggleSlots(Container modsList, float scale)
+    {
+        for (var i = 0; i < MaxVisibleModToggles; i++)
+        {
+            var slot = i;
+            var button = AddPushPullButton(
+                modsList,
+                "",
+                scale,
+                () => ToggleModAtIndex(slot)
+            );
+            button.Visible = false;
+            LauncherButtonStyles.ApplySupportAction(button, scale);
+            _modToggleButtons.Add(button);
+        }
     }
 }

@@ -19,9 +19,15 @@ internal sealed partial class LauncherLaunchCoordinator
 
     internal void ShowReadyToLaunch(string status, LaunchUpdateAction updateAction)
     {
+        STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase: set status");
         _view.SetStatus(status);
+        STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase complete: set status");
+        STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase: previous launch warning");
         _diagnostics.ShowPreviousLaunchWarningIfNeeded();
+        STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase complete: previous launch warning");
+        STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase: show launch actions");
         ShowLaunchActions(updateAction);
+        STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase complete: show launch actions");
     }
 
     internal void ShowLaunchActions(LaunchUpdateAction updateAction)

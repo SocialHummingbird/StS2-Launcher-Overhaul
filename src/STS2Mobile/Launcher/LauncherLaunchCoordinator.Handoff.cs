@@ -11,11 +11,19 @@ internal sealed partial class LauncherLaunchCoordinator
         LauncherModLaunchReadiness modReadiness
     )
     {
+        LauncherLaunchMarkers.RecordPhase(
+            "launch handoff: entered",
+            $"action={plan.Action}; source={plan.Source}; branch={attempt.Branch}"
+        );
         _view.SetStatus(plan.StartingStatus);
         if (!string.IsNullOrWhiteSpace(plan.PreLaunchLog))
             _view.AppendLog(plan.PreLaunchLog);
 
         var timing = attempt.ReadyTiming();
+        LauncherLaunchMarkers.RecordPhase(
+            "launch handoff: writing ready marker",
+            modReadiness?.Summary
+        );
         LauncherLaunchMarkers.WriteLaunchAttempt(
             LauncherLaunchAttemptPhases.Ready,
             plan.Action,
@@ -29,7 +37,15 @@ internal sealed partial class LauncherLaunchCoordinator
         );
         try
         {
+            LauncherLaunchMarkers.RecordPhase(
+                "launch handoff: calling model launch",
+                $"action={plan.Action}; source={plan.Source}; branch={attempt.Branch}"
+            );
             var handoff = plan.Launch(_model, readiness, modReadiness, attempt.AttemptId, attempt.ReadyTiming);
+            LauncherLaunchMarkers.RecordPhase(
+                "launch handoff: model returned",
+                $"requested={handoff.Requested}; phase={handoff.RequestedPhase}"
+            );
             if (handoff.Requested)
             {
                 if (!LauncherLaunchAttemptPhases.IsSuccessfulHandoffPhase(handoff.RequestedPhase))

@@ -21,6 +21,7 @@ internal sealed partial class ActionSection : VBoxContainer
     private const int CompactCloudSafetyDetailFontSize = LauncherSectionMetrics.CompactVersionSummaryFontSize;
     private const int CompactCloudPushWarningHeight = 50;
     private const int CompactCloudPushWarningFontSize = LauncherSectionMetrics.CompactVersionSummaryFontSize;
+    private const int MaxVisibleModToggles = 12;
 
     internal event Action LaunchPressed;
     internal event Action RetryPressed;
@@ -75,6 +76,8 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _playModdedButton;
     private readonly Label _modsStatusLabel;
     private readonly VBoxContainer _modsList;
+    private readonly List<Button> _modToggleButtons = new();
+    private readonly string[] _modToggleKeys = new string[MaxVisibleModToggles];
     private readonly Button _diagnosticsButton;
     private readonly Button _showLastErrorButton;
     private readonly Button _copyRawLogButton;
