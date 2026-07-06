@@ -13,7 +13,7 @@ internal static partial class PlatformPatches
         {
             var strategy = GetAndroidNullPlatformStrategy();
             typeof(PlatformUtil)
-                .GetField(NullPlatformField, BindingFlags.NonPublic | BindingFlags.Static)
+                .GetField(NullPlatformField, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
                 ?.SetValue(null, strategy);
             PatchHelper.Log("Skipped PlatformUtil desktop static initialization on Android");
         }

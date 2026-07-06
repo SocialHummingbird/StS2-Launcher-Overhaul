@@ -12,8 +12,12 @@ function Add-SteamVersionSelectionStartupWarmupShaderExecutionChecks {
             "WriteWarmupStatus\(""waiting-post-draw""",
             "WriteWarmupStatus\(""rendering""",
             "WriteWarmupStatus\(""completed""",
+            "WriteWarmupStatus\(\s*""completed-partial""",
             "RenderWarmupMaterialsAsync",
-            "warmup\.CompleteAndReport\(materials\.Count\)",
+            "warmup\.CompleteAndReport\(rendered\)",
+            "warmup\.CompletePartialAndReport\(rendered, materials\.Count\)",
+            "WarmupTimeBudgetSeconds",
+            "precompile time budget reached; startup continued",
             "WaitFinishDelayAsync",
             "progress\.ShowScanning\(\)",
             "ShaderWarmupMaterialScanner\.CollectAsync",
@@ -41,7 +45,7 @@ function Add-SteamVersionSelectionStartupWarmupShaderExecutionChecks {
             "WatchWarmupDurationAsync",
             "WatchdogWarningSeconds",
             "Task\.Delay\(TimeSpan\.FromSeconds\(WatchdogWarningSeconds\)\)",
-            "WriteWarmupStatus\(""watchdog-warning""",
+            "WriteWarmupStatus\(\s*""watchdog-warning""",
             "PatchHelper\.Log\(Message\.WatchdogWarning\(WatchdogWarningSeconds\)\)"
         )
 
@@ -53,6 +57,7 @@ function Add-SteamVersionSelectionStartupWarmupShaderExecutionChecks {
             "LauncherStorageNames\.ShaderWarmupStatus",
             "WriteWarmupStatus",
             "StS2 Mobile shader warmup status",
-            "Warmup version:"
+            "Warmup version:",
+            "Warmup time budget seconds:"
         )
 }

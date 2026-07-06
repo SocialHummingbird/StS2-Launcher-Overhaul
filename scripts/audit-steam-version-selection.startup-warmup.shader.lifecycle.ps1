@@ -4,7 +4,8 @@ function Add-SteamVersionSelectionStartupWarmupShaderLifecycleChecks {
         "keeps shader warmup screen root limited to state and entry point" `
         @(
             "internal sealed partial class ShaderWarmupScreen : Control",
-            "WarmupVersion = 5",
+            "WarmupVersion = 6",
+            "WarmupTimeBudgetSeconds = 90",
             "TaskCompletionSource<bool> _tcs",
             "Label _statusLabel",
             "Label _detailLabel",
@@ -36,15 +37,20 @@ function Add-SteamVersionSelectionStartupWarmupShaderLifecycleChecks {
         "isolates shader warmup run context and completion reporting" `
         @(
             "WarmupCompletion",
+            "WarmupPartialCompletion",
             "MaterialCount",
+            "RenderedMaterialCount",
             "ElapsedMilliseconds",
             "WarmupRun",
             "SceneTree Tree",
             "ShaderWarmupProgress Progress",
             "Stopwatch Stopwatch",
+            "IsOverBudget",
             "CompleteAndReport",
+            "CompletePartialAndReport",
             "Progress\.Complete\(completion\)",
             "PatchHelper\.Log\(Message\.Completed\(completion\)\)",
+            "PatchHelper\.Log\(Message\.CompletedPartial\(completion\)\)",
             "CreateWarmupRun",
             "Stopwatch\.StartNew\(\)",
             "CreateProgress",

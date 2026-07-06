@@ -42,12 +42,12 @@ An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine w
 
 **Current state:** StS2 Mobile is playable on tested ARM64 Android hardware, but it is still a prerelease community launcher. The focus is now stability, loading speed, cleaner onboarding, branch switching, Steam Cloud safety, and experimental Workshop/mod support.
 
-Latest published APK prerelease: [v0.2.352-savemerger-compat-local](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.352-savemerger-compat-local)
+Latest published APK: [v0.2.369-public-beta-stability](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.369-public-beta-stability)
 
-- APK asset: `StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `352001`
-- SHA-256: `25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e`
+- Version code: `369001`
+- SHA-256: `8d9c57be197964c2a9178587723771878acfac2214ff552e2d2d9e718b055256`
 - Signing channel: local debug/test channel
 
 What currently works on tested ARM64 hardware:
@@ -57,8 +57,8 @@ What currently works on tested ARM64 hardware:
 - Game files can be downloaded from Steam for owned accounts.
 - Public/default game launch has ARM64 evidence.
 - The latest tested public-beta payload, `v0.108.0`, has ARM64 evidence with matched beta PCK and matched beta runtime pack.
-- Local ARM64 evidence build `0.2.368-normal-launch-automation-test` proves normal public-beta launch reaches the main menu through the real Start Game path, with matched PCK/runtime and no `NativeFallbackActivity`.
-- First-run shader warmup now writes `last_shader_warmup_status.txt`; the latest ARM64 run completed 1713 shader warmup materials after a 45-second watchdog marker.
+- Local ARM64 evidence build `0.2.368-normal-launch-automation-test` proves normal public-beta launch reaches the main menu through the real Start Game path, with matched PCK/runtime and no `NativeFallbackActivity`; the current `v0.2.369` APK is the published release built from that stability work.
+- First-run shader warmup now writes `last_shader_warmup_status.txt`; local ARM64 evidence build `0.2.376-shader-warmup-budget-evidence-local` completed v6 warmup on `SM-F966B` with 1713 shader warmup materials in 40.1s, under the 90s budget. Devices that hit the budget now record `completed-partial` and continue instead of being forced through an unbounded precompile pass.
 - Steam Cloud Pull into Android local app storage has been validated.
 - Steam Cloud Push is intentionally guarded and is not automatic.
 - The launcher has a first-class Mods section on the main play screen.
@@ -67,11 +67,19 @@ What currently works on tested ARM64 hardware:
 
 Experimental or still hardening:
 
+- Steam version selection is implemented for validation and hardening, not release-candidate signed off. The launcher uses a discovery-led dropdown selector with `Refresh Game Versions`, public-inherited branch classification, public-vs-beta integrity classification, and evidence for mixed beta/public behavior. Steam beta password entry, private/inaccessible branch handling, save compatibility, Autofill/password-manager behavior, and Push backup evidence still need broader ARM64 validation before branch switching is treated as release-candidate complete. See [Public-beta integrity runtime checklist](docs/steam-beta-integrity-runtime-checklist.md) and [Branch release-readiness tracker](docs/steam-version-selection-release-readiness.md).
 - Workshop/mod support is functional but not finished. Steam discovery can stage some subscribed mods, but items exposed only as legacy UGC handles may still need manual import.
 - `Vanilla and Modded Saves Merger` is the most important current mod validation target. It has manual-import loading evidence, but broader save-merge compatibility still needs tester reports.
 - Branch switching is implemented, but beta/password/private branch behavior and save compatibility across branches still need more device evidence.
 - Samsung/One UI layouts and login behavior need more current-version reports from affected users.
-- Startup/loading speed, shader-scanner log noise, shader compilation failures on lower-power devices, controller input, and launcher UI scaling/scroll reachability are active hardening targets.
+- Startup/loading speed, shader-scanner log noise, shader compilation failures on lower-power devices, controller input, and launcher UI scaling/scroll reachability are active hardening targets. A shader warmup that times out and continues is degraded compatibility evidence, not full device signoff.
+
+Current practical device floor:
+
+- ARM64 Android hardware is the supported proof target.
+- Android x86_64 emulator builds are diagnostic/fallback only, not game-launch support.
+- Devices must have a working Vulkan path for the bundled Godot runtime.
+- The project does not yet have enough cross-device evidence to publish a precise RAM/GPU minimum. A high-end `SM-F966B` completes full v6 warmup in about 40s; devices that cannot reach the game after the bounded shader warmup path are treated as below the current practical support floor unless their log shows a launcher/runtime bug that can be fixed.
 
 Steam Cloud safety:
 
@@ -267,7 +275,7 @@ GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
 2. Download the APK named in the current published APK block below.
-    - Do not use GitHub's `/releases/latest` shortcut for current tester builds; GitHub excludes prereleases and may point at an older non-prerelease baseline.
+    - GitHub's `/releases/latest` currently points at `v0.2.369-public-beta-stability`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
     - Release inventory: [docs/github-release-inventory.md](docs/github-release-inventory.md)
     - Current release assets are ARM64-only test packages, named like:
       - `StS2Launcher-v<version>-arm64-v8a.apk`
@@ -277,13 +285,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.352-savemerger-compat-local" `
-  -AssetName "StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.369-public-beta-stability" `
+  -AssetName "StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.352-savemerger-compat-local" `
-  -AssetName "StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.369-public-beta-stability" `
+  -AssetName "StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -292,12 +300,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.352-savemerger-compat-local
-Asset: StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk
+Release: v0.2.369-public-beta-stability
+Asset: StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.352-savemerger-compat-local
-VersionCode: 352001
-SHA-256: 25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e
+VersionName: 0.2.369-public-beta-stability
+VersionCode: 369001
+SHA-256: 8d9c57be197964c2a9178587723771878acfac2214ff552e2d2d9e718b055256
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker. Use `scripts\check-github-release-hygiene.ps1` before announcing a release so the APK, checksum sidecar, metadata sidecar, release body, package name, version, and SHA-256 all agree on the fork release page.

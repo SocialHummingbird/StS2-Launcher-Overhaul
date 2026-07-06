@@ -214,7 +214,7 @@ function Add-MultiVersionRuntimeStartupPatchChecks {
             "TryLoadModelDbInitAccess",
             "RuntimeHelpers\.GetUninitializedObject",
             "new Harmony\(HarmonyId\)",
-            "RunConstructors\(types, typeObjects\)",
+            "RunConstructors\(types, typeObjects, getIdMethod, contentById, setItemMethod, removeMethod\)",
             "harmony\.Unpatch\(containsMethod, containsPrefix\)",
             "LogPhase2Result\(types\.Length, phase2\.SuccessCount, phase2\.Failed\)"
         )
@@ -242,7 +242,6 @@ function Add-MultiVersionRuntimeStartupPatchChecks {
             "RunConstructors",
             "_suppressContains = true",
             "try",
-            "RuntimeHelpers\.RunClassConstructor",
             "ctor\.Invoke",
             "finally",
             "_suppressContains = false",

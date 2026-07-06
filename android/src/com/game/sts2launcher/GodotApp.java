@@ -48,11 +48,13 @@ import java.security.spec.X509EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.net.wifi.WifiManager;
 import android.text.InputType;
 import android.util.Base64;
@@ -2769,6 +2771,59 @@ public class GodotApp extends GodotActivity {
 
 	public String getVersionName() {
 		return BuildConfig.VERSION_NAME;
+	}
+
+	public String getDeviceDiagnostics() {
+		StringBuilder text = new StringBuilder();
+		text.append("Android device diagnostics\n");
+		text.append("manufacturer=").append(safeDeviceValue(Build.MANUFACTURER)).append('\n');
+		text.append("brand=").append(safeDeviceValue(Build.BRAND)).append('\n');
+		text.append("model=").append(safeDeviceValue(Build.MODEL)).append('\n');
+		text.append("device=").append(safeDeviceValue(Build.DEVICE)).append('\n');
+		text.append("product=").append(safeDeviceValue(Build.PRODUCT)).append('\n');
+		text.append("sdk=").append(Build.VERSION.SDK_INT).append('\n');
+		text.append("release=").append(safeDeviceValue(Build.VERSION.RELEASE)).append('\n');
+		text.append("supportedAbis=").append(String.join(",", Build.SUPPORTED_ABIS)).append('\n');
+		text.append("availableProcessors=").append(Runtime.getRuntime().availableProcessors()).append('\n');
+		try {
+			android.app.ActivityManager activityManager =
+				(android.app.ActivityManager)getSystemService(Context.ACTIVITY_SERVICE);
+			if (activityManager != null) {
+				android.app.ActivityManager.MemoryInfo memoryInfo =
+					new android.app.ActivityManager.MemoryInfo();
+				activityManager.getMemoryInfo(memoryInfo);
+				text.append("memoryClassMb=").append(activityManager.getMemoryClass()).append('\n');
+				text.append("largeMemoryClassMb=").append(activityManager.getLargeMemoryClass()).append('\n');
+				text.append("lowRamDevice=").append(activityManager.isLowRamDevice()).append('\n');
+				text.append("totalMemBytes=").append(memoryInfo.totalMem).append('\n');
+				text.append("availMemBytes=").append(memoryInfo.availMem).append('\n');
+				text.append("memoryLow=").append(memoryInfo.lowMemory).append('\n');
+			}
+		} catch (Exception e) {
+			text.append("memoryDiagnostics=<unavailable:")
+				.append(e.getClass().getSimpleName())
+				.append(">\n");
+		}
+		PackageManager packageManager = getPackageManager();
+		if (packageManager != null) {
+			text.append("featureVulkanHardwareLevel=")
+				.append(packageManager.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_LEVEL))
+				.append('\n');
+			text.append("featureVulkanHardwareVersion=")
+				.append(packageManager.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_VERSION))
+				.append('\n');
+			text.append("featureVulkanDeqpLevel=")
+				.append(packageManager.hasSystemFeature(PackageManager.FEATURE_VULKAN_DEQP_LEVEL))
+				.append('\n');
+		}
+		return text.toString();
+	}
+
+	private String safeDeviceValue(String value) {
+		if (value == null || value.trim().isEmpty()) {
+			return "<none>";
+		}
+		return value.replace('\r', ' ').replace('\n', ' ').trim();
 	}
 
     public void launchGameOnRestart() {

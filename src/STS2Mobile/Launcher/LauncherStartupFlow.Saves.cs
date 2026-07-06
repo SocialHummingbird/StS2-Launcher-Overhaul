@@ -11,7 +11,7 @@ internal static partial class LauncherStartupFlow
     {
         var instanceField = typeof(SaveManager).GetField(
             "_instance",
-            BindingFlags.NonPublic | BindingFlags.Static
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
         );
         if (instanceField == null)
             return;

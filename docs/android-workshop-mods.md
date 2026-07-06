@@ -1,12 +1,12 @@
 # Android Steam Workshop Mods
 
-_Last updated: 2026-07-03_
+_Last updated: 2026-07-05_
 
 This document tracks the Android Workshop/mod path for StS2 Mobile. It covers subscribed Steam Workshop discovery, Android staging, runtime loading, Steam Cloud safety, current compatibility limits, and the current unsupported legacy UGC blocker.
 
 ## Current State
 
-Workshop/mod support is in progress. The current Android Workshop path can discover, stage, present, and launch the tested public-beta mod set:
+Workshop/mod support is in progress. The current latest APK is `v0.2.369-public-beta-stability`; the latest strict modded device evidence is still the July 3 public-beta validation noted below. The current Android Workshop path can discover, stage, present, and launch the tested public-beta mod set:
 
 - `Sync Workshop Mods` discovers subscribed Workshop items from Steam.
 - Usable Workshop items are downloaded from Steam depot manifests or direct UGC URLs.
@@ -28,7 +28,7 @@ This is not finished mod-manager UX yet:
 Latest device evidence:
 
 ```text
-latestRuntimeBuild=0.2.352-savemerger-compat-local
+latestStrictModdedRuntimeBuild=0.2.352-savemerger-compat-local
 package=com.sts2launcher.overhaul.fork.local
 device=RFCY70XQE7F
 publicEvidence=artifacts/android/workshop-mods-public-public-after-beta-modeldb-adaptive-20260703-20260703-084514

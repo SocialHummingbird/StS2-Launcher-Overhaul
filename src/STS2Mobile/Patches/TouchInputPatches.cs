@@ -55,7 +55,7 @@ internal static class TouchInputPatches
         var instanceType = cardPlay.GetType();
         var isInPlayZone = instanceType.GetMethod(
             "IsCardInPlayZone",
-            BindingFlags.NonPublic | BindingFlags.Instance
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
         );
         if (isInPlayZone == null || (bool)isInPlayZone.Invoke(cardPlay, null))
             return;

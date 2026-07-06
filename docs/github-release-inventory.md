@@ -4,11 +4,10 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 
 ## Current Download
 
-- Recommended newest APK release: `v0.2.352-savemerger-compat-local`
-- APK: `StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk`
-- SHA-256: `25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e`
-- GitHub `/releases/latest` non-prerelease target: `v0.2.188-branch-cache-hardening`
-- Warning: GitHub `/releases/latest` does not point at the newest APK because newer APKs are prereleases.
+- Recommended newest APK release: `v0.2.369-public-beta-stability`
+- APK: `StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk`
+- SHA-256: `8d9c57be197964c2a9178587723771878acfac2214ff552e2d2d9e718b055256`
+- GitHub `/releases/latest` non-prerelease target: `v0.2.369-public-beta-stability`
 
 ## Release Classes
 
@@ -22,7 +21,10 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 
 | Published | Release | Class | APK | Checksum | Metadata | Body APK/SHA | Issues |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-07-03 | `v0.2.352-savemerger-compat-local` | `current-prerelease` | `StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-05 | `v0.2.369-public-beta-stability` | `current-prerelease` | `StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-03 | `v0.2.352-savemerger-compat-local` | `historical-test-prerelease` | `StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-06-29 | `v0.2.345-launcher-orchestration-refactor` | `historical-prerelease` | `StS2Launcher-v0.2.345-launcher-orchestration-refactor-arm64-v8a.apk` | yes | build-info | yes/yes | ok |
+| 2026-06-29 | `v0.2.344-controller-input-fallback` | `historical-prerelease` | `StS2Launcher-v0.2.344-controller-input-fallback-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-06-28 | `v0.2.336-cleartext-cdn-debug` | `historical-test-prerelease` | `StS2Launcher-v0.2.336-cleartext-cdn-debug-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-06-25 | `v0.2.335-mod-selector-deps-cloud-marker-debug` | `historical-test-prerelease` | `StS2Launcher-v0.2.335-mod-selector-deps-cloud-marker-debug-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-06-22 | `v0.2.316-workshop-runtime-mod-evidence` | `historical-test-prerelease` | `StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk` | yes | json | no/yes | body missing APK |
@@ -55,14 +57,10 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 | 2026-06-18 | `v0.2.188-local-runtime-beta-fix21` | `historical-test-prerelease` | `StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk` | no | no | no/yes | missing checksum; missing metadata; body missing APK |
 | 2026-06-18 | `v0.2.188-local-runtime-beta-fix20` | `historical-test-prerelease` | `StS2Launcher-v0.2.188-local-runtime-beta-fix20-arm64-v8a.apk` | no | no | no/yes | missing checksum; missing metadata; body missing APK |
 | 2026-06-18 | `v0.2.188-local-runtime-beta-fix16` | `historical-test-prerelease` | `StS2Launcher-v0.2.188-local-runtime-beta-fix16-arm64-v8a.apk` | yes | no | yes/yes | missing metadata |
-| 2026-06-16 | `v0.2.188-branch-cache-hardening` | `github-latest-non-prerelease` | `StS2Launcher-v0.2.188-branch-cache-hardening-arm64-v8a.apk` | yes | build-info | yes/yes | GitHub latest is not newest APK |
+| 2026-06-16 | `v0.2.188-branch-cache-hardening` | `historical-release` | `StS2Launcher-v0.2.188-branch-cache-hardening-arm64-v8a.apk` | yes | build-info | yes/yes | ok |
 | 2026-06-14 | `v0.2.187-beta-art-fallback` | `historical-release` | `StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk` | yes | build-info | no/no | body missing APK; body missing SHA |
 | 2026-06-13 | `v0.2.186-sts2-mobile-version-selection` | `historical-release` | `StS2Launcher-v0.2.186-sts2-mobile-version-selection-arm64-v8a.apk` | yes | build-info | no/no | body missing APK; body missing SHA |
 | 2026-06-09 | `v0.2.185-responsive-ui` | `historical-release` | `StS2Launcher-v0.2.185-responsive-ui-arm64-v8a.apk` | yes | build-info | yes/yes | ok |
-| 2026-06-09 | `v0.2.184-loading-scale` | `historical-release` | `StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk` | yes | build-info | no/no | body missing APK; body missing SHA |
-| 2026-06-09 | `v0.2.183-login-hardening` | `historical-release` | `StS2Launcher-v0.2.183-login-hardening-arm64-v8a.apk` | yes | build-info | no/no | body missing APK; body missing SHA |
-| 2026-06-09 | `v0.2.182-launcher-scroll-widthfix` | `historical-release` | `StS2Launcher-v0.2.182-launcher-scroll-widthfix-arm64-v8a.apk` | yes | build-info | no/no | body missing APK; body missing SHA |
-| 2026-06-09 | `v0.2.181-launcher-layoutfix` | `historical-release` | `StS2Launcher-v0.2.181-launcher-layoutfix-arm64-v8a.apk` | yes | build-info | no/no | body missing APK; body missing SHA |
 
 ## Required Hygiene For New Releases
 

@@ -205,7 +205,7 @@ function Add-MultiVersionRuntimePackChecks {
             "File\.Copy",
             "RuntimeAssemblyFileName",
             "CopyRuntimeSupportAssemblies",
-            "Runtime packs only swap the branch-specific game assembly"
+            "RuntimeSupportAssemblyFileNames"
         )
 
     Add-Check `

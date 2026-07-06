@@ -19,8 +19,9 @@ internal static partial class RuntimePackWriter
             depotManifestFingerprint = context.Slot.Metadata.DepotManifestFingerprint,
             sourcePckSha256 = context.Slot.PckSha256,
             sourceAssemblySha256 = context.Slot.SourceAssemblySha256,
-            androidAssemblySha256 = context.Slot.SourceAssemblySha256,
+            androidAssemblySha256 = context.AndroidAssemblySha256,
             androidAssemblyFile = RuntimeAssemblyFileName,
+            androidAssemblyCompatibility = AndroidAssemblyCompatibilityPayload(context.PublicizerResult),
             supportAssemblies = context.SupportAssemblies,
             supportAssemblySha256 = context.SupportAssemblySha256,
             patchSetVersion = context.PatchSetVersion,
@@ -55,7 +56,8 @@ internal static partial class RuntimePackWriter
             depotManifestFingerprint = context.Slot.Metadata.DepotManifestFingerprint,
             pckSha256 = context.Slot.PckSha256,
             sourceAssemblySha256 = context.Slot.SourceAssemblySha256,
-            androidAssemblySha256 = context.Slot.SourceAssemblySha256,
+            androidAssemblySha256 = context.AndroidAssemblySha256,
+            androidAssemblyCompatibility = AndroidAssemblyCompatibilityPayload(context.PublicizerResult),
             supportAssemblies = context.SupportAssemblies,
             supportAssemblySha256 = context.SupportAssemblySha256,
             patchSetVersion = context.PatchSetVersion,
@@ -75,5 +77,15 @@ internal static partial class RuntimePackWriter
             }).ToArray(),
             categorySummaries = context.CategorySummaries,
             generatedUtc = DateTime.UtcNow.ToString("O")
+        };
+
+    private static object AndroidAssemblyCompatibilityPayload(AndroidAssemblyPublicizer.Result result)
+        => new
+        {
+            visibilityPublicizer = result.Changed || string.Equals(result.Status, "already public", StringComparison.OrdinalIgnoreCase),
+            status = result.Status,
+            publicizedTypes = result.TypeCount,
+            publicizedMethods = result.MethodCount,
+            publicizedFields = result.FieldCount,
         };
 }

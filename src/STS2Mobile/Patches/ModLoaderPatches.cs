@@ -78,11 +78,15 @@ internal static class ModLoaderPatches
             }
 
             access.RebuildLoadedModsCacheIfAvailable();
+            var selectedEnabledMods = LauncherModSelectionState.EnabledModCount();
+            var loadedMods = access.LoadedModSummaries();
             WriteModLaunchMarker(
                 "modded",
                 loadedRoots,
-                LauncherModSelectionState.EnabledModCount(),
-                "Android mod scan completed with launcher-selected mods"
+                loadedMods.Length,
+                "Android mod scan completed with launcher-selected mods",
+                selectedEnabledMods,
+                loadedMods
             );
         }
         catch (Exception ex)
@@ -91,7 +95,14 @@ internal static class ModLoaderPatches
         }
     }
 
-    private static void WriteModLaunchMarker(string playMode, int scannedRoots, int enabledMods, string status)
+    private static void WriteModLaunchMarker(
+        string playMode,
+        int scannedRoots,
+        int enabledMods,
+        string status,
+        int? requestedEnabledMods = null,
+        object[] loadedMods = null
+    )
     {
         try
         {
@@ -106,10 +117,12 @@ internal static class ModLoaderPatches
                 playMode,
                 scannedRoots,
                 enabledMods,
+                requestedEnabledMods,
                 status,
                 selectionPath = AppPaths.AppPrivateModSelectionPath,
                 workshopModdedSaveCloudPushLocked = LauncherWorkshopModSafety.HasActiveStagedMods(),
                 steamCloudPushPerformed = false,
+                loadedMods = loadedMods ?? Array.Empty<object>(),
                 selectedMods = string.Equals(playMode, "modded", StringComparison.OrdinalIgnoreCase)
                     ? LauncherModSelectionState.KnownMods()
                     .Where(mod => mod.Enabled && !mod.IsUnsupported)
@@ -1385,7 +1398,17 @@ internal static class ModLoaderPatches
             foreach (var item in property.EnumerateArray())
             {
                 if (item.ValueKind == JsonValueKind.String)
+                {
                     values.Add(item.GetString() ?? "");
+                    continue;
+                }
+
+                if (item.ValueKind == JsonValueKind.Object
+                    && TryGetJsonProperty(item, "id", out var idProperty)
+                    && idProperty.ValueKind == JsonValueKind.String)
+                {
+                    values.Add(idProperty.GetString() ?? "");
+                }
             }
 
             return values;
@@ -1422,6 +1445,7 @@ internal static class ModLoaderPatches
                 PatchHelper.Log($"[Mods] Loading {manifest.Id} through Android-safe synthetic mod path");
                 _tryLoadMod.Invoke(null, new[] { mod });
                 ApplyLoadedAssemblyCompatibilityPatches();
+                LogAndroidModHarmonyDiagnostics(manifest, mod);
                 PatchHelper.Log($"[Mods] Android-safe synthetic mod load complete: {manifest.Id} loaded={IsLoaded(mod)}");
                 return true;
             }
@@ -1435,6 +1459,175 @@ internal static class ModLoaderPatches
                 PatchHelper.Log($"[Mods] Android-safe synthetic mod load failed for {manifest.Id}: {ex}");
                 return false;
             }
+        }
+
+        private static void LogAndroidModHarmonyDiagnostics(BaseLibManifestData manifest, object mod)
+        {
+            try
+            {
+                var assembly = TryReadAssemblyMember(mod)
+                    ?? FindLoadedAssemblyBySimpleName(manifest?.Id)
+                    ?? FindLoadedAssemblyBySimpleName(SanitizeAssemblyName(manifest?.Name));
+                var assemblyName = assembly?.GetName().Name ?? "<none>";
+                var patchTypes = CountHarmonyPatchTypes(assembly);
+                var ownerCandidates = BuildHarmonyOwnerCandidates(manifest, assembly).ToArray();
+                var targetSummaries = FindHarmonyTargetsForOwners(ownerCandidates, out var matchedTargetCount);
+
+                PatchHelper.Log(
+                    $"[Mods] Harmony diagnostics for {manifest?.Id ?? "<unknown>"}: assembly={assemblyName} patchTypes={patchTypes} ownerCandidates=[{string.Join(", ", ownerCandidates)}] matchedTargets={matchedTargetCount}"
+                );
+
+                foreach (var target in targetSummaries)
+                    PatchHelper.Log($"[Mods] Harmony target for {manifest?.Id ?? "<unknown>"}: {target}");
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"[Mods] Harmony diagnostics failed for {manifest?.Id ?? "<unknown>"}: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
+        private static Assembly TryReadAssemblyMember(object mod)
+        {
+            try
+            {
+                return TryReadMemberValue(mod, "assembly") as Assembly
+                    ?? TryReadMemberValue(mod, "Assembly") as Assembly;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static Assembly FindLoadedAssemblyBySimpleName(string simpleName)
+        {
+            if (string.IsNullOrWhiteSpace(simpleName))
+                return null;
+
+            try
+            {
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    if (string.Equals(assembly.GetName().Name, simpleName, StringComparison.OrdinalIgnoreCase))
+                        return assembly;
+                }
+            }
+            catch
+            {
+            }
+
+            return null;
+        }
+
+        private static int CountHarmonyPatchTypes(Assembly assembly)
+        {
+            if (assembly == null)
+                return 0;
+
+            try
+            {
+                return assembly
+                    .GetTypes()
+                    .Count(HasHarmonyPatchAttribute);
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                return ex.Types
+                    .Where(type => type != null)
+                    .Count(HasHarmonyPatchAttribute);
+            }
+        }
+
+        private static IEnumerable<string> BuildHarmonyOwnerCandidates(BaseLibManifestData manifest, Assembly assembly)
+        {
+            var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            AddCandidate(manifest?.Id);
+            AddCandidate(manifest?.Name);
+            AddCandidate(SanitizeAssemblyName(manifest?.Name));
+            AddCandidate(assembly?.GetName().Name);
+
+            foreach (var candidate in candidates)
+                yield return candidate;
+
+            void AddCandidate(string value)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    candidates.Add(value.Trim());
+            }
+        }
+
+        private static string[] FindHarmonyTargetsForOwners(IReadOnlyCollection<string> ownerCandidates, out int matchedTargetCount)
+        {
+            matchedTargetCount = 0;
+            if (ownerCandidates == null || ownerCandidates.Count == 0)
+                return Array.Empty<string>();
+
+            var summaries = new List<string>();
+            try
+            {
+                foreach (var method in Harmony.GetAllPatchedMethods())
+                {
+                    var patchInfo = Harmony.GetPatchInfo(method);
+                    var owners = ReadHarmonyPatchOwners(patchInfo).ToArray();
+                    if (!owners.Any(owner => ownerCandidates.Contains(owner, StringComparer.OrdinalIgnoreCase)))
+                        continue;
+
+                    matchedTargetCount++;
+                    if (summaries.Count < 12)
+                    {
+                        var matchedOwners = owners
+                            .Where(owner => ownerCandidates.Contains(owner, StringComparer.OrdinalIgnoreCase))
+                            .Distinct(StringComparer.OrdinalIgnoreCase);
+                        summaries.Add($"{DescribeMethod(method)} owners=[{string.Join(", ", matchedOwners)}]");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                summaries.Add($"<diagnostic failed: {ex.GetType().Name}: {ex.Message}>");
+            }
+
+            return summaries.ToArray();
+        }
+
+        private static IEnumerable<string> ReadHarmonyPatchOwners(object patchInfo)
+        {
+            if (patchInfo == null)
+                yield break;
+
+            foreach (var listName in new[] { "Prefixes", "Postfixes", "Transpilers", "Finalizers" })
+            {
+                if (TryReadMemberValue(patchInfo, listName) is not IEnumerable patches)
+                    continue;
+
+                foreach (var patch in patches)
+                {
+                    var owner = TryReadStringMember(patch, "owner")
+                        ?? TryReadStringMember(patch, "Owner");
+                    if (!string.IsNullOrWhiteSpace(owner))
+                        yield return owner;
+                }
+            }
+        }
+
+        private static string DescribeMethod(MethodBase method)
+        {
+            if (method == null)
+                return "<unknown>";
+
+            var declaringType = method.DeclaringType?.FullName ?? "<unknown type>";
+            return $"{declaringType}.{method.Name}";
+        }
+
+        private static string SanitizeAssemblyName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return null;
+
+            var chars = name
+                .Where(char.IsLetterOrDigit)
+                .ToArray();
+            return chars.Length == 0 ? null : new string(chars);
         }
 
         private static bool IsSavesMergerMod(BaseLibManifestData manifest)
@@ -1919,17 +2112,62 @@ internal static class ModLoaderPatches
         {
             try
             {
-                var type = target.GetType();
-                if (type.GetField(name, AllInstance)?.GetValue(target) is string fieldValue)
-                    return fieldValue;
-                if (type.GetProperty(name, AllInstance)?.GetValue(target) is string propertyValue)
-                    return propertyValue;
+                return TryReadMemberValue(target, name) as string;
             }
             catch
             {
             }
 
             return null;
+        }
+
+        private static object TryReadMemberValue(object target, string name)
+        {
+            try
+            {
+                if (target == null)
+                    return null;
+
+                var type = target.GetType();
+                var field = type.GetField(name, AllInstance);
+                if (field != null)
+                    return field.GetValue(target);
+
+                var property = type.GetProperty(name, AllInstance);
+                return property?.GetValue(target);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        internal object[] LoadedModSummaries()
+        {
+            var allMods = _modsField.GetValue(null) as IEnumerable;
+            if (allMods == null)
+                return Array.Empty<object>();
+
+            var loadedMods = new List<object>();
+            foreach (var mod in allMods)
+            {
+                if (mod == null || !IsLoaded(mod))
+                    continue;
+
+                var id = TryReadManifestId(mod) ?? "<unknown>";
+                var assembly = TryReadAssemblyMember(mod)
+                    ?? FindLoadedAssemblyBySimpleName(id);
+                loadedMods.Add(new
+                {
+                    Id = id,
+                    Path = TryReadStringMember(mod, "path")
+                        ?? TryReadStringMember(mod, "Path")
+                        ?? "",
+                    Assembly = assembly?.GetName().Name ?? "",
+                });
+            }
+
+            return loadedMods.ToArray();
         }
 
         private IEnumerable<object> OrderedNewMods(ISet<object> newMods)

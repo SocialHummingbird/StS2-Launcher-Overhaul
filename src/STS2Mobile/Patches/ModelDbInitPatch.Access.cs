@@ -6,6 +6,9 @@ namespace STS2Mobile.Patches;
 
 internal static partial class ModelDbInitPatch
 {
+    private const BindingFlags RuntimeStaticFlags =
+        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+
     private static bool TryLoadModelDbInitAccess(
         out Type[] types,
         out MethodInfo getIdMethod,
@@ -26,7 +29,7 @@ internal static partial class ModelDbInitPatch
 
         var allSubtypesProp = modelDbType.GetProperty(
             AllAbstractModelSubtypesProperty,
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
+            RuntimeStaticFlags
         );
         if (allSubtypesProp == null)
         {
@@ -43,7 +46,7 @@ internal static partial class ModelDbInitPatch
 
         getIdMethod = modelDbType.GetMethod(
             GetIdMethodName,
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
+            RuntimeStaticFlags,
             null,
             new[] { typeof(Type) },
             null
@@ -56,7 +59,7 @@ internal static partial class ModelDbInitPatch
 
         var contentByIdField = modelDbType.GetField(
             ContentByIdField,
-            BindingFlags.NonPublic | BindingFlags.Static
+            RuntimeStaticFlags
         );
         if (contentByIdField == null)
         {
@@ -99,7 +102,7 @@ internal static partial class ModelDbInitPatch
 
         containsMethod = modelDbType.GetMethod(
             ContainsMethodName,
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
+            RuntimeStaticFlags,
             null,
             new[] { typeof(Type) },
             null

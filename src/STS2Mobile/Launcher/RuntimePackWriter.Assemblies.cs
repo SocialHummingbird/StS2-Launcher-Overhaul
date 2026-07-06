@@ -24,12 +24,26 @@ internal static partial class RuntimePackWriter
         return packDirectory;
     }
 
-    private static void CopyRuntimeAssembly(GameRuntimeSlot slot, string packDirectory)
-        => File.Copy(
+    private static RuntimeAssemblyCopyResult CopyRuntimeAssembly(GameRuntimeSlot slot, string packDirectory)
+    {
+        var destinationPath = Path.Combine(packDirectory, RuntimeAssemblyFileName);
+        File.Copy(
             slot.SourceAssemblyPath,
-            Path.Combine(packDirectory, RuntimeAssemblyFileName),
+            destinationPath,
             overwrite: true
         );
+
+        var publicizerResult = AndroidAssemblyPublicizer.Publicize(
+            destinationPath,
+            slot.SourceAssemblyPath,
+            slot.ActiveAndroidAssemblyPath
+        );
+        return new RuntimeAssemblyCopyResult(
+            destinationPath,
+            Sha256Hex(destinationPath),
+            publicizerResult
+        );
+    }
 
     private static string[] CopyRuntimeSupportAssemblies(
         GameRuntimeSlot slot,
@@ -72,4 +86,10 @@ internal static partial class RuntimePackWriter
 
         return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
     }
+
+    private readonly record struct RuntimeAssemblyCopyResult(
+        string Path,
+        string Sha256,
+        AndroidAssemblyPublicizer.Result PublicizerResult
+    );
 }

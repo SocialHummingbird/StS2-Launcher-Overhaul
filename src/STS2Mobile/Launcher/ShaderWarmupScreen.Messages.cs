@@ -18,6 +18,9 @@ internal sealed partial class ShaderWarmupScreen
         internal static string Completed(WarmupCompletion completion)
             => $"[ShaderWarmup] Completed: {completion.MaterialCount} materials in {completion.ElapsedMilliseconds}ms";
 
+        internal static string CompletedPartial(WarmupPartialCompletion completion)
+            => $"[ShaderWarmup] Time-budgeted: rendered {completion.RenderedMaterialCount}/{completion.TotalMaterialCount} materials in {completion.ElapsedMilliseconds}ms";
+
         internal static string ScreenBuildFailed(Exception ex)
             => $"[ShaderWarmup] BuildUI failed: {ex}";
 
@@ -29,5 +32,8 @@ internal sealed partial class ShaderWarmupScreen
 
         internal static string WatchdogWarning(int seconds)
             => $"[ShaderWarmup] Still active after {seconds}s; wrote watchdog status marker";
+
+        internal static string TimeBudgetReached(int seconds)
+            => $"[ShaderWarmup] Time budget reached after {seconds}s; continuing startup with partial warmup";
     }
 }

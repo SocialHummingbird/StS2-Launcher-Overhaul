@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using System.Threading.Tasks;
 using Godot;
 
@@ -18,13 +19,15 @@ internal sealed partial class ShaderWarmupScreen
 
         internal static async Task<List<WarmupMaterial>> CollectAsync(
             SceneTree tree,
-            ShaderWarmupProgress progress
+            ShaderWarmupProgress progress,
+            Func<bool> shouldStop
         )
         {
             var materials = new WarmupMaterialCollection();
 
             await ScanLooseMaterialsAsync(materials, tree, progress);
-            await ScanScenesAsync(materials, tree, progress);
+            if (!shouldStop())
+                await ScanScenesAsync(materials, tree, progress, shouldStop);
 
             var unique = materials.UniqueByShader();
             PatchHelper.Log(Message.UniqueShaders(materials.Count, unique.Count));

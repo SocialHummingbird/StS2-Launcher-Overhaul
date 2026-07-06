@@ -37,7 +37,8 @@ function Add-SteamVersionSelectionPortalChromeCompactLayoutChecks {
         "adds compact-only bottom scroll breathing room for phone gesture areas" `
         @(
             "BuildCompactBottomScrollSpacer",
-            "LauncherViewLayoutMetrics\.ScaleInt\(72, scale\)",
+            "CompactBottomScrollSpacerHeight = 180",
+            "LauncherViewLayoutMetrics\.ScaleInt\(CompactBottomScrollSpacerHeight, scale\)",
             "MouseFilterEnum\.Ignore"
         )
 }

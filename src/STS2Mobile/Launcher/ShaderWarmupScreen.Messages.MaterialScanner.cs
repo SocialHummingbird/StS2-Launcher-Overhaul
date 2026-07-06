@@ -9,6 +9,9 @@ internal sealed partial class ShaderWarmupScreen
         internal static string FoundScenes(int sceneCount)
             => $"[ShaderWarmup] Found {sceneCount} scenes to scan";
 
+        internal static string SceneScanStoppedByBudget(int scannedSceneCount, int totalSceneCount)
+            => $"[ShaderWarmup] Stopped scene scan after {scannedSceneCount}/{totalSceneCount} scenes due to warmup time budget";
+
         internal static string UniqueShaders(int materialCount, int uniqueShaderCount)
             => $"[ShaderWarmup] {materialCount} total materials, {uniqueShaderCount} unique shaders";
 

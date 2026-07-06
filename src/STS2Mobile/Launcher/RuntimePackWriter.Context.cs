@@ -18,6 +18,8 @@ internal static partial class RuntimePackWriter
         object[] CategorySummaries,
         int CheckedSymbolCount,
         int PresentSymbolCount,
+        string AndroidAssemblySha256,
+        AndroidAssemblyPublicizer.Result PublicizerResult,
         string[] SupportAssemblies,
         IReadOnlyDictionary<string, string> SupportAssemblySha256
     );
@@ -27,6 +29,8 @@ internal static partial class RuntimePackWriter
         string patchSetVersion,
         string validationMode,
         IReadOnlyList<PatchCompatibilityValidator.SymbolCheck> symbolChecks,
+        string androidAssemblySha256,
+        AndroidAssemblyPublicizer.Result publicizerResult,
         string[] supportAssemblies,
         IReadOnlyDictionary<string, string> supportAssemblySha256
     )
@@ -42,13 +46,15 @@ internal static partial class RuntimePackWriter
             patchSetVersion,
             validationMode,
             packId,
-            GameRuntimeSlot.BuildRuntimePackSlotId(slot, patchSetVersion, packId),
-            GameRuntimeSlot.BuildRuntimePackSlotIdentity(slot, patchSetVersion, packId),
+            GameRuntimeSlot.BuildRuntimePackSlotId(slot, patchSetVersion, packId, androidAssemblySha256),
+            GameRuntimeSlot.BuildRuntimePackSlotIdentity(slot, patchSetVersion, packId, androidAssemblySha256),
             symbolChecks,
             missingSymbols,
             BuildCategorySummaries(symbolChecks),
             checkedSymbolCount,
             presentSymbolCount,
+            androidAssemblySha256,
+            publicizerResult,
             supportAssemblies,
             supportAssemblySha256
         );

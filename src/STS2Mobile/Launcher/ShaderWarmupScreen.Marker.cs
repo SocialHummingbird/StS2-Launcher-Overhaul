@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Godot;
 
@@ -52,19 +53,26 @@ internal sealed partial class ShaderWarmupScreen
         }
     }
 
-    private static void WriteWarmupStatus(string status, string detail)
+    private static void WriteWarmupStatus(string status, string detail, params string[] evidence)
     {
         try
         {
-            var text = new[]
+            var lines = new List<string>
             {
                 "StS2 Mobile shader warmup status",
                 $"UTC: {DateTime.UtcNow:O}",
                 $"Status: {SanitizeStatus(status)}",
                 $"Detail: {SanitizeStatus(detail)}",
                 $"Warmup version: {WarmupVersion}",
-            }.JoinLines();
-            File.WriteAllText(StatusMarkerPath, text);
+                $"Warmup time budget seconds: {WarmupTimeBudgetSeconds}",
+            };
+
+            AppendDeviceDiagnostics(lines);
+
+            foreach (var item in evidence)
+                lines.Add(SanitizeStatus(item));
+
+            File.WriteAllText(StatusMarkerPath, lines.ToArray().JoinLines());
         }
         catch (Exception ex)
         {
@@ -76,4 +84,28 @@ internal sealed partial class ShaderWarmupScreen
         => string.IsNullOrWhiteSpace(value)
             ? "<none>"
             : value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+
+    private static void AppendDeviceDiagnostics(List<string> lines)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return;
+
+        try
+        {
+            var diagnostics = AndroidGodotAppBridge.GetDeviceDiagnostics();
+            if (string.IsNullOrWhiteSpace(diagnostics))
+                return;
+
+            foreach (var line in diagnostics.Split('\n'))
+            {
+                var clean = SanitizeStatus(line);
+                if (clean != "<none>")
+                    lines.Add(clean);
+            }
+        }
+        catch (Exception ex)
+        {
+            lines.Add($"Device diagnostics: <unavailable:{ex.GetType().Name}>");
+        }
+    }
 }

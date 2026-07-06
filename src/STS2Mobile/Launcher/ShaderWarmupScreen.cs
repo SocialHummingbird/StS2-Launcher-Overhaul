@@ -7,7 +7,8 @@ namespace STS2Mobile.Launcher;
 // rendering them in a SubViewport, then writing a version marker to skip on future launches.
 internal sealed partial class ShaderWarmupScreen : Control
 {
-    private const int WarmupVersion = 5;
+    private const int WarmupVersion = 6;
+    private const int WarmupTimeBudgetSeconds = 90;
     private const int WatchdogWarningSeconds = 45;
 
     private TaskCompletionSource<bool> _tcs;

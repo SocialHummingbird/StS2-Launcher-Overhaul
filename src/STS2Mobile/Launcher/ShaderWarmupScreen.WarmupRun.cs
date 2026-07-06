@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -14,6 +15,24 @@ internal sealed partial class ShaderWarmupScreen
         }
 
         internal int MaterialCount { get; }
+        internal long ElapsedMilliseconds { get; }
+    }
+
+    private readonly struct WarmupPartialCompletion
+    {
+        internal WarmupPartialCompletion(
+            int renderedMaterialCount,
+            int totalMaterialCount,
+            long elapsedMilliseconds
+        )
+        {
+            RenderedMaterialCount = renderedMaterialCount;
+            TotalMaterialCount = totalMaterialCount;
+            ElapsedMilliseconds = elapsedMilliseconds;
+        }
+
+        internal int RenderedMaterialCount { get; }
+        internal int TotalMaterialCount { get; }
         internal long ElapsedMilliseconds { get; }
     }
 
@@ -34,6 +53,11 @@ internal sealed partial class ShaderWarmupScreen
         internal ShaderWarmupProgress Progress { get; }
         private Stopwatch Stopwatch { get; }
 
+        internal long ElapsedMilliseconds => Stopwatch.ElapsedMilliseconds;
+
+        internal bool IsOverBudget
+            => Stopwatch.Elapsed >= TimeSpan.FromSeconds(WarmupTimeBudgetSeconds);
+
         internal void CompleteAndReport(int materialCount)
         {
             var completion = new WarmupCompletion(
@@ -42,6 +66,22 @@ internal sealed partial class ShaderWarmupScreen
             );
             Progress.Complete(completion);
             PatchHelper.Log(Message.Completed(completion));
+        }
+
+        internal void CompletePartialAndReport(int renderedMaterialCount, int totalMaterialCount)
+        {
+            var completion = new WarmupPartialCompletion(
+                renderedMaterialCount,
+                totalMaterialCount,
+                Stopwatch.ElapsedMilliseconds
+            );
+            Progress.Complete(
+                new WarmupCompletion(
+                    renderedMaterialCount,
+                    completion.ElapsedMilliseconds
+                )
+            );
+            PatchHelper.Log(Message.CompletedPartial(completion));
         }
     }
 

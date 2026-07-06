@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-07-05_
+_Last updated: 2026-07-06_
 
 Current device evidence ledgers:
 
@@ -21,7 +21,8 @@ July 5 runtime/update status:
 - July 5 known-issues validation installed local evidence build `0.2.358-known-issues-fmod-marker-fix` (`versionCode=358001`) on ARM64 device `SM-F966B`. Public-beta launches to the main menu with the selected side-by-side public-beta PCK/runtime pack; this is a playable branch-routing pass, not a `NativeFallbackActivity` fallback. Patch marker `.android_pck_patch_v35` records matched source/current PCK hash `109f61f7e13a7f329c9fe10aab81dec55e4c415e9863ef5468b76dadac7c7aee`, all five desktop FMOD bank entries in the selected public-beta PCK (`Master.strings.bank`, `Master.bank`, `sfx.bank`, `temp_sfx.bank`, `ambience.bank`), and diagnostic extraction copies under `/sdcard/sts2b`. Runtime-pack evidence records public-beta `v0.108.0`, PCK hash `109f61f7e13a7f329c9fe10aab81dec55e4c415e9863ef5468b76dadac7c7aee`, runtime pack `public-beta-109f61f7e13a-51a671bfeb93-startup-orchestrator-v1`, source/runtime/active `sts2.dll` hash `51a671bfeb937271af3e643d017396b13432098ed2b9debceb110c74939bbba1`, and patch validation `passed`.
 - BGM/ambience native initialization is now fixed in local evidence build `0.2.364-fmod-audio-devices-test`. The Android FMOD Java/JNI bridge initializes `libfmod.so`, reports successful DSP buffer setup and global 3D settings, and loads the desktop FMOD banks from `res://banks/desktop/...` without the previous invalid-handle/JNI/bank-load failures. Human audible-output confirmation is still useful, but the previous log-level native FMOD blocker is closed.
 - Silent Steam sign-in failure reporting is fixed in local evidence build `0.2.366-auth-failure-reporting-test`. An invalid one-shot local credential handoff on ARM64 was consumed, connected to Steam, failed with `InvalidPassword`, wrote `last_steam_auth_failure.txt` with category `credentials`, selected branch `public-beta`, user-facing recovery text, and technical SteamKit detail, and left `last_manual_cloud_push.txt` missing.
-- Shader compile crash/stall triage now has device proof in local evidence build `0.2.368-normal-launch-automation-test`: normal public-beta launch automation reached the main menu, `last_shader_warmup_status.txt` recorded a 45-second watchdog warning during first-run warmup and then completed with `Rendered 1713 shader warmup materials`. This improves report classification, but weaker-device shader crash/stall reports still need focused validation.
+- Shader compile crash/stall triage now has v6 device proof in local evidence build `0.2.376-shader-warmup-budget-evidence-local`: normal public-beta launch automation reached the main menu on `SM-F966B`, `last_shader_warmup_status.txt` recorded `Status: completed`, `Warmup version: 6`, `Warmup time budget seconds: 90`, and `Rendered 1713 shader warmup materials` in 40149ms. No `NativeFallbackActivity`, fatal exception, ANR, or manual Steam Cloud Push signature was present in the focused evidence.
+- Current local shader hardening keeps the 90-second precompile budget and classifies `completed-partial` when startup continues after rendering only part of the shader set. This avoids repeatedly forcing weak devices through an unbounded first-run precompile, but partial warmup is degraded compatibility evidence, not a full device pass. We still need weaker-device reports before publishing a precise RAM/GPU minimum.
 - The July 5 launcher reachability pass on the connected foldable layout shows Start Game, version selection, vanilla/mod mode controls, staged Workshop controls, Fixes & Help, and Help & Reports reachable in the main scroll area. The launcher is usable on that display but remains visually dense and still needs UX polish.
 - The latest tested Steam public-beta payload is `v0.108.0` / build `24032229`. Public-beta fresh download, Android PCK patching, runtime-pack creation, runtime-pack validation, and launch now reach the main menu with matched beta PCK plus matched beta managed runtime. This is no longer a `NativeFallbackActivity` fallback/gating issue.
 - Public-after-beta switching was retested after the beta launch and returned to the public PCK/runtime pairing correctly.
@@ -80,7 +81,25 @@ cloudSafety=No Steam Cloud Push was run. last_manual_cloud_push.txt remained mis
 evidence=artifacts/android/auth-failure-v366-marker-20260705-215808
 ```
 
-Latest local normal-launch/shader warmup evidence:
+Latest local bounded shader warmup evidence:
+
+```text
+build=0.2.376-shader-warmup-budget-evidence-local
+asset=artifacts/android/StS2Launcher-v0.2.376-shader-warmup-budget-evidence-local-arm64-v8a.apk
+package=com.sts2launcher.overhaul.fork.local
+versionName=0.2.376-shader-warmup-budget-evidence-local
+versionCode=376000
+device=SM-F966B / RFCY70XQE7F
+automation=branch=public-beta + action=launch consumed from launcher_automation_action.txt after forcing game cloud sync off for the validation launch; original persisted cloud-sync preference was restored after capture
+launch=public-beta reached the Slay the Spire 2 main menu, not NativeFallbackActivity
+runtime=selected PCK SHA256 109f61f7e13a7f329c9fe10aab81dec55e4c415e9863ef5468b76dadac7c7aee; source sts2.dll SHA256 51a671bfeb937271af3e643d017396b13432098ed2b9debceb110c74939bbba1; active Android sts2.dll SHA256 0fa05b11c176bfb04271e30ae4e6cc7272f1cc01548a738e4c4d9726e40d1b82; runtime pack /files/runtime_packs/public-beta-8128824d usable; patch validation passed
+shaderWarmup=last_shader_warmup_status.txt completed; version=6; budget=90s; detail=Rendered 1713 shader warmup materials; elapsed=40149ms; device diagnostics recorded model=SM-F966B, Android 16/API 36, 8 processors, lowRamDevice=false, totalMemBytes=11653025792, Vulkan hardware feature flags present
+cloudSafety=No Steam Cloud Push; validation launch forced CloudSync=false, logs show Android local-only SaveManager and disabled cloud writes ignored, manual Push markers/log signatures absent; persisted cloud_sync_enabled restored to original true after capture
+evidence=artifacts/android/shader-warmup-v6-normal-launch-evidence-device-20260706-100947
+remaining=Shader scanner still emits noisy Godot error stack traces for some material/scene extraction attempts even though warmup completes and the game reaches the menu; weaker-device `completed-partial`/crash reports are still needed to define a precise minimum spec.
+```
+
+Previous local normal-launch/shader warmup evidence:
 
 ```text
 build=0.2.368-normal-launch-automation-test
@@ -92,25 +111,25 @@ device=SM-F966B / RFCY70XQE7F
 automation=branch=public-beta + action=launch consumed from launcher_automation_action.txt; marker completed with selected/requested branch public-beta
 launch=public-beta reached the Slay the Spire 2 main menu, not NativeFallbackActivity
 runtime=selected PCK SHA256 109f61f7e13a7f329c9fe10aab81dec55e4c415e9863ef5468b76dadac7c7aee; source/runtime/active sts2.dll SHA256 51a671bfeb937271af3e643d017396b13432098ed2b9debceb110c74939bbba1; runtime pack /files/runtime_packs/public-beta-8128824d
-shaderWarmup=last_shader_warmup_status.txt completed; detail=Rendered 1713 shader warmup materials; watchdog also logged at 45s during the same run
+shaderWarmup=last_shader_warmup_status.txt completed; detail=Rendered 1713 shader warmup materials; watchdog also logged at 45s during the same run. Superseded by v6 bounded warmup evidence above.
 audio=FMOD initialized and desktop banks loaded during launch
 cloudSafety=No Steam Cloud Push; last_manual_cloud_push.txt missing and no BeginFileUpload/CommitFileUpload/upload markers in focused logs
 evidence=artifacts/android/normal-launch-automation-v368-public-beta-valid-20260705-221923
-remaining=Shader scanner emits noisy Godot error stack traces for some material/scene extraction attempts even though warmup completes and the game reaches the menu; controller action handling and weaker-device shader crash reports remain open.
+remaining=Shader scanner emits noisy Godot error stack traces for some material/scene extraction attempts even though warmup completes and the game reaches the menu; controller action handling and weaker-device shader crash/partial-warmup reports remain open.
 ```
 
-Latest GitHub APK prerelease evidence:
+Latest GitHub APK release evidence:
 
 ```text
-release=v0.2.352-savemerger-compat-local
-asset=StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk
-sha256=25daa224b90311775957a5638f7173342c078b1baca4dadd5454ca3ff80af26e
+release=v0.2.369-public-beta-stability
+asset=StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk
+sha256=8d9c57be197964c2a9178587723771878acfac2214ff552e2d2d9e718b055256
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.352-savemerger-compat-local
-versionCode=352001
-validation=Android build/APK verification passed; APK crypto patch verification passed; GitHub release hygiene check passed with matching APK/checksum/metadata/release-body SHA-256; downloaded release APK verification passed. This prerelease targets public-beta modded launch/runtime-pack correctness and SavesMerger Android compatibility, and remains a local-package hardening prerelease rather than release-candidate public-package signoff.
-cloudSafety=No Push to Cloud was run during this validation.
-evidence=GitHub release v0.2.352-savemerger-compat-local assets and metadata; latest device runtime evidence remains the public/public-beta and Workshop artifacts listed below.
+versionName=0.2.369-public-beta-stability
+versionCode=369001
+validation=Android build/APK verification passed; APK crypto patch verification passed; GitHub release hygiene check passed with matching APK/checksum/metadata/release-body SHA-256; downloaded release APK verification passed; GitHub /releases/latest points at this tag. This release publishes the public-beta stability, FMOD/audio bridge, auth-failure reporting, and shader warmup diagnostics work, and remains a local-package hardening APK rather than broad release-candidate public-package signoff.
+cloudSafety=No Push to Cloud was run during the matching public-beta launch validation.
+evidence=GitHub release v0.2.369-public-beta-stability assets and metadata; matching device launch evidence remains artifacts/android/normal-launch-automation-v368-public-beta-valid-20260705-221923, and latest strict Workshop/mod evidence remains the July 3 artifacts listed below.
 ```
 
 Latest full public/public-beta runtime gate evidence:
@@ -141,7 +160,7 @@ not_yet_proven=touch validation, Help & Reports/launcher-log copy pass visual pr
 Latest Workshop/mod evidence:
 
 ```text
-latestRuntimeBuild=0.2.352-savemerger-compat-local
+latestStrictModdedRuntimeBuild=0.2.352-savemerger-compat-local
 package=com.sts2launcher.overhaul.fork.local
 device=RFCY70XQE7F
 validation=Public-beta v0.108.0 launches with matched beta PCK/runtime. Strict public-beta modded validation with BaseLib, Quick Restart 2, and manual SavesMerger completes Android selected-root scanning, records `last_mod_launch.json` with `playMode=modded`, `scannedRoots=3`, `enabledMods=3`, and preserves matched public-beta runtime-pack evidence. The previous native upstream scan/load termination is no longer the current blocker.

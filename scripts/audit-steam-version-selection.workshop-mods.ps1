@@ -125,24 +125,25 @@ function Add-SteamVersionSelectionWorkshopModChecks {
 
     Add-Check `
         "src\STS2Mobile\Patches\ModLoaderPatches.cs" `
-        "loads app-private Workshop staged mods before external sideloaded mods" `
+        "loads launcher-selected Workshop and manual mod roots through the Android-safe scanner" `
         @(
             "Workshop sync stages into app-private storage",
             "AppPaths\.EnsureWorkshopDirectories",
-            "Workshop staged mods",
-            "AppPaths\.AppPrivateWorkshopStagedModsDir",
-            "external sideloaded mods",
+            "LauncherModSelectionState\.KnownMods",
+            "requiresWorkshopConsent: isWorkshop",
+            "Selected root \{root\.Label\}",
+            "FindAndroidManifestPath",
             "RebuildLoadedModsCache"
         )
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.cs" `
-        "blocks Steam Cloud Push when active Workshop PCK mods are staged" `
+        "blocks Steam Cloud Push when selected mods are active" `
         @(
             "CanPushWithWorkshopModSafety",
-            "LauncherWorkshopModSafety\.ActiveStagedModCount",
-            "Manual Push blocked: \{stagedMods\} active Workshop mod\(s\) are staged",
-            "Workshop mods are active",
+            "LauncherWorkshopModSafety\.ActiveSelectedModCount",
+            "Manual Push blocked: \{selectedMods\} selected mod\(s\) are active",
+            "selected mods are active",
             "protect unmodded cloud saves",
             "pushContext\.WriteBlockedMarker"
         )
@@ -174,7 +175,7 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "Workshop active staged PCK mod count",
             "Workshop raw staged PCK file count",
             "Workshop modded-save Cloud Push locked",
-            "LauncherWorkshopModSafety\.ActiveStagedModCount\(\) > 0",
+            "LauncherWorkshopModSafety\.HasActiveStagedMods\(\)",
             "ContentSha256",
             "PublishedFileId",
             "DownloadSourceKind",
@@ -189,14 +190,12 @@ function Add-SteamVersionSelectionWorkshopModChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Support.Tools.cs" `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Mods.cs" `
         "exposes a launcher Workshop sync action" `
         @(
-            "BuildWorkshopSyncSupportButton",
-            "BuildWorkshopClearSupportButton",
-            "Workshop Mods",
+            "BuildModsControls",
             "Sync Workshop Mods",
-            "Clear Workshop Mods",
+            "Clear Staged Mods",
             "WorkshopSyncPressed",
             "WorkshopClearPressed"
         )
@@ -322,30 +321,29 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "staged-no-pck",
             "dependency manifest records discovered dependency count",
             "RequiredByPublishedFileIds",
-            "public-beta runtime cache marker names selected PCK path",
+            "runtime cache marker names selected PCK path",
             "Require-NonPublicRuntimeEvidence",
             "core-release",
-            "game_versions\[/\\\\\]public-beta-",
-            "public-beta runtime hashes include selected PCK",
-            "public-beta runtime hashes include active sts2.dll",
+            'game_versions\[/\\\\\]\$escapedPhase-',
+            "runtime hashes include selected PCK",
+            "runtime hashes include active sts2\.dll",
             "public runtime patch validation selected branch matches",
-            "public-beta runtime patch validation selected branch matches",
+            "runtime patch validation selected branch matches",
             "public runtime validation selected PCK hash matches cache marker",
-            "public-beta runtime validation selected PCK hash matches cache marker",
-            "public-beta runtime validation active Android sts2.dll hash matches cache marker",
-            "public-beta runtime pack manifest ID matches runtime validation",
-            "public-beta runtime pack source slot matches runtime validation slot",
-            "public-beta runtime pack Android sts2.dll hash matches runtime validation",
-            "public-beta runtime pack validation report ID matches manifest",
+            "runtime validation selected PCK hash matches cache marker",
+            "runtime validation active Android sts2\.dll hash matches cache marker",
+            "runtime pack manifest ID matches runtime validation",
+            "runtime pack source slot matches runtime validation slot",
+            "runtime pack Android sts2\.dll hash matches runtime validation",
+            "runtime pack validation report ID matches manifest",
             "public launch loaded public PCK path",
-            "public Workshop derived state locks Cloud Push",
-            "public-beta launch loaded public-beta PCK path",
-            "public-beta Workshop derived state locks Cloud Push",
+            "Workshop derived state locks Cloud Push",
+            "Workshop derived state locks Cloud Push",
             "launch loaded selected non-public PCK path",
-            "public-beta runtime patch validation passed",
-            "public-beta selected runtime pack manifest is readable",
+            "runtime patch validation passed",
+            "selected runtime pack manifest is readable",
             "supportAssemblySha256",
-            "public-beta selected runtime pack validation passed",
+            "selected runtime pack validation passed",
             "Publish cache active sts2\\.dll SHA256",
             "public-beta",
             "core-release",

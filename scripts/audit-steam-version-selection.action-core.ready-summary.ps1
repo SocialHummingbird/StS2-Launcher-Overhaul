@@ -38,7 +38,7 @@ function Add-SteamVersionSelectionActionCoreReadySummaryChecks {
             "_compactStackedActionRows",
             "Ready:",
             "Save Check \| Upload locked",
-            "no auto cloud upload"
+            "Mods off"
         )
 
     Add-Check `

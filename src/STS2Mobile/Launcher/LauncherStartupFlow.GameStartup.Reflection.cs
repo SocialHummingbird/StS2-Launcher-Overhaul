@@ -11,11 +11,15 @@ internal static partial class LauncherStartupFlow
         var gameStartup = game.GetType()
             .GetMethod(
                 "GameStartup",
-                BindingFlags.NonPublic | BindingFlags.Instance
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
             );
         if (gameStartup == null)
             throw new MissingMethodException(game.GetType().FullName, "GameStartup");
 
-        return (Task)gameStartup.Invoke(game, null);
+        var startupTask = gameStartup.Invoke(game, null) as Task;
+        if (startupTask == null)
+            throw new InvalidOperationException("NGame.GameStartup did not return Task");
+
+        return startupTask;
     }
 }

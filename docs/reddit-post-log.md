@@ -9,6 +9,7 @@ Do not copy private user data into this file. Keep direct quotes short and only 
 - GitHub issues are the tracked support channel.
 - Reddit is useful for visibility and lightweight feedback, but bugs should be redirected to GitHub with exact APK, device, branch, screenshot, and focused logs.
 - Current public claims should match the latest GitHub docs: public/default and public-beta `v0.108.0` are working on validated ARM64 hardware; Workshop/mod support is functional but beta-quality; SavesMerger loading/scanning is not full save-merge signoff.
+- Current release link for replies: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.369-public-beta-stability
 - Steam Cloud Push must not be encouraged for modded-save testing. Users should Pull first and avoid Push unless they understand overwrite risk.
 
 ## Posts
@@ -22,7 +23,7 @@ Do not copy private user data into this file. Keep direct quotes short and only 
 - Thread role: first broad public announcement for the fork/overhaul.
 - Approximate status when reviewed: strong initial reception compared with the later mod-support post; Reddit JSON showed about `57` score and `0.88` upvote ratio during the July 3 review.
 - Release linked in original post: `v0.2.178-cloudpush-icon`.
-- Current replacement release to point users to: `v0.2.352-savemerger-compat-local`.
+- Current replacement release to point users to: `v0.2.369-public-beta-stability`.
 
 Main post claims at time of posting:
 
@@ -62,7 +63,7 @@ Follow-up implications:
 - Thread role: mod-support announcement and request for mod/launcher issue reports.
 - Approximate status when reviewed: lower traction than the first post; Reddit JSON showed about `2` score, `0.54` upvote ratio, and `12` comments during the July 3 review.
 - Release linked in original post: `v0.2.335-mod-selector-deps-cloud-marker-debug`.
-- Current replacement release to point users to: `v0.2.352-savemerger-compat-local`.
+- Current replacement release to point users to: `v0.2.369-public-beta-stability`.
 
 Main post claims at time of posting:
 
@@ -95,9 +96,9 @@ Follow-up implications:
 - Subreddit: `r/slaythespire`
 - Author: `SocialHumingbird`
 - Title: `StS2 Mobile launcher update: beta branch fixes, runtime-pack support, and mod testing`
-- Thread role: current update post for the `v0.2.352-savemerger-compat-local` release.
+- Thread role: update post for the `v0.2.352-savemerger-compat-local` release, now superseded by `v0.2.369-public-beta-stability`.
 - Status when first reviewed: posted minutes earlier; no comments visible yet.
-- Release linked in post: `v0.2.352-savemerger-compat-local`.
+- Release linked in post: `v0.2.352-savemerger-compat-local`; current replacement release is `v0.2.369-public-beta-stability`.
 
 Main post claims at time of posting:
 
@@ -124,7 +125,7 @@ Use these as starting points for future Reddit replies. Update release links bef
 
 The latest ARM64 tester APK is here:
 
-https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.352-savemerger-compat-local
+https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.369-public-beta-stability
 
 Public/default and the latest tested public-beta payload are working in current ARM64 validation. It is still a prerelease community launcher though, so I would treat it as tester-ready rather than final. The most useful bug reports are exact APK version, device model, Android version, selected branch, whether mods were enabled, a screenshot for UI issues, and a focused logcat for crashes.
 

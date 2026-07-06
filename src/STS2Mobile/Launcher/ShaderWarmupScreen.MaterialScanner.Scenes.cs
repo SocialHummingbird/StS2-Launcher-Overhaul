@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using System.Threading.Tasks;
 using Godot;
 
@@ -11,7 +12,8 @@ internal sealed partial class ShaderWarmupScreen
         private static async Task ScanScenesAsync(
             WarmupMaterialCollection materials,
             SceneTree tree,
-            ShaderWarmupProgress progress
+            ShaderWarmupProgress progress,
+            Func<bool> shouldStop
         )
         {
             var scenePaths = new List<string>();
@@ -20,6 +22,12 @@ internal sealed partial class ShaderWarmupScreen
 
             for (int i = 0; i < scenePaths.Count; i++)
             {
+                if (shouldStop())
+                {
+                    PatchHelper.Log(Message.SceneScanStoppedByBudget(i, scenePaths.Count));
+                    return;
+                }
+
                 ExtractSceneMaterials(scenePaths[i], materials);
                 await ReportSceneScanProgressIfNeededAsync(tree, progress, i, scenePaths.Count);
             }

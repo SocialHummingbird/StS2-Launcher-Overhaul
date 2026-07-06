@@ -85,6 +85,7 @@ $managedDependencies = @(
     "protobuf-net.Core.dll",
     "System.IO.Hashing.dll",
     "ZstdSharp.dll",
+    "Mono.Cecil.dll",
     "0Harmony.dll",
     "GodotSharp.dll"
 )

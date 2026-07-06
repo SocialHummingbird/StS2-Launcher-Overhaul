@@ -47,6 +47,8 @@ internal sealed partial class RuntimePackManifest
             return "branch mismatch";
         if (string.IsNullOrWhiteSpace(manifest.PackId))
             return "missing runtime pack ID";
+        if (!string.Equals(manifest.PatchSetVersion, PatchCompatibilityValidator.PatchSetVersion, StringComparison.OrdinalIgnoreCase))
+            return $"runtime pack patch-set mismatch: {manifest.PatchSetVersion}";
         if (!manifest.GeneratedFromCleanDirectory)
             return "runtime pack was not generated from a clean directory";
         if (string.IsNullOrWhiteSpace(manifest.SourceRuntimeSlotId))

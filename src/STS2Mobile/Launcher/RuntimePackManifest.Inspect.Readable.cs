@@ -1,6 +1,9 @@
 using System.Collections.Generic;
+using System;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text.Json;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -62,7 +65,30 @@ internal sealed partial class RuntimePackManifest
             readable: true,
             context.AndroidAssemblyExists,
             context.AndroidAssemblyPath,
-            context.AndroidAssemblyExists ? declaredAndroidAssemblySha256 : "<missing>"
+            context.AndroidAssemblyExists ? Sha256OrMissing(context.AndroidAssemblyPath) : "<missing>"
         );
+    }
+
+    private static string Sha256OrMissing(string path)
+    {
+        try
+        {
+            byte[] hash;
+            if (OperatingSystem.IsAndroid())
+            {
+                hash = AndroidJavaCrypto.Sha256FileHashData(path);
+            }
+            else
+            {
+                using var stream = File.OpenRead(path);
+                hash = SHA256.HashData(stream);
+            }
+
+            return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
+        }
+        catch
+        {
+            return "<hash failed>";
+        }
     }
 }

@@ -79,8 +79,16 @@ internal sealed partial class GameRuntimeSlot
         return string.Equals(runtimePack.SourceRuntimeSlotId, expectedId, StringComparison.OrdinalIgnoreCase);
     }
 
-    internal static string BuildRuntimePackSlotIdentity(GameRuntimeSlot slot, string patchSetVersion, string runtimePackId)
+    internal static string BuildRuntimePackSlotIdentity(
+        GameRuntimeSlot slot,
+        string patchSetVersion,
+        string runtimePackId,
+        string androidAssemblySha256 = null
+    )
     {
+        androidAssemblySha256 = string.IsNullOrWhiteSpace(androidAssemblySha256)
+            ? slot.SourceAssemblySha256
+            : androidAssemblySha256;
         return string.Join(
             "\n",
             $"branch={SteamGameBranch.Normalize(slot.Branch)}",
@@ -93,16 +101,21 @@ internal sealed partial class GameRuntimeSlot
             $"sourceAssemblySha256={slot.SourceAssemblySha256}",
             "runtimeSource=runtime-pack",
             $"runtimePackId={runtimePackId}",
-            $"androidAssemblySha256={slot.SourceAssemblySha256}",
+            $"androidAssemblySha256={androidAssemblySha256}",
             $"patchSetVersion={patchSetVersion}",
             "patchValidationStatus=passed"
         );
     }
 
-    internal static string BuildRuntimePackSlotId(GameRuntimeSlot slot, string patchSetVersion, string runtimePackId)
+    internal static string BuildRuntimePackSlotId(
+        GameRuntimeSlot slot,
+        string patchSetVersion,
+        string runtimePackId,
+        string androidAssemblySha256 = null
+    )
         => BuildRuntimeSlotId(
             slot.Branch,
-            BuildRuntimePackSlotIdentity(slot, patchSetVersion, runtimePackId)
+            BuildRuntimePackSlotIdentity(slot, patchSetVersion, runtimePackId, androidAssemblySha256)
         );
 
     private static string BuildRuntimeSlotId(string branch, string runtimeSlotIdentity)

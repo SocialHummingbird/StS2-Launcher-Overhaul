@@ -18,6 +18,7 @@ internal sealed partial class ShaderWarmupScreen
         private readonly Control _parent;
         private readonly SceneTree _tree;
         private readonly ShaderWarmupProgress _progress;
+        private readonly Func<bool> _shouldStop;
 
         private readonly struct WarmupRenderBatch
         {
@@ -34,28 +35,31 @@ internal sealed partial class ShaderWarmupScreen
         private ShaderWarmupRenderer(
             Control parent,
             SceneTree tree,
-            ShaderWarmupProgress progress
+            ShaderWarmupProgress progress,
+            Func<bool> shouldStop
         )
         {
             _parent = parent;
             _tree = tree;
             _progress = progress;
+            _shouldStop = shouldStop;
         }
 
         internal static ShaderWarmupRenderer ForScreen(
             Control parent,
             SceneTree tree,
-            ShaderWarmupProgress progress
+            ShaderWarmupProgress progress,
+            Func<bool> shouldStop
         )
-            => new(parent, tree, progress);
+            => new(parent, tree, progress, shouldStop);
 
-        internal async Task RenderAsync(List<WarmupMaterial> materials)
+        internal async Task<int> RenderAsync(List<WarmupMaterial> materials)
         {
             var viewport = CreateViewport();
             _parent.AddChild(viewport);
             try
             {
-                await RenderBatchesAsync(viewport, CreateWhiteTexture(), materials);
+                return await RenderBatchesAsync(viewport, CreateWhiteTexture(), materials);
             }
             finally
             {
@@ -63,15 +67,22 @@ internal sealed partial class ShaderWarmupScreen
             }
         }
 
-        private async Task RenderBatchesAsync(
+        private async Task<int> RenderBatchesAsync(
             SubViewport viewport,
             ImageTexture whiteTexture,
             List<WarmupMaterial> materials
         )
         {
             int total = materials.Count;
+            int rendered = 0;
             for (int i = 0; i < total; i += BatchSize)
             {
+                if (_shouldStop())
+                {
+                    PatchHelper.Log(Message.TimeBudgetReached(WarmupTimeBudgetSeconds));
+                    return rendered;
+                }
+
                 var batch = new WarmupRenderBatch(
                     i,
                     Math.Min(i + BatchSize, total)
@@ -91,7 +102,10 @@ internal sealed partial class ShaderWarmupScreen
 
                 await WaitForRenderFramesAsync();
                 ClearBatch(batchNodes);
+                rendered = batch.End;
             }
+
+            return rendered;
         }
 
         private async Task WaitForRenderFramesAsync()

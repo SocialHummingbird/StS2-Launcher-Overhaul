@@ -35,7 +35,7 @@ For launcher layout reports, include whether the Start Game/Play button is reach
 
 For controller reports, include controller/device model, connection mode, whether launcher navigation works, whether in-game actions work, and whether the result differs in vanilla versus modded launch.
 
-For shader compile reports, include how long the compile screen stayed visible, whether Android showed an app-not-responding dialog, and device thermal/performance mode if known.
+For shader compile reports, include how long the compile screen stayed visible, whether Android showed an app-not-responding dialog, device thermal/performance mode if known, and the contents of `last_shader_warmup_status.txt` when available. Current local ARM64 proof on `SM-F966B` completes v6 warmup in 40149ms; a `completed-partial` marker means the launcher hit its warmup time budget and continued with degraded shader-cache coverage. That is useful compatibility evidence, not full device signoff.
 
 ## Do Not Share Publicly
 
@@ -155,6 +155,8 @@ The current useful result is not just "the game reached main menu." The importan
 ## Current Support Boundaries
 
 - ARM64 Android hardware is the real proof target for Steam login, download, game launch, branch switching, cloud saves, and mods.
+- A working Vulkan path is required for the bundled Godot runtime. The project does not yet have enough evidence to publish a precise RAM/GPU minimum.
+- If shader warmup records `completed-partial` and the device still cannot reach the game, treat that as below the current practical support floor unless focused logs show a specific launcher/runtime defect.
 - Android x86_64 emulator results are diagnostic only unless a maintainer asks for a forced-Godot investigation.
 - Steam beta password entry is not currently a release-ready path.
 - Workshop/mod support is functional but still hardening. Some Workshop items exposed only as legacy UGC handles may still need manual import.

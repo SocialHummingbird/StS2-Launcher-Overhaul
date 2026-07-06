@@ -45,6 +45,11 @@ internal static class AndroidGodotAppBridge
             () => (string)GetInstanceOnCurrentThread()?.Call("getVersionName")
         );
 
+    internal static string GetDeviceDiagnostics()
+        => AndroidBridgeDispatcher.Run(
+            () => (string)(GetInstanceOnCurrentThread()?.Call("getDeviceDiagnostics") ?? "")
+        );
+
     internal static long GetUsableSpaceBytes(string path)
         => AndroidBridgeDispatcher.Run(
             () => (long)(GetInstanceOnCurrentThread()?.Call("getUsableSpaceBytes", path) ?? -1L)
