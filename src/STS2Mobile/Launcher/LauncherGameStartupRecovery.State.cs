@@ -76,6 +76,12 @@ internal static partial class LauncherGameStartupRecovery
                 "Post-startup recovery UI cleanup scheduled after game startup was observed; " +
                 $"cleanupDelayMs={PostStartupRecoveryMs}, preserving last game-scene trace"
             );
+            var controlsHidden = HideIfAlive(RecoveryControls, "recovery controls");
+            var statusHidden = HideIfAlive(StartupStatus, "startup status");
+            PatchHelper.Log(
+                "Post-startup recovery UI hidden after game startup was observed; " +
+                $"controlsHidden={controlsHidden}, statusHidden={statusHidden}"
+            );
             await Task.Delay(PostStartupRecoveryMs);
             LauncherLaunchMarkers.ClearStartupMarker();
 
@@ -108,6 +114,49 @@ internal static partial class LauncherGameStartupRecovery
                 PatchHelper.Log($"Post-startup recovery {label} cleanup failed: {ex.Message}");
                 return false;
             }
+        }
+
+        private static bool HideIfAlive(Node node, string label)
+        {
+            if (node is null)
+                return true;
+
+            try
+            {
+                DisableInteraction(node);
+                node.ProcessMode = Node.ProcessModeEnum.Disabled;
+
+                if (node is CanvasItem canvasItem)
+                    canvasItem.Visible = false;
+                else if (node is CanvasLayer canvasLayer)
+                    canvasLayer.Visible = false;
+
+                return true;
+            }
+            catch (ObjectDisposedException)
+            {
+                PatchHelper.Log($"Post-startup recovery {label} already disposed");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log($"Post-startup recovery {label} hide failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static void DisableInteraction(Node node)
+        {
+            if (node is Control control)
+            {
+                control.MouseFilter = Control.MouseFilterEnum.Ignore;
+                control.FocusMode = Control.FocusModeEnum.None;
+                if (control.HasFocus())
+                    control.ReleaseFocus();
+            }
+
+            foreach (var child in node.GetChildren())
+                DisableInteraction(child);
         }
     }
 }
