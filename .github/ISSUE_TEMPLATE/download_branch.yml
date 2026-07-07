@@ -8,6 +8,8 @@ body:
       value: |
         This template is for Steam branch/version issues, including wrong branch, missing/mixed assets, NativeFallback, runtime-pack mismatch, and blocked private/password branches.
 
+        This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+
         Fallback/gating is useful evidence, but it is not a successful branch launch.
   - type: dropdown
     id: branch

@@ -1,8 +1,10 @@
 # Testing Needed
 
+See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, and bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+
 This project needs focused Android tester reports more than broad "works for me" comments. Good reports help confirm device compatibility, Steam Cloud safety, public/beta branch behavior, and mod loading without exposing Steam account data.
 
-Current APK for tester reports: `v0.2.377-shader-warmup-budget` / `StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk`.
+Current APK for tester reports: `v0.2.385-shader-warmup-compat` / `StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk`.
 
 ## Current Priority
 
@@ -11,7 +13,7 @@ Current APK for tester reports: `v0.2.377-shader-warmup-budget` / `StS2Launcher-
    - Time from pressing Start Game to game main menu.
    - Any black screen, native fallback screen, shader compile stall, or app crash.
    - For Start Game failures, attach `last_launch_attempt.txt` when available. Current source builds record a per-press attempt ID, selected branch, ready/blocked state, runtime slot ID, selected PCK path/hash, source and active `sts2.dll` paths/hashes, runtime pack path/status, runtime cache marker path/presence, runtime patch-validation marker path/presence, patch compatibility marker path/status, whether the prepared readiness result was used, whether readiness came from a fresh check or an in-memory cache hit, and elapsed timing for total launch attempt, selected-version readiness, and mod readiness. Modded starts also record play mode, enabled mod count, selected mods, selector cache status, and whether modded-save Cloud Push was locked. Cache hits are only valid while the selected PCK, branch marker, release info, source assembly, runtime pack manifest, runtime cache marker, patch-validation marker, mod selection, Workshop manifest, and cheap metadata digests for all staged/manual `.json`, `.pck`, and `.dll` mod files are unchanged.
-   - For shader reports, attach `last_shader_warmup_status.txt` when available. `completed` means the full precompile pass finished; `completed-partial` means the launcher hit the shader warmup time budget and continued startup with degraded shader-cache coverage. Current source builds also include scanner counters such as scenes scanned, unique materials, budget-stop state, and scanner failure counts. Current ARM64 evidence on `SM-F966B` completes v6 warmup in about 40s; weaker-device reports are still needed.
+   - For shader reports, attach `last_shader_warmup_status.txt` when available. `completed` means the full precompile pass finished; `completed-partial` means the launcher intentionally continued startup with degraded shader-cache coverage after a budget or compatibility cap. Current source builds also include render-plan evidence, batch size, target material count, scanner counters such as scenes scanned, unique materials, budget-stop state, and scanner failure counts. Current ARM64 evidence on `SM-F966B` completes v7 bounded public warmup with `Render plan: android-bounded-large-shader-set`, `Render target materials: 128/1592`, and no app crash signatures; weaker-device reports are still needed.
 
 2. **Public/default game launch**
    - Fresh install or update install.
@@ -60,7 +62,7 @@ Current APK for tester reports: `v0.2.377-shader-warmup-budget` / `StS2Launcher-
 - A working Vulkan path is required for the bundled Godot runtime.
 - Android x86_64 emulator results do not prove game support.
 - There is not enough cross-device evidence yet to publish a precise RAM/GPU minimum. Current high-end ARM64 proof is `SM-F966B`, Android 16/API 36, 8 processors, about 11.6GB total memory, full v6 warmup in 40149ms.
-- If a device cannot reach the game after the bounded shader warmup path records `completed-partial`, treat it as below the current practical support floor unless focused logs show a specific launcher/runtime defect.
+- If a device cannot reach the game after the bounded shader warmup path records `completed-partial`, treat it as a device-floor candidate unless focused logs show a specific launcher/runtime defect. If it fails before recording `completed-partial`, attach focused logcat because that is still actionable.
 
 Add new device results through the device compatibility issue template. Use [Issue reporting](issue-reporting.md) before attaching logs, branch/runtime evidence, save details, or screenshots.
 

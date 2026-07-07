@@ -8,6 +8,8 @@ body:
       value: |
         This is the preferred template for Workshop/mod reports. The highest-value current mod report is whether Vanilla and Modded Saves Merger makes existing saves usable.
 
+        This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, Steam, or Valve, and it bundles no Slay the Spire 2 game files, assets, or Workshop content. Steam ownership is required.
+
         Do not run Push to Cloud during mod testing unless you intentionally want to upload the tested Android save state.
   - type: dropdown
     id: test-type

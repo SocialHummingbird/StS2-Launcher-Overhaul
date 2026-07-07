@@ -1,6 +1,8 @@
 # Current Android Status
 
-_Last updated: 2026-07-06_
+_Last updated: 2026-07-07_
+
+See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, and bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
 Current device evidence ledgers:
 
@@ -14,7 +16,7 @@ Current device evidence ledgers:
 
 ## Headline
 
-The app now works on the validated ARM64 Android path, but it is still in polish and hardening rather than release-candidate signoff. The current headline work is Workshop/mod support, public/public-beta runtime-pack correctness, launcher UX polish, and release-readiness cleanup.
+The app now works on the validated ARM64 Android path, but it is still unofficial prerelease tester software in polish and hardening rather than release-candidate signoff. The current headline work is Workshop/mod support, public/public-beta runtime-pack correctness, launcher UX polish, and release-readiness cleanup.
 
 July 5 runtime/update status:
 
@@ -23,6 +25,7 @@ July 5 runtime/update status:
 - Silent Steam sign-in failure reporting is fixed in local evidence build `0.2.366-auth-failure-reporting-test`. An invalid one-shot local credential handoff on ARM64 was consumed, connected to Steam, failed with `InvalidPassword`, wrote `last_steam_auth_failure.txt` with category `credentials`, selected branch `public-beta`, user-facing recovery text, and technical SteamKit detail, and left `last_manual_cloud_push.txt` missing.
 - Shader compile crash/stall triage now has v6 device proof in local evidence build `0.2.376-shader-warmup-budget-evidence-local`: normal public-beta launch automation reached the main menu on `SM-F966B`, `last_shader_warmup_status.txt` recorded `Status: completed`, `Warmup version: 6`, `Warmup time budget seconds: 90`, and `Rendered 1713 shader warmup materials` in 40149ms. No `NativeFallbackActivity`, fatal exception, ANR, or manual Steam Cloud Push signature was present in the focused evidence.
 - Current local shader hardening keeps the 90-second precompile budget and classifies `completed-partial` when startup continues after rendering only part of the shader set. Source builds after `v0.2.377` also roll shader scanner failures into status-marker counters and rate-limit repetitive scanner failure logs. This avoids repeatedly forcing weak devices through an unbounded first-run precompile, but partial warmup is degraded compatibility evidence, not a full device pass. We still need weaker-device reports before publishing a precise RAM/GPU minimum.
+- July 7 shader compatibility validation installed local evidence build `0.2.385-shader-warmup-compat-local` (`versionCode=385001`) on `SM-F966B` over existing app data. Normal public Start Game automation reached `Phase: in-process signalled`, used public PCK hash `1ed2b5d8878c22f35770628e171101b95fdd879c2f54747acaca9206e90b127f`, matched source/active `sts2.dll` hash `a1f9e653f1e28e4076558fee1e60d218619cb7e057b887c6417f62c62c6d7a52`, wrote shader warmup marker `Warmup version: 7`, `Status: completed-partial`, `Render plan: android-bounded-large-shader-set`, `Render target materials: 128/1592`, `Render batch size: 1`, and `Classification: android-bounded-large-shader-set; partial compatibility warmup completed; startup continued`. Focused logs still show Godot texture conversion warnings for unsupported compressed formats, but no `NativeFallbackActivity`, `FATAL EXCEPTION`, `AndroidRuntime`, app-PID signal 6/11, or app-PID exit signature was present. Evidence is under `artifacts/android/shader-warmup-compat-0.2.385-20260707-rerun`.
 - Current source builds after `v0.2.377` also route Start Game through a prepared launch-readiness result. The launcher writes `last_launch_attempt.txt` with a per-press attempt ID, selected branch, ready/blocked state, runtime slot ID, selected PCK path/hash, source and active `sts2.dll` paths/hashes, runtime pack path/status, runtime cache marker path/presence, runtime patch-validation marker path/presence, patch compatibility marker path/status, whether prepared readiness was used, whether the readiness result came from a fresh check or a safe in-memory cache hit, and elapsed timing for total launch attempt, selected-version readiness, and mod readiness. Modded starts also capture launcher-side mod readiness before handoff, including play mode, enabled count, selected mods, selector cache status, and whether modded-save Cloud Push is locked; vanilla starts skip mod-source scans on the primary launch path. The saved-session, offline, and branch-switch ready-status paths now use a lightweight downloaded-state check and defer full runtime pairing/patch validation to Start Game, where it can still block launch and emit evidence. Post-download runtime validation still runs after files change so runtime-pack evidence is created promptly, but validation exceptions now become a visible retryable not-ready state instead of escaping the main-thread download-complete event. Ready and download-required copy uses the branch carried by the readiness snapshot, and branch-switch checks pass the just-selected branch directly instead of re-reading preferences during the UI refresh. Startup, branch-switch, and refresh-complete UI setup apply saved action preferences, selected branch, and branch dropdown options together where possible, avoiding duplicate dropdown rebuilds and duplicate marker reads on those paths. Branch-switch UI refresh now reuses the just-saved branch when reading aggregate action preferences instead of reading the branch preference back immediately. Branch-switch confirmation and refresh-complete status reuse the same visible branch-catalog snapshot for dropdown options and selected-branch blocker/status text. Duplicate Start Game taps while launch is already in progress now log the selected branch from the active launch-attempt context instead of rereading selected-branch preferences. Previous-startup warnings now read that marker once per launcher session to show targeted recovery hints for blocked files, runtime-pack/pairing problems, restart handoff stalls, selected launch paths, runtime/patch marker evidence, modded/vanilla selection context, launch timing, and generic startup failures without repeating marker reads or log lines on later ready-status refreshes.
 - The July 5 launcher reachability pass on the connected foldable layout shows Start Game, version selection, vanilla/mod mode controls, staged Workshop controls, Fixes & Help, and Help & Reports reachable in the main scroll area. The launcher is usable on that display but remains visually dense and still needs UX polish.
 - The latest tested Steam public-beta payload is `v0.108.0` / build `24032229`. Public-beta fresh download, Android PCK patching, runtime-pack creation, runtime-pack validation, and launch now reach the main menu with matched beta PCK plus matched beta managed runtime. This is no longer a `NativeFallbackActivity` fallback/gating issue.
@@ -122,13 +125,27 @@ remaining=Shader scanner emits noisy Godot error stack traces for some material/
 Latest GitHub APK release evidence:
 
 ```text
+release=v0.2.385-shader-warmup-compat
+asset=StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk
+sha256=ab878a3fb1cee64c33f4bfe5a254cac5ff5b6f57340963d3f2a82dfcc3c50b1e
+package=com.sts2launcher.overhaul.fork.local
+versionName=0.2.385-shader-warmup-compat-local
+versionCode=385001
+validation=GitHub release hygiene check passed with matching APK/checksum/metadata. This release publishes the bounded Android shader warmup compatibility path while preserving the local tester package identity used by the current public APK line. It remains unofficial prerelease tester software rather than broad release-candidate public-package signoff.
+cloudSafety=No Push to Cloud was run during the matching shader compatibility validation.
+evidence=GitHub release v0.2.385-shader-warmup-compat assets and metadata; local ARM64 public launch validation reached in-process game handoff with matched PCK/runtime hashes, shader warmup v7 completed-partial under the android-bounded-large-shader-set plan, and no NativeFallbackActivity/fatal/app-PID crash signature.
+```
+
+Previous GitHub shader-warmup APK evidence:
+
+```text
 release=v0.2.377-shader-warmup-budget
 asset=StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk
 sha256=66ed9e5712235eeeb5376d57dd6413dd577c834af6563d8c3d055d886341cbac
 package=com.sts2launcher.overhaul.fork.local
 versionName=0.2.377-shader-warmup-budget
 versionCode=377001
-validation=Android build/APK verification passed; APK crypto patch verification passed; GitHub release hygiene check passed with matching APK/checksum/metadata/release-body SHA-256; downloaded release APK verification passed; GitHub /releases/latest points at this tag. This release publishes the public-beta stability, FMOD/audio bridge, auth-failure reporting, and bounded shader warmup work, and remains a local-package hardening APK rather than broad release-candidate public-package signoff.
+validation=Android build/APK verification passed; APK crypto patch verification passed; GitHub release hygiene check passed with matching APK/checksum/metadata/release-body SHA-256; downloaded release APK verification passed. This release publishes the public-beta stability, FMOD/audio bridge, auth-failure reporting, and bounded shader warmup work, and remains a local-package hardening APK rather than broad release-candidate public-package signoff.
 cloudSafety=No Push to Cloud was run during the matching public-beta launch validation.
 evidence=GitHub release v0.2.377-shader-warmup-budget assets and metadata; matching bounded shader evidence remains artifacts/android/shader-warmup-v6-normal-launch-evidence-device-20260706-100947, and latest strict Workshop/mod evidence remains the July 3 artifacts listed below.
 ```

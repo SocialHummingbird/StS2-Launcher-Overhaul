@@ -9,7 +9,6 @@ internal sealed partial class ShaderWarmupScreen
 {
     private sealed partial class ShaderWarmupRenderer
     {
-        private const int BatchSize = 8;
         private const int TextureHeight = 1;
         private const int TextureWidth = 1;
         private const int ViewportHeight = 64;
@@ -18,6 +17,7 @@ internal sealed partial class ShaderWarmupScreen
         private readonly Control _parent;
         private readonly SceneTree _tree;
         private readonly ShaderWarmupProgress _progress;
+        private readonly ShaderWarmupRenderPlan _renderPlan;
         private readonly Func<bool> _shouldStop;
 
         private readonly struct WarmupRenderBatch
@@ -36,12 +36,14 @@ internal sealed partial class ShaderWarmupScreen
             Control parent,
             SceneTree tree,
             ShaderWarmupProgress progress,
+            ShaderWarmupRenderPlan renderPlan,
             Func<bool> shouldStop
         )
         {
             _parent = parent;
             _tree = tree;
             _progress = progress;
+            _renderPlan = renderPlan;
             _shouldStop = shouldStop;
         }
 
@@ -49,9 +51,10 @@ internal sealed partial class ShaderWarmupScreen
             Control parent,
             SceneTree tree,
             ShaderWarmupProgress progress,
+            ShaderWarmupRenderPlan renderPlan,
             Func<bool> shouldStop
         )
-            => new(parent, tree, progress, shouldStop);
+            => new(parent, tree, progress, renderPlan, shouldStop);
 
         internal async Task<int> RenderAsync(List<WarmupMaterial> materials)
         {
@@ -74,8 +77,9 @@ internal sealed partial class ShaderWarmupScreen
         )
         {
             int total = materials.Count;
+            int target = _renderPlan.TargetMaterialCount;
             int rendered = 0;
-            for (int i = 0; i < total; i += BatchSize)
+            for (int i = 0; i < target; i += _renderPlan.BatchSize)
             {
                 if (_shouldStop())
                 {
@@ -85,11 +89,12 @@ internal sealed partial class ShaderWarmupScreen
 
                 var batch = new WarmupRenderBatch(
                     i,
-                    Math.Min(i + BatchSize, total)
+                    Math.Min(i + _renderPlan.BatchSize, target)
                 );
                 WriteWarmupStatus(
                     "rendering-batch",
-                    $"Rendering shader warmup materials {batch.Start + 1}-{batch.End} of {total}"
+                    $"Rendering shader warmup materials {batch.Start + 1}-{batch.End} of {total} using plan {_renderPlan.Name}",
+                    _renderPlan.ToEvidenceLines()
                 );
                 var batchNodes = AddBatchNodes(
                     viewport,

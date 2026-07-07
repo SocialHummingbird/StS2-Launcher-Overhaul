@@ -30,11 +30,17 @@ internal sealed partial class ShaderWarmupScreen
             return;
         }
 
-        WriteWarmupStatus("rendering", $"Rendering {materials.Count} shader warmup materials");
+        var renderPlan = ShaderWarmupRenderPlan.ForMaterialCount(materials.Count);
+        WriteWarmupStatus(
+            "rendering",
+            $"Rendering {renderPlan.TargetMaterialCount} of {materials.Count} shader warmup materials using plan {renderPlan.Name}",
+            renderPlan.ToEvidenceLines()
+        );
         int rendered = await RenderWarmupMaterialsAsync(
             warmup.Tree,
             warmup.Progress,
             materials,
+            renderPlan,
             () => warmup.IsOverBudget
         );
 
@@ -49,8 +55,9 @@ internal sealed partial class ShaderWarmupScreen
                     new[]
                     {
                         $"Elapsed ms: {warmup.ElapsedMilliseconds}",
-                        "Classification: precompile time budget reached; startup continued",
+                        $"Classification: {renderPlan.CompletionClassification()}",
                     },
+                    renderPlan.ToEvidenceLines(),
                     scan.Diagnostics.ToEvidenceLines()
                 )
             );
@@ -67,8 +74,9 @@ internal sealed partial class ShaderWarmupScreen
                 new[]
                 {
                     $"Elapsed ms: {warmup.ElapsedMilliseconds}",
-                    "Classification: full shader warmup completed",
+                    $"Classification: {renderPlan.CompletionClassification()}",
                 },
+                renderPlan.ToEvidenceLines(),
                 scan.Diagnostics.ToEvidenceLines()
             )
         );
@@ -99,11 +107,12 @@ internal sealed partial class ShaderWarmupScreen
         SceneTree tree,
         ShaderWarmupProgress progress,
         List<WarmupMaterial> materials,
+        ShaderWarmupRenderPlan renderPlan,
         Func<bool> shouldStop
     )
     {
         progress.ShowCompiling();
-        var renderer = ShaderWarmupRenderer.ForScreen(this, tree, progress, shouldStop);
+        var renderer = ShaderWarmupRenderer.ForScreen(this, tree, progress, renderPlan, shouldStop);
         return await renderer.RenderAsync(materials);
     }
 

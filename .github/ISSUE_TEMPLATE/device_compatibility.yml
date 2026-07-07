@@ -6,6 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
+        This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+
         ARM64 physical devices are the current proof target. Android x86_64 emulator results are useful only for install/routing/native fallback diagnostics unless specifically requested.
   - type: textarea
     id: device

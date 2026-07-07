@@ -80,10 +80,11 @@ internal sealed partial class ShaderWarmupScreen
         }
     }
 
-    private static string[] MergeEvidence(string[] fixedLines, string[] additionalLines)
+    private static string[] MergeEvidence(params string[][] groups)
     {
-        var lines = new List<string>(fixedLines);
-        lines.AddRange(additionalLines);
+        var lines = new List<string>();
+        foreach (var group in groups)
+            lines.AddRange(group);
         return lines.ToArray();
     }
 

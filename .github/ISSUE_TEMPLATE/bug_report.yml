@@ -8,6 +8,8 @@ body:
       value: |
         Use a focused template instead when possible: crash/startup, download/branch, Steam Cloud/login, mods/save-merger, or device compatibility.
 
+        This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+
         Do not post Steam passwords, Steam Guard codes, refresh tokens, private save files, or full unsanitized logs.
   - type: textarea
     id: summary

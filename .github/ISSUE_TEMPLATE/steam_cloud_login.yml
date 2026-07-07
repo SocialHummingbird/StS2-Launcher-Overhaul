@@ -6,6 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
+        This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+
         Steam Cloud Push can overwrite remote save state. Say exactly whether Pull or Push ran. Do not post Steam credentials, Steam Guard codes, tokens, private save contents, or full unsanitized logs.
   - type: dropdown
     id: area

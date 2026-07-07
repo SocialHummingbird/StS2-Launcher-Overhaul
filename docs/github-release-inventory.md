@@ -1,13 +1,15 @@
-﻿# GitHub Release Inventory
+# GitHub Release Inventory
 
 Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-github-release-inventory.ps1`.
 
 ## Current Download
 
-- Recommended newest APK release: `v0.2.377-shader-warmup-budget`
-- APK: `StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk`
-- SHA-256: `66ed9e5712235eeeb5376d57dd6413dd577c834af6563d8c3d055d886341cbac`
-- GitHub `/releases/latest` non-prerelease target: `v0.2.377-shader-warmup-budget`
+- Recommended newest APK release: `v0.2.385-shader-warmup-compat`
+- APK: `StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk`
+- SHA-256: `ab878a3fb1cee64c33f4bfe5a254cac5ff5b6f57340963d3f2a82dfcc3c50b1e`
+- GitHub `/releases/latest` non-prerelease target: `v0.2.385-shader-warmup-compat`
+
+This is an unofficial community tester APK. It is not affiliated with or endorsed by Mega Crit Games and includes no Slay the Spire 2 game files or assets. Steam ownership is required.
 
 ## Release Classes
 
@@ -21,7 +23,9 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 
 | Published | Release | Class | APK | Checksum | Metadata | Body APK/SHA | Issues |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-07-06 | `v0.2.377-shader-warmup-budget` | `current-prerelease` | `StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-07 | `v0.2.385-shader-warmup-compat` | `current-prerelease` | `StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-06 | `v0.2.384-launch-cache-guard` | `historical-release` | `StS2Launcher-v0.2.384-launch-cache-guard-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-06 | `v0.2.377-shader-warmup-budget` | `historical-release` | `StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-05 | `v0.2.369-public-beta-stability` | `historical-release` | `StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-03 | `v0.2.352-savemerger-compat-local` | `historical-test-prerelease` | `StS2Launcher-v0.2.352-savemerger-compat-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-06-29 | `v0.2.345-launcher-orchestration-refactor` | `historical-prerelease` | `StS2Launcher-v0.2.345-launcher-orchestration-refactor-arm64-v8a.apk` | yes | build-info | yes/yes | ok |

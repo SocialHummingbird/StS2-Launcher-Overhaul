@@ -6,6 +6,8 @@ labels: ["status"]
 assignees: []
 ---
 
+This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+
 ## Status window
 
 Month: YYYY-MM

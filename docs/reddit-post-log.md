@@ -1,4 +1,4 @@
-﻿# Reddit Post Log
+# Reddit Post Log
 
 This log tracks public Reddit posts and comment threads connected to StS2 Mobile / StS2 Launcher Overhaul. Use it for support follow-up, bug hunting, recurring-user-feedback tracking, and future announcement planning.
 
@@ -8,8 +8,10 @@ Do not copy private user data into this file. Keep direct quotes short and only 
 
 - GitHub issues are the tracked support channel.
 - Reddit is useful for visibility and lightweight feedback, but bugs should be redirected to GitHub with exact APK, device, branch, screenshot, and focused logs.
+- Public wording must state that the launcher is unofficial, not affiliated with or endorsed by Mega Crit Games, and requires a Steam-owned copy of Slay the Spire 2. No game files, assets, or Workshop content are bundled.
+- Do not describe the project as an official mobile port, an official Android release, or a sanctioned replacement for any future official mobile version.
 - Current public claims should match the latest GitHub docs: public/default and public-beta `v0.108.0` are working on validated ARM64 hardware; Workshop/mod support is functional but beta-quality; SavesMerger loading/scanning is not full save-merge signoff.
-- Current release link for replies: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.377-shader-warmup-budget
+- Current release link for replies: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.385-shader-warmup-compat
 - Steam Cloud Push must not be encouraged for modded-save testing. Users should Pull first and avoid Push unless they understand overwrite risk.
 
 ## Posts
@@ -23,7 +25,7 @@ Do not copy private user data into this file. Keep direct quotes short and only 
 - Thread role: first broad public announcement for the fork/overhaul.
 - Approximate status when reviewed: strong initial reception compared with the later mod-support post; Reddit JSON showed about `57` score and `0.88` upvote ratio during the July 3 review.
 - Release linked in original post: `v0.2.178-cloudpush-icon`.
-- Current replacement release to point users to: `v0.2.377-shader-warmup-budget`.
+- Current replacement release to point users to: `v0.2.385-shader-warmup-compat`.
 
 Main post claims at time of posting:
 
@@ -52,7 +54,7 @@ Follow-up implications:
 - Keep README/testing docs explicit about exact release tag, APK filename, install/update/uninstall behavior, and where to file logs.
 - Treat launcher UI scaling/scroll reachability as a high-priority usability defect, especially on foldables and unusual aspect ratios.
 - Keep controller input, shader compile stability, and audio SFX as visible known-test areas.
-- Avoid claiming replacement of the original launcher; frame this as an unofficial parallel/forked Android path.
+- Avoid claiming replacement of the original launcher or any future official mobile release; frame this as an unofficial community Android compatibility path.
 
 ### 2026-07-02 - Mod Support Announcement
 
@@ -63,7 +65,7 @@ Follow-up implications:
 - Thread role: mod-support announcement and request for mod/launcher issue reports.
 - Approximate status when reviewed: lower traction than the first post; Reddit JSON showed about `2` score, `0.54` upvote ratio, and `12` comments during the July 3 review.
 - Release linked in original post: `v0.2.335-mod-selector-deps-cloud-marker-debug`.
-- Current replacement release to point users to: `v0.2.377-shader-warmup-budget`.
+- Current replacement release to point users to: `v0.2.385-shader-warmup-compat`.
 
 Main post claims at time of posting:
 
@@ -96,9 +98,9 @@ Follow-up implications:
 - Subreddit: `r/slaythespire`
 - Author: `SocialHumingbird`
 - Title: `StS2 Mobile launcher update: beta branch fixes, runtime-pack support, and mod testing`
-- Thread role: update post for the `v0.2.352-savemerger-compat-local` release, now superseded by `v0.2.377-shader-warmup-budget`.
+- Thread role: update post for the `v0.2.352-savemerger-compat-local` release, now superseded by `v0.2.385-shader-warmup-compat`.
 - Status when first reviewed: posted minutes earlier; no comments visible yet.
-- Release linked in post: `v0.2.352-savemerger-compat-local`; current replacement release is `v0.2.377-shader-warmup-budget`.
+- Release linked in post: `v0.2.352-savemerger-compat-local`; current replacement release is `v0.2.385-shader-warmup-compat`.
 
 Main post claims at time of posting:
 
@@ -125,9 +127,9 @@ Use these as starting points for future Reddit replies. Update release links bef
 
 The latest ARM64 tester APK is here:
 
-https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.377-shader-warmup-budget
+https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.385-shader-warmup-compat
 
-Public/default and the latest tested public-beta payload are working in current ARM64 validation. It is still a prerelease community launcher though, so I would treat it as tester-ready rather than final. The most useful bug reports are exact APK version, device model, Android version, selected branch, whether mods were enabled, a screenshot for UI issues, and a focused logcat for crashes.
+Public/default and the latest tested public-beta payload are working in current ARM64 validation. It is still an unofficial prerelease community launcher though, so I would treat it as tester-ready rather than final. It is not affiliated with or endorsed by Mega Crit Games, and it requires your own Steam copy of the game. The most useful bug reports are exact APK version, device model, Android version, selected branch, whether mods were enabled, a screenshot for UI issues, and a focused logcat for crashes.
 
 ### Mods / SavesMerger
 
@@ -143,7 +145,7 @@ Controller support needs more device-specific evidence. Please report the contro
 
 ### Shader Compile Crash
 
-First-run shader compilation can be heavy on some devices. The latest APK adds a bounded v6 shader warmup path and writes `last_shader_warmup_status.txt`; if it still crashes or stalls, please report exact APK, device model, Android version, how long it stayed on the compile screen, whether Android showed an app-not-responding dialog, that marker file if present, and a focused logcat around the crash/stall.
+First-run shader compilation can be heavy on some devices. The latest APK adds a bounded v7 shader warmup path and writes `last_shader_warmup_status.txt`; if it still crashes or stalls, please report exact APK, device model, Android version, how long it stayed on the compile screen, whether Android showed an app-not-responding dialog, that marker file if present, and a focused logcat around the crash/stall.
 
 ## Open Follow-Ups From Reddit
 
@@ -153,4 +155,3 @@ First-run shader compilation can be heavy on some devices. The latest APK adds a
 - Track whether Odin/Thor controller reports become GitHub issues.
 - Track whether shader compile crash/stall reports identify a device class or build setting.
 - Track whether SavesMerger reports prove real save visibility/loadability.
-

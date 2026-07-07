@@ -1,5 +1,7 @@
 # Issue Reporting Guide
 
+See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, and bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+
 Good StS2 Mobile reports include enough evidence to separate launcher bugs, Steam account/branch availability, Android runtime routing, Steam Cloud safety, and mod/save compatibility. Reports that only say "latest APK" or "mods do not work" usually cannot be acted on.
 
 Current recurring report themes are launcher UI scaling/scroll reachability, shader compile crashes or stalls, controller input on Android handhelds, public-beta/core branch freshness, and SavesMerger save usability. These are useful reports when they include exact APK, device, branch, mod, screenshot, and focused log details.

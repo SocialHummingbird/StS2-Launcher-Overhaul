@@ -19,6 +19,7 @@ The goal is a **drastic architecture and reliability overhaul** that is harder t
 - Device log checklist: [docs/device-log-checklist.md](docs/device-log-checklist.md)
 - Android runtime findings: [docs/android-runtime-findings.md](docs/android-runtime-findings.md)
 - Current Android status: [docs/current-android-status.md](docs/current-android-status.md)
+- Unofficial project notice: [docs/unofficial-project-notice.md](docs/unofficial-project-notice.md)
 - Android Steam Workshop mods: [docs/android-workshop-mods.md](docs/android-workshop-mods.md)
 - Reddit post log: [docs/reddit-post-log.md](docs/reddit-post-log.md)
 - Testing needed: [docs/testing-needed.md](docs/testing-needed.md)
@@ -34,20 +35,20 @@ git fetch origin
 git fetch upstream
 ```
 
-An Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine with .NET/Mono and Harmony runtime patching.
+An unofficial Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine with .NET/Mono and Harmony runtime patching.
 
-> **Disclaimer**: This is an unofficial community project. Slay the Spire 2 is developed and published by Mega Crit Games. A valid Steam account that owns Slay the Spire 2 is required. Game files are downloaded directly from Steam after authentication. No game assets are included in this repository.
+> **Unofficial project notice**: This is an unofficial community launcher for running your own Steam copy of Slay the Spire 2 on ARM64 Android. It is not affiliated with, endorsed by, sponsored by, or supported by Mega Crit Games, Steam, or Valve. Slay the Spire 2 is developed and published by Mega Crit Games. A valid Steam account that owns Slay the Spire 2 is required. Game files are downloaded directly from Steam after authentication. No game files, game assets, music, art, or Workshop content are included in this repository. This should not be described as an official mobile port, official Android release, or sanctioned replacement for any future official mobile version. See [Unofficial project notice](docs/unofficial-project-notice.md).
 
 ## Current Status
 
-**Current state:** StS2 Mobile is playable on tested ARM64 Android hardware, but it is still a prerelease community launcher. The focus is now stability, loading speed, cleaner onboarding, branch switching, Steam Cloud safety, and experimental Workshop/mod support.
+**Current state:** StS2 Mobile is playable on tested ARM64 Android hardware, but it is still an unofficial prerelease community launcher. The focus is now stability, loading speed, cleaner onboarding, branch switching, Steam Cloud safety, and experimental Workshop/mod support.
 
-Latest published APK: [v0.2.377-shader-warmup-budget](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.377-shader-warmup-budget)
+Latest published APK: [v0.2.385-shader-warmup-compat](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.385-shader-warmup-compat)
 
-- APK asset: `StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `377001`
-- SHA-256: `66ed9e5712235eeeb5376d57dd6413dd577c834af6563d8c3d055d886341cbac`
+- Version code: `385001`
+- SHA-256: `ab878a3fb1cee64c33f4bfe5a254cac5ff5b6f57340963d3f2a82dfcc3c50b1e`
 - Signing channel: local debug/test channel
 
 What currently works on tested ARM64 hardware:
@@ -57,7 +58,7 @@ What currently works on tested ARM64 hardware:
 - Game files can be downloaded from Steam for owned accounts.
 - Public/default game launch has ARM64 evidence.
 - The latest tested public-beta payload, `v0.108.0`, has ARM64 evidence with matched beta PCK and matched beta runtime pack.
-- Public-beta launch reaches the main menu through the real Start Game path, with matched PCK/runtime and no `NativeFallbackActivity`; the current `v0.2.377` APK publishes that stability work plus bounded shader warmup hardening.
+- Public-beta launch reaches the main menu through the real Start Game path, with matched PCK/runtime and no `NativeFallbackActivity`; current tester APKs publish that stability work plus bounded shader warmup and launch-readiness hardening.
 - First-run shader warmup now writes `last_shader_warmup_status.txt`; local ARM64 evidence completed v6 warmup on `SM-F966B` with 1713 shader warmup materials in 40.1s, under the 90s budget. Devices that hit the budget now record `completed-partial` and continue instead of being forced through an unbounded precompile pass.
 - Steam Cloud Pull into Android local app storage has been validated.
 - Steam Cloud Push is intentionally guarded and is not automatic.
@@ -275,7 +276,7 @@ GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
 2. Download the APK named in the current published APK block below.
-    - GitHub's `/releases/latest` currently points at `v0.2.377-shader-warmup-budget`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
+    - GitHub's `/releases/latest` currently points at `v0.2.385-shader-warmup-compat`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
     - Release inventory: [docs/github-release-inventory.md](docs/github-release-inventory.md)
     - Current release assets are ARM64-only test packages, named like:
       - `StS2Launcher-v<version>-arm64-v8a.apk`
@@ -285,13 +286,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.377-shader-warmup-budget" `
-  -AssetName "StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.385-shader-warmup-compat" `
+  -AssetName "StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.377-shader-warmup-budget" `
-  -AssetName "StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.385-shader-warmup-compat" `
+  -AssetName "StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -300,12 +301,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.377-shader-warmup-budget
-Asset: StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk
+Release: v0.2.385-shader-warmup-compat
+Asset: StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.377-shader-warmup-budget
-VersionCode: 377001
-SHA-256: 66ed9e5712235eeeb5376d57dd6413dd577c834af6563d8c3d055d886341cbac
+VersionName: 0.2.385-shader-warmup-compat-local
+VersionCode: 385001
+SHA-256: ab878a3fb1cee64c33f4bfe5a254cac5ff5b6f57340963d3f2a82dfcc3c50b1e
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker. Use `scripts\check-github-release-hygiene.ps1` before announcing a release so the APK, checksum sidecar, metadata sidecar, release body, package name, version, and SHA-256 all agree on the fork release page.
@@ -324,7 +325,7 @@ Safe public trial checklist:
 
 Support boundaries for public testers:
 
-- This is an unofficial community launcher and does not include game assets.
+- This is an unofficial community launcher, is not endorsed by Mega Crit Games, and does not include game files or assets.
 - Do not post Steam credentials, guard codes, refresh tokens, private save data, or full unsanitized logs in public issues or Reddit threads.
 - Current support target is ARM64 Android hardware. x86_64 emulator behavior is diagnostic-only.
 - Current known user-facing pain points are launcher UI scaling/scroll reachability, controller action input, shader compile crashes or stalls, and SavesMerger real-save compatibility.

@@ -8,6 +8,8 @@ body:
       value: |
         NativeFallback, a blocked launch, or a crash is not a successful game launch. Include the branch, APK, runtime, and log evidence that proves where startup routed.
 
+        This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+
         Do not post Steam credentials, Steam Guard codes, tokens, private save files, or full unsanitized logs.
   - type: dropdown
     id: failure-point
