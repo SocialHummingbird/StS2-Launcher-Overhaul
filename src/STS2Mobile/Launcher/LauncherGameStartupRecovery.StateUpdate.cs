@@ -55,7 +55,7 @@ internal static partial class LauncherGameStartupRecovery
         internal static RecoveryStateUpdate StartupObserved()
             => new(
                 StartupObservationReason,
-                "Game started. Recovery controls will hide shortly.",
+                "Game started. Post-startup diagnostics are active.",
                 "after NGame.GameStartup returned"
             );
 
@@ -68,7 +68,7 @@ internal static partial class LauncherGameStartupRecovery
         internal static RecoveryStateUpdate WatchdogRecovered()
             => new(
                 WatchdogRecoveredReason,
-                "Main menu recovered after startup stall. Recovery controls will hide shortly."
+                "Main menu recovered after startup stall. Post-startup diagnostics are active."
             );
 
         internal static RecoveryStateUpdate MainMenuRecoveryFailed()

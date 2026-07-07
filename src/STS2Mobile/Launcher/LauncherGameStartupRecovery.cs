@@ -1,4 +1,6 @@
 using Godot;
+using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace STS2Mobile.Launcher;
@@ -45,5 +47,16 @@ internal static partial class LauncherGameStartupRecovery
             RecoveryStateUpdate.StartupObserved()
         );
         SchedulePostStartupTrace(game, gameNode);
+    }
+
+    internal static async Task HoldAndroidStartupTaskAfterObservedAsync()
+    {
+        if (!OperatingSystem.IsAndroid())
+            return;
+
+        PatchHelper.Log(
+            "Android post-startup task anchor active; keeping GameStartupWrapper pending after startup observation"
+        );
+        await Task.Delay(Timeout.InfiniteTimeSpan);
     }
 }

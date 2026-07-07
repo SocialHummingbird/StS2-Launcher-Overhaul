@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using System.Threading;
+using System;
 using Godot;
 using STS2Mobile.Patches;
 
@@ -98,7 +99,9 @@ internal static partial class LauncherStartupFlow
 
     private static StartupContext CreateStartupContext(object game, Node gameNode)
     {
-        var startupStatus = LauncherStartupStatus.CreateLabel(gameNode);
+        var startupStatus = OperatingSystem.IsAndroid()
+            ? null
+            : LauncherStartupStatus.CreateLabel(gameNode);
         var startupMode = StartupMode.CreateFromMarkers();
         return new StartupContext(game, gameNode, startupStatus, startupMode);
     }

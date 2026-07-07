@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using System;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -11,7 +12,9 @@ internal static partial class LauncherStartupFlow
             => new GameStartupAttempt(this).RunAsync();
 
         private CanvasLayer ShowRecoveryControls()
-            => LauncherStartupRecoveryControlPanel.Show(GameNode);
+            => OperatingSystem.IsAndroid()
+                ? null
+                : LauncherStartupRecoveryControlPanel.Show(GameNode);
 
         private void WriteSceneSnapshot(string reason)
             => LauncherDiagnostics.WriteStartupSceneSnapshot(GameNode, reason);
