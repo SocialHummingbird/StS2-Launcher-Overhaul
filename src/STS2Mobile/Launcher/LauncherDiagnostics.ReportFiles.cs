@@ -57,6 +57,7 @@ internal static partial class LauncherDiagnostics
     {
         yield return StartupMarker(dataDir);
         yield return StartupContext(dataDir);
+        yield return PostStartupHeartbeat(dataDir);
         yield return PostStartupTrace(dataDir);
         yield return StartupTimeline(dataDir);
         yield return StartupSceneSnapshot(dataDir);

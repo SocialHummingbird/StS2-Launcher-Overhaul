@@ -15,6 +15,14 @@ internal static partial class LauncherGameStartupRecovery
         30_000,
     };
 
+    private static readonly int[] PostStartupHeartbeatTargetsMs =
+    {
+        60_000,
+        120_000,
+        180_000,
+        300_000,
+    };
+
     private static void WritePostStartupTrace(
         object game,
         Node gameNode,
@@ -25,10 +33,12 @@ internal static partial class LauncherGameStartupRecovery
         try
         {
             var scene = InspectCurrentScene(game);
+            var mergedDetails = MergePostStartupTraceDetails(scene, details);
+            LauncherDiagnostics.WritePostStartupHeartbeat(phase, mergedDetails);
             LauncherDiagnostics.WritePostStartupTrace(
                 gameNode,
                 phase,
-                MergePostStartupTraceDetails(scene, details)
+                mergedDetails
             );
             PatchHelper.Log(
                 $"[PostStartupTrace] phase={phase} mainMenu={scene.IsMainMenu} scene={scene.SceneName ?? "<none>"}"
@@ -66,7 +76,10 @@ internal static partial class LauncherGameStartupRecovery
     }
 
     private static void SchedulePostStartupTrace(object game, Node gameNode)
-        => _ = RunPostStartupTraceAsync(game, gameNode);
+    {
+        _ = RunPostStartupTraceAsync(game, gameNode);
+        _ = RunPostStartupHeartbeatAsync(game);
+    }
 
     private static async Task RunPostStartupTraceAsync(object game, Node gameNode)
     {
@@ -80,6 +93,44 @@ internal static partial class LauncherGameStartupRecovery
                 gameNode,
                 $"post-startup alive at {target}ms"
             );
+        }
+    }
+
+    private static async Task RunPostStartupHeartbeatAsync(object game)
+    {
+        var elapsed = 0;
+        foreach (var target in PostStartupHeartbeatTargetsMs)
+        {
+            await Task.Delay(Math.Max(0, target - elapsed));
+            elapsed = target;
+            WritePostStartupHeartbeat(game, $"post-startup heartbeat at {target}ms");
+        }
+    }
+
+    private static void WritePostStartupHeartbeat(
+        object game,
+        string phase,
+        params string[] details
+    )
+    {
+        try
+        {
+            var scene = InspectCurrentScene(game);
+            LauncherDiagnostics.WritePostStartupHeartbeat(
+                phase,
+                MergePostStartupTraceDetails(scene, details)
+            );
+            PatchHelper.Log(
+                $"[PostStartupHeartbeat] phase={phase} mainMenu={scene.IsMainMenu} scene={scene.SceneName ?? "<none>"}"
+            );
+        }
+        catch (Exception ex)
+        {
+            LauncherDiagnostics.WritePostStartupHeartbeat(
+                phase,
+                $"Heartbeat failure: {ex.GetType().Name}: {ex.Message}"
+            );
+            PatchHelper.Log($"[PostStartupHeartbeat] failed: {ex}");
         }
     }
 }
