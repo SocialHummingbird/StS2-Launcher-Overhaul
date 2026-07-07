@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Nodes;
 
@@ -17,6 +18,7 @@ internal static class DevConsolePatches
     private const string ReadyMethod = "_Ready";
     private const string TypeName = "MegaCrit.Sts2.Core.Nodes.Debug.NDevConsole";
 
+    private static bool _loggedFirstHide;
     private static bool _loggedFirstSuppression;
 
     internal static void Apply(Harmony harmony)
@@ -50,8 +52,11 @@ internal static class DevConsolePatches
         return method;
     }
 
-    private static Exception ReadyFinalizer(Exception __exception)
+    private static Exception ReadyFinalizer(object __instance, Exception __exception)
     {
+        if (OperatingSystem.IsAndroid())
+            HideAndroidConsole(__instance);
+
         if (__exception == null)
             return null;
 
@@ -65,5 +70,55 @@ internal static class DevConsolePatches
         }
 
         return null;
+    }
+
+    private static void HideAndroidConsole(object instance)
+    {
+        if (instance is not Node node || !GodotObject.IsInstanceValid(node))
+            return;
+
+        try
+        {
+            DisableConsoleNode(node);
+            node.GetViewport()?.GuiReleaseFocus();
+
+            if (!_loggedFirstHide)
+            {
+                _loggedFirstHide = true;
+                PatchHelper.Log("DevConsolePatches: hid Android dev console and disabled console focus");
+            }
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log(
+                $"DevConsolePatches: failed to hide Android dev console ({ex.GetType().Name}: {ex.Message})"
+            );
+        }
+    }
+
+    private static void DisableConsoleNode(Node node)
+    {
+        if (node is CanvasLayer canvasLayer)
+            canvasLayer.Visible = false;
+
+        if (node is CanvasItem canvasItem)
+            canvasItem.Visible = false;
+
+        if (node is Control control)
+        {
+            control.FocusMode = Control.FocusModeEnum.None;
+            control.MouseFilter = Control.MouseFilterEnum.Ignore;
+            if (control.HasFocus())
+                control.ReleaseFocus();
+        }
+
+        if (node is LineEdit lineEdit)
+            lineEdit.Editable = false;
+
+        foreach (var child in node.GetChildren())
+        {
+            if (child is Node childNode)
+                DisableConsoleNode(childNode);
+        }
     }
 }
