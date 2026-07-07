@@ -114,6 +114,12 @@ internal static partial class LauncherDiagnostics
             Path.Combine(dataDir, LauncherStorageNames.PostStartupHeartbeat)
         );
 
+    private static DiagnosticFile AppLifecycle(string dataDir)
+        => new(
+            "App lifecycle",
+            Path.Combine(dataDir, LauncherStorageNames.AppLifecycle)
+        );
+
     private static DiagnosticFile SteamAuthFailure(string dataDir)
         => new(
             "Steam auth failure",

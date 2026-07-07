@@ -17,6 +17,7 @@ internal static class LauncherStorageNames
     internal const string StartupContext = "last_startup_context.txt";
     internal const string PostStartupHeartbeat = "last_post_startup_heartbeat.txt";
     internal const string PostStartupTrace = "last_post_startup_trace.txt";
+    internal const string AppLifecycle = "last_app_lifecycle_event.txt";
     internal const string ShaderWarmupVersion = "shader_warmup_version";
     internal const string StartupMarker = "last_game_start_incomplete";
     internal const string StartupSceneSnapshot = "last_game_start_scene_tree.txt";

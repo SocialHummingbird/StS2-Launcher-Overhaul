@@ -116,6 +116,7 @@ public class GodotApp extends GodotActivity {
     private static final int ASSEMBLY_CACHE_SCHEMA = 25;
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v35";
 	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
+	private static final String LAST_APP_LIFECYCLE_EVENT_FILE = "last_app_lifecycle_event.txt";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
 	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
@@ -332,6 +333,31 @@ public class GodotApp extends GodotActivity {
 			utcMillis + "\telapsedRealtimeMs=" + elapsedMs + "\tphase=" + safePhase + "\tdetail=" + safeDetail + "\n"
 		);
 		Log.i(TAG, "Native startup phase: elapsedRealtimeMs=" + elapsedMs + " phase=" + safePhase + " detail=" + safeDetail);
+	}
+
+	private void recordAppLifecycleEvent(String event) {
+		String safeEvent = sanitizeStartupMarkerValue(event);
+		long elapsedMs = SystemClock.elapsedRealtime();
+		long utcMillis = System.currentTimeMillis();
+		String text =
+			"StS2 Android app lifecycle event\n" +
+			"UTC millis: " + utcMillis + "\n" +
+			"Elapsed realtime ms: " + elapsedMs + "\n" +
+			"Event: " + safeEvent + "\n" +
+			"Package: " + getPackageName() + "\n" +
+			"Version: " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")\n" +
+			"Selected branch: " + readSelectedBranchSafely() + "\n" +
+			"Pending game launch request: " + hasPendingGameLaunchRequest() + "\n" +
+			"Activity finishing: " + isFinishing() + "\n" +
+			"Changing configurations: " + isChangingConfigurations() + "\n" +
+			"Has window focus: " + hasWindowFocus() + "\n\n" +
+			getDeviceDiagnostics();
+		writeInternalTextFile(LAST_APP_LIFECYCLE_EVENT_FILE, text);
+		appendInternalTextFile(
+			LAST_STARTUP_TIMELINE_FILE,
+			utcMillis + "\telapsedRealtimeMs=" + elapsedMs + "\tnativeLifecycle=" + safeEvent + "\n"
+		);
+		Log.i(TAG, "Native lifecycle event: elapsedRealtimeMs=" + elapsedMs + " event=" + safeEvent);
 	}
 
 	private String sanitizeStartupMarkerValue(String value) {
@@ -2756,7 +2782,38 @@ public class GodotApp extends GodotActivity {
 	}
 
 	@Override
+	protected void onStart() {
+		super.onStart();
+		recordAppLifecycleEvent("activity onStart");
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		recordAppLifecycleEvent("activity onResume");
+	}
+
+	@Override
+	protected void onPause() {
+		recordAppLifecycleEvent("activity onPause");
+		super.onPause();
+	}
+
+	@Override
+	protected void onStop() {
+		recordAppLifecycleEvent("activity onStop");
+		super.onStop();
+	}
+
+	@Override
+	public void onWindowFocusChanged(boolean hasFocus) {
+		super.onWindowFocusChanged(hasFocus);
+		recordAppLifecycleEvent(hasFocus ? "window focus gained" : "window focus lost");
+	}
+
+	@Override
 	protected void onDestroy() {
+		recordAppLifecycleEvent("activity onDestroy");
 		clearSteamLoginCredentialPanel();
 		if (multicastLock != null && multicastLock.isHeld()) {
 			multicastLock.release();
