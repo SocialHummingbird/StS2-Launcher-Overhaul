@@ -113,7 +113,7 @@ public class GodotApp extends GodotActivity {
 	private static final String ENV_STEAMKIT_DEBUG_LOGS = "STS2_STEAMKIT_DEBUG_LOGS";
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String EXTRA_SAFE_LAUNCH_ON_START = "sts2_safe_launch";
-    private static final int ASSEMBLY_CACHE_SCHEMA = 24;
+    private static final int ASSEMBLY_CACHE_SCHEMA = 25;
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v35";
 	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
@@ -900,6 +900,11 @@ public class GodotApp extends GodotActivity {
 			logAssemblyCacheState("missing-after-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames, assemblyCacheRuntimeId);
 			String mode = requiresGameAssemblies ? "game" : "launcher-only";
 			throw new RuntimeException("Missing required Mono/cache assemblies after copy for " + mode + " mode.");
+		}
+
+		if (!hasCurrentPackagedRequiredAssemblies(destDir)) {
+			logAssemblyCacheState("stale-packaged-after-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames, assemblyCacheRuntimeId);
+			throw new RuntimeException("Packaged launcher assemblies are stale after cache copy; refusing to mark assembly cache current.");
 		}
 
 		logAssemblyCacheState("after-copy", destDir, srcDir, requiresGameAssemblies, packagedBclNames, assemblyCacheRuntimeId);

@@ -9,6 +9,7 @@ internal sealed partial class ShaderWarmupScreen
 {
     private async Task RunWarmupAsync()
     {
+        bool previousRenderCrashSuspected = _previousRenderCrashSuspected;
         var warmup = CreateWarmupRun();
         WriteWarmupStatus("collecting", "Collecting shader warmup materials");
 
@@ -30,7 +31,10 @@ internal sealed partial class ShaderWarmupScreen
             return;
         }
 
-        var renderPlan = ShaderWarmupRenderPlan.ForMaterialCount(materials.Count);
+        var renderPlan = ShaderWarmupRenderPlan.ForMaterialCount(
+            materials.Count,
+            previousRenderCrashSuspected
+        );
         WriteWarmupStatus(
             "rendering",
             $"Rendering {renderPlan.TargetMaterialCount} of {materials.Count} shader warmup materials using plan {renderPlan.Name}",

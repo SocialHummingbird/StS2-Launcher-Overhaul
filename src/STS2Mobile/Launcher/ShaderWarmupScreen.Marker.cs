@@ -17,6 +17,12 @@ internal sealed partial class ShaderWarmupScreen
     {
         try
         {
+            if (PreviousWarmupStatusSuggestsRenderCrash())
+            {
+                PatchHelper.Log("[ShaderWarmup] NeedsWarmup=true (previous status marker stopped during rendering)");
+                return true;
+            }
+
             if (File.Exists(MarkerPath))
             {
                 var content = File.ReadAllText(MarkerPath).Trim();
@@ -50,6 +56,25 @@ internal sealed partial class ShaderWarmupScreen
         catch (Exception ex)
         {
             PatchHelper.Log(Message.MarkerWriteFailed(ex));
+        }
+    }
+
+    internal static bool PreviousWarmupStatusSuggestsRenderCrash()
+    {
+        try
+        {
+            if (!File.Exists(StatusMarkerPath))
+                return false;
+
+            var status = File.ReadAllText(StatusMarkerPath);
+            return ContainsStatus(status, "Status: rendering")
+                || ContainsStatus(status, "Status: rendering-batch")
+                || ContainsStatus(status, "Status: watchdog-warning");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[ShaderWarmup] Failed to read previous warmup status marker: {ex.Message}");
+            return false;
         }
     }
 
@@ -92,6 +117,9 @@ internal sealed partial class ShaderWarmupScreen
         => string.IsNullOrWhiteSpace(value)
             ? "<none>"
             : value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+
+    private static bool ContainsStatus(string status, string value)
+        => status?.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
 
     private static void AppendDeviceDiagnostics(List<string> lines)
     {

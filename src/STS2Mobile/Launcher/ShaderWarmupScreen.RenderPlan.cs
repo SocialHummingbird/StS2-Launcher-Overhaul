@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 
 namespace STS2Mobile.Launcher;
 
@@ -40,10 +39,12 @@ internal sealed partial class ShaderWarmupScreen
         internal bool IsPartial
             => TargetMaterialCount < TotalMaterialCount;
 
-        internal static ShaderWarmupRenderPlan ForMaterialCount(int totalMaterialCount)
+        internal static ShaderWarmupRenderPlan ForMaterialCount(
+            int totalMaterialCount,
+            bool previousRenderCrashSuspected
+        )
         {
             int normalizedTotal = Math.Max(0, totalMaterialCount);
-            bool previousRenderCrashSuspected = PreviousStatusSuggestsRenderCrash();
 
             if (OperatingSystem.IsAndroid() && previousRenderCrashSuspected)
             {
@@ -117,26 +118,5 @@ internal sealed partial class ShaderWarmupScreen
             );
         }
 
-        private static bool PreviousStatusSuggestsRenderCrash()
-        {
-            try
-            {
-                if (!File.Exists(StatusMarkerPath))
-                    return false;
-
-                var status = File.ReadAllText(StatusMarkerPath);
-                return ContainsStatus(status, "Status: rendering")
-                    || ContainsStatus(status, "Status: rendering-batch")
-                    || ContainsStatus(status, "Status: watchdog-warning");
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[ShaderWarmup] Failed to read previous warmup status marker: {ex.Message}");
-                return false;
-            }
-        }
-
-        private static bool ContainsStatus(string status, string value)
-            => status?.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 }

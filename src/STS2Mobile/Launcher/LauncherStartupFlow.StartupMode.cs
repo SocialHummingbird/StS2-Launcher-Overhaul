@@ -35,7 +35,7 @@ internal static partial class LauncherStartupFlow
             );
 
         internal bool ShouldSkipShaderWarmup()
-            => SafeLaunchRequested || IsPreviousPhase(PhaseShaderWarmup);
+            => SafeLaunchRequested;
 
         internal string SettingsAndSavesStatus
             => SaveModePlan.SettingsAndSavesStatus;
@@ -59,13 +59,13 @@ internal static partial class LauncherStartupFlow
         internal string ShaderWarmupSkipLog
             => SafeLaunchMessage(
                 "Skipping shader warmup for manual safe launch",
-                "Skipping shader warmup because the previous launch stalled there"
+                "Skipping shader warmup for safe launch"
             );
 
         internal string ShaderWarmupSkipStatus
             => SafeLaunchMessage(
                 "Skipping shader warmup for safe launch...",
-                "Skipping shader warmup after previous stall..."
+                "Skipping shader warmup for safe launch..."
             );
 
         private string SafeLaunchMessage(string manualSafeLaunch, string previousStall)
