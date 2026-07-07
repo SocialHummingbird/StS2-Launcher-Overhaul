@@ -38,8 +38,9 @@ internal static partial class LauncherDiagnostics
             .Append(" name=")
             .Append(node.Name)
             .Append(" children=")
-            .Append(node.GetChildCount())
-            .AppendLine();
+            .Append(node.GetChildCount());
+        AppendSceneNodeState(sb, node);
+        sb.AppendLine();
 
         if (depth >= MaxSceneSnapshotDepth)
             return;
@@ -55,6 +56,31 @@ internal static partial class LauncherDiagnostics
                 .Append("  ... ")
                 .Append(childCount - limit)
                 .AppendLine(" more children");
+        }
+    }
+
+    private static void AppendSceneNodeState(StringBuilder sb, Node node)
+    {
+        switch (node)
+        {
+            case CanvasItem canvasItem:
+                sb.Append(" visible=")
+                    .Append(canvasItem.Visible)
+                    .Append(" visibleInTree=")
+                    .Append(canvasItem.IsVisibleInTree());
+                break;
+            case CanvasLayer canvasLayer:
+                sb.Append(" visible=")
+                    .Append(canvasLayer.Visible);
+                break;
+        }
+
+        if (node is Control control)
+        {
+            sb.Append(" focusMode=")
+                .Append(control.FocusMode)
+                .Append(" hasFocus=")
+                .Append(control.HasFocus());
         }
     }
 

@@ -50,6 +50,7 @@ internal static partial class LauncherStartupFlow
 
         private void MarkStartupObserved(CanvasLayer recoveryControls)
             => LauncherGameStartupRecovery.MarkStartupObserved(
+                Game,
                 recoveryControls,
                 Status,
                 GameNode

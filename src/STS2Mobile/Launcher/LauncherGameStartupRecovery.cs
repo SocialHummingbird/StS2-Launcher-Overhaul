@@ -8,6 +8,13 @@ internal static partial class LauncherGameStartupRecovery
     private const int MainMenuForceTimeoutMs = 15_000;
     private const int PostStartupRecoveryMs = 3_000;
 
+    internal static void MarkGameStartupCompleted(object game, Node gameNode)
+        => WritePostStartupTrace(
+            game,
+            gameNode,
+            "NGame.GameStartup completed before main-menu guard"
+        );
+
     internal static async Task<bool> EnsureMainMenuReadyAsync(
         object game,
         Node gameNode,
@@ -17,6 +24,7 @@ internal static partial class LauncherGameStartupRecovery
         var ui = RecoveryUi.For(gameNode, startupStatus);
         var mainMenuReady = await EnsureMainMenuAfterStartupAsync(
             game,
+            gameNode,
             startupStatus,
             MainMenuForceTimeoutMs
         );
@@ -26,6 +34,7 @@ internal static partial class LauncherGameStartupRecovery
     }
 
     internal static void MarkStartupObserved(
+        object game,
         CanvasLayer recoveryControls,
         Label startupStatus,
         Node gameNode
@@ -35,5 +44,6 @@ internal static partial class LauncherGameStartupRecovery
             recoveryControls,
             RecoveryStateUpdate.StartupObserved()
         );
+        SchedulePostStartupTrace(game, gameNode);
     }
 }

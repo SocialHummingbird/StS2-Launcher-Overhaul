@@ -102,6 +102,12 @@ internal static partial class LauncherDiagnostics
             Path.Combine(dataDir, LauncherStorageNames.StartupContext)
         );
 
+    private static DiagnosticFile PostStartupTrace(string dataDir)
+        => new(
+            "Post-startup trace",
+            Path.Combine(dataDir, LauncherStorageNames.PostStartupTrace)
+        );
+
     private static DiagnosticFile SteamAuthFailure(string dataDir)
         => new(
             "Steam auth failure",

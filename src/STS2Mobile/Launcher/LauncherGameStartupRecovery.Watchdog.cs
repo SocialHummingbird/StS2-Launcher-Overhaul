@@ -16,12 +16,19 @@ internal static partial class LauncherGameStartupRecovery
     {
         var ui = RecoveryUi.For(gameNode, startupStatus);
         ui.Apply(RecoveryStateUpdate.WatchdogStalled());
+        WritePostStartupTrace(
+            game,
+            gameNode,
+            "startup watchdog fired",
+            $"watchdogMs={watchdogMs}"
+        );
         PatchHelper.Log(
             $"Game startup watchdog fired after {watchdogMs}ms; startup task still running"
         );
 
         var recovered = await EnsureMainMenuAfterStartupAsync(
             game,
+            gameNode,
             startupStatus,
             MainMenuForceTimeoutMs
         );

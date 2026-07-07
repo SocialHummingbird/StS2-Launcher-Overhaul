@@ -72,12 +72,23 @@ internal static partial class LauncherGameStartupRecovery
 
         private async Task RunAsync()
         {
+            LauncherDiagnostics.WritePostStartupTrace(
+                StartupStatus,
+                "post-startup cleanup scheduled",
+                $"Cleanup delay ms: {PostStartupRecoveryMs}"
+            );
             await Task.Delay(PostStartupRecoveryMs);
             LauncherLaunchMarkers.ClearStartupMarker();
 
             var controlsCleared = QueueFreeIfAlive(RecoveryControls, "recovery controls");
             var statusCleared = LauncherStartupStatus.QueueFree(StartupStatus);
 
+            LauncherDiagnostics.WritePostStartupTrace(
+                StartupStatus,
+                "post-startup cleanup finished",
+                $"controlsCleared={controlsCleared}",
+                $"statusCleared={statusCleared}"
+            );
             PatchHelper.Log(
                 "Post-startup recovery UI cleanup finished after game startup was observed; " +
                 $"controlsCleared={controlsCleared}, statusCleared={statusCleared}, scene snapshot retained"

@@ -9,6 +9,7 @@ internal static partial class LauncherGameStartupRecovery
 {
     private static async Task<bool> EnsureMainMenuAfterStartupAsync(
         object game,
+        Node gameNode,
         Label startupStatus,
         int forceTimeoutMs
     )
@@ -22,20 +23,42 @@ internal static partial class LauncherGameStartupRecovery
             if (scene.IsMainMenu)
             {
                 PatchHelper.Log(MainMenuPresentMessage(scene));
+                WritePostStartupTrace(
+                    game,
+                    gameNode,
+                    "main menu guard passed",
+                    "Main menu was present before forced recovery"
+                );
                 return true;
             }
 
             PatchHelper.Log(MainMenuMissingMessage(scene));
+            WritePostStartupTrace(
+                game,
+                gameNode,
+                "main menu guard missing",
+                "Attempting forced main-menu recovery"
+            );
             LauncherStartupStatus.Set(
                 startupStatus,
                 "Startup returned without main menu. Forcing main menu..."
             );
 
-            return await ForceLoadMainMenuAsync(game, startupStatus, forceTimeoutMs);
+            return await ForceLoadMainMenuAsync(
+                game,
+                gameNode,
+                startupStatus,
+                forceTimeoutMs
+            );
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"EnsureMainMenuAfterStartup failed: {ex}");
+            LauncherDiagnostics.WritePostStartupTrace(
+                gameNode,
+                "main menu guard failed",
+                $"{ex.GetBaseException().GetType().Name}: {ex.GetBaseException().Message}"
+            );
             LauncherStartupStatus.Set(
                 startupStatus,
                 $"Main menu guard failed: {ex.GetBaseException().Message}"

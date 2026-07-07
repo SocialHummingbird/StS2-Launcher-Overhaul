@@ -22,6 +22,9 @@ internal static partial class LauncherLaunchMarkers
     private static readonly Stopwatch ProcessTimer = Stopwatch.StartNew();
     private static int _phaseSequence;
 
+    internal static long ElapsedMilliseconds
+        => ProcessTimer.ElapsedMilliseconds;
+
     private static bool TryWriteMarker(string path, string content, string failureMessage)
     {
         try

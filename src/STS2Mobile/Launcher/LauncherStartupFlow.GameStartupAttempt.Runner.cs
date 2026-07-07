@@ -63,6 +63,10 @@ internal static partial class LauncherStartupFlow
                 {
                     await StartupTask;
                     PatchHelper.Log("NGame.GameStartup completed");
+                    LauncherGameStartupRecovery.MarkGameStartupCompleted(
+                        Startup.Game,
+                        Startup.GameNode
+                    );
                     return await Startup.EnsureMainMenuReadyAsync();
                 }
 

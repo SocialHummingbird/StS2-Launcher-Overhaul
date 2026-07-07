@@ -9,18 +9,21 @@ internal static partial class LauncherGameStartupRecovery
     private readonly struct ForcedMainMenuLoadAttempt
     {
         private readonly object _game;
+        private readonly Node _gameNode;
         private readonly Label _startupStatus;
         private readonly int _timeoutMs;
         private readonly Task _loadMainMenu;
 
         private ForcedMainMenuLoadAttempt(
             object game,
+            Node gameNode,
             Label startupStatus,
             int timeoutMs,
             Task loadMainMenu
         )
         {
             _game = game;
+            _gameNode = gameNode;
             _startupStatus = startupStatus;
             _timeoutMs = timeoutMs;
             _loadMainMenu = loadMainMenu;
@@ -28,6 +31,7 @@ internal static partial class LauncherGameStartupRecovery
 
         internal static bool TryStart(
             object game,
+            Node gameNode,
             Label startupStatus,
             int timeoutMs,
             out ForcedMainMenuLoadAttempt attempt
@@ -42,6 +46,7 @@ internal static partial class LauncherGameStartupRecovery
 
             attempt = new ForcedMainMenuLoadAttempt(
                 game,
+                gameNode,
                 startupStatus,
                 timeoutMs,
                 loadMainMenu
@@ -75,6 +80,12 @@ internal static partial class LauncherGameStartupRecovery
         {
             var scene = InspectCurrentScene(_game);
             PatchHelper.Log(ForcedLoadResultMessage(scene));
+            WritePostStartupTrace(
+                _game,
+                _gameNode,
+                "forced main-menu load completed",
+                $"Forced main-menu load result: {scene.IsMainMenu}"
+            );
             LauncherStartupStatus.Set(_startupStatus, ForcedLoadStatus(scene));
             return scene.IsMainMenu;
         }
@@ -82,12 +93,14 @@ internal static partial class LauncherGameStartupRecovery
 
     private static async Task<bool> ForceLoadMainMenuAsync(
         object game,
+        Node gameNode,
         Label startupStatus,
         int forceTimeoutMs
     )
     {
         if (!ForcedMainMenuLoadAttempt.TryStart(
             game,
+            gameNode,
             startupStatus,
             forceTimeoutMs,
             out var attempt
