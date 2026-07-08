@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-07-07_
+_Last updated: 2026-07-08_
 
 See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, and bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
@@ -16,7 +16,13 @@ Current device evidence ledgers:
 
 ## Headline
 
-The app now works on the validated ARM64 Android path, but it is still unofficial prerelease tester software in polish and hardening rather than release-candidate signoff. The current headline work is Workshop/mod support, public/public-beta runtime-pack correctness, launcher UX polish, and release-readiness cleanup.
+The app now works on the validated ARM64 Android path, but it is still unofficial prerelease tester software in polish and hardening rather than release-candidate signoff. The current headline work is Workshop/mod support, public/public-beta runtime-pack correctness, launcher UX polish, release-readiness cleanup, and the Pixel / PowerVR / OpenGL ES compatibility issue tracked in GitHub issue #34.
+
+July 8 Pixel / PowerVR compatibility status:
+
+- GitHub issue #34 now has reporter evidence from `v0.2.396-post-startup-anchor` on Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536 / OpenGL ES 3.2 Compatibility. The log proves the game reaches the real `NMainMenu`, records `NGame.GameStartup completed`, passes the main-menu guard, hides launcher recovery UI, and logs the Android post-startup task anchor as active. About 200ms later Godot emits static-string cleanup errors and the app returns to launcher/bootstrap with a new process. The report still shows no `NativeFallback`, Java `FATAL EXCEPTION`, AndroidRuntime fatal, SIGSEGV, SIGABRT, signal 11/6, ANR, LMKD kill, or obvious Java exception.
+- This shifts the remaining issue #34 failure away from launcher handoff, shader warmup, recovery UI, and dev-console handling. The likely problem area is broader Android graphics/resource compatibility on the PowerVR/OpenGL ES fallback path, where Godot repeatedly decompresses or converts unsupported PC-oriented texture formats such as `RGBFloat`, `BPTC_RGBA`, and `DXT1`/`DXT5` during main-menu/deferred asset loading.
+- The next fix direction is an Android compatibility pass rather than another small launcher lifecycle patch: reduce or delay startup asset pressure, avoid eager full-atlas/pool loading where possible, and investigate Android-safe texture/import behavior for the startup and main-menu resource set. The existing `SM-F966B` ARM64 validation remains useful, but it does not prove compatibility on Pixel / PowerVR / Android 17.
 
 July 5 runtime/update status:
 
@@ -125,15 +131,16 @@ remaining=Shader scanner emits noisy Godot error stack traces for some material/
 Latest GitHub APK release evidence:
 
 ```text
-release=v0.2.385-shader-warmup-compat
-asset=StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk
-sha256=ab878a3fb1cee64c33f4bfe5a254cac5ff5b6f57340963d3f2a82dfcc3c50b1e
+release=v0.2.396-post-startup-anchor
+asset=StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk
+sha256=1524a5d3c6fe1a8893f53c6ea77ba34443f141dfac67c67eb76e56488e851f7b
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.385-shader-warmup-compat-local
-versionCode=385001
-validation=GitHub release hygiene check passed with matching APK/checksum/metadata. This release publishes the bounded Android shader warmup compatibility path while preserving the local tester package identity used by the current public APK line. It remains unofficial prerelease tester software rather than broad release-candidate public-package signoff.
-cloudSafety=No Push to Cloud was run during the matching shader compatibility validation.
-evidence=GitHub release v0.2.385-shader-warmup-compat assets and metadata; local ARM64 public launch validation reached in-process game handoff with matched PCK/runtime hashes, shader warmup v7 completed-partial under the android-bounded-large-shader-set plan, and no NativeFallbackActivity/fatal/app-PID crash signature.
+versionName=0.2.396-post-startup-anchor
+versionCode=396001
+validation=GitHub release hygiene check passed with matching APK/checksum/metadata. Local ARM64 Samsung SM-F966B validation reached NMainMenu, logged post-startup probes at 1s/3s/10s/30s, logged heartbeats at 60s/120s with persisted marker later reaching 180s, and showed no NativeFallback, fatal exception, AndroidRuntime fatal, SIGSEGV, SIGABRT, fatal signal, ANR, LMKD kill, app has died marker, or Godot static-string cleanup marker.
+cloudSafety=No Push to Cloud was run during the matching post-startup anchor validation.
+knownIssue=Reporter evidence on Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536 still crashes after the anchor logs active and before the first 1s post-startup probe. Treat this release as launcher-handoff diagnostic/hardening, not broad PowerVR/OpenGL ES compatibility signoff.
+evidence=GitHub release v0.2.396-post-startup-anchor assets and metadata; local ARM64 evidence under artifacts/android/issue34-post-startup-anchor-20260707-220614; reporter issue #34 log6.txt narrowed the remaining failure to post-main-menu Godot/native graphics-resource teardown on the PowerVR/OpenGL ES fallback path.
 ```
 
 Previous GitHub shader-warmup APK evidence:

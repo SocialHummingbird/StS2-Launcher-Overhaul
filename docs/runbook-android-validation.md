@@ -24,6 +24,7 @@ This runbook is used for manual verification of startup and reliability changes 
 Run at least one device from each row for patch-level changes:
 
 - Pixel / Android 16 + default locale
+- Pixel / Android 17 + PowerVR/OpenGL ES compatibility path, if available
 - Samsung Galaxy S25/S26 class + non-US locale, such as Korean or locale-extension-heavy settings
 - Samsung Fold / One UI with locale extensions enabled
 - Mid-tier Android 12-13 fallback device, for smoke coverage on older API levels
@@ -120,6 +121,8 @@ adb logcat > sts2launcher-<device>-<date>.log
 - [ ] Fresh install proves runtime freshness with current assembly schema logs
 - [ ] Upgrade install advances package update time and does not reuse stale managed assemblies
 - [ ] Successful game startup hides launcher recovery controls quickly
+- [ ] If the target is Pixel / PowerVR / OpenGL ES, main-menu startup survives at least the 1s, 3s, 10s, 30s, and 60s post-startup markers
+- [ ] Focused logs do not show Godot static-string cleanup immediately after unsupported texture-format conversion warnings
 - [ ] Locked-screen or Android focus interruption is not misreported as a game crash
 - [ ] Normal diagnostics avoid missing-path log floods; verbose save diagnostics remain opt-in
 
@@ -137,6 +140,9 @@ Include:
   - `FontSubstitution`
   - `Cloud`
   - `Lifecycle`
+  - `PostStartupTrace`
+  - `PostStartupHeartbeat`
+  - `Native lifecycle event`
 - Timestamped failure window and symptom duration
 
 ## Escalation
