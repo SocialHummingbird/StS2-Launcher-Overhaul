@@ -1,12 +1,14 @@
 # Unofficial Project Notice
 
-StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher and Android compatibility project.
+StS2 Mobile is an unofficial Android launcher for people who already own Slay the Spire 2 on Steam.
 
-It is not affiliated with, endorsed by, sponsored by, or supported by Mega Crit Games, Steam, or Valve. Slay the Spire 2 is developed and published by Mega Crit Games.
+It is not the game itself. It does not include Slay the Spire 2 game files, art, music, saves, or Steam Workshop content. After you sign in with Steam, the launcher downloads your own game files from Steam and tries to run them on ARM64 Android hardware.
 
-The project does not bundle Slay the Spire 2 game files, assets, music, art, or Steam Workshop content. A valid Steam account that owns Slay the Spire 2 is required. The launcher downloads game files from Steam only after the user authenticates with Steam.
+A valid Steam account that owns Slay the Spire 2 is required. If the Steam account does not own the game, this launcher cannot download or run it.
 
-This project exists for personal use, compatibility testing, and community experimentation on ARM64 Android hardware. It should not be described as an official mobile port, an official Android release, or a sanctioned replacement for any future official mobile version.
+This project is not affiliated with, endorsed by, sponsored by, or supported by Mega Crit Games, Steam, or Valve. Slay the Spire 2 is developed and published by Mega Crit Games.
+
+This is prerelease community tester software. Compatibility varies by device, and some phones may crash, fail to launch, or have graphics/driver problems. It should not be described as an official mobile port, an official Android release, or a sanctioned replacement for any future official mobile version.
 
 When posting, reporting bugs, or sharing builds, use this framing:
 

@@ -4,12 +4,70 @@
   <img src="docs/assets/sts2-mobile-icon.svg" alt="StS2 Mobile icon" width="128" height="128">
 </p>
 
-## Project note (independent copy)
+## What This App Is
 
-This repository is a full copy of [Ekyso/StS2-Launcher](https://github.com/Ekyso/StS2-Launcher), created to continue and broaden development as StS2 Mobile: a focused Android rewrite project.
-The goal is a **drastic architecture and reliability overhaul** that is harder to do in the upstream repo while maintaining compatibility and delivering incremental improvements back when possible.
+StS2 Mobile is an unofficial Android launcher for people who already own Slay the Spire 2 on Steam.
 
-## Migration and governance
+It is not the game itself. It does not include Slay the Spire 2 files, art, music, saves, or Workshop content. After you sign in with Steam, the launcher downloads your own copy of the game from Steam and tries to run it on an ARM64 Android phone or tablet.
+
+You must own Slay the Spire 2 on Steam. If your Steam account does not own the game, this app cannot download or run it.
+
+This project is not made, approved, sponsored, or supported by Mega Crit Games, Steam, or Valve. It is community tester software, not an official Android release or mobile port. See the [unofficial project notice](docs/unofficial-project-notice.md).
+
+## What It Does
+
+- Lets you sign in to Steam.
+- Downloads Slay the Spire 2 game files from Steam after Steam confirms ownership.
+- Starts the downloaded game on supported ARM64 Android devices.
+- Can pull Steam Cloud saves down to Android local storage.
+- Can push Android saves back to Steam Cloud, but only after extra warnings because that can overwrite cloud saves.
+- Includes early support for Steam branches and some Workshop/mod testing.
+- Collects diagnostics so crash reports can show what happened.
+
+## Current Status
+
+StS2 Mobile works on some tested ARM64 Android devices, but compatibility is not broad yet. Treat every APK as prerelease tester software.
+
+Latest published APK: [v0.2.396-post-startup-anchor](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.396-post-startup-anchor)
+
+- APK asset: `StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk`
+- Package name: `com.sts2launcher.overhaul.fork.local`
+- Version code: `396001`
+- SHA-256: `1524a5d3c6fe1a8893f53c6ea77ba34443f141dfac67c67eb76e56488e851f7b`
+- Signing channel: local debug/test channel
+
+Known important limitations:
+
+- Device compatibility varies. A Samsung ARM64 test device reaches the main menu, but a Pixel 10 Pro / Android 17 / PowerVR device still crashes after the game reaches the main menu.
+- The app currently targets ARM64 Android hardware. Android emulator and x86_64 builds are diagnostic only and are not supported for real game launch.
+- Some phones may be too slow, have incompatible graphics drivers, or fail while loading/compiling shaders.
+- Steam version selection, beta branches, Workshop mods, and save-merger behavior are still experimental.
+- Steam Cloud Push is intentionally cautious because it can overwrite remote saves. Pull from Steam Cloud first.
+- This is not a finished consumer app. Expect bugs, rough UI, and device-specific problems.
+
+Before installing:
+
+- Make sure you own Slay the Spire 2 on Steam.
+- Use an ARM64 Android device.
+- Back up important saves before testing Steam Cloud Push.
+- Download APKs only from this repository's [Releases](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases).
+- When reporting a bug, include the exact APK filename, device model, Android version, selected branch, and logs. Do not just say "latest".
+
+Useful docs:
+
+- Current Android status: [docs/current-android-status.md](docs/current-android-status.md)
+- Testing needed: [docs/testing-needed.md](docs/testing-needed.md)
+- Issue reporting guide: [docs/issue-reporting.md](docs/issue-reporting.md)
+- Android Steam Workshop mods: [docs/android-workshop-mods.md](docs/android-workshop-mods.md)
+- Steam version selection user guide: [docs/steam-version-selection-user-guide.md](docs/steam-version-selection-user-guide.md)
+
+## Project Background
+
+This repository is a full copy of [Ekyso/StS2-Launcher](https://github.com/Ekyso/StS2-Launcher), created to continue and broaden development as StS2 Mobile: a focused Android rewrite and compatibility project.
+
+The technical goal is to improve Android startup, Steam login, Steam download, cloud saves, mobile UI, branch switching, mods, and crash diagnostics while keeping the project clearly unofficial.
+
+## Development and Governance
 
 - Migration checklist: [MIGRATION_CHECKLIST.md](MIGRATION_CHECKLIST.md)
 - Overhaul plan: [OVERHAUL_ROADMAP.md](OVERHAUL_ROADMAP.md)
@@ -18,107 +76,7 @@ The goal is a **drastic architecture and reliability overhaul** that is harder t
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 - Device log checklist: [docs/device-log-checklist.md](docs/device-log-checklist.md)
 - Android runtime findings: [docs/android-runtime-findings.md](docs/android-runtime-findings.md)
-- Current Android status: [docs/current-android-status.md](docs/current-android-status.md)
 - Unofficial project notice: [docs/unofficial-project-notice.md](docs/unofficial-project-notice.md)
-- Android Steam Workshop mods: [docs/android-workshop-mods.md](docs/android-workshop-mods.md)
-- Reddit post log: [docs/reddit-post-log.md](docs/reddit-post-log.md)
-- Testing needed: [docs/testing-needed.md](docs/testing-needed.md)
-- Issue reporting guide: [docs/issue-reporting.md](docs/issue-reporting.md)
-
-### Suggested working remotes
-
-```bash
-git remote rename origin upstream
-git remote add origin https://github.com/SocialHummingbird/StS2-Launcher-Overhaul.git
-git remote set-url origin https://github.com/SocialHummingbird/StS2-Launcher-Overhaul.git
-git fetch origin
-git fetch upstream
-```
-
-An unofficial Android launcher for Slay the Spire 2, built on a custom Godot 4.5.1 engine with .NET/Mono and Harmony runtime patching.
-
-> **Unofficial project notice**: This is an unofficial community launcher for running your own Steam copy of Slay the Spire 2 on ARM64 Android. It is not affiliated with, endorsed by, sponsored by, or supported by Mega Crit Games, Steam, or Valve. Slay the Spire 2 is developed and published by Mega Crit Games. A valid Steam account that owns Slay the Spire 2 is required. Game files are downloaded directly from Steam after authentication. No game files, game assets, music, art, or Workshop content are included in this repository. This should not be described as an official mobile port, official Android release, or sanctioned replacement for any future official mobile version. See [Unofficial project notice](docs/unofficial-project-notice.md).
-
-## Current Status
-
-**Current state:** StS2 Mobile is playable on tested ARM64 Android hardware, but it is still an unofficial prerelease community launcher. The focus is now stability, loading speed, cleaner onboarding, branch switching, Steam Cloud safety, and experimental Workshop/mod support.
-
-Latest published APK: [v0.2.385-shader-warmup-compat](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.385-shader-warmup-compat)
-
-- APK asset: `StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk`
-- Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `385001`
-- SHA-256: `ab878a3fb1cee64c33f4bfe5a254cac5ff5b6f57340963d3f2a82dfcc3c50b1e`
-- Signing channel: local debug/test channel
-
-What currently works on tested ARM64 hardware:
-
-- Steam login reaches Steam Guard/authentication flow.
-- Steam sign-in failures now surface actionable recovery text and are included in Help & Reports diagnostics as `last_steam_auth_failure.txt`.
-- Game files can be downloaded from Steam for owned accounts.
-- Public/default game launch has ARM64 evidence.
-- The latest tested public-beta payload, `v0.108.0`, has ARM64 evidence with matched beta PCK and matched beta runtime pack.
-- Public-beta launch reaches the main menu through the real Start Game path, with matched PCK/runtime and no `NativeFallbackActivity`; current tester APKs publish that stability work plus bounded shader warmup and launch-readiness hardening.
-- First-run shader warmup now writes `last_shader_warmup_status.txt`; local ARM64 evidence completed v6 warmup on `SM-F966B` with 1713 shader warmup materials in 40.1s, under the 90s budget. Devices that hit the budget now record `completed-partial` and continue instead of being forced through an unbounded precompile pass.
-- Steam Cloud Pull into Android local app storage has been validated.
-- Steam Cloud Push is intentionally guarded and is not automatic.
-- The launcher has a first-class Mods section on the main play screen.
-- Workshop/staged mods can be selected, disabled, and launched through the Android runtime mod-loader path.
-- `BaseLib`, `Quick Restart`, and manually imported `Vanilla and Modded Saves Merger` are selected and scanned in the latest public-beta modded validation without falling back to `NativeFallbackActivity`.
-
-Experimental or still hardening:
-
-- Steam version selection is implemented for validation and hardening, not release-candidate signed off. The launcher uses a discovery-led dropdown selector with `Refresh Game Versions`, public-inherited branch classification, public-vs-beta integrity classification, and evidence for mixed beta/public behavior. Steam beta password entry, private/inaccessible branch handling, save compatibility, Autofill/password-manager behavior, and Push backup evidence still need broader ARM64 validation before branch switching is treated as release-candidate complete. See [Public-beta integrity runtime checklist](docs/steam-beta-integrity-runtime-checklist.md) and [Branch release-readiness tracker](docs/steam-version-selection-release-readiness.md).
-- Workshop/mod support is functional but not finished. Steam discovery can stage some subscribed mods, but items exposed only as legacy UGC handles may still need manual import.
-- `Vanilla and Modded Saves Merger` is the most important current mod validation target. It has manual-import loading evidence, but broader save-merge compatibility still needs tester reports.
-- Branch switching is implemented, but beta/password/private branch behavior and save compatibility across branches still need more device evidence.
-- Samsung/One UI layouts and login behavior need more current-version reports from affected users.
-- Startup/loading speed, shader-scanner log noise, shader compilation failures on lower-power devices, controller input, and launcher UI scaling/scroll reachability are active hardening targets. A shader warmup that times out and continues is degraded compatibility evidence, not full device signoff.
-
-Current practical device floor:
-
-- ARM64 Android hardware is the supported proof target.
-- Android x86_64 emulator builds are diagnostic/fallback only, not game-launch support.
-- Devices must have a working Vulkan path for the bundled Godot runtime.
-- The project does not yet have enough cross-device evidence to publish a precise RAM/GPU minimum. A high-end `SM-F966B` completes full v6 warmup in about 40s; devices that cannot reach the game after the bounded shader warmup path are treated as below the current practical support floor unless their log shows a launcher/runtime bug that can be fixed.
-
-Steam Cloud safety:
-
-- Pull from Steam Cloud is the preferred first action.
-- Push to Steam Cloud is never run automatically.
-- Manual Push is gated because it can overwrite Steam Cloud state.
-- Push remains locked in active modded-save risk states until the launcher has enough evidence that the local save state is safe.
-
-How to help:
-
-- Download the latest APK from [Releases](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases).
-- Use the exact release tag and APK filename in reports; do not write only "latest".
-- Read [Testing needed](docs/testing-needed.md) before filing results.
-- Use the focused GitHub issue templates for crashes, Steam Cloud, branch/download issues, mods/save-merger testing, or device compatibility reports. Read [Issue reporting](docs/issue-reporting.md) before attaching logs, save details, or branch/runtime evidence.
-
-Install/update/uninstall notes:
-
-- Install the APK normally on ARM64 Android hardware.
-- Updating over an existing install should preserve app data when the package name/signing channel matches.
-- If Android reports an update-incompatible install, uninstall the old package first only after accepting that Android will remove that package's local app data.
-- To uninstall, remove the app through Android settings like any other APK. The launcher does not install a separate system service.
-
-Current high-signal reports wanted:
-
-- Launcher screen too small, cannot scroll, or Start Game/Play button unreachable.
-- Controller can navigate menus but cannot act in-game.
-- Crash or stall while compiling shaders.
-- Public-beta, public-after-beta, or core-release branch mismatch.
-- Mods selected but not scanned, not loaded, or SavesMerger saves not visible/loadable.
-
-- Steam version selection user guide: [docs/steam-version-selection-user-guide.md](docs/steam-version-selection-user-guide.md).
-- Branch validation checklist: [docs/steam-version-selection-validation.md](docs/steam-version-selection-validation.md).
-- Branch validation runbook: [docs/steam-version-selection-runbook.md](docs/steam-version-selection-runbook.md).
-- Public-beta integrity runtime checklist: [docs/steam-beta-integrity-runtime-checklist.md](docs/steam-beta-integrity-runtime-checklist.md).
-- Branch release-readiness tracker: [docs/steam-version-selection-release-readiness.md](docs/steam-version-selection-release-readiness.md).
-- Emulator limitation: Android `x86_64` is fallback/diagnostic coverage only. ARM64 hardware remains the proof target.
-
-See [docs/current-android-status.md](docs/current-android-status.md) for the current evidence and remaining blockers.
 
 ## Features
 
@@ -276,7 +234,7 @@ GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
 2. Download the APK named in the current published APK block below.
-    - GitHub's `/releases/latest` currently points at `v0.2.385-shader-warmup-compat`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
+    - GitHub's `/releases/latest` currently points at `v0.2.396-post-startup-anchor`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
     - Release inventory: [docs/github-release-inventory.md](docs/github-release-inventory.md)
     - Current release assets are ARM64-only test packages, named like:
       - `StS2Launcher-v<version>-arm64-v8a.apk`
@@ -286,13 +244,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.385-shader-warmup-compat" `
-  -AssetName "StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.396-post-startup-anchor" `
+  -AssetName "StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.385-shader-warmup-compat" `
-  -AssetName "StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.396-post-startup-anchor" `
+  -AssetName "StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -301,12 +259,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.385-shader-warmup-compat
-Asset: StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk
+Release: v0.2.396-post-startup-anchor
+Asset: StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.385-shader-warmup-compat-local
-VersionCode: 385001
-SHA-256: ab878a3fb1cee64c33f4bfe5a254cac5ff5b6f57340963d3f2a82dfcc3c50b1e
+VersionName: 0.2.396-post-startup-anchor
+VersionCode: 396001
+SHA-256: 1524a5d3c6fe1a8893f53c6ea77ba34443f141dfac67c67eb76e56488e851f7b
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker. Use `scripts\check-github-release-hygiene.ps1` before announcing a release so the APK, checksum sidecar, metadata sidecar, release body, package name, version, and SHA-256 all agree on the fork release page.
@@ -328,7 +286,7 @@ Support boundaries for public testers:
 - This is an unofficial community launcher, is not endorsed by Mega Crit Games, and does not include game files or assets.
 - Do not post Steam credentials, guard codes, refresh tokens, private save data, or full unsanitized logs in public issues or Reddit threads.
 - Current support target is ARM64 Android hardware. x86_64 emulator behavior is diagnostic-only.
-- Current known user-facing pain points are launcher UI scaling/scroll reachability, controller action input, shader compile crashes or stalls, and SavesMerger real-save compatibility.
+- Current known user-facing pain points are launcher UI scaling/scroll reachability, controller action input, shader compile crashes or stalls, Pixel/PowerVR post-main-menu crashes, and SavesMerger real-save compatibility.
 - If reporting a cloud-save issue, say whether you used Pull or Push, but scrub usernames, account IDs, and save contents first.
 
 3. Optional manual checksum verification:
