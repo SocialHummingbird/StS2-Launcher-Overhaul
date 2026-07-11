@@ -28,17 +28,17 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 StS2 Mobile works on some tested ARM64 Android devices, but compatibility is not broad yet. Treat every APK as prerelease tester software.
 
-Latest published APK: [v0.2.396-post-startup-anchor](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.396-post-startup-anchor)
+Latest published APK: [v0.2.397-atlas-memory-compat](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.397-atlas-memory-compat)
 
-- APK asset: `StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `396001`
-- SHA-256: `1524a5d3c6fe1a8893f53c6ea77ba34443f141dfac67c67eb76e56488e851f7b`
+- Version code: `397001`
+- SHA-256: `2ab7d1264ff0c67f8f86a14ed233e9276a4467a63626e09b06510e92145cbeaa`
 - Signing channel: local debug/test channel
 
 Known important limitations:
 
-- Device compatibility varies. A Samsung ARM64 test device reaches the main menu, but a Pixel 10 Pro / Android 17 / PowerVR device still crashes after the game reaches the main menu.
+- Device compatibility varies. `v0.2.397` avoids eagerly loading the largest desktop-compressed atlas sheets on Android and is stable on the tested Samsung ARM64 device, but the Pixel 10 Pro / Android 17 / PowerVR reporter path has not yet retested this release.
 - The app currently targets ARM64 Android hardware. Android emulator and x86_64 builds are diagnostic only and are not supported for real game launch.
 - Some phones may be too slow, have incompatible graphics drivers, or fail while loading/compiling shaders.
 - Steam version selection, beta branches, Workshop mods, and save-merger behavior are still experimental.
@@ -234,7 +234,7 @@ GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
 2. Download the APK named in the current published APK block below.
-    - GitHub's `/releases/latest` currently points at `v0.2.396-post-startup-anchor`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
+    - GitHub's `/releases/latest` currently points at `v0.2.397-atlas-memory-compat`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
     - Release inventory: [docs/github-release-inventory.md](docs/github-release-inventory.md)
     - Current release assets are ARM64-only test packages, named like:
       - `StS2Launcher-v<version>-arm64-v8a.apk`
@@ -244,13 +244,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.396-post-startup-anchor" `
-  -AssetName "StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.397-atlas-memory-compat" `
+  -AssetName "StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.396-post-startup-anchor" `
-  -AssetName "StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.397-atlas-memory-compat" `
+  -AssetName "StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -259,12 +259,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.396-post-startup-anchor
-Asset: StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk
+Release: v0.2.397-atlas-memory-compat
+Asset: StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.396-post-startup-anchor
-VersionCode: 396001
-SHA-256: 1524a5d3c6fe1a8893f53c6ea77ba34443f141dfac67c67eb76e56488e851f7b
+VersionName: 0.2.397-atlas-memory-compat
+VersionCode: 397001
+SHA-256: 2ab7d1264ff0c67f8f86a14ed233e9276a4467a63626e09b06510e92145cbeaa
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker. Use `scripts\check-github-release-hygiene.ps1` before announcing a release so the APK, checksum sidecar, metadata sidecar, release body, package name, version, and SHA-256 all agree on the fork release page.
@@ -286,7 +286,7 @@ Support boundaries for public testers:
 - This is an unofficial community launcher, is not endorsed by Mega Crit Games, and does not include game files or assets.
 - Do not post Steam credentials, guard codes, refresh tokens, private save data, or full unsanitized logs in public issues or Reddit threads.
 - Current support target is ARM64 Android hardware. x86_64 emulator behavior is diagnostic-only.
-- Current known user-facing pain points are launcher UI scaling/scroll reachability, controller action input, shader compile crashes or stalls, Pixel/PowerVR post-main-menu crashes, and SavesMerger real-save compatibility.
+- Current known user-facing pain points are launcher UI scaling/scroll reachability, controller action input, shader compile crashes or stalls, unconfirmed Pixel/PowerVR compatibility after the `v0.2.397` atlas fix, and SavesMerger real-save compatibility.
 - If reporting a cloud-save issue, say whether you used Pull or Push, but scrub usernames, account IDs, and save contents first.
 
 3. Optional manual checksum verification:

@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-07-08_
+_Last updated: 2026-07-11_
 
 See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, and bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
@@ -17,6 +17,14 @@ Current device evidence ledgers:
 ## Headline
 
 The app now works on the validated ARM64 Android path, but it is still unofficial prerelease tester software in polish and hardening rather than release-candidate signoff. The current headline work is Workshop/mod support, public/public-beta runtime-pack correctness, launcher UX polish, release-readiness cleanup, and the Pixel / PowerVR / OpenGL ES compatibility issue tracked in GitHub issue #34.
+
+July 11 atlas compatibility status:
+
+- Reporter `log6.txt` showed that Android deferred startup eagerly called `AtlasManager.LoadAllAtlases()` immediately before the PowerVR process teardown. Unsupported desktop BPTC/DXT atlas pages were converted to RGBA8; the three card pages alone expand to about 166 MiB, with relic, power, and other sheets adding more startup pressure.
+- `v0.2.397-atlas-memory-compat` skips eager `LoadAllAtlases()` on Android. Atlas-backed card, relic, power, and potion resources use individual texture files while their source atlas remains unloaded; entries without an individual fallback can still load the smaller source atlas lazily. Non-Android behavior is unchanged.
+- Exact reporter-runtime validation passed against public `sts2.dll` SHA-256 `a1f9e653f1e28e4076558fee1e60d218619cb7e057b887c6417f62c62c6d7a52` and PCK size `1901378340`. All 875 card sprites have non-BPTC/S3TC individual imports, and all three Harmony prefixes attach to the reporter runtime.
+- Connected ARM64 validation used local evidence APK `0.2.397-atlas-memory-compat-local` on Samsung `SM-F966B`. Public Start Game reached real `NMainMenu`, passed 1s/3s/10s/30s probes and 60s/300s heartbeats, rendered Card Library and Relic Collection, logged individual relic/relic-outline/power fallbacks, and kept one process alive without focused fatal, native signal, ANR, LMKD, lifecycle teardown, or Godot static-string cleanup markers. Steam Cloud Push was not run.
+- The Pixel 10 Pro / Android 17 / PowerVR reporter has not tested `v0.2.397`. This release directly removes the atlas-loading pattern preceding their failure, but it is not broad PowerVR compatibility signoff until that device path confirms it.
 
 July 8 Pixel / PowerVR compatibility status:
 
@@ -131,16 +139,16 @@ remaining=Shader scanner emits noisy Godot error stack traces for some material/
 Latest GitHub APK release evidence:
 
 ```text
-release=v0.2.396-post-startup-anchor
-asset=StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk
-sha256=1524a5d3c6fe1a8893f53c6ea77ba34443f141dfac67c67eb76e56488e851f7b
+release=v0.2.397-atlas-memory-compat
+asset=StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk
+sha256=2ab7d1264ff0c67f8f86a14ed233e9276a4467a63626e09b06510e92145cbeaa
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.396-post-startup-anchor
-versionCode=396001
-validation=GitHub release hygiene check passed with matching APK/checksum/metadata. Local ARM64 Samsung SM-F966B validation reached NMainMenu, logged post-startup probes at 1s/3s/10s/30s, logged heartbeats at 60s/120s with persisted marker later reaching 180s, and showed no NativeFallback, fatal exception, AndroidRuntime fatal, SIGSEGV, SIGABRT, fatal signal, ANR, LMKD kill, app has died marker, or Godot static-string cleanup marker.
-cloudSafety=No Push to Cloud was run during the matching post-startup anchor validation.
-knownIssue=Reporter evidence on Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536 still crashes after the anchor logs active and before the first 1s post-startup probe. Treat this release as launcher-handoff diagnostic/hardening, not broad PowerVR/OpenGL ES compatibility signoff.
-evidence=GitHub release v0.2.396-post-startup-anchor assets and metadata; local ARM64 evidence under artifacts/android/issue34-post-startup-anchor-20260707-220614; reporter issue #34 log6.txt narrowed the remaining failure to post-main-menu Godot/native graphics-resource teardown on the PowerVR/OpenGL ES fallback path.
+versionName=0.2.397-atlas-memory-compat
+versionCode=397001
+validation=Release APK build, ARM64 content/ABI checks, Android crypto verification, checksum/metadata generation, and direct-update compatibility against v0.2.396 passed. Same-source local evidence on Samsung SM-F966B reached NMainMenu, passed 1s/3s/10s/30s probes and 60s/300s heartbeats, rendered Card Library and Relic Collection through the individual fallback path, and showed no focused fatal, native signal, ANR, app kill, lifecycle teardown, or Godot static-string cleanup marker.
+cloudSafety=No Push to Cloud was run during the matching atlas compatibility validation.
+knownIssue=The Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536 reporter path has not retested v0.2.397. Treat this as a targeted Android atlas/resource-pressure fix, not broad PowerVR/OpenGL ES compatibility signoff.
+evidence=GitHub release v0.2.397-atlas-memory-compat assets and metadata; local ARM64 evidence under artifacts/android/issue34-atlas-compat-20260711-055456Z; reporter issue #34 log6.txt identified eager desktop-compressed atlas loading immediately before teardown.
 ```
 
 Previous GitHub shader-warmup APK evidence:

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-11 - Android atlas memory compatibility
+
+- Added an Android-only atlas compatibility path for issue #34 that skips eager `AtlasManager.LoadAllAtlases()` during deferred startup.
+- Atlas-backed card, relic, power, and potion resources now prefer individual texture files while their source atlas is unloaded; missing individual entries can still use lazy source-atlas loading.
+- Added exact reporter-runtime/PCK validation and a Harmony attachment probe. All 875 card sprites in the reporter PCK have individual imports that avoid BPTC/S3TC.
+- Connected ARM64 validation on Samsung `SM-F966B` reached real `NMainMenu`, passed post-startup probes and the 300-second heartbeat, and rendered Card Library and Relic Collection without focused fatal, native signal, ANR, LMKD, lifecycle teardown, or static-string cleanup evidence.
+- Published tester APK `v0.2.397-atlas-memory-compat`; PowerVR confirmation remains pending on the Pixel 10 Pro / Android 17 reporter device. Steam Cloud Push was not run.
+
 ## 2026-07-05 - Normal launch automation and shader warmup evidence
 
 - Added file-based normal launch automation with `action=launch`, separate from `action=launchsafe`, so device evidence can trigger the real Start Game path without unreliable rotated-display coordinate taps.
