@@ -35,6 +35,7 @@ internal static partial class StartupPatchOrchestrator
                 new("UI scaling", UiScalePatches.Apply),
                 new("Mobile layout", MobileLayoutPatches.Apply),
                 new("Run history asset fallback", RunHistoryAssetPatches.Apply),
+                new("Android atlas compatibility", AndroidAtlasCompatibilityPatches.Apply),
                 new("Dev console Android fallback", DevConsolePatches.Apply),
                 new("Event layout", EventLayoutPatches.Apply),
                 new("Merchant layout", MerchantLayoutPatches.Apply),
