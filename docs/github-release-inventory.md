@@ -1,15 +1,13 @@
-# GitHub Release Inventory
+﻿# GitHub Release Inventory
 
 Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-github-release-inventory.ps1`.
 
 ## Current Download
 
-- Recommended newest APK release: `v0.2.385-shader-warmup-compat`
-- APK: `StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk`
-- SHA-256: `ab878a3fb1cee64c33f4bfe5a254cac5ff5b6f57340963d3f2a82dfcc3c50b1e`
-- GitHub `/releases/latest` non-prerelease target: `v0.2.385-shader-warmup-compat`
-
-This is an unofficial community tester APK. It is not affiliated with or endorsed by Mega Crit Games and includes no Slay the Spire 2 game files or assets. Steam ownership is required.
+- Recommended newest APK release: `v0.2.397-atlas-memory-compat`
+- APK: `StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk`
+- SHA-256: `2ab7d1264ff0c67f8f86a14ed233e9276a4467a63626e09b06510e92145cbeaa`
+- GitHub `/releases/latest` non-prerelease target: `v0.2.397-atlas-memory-compat`
 
 ## Release Classes
 
@@ -23,7 +21,15 @@ This is an unofficial community tester APK. It is not affiliated with or endorse
 
 | Published | Release | Class | APK | Checksum | Metadata | Body APK/SHA | Issues |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-07-07 | `v0.2.385-shader-warmup-compat` | `current-prerelease` | `StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-11 | `v0.2.397-atlas-memory-compat` | `current-prerelease` | `StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-07 | `v0.2.396-post-startup-anchor` | `historical-release` | `StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-07 | `v0.2.395-native-lifecycle-evidence` | `historical-release` | `StS2Launcher-v0.2.395-native-lifecycle-evidence-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-07 | `v0.2.394-recovery-ui-hide` | `historical-release` | `StS2Launcher-v0.2.394-recovery-ui-hide-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-07 | `v0.2.393-post-startup-heartbeat` | `historical-release` | `StS2Launcher-v0.2.393-post-startup-heartbeat-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-07 | `v0.2.392-dev-console-mobile-hardening` | `historical-release` | `StS2Launcher-v0.2.392-dev-console-mobile-hardening-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-07 | `v0.2.391-post-startup-trace-state` | `historical-release` | `StS2Launcher-v0.2.391-post-startup-trace-state-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-07 | `v0.2.389-shader-recovery-state` | `historical-release` | `StS2Launcher-v0.2.389-shader-recovery-state-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-07 | `v0.2.385-shader-warmup-compat` | `historical-release` | `StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-06 | `v0.2.384-launch-cache-guard` | `historical-release` | `StS2Launcher-v0.2.384-launch-cache-guard-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-06 | `v0.2.377-shader-warmup-budget` | `historical-release` | `StS2Launcher-v0.2.377-shader-warmup-budget-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-05 | `v0.2.369-public-beta-stability` | `historical-release` | `StS2Launcher-v0.2.369-public-beta-stability-arm64-v8a.apk` | yes | json | yes/yes | ok |
@@ -55,16 +61,6 @@ This is an unofficial community tester APK. It is not affiliated with or endorse
 | 2026-06-20 | `v0.2.275-local-mobile-ui-ux-1b6ffd1` | `historical-test-prerelease` | `StS2Launcher-v0.2.275-local-mobile-ui-ux-1b6ffd1-arm64-v8a.apk` | yes | json | no/yes | body missing APK |
 | 2026-06-20 | `v0.2.274-local-status-docs` | `historical-test-prerelease` | `StS2Launcher-v0.2.274-local-status-docs-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-06-20 | `v0.2.273-local-startup-overlay-fix` | `historical-test-prerelease` | `StS2Launcher-v0.2.273-local-startup-overlay-fix-arm64-v8a.apk` | yes | json | no/yes | body missing APK |
-| 2026-06-19 | `v0.2.188-local-runtime-beta-fix38-cache-identity` | `historical-test-prerelease` | `StS2Launcher-v0.2.188-local-runtime-beta-fix38-cache-identity-arm64-v8a.apk` | yes | json | no/no | body missing APK; body missing SHA |
-| 2026-06-19 | `v0.2.188-local-runtime-beta-fix30-public-after-beta` | `historical-test-prerelease` | `StS2Launcher-v0.2.188-local-runtime-beta-fix30-public-after-beta-arm64-v8a.apk` | yes | json | no/yes | body missing APK |
-| 2026-06-18 | `v0.2.188-local-runtime-beta-fix27` | `historical-test-prerelease` | `StS2Launcher-v0.2.188-local-runtime-beta-fix27-arm64-v8a.apk` | yes | json | no/no | body missing APK; body missing SHA |
-| 2026-06-18 | `v0.2.188-local-runtime-beta-fix23` | `historical-test-prerelease` | `StS2Launcher-v0.2.188-local-runtime-beta-fix23-arm64-v8a.apk` | yes | json | no/no | body missing APK; body missing SHA |
-| 2026-06-18 | `v0.2.188-local-runtime-beta-fix21` | `historical-test-prerelease` | `StS2Launcher-v0.2.188-local-runtime-beta-fix21-arm64-v8a.apk` | no | no | no/yes | missing checksum; missing metadata; body missing APK |
-| 2026-06-18 | `v0.2.188-local-runtime-beta-fix20` | `historical-test-prerelease` | `StS2Launcher-v0.2.188-local-runtime-beta-fix20-arm64-v8a.apk` | no | no | no/yes | missing checksum; missing metadata; body missing APK |
-| 2026-06-18 | `v0.2.188-local-runtime-beta-fix16` | `historical-test-prerelease` | `StS2Launcher-v0.2.188-local-runtime-beta-fix16-arm64-v8a.apk` | yes | no | yes/yes | missing metadata |
-| 2026-06-16 | `v0.2.188-branch-cache-hardening` | `historical-release` | `StS2Launcher-v0.2.188-branch-cache-hardening-arm64-v8a.apk` | yes | build-info | yes/yes | ok |
-| 2026-06-14 | `v0.2.187-beta-art-fallback` | `historical-release` | `StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk` | yes | build-info | no/no | body missing APK; body missing SHA |
-| 2026-06-13 | `v0.2.186-sts2-mobile-version-selection` | `historical-release` | `StS2Launcher-v0.2.186-sts2-mobile-version-selection-arm64-v8a.apk` | yes | build-info | no/no | body missing APK; body missing SHA |
 
 ## Required Hygiene For New Releases
 
