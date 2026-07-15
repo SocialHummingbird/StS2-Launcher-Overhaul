@@ -34,11 +34,7 @@ run/main_scene="res://bootstrap.tscn"
 
 [display]
 
-window/size/viewport_width=1920
-window/size/viewport_height=1080
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
-window/handheld/orientation=4
+window/handheld/orientation=6
 
 [dotnet]
 
@@ -46,8 +42,8 @@ project/assembly_name="sts2"
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
 """
 
 BOOTSTRAP_SCENE = """\
@@ -65,14 +61,10 @@ PROJECT_SETTINGS = [
     ("application/config/name", ("string", "sts2")),
     ("application/config/features", ("packed_string_array", ["4.5", "Forward Plus", "C#"])),
     ("application/run/main_scene", ("string", "res://bootstrap.tscn")),
-    ("display/window/size/viewport_width", ("int", 1920)),
-    ("display/window/size/viewport_height", ("int", 1080)),
-    ("display/window/stretch/mode", ("string", "canvas_items")),
-    ("display/window/stretch/aspect", ("string", "expand")),
-    ("display/window/handheld/orientation", ("int", 4)),
+    ("display/window/handheld/orientation", ("int", 6)),
     ("dotnet/project/assembly_name", ("string", "sts2")),
-    ("rendering/renderer/rendering_method", ("string", "gl_compatibility")),
-    ("rendering/renderer/rendering_method.mobile", ("string", "gl_compatibility")),
+    ("rendering/renderer/rendering_method", ("string", "mobile")),
+    ("rendering/renderer/rendering_method.mobile", ("string", "mobile")),
 ]
 
 

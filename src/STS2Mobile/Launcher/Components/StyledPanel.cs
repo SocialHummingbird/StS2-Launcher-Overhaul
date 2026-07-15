@@ -21,10 +21,8 @@ internal sealed class StyledPanel : CenterContainer
         var panelContainer = new PanelContainer();
         panelContainer.CustomMinimumSize = new Vector2(vpSize.X * widthRatio, 0);
 
-        panelContainer.AddThemeStyleboxOverride(
-            LauncherComponentTheme.Panel,
-            BuildStyle(scale, compact)
-        );
+        _panelStyle = BuildStyle(scale, compact);
+        panelContainer.AddThemeStyleboxOverride(LauncherComponentTheme.Panel, _panelStyle);
         AddChild(panelContainer);
 
         Content = new VBoxContainer();
@@ -36,17 +34,37 @@ internal sealed class StyledPanel : CenterContainer
         _panelContainer = panelContainer;
         _widthRatio = widthRatio;
         _compact = compact;
+        _baseContentMarginLeft = _panelStyle.ContentMarginLeft;
+        _baseContentMarginRight = _panelStyle.ContentMarginRight;
+        _baseContentMarginTop = _panelStyle.ContentMarginTop;
     }
 
     private readonly PanelContainer _panelContainer;
+    private readonly StyleBoxFlat _panelStyle;
     private readonly float _widthRatio;
     private readonly bool _compact;
+    private readonly float _baseContentMarginLeft;
+    private readonly float _baseContentMarginRight;
+    private readonly float _baseContentMarginTop;
+    private Vector3 _safeAreaContentInsets;
 
     internal void AddContent(Control control)
         => Content.AddChild(control);
 
     internal void OnPanelGuiInput(Action<InputEvent> handler)
         => _panelContainer.GuiInput += input => handler(input);
+
+    internal void UpdateSafeAreaContentInsets(int left, int top, int right)
+    {
+        var insets = new Vector3(left, top, right);
+        if (insets == _safeAreaContentInsets)
+            return;
+
+        _safeAreaContentInsets = insets;
+        _panelStyle.ContentMarginLeft = _baseContentMarginLeft + left;
+        _panelStyle.ContentMarginTop = _baseContentMarginTop + top;
+        _panelStyle.ContentMarginRight = _baseContentMarginRight + right;
+    }
 
     internal void UpdateSizeFromViewport(Vector2 vpSize)
         => _panelContainer.CustomMinimumSize = new Vector2(

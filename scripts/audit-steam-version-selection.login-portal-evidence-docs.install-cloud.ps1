@@ -40,7 +40,7 @@ function Add-SteamVersionSelectionLoginPortalEvidenceDocsInstallCloudChecks {
             "Compact recovery/tools actions stack full-width on narrow compact viewports",
             "Compact phone cloud safety starts collapsed",
             "Compact collapsed cloud-safety drawer reads Save Check / Get saves first so it does not look like the Get Steam Saves action",
-            "Compact cloud-safety cue appears before Pull/Push controls",
+            "Compact cloud-safety cue remains beside the guarded Pull/Push controls",
             "Compact expanded cloud-safety detail says Saves for and Get Steam saves before upload / Upload can overwrite Steam",
             "Cloud safety expands/collapses while preserving Pull/Push controls",
             "Compact phone cloud options start collapsed",
@@ -68,15 +68,15 @@ function Add-SteamVersionSelectionLoginPortalEvidenceDocsInstallCloudChecks {
             "Help & Reports drawer hidden by default",
             "Compact diagnostics toggle uses a touch-safe two-line detail label",
             "Compact diagnostics toggle renders title/detail labels as structured controls",
-            "Compact diagnostics is inside the scroll body rather than fixed root chrome",
+            "Diagnostics is hosted inside the scrollable Help destination rather than fixed root chrome",
             "Raw startup fallback failure text hidden from portal",
-            "The compact workflow strip shows visible step labels such as Sign in / Account, Verify / Steam Guard, Files / Game files, and Play / Saves safe; it does not rely on hover-only tooltips",
-            "The compact workflow strip is touch-safe enough for Android while keeping two-line step labels readable",
+            "Home, Saves, Versions, Mods, and Help are all reachable through persistent navigation",
+            "Changing destinations resets only the destination page to its top without jumping to a stale task anchor",
             "The compact game-version dropdown is large enough to read and tap when the version drawer is expanded",
             "Opening the compact game-version dropdown shows larger touch-safe popup row spacing and horizontal padding",
-            "Compact Play and Sync ready-version summary is a readable touch-safe card with Save Check and Upload locked cues",
-            "Compact Play and Sync ready-version summary shortcut opens Save Check without unlocking Push",
-            "Compact Play and Sync keeps the ready summary, Save Check shortcut, Get-saves-first cloud controls, and Start Game before version management",
-            "Compact Play and Sync keeps save backup and cloud sync options below Start Game as optional controls"
+            "Compact Home readiness summary is readable and keeps Save Check and Upload locked cues concise",
+            "Compact Home keeps Start Game and Safe Start above the fold without exposing Push controls",
+            "Compact Saves keeps Get Steam Saves before the locked upload flow",
+            "Compact Saves keeps backup and cloud-sync options below the guarded Pull/Push actions"
         )
 }

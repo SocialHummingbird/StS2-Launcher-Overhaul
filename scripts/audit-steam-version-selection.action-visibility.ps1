@@ -81,19 +81,19 @@ function Add-SteamVersionSelectionActionVisibilityChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\Sections\ActionSection.Visibility.Support.cs" `
-        "keeps compact update and support-tool visibility together" `
+        "keeps Help tools available while Versions tools follow action readiness" `
         @(
             "ShowUpdateButton",
             "CompactSupportToolText\(""Check Files"", ""Updates""\)",
             "Check for Updates",
             "SetSupportButtonsVisible",
+            "_supportToggle\.Visible = false",
             "_supportExpanded = false",
             "_supportGroup\.Visible = false",
-            "SupportToggleText\(\)",
-            "_diagnosticsButton\.Visible = visible",
+            "_diagnosticsButton\.Visible = true",
             "_refreshVersionsButton\.Visible = visible",
             "_clearCachedVersionsButton\.Visible = visible",
-            "_showLastErrorButton\.Visible = visible",
-            "_copyRawLogButton\.Visible = visible"
+            "_showLastErrorButton\.Visible = true",
+            "_copyRawLogButton\.Visible = true"
         )
 }

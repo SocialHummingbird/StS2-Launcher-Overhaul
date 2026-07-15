@@ -12,6 +12,7 @@ internal sealed partial class LauncherView
     {
         if (visible)
         {
+            SelectHomeDestination();
             SetFirstRunGuideVisible(false);
             HideCompactCompletedAuthSections(showCode: false);
         }
@@ -27,6 +28,7 @@ internal sealed partial class LauncherView
 
     internal void ShowCodePrompt(bool wasIncorrect)
     {
+        SelectHomeDestination();
         SetFirstRunGuideVisible(false);
         HideCompactCompletedAuthSections(showCode: true);
         SetCompactWorkflowStep(CompactWorkflowStep.Code);
@@ -36,7 +38,7 @@ internal sealed partial class LauncherView
     }
 
     private void SetFirstRunGuideVisible(bool visible)
-        => FirstRunGuide.Visible = !_profile.Compact || visible;
+        => FirstRunGuide.Visible = visible;
 
     private void HideCompactCompletedAuthSections(bool showCode)
     {

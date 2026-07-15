@@ -37,7 +37,6 @@ internal sealed partial class ActionSection
 
         var supportFoundation = BuildSupportFoundation(scale, compact, _compactStackedActionRows);
         _supportGroup = supportFoundation.Group;
-        _supportToolsGrid = supportFoundation.ToolsGrid;
         var supportToolsParent = supportFoundation.ToolsParent;
 
         var primaryActions = BuildPrimaryActionControls(scale, compact, supportToolsParent);
@@ -74,7 +73,6 @@ internal sealed partial class ActionSection
         ConfigureLocalBackupToggle();
         ConfigureCloudSyncToggle();
         UpdateBranchHelpText();
-        ArrangeCompactCloudGroupPriority();
 
         var modsControls = BuildModsControls(scale, compact);
         _modsGroup = modsControls.Group;
@@ -95,6 +93,6 @@ internal sealed partial class ActionSection
         _showLastErrorButton = supportControls.ShowLastErrorButton;
         _copyRawLogButton = supportControls.CopyRawLogButton;
 
-        ArrangeCompactReadyStatePriority();
+        BuildDestinationLayout();
     }
 }

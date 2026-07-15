@@ -9,34 +9,45 @@ internal sealed partial class LauncherView
     private static LauncherViewPrimaryColumn BuildPrimaryColumn(LauncherLayoutProfile profile, VBoxContainer root)
     {
         var scale = profile.Scale;
-        var compactCurrentTaskButton = BuildCompactCurrentTaskButton(scale, profile.Compact);
-        var workflowStrip = BuildCompactWorkflowStrip(scale, profile.Compact, profile.CompactStackedActionRows);
+        Button compactCurrentTaskButton = null;
         GridContainer compactStickyTaskHeader = null;
-        if (profile.Compact)
-        {
-            var stickyHeader = BuildCompactStickyTaskHeader(profile, compactCurrentTaskButton, workflowStrip.Strip);
-            compactStickyTaskHeader = stickyHeader.Header;
-            root.AddChild(stickyHeader.Toolbar);
-        }
+        Control compactWorkflowStrip = null;
+        var workflowStepNumberLabels = Array.Empty<Components.StyledLabel>();
+        var workflowStepLabels = Array.Empty<Components.StyledLabel>();
+        var workflowStepDetailLabels = Array.Empty<Components.StyledLabel>();
+        var workflowStepAccents = Array.Empty<ColorRect>();
+        var workflowStepButtons = Array.Empty<Button>();
 
         var primaryBody = BuildPrimaryColumnBody(profile, root);
         var left = primaryBody.Body;
 
         var status = BuildPrimaryStatus(profile);
         left.AddChild(status.Capsule);
-        if (!profile.Compact)
-            left.AddChild(workflowStrip.Strip);
         var firstRunGuide = BuildFirstRunGuide(scale, profile.Compact);
-        left.AddChild(firstRunGuide);
+        var homeSections = new VBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        homeSections.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(
+                profile.Compact
+                    ? LauncherViewLayoutMetrics.CompactPrimaryColumnSeparation
+                    : LauncherViewLayoutMetrics.PrimaryColumnSeparation,
+                scale
+            )
+        );
+        left.AddChild(homeSections);
+        homeSections.AddChild(firstRunGuide);
 
         var login = new LoginSection(scale, profile.Compact);
-        left.AddChild(login);
+        homeSections.AddChild(login);
 
         var code = new CodeSection(scale, profile.Compact, profile.CompactStackedActionRows);
-        left.AddChild(code);
+        homeSections.AddChild(code);
 
         var download = new DownloadSection(scale, profile.Compact, profile.CompactStackedActionRows);
-        left.AddChild(download);
+        homeSections.AddChild(download);
 
         var actions = new ActionSection(scale, profile.Compact, profile.CompactStackedActionRows);
         left.AddChild(actions);
@@ -56,10 +67,7 @@ internal sealed partial class LauncherView
             left.AddChild(compactDiagnosticsHost);
         }
 
-        left.AddChild(BuildFmodAttributionSection(scale, profile.Compact));
-        if (profile.Compact)
-            left.AddChild(BuildCompactBottomScrollSpacer(scale));
-
+        actions.HelpDiagnosticsHost.AddChild(BuildFmodAttributionSection(scale, profile.Compact));
         return new LauncherViewPrimaryColumn(
             status.Phase,
             status.Action,
@@ -67,17 +75,18 @@ internal sealed partial class LauncherView
             status.CompactDetailButton,
             status.CompactDetailCue,
             status.Accent,
-            workflowStrip.StepNumberLabels,
-            workflowStrip.StepLabels,
-            workflowStrip.StepDetailLabels,
-            workflowStrip.StepAccents,
-            workflowStrip.StepButtons,
+            workflowStepNumberLabels,
+            workflowStepLabels,
+            workflowStepDetailLabels,
+            workflowStepAccents,
+            workflowStepButtons,
             status.CompactHeadline,
             status.CompactPhasePanel,
             compactStickyTaskHeader,
-            workflowStrip.Strip,
+            compactWorkflowStrip,
             compactCurrentTaskButton,
             primaryBody.PrimaryScroll,
+            homeSections,
             firstRunGuide,
             login,
             code,

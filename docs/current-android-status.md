@@ -139,6 +139,21 @@ remaining=Shader scanner emits noisy Godot error stack traces for some material/
 Latest GitHub APK release evidence:
 
 ```text
+release=v0.2.398-launcher-ui-redesign
+asset=StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk
+sha256=52d05adf3a26ee8c2135edae6ceb986a2d021b99c4b92a4c00eebc7e4fa66d97
+package=com.sts2launcher.overhaul.fork.local
+versionName=0.2.398-launcher-ui-redesign-local
+versionCode=398031
+validation=ARM64 APK build and ABI/content/crypto verification passed; exact APK installed over existing app data on Samsung SM-F966B; deterministic desktop matrix passed 20 screenshots across phone portrait, phone landscape, foldable, and desktop viewports; accessibility, bounds, target-size, event-routing, and cloud-Push non-invocation contract passed; static audit passed 819 checks. Final unlocked physical portrait/landscape capture did not run because the device disconnected.
+cloudSafety=No Push to Cloud was run.
+knownIssue=The Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536 reporter path remains unresolved and has not tested v0.2.398. Exact-build unlocked cover/inner five-destination visual evidence and real game handoff are also not claimed.
+evidence=GitHub release v0.2.398-launcher-ui-redesign assets and metadata; artifacts/ui-preview; artifacts/android/StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk and sidecars.
+```
+
+Previous GitHub atlas compatibility release evidence:
+
+```text
 release=v0.2.397-atlas-memory-compat
 asset=StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk
 sha256=2ab7d1264ff0c67f8f86a14ed233e9276a4467a63626e09b06510e92145cbeaa
@@ -147,7 +162,7 @@ versionName=0.2.397-atlas-memory-compat
 versionCode=397001
 validation=Release APK build, ARM64 content/ABI checks, Android crypto verification, checksum/metadata generation, and direct-update compatibility against v0.2.396 passed. Same-source local evidence on Samsung SM-F966B reached NMainMenu, passed 1s/3s/10s/30s probes and 60s/300s heartbeats, rendered Card Library and Relic Collection through the individual fallback path, and showed no focused fatal, native signal, ANR, app kill, lifecycle teardown, or Godot static-string cleanup marker.
 cloudSafety=No Push to Cloud was run during the matching atlas compatibility validation.
-knownIssue=The Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536 reporter path has not retested v0.2.397. Treat this as a targeted Android atlas/resource-pressure fix, not broad PowerVR/OpenGL ES compatibility signoff.
+knownIssue=The Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536 reporter path did not retest v0.2.397. Treat this as a targeted Android atlas/resource-pressure fix, not broad PowerVR/OpenGL ES compatibility signoff.
 evidence=GitHub release v0.2.397-atlas-memory-compat assets and metadata; local ARM64 evidence under artifacts/android/issue34-atlas-compat-20260711-055456Z; reporter issue #34 log6.txt identified eager desktop-compressed atlas loading immediately before teardown.
 ```
 
@@ -178,7 +193,20 @@ validation=Android build/APK verification passed; ARM64 public/default, public-a
 upgradeBaseline=local runtime-pack validation line
 ```
 
-Latest local launcher UI hardening evidence:
+Matching launcher UI redesign evidence:
+
+```text
+build=0.2.398-launcher-ui-redesign-local
+asset=StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk
+versionCode=398031
+sha256=52d05adf3a26ee8c2135edae6ceb986a2d021b99c4b92a4c00eebc7e4fa66d97
+scope=five stable Home/Saves/Versions/Mods/Help destinations; phone bottom navigation; wide foldable/tablet top navigation; destination-owned controls; deterministic destination page origin; Android safe-area handling; responsive confirmation, Steam Guard, and diagnostics layouts; retained Pull-before-Push and explicit Push confirmation gates
+validation=ARM64 APK build and ABI/content/crypto verification passed; installed over existing app data on SM-F966B; deterministic desktop matrix passed 20 screenshots across phone portrait, phone landscape, foldable, and desktop viewports; accessibility, bounds, target-size, event-routing, and cloud-Push non-invocation contract passed; static audit passed 819 checks
+evidence=artifacts/ui-preview; artifacts/android/StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk and sidecars
+not_yet_proven=exact-build unlocked cover/inner five-destination visual pass and real game handoff; Steam Cloud Push was deliberately not run
+```
+
+Previous local launcher UI hardening evidence:
 
 ```text
 build=0.2.273-local-startup-overlay-fix
@@ -384,6 +412,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Recovery cleanup logging now describes normal post-startup cleanup as success-path UI cleanup.
 - Diagnostics filters retain startup freshness, assembly cache, expectedSource/expectedBytes, cloud sync, and crash evidence while reducing broad log noise.
 - Native splash now uses the scalable launcher vector icon, shader-warmup/loading uses an Android-readable mobile-width compact panel, post-launch startup status uses a framed mobile-width card, native fallback keeps verbose diagnostics collapsed until requested and splits recovery actions into responsive rows on narrow landscape screens, the native Steam login panel uses portrait full-width controls plus responsive wide credential/action rows in landscape, short-height copy on cramped landscape screens, sentence-case action labels with Android all-caps transformation disabled, short-height copy reflow when the landscape height class or IME-visible usable height changes, and reflows when Android orientation/screen size changes, and the launcher itself now uses a short-edge-aware responsive shell with collapsible diagnostics, readable bounded compact diagnostics log output with viewport-aware resizing, viewport-aware compact status headline reflow, viewport-aware sticky task header reflow, viewport-aware compact task re-anchoring, viewport-aware compact Steam Guard code/action row reflow, structured compact Sign in with Steam / Android login labeling, compact Steam Guard bounded two-line helper labels, structured compact Verify Code / Submit once labeling, compact Start Game / Ready version launch CTA labeling, structured compact Get Steam Saves / Download to Android labeling, primary structured compact retry recovery, compact launcher-log review labeling, structured compact startup recovery actions, structured compact Upload Locked / Review first title/detail labels, and structured compact Upload to Steam / Overwrite cloud and Confirm Upload / Overwrite cloud title/detail labels after explicit unlock.
+- The `0.2.398-launcher-ui-redesign-local` work supersedes the launcher's sticky task header, workflow strip, task re-anchoring, and all-in-one scroll surface. Home, Saves, Versions, Mods, and Help now own stable page bodies; phone layouts use bottom navigation, wide foldable/tablet layouts use top navigation, and Android safe-area plus composition refresh handling covers rotation and cover-display changes. The native login, warmup, startup-status, and fallback behavior described above remains in place.
 
 ## Static upgrade/cache freshness review
 

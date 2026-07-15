@@ -8,6 +8,8 @@ internal sealed partial class ActionSection
     {
         PatchHelper.Log("[Launcher] ActionSection.ShowLaunch phase: visible");
         Visible = true;
+        _homeActionsAvailable = true;
+        ApplyDestinationVisibility();
         PatchHelper.Log("[Launcher] ActionSection.ShowLaunch phase: launch button text");
         SetCompactActionButtonText(_launchButton, _compact ? CompactLaunchButtonText(text) : text);
         PatchHelper.Log("[Launcher] ActionSection.ShowLaunch phase: launch buttons");
@@ -22,6 +24,8 @@ internal sealed partial class ActionSection
     internal void ShowRetry()
     {
         Visible = true;
+        _homeActionsAvailable = true;
+        ApplyDestinationVisibility();
         _retryButton.Visible = true;
         SetCloudControlsVisible(false);
         ShowRetryButtons();
@@ -29,7 +33,9 @@ internal sealed partial class ActionSection
 
     internal void HideAll()
     {
-        Visible = false;
+        Visible = true;
+        _homeActionsAvailable = false;
+        ApplyDestinationVisibility();
         _retryButton.Visible = false;
         SetCloudControlsVisible(false);
         HideSecondaryButtons();

@@ -18,20 +18,17 @@ function Add-SteamVersionSelectionReleaseStatusDocsAndroidStatusChecks {
 
     Add-Check `
         "README.md" `
-        "advertises version selection as published but not release-candidate signed off" `
+        "explains published tester scope and version-selection limitations in user-facing language" `
         @(
-            "implemented for validation",
-            "steam-version-selection-release-readiness\.md",
-            "not release-candidate signed off",
-            "discovery-led dropdown selector",
+            "unofficial Android launcher",
+            "You must own Slay the Spire 2 on Steam",
+            "compatibility is not broad yet",
+            "Steam version selection, beta branches, Workshop mods, and save-merger behavior are still experimental",
             "Refresh Game Versions",
-            "public-inherited",
-            "public-vs-beta integrity classification",
-            "steam-beta-integrity-runtime-checklist\.md",
-            "mixed beta/public behavior",
-            "Autofill",
+            "Steam beta password entry is not implemented",
+            "ARM64",
+            "Steam Cloud Push is intentionally cautious",
             "SteamKit debug logs are disabled by default",
-            "Steam beta password entry",
-            "Push backup evidence"
+            "does not store or inject Steam passwords"
         )
 }

@@ -16,11 +16,15 @@ internal static partial class CompactButtonDetailLabels
         {
             Hide(button, spec);
             button.Text = text;
+            button.AccessibilityName = text ?? "";
+            button.AccessibilityDescription = "";
             return;
         }
 
         var labels = Ensure(button, scale, spec);
         button.Text = "";
+        button.AccessibilityName = title;
+        button.AccessibilityDescription = detail;
         labels.Body.Visible = true;
         labels.Title.Text = title;
         labels.Detail.Text = detail;

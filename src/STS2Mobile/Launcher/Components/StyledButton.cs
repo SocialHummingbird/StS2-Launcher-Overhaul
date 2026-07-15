@@ -12,6 +12,7 @@ internal sealed class StyledButton : Button
     )
     {
         Text = text;
+        AccessibilityName = text;
         ClipText = true;
         TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         CustomMinimumSize = new Vector2(0, LauncherComponentTheme.ScaleInt(scale, height));

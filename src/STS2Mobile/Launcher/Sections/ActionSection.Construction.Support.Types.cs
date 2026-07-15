@@ -6,15 +6,13 @@ internal sealed partial class ActionSection
 {
     private readonly struct SupportFoundation
     {
-        internal SupportFoundation(VBoxContainer group, GridContainer toolsGrid, Container toolsParent)
+        internal SupportFoundation(VBoxContainer group, Container toolsParent)
         {
             Group = group;
-            ToolsGrid = toolsGrid;
             ToolsParent = toolsParent;
         }
 
         internal VBoxContainer Group { get; }
-        internal GridContainer ToolsGrid { get; }
         internal Container ToolsParent { get; }
     }
 

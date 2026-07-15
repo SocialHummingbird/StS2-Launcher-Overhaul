@@ -1,10 +1,12 @@
+using Godot;
+
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
     private void WireCompactWorkflowStepNavigation()
     {
-        if (!_profile.Compact)
+        if (!_profile.Compact || _workflowStepButtons.Length == 0)
             return;
 
         for (var i = 0; i < _workflowStepButtons.Length; i++)
@@ -16,7 +18,7 @@ internal sealed partial class LauncherView
 
     private void WireCompactCurrentTaskNavigation()
     {
-        if (!_profile.Compact)
+        if (!_profile.Compact || !GodotObject.IsInstanceValid(_compactCurrentTaskButton))
             return;
 
         _compactCurrentTaskButton.Pressed += () => ScrollCompactPrimaryTo(_compactCurrentTaskTarget);

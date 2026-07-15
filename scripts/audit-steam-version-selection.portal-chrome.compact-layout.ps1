@@ -1,19 +1,23 @@
 function Add-SteamVersionSelectionPortalChromeCompactLayoutChecks {
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherLayoutProfile.cs" `
-        "uses the full available Android viewport for compact launcher layouts" `
+        "separates touch sizing from phone, landscape, and foldable layout modes" `
         @(
-            "mobileShell = OperatingSystem\.IsAndroid\(\)",
-            "compact = mobileShell",
+            "ForViewport\(\s*Vector2 viewportSize,\s*bool touchOptimized",
+            "ResolveMode\(safeViewport, shortEdge, aspect, touchOptimized\)",
+            "compact = mode != LauncherLayoutMode\.Wide",
             "AndroidCompactTouchScaleFloor = 1\.06f",
-            "mobileShell \? AndroidCompactTouchScaleFloor : CompactScaleFloor",
+            "ResolveAndroidScale\(viewportScale\)",
             "CompactStackedActionRowsWidth = 560f",
             "CompactStackedActionRows",
             "contentMaxWidth < MathF\.Round\(CompactStackedActionRowsWidth \* scale\)",
             "panelWidth = compact \? 1\.0f",
             "panelHeight = compact \? 1\.0f",
             "Math\.Min\(safeViewport\.X \* 0\.96f, 1600f\)",
-            "Math\.Min\(safeViewport\.X \* 0\.84f, 1180f\)",
+            "foldableOrTablet = shortEdge >= 1280f && aspect <= 1\.7f",
+            "LauncherLayoutMode\.PhonePortrait",
+            "LauncherLayoutMode\.PhoneLandscape",
+            "LauncherLayoutMode\.Wide",
             "CompactStackedActionRows=\{CompactStackedActionRows\}"
         )
 

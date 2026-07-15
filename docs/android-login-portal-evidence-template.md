@@ -88,7 +88,7 @@ Help & Reports drawer opens only when requested:
 Compact diagnostics toggle uses a touch-safe two-line detail label:
 Compact diagnostics toggle renders title/detail labels as structured controls:
 Compact diagnostics drawer title/help copy is user-facing and review-before-sharing safe:
-Compact diagnostics is inside the scroll body rather than fixed root chrome:
+Diagnostics is hosted inside the scrollable Help destination rather than fixed root chrome:
 Compact diagnostics log uses readable compact text and padding:
 Compact diagnostics log viewport is bounded for phone screens:
 Compact diagnostics log resizes after rotation or keyboard viewport changes:
@@ -118,36 +118,22 @@ Launcher compact status tap-to-expand details supported:
 Compact status exposes a visible Details / Hide cue in a touch-safe row:
 Launcher compact touch-safe status detail button supported:
 Launcher compact status detail cue supported:
-Compact responsive numbered workflow step strip remains visible while scrolling:
-Compact workflow step strip stays in one dense row on narrow compact viewports:
-Compact workflow step strip uses unified 62px touch-height cells on narrow compact viewports:
-Compact workflow step strip shows two-line visible labels, not only numbers/tooltips:
-The compact workflow strip shows visible step labels such as Sign in / Account, Verify / Steam Guard, Files / Game files, and Play / Saves safe; it does not rely on hover-only tooltips:
-Compact workflow step strip separates step numbers into small badges next to readable labels:
-Compact workflow step number badges use readable shared compact detail-label sizing:
-Launcher compact workflow step detail labels supported:
-Launcher compact workflow unified touch height supported:
-Tapping compact workflow step labels scrolls directly to visible matching task sections or the current safe fallback task:
-Compact workflow/current-task jumps leave padded space below the sticky header instead of pinning the section flush to the top:
-Compact workflow step strip uses the same larger touch height as compact task actions:
-The compact workflow strip is touch-safe enough for Android while keeping two-line step labels readable:
-Compact current-task bar remains reachable while scrolling:
-Compact current-task bar uses app-like task title wording:
-Compact current-task bar uses short Sign in / Verify / Files / Play title labels without a status prefix:
-Compact current-task bar uses contextual task detail labels:
-Compact current-task bar renders task/context labels as structured title/detail labels:
-Compact current-task bar is touch-safe but still compact:
-Compact inline current-task bar is dense while remaining touch-safe:
-Compact inline current-task bar uses the shared touch-safe compact control height:
-Compact current-task bar and workflow strip share a tight sticky header:
-Compact current-task bar and workflow strip share one inline sticky row when width allows:
-Compact stacked current-task row is low-profile on narrow compact viewports:
-Compact sticky task header is grouped inside a low-profile toolbar shell:
-Compact sticky task header stacks on narrow compact viewports:
-Compact sticky task header keeps the narrow workflow row dense enough to leave action content visible:
-Compact sticky task header reflows between inline and stacked layouts after rotation or keyboard viewport changes:
-Compact active task remains re-anchored after rotation or keyboard viewport changes:
-Compact two-line controls use the readable shared detail-label font:
+Home, Saves, Versions, Mods, and Help are all reachable through persistent navigation:
+Phone portrait and landscape use bottom navigation above the Android system area:
+Foldable/tablet layouts use top navigation with a constrained content surface:
+The selected destination remains visually distinct:
+Home contains Start Game, Safe Start, and concise readiness status without save upload controls:
+Saves contains Pull, locked Push, backup, and cloud-sync controls without launch controls:
+Versions contains branch selection, update, repair, refresh, and cache controls:
+Mods contains vanilla/modded selection and Workshop controls:
+Help contains recovery, error, report, and launcher-log controls:
+Changing destinations resets only the destination page to its top without jumping to a stale task anchor:
+Repeated destination changes do not leave stale, black, or partially redrawn regions:
+Portrait navigation remains above the bottom gesture or three-button system inset:
+Landscape content and navigation remain clear of left/right system navigation insets:
+Cover-display camera cutout and top safe area do not obscure launcher content:
+Rotating or folding the device preserves the current process without clipped or overlapping controls:
+Focused managed inputs remain visible above the Android keyboard:
 Status card shows a clear guided next action for the current state:
 Failure/blocked/crash statuses show attention/fix guidance before normal install/cloud/launch guidance:
 Primary actions use clear task wording, for example sign in/start game/verify code:
@@ -180,10 +166,10 @@ Compact version drawer controls render Change Version / Local files only and Ref
 Compact expanded version helper says Files for / Play version with Default files or Separate files and short branch status:
 Compact phone version details start collapsed:
 Version details expand/collapse without changing selected version:
-Compact Play and Sync ready-version summary is a readable touch-safe card with Save Check and Upload locked cues:
-Compact Play and Sync ready-version summary shortcut opens Save Check without unlocking Push:
-Compact Play and Sync keeps the ready summary, Save Check shortcut, Get-saves-first cloud controls, and Start Game before version management:
-Compact Play and Sync keeps save backup and cloud sync options below Start Game as optional controls:
+Compact Home readiness summary is readable and keeps Save Check and Upload locked cues concise:
+Compact Home keeps Start Game and Safe Start above the fold without exposing Push controls:
+Compact Saves keeps Get Steam Saves before the locked upload flow:
+Compact Saves keeps backup and cloud-sync options below the guarded Pull/Push actions:
 Compact download progress appears directly below the disabled DOWNLOADING primary action:
 Compact download progress status stays as a stable two-line Downloading selected version label:
 Compact download progress uses a taller styled percentage bar:
@@ -194,7 +180,7 @@ Compact drawer toggles and dense workflow controls share the same touch-safe com
 Compact optional drawer toggles are shorter than primary action buttons:
 Compact optional drawer toggles are visibly shorter than primary action buttons while still tappable:
 Compact optional drawer toggles remain tappable without taking full primary-action height:
-Compact Play/Sync drawer toggles show detail labels for version target, Save Check / Get saves first, backup/sync settings, and recovery tools:
+Destination controls keep version, Save Check, backup/sync, mod, and recovery labels in their relevant pages:
 Compact collapsed cloud-safety drawer reads Save Check / Get saves first so it does not look like the Get Steam Saves action:
 Compact Play/Sync action buttons render title/detail labels as structured two-line controls:
 Compact launch CTA says Start Game / Ready version:
@@ -203,7 +189,7 @@ Compact recovery/tools actions stack full-width on narrow compact viewports:
 Compact support tools drawer shows Fixes & Help / Repair tools when closed and Hide Fixes / Back to play when open:
 Compact launcher-log copy action says Copy Log / Review first:
 Compact phone cloud safety starts collapsed:
-Compact cloud-safety cue appears before Pull/Push controls:
+Compact cloud-safety cue remains beside the guarded Pull/Push controls:
 Compact expanded cloud-safety detail says Saves for and Get Steam saves before upload / Upload can overwrite Steam:
 Cloud safety expands/collapses while preserving Pull/Push controls:
 Compact phone cloud options start collapsed:
@@ -305,7 +291,7 @@ Selected branch helper text readable:
 Version/download guidance states local game files are separate from Steam Cloud saves:
 Ready-state version details repeat that Steam Cloud saves move only through Pull/Push:
 Download/update action visible/readable:
-Play and Sync section appears when actions are available:
+Home destination appears when launch or retry actions are available:
 Support/diagnostics controls remain secondary:
 ```
 
@@ -399,41 +385,22 @@ Launcher compact stacked status headline supported:
 Launcher viewport-aware compact status headline reflow supported:
 Launcher compact stable status detail row supported:
 Launcher compact short status details supported:
-Launcher compact sticky workflow step strip supported:
-Launcher compact low-profile workflow step strip supported:
-Launcher compact low-profile two-column workflow step strip supported:
-Launcher compact workflow step direct navigation supported:
-Launcher compact two-column workflow step strip supported:
-Launcher compact single-row numbered workflow step strip supported:
-Launcher compact narrow workflow single-row supported:
-Launcher compact visible workflow step labels supported:
-Launcher compact workflow step detail labels supported:
-Launcher compact workflow step number badges supported:
-Launcher compact readable workflow step number badges supported:
-Launcher compact workflow unified touch height supported:
-Launcher compact current-task jump supported:
-Launcher compact sticky current-task bar supported:
-Launcher compact low-profile current-task bar supported:
-Launcher compact dense inline current-task bar supported:
-Launcher compact current-task shared touch height supported:
-Launcher compact low-profile stacked current-task bar supported:
-Launcher compact current-task context labels supported:
-Launcher compact structured current-task labels supported:
-Launcher compact current-task short title labels supported:
-Launcher compact touch-safe sticky header controls supported:
-Launcher compact grouped sticky task header supported:
-Launcher compact sticky task toolbar shell supported:
-Launcher compact inline sticky task header supported:
-Launcher compact responsive sticky task header supported:
-Launcher viewport-aware sticky task header reflow supported:
-Launcher viewport-aware compact task re-anchor supported:
-Launcher compact dense sticky task header supported:
-Launcher compact task-jump navigation labels supported:
-Launcher compact readable detail label font supported:
-Launcher compact padded scroll anchors supported:
+Launcher stable destination navigation supported:
+Launcher Home destination supported:
+Launcher Saves destination supported:
+Launcher Versions destination supported:
+Launcher Mods destination supported:
+Launcher Help destination supported:
+Launcher phone bottom navigation supported:
+Launcher wide/foldable top navigation supported:
+Launcher destination-owned action groups supported:
+Launcher deterministic destination scroll reset supported:
+Launcher dynamic task re-anchor removed:
+Launcher touch-safe destination controls supported:
+Launcher Android display safe-area insets supported:
+Launcher Android bottom-navigation safe-area spacer supported:
+Launcher Android composition refresh supported:
 Launcher keyboard-focused input scroll supported:
-Launcher compact workflow step number badges supported:
-Launcher compact readable workflow step number badges supported:
 Launcher compact contextual confirmation labels supported:
 Launcher compact scroll-safe confirmation dialogs supported:
 Launcher viewport-aware confirmation dialogs supported:
@@ -487,15 +454,17 @@ Launcher compact ready-version summary panel supported:
 Launcher compact ready-version summary shortcut supported:
 Launcher compact ready-version headline supported:
 Launcher compact responsive ready-version summary supported:
-Launcher compact ready-state priority supported:
-Launcher compact ready-state cloud options below launch supported:
-Launcher compact Play/Sync drawer detail labels supported:
+Launcher compact Home action priority supported:
+Launcher cloud controls isolated to Saves supported:
+Launcher version controls isolated to Versions supported:
+Launcher Mods controls isolated to Mods supported:
+Launcher Help controls isolated to Help supported:
 Launcher compact structured Play/Sync action labels supported:
 Launcher compact ready-state install-section suppression supported:
 Launcher compact touch-safe version dropdown supported:
 Launcher compact touch-safe dropdown popup supported:
 Launcher compact cloud-safety guidance collapsible:
-Launcher compact cloud-safety cue before actions supported:
+Launcher compact cloud-safety cue beside guarded actions supported:
 Launcher compact cloud-safety detail label supported:
 Launcher compact cloud options collapsible:
 Launcher primary cloud actions before cloud options:
@@ -513,7 +482,7 @@ Launcher compact dense drawer toggle height supported:
 Launcher compact touch-safe drawer toggle sizing supported:
 Launcher compact dangerous Push detail labels supported:
 Launcher compact armed Push warning detail label supported:
-Launcher compact support tools grid supported:
+Launcher destination support tools supported:
 Launcher compact support tool detail labels supported:
 Launcher compact launcher-log review label supported:
 Launcher version-install/cloud-save separation guidance supported:

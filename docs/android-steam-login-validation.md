@@ -105,24 +105,14 @@ Capture the following on ARM64 hardware:
    - Compact Android sign-in shows `Sign in with Steam` before password-manager helper copy.
    - Compact Android sign-in CTA renders `Sign in with Steam / Android login` as a structured title/detail label.
    - Compact Android sign-in uses a large primary `Sign in with Steam` CTA and a readable two-line password-manager safety helper.
-   - The compact workflow strip shows short visible step labels such as `Sign in`, `Verify`, `Files`, and `Play`; it does not rely on hover-only tooltips.
-   - The compact workflow strip stays in one dense row on narrow compact viewports instead of taking a second fixed header row.
-   - The compact workflow strip separates the step number into a small badge so labels stay readable on phone-width rows.
-   - Tapping compact workflow step labels scrolls directly to the visible matching task section or the current safe fallback task.
-   - The compact workflow strip is touch-safe enough for Android while keeping step labels readable.
-   - The compact current-task bar stays reachable, uses app-like task title wording, and is touch-safe without wasting vertical space.
-   - The compact current-task bar uses short title labels such as `Sign in`, `Verify`, `Files`, and `Play` without a status prefix.
-   - The compact current-task bar uses contextual detail labels such as `Steam account`, `Steam Guard code`, `Download version`, and `Play and saves`.
-   - The compact current-task bar renders task names and contextual details as structured title/detail labels, not cramped raw newline text.
-   - The compact inline current-task bar uses dense height while staying touch-safe, so the persistent header does not crowd active controls.
-   - The compact inline current-task bar uses the same touch-safe compact control height as the workflow and drawer controls.
-   - The compact current-task bar and workflow strip share a tight sticky header instead of being separated as independent chrome rows.
-   - When width allows, the compact current-task bar and workflow strip share one inline sticky row, reducing header height while keeping controls readable and tappable.
-   - On narrow compact viewports, the stacked current-task row stays low-profile while remaining touch-safe.
-   - The compact sticky task header is grouped inside a low-profile toolbar shell so the persistent task controls read as one toolbar.
-   - On narrow compact viewports, the compact sticky task header stacks into a dense current-task row plus one dense workflow row instead of a two-row workflow grid.
-   - The compact sticky task header reflows between inline and stacked task/workflow layouts after Android rotation or keyboard viewport changes.
-   - The compact active task or last compact scroll target re-anchors after Android rotation or keyboard viewport changes without stealing focus from keyboard input fields.
+   - Home, Saves, Versions, Mods, and Help are stable destinations; changing destination replaces the page body instead of moving controls around one long form.
+   - Phone layouts use a touch-safe bottom navigation bar with visible labels for all five destinations.
+   - Wide foldable and tablet layouts move the same five destinations into a top navigation row.
+   - Home contains the current status and primary launch or onboarding action; cloud controls remain in Saves, branch controls in Versions, mod controls in Mods, and recovery/diagnostics in Help.
+   - Selecting a destination resets that destination to a deterministic page origin; Android rotation and resize do not restore the removed task re-anchor behavior.
+   - Navigation and page content respect Android display safe-area insets, including the cover display cutout and bottom system area.
+   - Repeated destination changes and rotation settle to a complete frame without stale or partially retained launcher regions.
+   - Every visible destination control has an accessibility name, keyboard focus support where applicable, and a touch-safe target size.
    - Compact two-line controls use a readable shared detail-label font for secondary action context.
    - Compact Game Install shows the selected version as a readable touch-safe summary card with `Cloud unchanged`, `Default files` or `Separate files`, and a `Change` / `Change version` cue that opens the version drawer before `Download Version / Local files only`.
    - The compact install primary action renders `Download Version / Local files only`, `Redownload Version / Rebuild local files`, `Retry Download / Local files only`, and `Downloading... / Steam files` as structured title/detail labels.
@@ -190,7 +180,7 @@ Capture the following on ARM64 hardware:
    - Saved session state is available without asking for the password again.
    - Download/update/cloud actions can use the saved Steam session.
    - The portal clearly exposes the next action without requiring diagnostic-log reading.
-   - The Play and Sync section appears when launch/retry/cloud actions are available.
+   - The Home destination appears when launch or retry actions are available; cloud controls remain in Saves.
    - Cloud actions label Pull as Steam Cloud to Android and Push as Android saves to Steam Cloud.
    - Compact cloud buttons name Pull as Android-directed and Push as Steam-directed.
    - Compact Get Steam Saves and locked Steam upload share one two-button row when width allows and stack with Get Steam Saves first on narrow compact viewports.
@@ -205,21 +195,21 @@ Capture the following on ARM64 hardware:
    - Compact optional drawer toggles use a dense touch-safe height instead of the older tiny drawer rows.
    - Compact drawer toggles and dense workflow controls share the same touch-safe compact height.
    - Compact optional drawer toggles are visibly shorter than primary action buttons while still tappable.
-   - Compact Play/Sync drawer toggles include short detail labels for version targeting, Save Check / Get saves first, backup/sync settings, and recovery tools.
+   - Versions, Saves, Mods, and Help each keep their own short action labels without mixing unrelated controls into Home.
    - Compact collapsed cloud-safety drawer reads Save Check / Get saves first so it does not look like the Get Steam Saves action.
-   - Compact Play/Sync action buttons render title/detail labels as structured two-line controls, not cramped raw newline text.
+   - Compact destination action buttons render title/detail labels as structured two-line controls, not cramped raw newline text.
    - Compact launch CTA renders `Start Game / Ready version` as a structured title/detail primary action.
    - Compact Pull action renders `Get Steam Saves / Download to Android` as a structured title/detail label before upload remains locked.
    - Compact Save Backup and Cloud Sync options use Local safety and Steam saves detail labels, share one low-profile row when width allows, and stack full-width on narrow compact viewports.
    - Compact download progress appears directly below the disabled `DOWNLOADING...` primary action.
    - Compact download progress status stays as a stable two-line `Downloading selected version` label with a short current Steam/depot detail.
    - Compact download progress uses a taller styled percentage bar instead of the generic thin progress bar.
-   - Compact Play and Sync shows the ready version, Save Check guidance, and Upload-locked state in a readable touch-safe summary card that opens Save Check without unlocking Push.
-   - Compact ready state prioritizes the ready summary, Save Check shortcut, Get-saves-first cloud controls, and Start Game before version management.
-   - Compact ready state keeps save backup and cloud sync options below Start Game as optional controls.
+   - Compact Home shows the ready version, Save Check guidance, Upload-locked state, Start Game, and Safe Start without exposing Push controls.
+   - Compact Saves keeps Get Steam Saves before the locked upload flow and preserves the explicit overwrite confirmation.
+   - Compact Saves keeps backup and cloud-sync options below the guarded Pull/Push actions.
    - Compact unlocked Push actions render `Upload to Steam / Overwrite cloud` and `Confirm Upload / Overwrite cloud` as structured title/detail labels after the upload overwrite drawer is explicitly opened.
    - Compact armed Push warning says Steam Cloud overwrite / Confirm only after Pull/local saves are verified before final upload confirmation.
-   - Compact recovery/tools actions use a two-column support grid when width allows and full-width stacked tools on narrow compact viewports.
+   - Versions and Help keep recovery/support actions in their relevant destination with full-width touch targets on narrow compact viewports.
    - Compact support tools drawer reads `Fixes & Help` / `Repair tools` when closed and `Hide Fixes` / `Back to play` when open.
    - Compact recovery/tools buttons use user-facing labels: `Safe Start / Cloud off`, `Check Files / Updates`, `Game Versions / Refresh list`, `Repair Files / Rebuild game`, `Free Space / Old versions`, `Help Report / Share details`, `Last Problem / Open details`, and `Copy Log / Review first`.
    - Compact launcher-log copy keeps the short `Copy Log` label but uses `Review first` detail text before copying diagnostics.
@@ -300,38 +290,21 @@ Launcher compact stacked status headline supported:
 Launcher viewport-aware compact status headline reflow supported:
 Launcher compact stable status detail row supported:
 Launcher compact short status details supported:
-Launcher compact sticky workflow step strip supported:
-Launcher compact low-profile workflow step strip supported:
-Launcher compact low-profile two-column workflow step strip supported:
-Launcher compact workflow step direct navigation supported:
-Launcher compact two-column workflow step strip supported:
-Launcher compact single-row numbered workflow step strip supported:
-Launcher compact narrow workflow single-row supported:
-Launcher compact visible workflow step labels supported:
-Launcher compact workflow step detail labels supported:
-Launcher compact workflow step number badges supported:
-Launcher compact readable workflow step number badges supported:
-Launcher compact workflow unified touch height supported:
-Launcher compact current-task jump supported:
-Launcher compact sticky current-task bar supported:
-Launcher compact low-profile current-task bar supported:
-Launcher compact dense inline current-task bar supported:
-Launcher compact current-task shared touch height supported:
-Launcher compact low-profile stacked current-task bar supported:
-Launcher compact current-task context labels supported:
-Launcher compact structured current-task labels supported:
-Launcher compact current-task short title labels supported:
-Launcher compact touch-safe sticky header controls supported:
-Launcher compact grouped sticky task header supported:
-Launcher compact sticky task toolbar shell supported:
-Launcher compact inline sticky task header supported:
-Launcher compact responsive sticky task header supported:
-Launcher viewport-aware sticky task header reflow supported:
-Launcher viewport-aware compact task re-anchor supported:
-Launcher compact dense sticky task header supported:
-Launcher compact task-jump navigation labels supported:
-Launcher compact readable detail label font supported:
-Launcher compact padded scroll anchors supported:
+Launcher stable destination navigation supported:
+Launcher Home destination supported:
+Launcher Saves destination supported:
+Launcher Versions destination supported:
+Launcher Mods destination supported:
+Launcher Help destination supported:
+Launcher phone bottom navigation supported:
+Launcher wide/foldable top navigation supported:
+Launcher destination-owned action groups supported:
+Launcher deterministic destination scroll reset supported:
+Launcher dynamic task re-anchor removed:
+Launcher touch-safe destination controls supported:
+Launcher Android display safe-area insets supported:
+Launcher Android bottom-navigation safe-area spacer supported:
+Launcher Android composition refresh supported:
 Launcher keyboard-focused input scroll supported:
 Launcher compact contextual confirmation labels supported:
 Launcher compact scroll-safe confirmation dialogs supported:
@@ -386,15 +359,16 @@ Launcher compact ready-version summary panel supported:
 Launcher compact ready-version summary shortcut supported:
 Launcher compact ready-version headline supported:
 Launcher compact responsive ready-version summary supported:
-Launcher compact ready-state priority supported:
-Launcher compact ready-state cloud options below launch supported:
-Launcher compact Play/Sync drawer detail labels supported:
-Launcher compact structured Play/Sync action labels supported:
+Launcher compact Home action priority supported:
+Launcher cloud controls isolated to Saves supported:
+Launcher version controls isolated to Versions supported:
+Launcher Mods controls isolated to Mods supported:
+Launcher Help controls isolated to Help supported:
 Launcher compact ready-state install-section suppression supported:
 Launcher compact touch-safe version dropdown supported:
 Launcher compact touch-safe dropdown popup supported:
 Launcher compact cloud-safety guidance collapsible:
-Launcher compact cloud-safety cue before actions supported:
+Launcher compact cloud-safety cue beside guarded actions supported:
 Launcher compact cloud-safety detail label supported:
 Launcher compact cloud options collapsible:
 Launcher primary cloud actions before cloud options:
@@ -412,7 +386,7 @@ Launcher compact dense drawer toggle height supported:
 Launcher compact touch-safe drawer toggle sizing supported:
 Launcher compact dangerous Push detail labels supported:
 Launcher compact armed Push warning detail label supported:
-Launcher compact support tools grid supported:
+Launcher destination support tools supported:
 Launcher compact support tool detail labels supported:
 Launcher compact launcher-log review label supported:
 Launcher version-install/cloud-save separation guidance supported:

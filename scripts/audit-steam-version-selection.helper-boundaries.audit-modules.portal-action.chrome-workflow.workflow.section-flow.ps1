@@ -27,7 +27,7 @@ function Add-SteamVersionSelectionPortalActionSectionFlowBoundaryChecks {
         @(
             "function Add-SteamVersionSelectionCompactSectionFlowScrollingChecks",
             "ScrollCompactPrimaryTo",
-            "CompactScrollAnchorTopPadding"
+            "PrimaryScroll\\.ScrollVertical = 0"
         )
 
     Add-Check `
@@ -35,7 +35,7 @@ function Add-SteamVersionSelectionPortalActionSectionFlowBoundaryChecks {
         "keeps compact section viewport re-anchor audit contracts focused" `
         @(
             "function Add-SteamVersionSelectionCompactSectionFlowReanchorChecks",
-            "ReanchorCompactScrollTargetAfterViewportChange",
-            "ReadyScrollTarget"
+            "RequestAndroidCompositionRefresh",
+            "ActionSection.Destinations.cs"
         )
 }

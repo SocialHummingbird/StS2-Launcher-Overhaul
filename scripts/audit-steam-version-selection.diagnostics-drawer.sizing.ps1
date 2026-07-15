@@ -26,9 +26,9 @@ function Add-SteamVersionSelectionDiagnosticsDrawerSizingChecks {
         "keeps open compact diagnostics readable after viewport resize" `
         @(
             "UpdateDiagnosticsLogViewport\(Vector2 viewportSize\)",
-            "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
+            "LauncherLayoutProfile\.ForViewport\(viewportSize, _profile\.TouchOptimized\)",
             "Log\.CustomMinimumSize = new Vector2\(0, DiagnosticsLogHeight\(profile\)\)",
-            "_profile\.Compact && DiagnosticsDrawer\.Visible",
-            "ScrollCompactPrimaryTo\(DiagnosticsDrawer\)"
+            "GodotObject\.IsInstanceValid\(Log\)",
+            "DiagnosticsLogHeight\(profile\)"
         )
 }

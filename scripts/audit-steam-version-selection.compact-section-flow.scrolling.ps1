@@ -1,16 +1,13 @@
 function Add-SteamVersionSelectionCompactSectionFlowScrollingChecks {
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherView.Sections.Scroll.cs" `
-        "defines compact active-section scrolling and anchor padding" `
+        "keeps compact active-task transitions at a stable page origin" `
         @(
-            "CompactScrollAnchorTopPadding = 14",
             "ScrollCompactPrimaryTo",
-            "ApplyCompactScrollAnchorPadding",
             "!_profile\.Compact",
-            "Callable\.From",
-            "PrimaryScroll\.EnsureControlVisible\(target\)",
-            "PrimaryScroll\.ScrollVertical",
-            "LauncherViewLayoutMetrics\.ScaleInt\(CompactScrollAnchorTopPadding, _scale\)"
+            "GodotObject\.IsInstanceValid\(target\)",
+            "_compactScrollAnchorTarget = target",
+            "PrimaryScroll\.ScrollVertical = 0"
         )
 
     Add-Check `
@@ -40,13 +37,12 @@ function Add-SteamVersionSelectionCompactSectionFlowScrollingChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherView.Sections.Scroll.cs" `
-        "remembers the latest compact scroll anchor for viewport-change re-anchoring" `
+        "avoids deferred EnsureControlVisible re-anchoring during destination changes" `
         @(
             "ScrollCompactPrimaryTo\(Control target\)",
             "!GodotObject\.IsInstanceValid\(target\)",
             "_compactScrollAnchorTarget = target",
-            "PrimaryScroll\.EnsureControlVisible\(target\)",
-            "ApplyCompactScrollAnchorPadding\(target\)"
+            "PrimaryScroll\.ScrollVertical = 0"
         )
 
     Add-Check `

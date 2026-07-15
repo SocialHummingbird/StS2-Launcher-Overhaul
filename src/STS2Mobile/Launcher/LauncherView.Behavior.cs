@@ -13,6 +13,6 @@ internal sealed partial class LauncherView
         UpdateCompactSectionResponsiveRows(viewportSize);
         UpdateDiagnosticsLogViewport(viewportSize);
         UpdateKeyboardOffset();
-        ReanchorCompactScrollTargetAfterViewportChange();
+        RequestAndroidCompositionRefresh();
     }
 }

@@ -8,13 +8,14 @@ internal sealed partial class ActionSection
     {
         var supportGroup = BuildActionGroup(scale);
         supportGroup.Visible = false;
-        var supportToolsGrid = BuildCompactSupportToolsGrid(scale, compact, compactStackedActionRows);
+        Container supportToolsParent = supportGroup;
         if (compact)
+        {
+            var supportToolsGrid = BuildCompactSupportToolsGrid(scale, compact, compactStackedActionRows);
             supportGroup.AddChild(supportToolsGrid);
+            supportToolsParent = supportToolsGrid;
+        }
 
-        Container supportToolsParent = compact
-            ? supportToolsGrid
-            : supportGroup;
-        return new SupportFoundation(supportGroup, supportToolsGrid, supportToolsParent);
+        return new SupportFoundation(supportGroup, supportToolsParent);
     }
 }

@@ -31,9 +31,9 @@ function Add-SteamVersionSelectionSupportDocsLoginPortalEvidenceBoundaryChecks {
         @(
             "function Add-SteamVersionSelectionLoginPortalEvidenceDocsCompactWorkflowChecks",
             "Quick-start guide visible",
-            "Compact responsive numbered workflow step strip remains visible while scrolling",
-            "Compact current-task bar remains reachable while scrolling",
-            "Compact active task remains re-anchored after rotation or keyboard viewport changes"
+            "Home, Saves, Versions, Mods, and Help are all reachable through persistent navigation",
+            "Changing destinations resets only the destination page to its top",
+            "Rotating or folding the device preserves the current process"
         )
 
     Add-Check `
@@ -44,6 +44,6 @@ function Add-SteamVersionSelectionSupportDocsLoginPortalEvidenceBoundaryChecks {
             "Compact Game Install selected-version summary is a readable touch-safe card",
             "Compact Pull action says Get Steam Saves / Download to Android",
             "Compact armed Push warning says Steam Cloud overwrite",
-            "Compact Play and Sync keeps the ready summary"
+            "Compact Home keeps Start Game and Safe Start above the fold"
         )
 }

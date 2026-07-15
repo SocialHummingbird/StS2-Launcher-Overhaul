@@ -1,12 +1,12 @@
 function Add-SteamVersionSelectionPortalBehaviorKeyboardChecks {
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
-        "refreshes keyboard offset anchor after viewport size changes" `
+        "refreshes keyboard offset and Android composition after viewport changes" `
         @(
             "_panelBaseY = _panel\.Position\.Y \+ _keyboardOffset",
             "_panel\.UpdateSizeFromViewport",
             "UpdateKeyboardOffset\(\)",
-            "ReanchorCompactScrollTargetAfterViewportChange\(\)"
+            "RequestAndroidCompositionRefresh\(\)"
         )
 
     Add-Check `

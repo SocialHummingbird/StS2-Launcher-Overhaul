@@ -1,25 +1,20 @@
 function Add-SteamVersionSelectionActionCoreLayoutChecks {
     Add-Check `
-        "src\STS2Mobile\Launcher\Sections\ActionSection.Layout.cs" `
-        "prioritizes compact ready state as summary, cloud safety actions, launch, then version management" `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.Destinations.cs" `
+        "assigns each existing workflow to one stable destination at construction time" `
         @(
-            "ArrangeCompactCloudGroupPriority",
-            "launchParent\?\.RemoveChild\(_launchButton\)",
-            "_cloudGroup\.AddChild\(_launchButton\)",
-            "MoveChildAfter\(_cloudGroup, _launchButton, _pushPullRow\)",
-            "MoveChildAfter\(_cloudGroup, _cloudOptionsToggle, _launchButton\)",
-            "MoveChildAfter\(_cloudGroup, _compactCloudOptionsRow, _cloudOptionsToggle\)",
-            "ArrangeCompactReadyStatePriority",
-            "var readyPrimaryPath = _launchButton\.GetParent\(\) == _cloudGroup",
-            "MoveChild\(_readyVersionSummaryPanel, _branchDetailsToggle\.GetIndex\(\)\)",
-            "MoveAfter\(_branchDetailsToggle, readyPrimaryPath\)",
-            "MoveAfter\(_branchDropdown, _branchDetailsToggle\)",
-            "MoveAfter\(_branchHelpLabel, _branchDropdown\)",
-            "MoveCompactCloudSafetyCueBeforeCloudActions",
-            "private static void MoveChildAfter\(Node parent, Node child, Node previous\)",
-            "var previousIndex = previous\.GetIndex\(\)",
-            "child\.GetIndex\(\) < previousIndex",
-            "previousIndex \+ 1"
+            "BuildDestinationLayout",
+            'BuildDestination\(\s*"Home"',
+            'BuildDestination\(\s*"Saves"',
+            'BuildDestination\(\s*"Versions"',
+            'BuildDestination\(\s*"Mods"',
+            'BuildDestination\(\s*"Help"',
+            "MoveTo\(_homeDestination, _launchButton\)",
+            "MoveTo\(_savesDestination, _cloudGroup\)",
+            "MoveTo\(_versionsDestination, _branchDropdown\)",
+            "MoveTo\(_modsDestination, _modsGroup\)",
+            "MoveTo\(_helpDestination, _diagnosticsButton\)",
+            "SetDestination\(LauncherDestination\.Home\)"
         )
 
     Add-Check `

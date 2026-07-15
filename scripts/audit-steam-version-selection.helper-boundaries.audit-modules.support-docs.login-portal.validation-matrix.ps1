@@ -30,8 +30,8 @@ function Add-SteamVersionSelectionSupportDocsLoginPortalValidationMatrixBoundary
         @(
             "function Add-SteamVersionSelectionLoginPortalEvidenceDocsValidationMatrixPortalWorkflowChecks",
             "Launcher portal UX model",
-            "Launcher compact sticky workflow step strip supported",
-            "Launcher viewport-aware sticky task header reflow supported"
+            "Launcher stable destination navigation supported",
+            "Launcher Android display safe-area insets supported"
         )
 
     Add-Check `
@@ -40,7 +40,7 @@ function Add-SteamVersionSelectionSupportDocsLoginPortalValidationMatrixBoundary
         @(
             "function Add-SteamVersionSelectionLoginPortalEvidenceDocsValidationMatrixCompactActionChecks",
             "Launcher compact selected-version headline supported",
-            "Launcher compact ready-state cloud options below launch supported",
+            "Launcher cloud controls isolated to Saves supported",
             "Launcher version-install/cloud-save separation guidance supported"
         )
 

@@ -28,17 +28,17 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 StS2 Mobile works on some tested ARM64 Android devices, but compatibility is not broad yet. Treat every APK as prerelease tester software.
 
-Latest published APK: [v0.2.397-atlas-memory-compat](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.397-atlas-memory-compat)
+Latest published APK: [v0.2.398-launcher-ui-redesign](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.398-launcher-ui-redesign)
 
-- APK asset: `StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `397001`
-- SHA-256: `2ab7d1264ff0c67f8f86a14ed233e9276a4467a63626e09b06510e92145cbeaa`
+- Version code: `398031`
+- SHA-256: `52d05adf3a26ee8c2135edae6ceb986a2d021b99c4b92a4c00eebc7e4fa66d97`
 - Signing channel: local debug/test channel
 
 Known important limitations:
 
-- Device compatibility varies. `v0.2.397` avoids eagerly loading the largest desktop-compressed atlas sheets on Android and is stable on the tested Samsung ARM64 device, but the Pixel 10 Pro / Android 17 / PowerVR reporter path has not yet retested this release.
+- Device compatibility varies. `v0.2.398` adds the five-destination responsive launcher UI while retaining the `v0.2.397` Android atlas fallback. The Pixel 10 Pro / Android 17 / PowerVR reporter path remains unresolved and has not tested this release.
 - The app currently targets ARM64 Android hardware. Android emulator and x86_64 builds are diagnostic only and are not supported for real game launch.
 - Some phones may be too slow, have incompatible graphics drivers, or fail while loading/compiling shaders.
 - Steam version selection, beta branches, Workshop mods, and save-merger behavior are still experimental.
@@ -140,6 +140,32 @@ scripts/                   # Build and tooling scripts
 - Custom Godot engine build (see `scripts/build-godot.sh`)
 - FMOD SDK in `vendor/fmod-sdk/`
 
+## Launcher UI Preview
+
+The real managed launcher can be rendered on desktop without contacting Steam, downloading files, touching saves, or launching the game. The preview uses deterministic fixture data and an offscreen viewport, so phone, landscape, and foldable screenshots do not depend on the desktop monitor size.
+
+Render one state and destination:
+
+```powershell
+.\scripts\run-launcher-ui-preview.ps1 -Fixture ready -Destination home -Width 1080 -Height 2400 -TouchOptimized $true
+```
+
+Render the full 20-screenshot validation matrix and interaction contract:
+
+```powershell
+.\scripts\test-launcher-ui-preview.ps1
+```
+
+Screenshots are written to `artifacts/ui-preview/`. Every render checks accessible names, focusability, viewport bounds, and target heights. The matrix also verifies deterministic pixels and existing launcher view events without contacting Steam or invoking the final Steam Cloud Push event. The harness requires Godot 4.5.1 Mono; by default the scripts use the local runtime under `tmp/godot-4.5.1-mono/`, or accept `-GodotPath` explicitly.
+
+For physical UI validation, connect one ARM64 Android device with USB debugging enabled and run:
+
+```powershell
+.\scripts\test-launcher-ui-device.ps1
+```
+
+This verifies and installs `StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk` without clearing app data, launches it, captures portrait and landscape screenshots plus focused lifecycle/fatal logs under `artifacts/android/launcher-ui-device-*`, and restores the device's rotation settings. It refuses to capture a locked or system-obscured display. It does not tap launcher actions or run Steam Cloud Push.
+
 ## Building
 
 **Note: This is a WIP. There are other binaries that are required and will fail if you just run the `./build.sh` script. Godot Engine can be found on their repo https://github.com/godotengine/godot. Harmony can be found here https://github.com/Ekyso/Harmony but the version used in StS2 Launcher is compiled using dotnet 9.0. FMOD can be found here https://www.fmod.com/. Spine can be found here https://esotericsoftware.com/. I plan to upload the custom fork of Godot Engine used and the dotnet 9.0 Harmony soon. However, Spine and FMOD will not be uploaded due to licensing restrictions. Information on licensing can be found in the [THIRD-PARTY-NOTICES.txt](https://github.com/Ekyso/StS2-Launcher/blob/main/THIRD_PARTY_LICENSES.md) of the root folder.** 
@@ -234,7 +260,7 @@ GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
 2. Download the APK named in the current published APK block below.
-    - GitHub's `/releases/latest` currently points at `v0.2.397-atlas-memory-compat`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
+    - GitHub's `/releases/latest` currently points at `v0.2.398-launcher-ui-redesign`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
     - Release inventory: [docs/github-release-inventory.md](docs/github-release-inventory.md)
     - Current release assets are ARM64-only test packages, named like:
       - `StS2Launcher-v<version>-arm64-v8a.apk`
@@ -244,13 +270,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.397-atlas-memory-compat" `
-  -AssetName "StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.398-launcher-ui-redesign" `
+  -AssetName "StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.397-atlas-memory-compat" `
-  -AssetName "StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.398-launcher-ui-redesign" `
+  -AssetName "StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -259,12 +285,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.397-atlas-memory-compat
-Asset: StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk
+Release: v0.2.398-launcher-ui-redesign
+Asset: StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.397-atlas-memory-compat
-VersionCode: 397001
-SHA-256: 2ab7d1264ff0c67f8f86a14ed233e9276a4467a63626e09b06510e92145cbeaa
+VersionName: 0.2.398-launcher-ui-redesign-local
+VersionCode: 398031
+SHA-256: 52d05adf3a26ee8c2135edae6ceb986a2d021b99c4b92a4c00eebc7e4fa66d97
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker. Use `scripts\check-github-release-hygiene.ps1` before announcing a release so the APK, checksum sidecar, metadata sidecar, release body, package name, version, and SHA-256 all agree on the fork release page.
@@ -286,7 +312,7 @@ Support boundaries for public testers:
 - This is an unofficial community launcher, is not endorsed by Mega Crit Games, and does not include game files or assets.
 - Do not post Steam credentials, guard codes, refresh tokens, private save data, or full unsanitized logs in public issues or Reddit threads.
 - Current support target is ARM64 Android hardware. x86_64 emulator behavior is diagnostic-only.
-- Current known user-facing pain points are launcher UI scaling/scroll reachability, controller action input, shader compile crashes or stalls, unconfirmed Pixel/PowerVR compatibility after the `v0.2.397` atlas fix, and SavesMerger real-save compatibility.
+- Current known user-facing pain points are controller action input, shader compile crashes or stalls, unconfirmed Pixel/PowerVR compatibility after the `v0.2.397` atlas fix, incomplete exact-build physical viewport coverage for the redesigned UI, and SavesMerger real-save compatibility.
 - If reporting a cloud-save issue, say whether you used Pull or Push, but scrub usernames, account IDs, and save contents first.
 
 3. Optional manual checksum verification:

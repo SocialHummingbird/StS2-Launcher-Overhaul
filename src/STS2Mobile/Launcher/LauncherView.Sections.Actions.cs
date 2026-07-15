@@ -4,6 +4,7 @@ internal sealed partial class LauncherView
 {
     internal void HideActions()
     {
+        SelectHomeDestination();
         SetFirstRunGuideVisible(true);
         SetCompactWorkflowStep(CompactWorkflowStep.SignIn);
         SetCompactCurrentTask("Start here", FirstRunGuide, "Setup guide");
@@ -13,6 +14,7 @@ internal sealed partial class LauncherView
 
     internal void ShowRetry()
     {
+        SelectHomeDestination();
         SetFirstRunGuideVisible(false);
         HideCompactCompletedAuthSections(showCode: false);
         SetCompactWorkflowStep(CompactWorkflowStep.Play);
@@ -26,6 +28,7 @@ internal sealed partial class LauncherView
         bool showUpdate
     )
     {
+        SelectHomeDestination();
         SetFirstRunGuideVisible(false);
         HideCompactCompletedAuthSections(showCode: false);
         SetCompactReadyInstallSectionVisible(false);

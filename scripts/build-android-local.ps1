@@ -53,6 +53,13 @@ $env:ANDROID_SDK_ROOT = $AndroidHome
 $env:JAVA_HOME = $JavaHome
 $env:PATH = "$JavaHome\bin;$AndroidHome\platform-tools;$AndroidHome\emulator;$AndroidHome\cmdline-tools\latest\bin;$env:PATH"
 
+$bootstrapGenerator = Join-Path $root "scripts\make-bootstrap-pck.py"
+Write-Host "Generating launcher bootstrap PCK..."
+python $bootstrapGenerator
+if ($LASTEXITCODE -ne 0) {
+    throw "Launcher bootstrap PCK generation failed"
+}
+
 Write-Host "Publishing STS2Mobile..."
 dotnet publish $projectPath -c Release
 if ($LASTEXITCODE -ne 0) {

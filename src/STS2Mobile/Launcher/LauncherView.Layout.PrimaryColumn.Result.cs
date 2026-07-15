@@ -24,6 +24,7 @@ internal readonly struct LauncherViewPrimaryColumn
         Control compactWorkflowStrip,
         Button compactCurrentTaskButton,
         ScrollContainer primaryScroll,
+        VBoxContainer homeSections,
         Control firstRunGuide,
         LoginSection login,
         CodeSection code,
@@ -49,6 +50,7 @@ internal readonly struct LauncherViewPrimaryColumn
         CompactWorkflowStrip = compactWorkflowStrip;
         CompactCurrentTaskButton = compactCurrentTaskButton;
         PrimaryScroll = primaryScroll;
+        HomeSections = homeSections;
         FirstRunGuide = firstRunGuide;
         Login = login;
         Code = code;
@@ -74,6 +76,7 @@ internal readonly struct LauncherViewPrimaryColumn
     internal Control CompactWorkflowStrip { get; }
     internal Button CompactCurrentTaskButton { get; }
     internal ScrollContainer PrimaryScroll { get; }
+    internal VBoxContainer HomeSections { get; }
     internal Control FirstRunGuide { get; }
     internal LoginSection Login { get; }
     internal CodeSection Code { get; }

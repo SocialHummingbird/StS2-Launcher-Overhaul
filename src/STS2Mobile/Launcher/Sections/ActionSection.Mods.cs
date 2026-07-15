@@ -18,7 +18,8 @@ internal sealed partial class ActionSection
 
     private void ShowModsStartupSummary()
     {
-        var moddedMode = LauncherModSelectionState.IsModdedMode;
+        var moddedMode = !LauncherPreviewMode.Enabled
+            && LauncherModSelectionState.IsModdedMode;
         _readySummaryEnabledModCount = 0;
         _modsStatusLabel.Text = _compact
             ? moddedMode

@@ -45,11 +45,11 @@ function Add-SteamVersionSelectionSupportDocsLoginValidationNativeProofBoundaryC
 
     Add-Check `
         "scripts\audit-steam-version-selection.login-validation-docs.native-proof.task-header.ps1" `
-        "keeps compact task-header and section native-proof documentation checks focused" `
+        "keeps destination navigation and section native-proof documentation checks focused" `
         @(
             "function Add-SteamVersionSelectionLoginValidationDocsNativeProofTaskHeaderChecks",
-            "compact current-task bar",
-            "compact sticky task header"
+            "Wide foldable and tablet layouts",
+            "Android display safe-area insets"
         )
 
     Add-Check `

@@ -13,21 +13,13 @@ internal sealed partial class ActionSection
 
     private void SetSupportButtonsVisible(bool visible)
     {
-        _supportToggle.Visible = visible;
-        if (!visible)
-        {
-            _supportExpanded = false;
-            _supportGroup.Visible = false;
-            SetCompactActionButtonText(_supportToggle, SupportToggleText());
-        }
-        else
-        {
-            _supportGroup.Visible = _supportExpanded;
-        }
-        _diagnosticsButton.Visible = visible;
+        _supportToggle.Visible = false;
+        _supportExpanded = false;
+        _supportGroup.Visible = false;
+        _diagnosticsButton.Visible = true;
         _refreshVersionsButton.Visible = visible;
         _clearCachedVersionsButton.Visible = visible;
-        _showLastErrorButton.Visible = visible;
-        _copyRawLogButton.Visible = visible;
+        _showLastErrorButton.Visible = true;
+        _copyRawLogButton.Visible = true;
     }
 }

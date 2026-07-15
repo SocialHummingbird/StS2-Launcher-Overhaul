@@ -12,6 +12,7 @@ internal sealed partial class LauncherView
     private CodeSection Code { get; }
     private DownloadSection Download { get; }
     private ActionSection Actions { get; }
+    private VBoxContainer HomeSections { get; }
     private ScrollContainer PrimaryScroll { get; }
     private Control FirstRunGuide { get; }
     private RichTextLabel Log { get; }
@@ -20,6 +21,7 @@ internal sealed partial class LauncherView
 
     private readonly Control _parent;
     private readonly StyledPanel _panel;
+    private readonly ColorRect _androidCompositionRefresh;
     private float _panelBaseY;
     private float _keyboardOffset;
     private readonly float _scale;
@@ -40,6 +42,12 @@ internal sealed partial class LauncherView
     private readonly GridContainer _compactStickyTaskHeader;
     private readonly Control _compactWorkflowStrip;
     private readonly Button _compactCurrentTaskButton;
+    private readonly MarginContainer _destinationNavigationFrame;
+    private readonly Control _destinationSafeAreaSpacer;
+    private readonly Button[] _destinationButtons;
+    private Vector4 _systemSafeAreaInsets = new(-1, -1, -1, -1);
+    private int _androidCompositionRefreshFrames;
+    private LauncherDestination _destination;
     private Control _compactCurrentTaskTarget;
     private Control _compactScrollAnchorTarget;
     private Control _keyboardFocusScrollTarget;
@@ -51,6 +59,7 @@ internal sealed partial class LauncherView
         var shell = BuildShell(parent, profile, dismissKeyboard);
         _parent = parent;
         _panel = shell.Panel;
+        _androidCompositionRefresh = shell.AndroidCompositionRefresh;
         _panelBaseY = shell.Panel.Position.Y;
         _scale = profile.Scale;
         _profile = profile;
@@ -73,17 +82,29 @@ internal sealed partial class LauncherView
         _compactCurrentTaskButton = primary.CompactCurrentTaskButton;
         PrimaryScroll = primary.PrimaryScroll;
         FirstRunGuide = primary.FirstRunGuide;
+        HomeSections = primary.HomeSections;
         Login = primary.Login;
         Code = primary.Code;
         Download = primary.Download;
         Actions = primary.Actions;
-        var diagnosticsRoot = profile.Compact
-            ? primary.CompactDiagnosticsHost
-            : shell.Content;
-        var diagnostics = BuildLogColumn(profile, diagnosticsRoot, dismissKeyboard);
+        var diagnostics = BuildLogColumn(profile, Actions.HelpDiagnosticsHost, dismissKeyboard);
         Log = diagnostics.Log;
         DiagnosticsDrawer = diagnostics.Drawer;
         DiagnosticsToggle = diagnostics.Toggle;
+        var navigation = BuildDestinationNavigation(profile);
+        shell.Content.AddChild(navigation.Root);
+        if (!profile.Compact)
+            shell.Content.MoveChild(navigation.Root, 1);
+        _destinationNavigationFrame = navigation.Root;
+        _destinationSafeAreaSpacer = profile.Compact && OperatingSystem.IsAndroid()
+            ? new Control { MouseFilter = Control.MouseFilterEnum.Ignore }
+            : null;
+        if (_destinationSafeAreaSpacer is not null)
+            shell.Content.AddChild(_destinationSafeAreaSpacer);
+        _destinationButtons = navigation.Buttons;
+        UpdateSystemInsets();
+        WireDestinationNavigation();
+        SelectDestination(LauncherDestination.Home);
         _compactCurrentTaskTarget = FirstRunGuide;
         _compactScrollAnchorTarget = FirstRunGuide;
         WireCompactCurrentTaskNavigation();

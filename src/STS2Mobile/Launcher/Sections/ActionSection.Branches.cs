@@ -50,17 +50,9 @@ internal sealed partial class ActionSection
             _branchDetailsExpanded = false;
         }
 
-        if (_compact)
-        {
-            _branchDropdown.Visible = _branchControlsAvailable && _branchDetailsExpanded;
-            _branchHelpLabel.Visible = _branchControlsAvailable && _branchDetailsExpanded;
-            _branchDetailsToggle.Visible = _branchControlsAvailable;
-            return;
-        }
-
         _branchDropdown.Visible = _branchControlsAvailable;
-        _branchHelpLabel.Visible = _branchControlsAvailable;
-        _branchDetailsToggle.Visible = false;
+        _branchHelpLabel.Visible = _branchControlsAvailable && _branchDetailsExpanded;
+        _branchDetailsToggle.Visible = _branchControlsAvailable;
     }
 
     private void ApplyGameBranch(long index)

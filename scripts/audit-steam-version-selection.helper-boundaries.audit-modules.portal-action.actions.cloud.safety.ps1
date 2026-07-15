@@ -41,6 +41,6 @@ function Add-SteamVersionSelectionPortalActionReadyActionCloudSafetyBoundaryChec
             "function Add-SteamVersionSelectionActionCloudSafetyCueChecks",
             "ActionSection.Construction.Cloud.PrimaryActions.cs",
             "ActionSection.Construction.Cloud.Safety.cs",
-            "ActionSection.Layout.cs"
+            "ActionSection.Construction.Cloud.cs"
         )
 }

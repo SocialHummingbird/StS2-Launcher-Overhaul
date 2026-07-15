@@ -23,12 +23,14 @@ function Add-SteamVersionSelectionActionCloudSafetyCueChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\Sections\ActionSection.Layout.cs" `
-        "moves compact cloud-safety cue before Pull/Push controls" `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.cs" `
+        "keeps cloud safety, options, and guarded Pull/Push controls in one Saves workflow" `
         @(
-            "MoveCompactCloudSafetyCueBeforeCloudActions",
-            "_cloudGroup\.MoveChild\(_cloudSafetyToggle, 0\)",
-            "MoveChildAfter\(_cloudGroup, _cloudSafetyLabel, _cloudSafetyToggle\)",
-            "MoveChildAfter\(_cloudGroup, _pushPullRow, _cloudSafetyLabel\)"
+            "BuildCloudPrimaryActionControls\(cloudGroup, scale, compact\)",
+            "BuildCloudSafetyControls\(cloudGroup, scale, compact\)",
+            "BuildCloudOptionControls\(cloudGroup, scale, compact\)",
+            "primaryActions\.PushPullRow",
+            "safetyControls\.CloudSafetyLabel",
+            "optionControls\.CloudOptionsToggle"
         )
 }

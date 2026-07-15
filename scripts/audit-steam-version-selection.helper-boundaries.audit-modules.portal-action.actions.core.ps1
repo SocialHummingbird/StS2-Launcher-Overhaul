@@ -62,7 +62,7 @@ function Add-SteamVersionSelectionPortalActionReadyActionCoreBoundaryChecks {
         "keeps ready-state layout and drawer-copy audit contracts focused" `
         @(
             "function Add-SteamVersionSelectionActionCoreLayoutChecks",
-            "ActionSection.Layout.cs",
+            "ActionSection.Destinations.cs",
             "ActionSection.Branches.Text.cs",
             "ActionSection.CloudSafety.cs",
             "ActionSection.CloudOptions.cs"

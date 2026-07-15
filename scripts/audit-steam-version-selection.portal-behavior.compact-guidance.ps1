@@ -7,7 +7,7 @@ function Add-SteamVersionSelectionPortalBehaviorCompactGuidanceChecks {
             "SetLoginFormVisible\(bool visible, bool disabled\)[\s\S]*SetFirstRunGuideVisible\(false\)[\s\S]*HideCompactCompletedAuthSections",
             "ShowCodePrompt\(bool wasIncorrect\)[\s\S]*SetFirstRunGuideVisible\(false\)",
             "SetLoginFormVisible",
-            "FirstRunGuide\.Visible = !_profile\.Compact \|\| visible"
+            "FirstRunGuide\.Visible = visible"
         )
 
     Add-Check `

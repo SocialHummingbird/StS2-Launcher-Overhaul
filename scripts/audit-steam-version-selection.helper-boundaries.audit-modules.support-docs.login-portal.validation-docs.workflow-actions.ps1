@@ -6,7 +6,7 @@ function Add-SteamVersionSelectionSupportDocsLoginValidationWorkflowActionBounda
             "function Add-SteamVersionSelectionLoginValidationDocsPortalWorkflowChecks",
             "Launcher portal UX model",
             "Launcher compact plain-language status copy supported",
-            "Launcher compact sticky workflow step strip supported",
+            "Launcher stable destination navigation supported",
             "Launcher compact Android login primary CTA supported"
         )
 
@@ -18,7 +18,7 @@ function Add-SteamVersionSelectionSupportDocsLoginValidationWorkflowActionBounda
             "Launcher compact install primary detail label supported",
             "Launcher compact ready-version summary panel supported",
             "Launcher safer Pull-before-Push cloud ordering supported",
-            "Launcher compact support tools grid supported"
+            "Launcher destination support tools supported"
         )
 
     Add-Check `

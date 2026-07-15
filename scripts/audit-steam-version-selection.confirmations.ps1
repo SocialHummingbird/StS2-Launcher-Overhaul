@@ -64,7 +64,7 @@ function Add-SteamVersionSelectionConfirmationChecks {
         @(
             "CurrentConfirmationProfile",
             "GetVisibleRect\(\)\.Size",
-            "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
+            "LauncherLayoutProfile\.ForViewport\(viewportSize, _profile\.TouchOptimized\)",
             "BuildConfirmationDialog\(message,\s*CurrentConfirmationProfile\(\)"
         )
 

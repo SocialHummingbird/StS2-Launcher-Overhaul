@@ -55,8 +55,11 @@ internal sealed partial class LauncherView
         if (!_profile.Compact)
             return;
 
-        SetCompactCurrentTaskButtonText(_compactCurrentTaskButton, _scale, text, detail);
-        _compactCurrentTaskButton.Visible = true;
+        if (GodotObject.IsInstanceValid(_compactCurrentTaskButton))
+        {
+            SetCompactCurrentTaskButtonText(_compactCurrentTaskButton, _scale, text, detail);
+            _compactCurrentTaskButton.Visible = true;
+        }
         _compactCurrentTaskTarget = target;
         _compactScrollAnchorTarget = target;
     }

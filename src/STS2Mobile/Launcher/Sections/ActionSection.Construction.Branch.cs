@@ -25,7 +25,12 @@ internal sealed partial class ActionSection
         branchDetailsToggle.Pressed += ToggleBranchDetails;
         AddChild(branchDetailsToggle);
 
-        var branchDropdown = new OptionButton();
+        var branchDropdown = new OptionButton
+        {
+            FitToLongestItem = !compact,
+        };
+        branchDropdown.AccessibilityName = "Game version";
+        branchDropdown.AccessibilityDescription = "Select the installed Steam game version.";
         branchDropdown.Visible = false;
         branchDropdown.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         branchDropdown.CustomMinimumSize = new Vector2(

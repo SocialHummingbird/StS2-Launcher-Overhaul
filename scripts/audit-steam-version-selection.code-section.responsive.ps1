@@ -16,7 +16,7 @@ function Add-SteamVersionSelectionCodeSectionResponsiveChecks {
         "updates compact section responsive rows after viewport changes" `
         @(
             "private void UpdateCompactSectionResponsiveRows\(Vector2 viewportSize\)",
-            "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
+            "LauncherLayoutProfile\.ForViewport\(viewportSize, _profile\.TouchOptimized\)",
             "Code\.UpdateViewportProfile\(profile\)"
         )
 }

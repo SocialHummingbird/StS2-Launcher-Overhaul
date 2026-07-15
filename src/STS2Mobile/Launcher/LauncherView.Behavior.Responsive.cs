@@ -15,7 +15,7 @@ internal sealed partial class LauncherView
         }
 
         var profile = viewportSize.X > 0f && viewportSize.Y > 0f
-            ? LauncherLayoutProfile.ForViewport(viewportSize)
+            ? LauncherLayoutProfile.ForViewport(viewportSize, _profile.TouchOptimized)
             : _profile;
         ApplyCompactStickyTaskHeaderLayout(
             _compactStickyTaskHeader,
@@ -31,7 +31,7 @@ internal sealed partial class LauncherView
             return;
 
         var profile = viewportSize.X > 0f && viewportSize.Y > 0f
-            ? LauncherLayoutProfile.ForViewport(viewportSize)
+            ? LauncherLayoutProfile.ForViewport(viewportSize, _profile.TouchOptimized)
             : _profile;
         Code.UpdateViewportProfile(profile);
     }
@@ -47,7 +47,7 @@ internal sealed partial class LauncherView
         }
 
         var profile = viewportSize.X > 0f && viewportSize.Y > 0f
-            ? LauncherLayoutProfile.ForViewport(viewportSize)
+            ? LauncherLayoutProfile.ForViewport(viewportSize, _profile.TouchOptimized)
             : _profile;
         ApplyCompactStatusHeadlineLayout(
             _compactStatusHeadline,

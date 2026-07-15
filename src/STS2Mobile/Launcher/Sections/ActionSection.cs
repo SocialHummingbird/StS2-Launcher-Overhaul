@@ -83,11 +83,15 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _copyRawLogButton;
     private readonly VBoxContainer _cloudGroup;
     private readonly VBoxContainer _supportGroup;
-    private readonly GridContainer _supportToolsGrid;
     private readonly VBoxContainer _pushPullRow;
     private readonly Button _supportToggle;
     private readonly StyleBoxFlat _toggleOffStyle;
     private readonly StyleBoxFlat _toggleOnStyle;
+    private VBoxContainer _homeDestination;
+    private VBoxContainer _savesDestination;
+    private VBoxContainer _versionsDestination;
+    private VBoxContainer _modsDestination;
+    private VBoxContainer _helpDestination;
     private readonly List<LauncherBranchCatalog.BranchOption> _branchOptions = new();
     private IReadOnlyList<LauncherBranchCatalog.BranchOption> _availableBranches = Array.Empty<LauncherBranchCatalog.BranchOption>();
     private bool _supportExpanded;
@@ -99,6 +103,8 @@ internal sealed partial class ActionSection : VBoxContainer
     private bool _localBackupEnabled;
     private bool _cloudSyncEnabled;
     private bool _launchControlsDisabled;
+    private bool _homeActionsAvailable;
+    private LauncherDestination _destination;
     private int _readySummaryEnabledModCount;
     private string _gameBranch = SteamGameBranch.Public;
 
@@ -127,6 +133,8 @@ internal sealed partial class ActionSection : VBoxContainer
         _launchControlsDisabled = disabled;
         ApplyLaunchControlsDisabled();
     }
+
+    internal VBoxContainer HelpDiagnosticsHost => _helpDestination;
 
     private void ApplyLaunchControlsDisabled()
     {

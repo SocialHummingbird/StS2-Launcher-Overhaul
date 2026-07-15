@@ -3,10 +3,10 @@ function Add-SteamVersionSelectionLoginValidationDocsNativeProofCompactActionChe
         "docs\android-steam-login-validation.md" `
         "keeps compact ready-state, cloud, sign-in, and recovery action proof wording focused" `
         @(
-            "Compact recovery/tools actions use a two-column support grid when width allows and full-width stacked tools on narrow compact viewports.",
-            "Compact Play and Sync shows the ready version, Save Check guidance, and Upload-locked state in a readable touch-safe summary card that opens Save Check without unlocking Push.",
-            "Compact ready state prioritizes the ready summary, Save Check shortcut, Get-saves-first cloud controls, and Start Game before version management.",
-            "Compact ready state keeps save backup and cloud sync options below Start Game as optional controls.",
+            "Versions and Help keep recovery/support actions in their relevant destination with full-width touch targets on narrow compact viewports.",
+            "Compact Home shows the ready version, Save Check guidance, Upload-locked state, Start Game, and Safe Start without exposing Push controls.",
+            "Compact Saves keeps Get Steam Saves before the locked upload flow and preserves the explicit overwrite confirmation.",
+            "Compact Saves keeps backup and cloud-sync options below the guarded Pull/Push actions.",
             "Compact Pull action renders .*Get Steam Saves / Download to Android.* as a structured title/detail label",
             "Compact locked upload toggle renders Upload Locked / Review first and Hide Upload / Keep locked as structured title/detail labels:",
             "Compact unlocked Push actions render .*Upload to Steam / Overwrite cloud.* and .*Confirm Upload / Overwrite cloud.* as structured title/detail labels after the upload overwrite drawer is explicitly opened",

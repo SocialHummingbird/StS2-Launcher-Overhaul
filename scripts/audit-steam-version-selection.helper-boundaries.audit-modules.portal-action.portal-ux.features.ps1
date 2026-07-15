@@ -5,10 +5,10 @@ function Add-SteamVersionSelectionPortalActionPortalUxFeatureBoundaryChecks {
         @(
             "function Add-SteamVersionSelectionPortalUxNarrativeChecks",
             "LauncherPortalUxSupport.cs",
-            "Status-led launcher portal",
-            "compact ready-state priority",
-            "compact Play/Sync uses plain-language save copy",
-            "ARM64 visual validation"
+            "Task-led launcher with five stable destinations",
+            "display safe-area insets",
+            "Steam Cloud Push gates remain unchanged",
+            "unlocked ARM64 device"
         )
 
     Add-Check `

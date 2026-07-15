@@ -1,7 +1,7 @@
 function Add-SteamVersionSelectionActionCoreConstructionChecks {
     Add-Check `
         "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.cs" `
-        "keeps compact action construction ordered as branch details before ready/cloud/support controls" `
+        "constructs existing action controls once before assigning stable destinations" `
         @(
             "BuildBranchControls\(scale, compact\)",
             "_branchDetailsToggle = branchControls\.DetailsToggle",
@@ -13,7 +13,8 @@ function Add-SteamVersionSelectionActionCoreConstructionChecks {
             "_cloudOptionsToggle = cloudControls\.CloudOptionsToggle",
             "BuildSupportControls\(scale, compact, supportToolsParent\)",
             "_supportToggle = supportControls\.SupportToggle",
-            "(?s)BuildBranchControls\(scale, compact\).*BuildReadyVersionSummaryControls\(scale, compact\).*SetGameBranch\(_gameBranch\).*BuildCloudControls\(scale, compact\).*BuildSupportControls\(scale, compact, supportToolsParent\).*ArrangeCompactReadyStatePriority\(\)"
+            "BuildDestinationLayout\(\)",
+            "(?s)BuildBranchControls\(scale, compact\).*BuildReadyVersionSummaryControls\(scale, compact\).*SetGameBranch\(_gameBranch\).*BuildCloudControls\(scale, compact\).*BuildModsControls\(scale, compact\).*BuildSupportControls\(scale, compact, supportToolsParent\).*BuildDestinationLayout\(\)"
         )
 
     Add-Check `

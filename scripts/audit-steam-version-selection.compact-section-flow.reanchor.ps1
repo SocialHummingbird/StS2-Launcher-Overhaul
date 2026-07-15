@@ -1,24 +1,24 @@
 function Add-SteamVersionSelectionCompactSectionFlowReanchorChecks {
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherView.Behavior.Reanchor.cs" `
-        "re-anchors compact task scroll position after Android viewport changes without fighting focused keyboard input" `
+        "src\STS2Mobile\Launcher\LauncherView.Behavior.cs" `
+        "updates layout without restoring a stale deferred scroll anchor" `
         @(
-            "ReanchorCompactScrollTargetAfterViewportChange\(\)",
-            "DisplayServer\.VirtualKeyboardGetHeight\(\) > 0",
-            "GuiGetFocusOwner",
-            "PrimaryScroll\.IsAncestorOf\(focusOwner\)",
-            "CompactViewportReanchorTarget",
-            "IsUsableCompactAnchor",
-            "ScrollCompactPrimaryTo\(target\)"
+            "UpdateViewportSize\(Vector2 viewportSize\)",
+            "UpdateKeyboardOffset\(\)",
+            "RequestAndroidCompositionRefresh\(\)"
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\Sections\ActionSection.Visibility.cs" `
-        "anchors compact ready/retry scrolling to the actual primary controls" `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.Destinations.cs" `
+        "keeps destination containers stable and switches visibility without runtime reparenting" `
         @(
-            "ReadyScrollTarget",
-            "_compact \? _cloudGroup : _launchButton",
-            "RetryScrollTarget",
-            "_retryButton"
+            "BuildDestinationLayout\(\)",
+            "SetDestination\(LauncherDestination destination\)",
+            "ApplyDestinationVisibility\(\)",
+            "_homeDestination\.Visible = _destination == LauncherDestination\.Home",
+            "_savesDestination\.Visible = _destination == LauncherDestination\.Saves",
+            "_versionsDestination\.Visible = _destination == LauncherDestination\.Versions",
+            "_modsDestination\.Visible = _destination == LauncherDestination\.Mods",
+            "_helpDestination\.Visible = _destination == LauncherDestination\.Help"
         )
 }

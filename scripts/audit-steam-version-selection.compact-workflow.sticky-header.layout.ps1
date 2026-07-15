@@ -48,7 +48,7 @@ function Add-SteamVersionSelectionCompactWorkflowStickyHeaderLayoutChecks {
         "reflows the compact sticky task header after Android viewport changes" `
         @(
             "UpdateCompactStickyTaskHeader\(Vector2 viewportSize\)",
-            "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
+            "LauncherLayoutProfile\.ForViewport\(viewportSize, _profile\.TouchOptimized\)",
             "ApplyCompactStickyTaskHeaderLayout",
             "_compactStickyTaskHeader",
             "_compactWorkflowStrip"

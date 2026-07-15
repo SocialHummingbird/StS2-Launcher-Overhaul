@@ -1,6 +1,14 @@
 # Steam Version Selection Release Note Snippet
 
-Use this wording when a build includes Steam game version selection but has not completed the full ARM64 validation runbook.
+For launcher redesign builds, use the current wording below. The legacy compact-portal wording remains later in this file only as a historical reference for older builds.
+
+## Current launcher redesign note
+
+Steam game version selection remains available through the dedicated Versions page. The launcher now separates its main jobs into Home, Saves, Versions, Mods, and Help so game launch, Steam Cloud, branch management, mods, and recovery tools no longer compete in one long scrolling screen. Phone layouts use bottom navigation; wide foldable and tablet layouts use top navigation. Existing branch checks, side-by-side non-public caches, Pull-before-Push ordering, and the explicit Steam Cloud overwrite confirmation remain unchanged.
+
+This redesign is still under ARM64 validation. Do not claim release-candidate signoff until the exact APK passes unlocked cover/inner destination and game-handoff testing. Do not run or claim Steam Cloud Push without an explicit destructive-test decision.
+
+## Legacy compact-portal reference
 
 ## Short release note
 

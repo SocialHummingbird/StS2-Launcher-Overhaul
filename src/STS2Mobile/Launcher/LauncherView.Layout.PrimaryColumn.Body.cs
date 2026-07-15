@@ -10,7 +10,10 @@ internal sealed partial class LauncherView
     )
     {
         var scale = profile.Scale;
-        var leftScroll = new ScrollContainer();
+        var leftScroll = new ScrollContainer
+        {
+            HorizontalScrollMode = ScrollContainer.ScrollMode.ShowNever,
+        };
         leftScroll.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         leftScroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
         leftScroll.FollowFocus = true;

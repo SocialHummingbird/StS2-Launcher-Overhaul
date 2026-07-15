@@ -28,12 +28,12 @@ function Add-SteamVersionSelectionPortalActionPortalUxFlagBoundaryChecks {
 
     Add-Check `
         "scripts\audit-steam-version-selection.portal-ux-flags.workflow.ps1" `
-        "keeps portal UX workflow and sticky task-header support flag contracts focused" `
+        "keeps portal UX destination and safe-area support flag contracts focused" `
         @(
             "function Add-SteamVersionSelectionPortalUxWorkflowFlagChecks",
             "LauncherPortalUxSupport.Workflow.cs",
-            "CompactWorkflowStepStripSupported",
-            "ViewportAwareCompactTaskReanchorSupported"
+            "StableDestinationNavigationSupported",
+            "AndroidSafeAreaInsetsSupported"
         )
 
     Add-Check `

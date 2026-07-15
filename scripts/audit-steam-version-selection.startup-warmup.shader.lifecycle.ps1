@@ -4,7 +4,7 @@ function Add-SteamVersionSelectionStartupWarmupShaderLifecycleChecks {
         "keeps shader warmup screen root limited to state and entry point" `
         @(
             "internal sealed partial class ShaderWarmupScreen : Control",
-            "WarmupVersion = 7",
+            "WarmupVersion = 9",
             "WarmupTimeBudgetSeconds = 90",
             "TaskCompletionSource<bool> _tcs",
             "Label _statusLabel",

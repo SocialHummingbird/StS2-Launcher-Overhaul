@@ -12,8 +12,14 @@ function Add-SteamVersionSelectionStartupWarmupStartupModeChecks {
             "PhaseSettingsAndSaves",
             "PhaseGameStartup",
             "ShouldSkipShaderWarmup",
-            "PhaseShaderWarmup",
             "SafeLaunchMessage"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherStartupFlow.cs" `
+        "owns shared startup phase names outside the safe-mode decision shell" `
+        @(
+            'PhaseShaderWarmup = "shader warmup"'
         )
 
     Add-Check `

@@ -57,7 +57,7 @@ internal sealed partial class LauncherView
     {
         var viewportSize = _parent.GetViewport()?.GetVisibleRect().Size ?? _profile.ViewportSize;
         return viewportSize.X > 0f && viewportSize.Y > 0f
-            ? LauncherLayoutProfile.ForViewport(viewportSize)
+            ? LauncherLayoutProfile.ForViewport(viewportSize, _profile.TouchOptimized)
             : _profile;
     }
 }

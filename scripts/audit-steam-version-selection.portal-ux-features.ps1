@@ -28,15 +28,16 @@ function Add-SteamVersionSelectionPortalUxFeatureChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherPortalUxSupport.Features.Workflow.cs" `
-        "keeps workflow and current-task feature diagnostics beside workflow support flags" `
+        "keeps destination, safe-area, and composition diagnostics beside workflow support flags" `
         @(
             "AddWorkflowFeatureReports",
-            "CompactWorkflowStepStripSupported",
-            "CompactWorkflowStepNumberBadgesSupported",
-            "CompactCurrentTaskJumpSupported",
-            "CompactStickyTaskToolbarShellSupported",
-            "ViewportAwareCompactTaskReanchorSupported",
-            "CompactReadableDetailLabelFontSupported"
+            "StableDestinationNavigationSupported",
+            "HomeDestinationSupported",
+            "DestinationOwnedActionGroupsSupported",
+            "DeterministicDestinationScrollResetSupported",
+            "DynamicTaskReanchorRemoved",
+            "AndroidSafeAreaInsetsSupported",
+            "AndroidCompositionRefreshSupported"
         )
 
     Add-Check `
@@ -61,9 +62,10 @@ function Add-SteamVersionSelectionPortalUxFeatureChecks {
             "CompactInstallPrimaryActionFirstSupported",
             "CompactSelectedVersionSummarySupported",
             "CompactReadyVersionSummarySupported",
-            "CompactPlainLanguagePlaySyncLabelsSupported",
+            "CompactHomeActionPrioritySupported",
+            "CloudControlsIsolatedToSavesSupported",
             "CompactCloudPushDangerDetailLabelsSupported",
-            "CompactSupportToolsGridSupported",
+            "DestinationSupportToolsSupported",
             "CompactRawLogReviewLabelSupported",
             "ViewportAwareKeyboardOffsetSupported",
             "CompactActiveTaskSafeFlowSuppressionSupported"

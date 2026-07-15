@@ -29,10 +29,8 @@ internal sealed partial class LauncherView
             return;
 
         var profile = viewportSize.X > 0f && viewportSize.Y > 0f
-            ? LauncherLayoutProfile.ForViewport(viewportSize)
+            ? LauncherLayoutProfile.ForViewport(viewportSize, _profile.TouchOptimized)
             : _profile;
         Log.CustomMinimumSize = new Vector2(0, DiagnosticsLogHeight(profile));
-        if (_profile.Compact && DiagnosticsDrawer.Visible)
-            ScrollCompactPrimaryTo(DiagnosticsDrawer);
     }
 }

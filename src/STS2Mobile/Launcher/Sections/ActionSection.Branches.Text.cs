@@ -13,7 +13,7 @@ internal sealed partial class ActionSection
                 + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches)
                 + "\n"
                 + "Version/download actions affect local game files only. Steam Cloud saves move only through Pull/Push.";
-        _branchHelpLabel.Visible = _branchDropdown.Visible && (!_compact || _branchDetailsExpanded);
+        _branchHelpLabel.Visible = _branchDropdown.Visible && _branchDetailsExpanded;
         if (_branchDetailsToggle != null)
         {
             SetCompactActionButtonText(_branchDetailsToggle, _compact

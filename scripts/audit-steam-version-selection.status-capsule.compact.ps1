@@ -36,7 +36,7 @@ function Add-SteamVersionSelectionStatusCapsuleCompactChecks {
             "private void UpdateCompactStatusHeadline\(Vector2 viewportSize\)",
             "_compactStatusHeadline",
             "_compactStatusPhasePanel",
-            "LauncherLayoutProfile\.ForViewport\(viewportSize\)",
+            "LauncherLayoutProfile\.ForViewport\(viewportSize, _profile\.TouchOptimized\)",
             "ApplyCompactStatusHeadlineLayout"
         )
 }

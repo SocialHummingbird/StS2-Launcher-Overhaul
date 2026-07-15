@@ -8,7 +8,10 @@ internal sealed partial class DownloadSection
 {
     private OptionButton BuildBranchDropdown(float scale, bool compact)
     {
-        var dropdown = new OptionButton();
+        var dropdown = new OptionButton
+        {
+            FitToLongestItem = !compact,
+        };
         dropdown.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         dropdown.CustomMinimumSize = new Vector2(
             0,

@@ -53,11 +53,19 @@ function Add-SteamVersionSelectionDiagnosticsDrawerShellChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherView.cs" `
-        "hosts compact diagnostics drawer under the primary compact body" `
+        "hosts diagnostics inside the stable Help destination" `
         @(
             "DiagnosticsDrawer",
             "DiagnosticsToggle",
-            "var diagnosticsRoot = profile\.Compact",
-            "primary\.CompactDiagnosticsHost"
+            "BuildLogColumn\(profile, Actions\.HelpDiagnosticsHost",
+            "Actions\.HelpDiagnosticsHost"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherView.Destinations.cs" `
+        "exposes diagnostics only while Help is selected" `
+        @(
+            "DiagnosticsToggle\.Visible = destination == LauncherDestination\.Help",
+            "DiagnosticsDrawer\.Visible = false"
         )
 }

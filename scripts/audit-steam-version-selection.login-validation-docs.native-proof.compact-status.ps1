@@ -1,7 +1,7 @@
 function Add-SteamVersionSelectionLoginValidationDocsNativeProofCompactStatusChecks {
     Add-Check `
         "docs\android-steam-login-validation.md" `
-        "keeps compact status, quick-start, and workflow proof wording focused" `
+        "keeps compact status, quick-start, and destination proof wording focused" `
         @(
             "The compact status card stays readable while using low-profile spacing so more current task content remains visible.",
             "The compact status card stacks the phase chip and guided next action so neither is squeezed on narrow screens.",
@@ -16,7 +16,7 @@ function Add-SteamVersionSelectionLoginValidationDocsNativeProofCompactStatusChe
             "Compact expanded quick-start guide renders each step inside a bounded row card.",
             "Compact sign-in, Steam Guard, and download task screens suppress the quick-start drawer so the current primary controls stay higher in the viewport.",
             "The compact brand subtitle remains readable at phone scale and uses plain app copy instead of pipe-separated command-line-style labels.",
-            "The compact workflow strip stays in one dense row on narrow compact viewports instead of taking a second fixed header row.",
-            "Tapping compact workflow step labels scrolls directly to the visible matching task section or the current safe fallback task."
+            "Home, Saves, Versions, Mods, and Help are stable destinations; changing destination replaces the page body instead of moving controls around one long form.",
+            "Phone layouts use a touch-safe bottom navigation bar with visible labels for all five destinations."
         )
 }

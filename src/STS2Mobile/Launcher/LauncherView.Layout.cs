@@ -6,7 +6,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherView
 {
-    private static (StyledPanel Panel, VBoxContainer Content) BuildShell(
+    private static (StyledPanel Panel, VBoxContainer Content, ColorRect AndroidCompositionRefresh) BuildShell(
         Control parent,
         LauncherLayoutProfile profile,
         Action<InputEvent> dismissKeyboard
@@ -45,6 +45,15 @@ internal sealed partial class LauncherView
         panel.AddContent(content);
 
         content.AddChild(BuildBrandHeader(profile));
-        return (panel, content);
+
+        var androidCompositionRefresh = new ColorRect
+        {
+            Color = Colors.Transparent,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        androidCompositionRefresh.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        parent.AddChild(androidCompositionRefresh);
+
+        return (panel, content, androidCompositionRefresh);
     }
 }

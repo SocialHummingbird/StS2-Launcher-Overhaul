@@ -48,6 +48,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 
 import android.content.Context;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
@@ -180,6 +181,7 @@ public class GodotApp extends GodotActivity {
 		gameDir = resolveGameDir().getAbsolutePath();
 		String selectedBranch = readSelectedBranch();
 		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
+		configureRequestedOrientation(pendingGameLaunch);
 		recordStartupPhase("native game directory resolved", "branch=" + selectedBranch + "; pendingGameLaunch=" + pendingGameLaunch);
 		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
 		Log.i(TAG, "Selected Steam branch: " + selectedBranch);
@@ -246,6 +248,18 @@ public class GodotApp extends GodotActivity {
 			recordStartupPhase("native multicast lock failed", e.getMessage());
 			Log.w(TAG, "Failed to acquire MulticastLock", e);
 		}
+	}
+
+	private void configureRequestedOrientation(boolean pendingGameLaunch) {
+		int orientation = pendingGameLaunch
+			? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+			: ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR;
+		setRequestedOrientation(orientation);
+		Log.i(
+			TAG,
+			"Android orientation policy: "
+				+ (pendingGameLaunch ? "sensor-landscape for game startup" : "full-sensor for launcher")
+		);
 	}
 
 	private void initializeFmodAndroid() {

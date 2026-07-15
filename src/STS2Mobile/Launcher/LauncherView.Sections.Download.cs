@@ -6,6 +6,7 @@ internal sealed partial class LauncherView
 {
     internal void ShowDownloadAction(string buttonText)
     {
+        SelectHomeDestination();
         SetFirstRunGuideVisible(false);
         HideCompactCompletedAuthSections(showCode: false);
         SetCompactReadyInstallSectionVisible(true);

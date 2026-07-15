@@ -17,6 +17,8 @@ internal readonly struct LauncherLayoutProfile
         float panelWidthRatio,
         float panelHeightRatio,
         int contentMaxWidth,
+        LauncherLayoutMode mode,
+        bool touchOptimized,
         bool compact,
         bool compactStackedActionRows
     )
@@ -26,6 +28,8 @@ internal readonly struct LauncherLayoutProfile
         PanelWidthRatio = panelWidthRatio;
         PanelHeightRatio = panelHeightRatio;
         ContentMaxWidth = contentMaxWidth;
+        Mode = mode;
+        TouchOptimized = touchOptimized;
         Compact = compact;
         CompactStackedActionRows = compactStackedActionRows;
     }
@@ -35,27 +39,43 @@ internal readonly struct LauncherLayoutProfile
     internal float PanelWidthRatio { get; }
     internal float PanelHeightRatio { get; }
     internal int ContentMaxWidth { get; }
+    internal LauncherLayoutMode Mode { get; }
+    internal bool TouchOptimized { get; }
     internal bool Compact { get; }
     internal bool CompactStackedActionRows { get; }
 
     internal static LauncherLayoutProfile ForViewport(Vector2 viewportSize)
+        => ForViewport(viewportSize, OperatingSystem.IsAndroid());
+
+    internal static LauncherLayoutProfile ForViewport(
+        Vector2 viewportSize,
+        bool touchOptimized
+    )
     {
         var safeViewport = viewportSize == Vector2.Zero ? new Vector2(1920, 1080) : viewportSize;
         var shortEdge = Math.Max(1f, Math.Min(safeViewport.X, safeViewport.Y));
         var longEdge = Math.Max(safeViewport.X, safeViewport.Y);
         var aspect = longEdge / shortEdge;
-        var mobileShell = OperatingSystem.IsAndroid();
-        var compact = mobileShell || shortEdge <= 1150f || aspect >= 1.55f;
+        var mode = ResolveMode(safeViewport, shortEdge, aspect, touchOptimized);
+        var compact = mode != LauncherLayoutMode.Wide;
         var scaleCeiling = compact ? 1.34f : 1.22f;
         var scaleFloor = compact
-            ? (mobileShell ? AndroidCompactTouchScaleFloor : CompactScaleFloor)
-            : WideScaleFloor;
-        var scale = Math.Clamp(shortEdge / ReferenceShortEdge, scaleFloor, scaleCeiling);
-        var panelWidth = compact ? 1.0f : 0.78f;
-        var panelHeight = compact ? 1.0f : 0.88f;
+            ? (touchOptimized ? AndroidCompactTouchScaleFloor : CompactScaleFloor)
+            : touchOptimized
+                ? CompactScaleFloor
+                : WideScaleFloor;
+        var viewportScale = Math.Clamp(shortEdge / ReferenceShortEdge, scaleFloor, scaleCeiling);
+        var scale = OperatingSystem.IsAndroid() && touchOptimized
+            ? ResolveAndroidScale(viewportScale)
+            : viewportScale;
+        var panelWidth = compact ? 1.0f : touchOptimized ? 0.96f : 0.78f;
+        var panelHeight = compact ? 1.0f : touchOptimized ? 0.96f : 0.88f;
+        var availablePanelWidth = safeViewport.X * panelWidth * 0.92f;
         var contentMaxWidth = compact
             ? Math.Max(1, (int)Math.Min(safeViewport.X * 0.96f, 1600f))
-            : Math.Max(860, (int)Math.Min(safeViewport.X * 0.84f, 1180f));
+            : touchOptimized
+                ? Math.Max(860, (int)Math.Min(availablePanelWidth, 1280f))
+                : Math.Max(720, (int)Math.Min(availablePanelWidth, 1120f));
         var compactStackedActionRows = compact
             && contentMaxWidth < MathF.Round(CompactStackedActionRowsWidth * scale);
 
@@ -65,11 +85,43 @@ internal readonly struct LauncherLayoutProfile
             panelWidth,
             panelHeight,
             contentMaxWidth,
+            mode,
+            touchOptimized,
             compact,
             compactStackedActionRows
         );
     }
 
+    private static float ResolveAndroidScale(float viewportScale)
+    {
+        var dpi = DisplayServer.ScreenGetDpi();
+        if (dpi <= 0)
+            return viewportScale;
+
+        return Math.Clamp(Math.Max(viewportScale, dpi / 160f), viewportScale, 3f);
+    }
+
+    private static LauncherLayoutMode ResolveMode(
+        Vector2 viewport,
+        float shortEdge,
+        float aspect,
+        bool touchOptimized
+    )
+    {
+        if (!touchOptimized)
+            return viewport.X < 900f
+                ? LauncherLayoutMode.PhonePortrait
+                : LauncherLayoutMode.Wide;
+
+        var foldableOrTablet = shortEdge >= 1280f && aspect <= 1.7f;
+        if (foldableOrTablet)
+            return LauncherLayoutMode.Wide;
+
+        return viewport.Y >= viewport.X
+            ? LauncherLayoutMode.PhonePortrait
+            : LauncherLayoutMode.PhoneLandscape;
+    }
+
     public override string ToString()
-        => $"Viewport={ViewportSize} Scale={Scale:0.00} Compact={Compact} CompactStackedActionRows={CompactStackedActionRows}";
+        => $"Viewport={ViewportSize} Scale={Scale:0.00} Mode={Mode} Touch={TouchOptimized} CompactStackedActionRows={CompactStackedActionRows}";
 }

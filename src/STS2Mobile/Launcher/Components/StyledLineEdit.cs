@@ -16,6 +16,7 @@ internal sealed class StyledLineEdit : LineEdit
     {
         _keyboardType = keyboardType;
         PlaceholderText = placeholder;
+        AccessibilityName = placeholder;
         Secret = secret;
         CustomMinimumSize = new Vector2(
             0,
@@ -77,6 +78,9 @@ internal sealed class StyledLineEdit : LineEdit
 
     private void ShowAndroidKeyboard()
     {
+        if (!OperatingSystem.IsAndroid())
+            return;
+
         try
         {
             DisplayServer.VirtualKeyboardShow(

@@ -19,7 +19,8 @@ function Add-SteamVersionSelectionPortalActionCompactWorkflowStickyBoundaryCheck
         "keeps compact sticky header placement audit contracts focused" `
         @(
             "function Add-SteamVersionSelectionCompactWorkflowStickyHeaderPlacementChecks",
-            "LauncherView.Layout.PrimaryColumn.cs",
+            "LauncherView.Layout.Navigation.cs",
+            "LauncherView.cs",
             "LauncherView.Layout.PrimaryColumn.Body.cs"
         )
 
