@@ -11,13 +11,15 @@ Validated baseline:
 - Fresh APK/runtime install reaches the launcher on ARM64 hardware.
 - Steam login and depot download complete.
 - Pull from Cloud downloads Steam Cloud files into Android local app storage.
-- The latest public APK has visual validation for the responsive launcher login, active download-progress, ready, diagnostics-drawer, and Push confirmation/cancel states.
+- `v0.2.398-launcher-ui-redesign` publishes five stable Home/Saves/Versions/Mods/Help destinations with phone bottom navigation and wide/foldable top navigation. Its 20-viewport deterministic preview, accessibility/bounds/target checks, event contract, 819-check static audit, exact ARM64 update install, and release hygiene passed; final unlocked physical portrait/landscape capture remains pending after the device disconnected.
 - The game launches and reads the pulled profile in-game.
 - Startup freshness and assembly cache diagnostics prove the current installed runtime is being used.
-- Latest build-only prerelease: `v0.2.287-local-audit-orchestrator-split` expands the Steam version-selection static audit split into focused status-capsule, compact-workflow, code-section, compact-section-flow, compact-install, and startup-warmup modules and passed static/build/APK verification. It is not new device runtime signoff.
+- Current GitHub release: `v0.2.398-launcher-ui-redesign`, APK `StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk`, version code `398031`, local test signing channel.
 
 Active blockers:
 
+- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains open after the reporter tested `v0.2.397`. The game reaches real `NMainMenu` and exits before the first post-startup probe. The leading cause is the known Godot 4.5.1 OpenGL Compatibility all-PowerVR transform-feedback shader-cache bug plus the launcher's forced-renderer state machine; the intended fix is a Godot 4.5.2 backport/upgrade and renderer-policy repair.
+- Exact-build unlocked physical validation of all five launcher destinations, portrait/landscape rotation, cover/inner displays, and real game handoff remains incomplete.
 - Steam beta/version selection is implemented for validation but not release-signed. The launcher now exposes discovery-led public/non-public selector guidance, labels refreshed branch options with concise metadata badges, blocks known unavailable selected branches before game-version download/update attempts, records selected-version notes in diagnostics/logs/branch-switch/Pull/Push evidence, mirrors guidance in native routing/fallback diagnostics, blocks native selected-version launch when branch provenance is missing or mismatched, and guards the static contract through CI. ARM64 evidence still needs to prove public/default regression safety, account-visible non-public branch download/startup routing, branch marker provenance, inaccessible/private/password branch handling, cache cleanup, save compatibility, Pull-before-Push/current-backup safety, pre-Push backup evidence, and successful selected-version Push marker evidence. The current signoff contract is tracked in `docs/steam-version-selection-release-readiness.md`.
 - Confirmed Push to Cloud on the newest public APK still needs explicit overwrite-risk smoke because it can overwrite real Steam Cloud state.
 - Upgrade install behavior needs repeated release-readiness evidence on the current signed line.
@@ -39,7 +41,7 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 | P3 | Multiplayer | LAN beacon persistence and discovery stability | Reliability | Completed |
 | P7 | Closure | CI artifact handling and phase transition hygiene | Reliability / Governance | Completed |
 | P8 | Android working path | ARM64 fresh install, Steam download, Pull from Cloud, local save handoff, and game launch | Runtime validation | Completed baseline |
-| P9 | Launcher UX | Responsive shell, collapsed diagnostics, reachable launch buttons, active download-progress validation | UX / Runtime validation | Completed baseline |
+| P9 | Launcher UX | Five-destination responsive shell and deterministic viewport/event validation | UX / Runtime validation | Published; physical matrix pending |
 
 ## Open Follow-up Tasks
 
@@ -49,7 +51,8 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 - Keep launcher recovery and sync status UX clear enough that successful startup and local-save runtime behavior are not presented as failures.
 - Reduce low-value diagnostics while preserving startup freshness, assembly cache, cloud-save, and release-evidence logs.
 - Maintain artifact hygiene for APKs, checksums, logs, summaries, and validation manifests.
-- Device-test the latest audit-orchestrator split APK before treating it as runtime or UX evidence beyond build/static gates.
+- Reconnect and unlock the ARM64 device, then run the exact `v0.2.398` five-destination portrait/landscape and real game-handoff checks without Steam Cloud Push.
+- Backport or upgrade to the Godot 4.5.2 all-PowerVR shader-cache workaround, make Safe Start/default renderer selection truthful, and retest issue #34 on Pixel/PowerVR hardware.
 
 ## Notes
 

@@ -1,6 +1,6 @@
 # Android Steam Workshop Mods
 
-_Last updated: 2026-07-07_
+_Last updated: 2026-07-15_
 
 See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, Steam, or Valve, and bundles no Slay the Spire 2 game files, assets, or Workshop content. Steam ownership is required.
 
@@ -8,7 +8,7 @@ This document tracks the Android Workshop/mod path for StS2 Mobile. It covers su
 
 ## Current State
 
-Workshop/mod support is in progress. The current latest APK is `v0.2.385-shader-warmup-compat`; the latest strict modded device evidence is still the July 3 public-beta validation noted below. The current Android Workshop path can discover, stage, present, and launch the tested public-beta mod set:
+Workshop/mod support is in progress. The current latest APK is `v0.2.398-launcher-ui-redesign`; the latest strict modded game-runtime evidence is still the July 3 public-beta validation noted below. `v0.2.398` moves these controls into the dedicated Mods destination but does not replace that strict runtime evidence. The current Android Workshop path can discover, stage, present, and launch the tested public-beta mod set:
 
 - `Sync Workshop Mods` discovers subscribed Workshop items from Steam.
 - Usable Workshop items are downloaded from Steam depot manifests or direct UGC URLs.

@@ -4,7 +4,7 @@ This roadmap tracks the overhaul phases and the current Android release-hardenin
 
 ## Current release posture
 
-The app has a working ARM64 Android baseline. It is not yet release-candidate complete because confirmed Push-to-Cloud upload, upgrade behavior, locked-screen interruption, Steam version-selection hardening, and repeated release artifact validation still need evidence.
+The app has a working ARM64 Android baseline and a published five-destination launcher redesign. It is not yet release-candidate complete because Pixel/PowerVR renderer compatibility, exact-build physical UI/game-handoff validation, confirmed Push-to-Cloud upload, production-signing upgrade behavior, Steam version-selection hardening, and repeated release-readiness evidence remain open.
 
 Canonical status: [docs/current-android-status.md](docs/current-android-status.md)
 
@@ -25,6 +25,9 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 ## Phase 3 - Launcher and runtime UX
 
 - [x] Present the launcher reliably on fresh ARM64 installs.
+- [x] Replace the all-in-one scroll surface with Home, Saves, Versions, Mods, and Help destinations plus phone/wide navigation.
+- [x] Add deterministic phone, landscape, foldable, and desktop preview/accessibility/event-contract validation.
+- [ ] Complete exact `v0.2.398` unlocked physical destination, rotation, cover/inner display, and real game-handoff validation.
 - [x] Preserve Android local save behavior even when cloud sync is disabled.
 - [x] Improve cloud sync wording from ambiguous auto-sync language to explicit Game Cloud Sync behavior.
 - [ ] Continue polishing recovery/status text so successful startup is not presented as a failure.
@@ -67,14 +70,16 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 ## Phase 6 - Device lifecycle and install-path validation
 
 - [x] Add startup freshness and assembly cache diagnostics for installed runtime/schema/cache evidence.
+- [x] Install exact `v0.2.398` over existing local-package app data and verify version code `398031`.
 - [ ] Validate upgrade install behavior from the current public release baseline.
 - [ ] Validate locked-screen interruption and return-to-app after manual unlock.
 - [ ] Repeat stale assembly cache/freshness checks across reinstall and upgrade scenarios.
 
 ## Phase 7 - Public release readiness
 
-- [ ] Publish release notes that clearly say the app works on the validated ARM64 path but is still being polished/hardened.
+- [x] Publish `v0.2.398` release notes that clearly say the app works on the validated ARM64 path but remains tester software.
+- [ ] Integrate the Godot 4.5.2 all-PowerVR transform-feedback shader-cache workaround, repair renderer selection/Safe Start behavior, and retest issue #34.
 - [ ] Keep confirmed Push overwrite risk explicit until validated.
 - [ ] Keep Steam beta/version selection release blockers explicit until ARM64 evidence exists.
 - [ ] Keep x86_64 emulator limitations explicit.
-- [ ] Keep APK artifacts, checksums, validation logs, and summaries clean enough for external testers.
+- [x] Keep the current APK, checksum, metadata, release body, and generated GitHub release inventory mutually consistent.

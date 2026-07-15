@@ -22,6 +22,7 @@ body:
         - During Steam login
         - During game download/update
         - After pressing Start Game
+        - After the real game main menu appeared
         - After selecting or switching Steam branch
         - After enabling mods
         - After returning from the game to the launcher
@@ -67,6 +68,8 @@ body:
         Android version:
         Vendor skin/version, for example One UI:
         Device ABI:
+        GPU model:
+        Godot renderer/backend:
         APK release tag:
         APK filename:
         Package name:
@@ -91,6 +94,11 @@ body:
         Active sts2.dll SHA-256:
         Runtime cache marker path/value:
         Patch validation marker path/value:
+        Shader warmup marker/status:
+        NMainMenu reached:
+        Post-startup trace marker/latest probe:
+        Post-startup heartbeat marker/latest heartbeat:
+        Last Android lifecycle marker:
         NativeFallback route shown:
     validations:
       required: true
@@ -99,7 +107,7 @@ body:
     attributes:
       label: Focused logs and screenshots
       description: |
-        Attach focused logcat around the failure. Useful terms: AndroidRuntime, FATAL EXCEPTION, Godot, STS2Mobile, PatchHelper, NativeFallback, SteamKit, Workshop, Mods.
+        Attach focused logcat around the failure, including the dying process when possible. Useful terms: AndroidRuntime, FATAL EXCEPTION, Fatal signal, SIGSEGV, SIGABRT, Godot, NMainMenu, PostStartupTrace, PostStartupHeartbeat, Native lifecycle event, has died, lmkd, PowerVR, OpenGL, Vulkan, STS2Mobile, PatchHelper, NativeFallback, SteamKit, Workshop, Mods.
       value: |
         Focused logcat attached:
         Screenshot or screen recording attached:

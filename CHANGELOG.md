@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-15 - Five-destination launcher UI and PowerVR cause analysis
+
+- Published `v0.2.398-launcher-ui-redesign` with Home, Saves, Versions, Mods, and Help destinations; phone bottom navigation; wide/foldable top navigation; Android safe-area/orientation handling; and retained launch, cloud, mod, repair, and diagnostic event routing.
+- Added a deterministic 20-viewport preview matrix with accessibility, bounds, minimum-target, pixel-determinism, event-contract, and no-Steam-Cloud-Push checks. The static repository audit passed 819 checks.
+- Installed the exact ARM64 APK over existing app data on Samsung `SM-F966B`; final unlocked physical portrait/landscape capture did not run after the device disconnected, and Steam Cloud Push was not run.
+- Analysed issue #34 reporter `log7.txt`: `v0.2.397-atlas-memory-compat` reaches real `NMainMenu` on Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536, then exits before the first one-second post-startup probe.
+- Matched the failure to the known Godot 4.5.1 OpenGL Compatibility PowerVR transform-feedback shader-cache bug. Godot 4.5.2 disables that cache on all PowerVR devices; the current custom 4.5.1 engine only carries the older single-model `PowerVR Rogue GE8320` exception.
+- Confirmed the launcher currently forces OpenGL Compatibility through an unreachable success-marker condition and that Safe Start does not actually select the advertised default renderer. The next compatibility fix is an engine backport/upgrade plus renderer-policy repair, not a core game redesign.
+
 ## 2026-07-11 - Android atlas memory compatibility
 
 - Added an Android-only atlas compatibility path for issue #34 that skips eager `AtlasManager.LoadAllAtlases()` during deferred startup.

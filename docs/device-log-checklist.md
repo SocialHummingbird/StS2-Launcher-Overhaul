@@ -7,6 +7,7 @@ Use this checklist before filing overhaul issues that involve crashes, stutters,
 ## Required Capture
 - Device model + OS + Android version
 - Device ABI
+- GPU model and active renderer/backend from Godot startup logs
 - App version / package version
 - Release tag / APK asset when testing a GitHub release
 - Package name and versionCode when available
@@ -33,6 +34,12 @@ adb logcat > sts2launcher-logcat.txt
 - `Cloud` / `Flush`
 - `Pull` / `Push`
 - `NativeFallback`
+- `NMainMenu` / `NGame.GameStartup completed`
+- `PostStartupTrace` / `PostStartupHeartbeat`
+- `Native lifecycle event` / `has died`
+- `FATAL EXCEPTION` / `Fatal signal` / `SIGSEGV` / `SIGABRT`
+- `lowmemorykiller` / `lmkd` / `ANR`
+- `PowerVR` / `OpenGL` / `Vulkan`
 - `Workshop` / `Mods`
 - `Runtime pack` / `PCK`
 - `NGame` lifecycle events
@@ -44,6 +51,7 @@ adb logcat > sts2launcher-logcat.txt
 - Include whether Steam login reached Steam Guard, authentication success, ownership verification, or failed earlier
 - Include selected branch, PCK path/hash, runtime pack path/hash, active `sts2.dll` hash, runtime cache marker, and patch validation marker for branch/startup reports when available
 - Include selected mods, mod sources, and save visibility/load result for Workshop or SavesMerger reports
+- For a post-main-menu exit, include `last_post_startup_trace.txt`, `last_post_startup_heartbeat.txt`, `last_app_lifecycle_event.txt`, and Android historical process-exit/tombstone data when available. A log captured only after the launcher restarts may omit the dying game process.
 
 ## Optional but Useful
 - Screenshot of launcher/overlay state

@@ -35,8 +35,8 @@ Run at least one device from each row for patch-level changes:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.187-beta-art-fallback" `
-  -AssetName "StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.398-launcher-ui-redesign" `
+  -AssetName "StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -44,8 +44,8 @@ Run at least one device from each row for patch-level changes:
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.187-beta-art-fallback" `
-  -AssetName "StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.398-launcher-ui-redesign" `
+  -AssetName "StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -64,6 +64,7 @@ The scripts above write metadata to `artifacts/android/phone-diagnostics-*`. If 
 - Device model
 - Android version / security patch
 - ABI
+- GPU model and active renderer/backend from Godot logs
 - Locale + region settings
 - App version, release tag, APK asset, branch, and commit hash
 - Clean install or update install
@@ -122,6 +123,7 @@ adb logcat > sts2launcher-<device>-<date>.log
 - [ ] Upgrade install advances package update time and does not reuse stale managed assemblies
 - [ ] Successful game startup hides launcher recovery controls quickly
 - [ ] If the target is Pixel / PowerVR / OpenGL ES, main-menu startup survives at least the 1s, 3s, 10s, 30s, and 60s post-startup markers
+- [ ] On PowerVR/OpenGL Compatibility, the engine includes the all-PowerVR transform-feedback shader-cache workaround or the release notes explicitly state that issue #34 remains open
 - [ ] Focused logs do not show Godot static-string cleanup immediately after unsupported texture-format conversion warnings
 - [ ] Locked-screen or Android focus interruption is not misreported as a game crash
 - [ ] Normal diagnostics avoid missing-path log floods; verbose save diagnostics remain opt-in

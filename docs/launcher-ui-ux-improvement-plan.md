@@ -1,10 +1,10 @@
 # Launcher UI/UX Improvement Review and Plan
 
-Date: 2026-07-11
+Date: 2026-07-15
 
 ## Implementation Status
 
-Implemented locally on `codex/android-release-bootstrap`:
+Published as [`v0.2.398-launcher-ui-redesign`](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.398-launcher-ui-redesign) from `codex/android-release-bootstrap`:
 
 - Deterministic Godot 4.5.1 Mono desktop preview using an offscreen `SubViewport`; it does not start the launcher controller or contact Steam.
 - Fixture states for signed out, Steam Guard, download progress, ready, and repairable error.
@@ -29,7 +29,7 @@ Run the complete matrix:
 .\scripts\test-launcher-ui-preview.ps1
 ```
 
-Exact final-build ARM64 viewport validation remains in progress. The APK is installed on the connected Samsung `SM-F966B`, but Samsung's secure keyguard must be unlocked before final screenshots can be treated as evidence. Steam Cloud Push must not be used for layout validation.
+Exact final-build ARM64 viewport validation remains incomplete. The APK installed successfully over existing app data on Samsung `SM-F966B`, but the final unlocked portrait/landscape script could not run after the device disconnected. Steam Cloud Push must not be used for layout validation.
 
 With one ARM64 device visible in `adb devices`, run:
 
@@ -47,7 +47,7 @@ Local ARM64 packaging completed with:
 - SHA-256: `52d05adf3a26ee8c2135edae6ceb986a2d021b99c4b92a4c00eebc7e4fa66d97`
 - APK ABI/content and Android crypto patch verification passed.
 
-The exact APK is installed on the connected ARM64 device. Final cover/inner destination and game-handoff evidence is not claimed until the secure keyguard is unlocked and those checks complete.
+The exact APK was installed on the ARM64 device. Final cover/inner destination and game-handoff evidence is not claimed until the device is reconnected, unlocked, and those checks complete.
 
 ## Review Basis
 
@@ -59,7 +59,7 @@ This review uses:
 
 An Android AVD named `sts2_test_api36` is available locally. It is Android 36, Pixel 6, x86_64, 1080x2400. It is useful for APK routing and native fallback screens, but it cannot run the authoritative Godot/.NET launcher UI. The repository intentionally routes x86_64 to `NativeFallbackActivity` because the managed Godot path is unstable there.
 
-The connected ARM64 Samsung `SM-F966B` is the final hardware proof target. Earlier redesign builds established inner-display and cover-display rendering; exact build `398031` still requires the final unlocked destination, rotation, and game-handoff pass before this implementation is declared complete.
+The ARM64 Samsung `SM-F966B` remains the final hardware proof target. Earlier redesign builds established inner-display and cover-display rendering; exact build `398031` still requires the final unlocked destination, rotation, and game-handoff pass before physical validation is complete.
 
 ## Executive Assessment
 

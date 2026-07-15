@@ -4,7 +4,7 @@ See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS
 
 Good StS2 Mobile reports include enough evidence to separate launcher bugs, Steam account/branch availability, Android runtime routing, Steam Cloud safety, and mod/save compatibility. Reports that only say "latest APK" or "mods do not work" usually cannot be acted on.
 
-Current recurring report themes are launcher UI scaling/scroll reachability, shader compile crashes or stalls, post-main-menu Android GPU/resource compatibility failures, controller input on Android handhelds, public-beta/core branch freshness, and SavesMerger save usability. These are useful reports when they include exact APK, device, branch, mod, screenshot, and focused log details.
+Current recurring report themes are redesigned-launcher layout regressions, shader compile crashes or stalls, post-main-menu Android GPU/renderer failures, controller input on Android handhelds, public-beta/core branch freshness, and SavesMerger save usability. These are useful reports when they include exact APK, device, GPU/renderer, branch, mod, screenshot, and focused log details.
 
 For Start Game failures, include `last_launch_attempt.txt` when available. Current source builds write a per-press attempt ID, selected branch, ready/blocked state, runtime slot ID, selected PCK path/hash, source and active `sts2.dll` paths/hashes, runtime pack path/status, runtime cache marker path/presence, runtime patch-validation marker path/presence, patch compatibility marker path/status, whether the launch used the prepared readiness result rather than repeating primary-path validation, whether that readiness came from a fresh check or a safe in-memory cache hit, and elapsed timing for total launch attempt, selected-version readiness, and mod readiness. Modded starts also include play mode, enabled mod count, selected mods, selector cache status, whether modded-save Cloud Push was locked, and cache evidence that invalidates when selector metadata, Workshop metadata, or staged/manual mod file metadata changes.
 
@@ -26,7 +26,7 @@ The older Steam version-selection report template remains available for deep bra
 ## Minimum Evidence For Every Report
 
 - Exact APK release tag and APK filename. Do not write only "latest".
-- Device model, Android version, vendor skin/version, and device ABI.
+- Device model, Android version, vendor skin/version, device ABI, GPU model, and renderer when visible in logs.
 - Package name and app version/versionCode when known.
 - Clean install or update install.
 - Selected game branch: public/default, public-beta, core-release, or other.
@@ -43,7 +43,7 @@ For controller reports, include controller/device model, connection mode, whethe
 
 For shader compile reports, include how long the compile screen stayed visible, whether Android showed an app-not-responding dialog, device thermal/performance mode if known, and the contents of `last_shader_warmup_status.txt` when available. Current source builds include scanner counters in that marker, including scenes scanned, unique materials, whether the scan stopped by budget, and scanner failure counts. Current local ARM64 proof on `SM-F966B` completes v6 warmup in 40149ms; a `completed-partial` marker means the launcher hit its warmup time budget and continued with degraded shader-cache coverage. That is useful compatibility evidence, not full device signoff.
 
-For crashes after the real main menu appears, include `last_post_startup_trace.txt`, `last_post_startup_heartbeat.txt`, and `last_app_lifecycle_event.txt` when available. Issue #34 has shown a Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536 path where `v0.2.396-post-startup-anchor` reaches `NMainMenu`, activates the Android post-startup anchor, then returns to launcher after Godot static-string cleanup errors without Java fatal, native signal, ANR, LMKD, or `NativeFallback` evidence. For similar reports, the useful distinction is whether the app dies before the 1s post-startup probe, after a later heartbeat, or only after user interaction.
+For crashes after the real main menu appears, include `last_post_startup_trace.txt`, `last_post_startup_heartbeat.txt`, `last_app_lifecycle_event.txt`, and Android historical process-exit/tombstone evidence when available. Issue #34 now has exact `v0.2.397` evidence on Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536: public/no-mod launch reaches `NMainMenu` and passes the main-menu guard, then exits before the first one-second post-startup probe. The attachment resumes in a new launcher process and therefore cannot prove the terminal signal was absent. This exact GPU/OpenGL Compatibility path matches the known Godot 4.5.1 PowerVR transform-feedback shader-cache bug fixed for all PowerVR devices in Godot 4.5.2. For similar reports, the useful distinction is whether the app dies before the 1s probe, after a later heartbeat, or only after user interaction.
 
 ## Do Not Share Publicly
 
@@ -163,9 +163,9 @@ The current useful result is not just "the game reached main menu." The importan
 ## Current Support Boundaries
 
 - ARM64 Android hardware is the real proof target for Steam login, download, game launch, branch switching, cloud saves, and mods.
-- A working Vulkan path is required for the bundled Godot runtime. The project does not yet have enough evidence to publish a precise RAM/GPU minimum.
-- If shader warmup records `completed-partial` and the device still cannot reach the game, treat that as below the current practical support floor unless focused logs show a specific launcher/runtime defect.
-- If the game reaches `NMainMenu` and then exits on PowerVR/OpenGL ES after unsupported `RGBFloat`, `BPTC_RGBA`, or `DXT1`/`DXT5` conversion warnings, treat it as an open Android graphics/resource compatibility issue rather than a resolved launcher startup bug.
+- Renderer and driver compatibility matter more than a simple age/RAM classification. The project does not yet have enough evidence to publish a precise RAM/GPU minimum.
+- A `completed-partial` shader marker is degraded warmup evidence, not proof that a device is below the support floor. Continue with renderer, lifecycle, and process-exit evidence.
+- If the game reaches `NMainMenu` and then exits on PowerVR/OpenGL ES after unsupported texture conversion or static-string cleanup warnings, compare it with issue #34 and the Godot 4.5.1 all-PowerVR shader-cache fix before classifying it as memory pressure or weak hardware.
 - Android x86_64 emulator results are diagnostic only unless a maintainer asks for a forced-Godot investigation.
 - Steam beta password entry is not currently a release-ready path.
 - Workshop/mod support is functional but still hardening. Some Workshop items exposed only as legacy UGC handles may still need manual import.

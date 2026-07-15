@@ -8,7 +8,7 @@ The Android `x86_64` emulator is useful for install, routing, release packaging,
 
 Use an `arm64-v8a` Android device/build as the proof target for actual game launch.
 
-The latest published APK has passed GitHub release build and structural asset verification. Local ARM64 validation has now proven the working launcher path through fresh runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game. The current hardening APK also packages Workshop/mod sync, staging, runtime-loader, Cloud Push lock, and evidence-review work.
+The latest published APK has passed GitHub release hygiene and structural asset verification. Local ARM64 validation has proven the working launcher path through fresh runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game. `v0.2.398` adds the five-destination responsive launcher while retaining Workshop/mod sync, staging, runtime-loader, Cloud Push lock, and evidence-review work.
 
 This is still a hardening state, not a finished release-candidate signoff. Newest-public-release Pull/confirmed-Push/game-launch smoke, persisted Steam-session/update UX, Samsung reporter retests if fresh reports arrive, stale assembly cache behavior, Workshop/mod compatibility polish, and repeated release-readiness coverage remain open validation gates.
 
@@ -60,29 +60,29 @@ This is still a hardening state, not a finished release-candidate signoff. Newes
 
 ## Local validation commands
 
-The current published hardening prerelease APK is:
+The current published tester APK is:
 
-- Release: `v0.2.316-workshop-runtime-mod-evidence`
-- Asset: `StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk`
-- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.316-workshop-runtime-mod-evidence
-- SHA-256: `985c6805fceeb13b895fe942ed38594e0aad405bcccccf12a911d29c9e2a8e3e`
+- Release: `v0.2.398-launcher-ui-redesign`
+- Asset: `StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk`
+- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.398-launcher-ui-redesign
+- SHA-256: `52d05adf3a26ee8c2135edae6ceb986a2d021b99c4b92a4c00eebc7e4fa66d97`
 
-This is build/static-gate evidence for the Workshop/mod sync, staging, runtime-loader, Cloud Push lock, and evidence-review work. It does not replace the latest verified public-package release evidence.
+This is the current local test-package/signing-channel release. It is not production-signer or broad device-compatibility signoff.
 
 Before installing, verify the uploaded GitHub release asset itself:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.316-workshop-runtime-mod-evidence" `
-  -AssetName "StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.398-launcher-ui-redesign" `
+  -AssetName "StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
 Expected result:
 
 ```text
-Release digest OK: 985c6805fceeb13b895fe942ed38594e0aad405bcccccf12a911d29c9e2a8e3e
-Release APK verification passed: v0.2.316-workshop-runtime-mod-evidence/StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk
+Release digest OK: 52d05adf3a26ee8c2135edae6ceb986a2d021b99c4b92a4c00eebc7e4fa66d97
+Release APK verification passed: v0.2.398-launcher-ui-redesign/StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk
 Verified ABIs: arm64-v8a
 ```
 
@@ -90,8 +90,8 @@ Install the verified release APK to a connected phone and capture diagnostics in
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.316-workshop-runtime-mod-evidence" `
-  -AssetName "StS2Launcher-v0.2.316-workshop-runtime-mod-evidence-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.398-launcher-ui-redesign" `
+  -AssetName "StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -135,8 +135,9 @@ The smoke test writes:
 
 ## Remaining proof
 
-- Repeat confirmed Push to Cloud behavior on the newest public APK, including Steam Cloud metadata/file mutation after explicit user approval. Confirmation/cancel safety is already visually checked on `v0.2.187-beta-art-fallback`.
-- Keep cancel/no-confirm Push safety evidence in every release-candidate pass; `v0.2.187-beta-art-fallback` has visual confirmation/cancel evidence showing upload requires explicit approval.
+- Repeat confirmed Push to Cloud behavior on exact `v0.2.398`, including Steam Cloud metadata/file mutation after explicit user approval. Do not infer this from older confirmation/cancel evidence.
+- Keep cancel/no-confirm Push safety evidence in every release-candidate pass.
+- Integrate the Godot 4.5.2 all-PowerVR transform-feedback shader-cache workaround, repair renderer selection, and retest issue #34 on the reporter-class Pixel/PowerVR path.
 - Upgrade install evidence showing package `lastUpdateTime` advances and stale app-private assembly cache behavior does not recur.
 - Locked-screen interruption behavior showing Android focus loss does not get misclassified as a game crash.
 - Repeated release-readiness pass covering fresh install, upgrade install, Pull, Push, game launch, and diagnostics.

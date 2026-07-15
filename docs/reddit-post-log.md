@@ -10,8 +10,8 @@ Do not copy private user data into this file. Keep direct quotes short and only 
 - Reddit is useful for visibility and lightweight feedback, but bugs should be redirected to GitHub with exact APK, device, branch, screenshot, and focused logs.
 - Public wording must state that the launcher is unofficial, not affiliated with or endorsed by Mega Crit Games, and requires a Steam-owned copy of Slay the Spire 2. No game files, assets, or Workshop content are bundled.
 - Do not describe the project as an official mobile port, an official Android release, or a sanctioned replacement for any future official mobile version.
-- Current public claims should match the latest GitHub docs: public/default and public-beta `v0.108.0` are working on validated ARM64 hardware; Workshop/mod support is functional but beta-quality; SavesMerger loading/scanning is not full save-merge signoff.
-- Current release link for replies: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.385-shader-warmup-compat
+- Current public claims should match the latest GitHub docs: `v0.2.398` publishes the redesigned five-destination launcher; public/default and public-beta `v0.108.0` have working ARM64 evidence; Workshop/mod support remains beta-quality; SavesMerger loading/scanning is not full save-merge signoff; Pixel/PowerVR issue #34 remains open.
+- Current release link for replies: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.398-launcher-ui-redesign
 - Steam Cloud Push must not be encouraged for modded-save testing. Users should Pull first and avoid Push unless they understand overwrite risk.
 
 ## Posts
@@ -25,7 +25,7 @@ Do not copy private user data into this file. Keep direct quotes short and only 
 - Thread role: first broad public announcement for the fork/overhaul.
 - Approximate status when reviewed: strong initial reception compared with the later mod-support post; Reddit JSON showed about `57` score and `0.88` upvote ratio during the July 3 review.
 - Release linked in original post: `v0.2.178-cloudpush-icon`.
-- Current replacement release to point users to: `v0.2.385-shader-warmup-compat`.
+- Current replacement release to point users to: `v0.2.398-launcher-ui-redesign`.
 
 Main post claims at time of posting:
 
@@ -52,7 +52,7 @@ Comment-derived bug/support signals:
 Follow-up implications:
 
 - Keep README/testing docs explicit about exact release tag, APK filename, install/update/uninstall behavior, and where to file logs.
-- Treat launcher UI scaling/scroll reachability as a high-priority usability defect, especially on foldables and unusual aspect ratios.
+- Ask users to retest launcher scaling/scroll reachability on `v0.2.398`; treat any remaining clipping, unreachable destination, keyboard overlap, or rotation failure as a redesign regression.
 - Keep controller input, shader compile stability, and audio SFX as visible known-test areas.
 - Avoid claiming replacement of the original launcher or any future official mobile release; frame this as an unofficial community Android compatibility path.
 
@@ -65,7 +65,7 @@ Follow-up implications:
 - Thread role: mod-support announcement and request for mod/launcher issue reports.
 - Approximate status when reviewed: lower traction than the first post; Reddit JSON showed about `2` score, `0.54` upvote ratio, and `12` comments during the July 3 review.
 - Release linked in original post: `v0.2.335-mod-selector-deps-cloud-marker-debug`.
-- Current replacement release to point users to: `v0.2.385-shader-warmup-compat`.
+- Current replacement release to point users to: `v0.2.398-launcher-ui-redesign`.
 
 Main post claims at time of posting:
 
@@ -98,9 +98,9 @@ Follow-up implications:
 - Subreddit: `r/slaythespire`
 - Author: `SocialHumingbird`
 - Title: `StS2 Mobile launcher update: beta branch fixes, runtime-pack support, and mod testing`
-- Thread role: update post for the `v0.2.352-savemerger-compat-local` release, now superseded by `v0.2.385-shader-warmup-compat`.
+- Thread role: update post for the `v0.2.352-savemerger-compat-local` release, now superseded by `v0.2.398-launcher-ui-redesign`.
 - Status when first reviewed: posted minutes earlier; no comments visible yet.
-- Release linked in post: `v0.2.352-savemerger-compat-local`; current replacement release is `v0.2.385-shader-warmup-compat`.
+- Release linked in post: `v0.2.352-savemerger-compat-local`; current replacement release is `v0.2.398-launcher-ui-redesign`.
 
 Main post claims at time of posting:
 
@@ -127,7 +127,7 @@ Use these as starting points for future Reddit replies. Update release links bef
 
 The latest ARM64 tester APK is here:
 
-https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.385-shader-warmup-compat
+https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.398-launcher-ui-redesign
 
 Public/default and the latest tested public-beta payload are working in current ARM64 validation. It is still an unofficial prerelease community launcher though, so I would treat it as tester-ready rather than final. It is not affiliated with or endorsed by Mega Crit Games, and it requires your own Steam copy of the game. The most useful bug reports are exact APK version, device model, Android version, selected branch, whether mods were enabled, a screenshot for UI issues, and a focused logcat for crashes.
 
@@ -137,7 +137,11 @@ Early mod support is available, but it is not finished. BaseLib, Quick Restart 2
 
 ### UI Too Small / Cannot Reach Button
 
-That is a current high-priority launcher UI issue. Please file a GitHub device compatibility or bug report with the exact APK tag, phone model, Android/One UI version, orientation, display size/font scale, and a screenshot showing where scrolling or button reachability breaks.
+`v0.2.398` replaces the old long-scroll screen with Home, Saves, Versions, Mods, and Help destinations. Please retest with that exact release and file a GitHub device compatibility or bug report with the APK tag, phone model, Android/One UI version, orientation, display size/font scale, active destination, and a screenshot showing any remaining clipping or unreachable control.
+
+### Pixel / PowerVR Main-Menu Exit
+
+Issue #34 is still open. The current evidence points to a Godot 4.5.1 OpenGL Compatibility bug on PowerVR rather than old hardware or failure to reach the game. Please include the exact APK, GPU/renderer lines, whether `NMainMenu` appeared, post-startup trace/heartbeat marker files, and a focused log that includes the dying game process if possible.
 
 ### Controller Problems
 
@@ -151,7 +155,7 @@ First-run shader compilation can be heavy on some devices. The latest APK adds a
 
 - Keep latest APK/release links current in README, release docs, and any future Reddit comments.
 - Build a simpler "known issues / tester checklist" Reddit comment after each release.
-- Track whether Samsung Flip 7 / foldable scroll reachability becomes a GitHub issue.
+- Track `v0.2.398` Samsung Flip 7 / foldable destination, rotation, clipping, and reachability regressions.
 - Track whether Odin/Thor controller reports become GitHub issues.
 - Track whether shader compile crash/stall reports identify a device class or build setting.
 - Track whether SavesMerger reports prove real save visibility/loadability.

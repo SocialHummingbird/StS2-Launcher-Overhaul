@@ -38,12 +38,12 @@ Latest published APK: [v0.2.398-launcher-ui-redesign](https://github.com/SocialH
 
 Known important limitations:
 
-- Device compatibility varies. `v0.2.398` adds the five-destination responsive launcher UI while retaining the `v0.2.397` Android atlas fallback. The Pixel 10 Pro / Android 17 / PowerVR reporter path remains unresolved and has not tested this release.
+- Device compatibility varies. `v0.2.398` adds the five-destination responsive launcher UI and retains the `v0.2.397` Android atlas fallback, but it does not yet fix GitHub issue #34. The reporter tested `v0.2.397` on Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536: the game reached the real main menu and then exited before the first one-second post-startup probe. The current Godot 4.5.1/OpenGL Compatibility path is now the leading cause, not weak hardware or failure to download the game.
 - The app currently targets ARM64 Android hardware. Android emulator and x86_64 builds are diagnostic only and are not supported for real game launch.
-- Some phones may be too slow, have incompatible graphics drivers, or fail while loading/compiling shaders.
+- Some graphics drivers and renderer paths remain incompatible. In particular, the current Godot 4.5.1 build predates an upstream all-PowerVR transform-feedback shader-cache fix included in Godot 4.5.2.
 - Steam version selection, beta branches, Workshop mods, and save-merger behavior are still experimental.
 - Steam Cloud Push is intentionally cautious because it can overwrite remote saves. Pull from Steam Cloud first.
-- This is not a finished consumer app. Expect bugs, rough UI, and device-specific problems.
+- This is not a finished consumer app. Expect bugs, incomplete device coverage, and device-specific problems.
 
 Before installing:
 
@@ -89,7 +89,7 @@ The technical goal is to improve Android startup, Steam login, Steam download, c
 - **Steam Workshop mods**  
   Subscribed Workshop mods can be synced into app-private Android storage and loaded by the runtime mod-loader patch. Current ARM64 evidence covers public-beta, core-release, and public-after-beta branch switching with matched selected PCK/runtime evidence; `BaseLib` and `Quick Restart` are staged and scanned from Workshop storage. The previous BaseLib initializer hard failure is handled by an Android compatibility filter that skips known incompatible BaseLib patch classes, so those skipped BaseLib features still need follow-up. Workshop sync and clear do not run Steam Cloud Push, and manual Push is locked while active staged Workshop PCK mods are present. The launcher now has a first-class Mods section on the main play screen with active-mod status, unsupported-item attention text, manual import guidance, and Workshop sync/clear actions.
 - **Mobile adaptation**  
-  Touch input, short-edge-aware launcher scaling, responsive ready/download/login layouts, larger touch-first action targets, task-led primary action wording, consistent `Start Game` primary CTA, high-contrast rounded actions, a branded atmospheric backdrop, mobile-first compact panel sizing, dynamic compact content width, reduced compact header chrome, compact section headers, compact button labels, a phase-labeled status-led launcher portal with a structured phase chip, error-first guided next-action label, and compact vertical next-step hero, collapsible safe first-run guidance on compact screens, titled Steam sign-in/install/play-sync sections, hidden diagnostics by default, and app lifecycle handling via Harmony runtime patches.
+  Touch input, five stable Home/Saves/Versions/Mods/Help destinations, bottom navigation on phones, top navigation on wide/foldable layouts, safe-area-aware composition, larger touch targets, responsive login/download/confirmation/diagnostic layouts, a consistent `Start Game` primary action, hidden technical detail outside support flows, and app lifecycle handling via Harmony runtime patches.
 - **LAN multiplayer**  
   UDP broadcast discovery and manual IP join.
 - **Shader warmup**  
@@ -114,6 +114,8 @@ Custom patches to the Godot 4.5.1 engine source for Android-specific issues:
 Saves compiled pipelines when the app loses focus, preventing recompilation after Android kills the process.
 - **Canvas ubershaders**  
 Enable ubershader fallback for 2D rendering, eliminating first-encounter VFX stutters from blocking pipeline compilation.
+- **Known PowerVR limitation**
+The current custom engine is still based on Godot 4.5.1. It does not include the Godot 4.5.2 all-PowerVR transform-feedback shader-cache workaround, and the launcher currently forces OpenGL Compatibility for the affected game-start path. Pixel 10 / PowerVR issue #34 remains open until the engine fix and renderer-selection fallback are integrated and tested.
 
 ## Project Structure
 
@@ -222,7 +224,7 @@ Once `adb devices` shows exactly one attached device or emulator, run:
 
 The smoke-test script selects the newest archived APK matching the attached device ABI, installs it, launches `LauncherActivity`, captures logcat to `artifacts/android/logcat-smoke-*-full.txt`, writes a focused subset to `artifacts/android/logcat-smoke-*-filtered.txt`, writes a handoff summary to `artifacts/android/logcat-smoke-*-summary.txt`, and reports whether it saw the native x86 fallback route or crash markers.
 If the selected APK has a `.sha256` sidecar, the script verifies it before install and stops on mismatch.
-By default, local builds and the smoke-test script use package `com.sts2launcher.overhaul.fork.dev`.
+By default, local builds and the smoke-test script use package `com.sts2launcher.overhaul.fork.local`.
 
 For a clean app-data run:
 
@@ -248,7 +250,7 @@ If more than one device/emulator is attached, pass the target serial:
 adb install -r android/build/outputs/apk/mono/release/StS2Launcher-v*.apk
 
 # Fresh install for local build wrapper default package
-adb shell pm clear com.sts2launcher.overhaul.fork.dev
+adb shell pm clear com.sts2launcher.overhaul.fork.local
 
 # Fresh install for future production package, if used
 adb shell pm clear com.sts2launcher.overhaul.fork
@@ -329,14 +331,16 @@ adb install -r StS2Launcher-vX.Y.Z-arm64-v8a.apk
 
 Signing behavior:
 
-- Published APK releases require repository signing secrets and a pinned release signer fingerprint.
-- The release workflow refuses to publish a temporary-key APK because it would not update existing installs safely.
+- The current public tester APK uses package `com.sts2launcher.overhaul.fork.local` and the repository's local test signing channel. It is not a production-signed release line.
+- The GitHub Actions release path requires repository signing secrets and a pinned signer fingerprint before it can claim stable update compatibility.
+- APKs signed by a different key cannot update an existing install without uninstalling it first.
 
 Known current runtime limitations:
 
 - The app now has a validated working ARM64 path through download, cloud pull, cloud push hardening, and game launch, but this is not yet a finished release-candidate pass.
 - Push to Cloud is locally validated after the managed SHA-1 hardening fix, and that fix is included in the verified public APK line. Repeat Push confirmation/cancel smoke on the newest public APK is still required before release-candidate signoff.
-- The public release package has passed update-compatible release builds through `v0.2.187-beta-art-fallback`; the newest APK also has ARM64 visual validation for the responsive launcher download-progress and ready states plus Push confirmation/cancel path. Repeated local `.local` in-place upgrade coverage remains secondary because local builds use a separate package identity.
+- The exact `v0.2.398` tester APK installed over the existing `com.sts2launcher.overhaul.fork.local` app data and reported version code `398031`. This proves continuity on the current local test channel, not production-signer update compatibility.
+- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains unresolved after `v0.2.397`; the most likely fix is a Godot 4.5.2 engine backport plus a real renderer-selection fallback, not a core game redesign.
 - Stale assembly cache behavior still needs repeated local upgrade coverage after signing continuity is fixed.
 - `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.
 
@@ -348,10 +352,10 @@ If installation fails:
   - likely a partially downloaded APK or signing mismatch.
   - re-download and re-run `sha256sum -c`.
 - `INSTALL_FAILED_UPDATE_INCOMPATIBLE`:
-  - remove the previous install first, then reinstall. Current test releases use package `com.sts2launcher.overhaul.fork.dev`:
+  - remove the previous install first, then reinstall. Current test releases use package `com.sts2launcher.overhaul.fork.local`:
   
   ```bash
-  adb uninstall com.sts2launcher.overhaul.fork.dev
+  adb uninstall com.sts2launcher.overhaul.fork.local
   adb install -r StS2Launcher-vX.Y.Z-arm64-v8a.apk
   ```
 - `INSTALL_FAILED_OLDER_SDK`:

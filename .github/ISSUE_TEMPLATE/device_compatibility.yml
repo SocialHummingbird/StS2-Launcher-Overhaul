@@ -19,6 +19,8 @@ body:
         Android version:
         Vendor skin/version, for example One UI:
         Device ABI:
+        GPU model:
+        Godot renderer/backend:
         Display size setting:
         Font size setting:
         APK release tag:
@@ -63,6 +65,8 @@ body:
       value: |
         App icon tap to launcher visible:
         Start Game tap to game main menu:
+        Main menu remained alive for at least 60 seconds:
+        Latest post-startup probe/heartbeat:
         Any long pause, black screen, fallback, or crash:
         Device temperature/throttling symptoms:
     validations:

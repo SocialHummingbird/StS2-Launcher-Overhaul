@@ -4,7 +4,7 @@ See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS
 
 This project needs focused Android tester reports more than broad "works for me" comments. Good reports help confirm device compatibility, Steam Cloud safety, public/beta branch behavior, and mod loading without exposing Steam account data.
 
-Current APK for tester reports: `v0.2.385-shader-warmup-compat` / `StS2Launcher-v0.2.385-shader-warmup-compat-local-arm64-v8a.apk`.
+Current APK for tester reports: `v0.2.398-launcher-ui-redesign` / `StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk`.
 
 ## Current Priority
 
@@ -14,6 +14,7 @@ Current APK for tester reports: `v0.2.385-shader-warmup-compat` / `StS2Launcher-
    - Any black screen, native fallback screen, shader compile stall, or app crash.
    - For Start Game failures, attach `last_launch_attempt.txt` when available. Current source builds record a per-press attempt ID, selected branch, ready/blocked state, runtime slot ID, selected PCK path/hash, source and active `sts2.dll` paths/hashes, runtime pack path/status, runtime cache marker path/presence, runtime patch-validation marker path/presence, patch compatibility marker path/status, whether the prepared readiness result was used, whether readiness came from a fresh check or an in-memory cache hit, and elapsed timing for total launch attempt, selected-version readiness, and mod readiness. Modded starts also record play mode, enabled mod count, selected mods, selector cache status, and whether modded-save Cloud Push was locked. Cache hits are only valid while the selected PCK, branch marker, release info, source assembly, runtime pack manifest, runtime cache marker, patch-validation marker, mod selection, Workshop manifest, and cheap metadata digests for all staged/manual `.json`, `.pck`, and `.dll` mod files are unchanged.
    - For shader reports, attach `last_shader_warmup_status.txt` when available. `completed` means the full precompile pass finished; `completed-partial` means the launcher intentionally continued startup with degraded shader-cache coverage after a budget or compatibility cap. Current source builds also include render-plan evidence, batch size, target material count, scanner counters such as scenes scanned, unique materials, budget-stop state, and scanner failure counts. Current ARM64 evidence on `SM-F966B` completes v7 bounded public warmup with `Render plan: android-bounded-large-shader-set`, `Render target materials: 128/1592`, and no app crash signatures; weaker-device reports are still needed.
+   - Pixel 10 / PowerVR reports are a specific renderer/engine investigation, not a generic low-performance category. Record GPU, renderer, whether `NMainMenu` appeared, and whether 1s/3s/10s/30s/60s post-startup markers were written.
 
 2. **Public/default game launch**
    - Fresh install or update install.
@@ -39,8 +40,8 @@ Current APK for tester reports: `v0.2.385-shader-warmup-compat` / `StS2Launcher-
    - Report whether disabling the mod returns to the expected vanilla/modded save behavior.
    - Do not treat "mod selected" or "main menu reached" as full save-merger success unless the save/profile is visible and loadable.
 
-6. **Samsung/One UI and unusual display sizes**
-   - Launcher layout, keyboard, password manager suggestions, and button reachability.
+6. **Redesigned launcher on Samsung/One UI and unusual display sizes**
+   - Validate all Home/Saves/Versions/Mods/Help destinations, portrait/landscape rotation, keyboard, password-manager suggestions, clipping, and button reachability.
    - Include display size/font size settings when reporting UI problems.
 
 7. **Controller and Android handheld input**
@@ -53,16 +54,16 @@ Current APK for tester reports: `v0.2.385-shader-warmup-compat` / `StS2Launcher-
 
 | Device class | Android ABI | Evidence | Status |
 | --- | --- | --- | --- |
-| Physical ARM64 Samsung test device | `arm64-v8a` | Public/default, public-beta runtime matching, Steam Cloud Pull, guarded Push behavior, mod selector, manually imported SavesMerger launch | Working in local validation |
+| Physical ARM64 Samsung test device | `arm64-v8a` | Public/default and public-beta runtime matching, Steam Cloud Pull, guarded Push behavior, mod selector, manually imported SavesMerger launch, exact `v0.2.398` update install, and 20-viewport redesigned-launcher matrix/event contract | Working in local validation; final unlocked exact-build physical viewport capture pending |
 | Android x86_64 emulator | `x86_64` | Install/routing/native fallback diagnostics only | Not a game-launch proof target |
 
 ## Current Practical Device Floor
 
 - ARM64 Android hardware is the proof target.
-- A working Vulkan path is required for the bundled Godot runtime.
+- Renderer/driver compatibility must be validated per device; the current launcher can force OpenGL Compatibility and issue #34 shows that this path can fail on a modern PowerVR device.
 - Android x86_64 emulator results do not prove game support.
 - There is not enough cross-device evidence yet to publish a precise RAM/GPU minimum. Current high-end ARM64 proof is `SM-F966B`, Android 16/API 36, 8 processors, about 11.6GB total memory, full v6 warmup in 40149ms.
-- If a device cannot reach the game after the bounded shader warmup path records `completed-partial`, treat it as a device-floor candidate unless focused logs show a specific launcher/runtime defect. If it fails before recording `completed-partial`, attach focused logcat because that is still actionable.
+- Do not classify a device as below the support floor from `completed-partial` alone. Attach focused logcat and post-startup markers so renderer bugs, lifecycle exits, and genuine memory pressure can be separated.
 
 Add new device results through the device compatibility issue template. Use [Issue reporting](issue-reporting.md) before attaching logs, branch/runtime evidence, save details, or screenshots.
 
@@ -116,6 +117,18 @@ Cloud
 Workshop
 Mods
 NativeFallback
+NMainMenu
+PostStartupTrace
+PostStartupHeartbeat
+Native lifecycle event
+Fatal signal
+SIGSEGV
+SIGABRT
+has died
+lmkd
+PowerVR
+OpenGL
+Vulkan
 ```
 
 Prefer a small focused excerpt around the failure over a full raw log.
