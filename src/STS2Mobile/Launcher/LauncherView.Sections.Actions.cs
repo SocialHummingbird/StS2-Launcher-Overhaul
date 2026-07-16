@@ -75,6 +75,9 @@ internal sealed partial class LauncherView
     internal void SetLaunchControlsDisabled(bool disabled)
         => Actions.SetLaunchControlsDisabled(disabled);
 
+    internal void SetPowerVrCompatibility(bool required)
+        => Actions.SetPowerVrCompatibility(required);
+
     internal void SetRendererMode(string mode)
         => Actions.SetRendererMode(mode);
 

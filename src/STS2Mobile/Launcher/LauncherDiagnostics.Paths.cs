@@ -78,6 +78,12 @@ internal static partial class LauncherDiagnostics
     private static DiagnosticFile GamePck(string dataDir)
         => new("Game PCK", LauncherGameFiles.PckPath(dataDir));
 
+    private static DiagnosticFile GraphicsDevice(string dataDir)
+        => new(
+            "Graphics device",
+            Path.Combine(dataDir, LauncherStorageNames.GraphicsDevice)
+        );
+
     private static DiagnosticFile ManualSafeLaunchMarker(string dataDir)
         => new(
             "Manual safe launch marker",

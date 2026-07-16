@@ -25,7 +25,7 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Renderer pref: {preferences.RendererMode}");
         sb.AppendLine($"Renderer pref display name: {LauncherRendererMode.DisplayName(preferences.RendererMode)}");
         sb.AppendLine($"Renderer preference key: {LauncherStorageNames.RendererMode}");
-        sb.AppendLine("Safe Start renderer policy: project renderer without launcher override");
+        sb.AppendLine("Safe Start renderer policy: OpenGL on PowerVR; project renderer otherwise");
         sb.AppendLine($"Selected game branch: {branch}");
         sb.AppendLine($"Selected game branch preference key: game_branch");
         sb.AppendLine($"Selected game branch source: {(LauncherPreferences.GameBranchPreferenceExists() ? "saved preference" : "default fallback")}");

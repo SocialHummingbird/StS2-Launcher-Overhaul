@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-07-15_
+_Last updated: 2026-07-16_
 
 See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, and bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
@@ -13,10 +13,19 @@ Current device evidence ledgers:
 - [steam-version-selection-runbook.md](steam-version-selection-runbook.md)
 - [steam-version-selection-release-readiness.md](steam-version-selection-release-readiness.md)
 - [android-workshop-mods.md](android-workshop-mods.md)
+- [android-powervr-input-compatibility-20260716.md](android-powervr-input-compatibility-20260716.md)
 
 ## Headline
 
-The app works on the validated ARM64 Android path, but it is still unofficial prerelease tester software rather than release-candidate signoff. `v0.2.399-powervr-renderer-mod-runtime` is the current GitHub release. It publishes the targeted issue #34 engine/renderer fix and connected public-mod-runtime hardening, but reporter-class Pixel/PowerVR confirmation remains open alongside complete physical validation of the redesigned launcher, broader Workshop/mod and branch hardening, controller evidence, confirmed Push safety, and release-readiness cleanup.
+The app works on the validated ARM64 Android path, but it is still unofficial prerelease tester software rather than release-candidate signoff. `v0.2.399-powervr-renderer-mod-runtime` is the current GitHub release. Reporter testing now proves its original issue #34 startup crash is resolved, but also isolates a PowerVR Vulkan touch failure. Unpublished source routes PowerVR devices to OpenGL; actual PowerVR confirmation remains open alongside complete physical validation of the redesigned launcher, broader Workshop/mod and branch hardening, controller evidence, confirmed Push safety, and release-readiness cleanup.
+
+July 16 PowerVR input compatibility status:
+
+- The issue #34 reporter tested exact `v0.2.399` on Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536. Auto, Vulkan, OpenGL, and Safe Start all reach the game, so the earlier startup/process-teardown failure is no longer reproduced.
+- Auto, Vulkan, and Safe Start show the game but do not accept touch. OpenGL accepts touch. Its menus are initially slow, while gameplay and the menu after returning from gameplay are normal. This is renderer/driver behavior, not evidence of an old or underpowered device and not a launcher handoff, shader-warmup, or memory-pressure crash.
+- Unpublished source now records the live Godot adapter name, vendor, driver, and method in `graphics_device.txt`. If the adapter or vendor is PowerVR/ImgTec/Imagination, the managed launcher selects OpenGL and the native Android restart boundary forces `opengl3` plus `gl_compatibility` for every requested mode, including Vulkan and Safe Start.
+- Local evidence APK `0.2.400-powervr-touch-compat-local` / version code `400001` passed APK structure, ABI, crypto-patch, Java policy, static audit, and Release C# build checks. On Samsung `SM-F966B` / Android 16 / Adreno 830, Auto remained Vulkan and accepted touch, Safe Start remained unforced Vulkan, explicit Vulkan remained Vulkan, and explicit OpenGL reached `NMainMenu` and accepted touch.
+- A synthetic reporter-class PowerVR marker on the same installed APK changed a saved Vulkan request to effective OpenGL, reached `NMainMenu`, wrote the three-second post-startup probe, and accepted the touch that opened character selection. This validates the Android policy handoff, not the real PowerVR driver. Reporter hardware must still confirm touch and measure the cold-menu delay. Steam Cloud Push was not run.
 
 July 15 Pixel / PowerVR cause analysis:
 
@@ -28,7 +37,7 @@ July 15 Pixel / PowerVR cause analysis:
 - `v0.2.399` backports the Godot 4.5.2 all-PowerVR workaround onto the custom 4.5.1 engine. Release builds compile that patched engine instead of extracting the old native library from `v0.2.88`, and the engine emits `PowerVR renderer detected; transform feedback shader cache disabled` when the workaround activates.
 - `v0.2.399` also provides explicit Auto, Vulkan, and OpenGL modes. Auto passes no renderer override, Vulkan selects the mobile renderer, OpenGL selects Compatibility, and Safe Start always uses unforced Auto while keeping shader warmup and Steam Cloud disabled.
 - The Android boundary records each effective renderer plan in `last_renderer_attempt.txt`. On Android 11 and newer, the next launcher start records historical `ApplicationExitInfo` plus bounded trace data in `last_process_exit_info.txt` when Android supplies it. These files are included in launcher diagnostics.
-- Exact release APK `0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local` / version code `399004` / SHA-256 `d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe` passes structural, crypto, package, ABI, signing, update-compatibility, and GitHub release-hygiene checks. On Samsung `SM-F966B` / Android 16 / Adreno 830, Auto/Vulkan and explicit OpenGL both reached real `NMainMenu`, produced post-startup probes and heartbeats through 120 seconds, and avoided focused fatal/native/ANR/target-process-kill signatures. This is an engine/launcher integration change, not a core game redesign and not evidence that the Pixel 10 is old or underpowered. Issue #34 remains open until reporter-class PowerVR hardware confirms the result.
+- Exact release APK `0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local` / version code `399004` / SHA-256 `d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe` passes structural, crypto, package, ABI, signing, update-compatibility, and GitHub release-hygiene checks. On Samsung `SM-F966B` / Android 16 / Adreno 830, Auto/Vulkan and explicit OpenGL both reached real `NMainMenu`, produced post-startup probes and heartbeats through 120 seconds, and avoided focused fatal/native/ANR/target-process-kill signatures. This is an engine/launcher integration change, not a core game redesign and not evidence that the Pixel 10 is old or underpowered. Reporter testing later confirmed the crash correction and exposed the separate PowerVR touch defect documented in the July 16 section.
 
 July 11 atlas compatibility status:
 

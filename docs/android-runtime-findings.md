@@ -137,7 +137,7 @@ The smoke test writes:
 
 - Repeat confirmed Push to Cloud behavior on exact `v0.2.399`, including Steam Cloud metadata/file mutation after explicit user approval. Do not infer this from older confirmation/cancel evidence.
 - Keep cancel/no-confirm Push safety evidence in every release-candidate pass.
-- Retest the implemented Godot all-PowerVR transform-feedback shader-cache workaround and Auto/Vulkan/OpenGL renderer policy on the reporter-class Pixel/PowerVR path; inspect `last_renderer_attempt.txt` and `last_process_exit_info.txt` after any process exit.
+- The reporter proved `v0.2.399` reaches the game on Pixel/PowerVR in every mode, but touch works only under OpenGL and its first menu is slow. Retest the unpublished PowerVR-to-OpenGL policy on that device; inspect `graphics_device.txt`, `last_renderer_attempt.txt`, touch response, cold-menu timing, and `last_process_exit_info.txt` after any process exit.
 - Upgrade install evidence showing package `lastUpdateTime` advances and stale app-private assembly cache behavior does not recur.
 - Locked-screen interruption behavior showing Android focus loss does not get misclassified as a game crash.
 - Repeated release-readiness pass covering fresh install, upgrade install, Pull, Push, game launch, and diagnostics.

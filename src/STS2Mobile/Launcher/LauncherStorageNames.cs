@@ -7,6 +7,7 @@ internal static class LauncherStorageNames
     internal const string GameVersionsDirectory = "game_versions";
     internal const string GameDirectory = "game";
     internal const string GamePck = "SlayTheSpire2.pck";
+    internal const string GraphicsDevice = "graphics_device.txt";
     internal const string GodotDirectory = ".godot";
     internal const string LaunchAttempt = "last_launch_attempt.txt";
     internal const string ManualSafeLaunch = "manual_safe_launch";

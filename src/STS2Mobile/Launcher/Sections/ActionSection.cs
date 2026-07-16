@@ -108,6 +108,7 @@ internal sealed partial class ActionSection : VBoxContainer
     private bool _localBackupEnabled;
     private bool _cloudSyncEnabled;
     private bool _launchControlsDisabled;
+    private bool _powerVrCompatibilityRequired;
     private bool _homeActionsAvailable;
     private LauncherDestination _destination;
     private int _readySummaryEnabledModCount;
@@ -140,14 +141,27 @@ internal sealed partial class ActionSection : VBoxContainer
         ApplyLaunchControlsDisabled();
     }
 
+    internal void SetPowerVrCompatibility(bool required)
+    {
+        _powerVrCompatibilityRequired = required;
+        const string compatibilityReason = "OpenGL is required on this PowerVR device for working touch input.";
+        _rendererAutoButton.TooltipText = required ? compatibilityReason : "Use the project's default renderer.";
+        _rendererVulkanButton.TooltipText = required ? compatibilityReason : "Use the Vulkan Mobile renderer.";
+        _rendererOpenGlButton.TooltipText = required ? compatibilityReason : "Use the OpenGL Compatibility renderer.";
+        _rendererAutoButton.AccessibilityDescription = _rendererAutoButton.TooltipText;
+        _rendererVulkanButton.AccessibilityDescription = _rendererVulkanButton.TooltipText;
+        _rendererOpenGlButton.AccessibilityDescription = _rendererOpenGlButton.TooltipText;
+        ApplyLaunchControlsDisabled();
+    }
+
     internal VBoxContainer HelpDiagnosticsHost => _helpDestination;
 
     private void ApplyLaunchControlsDisabled()
     {
         _launchButton.Disabled = _launchControlsDisabled;
         _safeLaunchButton.Disabled = _launchControlsDisabled;
-        _rendererAutoButton.Disabled = _launchControlsDisabled;
-        _rendererVulkanButton.Disabled = _launchControlsDisabled;
+        _rendererAutoButton.Disabled = _launchControlsDisabled || _powerVrCompatibilityRequired;
+        _rendererVulkanButton.Disabled = _launchControlsDisabled || _powerVrCompatibilityRequired;
         _rendererOpenGlButton.Disabled = _launchControlsDisabled;
     }
 }

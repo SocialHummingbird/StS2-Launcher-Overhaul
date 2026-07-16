@@ -124,6 +124,7 @@ public class GodotApp extends GodotActivity {
 	private static final String LAST_RENDERER_ATTEMPT_FILE = "last_renderer_attempt.txt";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
 	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
+	private static final String GRAPHICS_DEVICE_FILE = "graphics_device.txt";
 	private static final String RENDERER_MODE_FILE = "renderer_mode";
 	private static final int MAX_HISTORICAL_PROCESS_EXITS = 5;
 	private static final int MAX_PROCESS_EXIT_TRACE_BYTES = 64 * 1024;
@@ -2101,7 +2102,8 @@ public class GodotApp extends GodotActivity {
 			setAutoSafeLaunchMode(safeLaunch);
 			AndroidRendererPolicy.Plan rendererPlan = AndroidRendererPolicy.resolve(
 				readInternalTextFile(RENDERER_MODE_FILE),
-				safeLaunch
+				safeLaunch,
+				readInternalTextFile(GRAPHICS_DEVICE_FILE)
 			);
 			patchGamePckForAndroid(pckFile);
 			rendererPlan.appendCommandLine(commands);
@@ -2276,6 +2278,7 @@ public class GodotApp extends GodotActivity {
 				+ "Effective mode: " + rendererPlan.effectiveMode() + "\n"
 				+ "Safe Start requested: " + safeLaunch + "\n"
 				+ "Safe Start renderer override: " + rendererPlan.safeLaunchOverride() + "\n"
+				+ "PowerVR compatibility active: " + rendererPlan.powerVrCompatibility() + "\n"
 				+ "Policy: " + rendererPlan.description() + "\n"
 				+ "Previous startup phase: " + readPreviousStartupPhase() + "\n";
 		writeInternalTextFile(LAST_RENDERER_ATTEMPT_FILE, text);

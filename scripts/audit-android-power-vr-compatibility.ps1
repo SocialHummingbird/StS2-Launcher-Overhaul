@@ -39,12 +39,33 @@ Add-ForbiddenCheck `
 
 Add-Check `
     "android\src\com\game\sts2launcher\AndroidRendererPolicy.java" `
-    "defines truthful Auto, Vulkan, OpenGL, and Safe Start command-line plans" `
+    "defines device-aware Auto, Vulkan, OpenGL, and Safe Start command-line plans" `
     @(
         'static final String AUTO = \"auto\"',
-        'return new Plan\(VULKAN, VULKAN, false, \"vulkan\", \"mobile\"\)',
-        'return new Plan\(OPENGL, OPENGL, false, \"opengl3\", \"gl_compatibility\"\)',
-        'return new Plan\(normalizedPreference, AUTO, true, null, null\)'
+        'isPowerVr\(graphicsDeviceEvidence\)',
+        'PowerVR compatibility forces OpenGL to preserve touch input',
+        '\"opengl3\"',
+        '\"gl_compatibility\"'
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\LauncherGraphicsDeviceEvidence.cs" `
+    "persists the live Godot adapter and selects OpenGL for PowerVR" `
+    @(
+        'RenderingServer\.GetVideoAdapterName',
+        'RenderingServer\.GetVideoAdapterVendor',
+        'LauncherStorageNames\.GraphicsDevice',
+        'LauncherPreferences\.SaveRendererMode\(LauncherRendererMode\.OpenGl\)'
+    )
+
+Add-Check `
+    "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
+    "keeps PowerVR renderer controls aligned with the effective OpenGL policy" `
+    @(
+        'SetPowerVrCompatibility',
+        '_rendererAutoButton\.Disabled = _launchControlsDisabled \|\| _powerVrCompatibilityRequired',
+        '_rendererVulkanButton\.Disabled = _launchControlsDisabled \|\| _powerVrCompatibilityRequired',
+        'OpenGL is required on this PowerVR device for working touch input'
     )
 
 Add-Check `
@@ -52,6 +73,7 @@ Add-Check `
     "applies and persists the selected renderer plan" `
     @(
         'AndroidRendererPolicy\.resolve',
+        'GRAPHICS_DEVICE_FILE',
         'rendererPlan\.appendCommandLine\(commands\)',
         'recordRendererAttempt\(rendererPlan, safeLaunch\)',
         'LAST_RENDERER_ATTEMPT_FILE'

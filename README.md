@@ -38,9 +38,9 @@ Latest published APK: [v0.2.399-powervr-renderer-mod-runtime](https://github.com
 
 Known important limitations:
 
-- Device compatibility varies. `v0.2.399` contains the leading issue #34 fix: the Godot all-PowerVR transform-feedback cache workaround plus truthful Auto/Vulkan/OpenGL/Safe Start renderer selection. The release passes connected Adreno validation, but the reporter's Pixel 10 Pro / Android 17 / PowerVR path has not yet retested it, so issue #34 remains open.
+- Device compatibility varies. The issue #34 reporter tested `v0.2.399` on Pixel 10 Pro / Android 17 / PowerVR: every renderer mode reached the game, but only OpenGL accepted touch. Current unpublished source detects PowerVR and forces the working OpenGL path for Auto, Vulkan, OpenGL, and Safe Start. Reporter confirmation of that candidate is still required.
 - The app currently targets ARM64 Android hardware. Android emulator and x86_64 builds are diagnostic only and are not supported for real game launch.
-- Some graphics drivers and renderer paths remain incompatible. The latest APK includes the PowerVR workaround, but reporter-class PowerVR hardware validation is still required.
+- Some graphics drivers and renderer paths remain incompatible. On the reported PowerVR device, OpenGL works but its menus can be slow while graphics are first compiled; gameplay and later menu use were reported normal.
 - Steam version selection, beta branches, Workshop mods, and save-merger behavior are still experimental.
 - Steam Cloud Push is intentionally cautious because it can overwrite remote saves. Pull from Steam Cloud first.
 - This is not a finished consumer app. Expect bugs, incomplete device coverage, and device-specific problems.
@@ -56,6 +56,7 @@ Before installing:
 Useful docs:
 
 - Current Android status: [docs/current-android-status.md](docs/current-android-status.md)
+- PowerVR input compatibility evidence: [docs/android-powervr-input-compatibility-20260716.md](docs/android-powervr-input-compatibility-20260716.md)
 - Testing needed: [docs/testing-needed.md](docs/testing-needed.md)
 - Issue reporting guide: [docs/issue-reporting.md](docs/issue-reporting.md)
 - Android Steam Workshop mods: [docs/android-workshop-mods.md](docs/android-workshop-mods.md)
@@ -314,7 +315,7 @@ Support boundaries for public testers:
 - This is an unofficial community launcher, is not endorsed by Mega Crit Games, and does not include game files or assets.
 - Do not post Steam credentials, guard codes, refresh tokens, private save data, or full unsanitized logs in public issues or Reddit threads.
 - Current support target is ARM64 Android hardware. x86_64 emulator behavior is diagnostic-only.
-- Current known user-facing pain points are controller action input, shader compile crashes or stalls, unconfirmed Pixel/PowerVR compatibility after the `v0.2.399` renderer fix, incomplete exact-build physical viewport coverage for the redesigned UI, and broader mod/save compatibility.
+- Current known user-facing pain points are controller action input, shader compile crashes or stalls, PowerVR touch compatibility and OpenGL cold-menu delay, incomplete exact-build physical viewport coverage for the redesigned UI, and broader mod/save compatibility.
 - If reporting a cloud-save issue, say whether you used Pull or Push, but scrub usernames, account IDs, and save contents first.
 
 3. Optional manual checksum verification:
@@ -340,7 +341,7 @@ Known current runtime limitations:
 - The app now has a validated working ARM64 path through download, cloud pull, cloud push hardening, and game launch, but this is not yet a finished release-candidate pass.
 - Push to Cloud is locally validated after the managed SHA-1 hardening fix, and that fix is included in the verified public APK line. Repeat Push confirmation/cancel smoke on the newest public APK is still required before release-candidate signoff.
 - The exact `v0.2.399` tester APK installed over the existing `com.sts2launcher.overhaul.fork.local` app data and reports version code `399004`. Its package and signer match `v0.2.398`, proving update continuity on the current local test channel, not production-signer compatibility.
-- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains unresolved until a reporter-class device retests `v0.2.399`. The published APK contains the targeted Godot all-PowerVR backport, real Auto/Vulkan/OpenGL selection, truthful Safe Start behavior, and persistent renderer/process-exit evidence.
+- Pixel 10 Pro / Android 17 / PowerVR issue #34 no longer reproduces the original startup crash on `v0.2.399`: all four modes reach the game. Its remaining defect is missing touch under Auto/Vulkan/Safe, while OpenGL accepts touch with temporary cold-menu slowdown. Unpublished source now routes every PowerVR launch mode to OpenGL; actual PowerVR confirmation is still pending.
 - Stale assembly cache behavior still needs repeated local upgrade coverage after signing continuity is fixed.
 - `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.
 

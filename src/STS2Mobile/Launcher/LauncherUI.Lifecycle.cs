@@ -19,9 +19,12 @@ internal sealed partial class LauncherUI
             SetAnchorsPreset(LayoutPreset.FullRect);
             Size = viewportSize;
             var layoutProfile = LauncherLayoutProfile.ForViewport(viewportSize);
-            _model = new LauncherModel(ResolveLauncherDataDirectory());
+            var dataDir = ResolveLauncherDataDirectory();
+            var powerVrCompatibility = LauncherGraphicsDeviceEvidence.CaptureAndApplyCompatibility(dataDir);
+            _model = new LauncherModel(dataDir);
             _model.InGameMode = _inGameMode;
             _view = new LauncherView(this, layoutProfile);
+            _view.SetPowerVrCompatibility(powerVrCompatibility);
             _controller = new LauncherController(
                 _model,
                 _view,
