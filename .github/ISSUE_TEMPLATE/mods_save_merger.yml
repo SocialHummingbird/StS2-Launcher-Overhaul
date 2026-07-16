@@ -1,12 +1,12 @@
-name: Mods, Workshop, or save-merger test
-description: Report Workshop discovery, mod selection, manual import, mod loading, or Vanilla and Modded Saves Merger behavior.
+name: Mods, Workshop, or save compatibility
+description: Report Workshop discovery, mod selection, mod loading, or native vanilla/modded save behavior.
 title: "[MODS] "
 labels: ["bug", "needs-triage", "category: reliability"]
 body:
   - type: markdown
     attributes:
       value: |
-        This is the preferred template for Workshop/mod reports. The highest-value current mod report is whether Vanilla and Modded Saves Merger makes existing saves usable.
+        This is the preferred template for Workshop/mod reports. SavesMerger is deprecated in current source builds; the highest-value save report is whether Manual Pull makes the native modded profile visible without it.
 
         This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, Steam, or Valve, and it bundles no Slay the Spire 2 game files, assets, or Workshop content. Steam ownership is required.
 
@@ -22,7 +22,7 @@ body:
         - Mod selector UI
         - Vanilla launch with mods disabled
         - Modded launch with selected mods
-        - Vanilla and Modded Saves Merger
+        - Deprecated SavesMerger was selected or loaded
         - Save compatibility
         - Mod crash or hang
     validations:
@@ -31,7 +31,7 @@ body:
     id: summary
     attributes:
       label: Summary
-      description: Describe the mod loading or save-merger result.
+      description: Describe the mod loading or native save-compatibility result.
     validations:
       required: true
   - type: textarea
@@ -97,7 +97,7 @@ body:
     id: save-behavior
     attributes:
       label: Save behavior
-      description: For SavesMerger, report whether existing saves were visible and loadable. Do not attach private save files publicly.
+      description: Report whether Manual Pull made native modded saves visible and loadable. Do not attach private save files publicly.
       value: |
         Existing vanilla save present before test:
         Existing modded save present before test:
@@ -105,7 +105,9 @@ body:
         Push to Steam Cloud run during test:
         Save/profile became visible in-game:
         Save/profile loaded successfully:
-        Disabling the mod returned expected vanilla/modded save behavior:
+        SavesMerger was absent from selected/activation evidence:
+        Manual Pull modded-save provenance marker present:
+        Seeded/cloud-authoritative/private-backup counts:
     validations:
       required: true
   - type: checkboxes
@@ -116,8 +118,8 @@ body:
         - label: Game reached main menu.
         - label: Game loaded selected mods.
         - label: Game launched vanilla with zero mods.
-        - label: Save merger made existing saves usable.
-        - label: Save merger did not make existing saves usable.
+        - label: Manual Pull made the native modded save usable.
+        - label: Manual Pull did not make the native modded save usable.
         - label: App crashed or hung.
         - label: Launcher blocked Push to Cloud because modded-save risk was active.
   - type: textarea

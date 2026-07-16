@@ -14,6 +14,7 @@ internal static partial class CloudSyncCoordinator
         private static readonly string[] IgnoredEnumerationDirectories =
         {
             ".godot",
+            ".launcher_backups",
             "cache",
             "game",
             "tmp",

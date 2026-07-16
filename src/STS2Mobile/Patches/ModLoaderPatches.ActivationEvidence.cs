@@ -67,9 +67,6 @@ internal static partial class ModLoaderPatches
         {
             var id = runtimeMod == null ? selected.Id : TryReadManifestId(runtimeMod) ?? selected.Id;
             var isBaseLib = string.Equals(id, "BaseLib", StringComparison.OrdinalIgnoreCase);
-            var isSavesMerger = IsSavesMergerId(id)
-                || IsSavesMergerId(selected.Id)
-                || IsSavesMergerId(selected.Title);
             var state = ReadModState(runtimeMod);
             var errorCount = CountModErrors(runtimeMod);
             var assembly = runtimeMod == null
@@ -84,40 +81,29 @@ internal static partial class ModLoaderPatches
             var hasDll = ReadBooleanMember(manifest, "hasDll", "HasDll");
             var hasPck = ReadBooleanMember(manifest, "hasPck", "HasPck") || selected.HasPck;
             var loadedState = runtimeMod != null && IsLoaded(runtimeMod);
-            var substituteApplied = isSavesMerger && _savesMergerCompatibilityApplied;
             var payloadReady = loadedState
                 && errorCount == 0
-                && !isSavesMerger
                 && (assembly != null || hasPck);
 
             var patchTypeCount = CountHarmonyPatchTypes(assembly);
             var ownerCandidates = RuntimeHarmonyOwnerCandidates(id, selected.Title, assembly).ToArray();
             FindHarmonyTargetsForOwners(ownerCandidates, out var harmonyTargetCount);
 
-            var compatibilityMode = isSavesMerger
-                ? "launcher-substitute"
-                : isBaseLib
-                    ? "partial-android"
-                    : "native";
-            var runtimeLoadSucceeded = errorCount == 0
-                && (substituteApplied || payloadReady);
+            var compatibilityMode = isBaseLib ? "partial-android" : "native";
+            var runtimeLoadSucceeded = errorCount == 0 && payloadReady;
             var activationStatus = ActivationStatusFor(
                 runtimeMod,
                 loadedState,
                 errorCount,
                 payloadReady,
                 harmonyTargetCount,
-                isBaseLib,
-                isSavesMerger,
-                substituteApplied
+                isBaseLib
             );
-            var compatibilityLimit = isSavesMerger
-                ? "Launcher save-path patches substitute for the mod; its DLL/PCK is not loaded."
-                : isBaseLib
-                    ? "Android-safe BaseLib initialization skips the full upstream PatchAll surface."
-                    : harmonyTargetCount > 0
-                        ? "Runtime patches are installed, but no in-game action was exercised by this marker."
-                        : "Payload load is recorded, but no in-game effect was exercised by this marker.";
+            var compatibilityLimit = isBaseLib
+                ? "Android-safe BaseLib initialization skips the full upstream PatchAll surface."
+                : harmonyTargetCount > 0
+                    ? "Runtime patches are installed, but no in-game action was exercised by this marker."
+                    : "Payload load is recorded, but no in-game effect was exercised by this marker.";
 
             return new RuntimeModActivationSummary
             {
@@ -223,9 +209,7 @@ internal static partial class ModLoaderPatches
             int errorCount,
             bool payloadReady,
             int harmonyTargetCount,
-            bool isBaseLib,
-            bool isSavesMerger,
-            bool substituteApplied
+            bool isBaseLib
         )
         {
             if (runtimeMod == null)
@@ -234,10 +218,6 @@ internal static partial class ModLoaderPatches
                 return "loaded-with-errors";
             if (!loadedState)
                 return "failed";
-            if (isSavesMerger)
-                return substituteApplied
-                    ? "launcher-compatibility-substitute"
-                    : "substitute-not-applied";
             if (!payloadReady)
                 return "loaded-without-payload-evidence";
             if (isBaseLib)
@@ -246,10 +226,6 @@ internal static partial class ModLoaderPatches
                 return "runtime-patches-installed";
             return "payload-loaded-unverified";
         }
-
-        private static bool IsSavesMergerId(string value)
-            => string.Equals(value, "SavesMerger", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(value, "UnifiedSavePath", StringComparison.OrdinalIgnoreCase);
 
         private static bool PathsMatch(string left, string right)
         {

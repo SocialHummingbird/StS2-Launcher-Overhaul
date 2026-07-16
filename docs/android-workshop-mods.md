@@ -16,8 +16,9 @@ Workshop/mod support is in progress. The current latest APK is `v0.2.400-powervr
 - The launcher exposes a first-class Mods section on the main Play screen, showing staged and selected mod counts, unsupported Workshop item count, manual-import guidance, Cloud upload lock state, and primary `Sync Workshop` / `Clear Staged` actions before repair/help diagnostics.
 - Public-beta `v0.108.0` now launches with matched beta PCK plus matched beta managed runtime after the adaptive ModelDb fix. Public-after-beta branch switching and core-release side-by-side launch were retested on July 3.
 - Core-release can be selected and launched through a side-by-side slot. Current Steam metadata still records it as inheriting the public depot manifest rather than a distinct core-release payload.
-- BaseLib and Quick Restart are staged from Workshop. Vanilla and Modded Saves Merger is available through manual import, but direct Workshop acquisition for that item remains unsupported.
-- The July 3 public-beta run proved that BaseLib and Quick Restart payloads reached their Android load paths without initializer errors and that SavesMerger's launcher compatibility patches were applied. Its old marker treated the game's coarse `Loaded` state as success, so it did not prove all three mods were active in gameplay. Later focused public-beta testing proved Quick Restart created and executed its restart action after the selected game assembly was Android-publicized.
+- BaseLib and Quick Restart are staged from Workshop. Vanilla and Modded Saves Merger remains visible as a legacy item, but current source builds mark it deprecated and never select or load it.
+- The July 3 public-beta run historically proved that BaseLib and Quick Restart payloads reached their Android load paths and that the old launcher SavesMerger substitute was applied. Current source removes that substitute. Later focused testing remains valid proof that Quick Restart created and executed its restart action after the selected game assembly was Android-publicized.
+- Manual Pull now preserves the game's native modded directory model. For each account/profile, a Steam Cloud modded namespace is authoritative; otherwise the launcher seeds the exact upstream v0.108 first-launch file set from files downloaded during that Pull. Existing affected local modded files are backed up app-privately first, and `cloud_sync/last_manual_pull_modded_save_seed.json` records the result.
 - Current source builds also record launcher-side mod readiness in `last_launch_attempt.txt` before Start Game handoff. That marker captures vanilla/modded mode, selected mods, enabled count, selector cache status, and modded-save Cloud Push lock state. Mod readiness status values are centralized in `LauncherModLaunchReadinessCacheStatus`, including `not-needed-vanilla` for vanilla starts where runtime mod scans are intentionally skipped. The mod readiness cache hashes small selector/Workshop manifest metadata with a bounded 1 MiB content identity and uses one recursive metadata pass across staged/manual `.json`, `.pck`, and `.dll` files. It does not hash large mod payload contents, but changes anywhere in staged Workshop or manual import directories invalidate cached mod readiness. It is startup triage evidence. Marker v2 in `last_mod_launch.json` separately records each selected mod's payload readiness, load errors, Harmony patch types and installed targets, Android compatibility mode, activation status, and whether any in-game effect was actually exercised.
 - Steam Cloud Push is not run by Workshop sync, Workshop clear, or Workshop evidence capture.
 
@@ -26,9 +27,9 @@ This is not finished mod-manager UX yet:
 - BaseLib compatibility is currently handled by a partial Android direct-load path. Full upstream `PatchAll` and extended-save registration are skipped, and only targeted compatibility initialization is attempted. This keeps the staged `BaseLib`/`Quick Restart` path launchable, but arbitrary BaseLib-dependent mods are not yet proven usable on Android.
 - Core-release is not currently proven as a distinct Steam branch payload because Steam metadata exposes no separate branch manifest in the latest capture.
 - Unsupported legacy UGC-only Workshop items are visible but not downloadable through the currently implemented Steam content routes. The launcher keeps them classified as unsupported and now points users to the supported manual import folder instead of treating the sync as complete.
-- Saves Merger direct Workshop download remains unsupported, but the manual-imported mod's functional save-path behavior is now supplied by the launcher when that mod is selected.
+- Saves Merger direct Workshop download remains unsupported and its old manual-import fallback is deprecated. The launcher no longer forces modded launches onto vanilla save paths.
 
-Latest device evidence:
+Historical July 3 device evidence (before SavesMerger deprecation):
 
 ```text
 latestStrictModdedRuntimeBuild=0.2.352-savemerger-compat-local
@@ -49,14 +50,15 @@ Use the latest build containing selected-root diagnostics and run this sequence:
 
 1. Confirm the installed package is the expected local debug package and version.
 2. Keep Steam Cloud Push locked/off; do not press Push to Cloud.
-3. Select public-beta and modded mode with BaseLib, Quick Restart, and manual Saves Merger enabled.
-4. Run `scripts/run-public-beta-modded-validation.ps1` to park `files/modded`, select the known BaseLib/Quick Restart/Saves Merger set, launch public-beta with focused logs, capture `last_mod_launch.json`, `mod_selection.json`, selected root diagnostics, `diagnostics/selected-mod-root-hashes.txt`, `diagnostics/external-mods-tree.txt`, runtime cache marker, patch validation marker, PCK/runtime hashes, screenshots, and restore the prior local test state. The wrapper writes `diagnostics/validation-result.json` and exits non-zero if capture/review/save-validation fails, so a crash or fallback route cannot be mistaken for a playable modded beta pass.
+3. Select public-beta and modded mode with BaseLib and Quick Restart enabled. Leave SavesMerger installed only if testing its deprecated classification; it must not appear in selected or activation evidence.
+4. Run `scripts/run-public-beta-modded-validation.ps1` to launch public-beta with focused logs and capture runtime/mod/save diagnostics. The script does not move `files/modded`, does not press Steam Cloud Push, requires zero compatibility substitutes, and fails if SavesMerger appears in runtime activation evidence.
 5. Classify the result:
    - root not visible: launcher/path staging issue;
    - root visible but scan crashes before manifest load: upstream Godot/mod file-I/O scan issue;
-   - manifests load but BaseLib/Quick Restart/Saves Merger fails: mod compatibility issue;
-   - main menu reached: validate upstream first-modded-save copy and Saves Merger save usability.
-6. Restore vanilla mode and any parked `files/modded` backup before ending the device session.
+   - manifests load but BaseLib/Quick Restart fails: mod compatibility issue;
+   - SavesMerger appears in selected/activation evidence: deprecated-selector regression;
+   - main menu reached but saves are absent: inspect the Manual Pull modded-save provenance marker and private backup count.
+6. Restore the previous mod selection before ending the device session. Do not move or delete native save directories.
 
 Latest strict July 3 result: `connected-public-beta-modded-savemerger-20260703-10` passed its then-current checks. It loaded the selected public-beta PCK from `files/game_versions/public-beta-8128824d/game/SlayTheSpire2.pck`, used runtime pack `files/runtime_packs/public-beta-8128824d`, matched active Android `sts2.dll` hash `51a671bfeb937271af3e643d017396b13432098ed2b9debceb110c74939bbba1`, reached all three selected mod load paths, wrote a fresh marker, and recorded `steamCloudPushPerformed=false`. It did not exercise each mod in game, so it is not proof that all three gameplay effects were active.
 
@@ -145,7 +147,7 @@ The supported fallback for legacy UGC-only mods is manual import into shared And
 /storage/emulated/0/StS2Launcher/Mods
 ```
 
-Place the mod folder or PCK/DLL/JSON payload copied from a trusted Steam install into that directory, then start the game. The Android runtime scans this folder in addition to app-private `files/workshop_mods/staged`. This is the only supported current route for `3747532120` / `Vanilla and Modded Saves Merger` unless Steam begins exposing a direct URL, UGC URL, or depot manifest for the item.
+Place a supported mod folder or PCK/DLL/JSON payload copied from a trusted Steam install into that directory, then start the game. The Android runtime scans this folder in addition to app-private `files/workshop_mods/staged`. This remains a general legacy-mod import route, but it is no longer supported for `3747532120` / `Vanilla and Modded Saves Merger`; current source detects that identity and marks it deprecated.
 
 Latest ARM64 fallback proof:
 
@@ -214,7 +216,7 @@ Use `-RequirePhase public`, `-RequirePhase public-beta`, or `-RequirePhase core-
 
 - Expand the new first-class launcher Mods section into fuller mod-manager UX: mod list/detail, enable/disable staging, unsupported-item explanation, and clearer dependency state.
 - Replace metadata-only pre-launch readiness with declared payload, dependency, version, and runtime-pack validation.
-- Surface post-launch activation states in the launcher, including active, launcher substitute, partial compatibility, loaded but behaviorally unverified, and failed.
+- Surface post-launch activation states in the launcher, including active, deprecated/excluded, partial compatibility, loaded but behaviorally unverified, and failed.
 - Replace BaseLib's full `PatchAll` skip with a bounded allowlisted patch pipeline, expanded only through per-patch device tests.
 - Add behavioral probes for supported mods so a loaded assembly is not the final compatibility signal.
 - Keep the strict public, public-beta, public-after-beta, and core-release branch-switch evidence current as the game and Workshop items update.

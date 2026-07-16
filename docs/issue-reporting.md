@@ -4,7 +4,7 @@ See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS
 
 Good StS2 Mobile reports include enough evidence to separate launcher bugs, Steam account/branch availability, Android runtime routing, Steam Cloud safety, and mod/save compatibility. Reports that only say "latest APK" or "mods do not work" usually cannot be acted on.
 
-Current recurring report themes are redesigned-launcher layout regressions, shader compile crashes or stalls, post-main-menu Android GPU/renderer failures, controller input on Android handhelds, public-beta/core branch freshness, and SavesMerger save usability. These are useful reports when they include exact APK, device, GPU/renderer, branch, mod, screenshot, and focused log details.
+Current recurring report themes are redesigned-launcher layout regressions, shader compile crashes or stalls, post-main-menu Android GPU/renderer failures, controller input on Android handhelds, public-beta/core branch freshness, and native modded-save visibility after Manual Pull. These are useful reports when they include exact APK, device, GPU/renderer, branch, mod, screenshot, and focused log details.
 
 For Start Game failures, include `last_launch_attempt.txt` when available. Current source builds write a per-press attempt ID, selected branch, ready/blocked state, runtime slot ID, selected PCK path/hash, source and active `sts2.dll` paths/hashes, runtime pack path/status, runtime cache marker path/presence, runtime patch-validation marker path/presence, patch compatibility marker path/status, whether the launch used the prepared readiness result rather than repeating primary-path validation, whether that readiness came from a fresh check or a safe in-memory cache hit, and elapsed timing for total launch attempt, selected-version readiness, and mod readiness. Modded starts also include play mode, enabled mod count, selected mods, selector cache status, whether modded-save Cloud Push was locked, and cache evidence that invalidates when selector metadata, Workshop metadata, or staged/manual mod file metadata changes.
 
@@ -146,7 +146,7 @@ Enabled or disabled:
 Launcher showed unsupported/attention warning:
 ```
 
-For Vanilla and Modded Saves Merger, include:
+For native modded-save visibility after Manual Pull, include:
 
 ```text
 Existing vanilla save present before test:
@@ -155,10 +155,14 @@ Pull from Steam Cloud run before test:
 Push to Steam Cloud run during test:
 Save/profile became visible in-game:
 Save/profile loaded successfully:
-Disabling the mod returned expected vanilla/modded save behavior:
+SavesMerger absent from selected/activation evidence:
+Manual Pull modded-save provenance marker present:
+Seeded modded file count:
+Cloud-authoritative modded namespace count:
+Private local modded backup count:
 ```
 
-The current useful result is not just "the game reached main menu." The important evidence is whether existing saves became visible and loadable with the merger enabled, and whether disabling mods returns to expected behavior.
+The current useful result is not just "the game reached main menu." The important evidence is whether the fresh Pull created or selected the expected native modded profile and whether that profile became visible and loadable without SavesMerger.
 
 ## Current Support Boundaries
 
@@ -169,5 +173,5 @@ The current useful result is not just "the game reached main menu." The importan
 - Android x86_64 emulator results are diagnostic only unless a maintainer asks for a forced-Godot investigation.
 - Steam beta password entry is not currently a release-ready path.
 - Workshop/mod support is functional but still hardening. Some Workshop items exposed only as legacy UGC handles may still need manual import.
-- SavesMerger loading/scanning is not the same as full save-merge signoff. The useful report is whether existing saves become visible and loadable.
+- SavesMerger/UnifiedSavePath is deprecated in current source builds. If it appears in selected or activation evidence, report that as a selector regression.
 - Push to Cloud is intentionally guarded and may stay blocked when branch-switch, modded-save, local-save, Pull, or backup evidence is incomplete.

@@ -354,9 +354,9 @@ if ($null -ne $modded) {
     $moddedMods = Get-ModArray $modded "$ModdedLabel marker"
     Require-Equals $moddedMods.Count ([int]$modded.enabledMods) "$ModdedLabel selected mod count matches enabledMods"
     Require-ModNamePresence $moddedMods "BaseLib" $true "$ModdedLabel includes BaseLib"
-    Require-ModNamePresence $moddedMods $DisabledModNamePattern $true "$ModdedLabel includes $DisabledModNamePattern"
+    Require-ModNamePresence $moddedMods $DisabledModNamePattern $false "$ModdedLabel excludes deprecated $DisabledModNamePattern"
     Require-ModRootSnapshots $moddedMods "$ModdedLabel marker"
-    Require-StandardActivationSet $modded "$ModdedLabel marker" $true | Out-Null
+    Require-StandardActivationSet $modded "$ModdedLabel marker" $false | Out-Null
     $moddedCloudLocked = Require-CommonMarkerSafety $ModdedLabel $modded
     if ($null -ne $moddedCloudLocked) {
         Require-Boolean $moddedCloudLocked $true "$ModdedLabel locks Cloud Push for selected mods"
@@ -376,17 +376,16 @@ if ($null -ne $disabled) {
     Require-ModNamePresence $disabledMods $DisabledModNamePattern $false "$DisabledModLabel excludes disabled $DisabledModNamePattern"
     Require-ModRootSnapshots $disabledMods "$DisabledModLabel marker"
     Require-StandardActivationSet $disabled "$DisabledModLabel marker" $false | Out-Null
-    if ($null -ne $modded -and [int]$modded.enabledMods -le [int]$disabled.enabledMods) {
-        $failures.Add("$DisabledModLabel did not reduce enabled mod count below $ModdedLabel")
+    if ($null -ne $modded -and [int]$modded.enabledMods -ne [int]$disabled.enabledMods) {
+        $failures.Add("$DisabledModLabel changed enabled mod count even though deprecated SavesMerger is excluded in both scenarios")
     } elseif ($null -ne $modded) {
-        Add-Pass "$DisabledModLabel reduced enabled mod count below $ModdedLabel"
+        Add-Pass "$DisabledModLabel confirms deprecated SavesMerger does not affect enabled mod count"
     }
     $disabledCloudLocked = Require-CommonMarkerSafety $DisabledModLabel $disabled
     if ($null -ne $disabledCloudLocked) {
         Require-Boolean $disabledCloudLocked $true "$DisabledModLabel keeps Cloud Push locked while other mods remain active"
     }
     Require-CommonLaunchLogSafety $DisabledModLabel
-    Require-TextPattern "logs/$DisabledModLabel-focused.txt" "$DisabledModLabel skipped disabled mod" "(?i)Skipping disabled launcher-selected mod.+$DisabledModNamePattern|$DisabledModNamePattern.+disabled"
     Require-ScenarioScreenshot $DisabledModLabel
 }
 

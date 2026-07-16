@@ -18,6 +18,8 @@ internal static class AppPaths
     private const string ModsDirectoryName = "mods";
     private const string ModSelectionFileName = "mod_selection.json";
     private const string LastModLaunchFileName = "last_mod_launch.json";
+    private const string CloudSyncDirectoryName = "cloud_sync";
+    private const string ManualPullModdedSaveSeedEvidenceFileName = "last_manual_pull_modded_save_seed.json";
 
     internal const string ExternalModsDir = ExternalStorageRoot + "/Mods";
     internal const string ExternalSaveBackupsDir = ExternalStorageRoot + "/Saves";
@@ -35,6 +37,9 @@ internal static class AppPaths
         ModSelectionPath(AppPrivateDataDir);
     internal static string AppPrivateLastModLaunchPath =>
         LastModLaunchPath(AppPrivateDataDir);
+    internal const string ManualPullPrivateBackupRelativeDirectory = ".launcher_backups/manual-pull";
+    internal static string ManualPullModdedSaveSeedEvidenceRelativePath =>
+        $"{CloudSyncDirectoryName}/{ManualPullModdedSaveSeedEvidenceFileName}";
 
     internal static string WorkshopDownloadsDir(string dataDir) =>
         Path.Combine(dataDir, WorkshopModsDirectoryName, WorkshopDownloadsDirectoryName);
@@ -56,6 +61,9 @@ internal static class AppPaths
 
     internal static string LastModLaunchPath(string dataDir) =>
         Path.Combine(dataDir, ModsDirectoryName, LastModLaunchFileName);
+
+    internal static string ManualPullModdedSaveSeedEvidencePath(string dataDir) =>
+        Path.Combine(dataDir, CloudSyncDirectoryName, ManualPullModdedSaveSeedEvidenceFileName);
 
     private static string AppPrivateDataDir => ResolveAppPrivateDataDirectory();
 

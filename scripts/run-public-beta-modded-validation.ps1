@@ -112,20 +112,23 @@ function Assert-PublicBetaModdedLaunchMarker([string]$EvidenceDirectory, [dateti
         $validationFailures.Add("Modded launch marker predates per-mod activation evidence: version=$($marker.version).")
     }
 
-    if ([int]$marker.enabledMods -lt 3) {
-        $validationFailures.Add("Modded launch marker recorded fewer than three enabled mods: enabledMods=$($marker.enabledMods).")
+    if ([int]$marker.enabledMods -lt 2) {
+        $validationFailures.Add("Modded launch marker recorded fewer than two enabled mods: enabledMods=$($marker.enabledMods).")
     }
 
-    if ([int]$marker.scannedRoots -lt 3) {
-        $validationFailures.Add("Modded launch marker recorded fewer than three scanned roots: scannedRoots=$($marker.scannedRoots).")
+    if ([int]$marker.scannedRoots -lt 2) {
+        $validationFailures.Add("Modded launch marker recorded fewer than two scanned roots: scannedRoots=$($marker.scannedRoots).")
     }
 
     $selectedMods = @($marker.selectedMods)
     $selectedText = ($selectedMods | ForEach-Object { @($_.Key, $_.Id, $_.Title, $_.Path) -join " " }) -join "`n"
-    foreach ($requiredPattern in @("BaseLib", "Quick\s*Restart|QuickRestart", "SavesMerger")) {
+    foreach ($requiredPattern in @("BaseLib", "Quick\s*Restart|QuickRestart")) {
         if ($selectedText -notmatch $requiredPattern) {
             $validationFailures.Add("Modded launch marker is missing selected mod evidence matching '$requiredPattern'.")
         }
+    }
+    if ($selectedText -match "SavesMerger|UnifiedSavePath") {
+        $validationFailures.Add("Deprecated SavesMerger still appears in selected runtime mods.")
     }
 
 
@@ -149,8 +152,8 @@ function Assert-PublicBetaModdedLaunchMarker([string]$EvidenceDirectory, [dateti
     if ([int]$marker.partialCompatibilityMods -lt 1) {
         $validationFailures.Add("Modded launch marker does not classify BaseLib partial compatibility.")
     }
-    if ([int]$marker.compatibilitySubstituteMods -lt 1) {
-        $validationFailures.Add("Modded launch marker does not classify the SavesMerger launcher substitute.")
+    if ([int]$marker.compatibilitySubstituteMods -ne 0) {
+        $validationFailures.Add("Modded launch marker still records a launcher compatibility substitute: compatibilitySubstituteMods=$($marker.compatibilitySubstituteMods).")
     }
 
     $baseLibActivation = Find-ModActivation $activationEvidence "BaseLib"
@@ -180,16 +183,11 @@ function Assert-PublicBetaModdedLaunchMarker([string]$EvidenceDirectory, [dateti
         $validationFailures.Add("Quick Restart activation evidence does not prove an error-free payload load with installed Harmony targets.")
     }
 
-    $savesMergerActivation = Find-ModActivation $activationEvidence "SavesMerger|UnifiedSavePath"
-    if ($null -eq $savesMergerActivation) {
-        $validationFailures.Add("Modded launch marker is missing SavesMerger compatibility evidence.")
-    } elseif (
-        "$($savesMergerActivation.CompatibilityMode)" -ne "launcher-substitute" -or
-        "$($savesMergerActivation.ActivationStatus)" -ne "launcher-compatibility-substitute" -or
-        [bool]$savesMergerActivation.PayloadReady -ne $false -or
-        [bool]$savesMergerActivation.RuntimeLoadSucceeded -ne $true
-    ) {
-        $validationFailures.Add("SavesMerger evidence does not truthfully describe the launcher compatibility substitute.")
+    $savesMergerActivation = @($activationEvidence | Where-Object {
+        (@($_.Id, $_.Title, $_.Path, $_.Assembly) -join " ") -match "SavesMerger|UnifiedSavePath"
+    })
+    if ($savesMergerActivation.Count -gt 0) {
+        $validationFailures.Add("Deprecated SavesMerger still has runtime activation evidence.")
     }
 
     foreach ($mod in $selectedMods) {
@@ -226,8 +224,6 @@ $diagnosticsDir = Join-Path $outputDir "diagnostics"
 New-Item -ItemType Directory -Force -Path $diagnosticsDir | Out-Null
 
 $selectionBackupPath = "files/mods/mod_selection.codex-backup-$timestamp.json"
-$moddedBackupPath = "files/modded.codex-backup-$timestamp"
-$newModdedPath = "files/modded.codex-newcopy-test-$timestamp"
 $cleanupLines = [System.Collections.Generic.List[string]]::new()
 $validationFailures = [System.Collections.Generic.List[string]]::new()
 $latestWorkshopEvidencePath = ""
@@ -260,12 +256,11 @@ try {
 Public-beta modded validation artifact hygiene
 
 This script does not press Steam Cloud Push and does not upload save data.
-It writes launcher-owned app-private test markers, runs the public-beta safe-launch automation, captures Workshop/runtime/save diagnostics, and restores the original mod selector plus modded-save directory unless -LeaveTestState is used.
+It writes launcher-owned app-private test markers, runs the public-beta safe-launch automation, captures Workshop/runtime/save diagnostics, and restores the original mod selector unless -LeaveTestState is used. It does not move or replace save directories.
 "@
 
     Invoke-RunAsSh "mkdir -p files/mods && if [ -f files/mods/mod_selection.json ]; then cp files/mods/mod_selection.json $selectionBackupPath; fi"
     $deviceStateMayBeMutated = $true
-    Invoke-RunAsSh "if [ -d files/modded ]; then mv files/modded $moddedBackupPath; fi"
 
     $selection = [ordered]@{
         Version = 1
@@ -281,7 +276,7 @@ It writes launcher-owned app-private test markers, runs the public-beta safe-lau
 
     Invoke-RunAsSh "printf 'branch=public-beta\naction=launchsafe\n' > files/launcher_automation_action.txt"
     Save-Text -Path (Join-Path $diagnosticsDir "pre-launch-state.txt") -Text (
-        (Invoke-RunAsShCapture "ls -ld files/modded $moddedBackupPath 2>/dev/null; cat files/mods/mod_selection.json; cat files/launcher_automation_action.txt") -join [Environment]::NewLine
+        (Invoke-RunAsShCapture "ls -ld files/modded 2>/dev/null; cat files/mods/mod_selection.json; cat files/launcher_automation_action.txt") -join [Environment]::NewLine
     )
 
     $captureArgs = @{
@@ -350,7 +345,7 @@ It writes launcher-owned app-private test markers, runs the public-beta safe-lau
     }
 
     Save-Text -Path (Join-Path $diagnosticsDir "post-launch-state.txt") -Text (
-        (Invoke-RunAsShCapture "ls -ld files/modded $moddedBackupPath 2>/dev/null; cat files/mods/last_mod_launch.json 2>/dev/null; cat files/last_launcher_automation.txt 2>/dev/null") -join [Environment]::NewLine
+        (Invoke-RunAsShCapture "ls -ld files/modded 2>/dev/null; cat files/mods/last_mod_launch.json 2>/dev/null; cat files/last_launcher_automation.txt 2>/dev/null") -join [Environment]::NewLine
     )
 } catch {
     $validationFailures.Add("Public-beta modded validation setup/run failed: $($_.Exception.Message)")
@@ -358,13 +353,6 @@ It writes launcher-owned app-private test markers, runs the public-beta safe-lau
 } finally {
     if (-not $LeaveTestState) {
         if ($deviceStateMayBeMutated) {
-            try {
-                Invoke-RunAsSh "if [ -d files/modded ]; then mv files/modded $newModdedPath; fi; if [ -d $moddedBackupPath ]; then mv $moddedBackupPath files/modded; fi"
-                $cleanupLines.Add("restored modded save directory; new copy, if any, moved to $newModdedPath")
-            } catch {
-                $cleanupLines.Add("failed to restore modded save directory: $($_.Exception.Message)")
-            }
-
             try {
                 Invoke-RunAsSh "if [ -f $selectionBackupPath ]; then cp $selectionBackupPath files/mods/mod_selection.json; rm -f $selectionBackupPath; else exit 42; fi"
                 $cleanupLines.Add("restored previous mod selection")

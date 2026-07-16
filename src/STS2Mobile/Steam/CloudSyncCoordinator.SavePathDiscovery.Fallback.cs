@@ -9,6 +9,8 @@ internal static partial class CloudSyncCoordinator
     {
         private static readonly string[] FallbackRootFiles =
         {
+            "profile.save",
+            "modded/profile.save",
         };
 
         private static void AddFallbackProfilePaths(

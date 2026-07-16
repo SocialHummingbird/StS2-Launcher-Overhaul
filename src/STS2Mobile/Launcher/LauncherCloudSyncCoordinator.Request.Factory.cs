@@ -20,12 +20,12 @@ internal sealed partial class LauncherCloudSyncCoordinator
 
         internal static ManualCloudSyncRequest Pull(string dataDir, string selectedBranch)
             => new(
-                "Pull Steam Cloud saves to Android local storage?\nThis overwrites Android local saves with the current Steam Cloud state.",
+                "Pull Steam Cloud saves to Android?\nCloud modded saves are preferred. Where Steam Cloud has only vanilla saves, the launcher copies the freshly downloaded files into the matching modded profile. Existing local modded files are backed up inside the app before replacement.",
                 "Pull from Cloud",
                 "Cancel Pull",
                 "Pull",
-                "Pulling Steam Cloud saves to Android local storage...",
-                "Pull complete. Android local saves now reflect Steam Cloud.",
+                "Pulling Steam Cloud saves and preparing Android modded profiles...",
+                "Pull complete. Cloud modded saves were preferred; missing modded profiles were seeded from the fresh vanilla download.",
                 true,
                 LauncherCloudSaveState.ManualPullAllAsync,
                 () => LauncherCloudSyncEvidence.WriteManualPullMarker(dataDir, selectedBranch)

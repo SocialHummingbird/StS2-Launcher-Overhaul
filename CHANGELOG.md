@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased - Native modded-save Pull repair
+
+- Replaced the launcher SavesMerger save-path substitute with native modded save directories. Installed SavesMerger/UnifiedSavePath entries are now shown as deprecated and excluded from runtime activation.
+- Added Manual Pull modded-save seeding based on the game's upstream v0.108 first-launch copy set: `profile.save`, profile 1-3 progress/current-run/multiplayer-run/preferences files, and run history.
+- Made cloud-provided modded namespaces authoritative. Vanilla files are seeded only when Steam Cloud has no modded data for that account/profile, and only from content downloaded successfully during the current Pull.
+- Added mandatory app-private backups before any affected local modded file is replaced, write verification, a local provenance marker, diagnostics, and plain-language Pull status. Private backup/provenance paths are excluded from cloud discovery.
+- Added a no-device policy regression probe covering vanilla-only, mixed cloud namespaces, account metadata, path normalization, history, excluded backup/legacy files, and full SavesMerger Workshop-title detection. Managed compilation and the probe pass. No APK was built, no device save state was changed, and Steam Cloud Push was not run.
+
 ## 2026-07-16 - PowerVR touch compatibility release
 
 - Published `v0.2.400-powervr-touch-compat` as GitHub's Latest release with exact connected-device-tested ARM64 APK `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk`, version code `400001`, and SHA-256 `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3`.

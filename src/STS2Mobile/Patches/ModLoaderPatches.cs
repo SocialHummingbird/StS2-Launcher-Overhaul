@@ -27,7 +27,6 @@ internal static partial class ModLoaderPatches
     private const BindingFlags LoadedMarkerFlags =
         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
     private static Harmony _harmony;
-    private static bool _savesMergerCompatibilityApplied;
     private static readonly HashSet<string> AppliedModCompatibilityPatches = new(StringComparer.Ordinal);
     private static readonly HashSet<string> BaseLibAndroidSkippedPatchTypes = new(StringComparer.Ordinal)
     {
@@ -1252,6 +1251,14 @@ internal static partial class ModLoaderPatches
                     return false;
                 }
 
+                if (IsSavesMergerMod(manifestData))
+                {
+                    PatchHelper.Log(
+                        "[Mods] SavesMerger is deprecated and was not loaded; the game now keeps native modded saves and Manual Pull seeds missing modded profiles"
+                    );
+                    return false;
+                }
+
                 var modPath = Path.GetDirectoryName(manifestPath) ?? root.Path;
                 var mod = CreateSyntheticBaseLibMod(modPath, manifestData);
                 if (mod == null)
@@ -1264,8 +1271,6 @@ internal static partial class ModLoaderPatches
 
                 var loaded = string.Equals(manifestData.Id, "BaseLib", StringComparison.OrdinalIgnoreCase)
                     ? TryLoadBaseLibForAndroidObject(mod, modPath, manifestData)
-                    : IsSavesMergerMod(manifestData)
-                        ? TryLoadSavesMergerForAndroidObject(mod)
                     : TryLoadStandardAndroidModObject(root, mod, manifestData);
                 if (!loaded || !IsLoaded(mod))
                 {
@@ -1701,79 +1706,7 @@ internal static partial class ModLoaderPatches
         }
 
         private static bool IsSavesMergerMod(BaseLibManifestData manifest)
-        {
-            return string.Equals(manifest?.Id, "SavesMerger", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(manifest?.Name, "SavesMerger", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(manifest?.Id, "UnifiedSavePath", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool TryLoadSavesMergerForAndroidObject(object mod)
-        {
-            try
-            {
-                ApplySavesMergerCompatibilityPatches();
-                UserDataPathProvider.IsRunningModded = false;
-                SetEnumMember(mod, "state", "Loaded");
-                SetMemberValue(mod, "assembly", null);
-                SetMemberValue(mod, "errors", null);
-                PatchHelper.Log("[Mods] SavesMerger loaded through built-in Android save-path compatibility patch");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Mods] SavesMerger Android compatibility patch failed: {ex}");
-                SetEnumMember(mod, "state", "Failed");
-                return false;
-            }
-        }
-
-        private static void ApplySavesMergerCompatibilityPatches()
-        {
-            if (_savesMergerCompatibilityApplied)
-                return;
-
-            if (_harmony == null)
-                throw new InvalidOperationException("Harmony has not been initialized for SavesMerger compatibility.");
-
-            PatchHelper.PatchGetter(
-                _harmony,
-                typeof(UserDataPathProvider),
-                "IsRunningModded",
-                PatchHelper.Method(typeof(ModManagerAccess), nameof(SavesMergerGetIsRunningModded))
-            );
-            PatchHelper.Patch(
-                _harmony,
-                typeof(UserDataPathProvider),
-                "set_IsRunningModded",
-                prefix: PatchHelper.Method(typeof(ModManagerAccess), nameof(SavesMergerSetIsRunningModded))
-            );
-            PatchHelper.Patch(
-                _harmony,
-                typeof(UserDataPathProvider),
-                "GetProfileDir",
-                prefix: PatchHelper.Method(typeof(ModManagerAccess), nameof(SavesMergerGetProfileDir))
-            );
-            _savesMergerCompatibilityApplied = true;
-            PatchHelper.Log("[Mods] SavesMerger Android compatibility patches applied");
-        }
-
-        private static bool SavesMergerGetIsRunningModded(ref bool __result)
-        {
-            __result = false;
-            return false;
-        }
-
-        private static bool SavesMergerSetIsRunningModded(ref bool value)
-        {
-            value = false;
-            return true;
-        }
-
-        private static bool SavesMergerGetProfileDir(int profileId, ref string __result)
-        {
-            __result = $"profile{profileId}";
-            return false;
-        }
+            => DeprecatedSavePathMod.IsMatch(manifest?.Id, manifest?.Name);
 
         private bool TryLoadBaseLibForAndroidObject(object mod, string modPath, BaseLibManifestData manifest)
         {

@@ -58,6 +58,16 @@ internal static partial class CloudSyncCoordinator
         internal string? ReadLocalFile(string path)
             => _local.FileExists(path) ? _local.ReadFile(path) : null;
 
+        internal async Task WriteLocalContentAsync(string path, string content)
+        {
+            await WaitForCloudOperationAsync(
+                $"WriteLocalFile {path}",
+                ManualSyncPerPathTimeoutMs,
+                _local.WriteFileAsync(path, content)
+            ).ConfigureAwait(false);
+            PatchHelper.Log($"[Cloud] Local write path: {path} -> {_local.GetFullPath(path)}");
+        }
+
         internal void WriteCloudFile(string path, string content)
         {
             _cloud.WriteFile(path, content);

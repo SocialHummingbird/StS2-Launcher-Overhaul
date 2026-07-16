@@ -32,6 +32,7 @@ internal sealed class LauncherKnownMod
     internal bool IsDependency { get; init; }
     internal bool IsRequiredDependency { get; init; }
     internal bool IsUnsupported { get; init; }
+    internal bool IsDeprecated { get; init; }
     internal bool Enabled { get; init; }
 }
 
@@ -303,7 +304,9 @@ internal static class LauncherModSelectionState
         {
             var key = WorkshopKey(item.PublishedFileId);
             var status = item.Status ?? "";
-            var unsupported = string.Equals(status, "unsupported", StringComparison.OrdinalIgnoreCase);
+            var deprecated = IsDeprecatedSavePathMod(item.PublishedFileId.ToString(), item.Title);
+            var unsupported = deprecated
+                || string.Equals(status, "unsupported", StringComparison.OrdinalIgnoreCase);
             var requiredDependency = item.IsDependency
                 && item.RequiredByPublishedFileIds.Any(parent => enabledWorkshopIds.Contains(parent));
             yield return new LauncherKnownMod
@@ -317,6 +320,7 @@ internal static class LauncherModSelectionState
                 IsDependency = item.IsDependency,
                 IsRequiredDependency = requiredDependency,
                 IsUnsupported = unsupported,
+                IsDeprecated = deprecated,
                 Enabled = !unsupported && enabledWorkshopIds.Contains(item.PublishedFileId),
             };
         }
@@ -366,7 +370,8 @@ internal static class LauncherModSelectionState
     }
 
     private static bool IsUnsupported(SteamWorkshopSyncManifestItem item)
-        => string.Equals(item.Status, "unsupported", StringComparison.OrdinalIgnoreCase);
+        => string.Equals(item.Status, "unsupported", StringComparison.OrdinalIgnoreCase)
+            || IsDeprecatedSavePathMod(item.PublishedFileId.ToString(), item.Title);
 
     private static IEnumerable<LauncherKnownMod> ManualMods(LauncherModSelectionDocument document)
     {
@@ -394,19 +399,63 @@ internal static class LauncherModSelectionState
         {
             var directory = Path.GetDirectoryName(manifestPath) ?? "";
             var id = Path.GetFileNameWithoutExtension(manifestPath);
+            ReadManualModIdentity(manifestPath, out var manifestId, out var title);
             var key = ManualKey(directory, id);
+            var deprecated = IsDeprecatedSavePathMod(id, title)
+                || IsDeprecatedSavePathMod(manifestId, title);
             yield return new LauncherKnownMod
             {
                 Key = key,
                 Id = id,
-                Title = id,
+                Title = title,
                 Source = "Manual",
                 Path = directory,
                 HasPck = HasTopLevelPck(directory),
-                Enabled = IsEnabled(document, key),
+                IsUnsupported = deprecated,
+                IsDeprecated = deprecated,
+                Enabled = !deprecated && IsEnabled(document, key),
             };
         }
     }
+
+    private static void ReadManualModIdentity(
+        string manifestPath,
+        out string id,
+        out string title
+    )
+    {
+        id = Path.GetFileNameWithoutExtension(manifestPath);
+        title = id;
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
+            var root = document.RootElement;
+            if (root.TryGetProperty("id", out var idProperty)
+                && idProperty.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(idProperty.GetString()))
+            {
+                id = idProperty.GetString().Trim();
+            }
+
+            if (root.TryGetProperty("name", out var nameProperty)
+                && nameProperty.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(nameProperty.GetString()))
+            {
+                title = nameProperty.GetString().Trim();
+            }
+            else
+            {
+                title = id;
+            }
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Mods] Failed to read manual mod identity from {manifestPath}: {ex.Message}");
+        }
+    }
+
+    private static bool IsDeprecatedSavePathMod(string id, string title)
+        => DeprecatedSavePathMod.IsMatch(id, title);
 
     private static bool HasTopLevelPck(string directory)
     {

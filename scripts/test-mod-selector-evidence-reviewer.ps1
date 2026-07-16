@@ -167,24 +167,34 @@ function New-ModSelectorEvidenceBundle(
         activationEvidence = @()
         selectedMods = @()
     }
+    $moddedMods = if ($SavesMergerClaimsPayload) {
+        @($baseLib, $quickRestart, $savesMerger)
+    } else {
+        @($baseLib, $quickRestart)
+    }
+    $moddedActivation = if ($SavesMergerClaimsPayload) {
+        @($baseLibActivation, $quickRestartActivation, $savesMergerActivation)
+    } else {
+        @($baseLibActivation, $quickRestartActivation)
+    }
     $modded = [ordered]@{
         version = 2
         generatedAtUtc = "2026-06-25T00:01:00.0000000Z"
         playMode = "modded"
         scannedRoots = 2
-        enabledMods = 3
+        enabledMods = $moddedMods.Count
         payloadReadyMods = if ($SavesMergerClaimsPayload) { 3 } else { 2 }
         runtimePatchedMods = if ($QuickRestartNoTargets) { 1 } else { 2 }
         partialCompatibilityMods = 1
-        compatibilitySubstituteMods = 1
+        compatibilitySubstituteMods = if ($SavesMergerClaimsPayload) { 1 } else { 0 }
         failedMods = 0
         inGameVerifiedMods = 0
         status = "Android mod load attempt completed; inspect per-mod activation evidence"
         selectionPath = "/data/user/0/com.example/files/mods/mod_selection.json"
         workshopModdedSaveCloudPushLocked = $true
         steamCloudPushPerformed = [bool]$PushPerformed
-        activationEvidence = @($baseLibActivation, $quickRestartActivation, $savesMergerActivation)
-        selectedMods = @($baseLib, $quickRestart, $savesMerger)
+        activationEvidence = $moddedActivation
+        selectedMods = $moddedMods
     }
     $disabledMods = if ($DisabledStillSelected) {
         @($baseLib, $quickRestart, $savesMerger)
@@ -247,8 +257,8 @@ function New-ModSelectorEvidenceBundle(
     $crashText = if ($CrashLog) { "`nNativeFallbackActivity`nFATAL EXCEPTION: main" } else { "" }
     $pushText = if ($PushPerformed) { "`nSteam Cloud Push performed" } else { "" }
     Save-TestText (Join-Path $BaseDir "logs\final-vanilla-focused.txt") "[Mods] Android mod scan skipped: launcher Play Vanilla mode is selected$crashText$pushText"
-    Save-TestText (Join-Path $BaseDir "logs\final-modded-focused.txt") "[Mods] Scanning Workshop staged mods`n[Mods] Activation evidence: selected=3 payloadReady=2 runtimePatched=2 partial=1 substitutes=1 failed=0 inGameVerified=0$crashText$pushText"
-    Save-TestText (Join-Path $BaseDir "logs\final-disabled-savesmerger-focused.txt") "[Mods] Scanning Workshop staged mods`nSkipping disabled launcher-selected mod: SavesMerger`n[Mods] Activation evidence: selected=2 payloadReady=2 runtimePatched=2 partial=1 substitutes=0 failed=0 inGameVerified=0$crashText$pushText"
+    Save-TestText (Join-Path $BaseDir "logs\final-modded-focused.txt") "[Mods] Scanning Workshop staged mods`n[Mods] Activation evidence: selected=$($moddedMods.Count) payloadReady=$($modded.payloadReadyMods) runtimePatched=2 partial=1 substitutes=$($modded.compatibilitySubstituteMods) failed=0 inGameVerified=0$crashText$pushText"
+    Save-TestText (Join-Path $BaseDir "logs\final-disabled-savesmerger-focused.txt") "[Mods] Scanning Workshop staged mods`n[Mods] Activation evidence: selected=$($disabledMods.Count) payloadReady=2 runtimePatched=2 partial=1 substitutes=0 failed=0 inGameVerified=0$crashText$pushText"
 
     foreach ($label in @("final-vanilla", "final-modded", "final-disabled-savesmerger")) {
         Save-TestText (Join-Path $BaseDir "screenshots\$label-screen.png") "synthetic png placeholder"
@@ -319,7 +329,7 @@ try {
 
     $savesMergerPayloadDir = Join-Path $runRoot "negative-savesmerger-payload-claim"
     New-ModSelectorEvidenceBundle -BaseDir $savesMergerPayloadDir -SavesMergerClaimsPayload
-    Invoke-ReviewShouldFail -EvidenceDir $savesMergerPayloadDir -Description "SavesMerger substitute falsely claimed as payload loaded"
+    Invoke-ReviewShouldFail -EvidenceDir $savesMergerPayloadDir -Description "deprecated SavesMerger still selected for runtime activation"
 } finally {
     if (-not $KeepArtifacts -and (Test-Path -LiteralPath $runRoot)) {
         Remove-Item -LiteralPath $runRoot -Recurse -Force

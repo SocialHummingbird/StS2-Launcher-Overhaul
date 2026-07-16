@@ -180,8 +180,10 @@ internal sealed partial class ActionSection
 
     private string ModToggleText(LauncherKnownMod mod)
     {
-        var state = mod.IsUnsupported
-            ? "Needs import"
+        var state = mod.IsDeprecated
+            ? "Deprecated - native modded saves"
+            : mod.IsUnsupported
+                ? "Needs import"
             : mod.Enabled
                 ? "Enabled"
                 : "Disabled";

@@ -11,21 +11,25 @@ internal static partial class CloudSyncCoordinator
         IReadOnlyCollection<string> paths
     )
     {
+        var seedSession = await ModdedSaveSeedSession.PrepareAsync(sync, paths);
+        var downloadedCloudContent = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var summary = ManualSyncTransferSummary.Empty(PullComplete);
         foreach (var path in paths)
         {
-            var result = await PullManualPathAsync(sync, path);
+            var result = await PullManualPathAsync(sync, path, downloadedCloudContent);
             summary = summary.Include(result);
             if (result.StopAfterBudget)
                 break;
         }
 
-        return summary.CompleteMessage();
+        var seedSummary = await seedSession.CompleteAsync(sync, downloadedCloudContent);
+        return $"{summary.CompleteMessage()} {seedSummary}";
     }
 
     private static async Task<ManualSyncPathResult> PullManualPathAsync(
         ManualSyncContext sync,
-        string path
+        string path,
+        IDictionary<string, string> downloadedCloudContent
     )
     {
         var result = ManualSyncPathResult.Ignored;
@@ -38,6 +42,7 @@ internal static partial class CloudSyncCoordinator
                 PatchHelper.Log(PullDownloading(path));
                 string content = await sync.ReadCloudContentAsync(path, ManualPullDownloadOperation);
                 await sync.WriteLocalContentFromCloudAsync(path, content);
+                downloadedCloudContent[path] = content;
                 PatchHelper.Log(PullWrote(path, content.Length));
                 result = ManualSyncPathResult.CompletedPath;
             }
