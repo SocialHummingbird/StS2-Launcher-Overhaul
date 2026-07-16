@@ -18,7 +18,7 @@ Validated baseline:
 
 Active blockers:
 
-- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains open after the reporter tested `v0.2.397`. The game reaches real `NMainMenu` and exits before the first post-startup probe. The leading cause is the known Godot 4.5.1 OpenGL Compatibility all-PowerVR transform-feedback shader-cache bug plus the launcher's forced-renderer state machine; the intended fix is a Godot 4.5.2 backport/upgrade and renderer-policy repair.
+- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains open after the reporter tested `v0.2.397`. The game reaches real `NMainMenu` and exits before the first post-startup probe. Current unreleased source backports Godot's all-PowerVR transform-feedback shader-cache workaround, replaces forced OpenGL with Auto/Vulkan/OpenGL selection, makes Safe Start use unforced Auto, and captures Android historical process-exit evidence. Reporter-class hardware confirmation and publication remain pending.
 - Exact-build unlocked physical validation of all five launcher destinations, portrait/landscape rotation, cover/inner displays, and real game handoff remains incomplete.
 - Steam beta/version selection is implemented for validation but not release-signed. The launcher now exposes discovery-led public/non-public selector guidance, labels refreshed branch options with concise metadata badges, blocks known unavailable selected branches before game-version download/update attempts, records selected-version notes in diagnostics/logs/branch-switch/Pull/Push evidence, mirrors guidance in native routing/fallback diagnostics, blocks native selected-version launch when branch provenance is missing or mismatched, and guards the static contract through CI. ARM64 evidence still needs to prove public/default regression safety, account-visible non-public branch download/startup routing, branch marker provenance, inaccessible/private/password branch handling, cache cleanup, save compatibility, Pull-before-Push/current-backup safety, pre-Push backup evidence, and successful selected-version Push marker evidence. The current signoff contract is tracked in `docs/steam-version-selection-release-readiness.md`.
 - Confirmed Push to Cloud on the newest public APK still needs explicit overwrite-risk smoke because it can overwrite real Steam Cloud state.
@@ -52,7 +52,7 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 - Reduce low-value diagnostics while preserving startup freshness, assembly cache, cloud-save, and release-evidence logs.
 - Maintain artifact hygiene for APKs, checksums, logs, summaries, and validation manifests.
 - Reconnect and unlock the ARM64 device, then run the exact `v0.2.398` five-destination portrait/landscape and real game-handoff checks without Steam Cloud Push.
-- Backport or upgrade to the Godot 4.5.2 all-PowerVR shader-cache workaround, make Safe Start/default renderer selection truthful, and retest issue #34 on Pixel/PowerVR hardware.
+- Retest the inspected local `0.2.399-powervr-renderer-local` APK on Pixel/PowerVR hardware before publishing or calling issue #34 resolved.
 
 ## Notes
 

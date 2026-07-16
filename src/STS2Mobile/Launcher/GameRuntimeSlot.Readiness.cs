@@ -28,6 +28,25 @@ internal sealed partial class GameRuntimeSlot
         && !string.IsNullOrWhiteSpace(ActiveAndroidAssemblySha256)
         && string.Equals(SourceAssemblySha256, ActiveAndroidAssemblySha256, StringComparison.OrdinalIgnoreCase);
 
+    internal string PreparedAndroidAssemblySha256 =>
+        RuntimePackUsable
+            ? RuntimePack.ActualAndroidAssemblySha256
+            : SourceAssemblySha256;
+
+    internal bool ActiveAndroidAssemblyMatchesPreparedRuntime =>
+        ActiveAndroidAssemblyExists
+        && !string.IsNullOrWhiteSpace(PreparedAndroidAssemblySha256)
+        && !PreparedAndroidAssemblySha256.StartsWith("<", StringComparison.Ordinal)
+        && string.Equals(
+            ActiveAndroidAssemblySha256,
+            PreparedAndroidAssemblySha256,
+            StringComparison.OrdinalIgnoreCase
+        );
+
+    internal bool RequiresProcessRestartForPreparedRuntime =>
+        RuntimePackUsable
+        && !ActiveAndroidAssemblyMatchesPreparedRuntime;
+
     internal bool BranchMatchedAndroidRuntimePrepared =>
         SourceAssemblyExists
         && ActiveAndroidAssemblyExists
@@ -67,7 +86,9 @@ internal sealed partial class GameRuntimeSlot
             if (SourceMatchesActiveAndroidAssembly && !RequiresRuntimePackOrPreparedCache)
                 return "branch-matched runtime";
             if (RuntimePackUsable)
-                return "runtime pack available; Android cache will be prepared at launch";
+                return ActiveAndroidAssemblyMatchesPreparedRuntime
+                    ? "prepared runtime pack is active"
+                    : "runtime pack available; Android cache will be prepared at launch";
             if (UsesLegacyPackagedPublicRuntime)
                 return "legacy packaged public runtime";
             if (!SourceAssemblyExists)

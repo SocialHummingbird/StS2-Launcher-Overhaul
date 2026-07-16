@@ -44,6 +44,13 @@ internal sealed partial class ActionSection
         _launchButton = primaryActions.LaunchButton;
         _safeLaunchButton = primaryActions.SafeLaunchButton;
 
+        var rendererControls = BuildRendererControls(scale, compact);
+        _rendererGroup = rendererControls.Group;
+        _rendererAutoButton = rendererControls.AutoButton;
+        _rendererVulkanButton = rendererControls.VulkanButton;
+        _rendererOpenGlButton = rendererControls.OpenGlButton;
+        ApplyRendererMode(_rendererMode, notify: false);
+
         var branchControls = BuildBranchControls(scale, compact);
         _branchDetailsToggle = branchControls.DetailsToggle;
         _branchDropdown = branchControls.Dropdown;

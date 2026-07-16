@@ -4,7 +4,7 @@ This roadmap tracks the overhaul phases and the current Android release-hardenin
 
 ## Current release posture
 
-The app has a working ARM64 Android baseline and a published five-destination launcher redesign. It is not yet release-candidate complete because Pixel/PowerVR renderer compatibility, exact-build physical UI/game-handoff validation, confirmed Push-to-Cloud upload, production-signing upgrade behavior, Steam version-selection hardening, and repeated release-readiness evidence remain open.
+The app has a working ARM64 Android baseline and a published five-destination launcher redesign. The unreleased source now includes the targeted Pixel/PowerVR engine and renderer-policy fix, but it is not yet release-candidate complete because reporter-class compatibility confirmation, exact-build physical UI/game-handoff validation, confirmed Push-to-Cloud upload, production-signing upgrade behavior, Steam version-selection hardening, and repeated release-readiness evidence remain open.
 
 Canonical status: [docs/current-android-status.md](docs/current-android-status.md)
 
@@ -78,7 +78,10 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 ## Phase 7 - Public release readiness
 
 - [x] Publish `v0.2.398` release notes that clearly say the app works on the validated ARM64 path but remains tester software.
-- [ ] Integrate the Godot 4.5.2 all-PowerVR transform-feedback shader-cache workaround, repair renderer selection/Safe Start behavior, and retest issue #34.
+- [x] Backport the Godot 4.5.2 all-PowerVR transform-feedback shader-cache workaround and repair Auto/Vulkan/OpenGL plus Safe Start behavior in source.
+- [x] Capture renderer-attempt and Android historical process-exit evidence for post-restart diagnostics.
+- [x] Build and inspect an ARM64 local APK containing the patched native marker and renderer/process-exit DEX evidence.
+- [ ] Retest issue #34 on reporter-class Pixel/PowerVR hardware before publishing or closing it.
 - [ ] Keep confirmed Push overwrite risk explicit until validated.
 - [ ] Keep Steam beta/version selection release blockers explicit until ARM64 evidence exists.
 - [ ] Keep x86_64 emulator limitations explicit.

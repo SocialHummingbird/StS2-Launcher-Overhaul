@@ -33,6 +33,19 @@ internal partial class LauncherModel
             return false;
         }
 
+        if (readiness.RuntimeSlot?.RequiresProcessRestartForPreparedRuntime == true)
+        {
+            var slot = readiness.RuntimeSlot;
+            var detail = $"branch={selectedBranch}; activeAndroidAssemblySha256={slot.ActiveAndroidAssemblySha256}; preparedAndroidAssemblySha256={slot.PreparedAndroidAssemblySha256}";
+            LauncherLaunchMarkers.RecordPhase("launch requires restart", detail);
+            PatchHelper.Log(
+                "[Launcher] Prepared Android game-code runtime does not match the assembly loaded by the current process; "
+                    + $"restarting so Godot loads runtime pack {slot.RuntimePack?.PackId ?? "<unknown>"}. "
+                    + $"active={slot.ActiveAndroidAssemblySha256} prepared={slot.PreparedAndroidAssemblySha256}"
+            );
+            return false;
+        }
+
         if (!_launchTcs.TrySetResult(true))
         {
             LauncherLaunchMarkers.RecordPhase("in-process launch signal failed", $"branch={selectedBranch}");

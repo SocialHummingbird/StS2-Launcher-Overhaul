@@ -52,11 +52,11 @@ function Add-SteamVersionSelectionActionSupportConstructionChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Primary.cs" `
-        "keeps compact safe start as a support-grid action with Cloud-off detail" `
+        "keeps compact safe start as a support-grid action with truthful Auto and Cloud-off detail" `
         @(
             "AddCompactSupportToolButton",
             "supportToolsParent",
             "`"Safe Start`"",
-            "`"Cloud off`""
+            "`"Auto / Cloud off`""
         )
 }

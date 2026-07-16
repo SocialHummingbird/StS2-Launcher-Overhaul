@@ -14,6 +14,8 @@ internal static partial class LauncherDiagnostics
         yield return new DiagnosticAttachment(PostStartupHeartbeat(dataDir), 4096);
         yield return new DiagnosticAttachment(PostStartupTrace(dataDir), 8192);
         yield return new DiagnosticAttachment(AppLifecycle(dataDir), 4096);
+        yield return new DiagnosticAttachment(RendererAttempt(dataDir), 4096);
+        yield return new DiagnosticAttachment(ProcessExitInfo(dataDir), 16384);
         yield return new DiagnosticAttachment(SteamAuthFailure(dataDir), 4096);
         yield return new DiagnosticAttachment(ShaderWarmupStatus(dataDir), 4096);
         yield return new DiagnosticAttachment(LaunchAttempt(dataDir), 8192);
@@ -49,6 +51,14 @@ internal static partial class LauncherDiagnostics
         );
         yield return new DiagnosticAttachment(
             AppLifecycle(dataDir),
+            SmallAttachmentMaxChars
+        );
+        yield return new DiagnosticAttachment(
+            RendererAttempt(dataDir),
+            SmallAttachmentMaxChars
+        );
+        yield return new DiagnosticAttachment(
+            ProcessExitInfo(dataDir),
             SmallAttachmentMaxChars
         );
         yield return new DiagnosticAttachment(

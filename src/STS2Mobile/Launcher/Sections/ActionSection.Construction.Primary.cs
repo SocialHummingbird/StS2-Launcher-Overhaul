@@ -35,7 +35,7 @@ internal sealed partial class ActionSection
                 "Safe Start",
                 scale,
                 () => SafeLaunchPressed?.Invoke(),
-                "Cloud off"
+                "Auto / Cloud off"
             )
             : AddSecondaryHiddenButton(
                 this,
@@ -44,6 +44,8 @@ internal sealed partial class ActionSection
                 () => SafeLaunchPressed?.Invoke()
             );
         LauncherButtonStyles.ApplySafeAction(safeLaunchButton, scale);
+        safeLaunchButton.AccessibilityDescription =
+            "Start with the project renderer, shader warmup skipped, and cloud saves disabled for one run.";
 
         return (retryButton, launchButton, safeLaunchButton);
     }

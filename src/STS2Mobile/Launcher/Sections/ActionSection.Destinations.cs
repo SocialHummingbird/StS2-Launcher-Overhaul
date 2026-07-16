@@ -35,6 +35,7 @@ internal sealed partial class ActionSection
             LauncherComponentTheme.TextSecondary
         );
 
+        MoveTo(_homeDestination, _rendererGroup);
         MoveTo(_homeDestination, _launchButton);
         MoveTo(_homeDestination, _safeLaunchButton);
         MoveTo(_homeDestination, _readyVersionSummaryPanel);

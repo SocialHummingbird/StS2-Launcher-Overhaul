@@ -50,6 +50,7 @@ internal sealed partial class LauncherView
     {
         Actions.SetLocalBackupChecked(preferences.LocalBackupEnabled);
         Actions.SetCloudSyncChecked(preferences.CloudSyncEnabled);
+        Actions.SetRendererMode(preferences.RendererMode);
         SetGameBranch(preferences.GameBranch);
     }
 
@@ -60,6 +61,7 @@ internal sealed partial class LauncherView
     {
         Actions.SetLocalBackupChecked(preferences.LocalBackupEnabled);
         Actions.SetCloudSyncChecked(preferences.CloudSyncEnabled);
+        Actions.SetRendererMode(preferences.RendererMode);
         Download.SetGameBranchOptions(preferences.GameBranch, branches);
         Actions.SetGameBranchOptions(preferences.GameBranch, branches);
     }
@@ -72,6 +74,9 @@ internal sealed partial class LauncherView
 
     internal void SetLaunchControlsDisabled(bool disabled)
         => Actions.SetLaunchControlsDisabled(disabled);
+
+    internal void SetRendererMode(string mode)
+        => Actions.SetRendererMode(mode);
 
     internal void SetUpdateCheckBusy(bool busy)
     {

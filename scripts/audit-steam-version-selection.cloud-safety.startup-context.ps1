@@ -524,7 +524,23 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
             "timingSnapshot\(\)",
             "_launchTcs\.TrySetResult\(true\)",
             "launch requires restart",
-            "processBranch="
+            "processBranch=",
+            "RequiresProcessRestartForPreparedRuntime",
+            "activeAndroidAssemblySha256=",
+            "preparedAndroidAssemblySha256=",
+            "Prepared Android game-code runtime does not match"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\GameRuntimeSlot.Readiness.cs" `
+        "requires a restart when the active Android assembly differs from the prepared runtime pack" `
+        @(
+            "PreparedAndroidAssemblySha256",
+            "RuntimePack\.ActualAndroidAssemblySha256",
+            "ActiveAndroidAssemblyMatchesPreparedRuntime",
+            "ActiveAndroidAssemblySha256",
+            "RequiresProcessRestartForPreparedRuntime",
+            "RuntimePackUsable"
         )
 
     Add-Check `
@@ -830,6 +846,8 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
             "MetadataFileIdentity\(AppPaths\.AppPrivateWorkshopManifestPath",
             "MaxMetadataIdentityBytes",
             "oversized-metadata",
+            "AndroidJavaCrypto\.Sha256FileHashData",
+            "AndroidJavaCrypto\.Sha256HashData",
             "SHA256\.HashData",
             "File\.OpenRead\(path\)",
             "AppPaths\.AppPrivateWorkshopStagedModsDir",
@@ -845,6 +863,8 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
             "IsLaunchRelevantFile",
             "Path\.GetExtension\(path\)",
             "metadataSha256",
+            "metadataBytes",
+            "metadataTruncated",
             "sampleCount",
             "truncated",
             "var fileCount = 0",
@@ -852,6 +872,7 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
             "foreach \(var file in files\)",
             "fileCount\+\+",
             "AddHashText",
+            "MemoryStream",
             "LaunchRelevantFileIdentity",
             "LaunchRelevantFileIdentity\.Capture",
             "identity\.Text",
@@ -861,13 +882,38 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
 
     Add-ForbiddenCheck `
         "src\STS2Mobile\Launcher\LauncherModSourceIdentity.cs" `
-        "does not allocate entire mod metadata files or duplicate mod file stats while computing Start Game mod readiness identity" `
+        "does not allocate entire mod metadata files, use Android-unsafe incremental managed SHA-256, or duplicate mod file stats while computing Start Game mod readiness identity" `
         @(
             "File\.ReadAllBytes",
+            "SHA256\.Create",
             "TryReadFileStats",
             "Select\(LaunchRelevantFileIdentity\.Capture\)\s*\.ToArray",
             "\.Take\(MaxDirectoryIdentitySampleFiles\)\s*\.Select\(identity => identity\.Text\)\s*\.ToArray",
             "SelectMany\(pattern => Directory\.EnumerateFiles\(path, pattern, SearchOption\.AllDirectories\)\)"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Steam\AndroidJavaCrypto.Sha256.cs" `
+        "routes in-memory and file SHA-256 through the Android Java crypto bridge while retaining managed desktop fallbacks" `
+        @(
+            'Sha256Base64BridgeMethod = "sha256Base64"',
+            'Sha256FileBase64BridgeMethod = "sha256FileBase64"',
+            "internal static byte\[\] Sha256HashData\(ReadOnlySpan<byte> data\)",
+            "internal static byte\[\] Sha256FileHashData\(string path\)",
+            "OperatingSystem\.IsAndroid",
+            "CallBase64Bridge",
+            "Convert\.ToBase64String\(data\)"
+        )
+
+    Add-Check `
+        "android\src\com\game\sts2launcher\GodotApp.java" `
+        "provides Java SHA-256 bridge methods for in-memory and file launch-readiness identities" `
+        @(
+            "public String sha256Base64\(String dataBase64\)",
+            "public String sha256FileBase64\(String path\)",
+            'MessageDigest\.getInstance\("SHA-256"\)',
+            "Base64\.encodeToString\(digest\.digest",
+            "FileInputStream"
         )
 
     Add-Check `

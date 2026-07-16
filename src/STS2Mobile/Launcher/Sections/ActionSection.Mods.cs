@@ -87,13 +87,13 @@ internal sealed partial class ActionSection
         SetCompactActionButtonText(
             _workshopSyncButton,
             _compact
-                ? CompactSupportToolText("Sync Workshop", activeCount > 0 ? $"{activeCount} active" : "No active")
+                ? CompactSupportToolText("Sync Workshop", activeCount > 0 ? $"{activeCount} staged" : "None staged")
                 : "Sync Workshop Mods"
         );
         SetCompactActionButtonText(
             _workshopClearButton,
             _compact
-                ? CompactSupportToolText("Clear Staged", activeCount > 0 ? $"{activeCount} active" : "No active")
+                ? CompactSupportToolText("Clear Staged", activeCount > 0 ? $"{activeCount} staged" : "None staged")
                 : "Clear Staged Mods"
         );
     }
@@ -131,14 +131,14 @@ internal sealed partial class ActionSection
                 ? $"{unsupportedCount} Workshop item(s)"
                 : unsupportedSummary;
             return activeCount > 0 || externalManualCount > 0
-                ? $"Mods active: Workshop {activeCount}, manual {externalManualCount}. {unsupportedCount} subscribed item(s) need manual import: {itemText}. Put mod folders or PCK files in {AppPaths.ExternalModsDir}. Steam Cloud upload stays locked while staged Workshop mods are active."
+                ? $"Mods staged: Workshop {activeCount}, manual {externalManualCount}. {unsupportedCount} subscribed item(s) need manual import: {itemText}. Put mod folders or PCK files in {AppPaths.ExternalModsDir}. Steam Cloud upload stays locked while staged Workshop mods are selected for launch."
                 : $"Mods need attention: {unsupportedCount} subscribed item(s) need manual import: {itemText}. Put mod folders or PCK files in {AppPaths.ExternalModsDir}.";
         }
 
         if (activeCount > 0 || externalManualCount > 0)
-            return $"Play mode: Mods. Enabled {enabledCount} of {installedCount} installed mod(s). Workshop {activeCount}, manual {externalManualCount}. Steam Cloud upload stays locked while selected mods are active.";
+            return $"Play mode: Mods. Enabled {enabledCount} of {installedCount} installed mod(s). Workshop {activeCount} staged, manual {externalManualCount}. Steam Cloud upload stays locked while mods are selected for launch.";
 
-        return $"Mods: none active. Sync Workshop or place manual mod folders/PCK files in {AppPaths.ExternalModsDir}.";
+        return $"Mods: none staged or discovered. Sync Workshop or place manual mod folders/PCK files in {AppPaths.ExternalModsDir}.";
     }
 
     private void RefreshModModeButtons(bool moddedMode, int enabledCount)

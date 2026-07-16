@@ -40,7 +40,7 @@ Known important limitations:
 
 - Device compatibility varies. `v0.2.398` adds the five-destination responsive launcher UI and retains the `v0.2.397` Android atlas fallback, but it does not yet fix GitHub issue #34. The reporter tested `v0.2.397` on Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536: the game reached the real main menu and then exited before the first one-second post-startup probe. The current Godot 4.5.1/OpenGL Compatibility path is now the leading cause, not weak hardware or failure to download the game.
 - The app currently targets ARM64 Android hardware. Android emulator and x86_64 builds are diagnostic only and are not supported for real game launch.
-- Some graphics drivers and renderer paths remain incompatible. In particular, the current Godot 4.5.1 build predates an upstream all-PowerVR transform-feedback shader-cache fix included in Godot 4.5.2.
+- Some graphics drivers and renderer paths remain incompatible. The latest published APK predates the all-PowerVR transform-feedback shader-cache workaround now backported in unreleased source; reporter-class hardware validation is still required.
 - Steam version selection, beta branches, Workshop mods, and save-merger behavior are still experimental.
 - Steam Cloud Push is intentionally cautious because it can overwrite remote saves. Pull from Steam Cloud first.
 - This is not a finished consumer app. Expect bugs, incomplete device coverage, and device-specific problems.
@@ -87,9 +87,9 @@ The technical goal is to improve Android startup, Steam login, Steam download, c
 - **Cloud saves**  
   Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads. Pull from Cloud, Push to Cloud, and Pull-after-Push round trip are validated on ARM64 local hardening builds. The portal labels Pull as Steam Cloud to Android and Push as Android saves to Steam Cloud, places Pull before Push so the safer baseline action is visually first, keeps those primary cloud actions above lower-frequency cloud options, and collapses cloud-safety guidance/options on compact screens to reduce clutter. Push remains an explicit overwrite-risk action because it can replace Steam Cloud state, requires an overwrite confirmation arming tap before the final confirmation, shows an armed overwrite warning before the final confirmation, and now gates manual Push on current-version Pull evidence plus Android local save evidence before upload. Branch-switch Push adds stricter selected-version Pull/local-save/backup evidence gates.
 - **Steam Workshop mods**  
-  Subscribed Workshop mods can be synced into app-private Android storage and loaded by the runtime mod-loader patch. Current ARM64 evidence covers public-beta, core-release, and public-after-beta branch switching with matched selected PCK/runtime evidence; `BaseLib` and `Quick Restart` are staged and scanned from Workshop storage. The previous BaseLib initializer hard failure is handled by an Android compatibility filter that skips known incompatible BaseLib patch classes, so those skipped BaseLib features still need follow-up. Workshop sync and clear do not run Steam Cloud Push, and manual Push is locked while active staged Workshop PCK mods are present. The launcher now has a first-class Mods section on the main play screen with active-mod status, unsupported-item attention text, manual import guidance, and Workshop sync/clear actions.
+  Subscribed Workshop mods can be synced into app-private Android storage and selected for the runtime mod-loader. Earlier ARM64 evidence proved staging, scanning, and error-free startup states, but that coarse evidence did not prove each mod changed the game. Later public-beta testing proved Quick Restart behavior only after the game assembly was Android-publicized. Current unreleased source applies that validated runtime-pack path to the public branch, restarts when the prepared game assembly is not the one loaded by the process, and records per-mod payload, Harmony target, partial-compatibility, substitute, failure, and in-game-verification evidence. BaseLib remains partial Android compatibility, and SavesMerger uses launcher save-path patches instead of loading the mod payload. Workshop sync and clear do not run Steam Cloud Push; manual Push is locked while mods are selected. The Mods screen describes files as staged or selected rather than claiming they are active.
 - **Mobile adaptation**  
-  Touch input, five stable Home/Saves/Versions/Mods/Help destinations, bottom navigation on phones, top navigation on wide/foldable layouts, safe-area-aware composition, larger touch targets, responsive login/download/confirmation/diagnostic layouts, a consistent `Start Game` primary action, hidden technical detail outside support flows, and app lifecycle handling via Harmony runtime patches.
+  Touch input, five stable Home/Saves/Versions/Mods/Help destinations, bottom navigation on phones, top navigation on wide/foldable layouts, safe-area-aware composition, larger touch targets, responsive login/download/confirmation/diagnostic layouts, a consistent `Start Game` primary action, Auto/Vulkan/OpenGL recovery selection, hidden technical detail outside support flows, and app lifecycle handling via Harmony runtime patches.
 - **LAN multiplayer**  
   UDP broadcast discovery and manual IP join.
 - **Shader warmup**  
@@ -114,8 +114,8 @@ Custom patches to the Godot 4.5.1 engine source for Android-specific issues:
 Saves compiled pipelines when the app loses focus, preventing recompilation after Android kills the process.
 - **Canvas ubershaders**  
 Enable ubershader fallback for 2D rendering, eliminating first-encounter VFX stutters from blocking pipeline compilation.
-- **Known PowerVR limitation**
-The current custom engine is still based on Godot 4.5.1. It does not include the Godot 4.5.2 all-PowerVR transform-feedback shader-cache workaround, and the launcher currently forces OpenGL Compatibility for the affected game-start path. Pixel 10 / PowerVR issue #34 remains open until the engine fix and renderer-selection fallback are integrated and tested.
+- **PowerVR transform-feedback cache safety**
+The custom engine remains based on Godot 4.5.1 but now backports Godot 4.5.2's all-PowerVR workaround, disabling the unsafe GLES3 transform-feedback shader cache whenever the renderer name contains `PowerVR`. The launcher exposes Auto, Vulkan, and OpenGL modes instead of forcing OpenGL, and Safe Start uses Auto with no renderer override. This is implemented in unreleased source; Pixel 10 / PowerVR issue #34 remains open until a reporter-class device confirms it.
 
 ## Project Structure
 
@@ -340,7 +340,7 @@ Known current runtime limitations:
 - The app now has a validated working ARM64 path through download, cloud pull, cloud push hardening, and game launch, but this is not yet a finished release-candidate pass.
 - Push to Cloud is locally validated after the managed SHA-1 hardening fix, and that fix is included in the verified public APK line. Repeat Push confirmation/cancel smoke on the newest public APK is still required before release-candidate signoff.
 - The exact `v0.2.398` tester APK installed over the existing `com.sts2launcher.overhaul.fork.local` app data and reported version code `398031`. This proves continuity on the current local test channel, not production-signer update compatibility.
-- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains unresolved after `v0.2.397`; the most likely fix is a Godot 4.5.2 engine backport plus a real renderer-selection fallback, not a core game redesign.
+- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains unresolved after `v0.2.397`. Unreleased source now contains the targeted Godot all-PowerVR backport, real Auto/Vulkan/OpenGL selection, truthful Safe Start behavior, and persistent renderer/process-exit evidence; a reporter-class hardware retest is still required.
 - Stale assembly cache behavior still needs repeated local upgrade coverage after signing continuity is fixed.
 - `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.
 

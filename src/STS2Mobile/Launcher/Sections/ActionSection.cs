@@ -26,6 +26,7 @@ internal sealed partial class ActionSection : VBoxContainer
     internal event Action LaunchPressed;
     internal event Action RetryPressed;
     internal event Action<string> GameBranchChanged;
+    internal event Action<string> RendererModeChanged;
     internal event Action<bool> LocalBackupToggled;
     internal event Action<bool> CloudSyncToggled;
     internal event Func<bool> CloudPushArmRequested;
@@ -45,6 +46,10 @@ internal sealed partial class ActionSection : VBoxContainer
 
     private readonly Button _launchButton;
     private readonly Button _safeLaunchButton;
+    private readonly VBoxContainer _rendererGroup;
+    private readonly Button _rendererAutoButton;
+    private readonly Button _rendererVulkanButton;
+    private readonly Button _rendererOpenGlButton;
     private readonly Button _retryButton;
     private readonly float _scale;
     private readonly bool _compact;
@@ -107,6 +112,7 @@ internal sealed partial class ActionSection : VBoxContainer
     private LauncherDestination _destination;
     private int _readySummaryEnabledModCount;
     private string _gameBranch = SteamGameBranch.Public;
+    private string _rendererMode = LauncherRendererMode.Auto;
 
     internal void SetLocalBackupChecked(bool value)
         => ApplyLocalBackupToggle(value);
@@ -140,5 +146,8 @@ internal sealed partial class ActionSection : VBoxContainer
     {
         _launchButton.Disabled = _launchControlsDisabled;
         _safeLaunchButton.Disabled = _launchControlsDisabled;
+        _rendererAutoButton.Disabled = _launchControlsDisabled;
+        _rendererVulkanButton.Disabled = _launchControlsDisabled;
+        _rendererOpenGlButton.Disabled = _launchControlsDisabled;
     }
 }

@@ -75,7 +75,7 @@ internal sealed class LauncherStartGamePlan
             checkingStatus: "Checking selected game version before safe launch...",
             startingStatus: "Starting selected game version in safe mode...",
             readyDetail: "Safe launch readiness passed",
-            preLaunchLog: "Safe launch requested: default renderer, no shader warmup, local saves only for one run."
+            preLaunchLog: "Safe Start requested: project renderer with no launcher override, no shader warmup, and local saves only for one run."
         );
 
     internal static LauncherStartGamePlan AutoNormal()
@@ -107,7 +107,7 @@ internal sealed class LauncherStartGamePlan
             checkingStatus: "Checking selected game version before safe auto-launch...",
             startingStatus: "Starting selected game version in safe mode...",
             readyDetail: "Auto-safe-launch readiness passed",
-            preLaunchLog: "Safe launch requested: default renderer, no shader warmup, local saves only for one run."
+            preLaunchLog: "Safe Start requested: project renderer with no launcher override, no shader warmup, and local saves only for one run."
         );
 
     internal static LauncherStartGamePlan AutomationNormal()
@@ -139,7 +139,7 @@ internal sealed class LauncherStartGamePlan
             checkingStatus: "Checking selected game version before automated safe launch...",
             startingStatus: "Starting selected game version in safe mode...",
             readyDetail: "Automation safe launch readiness passed",
-            preLaunchLog: "Safe launch requested: default renderer, no shader warmup, local saves only for one run."
+            preLaunchLog: "Safe Start requested: project renderer with no launcher override, no shader warmup, and local saves only for one run."
         );
 
     internal LauncherLaunchHandoffResult Launch(

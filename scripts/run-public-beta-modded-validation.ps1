@@ -69,6 +69,17 @@ function Set-AppPrivateJsonFile([string]$DevicePath, [string]$JsonText) {
     }
 }
 
+function Find-ModActivation($ActivationEvidence, [string]$Pattern) {
+    foreach ($activation in @($ActivationEvidence)) {
+        $text = @($activation.Id, $activation.Title, $activation.Path, $activation.Assembly) -join " "
+        if ($text -match $Pattern) {
+            return $activation
+        }
+    }
+
+    return $null
+}
+
 function Assert-PublicBetaModdedLaunchMarker([string]$EvidenceDirectory, [datetime]$RunStartedUtc) {
     $markerPath = Join-Path $EvidenceDirectory "diagnostics\last-mod-launch.json"
     if (-not (Test-Path -LiteralPath $markerPath)) {
@@ -97,6 +108,10 @@ function Assert-PublicBetaModdedLaunchMarker([string]$EvidenceDirectory, [dateti
         $validationFailures.Add("Modded launch marker did not record modded play mode: playMode=$($marker.playMode).")
     }
 
+    if ([int]$marker.version -lt 2) {
+        $validationFailures.Add("Modded launch marker predates per-mod activation evidence: version=$($marker.version).")
+    }
+
     if ([int]$marker.enabledMods -lt 3) {
         $validationFailures.Add("Modded launch marker recorded fewer than three enabled mods: enabledMods=$($marker.enabledMods).")
     }
@@ -111,6 +126,70 @@ function Assert-PublicBetaModdedLaunchMarker([string]$EvidenceDirectory, [dateti
         if ($selectedText -notmatch $requiredPattern) {
             $validationFailures.Add("Modded launch marker is missing selected mod evidence matching '$requiredPattern'.")
         }
+    }
+
+
+    $activationEvidence = @($marker.activationEvidence)
+    if ($activationEvidence.Count -ne $selectedMods.Count) {
+        $validationFailures.Add("Modded launch marker activation count does not match selected mod count: activation=$($activationEvidence.Count), selected=$($selectedMods.Count).")
+    }
+
+    if ([int]$marker.failedMods -ne 0) {
+        $validationFailures.Add("Modded launch marker records failed runtime loads: failedMods=$($marker.failedMods).")
+    }
+    if ([int]$marker.inGameVerifiedMods -ne 0) {
+        $validationFailures.Add("Startup activation marker unexpectedly claims in-game verification: inGameVerifiedMods=$($marker.inGameVerifiedMods).")
+    }
+    if ([int]$marker.payloadReadyMods -lt 2) {
+        $validationFailures.Add("Modded launch marker records fewer than two payload-ready mods: payloadReadyMods=$($marker.payloadReadyMods).")
+    }
+    if ([int]$marker.runtimePatchedMods -lt 1) {
+        $validationFailures.Add("Modded launch marker records no installed runtime patches: runtimePatchedMods=$($marker.runtimePatchedMods).")
+    }
+    if ([int]$marker.partialCompatibilityMods -lt 1) {
+        $validationFailures.Add("Modded launch marker does not classify BaseLib partial compatibility.")
+    }
+    if ([int]$marker.compatibilitySubstituteMods -lt 1) {
+        $validationFailures.Add("Modded launch marker does not classify the SavesMerger launcher substitute.")
+    }
+
+    $baseLibActivation = Find-ModActivation $activationEvidence "BaseLib"
+    if ($null -eq $baseLibActivation) {
+        $validationFailures.Add("Modded launch marker is missing BaseLib activation evidence.")
+    } elseif (
+        "$($baseLibActivation.CompatibilityMode)" -ne "partial-android" -or
+        "$($baseLibActivation.ActivationStatus)" -ne "partial-android-compatibility" -or
+        [bool]$baseLibActivation.PayloadReady -ne $true -or
+        [bool]$baseLibActivation.RuntimeLoadSucceeded -ne $true -or
+        [int]$baseLibActivation.ErrorCount -ne 0
+    ) {
+        $validationFailures.Add("BaseLib activation evidence does not prove an error-free partial Android runtime load.")
+    }
+
+    $quickRestartActivation = Find-ModActivation $activationEvidence "Quick\s*Restart|QuickRestart"
+    if ($null -eq $quickRestartActivation) {
+        $validationFailures.Add("Modded launch marker is missing Quick Restart activation evidence.")
+    } elseif (
+        "$($quickRestartActivation.CompatibilityMode)" -ne "native" -or
+        "$($quickRestartActivation.ActivationStatus)" -ne "runtime-patches-installed" -or
+        [bool]$quickRestartActivation.PayloadReady -ne $true -or
+        [bool]$quickRestartActivation.RuntimeLoadSucceeded -ne $true -or
+        [int]$quickRestartActivation.ErrorCount -ne 0 -or
+        [int]$quickRestartActivation.HarmonyTargetCount -lt 1
+    ) {
+        $validationFailures.Add("Quick Restart activation evidence does not prove an error-free payload load with installed Harmony targets.")
+    }
+
+    $savesMergerActivation = Find-ModActivation $activationEvidence "SavesMerger|UnifiedSavePath"
+    if ($null -eq $savesMergerActivation) {
+        $validationFailures.Add("Modded launch marker is missing SavesMerger compatibility evidence.")
+    } elseif (
+        "$($savesMergerActivation.CompatibilityMode)" -ne "launcher-substitute" -or
+        "$($savesMergerActivation.ActivationStatus)" -ne "launcher-compatibility-substitute" -or
+        [bool]$savesMergerActivation.PayloadReady -ne $false -or
+        [bool]$savesMergerActivation.RuntimeLoadSucceeded -ne $true
+    ) {
+        $validationFailures.Add("SavesMerger evidence does not truthfully describe the launcher compatibility substitute.")
     }
 
     foreach ($mod in $selectedMods) {

@@ -1,6 +1,6 @@
 # Android Steam Workshop Mods
 
-_Last updated: 2026-07-15_
+_Last updated: 2026-07-16_
 
 See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, Steam, or Valve, and bundles no Slay the Spire 2 game files, assets, or Workshop content. Steam ownership is required.
 
@@ -13,12 +13,12 @@ Workshop/mod support is in progress. The current latest APK is `v0.2.398-launche
 - `Sync Workshop Mods` discovers subscribed Workshop items from Steam.
 - Usable Workshop items are downloaded from Steam depot manifests or direct UGC URLs.
 - Downloads are staged under app-private storage at `files/workshop_mods/staged`.
-- The launcher exposes a first-class Mods section on the main Play screen, showing active staged-mod count, unsupported Workshop item count, manual-import guidance, Cloud upload lock state, and primary `Sync Workshop` / `Clear Staged` actions before repair/help diagnostics.
+- The launcher exposes a first-class Mods section on the main Play screen, showing staged and selected mod counts, unsupported Workshop item count, manual-import guidance, Cloud upload lock state, and primary `Sync Workshop` / `Clear Staged` actions before repair/help diagnostics.
 - Public-beta `v0.108.0` now launches with matched beta PCK plus matched beta managed runtime after the adaptive ModelDb fix. Public-after-beta branch switching and core-release side-by-side launch were retested on July 3.
 - Core-release can be selected and launched through a side-by-side slot. Current Steam metadata still records it as inheriting the public depot manifest rather than a distinct core-release payload.
 - BaseLib and Quick Restart are staged from Workshop. Vanilla and Modded Saves Merger is available through manual import, but direct Workshop acquisition for that item remains unsupported.
-- Public-beta modded launch now passes connected-device validation with BaseLib, Quick Restart, and manual Saves Merger enabled. The launcher bypasses the Android-incompatible upstream directory scanner for selected manifest-backed mods, loads BaseLib through the Android-safe path, loads Quick Restart through a synthetic mod object, and applies Saves Merger's save-path behavior through a built-in Android compatibility patch.
-- Current source builds also record launcher-side mod readiness in `last_launch_attempt.txt` before Start Game handoff. That marker captures vanilla/modded mode, selected mods, enabled count, selector cache status, and modded-save Cloud Push lock state. Mod readiness status values are centralized in `LauncherModLaunchReadinessCacheStatus`, including `not-needed-vanilla` for vanilla starts where runtime mod scans are intentionally skipped. The mod readiness cache hashes small selector/Workshop manifest metadata with a bounded 1 MiB content identity and uses one recursive metadata pass across staged/manual `.json`, `.pck`, and `.dll` files. It does not hash large mod payload contents, but changes anywhere in staged Workshop or manual import directories invalidate cached mod readiness. It is startup triage evidence; `last_mod_launch.json` remains the runtime evidence for whether the game actually scanned and loaded mods.
+- The July 3 public-beta run proved that BaseLib and Quick Restart payloads reached their Android load paths without initializer errors and that SavesMerger's launcher compatibility patches were applied. Its old marker treated the game's coarse `Loaded` state as success, so it did not prove all three mods were active in gameplay. Later focused public-beta testing proved Quick Restart created and executed its restart action after the selected game assembly was Android-publicized.
+- Current source builds also record launcher-side mod readiness in `last_launch_attempt.txt` before Start Game handoff. That marker captures vanilla/modded mode, selected mods, enabled count, selector cache status, and modded-save Cloud Push lock state. Mod readiness status values are centralized in `LauncherModLaunchReadinessCacheStatus`, including `not-needed-vanilla` for vanilla starts where runtime mod scans are intentionally skipped. The mod readiness cache hashes small selector/Workshop manifest metadata with a bounded 1 MiB content identity and uses one recursive metadata pass across staged/manual `.json`, `.pck`, and `.dll` files. It does not hash large mod payload contents, but changes anywhere in staged Workshop or manual import directories invalidate cached mod readiness. It is startup triage evidence. Marker v2 in `last_mod_launch.json` separately records each selected mod's payload readiness, load errors, Harmony patch types and installed targets, Android compatibility mode, activation status, and whether any in-game effect was actually exercised.
 - Steam Cloud Push is not run by Workshop sync, Workshop clear, or Workshop evidence capture.
 
 This is not finished mod-manager UX yet:
@@ -58,7 +58,9 @@ Use the latest build containing selected-root diagnostics and run this sequence:
    - main menu reached: validate upstream first-modded-save copy and Saves Merger save usability.
 6. Restore vanilla mode and any parked `files/modded` backup before ending the device session.
 
-Latest result: `connected-public-beta-modded-savemerger-20260703-10` passed. It loaded the selected public-beta PCK from `files/game_versions/public-beta-8128824d/game/SlayTheSpire2.pck`, used runtime pack `files/runtime_packs/public-beta-8128824d`, matched active Android `sts2.dll` hash `51a671bfeb937271af3e643d017396b13432098ed2b9debceb110c74939bbba1`, loaded all three selected mods, wrote a fresh modded launch marker, and recorded `steamCloudPushPerformed=false`.
+Latest strict July 3 result: `connected-public-beta-modded-savemerger-20260703-10` passed its then-current checks. It loaded the selected public-beta PCK from `files/game_versions/public-beta-8128824d/game/SlayTheSpire2.pck`, used runtime pack `files/runtime_packs/public-beta-8128824d`, matched active Android `sts2.dll` hash `51a671bfeb937271af3e643d017396b13432098ed2b9debceb110c74939bbba1`, reached all three selected mod load paths, wrote a fresh marker, and recorded `steamCloudPushPerformed=false`. It did not exercise each mod in game, so it is not proof that all three gameplay effects were active.
+
+Current unreleased source closes the public-branch runtime gap that prevented the proven Quick Restart path from applying to normal public launches. Public now generates the same validated Android-publicized runtime pack as non-public branches. If the current process has a different `sts2.dll` loaded, Start Game uses the existing restart handoff so Java refreshes the Godot assembly cache from the prepared pack. This implementation is covered offline but still requires connected-device validation.
 
 ## BaseLib Android Compatibility
 
@@ -179,8 +181,8 @@ Workshop mod support deliberately keeps save upload separate:
 
 - `Sync Workshop Mods` does not press or call Push to Cloud.
 - `Clear Workshop Mods` removes staged mod entries and clears the consent marker without uploading saves.
-- Evidence capture scripts state the same boundary and derive a Workshop Cloud Push lock when staged PCK mods are active.
-- Manual Push to Cloud is blocked when active staged Workshop PCK mods are present.
+- Evidence capture scripts state the same boundary and derive a Workshop Cloud Push lock when staged PCK files or selected mods are present.
+- Manual Push to Cloud is blocked when staged Workshop PCK files or selected mods are present.
 
 Do not use Workshop launch evidence as proof that modded saves are safe to upload to Steam Cloud.
 

@@ -328,7 +328,7 @@ function Require-WorkshopModLoaderScanEvidence([string]$PhaseLabel) {
     Require-Pattern "logs/logcat-workshop-filtered.txt" "$PhaseLabel scanned the Android Workshop mod root" "Selected root Workshop|Scanning Workshop mod|Scanning Workshop dependency mod|Scanning Workshop staged mods|Workshop staged mods|ModLoader|Loaded mod"
 }
 
-function Require-WorkshopLoadedModEvidence([string]$PhaseLabel) {
+function Require-WorkshopRuntimeActivationEvidence([string]$PhaseLabel) {
     Require-JsonPattern "diagnostics/workshop-manifest.json" "$PhaseLabel Workshop manifest is readable" "\{"
     Require-JsonPattern "diagnostics/workshop-manifest.json" "$PhaseLabel Workshop manifest has staged item" '(?i)"Status"\s*:\s*"staged"'
     Require-WorkshopUsableSourceEvidence "$PhaseLabel Workshop mod"
@@ -337,6 +337,56 @@ function Require-WorkshopLoadedModEvidence([string]$PhaseLabel) {
     Require-JsonPattern "diagnostics/workshop-derived-state.json" "$PhaseLabel Workshop derived state has raw staged PCK" '(?i)"rawStagedPckCount"\s*:\s*[1-9]'
     Require-JsonPattern "diagnostics/workshop-derived-state.json" "$PhaseLabel Workshop derived state locks Cloud Push" '(?i)"workshopCloudPushLocked"\s*:\s*true'
     Require-WorkshopModLoaderScanEvidence "$PhaseLabel Workshop mod"
+
+    $marker = Read-JsonEvidence "diagnostics/last-mod-launch.json" "$PhaseLabel mod activation marker"
+    if ($null -eq $marker) {
+        return
+    }
+    if ([int]$marker.version -lt 2) {
+        $failures.Add("diagnostics/last-mod-launch.json - $PhaseLabel mod activation marker predates schema v2")
+    } else {
+        Add-Pass "$PhaseLabel mod activation marker uses schema v2"
+    }
+    if ("$($marker.playMode)" -ne "modded") {
+        $failures.Add("diagnostics/last-mod-launch.json - $PhaseLabel did not launch in modded mode")
+    } else {
+        Add-Pass "$PhaseLabel launched in modded mode"
+    }
+
+    $activationProperty = $marker.PSObject.Properties["activationEvidence"]
+    if ($null -eq $activationProperty) {
+        $failures.Add("diagnostics/last-mod-launch.json - $PhaseLabel is missing activationEvidence")
+        return
+    }
+
+    $activation = @($activationProperty.Value)
+    $selected = @($marker.selectedMods)
+    if ($activation.Count -ne [int]$marker.enabledMods -or $selected.Count -ne [int]$marker.enabledMods) {
+        $failures.Add("diagnostics/last-mod-launch.json - $PhaseLabel selected/activation counts do not match enabledMods")
+    } else {
+        Add-Pass "$PhaseLabel selected and activation counts match enabledMods"
+    }
+
+    $payloadReady = @($activation | Where-Object {
+        [bool]$_.RuntimeLoadSucceeded -eq $true -and
+        [bool]$_.PayloadReady -eq $true -and
+        [int]$_.ErrorCount -eq 0
+    })
+    if ($payloadReady.Count -lt 1) {
+        $failures.Add("diagnostics/last-mod-launch.json - $PhaseLabel has no error-free payload-ready mod evidence")
+    } else {
+        Add-Pass "$PhaseLabel has error-free payload-ready mod evidence"
+    }
+    if ([int]$marker.failedMods -ne 0) {
+        $failures.Add("diagnostics/last-mod-launch.json - $PhaseLabel records failed runtime mod loads")
+    } else {
+        Add-Pass "$PhaseLabel records no failed runtime mod loads"
+    }
+    if ([int]$marker.inGameVerifiedMods -ne 0) {
+        $failures.Add("diagnostics/last-mod-launch.json - $PhaseLabel startup marker overclaims in-game verification")
+    } else {
+        Add-Pass "$PhaseLabel keeps runtime activation distinct from in-game verification"
+    }
 }
 
 function Require-NonPublicRuntimeEvidence([string]$PhaseLabel) {
@@ -486,7 +536,7 @@ if (-not [string]::IsNullOrWhiteSpace($RequirePhase)) {
             )
         }
         "public" {
-            Require-WorkshopLoadedModEvidence "public"
+            Require-WorkshopRuntimeActivationEvidence "public"
             Require-Pattern "diagnostics/runtime-markers.txt" "public runtime marker is captured" "public|Selected branch:"
             Require-JsonPattern "diagnostics/current_runtime_slot.json" "public runtime slot marker is readable" "\{"
             Require-JsonPattern "diagnostics/current_runtime_slot.json" "public runtime slot is selected" '(?i)"[^"]*branch[^"]*"\s*:\s*"public"'
@@ -510,11 +560,11 @@ if (-not [string]::IsNullOrWhiteSpace($RequirePhase)) {
             Require-Pattern "logs/logcat-workshop-filtered.txt" "public launch loaded public PCK path" "Loading PCK from:.*files[/\\]game[/\\]SlayTheSpire2\.pck"
         }
         "public-beta" {
-            Require-WorkshopLoadedModEvidence "public-beta"
+            Require-WorkshopRuntimeActivationEvidence "public-beta"
             Require-NonPublicRuntimeEvidence "public-beta"
         }
         "core-release" {
-            Require-WorkshopLoadedModEvidence "core-release"
+            Require-WorkshopRuntimeActivationEvidence "core-release"
             Require-NonPublicRuntimeEvidence "core-release"
         }
     }

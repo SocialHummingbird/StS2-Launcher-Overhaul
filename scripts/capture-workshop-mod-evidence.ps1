@@ -489,7 +489,7 @@ $summary.Add("| Raw signed Workshop download URL omitted | $($manifestText -notm
 $summary.Add("| Stale Workshop download temp artifacts absent | $((Get-Content -Raw -LiteralPath (Join-Path $diagnosticsDir 'workshop-tree.txt')) -notmatch 'files/workshop_mods/downloads/.+(\.download|\.tmp-|\.old-)') | diagnostics/workshop-tree.txt |")
 $summary.Add("| Derived Workshop Cloud Push lock state captured | $workshopCloudPushLocked | diagnostics/workshop-derived-state.json |")
 $summary.Add("| Cloud Push marker captured for safety review | $($cloudPushText -match 'last_manual_cloud_push') | diagnostics/cloud-push-markers.txt |")
-$summary.Add("| Mod selector launch marker captured | $($modLaunchText -match 'playMode|selectedMods|workshopModdedSaveCloudPushLocked') | diagnostics/last-mod-launch.json |")
+$summary.Add("| Mod selector activation marker captured | $($modLaunchText -match 'playMode|selectedMods|activationEvidence|workshopModdedSaveCloudPushLocked') | diagnostics/last-mod-launch.json |")
 $summary.Add("| Mod selector selection marker captured | $($modSelectionText -match 'PlayMode|EnabledMods') | diagnostics/mod-selection.json |")
 $summary.Add("| Runtime marker captured for branch/non-public review | $($runtimeText -match 'current_runtime_slot|Runtime ID|selectedBranch|Selected branch') | diagnostics/runtime-markers.txt |")
 $summary.Add("| Runtime selected PCK / active sts2.dll hashes captured | $($runtimeHashText -match 'SlayTheSpire2\.pck|sts2\.dll') | diagnostics/runtime-hashes.txt |")

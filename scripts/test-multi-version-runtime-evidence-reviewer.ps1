@@ -409,6 +409,10 @@ try {
     New-MultiVersionRuntimeEvidenceBundle -BaseDir $checkingOnlyDir -LaunchAttempt -LaunchAttemptPhase "checking"
     Invoke-ReviewShouldFail -EvidenceDir $checkingOnlyDir -RequireLaunchAttempt -Description "launch-attempt marker that only reached pre-readiness checking phase"
 
+    $modCheckingOnlyDir = Join-Path $runRoot "negative-mod-readiness-checking-only-phase"
+    New-MultiVersionRuntimeEvidenceBundle -BaseDir $modCheckingOnlyDir -LaunchAttempt -LaunchAttemptPhase "mod readiness checking"
+    Invoke-ReviewShouldFail -EvidenceDir $modCheckingOnlyDir -RequireLaunchAttempt -Description "launch-attempt marker that only reached mod readiness checking phase"
+
     $setupFailedDir = Join-Path $runRoot "negative-setup-failed-phase"
     New-MultiVersionRuntimeEvidenceBundle -BaseDir $setupFailedDir -LaunchAttempt -LaunchAttemptPhase "setup failed"
     Invoke-ReviewShouldFail -EvidenceDir $setupFailedDir -RequireLaunchAttempt -Description "launch-attempt marker that failed before selected-version readiness"

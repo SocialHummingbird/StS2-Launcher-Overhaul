@@ -16,9 +16,6 @@ internal static partial class PatchCompatibilityValidator
     {
         branch = SteamGameBranch.Normalize(branch);
         var slot = GameRuntimeSlot.Inspect(dataDir, branch);
-        if (string.Equals(branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
-            return slot;
-
         if (SelectedVersionSlotAlreadyValidated(slot))
         {
             PatchHelper.Log(

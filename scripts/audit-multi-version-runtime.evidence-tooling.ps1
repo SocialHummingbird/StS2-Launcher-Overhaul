@@ -389,6 +389,7 @@ function Add-MultiVersionRuntimeEvidenceToolingChecks {
             "launch-attempt marker without measured readiness timings",
             "launch-attempt marker that only reached pre-handoff ready phase",
             "launch-attempt marker that only reached pre-readiness checking phase",
+            "launch-attempt marker that only reached mod readiness checking phase",
             "launch-attempt marker that failed before selected-version readiness",
             "launch-attempt marker that failed selected-version readiness",
             "launch-attempt marker with failed in-process signal",

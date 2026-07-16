@@ -22,6 +22,10 @@ internal static partial class LauncherDiagnostics
         var branch = SteamGameBranch.Normalize(preferences.GameBranch);
         sb.AppendLine($"Cloud sync pref: {preferences.CloudSyncEnabled}");
         sb.AppendLine($"Local backup pref: {preferences.LocalBackupEnabled}");
+        sb.AppendLine($"Renderer pref: {preferences.RendererMode}");
+        sb.AppendLine($"Renderer pref display name: {LauncherRendererMode.DisplayName(preferences.RendererMode)}");
+        sb.AppendLine($"Renderer preference key: {LauncherStorageNames.RendererMode}");
+        sb.AppendLine("Safe Start renderer policy: project renderer without launcher override");
         sb.AppendLine($"Selected game branch: {branch}");
         sb.AppendLine($"Selected game branch preference key: game_branch");
         sb.AppendLine($"Selected game branch source: {(LauncherPreferences.GameBranchPreferenceExists() ? "saved preference" : "default fallback")}");

@@ -9,6 +9,7 @@ internal sealed partial class LauncherView
         Action<string> codeSubmitted,
         Action downloadRequested,
         Action<string> gameBranchChanged,
+        Action<string> rendererModeChanged,
         Action launchPressed,
         Action retryPressed,
         Action<bool> localBackupToggled,
@@ -35,6 +36,7 @@ internal sealed partial class LauncherView
         Download.GameBranchChanged += gameBranchChanged;
         Download.RefreshGameVersionsRequested += refreshGameVersionsPressed;
         Actions.GameBranchChanged += gameBranchChanged;
+        Actions.RendererModeChanged += rendererModeChanged;
         Actions.LaunchPressed += launchPressed;
         Actions.RetryPressed += retryPressed;
         Actions.LocalBackupToggled += localBackupToggled;

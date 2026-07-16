@@ -108,6 +108,102 @@ function Get-ModArray($Marker, [string]$Description) {
     return @($property.Value)
 }
 
+function Get-ActivationArray($Marker, [string]$Description) {
+    if ($null -eq $Marker) {
+        return @()
+    }
+
+    $property = $Marker.PSObject.Properties["activationEvidence"]
+    if ($null -eq $property) {
+        $failures.Add("$Description - missing activationEvidence array")
+        return @()
+    }
+
+    return @($property.Value)
+}
+
+function Require-MarkerVersionTwo($Marker, [string]$Description) {
+    if ($null -eq $Marker -or $null -eq $Marker.PSObject.Properties["version"]) {
+        $failures.Add("$Description - missing marker version")
+        return
+    }
+
+    Require-AtLeast ([int]$Marker.version) 2 "$Description uses activation-evidence schema"
+}
+
+function Find-Activation($ActivationEvidence, [string]$Pattern, [string]$Description) {
+    foreach ($activation in @($ActivationEvidence)) {
+        $text = @($activation.Id, $activation.Title, $activation.Path, $activation.Assembly) -join " "
+        if ($text -match $Pattern) {
+            Add-Pass "$Description has activation evidence matching $Pattern"
+            return $activation
+        }
+    }
+
+    $failures.Add("$Description - missing activation evidence matching $Pattern")
+    return $null
+}
+
+function Require-ActivationProperty($Activation, [string]$PropertyName, $Expected, [string]$Description) {
+    if ($null -eq $Activation) {
+        return
+    }
+
+    $property = $Activation.PSObject.Properties[$PropertyName]
+    if ($null -eq $property) {
+        $failures.Add("$Description - missing activation property $PropertyName")
+        return
+    }
+
+    Require-Equals $property.Value $Expected "$Description $PropertyName"
+}
+
+function Require-StandardActivationSet($Marker, [string]$Description, [bool]$ExpectSavesMerger) {
+    Require-MarkerVersionTwo $Marker $Description
+    $activation = Get-ActivationArray $Marker $Description
+    Require-Equals $activation.Count ([int]$Marker.enabledMods) "$Description activation count matches selected count"
+    Require-Equals $Marker.failedMods 0 "$Description has no failed runtime loads"
+    Require-Equals $Marker.inGameVerifiedMods 0 "$Description does not overclaim in-game verification"
+
+    $baseLib = Find-Activation $activation "BaseLib" "$Description BaseLib"
+    Require-ActivationProperty $baseLib "CompatibilityMode" "partial-android" "$Description BaseLib"
+    Require-ActivationProperty $baseLib "ActivationStatus" "partial-android-compatibility" "$Description BaseLib"
+    Require-ActivationProperty $baseLib "PayloadReady" $true "$Description BaseLib"
+    Require-ActivationProperty $baseLib "RuntimeLoadSucceeded" $true "$Description BaseLib"
+    Require-ActivationProperty $baseLib "ErrorCount" 0 "$Description BaseLib"
+
+    $quickRestart = Find-Activation $activation "Quick\s*Restart|QuickRestart" "$Description Quick Restart"
+    Require-ActivationProperty $quickRestart "CompatibilityMode" "native" "$Description Quick Restart"
+    Require-ActivationProperty $quickRestart "ActivationStatus" "runtime-patches-installed" "$Description Quick Restart"
+    Require-ActivationProperty $quickRestart "PayloadReady" $true "$Description Quick Restart"
+    Require-ActivationProperty $quickRestart "RuntimeLoadSucceeded" $true "$Description Quick Restart"
+    Require-ActivationProperty $quickRestart "ErrorCount" 0 "$Description Quick Restart"
+    if ($null -ne $quickRestart -and [int]$quickRestart.HarmonyTargetCount -lt 1) {
+        $failures.Add("$Description Quick Restart - expected at least one installed Harmony target")
+    } elseif ($null -ne $quickRestart) {
+        Add-Pass "$Description Quick Restart has an installed Harmony target"
+    }
+
+    if ($ExpectSavesMerger) {
+        $savesMerger = Find-Activation $activation "SavesMerger|UnifiedSavePath" "$Description SavesMerger"
+        Require-ActivationProperty $savesMerger "CompatibilityMode" "launcher-substitute" "$Description SavesMerger"
+        Require-ActivationProperty $savesMerger "ActivationStatus" "launcher-compatibility-substitute" "$Description SavesMerger"
+        Require-ActivationProperty $savesMerger "PayloadReady" $false "$Description SavesMerger"
+        Require-ActivationProperty $savesMerger "RuntimeLoadSucceeded" $true "$Description SavesMerger"
+    } else {
+        $savesMergerEvidence = @($activation | Where-Object {
+            (@($_.Id, $_.Title, $_.Path, $_.Assembly) -join " ") -match "SavesMerger|UnifiedSavePath"
+        })
+        if ($savesMergerEvidence.Count -gt 0) {
+            $failures.Add("$Description - disabled SavesMerger still has activation evidence")
+        } else {
+            Add-Pass "$Description excludes disabled SavesMerger activation evidence"
+        }
+    }
+
+    return $activation
+}
+
 function Require-Property($Marker, [string]$PropertyName, [string]$Description) {
     if ($null -eq $Marker) {
         return $null
@@ -234,11 +330,14 @@ $modded = Read-EvidenceJson "diagnostics/$ModdedLabel-last-mod-launch.json" "$Mo
 $disabled = Read-EvidenceJson "diagnostics/$DisabledModLabel-last-mod-launch.json" "$DisabledModLabel launch marker"
 
 if ($null -ne $vanilla) {
+    Require-MarkerVersionTwo $vanilla "$VanillaLabel marker"
     Require-Equals $vanilla.playMode "vanilla" "$VanillaLabel marker play mode"
     Require-Equals $vanilla.scannedRoots 0 "$VanillaLabel scanned zero mod roots"
     Require-Equals $vanilla.enabledMods 0 "$VanillaLabel enabled zero mods"
     $vanillaMods = Get-ModArray $vanilla "$VanillaLabel marker"
     Require-Equals $vanillaMods.Count 0 "$VanillaLabel selected zero mods"
+    $vanillaActivation = Get-ActivationArray $vanilla "$VanillaLabel marker"
+    Require-Equals $vanillaActivation.Count 0 "$VanillaLabel has zero activation entries"
     $vanillaCloudLocked = Require-CommonMarkerSafety $VanillaLabel $vanilla
     if ($null -ne $vanillaCloudLocked) {
         Require-Boolean $vanillaCloudLocked $false "$VanillaLabel leaves Cloud Push unlocked"
@@ -257,12 +356,13 @@ if ($null -ne $modded) {
     Require-ModNamePresence $moddedMods "BaseLib" $true "$ModdedLabel includes BaseLib"
     Require-ModNamePresence $moddedMods $DisabledModNamePattern $true "$ModdedLabel includes $DisabledModNamePattern"
     Require-ModRootSnapshots $moddedMods "$ModdedLabel marker"
+    Require-StandardActivationSet $modded "$ModdedLabel marker" $true | Out-Null
     $moddedCloudLocked = Require-CommonMarkerSafety $ModdedLabel $modded
     if ($null -ne $moddedCloudLocked) {
-        Require-Boolean $moddedCloudLocked $true "$ModdedLabel locks Cloud Push for active mods"
+        Require-Boolean $moddedCloudLocked $true "$ModdedLabel locks Cloud Push for selected mods"
     }
     Require-CommonLaunchLogSafety $ModdedLabel
-    Require-TextPattern "logs/$ModdedLabel-focused.txt" "$ModdedLabel loaded selected mods" "(?i)Loaded mod"
+    Require-TextPattern "logs/$ModdedLabel-focused.txt" "$ModdedLabel captured activation summary" "(?i)Activation evidence:"
     Require-ScenarioScreenshot $ModdedLabel
 }
 
@@ -275,6 +375,7 @@ if ($null -ne $disabled) {
     Require-ModNamePresence $disabledMods "BaseLib" $true "$DisabledModLabel still includes BaseLib"
     Require-ModNamePresence $disabledMods $DisabledModNamePattern $false "$DisabledModLabel excludes disabled $DisabledModNamePattern"
     Require-ModRootSnapshots $disabledMods "$DisabledModLabel marker"
+    Require-StandardActivationSet $disabled "$DisabledModLabel marker" $false | Out-Null
     if ($null -ne $modded -and [int]$modded.enabledMods -le [int]$disabled.enabledMods) {
         $failures.Add("$DisabledModLabel did not reduce enabled mod count below $ModdedLabel")
     } elseif ($null -ne $modded) {

@@ -7,6 +7,7 @@ $script:LaunchAttemptSuccessfulHandoffPhases = @(
 $script:LaunchAttemptRejectedProofPhases = @(
     "setup failed",
     "checking",
+    "mod readiness checking",
     "ready",
     "blocked",
     "blocked in model",

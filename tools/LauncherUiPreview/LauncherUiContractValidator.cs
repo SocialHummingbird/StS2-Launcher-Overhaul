@@ -13,8 +13,10 @@ internal static class LauncherUiContractValidator
         WireEvents(view, events);
 
         view.SelectDestination(LauncherDestination.Home);
+        Press(root, "Vulkan");
         Press(root, "Start Game");
         Press(root, "Safe Start");
+        Expect(events.RendererMode == 1, "Renderer selection event was not preserved.");
         Expect(events.Launch == 1, "Start Game event was not preserved.");
         Expect(events.SafeLaunch == 1, "Safe Start event was not preserved.");
 
@@ -85,6 +87,7 @@ internal static class LauncherUiContractValidator
             codeSubmitted: _ => events.Code++,
             downloadRequested: () => events.Download++,
             gameBranchChanged: _ => events.BranchChanged++,
+            rendererModeChanged: _ => events.RendererMode++,
             launchPressed: () => events.Launch++,
             retryPressed: () => events.Retry++,
             localBackupToggled: _ => events.LocalBackup++,
@@ -178,6 +181,7 @@ internal static class LauncherUiContractValidator
         internal int Code;
         internal int Download;
         internal int BranchChanged;
+        internal int RendererMode;
         internal int Launch;
         internal int Retry;
         internal int LocalBackup;

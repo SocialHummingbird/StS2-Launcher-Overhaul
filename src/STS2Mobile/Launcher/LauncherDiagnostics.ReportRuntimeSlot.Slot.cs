@@ -49,6 +49,9 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Selected runtime active Android sts2.dll path: {slot.ActiveAndroidAssemblyPath}");
         sb.AppendLine($"Selected runtime active Android sts2.dll exists: {BoolText(slot.ActiveAndroidAssemblyExists)}");
         sb.AppendLine($"Selected runtime active Android sts2.dll SHA256: {slot.ActiveAndroidAssemblySha256}");
+        sb.AppendLine($"Selected runtime prepared Android sts2.dll SHA256: {slot.PreparedAndroidAssemblySha256}");
+        sb.AppendLine($"Selected runtime active Android assembly matches prepared runtime: {BoolText(slot.ActiveAndroidAssemblyMatchesPreparedRuntime)}");
+        sb.AppendLine($"Selected runtime requires process restart for prepared runtime: {BoolText(slot.RequiresProcessRestartForPreparedRuntime)}");
         sb.AppendLine($"Selected runtime branch source available: {BoolText(slot.BranchRuntimeAvailable)}");
         sb.AppendLine($"Selected runtime source matches active Android assembly: {BoolText(slot.SourceMatchesActiveAndroidAssembly)}");
         sb.AppendLine($"Selected runtime uses legacy packaged public runtime: {BoolText(slot.UsesLegacyPackagedPublicRuntime)}");

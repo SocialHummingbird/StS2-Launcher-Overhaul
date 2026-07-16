@@ -9,6 +9,7 @@ internal sealed partial class LauncherController
             _session.CodeSubmitPressed,
             _downloads.DownloadPressed,
             _branchSwitch.GameBranchChanged,
+            RendererModeChanged,
             _launch.LaunchPressed,
             _session.RetryPressed,
             _session.LocalBackupToggled,

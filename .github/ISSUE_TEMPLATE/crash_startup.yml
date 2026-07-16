@@ -107,7 +107,7 @@ body:
     attributes:
       label: Focused logs and screenshots
       description: |
-        Attach focused logcat around the failure, including the dying process when possible. Useful terms: AndroidRuntime, FATAL EXCEPTION, Fatal signal, SIGSEGV, SIGABRT, Godot, NMainMenu, PostStartupTrace, PostStartupHeartbeat, Native lifecycle event, has died, lmkd, PowerVR, OpenGL, Vulkan, STS2Mobile, PatchHelper, NativeFallback, SteamKit, Workshop, Mods.
+        Attach focused logcat around the failure, including the dying process when possible. Also include last_renderer_attempt.txt and last_process_exit_info.txt when available. Useful terms: AndroidRuntime, FATAL EXCEPTION, Fatal signal, SIGSEGV, SIGABRT, Godot, NMainMenu, PostStartupTrace, PostStartupHeartbeat, Native lifecycle event, has died, lmkd, PowerVR, OpenGL, Vulkan, STS2Mobile, PatchHelper, NativeFallback, SteamKit, Workshop, Mods.
       value: |
         Focused logcat attached:
         Screenshot or screen recording attached:

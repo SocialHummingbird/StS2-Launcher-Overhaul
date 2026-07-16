@@ -36,9 +36,9 @@ internal sealed partial class LauncherCloudSyncCoordinator
         if (selectedMods <= 0)
             return true;
 
-        var reason = $"Manual Push blocked: {selectedMods} selected mod(s) are active; modded-save Steam Cloud upload is not supported.";
+        var reason = $"Manual Push blocked: {selectedMods} mod(s) are selected for launch; modded-save Steam Cloud upload is not supported.";
         pushContext.WriteBlockedMarker(reason);
-        _view.SetStatus("Push blocked: selected mods are active. Steam Cloud upload stays locked for modded saves.");
+        _view.SetStatus("Push blocked: mods are selected for launch. Steam Cloud upload stays locked for modded saves.");
         _view.AppendLog("Push blocked: selected Android mods are enabled for launch. Pull/download/sync remain available, but Push to Steam Cloud is blocked to protect unmodded cloud saves.");
         return false;
     }

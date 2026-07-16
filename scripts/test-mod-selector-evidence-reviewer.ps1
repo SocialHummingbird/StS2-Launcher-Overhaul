@@ -31,7 +31,10 @@ function New-ModSelectorEvidenceBundle(
     [switch]$VanillaScansMods,
     [switch]$PushPerformed,
     [switch]$CrashLog,
-    [switch]$MissingRootSnapshots
+    [switch]$MissingRootSnapshots,
+    [switch]$MissingActivationEvidence,
+    [switch]$QuickRestartNoTargets,
+    [switch]$SavesMergerClaimsPayload
 ) {
     New-Item -ItemType Directory -Force -Path `
         (Join-Path $BaseDir "diagnostics"), `
@@ -90,28 +93,97 @@ function New-ModSelectorEvidenceBundle(
         }
     }
 
+    $baseLibActivation = [ordered]@{
+        Id = "BaseLib"
+        Title = "BaseLib"
+        Path = $baseLib.Path
+        State = "Loaded"
+        Assembly = "BaseLib"
+        ErrorCount = 0
+        ManifestHasDll = $true
+        ManifestHasPck = $true
+        PayloadReady = $true
+        RuntimeLoadSucceeded = $true
+        HarmonyPatchTypeCount = 12
+        HarmonyTargetCount = 4
+        CompatibilityMode = "partial-android"
+        ActivationStatus = "partial-android-compatibility"
+        CompatibilityLimit = "Android-safe BaseLib initialization skips the full upstream PatchAll surface."
+        InGameEffectVerified = $false
+    }
+    $quickRestartActivation = [ordered]@{
+        Id = "QuickRestart"
+        Title = "Quick Restart 2"
+        Path = $quickRestart.Path
+        State = "Loaded"
+        Assembly = "QuickRestart"
+        ErrorCount = 0
+        ManifestHasDll = $true
+        ManifestHasPck = $true
+        PayloadReady = $true
+        RuntimeLoadSucceeded = $true
+        HarmonyPatchTypeCount = 3
+        HarmonyTargetCount = if ($QuickRestartNoTargets) { 0 } else { 3 }
+        CompatibilityMode = "native"
+        ActivationStatus = if ($QuickRestartNoTargets) { "payload-loaded-unverified" } else { "runtime-patches-installed" }
+        CompatibilityLimit = "Runtime patches are installed, but no in-game action was exercised by this marker."
+        InGameEffectVerified = $false
+    }
+    $savesMergerActivation = [ordered]@{
+        Id = "SavesMerger"
+        Title = "SavesMerger"
+        Path = $savesMerger.Path
+        State = "Loaded"
+        Assembly = ""
+        ErrorCount = 0
+        ManifestHasDll = $true
+        ManifestHasPck = $true
+        PayloadReady = [bool]$SavesMergerClaimsPayload
+        RuntimeLoadSucceeded = $true
+        HarmonyPatchTypeCount = 0
+        HarmonyTargetCount = 0
+        CompatibilityMode = "launcher-substitute"
+        ActivationStatus = "launcher-compatibility-substitute"
+        CompatibilityLimit = "Launcher save-path patches substitute for the mod; its DLL/PCK is not loaded."
+        InGameEffectVerified = $false
+    }
+
     $vanilla = [ordered]@{
-        version = 1
+        version = 2
         generatedAtUtc = "2026-06-25T00:00:00.0000000Z"
         playMode = "vanilla"
         scannedRoots = if ($VanillaScansMods) { 2 } else { 0 }
         enabledMods = 0
+        payloadReadyMods = 0
+        runtimePatchedMods = 0
+        partialCompatibilityMods = 0
+        compatibilitySubstituteMods = 0
+        failedMods = 0
+        inGameVerifiedMods = 0
         status = "Android mod scan skipped by launcher Play Vanilla mode"
         selectionPath = "/data/user/0/com.example/files/mods/mod_selection.json"
         workshopModdedSaveCloudPushLocked = $false
         steamCloudPushPerformed = [bool]$PushPerformed
+        activationEvidence = @()
         selectedMods = @()
     }
     $modded = [ordered]@{
-        version = 1
+        version = 2
         generatedAtUtc = "2026-06-25T00:01:00.0000000Z"
         playMode = "modded"
         scannedRoots = 2
         enabledMods = 3
-        status = "Android mod scan completed with launcher-selected mods"
+        payloadReadyMods = if ($SavesMergerClaimsPayload) { 3 } else { 2 }
+        runtimePatchedMods = if ($QuickRestartNoTargets) { 1 } else { 2 }
+        partialCompatibilityMods = 1
+        compatibilitySubstituteMods = 1
+        failedMods = 0
+        inGameVerifiedMods = 0
+        status = "Android mod load attempt completed; inspect per-mod activation evidence"
         selectionPath = "/data/user/0/com.example/files/mods/mod_selection.json"
         workshopModdedSaveCloudPushLocked = $true
         steamCloudPushPerformed = [bool]$PushPerformed
+        activationEvidence = @($baseLibActivation, $quickRestartActivation, $savesMergerActivation)
         selectedMods = @($baseLib, $quickRestart, $savesMerger)
     }
     $disabledMods = if ($DisabledStillSelected) {
@@ -120,16 +192,27 @@ function New-ModSelectorEvidenceBundle(
         @($baseLib, $quickRestart)
     }
     $disabled = [ordered]@{
-        version = 1
+        version = 2
         generatedAtUtc = "2026-06-25T00:02:00.0000000Z"
         playMode = "modded"
         scannedRoots = 2
         enabledMods = $disabledMods.Count
-        status = "Android mod scan completed with launcher-selected mods"
+        payloadReadyMods = 2
+        runtimePatchedMods = if ($QuickRestartNoTargets) { 1 } else { 2 }
+        partialCompatibilityMods = 1
+        compatibilitySubstituteMods = 0
+        failedMods = 0
+        inGameVerifiedMods = 0
+        status = "Android mod load attempt completed; inspect per-mod activation evidence"
         selectionPath = "/data/user/0/com.example/files/mods/mod_selection.json"
         workshopModdedSaveCloudPushLocked = $true
         steamCloudPushPerformed = [bool]$PushPerformed
+        activationEvidence = @($baseLibActivation, $quickRestartActivation)
         selectedMods = $disabledMods
+    }
+
+    if ($MissingActivationEvidence) {
+        $modded.Remove("activationEvidence")
     }
 
     if ($MissingCloudFields) {
@@ -164,8 +247,8 @@ function New-ModSelectorEvidenceBundle(
     $crashText = if ($CrashLog) { "`nNativeFallbackActivity`nFATAL EXCEPTION: main" } else { "" }
     $pushText = if ($PushPerformed) { "`nSteam Cloud Push performed" } else { "" }
     Save-TestText (Join-Path $BaseDir "logs\final-vanilla-focused.txt") "[Mods] Android mod scan skipped: launcher Play Vanilla mode is selected$crashText$pushText"
-    Save-TestText (Join-Path $BaseDir "logs\final-modded-focused.txt") "[Mods] Scanning Workshop staged mods`nLoaded mod BaseLib`nLoaded mod SavesMerger$crashText$pushText"
-    Save-TestText (Join-Path $BaseDir "logs\final-disabled-savesmerger-focused.txt") "[Mods] Scanning Workshop staged mods`nLoaded mod BaseLib`nSkipping disabled launcher-selected mod: SavesMerger$crashText$pushText"
+    Save-TestText (Join-Path $BaseDir "logs\final-modded-focused.txt") "[Mods] Scanning Workshop staged mods`n[Mods] Activation evidence: selected=3 payloadReady=2 runtimePatched=2 partial=1 substitutes=1 failed=0 inGameVerified=0$crashText$pushText"
+    Save-TestText (Join-Path $BaseDir "logs\final-disabled-savesmerger-focused.txt") "[Mods] Scanning Workshop staged mods`nSkipping disabled launcher-selected mod: SavesMerger`n[Mods] Activation evidence: selected=2 payloadReady=2 runtimePatched=2 partial=1 substitutes=0 failed=0 inGameVerified=0$crashText$pushText"
 
     foreach ($label in @("final-vanilla", "final-modded", "final-disabled-savesmerger")) {
         Save-TestText (Join-Path $BaseDir "screenshots\$label-screen.png") "synthetic png placeholder"
@@ -225,6 +308,18 @@ try {
     $missingRootSnapshotsDir = Join-Path $runRoot "negative-missing-root-snapshots"
     New-ModSelectorEvidenceBundle -BaseDir $missingRootSnapshotsDir -MissingRootSnapshots
     Invoke-ReviewShouldFail -EvidenceDir $missingRootSnapshotsDir -Description "selected mod root snapshots missing"
+
+    $missingActivationDir = Join-Path $runRoot "negative-missing-activation-evidence"
+    New-ModSelectorEvidenceBundle -BaseDir $missingActivationDir -MissingActivationEvidence
+    Invoke-ReviewShouldFail -EvidenceDir $missingActivationDir -Description "selected mods without runtime activation evidence"
+
+    $quickRestartNoTargetsDir = Join-Path $runRoot "negative-quick-restart-no-harmony-targets"
+    New-ModSelectorEvidenceBundle -BaseDir $quickRestartNoTargetsDir -QuickRestartNoTargets
+    Invoke-ReviewShouldFail -EvidenceDir $quickRestartNoTargetsDir -Description "Quick Restart payload without installed Harmony targets"
+
+    $savesMergerPayloadDir = Join-Path $runRoot "negative-savesmerger-payload-claim"
+    New-ModSelectorEvidenceBundle -BaseDir $savesMergerPayloadDir -SavesMergerClaimsPayload
+    Invoke-ReviewShouldFail -EvidenceDir $savesMergerPayloadDir -Description "SavesMerger substitute falsely claimed as payload loaded"
 } finally {
     if (-not $KeepArtifacts -and (Test-Path -LiteralPath $runRoot)) {
         Remove-Item -LiteralPath $runRoot -Recurse -Force

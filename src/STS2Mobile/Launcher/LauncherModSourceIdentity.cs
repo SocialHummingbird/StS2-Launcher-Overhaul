@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using STS2Mobile;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -62,9 +63,19 @@ internal sealed class LauncherModSourceIdentity
             if (info.Length > MaxMetadataIdentityBytes)
                 return $"oversized-metadata:{path};bytes={info.Length};mtime={mtime}";
 
-            using var stream = File.OpenRead(path);
-            var hash = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
-            return $"metadata:{path};bytes={info.Length};mtime={mtime};sha256={hash}";
+            byte[] hash;
+            if (OperatingSystem.IsAndroid())
+            {
+                hash = AndroidJavaCrypto.Sha256FileHashData(path);
+            }
+            else
+            {
+                using var stream = File.OpenRead(path);
+                hash = SHA256.HashData(stream);
+            }
+
+            var hashText = Convert.ToHexString(hash).ToLowerInvariant();
+            return $"metadata:{path};bytes={info.Length};mtime={mtime};sha256={hashText}";
         }
         catch (Exception ex)
         {
@@ -91,13 +102,14 @@ internal sealed class LauncherModSourceIdentity
             long newestMtime = 0;
             var fileCount = 0;
             var sample = new List<string>(MaxDirectoryIdentitySampleFiles);
-            using var sha = SHA256.Create();
+            using var metadata = new MemoryStream();
+            var metadataTruncated = false;
 
             foreach (var file in files)
             {
                 var identity = LaunchRelevantFileIdentity.Capture(file);
                 fileCount++;
-                AddHashText(sha, identity.Text);
+                AddHashText(metadata, identity.Text, ref metadataTruncated);
                 if (identity.Exists)
                 {
                     totalBytes += identity.Bytes;
@@ -108,10 +120,16 @@ internal sealed class LauncherModSourceIdentity
                     sample.Add(identity.Text);
             }
 
-            sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-            var digest = Convert.ToHexString(sha.Hash ?? Array.Empty<byte>()).ToLowerInvariant();
+            if (!metadata.TryGetBuffer(out var metadataBuffer))
+                throw new InvalidOperationException("Mod metadata identity buffer is unavailable.");
+
+            var digest = Convert.ToHexString(
+                AndroidJavaCrypto.Sha256HashData(
+                    metadataBuffer.AsSpan(0, checked((int)metadata.Length))
+                )
+            ).ToLowerInvariant();
             var truncated = fileCount > sample.Count ? "true" : "false";
-            return $"dir-launch-relevant:{path};count={fileCount};bytes={totalBytes};newestMtime={newestMtime};metadataSha256={digest};sampleCount={sample.Count};truncated={truncated};patterns={string.Join(",", LaunchRelevantPatterns)};{string.Join("|", sample)}";
+            return $"dir-launch-relevant:{path};count={fileCount};bytes={totalBytes};newestMtime={newestMtime};metadataSha256={digest};metadataBytes={metadata.Length};metadataTruncated={metadataTruncated.ToString().ToLowerInvariant()};sampleCount={sample.Count};truncated={truncated};patterns={string.Join(",", LaunchRelevantPatterns)};{string.Join("|", sample)}";
         }
         catch (Exception ex)
         {
@@ -173,11 +191,27 @@ internal sealed class LauncherModSourceIdentity
         }
     }
 
-    private static void AddHashText(HashAlgorithm hash, string value)
+    private static void AddHashText(MemoryStream metadata, string value, ref bool truncated)
     {
+        if (truncated)
+            return;
+
         var bytes = Encoding.UTF8.GetBytes(value ?? string.Empty);
-        hash.TransformBlock(bytes, 0, bytes.Length, null, 0);
-        var separator = new[] { (byte)'\n' };
-        hash.TransformBlock(separator, 0, separator.Length, null, 0);
+        var remaining = MaxMetadataIdentityBytes - metadata.Length;
+        if (remaining <= 0)
+        {
+            truncated = true;
+            return;
+        }
+
+        var bytesToWrite = (int)Math.Min(bytes.Length, remaining);
+        metadata.Write(bytes, 0, bytesToWrite);
+        if (bytesToWrite != bytes.Length || metadata.Length >= MaxMetadataIdentityBytes)
+        {
+            truncated = true;
+            return;
+        }
+
+        metadata.WriteByte((byte)'\n');
     }
 }

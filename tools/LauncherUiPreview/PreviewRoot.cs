@@ -130,7 +130,8 @@ public partial class PreviewRoot : Control
                     new LauncherPreferences.ActionPreferences(
                         localBackupEnabled: true,
                         cloudSyncEnabled: true,
-                        gameBranch: "public"
+                        gameBranch: "public",
+                        rendererMode: LauncherRendererMode.Auto
                     )
                 );
                 view.SetStatus("Ready to play the selected Default game version.");

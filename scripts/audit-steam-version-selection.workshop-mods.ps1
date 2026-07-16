@@ -146,17 +146,47 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "requiresWorkshopConsent: isWorkshop",
             "Selected root \{root\.Label\}",
             "FindAndroidManifestPath",
-            "RebuildLoadedModsCache"
+            "RebuildLoadedModsCache",
+            "BuildActivationEvidence\(knownMods\)",
+            "version = 2",
+            "activationEvidence",
+            "payloadReadyMods",
+            "runtimePatchedMods",
+            "partialCompatibilityMods",
+            "compatibilitySubstituteMods",
+            "inGameVerifiedMods"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Patches\ModLoaderPatches.ActivationEvidence.cs" `
+        "records truthful per-mod runtime activation and Android compatibility evidence" `
+        @(
+            "RuntimeModActivationSummary",
+            "RuntimeLoadSucceeded",
+            "PayloadReady",
+            "HarmonyPatchTypeCount",
+            "HarmonyTargetCount",
+            "CompatibilityMode",
+            "ActivationStatus",
+            "InGameEffectVerified",
+            "partial-android",
+            "launcher-substitute",
+            "runtime-patches-installed",
+            "launcher-compatibility-substitute",
+            "FindHarmonyTargetsForOwners",
+            "RuntimePathIsWithinSelectedRoot",
+            'normalizedSelectedRoot \+ "/"',
+            "StringComparison\.OrdinalIgnoreCase"
         )
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.cs" `
-        "blocks Steam Cloud Push when selected mods are active" `
+        "blocks Steam Cloud Push when mods are selected for launch" `
         @(
             "CanPushWithWorkshopModSafety",
             "LauncherWorkshopModSafety\.ActiveSelectedModCount",
-            "Manual Push blocked: \{selectedMods\} selected mod\(s\) are active",
-            "selected mods are active",
+            "Manual Push blocked: \{selectedMods\} mod\(s\) are selected for launch",
+            "mods are selected for launch",
             "protect unmodded cloud saves",
             "pushContext\.WriteBlockedMarker"
         )
@@ -401,7 +431,11 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "rawStagedPckCount",
             "manifestActivePckCount",
             "Require-WorkshopModLoaderScanEvidence",
-            "Require-WorkshopLoadedModEvidence",
+            "Require-WorkshopRuntimeActivationEvidence",
+            "activationEvidence",
+            "RuntimeLoadSucceeded",
+            "PayloadReady",
+            "inGameVerifiedMods",
             "RequireCachedDownloadReuse",
             "Using cached Workshop download",
             "Scanning Workshop staged mods",

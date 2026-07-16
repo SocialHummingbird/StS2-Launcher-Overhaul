@@ -18,7 +18,7 @@ namespace STS2Mobile.Patches;
 // Extends ModManager to scan Android mod roots after the built-in game scan.
 // Workshop sync stages into app-private storage; shared storage remains available
 // for manual sideloading through /storage/emulated/0/StS2Launcher/Mods/.
-internal static class ModLoaderPatches
+internal static partial class ModLoaderPatches
 {
     private static readonly BindingFlags AllStatic =
         BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
@@ -59,6 +59,9 @@ internal static class ModLoaderPatches
         {
             if (!TryLoadModManagerAccess(out var access))
             {
+                TryWriteUnavailableActivationMarker(
+                    "Android mod manager reflection bridge was unavailable; no mod activation evidence was produced"
+                );
                 return;
             }
 
@@ -80,11 +83,14 @@ internal static class ModLoaderPatches
             var loadedRoots = LoadAndroidModRoots(access, knownMods);
             if (loadedRoots == 0)
             {
+                var unavailableSelectedModCount = LauncherModSelectionState.EnabledModCount(knownMods);
+                var unavailableActivationEvidence = access.BuildActivationEvidence(knownMods);
                 WriteModLaunchMarker(
                     "modded",
                     0,
-                    0,
-                    "No Android mod roots were available for scanning",
+                    unavailableSelectedModCount,
+                    "No Android mod roots were available; selected mods were not activated",
+                    unavailableActivationEvidence,
                     selection: selection,
                     knownMods: knownMods
                 );
@@ -94,14 +100,13 @@ internal static class ModLoaderPatches
 
             access.RebuildLoadedModsCacheIfAvailable();
             var selectedEnabledMods = LauncherModSelectionState.EnabledModCount(knownMods);
-            var loadedMods = access.LoadedModSummaries();
+            var activationEvidence = access.BuildActivationEvidence(knownMods);
             WriteModLaunchMarker(
                 "modded",
                 loadedRoots,
-                loadedMods.Length,
-                "Android mod scan completed with launcher-selected mods",
                 selectedEnabledMods,
-                loadedMods,
+                "Android mod load attempt completed; inspect per-mod activation evidence",
+                activationEvidence,
                 selection,
                 knownMods
             );
@@ -109,6 +114,35 @@ internal static class ModLoaderPatches
         catch (Exception ex)
         {
             PatchHelper.Log($"[Mods] Failed to load Android mods: {ex}");
+            TryWriteUnavailableActivationMarker(
+                $"Android mod load failed before activation evidence completed: {ex.GetType().Name}"
+            );
+        }
+    }
+
+    private static void TryWriteUnavailableActivationMarker(string status)
+    {
+        try
+        {
+            var selection = LauncherModSelectionState.Load();
+            var knownMods = LauncherModSelectionState.KnownMods(selection);
+            var playMode = LauncherModSelectionState.IsModdedModeFor(selection)
+                ? "modded"
+                : "vanilla";
+            WriteModLaunchMarker(
+                playMode,
+                0,
+                string.Equals(playMode, "modded", StringComparison.OrdinalIgnoreCase)
+                    ? LauncherModSelectionState.EnabledModCount(knownMods)
+                    : 0,
+                status,
+                selection: selection,
+                knownMods: knownMods
+            );
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Mods] Failed to write unavailable activation marker: {ex.Message}");
         }
     }
 
@@ -117,8 +151,7 @@ internal static class ModLoaderPatches
         int scannedRoots,
         int enabledMods,
         string status,
-        int? requestedEnabledMods = null,
-        object[] loadedMods = null,
+        RuntimeModActivationSummary[] activationEvidence = null,
         LauncherModSelectionDocument selection = null,
         IReadOnlyList<LauncherKnownMod> knownMods = null
     )
@@ -129,21 +162,30 @@ internal static class ModLoaderPatches
             if (!string.IsNullOrWhiteSpace(parent))
                 Directory.CreateDirectory(parent);
 
+            activationEvidence ??= Array.Empty<RuntimeModActivationSummary>();
             var payload = new
             {
-                version = 1,
+                version = 2,
                 generatedAtUtc = DateTime.UtcNow.ToString("O"),
                 playMode,
                 scannedRoots,
                 enabledMods,
-                requestedEnabledMods,
+                payloadReadyMods = activationEvidence.Count(mod => mod.PayloadReady),
+                runtimePatchedMods = activationEvidence.Count(mod => mod.HarmonyTargetCount > 0),
+                partialCompatibilityMods = activationEvidence.Count(mod => mod.CompatibilityMode == "partial-android"),
+                compatibilitySubstituteMods = activationEvidence.Count(mod => mod.CompatibilityMode == "launcher-substitute"),
+                failedMods = Math.Max(
+                    0,
+                    enabledMods - activationEvidence.Count(mod => mod.RuntimeLoadSucceeded)
+                ),
+                inGameVerifiedMods = activationEvidence.Count(mod => mod.InGameEffectVerified),
                 status,
                 selectionPath = AppPaths.AppPrivateModSelectionPath,
                 workshopModdedSaveCloudPushLocked = knownMods == null
                     ? LauncherWorkshopModSafety.HasActiveStagedMods(selection)
                     : LauncherModSelectionState.PushShouldBeLocked(knownMods),
                 steamCloudPushPerformed = false,
-                loadedMods = loadedMods ?? Array.Empty<object>(),
+                activationEvidence,
                 selectedMods = string.Equals(playMode, "modded", StringComparison.OrdinalIgnoreCase)
                     ? (knownMods ?? LauncherModSelectionState.KnownMods(selection))
                     .Where(mod => mod.Enabled && !mod.IsUnsupported)
@@ -1106,7 +1148,7 @@ internal static class ModLoaderPatches
         yield return modType.GetProperty("State", LoadedMarkerFlags);
     }
 
-    private sealed class ModManagerAccess
+    private sealed partial class ModManagerAccess
     {
         private readonly FieldInfo _initializedField;
         private readonly PropertyInfo _stateProperty;
@@ -2174,34 +2216,6 @@ internal static class ModLoaderPatches
             {
                 return null;
             }
-        }
-
-        internal object[] LoadedModSummaries()
-        {
-            var allMods = _modsField.GetValue(null) as IEnumerable;
-            if (allMods == null)
-                return Array.Empty<object>();
-
-            var loadedMods = new List<object>();
-            foreach (var mod in allMods)
-            {
-                if (mod == null || !IsLoaded(mod))
-                    continue;
-
-                var id = TryReadManifestId(mod) ?? "<unknown>";
-                var assembly = TryReadAssemblyMember(mod)
-                    ?? FindLoadedAssemblyBySimpleName(id);
-                loadedMods.Add(new
-                {
-                    Id = id,
-                    Path = TryReadStringMember(mod, "path")
-                        ?? TryReadStringMember(mod, "Path")
-                        ?? "",
-                    Assembly = assembly?.GetName().Name ?? "",
-                });
-            }
-
-            return loadedMods.ToArray();
         }
 
         private IEnumerable<object> OrderedNewMods(ISet<object> newMods)

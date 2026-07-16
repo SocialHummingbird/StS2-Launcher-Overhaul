@@ -36,7 +36,9 @@ function New-WorkshopEvidenceBundle(
     [switch]$MissingWorkshopModLoaderScan,
     [switch]$CachedDownloadReuse,
     [switch]$StaleDownloadArtifact,
-    [switch]$DepotManifestSource
+    [switch]$DepotManifestSource,
+    [switch]$MissingRuntimeActivationEvidence,
+    [switch]$FailedRuntimeActivation
 ) {
     New-Item -ItemType Directory -Force -Path (Join-Path $BaseDir "diagnostics"), (Join-Path $BaseDir "logs") | Out-Null
 
@@ -158,13 +160,67 @@ function New-WorkshopEvidenceBundle(
         source = "capture-workshop-mod-evidence.ps1"
     } | ConvertTo-Json -Depth 5)
 
+    $selectedMod = [ordered]@{
+        Key = "workshop:111111"
+        Id = "SyntheticSimpleMod"
+        Title = "Synthetic Simple Mod"
+        Source = "Workshop"
+        Path = "files/workshop_mods/staged/$Phase"
+        Root = [ordered]@{
+            Exists = $true
+            ManifestCount = 1
+            PckCount = $rawStagedPckCount
+            DllCount = 1
+        }
+    }
+    $activation = [ordered]@{
+        Id = "SyntheticSimpleMod"
+        Title = "Synthetic Simple Mod"
+        Path = "files/workshop_mods/staged/$Phase"
+        State = if ($FailedRuntimeActivation) { "Failed" } else { "Loaded" }
+        Assembly = "SyntheticSimpleMod"
+        ErrorCount = if ($FailedRuntimeActivation) { 1 } else { 0 }
+        ManifestHasDll = $true
+        ManifestHasPck = $true
+        PayloadReady = -not $FailedRuntimeActivation
+        RuntimeLoadSucceeded = -not $FailedRuntimeActivation
+        HarmonyPatchTypeCount = 1
+        HarmonyTargetCount = if ($FailedRuntimeActivation) { 0 } else { 1 }
+        CompatibilityMode = "native"
+        ActivationStatus = if ($FailedRuntimeActivation) { "loaded-with-errors" } else { "runtime-patches-installed" }
+        CompatibilityLimit = "Runtime patches are installed, but no in-game action was exercised by this marker."
+        InGameEffectVerified = $false
+    }
+    $lastModLaunch = [ordered]@{
+        version = 2
+        generatedAtUtc = "2026-06-21T00:00:30.0000000Z"
+        playMode = "modded"
+        scannedRoots = 1
+        enabledMods = 1
+        payloadReadyMods = if ($FailedRuntimeActivation) { 0 } else { 1 }
+        runtimePatchedMods = if ($FailedRuntimeActivation) { 0 } else { 1 }
+        partialCompatibilityMods = 0
+        compatibilitySubstituteMods = 0
+        failedMods = if ($FailedRuntimeActivation) { 1 } else { 0 }
+        inGameVerifiedMods = 0
+        status = "Android mod load attempt completed; inspect per-mod activation evidence"
+        workshopModdedSaveCloudPushLocked = $true
+        steamCloudPushPerformed = $false
+        activationEvidence = @($activation)
+        selectedMods = @($selectedMod)
+    }
+    if ($MissingRuntimeActivationEvidence) {
+        $lastModLaunch.Remove("activationEvidence")
+    }
+    Save-TestText (Join-Path $BaseDir "diagnostics\last-mod-launch.json") ($lastModLaunch | ConvertTo-Json -Depth 10)
+
     if ($CaptureFailure) {
         Save-TestText (Join-Path $BaseDir "diagnostics\workshop-tree.txt") "CAPTURE_FAILED: run-as: package not debuggable"
     }
 
     $launchLog = "Selected Steam branch $runtimeBranch`nRuntime pack loaded`nLoading PCK from: $($runtimeSlot.pckPath)"
     if (($StagedPck -or $Dependency) -and -not $MissingWorkshopModLoaderScan) {
-        $launchLog += "`n[Mods] Selected root Workshop mod synthetic: exists=True, manifests=1, pcks=1, dlls=1, path=files/workshop_mods/staged/$Phase`n[Mods] Scanning Workshop mod synthetic: files/workshop_mods/staged/$Phase`nLoaded mod synthetic"
+        $launchLog += "`n[Mods] Selected root Workshop mod synthetic: exists=True, manifests=1, pcks=1, dlls=1, path=files/workshop_mods/staged/$Phase`n[Mods] Scanning Workshop mod synthetic: files/workshop_mods/staged/$Phase`n[Mods] Activation evidence: selected=1 payloadReady=1 runtimePatched=1 partial=0 substitutes=0 failed=0 inGameVerified=0"
     }
     if ($CachedDownloadReuse) {
         $launchLog += "`n[Workshop] Using cached Workshop download for Synthetic Simple Mod (111111)"
@@ -279,6 +335,14 @@ try {
     $missingLoaderScanDir = Join-Path $runRoot "negative-missing-workshop-loader-scan"
     New-WorkshopEvidenceBundle -BaseDir $missingLoaderScanDir -Phase "simple" -StagedPck -MissingWorkshopModLoaderScan
     Invoke-ReviewShouldFail -EvidenceDir $missingLoaderScanDir -Phase "simple" -Description "staged Workshop PCK without Workshop mod-loader scan log"
+
+    $missingActivationDir = Join-Path $runRoot "negative-public-missing-runtime-activation"
+    New-WorkshopEvidenceBundle -BaseDir $missingActivationDir -Phase "public" -StagedPck -MissingRuntimeActivationEvidence
+    Invoke-ReviewShouldFail -EvidenceDir $missingActivationDir -Phase "public" -Description "selected Workshop mod without runtime activation evidence"
+
+    $failedActivationDir = Join-Path $runRoot "negative-public-failed-runtime-activation"
+    New-WorkshopEvidenceBundle -BaseDir $failedActivationDir -Phase "public" -StagedPck -FailedRuntimeActivation
+    Invoke-ReviewShouldFail -EvidenceDir $failedActivationDir -Phase "public" -Description "selected Workshop mod with failed runtime activation"
 
     $missingCachedReuseDir = Join-Path $runRoot "negative-missing-cached-reuse"
     New-WorkshopEvidenceBundle -BaseDir $missingCachedReuseDir -Phase "simple" -StagedPck

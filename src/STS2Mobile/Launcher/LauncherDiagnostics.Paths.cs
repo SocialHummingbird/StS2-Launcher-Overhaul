@@ -120,6 +120,18 @@ internal static partial class LauncherDiagnostics
             Path.Combine(dataDir, LauncherStorageNames.AppLifecycle)
         );
 
+    private static DiagnosticFile ProcessExitInfo(string dataDir)
+        => new(
+            "Historical process exit info",
+            Path.Combine(dataDir, LauncherStorageNames.ProcessExitInfo)
+        );
+
+    private static DiagnosticFile RendererAttempt(string dataDir)
+        => new(
+            "Renderer attempt",
+            Path.Combine(dataDir, LauncherStorageNames.RendererAttempt)
+        );
+
     private static DiagnosticFile SteamAuthFailure(string dataDir)
         => new(
             "Steam auth failure",

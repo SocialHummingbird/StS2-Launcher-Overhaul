@@ -2,6 +2,8 @@ package com.game.sts2launcher;
 
 import org.godotengine.godot.GodotActivity;
 
+import android.app.ActivityManager;
+import android.app.ApplicationExitInfo;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -118,8 +120,13 @@ public class GodotApp extends GodotActivity {
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v35";
 	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
 	private static final String LAST_APP_LIFECYCLE_EVENT_FILE = "last_app_lifecycle_event.txt";
+	private static final String LAST_PROCESS_EXIT_INFO_FILE = "last_process_exit_info.txt";
+	private static final String LAST_RENDERER_ATTEMPT_FILE = "last_renderer_attempt.txt";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
 	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
+	private static final String RENDERER_MODE_FILE = "renderer_mode";
+	private static final int MAX_HISTORICAL_PROCESS_EXITS = 5;
+	private static final int MAX_PROCESS_EXIT_TRACE_BYTES = 64 * 1024;
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
 	private static final int MAX_BUFFERED_HTTP_RESPONSE_BYTES = 1024 * 1024;
 	private static final String FMOD_ANDROID_BANK_DIR = "/sdcard/sts2b";
@@ -177,6 +184,7 @@ public class GodotApp extends GodotActivity {
 	public void onCreate(Bundle savedInstanceState) {
 		instance = this;
 		installAndroidExceptionHandler();
+		captureHistoricalProcessExitInfo();
 		recordStartupPhase("native godot activity onCreate", "GodotApp.onCreate entered");
 		gameDir = resolveGameDir().getAbsolutePath();
 		String selectedBranch = readSelectedBranch();
@@ -372,6 +380,129 @@ public class GodotApp extends GodotActivity {
 			utcMillis + "\telapsedRealtimeMs=" + elapsedMs + "\tnativeLifecycle=" + safeEvent + "\n"
 		);
 		Log.i(TAG, "Native lifecycle event: elapsedRealtimeMs=" + elapsedMs + " event=" + safeEvent);
+	}
+
+	private void captureHistoricalProcessExitInfo() {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+			writeInternalTextFile(
+				LAST_PROCESS_EXIT_INFO_FILE,
+				"StS2 Android historical process exit info\n"
+					+ "Capture supported: false\n"
+					+ "Android SDK: " + Build.VERSION.SDK_INT + "\n"
+			);
+			return;
+		}
+
+		try {
+			ActivityManager activityManager = (ActivityManager)getSystemService(Context.ACTIVITY_SERVICE);
+			List<ApplicationExitInfo> exits = activityManager == null
+				? new ArrayList<>()
+				: activityManager.getHistoricalProcessExitReasons(
+					getPackageName(),
+					0,
+					MAX_HISTORICAL_PROCESS_EXITS
+				);
+			if (exits == null) {
+				exits = new ArrayList<>();
+			}
+			StringBuilder text = new StringBuilder();
+			text.append("StS2 Android historical process exit info\n");
+			text.append("Captured UTC millis: ").append(System.currentTimeMillis()).append('\n');
+			text.append("Package: ").append(getPackageName()).append('\n');
+			text.append("Version: ").append(BuildConfig.VERSION_NAME).append(" (").append(BuildConfig.VERSION_CODE).append(")\n");
+			text.append("Selected branch: ").append(readSelectedBranchSafely()).append('\n');
+			text.append("Previous startup phase: ").append(readPreviousStartupPhase()).append('\n');
+			text.append("Previous renderer attempt:\n").append(readInternalTextFile(LAST_RENDERER_ATTEMPT_FILE)).append('\n');
+			text.append("Historical exit count: ").append(exits.size()).append('\n');
+
+			for (int index = 0; index < exits.size(); index++) {
+				ApplicationExitInfo exit = exits.get(index);
+				text.append("\nExit #").append(index + 1).append('\n');
+				text.append("Timestamp UTC millis: ").append(exit.getTimestamp()).append('\n');
+				text.append("Process: ").append(exit.getProcessName()).append('\n');
+				text.append("PID: ").append(exit.getPid()).append('\n');
+				text.append("Real UID: ").append(exit.getRealUid()).append('\n');
+				text.append("Package UID: ").append(exit.getPackageUid()).append('\n');
+				text.append("Defining UID: ").append(exit.getDefiningUid()).append('\n');
+				text.append("Reason: ").append(processExitReasonName(exit.getReason())).append(" (").append(exit.getReason()).append(")\n");
+				text.append("Status: ").append(exit.getStatus()).append('\n');
+				text.append("Importance: ").append(exit.getImportance()).append('\n');
+				text.append("PSS KiB: ").append(exit.getPss()).append('\n');
+				text.append("RSS KiB: ").append(exit.getRss()).append('\n');
+				text.append("Description: ").append(sanitizeStartupMarkerValue(exit.getDescription())).append('\n');
+				String trace = readProcessExitTrace(exit);
+				if (!trace.isEmpty()) {
+					text.append("Trace:\n").append(trace).append('\n');
+				}
+			}
+
+			writeInternalTextFile(LAST_PROCESS_EXIT_INFO_FILE, text.toString());
+			Log.i(TAG, "Historical process exit evidence captured: count=" + exits.size());
+		} catch (Throwable e) {
+			String failure =
+				"StS2 Android historical process exit info\n"
+					+ "Capture failed: " + e.getClass().getSimpleName() + ": " + sanitizeStartupMarkerValue(e.getMessage()) + "\n";
+			writeInternalTextFile(LAST_PROCESS_EXIT_INFO_FILE, failure);
+			Log.w(TAG, "Historical process exit evidence capture failed", e);
+		}
+	}
+
+	private String readProcessExitTrace(ApplicationExitInfo exit) {
+		try (InputStream trace = exit.getTraceInputStream()) {
+			if (trace == null) {
+				return "";
+			}
+
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			byte[] buffer = new byte[4096];
+			int read;
+			while ((read = trace.read(buffer)) != -1 && out.size() < MAX_PROCESS_EXIT_TRACE_BYTES) {
+				int remaining = MAX_PROCESS_EXIT_TRACE_BYTES - out.size();
+				out.write(buffer, 0, Math.min(read, remaining));
+			}
+			return out.toString(StandardCharsets.UTF_8.name());
+		} catch (Throwable e) {
+			return "<trace unavailable:" + e.getClass().getSimpleName() + ">";
+		}
+	}
+
+	private String processExitReasonName(int reason) {
+		switch (reason) {
+			case ApplicationExitInfo.REASON_EXIT_SELF:
+				return "exit self";
+			case ApplicationExitInfo.REASON_SIGNALED:
+				return "signaled";
+			case ApplicationExitInfo.REASON_LOW_MEMORY:
+				return "low memory";
+			case ApplicationExitInfo.REASON_CRASH:
+				return "Java crash";
+			case ApplicationExitInfo.REASON_CRASH_NATIVE:
+				return "native crash";
+			case ApplicationExitInfo.REASON_ANR:
+				return "ANR";
+			case ApplicationExitInfo.REASON_INITIALIZATION_FAILURE:
+				return "initialization failure";
+			case ApplicationExitInfo.REASON_PERMISSION_CHANGE:
+				return "permission change";
+			case ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE:
+				return "excessive resource usage";
+			case ApplicationExitInfo.REASON_USER_REQUESTED:
+				return "user requested";
+			case ApplicationExitInfo.REASON_USER_STOPPED:
+				return "user stopped";
+			case ApplicationExitInfo.REASON_DEPENDENCY_DIED:
+				return "dependency died";
+			case ApplicationExitInfo.REASON_OTHER:
+				return "other";
+			case ApplicationExitInfo.REASON_FREEZER:
+				return "freezer";
+			case ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE:
+				return "package state change";
+			case ApplicationExitInfo.REASON_PACKAGE_UPDATED:
+				return "package updated";
+			default:
+				return "unknown";
+		}
 	}
 
 	private String sanitizeStartupMarkerValue(String value) {
@@ -1968,21 +2099,14 @@ public class GodotApp extends GodotActivity {
 			setLauncherBootstrapMode(false);
 			boolean safeLaunch = consumeSafeGameLaunchRequest();
 			setAutoSafeLaunchMode(safeLaunch);
-			boolean useDefaultRenderer = previousStartupPhaseWas("game startup completed");
+			AndroidRendererPolicy.Plan rendererPlan = AndroidRendererPolicy.resolve(
+				readInternalTextFile(RENDERER_MODE_FILE),
+				safeLaunch
+			);
 			patchGamePckForAndroid(pckFile);
-			if (!useDefaultRenderer) {
-				commands.add("--rendering-driver");
-				commands.add("opengl3");
-				commands.add("--rendering-method");
-				commands.add("gl_compatibility");
-			} else {
-				Log.i(TAG, safeLaunch
-					? "Using default renderer for manual safe launch"
-					: "Using default renderer because previous game startup completed but did not produce a usable screen");
-			}
-			if (safeLaunch && !useDefaultRenderer) {
-				Log.i(TAG, "Manual safe launch keeps OpenGL compatibility renderer");
-			}
+			rendererPlan.appendCommandLine(commands);
+			recordRendererAttempt(rendererPlan, safeLaunch);
+			Log.i(TAG, "Android renderer policy: " + rendererPlan.description());
 			commands.add("--verbose");
 			Log.i(TAG, "Enabled verbose Godot logging for downloaded game");
 			if (isX86Runtime()) {
@@ -1992,9 +2116,6 @@ public class GodotApp extends GodotActivity {
 			}
 			commands.add("--main-pack");
 			commands.add(pckFile.getAbsolutePath());
-			if (!useDefaultRenderer) {
-				Log.i(TAG, "Forcing OpenGL compatibility renderer for downloaded game");
-			}
 			Log.i(TAG, "Loading PCK from: " + pckFile.getAbsolutePath());
 		} else {
 			setAutoSafeLaunchMode(false);
@@ -2125,20 +2246,39 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
-	private boolean previousStartupPhaseWas(String expectedPhase) {
+	private String readPreviousStartupPhase() {
 		File marker = new File(getFilesDir(), "last_game_start_incomplete");
-		if (!marker.exists() || expectedPhase == null) {
-			return false;
+		if (!marker.exists()) {
+			return "<none>";
 		}
 
 		try (BufferedReader reader = new BufferedReader(new FileReader(marker))) {
 			reader.readLine();
 			String phase = reader.readLine();
-			return expectedPhase.equalsIgnoreCase(phase == null ? "" : phase.trim());
+			return sanitizeStartupMarkerValue(phase);
 		} catch (IOException e) {
 			Log.w(TAG, "Failed to read previous startup marker", e);
-			return false;
+			return "<unavailable:" + e.getClass().getSimpleName() + ">";
 		}
+	}
+
+	private void recordRendererAttempt(
+		AndroidRendererPolicy.Plan rendererPlan,
+		boolean safeLaunch
+	) {
+		String text =
+			"StS2 Android renderer attempt\n"
+				+ "UTC millis: " + System.currentTimeMillis() + "\n"
+				+ "Package: " + getPackageName() + "\n"
+				+ "Version: " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")\n"
+				+ "Selected branch: " + readSelectedBranchSafely() + "\n"
+				+ "Saved preference: " + rendererPlan.preference() + "\n"
+				+ "Effective mode: " + rendererPlan.effectiveMode() + "\n"
+				+ "Safe Start requested: " + safeLaunch + "\n"
+				+ "Safe Start renderer override: " + rendererPlan.safeLaunchOverride() + "\n"
+				+ "Policy: " + rendererPlan.description() + "\n"
+				+ "Previous startup phase: " + readPreviousStartupPhase() + "\n";
+		writeInternalTextFile(LAST_RENDERER_ATTEMPT_FILE, text);
 	}
 
 	private boolean consumeGameLaunchRequest() {
@@ -4471,6 +4611,17 @@ public class GodotApp extends GodotActivity {
 			return Base64.encodeToString(digest.digest(data), Base64.NO_WRAP);
 		} catch (Exception e) {
 			Log.e(TAG, "SHA-1 bridge failed", e);
+			return null;
+		}
+	}
+
+	public String sha256Base64(String dataBase64) {
+		try {
+			byte[] data = Base64.decode(dataBase64, Base64.NO_WRAP);
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			return Base64.encodeToString(digest.digest(data), Base64.NO_WRAP);
+		} catch (Exception e) {
+			Log.e(TAG, "SHA-256 bridge failed", e);
 			return null;
 		}
 	}

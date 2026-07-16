@@ -47,7 +47,7 @@ function Add-MultiVersionRuntimePatchCompatibilityChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\PatchCompatibilityValidator.Validation.cs" `
-        "creates or deletes runtime packs after non-public selected-version validation" `
+        "creates or deletes runtime packs after every selected-version validation" `
         @(
             "ValidateSelectedVersion",
             "ValidateSelectedVersionSlot",
@@ -212,6 +212,45 @@ function Add-MultiVersionRuntimePatchCompatibilityChecks {
         )
 
     Add-PatchCompatibilityRuntimePackInvalidationOwnershipCheck
+    Add-PublicRuntimePackValidationCoverageCheck
+}
+
+function Add-PublicRuntimePackValidationCoverageCheck {
+    $validatorPath = "src\STS2Mobile\Launcher\PatchCompatibilityValidator.Validation.cs"
+    $validator = Read-RepoFile $validatorPath
+    $evidencePath = "src\STS2Mobile\Launcher\PatchCompatibilityEvidence.Inspect.cs"
+    $evidence = Read-RepoFile $evidencePath
+    if ($null -eq $validator -or $null -eq $evidence) {
+        return
+    }
+
+    if ($validator -match "SteamGameBranch\.Public") {
+        $script:StaticAuditFailures.Add(
+            "$validatorPath - validates and publicizes every selected branch - public-specific bypass found"
+        )
+        return
+    }
+
+    $runtimePackEvidenceIndex = $evidence.IndexOf("runtimePack?.Usable == true", [StringComparison]::Ordinal)
+    $gameDirectoryEvidenceIndex = $evidence.IndexOf("var gameDirectoryReport = ReadValidationMarker", [StringComparison]::Ordinal)
+    $legacyPublicEvidenceIndex = $evidence.IndexOf("SteamGameBranch.Public", [StringComparison]::Ordinal)
+    if (
+        $runtimePackEvidenceIndex -lt 0 -or
+        $gameDirectoryEvidenceIndex -lt 0 -or
+        $legacyPublicEvidenceIndex -lt 0 -or
+        $runtimePackEvidenceIndex -gt $legacyPublicEvidenceIndex -or
+        $gameDirectoryEvidenceIndex -gt $legacyPublicEvidenceIndex
+    ) {
+        $script:StaticAuditFailures.Add(
+            "$evidencePath - prefers runtime-pack and failed game-directory validation over legacy public fallback - evidence order is incorrect"
+        )
+        return
+    }
+
+    $script:StaticAuditPasses += 1
+    if (-not $script:StaticAuditQuiet) {
+        Write-Host "PASS $validatorPath - validates and publicizes every selected branch"
+    }
 }
 
 function Add-PatchCompatibilityRuntimePackInvalidationOwnershipCheck {

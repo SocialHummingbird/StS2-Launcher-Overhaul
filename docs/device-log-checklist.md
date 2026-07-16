@@ -51,7 +51,7 @@ adb logcat > sts2launcher-logcat.txt
 - Include whether Steam login reached Steam Guard, authentication success, ownership verification, or failed earlier
 - Include selected branch, PCK path/hash, runtime pack path/hash, active `sts2.dll` hash, runtime cache marker, and patch validation marker for branch/startup reports when available
 - Include selected mods, mod sources, and save visibility/load result for Workshop or SavesMerger reports
-- For a post-main-menu exit, include `last_post_startup_trace.txt`, `last_post_startup_heartbeat.txt`, `last_app_lifecycle_event.txt`, and Android historical process-exit/tombstone data when available. A log captured only after the launcher restarts may omit the dying game process.
+- For a post-main-menu exit, include `last_post_startup_trace.txt`, `last_post_startup_heartbeat.txt`, `last_app_lifecycle_event.txt`, `last_renderer_attempt.txt`, and `last_process_exit_info.txt` or other Android tombstone data when available. A log captured only after the launcher restarts may omit the dying game process.
 
 ## Optional but Useful
 - Screenshot of launcher/overlay state

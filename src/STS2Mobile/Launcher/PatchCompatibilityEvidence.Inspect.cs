@@ -19,33 +19,6 @@ internal sealed partial class PatchCompatibilityEvidence
     )
     {
         branch = SteamGameBranch.Normalize(branch);
-        if (string.Equals(branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
-        {
-            return new PatchCompatibilityEvidence(
-                branch,
-                "legacy public APK baseline",
-                string.Empty,
-                PassedStatus,
-                "public branch uses the APK-bundled patch compatibility baseline",
-                branch,
-                selectedPckSha256,
-                selectedSourceAssemblySha256,
-                runtimePack?.PatchSetVersion ?? string.Empty,
-                "legacy-public-baseline",
-                "legacy-public-baseline",
-                0,
-                0,
-                0,
-                0,
-                required: false,
-                exists: true,
-                readable: true,
-                branchMatches: true,
-                pckMatches: true,
-                sourceAssemblyMatches: true
-            );
-        }
-
         if (runtimePack?.Usable == true && runtimePack.PatchValidationPassed && runtimePackSlotIdMatches)
         {
             return new PatchCompatibilityEvidence(
@@ -86,12 +59,43 @@ internal sealed partial class PatchCompatibilityEvidence
         if (runtimePackReport.Exists)
             return runtimePackReport;
 
-        return ReadValidationMarker(
+        var gameDirectoryReport = ReadValidationMarker(
             Path.Combine(gameDirectory ?? string.Empty, GameDirectoryMarkerFileName),
             branch,
             selectedPckSha256,
             selectedSourceAssemblySha256,
             "selected game directory validation marker"
         );
+        if (gameDirectoryReport.Exists)
+            return gameDirectoryReport;
+
+        if (string.Equals(branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
+        {
+            return new PatchCompatibilityEvidence(
+                branch,
+                "legacy public APK baseline",
+                string.Empty,
+                PassedStatus,
+                "public branch has not generated a validated Android runtime pack yet",
+                branch,
+                selectedPckSha256,
+                selectedSourceAssemblySha256,
+                runtimePack?.PatchSetVersion ?? string.Empty,
+                "legacy-public-baseline",
+                "legacy-public-baseline",
+                0,
+                0,
+                0,
+                0,
+                required: false,
+                exists: true,
+                readable: true,
+                branchMatches: true,
+                pckMatches: true,
+                sourceAssemblyMatches: true
+            );
+        }
+
+        return gameDirectoryReport;
     }
 }
