@@ -23,7 +23,7 @@ Workshop/mod support is in progress. The current latest APK is `v0.2.399-powervr
 
 This is not finished mod-manager UX yet:
 
-- BaseLib compatibility is currently handled by an Android direct-load path and PatchAll filter that skips known Android-incompatible BaseLib patch classes and the BaseLib extended-save registration path. This keeps the staged `BaseLib`/`Quick Restart` path launchable, but those skipped BaseLib features are not proven usable on Android.
+- BaseLib compatibility is currently handled by a partial Android direct-load path. Full upstream `PatchAll` and extended-save registration are skipped, and only targeted compatibility initialization is attempted. This keeps the staged `BaseLib`/`Quick Restart` path launchable, but arbitrary BaseLib-dependent mods are not yet proven usable on Android.
 - Core-release is not currently proven as a distinct Steam branch payload because Steam metadata exposes no separate branch manifest in the latest capture.
 - Unsupported legacy UGC-only Workshop items are visible but not downloadable through the currently implemented Steam content routes. The launcher keeps them classified as unsupported and now points users to the supported manual import folder instead of treating the sync as complete.
 - Saves Merger direct Workshop download remains unsupported, but the manual-imported mod's functional save-path behavior is now supplied by the launcher when that mod is selected.
@@ -62,6 +62,8 @@ Latest strict July 3 result: `connected-public-beta-modded-savemerger-20260703-1
 
 `v0.2.399` closes the public-branch runtime gap that prevented the proven Quick Restart path from applying to normal public launches. Public now generates the same validated Android-publicized runtime pack as non-public branches. If the current process has a different `sts2.dll` loaded, Start Game uses the existing restart handoff so Java refreshes the Godot assembly cache from the prepared pack. Connected public/default validation recorded matching prepared/active runtime hashes, three enabled mods, zero failures, BaseLib partial compatibility, SavesMerger launcher substitution, and three Quick Restart Harmony targets. The injected `Restart Room` action successfully restored an active combat room while the process remained alive.
 
+A fresh local `v0.2.400-powervr-touch-compat-local` check on July 16 reconfirmed the mod path after the renderer change. Public launched with the prepared runtime active (`sts2.dll` SHA-256 `5c3c2bead75b05883073e7ed99420c1241ecd0f99c0407bda8677a9ec7caca27`), BaseLib and Quick Restart selected, and SavesMerger disabled. Both selected DLL/PCK payloads loaded, Quick Restart installed its three exact Harmony targets, the game reached `NMainMenu`, and the UI reported `Running Modded - Loaded 2 mods`. The focused process trace contained no `MethodAccessException`, Android fatal, native signal, or ANR. Its `inGameVerifiedMods=0` marker means that run did not exercise a mod action; it is not a load-failure count. The same-device `v0.2.399` Restart Room test remains the behavioral proof.
+
 ## BaseLib Android Compatibility
 
 The current strict public-beta artifact (`artifacts/android/workshop-mods-public-beta-connected-public-beta-modded-savemerger-20260703-10-20260703-103201`) proves the launcher is no longer falling back to public or `NativeFallbackActivity`:
@@ -76,12 +78,12 @@ The current strict public-beta artifact (`artifacts/android/workshop-mods-public
 The previous `BaseLib 3.3.2` `System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues<T>.set_IsProperty(bool)` failure is fixed by targeting the mod-loader/mod-compat layer instead of copying Steam Windows BCL assemblies into the runtime pack. The Android compatibility layer now:
 
 - skips BaseLib's extended-save registration path on Android
-- replaces BaseLib PatchAll with an Android filter that skips known incompatible BaseLib patch classes
+- skips full BaseLib `PatchAll` because unrestricted type enumeration can hang on Android, then attempts only targeted compatibility initialization and patches
 - bypasses the upstream Android directory scanner for selected manifest-backed mods
-- lets the remaining BaseLib patches and dependent `Quick Restart` mod load without forbidden initializer errors in strict public-beta evidence
+- lets the dependent `Quick Restart` mod load without forbidden initializer errors and install its three exact Harmony targets
 - applies Saves Merger's `UserDataPathProvider` behavior through built-in Android compatibility patches when the manual Saves Merger mod is selected
 
-The skipped BaseLib features remain compatibility limitations until they are ported or proven unnecessary for specific mods.
+One targeted `TheBigPatchToCardPileCmdAdd.Patch` attempt failed in the July 16 local trace. The skipped and failed BaseLib features remain compatibility limitations until they are ported or proven unnecessary for specific mods. A payload reaching `Loaded` must not be treated as proof that every gameplay feature works.
 
 ## Supported Sources
 
@@ -211,7 +213,10 @@ Use `-RequirePhase public`, `-RequirePhase public-beta`, or `-RequirePhase core-
 ## Remaining Work
 
 - Expand the new first-class launcher Mods section into fuller mod-manager UX: mod list/detail, enable/disable staging, unsupported-item explanation, and clearer dependency state.
-- Keep BaseLib Android PatchAll skip coverage current as BaseLib and subscribed Workshop mods update.
+- Replace metadata-only pre-launch readiness with declared payload, dependency, version, and runtime-pack validation.
+- Surface post-launch activation states in the launcher, including active, launcher substitute, partial compatibility, loaded but behaviorally unverified, and failed.
+- Replace BaseLib's full `PatchAll` skip with a bounded allowlisted patch pipeline, expanded only through per-patch device tests.
+- Add behavioral probes for supported mods so a loaded assembly is not the final compatibility signal.
 - Keep the strict public, public-beta, public-after-beta, and core-release branch-switch evidence current as the game and Workshop items update.
 - Decide whether a legitimate additional Steam content route exists for legacy UGC-only items.
 - Keep launcher UX copy focused on user actions: sync subscribed mods, clear staged mods, and understand that Push to Cloud remains locked while modded content is active.
