@@ -82,7 +82,7 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 - [x] Capture renderer-attempt and Android historical process-exit evidence for post-restart diagnostics.
 - [x] Build and inspect an ARM64 local APK containing the patched native marker and renderer/process-exit DEX evidence.
 - [x] Publish `v0.2.399-powervr-renderer-mod-runtime` with the exact connected-device-tested APK, checksum, metadata, release limitations, and generated inventory.
-- [x] Build and validate `v0.2.400-powervr-touch-compat` with live GPU evidence, managed/native PowerVR-to-OpenGL routing, exact installed-APK hash proof, and current mod activation evidence.
+- [x] Publish `v0.2.400-powervr-touch-compat` with live GPU evidence, managed/native PowerVR-to-OpenGL routing, exact installed-APK hash proof, current mod activation evidence, and verified GitHub assets.
 - [ ] Retest issue #34 on reporter-class Pixel/PowerVR hardware before closing it.
 - [ ] Keep confirmed Push overwrite risk explicit until validated.
 - [ ] Keep Steam beta/version selection release blockers explicit until ARM64 evidence exists.

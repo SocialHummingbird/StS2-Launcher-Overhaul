@@ -4,10 +4,10 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 
 ## Current Download
 
-- Recommended newest APK release: `v0.2.399-powervr-renderer-mod-runtime`
-- APK: `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk`
-- SHA-256: `d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe`
-- GitHub `/releases/latest` non-prerelease target: `v0.2.399-powervr-renderer-mod-runtime`
+- Recommended newest APK release: `v0.2.400-powervr-touch-compat`
+- APK: `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk`
+- SHA-256: `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3`
+- GitHub `/releases/latest` non-prerelease target: `v0.2.400-powervr-touch-compat`
 
 ## Release Classes
 
@@ -21,7 +21,8 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 
 | Published | Release | Class | APK | Checksum | Metadata | Body APK/SHA | Issues |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-07-16 | `v0.2.399-powervr-renderer-mod-runtime` | `current-prerelease` | `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-16 | `v0.2.400-powervr-touch-compat` | `current-prerelease` | `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-16 | `v0.2.399-powervr-renderer-mod-runtime` | `historical-release` | `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-15 | `v0.2.398-launcher-ui-redesign` | `historical-release` | `StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-11 | `v0.2.397-atlas-memory-compat` | `historical-release` | `StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-07 | `v0.2.396-post-startup-anchor` | `historical-release` | `StS2Launcher-v0.2.396-post-startup-anchor-arm64-v8a.apk` | yes | json | yes/yes | ok |
@@ -60,7 +61,6 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 | 2026-06-20 | `v0.2.278-local-compact-label-refactor` | `historical-test-prerelease` | `StS2Launcher-v0.2.278-local-compact-label-refactor-arm64-v8a.apk` | yes | json | no/yes | body missing APK |
 | 2026-06-20 | `v0.2.277-local-helper-refactor` | `historical-test-prerelease` | `StS2Launcher-v0.2.277-local-helper-refactor-arm64-v8a.apk` | yes | json | no/yes | body missing APK |
 | 2026-06-20 | `v0.2.276-local-refactor-audits` | `historical-test-prerelease` | `StS2Launcher-v0.2.276-local-refactor-audits-arm64-v8a.apk` | yes | json | yes/yes | ok |
-| 2026-06-20 | `v0.2.275-local-mobile-ui-ux-1b6ffd1` | `historical-test-prerelease` | `StS2Launcher-v0.2.275-local-mobile-ui-ux-1b6ffd1-arm64-v8a.apk` | yes | json | no/yes | body missing APK |
 
 ## Required Hygiene For New Releases
 

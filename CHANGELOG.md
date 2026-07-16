@@ -2,10 +2,10 @@
 
 ## 2026-07-16 - PowerVR touch compatibility release
 
-- Prepared `v0.2.400-powervr-touch-compat` with exact connected-device-tested ARM64 APK `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk`, version code `400001`, and SHA-256 `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3`.
+- Published `v0.2.400-powervr-touch-compat` as GitHub's Latest release with exact connected-device-tested ARM64 APK `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk`, version code `400001`, and SHA-256 `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3`.
 - Added live graphics-device evidence and automatic PowerVR/ImgTec/Imagination routing to OpenGL Compatibility at both the managed launcher and native Android restart boundaries.
 - Preserved Auto/Vulkan/Safe Start behavior on the connected Adreno device and validated the PowerVR Vulkan-to-OpenGL handoff with a synthetic reporter-class graphics marker.
-- Confirmed exact package/signing continuity and a higher version code against `v0.2.399`; APK structure, ABI, Android crypto patches, renderer policy, PowerVR audit, and mod evidence checks passed.
+- Confirmed exact package/signing continuity and a higher version code against `v0.2.399`; APK structure, ABI, Android crypto patches, renderer policy, PowerVR audit, mod evidence, remote release digest, and GitHub release-hygiene checks passed.
 - Reconfirmed BaseLib plus Quick Restart activation on public/default startup, including Quick Restart's three installed Harmony targets and real `NMainMenu`.
 - No Steam Cloud Push was run. Actual Pixel 10 Pro / PowerVR reporter confirmation remains required before closing issue #34.
 

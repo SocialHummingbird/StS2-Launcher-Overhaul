@@ -13,7 +13,7 @@ sha256=623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3
 package=com.sts2launcher.overhaul.fork.local
 versionName=0.2.400-powervr-touch-compat-local
 versionCode=400001
-validation=Exact installed APK hash, ARM64 structure/ABI/crypto, and update-compatibility checks passed. Auto/Vulkan/Safe Start and explicit OpenGL retained their expected non-PowerVR behavior on Samsung SM-F966B / Adreno 830. A synthetic PowerVR marker forced a saved Vulkan request to OpenGL, reached real NMainMenu, wrote the three-second probe, and accepted touch. BaseLib and Quick Restart loaded with Quick Restart's three exact Harmony targets. PowerVR reporter-class proof and Steam Cloud Push remain untested. This remains a local test-signing channel and is not broad production release-candidate signoff.
+validation=Exact installed APK hash, ARM64 structure/ABI/crypto, update compatibility, remote release digest, GitHub release hygiene, and Latest publication checks passed. Auto/Vulkan/Safe Start and explicit OpenGL retained their expected non-PowerVR behavior on Samsung SM-F966B / Adreno 830. A synthetic PowerVR marker forced a saved Vulkan request to OpenGL, reached real NMainMenu, wrote the three-second probe, and accepted touch. BaseLib and Quick Restart loaded with Quick Restart's three exact Harmony targets. PowerVR reporter-class proof and Steam Cloud Push remain untested. This remains a local test-signing channel and is not broad production release-candidate signoff.
 ```
 
 ## 1) Verify workflow outcome
