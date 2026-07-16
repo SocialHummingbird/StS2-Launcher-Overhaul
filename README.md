@@ -28,20 +28,20 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 StS2 Mobile works on some tested ARM64 Android devices, but compatibility is not broad yet. Treat every APK as prerelease tester software.
 
-Latest published APK: [v0.2.400-powervr-touch-compat](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.400-powervr-touch-compat)
+Latest published APK: [v0.2.401-native-modded-save-pull](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.401-native-modded-save-pull)
 
-- APK asset: `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `400001`
-- SHA-256: `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3`
+- Version code: `401001`
+- SHA-256: `1295cdb113010063e2c3a44123cff379f110480bded5c80bd24e4896e8dbcea3`
 - Signing channel: local debug/test channel
 
 Known important limitations:
 
-- Device compatibility varies. The issue #34 reporter tested `v0.2.399` on Pixel 10 Pro / Android 17 / PowerVR: every renderer mode reached the game, but only OpenGL accepted touch. `v0.2.400` detects PowerVR and forces that OpenGL path for Auto, Vulkan, OpenGL, and Safe Start. Reporter confirmation of this release is still required.
+- Device compatibility varies. The issue #34 reporter tested `v0.2.399` on Pixel 10 Pro / Android 17 / PowerVR: every renderer mode reached the game, but only OpenGL accepted touch. The `v0.2.400` compatibility fix, retained in `v0.2.401`, detects PowerVR and forces that OpenGL path for Auto, Vulkan, OpenGL, and Safe Start. Reporter confirmation is still required.
 - The app currently targets ARM64 Android hardware. Android emulator and x86_64 builds are diagnostic only and are not supported for real game launch.
 - Some graphics drivers and renderer paths remain incompatible. On the reported PowerVR device, OpenGL works but its menus can be slow while graphics are first compiled; gameplay and later menu use were reported normal.
-- Steam version selection, beta branches, Workshop mods, and native modded-save compatibility are still experimental. SavesMerger is deprecated in current source builds because the game now owns separate modded save paths.
+- Steam version selection, beta branches, Workshop mods, and native modded-save compatibility are still experimental. `v0.2.401` deprecates SavesMerger because the game now owns separate modded save paths; its Manual Pull repair still needs exact-APK device confirmation.
 - Steam Cloud Push is intentionally cautious because it can overwrite remote saves. Pull from Steam Cloud first.
 - This is not a finished consumer app. Expect bugs, incomplete device coverage, and device-specific problems.
 
@@ -86,7 +86,7 @@ The technical goal is to improve Android startup, Steam login, Steam download, c
 - **Game file download**  
   Depot download directly from Steam, with update checking, an ARM64-validated responsive progress screen, Steam branch/version dropdown selection, a non-mutating `Refresh Game Versions` action that reads account-visible Steam app-info branch metadata, and side-by-side cached installs for non-public branches. The portal explicitly separates local version download/update actions from Steam Cloud save actions and collapses verbose version details on compact screens. Beta/version support is currently a hardening feature: dropdown labels stay concise but can show ready/build/password/unavailable badges, selected-version helper text surfaces availability/password/build metadata where Steam exposes it, known unavailable branches are blocked before game-version download/update attempts, `public-beta` has local ARM64 launch proof from its side-by-side cache, and Steam beta password entry is not implemented.
 - **Cloud saves**  
-  Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads. Pull from Cloud, Push to Cloud, and Pull-after-Push round trip are validated on ARM64 local hardening builds. In current source builds, Manual Pull prefers Steam Cloud's modded files for each profile; when only vanilla files exist, it copies the freshly downloaded upstream save set into the matching native modded profile. Any affected local modded files are first preserved under app-private backups, and diagnostics record exactly what was seeded. Pull never uploads saves. Push remains an explicit overwrite-risk action because it can replace Steam Cloud state, requires an overwrite confirmation arming tap before the final confirmation, and gates upload on current-version Pull plus Android local-save evidence. Branch-switch Push adds stricter selected-version Pull/local-save/backup evidence gates.
+  Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads. Pull from Cloud, Push to Cloud, and Pull-after-Push round trip are validated on ARM64 local hardening builds. In `v0.2.401`, Manual Pull prefers Steam Cloud's modded files for each profile; when only vanilla files exist, it copies the freshly downloaded upstream save set into the matching native modded profile. Any affected local modded files are first preserved under app-private backups, and diagnostics record exactly what was seeded. Pull never uploads saves. Push remains an explicit overwrite-risk action because it can replace Steam Cloud state, requires an overwrite confirmation arming tap before the final confirmation, and gates upload on current-version Pull plus Android local-save evidence. Branch-switch Push adds stricter selected-version Pull/local-save/backup evidence gates.
 - **Steam Workshop mods**  
   Subscribed Workshop mods can be synced into app-private Android storage and selected for the runtime mod-loader. `v0.2.399` historically validated BaseLib, Quick Restart 2, and a launcher SavesMerger substitute; Quick Restart's in-game `Restart Room` action was exercised successfully. Current source builds remove that substitute, classify SavesMerger/UnifiedSavePath as deprecated, and rely on the game's native modded save paths plus Manual Pull seeding. BaseLib remains partial Android compatibility. Workshop sync and clear do not run Steam Cloud Push; manual Push is locked while mods are selected.
 - **Mobile adaptation**  
@@ -167,7 +167,7 @@ For physical UI validation, connect one ARM64 Android device with USB debugging 
 .\scripts\test-launcher-ui-device.ps1
 ```
 
-This verifies and installs `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk` without clearing app data, launches it, captures portrait and landscape screenshots plus focused lifecycle/fatal logs under `artifacts/android/launcher-ui-device-*`, and restores the device's rotation settings. It refuses to capture a locked or system-obscured display. It does not tap launcher actions or run Steam Cloud Push.
+This verifies and installs `StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk` without clearing app data, launches it, captures portrait and landscape screenshots plus focused lifecycle/fatal logs under `artifacts/android/launcher-ui-device-*`, and restores the device's rotation settings. It refuses to capture a locked or system-obscured display. It does not tap launcher actions or run Steam Cloud Push.
 
 ## Building
 
@@ -263,7 +263,7 @@ GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
 2. Download the APK named in the current published APK block below.
-    - GitHub's `/releases/latest` currently points at `v0.2.400-powervr-touch-compat`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
+    - GitHub's `/releases/latest` currently points at `v0.2.401-native-modded-save-pull`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
     - Release inventory: [docs/github-release-inventory.md](docs/github-release-inventory.md)
     - Current release assets are ARM64-only test packages, named like:
       - `StS2Launcher-v<version>-arm64-v8a.apk`
@@ -273,13 +273,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.400-powervr-touch-compat" `
-  -AssetName "StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.401-native-modded-save-pull" `
+  -AssetName "StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.400-powervr-touch-compat" `
-  -AssetName "StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.401-native-modded-save-pull" `
+  -AssetName "StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -288,12 +288,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.400-powervr-touch-compat
-Asset: StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk
+Release: v0.2.401-native-modded-save-pull
+Asset: StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.400-powervr-touch-compat-local
-VersionCode: 400001
-SHA-256: d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe
+VersionName: 0.2.401-native-modded-save-pull-local
+VersionCode: 401001
+SHA-256: 1295cdb113010063e2c3a44123cff379f110480bded5c80bd24e4896e8dbcea3
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker. Use `scripts\check-github-release-hygiene.ps1` before announcing a release so the APK, checksum sidecar, metadata sidecar, release body, package name, version, and SHA-256 all agree on the fork release page.
@@ -340,8 +340,8 @@ Known current runtime limitations:
 
 - The app now has a validated working ARM64 path through download, cloud pull, cloud push hardening, and game launch, but this is not yet a finished release-candidate pass.
 - Push to Cloud is locally validated after the managed SHA-1 hardening fix, and that fix is included in the verified public APK line. Repeat Push confirmation/cancel smoke on the newest public APK is still required before release-candidate signoff.
-- The exact `v0.2.400` tester APK installed over the existing `com.sts2launcher.overhaul.fork.local` app data and reports version code `400001`. Its package and signer match `v0.2.399`, proving update continuity on the current local test channel, not production-signer compatibility.
-- Pixel 10 Pro / Android 17 / PowerVR issue #34 no longer reproduces the original startup crash on `v0.2.399`: all four modes reach the game. Its remaining defect is missing touch under Auto/Vulkan/Safe, while OpenGL accepts touch with temporary cold-menu slowdown. `v0.2.400` routes every PowerVR launch mode to OpenGL; actual PowerVR confirmation is still pending.
+- The `v0.2.401` APK has the same `com.sts2launcher.overhaul.fork.local` package and signer as `v0.2.400`, with version code `401001`, proving artifact-level update continuity on the current local test channel. Exact upgrade installation was not run for `v0.2.401`; this is not production-signer compatibility.
+- Pixel 10 Pro / Android 17 / PowerVR issue #34 no longer reproduces the original startup crash on `v0.2.399`: all four modes reach the game. Its remaining defect is missing touch under Auto/Vulkan/Safe, while OpenGL accepts touch with temporary cold-menu slowdown. The PowerVR-to-OpenGL route from `v0.2.400` is retained in `v0.2.401`; actual PowerVR confirmation is still pending.
 - Stale assembly cache behavior still needs repeated local upgrade coverage after signing continuity is fixed.
 - `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.
 

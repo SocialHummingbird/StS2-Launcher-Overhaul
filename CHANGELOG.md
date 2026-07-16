@@ -1,12 +1,14 @@
 # Changelog
 
-## Unreleased - Native modded-save Pull repair
+## 2026-07-16 - Native modded-save Pull release
 
 - Replaced the launcher SavesMerger save-path substitute with native modded save directories. Installed SavesMerger/UnifiedSavePath entries are now shown as deprecated and excluded from runtime activation.
 - Added Manual Pull modded-save seeding based on the game's upstream v0.108 first-launch copy set: `profile.save`, profile 1-3 progress/current-run/multiplayer-run/preferences files, and run history.
 - Made cloud-provided modded namespaces authoritative. Vanilla files are seeded only when Steam Cloud has no modded data for that account/profile, and only from content downloaded successfully during the current Pull.
 - Added mandatory app-private backups before any affected local modded file is replaced, write verification, a local provenance marker, diagnostics, and plain-language Pull status. Private backup/provenance paths are excluded from cloud discovery.
-- Added a no-device policy regression probe covering vanilla-only, mixed cloud namespaces, account metadata, path normalization, history, excluded backup/legacy files, and full SavesMerger Workshop-title detection. Managed compilation and the probe pass. No APK was built, no device save state was changed, and Steam Cloud Push was not run.
+- Added a no-device policy regression probe covering vanilla-only, mixed cloud namespaces, account metadata, path normalization, history, excluded backup/legacy files, and full SavesMerger Workshop-title detection.
+- Built `v0.2.401-native-modded-save-pull` as ARM64 APK `StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk`, version code `401001`, and SHA-256 `1295cdb113010063e2c3a44123cff379f110480bded5c80bd24e4896e8dbcea3`. Managed compilation, the policy probe, APK structure/ABI/crypto checks, and update compatibility against `v0.2.400` pass.
+- No connected-device Manual Pull/save-visibility test was run on this exact APK, no device save state was changed, and Steam Cloud Push was not run.
 
 ## 2026-07-16 - PowerVR touch compatibility release
 

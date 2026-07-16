@@ -17,7 +17,7 @@ Current device evidence ledgers:
 
 ## Headline
 
-The app works on the validated ARM64 Android path, but it is still unofficial prerelease tester software rather than release-candidate signoff. `v0.2.400-powervr-touch-compat` is the current GitHub release. Reporter testing proved the original issue #34 startup crash is resolved and isolated the remaining defect to PowerVR Vulkan touch. This release routes PowerVR devices to the working OpenGL path; actual PowerVR confirmation remains open alongside complete physical validation of the redesigned launcher, broader Workshop/mod and branch hardening, controller evidence, confirmed Push safety, and release-readiness cleanup.
+The app works on the validated ARM64 Android path, but it is still unofficial prerelease tester software rather than release-candidate signoff. `v0.2.401-native-modded-save-pull` is the current GitHub release. It retains the PowerVR-to-OpenGL compatibility work and adds native modded-save restoration after Manual Pull. The save repair has build and policy proof but still needs exact-APK device confirmation; PowerVR reporter confirmation, complete physical validation of the redesigned launcher, broader Workshop/mod and branch hardening, controller evidence, confirmed Push safety, and release-readiness cleanup also remain open.
 
 July 16 PowerVR input compatibility status:
 
@@ -84,7 +84,7 @@ Validated locally on ARM64 hardware:
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
 - The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix30 also proves public can launch immediately after a `public-beta` runtime-cache switch without routing to `NativeFallbackActivity`.
 - The latest local UI/public-startup prerelease proves fresh public redownload of `v0.107.1` reaches the game main menu with branch-matched managed runtime evidence and removes the launcher startup status overlay after startup observation.
-- Latest `v0.2.400` Workshop/mod evidence reconfirms BaseLib and Quick Restart payload loading, Quick Restart's three Harmony targets, and real `NMainMenu` with no focused fatal or native signal. Same-device v0.2.399 evidence remains the behavioral Quick Restart proof. The native modded-save Pull repair exists only in current source until a new APK is built and device-tested; no Steam Cloud Push was run during its no-device validation.
+- Latest connected `v0.2.400` Workshop/mod evidence reconfirms BaseLib and Quick Restart payload loading, Quick Restart's three Harmony targets, and real `NMainMenu` with no focused fatal or native signal. Same-device v0.2.399 evidence remains the behavioral Quick Restart proof. `v0.2.401` publishes the native modded-save Pull repair, but that behavior has not yet been device-tested on the exact APK; Steam Cloud Push was not run.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -159,16 +159,16 @@ remaining=Shader scanner emits noisy Godot error stack traces for some material/
 Latest GitHub APK release evidence:
 
 ```text
-release=v0.2.400-powervr-touch-compat
-asset=StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk
-sha256=623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3
+release=v0.2.401-native-modded-save-pull
+asset=StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk
+sha256=1295cdb113010063e2c3a44123cff379f110480bded5c80bd24e4896e8dbcea3
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.400-powervr-touch-compat-local
-versionCode=400001
-validation=Exact installed APK hash, ARM64 structure/content/crypto, update compatibility, remote digest, GitHub release hygiene, and Latest publication passed; Auto/Vulkan/Safe Start and explicit OpenGL retained expected behavior on Samsung SM-F966B / Adreno 830; a synthetic PowerVR marker forced Vulkan to OpenGL, reached real NMainMenu, wrote the three-second probe, and accepted touch; public BaseLib and Quick Restart loaded with Quick Restart's three exact Harmony targets.
+versionName=0.2.401-native-modded-save-pull-local
+versionCode=401001
+validation=Managed compilation, the four-scenario modded-save Pull policy probe, ARM64 structure/content/crypto checks, and package/signer/version update compatibility against v0.2.400 passed. Exact-APK device Manual Pull/save visibility remains untested.
 cloudSafety=No Push to Cloud was run.
-knownIssue=The reporter proved v0.2.399 reaches the game but loses touch under Vulkan; reporter-class PowerVR testing has not yet confirmed v0.2.400's automatic OpenGL route. Exact-build full cover/inner five-destination visual coverage is also not claimed.
-evidence=GitHub release v0.2.400-powervr-touch-compat assets and metadata; artifacts/android/mod-activation-investigation-20260716-2029; artifacts/android/quickrestart-public-hashfix-20260716-101558.
+knownIssue=The native modded-save Pull repair needs exact-APK device confirmation. The reporter proved v0.2.399 reaches the game but loses touch under Vulkan; reporter-class PowerVR testing has not yet confirmed the automatic OpenGL route. Exact-build full cover/inner five-destination visual coverage is also not claimed.
+evidence=GitHub release v0.2.401-native-modded-save-pull assets and metadata; no-device modded-save Pull policy probe; v0.2.400 connected PowerVR-policy and mod evidence.
 ```
 
 Previous GitHub atlas compatibility release evidence:
@@ -254,7 +254,7 @@ not_yet_proven=Exact-APK/device validation of native modded-save seeding and pro
 
 Latest public feedback themes from Reddit/GitHub:
 
-- `v0.2.400` retains the five-destination phone/wide launcher. New reports should focus on regressions such as clipping, unreachable controls, keyboard overlap, wrong destination layout, or broken rotation on unusual displays and foldables.
+- `v0.2.401` retains the five-destination phone/wide launcher. New reports should focus on regressions such as clipping, unreachable controls, keyboard overlap, wrong destination layout, or broken rotation on unusual displays and foldables.
 - Controller behavior needs focused Odin/Thor/Android-handheld testing.
 - Some devices may crash or stall during first-run shader compilation.
 - Users need exact install/update/uninstall guidance and should report exact release tags rather than "latest".
@@ -413,7 +413,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Fix28 read-only current marker evidence now exists at `artifacts/android/fix28-readonly-current-marker-status-20260619-113732`, with curated text-only public export `artifacts/android/fix28-readonly-current-marker-status-20260619-113732-public-redacted` passing `review-public-evidence-redaction.ps1`. It proves the connected device was still on local package `0.2.188-local-runtime-beta-fix28-evidence` / `versionCode=218855`, selected branch `public`, public and public-beta branch markers both present, public-beta depot manifest differing from public, SteamKit debug logs disabled (`null`), `last_manual_cloud_push.txt` missing, `last_manual_cloud_push_blocked.txt` present with before-upload block reason, and pre-Push local/cloud backup counts both `0`. The saved encrypted Steam session files were still present after the native-login-panel test with hashes matching the earlier local raw evidence. This was read-only; no Pull from Cloud or Push to Cloud was performed.
 - Fix28 capture-script hygiene evidence now exists at `artifacts/android/fix28-readonly-capture-script-diagnostics-index-20260619-1200`, with curated text-only public export `artifacts/android/fix28-readonly-capture-script-diagnostics-index-20260619-1200-public-redacted` passing `review-public-evidence-redaction.ps1`. It verifies `capture-steam-version-selection-evidence.ps1` now writes a bounded `diagnostics/launcher-diagnostics-index.txt` for external diagnostics discovery instead of accidentally collecting a device-root listing; the fixed read-only capture produced a 276-byte index. No Pull from Cloud or Push to Cloud was performed.
 - Fix29 local package `0.2.188-local-runtime-beta-fix29-diagnostics` / `versionCode=218856` built and installed on the connected ARM64 device after clearing stale generated Android build intermediates. Read-only evidence at `artifacts/android/fix29-readonly-current-marker-status-20260619-115426`, with curated text-only public export `artifacts/android/fix29-readonly-current-marker-status-20260619-115426-public-redacted` passing `review-public-evidence-redaction.ps1`, proves selected branch `public`, public and public-beta branch markers present, public-beta depot manifest `4153965503881405416` differing from public depot manifest `6171184689563260868`, SteamKit debug logs disabled (`null`), `last_manual_cloud_push.txt` missing, blocked-Push marker present, and pre-Push local/cloud backup counts both `0`. A launcher-open sanity check on the same installed package kept the app alive, focused `GodotApp`, rendered the public/default launcher UI, validated public PCK hash `8f0dbfef10a31994eb0f58e8d811db08712153c5c0d4491bc5fc4732be530f68`, wrote current runtime-slot evidence, and reported `playable=True` through the legacy packaged public runtime path. It also reported the public runtime-pack compatibility manifest as not installed, so this proves public launcher/runtime fallback status only; it does not prove public-beta gameplay or release-candidate readiness. No Pull from Cloud or Push to Cloud was performed.
-- Re-run full login/Pull/confirmed-Push/game-launch smoke on exact `v0.2.400`, and keep its local test signing boundary explicit.
+- Re-run full login/Pull/confirmed-Push/game-launch smoke on exact `v0.2.401`, and keep its local test signing boundary explicit.
 - Keep Push treated as destructive. The newest public APK has confirmation/cancel safety evidence, but confirmed Push mutation still needs an explicit newest-public smoke before release-candidate signoff.
 - Repeated local stale assembly cache/freshness checks across in-place local upgrade once signing continuity is restored.
 - Repeat release asset hygiene on every new release: signer, package name, versionCode monotonicity, checksums, structural verifier, and GitHub release notes.
