@@ -7,13 +7,13 @@ Use this checklist after every release run (manual or tag-triggered) to confirm 
 Current GitHub APK release reference:
 
 ```text
-release=v0.2.399-powervr-renderer-mod-runtime
-asset=StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk
-sha256=d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe
+release=v0.2.400-powervr-touch-compat
+asset=StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk
+sha256=623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local
-versionCode=399004
-validation=ARM64 APK structure/ABI/crypto and update-compatibility checks passed. Exact update install preserved app data. Auto/Vulkan and explicit OpenGL reached real NMainMenu with heartbeats through 120 seconds on Samsung SM-F966B / Adreno 830. Public BaseLib, Quick Restart, and SavesMerger activation recorded zero failures, and Quick Restart restored an active combat room. GitHub release hygiene and Latest publication passed. PowerVR reporter-class proof and Steam Cloud Push remain untested. This remains a local test-signing channel and is not broad production release-candidate signoff.
+versionName=0.2.400-powervr-touch-compat-local
+versionCode=400001
+validation=Exact installed APK hash, ARM64 structure/ABI/crypto, and update-compatibility checks passed. Auto/Vulkan/Safe Start and explicit OpenGL retained their expected non-PowerVR behavior on Samsung SM-F966B / Adreno 830. A synthetic PowerVR marker forced a saved Vulkan request to OpenGL, reached real NMainMenu, wrote the three-second probe, and accepted touch. BaseLib and Quick Restart loaded with Quick Restart's three exact Harmony targets. PowerVR reporter-class proof and Steam Cloud Push remain untested. This remains a local test-signing channel and is not broad production release-candidate signoff.
 ```
 
 ## 1) Verify workflow outcome
@@ -85,8 +85,8 @@ Checklist: [multi-version runtime release gates](multi-version-runtime-release-g
 ```powershell
 .\scripts\check-github-release-hygiene.ps1 `
   -Repo "SocialHummingbird/StS2-Launcher-Overhaul" `
-  -ReleaseTag "v0.2.399-powervr-renderer-mod-runtime" `
-  -AssetName "StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk"
+  -ReleaseTag "v0.2.400-powervr-touch-compat" `
+  -AssetName "StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk"
 
 .\scripts\audit-github-release-inventory.ps1 `
   -Repo "SocialHummingbird/StS2-Launcher-Overhaul" `
@@ -103,8 +103,8 @@ Run the release verifier against the exact release tag and asset:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.399-powervr-renderer-mod-runtime" `
-  -AssetName "StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.400-powervr-touch-compat" `
+  -AssetName "StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -124,8 +124,8 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.399-powervr-renderer-mod-runtime" `
-  -AssetName "StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.400-powervr-touch-compat" `
+  -AssetName "StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics

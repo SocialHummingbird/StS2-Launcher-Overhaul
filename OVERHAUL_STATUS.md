@@ -13,14 +13,14 @@ Validated baseline:
 - Pull from Cloud downloads Steam Cloud files into Android local app storage.
 - `v0.2.398-launcher-ui-redesign` publishes five stable Home/Saves/Versions/Mods/Help destinations with phone bottom navigation and wide/foldable top navigation. Its 20-viewport deterministic preview, accessibility/bounds/target checks, event contract, 819-check static audit, exact ARM64 update install, and release hygiene passed; final unlocked physical portrait/landscape capture remains pending after the device disconnected.
 - `v0.2.399-powervr-renderer-mod-runtime` publishes the all-PowerVR engine workaround, Auto/Vulkan/OpenGL/Safe Start policy, lifecycle/process-exit diagnostics, Android-safe mod identity hashing, public runtime-pack activation, and per-mod evidence. Connected Adreno validation reached real `NMainMenu` under Auto/Vulkan and explicit OpenGL, produced post-startup heartbeats through 120 seconds, and exercised Quick Restart in combat with zero selected-mod runtime failures.
-- The issue #34 reporter subsequently proved `v0.2.399` reaches the game in all four renderer modes on Pixel 10 Pro / Android 17 / PowerVR. Auto, Vulkan, and Safe Start lose touch; OpenGL accepts touch, with slow first menu use but normal gameplay and later menus. An unpublished local `0.2.400-powervr-touch-compat-local` candidate captures the live GPU and forces OpenGL for every PowerVR launch mode.
+- The issue #34 reporter subsequently proved `v0.2.399` reaches the game in all four renderer modes on Pixel 10 Pro / Android 17 / PowerVR. Auto, Vulkan, and Safe Start lose touch; OpenGL accepts touch, with slow first menu use but normal gameplay and later menus. `v0.2.400-powervr-touch-compat` captures the live GPU and forces OpenGL for every PowerVR launch mode.
 - The game launches and reads the pulled profile in-game.
 - Startup freshness and assembly cache diagnostics prove the current installed runtime is being used.
-- Current GitHub release: `v0.2.399-powervr-renderer-mod-runtime`, APK `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk`, version code `399004`, local test signing channel.
+- Current GitHub release: `v0.2.400-powervr-touch-compat`, APK `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk`, version code `400001`, local test signing channel.
 
 Active blockers:
 
-- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains open after the reporter tested `v0.2.399`. The original startup crash is no longer present, but touch fails on PowerVR's Vulkan path. The unpublished compatibility candidate forces OpenGL for PowerVR and passes connected Adreno plus synthetic PowerVR-policy validation; reporter-class confirmation and cold-menu timing remain pending.
+- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains open after the reporter tested `v0.2.399`. The original startup crash is no longer present, but touch fails on PowerVR's Vulkan path. `v0.2.400` forces OpenGL for PowerVR and passes connected Adreno plus synthetic PowerVR-policy validation; reporter-class confirmation and cold-menu timing remain pending.
 - Exact-build unlocked physical validation of all five launcher destinations, portrait/landscape rotation, cover/inner displays, and real game handoff remains incomplete.
 - Steam beta/version selection is implemented for validation but not release-signed. The launcher now exposes discovery-led public/non-public selector guidance, labels refreshed branch options with concise metadata badges, blocks known unavailable selected branches before game-version download/update attempts, records selected-version notes in diagnostics/logs/branch-switch/Pull/Push evidence, mirrors guidance in native routing/fallback diagnostics, blocks native selected-version launch when branch provenance is missing or mismatched, and guards the static contract through CI. ARM64 evidence still needs to prove public/default regression safety, account-visible non-public branch download/startup routing, branch marker provenance, inaccessible/private/password branch handling, cache cleanup, save compatibility, Pull-before-Push/current-backup safety, pre-Push backup evidence, and successful selected-version Push marker evidence. The current signoff contract is tracked in `docs/steam-version-selection-release-readiness.md`.
 - Confirmed Push to Cloud on the newest public APK still needs explicit overwrite-risk smoke because it can overwrite real Steam Cloud state.
@@ -53,8 +53,8 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 - Keep launcher recovery and sync status UX clear enough that successful startup and local-save runtime behavior are not presented as failures.
 - Reduce low-value diagnostics while preserving startup freshness, assembly cache, cloud-save, and release-evidence logs.
 - Maintain artifact hygiene for APKs, checksums, logs, summaries, and validation manifests.
-- Complete the remaining exact-build five-destination portrait/landscape and foldable display checks on `v0.2.399` without Steam Cloud Push.
-- Build and publish the PowerVR touch-compatibility candidate only when explicitly requested, then retest it on Pixel/PowerVR hardware before calling issue #34 resolved.
+- Complete the remaining exact-build five-destination portrait/landscape and foldable display checks on `v0.2.400` without Steam Cloud Push.
+- Retest `v0.2.400` on Pixel/PowerVR hardware before calling issue #34 resolved.
 
 ## Notes
 

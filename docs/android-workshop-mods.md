@@ -8,7 +8,7 @@ This document tracks the Android Workshop/mod path for StS2 Mobile. It covers su
 
 ## Current State
 
-Workshop/mod support is in progress. The current latest APK is `v0.2.399-powervr-renderer-mod-runtime`. It preserves the dedicated Mods destination and adds strict public/default per-mod activation evidence plus connected behavioral Quick Restart proof. The current Android Workshop path can discover, stage, present, and launch the tested mod set:
+Workshop/mod support is in progress. The current latest APK is `v0.2.400-powervr-touch-compat`. It preserves the v0.2.399 dedicated Mods destination, strict public/default per-mod activation evidence, and connected behavioral Quick Restart proof while adding PowerVR touch-compatible renderer routing. The current Android Workshop path can discover, stage, present, and launch the tested mod set:
 
 - `Sync Workshop Mods` discovers subscribed Workshop items from Steam.
 - Usable Workshop items are downloaded from Steam depot manifests or direct UGC URLs.

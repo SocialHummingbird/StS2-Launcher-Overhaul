@@ -28,17 +28,17 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 StS2 Mobile works on some tested ARM64 Android devices, but compatibility is not broad yet. Treat every APK as prerelease tester software.
 
-Latest published APK: [v0.2.399-powervr-renderer-mod-runtime](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.399-powervr-renderer-mod-runtime)
+Latest published APK: [v0.2.400-powervr-touch-compat](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.400-powervr-touch-compat)
 
-- APK asset: `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `399004`
-- SHA-256: `d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe`
+- Version code: `400001`
+- SHA-256: `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3`
 - Signing channel: local debug/test channel
 
 Known important limitations:
 
-- Device compatibility varies. The issue #34 reporter tested `v0.2.399` on Pixel 10 Pro / Android 17 / PowerVR: every renderer mode reached the game, but only OpenGL accepted touch. Current unpublished source detects PowerVR and forces the working OpenGL path for Auto, Vulkan, OpenGL, and Safe Start. Reporter confirmation of that candidate is still required.
+- Device compatibility varies. The issue #34 reporter tested `v0.2.399` on Pixel 10 Pro / Android 17 / PowerVR: every renderer mode reached the game, but only OpenGL accepted touch. `v0.2.400` detects PowerVR and forces that OpenGL path for Auto, Vulkan, OpenGL, and Safe Start. Reporter confirmation of this release is still required.
 - The app currently targets ARM64 Android hardware. Android emulator and x86_64 builds are diagnostic only and are not supported for real game launch.
 - Some graphics drivers and renderer paths remain incompatible. On the reported PowerVR device, OpenGL works but its menus can be slow while graphics are first compiled; gameplay and later menu use were reported normal.
 - Steam version selection, beta branches, Workshop mods, and save-merger behavior are still experimental.
@@ -116,7 +116,7 @@ Saves compiled pipelines when the app loses focus, preventing recompilation afte
 - **Canvas ubershaders**  
 Enable ubershader fallback for 2D rendering, eliminating first-encounter VFX stutters from blocking pipeline compilation.
 - **PowerVR transform-feedback cache safety**
-The custom engine remains based on Godot 4.5.1 but now backports Godot 4.5.2's all-PowerVR workaround, disabling the unsafe GLES3 transform-feedback shader cache whenever the renderer name contains `PowerVR`. The launcher exposes Auto, Vulkan, and OpenGL modes instead of forcing OpenGL, and Safe Start uses Auto with no renderer override. This is published in `v0.2.399`; Pixel 10 / PowerVR issue #34 remains open until a reporter-class device confirms it.
+The custom engine remains based on Godot 4.5.1 but backports Godot 4.5.2's all-PowerVR workaround, disabling the unsafe GLES3 transform-feedback shader cache whenever the renderer name contains `PowerVR`. `v0.2.400` additionally reads the live GPU identity and forces OpenGL Compatibility on PowerVR because reporter testing showed that Vulkan reached the game but did not accept touch. Non-PowerVR devices retain Auto, Vulkan, OpenGL, and Safe Start behavior. Pixel 10 / PowerVR issue #34 remains open until a reporter-class device confirms this release.
 
 ## Project Structure
 
@@ -263,7 +263,7 @@ GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
 2. Download the APK named in the current published APK block below.
-    - GitHub's `/releases/latest` currently points at `v0.2.399-powervr-renderer-mod-runtime`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
+    - GitHub's `/releases/latest` currently points at `v0.2.400-powervr-touch-compat`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
     - Release inventory: [docs/github-release-inventory.md](docs/github-release-inventory.md)
     - Current release assets are ARM64-only test packages, named like:
       - `StS2Launcher-v<version>-arm64-v8a.apk`
@@ -273,13 +273,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.399-powervr-renderer-mod-runtime" `
-  -AssetName "StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.400-powervr-touch-compat" `
+  -AssetName "StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.399-powervr-renderer-mod-runtime" `
-  -AssetName "StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.400-powervr-touch-compat" `
+  -AssetName "StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -288,11 +288,11 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.399-powervr-renderer-mod-runtime
-Asset: StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk
+Release: v0.2.400-powervr-touch-compat
+Asset: StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local
-VersionCode: 399004
+VersionName: 0.2.400-powervr-touch-compat-local
+VersionCode: 400001
 SHA-256: d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe
 ```
 
@@ -340,8 +340,8 @@ Known current runtime limitations:
 
 - The app now has a validated working ARM64 path through download, cloud pull, cloud push hardening, and game launch, but this is not yet a finished release-candidate pass.
 - Push to Cloud is locally validated after the managed SHA-1 hardening fix, and that fix is included in the verified public APK line. Repeat Push confirmation/cancel smoke on the newest public APK is still required before release-candidate signoff.
-- The exact `v0.2.399` tester APK installed over the existing `com.sts2launcher.overhaul.fork.local` app data and reports version code `399004`. Its package and signer match `v0.2.398`, proving update continuity on the current local test channel, not production-signer compatibility.
-- Pixel 10 Pro / Android 17 / PowerVR issue #34 no longer reproduces the original startup crash on `v0.2.399`: all four modes reach the game. Its remaining defect is missing touch under Auto/Vulkan/Safe, while OpenGL accepts touch with temporary cold-menu slowdown. Unpublished source now routes every PowerVR launch mode to OpenGL; actual PowerVR confirmation is still pending.
+- The exact `v0.2.400` tester APK installed over the existing `com.sts2launcher.overhaul.fork.local` app data and reports version code `400001`. Its package and signer match `v0.2.399`, proving update continuity on the current local test channel, not production-signer compatibility.
+- Pixel 10 Pro / Android 17 / PowerVR issue #34 no longer reproduces the original startup crash on `v0.2.399`: all four modes reach the game. Its remaining defect is missing touch under Auto/Vulkan/Safe, while OpenGL accepts touch with temporary cold-menu slowdown. `v0.2.400` routes every PowerVR launch mode to OpenGL; actual PowerVR confirmation is still pending.
 - Stale assembly cache behavior still needs repeated local upgrade coverage after signing continuity is fixed.
 - `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.
 

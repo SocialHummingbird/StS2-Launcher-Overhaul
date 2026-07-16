@@ -4,7 +4,7 @@ See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS
 
 This project needs focused Android tester reports more than broad "works for me" comments. Good reports help confirm device compatibility, Steam Cloud safety, public/beta branch behavior, and mod loading without exposing Steam account data.
 
-Current APK for tester reports: `v0.2.399-powervr-renderer-mod-runtime` / `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk`.
+Current APK for tester reports: `v0.2.400-powervr-touch-compat` / `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk`.
 
 ## Current Priority
 
@@ -14,7 +14,7 @@ Current APK for tester reports: `v0.2.399-powervr-renderer-mod-runtime` / `StS2L
    - Any black screen, native fallback screen, shader compile stall, or app crash.
    - For Start Game failures, attach `last_launch_attempt.txt` when available. Current source builds record a per-press attempt ID, selected branch, ready/blocked state, runtime slot ID, selected PCK path/hash, source and active `sts2.dll` paths/hashes, runtime pack path/status, runtime cache marker path/presence, runtime patch-validation marker path/presence, patch compatibility marker path/status, whether the prepared readiness result was used, whether readiness came from a fresh check or an in-memory cache hit, and elapsed timing for total launch attempt, selected-version readiness, and mod readiness. Modded starts also record play mode, enabled mod count, selected mods, selector cache status, and whether modded-save Cloud Push was locked. Cache hits are only valid while the selected PCK, branch marker, release info, source assembly, runtime pack manifest, runtime cache marker, patch-validation marker, mod selection, Workshop manifest, and cheap metadata digests for all staged/manual `.json`, `.pck`, and `.dll` mod files are unchanged.
    - For shader reports, attach `last_shader_warmup_status.txt` when available. `completed` means the full precompile pass finished; `completed-partial` means the launcher intentionally continued startup with degraded shader-cache coverage after a budget or compatibility cap. Current source builds also include render-plan evidence, batch size, target material count, scanner counters such as scenes scanned, unique materials, budget-stop state, and scanner failure counts. Current ARM64 evidence on `SM-F966B` completes v7 bounded public warmup with `Render plan: android-bounded-large-shader-set`, `Render target materials: 128/1592`, and no app crash signatures; weaker-device reports are still needed.
-   - Pixel 10 / PowerVR reports are a specific renderer/engine investigation, not a generic low-performance category. The reporter's `v0.2.399` test reaches the game in every mode, but touch works only in OpenGL. Current unpublished source forces OpenGL on detected PowerVR devices. Record requested/effective mode, `graphics_device.txt`, whether touch works, time until the first menu becomes responsive, and whether later menus remain slow. Attach `last_renderer_attempt.txt` and `last_process_exit_info.txt` when present.
+   - Pixel 10 / PowerVR reports are a specific renderer/engine investigation, not a generic low-performance category. The reporter's `v0.2.399` test reaches the game in every mode, but touch works only in OpenGL. `v0.2.400` forces OpenGL on detected PowerVR devices. Record requested/effective mode, `graphics_device.txt`, whether touch works, time until the first menu becomes responsive, and whether later menus remain slow. Attach `last_renderer_attempt.txt` and `last_process_exit_info.txt` when present.
 
 2. **Public/default game launch**
    - Fresh install or update install.
@@ -54,13 +54,13 @@ Current APK for tester reports: `v0.2.399-powervr-renderer-mod-runtime` / `StS2L
 
 | Device class | Android ABI | Evidence | Status |
 | --- | --- | --- | --- |
-| Physical ARM64 Samsung test device | `arm64-v8a` | Exact `v0.2.399` evidence plus unpublished `0.2.400-powervr-touch-compat-local`; Auto/Vulkan/Safe and explicit OpenGL policy checks; real `NMainMenu`; Vulkan and OpenGL touch; synthetic PowerVR Vulkan-to-OpenGL handoff; earlier mod and cloud evidence | Working in connected validation; actual PowerVR and full physical viewport coverage pending |
+| Physical ARM64 Samsung test device | `arm64-v8a` | Exact `v0.2.400` APK; Auto/Vulkan/Safe and explicit OpenGL policy checks; real `NMainMenu`; Vulkan and OpenGL touch; synthetic PowerVR Vulkan-to-OpenGL handoff; public mod activation; earlier cloud evidence | Working in connected validation; actual PowerVR and full physical viewport coverage pending |
 | Android x86_64 emulator | `x86_64` | Install/routing/native fallback diagnostics only | Not a game-launch proof target |
 
 ## Current Practical Device Floor
 
 - ARM64 Android hardware is the proof target.
-- Renderer/driver compatibility must be validated per device. `v0.2.399` reaches the game on the reporter's PowerVR device, but Vulkan touch fails there. Unpublished source routes PowerVR to OpenGL and still needs reporter-class proof.
+- Renderer/driver compatibility must be validated per device. `v0.2.399` reaches the game on the reporter's PowerVR device, but Vulkan touch fails there. `v0.2.400` routes PowerVR to OpenGL and still needs reporter-class proof.
 - Android x86_64 emulator results do not prove game support.
 - There is not enough cross-device evidence yet to publish a precise RAM/GPU minimum. Current high-end ARM64 proof is `SM-F966B`, Android 16/API 36, 8 processors, about 11.6GB total memory, full v6 warmup in 40149ms.
 - Do not classify a device as below the support floor from `completed-partial` alone. Attach focused logcat and post-startup markers so renderer bugs, lifecycle exits, and genuine memory pressure can be separated.

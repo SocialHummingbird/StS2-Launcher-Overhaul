@@ -13,9 +13,9 @@ GitHub issue #34 reporter testing used `v0.2.399-powervr-renderer-mod-runtime` o
 
 The original startup/process-teardown failure is no longer reproduced. The remaining defect is specific to touch delivery on the PowerVR Vulkan path. The OpenGL timing pattern is consistent with first-use graphics compilation or cache creation, not sustained device underperformance. The reporter evidence contains no new `NativeFallback`, Java fatal, native signal, ANR, or low-memory kill proving a new process crash.
 
-## Candidate Policy
+## v0.2.400 Policy
 
-Unpublished source captures the live Godot adapter name, adapter vendor, rendering driver, and rendering method in `graphics_device.txt` when the managed launcher starts. PowerVR, ImgTec, or Imagination evidence selects OpenGL in launcher preferences.
+`v0.2.400-powervr-touch-compat` captures the live Godot adapter name, adapter vendor, rendering driver, and rendering method in `graphics_device.txt` when the managed launcher starts. PowerVR, ImgTec, or Imagination evidence selects OpenGL in launcher preferences.
 
 The Android restart boundary independently reads that evidence. On PowerVR it forces `--rendering-driver opengl3 --rendering-method gl_compatibility` for Auto, Vulkan, OpenGL, and Safe Start. The launcher keeps OpenGL selected and disables Auto/Vulkan with a compatibility tooltip so the visible controls match the effective policy. `last_renderer_attempt.txt` preserves the requested preference and records the effective mode plus whether PowerVR compatibility was active.
 
@@ -53,6 +53,6 @@ The APK installed as an update with app data preserved and passed APK content/AB
 
 The first integrated run exposed and fixed a parser regression where the text `PowerVR compatibility required: False` could match a naive PowerVR substring search. The native parser now honors the explicit boolean before vendor-name fallback, and the exact Adreno evidence file is a regression test.
 
-The synthetic marker proves the native handoff and renderer command-line policy. It does not reproduce or certify the reporter's PowerVR driver. Actual Pixel/PowerVR testing is still required before issue #34 can be closed. OpenGL cold-menu performance remains a measured compatibility tradeoff; no speculative game-content or shader redesign was made.
+The exact installed APK SHA-256 matches the release artifact: `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3`. The synthetic marker proves the native handoff and renderer command-line policy. It does not reproduce or certify the reporter's PowerVR driver. Actual Pixel/PowerVR testing is still required before issue #34 can be closed. OpenGL cold-menu performance remains a measured compatibility tradeoff; no speculative game-content or shader redesign was made.
 
 Steam Cloud Push was not run.
