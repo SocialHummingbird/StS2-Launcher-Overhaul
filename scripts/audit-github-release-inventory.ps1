@@ -44,6 +44,9 @@ function Get-ReleaseClass {
     )
 
     if ($IsNewestApkRelease) {
+        if (-not $Release.prerelease) {
+            return "current-release"
+        }
         return "current-prerelease"
     }
     if ($IsGitHubLatestNonPrerelease) {
@@ -173,7 +176,8 @@ if ($OutputPath) {
     $lines.Add("")
     $lines.Add("## Release Classes")
     $lines.Add("")
-    $lines.Add('- `current-prerelease`: newest APK release and the current recommended tester download.')
+    $lines.Add('- `current-release`: newest APK release when GitHub publishes it as a non-prerelease.')
+    $lines.Add('- `current-prerelease`: newest APK release when GitHub publishes it as a prerelease; still the recommended tester download.')
     $lines.Add('- `github-latest-non-prerelease`: what GitHub marks as Latest when prereleases are excluded; may be older than the recommended APK.')
     $lines.Add('- `historical-test-prerelease`: older local/debug/evidence/audit build kept for traceability.')
     $lines.Add('- `historical-prerelease`: older prerelease kept for traceability.')

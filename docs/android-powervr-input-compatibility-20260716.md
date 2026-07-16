@@ -29,7 +29,7 @@ No upstream Slay the Spire 2 game files were modified. The change is confined to
 
 ## Connected Validation
 
-Local evidence APK:
+Exact release APK:
 
 ```text
 VersionName: 0.2.400-powervr-touch-compat-local

@@ -167,7 +167,7 @@ For physical UI validation, connect one ARM64 Android device with USB debugging 
 .\scripts\test-launcher-ui-device.ps1
 ```
 
-This verifies and installs `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk` without clearing app data, launches it, captures portrait and landscape screenshots plus focused lifecycle/fatal logs under `artifacts/android/launcher-ui-device-*`, and restores the device's rotation settings. It refuses to capture a locked or system-obscured display. It does not tap launcher actions or run Steam Cloud Push.
+This verifies and installs `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk` without clearing app data, launches it, captures portrait and landscape screenshots plus focused lifecycle/fatal logs under `artifacts/android/launcher-ui-device-*`, and restores the device's rotation settings. It refuses to capture a locked or system-obscured display. It does not tap launcher actions or run Steam Cloud Push.
 
 ## Building
 

@@ -11,7 +11,8 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 
 ## Release Classes
 
-- `current-prerelease`: newest APK release and the current recommended tester download.
+- `current-release`: newest APK release when GitHub publishes it as a non-prerelease.
+- `current-prerelease`: newest APK release when GitHub publishes it as a prerelease; still the recommended tester download.
 - `github-latest-non-prerelease`: what GitHub marks as Latest when prereleases are excluded; may be older than the recommended APK.
 - `historical-test-prerelease`: older local/debug/evidence/audit build kept for traceability.
 - `historical-prerelease`: older prerelease kept for traceability.
@@ -21,7 +22,7 @@ Generated from `SocialHummingbird/StS2-Launcher-Overhaul` with `scripts/audit-gi
 
 | Published | Release | Class | APK | Checksum | Metadata | Body APK/SHA | Issues |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-07-16 | `v0.2.400-powervr-touch-compat` | `current-prerelease` | `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
+| 2026-07-16 | `v0.2.400-powervr-touch-compat` | `current-release` | `StS2Launcher-v0.2.400-powervr-touch-compat-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-16 | `v0.2.399-powervr-renderer-mod-runtime` | `historical-release` | `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-15 | `v0.2.398-launcher-ui-redesign` | `historical-release` | `StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk` | yes | json | yes/yes | ok |
 | 2026-07-11 | `v0.2.397-atlas-memory-compat` | `historical-release` | `StS2Launcher-v0.2.397-atlas-memory-compat-arm64-v8a.apk` | yes | json | yes/yes | ok |
