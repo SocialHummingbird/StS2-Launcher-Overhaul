@@ -4,7 +4,7 @@ This roadmap tracks the overhaul phases and the current Android release-hardenin
 
 ## Current release posture
 
-The app has a working ARM64 Android baseline and a published five-destination launcher redesign. The unreleased source now includes the targeted Pixel/PowerVR engine and renderer-policy fix, but it is not yet release-candidate complete because reporter-class compatibility confirmation, exact-build physical UI/game-handoff validation, confirmed Push-to-Cloud upload, production-signing upgrade behavior, Steam version-selection hardening, and repeated release-readiness evidence remain open.
+The app has a working ARM64 Android baseline, a five-destination launcher, and a published PowerVR/renderer plus public-mod-runtime update. It is not yet release-candidate complete because reporter-class PowerVR confirmation, exact-build physical UI coverage, confirmed Push-to-Cloud upload, production-signing upgrade behavior, Steam version-selection hardening, and repeated release-readiness evidence remain open.
 
 Canonical status: [docs/current-android-status.md](docs/current-android-status.md)
 
@@ -27,7 +27,7 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 - [x] Present the launcher reliably on fresh ARM64 installs.
 - [x] Replace the all-in-one scroll surface with Home, Saves, Versions, Mods, and Help destinations plus phone/wide navigation.
 - [x] Add deterministic phone, landscape, foldable, and desktop preview/accessibility/event-contract validation.
-- [ ] Complete exact `v0.2.398` unlocked physical destination, rotation, cover/inner display, and real game-handoff validation.
+- [ ] Complete exact `v0.2.399` unlocked physical destination, rotation, and cover/inner display validation; real public game handoff is proven on the connected ARM64 device.
 - [x] Preserve Android local save behavior even when cloud sync is disabled.
 - [x] Improve cloud sync wording from ambiguous auto-sync language to explicit Game Cloud Sync behavior.
 - [ ] Continue polishing recovery/status text so successful startup is not presented as a failure.
@@ -70,7 +70,7 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 ## Phase 6 - Device lifecycle and install-path validation
 
 - [x] Add startup freshness and assembly cache diagnostics for installed runtime/schema/cache evidence.
-- [x] Install exact `v0.2.398` over existing local-package app data and verify version code `398031`.
+- [x] Install exact `v0.2.399` over existing local-package app data and verify version code `399004` plus update-compatible package/signing continuity from `v0.2.398`.
 - [ ] Validate upgrade install behavior from the current public release baseline.
 - [ ] Validate locked-screen interruption and return-to-app after manual unlock.
 - [ ] Repeat stale assembly cache/freshness checks across reinstall and upgrade scenarios.
@@ -81,7 +81,8 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 - [x] Backport the Godot 4.5.2 all-PowerVR transform-feedback shader-cache workaround and repair Auto/Vulkan/OpenGL plus Safe Start behavior in source.
 - [x] Capture renderer-attempt and Android historical process-exit evidence for post-restart diagnostics.
 - [x] Build and inspect an ARM64 local APK containing the patched native marker and renderer/process-exit DEX evidence.
-- [ ] Retest issue #34 on reporter-class Pixel/PowerVR hardware before publishing or closing it.
+- [x] Publish `v0.2.399-powervr-renderer-mod-runtime` with the exact connected-device-tested APK, checksum, metadata, release limitations, and generated inventory.
+- [ ] Retest issue #34 on reporter-class Pixel/PowerVR hardware before closing it.
 - [ ] Keep confirmed Push overwrite risk explicit until validated.
 - [ ] Keep Steam beta/version selection release blockers explicit until ARM64 evidence exists.
 - [ ] Keep x86_64 emulator limitations explicit.

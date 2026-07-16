@@ -14,7 +14,7 @@ $ErrorActionPreference = "Stop"
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 if (-not $ApkPath) {
-    $ApkPath = Join-Path $root "artifacts\android\StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk"
+    $ApkPath = Join-Path $root "artifacts\android\StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk"
 }
 if (-not (Test-Path -LiteralPath $ApkPath -PathType Leaf)) {
     throw "Launcher UI APK not found: $ApkPath"

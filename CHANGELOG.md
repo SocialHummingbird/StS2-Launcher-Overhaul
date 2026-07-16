@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-16 - PowerVR renderer and public mod runtime release
+
+- Published `v0.2.399-powervr-renderer-mod-runtime` as GitHub's Latest release with exact connected-device-tested ARM64 APK `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk`, version code `399004`, and SHA-256 `d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe`.
+- Verified package/signing continuity and a higher version code against `v0.2.398`; GitHub release hygiene passed for the APK, checksum sidecar, JSON metadata, release body, and Latest target.
+- Connected Samsung `SM-F966B` / Android 16 / Adreno 830 validation reached real `NMainMenu` under Auto/Vulkan and explicit OpenGL, wrote post-startup probes and heartbeats through 120 seconds, and contained no focused target-process fallback/fatal/native/ANR/kill signature.
+- Fixed the Android native signal 11 found during mod identity hashing by routing launch-readiness SHA-256 through the Java bridge, then fixed nested selected-root/runtime-manifest activation evidence matching.
+- Validated public/default BaseLib, Quick Restart 2, and SavesMerger with three enabled mods and zero failed runtime loads. Quick Restart installed three Harmony targets and its in-game `Restart Room` action successfully restored an active combat room; BaseLib remains partial Android compatibility and SavesMerger uses the launcher substitute.
+- Kept issue #34 open because the connected device is Adreno rather than PowerVR. The release contains the leading PowerVR fix, but reporter-class hardware confirmation is still required. Steam Cloud Push was not run.
+
 ## 2026-07-15 - PowerVR renderer compatibility implementation
 
 - Backported Godot's 4.5.2 all-PowerVR transform-feedback shader-cache workaround onto the custom 4.5.1 Android engine. The release workflow now builds that patched engine from source instead of reusing the historical `v0.2.88` native library.

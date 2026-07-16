@@ -8,7 +8,7 @@ This document tracks the Android Workshop/mod path for StS2 Mobile. It covers su
 
 ## Current State
 
-Workshop/mod support is in progress. The current latest APK is `v0.2.398-launcher-ui-redesign`; the latest strict modded game-runtime evidence is still the July 3 public-beta validation noted below. `v0.2.398` moves these controls into the dedicated Mods destination but does not replace that strict runtime evidence. The current Android Workshop path can discover, stage, present, and launch the tested public-beta mod set:
+Workshop/mod support is in progress. The current latest APK is `v0.2.399-powervr-renderer-mod-runtime`. It preserves the dedicated Mods destination and adds strict public/default per-mod activation evidence plus connected behavioral Quick Restart proof. The current Android Workshop path can discover, stage, present, and launch the tested mod set:
 
 - `Sync Workshop Mods` discovers subscribed Workshop items from Steam.
 - Usable Workshop items are downloaded from Steam depot manifests or direct UGC URLs.
@@ -60,7 +60,7 @@ Use the latest build containing selected-root diagnostics and run this sequence:
 
 Latest strict July 3 result: `connected-public-beta-modded-savemerger-20260703-10` passed its then-current checks. It loaded the selected public-beta PCK from `files/game_versions/public-beta-8128824d/game/SlayTheSpire2.pck`, used runtime pack `files/runtime_packs/public-beta-8128824d`, matched active Android `sts2.dll` hash `51a671bfeb937271af3e643d017396b13432098ed2b9debceb110c74939bbba1`, reached all three selected mod load paths, wrote a fresh marker, and recorded `steamCloudPushPerformed=false`. It did not exercise each mod in game, so it is not proof that all three gameplay effects were active.
 
-Current unreleased source closes the public-branch runtime gap that prevented the proven Quick Restart path from applying to normal public launches. Public now generates the same validated Android-publicized runtime pack as non-public branches. If the current process has a different `sts2.dll` loaded, Start Game uses the existing restart handoff so Java refreshes the Godot assembly cache from the prepared pack. This implementation is covered offline but still requires connected-device validation.
+`v0.2.399` closes the public-branch runtime gap that prevented the proven Quick Restart path from applying to normal public launches. Public now generates the same validated Android-publicized runtime pack as non-public branches. If the current process has a different `sts2.dll` loaded, Start Game uses the existing restart handoff so Java refreshes the Godot assembly cache from the prepared pack. Connected public/default validation recorded matching prepared/active runtime hashes, three enabled mods, zero failures, BaseLib partial compatibility, SavesMerger launcher substitution, and three Quick Restart Harmony targets. The injected `Restart Room` action successfully restored an active combat room while the process remained alive.
 
 ## BaseLib Android Compatibility
 

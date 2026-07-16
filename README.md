@@ -28,19 +28,19 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 StS2 Mobile works on some tested ARM64 Android devices, but compatibility is not broad yet. Treat every APK as prerelease tester software.
 
-Latest published APK: [v0.2.398-launcher-ui-redesign](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.398-launcher-ui-redesign)
+Latest published APK: [v0.2.399-powervr-renderer-mod-runtime](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.399-powervr-renderer-mod-runtime)
 
-- APK asset: `StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `398031`
-- SHA-256: `52d05adf3a26ee8c2135edae6ceb986a2d021b99c4b92a4c00eebc7e4fa66d97`
+- Version code: `399004`
+- SHA-256: `d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe`
 - Signing channel: local debug/test channel
 
 Known important limitations:
 
-- Device compatibility varies. `v0.2.398` adds the five-destination responsive launcher UI and retains the `v0.2.397` Android atlas fallback, but it does not yet fix GitHub issue #34. The reporter tested `v0.2.397` on Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536: the game reached the real main menu and then exited before the first one-second post-startup probe. The current Godot 4.5.1/OpenGL Compatibility path is now the leading cause, not weak hardware or failure to download the game.
+- Device compatibility varies. `v0.2.399` contains the leading issue #34 fix: the Godot all-PowerVR transform-feedback cache workaround plus truthful Auto/Vulkan/OpenGL/Safe Start renderer selection. The release passes connected Adreno validation, but the reporter's Pixel 10 Pro / Android 17 / PowerVR path has not yet retested it, so issue #34 remains open.
 - The app currently targets ARM64 Android hardware. Android emulator and x86_64 builds are diagnostic only and are not supported for real game launch.
-- Some graphics drivers and renderer paths remain incompatible. The latest published APK predates the all-PowerVR transform-feedback shader-cache workaround now backported in unreleased source; reporter-class hardware validation is still required.
+- Some graphics drivers and renderer paths remain incompatible. The latest APK includes the PowerVR workaround, but reporter-class PowerVR hardware validation is still required.
 - Steam version selection, beta branches, Workshop mods, and save-merger behavior are still experimental.
 - Steam Cloud Push is intentionally cautious because it can overwrite remote saves. Pull from Steam Cloud first.
 - This is not a finished consumer app. Expect bugs, incomplete device coverage, and device-specific problems.
@@ -87,7 +87,7 @@ The technical goal is to improve Android startup, Steam login, Steam download, c
 - **Cloud saves**  
   Steam cloud sync via SteamKit2's CCloud API, with timestamp-aware conflict resolution and non-blocking background uploads. Pull from Cloud, Push to Cloud, and Pull-after-Push round trip are validated on ARM64 local hardening builds. The portal labels Pull as Steam Cloud to Android and Push as Android saves to Steam Cloud, places Pull before Push so the safer baseline action is visually first, keeps those primary cloud actions above lower-frequency cloud options, and collapses cloud-safety guidance/options on compact screens to reduce clutter. Push remains an explicit overwrite-risk action because it can replace Steam Cloud state, requires an overwrite confirmation arming tap before the final confirmation, shows an armed overwrite warning before the final confirmation, and now gates manual Push on current-version Pull evidence plus Android local save evidence before upload. Branch-switch Push adds stricter selected-version Pull/local-save/backup evidence gates.
 - **Steam Workshop mods**  
-  Subscribed Workshop mods can be synced into app-private Android storage and selected for the runtime mod-loader. Earlier ARM64 evidence proved staging, scanning, and error-free startup states, but that coarse evidence did not prove each mod changed the game. Later public-beta testing proved Quick Restart behavior only after the game assembly was Android-publicized. Current unreleased source applies that validated runtime-pack path to the public branch, restarts when the prepared game assembly is not the one loaded by the process, and records per-mod payload, Harmony target, partial-compatibility, substitute, failure, and in-game-verification evidence. BaseLib remains partial Android compatibility, and SavesMerger uses launcher save-path patches instead of loading the mod payload. Workshop sync and clear do not run Steam Cloud Push; manual Push is locked while mods are selected. The Mods screen describes files as staged or selected rather than claiming they are active.
+  Subscribed Workshop mods can be synced into app-private Android storage and selected for the runtime mod-loader. `v0.2.399` applies the Android-publicized runtime-pack path to the public branch, restarts when the prepared game assembly is not the one loaded by the process, and records per-mod payload, Harmony target, partial-compatibility, substitute, failure, and in-game-verification evidence. Connected public-branch validation loaded BaseLib, Quick Restart 2, and SavesMerger with zero runtime failures; Quick Restart's in-game `Restart Room` action was exercised successfully. BaseLib remains partial Android compatibility, and SavesMerger uses launcher save-path patches instead of loading the mod payload. Workshop sync and clear do not run Steam Cloud Push; manual Push is locked while mods are selected.
 - **Mobile adaptation**  
   Touch input, five stable Home/Saves/Versions/Mods/Help destinations, bottom navigation on phones, top navigation on wide/foldable layouts, safe-area-aware composition, larger touch targets, responsive login/download/confirmation/diagnostic layouts, a consistent `Start Game` primary action, Auto/Vulkan/OpenGL recovery selection, hidden technical detail outside support flows, and app lifecycle handling via Harmony runtime patches.
 - **LAN multiplayer**  
@@ -115,7 +115,7 @@ Saves compiled pipelines when the app loses focus, preventing recompilation afte
 - **Canvas ubershaders**  
 Enable ubershader fallback for 2D rendering, eliminating first-encounter VFX stutters from blocking pipeline compilation.
 - **PowerVR transform-feedback cache safety**
-The custom engine remains based on Godot 4.5.1 but now backports Godot 4.5.2's all-PowerVR workaround, disabling the unsafe GLES3 transform-feedback shader cache whenever the renderer name contains `PowerVR`. The launcher exposes Auto, Vulkan, and OpenGL modes instead of forcing OpenGL, and Safe Start uses Auto with no renderer override. This is implemented in unreleased source; Pixel 10 / PowerVR issue #34 remains open until a reporter-class device confirms it.
+The custom engine remains based on Godot 4.5.1 but now backports Godot 4.5.2's all-PowerVR workaround, disabling the unsafe GLES3 transform-feedback shader cache whenever the renderer name contains `PowerVR`. The launcher exposes Auto, Vulkan, and OpenGL modes instead of forcing OpenGL, and Safe Start uses Auto with no renderer override. This is published in `v0.2.399`; Pixel 10 / PowerVR issue #34 remains open until a reporter-class device confirms it.
 
 ## Project Structure
 
@@ -166,7 +166,7 @@ For physical UI validation, connect one ARM64 Android device with USB debugging 
 .\scripts\test-launcher-ui-device.ps1
 ```
 
-This verifies and installs `StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk` without clearing app data, launches it, captures portrait and landscape screenshots plus focused lifecycle/fatal logs under `artifacts/android/launcher-ui-device-*`, and restores the device's rotation settings. It refuses to capture a locked or system-obscured display. It does not tap launcher actions or run Steam Cloud Push.
+This verifies and installs `StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk` without clearing app data, launches it, captures portrait and landscape screenshots plus focused lifecycle/fatal logs under `artifacts/android/launcher-ui-device-*`, and restores the device's rotation settings. It refuses to capture a locked or system-obscured display. It does not tap launcher actions or run Steam Cloud Push.
 
 ## Building
 
@@ -262,7 +262,7 @@ GitHub Actions now builds Android APKs and publishes them to Releases.
 
 1. Open the repository **Releases** page: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases
 2. Download the APK named in the current published APK block below.
-    - GitHub's `/releases/latest` currently points at `v0.2.398-launcher-ui-redesign`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
+    - GitHub's `/releases/latest` currently points at `v0.2.399-powervr-renderer-mod-runtime`; still include the exact tag and APK filename in reports so later releases do not make old reports ambiguous.
     - Release inventory: [docs/github-release-inventory.md](docs/github-release-inventory.md)
     - Current release assets are ARM64-only test packages, named like:
       - `StS2Launcher-v<version>-arm64-v8a.apk`
@@ -272,13 +272,13 @@ Current published APK release:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.398-launcher-ui-redesign" `
-  -AssetName "StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.399-powervr-renderer-mod-runtime" `
+  -AssetName "StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.398-launcher-ui-redesign" `
-  -AssetName "StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.399-powervr-renderer-mod-runtime" `
+  -AssetName "StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -287,12 +287,12 @@ Current published APK release:
 Release details:
 
 ```text
-Release: v0.2.398-launcher-ui-redesign
-Asset: StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk
+Release: v0.2.399-powervr-renderer-mod-runtime
+Asset: StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.398-launcher-ui-redesign-local
-VersionCode: 398031
-SHA-256: 52d05adf3a26ee8c2135edae6ceb986a2d021b99c4b92a4c00eebc7e4fa66d97
+VersionName: 0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local
+VersionCode: 399004
+SHA-256: d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe
 ```
 
 The verifier downloads the GitHub release asset, checks its release SHA-256 digest, confirms the expected native libraries are present, and checks that `libgodot_android.so` contains the Android app-data .NET assembly lookup marker rather than the stale PCK lookup marker. Use `scripts\check-github-release-hygiene.ps1` before announcing a release so the APK, checksum sidecar, metadata sidecar, release body, package name, version, and SHA-256 all agree on the fork release page.
@@ -314,7 +314,7 @@ Support boundaries for public testers:
 - This is an unofficial community launcher, is not endorsed by Mega Crit Games, and does not include game files or assets.
 - Do not post Steam credentials, guard codes, refresh tokens, private save data, or full unsanitized logs in public issues or Reddit threads.
 - Current support target is ARM64 Android hardware. x86_64 emulator behavior is diagnostic-only.
-- Current known user-facing pain points are controller action input, shader compile crashes or stalls, unconfirmed Pixel/PowerVR compatibility after the `v0.2.397` atlas fix, incomplete exact-build physical viewport coverage for the redesigned UI, and SavesMerger real-save compatibility.
+- Current known user-facing pain points are controller action input, shader compile crashes or stalls, unconfirmed Pixel/PowerVR compatibility after the `v0.2.399` renderer fix, incomplete exact-build physical viewport coverage for the redesigned UI, and broader mod/save compatibility.
 - If reporting a cloud-save issue, say whether you used Pull or Push, but scrub usernames, account IDs, and save contents first.
 
 3. Optional manual checksum verification:
@@ -339,8 +339,8 @@ Known current runtime limitations:
 
 - The app now has a validated working ARM64 path through download, cloud pull, cloud push hardening, and game launch, but this is not yet a finished release-candidate pass.
 - Push to Cloud is locally validated after the managed SHA-1 hardening fix, and that fix is included in the verified public APK line. Repeat Push confirmation/cancel smoke on the newest public APK is still required before release-candidate signoff.
-- The exact `v0.2.398` tester APK installed over the existing `com.sts2launcher.overhaul.fork.local` app data and reported version code `398031`. This proves continuity on the current local test channel, not production-signer update compatibility.
-- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains unresolved after `v0.2.397`. Unreleased source now contains the targeted Godot all-PowerVR backport, real Auto/Vulkan/OpenGL selection, truthful Safe Start behavior, and persistent renderer/process-exit evidence; a reporter-class hardware retest is still required.
+- The exact `v0.2.399` tester APK installed over the existing `com.sts2launcher.overhaul.fork.local` app data and reports version code `399004`. Its package and signer match `v0.2.398`, proving update continuity on the current local test channel, not production-signer compatibility.
+- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains unresolved until a reporter-class device retests `v0.2.399`. The published APK contains the targeted Godot all-PowerVR backport, real Auto/Vulkan/OpenGL selection, truthful Safe Start behavior, and persistent renderer/process-exit evidence.
 - Stale assembly cache behavior still needs repeated local upgrade coverage after signing continuity is fixed.
 - `x86_64` emulator validation is fallback/diagnostic coverage only unless explicitly forcing Godot for crash investigation.
 

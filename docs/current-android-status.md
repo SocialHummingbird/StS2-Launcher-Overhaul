@@ -16,19 +16,19 @@ Current device evidence ledgers:
 
 ## Headline
 
-The app works on the validated ARM64 Android path, but it is still unofficial prerelease tester software rather than release-candidate signoff. `v0.2.398-launcher-ui-redesign` is the current GitHub release and does not contain the new PowerVR work. Current unreleased source implements the targeted issue #34 engine/renderer fix, but reporter-class Pixel/PowerVR confirmation remains open alongside exact-build physical validation of the redesigned launcher, Workshop/mod and branch hardening, controller evidence, confirmed Push safety, and release-readiness cleanup.
+The app works on the validated ARM64 Android path, but it is still unofficial prerelease tester software rather than release-candidate signoff. `v0.2.399-powervr-renderer-mod-runtime` is the current GitHub release. It publishes the targeted issue #34 engine/renderer fix and connected public-mod-runtime hardening, but reporter-class Pixel/PowerVR confirmation remains open alongside complete physical validation of the redesigned launcher, broader Workshop/mod and branch hardening, controller evidence, confirmed Push safety, and release-readiness cleanup.
 
 July 15 Pixel / PowerVR cause analysis:
 
 - Reporter `log7.txt` is from exact release `v0.2.397-atlas-memory-compat`, version code `397001`, on Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536. It uses the public branch with no mods, reaches real `NMainMenu`, passes the main-menu guard, and then disappears before the first one-second post-startup trace probe or heartbeat.
 - The attachment starts again in a new launcher process, so it does not contain the dying game process's terminal signal or Android process-exit reason. Its lack of `FATAL EXCEPTION`, `SIGSEGV`, ANR, LMKD, or `NativeFallback` evidence cannot prove that none occurred in the previous process.
 - The exact device/GPU/renderer combination matches [Godot issue #113911](https://github.com/godotengine/godot/issues/113911): Godot 4.5, Pixel 10, PowerVR D-Series DXT-48-1536, OpenGL Compatibility, and a GLES3 particle/transform-feedback crash path. [Godot PR #111329](https://github.com/godotengine/godot/pull/111329) disables transform-feedback shader caching on every PowerVR GPU and was included in Godot 4.5.2.
-- The published APK uses custom Godot `4.5.1.stable.mono.custom_build.f62fdbde1`. Its engine only disables that cache for `PowerVR Rogue GE8320`, so the Pixel 10 GPU is not covered.
-- The published launcher forces OpenGL Compatibility unless a previous startup marker equals `game startup completed`, but current managed recovery code writes `post-startup observation` instead. Its Safe Start also advertises the default renderer while the Android boundary still forces OpenGL. The alternative renderer path therefore has not actually been tested in `v0.2.398` or the reporter's `v0.2.397`.
-- Current unreleased source backports the Godot 4.5.2 all-PowerVR workaround onto the custom 4.5.1 engine. Release builds now compile that patched engine instead of extracting the old native library from `v0.2.88`, and the engine emits `PowerVR renderer detected; transform feedback shader cache disabled` when the workaround activates.
-- Current unreleased source also provides explicit Auto, Vulkan, and OpenGL modes. Auto passes no renderer override, Vulkan selects the mobile renderer, OpenGL selects Compatibility, and Safe Start always uses unforced Auto while keeping shader warmup and Steam Cloud disabled.
+- The then-published `v0.2.398` APK used custom Godot `4.5.1.stable.mono.custom_build.f62fdbde1`. Its engine only disabled that cache for `PowerVR Rogue GE8320`, so the Pixel 10 GPU was not covered.
+- `v0.2.398` also forced OpenGL Compatibility unless a previous startup marker equalled `game startup completed`, while managed recovery wrote `post-startup observation`. Its Safe Start advertised the default renderer while the Android boundary still forced OpenGL. The alternative renderer path therefore was not actually tested in `v0.2.398` or the reporter's `v0.2.397`.
+- `v0.2.399` backports the Godot 4.5.2 all-PowerVR workaround onto the custom 4.5.1 engine. Release builds compile that patched engine instead of extracting the old native library from `v0.2.88`, and the engine emits `PowerVR renderer detected; transform feedback shader cache disabled` when the workaround activates.
+- `v0.2.399` also provides explicit Auto, Vulkan, and OpenGL modes. Auto passes no renderer override, Vulkan selects the mobile renderer, OpenGL selects Compatibility, and Safe Start always uses unforced Auto while keeping shader warmup and Steam Cloud disabled.
 - The Android boundary records each effective renderer plan in `last_renderer_attempt.txt`. On Android 11 and newer, the next launcher start records historical `ApplicationExitInfo` plus bounded trace data in `last_process_exit_info.txt` when Android supplies it. These files are included in launcher diagnostics.
-- Focused Java policy tests, the PowerVR source audit, managed and Android Java builds, arm64/x86_64 native engine builds, and the deterministic 20-viewport launcher matrix pass. Local ARM64 APK `0.2.399-powervr-renderer-local` / version code `399001` / SHA-256 `d0c98e73a79226d503030c80cfd32b1872df0db0401bc301740671be557b344b` passes structural, crypto, package, ABI, and signing inspection. Its packaged stripped native library contains the all-PowerVR marker and omits the legacy `PowerVR Rogue GE8320` marker; its DEX contains the renderer policy and historical-exit capture. This is an engine/launcher integration change, not a core game redesign and not evidence that the Pixel 10 is old or underpowered. Issue #34 remains open until reporter-class hardware confirms the result.
+- Exact release APK `0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local` / version code `399004` / SHA-256 `d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe` passes structural, crypto, package, ABI, signing, update-compatibility, and GitHub release-hygiene checks. On Samsung `SM-F966B` / Android 16 / Adreno 830, Auto/Vulkan and explicit OpenGL both reached real `NMainMenu`, produced post-startup probes and heartbeats through 120 seconds, and avoided focused fatal/native/ANR/target-process-kill signatures. This is an engine/launcher integration change, not a core game redesign and not evidence that the Pixel 10 is old or underpowered. Issue #34 remains open until reporter-class PowerVR hardware confirms the result.
 
 July 11 atlas compatibility status:
 
@@ -63,8 +63,8 @@ July 5 runtime/update status:
 Validated locally on ARM64 hardware:
 
 - Fresh APK/runtime install reaches the launcher.
-- `v0.2.398` verifies structurally and passed the 20-viewport deterministic Home/Saves/Versions/Mods/Help preview, accessibility/bounds/target checks, and event contract. Earlier ARM64 builds captured login, download, ready, diagnostics, Push confirmation/cancel, public main menu, and deeper game UI routes; exact `v0.2.398` unlocked physical destination/rotation capture remains pending.
-- Exact `v0.2.398-launcher-ui-redesign` tester APK installed over the existing `com.sts2launcher.overhaul.fork.local` package while preserving app data and reported version code `398031`. This proves continuity on the current local test signer/package channel, not production-signer update compatibility.
+- `v0.2.398` passed the 20-viewport deterministic Home/Saves/Versions/Mods/Help preview, accessibility/bounds/target checks, and event contract. Complete unlocked physical destination/rotation coverage remains pending.
+- Exact `v0.2.399-powervr-renderer-mod-runtime` tester APK installed over the existing `com.sts2launcher.overhaul.fork.local` package while preserving app data and reported version code `399004`. Its package and signing certificate match `v0.2.398`, proving update continuity on the current local test channel, not production-signer compatibility.
 - Locked-screen interruption returns to the app after manual unlock without app-specific crash markers.
 - Steam login and game depot download complete.
 - Pull from Cloud downloads real Steam Cloud files.
@@ -75,7 +75,7 @@ Validated locally on ARM64 hardware:
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
 - The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix30 also proves public can launch immediately after a `public-beta` runtime-cache switch without routing to `NativeFallbackActivity`.
 - The latest local UI/public-startup prerelease proves fresh public redownload of `v0.107.1` reaches the game main menu with branch-matched managed runtime evidence and removes the launcher startup status overlay after startup observation.
-- Latest Workshop/mod evidence proves the public-beta modded scan path writes a fresh `last_mod_launch.json` with `playMode=modded`, `scannedRoots=3`, and `enabledMods=3` for BaseLib, Quick Restart 2, and manual SavesMerger. Treat current mod support as in-progress, with SavesMerger save usability still the main unproven user-facing result.
+- Latest `v0.2.399` Workshop/mod evidence proves the public/default modded path writes marker schema v2 with three enabled mods and zero failed loads. BaseLib loads in partial Android mode, Quick Restart installs three Harmony targets and successfully restores an active combat room through its injected pause-menu action, and SavesMerger uses the launcher compatibility substitute. Treat broader mod compatibility as in progress.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -150,16 +150,16 @@ remaining=Shader scanner emits noisy Godot error stack traces for some material/
 Latest GitHub APK release evidence:
 
 ```text
-release=v0.2.398-launcher-ui-redesign
-asset=StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk
-sha256=52d05adf3a26ee8c2135edae6ceb986a2d021b99c4b92a4c00eebc7e4fa66d97
+release=v0.2.399-powervr-renderer-mod-runtime
+asset=StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk
+sha256=d39825fe2f79ca86af6ff4c83bbcd1eaeeb0fd3eeeedde509cdb3aa6a17420fe
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.398-launcher-ui-redesign-local
-versionCode=398031
-validation=ARM64 APK build and ABI/content/crypto verification passed; exact APK installed over existing app data on Samsung SM-F966B; deterministic desktop matrix passed 20 screenshots across phone portrait, phone landscape, foldable, and desktop viewports; accessibility, bounds, target-size, event-routing, and cloud-Push non-invocation contract passed; static audit passed 819 checks. Final unlocked physical portrait/landscape capture did not run because the device disconnected.
+versionName=0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local
+versionCode=399004
+validation=ARM64 APK structure/content/crypto, update compatibility, and GitHub release hygiene passed; exact APK installed over existing app data on Samsung SM-F966B; Auto/Vulkan and explicit OpenGL reached real NMainMenu with heartbeats through 120 seconds; public BaseLib/Quick Restart/SavesMerger marker v2 recorded zero failures; Quick Restart restored an active combat room while the process remained alive.
 cloudSafety=No Push to Cloud was run.
-knownIssue=The Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536 reporter path remains unresolved and has not tested v0.2.398. Exact-build unlocked cover/inner five-destination visual evidence and real game handoff are also not claimed.
-evidence=GitHub release v0.2.398-launcher-ui-redesign assets and metadata; artifacts/ui-preview; artifacts/android/StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk and sidecars.
+knownIssue=The Pixel 10 Pro / Android 17 / PowerVR D-Series DXT-48-1536 reporter path remains unresolved and has not tested v0.2.399. Exact-build full cover/inner five-destination visual coverage is also not claimed.
+evidence=GitHub release v0.2.399-powervr-renderer-mod-runtime assets and metadata; artifacts/android/workshop-mods-public-public-all-three-modded-hashfix-activation-evidence-20260716-101216; artifacts/android/quickrestart-public-hashfix-20260716-101558.
 ```
 
 Previous GitHub atlas compatibility release evidence:
@@ -245,7 +245,7 @@ not_yet_proven=Saves Merger real-save usability across user save states, disabli
 
 Latest public feedback themes from Reddit/GitHub:
 
-- `v0.2.398` directly replaces the old long-scroll launcher with five destinations and phone/wide navigation. New reports should focus on regressions such as clipping, unreachable controls, keyboard overlap, wrong destination layout, or broken rotation on unusual displays and foldables.
+- `v0.2.399` retains the five-destination phone/wide launcher. New reports should focus on regressions such as clipping, unreachable controls, keyboard overlap, wrong destination layout, or broken rotation on unusual displays and foldables.
 - Controller behavior needs focused Odin/Thor/Android-handheld testing.
 - Some devices may crash or stall during first-run shader compilation.
 - Users need exact install/update/uninstall guidance and should report exact release tags rather than "latest".
@@ -404,7 +404,7 @@ Pull from Cloud and Push to Cloud are now validated end to end on the local ARM6
 - Fix28 read-only current marker evidence now exists at `artifacts/android/fix28-readonly-current-marker-status-20260619-113732`, with curated text-only public export `artifacts/android/fix28-readonly-current-marker-status-20260619-113732-public-redacted` passing `review-public-evidence-redaction.ps1`. It proves the connected device was still on local package `0.2.188-local-runtime-beta-fix28-evidence` / `versionCode=218855`, selected branch `public`, public and public-beta branch markers both present, public-beta depot manifest differing from public, SteamKit debug logs disabled (`null`), `last_manual_cloud_push.txt` missing, `last_manual_cloud_push_blocked.txt` present with before-upload block reason, and pre-Push local/cloud backup counts both `0`. The saved encrypted Steam session files were still present after the native-login-panel test with hashes matching the earlier local raw evidence. This was read-only; no Pull from Cloud or Push to Cloud was performed.
 - Fix28 capture-script hygiene evidence now exists at `artifacts/android/fix28-readonly-capture-script-diagnostics-index-20260619-1200`, with curated text-only public export `artifacts/android/fix28-readonly-capture-script-diagnostics-index-20260619-1200-public-redacted` passing `review-public-evidence-redaction.ps1`. It verifies `capture-steam-version-selection-evidence.ps1` now writes a bounded `diagnostics/launcher-diagnostics-index.txt` for external diagnostics discovery instead of accidentally collecting a device-root listing; the fixed read-only capture produced a 276-byte index. No Pull from Cloud or Push to Cloud was performed.
 - Fix29 local package `0.2.188-local-runtime-beta-fix29-diagnostics` / `versionCode=218856` built and installed on the connected ARM64 device after clearing stale generated Android build intermediates. Read-only evidence at `artifacts/android/fix29-readonly-current-marker-status-20260619-115426`, with curated text-only public export `artifacts/android/fix29-readonly-current-marker-status-20260619-115426-public-redacted` passing `review-public-evidence-redaction.ps1`, proves selected branch `public`, public and public-beta branch markers present, public-beta depot manifest `4153965503881405416` differing from public depot manifest `6171184689563260868`, SteamKit debug logs disabled (`null`), `last_manual_cloud_push.txt` missing, blocked-Push marker present, and pre-Push local/cloud backup counts both `0`. A launcher-open sanity check on the same installed package kept the app alive, focused `GodotApp`, rendered the public/default launcher UI, validated public PCK hash `8f0dbfef10a31994eb0f58e8d811db08712153c5c0d4491bc5fc4732be530f68`, wrote current runtime-slot evidence, and reported `playable=True` through the legacy packaged public runtime path. It also reported the public runtime-pack compatibility manifest as not installed, so this proves public launcher/runtime fallback status only; it does not prove public-beta gameplay or release-candidate readiness. No Pull from Cloud or Push to Cloud was performed.
-- Re-run full login/Pull/confirmed-Push/game-launch smoke on exact `v0.2.398`, and keep its local test signing boundary explicit.
+- Re-run full login/Pull/confirmed-Push/game-launch smoke on exact `v0.2.399`, and keep its local test signing boundary explicit.
 - Keep Push treated as destructive. The newest public APK has confirmation/cancel safety evidence, but confirmed Push mutation still needs an explicit newest-public smoke before release-candidate signoff.
 - Repeated local stale assembly cache/freshness checks across in-place local upgrade once signing continuity is restored.
 - Repeat release asset hygiene on every new release: signer, package name, versionCode monotonicity, checksums, structural verifier, and GitHub release notes.

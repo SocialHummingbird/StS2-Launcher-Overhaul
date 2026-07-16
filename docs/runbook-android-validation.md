@@ -35,8 +35,8 @@ Run at least one device from each row for patch-level changes:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.398-launcher-ui-redesign" `
-  -AssetName "StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.399-powervr-renderer-mod-runtime" `
+  -AssetName "StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
@@ -44,8 +44,8 @@ Run at least one device from each row for patch-level changes:
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.398-launcher-ui-redesign" `
-  -AssetName "StS2Launcher-v0.2.398-launcher-ui-redesign-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.399-powervr-renderer-mod-runtime" `
+  -AssetName "StS2Launcher-v0.2.399-powervr-mod-runtime-hashfix-activation-evidence-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
