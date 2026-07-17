@@ -238,7 +238,7 @@ $validationLines.Add("")
 $validationLines.Add("| Area | Status | Evidence | Required next action |")
 $validationLines.Add("| --- | --- | --- | --- |")
 
-$launchAttemptCaptured = -not [string]::IsNullOrWhiteSpace($launchAttemptText) -and $launchAttemptText -match "StS2 Mobile launch attempt"
+$launchAttemptCaptured = -not [string]::IsNullOrWhiteSpace($launchAttemptText) -and $launchAttemptText -match "StS2 (?:Launcher|Mobile) launch attempt"
 $launchAttemptPreparedReady = "$launchAttemptPrepared" -eq "true" -or "$launchAttemptPrepared" -eq "True"
 $launchAttemptReadyState = "$launchAttemptReady" -eq "true" -or "$launchAttemptReady" -eq "True"
 $launchAttemptIdValid = Test-LaunchAttemptId -Value $launchAttemptId

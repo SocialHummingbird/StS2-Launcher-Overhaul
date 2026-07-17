@@ -50,7 +50,7 @@ public static partial class ModEntry
 
         panel.AddChild(new Label
         {
-            Text = "StS2 Mobile bootstrap controls probe",
+            Text = "StS2 Launcher bootstrap controls probe",
         });
 
         panel.AddChild(new LineEdit

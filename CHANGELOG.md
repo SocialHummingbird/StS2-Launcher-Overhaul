@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-17 - Larger StS2 Launcher boot identity
+
+- Extended the readiness-driven sequence from 2,480 ms to 4,000 ms, with a longer separation, 800 ms identity reveal, weighted 350 ms compression-and-settle, 1,200 ms confirmation hold, 1.4% tactile pulse, and 700 ms launcher handoff. Reduced motion remains a direct 200 ms fade.
+- Increased the boot mark from 42% to 52% of the viewport short edge, raised its responsive clamp from 112-184 dp to 144-232 dp, and increased the live wordmark from 18 sp to 20 sp while retaining viewport-fit clamping.
+- Renamed current user-facing branding from `StS2 Mobile` to `StS2 Launcher`, including the boot wordmark, Android app label, launcher header, diagnostics, authentication copy, and current project documentation. The launcher identity does not claim ownership of Slay the Spire 2 or represent an official mobile port.
+- Added `Made by SocialHummingbird` and a direct link to the project repository in the Help destination.
+- Updated Java sequence/layout tests for the new timing, scale, compression, and pulse contracts. The existing Samsung hardware evidence predates this choreography, so the revised presentation still requires connected-device visual validation.
+
 ## 2026-07-17 - Readiness-driven Android boot transition
 
 - Replaced the app-icon-only Android splash with an official Godot Engine mark that holds while the runtime and managed launcher genuinely initialize, then runs an original seven-phase, 2,480 ms Godot-to-StS2 Mobile reveal before handing off to the ready launcher.

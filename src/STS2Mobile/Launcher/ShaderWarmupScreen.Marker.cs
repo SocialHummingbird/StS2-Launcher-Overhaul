@@ -84,7 +84,7 @@ internal sealed partial class ShaderWarmupScreen
         {
             var lines = new List<string>
             {
-                "StS2 Mobile shader warmup status",
+                "StS2 Launcher shader warmup status",
                 $"UTC: {DateTime.UtcNow:O}",
                 $"Status: {SanitizeStatus(status)}",
                 $"Detail: {SanitizeStatus(detail)}",

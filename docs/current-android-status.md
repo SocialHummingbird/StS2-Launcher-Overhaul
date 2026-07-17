@@ -1,8 +1,8 @@
 # Current Android Status
 
-_Last updated: 2026-07-16_
+_Last updated: 2026-07-17_
 
-See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, and bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+See [Unofficial project notice](unofficial-project-notice.md). StS2 Launcher is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, and bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
 Current device evidence ledgers:
 

@@ -36,10 +36,10 @@ internal sealed partial class LoginSection
     private static string CredentialHelpText(bool compact)
     {
         if (!OperatingSystem.IsAndroid())
-            return "Use the visible Steam fields above. StS2 Mobile does not store your Steam password.";
+            return "Use the visible Steam fields above. StS2 Launcher does not store your Steam password.";
 
         return compact
             ? "Password manager can appear.\nSteam password is not stored."
-            : "Use the integrated Steam login panel. Android/Samsung/Google password suggestions may appear there; StS2 Mobile does not store your Steam password.";
+            : "Use the integrated Steam login panel. Android/Samsung/Google password suggestions may appear there; StS2 Launcher does not store your Steam password.";
     }
 }

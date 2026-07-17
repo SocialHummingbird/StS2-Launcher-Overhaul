@@ -1,18 +1,18 @@
 package com.game.sts2launcher;
 
 final class AndroidBootSequence {
-	static final long FULL_DURATION_MS = 2_480L;
+	static final long FULL_DURATION_MS = 4_000L;
 	static final long REDUCED_MOTION_DURATION_MS = 200L;
 	static final float REGISTRATION_OFFSET_DP = 18.0f;
 
 	enum Phase {
-		REGISTRATION("registration", 0L, 320L),
-		SEPARATION("separation", 320L, 440L),
-		IDENTITY_REVEAL("identity-reveal", 440L, 940L),
-		FINAL_SETTLE("final-settle", 940L, 1_060L),
-		CONFIRMATION_HOLD("confirmation-hold", 1_060L, 1_760L),
-		IDENTITY_PULSE("identity-pulse", 1_760L, 1_940L),
-		LAUNCHER_HANDOFF("launcher-handoff", 1_940L, FULL_DURATION_MS);
+		REGISTRATION("registration", 0L, 450L),
+		SEPARATION("separation", 450L, 700L),
+		IDENTITY_REVEAL("identity-reveal", 700L, 1_500L),
+		FINAL_SETTLE("final-settle", 1_500L, 1_850L),
+		CONFIRMATION_HOLD("confirmation-hold", 1_850L, 3_050L),
+		IDENTITY_PULSE("identity-pulse", 3_050L, 3_300L),
+		LAUNCHER_HANDOFF("launcher-handoff", 3_300L, FULL_DURATION_MS);
 
 		private final String timelineName;
 		private final long startMs;
@@ -210,7 +210,7 @@ final class AndroidBootSequence {
 		return new Frame(
 			phase,
 			1.0f - eased,
-			lerp(1.0f, 0.86f, easeOutCubic(progress)),
+			lerp(1.0f, 0.84f, easeOutCubic(progress)),
 			registrationVisibility,
 			lerp(0.94f, 0.99f, eased),
 			1.0f,
@@ -231,7 +231,7 @@ final class AndroidBootSequence {
 		return new Frame(
 			phase,
 			0.0f,
-			0.86f,
+			0.84f,
 			0.0f,
 			0.82f,
 			0.0f,
@@ -255,9 +255,9 @@ final class AndroidBootSequence {
 		return new Frame(
 			phase,
 			0.0f,
-			0.86f,
+			0.84f,
 			smoothStep(progress),
-			lerp(0.82f, 1.04f, easeOutCubic(progress)),
+			lerp(0.82f, 1.035f, easeOutCubic(progress)),
 			colourOpacity,
 			colourOpacity,
 			resolvedOpacity,
@@ -273,17 +273,20 @@ final class AndroidBootSequence {
 	}
 
 	private static Frame finalSettleFrame(Phase phase, float progress) {
+		float identityScale = progress < 0.62f
+			? lerp(1.035f, 0.992f, easeOutCubic(progress / 0.62f))
+			: lerp(0.992f, 1.0f, smoothStep((progress - 0.62f) / 0.38f));
 		return resolvedFrame(
 			phase,
 			0.0f,
-			lerp(1.04f, 1.0f, easeOutCubic(progress)),
-			smoothStep(unit((progress - 0.08f) / 0.92f))
+			identityScale,
+			smoothStep(unit((progress - 0.24f) / 0.76f))
 		);
 	}
 
 	private static Frame identityPulseFrame(Phase phase, float progress) {
 		float pulse = (float) Math.sin(Math.PI * progress);
-		return resolvedFrame(phase, pulse, 1.0f + (pulse * 0.006f), 1.0f);
+		return resolvedFrame(phase, pulse, 1.0f + (pulse * 0.014f), 1.0f);
 	}
 
 	private static Frame launcherHandoffFrame(Phase phase, float progress) {
@@ -291,7 +294,7 @@ final class AndroidBootSequence {
 		Frame resolved = resolvedFrame(
 			phase,
 			0.0f,
-			lerp(1.0f, 0.985f, eased),
+			lerp(1.0f, 0.992f, eased),
 			1.0f
 		);
 		return new Frame(
@@ -323,7 +326,7 @@ final class AndroidBootSequence {
 		return new Frame(
 			phase,
 			0.0f,
-			0.86f,
+			0.84f,
 			1.0f,
 			identityScale,
 			0.0f,

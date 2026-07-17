@@ -25,7 +25,8 @@ function Add-SteamVersionSelectionCloudSafetyPushRequestConstructionChecks {
             "WriteManualPushMarker",
             "WriteManualPushBlockedMarker",
             "WriteManualPullMarker",
-            "Pull Steam Cloud saves to Android local storage"
+            "Pull Steam Cloud saves to Android\?",
+            "Cloud modded saves are preferred"
         )
 
     Add-Check `

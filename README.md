@@ -1,12 +1,12 @@
-# StS2 Mobile
+# StS2 Launcher
 
 <p align="center">
-  <img src="docs/assets/sts2-mobile-icon.svg" alt="StS2 Mobile icon" width="128" height="128">
+  <img src="docs/assets/sts2-mobile-icon.svg" alt="StS2 Launcher icon" width="128" height="128">
 </p>
 
 ## What This App Is
 
-StS2 Mobile is an unofficial Android launcher for people who already own Slay the Spire 2 on Steam.
+StS2 Launcher is an unofficial Android launcher for people who already own Slay the Spire 2 on Steam.
 
 It is not the game itself. It does not include Slay the Spire 2 files, art, music, saves, or Workshop content. After you sign in with Steam, the launcher downloads your own copy of the game from Steam and tries to run it on an ARM64 Android phone or tablet.
 
@@ -26,7 +26,7 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 ## Current Status
 
-StS2 Mobile works on some tested ARM64 Android devices, but compatibility is not broad yet. Treat every APK as prerelease tester software.
+StS2 Launcher works on some tested ARM64 Android devices, but compatibility is not broad yet. Treat every APK as prerelease tester software.
 
 Latest published APK: [v0.2.401-native-modded-save-pull](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.401-native-modded-save-pull)
 
@@ -64,7 +64,7 @@ Useful docs:
 
 ## Project Background
 
-This repository is a full copy of [Ekyso/StS2-Launcher](https://github.com/Ekyso/StS2-Launcher), created to continue and broaden development as StS2 Mobile: a focused Android rewrite and compatibility project.
+This repository is a full copy of [Ekyso/StS2-Launcher](https://github.com/Ekyso/StS2-Launcher), created to continue and broaden development as StS2 Launcher: a focused Android launcher and compatibility project.
 
 The technical goal is to improve Android startup, Steam login, Steam download, cloud saves, mobile UI, branch switching, mods, and crash diagnostics while keeping the project clearly unofficial.
 

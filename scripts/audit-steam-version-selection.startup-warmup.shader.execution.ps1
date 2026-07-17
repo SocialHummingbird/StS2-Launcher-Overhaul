@@ -61,7 +61,7 @@ function Add-SteamVersionSelectionStartupWarmupShaderExecutionChecks {
             "LauncherStorageNames\.ShaderWarmupStatus",
             "WriteWarmupStatus",
             "MergeEvidence",
-            "StS2 Mobile shader warmup status",
+            "StS2 Launcher shader warmup status",
             "Warmup version:",
             "Warmup time budget seconds:"
         )

@@ -1,6 +1,6 @@
 # Steam Version Selection User Guide
 
-This guide explains the current Steam game version selector in StS2 Mobile.
+This guide explains the current Steam game version selector in StS2 Launcher.
 
 The feature is implemented for validation and hardening. The local ARM64 hardening path now has evidence that selected `public-beta` launches from its side-by-side cache. It is not release-signed yet. ARM64 device evidence is still required for beta/password behavior, inaccessible/private branches, save compatibility, Steam Cloud Push safety across branch switches, and release-candidate retest.
 

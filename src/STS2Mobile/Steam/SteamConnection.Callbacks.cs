@@ -55,7 +55,7 @@ internal sealed partial class SteamConnection
         if (OperatingSystem.IsAndroid())
         {
             details.ClientOSType = EOSType.AndroidUnknown;
-            details.MachineName = "StS2 Mobile Android";
+            details.MachineName = "StS2 Launcher Android";
         }
 
         return details;

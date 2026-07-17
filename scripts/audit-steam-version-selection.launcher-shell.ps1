@@ -20,7 +20,7 @@ function Add-SteamVersionSelectionLauncherShellChecks {
         "src\STS2Mobile\Launcher\LauncherUI.Lifecycle.cs" `
         "isolates launcher lifecycle registration and controller startup" `
         @(
-            "internal void Initialize",
+            "internal bool Initialize",
             "AndroidBridgeDispatcher\.RegisterCurrentThread",
             "LauncherLayoutProfile\.ForViewport",
             "ResolveLauncherDataDirectory",

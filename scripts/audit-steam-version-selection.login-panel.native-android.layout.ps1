@@ -25,7 +25,7 @@ function Add-SteamVersionSelectionLoginPanelNativeAndroidLayoutChecks {
             "steamLoginCredentialDefaultStatusText\(boolean shortHeightLayout\)",
             "steamLoginCredentialShownStatusText\(boolean shortHeightLayout\)",
             "Use Android password suggestions here\. Credentials clear after one Steam handoff\.",
-            "Not stored by StS2 Mobile\.",
+            "Not stored by StS2 Launcher\.",
             "steamLoginCredentialDefaultStatusText",
             "steamLoginCredentialShownStatusText",
             "steamLoginCredentialPanelWidth\(wideCredentialLayout\)",

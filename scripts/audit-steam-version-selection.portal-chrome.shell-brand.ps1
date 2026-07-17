@@ -35,7 +35,7 @@ function Add-SteamVersionSelectionPortalChromeShellBrandChecks {
         "presents desktop launcher brand copy as a polished Steam/version/cloud portal" `
         @(
             "BuildDesktopBrandCopy",
-            "StS2 Mobile",
+            "StS2 Launcher",
             "Sign in\. Save safely\. Play\.",
             "fontSize: 26",
             "fontSize: 11",
@@ -55,7 +55,7 @@ function Add-SteamVersionSelectionPortalChromeShellBrandChecks {
             "BuildCompactBrandTitle",
             "BuildCompactBrandSubtitle",
             "BuildBrandDivider\(scale, height: 1\)",
-            "StS2 Mobile",
+            "StS2 Launcher",
             "Saves safe\. Ready to play\.",
             "fontSize: CompactBrandTitleFontSize",
             "fontSize: CompactBrandSubtitleFontSize",
@@ -75,5 +75,27 @@ function Add-SteamVersionSelectionPortalChromeShellBrandChecks {
             "compact \? 12 : 16",
             "OrangeAccent",
             "CyanAccent"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherView.ProjectAttribution.cs" `
+        "keeps project authorship and source access visible in Help" `
+        @(
+            "Made by SocialHummingbird",
+            "https://github\.com/SocialHummingbird/StS2-Launcher-Overhaul",
+            "Open StS2 Launcher on GitHub",
+            "new LinkButton",
+            "CustomMinimumSize",
+            "Math\.Max",
+            "compact \? 48 : 40",
+            "OS\.ShellOpen\(ProjectRepositoryUrl\)"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherView.Layout.PrimaryColumn.cs" `
+        "places project attribution in the Help destination" `
+        @(
+            "HelpDiagnosticsHost\.AddChild\(BuildProjectAttributionSection",
+            "HelpDiagnosticsHost\.AddChild\(BuildFmodAttributionSection"
         )
 }

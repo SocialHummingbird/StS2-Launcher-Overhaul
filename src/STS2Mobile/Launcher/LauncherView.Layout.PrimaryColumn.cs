@@ -67,6 +67,7 @@ internal sealed partial class LauncherView
             left.AddChild(compactDiagnosticsHost);
         }
 
+        actions.HelpDiagnosticsHost.AddChild(BuildProjectAttributionSection(scale, profile.Compact));
         actions.HelpDiagnosticsHost.AddChild(BuildFmodAttributionSection(scale, profile.Compact));
         return new LauncherViewPrimaryColumn(
             status.Phase,

@@ -244,7 +244,7 @@ public class GodotApp extends GodotActivity {
 				recordStartupPhase("native assembly setup fatal", ex2.getMessage());
 				Log.e(TAG, "Assembly setup failed after recovery. Routing to native diagnostics instead of starting Godot.", ex2);
 				showNativeFailure(
-					"StS2 Mobile diagnostics",
+					"StS2 Launcher diagnostics",
 					"The launcher could not prepare the Android .NET assemblies required by native Godot.\n\nNative Godot was not started, because continuing would only trigger the generic '.NET assemblies not found' failure.",
 					Log.getStackTraceString(ex2)
 				);
@@ -353,7 +353,7 @@ public class GodotApp extends GodotActivity {
 		long elapsedMs = SystemClock.elapsedRealtime();
 		long utcMillis = System.currentTimeMillis();
 		String context =
-			"StS2 Mobile native startup context\n" +
+			"StS2 Launcher native startup context\n" +
 			"UTC millis: " + utcMillis + "\n" +
 			"Elapsed realtime ms: " + elapsedMs + "\n" +
 			"Phase: " + safePhase + "\n" +
@@ -3224,7 +3224,7 @@ public class GodotApp extends GodotActivity {
 			Intent intent = new Intent(Intent.ACTION_SEND);
 			intent.setType("text/plain");
 			intent.putExtra(Intent.EXTRA_STREAM, uri);
-			intent.putExtra(Intent.EXTRA_SUBJECT, "StS2 Mobile diagnostics");
+			intent.putExtra(Intent.EXTRA_SUBJECT, "StS2 Launcher diagnostics");
 			intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 			startActivity(Intent.createChooser(intent, "Share diagnostics"));
 			return true;
@@ -3526,7 +3526,7 @@ public class GodotApp extends GodotActivity {
 		card.addView(subtitle);
 
 		TextView trust = new TextView(this);
-		trust.setText(shortHeightCredentialLayout ? "Not stored by StS2 Mobile." : "Steam password is never stored by StS2 Mobile.");
+		trust.setText(shortHeightCredentialLayout ? "Not stored by StS2 Launcher." : "Steam password is never stored by StS2 Launcher.");
 		trust.setTextColor(Color.rgb(35, 225, 240));
 		trust.setTextSize(12);
 		trust.setTypeface(Typeface.DEFAULT_BOLD);
@@ -3945,7 +3945,7 @@ public class GodotApp extends GodotActivity {
 			return;
 		}
 
-		setSteamLoginCredentialStatus("Submitting to Steam. StS2 Mobile is clearing these fields now.");
+		setSteamLoginCredentialStatus("Submitting to Steam. StS2 Launcher is clearing these fields now.");
 		cancelSteamLoginCredentialAutofillSession();
 		synchronized (steamLoginCredentialLock) {
 			pendingSteamLoginCredentialUsername = username;
@@ -4030,7 +4030,7 @@ public class GodotApp extends GodotActivity {
 			inputMethodManager.showSoftInput(steamLoginCredentialPasswordField, InputMethodManager.SHOW_IMPLICIT);
 		}
 		requestSteamLoginCredentialAutofillField(steamLoginCredentialPasswordField);
-		setSteamLoginCredentialStatus("Enter your Steam password. StS2 Mobile will clear it after handoff.");
+		setSteamLoginCredentialStatus("Enter your Steam password. StS2 Launcher will clear it after handoff.");
 	}
 
 	private void setSteamLoginCredentialStatus(String text) {

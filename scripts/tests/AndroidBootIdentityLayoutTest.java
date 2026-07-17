@@ -16,6 +16,7 @@ public final class AndroidBootIdentityLayoutTest {
 		);
 		assertEquals("orientation-stable mark", portrait.markSizePx(), landscape.markSizePx());
 		assertEquals("orientation-stable width", portrait.contentWidthPx(), landscape.contentWidthPx());
+		assertEquals("phone mark uses short-edge fraction", 562, portrait.markSizePx());
 		assertFits("portrait", portrait, 1080, 2340);
 		assertFits("landscape", landscape, 2340, 1080);
 
@@ -26,6 +27,7 @@ public final class AndroidBootIdentityLayoutTest {
 			2.0f
 		);
 		assertFits("compact landscape", compact, 800, 480);
+		assertEquals("compact mark respects minimum", 288, compact.markSizePx());
 
 		AndroidBootIdentityLayout.Metrics tablet = AndroidBootIdentityLayout.resolve(
 			2560,
@@ -34,7 +36,7 @@ public final class AndroidBootIdentityLayoutTest {
 			2.0f
 		);
 		assertFits("tablet", tablet, 2560, 1600);
-		assertEquals("tablet mark maximum", 368, tablet.markSizePx());
+		assertEquals("tablet mark maximum", 464, tablet.markSizePx());
 
 		assertThrowsInvalidViewport();
 		System.out.println("Android boot identity layout tests passed.");

@@ -31,6 +31,6 @@ function Add-SteamVersionSelectionLoginPanelNativeAndroidFieldChecks {
             "setWebDomain",
             "structure\.setHint",
             "store\.steampowered\.com",
-            "Steam password is never stored by StS2 Mobile"
+            "Steam password is never stored by StS2 Launcher"
         )
 }

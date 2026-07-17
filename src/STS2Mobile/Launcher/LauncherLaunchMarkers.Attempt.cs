@@ -5,7 +5,7 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherLaunchMarkers
 {
-    private const string LaunchAttemptHeader = "StS2 Mobile launch attempt";
+    private const string LaunchAttemptHeader = "StS2 Launcher launch attempt";
     private const string AttemptUtcPrefix = "UTC:";
     private const string AttemptIdPrefix = "Attempt ID:";
     private const string AttemptPhasePrefix = "Phase:";

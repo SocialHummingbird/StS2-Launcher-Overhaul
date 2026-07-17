@@ -144,7 +144,7 @@ internal static partial class LauncherLaunchMarkers
         internal string ContextText()
             => new[]
             {
-                "StS2 Mobile startup context",
+                "StS2 Launcher startup context",
                 $"UTC: {Utc:O}",
                 $"{PhasePrefix} {Phase}",
                 $"Detail: {Detail}",

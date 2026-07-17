@@ -14,7 +14,7 @@ internal sealed partial class LauncherView
             LauncherViewLayoutMetrics.ScaleInt(0, scale)
         );
 
-        var title = new StyledLabel("StS2 Mobile", scale, fontSize: 26);
+        var title = new StyledLabel("StS2 Launcher", scale, fontSize: 26);
         title.HorizontalAlignment = HorizontalAlignment.Left;
         title.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,

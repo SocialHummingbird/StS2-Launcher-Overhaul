@@ -172,7 +172,7 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "partial-android",
             "launcher-substitute",
             "runtime-patches-installed",
-            "launcher-compatibility-substitute",
+            "partial-android-compatibility",
             "FindHarmonyTargetsForOwners",
             "RuntimePathIsWithinSelectedRoot",
             'normalizedSelectedRoot \+ "/"',

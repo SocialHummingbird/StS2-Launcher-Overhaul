@@ -56,7 +56,7 @@ public class LauncherActivity extends Activity {
 		long elapsedMs = SystemClock.elapsedRealtime();
 		long utcMillis = System.currentTimeMillis();
 		String context =
-			"StS2 Mobile native launcher routing context\n" +
+			"StS2 Launcher native launcher routing context\n" +
 			"UTC millis: " + utcMillis + "\n" +
 			"Elapsed realtime ms: " + elapsedMs + "\n" +
 			"Phase: " + safePhase + "\n" +
@@ -114,7 +114,7 @@ public class LauncherActivity extends Activity {
 			File gameDir = resolveGameDir();
 			File pck = new File(gameDir, PCK_FILE);
 			File runtimePackDir = runtimePackDirectory(branch);
-			intent.putExtra(NativeFallbackActivity.EXTRA_REASON_TITLE, "StS2 Mobile diagnostics");
+			intent.putExtra(NativeFallbackActivity.EXTRA_REASON_TITLE, "StS2 Launcher diagnostics");
 			intent.putExtra(
 				NativeFallbackActivity.EXTRA_REASON_MESSAGE,
 				"Selected Steam branch '" + branch + "' needs an Android runtime pack before native Godot can start.\n\n"

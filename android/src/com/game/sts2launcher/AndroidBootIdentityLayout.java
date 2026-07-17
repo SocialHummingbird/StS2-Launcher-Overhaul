@@ -1,16 +1,16 @@
 package com.game.sts2launcher;
 
 final class AndroidBootIdentityLayout {
-	static final float WORDMARK_TEXT_SP = 18.0f;
+	static final float WORDMARK_TEXT_SP = 20.0f;
 
-	private static final float MARK_SHORT_EDGE_FRACTION = 0.42f;
+	private static final float MARK_SHORT_EDGE_FRACTION = 0.52f;
 	private static final float CONTENT_WIDTH_MARK_MULTIPLIER = 1.55f;
-	private static final int MIN_MARK_DP = 112;
-	private static final int MAX_MARK_DP = 184;
+	private static final int MIN_MARK_DP = 144;
+	private static final int MAX_MARK_DP = 232;
 	private static final int MIN_CONTENT_WIDTH_DP = 200;
 	private static final int CONTENT_INSET_DP = 24;
-	private static final int WORDMARK_GAP_DP = 12;
-	private static final int WORDMARK_LINE_SP = 24;
+	private static final int WORDMARK_GAP_DP = 14;
+	private static final int WORDMARK_LINE_SP = 28;
 
 	private AndroidBootIdentityLayout() {
 	}

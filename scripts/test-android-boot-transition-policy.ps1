@@ -91,8 +91,8 @@ $sequenceSource = Get-Content -LiteralPath (
     Join-Path $root "android\src\com\game\sts2launcher\AndroidBootSequence.java"
 ) -Raw
 
-Assert-SourceContains $sequenceSource "FULL_DURATION_MS = 2_480L;" `
-    "Full boot transition duration must remain exactly 2,480 ms."
+Assert-SourceContains $sequenceSource "FULL_DURATION_MS = 4_000L;" `
+    "Full boot transition duration must remain exactly 4,000 ms."
 Assert-SourceContains $sequenceSource "REDUCED_MOTION_DURATION_MS = 200L;" `
     "Reduced-motion boot transition duration must remain exactly 200 ms."
 Assert-SourceContains $controllerSource "WATCHDOG_MS = 30_000L;" `

@@ -46,7 +46,7 @@ Local fix28 evidence is captured at `artifacts/android/fix28-native-login-panel-
 This evidence proves:
 
 - Removing the saved encrypted Steam session files shows the integrated native Steam login panel on ARM64 hardware.
-- The panel exposes real Android username and masked password fields, portrait full-width controls, responsive wide credential/action rows in landscape, orientation/screen-size reflow for the native credential panel, the password-focus control, the password visibility control, and inline text that the Steam password is never stored by StS2 Mobile.
+- The panel exposes real Android username and masked password fields, portrait full-width controls, responsive wide credential/action rows in landscape, orientation/screen-size reflow for the native credential panel, the password-focus control, the password visibility control, and inline text that the Steam password is never stored by StS2 Launcher.
 - Empty submit stays local and shows inline username guidance without starting Steam authentication.
 - Android Back dismisses the panel without exiting the app.
 - After Back dismissal, the launcher can reopen the native panel immediately.
@@ -149,7 +149,7 @@ Capture the following on ARM64 hardware:
    - Android Back dismisses the native credential panel and returns to the launcher without leaving the app.
    - Back/Cancel dismissal lets the user reopen the native credential panel immediately.
    - Submitting or cancelling does not trigger a provider prompt to save unverified credentials before Steam authentication.
-   - The panel states that the Steam password is never stored by StS2 Mobile.
+   - The panel states that the Steam password is never stored by StS2 Launcher.
 
 3. `Password-manager suggestions`
    - Test Samsung Pass if available.

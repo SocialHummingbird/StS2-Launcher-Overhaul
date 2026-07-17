@@ -17,7 +17,7 @@ internal static partial class LauncherLaunchMarkers
             SteamAuthFailurePath,
             new[]
             {
-                "StS2 Mobile Steam auth failure",
+                "StS2 Launcher Steam auth failure",
                 $"UTC: {DateTime.UtcNow:O}",
                 $"Context: {Sanitize(context)}",
                 $"Category: {Sanitize(report.Category)}",

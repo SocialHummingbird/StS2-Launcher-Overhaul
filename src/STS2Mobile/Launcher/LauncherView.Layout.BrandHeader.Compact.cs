@@ -31,7 +31,7 @@ internal sealed partial class LauncherView
 
     private static StyledLabel BuildCompactBrandTitle(float scale)
     {
-        var title = new StyledLabel("StS2 Mobile", scale, fontSize: CompactBrandTitleFontSize);
+        var title = new StyledLabel("StS2 Launcher", scale, fontSize: CompactBrandTitleFontSize);
         title.HorizontalAlignment = HorizontalAlignment.Left;
         title.VerticalAlignment = VerticalAlignment.Center;
         title.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;

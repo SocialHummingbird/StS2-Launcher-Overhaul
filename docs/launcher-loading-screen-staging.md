@@ -4,7 +4,7 @@
 
 The launch/loading path is split across two deliberately separate surfaces:
 
-- Android cold-start transition: `GodotAppSplashTheme` displays the official Godot Engine mark while Android and Godot initialize. Once the managed launcher has rendered two process frames and one post-draw frame, native Android transitions to the existing StS2 Mobile icon and then reveals the launcher.
+- Android cold-start transition: `GodotAppSplashTheme` displays the official Godot Engine mark while Android and Godot initialize. Once the managed launcher has rendered two process frames and one post-draw frame, native Android transitions to the StS2 Launcher identity and then reveals the launcher.
 - Godot post-launch warmup/status: `ShaderWarmupScreen` displays shader warmup progress, and `LauncherStartupStatus` displays game-startup phase text after the launcher closes.
 
 The cold-start transition is silent and uses vector assets. It borrows the structure of a deliberate two-stage boot confirmation, but it does not reproduce PlayStation branding, timing, audio, or assets.
@@ -13,7 +13,7 @@ The cold-start transition is silent and uses vector assets. It borrows the struc
 
 - The full transition runs only for the first ordinary launcher start in a process.
 - Pending Start Game, Safe Start, return-to-launcher restarts, and deliberate game restarts skip it.
-- The Godot mark remains visible for real initialization time; the exact 2.48-second sequence starts only after the launcher-first-frame bridge fires.
+- The Godot mark remains visible for real initialization time; the exact four-second sequence starts only after the launcher-first-frame bridge fires.
 - Reduced-motion devices receive a direct 200 ms fade with no icon hold.
 - The overlay blocks touch only while visible and is removed from the view hierarchy on completion.
 - A 30-second watchdog removes the overlay if launcher construction or readiness signalling fails.
@@ -23,17 +23,17 @@ The cold-start transition is silent and uses vector assets. It borrows the struc
 
 ## Visual sequence
 
-`AndroidBootSequence` owns one contiguous 2,480 ms clock. Every visual channel and future sound cue is derived from these phase boundaries:
+`AndroidBootSequence` owns one contiguous 4,000 ms clock. Every visual channel and future sound cue is derived from these phase boundaries:
 
 | Phase | Timeline | Presentation |
 | --- | ---: | --- |
-| `registration` | 0-320 ms | The Godot mark fades and scales from 100% to 86% while offset cyan and orange identity layers briefly establish the next mark. |
-| `separation` | 320-440 ms | Both marks clear for a deliberate 120 ms near-black separation. |
-| `identity-reveal` | 440-940 ms | Cyan and orange layers converge, the identity scales from 82% through 104%, and the resolved full-colour mark appears. |
-| `final-settle` | 940-1,060 ms | The resolved mark settles to 100% and the live `StS2 MOBILE` wordmark appears. |
-| `confirmation-hold` | 1,060-1,760 ms | The completed identity remains stable for 700 ms. |
-| `identity-pulse` | 1,760-1,940 ms | One restrained pulse confirms the identity without changing layout bounds. |
-| `launcher-handoff` | 1,940-2,480 ms | The overlay fades out over the already-rendered launcher and is then removed from the hierarchy. |
+| `registration` | 0-450 ms | The Godot mark fades and scales from 100% to 84% while offset cyan and orange identity layers establish the next mark. |
+| `separation` | 450-700 ms | Both marks clear for a deliberate 250 ms near-black separation. |
+| `identity-reveal` | 700-1,500 ms | Cyan and orange layers converge, the identity scales from 82% through 103.5%, and the resolved full-colour mark appears. |
+| `final-settle` | 1,500-1,850 ms | The resolved mark compresses through 99.2%, returns once to 100%, and then reveals the live `StS2 LAUNCHER` wordmark. |
+| `confirmation-hold` | 1,850-3,050 ms | The completed identity remains stable for 1,200 ms. |
+| `identity-pulse` | 3,050-3,300 ms | One 1.4% pulse gives the confirmed identity a restrained tactile response. |
+| `launcher-handoff` | 3,300-4,000 ms | The overlay fades out over the already-rendered launcher and is then removed from the hierarchy. |
 
 This timing starts only after native overlay attachment and the managed first-frame readiness signal are both present. Runtime initialization before readiness is not forced into a fixed duration.
 
@@ -49,14 +49,14 @@ A future sound implementation must fit the existing cue lifecycle. It must not m
 
 ## Branding restrictions
 
-The permitted identity is the attributed official Godot Engine mark followed by project-owned StS2 Mobile artwork and the live `StS2 MOBILE` wordmark. The transition may use the general idea of a deliberate two-stage boot confirmation, but contributors must not:
+The permitted identity is the attributed official Godot Engine mark followed by project-owned StS2 Launcher artwork and the live `StS2 LAUNCHER` wordmark. The launcher name identifies the tool and must not imply ownership of Slay the Spire 2 or an official mobile port. The transition may use the general idea of a deliberate two-stage boot confirmation, but contributors must not:
 
 - use Sony, PlayStation, PS1, or Sony Computer Entertainment logos, wordmarks, symbols, artwork, or trade dress;
 - copy or derive the PlayStation startup sound, add a sound-alike recording, or market a future cue as PlayStation audio;
 - reproduce the console sequence's exact timing, easing, geometry, composition, or animation assets; or
 - describe the result as PlayStation branding, an official PlayStation-style boot screen, or an affiliation or endorsement.
 
-The Godot mark remains subject to its Creative Commons Attribution 4.0 terms and Godot press-kit guidance. Its use identifies the runtime and does not imply Godot endorsement of StS2 Mobile.
+The Godot mark remains subject to its Creative Commons Attribution 4.0 terms and Godot press-kit guidance. Its use identifies the runtime and does not imply Godot endorsement of StS2 Launcher.
 
 ## Shader and game boundary
 
@@ -69,7 +69,7 @@ The Godot mark remains subject to its Creative Commons Attribution 4.0 terms and
 
 Implemented in this stage:
 
-- The earlier native splash replaced Android's default system app icon with the scalable launcher vector; Stage 3 below supersedes that treatment with the readiness-driven Godot-to-StS2 Mobile sequence.
+- The earlier native splash replaced Android's default system app icon with the scalable launcher vector; Stage 3 below supersedes that treatment with the readiness-driven Godot-to-StS2 Launcher sequence.
 - Shader warmup panel scales from the short viewport edge, not only the long edge, so short/wide Samsung-style landscape screens do not inflate text and controls beyond the available height.
 - Shader warmup panel width is clamped with safe side margins and keeps a bounded aspect-friendly layout.
 - Warmup status/detail labels use word wrapping.
@@ -83,12 +83,12 @@ Implemented in this stage:
 Implemented in this stage:
 
 - Android splash-safe Godot Engine vector mark on the existing `#0E141D` background.
-- Readiness-driven Godot-to-StS2 Mobile transition with matching centered bounds.
-- Transparent cyan, orange, and full-colour StS2 Mobile boot vectors replace the square adaptive icon in the controlled reveal.
-- The boot identity scales from the viewport short edge within fixed density-aware limits, with `StS2 MOBILE` rendered as live Android text rather than image content.
+- Readiness-driven Godot-to-StS2 Launcher transition with matching centered bounds.
+- Transparent cyan, orange, and full-colour StS2 Launcher boot vectors replace the square adaptive icon in the controlled reveal.
+- The boot identity scales from 52% of the viewport short edge within a 144-232 dp clamp, with `StS2 LAUNCHER` rendered as responsive live Android text rather than image content.
 - `AndroidBootIdentityView` owns the full native presentation surface: official Godot mark, independent cyan/orange registration layers, resolved mark, reveal clipping, pulse overlay, and wordmark.
 - Its pure visual-state model exposes independently testable opacity, scale, X/Y registration offsets, reveal progress, and pulse strength while the controller retains startup policy and lifecycle ownership.
-- `AndroidBootSequence` defines the seven named, contiguous timeline phases and samples every visual channel from one authoritative 2,480 ms clock. The controller logs phase entry, which provides a synchronization point for later sound work without loading or playing audio now.
+- `AndroidBootSequence` defines the seven named, contiguous timeline phases and samples every visual channel from one authoritative 4,000 ms clock. The controller logs phase entry, which provides a synchronization point for later sound work without loading or playing audio now.
 - `AndroidBootTransitionSound` and the phase-aligned cue definitions provide a replaceable sound boundary. `SilentBootTransitionSound` is the active implementation; staged cues are suppressed for skipped and reduced-motion transitions, and the session closes on completion, cancellation, timeout, activity destruction, or overlay-install failure.
 - Activity pause/resume is forwarded only to the sound boundary. Calls are idempotent, phases reached while paused are discarded instead of replayed out of sync, and the visual sequence is never paused or retimed.
 - The sound boundary contains no audio assets, playback API, audio-focus request, permission, service, dependency, or user-facing setting. A future audible implementation can replace the silent implementation without changing animation timing or sequencing.
@@ -109,7 +109,7 @@ The first `0.2.406` pass found a Samsung lifecycle defect: a repeated splash-exi
 
 Validation results:
 
-- the full sequence logged the exact 2,480 ms phase timeline in portrait, landscape, rotation, and lifecycle-interruption scenarios;
+- the then-current sequence logged the exact 2,480 ms phase timeline in portrait, landscape, rotation, and lifecycle-interruption scenarios;
 - reduced motion logged the direct 200 ms path;
 - 87 screenshots contained no accidental near-white app frame, adaptive-icon square background, launcher control above the overlay, or visible keyboard;
 - the only three mostly black captures were Samsung secure-keyguard privacy frames from the automated unlock attempt, and the manual-unlock retry returned immediately to an intact launcher;
@@ -119,6 +119,8 @@ Validation results:
 - managed Release compilation, all Java policy/identity/sequence/sound tests, ARM64 APK structure, crypto-patch verification, installed hash comparison, and diff checks passed.
 
 The normal and Safe Start probes stopped after their native skip markers; this pass is not new downstream `NMainMenu` or shader-warmup evidence. The implementation itself does not alter those paths. Steam Cloud Push was not run, no release was published, and no downloaded/core-game file was modified. The local evidence bundle is `artifacts/android/boot-transition-hardware-0.2.407-20260717-115657/`.
+
+That hardware pass validates the transition policy and lifecycle safeguards, but it predates the larger four-second choreography and `StS2 LAUNCHER` wordmark. The revised timing, scale, and Help attribution require a new connected-device visual pass before release.
 
 ## Remaining stages
 

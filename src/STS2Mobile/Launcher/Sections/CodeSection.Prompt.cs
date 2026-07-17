@@ -36,7 +36,7 @@ internal sealed partial class CodeSection
             return wasIncorrect ? CompactIncorrectHelp : CompactDefaultHelp;
 
         return wasIncorrect
-            ? "Use the newest code from your Steam app or Steam email. StS2 Mobile submits it once and never stores Steam Guard codes."
-            : "Use the current code from your Steam app or Steam email. StS2 Mobile submits it once and never stores Steam Guard codes.";
+            ? "Use the newest code from your Steam app or Steam email. StS2 Launcher submits it once and never stores Steam Guard codes."
+            : "Use the current code from your Steam app or Steam email. StS2 Launcher submits it once and never stores Steam Guard codes.";
     }
 }

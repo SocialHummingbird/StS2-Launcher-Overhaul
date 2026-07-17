@@ -23,7 +23,7 @@ function Add-SteamVersionSelectionReleaseStatusDocsAndroidStatusChecks {
             "unofficial Android launcher",
             "You must own Slay the Spire 2 on Steam",
             "compatibility is not broad yet",
-            "Steam version selection, beta branches, Workshop mods, and save-merger behavior are still experimental",
+            "Steam version selection, beta branches, Workshop mods, and native modded-save compatibility are still experimental",
             "Refresh Game Versions",
             "Steam beta password entry is not implemented",
             "ARM64",

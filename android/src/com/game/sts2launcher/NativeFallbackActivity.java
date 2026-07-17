@@ -63,7 +63,7 @@ public class NativeFallbackActivity extends Activity {
 		long elapsedMs = SystemClock.elapsedRealtime();
 		long utcMillis = System.currentTimeMillis();
 		String context =
-			"StS2 Mobile native fallback context\n" +
+			"StS2 Launcher native fallback context\n" +
 			"UTC millis: " + utcMillis + "\n" +
 			"Elapsed realtime ms: " + elapsedMs + "\n" +
 			"Phase: " + safePhase + "\n" +
@@ -111,7 +111,7 @@ public class NativeFallbackActivity extends Activity {
 		String reasonTitle = getIntent().getStringExtra(EXTRA_REASON_TITLE);
 		String reasonMessage = getIntent().getStringExtra(EXTRA_REASON_MESSAGE);
 		if (reasonTitle == null || reasonTitle.isEmpty()) {
-			reasonTitle = "StS2 Mobile";
+			reasonTitle = "StS2 Launcher";
 		}
 		if (reasonMessage == null || reasonMessage.isEmpty()) {
 			reasonMessage =
@@ -300,7 +300,7 @@ public class NativeFallbackActivity extends Activity {
 			return;
 		}
 
-		clipboard.setPrimaryClip(ClipData.newPlainText("StS2 Mobile diagnostics", diagnostics));
+		clipboard.setPrimaryClip(ClipData.newPlainText("StS2 Launcher diagnostics", diagnostics));
 		Toast.makeText(this, "Diagnostics copied", Toast.LENGTH_SHORT).show();
 	}
 

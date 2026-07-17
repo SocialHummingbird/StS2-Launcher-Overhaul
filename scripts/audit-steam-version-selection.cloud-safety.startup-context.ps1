@@ -652,7 +652,7 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
             "MarkerPath\(LauncherStorageNames\.LaunchAttempt\)",
             "LauncherStorageNames\.LaunchAttempt",
             "WriteLaunchAttempt",
-            "StS2 Mobile launch attempt",
+            "StS2 Launcher launch attempt",
             "AttemptUtcPrefix",
             "AttemptPhasePrefix",
             "AttemptActionPrefix",

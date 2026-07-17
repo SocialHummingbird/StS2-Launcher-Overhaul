@@ -27,7 +27,7 @@ internal readonly struct LoginFormFailure
         => new(
             "Login handler failed",
             "Login failed",
-            "Retry sign-in; Steam passwords are not stored by StS2 Mobile.",
+            "Retry sign-in; Steam passwords are not stored by StS2 Launcher.",
             logFullException: true
         );
 
@@ -35,7 +35,7 @@ internal readonly struct LoginFormFailure
         => new(
             "Auto-connect failed",
             "Connection failed",
-            "Check the connection or sign in again if prompted; Steam passwords are not stored by StS2 Mobile.",
+            "Check the connection or sign in again if prompted; Steam passwords are not stored by StS2 Launcher.",
             logFullException: true
         );
 
@@ -43,7 +43,7 @@ internal readonly struct LoginFormFailure
         => new(
             "Local Steam credential handoff failed",
             "Login failed",
-            "Retry sign-in; Steam passwords are not stored by StS2 Mobile.",
+            "Retry sign-in; Steam passwords are not stored by StS2 Launcher.",
             logFullException: true
         );
 

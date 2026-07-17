@@ -10,7 +10,7 @@ public final class AndroidBootSequenceTest {
 	}
 
 	private static void assertPhaseTiming() {
-		assertLong("full duration", 2_480L, AndroidBootSequence.FULL_DURATION_MS);
+		assertLong("full duration", 4_000L, AndroidBootSequence.FULL_DURATION_MS);
 		assertLong("reduced-motion duration", 200L, AndroidBootSequence.REDUCED_MOTION_DURATION_MS);
 
 		AndroidBootSequence.Phase[] phases = AndroidBootSequence.Phase.values();
@@ -25,14 +25,14 @@ public final class AndroidBootSequenceTest {
 		assertLong("phases end at full duration", AndroidBootSequence.FULL_DURATION_MS, expectedStart);
 
 		assertPhase("registration start", AndroidBootSequence.Phase.REGISTRATION, 0L);
-		assertPhase("registration end exclusive", AndroidBootSequence.Phase.REGISTRATION, 319L);
-		assertPhase("separation start", AndroidBootSequence.Phase.SEPARATION, 320L);
-		assertPhase("identity reveal start", AndroidBootSequence.Phase.IDENTITY_REVEAL, 440L);
-		assertPhase("final settle start", AndroidBootSequence.Phase.FINAL_SETTLE, 940L);
-		assertPhase("confirmation hold start", AndroidBootSequence.Phase.CONFIRMATION_HOLD, 1_060L);
-		assertPhase("pulse start", AndroidBootSequence.Phase.IDENTITY_PULSE, 1_760L);
-		assertPhase("handoff start", AndroidBootSequence.Phase.LAUNCHER_HANDOFF, 1_940L);
-		assertPhase("handoff completion", AndroidBootSequence.Phase.LAUNCHER_HANDOFF, 2_480L);
+		assertPhase("registration end exclusive", AndroidBootSequence.Phase.REGISTRATION, 449L);
+		assertPhase("separation start", AndroidBootSequence.Phase.SEPARATION, 450L);
+		assertPhase("identity reveal start", AndroidBootSequence.Phase.IDENTITY_REVEAL, 700L);
+		assertPhase("final settle start", AndroidBootSequence.Phase.FINAL_SETTLE, 1_500L);
+		assertPhase("confirmation hold start", AndroidBootSequence.Phase.CONFIRMATION_HOLD, 1_850L);
+		assertPhase("pulse start", AndroidBootSequence.Phase.IDENTITY_PULSE, 3_050L);
+		assertPhase("handoff start", AndroidBootSequence.Phase.LAUNCHER_HANDOFF, 3_300L);
+		assertPhase("handoff completion", AndroidBootSequence.Phase.LAUNCHER_HANDOFF, 4_000L);
 	}
 
 	private static void assertPhaseFrames() {
@@ -42,7 +42,7 @@ public final class AndroidBootSequenceTest {
 		assertFloat("start identity hidden", 0.0f, start.identityOpacity());
 		assertFloat("start overlay opaque", 1.0f, start.overlayOpacity());
 
-		AndroidBootSequence.Frame registration = AndroidBootSequence.frameAt(160L);
+		AndroidBootSequence.Frame registration = AndroidBootSequence.frameAt(225L);
 		assertBetween("registration Godot fade", registration.godotOpacity(), 0.0f, 1.0f);
 		assertBetween("registration identity visibility", registration.identityOpacity(), 0.0f, 1.0f);
 		assertPositive("registration cyan", registration.cyanOpacity());
@@ -52,14 +52,14 @@ public final class AndroidBootSequenceTest {
 		assertFloat("registration unresolved", 0.0f, registration.resolvedOpacity());
 		assertFloat("registration wordmark hidden", 0.0f, registration.wordmarkOpacity());
 
-		AndroidBootSequence.Frame separation = AndroidBootSequence.frameAt(380L);
+		AndroidBootSequence.Frame separation = AndroidBootSequence.frameAt(575L);
 		assertFloat("separation Godot hidden", 0.0f, separation.godotOpacity());
 		assertFloat("separation identity hidden", 0.0f, separation.identityOpacity());
 		assertFloat("separation overlay remains opaque", 1.0f, separation.overlayOpacity());
 
-		AndroidBootSequence.Frame revealStart = AndroidBootSequence.frameAt(440L);
-		AndroidBootSequence.Frame revealMiddle = AndroidBootSequence.frameAt(690L);
-		AndroidBootSequence.Frame revealEnd = AndroidBootSequence.frameAt(939L);
+		AndroidBootSequence.Frame revealStart = AndroidBootSequence.frameAt(700L);
+		AndroidBootSequence.Frame revealMiddle = AndroidBootSequence.frameAt(1_100L);
+		AndroidBootSequence.Frame revealEnd = AndroidBootSequence.frameAt(1_499L);
 		assertFloat("reveal begins clipped", 0.0f, revealStart.revealProgress());
 		assertBetween("reveal progresses", revealMiddle.revealProgress(), 0.0f, 1.0f);
 		assertGreater("reveal identity grows", revealMiddle.identityOpacity(), revealStart.identityOpacity());
@@ -68,28 +68,31 @@ public final class AndroidBootSequenceTest {
 		assertGreater("resolved mark forms", revealEnd.resolvedOpacity(), revealMiddle.resolvedOpacity());
 		assertFloat("wordmark waits for settle", 0.0f, revealEnd.wordmarkOpacity());
 
-		AndroidBootSequence.Frame settleStart = AndroidBootSequence.frameAt(940L);
-		AndroidBootSequence.Frame settleMiddle = AndroidBootSequence.frameAt(1_000L);
-		AndroidBootSequence.Frame settled = AndroidBootSequence.frameAt(1_060L);
-		assertFloat("settle starts overscale", 1.04f, settleStart.identityScale());
+		AndroidBootSequence.Frame settleStart = AndroidBootSequence.frameAt(1_500L);
+		AndroidBootSequence.Frame settleMiddle = AndroidBootSequence.frameAt(1_675L);
+		AndroidBootSequence.Frame compression = AndroidBootSequence.frameAt(1_717L);
+		AndroidBootSequence.Frame settled = AndroidBootSequence.frameAt(1_850L);
+		assertFloat("settle starts overscale", 1.035f, settleStart.identityScale());
 		assertBetween("wordmark reveals during settle", settleMiddle.wordmarkOpacity(), 0.0f, 1.0f);
+		assertLess("settle compresses below rest", compression.identityScale(), 1.0f);
 		assertFloat("settle resolves scale", 1.0f, settled.identityScale());
 		assertFloat("settle resolves wordmark", 1.0f, settled.wordmarkOpacity());
 		assertFloat("settle resolves mark", 1.0f, settled.resolvedOpacity());
 
-		AndroidBootSequence.Frame holdMiddle = AndroidBootSequence.frameAt(1_410L);
+		AndroidBootSequence.Frame holdMiddle = AndroidBootSequence.frameAt(2_450L);
 		assertResolved("confirmation hold", holdMiddle);
 
-		AndroidBootSequence.Frame pulseStart = AndroidBootSequence.frameAt(1_760L);
-		AndroidBootSequence.Frame pulsePeak = AndroidBootSequence.frameAt(1_850L);
-		AndroidBootSequence.Frame pulseEnd = AndroidBootSequence.frameAt(1_940L);
+		AndroidBootSequence.Frame pulseStart = AndroidBootSequence.frameAt(3_050L);
+		AndroidBootSequence.Frame pulsePeak = AndroidBootSequence.frameAt(3_175L);
+		AndroidBootSequence.Frame pulseEnd = AndroidBootSequence.frameAt(3_300L);
 		assertFloat("pulse begins at rest", 0.0f, pulseStart.pulseStrength());
 		assertFloat("pulse reaches one restrained peak", 1.0f, pulsePeak.pulseStrength());
 		assertFloat("pulse returns to rest", 0.0f, pulseEnd.pulseStrength());
 		assertGreater("pulse scales identity", pulsePeak.identityScale(), 1.0f);
+		assertGreater("pulse has tactile weight", pulsePeak.identityScale(), 1.01f);
 
-		AndroidBootSequence.Frame handoffMiddle = AndroidBootSequence.frameAt(2_210L);
-		AndroidBootSequence.Frame handoffEnd = AndroidBootSequence.frameAt(2_480L);
+		AndroidBootSequence.Frame handoffMiddle = AndroidBootSequence.frameAt(3_650L);
+		AndroidBootSequence.Frame handoffEnd = AndroidBootSequence.frameAt(4_000L);
 		assertBetween("handoff reveals launcher", handoffMiddle.overlayOpacity(), 0.0f, 1.0f);
 		assertLess("handoff eases identity back", handoffMiddle.identityScale(), 1.0f);
 		assertFloat("handoff ends transparent", 0.0f, handoffEnd.overlayOpacity());

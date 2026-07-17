@@ -2,9 +2,9 @@
 
 _Last updated: 2026-07-16_
 
-See [Unofficial project notice](unofficial-project-notice.md). StS2 Mobile / StS2 Launcher Overhaul is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, Steam, or Valve, and bundles no Slay the Spire 2 game files, assets, or Workshop content. Steam ownership is required.
+See [Unofficial project notice](unofficial-project-notice.md). StS2 Launcher is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, Steam, or Valve, and bundles no Slay the Spire 2 game files, assets, or Workshop content. Steam ownership is required.
 
-This document tracks the Android Workshop/mod path for StS2 Mobile. It covers subscribed Steam Workshop discovery, Android staging, runtime loading, Steam Cloud safety, current compatibility limits, and the current unsupported legacy UGC blocker.
+This document tracks the Android Workshop/mod path for StS2 Launcher. It covers subscribed Steam Workshop discovery, Android staging, runtime loading, Steam Cloud safety, current compatibility limits, and the current unsupported legacy UGC blocker.
 
 ## Current State
 
