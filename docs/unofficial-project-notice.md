@@ -8,6 +8,10 @@ A valid Steam account that owns Slay the Spire 2 is required. If the Steam accou
 
 This project is not affiliated with, endorsed by, sponsored by, or supported by Mega Crit Games, Steam, or Valve. Slay the Spire 2 is developed and published by Mega Crit Games.
 
+The cold-start transition uses the official Godot Engine icon to identify the runtime that powers the launcher. The Godot Engine logo is licensed under [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/) and is used according to the [Godot Engine press-kit guidance](https://godotengine.org/press/). Godot Engine and its logo belong to the Godot Engine project; their use does not imply endorsement of StS2 Mobile.
+
+The staged Godot-to-StS2 Mobile transition is original project branding. It is not PlayStation branding and does not use Sony or PlayStation logos, artwork, startup audio or sound-alike cues, copied animation assets, or reproduced console timing, easing, geometry, or composition.
+
 This is prerelease community tester software. Compatibility varies by device, and some phones may crash, fail to launch, or have graphics/driver problems. It should not be described as an official mobile port, an official Android release, or a sanctioned replacement for any future official mobile version.
 
 When posting, reporting bugs, or sharing builds, use this framing:

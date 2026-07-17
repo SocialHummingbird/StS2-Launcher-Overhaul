@@ -753,6 +753,7 @@ public class NativeFallbackActivity extends Activity {
 
 	private void restartApp() {
 		Intent intent = new Intent(this, LauncherActivity.class);
+		intent.putExtra(AndroidBootTransitionPolicy.SKIP_INTENT_EXTRA, true);
 		intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 		startActivity(intent);
 		finish();

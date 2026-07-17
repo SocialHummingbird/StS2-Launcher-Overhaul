@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-17 - Readiness-driven Android boot transition
+
+- Replaced the app-icon-only Android splash with an official Godot Engine mark that holds while the runtime and managed launcher genuinely initialize, then runs an original seven-phase, 2,480 ms Godot-to-StS2 Mobile reveal before handing off to the ready launcher.
+- Added transparent cyan, orange, and resolved StS2 Mobile vectors without the adaptive-icon square, responsive short-edge sizing, a live `StS2 MOBILE` wordmark, one authoritative animation clock, and independently testable opacity, scale, registration-offset, clipping, and pulse state.
+- Added cold-start-only playback policy, explicit restart handoff suppression, pending normal/Safe Start suppression, a direct 200 ms reduced-motion path, early-readiness caching, duplicate-signal protection, activity-destruction cleanup, touch interception only while visible, and a 30-second fail-open watchdog.
+- Added `AndroidBootTransitionSound`, seven phase-aligned cue definitions, lifecycle-safe cue/session handling, and the active no-op `SilentBootTransitionSound`. The extension point adds no audio asset, playback API, audio-focus request, permission, service, dependency, or preference, and future sound cannot retime or block the visual sequence.
+- Added a managed-to-Java first-render bridge after two process frames and one `FramePostDraw`, and disabled the bootstrap project's separate Godot boot image without changing downloaded game content or shader warmup.
+- Added Godot Engine logo attribution and explicit restrictions against Sony/PlayStation branding, assets, startup audio, sound-alike cues, or reproduced console timing, easing, geometry, and composition.
+- Initial Samsung hardware testing found that a repeated splash-exit callback could reattach a terminal overlay and expose the keyboard after Home/resume. The corrected controller rejects terminal attachment and posts a second IME suppression pass; policy/source tests and dense resume captures cover the fix.
+- Installed exact local ARM64 build `0.2.407-boot-hardware-resume-local` (`407001`, SHA-256 `f4ed4266a2019669383d16b5a4108601f4fe41a9a5107969f85532f74387434a`) on Samsung `SM-F966B` / Android 16. Portrait, landscape, reduced motion, Home/resume, rotation, secure lock/unlock, touch release, and restart/normal/Safe Start skip routes passed with no focused fallback, fatal, signal, ANR, unexpected process-death, IME, or transition-timeout evidence.
+- Managed Release compilation, all Java policy/identity/sequence/sound tests, Android Mono Java/resource compilation, ARM64 APK structure/ABI/crypto verification, exact installed-hash comparison, screenshot audit, and diff checks pass. The game and Safe Start probes stopped after their native skip markers, so this is not new downstream game-startup evidence. No commit, push, release, Steam Cloud Push, or downloaded/core-game modification was performed.
+
 ## 2026-07-16 - Native modded-save Pull release
 
 - Replaced the launcher SavesMerger save-path substitute with native modded save directories. Installed SavesMerger/UnifiedSavePath entries are now shown as deprecated and excluded from runtime activation.

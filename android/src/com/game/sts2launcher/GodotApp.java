@@ -90,6 +90,7 @@ public class GodotApp extends GodotActivity {
 	private static GodotApp instance;
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 	private WifiManager.MulticastLock multicastLock;
+	private AndroidBootTransitionController bootTransitionController;
 	private String gameDir;
 	private File cachedRuntimePackDir;
 	private String cachedRuntimePackValidationKey = "";
@@ -190,6 +191,8 @@ public class GodotApp extends GodotActivity {
 		gameDir = resolveGameDir().getAbsolutePath();
 		String selectedBranch = readSelectedBranch();
 		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
+		boolean pendingSafeLaunch = hasPendingSafeGameLaunchRequest();
+		boolean explicitBootTransitionSkip = consumeBootTransitionSkipExtra();
 		configureRequestedOrientation(pendingGameLaunch);
 		recordStartupPhase("native game directory resolved", "branch=" + selectedBranch + "; pendingGameLaunch=" + pendingGameLaunch);
 		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
@@ -214,7 +217,15 @@ public class GodotApp extends GodotActivity {
 		logStartupFreshnessProbe(pendingGameLaunch);
 
 		recordStartupPhase("native splash setup", "Installing splash screen and edge-to-edge");
-		SplashScreen.installSplashScreen(this);
+		SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
+		bootTransitionController = AndroidBootTransitionController.install(
+			this,
+			splashScreen,
+			pendingGameLaunch && !pendingSafeLaunch,
+			pendingSafeLaunch,
+			explicitBootTransitionSkip,
+			this::recordStartupPhase
+		);
 		EdgeToEdge.enable(this);
 
 		try {
@@ -2314,6 +2325,27 @@ public class GodotApp extends GodotActivity {
 			.getBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, false);
 	}
 
+	private boolean hasPendingSafeGameLaunchRequest() {
+		Intent intent = getIntent();
+		if (intent != null && intent.getBooleanExtra(EXTRA_SAFE_LAUNCH_ON_START, false)) {
+			return true;
+		}
+
+		return getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+			.getBoolean(KEY_SAFE_LAUNCH_ON_NEXT_START, false);
+	}
+
+	private boolean consumeBootTransitionSkipExtra() {
+		Intent intent = getIntent();
+		if (intent == null
+			|| !intent.getBooleanExtra(AndroidBootTransitionPolicy.SKIP_INTENT_EXTRA, false)) {
+			return false;
+		}
+
+		intent.removeExtra(AndroidBootTransitionPolicy.SKIP_INTENT_EXTRA);
+		return true;
+	}
+
 	private boolean consumeSafeGameLaunchRequest() {
 		Intent intent = getIntent();
 		if (intent != null && intent.getBooleanExtra(EXTRA_SAFE_LAUNCH_ON_START, false)) {
@@ -2947,12 +2979,18 @@ public class GodotApp extends GodotActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
+		if (bootTransitionController != null) {
+			bootTransitionController.resumeSound();
+		}
 		recordAppLifecycleEvent("activity onResume");
 	}
 
 	@Override
 	protected void onPause() {
 		recordAppLifecycleEvent("activity onPause");
+		if (bootTransitionController != null) {
+			bootTransitionController.pauseSound();
+		}
 		super.onPause();
 	}
 
@@ -2971,6 +3009,10 @@ public class GodotApp extends GodotActivity {
 	@Override
 	protected void onDestroy() {
 		recordAppLifecycleEvent("activity onDestroy");
+		if (bootTransitionController != null) {
+			bootTransitionController.destroy();
+			bootTransitionController = null;
+		}
 		clearSteamLoginCredentialPanel();
 		if (multicastLock != null && multicastLock.isHeld()) {
 			multicastLock.release();
@@ -2982,6 +3024,14 @@ public class GodotApp extends GodotActivity {
 
 	public static GodotApp getInstance() {
 		return instance;
+	}
+
+	public void notifyLauncherFirstFrameReady() {
+		if (bootTransitionController != null) {
+			bootTransitionController.notifyLauncherReady();
+		} else {
+			recordStartupPhase("boot transition launcher-ready", "controller unavailable");
+		}
 	}
 
 	public String getGameDir() {
@@ -3079,6 +3129,7 @@ public class GodotApp extends GodotActivity {
 		Log.i(TAG, "Restarting app...");
 		Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
 		if (intent != null) {
+			intent.putExtra(AndroidBootTransitionPolicy.SKIP_INTENT_EXTRA, true);
 			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 			startActivity(intent);
 		}

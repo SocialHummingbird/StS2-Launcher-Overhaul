@@ -90,8 +90,10 @@ internal static partial class LauncherStartupFlow
         var launcher = new LauncherUI();
         launcher.SetGameMode(true);
         gameNode.AddChild(launcher);
-        launcher.Initialize();
+        var launcherInitialized = launcher.Initialize();
         PatchHelper.Log("Launcher UI displayed");
+        if (launcherInitialized)
+            await launcher.NotifyBootTransitionWhenVisibleAsync();
         await launcher.WaitForLaunch();
 
         return launcher;

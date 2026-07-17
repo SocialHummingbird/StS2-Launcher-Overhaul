@@ -48,7 +48,9 @@ public static partial class ModEntry
         var launcher = new LauncherUI();
         AddStartupFallbackShield(tree);
         tree.Root.AddChild(launcher);
-        launcher.Initialize();
+        var launcherInitialized = launcher.Initialize();
+        if (launcherInitialized)
+            _ = launcher.NotifyBootTransitionWhenVisibleAsync();
         RaiseStartupFallbackLauncher(launcher);
         AddStartupFallbackBanner(tree);
         PatchHelper.Log("Standalone launcher displayed");

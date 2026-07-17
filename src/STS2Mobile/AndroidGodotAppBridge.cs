@@ -15,6 +15,9 @@ internal static class AndroidGodotAppBridge
 
     internal static void RestartApp() => CallVoid("restartApp");
 
+    internal static void NotifyLauncherFirstFrameReady()
+        => CallVoid("notifyLauncherFirstFrameReady");
+
     internal static void LaunchGameOnRestart() => CallVoid("launchGameOnRestart");
 
     internal static void LaunchGameSafelyOnRestart()

@@ -31,6 +31,7 @@ _custom_features="dotnet"
 config/name="sts2"
 config/features=PackedStringArray("4.5", "Forward Plus", "C#")
 run/main_scene="res://bootstrap.tscn"
+boot_splash/show_image=false
 
 [display]
 
@@ -52,6 +53,7 @@ BOOTSTRAP_SCENE = """\
 [node name="BootstrapScene" type="Node"]
 """
 
+VARIANT_BOOL = 1
 VARIANT_INT = 2
 VARIANT_STRING = 4
 VARIANT_PACKED_STRING_ARRAY = 34
@@ -61,6 +63,7 @@ PROJECT_SETTINGS = [
     ("application/config/name", ("string", "sts2")),
     ("application/config/features", ("packed_string_array", ["4.5", "Forward Plus", "C#"])),
     ("application/run/main_scene", ("string", "res://bootstrap.tscn")),
+    ("application/boot_splash/show_image", ("bool", False)),
     ("display/window/handheld/orientation", ("int", 6)),
     ("dotnet/project/assembly_name", ("string", "sts2")),
     ("rendering/renderer/rendering_method", ("string", "mobile")),
@@ -92,6 +95,8 @@ def encode_padded_string(value):
 
 def encode_variant(value):
     kind, payload = value
+    if kind == "bool":
+        return struct.pack("<II", VARIANT_BOOL, 1 if payload else 0)
     if kind == "int":
         return struct.pack("<II", VARIANT_INT, int(payload))
     if kind == "string":

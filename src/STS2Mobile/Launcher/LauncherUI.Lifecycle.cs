@@ -6,7 +6,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherUI
 {
-    internal void Initialize()
+    internal bool Initialize()
     {
         LauncherLaunchMarkers.RecordPhase("launcher ui initialize", "Building managed launcher UI");
         ZIndex = LauncherZIndex;
@@ -38,7 +38,7 @@ internal sealed partial class LauncherUI
         {
             LauncherLaunchMarkers.RecordPhase("launcher ui failed", ex.GetBaseException().Message);
             PatchHelper.Log($"BuildUI FAILED: {ex}");
-            return;
+            return false;
         }
 
         var tree = GetTree();
@@ -46,6 +46,7 @@ internal sealed partial class LauncherUI
         tree.ProcessFrame += OnProcessFrame;
         TreeExiting += OnExitTree;
         Callable.From(StartControllerSafely).CallDeferred();
+        return true;
     }
 
     private void StartControllerSafely()
