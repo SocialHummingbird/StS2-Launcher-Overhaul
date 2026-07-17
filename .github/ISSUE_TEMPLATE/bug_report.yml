@@ -1,5 +1,5 @@
 name: General bug report
-description: Report a reproducible problem that does not fit a more focused StS2 Mobile template.
+description: Report a reproducible problem that does not fit a more focused StS2 Launcher template.
 title: "[BUG] "
 labels: ["bug", "needs-triage", "category: reliability"]
 body:

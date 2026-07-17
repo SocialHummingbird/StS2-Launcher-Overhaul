@@ -619,7 +619,7 @@ jobs:
           signing_channel="$(awk -F= '$1=="signing_channel" {print $2}' "${build_info_path}")"
 
           {
-            printf '# StS2 Mobile %s\n\n' '${{ needs.build-android-release.outputs.version_name }}'
+            printf '# StS2 Launcher %s\n\n' '${{ needs.build-android-release.outputs.version_name }}'
             printf '## Download\n\n'
             printf 'Use the ARM64 APK:\n\n'
             printf '`%s`\n\n' "${apk_name}"
@@ -654,7 +654,7 @@ jobs:
         with:
           tag_name: ${{ needs.build-android-release.outputs.release_tag }}
           target_commitish: ${{ github.sha }}
-          name: "StS2 Mobile ${{ needs.build-android-release.outputs.version_name }}"
+          name: "StS2 Launcher ${{ needs.build-android-release.outputs.version_name }}"
           body_path: ${{ steps.notes.outputs.path }}
           files: |
             release-artifacts/**/*.apk
