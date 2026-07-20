@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -32,15 +33,35 @@ internal sealed partial class ShaderWarmupScreen
                     _materials.TryAdd(path, material);
             }
 
-            internal List<WarmupMaterial> UniqueByShader()
+            internal async Task<List<WarmupMaterial>> UniqueByShaderAsync(
+                SceneTree tree,
+                LauncherMonotonicDeadline deadline,
+                ShaderWarmupMaterialScanDiagnostics diagnostics
+            )
             {
                 var unique = new Dictionary<string, WarmupMaterial>();
+                int processed = 0;
                 foreach (var (path, mat) in _materials)
                 {
+                    if (deadline.IsExpired)
+                    {
+                        diagnostics.MarkDeduplicationStoppedByBudget(processed);
+                        break;
+                    }
+
                     var shaderKey = GetShaderKey(mat);
                     unique.TryAdd(shaderKey, WarmupMaterial.For(path, mat));
+                    processed++;
+
+                    if (processed % 32 == 0
+                        && !await LauncherAsyncYield.ProcessFrameAsync(tree, deadline))
+                    {
+                        diagnostics.MarkDeduplicationStoppedByBudget(processed);
+                        break;
+                    }
                 }
 
+                diagnostics.DeduplicatedMaterialCount = processed;
                 return unique.Values.ToList();
             }
         }

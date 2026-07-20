@@ -1,5 +1,6 @@
 using System.Reflection;
 using HarmonyLib;
+using Mono.Cecil;
 
 if (args.Length != 3)
 {
@@ -16,7 +17,7 @@ RequireFile(patchAssemblyPath);
 RequireFile(gameAssemblyPath);
 RequireFile(godotAssemblyPath);
 
-Assembly.LoadFrom(godotAssemblyPath);
+var godotAssembly = Assembly.LoadFrom(godotAssemblyPath);
 var gameAssembly = Assembly.LoadFrom(gameAssemblyPath);
 var patchAssembly = Assembly.LoadFrom(patchAssemblyPath);
 
@@ -24,6 +25,7 @@ const string harmonyId = "com.sts2launcher.android-atlas-compatibility-probe";
 var harmony = new Harmony(harmonyId);
 try
 {
+    AssertStandardModPackBoundary(gameAssemblyPath);
     var patchType = patchAssembly.GetType(
         "STS2Mobile.Patches.AndroidAtlasCompatibilityPatches",
         throwOnError: true
@@ -59,8 +61,20 @@ try
         4,
         harmonyId
     );
+    AttachAndAssertPostfix(
+        harmony,
+        patchType,
+        "LoadResourcePackPostfix",
+        godotAssembly,
+        "Godot.ProjectSettings",
+        "LoadResourcePack",
+        3,
+        harmonyId
+    );
 
-    Console.WriteLine("PASS: all Android atlas compatibility prefixes attached to the reporter runtime");
+    Console.WriteLine(
+        "PASS: Android atlas compatibility prefixes and global resource-pack postfix attached to the reporter runtime"
+    );
     return 0;
 }
 finally
@@ -118,6 +132,35 @@ static void AssertFallbackPolicy(Type patchType)
     Console.WriteLine("PASS: compiled atlas path parser and card fallback mapping");
 }
 
+static void AssertStandardModPackBoundary(string gameAssemblyPath)
+{
+    using var definition = AssemblyDefinition.ReadAssembly(gameAssemblyPath);
+    var modManager = definition.MainModule.GetType("MegaCrit.Sts2.Core.Modding.ModManager")
+        ?? throw new TypeLoadException("MegaCrit.Sts2.Core.Modding.ModManager");
+    var callers = modManager.Methods
+        .Where(method => method.HasBody)
+        .Where(method => method.Body.Instructions.Any(instruction =>
+            instruction.Operand is MethodReference called
+            && called.DeclaringType.FullName == "Godot.ProjectSettings"
+            && called.Name == "LoadResourcePack"
+        ))
+        .Select(method => method.Name)
+        .Distinct(StringComparer.Ordinal)
+        .OrderBy(name => name, StringComparer.Ordinal)
+        .ToArray();
+    if (callers.Length == 0)
+    {
+        throw new InvalidOperationException(
+            "Standard ModManager does not call Godot.ProjectSettings.LoadResourcePack"
+        );
+    }
+
+    Console.WriteLine(
+        "PASS: standard ModManager resource packs cross the global Godot boundary via "
+        + string.Join(", ", callers)
+    );
+}
+
 static void AttachAndAssertPrefix(
     Harmony harmony,
     Type patchType,
@@ -152,4 +195,40 @@ static void AttachAndAssertPrefix(
         throw new InvalidOperationException($"Harmony prefix was not attached to {typeName}.{methodName}");
 
     Console.WriteLine($"PASS: prefix attached to {typeName}.{methodName}");
+}
+
+static void AttachAndAssertPostfix(
+    Harmony harmony,
+    Type patchType,
+    string postfixName,
+    Assembly assembly,
+    string typeName,
+    string methodName,
+    int parameterCount,
+    string harmonyId
+)
+{
+    var postfix = patchType.GetMethod(
+        postfixName,
+        BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic
+    ) ?? throw new MissingMethodException(patchType.FullName, postfixName);
+    var type = assembly.GetType(typeName, throwOnError: true)!;
+    var methods = type.GetMethods(
+        BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+    ).Where(method => method.Name == methodName && method.GetParameters().Length == parameterCount)
+        .ToArray();
+    if (methods.Length != 1)
+    {
+        throw new InvalidOperationException(
+            $"Expected one {typeName}.{methodName}/{parameterCount}; found {methods.Length}"
+        );
+    }
+
+    harmony.Patch(methods[0], postfix: new HarmonyMethod(postfix));
+    var patchInfo = Harmony.GetPatchInfo(methods[0]);
+    bool attached = patchInfo?.Postfixes.Any(postfix => postfix.owner == harmonyId) == true;
+    if (!attached)
+        throw new InvalidOperationException($"Harmony postfix was not attached to {typeName}.{methodName}");
+
+    Console.WriteLine($"PASS: postfix attached to {typeName}.{methodName}");
 }

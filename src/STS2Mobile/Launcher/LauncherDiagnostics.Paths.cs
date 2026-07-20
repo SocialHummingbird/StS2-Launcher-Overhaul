@@ -90,6 +90,12 @@ internal static partial class LauncherDiagnostics
             Path.Combine(dataDir, LauncherStorageNames.ManualSafeLaunch)
         );
 
+    private static DiagnosticFile MainMenuPreparation(string dataDir)
+        => new(
+            "Main-menu preparation",
+            Path.Combine(dataDir, LauncherStorageNames.MainMenuPreparation)
+        );
+
     private static DiagnosticFile LaunchAttempt(string dataDir)
         => new(
             "Launch attempt",

@@ -18,7 +18,7 @@ internal sealed partial class ShaderWarmupScreen
         private readonly SceneTree _tree;
         private readonly ShaderWarmupProgress _progress;
         private readonly ShaderWarmupRenderPlan _renderPlan;
-        private readonly Func<bool> _shouldStop;
+        private readonly LauncherMonotonicDeadline _deadline;
 
         private readonly struct WarmupRenderBatch
         {
@@ -37,14 +37,14 @@ internal sealed partial class ShaderWarmupScreen
             SceneTree tree,
             ShaderWarmupProgress progress,
             ShaderWarmupRenderPlan renderPlan,
-            Func<bool> shouldStop
+            LauncherMonotonicDeadline deadline
         )
         {
             _parent = parent;
             _tree = tree;
             _progress = progress;
             _renderPlan = renderPlan;
-            _shouldStop = shouldStop;
+            _deadline = deadline;
         }
 
         internal static ShaderWarmupRenderer ForScreen(
@@ -52,9 +52,9 @@ internal sealed partial class ShaderWarmupScreen
             SceneTree tree,
             ShaderWarmupProgress progress,
             ShaderWarmupRenderPlan renderPlan,
-            Func<bool> shouldStop
+            LauncherMonotonicDeadline deadline
         )
-            => new(parent, tree, progress, renderPlan, shouldStop);
+            => new(parent, tree, progress, renderPlan, deadline);
 
         internal async Task<int> RenderAsync(List<WarmupMaterial> materials)
         {
@@ -81,7 +81,7 @@ internal sealed partial class ShaderWarmupScreen
             int rendered = 0;
             for (int i = 0; i < target; i += _renderPlan.BatchSize)
             {
-                if (_shouldStop())
+                if (_deadline.IsExpired)
                 {
                     PatchHelper.Log(Message.TimeBudgetReached(WarmupTimeBudgetSeconds));
                     return rendered;
@@ -102,24 +102,30 @@ internal sealed partial class ShaderWarmupScreen
                     materials,
                     batch
                 );
-
-                ReportProgress(batch.End, total);
-
-                await WaitForRenderFramesAsync();
-                ClearBatch(batchNodes);
+                try
+                {
+                    ReportProgress(batch.End, total);
+                    if (!await WaitForRenderFramesAsync())
+                        return rendered;
+                }
+                finally
+                {
+                    ClearBatch(batchNodes);
+                }
                 rendered = batch.End;
             }
 
             return rendered;
         }
 
-        private async Task WaitForRenderFramesAsync()
+        private async Task<bool> WaitForRenderFramesAsync()
         {
             if (_tree == null)
-                return;
+                return !_deadline.IsExpired;
 
-            await _tree.ToSignal(_tree, SceneTree.SignalName.ProcessFrame);
-            await _tree.ToSignal(_tree, SceneTree.SignalName.ProcessFrame);
+            if (!await LauncherAsyncYield.ProcessFrameAsync(_tree, _deadline))
+                return false;
+            return await LauncherAsyncYield.ProcessFrameAsync(_tree, _deadline);
         }
 
         private static void ClearBatch(List<Node> nodes)

@@ -10,11 +10,18 @@ internal sealed partial class ShaderWarmupScreen
         private static void VisitFiles(
             string dirPath,
             Action<string, string> visitFile,
+            LauncherMonotonicDeadline deadline,
             ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
             try
             {
+                if (deadline.IsExpired)
+                {
+                    diagnostics.MarkDeadlineReached();
+                    return;
+                }
+
                 using var dir = DirAccess.Open(dirPath);
                 if (dir == null)
                     return;
@@ -23,12 +30,23 @@ internal sealed partial class ShaderWarmupScreen
                 string fileName;
                 while ((fileName = dir.GetNext()) != "")
                 {
+                    if (deadline.IsExpired)
+                    {
+                        diagnostics.MarkDeadlineReached();
+                        break;
+                    }
+
                     if (ShouldSkip(fileName))
                         continue;
 
                     if (dir.CurrentIsDir())
                     {
-                        VisitFiles(ChildPath(dirPath, fileName), visitFile, diagnostics);
+                        VisitFiles(
+                            ChildPath(dirPath, fileName),
+                            visitFile,
+                            deadline,
+                            diagnostics
+                        );
                         continue;
                     }
 

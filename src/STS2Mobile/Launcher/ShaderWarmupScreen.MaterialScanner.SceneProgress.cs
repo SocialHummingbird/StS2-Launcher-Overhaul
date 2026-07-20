@@ -11,15 +11,15 @@ internal sealed partial class ShaderWarmupScreen
             SceneTree tree,
             ShaderWarmupProgress progress,
             int index,
-            int total
+            int total,
+            LauncherMonotonicDeadline deadline
         )
         {
             if (index % 50 != 0)
                 return;
 
             progress.ReportSceneScanProgress(index, total);
-            if (tree != null)
-                await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+            await LauncherAsyncYield.ProcessFrameAsync(tree, deadline);
         }
     }
 }

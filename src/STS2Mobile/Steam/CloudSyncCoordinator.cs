@@ -9,4 +9,25 @@ internal static partial class CloudSyncCoordinator
     {
         _localBackupEnabled = enabled;
     }
+
+    internal static void RefreshLocalBackup(bool restoreMissing)
+    {
+        if (!_localBackupEnabled)
+            return;
+
+        try
+        {
+            SaveBackups.RefreshLocalMirror(
+                CloudSaveStoreFactory.CreateLocalStore(),
+                restoreMissing
+            );
+        }
+        catch (System.Exception ex)
+        {
+            PatchHelper.Log($"[Cloud] Automatic local backup refresh failed: {ex.Message}");
+        }
+    }
+
+    internal static void MirrorLocalSaveWrite(string path, byte[] content)
+        => SaveBackups.MirrorLocalWrite(path, content);
 }

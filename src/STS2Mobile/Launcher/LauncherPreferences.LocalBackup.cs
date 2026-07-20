@@ -7,6 +7,9 @@ internal static partial class LauncherPreferences
     internal static void SaveLocalBackupEnabled(bool enabled)
         => LocalBackupPreference.Save(enabled);
 
+    internal static bool LoadAndApplyLocalBackupEnabled()
+        => LocalBackupPreference.LoadAndApply();
+
     private static void RequestStoragePermissionForLocalBackup(bool enabled)
     {
         if (enabled && !AppPaths.HasStoragePermission())
@@ -17,6 +20,9 @@ internal static partial class LauncherPreferences
     {
         CloudSyncCoordinator.SetLocalBackupEnabled(enabled);
         if (enabled)
+        {
             AppPaths.EnsureExternalDirectories();
+            CloudSyncCoordinator.RefreshLocalBackup(restoreMissing: true);
+        }
     }
 }

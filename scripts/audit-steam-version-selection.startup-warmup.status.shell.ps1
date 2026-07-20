@@ -4,6 +4,7 @@ function Add-SteamVersionSelectionStartupWarmupStatusShellChecks {
         "routes startup status creation between Android card and legacy label" `
         @(
             "internal static partial class LauncherStartupStatus",
+            "ZIndex = StartupPresentationLayerPolicy\.StartupStatusZIndex",
             "OperatingSystem\.IsAndroid\(\)",
             "CreateAndroidStatusCard\(parent, viewportSize\)",
             "CreateLegacyLabel\(parent, viewportSize\)",

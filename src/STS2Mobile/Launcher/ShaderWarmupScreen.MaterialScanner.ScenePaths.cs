@@ -11,6 +11,7 @@ internal sealed partial class ShaderWarmupScreen
         private static void CollectScenePaths(
             string dirPath,
             List<string> paths,
+            LauncherMonotonicDeadline deadline,
             ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
@@ -24,9 +25,8 @@ internal sealed partial class ShaderWarmupScreen
                 if (ShouldSkipScenePathForWarmup(cleanPath))
                     return;
 
-                if (ResourceLoader.Exists(cleanPath))
-                    paths.Add(cleanPath);
-            }, diagnostics);
+                paths.Add(cleanPath);
+            }, deadline, diagnostics);
         }
 
         private static bool ShouldSkipScenePathForWarmup(string scenePath)

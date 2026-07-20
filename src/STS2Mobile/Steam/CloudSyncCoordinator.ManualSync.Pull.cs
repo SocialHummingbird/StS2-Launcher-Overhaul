@@ -23,6 +23,7 @@ internal static partial class CloudSyncCoordinator
         }
 
         var seedSummary = await seedSession.CompleteAsync(sync, downloadedCloudContent);
+        sync.RefreshLocalBackupMirror();
         return $"{summary.CompleteMessage()} {seedSummary}";
     }
 

@@ -1,17 +1,17 @@
+using System;
 using System.Threading.Tasks;
-using Godot;
 
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class ShaderWarmupScreen
 {
-    private async Task WaitPostDrawAsync()
+    private async Task WaitPostDrawAsync(LauncherMonotonicDeadline deadline)
     {
-        await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        await LauncherAsyncYield.FramePostDrawAsync(deadline);
     }
 
-    private async Task WaitFinishDelayAsync()
+    private async Task WaitFinishDelayAsync(LauncherMonotonicDeadline deadline)
     {
-        await ToSignal(GetTree().CreateTimer(0.5), SceneTreeTimer.SignalName.Timeout);
+        await LauncherAsyncYield.DelayAsync(TimeSpan.FromSeconds(0.5), deadline);
     }
 }

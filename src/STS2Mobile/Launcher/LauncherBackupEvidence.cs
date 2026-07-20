@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherBackupEvidence
@@ -8,6 +10,12 @@ internal static partial class LauncherBackupEvidence
 
     internal static string BackupDirectory
         => STS2Mobile.AppPaths.ExternalSaveBackupsDir;
+
+    internal static string CurrentMirrorDirectory
+        => Path.Combine(
+            BackupDirectory,
+            Steam.LocalSaveBackupPlan.CurrentDirectoryName
+        );
 
     internal static int LocalPrePushBackupCount()
         => CountBackups(LocalPrePushSource);

@@ -30,6 +30,7 @@ internal static partial class LauncherStartupFlow
 
             internal void Apply()
             {
+                LauncherPreferences.LoadAndApplyLocalBackupEnabled();
                 LauncherPreferences.LoadAndApplyCloudSyncEnabled();
                 if (!ForceLocalSaves)
                     return;

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-17 - Automatic local save backup and recovery
+
+- Changed `Save Backup` from a cloud-operation-only guard into an automatic, path-preserving mirror under `StS2Launcher/Saves/Current`. Existing saves are captured when the setting is applied, before game launch, after Manual Pull/modded-save seeding, and immediately after each successful Android game-save write.
+- Added bounded `StS2Launcher/Saves/History` generations when mirrored content changes. Vanilla and native modded namespaces remain distinct, including legacy pre-Push backup paths, and root `profile.save` is now treated as critical backup content.
+- Added guarded startup/pre-launch recovery for missing or empty profile, progress, and preferences files. Existing non-empty saves are never overwritten, and current-run/run-history files are backed up but never automatically restored.
+- The Save Backup control now reports the number of mirrored save files; diagnostics report the mirror directory, count, and latest write time.
+- Managed Release compilation, the local-save backup policy probe, the 834-check Steam version-selection audit, and diff checks pass. No connected-device validation, APK build, release, push, Steam Cloud Push, or core-game modification was performed.
+
 ## 2026-07-17 - Larger StS2 Launcher boot identity
 
 - Extended the readiness-driven sequence from 2,480 ms to 4,000 ms, with a longer separation, 800 ms identity reveal, weighted 350 ms compression-and-settle, 1,200 ms confirmation hold, 1.4% tactile pulse, and 700 ms launcher handoff. Reduced motion remains a direct 200 ms fade.

@@ -23,17 +23,27 @@ internal static partial class LauncherStartupStatus
     {
         var scale = CalculateAndroidScale(viewportSize);
         var margin = CalculateSafeMargin(viewportSize);
-        var shell = new MarginContainer
+        var shell = new ColorRect
         {
             Name = NodeName,
             ZIndex = ZIndex,
+            Color = LauncherComponentTheme.ScreenBackground,
+            MouseFilter = Control.MouseFilterEnum.Stop,
+            ProcessMode = Node.ProcessModeEnum.Always,
+        };
+        shell.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+
+        var safeArea = new MarginContainer
+        {
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
-        shell.SetAnchorsPreset(Control.LayoutPreset.TopWide);
-        shell.OffsetLeft = margin;
-        shell.OffsetTop = margin;
-        shell.OffsetRight = -margin;
-        shell.OffsetBottom = margin + LauncherComponentTheme.ScaleInt(scale, AndroidPanelHeight);
+        safeArea.SetAnchorsPreset(Control.LayoutPreset.TopWide);
+        safeArea.OffsetLeft = margin;
+        safeArea.OffsetTop = margin;
+        safeArea.OffsetRight = -margin;
+        safeArea.OffsetBottom = margin
+            + LauncherComponentTheme.ScaleInt(scale, AndroidPanelHeight);
+        shell.AddChild(safeArea);
 
         var panel = new PanelContainer
         {
@@ -42,7 +52,7 @@ internal static partial class LauncherStartupStatus
             MouseFilter = Control.MouseFilterEnum.Ignore,
         };
         panel.AddThemeStyleboxOverride(LauncherComponentTheme.Panel, BuildAndroidPanelStyle(scale));
-        shell.AddChild(panel);
+        safeArea.AddChild(panel);
 
         var content = new VBoxContainer
         {

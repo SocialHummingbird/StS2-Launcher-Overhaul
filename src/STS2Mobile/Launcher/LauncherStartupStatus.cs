@@ -7,7 +7,7 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherStartupStatus
 {
     private const string NodeName = "STS2MobileStartupStatus";
-    private const int ZIndex = 4096;
+    private const int ZIndex = StartupPresentationLayerPolicy.StartupStatusZIndex;
 
     internal static Label CreateLabel(Node parent)
     {
@@ -66,7 +66,7 @@ internal static partial class LauncherStartupStatus
         }
     }
 
-    private static Node FindStatusRoot(Label label)
+    internal static Node FindStatusRoot(Label label)
     {
         if (label == null)
             return null;

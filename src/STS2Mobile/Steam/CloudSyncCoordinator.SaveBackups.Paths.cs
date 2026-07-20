@@ -32,13 +32,23 @@ internal static partial class CloudSyncCoordinator
         private static string GetProfileDir(string canonPath)
         {
             var parts = canonPath.Split('/');
+            var profileDir = "default";
             foreach (var part in parts)
             {
                 if (part.StartsWith("profile"))
-                    return part;
+                {
+                    profileDir = part;
+                    break;
+                }
             }
 
-            return "default";
+            return parts.Length > 0 && string.Equals(
+                parts[0],
+                "modded",
+                StringComparison.OrdinalIgnoreCase
+            )
+                ? Path.Combine("modded", profileDir)
+                : profileDir;
         }
 
         private static string BuildBackupPath(

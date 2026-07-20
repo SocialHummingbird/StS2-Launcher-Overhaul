@@ -101,10 +101,9 @@ internal static partial class LauncherStartupFlow
 
     private static StartupContext CreateStartupContext(object game, Node gameNode)
     {
-        var startupStatus = OperatingSystem.IsAndroid()
-            ? null
-            : LauncherStartupStatus.CreateLabel(gameNode);
+        var startupStatus = LauncherStartupStatus.CreateLabel(gameNode);
         var startupMode = StartupMode.CreateFromMarkers();
+        AndroidMainMenuPreparation.ObserveCurrentMountedResourceSetIdentity();
         return new StartupContext(game, gameNode, startupStatus, startupMode);
     }
 }

@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -41,28 +39,27 @@ internal sealed partial class ShaderWarmupScreen
         internal WarmupRun(
             SceneTree tree,
             ShaderWarmupProgress progress,
-            Stopwatch stopwatch
+            LauncherMonotonicDeadline deadline
         )
         {
             Tree = tree;
             Progress = progress;
-            Stopwatch = stopwatch;
+            Deadline = deadline;
         }
 
         internal SceneTree Tree { get; }
         internal ShaderWarmupProgress Progress { get; }
-        private Stopwatch Stopwatch { get; }
+        internal LauncherMonotonicDeadline Deadline { get; }
 
-        internal long ElapsedMilliseconds => Stopwatch.ElapsedMilliseconds;
+        internal long ElapsedMilliseconds => Deadline.ElapsedMilliseconds;
 
-        internal bool IsOverBudget
-            => Stopwatch.Elapsed >= TimeSpan.FromSeconds(WarmupTimeBudgetSeconds);
+        internal bool IsOverBudget => Deadline.IsExpired;
 
         internal void CompleteAndReport(int materialCount)
         {
             var completion = new WarmupCompletion(
                 materialCount,
-                Stopwatch.ElapsedMilliseconds
+                Deadline.ElapsedMilliseconds
             );
             Progress.Complete(completion);
             PatchHelper.Log(Message.Completed(completion));
@@ -73,7 +70,7 @@ internal sealed partial class ShaderWarmupScreen
             var completion = new WarmupPartialCompletion(
                 renderedMaterialCount,
                 totalMaterialCount,
-                Stopwatch.ElapsedMilliseconds
+                Deadline.ElapsedMilliseconds
             );
             Progress.Complete(
                 new WarmupCompletion(
@@ -85,11 +82,11 @@ internal sealed partial class ShaderWarmupScreen
         }
     }
 
-    private WarmupRun CreateWarmupRun()
+    private WarmupRun CreateWarmupRun(LauncherMonotonicDeadline deadline)
         => new(
             GetTree(),
             CreateProgress(),
-            Stopwatch.StartNew()
+            deadline
         );
 
     private ShaderWarmupProgress CreateProgress()

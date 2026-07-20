@@ -13,28 +13,48 @@ internal sealed partial class ShaderWarmupScreen
             WarmupMaterialCollection materials,
             SceneTree tree,
             ShaderWarmupProgress progress,
-            Func<bool> shouldStop,
+            LauncherMonotonicDeadline deadline,
             ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
             var scenePaths = new List<string>();
-            CollectScenePaths(SceneRoot, scenePaths, diagnostics);
+            CollectScenePaths(SceneRoot, scenePaths, deadline, diagnostics);
             diagnostics.SceneCount = scenePaths.Count;
             PatchHelper.Log(Message.FoundScenes(scenePaths.Count));
 
             for (int i = 0; i < scenePaths.Count; i++)
             {
-                if (shouldStop())
+                if (deadline.IsExpired)
                 {
                     PatchHelper.Log(Message.SceneScanStoppedByBudget(i, scenePaths.Count));
                     diagnostics.ScannedSceneCount = i;
                     diagnostics.SceneScanStoppedByBudget = true;
+                    diagnostics.MarkDeadlineReached();
                     return;
                 }
 
-                ExtractSceneMaterials(scenePaths[i], materials, diagnostics);
+                await ExtractSceneMaterialsAsync(
+                    scenePaths[i],
+                    materials,
+                    tree,
+                    deadline,
+                    diagnostics
+                );
+                if (deadline.IsExpired)
+                {
+                    diagnostics.ScannedSceneCount = i;
+                    diagnostics.SceneScanStoppedByBudget = true;
+                    diagnostics.MarkDeadlineReached();
+                    return;
+                }
                 diagnostics.ScannedSceneCount = i + 1;
-                await ReportSceneScanProgressIfNeededAsync(tree, progress, i, scenePaths.Count);
+                await ReportSceneScanProgressIfNeededAsync(
+                    tree,
+                    progress,
+                    i,
+                    scenePaths.Count,
+                    deadline
+                );
             }
         }
     }

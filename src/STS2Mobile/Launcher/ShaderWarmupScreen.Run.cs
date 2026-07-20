@@ -37,11 +37,14 @@ internal sealed partial class ShaderWarmupScreen
     {
         _warmupFinished = false;
         _ = WatchWarmupDurationAsync();
+        var deadline = LauncherMonotonicDeadline.Start(
+            TimeSpan.FromSeconds(WarmupTimeBudgetSeconds)
+        );
 
         try
         {
             WriteWarmupStatus("running", "Shader warmup task started");
-            await RunWarmupAsync();
+            await RunWarmupAsync(deadline);
         }
         catch (Exception ex)
         {

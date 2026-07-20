@@ -96,6 +96,9 @@ internal static partial class CloudSyncCoordinator
         internal bool FlushCloudWrites(int timeoutMs)
             => SteamKit2CloudSaveStore.FlushActive(timeoutMs);
 
+        internal void RefreshLocalBackupMirror()
+            => SaveBackups.RefreshLocalMirror(_local, restoreMissing: false);
+
         internal TResult RunCloudBatch<TResult>(Func<TResult> run)
         {
             _cloud.BeginSaveBatch();

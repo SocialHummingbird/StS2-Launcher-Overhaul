@@ -16,8 +16,24 @@ internal static partial class LauncherStartupFlow
                 ? null
                 : LauncherStartupRecoveryControlPanel.Show(GameNode);
 
-        private void WriteSceneSnapshot(string reason)
-            => LauncherDiagnostics.WriteStartupSceneSnapshot(GameNode, reason);
+        private void WriteStartupEntryEvidence(string phase)
+        {
+            var writeFullDiagnostics =
+                PostStartupDiagnosticsPolicy.ShouldWriteFullDiagnostics(
+                    PostStartupDiagnosticsSettings.DetailedTraceEnabled(),
+                    failureOrRecovery: false
+                );
+            if (writeFullDiagnostics)
+            {
+                LauncherDiagnostics.WriteStartupSceneSnapshot(GameNode, phase);
+                return;
+            }
+
+            LauncherDiagnostics.WritePostStartupHeartbeat(
+                phase,
+                "Scene-tree traversal skipped on ordinary startup path"
+            );
+        }
 
         private Task StartGameStartupAsync()
             => LauncherStartupFlow.StartGameStartupAsync(Game);

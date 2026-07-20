@@ -20,20 +20,27 @@ internal sealed partial class ShaderWarmupScreen
         internal static async Task<ShaderWarmupMaterialScanResult> CollectAsync(
             SceneTree tree,
             ShaderWarmupProgress progress,
-            Func<bool> shouldStop
+            LauncherMonotonicDeadline deadline
         )
         {
             var materials = new WarmupMaterialCollection();
             var diagnostics = new ShaderWarmupMaterialScanDiagnostics();
 
-            await ScanLooseMaterialsAsync(materials, tree, progress, diagnostics);
-            if (!shouldStop())
-                await ScanScenesAsync(materials, tree, progress, shouldStop, diagnostics);
+            await ScanLooseMaterialsAsync(materials, tree, progress, deadline, diagnostics);
+            if (!deadline.IsExpired)
+                await ScanScenesAsync(materials, tree, progress, deadline, diagnostics);
             else
+            {
                 diagnostics.SceneScanStoppedByBudget = true;
+                diagnostics.MarkDeadlineReached();
+            }
 
-            var unique = materials.UniqueByShader();
             diagnostics.MaterialsBeforeDedup = materials.Count;
+            var unique = await materials.UniqueByShaderAsync(
+                tree,
+                deadline,
+                diagnostics
+            );
             diagnostics.UniqueMaterialCount = unique.Count;
             PatchHelper.Log(Message.UniqueShaders(materials.Count, unique.Count));
             diagnostics.LogSummary();

@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -7,32 +8,60 @@ internal sealed partial class ShaderWarmupScreen
 {
     private static partial class ShaderWarmupMaterialScanner
     {
-        private static void ExtractSceneMaterials(
+        private static async Task ExtractSceneMaterialsAsync(
             string scenePath,
             WarmupMaterialCollection materials,
+            SceneTree tree,
+            LauncherMonotonicDeadline deadline,
             ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
-            try
+            diagnostics.RecordThreadedLoadRequested();
+            var result = await LauncherThreadedResourceLoader.LoadAsync(
+                tree,
+                scenePath,
+                "PackedScene",
+                deadline
+            );
+            if (result.Outcome == LauncherThreadedLoadOutcome.DeadlineExceeded)
             {
-                var packed = ResourceLoader.Load<PackedScene>(
+                diagnostics.RecordThreadedLoadTimedOut();
+                diagnostics.MarkDeadlineReached();
+                return;
+            }
+
+            if (result.Outcome == LauncherThreadedLoadOutcome.Failed)
+            {
+                diagnostics.RecordSceneExtractionFailure(scenePath, result.Failure);
+                return;
+            }
+
+            diagnostics.RecordThreadedLoadCompleted();
+            if (result.Resource is not PackedScene packed)
+            {
+                diagnostics.RecordSceneExtractionFailure(
                     scenePath,
-                    null,
-                    ResourceLoader.CacheMode.Reuse
+                    $"threaded load returned {result.Resource?.GetType().Name ?? "null"}"
                 );
-                if (packed != null)
-                    ExtractMaterials(packed, scenePath, materials, diagnostics);
+                return;
             }
-            catch (Exception ex)
-            {
-                diagnostics.RecordSceneExtractionFailure(scenePath, ex);
-            }
+
+            await ExtractMaterialsAsync(
+                packed,
+                scenePath,
+                materials,
+                tree,
+                deadline,
+                diagnostics
+            );
         }
 
-        private static void ExtractMaterials(
+        private static async Task ExtractMaterialsAsync(
             PackedScene packed,
             string scenePath,
             WarmupMaterialCollection materials,
+            SceneTree tree,
+            LauncherMonotonicDeadline deadline,
             ShaderWarmupMaterialScanDiagnostics diagnostics
         )
         {
@@ -40,6 +69,12 @@ internal sealed partial class ShaderWarmupScreen
             int nodeCount = state.GetNodeCount();
             for (int nodeIndex = 0; nodeIndex < nodeCount; nodeIndex++)
             {
+                if (deadline.IsExpired)
+                {
+                    diagnostics.MarkDeadlineReached();
+                    return;
+                }
+
                 int propertyCount = state.GetNodePropertyCount(nodeIndex);
                 for (int propertyIndex = 0; propertyIndex < propertyCount; propertyIndex++)
                 {
@@ -56,6 +91,13 @@ internal sealed partial class ShaderWarmupScreen
                         materials,
                         diagnostics
                     );
+                }
+
+                if ((nodeIndex + 1) % 64 == 0
+                    && !await LauncherAsyncYield.ProcessFrameAsync(tree, deadline))
+                {
+                    diagnostics.MarkDeadlineReached();
+                    return;
                 }
             }
         }

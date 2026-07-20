@@ -30,15 +30,10 @@ internal static partial class LauncherStartupFlow
 
     private static async Task RunShaderWarmupAsync(StartupContext startup)
     {
-        var warmup = new ShaderWarmupScreen();
-        startup.AddChild(warmup);
-        try
-        {
-            await warmup.RunAsync();
-        }
-        finally
-        {
-            warmup.QueueFree();
-        }
+        var presentation = startup.ShowShaderWarmup();
+        await ShaderWarmupPresentationRun.ExecuteAsync(
+            presentation.RunAsync,
+            presentation.QueueFree
+        );
     }
 }

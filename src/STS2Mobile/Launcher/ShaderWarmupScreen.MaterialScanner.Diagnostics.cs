@@ -17,6 +17,11 @@ internal sealed partial class ShaderWarmupScreen
             private int _sceneExtractionFailuresLogged;
 
             internal int DirectoryEnumerationFailureCount { get; private set; }
+            internal int DeduplicatedMaterialCount { get; set; }
+            internal bool DeduplicationStoppedByBudget { get; private set; }
+            internal bool HardDeadlineReached { get; private set; }
+            internal int LoadedLooseResourceCount { get; set; }
+            internal int LooseResourceCount { get; set; }
             internal int MaterialsBeforeDedup { get; set; }
             internal int PropertyReadFailureCount { get; private set; }
             internal int ResourceLoadFailureCount { get; private set; }
@@ -24,6 +29,9 @@ internal sealed partial class ShaderWarmupScreen
             internal bool SceneScanStoppedByBudget { get; set; }
             internal int SceneCount { get; set; }
             internal int SceneExtractionFailureCount { get; private set; }
+            internal int ThreadedLoadCompletedCount { get; private set; }
+            internal int ThreadedLoadRequestCount { get; private set; }
+            internal int ThreadedLoadTimeoutCount { get; private set; }
             internal int UniqueMaterialCount { get; set; }
 
             internal bool HasFailures
@@ -41,14 +49,21 @@ internal sealed partial class ShaderWarmupScreen
                 {
                     $"Scan scenes: {ScannedSceneCount}/{SceneCount}",
                     $"Scan stopped by budget: {SceneScanStoppedByBudget}",
+                    $"Scan hard deadline reached: {HardDeadlineReached}",
+                    $"Scan loose resources: {LoadedLooseResourceCount}/{LooseResourceCount}",
+                    $"Scan threaded loads: completed={ThreadedLoadCompletedCount}; requested={ThreadedLoadRequestCount}; timedOut={ThreadedLoadTimeoutCount}",
                     $"Scan materials before dedupe: {MaterialsBeforeDedup}",
+                    $"Scan materials deduplicated: {DeduplicatedMaterialCount}/{MaterialsBeforeDedup}",
+                    $"Scan deduplication stopped by budget: {DeduplicationStoppedByBudget}",
                     $"Scan unique materials: {UniqueMaterialCount}",
                     $"Scan failures: directories={DirectoryEnumerationFailureCount}; resources={ResourceLoadFailureCount}; scenes={SceneExtractionFailureCount}; properties={PropertyReadFailureCount}",
                 };
 
-                lines.Add(HasFailures
-                    ? "Scan classification: completed with scanner failures; see focused logcat for first failure samples"
-                    : "Scan classification: completed without scanner failures");
+                lines.Add(HardDeadlineReached
+                    ? "Scan classification: stopped cooperatively at the hard deadline"
+                    : HasFailures
+                        ? "Scan classification: completed with scanner failures; see focused logcat for first failure samples"
+                        : "Scan classification: completed without scanner failures");
 
                 return lines.ToArray();
             }
@@ -67,19 +82,38 @@ internal sealed partial class ShaderWarmupScreen
                     PatchHelper.Log(Message.PropertyReadFailed(propertyName, scenePath, ex));
             }
 
-            internal void RecordResourceLoadFailure(string cleanPath, Exception ex)
+            internal void RecordResourceLoadFailure(string cleanPath, string failure)
             {
                 ResourceLoadFailureCount++;
                 if (ShouldLogFailure(ref _resourceLoadFailuresLogged))
-                    PatchHelper.Log(Message.ResourceLoadFailed(cleanPath, ex));
+                    PatchHelper.Log(Message.ResourceLoadFailed(cleanPath, failure));
             }
 
-            internal void RecordSceneExtractionFailure(string scenePath, Exception ex)
+            internal void RecordSceneExtractionFailure(string scenePath, string failure)
             {
                 SceneExtractionFailureCount++;
                 if (ShouldLogFailure(ref _sceneExtractionFailuresLogged))
-                    PatchHelper.Log(Message.SceneExtractFailed(scenePath, ex));
+                    PatchHelper.Log(Message.SceneExtractFailed(scenePath, failure));
             }
+
+            internal void MarkDeadlineReached()
+                => HardDeadlineReached = true;
+
+            internal void MarkDeduplicationStoppedByBudget(int processed)
+            {
+                DeduplicatedMaterialCount = processed;
+                DeduplicationStoppedByBudget = true;
+                MarkDeadlineReached();
+            }
+
+            internal void RecordThreadedLoadCompleted()
+                => ThreadedLoadCompletedCount++;
+
+            internal void RecordThreadedLoadRequested()
+                => ThreadedLoadRequestCount++;
+
+            internal void RecordThreadedLoadTimedOut()
+                => ThreadedLoadTimeoutCount++;
 
             private static bool ShouldLogFailure(ref int loggedCount)
             {

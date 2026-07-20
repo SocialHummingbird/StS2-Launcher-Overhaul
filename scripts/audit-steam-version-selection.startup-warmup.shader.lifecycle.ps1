@@ -33,6 +33,77 @@ function Add-SteamVersionSelectionStartupWarmupShaderLifecycleChecks {
         )
 
     Add-Check `
+        "src\STS2Mobile\Launcher\StartupPresentationLayerPolicy.cs" `
+        "keeps startup cover, shader warmup, and recovery presentation ordering explicit" `
+        @(
+            "StartupStatusCanvasLayer = 0",
+            "StartupStatusZIndex = 4096",
+            "ShaderWarmupCanvasLayer = 127",
+            "RecoveryCanvasLayer = 128",
+            "HasValidOrdering"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\ShaderWarmupPresentationLifecycle.cs" `
+        "keeps warmup visibility and retained startup-cover cleanup policy testable" `
+        @(
+            "PresentationState",
+            "StartupCoverRetained => true",
+            "WarmupVisible",
+            "InputBlocked",
+            "MarkVisible",
+            "TryBeginCleanup",
+            "CleanupRequested"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\ShaderWarmupPresentationHost.cs" `
+        "places Android shader warmup above startup status with lifecycle-safe cleanup" `
+        @(
+            "OperatingSystem\.IsAndroid\(\)",
+            "new CanvasLayer",
+            "Layer = StartupPresentationLayerPolicy\.ShaderWarmupCanvasLayer",
+            "layer\.AddChild\(screen\)",
+            "parent\.AddChild\(root\)",
+            "_lifecycle\.MarkVisible\(\)",
+            "await _screen\.RunAsync\(\)",
+            "_lifecycle\.TryBeginCleanup\(\)",
+            "HideRoot\(\)",
+            "ProcessMode = Node\.ProcessModeEnum\.Disabled",
+            "canvasLayer\.Visible = false",
+            "_root\.QueueFree\(\)",
+            "startup cover remains active",
+            "ObjectDisposedException"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherStartupFlow.ShaderWarmup.cs" `
+        "runs shader warmup through the ordered presentation host and always cleans it up" `
+        @(
+            "startup\.ShowShaderWarmup\(\)",
+            "ShaderWarmupPresentationRun\.ExecuteAsync",
+            "presentation\.RunAsync",
+            "presentation\.QueueFree"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\ShaderWarmupPresentationRun.cs" `
+        "keeps warmup execution and cleanup ordering shared with production-path tests" `
+        @(
+            "ExecuteAsync",
+            "await runPresentation\(\)",
+            "finally",
+            "cleanupPresentation\(\)"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherStartupRecoveryControlPanel.cs" `
+        "keeps recovery controls above the shader-warmup presentation" `
+        @(
+            "CanvasLayerIndex = StartupPresentationLayerPolicy\.RecoveryCanvasLayer"
+        )
+
+    Add-Check `
         "src\STS2Mobile\Launcher\ShaderWarmupScreen.WarmupRun.cs" `
         "isolates shader warmup run context and completion reporting" `
         @(
@@ -44,7 +115,7 @@ function Add-SteamVersionSelectionStartupWarmupShaderLifecycleChecks {
             "WarmupRun",
             "SceneTree Tree",
             "ShaderWarmupProgress Progress",
-            "Stopwatch Stopwatch",
+            "LauncherMonotonicDeadline Deadline",
             "IsOverBudget",
             "CompleteAndReport",
             "CompletePartialAndReport",
@@ -52,7 +123,7 @@ function Add-SteamVersionSelectionStartupWarmupShaderLifecycleChecks {
             "PatchHelper\.Log\(Message\.Completed\(completion\)\)",
             "PatchHelper\.Log\(Message\.CompletedPartial\(completion\)\)",
             "CreateWarmupRun",
-            "Stopwatch\.StartNew\(\)",
+            "Deadline\.ElapsedMilliseconds",
             "CreateProgress",
             "ShaderWarmupProgress\.ForLabels"
         )

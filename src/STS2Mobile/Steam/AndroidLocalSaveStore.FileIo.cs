@@ -19,5 +19,6 @@ internal sealed partial class AndroidLocalSaveStore
 
         File.WriteAllBytes(fullPath, bytes);
         PatchHelper.Log($"[Cloud] Android local save write: {path} -> {fullPath} ({bytes.Length} bytes)");
+        CloudSyncCoordinator.MirrorLocalSaveWrite(path, bytes);
     }
 }

@@ -8,6 +8,8 @@ internal static partial class LauncherGameStartupRecovery
     private const string MainMenuGuardFailureReason = "main menu guard failed";
     private const string MainMenuRecoveryFailureReason =
         "main menu recovery failed after watchdog";
+    private const string MainMenuRenderingUnstableReason =
+        "main menu rendered-frame stability failed";
     private const string StartupObservationReason = "post-startup observation";
     private const string WatchdogStalledReason = "game startup watchdog";
     private const string WatchdogRecoveredReason = "main menu recovered after watchdog";
@@ -55,8 +57,17 @@ internal static partial class LauncherGameStartupRecovery
         internal static RecoveryStateUpdate StartupObserved()
             => new(
                 StartupObservationReason,
-                "Game started. Post-startup diagnostics are active.",
+                "Home screen ready.",
                 "after NGame.GameStartup returned"
+            );
+
+        internal static RecoveryStateUpdate MainMenuRenderingUnstable(
+            AndroidMainMenuPreparationResult preparation
+        )
+            => new(
+                MainMenuRenderingUnstableReason,
+                "Home screen rendering is still unstable. Use recovery controls below.",
+                $"rendered-frame handoff blocked: {preparation.Outcome}; {preparation.Detail}"
             );
 
         internal static RecoveryStateUpdate WatchdogStalled()
@@ -68,7 +79,7 @@ internal static partial class LauncherGameStartupRecovery
         internal static RecoveryStateUpdate WatchdogRecovered()
             => new(
                 WatchdogRecoveredReason,
-                "Main menu recovered after startup stall. Post-startup diagnostics are active."
+                "Home screen recovered and ready."
             );
 
         internal static RecoveryStateUpdate MainMenuRecoveryFailed()
@@ -80,11 +91,19 @@ internal static partial class LauncherGameStartupRecovery
         internal void Apply(Node gameNode, Label startupStatus)
         {
             LauncherLaunchMarkers.WriteStartupPhase(Reason);
-            LauncherDiagnostics.WriteStartupSceneSnapshot(
-                gameNode,
-                EffectiveSnapshotReason
-            );
+            if (ShouldWriteSceneSnapshot())
+            {
+                LauncherDiagnostics.WriteStartupSceneSnapshot(
+                    gameNode,
+                    EffectiveSnapshotReason
+                );
+            }
             LauncherStartupStatus.Set(startupStatus, StatusMessage);
         }
+
+        private bool ShouldWriteSceneSnapshot()
+            => (Reason != StartupObservationReason
+                && Reason != WatchdogRecoveredReason)
+                || PostStartupDiagnosticsSettings.DetailedTraceEnabled();
     }
 }

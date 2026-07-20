@@ -32,7 +32,7 @@ internal static partial class LauncherStartupFlow
                     startup.SetPhase(PhaseGameStartup, "Starting game scene...");
 
                     var recoveryControls = startup.ShowRecoveryControls();
-                    startup.WriteSceneSnapshot("before NGame.GameStartup");
+                    startup.WriteStartupEntryEvidence("before NGame.GameStartup");
                     await startup.WaitForVisibleStartupFrameAsync("startup recovery controls shown");
                     PatchHelper.Log("Invoking NGame.GameStartup");
                     return new StartedGameStartup(

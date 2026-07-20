@@ -8,10 +8,8 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherGameStartupRecovery
 {
     private const int MainMenuForceTimeoutMs = 15_000;
-    private const int PostStartupRecoveryMs = 3_000;
-
     internal static void MarkGameStartupCompleted(object game, Node gameNode)
-        => WritePostStartupTrace(
+        => WriteSuccessfulPostStartupEvidence(
             game,
             gameNode,
             "NGame.GameStartup completed before main-menu guard"
@@ -30,9 +28,20 @@ internal static partial class LauncherGameStartupRecovery
             startupStatus,
             MainMenuForceTimeoutMs
         );
-        return mainMenuReady
-            ? true
-            : HandleMainMenuGuardFailure(ui);
+        if (!mainMenuReady)
+            return HandleMainMenuGuardFailure(ui);
+
+        var preparation = await AndroidMainMenuPreparation.RunAsync(
+            gameNode,
+            startupStatus
+        );
+        if (!preparation.CanExposeMainMenu)
+            return HandleMainMenuPreparationFailure(ui, preparation);
+
+        PatchHelper.Log(
+            $"Main-menu handoff admitted by rendered-frame gate: {preparation.Detail}"
+        );
+        return true;
     }
 
     internal static void MarkStartupObserved(
@@ -46,7 +55,7 @@ internal static partial class LauncherGameStartupRecovery
             recoveryControls,
             RecoveryStateUpdate.StartupObserved()
         );
-        SchedulePostStartupTrace(game, gameNode);
+        SchedulePostStartupDiagnostics(game, gameNode);
     }
 
     internal static async Task HoldAndroidStartupTaskAfterObservedAsync()

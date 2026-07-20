@@ -17,6 +17,9 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Backup storage permission available: {BoolText(STS2Mobile.AppPaths.HasStoragePermission())}");
         sb.AppendLine($"Backup storage directory: {STS2Mobile.AppPaths.ExternalSaveBackupsDir}");
         sb.AppendLine($"Backup storage directory exists: {BoolText(Directory.Exists(STS2Mobile.AppPaths.ExternalSaveBackupsDir))}");
+        sb.AppendLine($"Automatic local backup mirror directory: {LauncherBackupEvidence.CurrentMirrorDirectory}");
+        sb.AppendLine($"Automatic local backup mirrored save count: {LauncherBackupEvidence.CurrentMirrorSaveCount()}");
+        sb.AppendLine($"Latest automatic local backup mirror write UTC: {LauncherBackupEvidence.LatestCurrentMirrorWriteUtc()}");
         sb.AppendLine($"Branch-switch manual Push prerequisites satisfied: {BoolText(LauncherBranchSwitchSafety.ManualPushPrerequisitesSatisfied(dataDir, selectedBranch))}");
         sb.AppendLine($"Pre-Push local backup evidence count: {LauncherBackupEvidence.LocalPrePushBackupCount()}");
         sb.AppendLine($"Pre-Push cloud backup evidence count: {LauncherBackupEvidence.CloudPrePushBackupCount()}");

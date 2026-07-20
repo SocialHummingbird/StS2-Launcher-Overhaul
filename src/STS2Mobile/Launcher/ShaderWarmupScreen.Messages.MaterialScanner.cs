@@ -18,8 +18,8 @@ internal sealed partial class ShaderWarmupScreen
         internal static string PropertyReadFailed(string propertyName, string scenePath, Exception ex)
             => $"[ShaderWarmup] Failed to read property {propertyName} in {scenePath}: {ex.Message}";
 
-        internal static string SceneExtractFailed(string scenePath, Exception ex)
-            => $"[ShaderWarmup] Failed to extract from {scenePath}: {ex.Message}";
+        internal static string SceneExtractFailed(string scenePath, string failure)
+            => $"[ShaderWarmup] Failed to extract from {scenePath}: {failure}";
 
         internal static string FoundLooseMaterials(int materialCount)
             => $"[ShaderWarmup] Found {materialCount} materials from loose resource files";
@@ -27,16 +27,21 @@ internal sealed partial class ShaderWarmupScreen
         internal static string DirectoryEnumerationFailed(string dirPath, Exception ex)
             => $"[ShaderWarmup] Failed to enumerate {dirPath}: {ex.Message}";
 
-        internal static string ResourceLoadFailed(string cleanPath, Exception ex)
-            => $"[ShaderWarmup] Failed to load {cleanPath}: {ex.Message}";
+        internal static string ResourceLoadFailed(string cleanPath, string failure)
+            => $"[ShaderWarmup] Failed to load {cleanPath}: {failure}";
 
         internal static string ScanSummary(
             ShaderWarmupMaterialScanner.ShaderWarmupMaterialScanDiagnostics diagnostics
         )
             => "[ShaderWarmup] Scan summary: "
                 + $"scenes={diagnostics.ScannedSceneCount}/{diagnostics.SceneCount}; "
+                + $"loads={diagnostics.ThreadedLoadCompletedCount}/{diagnostics.ThreadedLoadRequestCount}; "
+                + $"loadTimeouts={diagnostics.ThreadedLoadTimeoutCount}; "
                 + $"materials={diagnostics.UniqueMaterialCount}/{diagnostics.MaterialsBeforeDedup} unique; "
+                + $"deduplicated={diagnostics.DeduplicatedMaterialCount}/{diagnostics.MaterialsBeforeDedup}; "
+                + $"dedupeBudgetStopped={diagnostics.DeduplicationStoppedByBudget}; "
                 + $"budgetStopped={diagnostics.SceneScanStoppedByBudget}; "
+                + $"deadlineReached={diagnostics.HardDeadlineReached}; "
                 + "failures="
                 + $"directories:{diagnostics.DirectoryEnumerationFailureCount}, "
                 + $"resources:{diagnostics.ResourceLoadFailureCount}, "

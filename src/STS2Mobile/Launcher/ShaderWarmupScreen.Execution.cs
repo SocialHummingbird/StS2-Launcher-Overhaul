@@ -7,18 +7,38 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class ShaderWarmupScreen
 {
-    private async Task RunWarmupAsync()
+    private async Task RunWarmupAsync(LauncherMonotonicDeadline deadline)
     {
         bool previousRenderCrashSuspected = _previousRenderCrashSuspected;
-        var warmup = CreateWarmupRun();
+        var warmup = CreateWarmupRun(deadline);
         WriteWarmupStatus("collecting", "Collecting shader warmup materials");
 
         var scan = await CollectWarmupMaterialsAsync(
             warmup.Tree,
             warmup.Progress,
-            () => warmup.IsOverBudget
+            warmup.Deadline
         );
         var materials = scan.Materials;
+
+        if (warmup.IsOverBudget)
+        {
+            warmup.CompletePartialAndReport(0, materials.Count);
+            MarkWarmupComplete();
+            WriteWarmupStatus(
+                "completed-deadline",
+                $"Shader warmup reached its {WarmupTimeBudgetSeconds}s deadline after collecting {materials.Count} materials; continuing startup",
+                MergeEvidence(
+                    new[]
+                    {
+                        $"Elapsed ms: {warmup.ElapsedMilliseconds}",
+                        "Classification: hard deadline reached during resource scan",
+                    },
+                    scan.Diagnostics.ToEvidenceLines()
+                )
+            );
+            PatchHelper.Log(Message.TimeBudgetReached(WarmupTimeBudgetSeconds));
+            return;
+        }
 
         if (materials.Count == 0)
         {
@@ -45,7 +65,7 @@ internal sealed partial class ShaderWarmupScreen
             warmup.Progress,
             materials,
             renderPlan,
-            () => warmup.IsOverBudget
+            warmup.Deadline
         );
 
         if (rendered < materials.Count)
@@ -65,7 +85,7 @@ internal sealed partial class ShaderWarmupScreen
                     scan.Diagnostics.ToEvidenceLines()
                 )
             );
-            await WaitFinishDelayAsync();
+            await WaitFinishDelayAsync(warmup.Deadline);
             return;
         }
 
@@ -84,20 +104,20 @@ internal sealed partial class ShaderWarmupScreen
                 scan.Diagnostics.ToEvidenceLines()
             )
         );
-        await WaitFinishDelayAsync();
+        await WaitFinishDelayAsync(warmup.Deadline);
     }
 
     private async Task<ShaderWarmupMaterialScanner.ShaderWarmupMaterialScanResult> CollectWarmupMaterialsAsync(
         SceneTree tree,
         ShaderWarmupProgress progress,
-        Func<bool> shouldStop
+        LauncherMonotonicDeadline deadline
     )
     {
         progress.ShowScanning();
         WriteWarmupStatus("waiting-post-draw", "Waiting before shader resource scan");
-        await WaitPostDrawAsync();
+        await WaitPostDrawAsync(deadline);
 
-        var materials = await ShaderWarmupMaterialScanner.CollectAsync(tree, progress, shouldStop);
+        var materials = await ShaderWarmupMaterialScanner.CollectAsync(tree, progress, deadline);
         PatchHelper.Log(Message.Collected(materials.Materials.Count));
         WriteWarmupStatus(
             "collected",
@@ -112,11 +132,11 @@ internal sealed partial class ShaderWarmupScreen
         ShaderWarmupProgress progress,
         List<WarmupMaterial> materials,
         ShaderWarmupRenderPlan renderPlan,
-        Func<bool> shouldStop
+        LauncherMonotonicDeadline deadline
     )
     {
         progress.ShowCompiling();
-        var renderer = ShaderWarmupRenderer.ForScreen(this, tree, progress, renderPlan, shouldStop);
+        var renderer = ShaderWarmupRenderer.ForScreen(this, tree, progress, renderPlan, deadline);
         return await renderer.RenderAsync(materials);
     }
 

@@ -5,7 +5,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private const int CanvasLayerIndex = 128;
+    private const int CanvasLayerIndex = StartupPresentationLayerPolicy.RecoveryCanvasLayer;
     private const int ContainerSeparation = 12;
     private const int DetailFontSize = 19;
     private const string NodeName = "STS2MobileStartupRecovery";

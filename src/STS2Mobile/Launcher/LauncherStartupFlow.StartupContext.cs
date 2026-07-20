@@ -55,8 +55,8 @@ internal static partial class LauncherStartupFlow
             SetStatus(Mode.ShaderWarmupSkipStatus);
         }
 
-        internal void AddChild(Node child)
-            => GameNode.AddChild(child);
+        internal ShaderWarmupPresentationHost ShowShaderWarmup()
+            => ShaderWarmupPresentationHost.Show(GameNode);
 
         internal async Task WaitForVisibleStartupFrameAsync(string reason)
         {

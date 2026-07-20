@@ -14,6 +14,7 @@ internal sealed partial class ActionSection
                 _localBackupEnabled = pressed;
                 UpdateCloudOptionsToggleText();
                 LocalBackupToggled?.Invoke(pressed);
+                ApplyToggle(_localBackupToggle, pressed, LocalBackupText(pressed));
             }
         );
 
@@ -79,9 +80,23 @@ internal sealed partial class ActionSection
     }
 
     private string LocalBackupText(bool value)
-        => _compact
-            ? CompactCloudOptionText("Save Backup", OnOff(value), "Local safety")
-            : $"Local Backup: {OnOff(value)}";
+    {
+        var detail = LocalBackupDetail(value);
+        return _compact
+            ? CompactCloudOptionText("Save Backup", OnOff(value), detail)
+            : $"Local Backup: {OnOff(value)} ({detail})";
+    }
+
+    private static string LocalBackupDetail(bool value)
+    {
+        if (!value)
+            return "Local safety";
+        if (!STS2Mobile.AppPaths.HasStoragePermission())
+            return "Needs storage access";
+
+        var count = LauncherBackupEvidence.CurrentMirrorSaveCount();
+        return count == 1 ? "1 save stored" : $"{count} saves stored";
+    }
 
     private string CloudSyncText(bool value)
         => _compact

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using STS2Mobile.Patches;
@@ -7,6 +8,9 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherGameStartupRecovery
 {
+    private static readonly PostStartupDiagnosticsScheduleGate PostStartupScheduleGate =
+        new();
+
     private static readonly int[] PostStartupProbeTargetsMs =
     {
         1_000,
@@ -29,29 +33,72 @@ internal static partial class LauncherGameStartupRecovery
         string phase,
         params string[] details
     )
+        => WritePostStartupEvidence(
+            game,
+            gameNode,
+            phase,
+            writeFullTrace: true,
+            details
+        );
+
+    private static void WriteSuccessfulPostStartupEvidence(
+        object game,
+        Node gameNode,
+        string phase,
+        params string[] details
+    )
+        => WritePostStartupEvidence(
+            game,
+            gameNode,
+            phase,
+            PostStartupDiagnosticsPolicy.ShouldWriteFullDiagnostics(
+                PostStartupDiagnosticsSettings.DetailedTraceEnabled(),
+                failureOrRecovery: false
+            ),
+            details
+        );
+
+    private static void WritePostStartupEvidence(
+        object game,
+        Node gameNode,
+        string phase,
+        bool writeFullTrace,
+        params string[] details
+    )
     {
         try
         {
             var scene = InspectCurrentScene(game);
             var mergedDetails = MergePostStartupTraceDetails(scene, details);
             LauncherDiagnostics.WritePostStartupHeartbeat(phase, mergedDetails);
-            LauncherDiagnostics.WritePostStartupTrace(
-                gameNode,
-                phase,
-                mergedDetails
-            );
+            if (writeFullTrace)
+            {
+                LauncherDiagnostics.WritePostStartupTrace(
+                    gameNode,
+                    phase,
+                    mergedDetails
+                );
+            }
             PatchHelper.Log(
-                $"[PostStartupTrace] phase={phase} mainMenu={scene.IsMainMenu} scene={scene.SceneName ?? "<none>"}"
+                $"[PostStartupEvidence] phase={phase} mainMenu={scene.IsMainMenu} "
+                + $"scene={scene.SceneName ?? "<none>"} fullTrace={writeFullTrace}"
             );
         }
         catch (Exception ex)
         {
-            LauncherDiagnostics.WritePostStartupTrace(
-                gameNode,
+            LauncherDiagnostics.WritePostStartupHeartbeat(
                 phase,
-                $"Trace failure: {ex.GetType().Name}: {ex.Message}"
+                $"Evidence failure: {ex.GetType().Name}: {ex.Message}"
             );
-            PatchHelper.Log($"[PostStartupTrace] failed: {ex}");
+            if (writeFullTrace)
+            {
+                LauncherDiagnostics.WritePostStartupTrace(
+                    gameNode,
+                    phase,
+                    $"Trace failure: {ex.GetType().Name}: {ex.Message}"
+                );
+            }
+            PatchHelper.Log($"[PostStartupEvidence] failed: {ex}");
         }
     }
 
@@ -75,33 +122,128 @@ internal static partial class LauncherGameStartupRecovery
         return merged;
     }
 
-    private static void SchedulePostStartupTrace(object game, Node gameNode)
+    private static void SchedulePostStartupDiagnostics(object game, Node gameNode)
     {
-        _ = RunPostStartupTraceAsync(game, gameNode);
-        _ = RunPostStartupHeartbeatAsync(game);
+        if (!PostStartupScheduleGate.TrySchedule())
+        {
+            PatchHelper.Log(
+                "Post-startup diagnostics already scheduled; duplicate request ignored"
+            );
+            return;
+        }
+
+        bool detailedTraceEnabled =
+            PostStartupDiagnosticsSettings.DetailedTraceEnabled();
+        PatchHelper.Log(
+            detailedTraceEnabled
+                ? "Detailed timed post-startup scene traces enabled by explicit opt-in"
+                : "Detailed timed post-startup scene traces disabled; lightweight probes remain active"
+        );
+        _ = RunScheduledPostStartupDiagnosticsAsync(
+            game,
+            gameNode,
+            detailedTraceEnabled
+        );
     }
 
-    private static async Task RunPostStartupTraceAsync(object game, Node gameNode)
+    private static async Task RunScheduledPostStartupDiagnosticsAsync(
+        object game,
+        Node gameNode,
+        bool detailedTraceEnabled
+    )
+    {
+        if (!GodotObject.IsInstanceValid(gameNode))
+        {
+            PostStartupScheduleGate.Stop();
+            return;
+        }
+
+        using var cancellation = new CancellationTokenSource();
+        void CancelForTreeExit()
+        {
+            PostStartupScheduleGate.Stop();
+            cancellation.Cancel();
+        }
+
+        var subscribed = false;
+        try
+        {
+            gameNode.TreeExiting += CancelForTreeExit;
+            subscribed = true;
+            await Task.WhenAll(
+                RunPostStartupProbeAsync(
+                    game,
+                    gameNode,
+                    detailedTraceEnabled,
+                    cancellation.Token
+                ),
+                RunPostStartupHeartbeatAsync(game, cancellation.Token)
+            );
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            PatchHelper.Log(
+                "Post-startup diagnostics cancelled during game-scene teardown"
+            );
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Post-startup diagnostics scheduling failed: {ex}");
+        }
+        finally
+        {
+            PostStartupScheduleGate.Stop();
+            if (subscribed && GodotObject.IsInstanceValid(gameNode))
+            {
+                try
+                {
+                    gameNode.TreeExiting -= CancelForTreeExit;
+                }
+                catch (Exception ex)
+                {
+                    PatchHelper.Log(
+                        $"Post-startup teardown handler cleanup failed: {ex.Message}"
+                    );
+                }
+            }
+        }
+    }
+
+    private static async Task RunPostStartupProbeAsync(
+        object game,
+        Node gameNode,
+        bool detailedTraceEnabled,
+        CancellationToken cancellationToken
+    )
     {
         var elapsed = 0;
         foreach (var target in PostStartupProbeTargetsMs)
         {
-            await Task.Delay(Math.Max(0, target - elapsed));
-            elapsed = target;
-            WritePostStartupTrace(
-                game,
-                gameNode,
-                $"post-startup alive at {target}ms"
+            await Task.Delay(
+                Math.Max(0, target - elapsed),
+                cancellationToken
             );
+            elapsed = target;
+            var phase = $"post-startup alive at {target}ms";
+            if (detailedTraceEnabled)
+                WritePostStartupTrace(game, gameNode, phase);
+            else
+                WritePostStartupHeartbeat(game, phase);
         }
     }
 
-    private static async Task RunPostStartupHeartbeatAsync(object game)
+    private static async Task RunPostStartupHeartbeatAsync(
+        object game,
+        CancellationToken cancellationToken
+    )
     {
         var elapsed = 0;
         foreach (var target in PostStartupHeartbeatTargetsMs)
         {
-            await Task.Delay(Math.Max(0, target - elapsed));
+            await Task.Delay(
+                Math.Max(0, target - elapsed),
+                cancellationToken
+            );
             elapsed = target;
             WritePostStartupHeartbeat(game, $"post-startup heartbeat at {target}ms");
         }

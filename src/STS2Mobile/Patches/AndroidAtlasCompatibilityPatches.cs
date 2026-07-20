@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Assets;
@@ -14,12 +15,17 @@ internal static class AndroidAtlasCompatibilityPatches
     private const string AtlasSpritePrefix = "res://images/atlases/";
     private const string AtlasSpriteSeparator = ".sprites/";
     private const string AtlasSpriteSuffix = ".tres";
+    private const int MaximumResolutionAttempts = 3;
 
     private static readonly HashSet<string> LoggedFallbackAtlases = new(StringComparer.Ordinal);
+    private static readonly AndroidAtlasFallbackResolutionCache FallbackResolutionCache = new();
+    private static readonly AndroidAtlasResourceChangeTracker ResourceChangeTracker =
+        new(FallbackResolutionCache);
     private static readonly object LogLock = new();
 
     internal static void Apply(Harmony harmony)
     {
+        PatchResourcePackLoad(harmony);
         PatchHelper.Patch(
             harmony,
             typeof(AtlasManager),
@@ -49,60 +55,194 @@ internal static class AndroidAtlasCompatibilityPatches
         );
     }
 
+    private static void PatchResourcePackLoad(Harmony harmony)
+    {
+        const string label = "ProjectSettings.LoadResourcePack(string, bool, int)";
+        try
+        {
+            var target = typeof(ProjectSettings).GetMethod(
+                nameof(ProjectSettings.LoadResourcePack),
+                BindingFlags.Public | BindingFlags.Static,
+                binder: null,
+                types: new[] { typeof(string), typeof(bool), typeof(int) },
+                modifiers: null
+            );
+            if (target == null)
+            {
+                PatchHelper.Log($"FAILED {label}: method not found");
+                return;
+            }
+
+            harmony.Patch(
+                target,
+                postfix: new HarmonyMethod(
+                    PatchHelper.Method(
+                        typeof(AndroidAtlasCompatibilityPatches),
+                        nameof(LoadResourcePackPostfix)
+                    )
+                )
+            );
+            PatchHelper.Log($"Patched {label}");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"FAILED {label}: {ex.Message}");
+        }
+    }
+
     private static bool LoadAllAtlasesPrefix()
     {
         if (!OperatingSystem.IsAndroid())
             return true;
 
+        int invalidated = InvalidateFallbackResolutionCache();
         PatchHelper.Log(
             "[AndroidAtlasCompat] Skipping eager AtlasManager.LoadAllAtlases; "
-            + "non-essential atlases will load on demand"
+            + $"non-essential atlases will load on demand; invalidatedFallbacks={invalidated}"
         );
         return false;
     }
 
+    internal static int InvalidateFallbackResolutionCache()
+        => ResourceChangeTracker.InvalidateExplicitly().RemovedCount;
+
+    internal static void ObserveMountedResourceSetIdentity(string identity)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return;
+
+        var result = ResourceChangeTracker.ObserveMountedResourceSet(identity);
+        if (result.Outcome == AndroidAtlasResourceChangeOutcome.BaselineRecorded)
+        {
+            PatchHelper.Log(
+                $"[AndroidAtlasCompat] Mounted resource-set baseline recorded; generation={result.Generation}"
+            );
+        }
+        else if (result.Invalidated)
+        {
+            PatchHelper.Log(
+                "[AndroidAtlasCompat] Mounted resource-set identity changed; "
+                + $"invalidatedFallbacks={result.RemovedCount} generation={result.Generation}"
+            );
+        }
+    }
+
+    private static void LoadResourcePackPostfix(bool __result)
+    {
+        if (!OperatingSystem.IsAndroid())
+            return;
+
+        var result = ResourceChangeTracker.RecordResourcePackLoad(
+            loadSucceeded: __result,
+            resourcesMayHaveChanged: true
+        );
+        if (!result.Invalidated)
+            return;
+
+        PatchHelper.Log(
+            "[AndroidAtlasCompat] Successful resource-pack load changed the virtual filesystem; "
+            + $"invalidatedFallbacks={result.RemovedCount} generation={result.Generation}"
+        );
+    }
+
     private static bool AtlasResourceExistsPrefix(string path, ref bool __result)
     {
-        if (!OperatingSystem.IsAndroid() || !TryResolveFallback(path, out var fallback))
+        if (!OperatingSystem.IsAndroid() || !TryResolveFallback(path, out var resolution))
             return true;
 
         __result = true;
-        LogFallback(path, fallback);
+        LogFallback(path, resolution.Fallback);
         return false;
     }
 
     private static bool AtlasResourceLoadPrefix(string path, ref Variant __result)
     {
-        if (!OperatingSystem.IsAndroid() || !TryResolveFallback(path, out var fallback))
+        if (!OperatingSystem.IsAndroid() || !TryResolveFallback(path, out var resolution))
             return true;
 
+        if (!FallbackResolutionCache.IsCurrent(resolution.Generation)
+            && !TryResolveFallback(path, out resolution))
+        {
+            return true;
+        }
+
         var texture = ResourceLoader.Load<Texture2D>(
-            fallback,
+            resolution.Fallback,
             null,
             ResourceLoader.CacheMode.Reuse
         );
         if (texture == null)
         {
+            FallbackResolutionCache.TryRemove(
+                path,
+                resolution.Fallback,
+                resolution.Generation
+            );
             PatchHelper.Log(
-                $"[AndroidAtlasCompat] Individual fallback load failed for {path}: {fallback}; "
+                $"[AndroidAtlasCompat] Individual fallback load failed for {path}: {resolution.Fallback}; "
                 + "falling back to the source atlas loader"
             );
             return true;
         }
 
         __result = Variant.From<Texture2D>(texture);
-        LogFallback(path, fallback);
+        LogFallback(path, resolution.Fallback);
         return false;
     }
 
-    private static bool TryResolveFallback(string path, out string fallback)
+    private static bool TryResolveFallback(
+        string path,
+        out AndroidAtlasFallbackResolutionLease resolution
+    )
     {
-        fallback = null;
+        resolution = default;
         if (!TryParseSpritePath(path, out var atlasName, out var spriteName))
             return false;
         if (AtlasManager.IsAtlasLoaded(atlasName))
             return false;
 
+        for (int attempt = 0; attempt < MaximumResolutionAttempts; attempt++)
+        {
+            long generation = FallbackResolutionCache.CaptureGeneration();
+            if (FallbackResolutionCache.TryGet(path, generation, out var cached))
+            {
+                if (!cached.Found)
+                    return false;
+
+                resolution = new AndroidAtlasFallbackResolutionLease(
+                    cached.Fallback,
+                    generation
+                );
+                return true;
+            }
+
+            if (TryFindFallback(atlasName, spriteName, out var fallback))
+            {
+                if (!FallbackResolutionCache.TryStoreHit(path, fallback, generation))
+                    continue;
+
+                resolution = new AndroidAtlasFallbackResolutionLease(
+                    fallback,
+                    generation
+                );
+                return true;
+            }
+
+            if (!FallbackResolutionCache.TryStoreMiss(path, generation))
+                continue;
+
+            return false;
+        }
+
+        return false;
+    }
+
+    private static bool TryFindFallback(
+        string atlasName,
+        string spriteName,
+        out string fallback
+    )
+    {
         foreach (var candidate in FallbackCandidates(atlasName, spriteName))
         {
             if (!ResourceLoader.Exists(candidate))
@@ -125,6 +265,7 @@ internal static class AndroidAtlasCompatibilityPatches
             }
         }
 
+        fallback = null;
         return false;
     }
 
@@ -214,5 +355,17 @@ internal static class AndroidAtlasCompatibilityPatches
             $"[AndroidAtlasCompat] Using individual texture fallback for {atlasName}: "
             + $"{path} -> {fallback}"
         );
+    }
+
+    private readonly struct AndroidAtlasFallbackResolutionLease
+    {
+        internal AndroidAtlasFallbackResolutionLease(string fallback, long generation)
+        {
+            Fallback = fallback;
+            Generation = generation;
+        }
+
+        internal string Fallback { get; }
+        internal long Generation { get; }
     }
 }

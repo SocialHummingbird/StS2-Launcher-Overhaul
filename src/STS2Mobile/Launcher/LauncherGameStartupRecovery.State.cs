@@ -1,6 +1,5 @@
 ﻿using Godot;
 using System;
-using System.Threading.Tasks;
 using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
@@ -27,9 +26,9 @@ internal static partial class LauncherGameStartupRecovery
         private void ShowControls()
             => LauncherStartupRecoveryControlPanel.Show(GameNode);
 
-        internal void ScheduleCleanup(CanvasLayer recoveryControls)
+        internal void Cleanup(CanvasLayer recoveryControls)
             => RecoveryCleanupTarget.For(recoveryControls, StartupStatus)
-                .Schedule();
+                .Run();
 
         internal void ShowFailure(RecoveryStateUpdate update)
         {
@@ -43,7 +42,7 @@ internal static partial class LauncherGameStartupRecovery
         )
         {
             Apply(update);
-            ScheduleCleanup(recoveryControls);
+            Cleanup(recoveryControls);
         }
     }
 
@@ -67,22 +66,20 @@ internal static partial class LauncherGameStartupRecovery
         )
             => new(recoveryControls, startupStatus);
 
-        internal void Schedule()
-            => _ = RunAsync();
-
-        private async Task RunAsync()
+        internal void Run()
         {
             PatchHelper.Log(
-                "Post-startup recovery UI cleanup scheduled after game startup was observed; " +
-                $"cleanupDelayMs={PostStartupRecoveryMs}, preserving last game-scene trace"
+                "Post-startup recovery UI cleanup started after rendered-frame handoff"
             );
             var controlsHidden = HideIfAlive(RecoveryControls, "recovery controls");
-            var statusHidden = HideIfAlive(StartupStatus, "startup status");
+            var statusHidden = HideIfAlive(
+                LauncherStartupStatus.FindStatusRoot(StartupStatus),
+                "startup status"
+            );
             PatchHelper.Log(
                 "Post-startup recovery UI hidden after game startup was observed; " +
                 $"controlsHidden={controlsHidden}, statusHidden={statusHidden}"
             );
-            await Task.Delay(PostStartupRecoveryMs);
             LauncherLaunchMarkers.ClearStartupMarker();
 
             var controlsCleared = QueueFreeIfAlive(RecoveryControls, "recovery controls");

@@ -23,7 +23,7 @@ internal static partial class LauncherGameStartupRecovery
             if (scene.IsMainMenu)
             {
                 PatchHelper.Log(MainMenuPresentMessage(scene));
-                WritePostStartupTrace(
+                WriteSuccessfulPostStartupEvidence(
                     game,
                     gameNode,
                     "main menu guard passed",

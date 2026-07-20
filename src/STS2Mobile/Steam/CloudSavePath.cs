@@ -4,6 +4,7 @@ internal static class CloudSavePath
 {
     private const string CurrentRunPathToken = "current_run";
     private const string PrefsPathToken = "prefs";
+    private const string ProfileSaveFile = "profile.save";
     private const string ProgressPathToken = "progress";
     private const string ProgressSaveFile = "progress.save";
     private const string SaveExtension = ".save";
@@ -30,7 +31,9 @@ internal static class CloudSavePath
     internal static bool IsImportantForBackup(string path)
     {
         var canonLowerPath = CanonicalizeLower(path);
-        return canonLowerPath.Contains(ProgressSaveFile)
+        return canonLowerPath == ProfileSaveFile
+            || canonLowerPath.EndsWith($"/{ProfileSaveFile}")
+            || canonLowerPath.Contains(ProgressSaveFile)
             || canonLowerPath.Contains(CurrentRunPathToken)
             || canonLowerPath.Contains(PrefsPathToken);
     }
