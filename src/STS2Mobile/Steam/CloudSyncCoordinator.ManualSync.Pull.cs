@@ -1,30 +1,47 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private static async Task<string> RunManualPullDownloadsAsync(
+    private static async Task<ManualCloudSyncResult> RunManualPullDownloadsAsync(
         ManualSyncContext sync,
         IReadOnlyCollection<string> paths
     )
     {
         var seedSession = await ModdedSaveSeedSession.PrepareAsync(sync, paths);
+        sync.ReportTransferStarted(paths.Count);
         var downloadedCloudContent = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var summary = ManualSyncTransferSummary.Empty(PullComplete);
+        var summary = ManualSyncTransferSummary.Empty;
         foreach (var path in paths)
         {
+            sync.CancellationToken.ThrowIfCancellationRequested();
+            sync.ReportTransferPathStarted(path);
             var result = await PullManualPathAsync(sync, path, downloadedCloudContent);
             summary = summary.Include(result);
+            sync.ReportTransferProcessed(
+                path,
+                result.Outcome
+            );
             if (result.StopAfterBudget)
                 break;
         }
 
         var seedSummary = await seedSession.CompleteAsync(sync, downloadedCloudContent);
-        sync.RefreshLocalBackupMirror();
-        return $"{summary.CompleteMessage()} {seedSummary}";
+        sync.ReportFinalizing(
+            "Refreshing the launcher backup mirror and writing Pull evidence"
+        );
+        var mirror = sync.RefreshLocalBackupMirror();
+        return summary.BuildResult(
+            CloudOperationKind.Pull,
+            paths.Count,
+            sync.ProgressState,
+            mirror.Errors,
+            $"{seedSummary} Local backup mirror: {mirror}."
+        );
     }
 
     private static async Task<ManualSyncPathResult> PullManualPathAsync(
@@ -33,7 +50,7 @@ internal static partial class CloudSyncCoordinator
         IDictionary<string, string> downloadedCloudContent
     )
     {
-        var result = ManualSyncPathResult.Ignored;
+        var result = ManualSyncPathResult.FailedPath;
         try
         {
             if (!sync.CloudFileExists(path))
@@ -48,9 +65,15 @@ internal static partial class CloudSyncCoordinator
                 result = ManualSyncPathResult.CompletedPath;
             }
         }
+        catch (OperationCanceledException)
+            when (sync.CancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (TimeoutException)
         {
             PatchHelper.Log(PullPathTimedOut(path));
+            result = ManualSyncPathResult.TimedOutPath;
         }
         catch (Exception ex) when (IsCloudFileMissing(ex))
         {
@@ -60,6 +83,7 @@ internal static partial class CloudSyncCoordinator
         catch (Exception ex)
         {
             PatchHelper.Log(PullFailed(path, ex));
+            result = ManualSyncPathResult.FailedPath;
         }
 
         return sync.BudgetExceeded(ManualPullBudgetExceeded())

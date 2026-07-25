@@ -4,7 +4,7 @@ namespace STS2Mobile.Launcher;
 
 // Wires model events to view updates and handles the launcher UI state machine.
 // All model callbacks are marshalled to the main thread before updating the view.
-internal sealed partial class LauncherController
+internal sealed partial class LauncherController : IDisposable
 {
     private readonly LauncherModel _model;
     private readonly LauncherView _view;
@@ -33,7 +33,15 @@ internal sealed partial class LauncherController
         _diagnostics = new LauncherDiagnosticsCoordinator(model, view);
         _versions = new LauncherVersionCoordinator(model, view);
         _cloud = new LauncherCloudSyncCoordinator(model, view, runOnMainThread);
-        _launch = new LauncherLaunchCoordinator(model, view, _diagnostics);
+        _launch = new LauncherLaunchCoordinator(
+            model,
+            view,
+            _diagnostics,
+            result => _cloud.LocalBackupRecoveryCompleted(
+                result,
+                reportNoChanges: false
+            )
+        );
         _downloads = new LauncherDownloadCoordinator(
             model,
             view,
@@ -92,4 +100,10 @@ internal sealed partial class LauncherController
         STS2Mobile.PatchHelper.Log("Launcher controller phase complete: start session flow");
         return _automation.TryStartAutomation();
     }
+
+    internal void Dispose()
+        => _cloud.Dispose();
+
+    void IDisposable.Dispose()
+        => Dispose();
 }

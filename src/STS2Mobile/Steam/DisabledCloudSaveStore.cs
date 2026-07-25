@@ -1,11 +1,15 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
 
-internal class DisabledCloudSaveStore : ICloudSaveStore
+internal class DisabledCloudSaveStore :
+    ICloudSaveStore,
+    ICancellableSaveStore,
+    ICancellableCloudMetadataStore
 {
     private readonly ISaveStore _local;
 
@@ -19,6 +23,15 @@ internal class DisabledCloudSaveStore : ICloudSaveStore
 
     Task<string> ISaveStore.ReadFileAsync(string path)
         => Task.FromException<string>(Missing(path));
+
+    Task<string> ICancellableSaveStore.ReadFileAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromException<string>(Missing(path));
+    }
 
     void ISaveStore.WriteFile(string path, string content)
     {
@@ -41,6 +54,22 @@ internal class DisabledCloudSaveStore : ICloudSaveStore
         PatchHelper.Log($"[Cloud] Disabled cloud write ignored: {path}");
         return Task.CompletedTask;
     }
+
+    Task ICancellableSaveStore.WriteFileAsync(
+        string path,
+        string content,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        PatchHelper.Log($"[Cloud] Disabled cancellable cloud write ignored: {path}");
+        return Task.CompletedTask;
+    }
+
+    void ICancellableCloudMetadataStore.PrepareFileMetadata(
+        CancellationToken cancellationToken
+    )
+        => cancellationToken.ThrowIfCancellationRequested();
 
     bool ISaveStore.FileExists(string path)
         => false;

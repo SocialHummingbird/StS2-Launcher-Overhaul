@@ -69,6 +69,13 @@ internal sealed partial class ActionSection
         _cloudPushToggle = cloudControls.CloudPushToggle;
         _pushButton = cloudControls.PushButton;
         _confirmPushButton = cloudControls.ConfirmPushButton;
+        _cancelCloudOperationButton =
+            cloudControls.CancelOperationButton;
+        _cloudOperationProgressGroup = cloudControls.OperationProgressGroup;
+        _cloudOperationPhaseLabel = cloudControls.OperationPhaseLabel;
+        _cloudOperationDetailLabel = cloudControls.OperationDetailLabel;
+        _cloudOperationProgressBar = cloudControls.OperationProgressBar;
+        _cloudPushEligibilityLabel = cloudControls.PushEligibilityLabel;
         _pushConfirmationLabel = cloudControls.PushConfirmationLabel;
         _cloudSafetyLabel = cloudControls.CloudSafetyLabel;
         _cloudSafetyToggle = cloudControls.CloudSafetyToggle;

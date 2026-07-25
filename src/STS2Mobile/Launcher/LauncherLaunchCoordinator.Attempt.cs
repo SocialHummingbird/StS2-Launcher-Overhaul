@@ -26,7 +26,11 @@ internal sealed partial class LauncherLaunchCoordinator
         var attemptTimer = Stopwatch.StartNew();
         try
         {
-            CloudSyncCoordinator.RefreshLocalBackup(restoreMissing: true);
+            var localBackupRefresh =
+                CloudSyncCoordinator.RefreshLocalBackup(
+                    restoreMissing: true
+                );
+            _localBackupRecoveryCompleted(localBackupRefresh);
             var branch = SteamGameBranch.Normalize(LauncherPreferences.ReadGameBranch());
             LauncherLaunchMarkers.RecordPhase(
                 plan.ButtonPressedPhase,

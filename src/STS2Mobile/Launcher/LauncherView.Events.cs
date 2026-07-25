@@ -14,9 +14,10 @@ internal sealed partial class LauncherView
         Action retryPressed,
         Action<bool> localBackupToggled,
         Action<bool> cloudSyncToggled,
-        Func<bool> cloudPushArmRequested,
+        Func<CloudPushEligibilityResult> cloudPushArmRequested,
         Action cloudPushPressed,
         Action cloudPullPressed,
+        Action cloudOperationCancelPressed,
         Action checkForUpdatesPressed,
         Action refreshGameVersionsPressed,
         Action redownloadPressed,
@@ -44,6 +45,8 @@ internal sealed partial class LauncherView
         Actions.CloudPushArmRequested += cloudPushArmRequested;
         Actions.CloudPushPressed += cloudPushPressed;
         Actions.CloudPullPressed += cloudPullPressed;
+        Actions.CloudOperationCancelPressed +=
+            cloudOperationCancelPressed;
         Actions.CheckForUpdatesPressed += checkForUpdatesPressed;
         Actions.RefreshGameVersionsPressed += refreshGameVersionsPressed;
         Actions.RedownloadPressed += redownloadPressed;

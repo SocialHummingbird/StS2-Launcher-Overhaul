@@ -17,6 +17,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -47,6 +48,12 @@ public class NativeFallbackActivity extends Activity {
 	public static final String EXTRA_REASON_TITLE = "com.game.sts2launcher.REASON_TITLE";
 	public static final String EXTRA_REASON_MESSAGE = "com.game.sts2launcher.REASON_MESSAGE";
 	public static final String EXTRA_REASON_DIAGNOSTICS = "com.game.sts2launcher.REASON_DIAGNOSTICS";
+	private volatile String diagnosticsText = "StS2 Launcher diagnostics are being collected.";
+	private volatile boolean destroyed;
+	private TextView diagnosticsView;
+	private String reasonTitle;
+	private String reasonMessage;
+	private Thread diagnosticsThread;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -55,6 +62,18 @@ public class NativeFallbackActivity extends Activity {
 		recordStartupPhase("native fallback shown", getIntent().getStringExtra(EXTRA_REASON_TITLE));
 		Log.w(TAG, "Showing native x86 fallback instead of starting Godot.");
 		setContentView(createContentView());
+		startDiagnosticsCollection();
+	}
+
+	@Override
+	protected void onDestroy() {
+		destroyed = true;
+		if (diagnosticsThread != null) {
+			diagnosticsThread.interrupt();
+			diagnosticsThread = null;
+		}
+		diagnosticsView = null;
+		super.onDestroy();
 	}
 
 	private void recordStartupPhase(String phase, String detail) {
@@ -103,13 +122,8 @@ public class NativeFallbackActivity extends Activity {
 	}
 
 	private ScrollView createContentView() {
-		String diagnostics = describeRuntimeState();
-		String extraDiagnostics = getIntent().getStringExtra(EXTRA_REASON_DIAGNOSTICS);
-		if (extraDiagnostics != null && !extraDiagnostics.isEmpty()) {
-			diagnostics += "\n\nFailure diagnostics:\n" + extraDiagnostics;
-		}
-		String reasonTitle = getIntent().getStringExtra(EXTRA_REASON_TITLE);
-		String reasonMessage = getIntent().getStringExtra(EXTRA_REASON_MESSAGE);
+		reasonTitle = getIntent().getStringExtra(EXTRA_REASON_TITLE);
+		reasonMessage = getIntent().getStringExtra(EXTRA_REASON_MESSAGE);
 		if (reasonTitle == null || reasonTitle.isEmpty()) {
 			reasonTitle = "StS2 Launcher";
 		}
@@ -118,13 +132,15 @@ public class NativeFallbackActivity extends Activity {
 				"This Android x86 emulator cannot safely run the Godot/.NET runtime. It crashes inside the Mono/GodotSharp native layer before the launcher can take over.\n\n" +
 				"Use an ARM64 Android device/build to test the launcher and game runtime. This screen is expected on x86 emulator builds.";
 		}
-		final String diagnosticsText = reasonTitle + "\n\n" + reasonMessage + "\n\n" + diagnostics;
+		diagnosticsText =
+			reasonTitle + "\n\n" + reasonMessage
+				+ "\n\nCollecting runtime diagnostics...";
 		boolean landscape = getResources().getDisplayMetrics().widthPixels > getResources().getDisplayMetrics().heightPixels;
 		boolean compactActionRows = landscape && useCompactFallbackActionRows();
 
 		ScrollView scroll = new ScrollView(this);
 		scroll.setFillViewport(true);
-		scroll.setBackgroundColor(Color.rgb(20, 24, 28));
+		scroll.setBackgroundColor(Color.TRANSPARENT);
 		scroll.setLayoutParams(new ScrollView.LayoutParams(
 			ViewGroup.LayoutParams.MATCH_PARENT,
 			ViewGroup.LayoutParams.MATCH_PARENT
@@ -162,7 +178,9 @@ public class NativeFallbackActivity extends Activity {
 			ViewGroup.LayoutParams.WRAP_CONTENT
 		));
 
-		final TextView diagnosticsView = createDiagnosticsView(diagnostics);
+		diagnosticsView = createDiagnosticsView(
+			"Collecting runtime diagnostics..."
+		);
 
 		LinearLayout actions = new LinearLayout(this);
 		actions.setOrientation(compactActionRows ? LinearLayout.VERTICAL : (landscape ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL));
@@ -186,7 +204,7 @@ public class NativeFallbackActivity extends Activity {
 		Button copyButton = new Button(this);
 		copyButton.setText("Copy diagnostics");
 		styleActionButton(copyButton, Color.rgb(40, 78, 92), Color.rgb(105, 220, 235), Color.rgb(230, 248, 248));
-		copyButton.setOnClickListener(v -> copyDiagnostics(diagnosticsText));
+		copyButton.setOnClickListener(v -> copyDiagnostics(this.diagnosticsText));
 		addActionButton(firstActionTarget, copyButton, landscape, 0);
 
 		Button restartButton = new Button(this);
@@ -222,7 +240,56 @@ public class NativeFallbackActivity extends Activity {
 		));
 
 		scroll.addView(root);
+		scroll.getViewTreeObserver().addOnPreDrawListener(
+			new ViewTreeObserver.OnPreDrawListener() {
+				@Override
+				public boolean onPreDraw() {
+					scroll.getViewTreeObserver().removeOnPreDrawListener(this);
+					scroll.setBackgroundColor(Color.rgb(20, 24, 28));
+					return true;
+				}
+			}
+		);
 		return scroll;
+	}
+
+	private void startDiagnosticsCollection() {
+		final String title = reasonTitle;
+		final String message = reasonMessage;
+		diagnosticsThread = new Thread(() -> {
+			Log.i(TAG, "Native fallback diagnostics collection started");
+			String diagnostics;
+			try {
+				diagnostics = describeRuntimeState();
+				String extraDiagnostics =
+					getIntent().getStringExtra(EXTRA_REASON_DIAGNOSTICS);
+				if (
+					extraDiagnostics != null
+						&& !extraDiagnostics.isEmpty()
+				) {
+					diagnostics +=
+						"\n\nFailure diagnostics:\n" + extraDiagnostics;
+				}
+			} catch (Throwable error) {
+				Log.e(TAG, "Native fallback diagnostics collection failed", error);
+				diagnostics =
+					"Diagnostics collection failed: " + error;
+			}
+			if (Thread.currentThread().isInterrupted() || destroyed) {
+				return;
+			}
+
+			final String completedDiagnostics = diagnostics;
+			diagnosticsText =
+				title + "\n\n" + message + "\n\n" + completedDiagnostics;
+			runOnUiThread(() -> {
+				if (!destroyed && diagnosticsView != null) {
+					diagnosticsView.setText(completedDiagnostics);
+					Log.i(TAG, "Native fallback diagnostics collection completed");
+				}
+			});
+		}, "STS2NativeFallbackDiagnostics");
+		diagnosticsThread.start();
 	}
 
 	private boolean useCompactFallbackActionRows() {
@@ -306,6 +373,7 @@ public class NativeFallbackActivity extends Activity {
 
 	private String describeRuntimeState() {
 		File pck = new File(resolveGameDir(), PCK_FILE);
+		String pckSha256 = "";
 		StringBuilder state = new StringBuilder();
 		state.append("App version: ");
 		state.append(describeAppVersion());
@@ -330,16 +398,20 @@ public class NativeFallbackActivity extends Activity {
 			state.append("\nPCK bytes: ");
 			state.append(pck.length());
 			state.append("\nPCK SHA-256: ");
-			state.append(sha256Hex(pck));
+			pckSha256 = sha256Hex(pck);
+			state.append(pckSha256);
 			state.append("\nPCK magic valid: ");
 			state.append(describePckMagicStatus(pck));
 		}
-		appendRuntimeSlotState(state);
+		appendRuntimeSlotState(state, pckSha256);
 		appendAssemblyCacheState(state);
 		return state.toString();
 	}
 
-	private void appendRuntimeSlotState(StringBuilder state) {
+	private void appendRuntimeSlotState(
+		StringBuilder state,
+		String selectedPckSha256
+	) {
 		File marker = new File(getFilesDir(), CURRENT_RUNTIME_SLOT_MARKER);
 		state.append("\nRuntime slot evidence: ");
 		state.append(marker.getAbsolutePath());
@@ -366,7 +438,10 @@ public class NativeFallbackActivity extends Activity {
 			String markerPckSha256 = json.optString("pckSha256", "");
 			String markerSourceAssemblySha256 = json.optString("sourceAssemblySha256", "");
 			File currentPck = new File(resolveGameDir(), PCK_FILE);
-			String currentPckSha256 = currentPck.exists() && currentPck.isFile() ? sha256Hex(currentPck) : "";
+			String currentPckSha256 =
+				currentPck.exists() && currentPck.isFile()
+					? selectedPckSha256
+					: "";
 			File currentSourceAssembly = findSelectedSourceAssembly();
 			String currentSourceAssemblySha256 = currentSourceAssembly != null && currentSourceAssembly.exists() && currentSourceAssembly.isFile()
 				? sha256Hex(currentSourceAssembly)
@@ -688,6 +763,9 @@ public class NativeFallbackActivity extends Activity {
 			byte[] buffer = new byte[65536];
 			int read;
 			while ((read = in.read(buffer)) != -1) {
+				if (Thread.currentThread().isInterrupted()) {
+					return "<cancelled>";
+				}
 				digest.update(buffer, 0, read);
 			}
 			return bytesToHex(digest.digest());

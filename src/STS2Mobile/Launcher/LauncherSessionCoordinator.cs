@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using STS2Mobile.Patches;
+using STS2Mobile.Steam;
 using SessionState = STS2Mobile.Launcher.LauncherModel.SessionState;
 
 namespace STS2Mobile.Launcher;
@@ -50,8 +51,8 @@ internal sealed partial class LauncherSessionCoordinator
         HandleSessionFlow(result);
     }
 
-    internal void LocalBackupToggled(bool pressed)
-        => LauncherPreferences.SaveLocalBackupEnabled(pressed);
+    internal LocalBackupRefreshResult LocalBackupToggled(bool pressed)
+        => LauncherPreferences.SaveLocalBackupEnabledWithResult(pressed);
 
     private void HandleSessionFlow(LauncherModel.FastPathResult result)
     {

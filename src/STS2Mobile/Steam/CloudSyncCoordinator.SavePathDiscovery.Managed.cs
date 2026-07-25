@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Saves.Managers;
 
@@ -11,7 +12,8 @@ internal static partial class CloudSyncCoordinator
     {
         private static void CollectProfilePaths(
             List<string> paths,
-            ISaveStore store
+            ISaveStore store,
+            CancellationToken cancellationToken
         )
         {
             var wasModded = UserDataPathProvider.IsRunningModded;
@@ -19,9 +21,17 @@ internal static partial class CloudSyncCoordinator
             {
                 foreach (bool modded in ManagedSaveModes())
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     UserDataPathProvider.IsRunningModded = modded;
                     foreach (var profileId in ProfileIds())
-                        AddManagedProfilePaths(paths, store, profileId);
+                    {
+                        AddManagedProfilePaths(
+                            paths,
+                            store,
+                            profileId,
+                            cancellationToken
+                        );
+                    }
                 }
             }
             finally
@@ -39,7 +49,8 @@ internal static partial class CloudSyncCoordinator
         private static void AddManagedProfilePaths(
             List<string> paths,
             ISaveStore store,
-            int profileId
+            int profileId,
+            CancellationToken cancellationToken
         )
         {
             paths.Add(ProgressSaveManager.GetProgressPathForProfile(profileId));
@@ -49,7 +60,7 @@ internal static partial class CloudSyncCoordinator
             new HistoryFileSelection(
                 RunHistorySaveManager.GetHistoryPath(profileId),
                 SelectManagedRunHistoryFiles
-            ).AddTo(paths, store);
+            ).AddTo(paths, store, cancellationToken);
         }
 
         private static IEnumerable<string> SelectManagedRunHistoryFiles(IEnumerable<string> files)

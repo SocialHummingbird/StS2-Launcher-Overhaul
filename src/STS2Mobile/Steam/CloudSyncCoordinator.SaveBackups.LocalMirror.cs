@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
@@ -12,54 +13,40 @@ internal static partial class CloudSyncCoordinator
     {
         private static readonly object LocalMirrorGate = new();
 
-        internal readonly struct LocalMirrorRefreshResult
-        {
-            internal LocalMirrorRefreshResult(
-                int discovered,
-                int mirrored,
-                int archived,
-                int restored,
-                int errors
-            )
-            {
-                Discovered = discovered;
-                Mirrored = mirrored;
-                Archived = archived;
-                Restored = restored;
-                Errors = errors;
-            }
-
-            internal int Discovered { get; }
-            internal int Mirrored { get; }
-            internal int Archived { get; }
-            internal int Restored { get; }
-            internal int Errors { get; }
-
-            public override string ToString()
-                => $"discovered={Discovered}; mirrored={Mirrored}; archived={Archived}; restored={Restored}; errors={Errors}";
-        }
-
-        internal static LocalMirrorRefreshResult RefreshLocalMirror(
+        internal static LocalBackupRefreshResult RefreshLocalMirror(
             ISaveStore local,
-            bool restoreMissing
+            bool restoreMissing,
+            CancellationToken cancellationToken = default
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
             lock (LocalMirrorGate)
-                return RefreshLocalMirrorLocked(local, restoreMissing);
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return RefreshLocalMirrorLocked(
+                    local,
+                    restoreMissing,
+                    cancellationToken
+                );
+            }
         }
 
-        private static LocalMirrorRefreshResult RefreshLocalMirrorLocked(
+        private static LocalBackupRefreshResult RefreshLocalMirrorLocked(
             ISaveStore local,
-            bool restoreMissing
+            bool restoreMissing,
+            CancellationToken cancellationToken
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!_localBackupEnabled)
-                return default;
+                return LocalBackupRefreshResult.Skipped(
+                    AppPaths.HasStoragePermission()
+                );
 
             if (!AppPaths.HasStoragePermission())
             {
                 PatchHelper.Log("[Cloud] Automatic local backup waiting for shared-storage permission");
-                return default;
+                return LocalBackupRefreshResult.StorageAccessMissing();
             }
 
             var currentRoot = Path.Combine(
@@ -75,9 +62,17 @@ internal static partial class CloudSyncCoordinator
 
             var errors = 0;
             var restored = restoreMissing
-                ? RestoreMissingStableFiles(local, currentRoot, ref errors)
+                ? RestoreMissingStableFiles(
+                    local,
+                    currentRoot,
+                    ref errors,
+                    cancellationToken
+                )
                 : 0;
-            var paths = SavePathDiscovery.Get(local);
+            var paths = SavePathDiscovery.Get(
+                local,
+                cancellationToken
+            );
             var discovered = 0;
             var mirrored = 0;
             var archived = 0;
@@ -85,13 +80,18 @@ internal static partial class CloudSyncCoordinator
 
             foreach (var path in paths.Take(LocalSaveBackupPlan.MaxFiles))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!LocalSaveBackupPlan.IsBackupEligible(path) || !local.FileExists(path))
                     continue;
 
                 discovered++;
                 try
                 {
-                    var content = local.ReadFile(path);
+                    var content = CancellableSaveStore.ReadFileAsync(
+                        local,
+                        path,
+                        cancellationToken
+                    ).GetAwaiter().GetResult();
                     if (string.IsNullOrEmpty(content))
                         continue;
 
@@ -104,7 +104,10 @@ internal static partial class CloudSyncCoordinator
 
                     if (File.Exists(mirrorPath))
                     {
-                        var previousContent = File.ReadAllText(mirrorPath);
+                        var previousContent = File.ReadAllTextAsync(
+                            mirrorPath,
+                            cancellationToken
+                        ).GetAwaiter().GetResult();
                         if (string.Equals(previousContent, content, StringComparison.Ordinal))
                             continue;
 
@@ -114,8 +117,18 @@ internal static partial class CloudSyncCoordinator
                             errors++;
                     }
 
-                    WriteMirrorFile(mirrorPath, content);
+                    WriteMirrorFile(
+                        mirrorPath,
+                        content,
+                        cancellationToken
+                    );
+                    cancellationToken.ThrowIfCancellationRequested();
                     mirrored++;
+                }
+                catch (OperationCanceledException)
+                    when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -124,20 +137,31 @@ internal static partial class CloudSyncCoordinator
                 }
             }
 
-            PruneLocalMirrorHistory(historyRoot);
-            var result = new LocalMirrorRefreshResult(
-                discovered,
-                mirrored,
-                archived,
-                restored,
-                errors
+            PruneLocalMirrorHistory(
+                historyRoot,
+                cancellationToken
+            );
+            var result = new LocalBackupRefreshResult(
+                Attempted: true,
+                StorageAccessAvailable: true,
+                Discovered: discovered,
+                Mirrored: mirrored,
+                Archived: archived,
+                Restored: restored,
+                Errors: errors,
+                FailureMessage: ""
             );
             PatchHelper.Log($"[Cloud] Automatic local backup refresh: {result}");
             return result;
         }
 
-        internal static void MirrorLocalWrite(string path, byte[] content)
+        internal static void MirrorLocalWrite(
+            string path,
+            byte[] content,
+            CancellationToken cancellationToken = default
+        )
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (
                 !_localBackupEnabled
                 || content == null
@@ -149,6 +173,7 @@ internal static partial class CloudSyncCoordinator
 
             lock (LocalMirrorGate)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
                     var currentRoot = Path.Combine(
@@ -184,9 +209,22 @@ internal static partial class CloudSyncCoordinator
                         }
                     }
 
-                    WriteMirrorFile(mirrorPath, content);
-                    PruneLocalMirrorHistory(historyRoot);
+                    WriteMirrorFile(
+                        mirrorPath,
+                        content,
+                        cancellationToken
+                    );
+                    cancellationToken.ThrowIfCancellationRequested();
+                    PruneLocalMirrorHistory(
+                        historyRoot,
+                        cancellationToken
+                    );
                     PatchHelper.Log($"[Cloud] Mirrored local save write: {path} ({content.Length} bytes)");
+                }
+                catch (OperationCanceledException)
+                    when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -198,15 +236,22 @@ internal static partial class CloudSyncCoordinator
         private static int RestoreMissingStableFiles(
             ISaveStore local,
             string currentRoot,
-            ref int errors
+            ref int errors,
+            CancellationToken cancellationToken
         )
         {
             if (!Directory.Exists(currentRoot))
                 return 0;
 
             var restored = 0;
-            foreach (var mirrorPath in EnumerateMirrorFiles(currentRoot))
+            foreach (
+                var mirrorPath in EnumerateMirrorFiles(
+                    currentRoot,
+                    cancellationToken
+                )
+            )
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var relativePath = LocalSaveBackupPlan.NormalizeRelativePath(
                     Path.GetRelativePath(currentRoot, mirrorPath)
                 );
@@ -221,7 +266,10 @@ internal static partial class CloudSyncCoordinator
                     if (local.FileExists(relativePath) && local.GetFileSize(relativePath) > 0)
                         continue;
 
-                    var content = File.ReadAllText(mirrorPath);
+                    var content = File.ReadAllTextAsync(
+                        mirrorPath,
+                        cancellationToken
+                    ).GetAwaiter().GetResult();
                     if (string.IsNullOrEmpty(content))
                         continue;
 
@@ -233,6 +281,11 @@ internal static partial class CloudSyncCoordinator
                     restored++;
                     PatchHelper.Log($"[Cloud] Restored missing local save from automatic backup: {relativePath}");
                 }
+                catch (OperationCanceledException)
+                    when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     errors++;
@@ -243,16 +296,43 @@ internal static partial class CloudSyncCoordinator
             return restored;
         }
 
-        private static IEnumerable<string> EnumerateMirrorFiles(string currentRoot)
+        private static IEnumerable<string> EnumerateMirrorFiles(
+            string currentRoot,
+            CancellationToken cancellationToken
+        )
         {
             try
             {
-                return Directory
-                    .EnumerateFiles(currentRoot, "*", SearchOption.AllDirectories)
-                    .Where(path => !path.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(path => path)
-                    .Take(LocalSaveBackupPlan.MaxFiles)
-                    .ToArray();
+                var files = new List<string>();
+                foreach (
+                    var path in Directory.EnumerateFiles(
+                        currentRoot,
+                        "*",
+                        SearchOption.AllDirectories
+                    )
+                )
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (
+                        !path.EndsWith(
+                            ".tmp",
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                    )
+                    {
+                        files.Add(path);
+                    }
+
+                    if (files.Count >= LocalSaveBackupPlan.MaxFiles)
+                        break;
+                }
+
+                return files.OrderBy(path => path).ToArray();
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -279,32 +359,41 @@ internal static partial class CloudSyncCoordinator
             return true;
         }
 
-        private static void WriteMirrorFile(string mirrorPath, string content)
+        private static void WriteMirrorFile(
+            string mirrorPath,
+            string content,
+            CancellationToken cancellationToken
+        )
         {
-            var parent = Path.GetDirectoryName(mirrorPath);
-            if (!string.IsNullOrWhiteSpace(parent))
-                Directory.CreateDirectory(parent);
-
-            var tempPath = mirrorPath + ".tmp";
-            File.WriteAllText(tempPath, content);
-            File.Move(tempPath, mirrorPath, overwrite: true);
+            CancellableAtomicFile.WriteAllTextAsync(
+                mirrorPath,
+                content,
+                overwrite: true,
+                cancellationToken
+            ).GetAwaiter().GetResult();
         }
 
-        private static void WriteMirrorFile(string mirrorPath, byte[] content)
+        private static void WriteMirrorFile(
+            string mirrorPath,
+            byte[] content,
+            CancellationToken cancellationToken
+        )
         {
-            var parent = Path.GetDirectoryName(mirrorPath);
-            if (!string.IsNullOrWhiteSpace(parent))
-                Directory.CreateDirectory(parent);
-
-            var tempPath = mirrorPath + ".tmp";
-            File.WriteAllBytes(tempPath, content);
-            File.Move(tempPath, mirrorPath, overwrite: true);
+            CancellableAtomicFile.WriteAllBytesAsync(
+                mirrorPath,
+                content,
+                overwrite: true,
+                cancellationToken
+            ).GetAwaiter().GetResult();
         }
 
         private static string HistoryGenerationName()
             => DateTimeOffset.UtcNow.ToString("yyyyMMdd'T'HHmmssfffffff'Z'");
 
-        private static void PruneLocalMirrorHistory(string historyRoot)
+        private static void PruneLocalMirrorHistory(
+            string historyRoot,
+            CancellationToken cancellationToken = default
+        )
         {
             try
             {
@@ -315,8 +404,14 @@ internal static partial class CloudSyncCoordinator
                         .Skip(LocalSaveBackupPlan.MaxHistoryGenerations)
                 )
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     Directory.Delete(oldGeneration, recursive: true);
                 }
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

@@ -1,4 +1,7 @@
+#nullable enable
+
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2.Internal;
 
@@ -7,7 +10,8 @@ namespace STS2Mobile.Steam;
 internal partial class SteamKit2CloudSaveStore
 {
     private async Task<CCloud_ClientBeginFileUpload_Response?> BeginFileUploadAsync(
-        CloudFileUpload upload
+        CloudFileUpload upload,
+        CancellationToken cancellationToken
     )
     {
         var request = CreateBeginFileUploadRequest(upload);
@@ -18,7 +22,11 @@ internal partial class SteamKit2CloudSaveStore
                 .SendCloud<
                     CCloud_ClientBeginFileUpload_Request,
                     CCloud_ClientBeginFileUpload_Response
-                >("ClientBeginFileUpload", request)
+                >(
+                    "ClientBeginFileUpload",
+                    request,
+                    cancellationToken
+                )
                 .ConfigureAwait(false);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("DuplicateRequest"))

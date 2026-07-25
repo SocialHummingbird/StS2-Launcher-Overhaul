@@ -5,8 +5,11 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class SteamConnection
 {
-    private void EnsureConnected()
+    private void EnsureConnected(
+        CancellationToken cancellationToken = default
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (_disposing || _disposed)
             throw new ObjectDisposedException(nameof(SteamConnection));
 
@@ -18,10 +21,31 @@ internal sealed partial class SteamConnection
             if (TryUseExistingConnection())
                 return;
 
-            WaitForBackoffIfNeeded();
-            StartConnectionAttempt();
-            WaitForConnectionAttempt();
-            CompleteConnectionAttempt();
+            cancellationToken.ThrowIfCancellationRequested();
+            WaitForBackoffIfNeeded(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            var attemptStarted = false;
+            try
+            {
+                StartConnectionAttempt();
+                attemptStarted = true;
+                WaitForConnectionAttempt(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                CompleteConnectionAttempt();
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                if (attemptStarted)
+                {
+                    PatchHelper.Log(
+                        "[Connection] Connect cancelled; resetting the pending attempt"
+                    );
+                    ResetAfterFailedConnect();
+                }
+
+                throw;
+            }
         }
     }
 
@@ -34,15 +58,24 @@ internal sealed partial class SteamConnection
         return true;
     }
 
-    private void WaitForBackoffIfNeeded()
+    private void WaitForBackoffIfNeeded(
+        CancellationToken cancellationToken
+    )
     {
         if (State != ConnectionState.Backoff)
             return;
 
         PatchHelper.Log($"[Connection] Waiting {_backoffMs}ms backoff before reconnect...");
         Monitor.Exit(_stateLock);
-        Thread.Sleep(_backoffMs);
-        Monitor.Enter(_stateLock);
+        try
+        {
+            if (cancellationToken.WaitHandle.WaitOne(_backoffMs))
+                cancellationToken.ThrowIfCancellationRequested();
+        }
+        finally
+        {
+            Monitor.Enter(_stateLock);
+        }
     }
 
     private void StartConnectionAttempt()
@@ -63,9 +96,11 @@ internal sealed partial class SteamConnection
         }
     }
 
-    private void WaitForConnectionAttempt()
+    private void WaitForConnectionAttempt(
+        CancellationToken cancellationToken
+    )
     {
-        if (!WaitForConnectedGate())
+        if (!WaitForConnectedGate(cancellationToken))
         {
             PatchHelper.Log("[Connection] Connect timed out");
             ResetAfterFailedConnect();
@@ -79,16 +114,24 @@ internal sealed partial class SteamConnection
         throw _connectError;
     }
 
-    private bool WaitForConnectedGate()
+    private bool WaitForConnectedGate(
+        CancellationToken cancellationToken
+    )
     {
         var deadline = Environment.TickCount64 + ConnectTimeoutMs;
         while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var remaining = deadline - Environment.TickCount64;
             if (remaining <= 0)
                 return _connectedGate.IsSet;
 
-            if (_connectedGate.Wait((int)Math.Min(50, remaining)))
+            if (
+                _connectedGate.Wait(
+                    (int)Math.Min(50, remaining),
+                    cancellationToken
+                )
+            )
                 return true;
 
             if (OperatingSystem.IsAndroid())
@@ -112,7 +155,7 @@ internal sealed partial class SteamConnection
 
     private void ResetAfterFailedConnect()
     {
-        Teardown();
+        ResetConnectionTransport();
         EnterBackoff();
     }
 

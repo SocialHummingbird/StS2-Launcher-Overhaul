@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
@@ -41,10 +42,15 @@ internal static partial class CloudSyncCoordinator
 
             private string Name { get; }
 
-            internal void AddTo(List<string> paths, ISaveStore store)
+            internal void AddTo(
+                List<string> paths,
+                ISaveStore store,
+                CancellationToken cancellationToken
+            )
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 AddFiles(paths);
-                AddHistory(paths, store);
+                AddHistory(paths, store, cancellationToken);
             }
 
             private void AddFiles(List<string> paths)
@@ -53,7 +59,11 @@ internal static partial class CloudSyncCoordinator
                     paths.Add($"{Name}/{file}");
             }
 
-            private void AddHistory(List<string> paths, ISaveStore store)
+            private void AddHistory(
+                List<string> paths,
+                ISaveStore store,
+                CancellationToken cancellationToken
+            )
             {
                 foreach (var historyName in FallbackHistoryDirectories)
                 {
@@ -61,7 +71,7 @@ internal static partial class CloudSyncCoordinator
                     new HistoryFileSelection(
                         historyDir,
                         SelectFallbackRunHistoryFiles
-                    ).AddTo(paths, store);
+                    ).AddTo(paths, store, cancellationToken);
                 }
             }
         }

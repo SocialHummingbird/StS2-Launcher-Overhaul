@@ -128,38 +128,41 @@ function Add-MultiVersionRuntimeSaveSafetyChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.Context.cs" `
-        "shares selected branch context across Push safety gates" `
+        "captures selected-runtime save-origin evidence for Push eligibility" `
         @(
             "CloudPushSafetyContext",
             "LauncherPreferences\.ReadGameBranch\(\)",
             "SelectedBranch",
             "SelectedVersion",
-            "WriteBlockedMarker"
+            "CaptureEligibilityState",
+            "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime"
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.Baseline.cs" `
-        "blocks baseline Push when save-origin evidence is missing or belongs to another selected runtime" `
+        "src\STS2Mobile\Launcher\CloudPushEligibilityState.cs" `
+        "models local-save and selected-runtime evidence independently" `
         @(
-            "CanPushWithBaselineEvidence",
-            "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime",
-            "Manual Push blocked: Android local save origin evidence does not match the selected runtime"
+            "HasImportantLocalSaveEvidence",
+            "LocalSaveOriginMatchesSelectedRuntime",
+            "HasBranchSwitchMarker",
+            "BranchSwitchEvidenceValid"
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.BranchSwitch.cs" `
-        "blocks branch-switch Push when save-origin evidence belongs to another selected runtime" `
+        "src\STS2Mobile\Launcher\CloudPushEligibilityPolicy.cs" `
+        "blocks Push whenever selected-runtime save-origin evidence is not verified" `
         @(
-            "CanPushAfterBranchSwitch",
-            "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime",
-            "Manual Push blocked: save-origin evidence is missing or belongs to a different selected runtime after branch switch"
+            "LocalSaveOriginMatchesSelectedRuntime",
+            "LocalSaveOriginNotVerified",
+            "Complete Pull from Steam Cloud against the installed"
         )
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Pull.cs" `
         "records save-origin evidence on Pull and includes it in baseline Push prerequisites" `
         @(
-            "LauncherSaveOriginEvidence\.WriteManualPullOrigin",
+            "LauncherSaveOriginEvidence\.TryWriteManualPullOrigin",
+            "WriteManualPullIncompleteMarker",
             "BaselineManualPushPrerequisitesSatisfied",
             "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime"
         )

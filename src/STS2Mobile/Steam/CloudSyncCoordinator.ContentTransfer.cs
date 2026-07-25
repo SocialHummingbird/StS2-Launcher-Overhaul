@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Saves;
 
@@ -10,16 +11,23 @@ internal static partial class CloudSyncCoordinator
         ICloudSaveStore cloud,
         string path,
         string content,
-        int timeoutMs
+        int timeoutMs,
+        CancellationToken cancellationToken = default
     )
     {
         var cloudTime = cloud.GetLastModifiedTime(path);
-        var writeTask = local.WriteFileAsync(path, content);
         await WaitForCloudOperationAsync(
             $"WriteLocalFile {path}",
             timeoutMs,
-            writeTask
+            token => CancellableSaveStore.WriteFileAsync(
+                local,
+                path,
+                content,
+                token
+            ),
+            cancellationToken
         ).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         local.SetLastModifiedTime(path, cloudTime);
         PatchHelper.Log($"[Cloud] Local write path: {path} -> {local.GetFullPath(path)}");
     }
@@ -28,14 +36,19 @@ internal static partial class CloudSyncCoordinator
         ICloudSaveStore cloud,
         string path,
         string operation,
-        int timeoutMs
+        int timeoutMs,
+        CancellationToken cancellationToken = default
     )
     {
-        var task = cloud.ReadFileAsync(path);
         return await WaitForCloudOperationAsync(
             $"{operation} {path}",
             timeoutMs,
-            task
+            token => CancellableSaveStore.ReadFileAsync(
+                cloud,
+                path,
+                token
+            ),
+            cancellationToken
         ).ConfigureAwait(false);
     }
 }

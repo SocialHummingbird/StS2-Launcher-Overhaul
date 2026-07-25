@@ -1,15 +1,28 @@
 function Add-MultiVersionRuntimeNativeCacheChecks {
     Add-Check `
-        "android\src\com\game\sts2launcher\GodotApp.java" `
+        "android\src\com\game\sts2launcher\AndroidAssemblyBootstrapper.java" `
         "uses branch/runtime-pack-aware assembly cache identity and records prepared runtime-cache evidence" `
         @(
             "KEY_ASSEMBLY_CACHE_RUNTIME_ID",
             "CURRENT_RUNTIME_CACHE_MARKER",
+            "CACHE_STAGING_SUFFIX",
+            "CACHE_BACKUP_SUFFIX",
             "BRANCH_GAME_CODE_ASSEMBLIES",
+            "prepareStagingDirectory",
+            "replaceActiveCache",
+            "recoverInterruptedCacheReplacement",
+            "renameDirectory",
+            "staging-validated",
+            "PreparationFailure",
+            "Available storage bytes:",
+            "Runtime-pack state",
+            "Cache state",
+            " failed operation:",
+            " exception:",
+            " result: failed",
             "hasStaleCachedBranchGameCodeAssemblies",
             "matchesPackagedAsset",
             "Launcher bootstrap assembly cache contains stale branch game-code assembly",
-            "sha256FileBase64",
             "RUNTIME_PACKS_DIRECTORY",
             "RUNTIME_PACK_COMPATIBILITY_MANIFEST",
             "RUNTIME_PACK_PATCH_VALIDATION_REPORT",
@@ -17,12 +30,6 @@ function Add-MultiVersionRuntimeNativeCacheChecks {
             "findRuntimePackDir",
             "isRuntimePackManifestUsable",
             "runtimePackSupportAssembliesUsable",
-            "isRuntimeSlotEvidenceReadyForLaunch",
-            "Blocking selected game startup because runtime slot evidence is missing",
-            "Blocking selected game startup because runtime slot evidence is not playable",
-            "Runtime slot evidence ready for startup",
-            "pckMatches",
-            "sourceAssemblyMatches",
             "packId",
             "sourceRuntimeSlotId",
             "sourceBranch",
@@ -32,20 +39,20 @@ function Add-MultiVersionRuntimeNativeCacheChecks {
             "generatedFromCleanDirectory",
             "patchValidationStatus",
             "Runtime pack was not generated from a clean directory",
-            "Runtime pack support assembly hash set does not match declared support assemblies",
+            "Runtime pack support assembly hash set does not match",
             "Runtime pack contains undeclared DLL",
             "Runtime pack patch validation report did not pass",
-            "Runtime pack patch validation report does not match compatibility manifest",
+            "Runtime pack patch validation report does not match",
             "Runtime pack branch mismatch",
             "Runtime pack selected PCK hash mismatch",
             "Runtime pack selected source assembly hash mismatch",
-            "Runtime pack cannot be matched because selected PCK is missing",
-            "Runtime pack cannot be matched because selected source sts2\.dll is missing",
-            "Selected non-public branch requires a usable runtime pack",
-            "Skipping selected-game branch code assembly without usable runtime pack",
+            "Runtime pack cannot be matched because selected PCK is",
+            "Runtime pack cannot be matched because selected source",
+            "requires a usable Android runtime pack",
+            "Skipping selected-game branch code assembly without usable",
             "no-usable-runtime",
             "Selected branch requires runtime pack:",
-            "Game assembly cache is not current because selected non-public branch has no usable runtime pack",
+            "Game assembly cache is not current because selected non-public",
             "runtimePackGameAssembly",
             "runtimeSource=",
             "runtimePackIdentity",
@@ -61,6 +68,29 @@ function Add-MultiVersionRuntimeNativeCacheChecks {
             "Assembly cache runtime changed",
             "Copied .* runtime-pack assembly files",
             "shouldCopyGameAssemblyFile"
+        )
+
+    Add-Check `
+        "android\src\com\game\sts2launcher\LauncherActivity.java" `
+        "prepares the Android assembly cache before routing to native Godot" `
+        @(
+            "AndroidAssemblyBootstrapper",
+            "assemblyBootstrapper\.prepare",
+            "routeOnce\(NativeFallbackActivity\.class, assemblyResult\)",
+            "routeOnce\(GodotApp\.class, null\)"
+        )
+
+    Add-Check `
+        "android\src\com\game\sts2launcher\GodotApp.java" `
+        "gates selected game startup on runtime-slot evidence prepared before Godot starts" `
+        @(
+            "isRuntimeSlotEvidenceReadyForLaunch",
+            "Blocking selected game startup because runtime slot evidence is missing",
+            "Blocking selected game startup because runtime slot evidence is not playable",
+            "Runtime slot evidence ready for startup",
+            "pckMatches",
+            "sourceAssemblyMatches",
+            "sha256FileBase64"
         )
 
     Add-Check `

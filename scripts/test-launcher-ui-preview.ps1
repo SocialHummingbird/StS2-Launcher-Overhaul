@@ -24,16 +24,21 @@ $cases = @(
     @{ Fixture = "ready"; Destination = "versions"; Width = 1280; Height = 800; Touch = $false },
     @{ Fixture = "ready"; Destination = "mods"; Width = 1280; Height = 800; Touch = $false },
     @{ Fixture = "ready"; Destination = "help"; Width = 1280; Height = 800; Touch = $false },
+    @{ Fixture = "pull-transfer"; Destination = "saves"; Width = 1280; Height = 800; Touch = $false },
+    @{ Fixture = "pull-complete"; Destination = "saves"; Width = 1280; Height = 800; Touch = $false },
     @{ Fixture = "ready"; Destination = "home"; Width = 2400; Height = 1080; Touch = $true },
     @{ Fixture = "ready"; Destination = "saves"; Width = 2400; Height = 1080; Touch = $true },
     @{ Fixture = "ready"; Destination = "versions"; Width = 2400; Height = 1080; Touch = $true },
     @{ Fixture = "ready"; Destination = "mods"; Width = 2400; Height = 1080; Touch = $true },
     @{ Fixture = "ready"; Destination = "help"; Width = 2400; Height = 1080; Touch = $true },
+    @{ Fixture = "pull-transfer"; Destination = "saves"; Width = 2400; Height = 1080; Touch = $true },
     @{ Fixture = "ready"; Destination = "home"; Width = 2184; Height = 1968; Touch = $true },
     @{ Fixture = "ready"; Destination = "saves"; Width = 2184; Height = 1968; Touch = $true },
     @{ Fixture = "ready"; Destination = "versions"; Width = 2184; Height = 1968; Touch = $true },
     @{ Fixture = "ready"; Destination = "mods"; Width = 2184; Height = 1968; Touch = $true },
-    @{ Fixture = "ready"; Destination = "help"; Width = 2184; Height = 1968; Touch = $true }
+    @{ Fixture = "ready"; Destination = "help"; Width = 2184; Height = 1968; Touch = $true },
+    @{ Fixture = "pull-transfer"; Destination = "saves"; Width = 1080; Height = 2400; Touch = $true },
+    @{ Fixture = "pull-complete"; Destination = "saves"; Width = 1080; Height = 2400; Touch = $true }
 )
 
 foreach ($case in $cases) {

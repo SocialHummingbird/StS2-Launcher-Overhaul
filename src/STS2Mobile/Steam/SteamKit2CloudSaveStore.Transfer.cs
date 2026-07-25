@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Saves;
 using SteamKit2.Internal;
@@ -62,13 +63,25 @@ internal partial class SteamKit2CloudSaveStore
         => ReadFileCore(path);
 
     Task<string> ISaveStore.ReadFileAsync(string path)
-        => ReadFileAsyncCore(path);
+        => ReadFileAsyncCore(path, CancellationToken.None);
+
+    Task<string> ICancellableSaveStore.ReadFileAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+        => ReadFileAsyncCore(path, cancellationToken);
 
     private string ReadFileCore(string path)
-        => ReadFileAsyncCore(path).GetAwaiter().GetResult();
+        => ReadFileAsyncCore(path, CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
 
-    private async Task<string> ReadFileAsyncCore(string path)
+    private async Task<string> ReadFileAsyncCore(
+        string path,
+        CancellationToken cancellationToken
+    )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         path = CloudSavePath.Canonicalize(path);
         var cacheLoaded = _cache.IsLoaded();
         PatchHelper.Log($"[Cloud] Read: starting {path} cacheLoaded={cacheLoaded}");
@@ -86,7 +99,8 @@ internal partial class SteamKit2CloudSaveStore
         var result = await _connection
             .SendCloud<CCloud_ClientFileDownload_Request, CCloud_ClientFileDownload_Response>(
                 "ClientFileDownload",
-                CreateFileDownloadRequest(path)
+                CreateFileDownloadRequest(path),
+                cancellationToken
             )
             .ConfigureAwait(false);
 
@@ -96,8 +110,14 @@ internal partial class SteamKit2CloudSaveStore
         var download = CloudFileDownload.FromValidated(path, result);
         using var httpRequest = download.CreateHttpRequest();
         PatchHelper.Log($"[Cloud] Read: fetching bytes for {path}");
-        var data = await ReadCloudHttpBytesAsync(httpRequest).ConfigureAwait(false);
+        var data = await ReadCloudHttpBytesAsync(
+            httpRequest,
+            cancellationToken
+        ).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         PatchHelper.Log($"[Cloud] Read: fetched {data.Length} bytes for {path}");
-        return download.ReadText(data);
+        var content = download.ReadText(data);
+        cancellationToken.ThrowIfCancellationRequested();
+        return content;
     }
 }

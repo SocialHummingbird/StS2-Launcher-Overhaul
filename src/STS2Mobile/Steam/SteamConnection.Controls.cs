@@ -59,7 +59,7 @@ internal sealed partial class SteamConnection
 
     private void DisconnectToIdle(string completionMessage = null)
     {
-        Teardown();
+        ResetConnectionTransport();
         TransitionTo(ConnectionState.Idle);
 
         if (completionMessage != null)

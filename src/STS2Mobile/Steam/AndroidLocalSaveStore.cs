@@ -4,7 +4,9 @@ using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
 
-internal sealed partial class AndroidLocalSaveStore : ISaveStore
+internal sealed partial class AndroidLocalSaveStore :
+    ISaveStore,
+    ICancellableSaveStore
 {
     private const string VerboseDiagnosticsMarker = ".sts2_verbose_save_diagnostics";
     private readonly string _basePath;

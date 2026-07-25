@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Saves;
 using STS2Mobile.Steam;
@@ -48,8 +49,16 @@ internal static partial class LauncherCloudSaveState
             }
         }
 
-        internal Task<string> RunManualSyncAsync(Func<string, string, Task<string>> sync)
-            => sync(AccountName, RefreshToken);
+        internal Task<ManualCloudSyncResult> RunManualSyncAsync(
+            Func<
+                string,
+                string,
+                CancellationToken,
+                Task<ManualCloudSyncResult>
+            > sync,
+            CancellationToken cancellationToken
+        )
+            => sync(AccountName, RefreshToken, cancellationToken);
     }
 
     internal static bool SaveCredentials(SteamCredentialStore credentialStore)

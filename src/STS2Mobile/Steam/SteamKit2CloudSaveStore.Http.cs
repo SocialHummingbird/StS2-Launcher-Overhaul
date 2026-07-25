@@ -31,21 +31,60 @@ internal partial class SteamKit2CloudSaveStore
             => $"{(UseHttps ? "https" : "http")}://{Host}{Path}";
     }
 
-    private async Task<byte[]> ReadCloudHttpBytesAsync(HttpRequestMessage request)
+    private async Task<byte[]> ReadCloudHttpBytesAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken
+    )
     {
-        using var response = await SendCloudHttpRequestAsync(request).ConfigureAwait(false);
-        return await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+        using var response = await SendCloudHttpRequestAsync(
+            request,
+            cancellationToken
+        ).ConfigureAwait(false);
+        return await response.Content.ReadAsByteArrayAsync(
+            cancellationToken
+        ).ConfigureAwait(false);
     }
 
-    private async Task SendCloudHttpAsync(HttpRequestMessage request)
+    private async Task SendCloudHttpAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken
+    )
     {
-        using var response = await SendCloudHttpRequestAsync(request).ConfigureAwait(false);
+        using var response = await SendCloudHttpRequestAsync(
+            request,
+            cancellationToken
+        ).ConfigureAwait(false);
     }
 
-    private async Task<HttpResponseMessage> SendCloudHttpRequestAsync(HttpRequestMessage request)
+    private async Task<HttpResponseMessage> SendCloudHttpRequestAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken
+    )
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        var response = await _http.SendAsync(request, cts.Token).ConfigureAwait(false);
+        using var timeoutCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken
+            );
+        timeoutCancellation.CancelAfter(TimeSpan.FromSeconds(30));
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.SendAsync(
+                request,
+                timeoutCancellation.Token
+            ).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex)
+            when (
+                !cancellationToken.IsCancellationRequested
+                && timeoutCancellation.IsCancellationRequested
+            )
+        {
+            throw new TimeoutException(
+                "Steam Cloud HTTP transfer timed out after 30 seconds",
+                ex
+            );
+        }
         try
         {
             response.EnsureSuccessStatusCode();

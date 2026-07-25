@@ -1,45 +1,94 @@
+using System;
+using System.Text;
+using STS2Mobile.Steam;
+
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherCloudSyncCoordinator
 {
     internal void CloudPushPressed()
     {
-        if (!CanArmCloudPush())
+        if (RejectWhenOperationActive())
             return;
 
         var pushContext = CloudPushSafetyContext.Create(_model.DataDir);
+        if (!EvaluateCloudPushEligibility(pushContext).IsEligible)
+            return;
+
+        var progress = new Steam.CloudOperationProgressTracker(
+            Steam.CloudOperationKind.Push,
+            ReportCloudOperationState
+        );
+        progress.Preparing("Waiting for Upload confirmation");
         RequestCloudSync(ManualCloudSyncRequest.Push(
             pushContext.DataDir,
-            pushContext.SelectedBranch
+            pushContext.SelectedBranch,
+            progress
         ));
     }
 
-    internal bool CanArmCloudPush()
+    internal CloudPushEligibilityResult EvaluateCloudPushEligibility()
+        => EvaluateCloudPushEligibility(
+            CloudPushSafetyContext.Create(_model.DataDir)
+        );
+
+    private static CloudPushEligibilityResult EvaluateCloudPushEligibility(
+        CloudPushSafetyContext pushContext
+    )
+        => CloudPushEligibilityPolicy.Evaluate(
+            pushContext.CaptureEligibilityState()
+        );
+
+    private static CloudPushEligibilityResult EvaluateCloudPushEligibility(
+        CloudPushSafetyContext pushContext,
+        bool hasImportantLocalSaveEvidence
+    )
+        => CloudPushEligibilityPolicy.Evaluate(
+            pushContext.CaptureEligibilityState(
+                hasImportantLocalSaveEvidence
+            )
+        );
+
+    private static bool EnsureCloudPushStillEligible(
+        string dataDir,
+        string expectedBranch
+    )
     {
-        var pushContext = CloudPushSafetyContext.Create(_model.DataDir);
+        var currentBranch = LauncherPreferences.ReadGameBranch();
+        if (
+            !string.Equals(
+                SteamGameBranch.Normalize(expectedBranch),
+                SteamGameBranch.Normalize(currentBranch),
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "Upload blocked before any Steam Cloud write: "
+                    + $"the selected game version changed from "
+                    + $"{SteamGameBranch.DisplayName(expectedBranch)} to "
+                    + $"{SteamGameBranch.DisplayName(currentBranch)} after confirmation."
+            );
+        }
 
-        if (!CanPushWithWorkshopModSafety(pushContext))
-            return false;
-
-        if (!CanPushWithBaselineEvidence(pushContext))
-            return false;
-
-        if (!CanPushAfterBranchSwitch(pushContext))
-            return false;
-
-        return true;
-    }
-
-    private bool CanPushWithWorkshopModSafety(CloudPushSafetyContext pushContext)
-    {
-        var selectedMods = LauncherWorkshopModSafety.ActiveSelectedModCount();
-        if (selectedMods <= 0)
+        var eligibility = EvaluateCloudPushEligibility(
+            CloudPushSafetyContext.Create(dataDir)
+        );
+        if (eligibility.IsEligible)
             return true;
 
-        var reason = $"Manual Push blocked: {selectedMods} mod(s) are selected for launch; modded-save Steam Cloud upload is not supported.";
-        pushContext.WriteBlockedMarker(reason);
-        _view.SetStatus("Push blocked: mods are selected for launch. Steam Cloud upload stays locked for modded saves.");
-        _view.AppendLog("Push blocked: selected Android mods are enabled for launch. Pull/download/sync remain available, but Push to Steam Cloud is blocked to protect unmodded cloud saves.");
-        return false;
+        var reasons = new StringBuilder();
+        foreach (var block in eligibility.BlockingReasons)
+        {
+            if (reasons.Length > 0)
+                reasons.Append(' ');
+
+            reasons.Append(block.Reason);
+        }
+
+        throw new InvalidOperationException(
+            "Upload blocked before any Steam Cloud write because its safety "
+                + $"state changed after confirmation. {reasons}"
+        );
     }
 }

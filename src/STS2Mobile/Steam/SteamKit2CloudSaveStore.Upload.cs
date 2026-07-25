@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2.Internal;
 
@@ -58,37 +59,60 @@ internal partial class SteamKit2CloudSaveStore
         string canonPath,
         byte[] bytes,
         ulong batchId,
-        DateTimeOffset? timestamp = null
+        DateTimeOffset? timestamp = null,
+        CancellationToken cancellationToken = default
     )
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var upload = CloudFileUpload.Create(canonPath, bytes, batchId, timestamp);
+        cancellationToken.ThrowIfCancellationRequested();
         upload.Payload.LogUploadStart(upload.Path, upload.RawSize);
 
-        var beginResult = await BeginFileUploadAsync(upload).ConfigureAwait(false);
+        var beginResult = await BeginFileUploadAsync(
+            upload,
+            cancellationToken
+        ).ConfigureAwait(false);
         if (beginResult == null)
             return;
 
-        await SendAndCommitUploadAsync(upload, beginResult).ConfigureAwait(false);
+        await SendAndCommitUploadAsync(
+            upload,
+            beginResult,
+            cancellationToken
+        ).ConfigureAwait(false);
         upload.Payload.LogUploadComplete(upload.Path, upload.RawByteCount);
     }
 
     private async Task SendAndCommitUploadAsync(
         CloudFileUpload upload,
-        CCloud_ClientBeginFileUpload_Response beginResult
+        CCloud_ClientBeginFileUpload_Response beginResult,
+        CancellationToken cancellationToken
     )
     {
         var uploadSucceeded = false;
         try
         {
             await upload.Payload
-                .SendBlocksAsync(data => SendUploadBlocksAsync(beginResult, data))
+                .SendBlocksAsync(
+                    data => SendUploadBlocksAsync(
+                        beginResult,
+                        data,
+                        cancellationToken
+                    )
+                )
                 .ConfigureAwait(false);
             uploadSucceeded = true;
         }
         finally
         {
-            await CommitFileUploadAsync(upload, uploadSucceeded)
-                .ConfigureAwait(false);
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                await CommitFileUploadAsync(
+                    upload,
+                    uploadSucceeded,
+                    cancellationToken
+                ).ConfigureAwait(false);
+            }
         }
     }
 }

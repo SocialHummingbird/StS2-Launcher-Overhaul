@@ -12,6 +12,8 @@ internal static partial class LauncherCloudSyncEvidence
     internal const string SelectedBranchNotePrefix = "Selected branch note:";
     internal const string ManualPullCompletedBeforePushPrefix = "Manual Pull completed before Push:";
     internal const string ManualPullCompletedBeforeBranchSwitchPushPrefix = "Manual Pull completed before branch-switch Push:";
+    internal const string ManualPullOutcomePrefix = "Manual Pull outcome:";
+    internal const string ManualPullOutcomeDetailPrefix = "Manual Pull outcome detail:";
     internal const string PrePushLocalBackupEvidenceCountPrefix = "Pre-Push local backup evidence count:";
     internal const string PrePushCloudBackupEvidenceCountPrefix = "Pre-Push cloud backup evidence count:";
     internal const string LatestPrePushLocalBackupUtcPrefix = "Latest pre-Push local backup UTC:";

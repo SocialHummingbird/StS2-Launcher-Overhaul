@@ -1,13 +1,17 @@
 function Add-SteamVersionSelectionActionCloudSafetyPushFlowChecks {
     Add-Check `
         "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.PrimaryActions.cs" `
-        "uses explicit Steam Cloud direction and overwrite-risk wording in the portal" `
+        "uses neutral review and dangerous Upload actions with explicit direction" `
         @(
             "pushPullRow",
             "pushButton",
             "confirmPushButton",
+            "pushEligibilityLabel",
             "pushConfirmationLabel",
-            "Push Locked",
+            "Review Upload",
+            "ApplySupportAction\(cloudPushToggle, scale\)",
+            "ApplyDangerAction\(pushButton, scale\)",
+            "ApplyDangerAction\(confirmPushButton, scale\)",
             "CompactCloudPushDangerText\(\)",
             "CompactCloudPushConfirmText\(\)",
             "Pull Saves from Steam Cloud",
@@ -19,7 +23,9 @@ function Add-SteamVersionSelectionActionCloudSafetyPushFlowChecks {
         "keeps Steam Cloud Push behind an explicit arm and confirm flow" `
         @(
             "CloudPushArmRequested",
-            "CloudPushArmRequested\?\.Invoke\(\) == false",
+            "var eligibility = CloudPushArmRequested\?\.Invoke\(\)",
+            "eligibility == null \|\| !eligibility\.IsEligible",
+            "ReadAndApplyCloudPushEligibility",
             "ArmCloudPush",
             "ConfirmCloudPush",
             "ResetCloudPushArm"
@@ -31,13 +37,13 @@ function Add-SteamVersionSelectionActionCloudSafetyPushFlowChecks {
         @(
             "_readyVersionSummaryLabel",
             "Ready version:",
-            "Start Game and Pull/Push use this version",
-            "Push stays locked until explicitly opened",
+            "Start Game, Pull, and Upload use this version",
+            "Review Upload lists every unmet safety check",
             "SteamGameInstallPaths\.VersionSlotKind",
             "Pull copies Steam Cloud saves to Android",
             "Push copies Android saves to Steam Cloud",
             "can overwrite remote saves",
             "Version/download actions affect local game files only",
-            "Steam Cloud saves move only through Pull/Push"
+            "Steam Cloud saves move only through Pull/Upload"
         )
 }

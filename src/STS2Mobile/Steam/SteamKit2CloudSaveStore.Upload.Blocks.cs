@@ -1,5 +1,8 @@
+#nullable enable
+
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2.Internal;
 
@@ -76,11 +79,13 @@ internal partial class SteamKit2CloudSaveStore
 
     private async Task SendUploadBlocksAsync(
         CCloud_ClientBeginFileUpload_Response beginResult,
-        byte[] uploadBytes
+        byte[] uploadBytes,
+        CancellationToken cancellationToken
     )
     {
         foreach (var block in beginResult.block_requests)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var body = UploadBlockBody.From(
                 block.explicit_body_data,
                 uploadBytes,
@@ -99,7 +104,10 @@ internal partial class SteamKit2CloudSaveStore
             foreach (var header in block.request_headers)
                 AddCloudHttpHeader(request, header.name, header.value);
 
-            await SendCloudHttpAsync(request).ConfigureAwait(false);
+            await SendCloudHttpAsync(
+                request,
+                cancellationToken
+            ).ConfigureAwait(false);
         }
     }
 

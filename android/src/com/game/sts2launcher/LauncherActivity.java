@@ -2,10 +2,16 @@ package com.game.sts2launcher;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -19,35 +25,130 @@ public class LauncherActivity extends Activity {
 	private static final String GAME_BRANCH_FILE = "game_branch";
 	private static final String GAME_VERSIONS_DIR = "game_versions";
 	private static final String BRANCH_MARKER_FILE = "steam_branch.txt";
-	private static final String RUNTIME_PACKS_DIRECTORY = "runtime_packs";
-	private static final String RUNTIME_PACK_ANDROID_ASSEMBLY = "sts2.dll";
-	private static final String RUNTIME_PACK_COMPATIBILITY_MANIFEST = "compatibility.json";
-	private static final String RUNTIME_PACK_PATCH_VALIDATION_REPORT = "patch_validation.json";
 	private static final String PREFS_NAME = "sts2mobile";
 	private static final String KEY_LAUNCH_GAME_ON_NEXT_START = "launch_game_on_next_start";
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
 	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
+	private final AndroidStartupRouteGate routeGate =
+		new AndroidStartupRouteGate();
+	private final Runnable startupRouting = this::routeStartup;
+	private View routingPlaceholder;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		routingPlaceholder = createRoutingPlaceholder();
+		setContentView(routingPlaceholder);
+		routingPlaceholder.postOnAnimation(startupRouting);
+	}
+
+	@Override
+	protected void onDestroy() {
+		if (routingPlaceholder != null) {
+			routingPlaceholder.removeCallbacks(startupRouting);
+			routingPlaceholder = null;
+		}
+		super.onDestroy();
+	}
+
+	private void routeStartup() {
 		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
 		recordStartupPhase("native launcher activity onCreate", "pendingGameLaunch=" + pendingGameLaunch);
 		logSelectedBranchBeforeRouting(false);
 
-		Class<?> target = routeTargetActivity();
+		if (shouldUseNativeX86Fallback()) {
+			routeOnce(NativeFallbackActivity.class, null);
+			return;
+		}
+
+		String selectedBranch = readSelectedBranch();
+		File gameDirectory = resolveGameDir();
+		AndroidAssemblyBootstrapper assemblyBootstrapper =
+			new AndroidAssemblyBootstrapper(
+				this,
+				gameDirectory,
+				selectedBranch,
+				pendingGameLaunch,
+				this::recordStartupPhase
+			);
+		assemblyBootstrapper.logStartupFreshnessProbe();
+		AndroidAssemblyBootstrapper.Result assemblyResult =
+			assemblyBootstrapper.prepare();
+		if (!assemblyResult.isSuccess()) {
+			routeOnce(NativeFallbackActivity.class, assemblyResult);
+			return;
+		}
+
+		routeOnce(GodotApp.class, null);
+	}
+
+	private View createRoutingPlaceholder() {
+		FrameLayout root = new FrameLayout(this);
+		root.setBackgroundColor(Color.rgb(14, 20, 29));
+		root.setLayoutParams(new ViewGroup.LayoutParams(
+			ViewGroup.LayoutParams.MATCH_PARENT,
+			ViewGroup.LayoutParams.MATCH_PARENT
+		));
+
+		ImageView mark = new ImageView(this);
+		mark.setImageResource(R.drawable.godot_boot_mark);
+		mark.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+		int size = Math.round(
+			144 * getResources().getDisplayMetrics().density
+		);
+		FrameLayout.LayoutParams markParameters =
+			new FrameLayout.LayoutParams(size, size, Gravity.CENTER);
+		root.addView(mark, markParameters);
+		return root;
+	}
+
+	private void routeOnce(
+		Class<?> target,
+		AndroidAssemblyBootstrapper.Result assemblyFailure
+	) {
+		if (!routeGate.tryClaim()) {
+			Log.e(TAG, "Ignoring duplicate native startup route to " + target.getSimpleName());
+			recordStartupPhase("native duplicate route blocked", target.getSimpleName());
+			return;
+		}
+
 		recordStartupPhase("native route selected", target.getSimpleName());
 		Intent intent = new Intent(this, target);
 		Intent sourceIntent = getIntent();
 		if (sourceIntent != null && sourceIntent.getExtras() != null) {
 			intent.putExtras(sourceIntent);
 		}
-		attachNativeFallbackReason(intent);
+		attachAssemblyFailure(intent, assemblyFailure);
 		intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
 		startActivity(intent);
 		recordStartupPhase("native route started", target.getSimpleName());
 		finish();
+	}
+
+	private void attachAssemblyFailure(
+		Intent intent,
+		AndroidAssemblyBootstrapper.Result assemblyFailure
+	) {
+		if (
+			intent == null
+				|| assemblyFailure == null
+				|| assemblyFailure.isSuccess()
+		) {
+			return;
+		}
+		intent.putExtra(
+			NativeFallbackActivity.EXTRA_REASON_TITLE,
+			assemblyFailure.title()
+		);
+		intent.putExtra(
+			NativeFallbackActivity.EXTRA_REASON_MESSAGE,
+			assemblyFailure.message()
+		);
+		intent.putExtra(
+			NativeFallbackActivity.EXTRA_REASON_DIAGNOSTICS,
+			assemblyFailure.diagnostics()
+		);
 	}
 
 	private void recordStartupPhase(String phase, String detail) {
@@ -95,44 +196,6 @@ public class LauncherActivity extends Activity {
 		}
 	}
 
-	private Class<?> routeTargetActivity() {
-		if (shouldUseNativeX86Fallback()) {
-			return NativeFallbackActivity.class;
-		}
-		if (shouldUseNativeRuntimePackFallback()) {
-			return NativeFallbackActivity.class;
-		}
-		return GodotApp.class;
-	}
-
-	private void attachNativeFallbackReason(Intent intent) {
-		if (intent == null || !NativeFallbackActivity.class.getName().equals(intent.getComponent().getClassName())) {
-			return;
-		}
-		if (shouldUseNativeRuntimePackFallback()) {
-			String branch = readSelectedBranch();
-			File gameDir = resolveGameDir();
-			File pck = new File(gameDir, PCK_FILE);
-			File runtimePackDir = runtimePackDirectory(branch);
-			intent.putExtra(NativeFallbackActivity.EXTRA_REASON_TITLE, "StS2 Launcher diagnostics");
-			intent.putExtra(
-				NativeFallbackActivity.EXTRA_REASON_MESSAGE,
-				"Selected Steam branch '" + branch + "' needs an Android runtime pack before native Godot can start.\n\n"
-					+ "Startup was blocked to avoid loading stale or public game code against the selected branch PCK."
-			);
-			intent.putExtra(
-				NativeFallbackActivity.EXTRA_REASON_DIAGNOSTICS,
-				"Selected branch: " + branch + "\n"
-					+ "Game directory: " + gameDir.getAbsolutePath() + "\n"
-					+ "Selected PCK: " + describeGamePck(pck) + "\n"
-					+ "Runtime pack directory: " + runtimePackDir.getAbsolutePath() + "\n"
-					+ "Runtime pack compatibility manifest exists: " + new File(runtimePackDir, RUNTIME_PACK_COMPATIBILITY_MANIFEST).isFile() + "\n"
-					+ "Runtime pack validation report exists: " + new File(runtimePackDir, RUNTIME_PACK_PATCH_VALIDATION_REPORT).isFile() + "\n"
-					+ "Runtime pack Android assembly exists: " + new File(runtimePackDir, RUNTIME_PACK_ANDROID_ASSEMBLY).isFile() + "\n"
-			);
-		}
-	}
-
 	private boolean shouldUseNativeX86Fallback() {
 		if (isForcedX86GodotTest()) {
 			Log.w(TAG, "Bypassing native x86 fallback because sts2_force_godot_x86=1.");
@@ -144,26 +207,6 @@ public class LauncherActivity extends Activity {
 			Log.w(TAG, "Routing to native x86 fallback; Godot/.NET runtime crashes Android x86 emulator.");
 		}
 		return fallback;
-	}
-
-	private boolean shouldUseNativeRuntimePackFallback() {
-		String branch = readSelectedBranch();
-		if ("public".equalsIgnoreCase(branch) || !hasDownloadedGamePck()) {
-			return false;
-		}
-		if (!hasPendingGameLaunchRequest()) {
-			Log.i(TAG, "Selected non-public branch has no runtime-pack launch request; routing to Godot bootstrap so launcher can validate or regenerate runtime-pack evidence.");
-			return false;
-		}
-
-		File runtimePackDir = runtimePackDirectory(branch);
-		boolean usable = new File(runtimePackDir, RUNTIME_PACK_COMPATIBILITY_MANIFEST).isFile()
-			&& new File(runtimePackDir, RUNTIME_PACK_PATCH_VALIDATION_REPORT).isFile()
-			&& new File(runtimePackDir, RUNTIME_PACK_ANDROID_ASSEMBLY).isFile();
-		if (!usable) {
-			Log.w(TAG, "Routing to native runtime-pack fallback; selected non-public branch has no usable Android runtime pack: " + runtimePackDir.getAbsolutePath());
-		}
-		return !usable;
 	}
 
 	private boolean hasPendingGameLaunchRequest() {
@@ -179,13 +222,6 @@ public class LauncherActivity extends Activity {
 			Log.w(TAG, "Could not inspect pending game launch request", e);
 			return false;
 		}
-	}
-
-	private File runtimePackDirectory(String branch) {
-		return new File(
-			new File(getFilesDir(), RUNTIME_PACKS_DIRECTORY),
-			SteamBranchInfo.stateDirectoryName(branch)
-		);
 	}
 
 	private boolean isForcedX86GodotTest() {
@@ -225,13 +261,6 @@ public class LauncherActivity extends Activity {
 		Log.i(TAG, "Steam branch marker has branch integrity provenance before routing: " + hasBranchIntegrityProvenance(branchMarker));
 		Log.i(TAG, "Steam branch marker depot manifest entries before routing: " + depotManifestCount(branchMarker));
 		Log.i(TAG, "Steam branch marker ready before routing: " + isBranchMarkerReady(gameDir, branch));
-	}
-
-	private boolean hasDownloadedGamePck() {
-		File gameDir = resolveGameDir();
-		String branch = readSelectedBranch();
-		File pck = new File(gameDir, PCK_FILE);
-		return pck.exists() && pck.isFile() && pck.length() > 0 && isBranchMarkerReady(gameDir, branch);
 	}
 
 	private boolean isBranchMarkerReady(File gameDir, String branch) {
@@ -340,10 +369,6 @@ public class LauncherActivity extends Activity {
 			Log.w(TAG, "Failed to inspect Steam branch marker depot provenance before routing: " + marker.getAbsolutePath(), e);
 		}
 		return 0;
-	}
-
-	private String describeGamePck(File pckFile) {
-		return describeGamePck(pckFile, true);
 	}
 
 	private String describeGamePck(File pckFile, boolean includeSha256) {

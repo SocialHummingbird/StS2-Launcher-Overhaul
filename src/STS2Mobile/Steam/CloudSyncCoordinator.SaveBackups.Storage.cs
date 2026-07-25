@@ -1,5 +1,9 @@
+#nullable enable
+
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
@@ -79,6 +83,37 @@ internal static partial class CloudSyncCoordinator
                 }
             }
 
+            internal async Task<bool> TrySaveAsync(
+                CancellationToken cancellationToken
+            )
+            {
+                if (!CanWrite())
+                    return false;
+
+                try
+                {
+                    var backupPath = BuildBackupPath();
+                    await CancellableAtomicFile.WriteAllTextAsync(
+                        backupPath,
+                        Content,
+                        overwrite: false,
+                        cancellationToken
+                    ).ConfigureAwait(false);
+                    OnWritten(backupPath);
+                    return true;
+                }
+                catch (OperationCanceledException)
+                    when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    LogFailure(ex);
+                    return false;
+                }
+            }
+
             private void LogFailure(Exception ex)
                 => PatchHelper.Log(BackupFailed(Source, Path, ex));
 
@@ -105,5 +140,15 @@ internal static partial class CloudSyncCoordinator
             BackupSource source
         )
             => BackupWrite.Standard(path, content, source).TrySave();
+
+        private static Task<bool> SaveContentAsync(
+            string path,
+            string content,
+            BackupSource source,
+            CancellationToken cancellationToken
+        )
+            => BackupWrite
+                .Standard(path, content, source)
+                .TrySaveAsync(cancellationToken);
     }
 }

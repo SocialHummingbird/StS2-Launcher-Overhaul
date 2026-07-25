@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using STS2Mobile.Launcher;
 using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection : VBoxContainer
 {
-    private const string PushButtonText = "Push Saves to Steam Cloud";
+    private const string PushButtonText = "Upload Saves to Steam Cloud";
     private const string PushConfirmButtonText = "Confirm: Overwrite Steam Cloud";
     private const int CompactReadySummaryBranchLimit = 14;
     private const int CompactReadyStackedSummaryBranchLimit = 28;
@@ -29,9 +30,10 @@ internal sealed partial class ActionSection : VBoxContainer
     internal event Action<string> RendererModeChanged;
     internal event Action<bool> LocalBackupToggled;
     internal event Action<bool> CloudSyncToggled;
-    internal event Func<bool> CloudPushArmRequested;
+    internal event Func<CloudPushEligibilityResult> CloudPushArmRequested;
     internal event Action CloudPushPressed;
     internal event Action CloudPullPressed;
+    internal event Action CloudOperationCancelPressed;
     internal event Action CheckForUpdatesPressed;
     internal event Action RefreshGameVersionsPressed;
     internal event Action RedownloadPressed;
@@ -68,6 +70,12 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _pushButton;
     private readonly Button _cloudPushToggle;
     private readonly Button _confirmPushButton;
+    private readonly Button _cancelCloudOperationButton;
+    private readonly VBoxContainer _cloudOperationProgressGroup;
+    private readonly Label _cloudOperationPhaseLabel;
+    private readonly Label _cloudOperationDetailLabel;
+    private readonly ProgressBar _cloudOperationProgressBar;
+    private readonly Label _cloudPushEligibilityLabel;
     private readonly Label _pushConfirmationLabel;
     private readonly Button _pullButton;
     private readonly Button _updateButton;
@@ -105,6 +113,9 @@ internal sealed partial class ActionSection : VBoxContainer
     private bool _cloudSafetyExpanded;
     private bool _cloudOptionsExpanded;
     private bool _cloudPushExpanded;
+    private bool _cloudPushEligible;
+    private bool _pushPullDisabled;
+    private string _cloudPushReviewDetail = "Check requirements";
     private bool _localBackupEnabled;
     private bool _cloudSyncEnabled;
     private bool _launchControlsDisabled;

@@ -32,6 +32,7 @@ internal sealed partial class ActionSection
         RefreshModList(System.Array.Empty<LauncherKnownMod>());
         SetCompactWorkshopButtonText(activeCount: 0);
         UpdateBranchHelpText();
+        RefreshCloudPushEligibility();
     }
 
     private void RefreshModsStatus()
@@ -54,6 +55,7 @@ internal sealed partial class ActionSection
             RefreshModList(System.Array.Empty<LauncherKnownMod>());
             SetCompactWorkshopButtonText(activeCount: 0);
             UpdateBranchHelpText();
+            RefreshCloudPushEligibility();
             PatchHelper.Log("[Launcher] Mods refresh phase: vanilla complete");
             return;
         }
@@ -79,6 +81,7 @@ internal sealed partial class ActionSection
         RefreshModList(mods);
         SetCompactWorkshopButtonText(activeCount);
         UpdateBranchHelpText();
+        RefreshCloudPushEligibility();
         PatchHelper.Log("[Launcher] Mods refresh phase: modded complete");
     }
 

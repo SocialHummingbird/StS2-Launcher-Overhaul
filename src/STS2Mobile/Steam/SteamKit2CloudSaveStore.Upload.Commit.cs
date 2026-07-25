@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2.Internal;
 
@@ -8,7 +9,8 @@ internal partial class SteamKit2CloudSaveStore
 {
     private async Task CommitFileUploadAsync(
         CloudFileUpload upload,
-        bool uploadSucceeded
+        bool uploadSucceeded,
+        CancellationToken cancellationToken
     )
     {
         try
@@ -19,12 +21,18 @@ internal partial class SteamKit2CloudSaveStore
                     CCloud_ClientCommitFileUpload_Response
                 >(
                     "ClientCommitFileUpload",
-                    CreateCommitFileUploadRequest(upload, uploadSucceeded)
+                    CreateCommitFileUploadRequest(upload, uploadSucceeded),
+                    cancellationToken
                 )
                 .ConfigureAwait(false);
 
             if (uploadSucceeded && !commitResult.file_committed)
                 PatchHelper.Log(CommitReturnedFalse(upload.Path));
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

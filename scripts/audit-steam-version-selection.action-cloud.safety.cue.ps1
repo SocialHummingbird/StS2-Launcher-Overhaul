@@ -1,11 +1,13 @@
 function Add-SteamVersionSelectionActionCloudSafetyCueChecks {
     Add-Check `
         "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.PrimaryActions.cs" `
-        "keeps Pull and Push cloud actions beside the confirmation warning" `
+        "keeps Pull, Upload eligibility, and confirmation cues together" `
         @(
             "cloudGroup.AddChild\(pushPullRow\)",
             "Pull Saves from Steam Cloud",
-            "Push Locked",
+            "Review Upload",
+            "BuildCloudPushEligibilityLabel\(scale, compact\)",
+            "pushPullRow\.AddChild\(pushEligibilityLabel\)",
             "CompactCloudPushConfirmText\(\)",
             "BuildCloudPushConfirmationLabel\(scale, compact\)"
         )

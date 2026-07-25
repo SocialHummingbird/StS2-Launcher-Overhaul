@@ -12,10 +12,12 @@ internal sealed partial class ActionSection
         if (selection.Changed)
         {
             CollapseCompactBranchDetailsAfterSelection();
+            RefreshCloudPushEligibility();
             return;
         }
 
         UpdateBranchHelpText();
+        RefreshCloudPushEligibility();
     }
 
     internal void SetAvailableBranches(IReadOnlyList<LauncherBranchCatalog.BranchOption> branches)
@@ -23,6 +25,7 @@ internal sealed partial class ActionSection
         _availableBranches = LauncherBranchDropdown.NormalizeAvailableBranches(branches);
         PopulateBranchDropdown();
         UpdateBranchHelpText();
+        RefreshCloudPushEligibility();
     }
 
     internal void SetGameBranchOptions(
@@ -34,6 +37,7 @@ internal sealed partial class ActionSection
         _availableBranches = LauncherBranchDropdown.NormalizeAvailableBranches(branches);
         PopulateBranchDropdown();
         UpdateBranchHelpText();
+        RefreshCloudPushEligibility();
     }
 
     private void ToggleBranchDetails()

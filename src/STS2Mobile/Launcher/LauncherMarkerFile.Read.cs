@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -33,7 +35,7 @@ internal static partial class LauncherMarkerFile
         return missingLineValue;
     }
 
-    internal static string ReadOptionalValue(string path, string prefix)
+    internal static string? ReadOptionalValue(string path, string prefix)
     {
         try
         {

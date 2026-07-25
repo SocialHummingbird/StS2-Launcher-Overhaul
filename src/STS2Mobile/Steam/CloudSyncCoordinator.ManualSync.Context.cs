@@ -1,5 +1,8 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Saves;
 
@@ -29,48 +32,95 @@ internal static partial class CloudSyncCoordinator
         }
     }
 
-    private readonly struct ManualSyncContext
+    private sealed class ManualSyncContext
     {
         private readonly ISaveStore _local;
         private readonly ICloudSaveStore _cloud;
         private readonly ManualSyncBudget _budget;
+        private readonly CloudOperationProgressTracker _progress;
+        private readonly CancellationToken _cancellationToken;
 
         internal ManualSyncContext(
             ISaveStore local,
             ICloudSaveStore cloud,
-            ManualSyncBudget budget
+            ManualSyncBudget budget,
+            CloudOperationProgressTracker progress,
+            CancellationToken cancellationToken
         )
         {
             _local = local;
             _cloud = cloud;
             _budget = budget;
+            _progress = progress;
+            _cancellationToken = cancellationToken;
         }
 
         internal IReadOnlyCollection<string> DiscoverLocalPaths()
-            => SavePathDiscovery.Get(_local);
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            return SavePathDiscovery.Get(_local, _cancellationToken);
+        }
 
         internal IReadOnlyCollection<string> DiscoverCloudPaths()
-            => SavePathDiscovery.Get(_cloud);
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            if (_cloud is ICancellableCloudMetadataStore metadata)
+            {
+                metadata.PrepareFileMetadata(_cancellationToken);
+            }
+
+            return SavePathDiscovery.Get(_cloud, _cancellationToken);
+        }
 
         internal bool CloudFileExists(string path)
-            => _cloud.FileExists(path);
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            return _cloud.FileExists(path);
+        }
 
-        internal string? ReadLocalFile(string path)
-            => _local.FileExists(path) ? _local.ReadFile(path) : null;
+        internal async ValueTask<string?> ReadLocalFileAsync(string path)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+            if (!_local.FileExists(path))
+                return null;
+
+            return await CancellableSaveStore.ReadFileAsync(
+                _local,
+                path,
+                _cancellationToken
+            ).ConfigureAwait(false);
+        }
 
         internal async Task WriteLocalContentAsync(string path, string content)
         {
             await WaitForCloudOperationAsync(
                 $"WriteLocalFile {path}",
                 ManualSyncPerPathTimeoutMs,
-                _local.WriteFileAsync(path, content)
+                token => CancellableSaveStore.WriteFileAsync(
+                    _local,
+                    path,
+                    content,
+                    token
+                ),
+                _cancellationToken
             ).ConfigureAwait(false);
+            _cancellationToken.ThrowIfCancellationRequested();
             PatchHelper.Log($"[Cloud] Local write path: {path} -> {_local.GetFullPath(path)}");
         }
 
-        internal void WriteCloudFile(string path, string content)
+        internal Task WriteCloudFileAsync(string path, string content)
         {
-            _cloud.WriteFile(path, content);
+            return WaitForCloudOperationAsync(
+                $"WriteCloudFile {path}",
+                ManualSyncPerPathTimeoutMs,
+                token => CancellableSaveStore.WriteFileAsync(
+                    _cloud,
+                    path,
+                    content,
+                    token
+                ),
+                _cancellationToken
+            );
         }
 
         internal Task<string> ReadCloudContentAsync(string path, string operation)
@@ -78,7 +128,8 @@ internal static partial class CloudSyncCoordinator
                 _cloud,
                 path,
                 operation,
-                ManualSyncPerPathTimeoutMs
+                ManualSyncPerPathTimeoutMs,
+                _cancellationToken
             );
 
         internal Task WriteLocalContentFromCloudAsync(string path, string content)
@@ -87,58 +138,113 @@ internal static partial class CloudSyncCoordinator
                 _cloud,
                 path,
                 content,
-                ManualSyncPerPathTimeoutMs
+                ManualSyncPerPathTimeoutMs,
+                _cancellationToken
             );
 
         internal bool BudgetExceeded(string message)
-            => _budget.Exceeded(message);
-
-        internal bool FlushCloudWrites(int timeoutMs)
-            => SteamKit2CloudSaveStore.FlushActive(timeoutMs);
-
-        internal void RefreshLocalBackupMirror()
-            => SaveBackups.RefreshLocalMirror(_local, restoreMissing: false);
-
-        internal TResult RunCloudBatch<TResult>(Func<TResult> run)
         {
-            _cloud.BeginSaveBatch();
-            try
-            {
-                return run();
-            }
-            finally
-            {
-                _cloud.EndSaveBatch();
-            }
+            _cancellationToken.ThrowIfCancellationRequested();
+            return _budget.Exceeded(message);
         }
 
-        internal TResult RunCloudBatchImmediate<TResult>(Func<TResult> run)
-        {
-            _cloud.BeginSaveBatch();
-            try
-            {
-                return run();
-            }
-            finally
-            {
-                if (_cloud is SteamKit2CloudSaveStore steamCloud)
-                    steamCloud.EndSaveBatchAndUploadNow();
-                else
-                    _cloud.EndSaveBatch();
-            }
-        }
+        internal CancellationToken CancellationToken
+            => _cancellationToken;
+
+        internal void ReportEnumerationStarted()
+            => _progress.EnumerationStarted(
+                "Checking Steam Cloud save locations"
+            );
+
+        internal void ReportEnumerationCompleted(int pathCount)
+            => _progress.EnumerationCompleted(pathCount);
+
+        internal void ReportBackupStarted(int totalCount)
+            => _progress.BackupStarted(totalCount);
+
+        internal void ReportBackupProcessed(string path, bool created)
+            => _progress.BackupProcessed(path, created);
+
+        internal void ReportBackupPathStarted(string path)
+            => _progress.BackupPathStarted(path);
+
+        internal void ReportProfilePreparationStarted(int totalCount)
+            => _progress.ProfilePreparationStarted(totalCount);
+
+        internal void ReportProfilePreparationProcessed(
+            string path,
+            bool backupCreated
+        )
+            => _progress.ProfilePreparationProcessed(path, backupCreated);
+
+        internal void ReportProfilePreparationPathStarted(string path)
+            => _progress.ProfilePreparationPathStarted(path);
+
+        internal void ReportTransferStarted(int totalCount)
+            => _progress.TransferStarted(totalCount);
+
+        internal void ReportTransferProcessed(
+            string path,
+            CloudTransferPathOutcome outcome
+        )
+            => _progress.TransferProcessed(path, outcome);
+
+        internal void ReportTransferPathStarted(string path)
+            => _progress.TransferPathStarted(path);
+
+        internal void ReportProfileSeedingStarted(int totalCount)
+            => _progress.ProfileSeedingStarted(totalCount);
+
+        internal void ReportProfileSeedProcessed(string path, bool seeded)
+            => _progress.ProfileSeedProcessed(path, seeded);
+
+        internal void ReportProfileSeedPathStarted(string path)
+            => _progress.ProfileSeedPathStarted(path);
+
+        internal void ReportFinalizing(string currentItem)
+            => _progress.Finalizing(currentItem);
+
+        internal LocalBackupRefreshResult RefreshLocalBackupMirror()
+            => SaveBackups.RefreshLocalMirror(
+                _local,
+                restoreMissing: false,
+                _cancellationToken
+            );
+
+        internal CloudOperationState ProgressState
+            => _progress.State;
+
     }
 
     private static ManualSyncContext CreateManualSyncContext(
         string accountName,
-        string refreshToken
+        string refreshToken,
+        CloudOperationProgressTracker progress,
+        CancellationToken cancellationToken
     )
     {
         var store = CloudSaveStoreFactory.CreateCloudSaveStore(accountName, refreshToken);
-        return new ManualSyncContext(
+        return CreateManualSyncContext(
             store.LocalStore,
             store.CloudStore,
-            ManualSyncBudget.StartingNow()
+            progress,
+            cancellationToken
+        );
+    }
+
+    private static ManualSyncContext CreateManualSyncContext(
+        ISaveStore local,
+        ICloudSaveStore cloud,
+        CloudOperationProgressTracker progress,
+        CancellationToken cancellationToken
+    )
+    {
+        return new ManualSyncContext(
+            local,
+            cloud,
+            ManualSyncBudget.StartingNow(),
+            progress,
+            cancellationToken
         );
     }
 }

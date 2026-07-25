@@ -70,6 +70,9 @@ internal static class AppPaths
     // Returns true if the app has permission to write to shared external storage.
     internal static bool HasStoragePermission()
     {
+        if (!OperatingSystem.IsAndroid())
+            return false;
+
         try
         {
             return AndroidGodotAppBridge.HasStoragePermission();
@@ -85,6 +88,9 @@ internal static class AppPaths
     // settings page. On older versions, shows the runtime permission dialog.
     internal static void RequestStoragePermission()
     {
+        if (!OperatingSystem.IsAndroid())
+            return;
+
         try
         {
             AndroidGodotAppBridge.RequestStoragePermission();

@@ -21,4 +21,22 @@
 		<item name="android:windowIsTranslucent">false</item>
 		<item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
 	</style>
+
+	<style name="LauncherRoutingMainTheme" parent="@style/GodotAppMainTheme">
+		<item name="android:windowBackground">@drawable/godot_boot_window_background</item>
+	</style>
+
+	<style name="LauncherRoutingSplashTheme" parent="Theme.SplashScreen">
+		<item name="windowSplashScreenBackground">@color/sts2_launch_background</item>
+		<item name="android:windowSplashScreenBackground">@color/sts2_launch_background</item>
+		<item name="windowSplashScreenAnimatedIcon">@drawable/godot_boot_mark</item>
+		<item name="android:windowSplashScreenAnimatedIcon">@drawable/godot_boot_mark</item>
+		<item name="postSplashScreenTheme">@style/LauncherRoutingMainTheme</item>
+		<item name="android:windowIsTranslucent">false</item>
+		<item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+	</style>
+
+	<style name="NativeFallbackTheme" parent="@style/GodotAppMainTheme">
+		<item name="android:windowBackground">@drawable/godot_boot_window_background</item>
+	</style>
 </resources>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
@@ -21,26 +22,44 @@ internal static partial class CloudSyncCoordinator
         private const string TempExtension = ".tmp";
 
         internal static IReadOnlyCollection<string> Get(ISaveStore store)
+            => Get(store, CancellationToken.None);
+
+        internal static IReadOnlyCollection<string> Get(
+            ISaveStore store,
+            CancellationToken cancellationToken
+        )
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var paths = new List<string>();
-            CollectProfilePathsSafe(paths, store);
+            CollectProfilePathsSafe(paths, store, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             return Deduplicate(paths);
         }
 
         private static void CollectProfilePathsSafe(
             List<string> paths,
-            ISaveStore store
+            ISaveStore store,
+            CancellationToken cancellationToken
         )
         {
             var fallbackAdded = false;
             try
             {
-                CollectProfilePaths(paths, store);
+                CollectProfilePaths(paths, store, cancellationToken);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (TypeInitializationException ex)
             {
                 PatchHelper.Log(SavePathManagerFallback(ex));
-                AddFallbackProfilePaths(paths, store);
+                AddFallbackProfilePaths(
+                    paths,
+                    store,
+                    cancellationToken
+                );
                 fallbackAdded = true;
             }
             catch (Exception ex) when (OperatingSystem.IsAndroid())
@@ -49,7 +68,13 @@ internal static partial class CloudSyncCoordinator
             }
 
             if (OperatingSystem.IsAndroid() && !fallbackAdded)
-                AddFallbackProfilePaths(paths, store);
+            {
+                AddFallbackProfilePaths(
+                    paths,
+                    store,
+                    cancellationToken
+                );
+            }
         }
 
         private static IReadOnlyCollection<string> Deduplicate(List<string> paths)

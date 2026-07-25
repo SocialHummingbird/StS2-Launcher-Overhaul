@@ -32,10 +32,14 @@ internal sealed partial class ActionSection
     private static string CompactCloudPullText()
         => CompactPlaySyncDrawerText("Get Steam Saves", "Download to Android");
 
-    private static string CompactCloudPushToggleText(bool expanded)
-        => expanded
-            ? CompactPlaySyncDrawerText("Hide Upload", "Keep locked")
-            : CompactPlaySyncDrawerText("Upload Locked", "Review first");
+    private static string CompactCloudPushToggleText(
+        bool expanded,
+        string detail
+    )
+        => CompactPlaySyncDrawerText(
+            expanded ? "Close Upload Review" : "Review Upload",
+            detail
+        );
 
     private static string CompactCloudPushDangerText()
         => CompactPlaySyncDrawerText("Upload to Steam", "Overwrite cloud");

@@ -79,11 +79,89 @@ internal static partial class LauncherCloudSyncEvidence
         return LastManualPullMatchesSelectedBranch(dataDir, selectedBranch);
     }
 
-    internal static void WriteManualPullMarker(string dataDir, string selectedBranch)
+    internal static bool BeginManualPull(
+        string dataDir,
+        string selectedBranch
+    )
+        => WriteManualPullState(
+            dataDir,
+            selectedBranch,
+            outcome: "pending",
+            detail: "Pull started; prior completion evidence was invalidated.",
+            completed: false,
+            invalidateExisting: true
+        );
+
+    internal static bool WriteManualPullIncompleteMarker(
+        string dataDir,
+        string selectedBranch,
+        string outcome,
+        string detail
+    )
+        => WriteManualPullState(
+            dataDir,
+            selectedBranch,
+            outcome,
+            detail,
+            completed: false,
+            invalidateExisting: false
+        );
+
+    internal static bool WriteManualPullMarker(
+        string dataDir,
+        string selectedBranch
+    )
     {
         try
         {
-            LauncherSaveOriginEvidence.WriteManualPullOrigin(dataDir, selectedBranch);
+            if (
+                !LauncherSaveOriginEvidence.TryWriteManualPullOrigin(
+                    dataDir,
+                    selectedBranch
+                )
+            )
+            {
+                WriteManualPullIncompleteMarker(
+                    dataDir,
+                    selectedBranch,
+                    "evidence-failure",
+                    "Downloaded saves were written, but save-origin evidence could not be recorded."
+                );
+                return false;
+            }
+
+            return WriteManualPullState(
+                dataDir,
+                selectedBranch,
+                outcome: "success",
+                detail: "All required Pull steps completed.",
+                completed: true,
+                invalidateExisting: false
+            );
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Failed to write manual Pull evidence marker: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool WriteManualPullState(
+        string dataDir,
+        string selectedBranch,
+        string outcome,
+        string detail,
+        bool completed,
+        bool invalidateExisting
+    )
+    {
+        var markerPath = LastManualPullMarkerPath(dataDir);
+        try
+        {
+            if (invalidateExisting && File.Exists(markerPath))
+                File.Delete(markerPath);
+
+            var completion = completed ? "true" : "false";
             var text =
                 $"{UtcPrefix} {DateTime.UtcNow:O}\n"
                 + $"{SelectedBranchPrefix} {SteamGameBranch.Normalize(selectedBranch)}\n"
@@ -93,13 +171,19 @@ internal static partial class LauncherCloudSyncEvidence
                 + $"{SelectedVersionSlotKindPrefix} {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}\n"
                 + $"{SelectedVersionSlotDirectoryPrefix} {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
                 + $"{SelectedBranchNotePrefix} {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
-                + $"{ManualPullCompletedBeforePushPrefix} true\n"
-                + $"{ManualPullCompletedBeforeBranchSwitchPushPrefix} true\n";
-            File.WriteAllText(LastManualPullMarkerPath(dataDir), text);
+                + $"{ManualPullOutcomePrefix} {SanitizeSingleLine(outcome)}\n"
+                + $"{ManualPullOutcomeDetailPrefix} {SanitizeSingleLine(detail)}\n"
+                + $"{ManualPullCompletedBeforePushPrefix} {completion}\n"
+                + $"{ManualPullCompletedBeforeBranchSwitchPushPrefix} {completion}\n";
+            File.WriteAllText(markerPath, text);
+            return true;
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"[Launcher] Failed to write manual Pull evidence marker: {ex.Message}");
+            PatchHelper.Log(
+                $"[Launcher] Failed to write manual Pull {outcome} marker: {ex.Message}"
+            );
+            return false;
         }
     }
 }

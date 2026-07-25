@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Saves;
 
@@ -24,6 +25,17 @@ internal partial class SteamKit2CloudSaveStore
         WriteFileCore(path, bytes);
         return Task.CompletedTask;
     }
+
+    Task ICancellableSaveStore.WriteFileAsync(
+        string path,
+        string content,
+        CancellationToken cancellationToken
+    )
+        => WriteFileCancellableAsync(
+            path,
+            Encoding.UTF8.GetBytes(content),
+            cancellationToken
+        );
 
     bool ISaveStore.FileExists(string path)
         => _cache.FileExists(path);
@@ -66,6 +78,25 @@ internal partial class SteamKit2CloudSaveStore
             return;
 
         EnqueueUpload(canonPath, bytes, timestamp);
+    }
+
+    private async Task WriteFileCancellableAsync(
+        string path,
+        byte[] bytes,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var canonPath = CloudSavePath.Canonicalize(path);
+        var timestamp = TruncatedUtcNow();
+        await UploadWithRetryAsync(
+            canonPath,
+            bytes,
+            timestamp,
+            cancellationToken
+        ).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        _cache.Set(canonPath, bytes.Length, timestamp);
     }
 
     private void DeleteFileCore(string path)

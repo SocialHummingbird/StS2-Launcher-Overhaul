@@ -15,12 +15,7 @@ internal sealed partial class SteamConnection
 
         try
         {
-            RunTeardownStep("LogOff", () => _steamUser?.LogOff());
-            RunTeardownStep("Disconnect", () => _client?.Disconnect());
-            var stopped = _callbackPump.Stop(2000, clearThread: true);
-            _callbackPumpStopped = stopped;
-            if (!stopped)
-                PatchHelper.Log("[Connection] Callback pump did not stop before teardown completed");
+            ResetConnectionTransport();
         }
         finally
         {
@@ -28,6 +23,17 @@ internal sealed partial class SteamConnection
         }
 
         return _callbackPumpStopped;
+    }
+
+    private bool ResetConnectionTransport()
+    {
+        RunTeardownStep("LogOff", () => _steamUser?.LogOff());
+        RunTeardownStep("Disconnect", () => _client?.Disconnect());
+        var stopped = _callbackPump.Stop(2000, clearThread: true);
+        _callbackPumpStopped = stopped;
+        if (!stopped)
+            PatchHelper.Log("[Connection] Callback pump did not stop before transport reset completed");
+        return stopped;
     }
 
     private static void RunTeardownStep(string operation, Action action)

@@ -49,23 +49,14 @@ internal static partial class CloudSyncCoordinator
             int cloudBackups,
             int localBackups
         )
-        {
-            if (!_localBackupEnabled)
-                return;
-
-            if (!AppPaths.HasStoragePermission())
-                throw new InvalidOperationException("Manual Push blocked: local backup is enabled but backup storage permission is unavailable.");
-
-            if (importantPaths.Count > 0 && localBackups < importantPaths.Count)
-                throw new InvalidOperationException(
-                    $"Manual Push blocked: local pre-Push backup evidence is incomplete for important Android saves ({localBackups}/{importantPaths.Count})."
-                );
-
-            if (cloudImportantSaveCount > 0 && cloudBackups < cloudImportantSaveCount)
-                throw new InvalidOperationException(
-                    $"Manual Push blocked: cloud pre-Push backup evidence is incomplete for existing important Steam Cloud saves ({cloudBackups}/{cloudImportantSaveCount})."
-                );
-        }
+            => ManualPushBackupSafetyPolicy.EnsureSatisfied(
+                _localBackupEnabled,
+                AppPaths.HasStoragePermission(),
+                importantPaths.Count,
+                localBackups,
+                cloudImportantSaveCount,
+                cloudBackups
+            );
 
         private static int CloudImportantSaveCount(
             ManualSyncContext sync,
@@ -90,9 +81,13 @@ internal static partial class CloudSyncCoordinator
                 paths,
                 new ManualBackupPlan(
                     BackupSource.CloudPrePush,
-                    path => ReadCloudPrePushContentAsync(sync, path),
+                    (path, _) =>
+                        ReadCloudPrePushContentAsync(sync, path),
                     LogPushCloudBackupFailure
-                )
+                ),
+                sync.CancellationToken,
+                sync.ReportBackupPathStarted,
+                sync.ReportBackupProcessed
             );
 
         internal static Task<int> LocalBeforeManualPushAsync(
@@ -103,9 +98,13 @@ internal static partial class CloudSyncCoordinator
                 paths,
                 new ManualBackupPlan(
                     BackupSource.LocalPrePush,
-                    path => ReadLocalPrePushContentAsync(sync, path),
+                    (path, _) =>
+                        ReadLocalPrePushContentAsync(sync, path),
                     LogPushLocalBackupFailure
-                )
+                ),
+                sync.CancellationToken,
+                sync.ReportBackupPathStarted,
+                sync.ReportBackupProcessed
             );
 
         internal static Task<int> LocalBeforeManualPullAsync(
@@ -116,9 +115,13 @@ internal static partial class CloudSyncCoordinator
                 paths,
                 new ManualBackupPlan(
                     BackupSource.LocalPrePull,
-                    path => ReadLocalPrePullContentAsync(sync, path),
+                    (path, _) =>
+                        ReadLocalPrePullContentAsync(sync, path),
                     LogPullLocalBackupFailure
-                )
+                ),
+                sync.CancellationToken,
+                sync.ReportBackupPathStarted,
+                sync.ReportBackupProcessed
             );
 
         private static async ValueTask<string?> ReadCloudPrePushContentAsync(
@@ -133,17 +136,19 @@ internal static partial class CloudSyncCoordinator
             return await sync.ReadCloudContentAsync(path, ManualPushBackupReadOperation);
         }
 
-        private static ValueTask<string?> ReadLocalPrePushContentAsync(
+        private static async ValueTask<string?> ReadLocalPrePushContentAsync(
             ManualSyncContext sync,
             string path
         )
-            => new(IsImportantSave(path) ? sync.ReadLocalFile(path) : null);
+            => IsImportantSave(path)
+                ? await sync.ReadLocalFileAsync(path)
+                : null;
 
         private static ValueTask<string?> ReadLocalPrePullContentAsync(
             ManualSyncContext sync,
             string path
         )
-            => new(sync.ReadLocalFile(path));
+            => sync.ReadLocalFileAsync(path);
 
         private static void LogPushCloudBackupFailure(string path, Exception ex)
             => PatchHelper.Log(PushCloudBackupFailed(path, ex));

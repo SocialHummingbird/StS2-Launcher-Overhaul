@@ -12,7 +12,7 @@ internal sealed partial class ActionSection
                 + "\n"
                 + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches)
                 + "\n"
-                + "Version/download actions affect local game files only. Steam Cloud saves move only through Pull/Push.";
+                + "Version/download actions affect local game files only. Steam Cloud saves move only through Pull/Upload.";
         _branchHelpLabel.Visible = _branchDropdown.Visible && _branchDetailsExpanded;
         if (_branchDetailsToggle != null)
         {
@@ -39,8 +39,8 @@ internal sealed partial class ActionSection
             _readyVersionSummaryLabel.Text = _compact
                 ? CompactReadyVersionSummary()
                 : $"Ready version: {SteamGameBranch.CompactDisplayName(_gameBranch, 22)}\n"
-                    + $"Slot: {SteamGameInstallPaths.VersionSlotKind(_gameBranch)}. Start Game and Pull/Push use this version.\n"
-                    + "Cloud: Pull first. Push stays locked until explicitly opened.";
+                    + $"Slot: {SteamGameInstallPaths.VersionSlotKind(_gameBranch)}. Start Game, Pull, and Upload use this version.\n"
+                    + "Cloud: Pull first. Review Upload lists every unmet safety check.";
         }
         if (_cloudSafetyToggle != null)
         {

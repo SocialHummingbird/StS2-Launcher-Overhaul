@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
@@ -20,20 +21,36 @@ internal static partial class CloudSyncCoordinator
             "tmp",
         };
 
-        private static void AddEnumeratedSavePaths(List<string> paths, ISaveStore store)
+        private static void AddEnumeratedSavePaths(
+            List<string> paths,
+            ISaveStore store,
+            CancellationToken cancellationToken
+        )
         {
             try
             {
                 var discovered = new HashSet<string>(paths);
-                EnumerateSavePaths(discovered, store, string.Empty, depth: 0);
+                EnumerateSavePaths(
+                    discovered,
+                    store,
+                    string.Empty,
+                    depth: 0,
+                    cancellationToken
+                );
 
                 foreach (var path in discovered.OrderBy(path => path))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!paths.Contains(path))
                         paths.Add(path);
                 }
 
                 PatchHelper.Log($"[Cloud] Save path discovery found {discovered.Count} candidate paths");
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -45,14 +62,23 @@ internal static partial class CloudSyncCoordinator
             HashSet<string> paths,
             ISaveStore store,
             string directory,
-            int depth
+            int depth,
+            CancellationToken cancellationToken
         )
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (paths.Count >= EnumeratedPathLimit || depth > EnumeratedDirectoryDepthLimit)
                 return;
 
-            foreach (var file in SafeGetFiles(store, directory))
+            foreach (
+                var file in SafeGetFiles(
+                    store,
+                    directory,
+                    cancellationToken
+                )
+            )
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var path = CombineCloudPath(directory, file);
                 if (IsDiscoveredSavePath(path))
                     paths.Add(path);
@@ -60,8 +86,15 @@ internal static partial class CloudSyncCoordinator
                     return;
             }
 
-            foreach (var child in SafeGetDirectories(store, directory))
+            foreach (
+                var child in SafeGetDirectories(
+                    store,
+                    directory,
+                    cancellationToken
+                )
+            )
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var childPath = CombineCloudPath(directory, child);
                 if (ShouldSkipEnumeratedDirectory(childPath))
                     continue;
@@ -70,18 +103,29 @@ internal static partial class CloudSyncCoordinator
                     paths,
                     store,
                     childPath,
-                    depth + 1
+                    depth + 1,
+                    cancellationToken
                 );
                 if (paths.Count >= EnumeratedPathLimit)
                     return;
             }
         }
 
-        private static IEnumerable<string> SafeGetFiles(ISaveStore store, string directory)
+        private static IEnumerable<string> SafeGetFiles(
+            ISaveStore store,
+            string directory,
+            CancellationToken cancellationToken
+        )
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 return store.GetFilesInDirectory(directory);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -90,11 +134,21 @@ internal static partial class CloudSyncCoordinator
             }
         }
 
-        private static IEnumerable<string> SafeGetDirectories(ISaveStore store, string directory)
+        private static IEnumerable<string> SafeGetDirectories(
+            ISaveStore store,
+            string directory,
+            CancellationToken cancellationToken
+        )
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 return store.GetDirectoriesInDirectory(directory);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

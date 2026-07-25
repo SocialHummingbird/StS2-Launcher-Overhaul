@@ -22,16 +22,25 @@ internal static class LauncherUiContractValidator
 
         view.SelectDestination(LauncherDestination.Saves);
         Press(root, "Pull Saves from Steam Cloud");
-        Toggle(root, "Local Backup: On");
-        Toggle(root, "Game Cloud Sync: On");
-        Press(root, "Push Saves to Steam Cloud");
+        ToggleStartingWith(root, "Local Backup:");
+        ToggleStartingWith(root, "Game Cloud Sync:");
+        view.RefreshCloudPushEligibility();
+        Press(root, "Upload Saves to Steam Cloud");
         Expect(events.CloudPull == 1, "Steam Cloud Pull event was not preserved.");
         Expect(events.LocalBackup == 1, "Local backup toggle event was not preserved.");
         Expect(events.CloudSync == 1, "Cloud sync toggle event was not preserved.");
-        Expect(events.CloudPushArm == 1, "Steam Cloud Push arm gate was not reached.");
+        Expect(
+            events.CloudPushArm == 3,
+            "Steam Cloud Push eligibility was not checked after the backup toggle, refresh, and arm."
+        );
         Expect(events.CloudPush == 0, "Steam Cloud Push fired before explicit confirmation.");
         FindVisibleButton(root, "Confirm: Overwrite Steam Cloud");
         view.SetPushPullDisabled(true);
+        Press(root, "Cancel Cloud Operation");
+        Expect(
+            events.CloudOperationCancel == 1,
+            "Cloud operation cancellation event was not preserved."
+        );
 
         view.SelectDestination(LauncherDestination.Versions);
         Press(root, "Check for Updates");
@@ -95,10 +104,14 @@ internal static class LauncherUiContractValidator
             cloudPushArmRequested: () =>
             {
                 events.CloudPushArm++;
-                return true;
+                return new CloudPushEligibilityResult(
+                    Array.Empty<CloudPushEligibilityBlock>()
+                );
             },
             cloudPushPressed: () => events.CloudPush++,
             cloudPullPressed: () => events.CloudPull++,
+            cloudOperationCancelPressed: () =>
+                events.CloudOperationCancel++,
             checkForUpdatesPressed: () => events.CheckForUpdates++,
             refreshGameVersionsPressed: () => events.RefreshVersions++,
             redownloadPressed: () => events.Redownload++,
@@ -115,9 +128,9 @@ internal static class LauncherUiContractValidator
     private static void Press(Node root, string text)
         => FindVisibleButton(root, text).EmitSignal(Button.SignalName.Pressed);
 
-    private static void Toggle(Node root, string text)
+    private static void ToggleStartingWith(Node root, string text)
     {
-        var button = FindVisibleButton(root, text);
+        var button = FindVisibleButtonStartingWith(root, text);
         Expect(button.ToggleMode, $"Expected a toggle-mode button: {text}");
         button.ButtonPressed = !button.ButtonPressed;
     }
@@ -134,6 +147,20 @@ internal static class LauncherUiContractValidator
         }
 
         throw new InvalidOperationException($"Visible button not found: {text}");
+    }
+
+    private static Button FindVisibleButtonStartingWith(Node root, string text)
+    {
+        foreach (var button in Descendants<Button>(root))
+        {
+            if (button.IsVisibleInTree()
+                && button.Text.StartsWith(text, StringComparison.OrdinalIgnoreCase))
+            {
+                return button;
+            }
+        }
+
+        throw new InvalidOperationException($"Visible button not found with prefix: {text}");
     }
 
     private static LineEdit FindLineEdit(Node root, string placeholder)
@@ -189,6 +216,7 @@ internal static class LauncherUiContractValidator
         internal int CloudPushArm;
         internal int CloudPush;
         internal int CloudPull;
+        internal int CloudOperationCancel;
         internal int CheckForUpdates;
         internal int RefreshVersions;
         internal int Redownload;

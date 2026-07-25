@@ -13,10 +13,24 @@ function Add-SteamVersionSelectionActionCloudSafetyCompactOptionChecks {
             "UpdateBranchHelpText",
             "SetPushPullDisabled",
             "ResetCloudPushArm\(_pushPullRow\.Visible\)",
-            "_pushButton\.Disabled = disabled",
-            "_cloudPushToggle\.Disabled = disabled",
-            "_confirmPushButton\.Disabled = disabled",
-            "_pullButton\.Disabled = disabled"
+            "_pushPullDisabled = disabled",
+            "_cloudOptionsToggle\.Disabled = disabled",
+            "_localBackupToggle\.Disabled = disabled",
+            "_cloudSyncToggle\.Disabled = disabled",
+            "_branchDropdown\.Disabled = disabled",
+            "_branchDetailsToggle\.Disabled = disabled",
+            "ApplyCloudPushDisabledState"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.CloudPush.cs" `
+        "combines operation busy state with Upload eligibility" `
+        @(
+            "ApplyCloudPushDisabledState",
+            "_pushButton\.Disabled = _pushPullDisabled \|\| !_cloudPushEligible",
+            "_cloudPushToggle\.Disabled = _pushPullDisabled",
+            "_confirmPushButton\.Disabled = _pushPullDisabled \|\| !_cloudPushEligible",
+            "_pullButton\.Disabled = _pushPullDisabled"
         )
 
     Add-Check `

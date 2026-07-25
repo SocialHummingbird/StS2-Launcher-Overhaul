@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
@@ -23,10 +24,18 @@ internal static partial class CloudSyncCoordinator
             private string Directory { get; }
             private Func<IEnumerable<string>, IEnumerable<string>> SelectFiles { get; }
 
-            internal void AddTo(List<string> paths, ISaveStore store)
+            internal void AddTo(
+                List<string> paths,
+                ISaveStore store,
+                CancellationToken cancellationToken
+            )
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 foreach (var file in Select(store))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
                     paths.Add($"{Directory}/{file}");
+                }
             }
 
             private IEnumerable<string> Select(ISaveStore store)

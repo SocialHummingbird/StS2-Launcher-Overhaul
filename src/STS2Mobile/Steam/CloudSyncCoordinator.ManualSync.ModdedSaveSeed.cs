@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
@@ -66,11 +67,19 @@ internal static partial class CloudSyncCoordinator
                 ExpectedDirectCloudModdedPaths = plan.DirectCloudModdedTargets.ToList(),
             };
             var session = new ModdedSaveSeedSession(plan, evidence);
+            sync.ReportProfilePreparationStarted(
+                plan.LocalOverwriteTargets.Count
+            );
 
             try
             {
                 await session.BackUpLocalOverwriteTargetsAsync(sync);
                 return session;
+            }
+            catch (OperationCanceledException)
+                when (sync.CancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -91,14 +100,21 @@ internal static partial class CloudSyncCoordinator
             Evidence.DownloadedCloudPaths.AddRange(
                 downloadedCloudContent.Keys.OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             );
+            sync.ReportProfileSeedingStarted(Plan.SeedMappings.Count);
 
             try
             {
                 foreach (var mapping in Plan.SeedMappings)
                 {
+                    sync.CancellationToken.ThrowIfCancellationRequested();
+                    sync.ReportProfileSeedPathStarted(mapping.TargetPath);
                     if (!downloadedCloudContent.TryGetValue(mapping.SourcePath, out var content))
                     {
                         Evidence.SkippedSeedSources.Add(mapping.SourcePath);
+                        sync.ReportProfileSeedProcessed(
+                            mapping.TargetPath,
+                            seeded: false
+                        );
                         continue;
                     }
 
@@ -113,7 +129,16 @@ internal static partial class CloudSyncCoordinator
                     PatchHelper.Log(
                         $"[Cloud] Manual Pull seeded modded save {mapping.TargetPath} from freshly downloaded {mapping.SourcePath} ({content.Length} characters)"
                     );
+                    sync.ReportProfileSeedProcessed(
+                        mapping.TargetPath,
+                        seeded: true
+                    );
                 }
+            }
+            catch (OperationCanceledException)
+                when (sync.CancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -134,15 +159,27 @@ internal static partial class CloudSyncCoordinator
             var backupStamp = DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffZ");
             foreach (var targetPath in Plan.LocalOverwriteTargets)
             {
-                var content = sync.ReadLocalFile(targetPath);
+                sync.CancellationToken.ThrowIfCancellationRequested();
+                sync.ReportProfilePreparationPathStarted(targetPath);
+                var content = await sync.ReadLocalFileAsync(targetPath);
                 if (content == null)
+                {
+                    sync.ReportProfilePreparationProcessed(
+                        targetPath,
+                        backupCreated: false
+                    );
                     continue;
+                }
 
                 var backupPath = $"{AppPaths.ManualPullPrivateBackupRelativeDirectory}/{backupStamp}/{targetPath}";
                 await WriteAndVerifyLocalAsync(sync, backupPath, content);
                 Evidence.PrivateBackupPaths.Add(backupPath);
                 PatchHelper.Log(
                     $"[Cloud] Manual Pull private backup: {targetPath} -> {backupPath} ({content.Length} characters)"
+                );
+                sync.ReportProfilePreparationProcessed(
+                    targetPath,
+                    backupCreated: true
                 );
             }
         }
@@ -168,7 +205,7 @@ internal static partial class CloudSyncCoordinator
         )
         {
             await sync.WriteLocalContentAsync(path, content);
-            var verified = sync.ReadLocalFile(path);
+            var verified = await sync.ReadLocalFileAsync(path);
             if (!string.Equals(content, verified, StringComparison.Ordinal))
                 throw new InvalidOperationException($"Local write verification failed for {path}.");
         }

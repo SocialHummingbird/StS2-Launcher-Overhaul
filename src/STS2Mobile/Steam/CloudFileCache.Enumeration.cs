@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using SteamKit2.Internal;
 
 namespace STS2Mobile.Steam;
@@ -8,7 +9,9 @@ internal partial class SteamKit2CloudSaveStore
 {
     private sealed partial class CloudFileCache
     {
-        private void LoadFileList()
+        private void LoadFileList(
+            CancellationToken cancellationToken
+        )
         {
             uint startIndex = 0;
             const uint pageSize = 500;
@@ -16,6 +19,7 @@ internal partial class SteamKit2CloudSaveStore
 
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var result = _connection
                     .SendCloud<CCloud_EnumerateUserFiles_Request, CCloud_EnumerateUserFiles_Response>(
                         "EnumerateUserFiles",
@@ -24,7 +28,8 @@ internal partial class SteamKit2CloudSaveStore
                             appid = SteamCloudApp.AppId,
                             start_index = startIndex,
                             count = pageSize,
-                        }
+                        },
+                        cancellationToken
                     )
                     .GetAwaiter()
                     .GetResult();
@@ -34,6 +39,7 @@ internal partial class SteamKit2CloudSaveStore
 
                 foreach (var file in result.files)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var key = CacheKey(file.filename);
                     if (sampleNames.Count < 25)
                         sampleNames.Add(key);

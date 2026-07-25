@@ -40,5 +40,17 @@ internal static partial class LauncherPreferences
             Apply(enabled);
             Storage.WriteBoolean(enabled);
         }
+
+        internal TResult SaveWithResult<TResult>(
+            bool enabled,
+            Func<bool, TResult> apply
+        )
+        {
+            ArgumentNullException.ThrowIfNull(apply);
+            BeforeSave?.Invoke(enabled);
+            var result = apply(enabled);
+            Storage.WriteBoolean(enabled);
+            return result;
+        }
     }
 }

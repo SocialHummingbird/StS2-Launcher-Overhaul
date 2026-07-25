@@ -74,6 +74,7 @@ internal sealed partial class LauncherUI
         var tree = GetTree();
         tree.ProcessFrame -= OnProcessFrame;
         tree.AutoAcceptQuit = true;
+        _controller?.Dispose();
         _model?.Dispose();
         if (!_inGameMode)
             AndroidBridgeDispatcher.UnregisterCurrentThread();

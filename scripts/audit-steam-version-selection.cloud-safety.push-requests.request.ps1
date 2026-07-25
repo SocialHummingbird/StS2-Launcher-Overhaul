@@ -9,8 +9,17 @@ function Add-SteamVersionSelectionCloudSafetyPushRequestConstructionChecks {
             "ConfirmText",
             "CancelText",
             "BypassConfirmation",
-            "Func<Task<string>> run",
-            "Action<Exception>\? onFailed = null"
+            "Func<CancellationToken, Task<ManualCloudSyncResult>> run",
+            "Func<bool>\? recordCompletionEvidence = null",
+            "Action<ManualCloudSyncResult>\? recordIncompleteResult = null",
+            "Action<string, string>\? recordTerminalFailure = null",
+            "Action<Exception>\? onFailed = null",
+            "CloudOperationProgressTracker\? operationProgress = null",
+            "timeoutMs = CloudSyncTimeoutMs",
+            "TimeoutMs = timeoutMs",
+            "private int TimeoutMs",
+            "OperationProgress = operationProgress",
+            "private CloudOperationProgressTracker\? OperationProgress"
         )
 
     Add-Check `
@@ -22,6 +31,10 @@ function Add-SteamVersionSelectionCloudSafetyPushRequestConstructionChecks {
             "PushConfirmationMessage\(dataDir, selectedBranch\)",
             "LauncherCloudSaveState\.ManualPushAllAsync",
             "LauncherCloudSaveState\.ManualPullAllAsync",
+            "CloudOperationProgressTracker progress",
+            "operationProgress: progress",
+            "prepareOperation: \(\) =>",
+            "EnsureCloudPushStillEligible",
             "WriteManualPushMarker",
             "WriteManualPushBlockedMarker",
             "WriteManualPullMarker",

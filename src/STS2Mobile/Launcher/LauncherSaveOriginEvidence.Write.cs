@@ -8,10 +8,20 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherSaveOriginEvidence
 {
     internal static void WriteManualPullOrigin(string dataDir, string selectedBranch)
-        => WriteOrigin(dataDir, selectedBranch, "manual cloud pull");
+        => TryWriteManualPullOrigin(dataDir, selectedBranch);
+
+    internal static bool TryWriteManualPullOrigin(
+        string dataDir,
+        string selectedBranch
+    )
+        => TryWriteOrigin(dataDir, selectedBranch, "manual cloud pull");
 
     internal static void WriteManualPushOrigin(string dataDir, string selectedBranch)
-        => WriteOrigin(dataDir, selectedBranch, "manual cloud push completed from Android local saves");
+        => TryWriteOrigin(
+            dataDir,
+            selectedBranch,
+            "manual cloud push completed from Android local saves"
+        );
 
     internal static void WriteBranchSwitchPendingOrigin(string dataDir, string previousBranch, string selectedBranch)
     {
@@ -35,7 +45,11 @@ internal static partial class LauncherSaveOriginEvidence
         }
     }
 
-    private static void WriteOrigin(string dataDir, string selectedBranch, string originAction)
+    private static bool TryWriteOrigin(
+        string dataDir,
+        string selectedBranch,
+        string originAction
+    )
     {
         try
         {
@@ -63,10 +77,12 @@ internal static partial class LauncherSaveOriginEvidence
                 + $"{CurrentLocalSavesVerifiedForSelectedBranchPrefix} {selectedBranchVerified.ToString().ToLowerInvariant()}\n"
                 + $"{CurrentLocalSavesVerifiedForSelectedRuntimePrefix} {selectedRuntimeVerified.ToString().ToLowerInvariant()}\n";
             File.WriteAllText(MarkerPath(dataDir), text);
+            return true;
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"[Launcher] Failed to write save-origin marker: {ex.Message}");
+            return false;
         }
     }
 }

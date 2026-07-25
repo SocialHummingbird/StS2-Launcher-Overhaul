@@ -26,7 +26,11 @@ function Add-SteamVersionSelectionCloudSafetyLocalBackupMirrorChecks {
             "WriteMirrorFile",
             "PruneLocalMirrorHistory",
             "lock \(LocalMirrorGate\)",
-            "SavePathDiscovery\.Get\(local\)",
+            "SavePathDiscovery\.Get\(\s*local,\s*cancellationToken",
+            "CancellableSaveStore\.ReadFileAsync",
+            "CancellableAtomicFile\.WriteAllTextAsync",
+            "CancellableAtomicFile\.WriteAllBytesAsync",
+            "catch \(OperationCanceledException\)",
             "Automatic local backup refresh"
         )
 
@@ -62,7 +66,9 @@ function Add-SteamVersionSelectionCloudSafetyLocalBackupMirrorChecks {
         "refreshes and recovers the local save mirror when the enabled preference is applied" `
         @(
             "EnsureExternalDirectories",
-            "RefreshLocalBackup\(restoreMissing: true\)"
+            "RefreshLocalBackup\(\s*restoreMissing: true\s*\)",
+            "SaveLocalBackupEnabledWithResult",
+            "ApplyLocalBackupWithResult"
         )
 
     Add-Check `
@@ -77,7 +83,37 @@ function Add-SteamVersionSelectionCloudSafetyLocalBackupMirrorChecks {
         "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.Attempt.cs" `
         "refreshes the local save mirror and recovers stable files before game handoff" `
         @(
-            "RefreshLocalBackup\(restoreMissing: true\)"
+            "RefreshLocalBackup\(\s*restoreMissing: true\s*\)",
+            "_localBackupRecoveryCompleted"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherController.ViewEvents.cs" `
+        "publishes local-backup toggle recovery results to the cloud state refresher" `
+        @(
+            "LocalBackupToggled",
+            "_session\.LocalBackupToggled\(pressed\)",
+            "_cloud\.LocalBackupRecoveryCompleted\(result\)"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherController.cs" `
+        "publishes pre-launch recovery results without replacing ordinary launch status" `
+        @(
+            "result => _cloud\.LocalBackupRecoveryCompleted",
+            "reportNoChanges: false"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.StateRefresh.cs" `
+        "recaptures save, mirror, and Upload eligibility state after recovery" `
+        @(
+            "CaptureCurrentState",
+            "CountImportantSaveEvidence",
+            "importantSaveCount > 0",
+            "CurrentMirrorSaveCount",
+            "ApplyCloudPostOperationSnapshot",
+            "LocalBackupRecoveryPresentation\.Create"
         )
 
     Add-Check `

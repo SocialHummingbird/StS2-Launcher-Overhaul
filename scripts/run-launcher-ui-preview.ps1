@@ -1,6 +1,14 @@
 param(
     [string]$GodotPath = "",
-    [ValidateSet("signed-out", "guard", "download", "ready", "error")]
+    [ValidateSet(
+        "signed-out",
+        "guard",
+        "download",
+        "ready",
+        "error",
+        "pull-transfer",
+        "pull-complete"
+    )]
     [string]$Fixture = "ready",
     [ValidateSet("home", "saves", "versions", "mods", "help")]
     [string]$Destination = "home",

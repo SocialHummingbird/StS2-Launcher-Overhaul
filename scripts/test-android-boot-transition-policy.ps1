@@ -87,9 +87,58 @@ $controllerSource = Get-Content -LiteralPath (
 $godotAppSource = Get-Content -LiteralPath (
     Join-Path $root "android\src\com\game\sts2launcher\GodotApp.java"
 ) -Raw
+$launcherActivitySource = Get-Content -LiteralPath (
+    Join-Path $root "android\src\com\game\sts2launcher\LauncherActivity.java"
+) -Raw
+$nativeFallbackSource = Get-Content -LiteralPath (
+    Join-Path $root "android\src\com\game\sts2launcher\NativeFallbackActivity.java"
+) -Raw
 $sequenceSource = Get-Content -LiteralPath (
     Join-Path $root "android\src\com\game\sts2launcher\AndroidBootSequence.java"
 ) -Raw
+$manifestPath = Join-Path $root "android\AndroidManifest.xml"
+[xml]$manifest = Get-Content -LiteralPath $manifestPath -Raw
+$androidNamespace = "http://schemas.android.com/apk/res/android"
+$activities = @($manifest.manifest.application.activity)
+$activityThemes = @{}
+$activityOrientations = @{}
+foreach ($activity in $activities) {
+    $name = $activity.GetAttribute("name", $androidNamespace)
+    $activityThemes[$name] = $activity.GetAttribute("theme", $androidNamespace)
+    $activityOrientations[$name] = $activity.GetAttribute(
+        "screenOrientation",
+        $androidNamespace
+    )
+}
+
+if ($activityThemes[".LauncherActivity"] -ne "@style/LauncherRoutingSplashTheme") {
+    throw "LauncherActivity must retain the routing splash theme that prevents blank native handoff frames."
+}
+if ($activityThemes[".GodotApp"] -ne "@style/GodotAppSplashTheme") {
+    throw "GodotApp must retain the controlled Godot-to-launcher splash theme."
+}
+if ($activityThemes[".NativeFallbackActivity"] -ne "@style/NativeFallbackTheme") {
+    throw "NativeFallbackActivity must open directly on its native main theme."
+}
+if ($activityOrientations[".NativeFallbackActivity"] -ne "fullSensor") {
+    throw "NativeFallbackActivity must not force an orientation-changing blank handoff."
+}
+$themesPath = Join-Path $root "android\res\values\themes.xml"
+[xml]$themes = Get-Content -LiteralPath $themesPath -Raw
+$themeNamespaceManager = [System.Xml.XmlNamespaceManager]::new(
+    $themes.NameTable
+)
+$themeNamespaceManager.AddNamespace("android", $androidNamespace)
+$fallbackWindowBackground = $themes.SelectSingleNode(
+    "/resources/style[@name='NativeFallbackTheme']/item[@name='android:windowBackground']",
+    $themeNamespaceManager
+)
+if (
+    $null -eq $fallbackWindowBackground -or
+    $fallbackWindowBackground.InnerText -ne "@drawable/godot_boot_window_background"
+) {
+    throw "NativeFallbackTheme must retain the Godot mark while its content view and orientation are prepared."
+}
 
 Assert-SourceContains $sequenceSource "FULL_DURATION_MS = 4_000L;" `
     "Full boot transition duration must remain exactly 4,000 ms."
@@ -130,6 +179,52 @@ Assert-SourceContains $godotAppSource "bootTransitionController.destroy();" `
 Assert-SourceContains $godotAppSource `
     "intent.putExtra(AndroidBootTransitionPolicy.SKIP_INTENT_EXTRA, true);" `
     "Deliberate app restarts must retain the boot transition skip extra."
+$launcherSuperIndex = $launcherActivitySource.IndexOf(
+    "super.onCreate(savedInstanceState);"
+)
+$launcherPlaceholderIndex = $launcherActivitySource.IndexOf(
+    "routingPlaceholder = createRoutingPlaceholder();"
+)
+$launcherFrameIndex = $launcherActivitySource.IndexOf(
+    "routingPlaceholder.postOnAnimation(startupRouting);"
+)
+$launcherPreparationIndex = $launcherActivitySource.IndexOf(
+    "assemblyBootstrapper.prepare();"
+)
+if (
+    $launcherSuperIndex -lt 0 -or
+    $launcherPlaceholderIndex -le $launcherSuperIndex -or
+    $launcherFrameIndex -le $launcherPlaceholderIndex -or
+    $launcherPreparationIndex -le $launcherFrameIndex
+) {
+    throw "LauncherActivity must schedule routing after its mark-backed content is ready to draw."
+}
+Assert-SourceContains $launcherActivitySource `
+    "routingPlaceholder.removeCallbacks(startupRouting);" `
+    "LauncherActivity destruction must cancel deferred startup routing."
+$fallbackContentIndex = $nativeFallbackSource.IndexOf(
+    "setContentView(createContentView());"
+)
+$fallbackDiagnosticsIndex = $nativeFallbackSource.IndexOf(
+    "startDiagnosticsCollection();",
+    [Math]::Max(0, $fallbackContentIndex)
+)
+if (
+    $fallbackContentIndex -lt 0 -or
+    $fallbackDiagnosticsIndex -le $fallbackContentIndex
+) {
+    throw "Native fallback must publish its controls before collecting diagnostics."
+}
+Assert-SourceContains $nativeFallbackSource `
+    '"STS2NativeFallbackDiagnostics"' `
+    "Native fallback diagnostics must remain off the Android main thread."
+Assert-SourceContains $nativeFallbackSource "diagnosticsThread.interrupt();" `
+    "Native fallback destruction must cancel diagnostics collection."
+Assert-SourceContains $nativeFallbackSource `
+    "scroll.setBackgroundColor(Color.TRANSPARENT);" `
+    "Native fallback must preserve its mark-backed window until content is drawable."
+Assert-SourceContains $nativeFallbackSource "addOnPreDrawListener" `
+    "Native fallback must reveal its opaque content on a rendered-frame boundary."
 
 try {
     New-Item -ItemType Directory -Force -Path $output | Out-Null

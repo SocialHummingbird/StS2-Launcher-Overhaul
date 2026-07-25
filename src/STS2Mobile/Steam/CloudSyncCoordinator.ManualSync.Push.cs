@@ -1,58 +1,73 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
 internal static partial class CloudSyncCoordinator
 {
-    private static Task<string> RunManualPushUploadsAsync(
+    private static async Task<ManualCloudSyncResult> RunManualPushUploadsAsync(
         ManualSyncContext sync,
         IReadOnlyCollection<string> paths
     )
     {
-        var summary = sync.RunCloudBatchImmediate(() =>
+        sync.ReportTransferStarted(paths.Count);
+        var summary = ManualSyncTransferSummary.Empty;
+        foreach (var path in paths)
         {
-            var batch = ManualSyncTransferSummary.Empty(
-                (queued, _) => PushComplete(queued)
+            sync.CancellationToken.ThrowIfCancellationRequested();
+            sync.ReportTransferPathStarted(path);
+            var result = await UploadManualPushPathAsync(
+                sync,
+                path
             );
-            foreach (var path in paths)
-            {
-                var result = QueueManualPushPath(sync, path);
-                batch = batch.Include(result);
-                if (result.StopAfterBudget)
-                    break;
-            }
+            summary = summary.Include(result);
+            sync.ReportTransferProcessed(
+                path,
+                result.Outcome
+            );
+            if (result.StopAfterBudget)
+                break;
+        }
 
-            return batch;
-        });
-
-        var result = summary.CompleteMessage();
-        return Task.FromResult(result);
+        sync.ReportFinalizing("Writing manual Push evidence");
+        return summary.BuildResult(
+            CloudOperationKind.Push,
+            paths.Count,
+            sync.ProgressState,
+            postProcessingErrorCount: 0,
+            detail: ""
+        );
     }
 
-    private static ManualSyncPathResult QueueManualPushPath(
+    private static async Task<ManualSyncPathResult> UploadManualPushPathAsync(
         ManualSyncContext sync,
         string path
     )
     {
         try
         {
-            var local = sync.ReadLocalFile(path);
+            var local = await sync.ReadLocalFileAsync(path);
             if (local == null)
-                return ManualSyncPathResult.Ignored;
+                return ManualSyncPathResult.SkippedPath;
 
             PatchHelper.Log(PushQueuing(path, local.Length));
             if (sync.BudgetExceeded(ManualPushBudgetExceeded()))
                 return ManualSyncPathResult.BudgetExceeded;
 
-            sync.WriteCloudFile(path, local);
+            await sync.WriteCloudFileAsync(path, local);
             return ManualSyncPathResult.CompletedPath;
+        }
+        catch (OperationCanceledException)
+            when (sync.CancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             PatchHelper.Log(PushFailed(path, ex));
-            return ManualSyncPathResult.Ignored;
+            return ManualSyncPathResult.FailedPath;
         }
     }
 }

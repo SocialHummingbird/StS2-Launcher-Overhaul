@@ -45,7 +45,7 @@
     <activity
       android:name=".LauncherActivity"
       android:label="StS2 Launcher"
-      android:theme="@style/GodotAppSplashTheme"
+      android:theme="@style/LauncherRoutingSplashTheme"
       android:launchMode="singleInstancePerTask"
       android:excludeFromRecents="false"
       android:exported="true"
@@ -77,12 +77,12 @@
     <activity
       android:name=".NativeFallbackActivity"
       android:label="StS2 Launcher"
-      android:theme="@style/GodotAppSplashTheme"
+      android:theme="@style/NativeFallbackTheme"
       android:launchMode="singleInstancePerTask"
       android:excludeFromRecents="false"
       android:exported="false"
-      android:screenOrientation="landscape"
-      android:resizeableActivity="false"
+      android:screenOrientation="fullSensor"
+      android:resizeableActivity="true"
       tools:ignore="UnusedAttribute"
     />
     <provider

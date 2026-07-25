@@ -41,13 +41,43 @@ internal sealed partial class ActionSection
 
         var cloudPushToggle = AddPushPullButton(
             cloudPrimaryActionsParent,
-            compact ? CompactCloudPushToggleText(expanded: false) : "Push Locked",
+            compact
+                ? CompactCloudPushToggleText(
+                    expanded: false,
+                    "Check requirements"
+                )
+                : "Review Upload",
             scale,
             ToggleCloudPush
         );
-        LauncherButtonStyles.ApplyDangerAction(cloudPushToggle, scale);
+        LauncherButtonStyles.ApplySupportAction(cloudPushToggle, scale);
         SetCompactActionButtonText(cloudPushToggle, cloudPushToggle.Text);
         cloudPushToggle.Visible = compact;
+
+        var operationProgress = BuildCloudOperationProgressControls(
+            pushPullRow,
+            scale,
+            compact
+        );
+
+        var cancelOperationButton = AddPushPullButton(
+            pushPullRow,
+            "Cancel Cloud Operation",
+            scale,
+            RequestCloudOperationCancellation
+        );
+        cancelOperationButton.Visible = false;
+        LauncherButtonStyles.ApplySupportAction(
+            cancelOperationButton,
+            scale
+        );
+        SetCompactActionButtonText(
+            cancelOperationButton,
+            cancelOperationButton.Text
+        );
+
+        var pushEligibilityLabel = BuildCloudPushEligibilityLabel(scale, compact);
+        pushPullRow.AddChild(pushEligibilityLabel);
 
         var pushButton = AddPushPullButton(
             pushPullRow,
@@ -78,6 +108,12 @@ internal sealed partial class ActionSection
             cloudPushToggle,
             pushButton,
             confirmPushButton,
+            cancelOperationButton,
+            operationProgress.Group,
+            operationProgress.PhaseLabel,
+            operationProgress.DetailLabel,
+            operationProgress.ProgressBar,
+            pushEligibilityLabel,
             pushConfirmationLabel
         );
     }

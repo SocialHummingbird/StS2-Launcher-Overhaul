@@ -4,15 +4,25 @@ internal sealed partial class ActionSection
 {
     internal void SetPushPullDisabled(bool disabled)
     {
+        _pushPullDisabled = disabled;
+        _cloudOptionsToggle.Disabled = disabled;
+        _localBackupToggle.Disabled = disabled;
+        _cloudSyncToggle.Disabled = disabled;
+        _branchDropdown.Disabled = disabled;
+        _branchDetailsToggle.Disabled = disabled;
+        _cancelCloudOperationButton.Visible =
+            disabled && _pushPullRow.Visible;
+        _cancelCloudOperationButton.Disabled = false;
+        SetCompactActionButtonText(
+            _cancelCloudOperationButton,
+            "Cancel Cloud Operation"
+        );
         if (disabled)
         {
             ResetCloudPushArm(_pushPullRow.Visible);
         }
 
-        _pushButton.Disabled = disabled;
-        _cloudPushToggle.Disabled = disabled;
-        _confirmPushButton.Disabled = disabled;
-        _pullButton.Disabled = disabled;
+        ApplyCloudPushDisabledState();
     }
 
     private void SetCloudControlsVisible(bool visible)
@@ -20,10 +30,16 @@ internal sealed partial class ActionSection
         _cloudGroup.Visible = visible;
         ApplyCloudOptionVisibility(visible);
         _pushPullRow.Visible = visible;
+        _cancelCloudOperationButton.Visible =
+            visible && _pushPullDisabled;
         if (!visible)
         {
             _cloudPushExpanded = false;
             _cloudSafetyExpanded = false;
+        }
+        else
+        {
+            RefreshCloudPushEligibility();
         }
         ResetCloudPushArm(visible);
         UpdateBranchHelpText();

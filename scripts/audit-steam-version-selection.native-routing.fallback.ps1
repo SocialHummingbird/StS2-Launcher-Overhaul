@@ -42,7 +42,7 @@ function Add-SteamVersionSelectionNativeRoutingFallbackChecks {
             "createDiagnosticsView",
             "diagnosticsView\.setVisibility\(View\.GONE\)",
             "diagnosticsView\.setVisibility\(show \? View\.VISIBLE : View\.GONE\)",
-            "copyDiagnostics\(diagnosticsText\)",
+            "copyDiagnostics\(this\.diagnosticsText\)",
             "root\.addView\(diagnosticsView"
         )
 }

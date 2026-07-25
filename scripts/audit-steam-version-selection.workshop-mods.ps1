@@ -180,15 +180,22 @@ function Add-SteamVersionSelectionWorkshopModChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.cs" `
-        "blocks Steam Cloud Push when mods are selected for launch" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.Context.cs" `
+        "captures selected mods as a Push eligibility fact" `
         @(
-            "CanPushWithWorkshopModSafety",
-            "LauncherWorkshopModSafety\.ActiveSelectedModCount",
-            "Manual Push blocked: \{selectedMods\} mod\(s\) are selected for launch",
-            "mods are selected for launch",
-            "protect unmodded cloud saves",
-            "pushContext\.WriteBlockedMarker"
+            "CaptureEligibilityState",
+            "LauncherWorkshopModSafety\.ActiveSelectedModCount"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\CloudPushEligibilityPolicy.cs" `
+        "models selected mods as an actionable Steam Cloud Push blocker" `
+        @(
+            "SelectedModCount > 0",
+            "CloudPushEligibilityBlockCode\.ModsSelected",
+            "Modded saves cannot be uploaded to Steam Cloud safely",
+            "CloudPushRequiredActionCode\.DeselectMods",
+            "Deselect all mods and use a vanilla launch state before uploading"
         )
 
     Add-Check `

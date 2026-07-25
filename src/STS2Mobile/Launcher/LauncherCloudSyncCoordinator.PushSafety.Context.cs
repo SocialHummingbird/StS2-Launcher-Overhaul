@@ -20,11 +20,44 @@ internal sealed partial class LauncherCloudSyncCoordinator
         internal static CloudPushSafetyContext Create(string dataDir)
             => new(dataDir, LauncherPreferences.ReadGameBranch());
 
-        internal void WriteBlockedMarker(string reason)
-            => LauncherCloudSyncEvidence.WriteManualPushBlockedMarker(
-                DataDir,
-                SelectedBranch,
-                reason
+        internal CloudPushEligibilityState CaptureEligibilityState()
+            => CaptureEligibilityState(
+                LauncherLocalSaveEvidence.HasImportantSaveEvidence(DataDir)
             );
+
+        internal CloudPushEligibilityState CaptureEligibilityState(
+            bool hasImportantLocalSaveEvidence
+        )
+        {
+            var hasBranchSwitchMarker = LauncherBranchSwitchSafety.HasMarker(DataDir);
+            return new CloudPushEligibilityState(
+                SelectedVersion,
+                LauncherWorkshopModSafety.ActiveSelectedModCount(),
+                LauncherCloudSyncEvidence.LastManualPullCompletionRecorded(DataDir),
+                LauncherCloudSyncEvidence.LastManualPullMatchesSelectedBranch(
+                    DataDir,
+                    SelectedBranch
+                ),
+                hasImportantLocalSaveEvidence,
+                LauncherSaveOriginEvidence.CurrentLocalSavesMatchSelectedRuntime(
+                    DataDir,
+                    SelectedBranch
+                ),
+                hasBranchSwitchMarker,
+                !hasBranchSwitchMarker
+                    || LauncherBranchSwitchSafety.HasRequiredEvidence(
+                        DataDir,
+                        SelectedBranch
+                    ),
+                !hasBranchSwitchMarker
+                    || LauncherCloudSyncEvidence.HasManualPullAfterBranchSwitch(
+                        DataDir,
+                        SelectedBranch
+                    ),
+                !hasBranchSwitchMarker
+                    || LauncherPreferences.ReadLocalBackupEnabled(),
+                !hasBranchSwitchMarker || STS2Mobile.AppPaths.HasStoragePermission()
+            );
+        }
     }
 }

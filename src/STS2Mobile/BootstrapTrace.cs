@@ -10,6 +10,7 @@ internal static class BootstrapTrace
     private const int AndroidLogInfoPriority = 4;
     private const string FileName = "sts2_bootstrap_trace.log";
     private const string AndroidTraceFileEnv = "STS2_ANDROID_TRACE_FILE";
+    private const string TraceFileOverrideEnv = "STS2_BOOTSTRAP_TRACE_FILE";
     private const string TempDirectoryName = "tmp";
     private const long MaxBytes = 256L * 1024L;
     private static readonly object Lock = new();
@@ -44,6 +45,20 @@ internal static class BootstrapTrace
 
     private static string GetTracePath()
     {
+        var traceFileOverride = Environment.GetEnvironmentVariable(
+            TraceFileOverrideEnv
+        );
+        if (!string.IsNullOrWhiteSpace(traceFileOverride))
+        {
+            try
+            {
+                return Path.GetFullPath(traceFileOverride);
+            }
+            catch
+            {
+            }
+        }
+
         try
         {
             return Path.Combine(Godot.OS.GetDataDir(), FileName);

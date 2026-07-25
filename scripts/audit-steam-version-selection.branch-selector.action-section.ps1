@@ -28,7 +28,7 @@ function Add-SteamVersionSelectionBranchSelectorActionSectionChecks {
             "UpdateBranchHelpText",
             "SteamGameBranch\.SelectorInstallSlotHelpText",
             "Version/download actions affect local game files only",
-            "Steam Cloud saves move only through Pull/Push"
+            "Steam Cloud saves move only through Pull/Upload"
         )
 
     Add-Check `

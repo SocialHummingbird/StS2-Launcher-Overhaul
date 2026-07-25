@@ -24,10 +24,22 @@ function Add-SteamVersionSelectionActionCloudControlCopyChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\Sections\ActionSection.CloudPush.cs" `
-        "keeps compact Push relock label direction-aware and structured after reset" `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.CloudSafety.cs" `
+        "names the compact neutral drawer as an Upload review" `
         @(
             "CompactCloudPushToggleText",
-            "SetCompactActionButtonText\(_cloudPushToggle, _compact"
+            "Review Upload",
+            "Close Upload Review",
+            "string detail"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.CloudPush.cs" `
+        "keeps compact Upload review copy synced with live eligibility" `
+        @(
+            "UpdateCloudPushReviewButtonText",
+            "SetCompactActionButtonText",
+            "_cloudPushReviewDetail",
+            "CompactCloudPushToggleText"
         )
 }

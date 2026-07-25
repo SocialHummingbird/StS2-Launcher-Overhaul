@@ -69,6 +69,22 @@ internal sealed partial class LauncherView
     internal void SetPushPullDisabled(bool disabled)
         => Actions.SetPushPullDisabled(disabled);
 
+    internal void RefreshCloudPushEligibility()
+        => Actions.RefreshCloudPushEligibility();
+
+    internal void ApplyCloudPostOperationSnapshot(
+        CloudPostOperationSnapshot snapshot
+    )
+        => Actions.ApplyCloudPostOperationSnapshot(snapshot);
+
+    internal void SetCloudOperationState(
+        Steam.CloudOperationState state
+    )
+        => Actions.SetCloudOperationState(state);
+
+    internal void ClearCloudOperationState()
+        => Actions.ClearCloudOperationState();
+
     internal void SetWorkshopButtonsDisabled(bool disabled)
         => Actions.SetWorkshopButtonsDisabled(disabled);
 

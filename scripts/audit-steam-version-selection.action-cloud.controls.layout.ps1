@@ -12,14 +12,16 @@ function Add-SteamVersionSelectionActionCloudControlLayoutChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.PrimaryActions.cs" `
-        "preserves get-saves-first order when wiring compact cloud actions" `
+        "preserves get-saves-first order and adjacent Upload guidance" `
         @(
             "cloudPrimaryActionsParent = compact",
             "BuildCompactCloudPrimaryActionsRow",
             "pushPullRow",
             "_compactStackedActionRows",
             "CompactCloudPullText\(\)",
-            "CompactCloudPushToggleText\(expanded: false\)",
+            "CompactCloudPushToggleText",
+            "BuildCloudPushEligibilityLabel",
+            "pushPullRow\.AddChild\(pushEligibilityLabel\)",
             "CompactCloudPushDangerText\(\)"
         )
 }

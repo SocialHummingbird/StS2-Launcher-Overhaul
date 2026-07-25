@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Saves;
 
@@ -17,6 +18,15 @@ internal sealed partial class AndroidLocalSaveStore
     {
         PatchHelper.Log($"[Cloud] Android local save read async: {path} -> {FullPath(path)}");
         return Task.FromResult(ReadTextFile(path));
+    }
+
+    Task<string> ICancellableSaveStore.ReadFileAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+    {
+        PatchHelper.Log($"[Cloud] Android local cancellable read: {path} -> {FullPath(path)}");
+        return ReadTextFileAsync(path, cancellationToken);
     }
 
     void ISaveStore.WriteFile(string path, string content)
@@ -40,6 +50,13 @@ internal sealed partial class AndroidLocalSaveStore
         WriteBytesFile(path, bytes);
         return Task.CompletedTask;
     }
+
+    Task ICancellableSaveStore.WriteFileAsync(
+        string path,
+        string content,
+        CancellationToken cancellationToken
+    )
+        => WriteTextFileAsync(path, content, cancellationToken);
 
     bool ISaveStore.FileExists(string path)
     {

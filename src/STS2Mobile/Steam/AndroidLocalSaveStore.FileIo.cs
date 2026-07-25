@@ -1,11 +1,19 @@
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace STS2Mobile.Steam;
 
 internal sealed partial class AndroidLocalSaveStore
 {
     private string ReadTextFile(string path) => File.ReadAllText(FullPath(path));
+
+    private Task<string> ReadTextFileAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+        => File.ReadAllTextAsync(FullPath(path), cancellationToken);
 
     private void WriteTextFile(string path, string content)
     {
@@ -20,5 +28,39 @@ internal sealed partial class AndroidLocalSaveStore
         File.WriteAllBytes(fullPath, bytes);
         PatchHelper.Log($"[Cloud] Android local save write: {path} -> {fullPath} ({bytes.Length} bytes)");
         CloudSyncCoordinator.MirrorLocalSaveWrite(path, bytes);
+    }
+
+    private Task WriteTextFileAsync(
+        string path,
+        string content,
+        CancellationToken cancellationToken
+    )
+        => WriteBytesFileAsync(
+            path,
+            Encoding.UTF8.GetBytes(content),
+            cancellationToken
+        );
+
+    private async Task WriteBytesFileAsync(
+        string path,
+        byte[] bytes,
+        CancellationToken cancellationToken
+    )
+    {
+        var fullPath = FullPath(path);
+        EnsureParentDirectory(fullPath);
+        await CancellableAtomicFile.WriteAllBytesAsync(
+            fullPath,
+            bytes,
+            overwrite: true,
+            cancellationToken
+        ).ConfigureAwait(false);
+
+        PatchHelper.Log($"[Cloud] Android local cancellable write: {path} -> {fullPath} ({bytes.Length} bytes)");
+        CloudSyncCoordinator.MirrorLocalSaveWrite(
+            path,
+            bytes,
+            cancellationToken
+        );
     }
 }

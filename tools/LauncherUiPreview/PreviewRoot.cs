@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Godot;
 using STS2Mobile.Launcher;
+using STS2Mobile.Steam;
 
 namespace LauncherUiPreview;
 
@@ -44,6 +45,10 @@ public partial class PreviewRoot : Control
             _previewRoot,
             touchOptimized: ReadBool("touch", true),
             viewportSize: new Vector2(width, height)
+        );
+        LauncherCloudProgressPreviewValidator.Validate(
+            _previewRoot,
+            Read("fixture", "ready")
         );
         RenderingServer.ForceDraw(swapBuffers: false, frameStep: 0d);
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
@@ -126,21 +131,132 @@ public partial class PreviewRoot : Control
                 view.ShowRetry();
                 break;
             case "ready":
-                view.SetActionPreferences(
-                    new LauncherPreferences.ActionPreferences(
-                        localBackupEnabled: true,
-                        cloudSyncEnabled: true,
-                        gameBranch: "public",
-                        rendererMode: LauncherRendererMode.Auto
-                    )
-                );
-                view.SetStatus("Ready to play the selected Default game version.");
-                view.ShowLaunchActions("Start Game", showUpdate: true);
+                ApplyReadyFixture(view);
+                break;
+            case "pull-transfer":
+                ApplyReadyFixture(view);
+                view.SetCloudOperationState(ActivePullState());
+                view.SetPushPullDisabled(disabled: true);
+                break;
+            case "pull-complete":
+                ApplyReadyFixture(view);
+                view.SetCloudOperationState(CompletedPullState());
                 view.SetPushPullDisabled(disabled: false);
                 break;
             default:
                 throw new ArgumentException($"Unknown preview fixture: {fixture}");
         }
+    }
+
+    private static void ApplyReadyFixture(LauncherView view)
+    {
+        view.SetActionPreferences(
+            new LauncherPreferences.ActionPreferences(
+                localBackupEnabled: true,
+                cloudSyncEnabled: true,
+                gameBranch: "public",
+                rendererMode: LauncherRendererMode.Auto
+            )
+        );
+        view.SetStatus("Ready to play the selected Default game version.");
+        view.ShowLaunchActions("Start Game", showUpdate: true);
+        view.SetPushPullDisabled(disabled: false);
+    }
+
+    private static CloudOperationState ActivePullState()
+    {
+        var tracker = PreparedPullTracker();
+        tracker.TransferStarted(24);
+        for (var index = 0; index < 8; index++)
+        {
+            tracker.TransferProcessed(
+                $"profile1/saves/history/download-{index + 1}.run",
+                completed: true,
+                skipped: false
+            );
+        }
+        for (var index = 0; index < 3; index++)
+        {
+            tracker.TransferProcessed(
+                $"profile2/saves/history/missing-{index + 1}.run",
+                completed: false,
+                skipped: true
+            );
+        }
+        tracker.TransferPathStarted("profile2/saves/progress.save");
+        return tracker.State;
+    }
+
+    private static CloudOperationState CompletedPullState()
+    {
+        var tracker = PreparedPullTracker();
+        tracker.TransferStarted(24);
+        for (var index = 0; index < 18; index++)
+        {
+            tracker.TransferProcessed(
+                $"profile1/saves/history/download-{index + 1}.run",
+                completed: true,
+                skipped: false
+            );
+        }
+        for (var index = 0; index < 5; index++)
+        {
+            tracker.TransferProcessed(
+                $"profile2/saves/history/missing-{index + 1}.run",
+                completed: false,
+                skipped: true
+            );
+        }
+        tracker.TransferProcessed(
+            "profile3/saves/history/failed.run",
+            completed: false,
+            skipped: false
+        );
+        tracker.ProfileSeedingStarted(6);
+        for (var index = 0; index < 4; index++)
+        {
+            tracker.ProfileSeedProcessed(
+                $"modded/profile{index % 3 + 1}/saves/seed-{index + 1}.save",
+                seeded: true
+            );
+        }
+        for (var index = 0; index < 2; index++)
+        {
+            tracker.ProfileSeedProcessed(
+                $"modded/profile{index + 1}/saves/skipped-{index + 1}.save",
+                seeded: false
+            );
+        }
+        tracker.Finalizing("Refreshing the launcher backup mirror");
+        tracker.Completed("All cloud sync steps completed");
+        return tracker.State;
+    }
+
+    private static CloudOperationProgressTracker PreparedPullTracker()
+    {
+        var tracker = new CloudOperationProgressTracker(
+            CloudOperationKind.Pull
+        );
+        tracker.Preparing("Connecting to Steam Cloud");
+        tracker.EnumerationStarted("Checking Steam Cloud save locations");
+        tracker.EnumerationCompleted(24);
+        tracker.BackupStarted(24);
+        for (var index = 0; index < 24; index++)
+        {
+            tracker.BackupProcessed(
+                $"profile{index % 3 + 1}/saves/backup-{index + 1}.save",
+                created: index < 3
+            );
+        }
+        tracker.ProfilePreparationStarted(6);
+        for (var index = 0; index < 6; index++)
+        {
+            tracker.ProfilePreparationProcessed(
+                $"modded/profile{index % 3 + 1}/saves/target-{index + 1}.save",
+                backupCreated: index < 2
+            );
+        }
+        return tracker;
     }
 
     private async Task NextFrames(int count)

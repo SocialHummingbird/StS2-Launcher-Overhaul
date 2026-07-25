@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace STS2Mobile.Steam;
 
@@ -15,7 +16,13 @@ internal partial class SteamKit2CloudSaveStore
         private DateTimeOffset _nextLoadRetryTime = DateTimeOffset.MinValue;
 
         private void EnsureLoaded()
+            => EnsureLoaded(CancellationToken.None);
+
+        internal void EnsureLoaded(
+            CancellationToken cancellationToken
+        )
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (_loaded)
                 return;
             if (!CanAttemptLoad(DateTimeOffset.UtcNow))
@@ -23,13 +30,19 @@ internal partial class SteamKit2CloudSaveStore
 
             lock (_loadLock)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (_loaded || !CanAttemptLoad(DateTimeOffset.UtcNow))
                     return;
 
                 try
                 {
-                    LoadFileList();
+                    LoadFileList(cancellationToken);
                     _loaded = true;
+                }
+                catch (OperationCanceledException)
+                    when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
