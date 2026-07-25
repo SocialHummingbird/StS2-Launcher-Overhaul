@@ -8,8 +8,20 @@ $launcherSource = Join-Path $root "android\src\com\game\sts2launcher\LauncherAct
 $routeGateSource = Join-Path $root (
     "android\src\com\game\sts2launcher\AndroidStartupRouteGate.java"
 )
+$pendingLaunchStateSource = Join-Path $root (
+    "android\src\com\game\sts2launcher\AndroidPendingLaunchState.java"
+)
+$recoveryControllerSource = Join-Path $root (
+    "android\src\com\game\sts2launcher\AndroidNativeRecoveryController.java"
+)
 $lifecycleTest = Join-Path $root "scripts\tests\GodotActivityLifecycleRegressionTest.java"
 $routingTest = Join-Path $root "scripts\tests\AndroidStartupRoutingRegressionTest.java"
+$recoveryRoutingTest = Join-Path $root (
+    "scripts\tests\AndroidNativeRecoveryRoutingTest.java"
+)
+$fallbackSource = Join-Path $root (
+    "android\src\com\game\sts2launcher\NativeFallbackActivity.java"
+)
 $output = Join-Path ([System.IO.Path]::GetTempPath()) (
     "sts2-godot-lifecycle-" + [Guid]::NewGuid().ToString("N")
 )
@@ -54,7 +66,13 @@ $java = Resolve-JavaTool "java"
 
 try {
     New-Item -ItemType Directory -Force -Path $output | Out-Null
-    & $javac -d $output $routeGateSource $lifecycleTest $routingTest
+    & $javac -d $output `
+        $routeGateSource `
+        $pendingLaunchStateSource `
+        $recoveryControllerSource `
+        $lifecycleTest `
+        $routingTest `
+        $recoveryRoutingTest
     if ($LASTEXITCODE -ne 0) {
         throw "javac failed for Android startup lifecycle regression tests."
     }
@@ -74,6 +92,15 @@ try {
         $godotSource
     if ($LASTEXITCODE -ne 0) {
         throw "Android startup routing regression tests failed."
+    }
+
+    & $java `
+        -cp $output `
+        com.game.sts2launcher.AndroidNativeRecoveryRoutingTest `
+        $fallbackSource `
+        $launcherSource
+    if ($LASTEXITCODE -ne 0) {
+        throw "Android native recovery routing tests failed."
     }
 } finally {
     if (Test-Path -LiteralPath $output) {

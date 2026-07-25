@@ -54,6 +54,8 @@ public class NativeFallbackActivity extends Activity {
 	private String reasonTitle;
 	private String reasonMessage;
 	private Thread diagnosticsThread;
+	private final AndroidNativeRecoveryController recoveryController =
+		new AndroidNativeRecoveryController();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -830,10 +832,50 @@ public class NativeFallbackActivity extends Activity {
 	}
 
 	private void restartApp() {
+		AndroidNativeRecoveryController.RestartResult result =
+			recoveryController.restart(
+				() -> AndroidPendingLaunchStateAdapter.clearForRecovery(
+					this,
+					getIntent()
+				),
+				this::startLauncherAfterNativeRecovery
+			);
+		if (!result.started()) {
+			Log.w(TAG, "Ignoring duplicate Restart launcher action");
+			recordStartupPhase(
+				"native fallback recovery duplicate blocked",
+				"LauncherActivity"
+			);
+		}
+	}
+
+	private void startLauncherAfterNativeRecovery(
+		AndroidPendingLaunchState.ClearResult clearedState
+	) {
+		String clearedSummary = clearedState == null
+			? "clearedState=<none>"
+			: clearedState.summary();
+		Log.i(
+			TAG,
+			"Restarting launcher after native fallback recovery: "
+				+ clearedSummary
+		);
+		recordStartupPhase(
+			"native fallback recovery restart",
+			clearedSummary
+		);
 		Intent intent = new Intent(this, LauncherActivity.class);
+		intent.putExtra(
+			AndroidPendingLaunchState.NATIVE_RECOVERY_INTENT_EXTRA,
+			true
+		);
 		intent.putExtra(AndroidBootTransitionPolicy.SKIP_INTENT_EXTRA, true);
 		intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
 		startActivity(intent);
+		recordStartupPhase(
+			"native fallback recovery route started",
+			"LauncherActivity"
+		);
 		finish();
 	}
 

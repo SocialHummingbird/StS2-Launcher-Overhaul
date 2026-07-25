@@ -7,6 +7,8 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -43,6 +45,17 @@ public final class AndroidAssemblyBootstrapperTest {
 		testInterruptedReplacementRestoresBackup();
 		testFailedPromotionsPreserveExistingValidCache();
 		testInvalidGameAssemblyPreservesExistingValidGameCache();
+		testUnpatchedPublicGamePromotesWithoutRuntimePack();
+		testEmptyPublicRuntimePackDirectoryDoesNotBlockGame();
+		testPatchedPublicRuntimePackPromotesAgainstManifestIdentity();
+		testPatchedRuntimePackCacheHitUsesManifestIdentity();
+		testPatchedPublicBetaRuntimePackPromotesAgainstManifestIdentity();
+		testRuntimePackSupportAssemblyOverridesSelectedGameAssembly();
+		testChangedGameVersionRejectsStaleRuntimePack();
+		testChangedPckRejectsStaleRuntimePack();
+		testCorruptedRuntimePackPreservesActiveCacheAndRetries();
+		testMismatchedPatchReportRoutesToDiagnostics();
+		testBootstrapOnlyPreparationIgnoresRuntimePack();
 		System.out.println("Android assembly bootstrapper tests passed.");
 	}
 
@@ -525,6 +538,411 @@ public final class AndroidAssemblyBootstrapperTest {
 		}
 	}
 
+	private static void testUnpatchedPublicGamePromotesWithoutRuntimePack()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-unpatched-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			Path source = environment.makeGameReady("public");
+			String selectedGameAssembly = Files.readString(
+				source.resolve("sts2.dll"),
+				StandardCharsets.UTF_8
+			);
+
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, true);
+
+			assertTrue("unpatched public game preparation succeeds", result.isSuccess());
+			assertEquals(
+				"selected-game assembly promoted",
+				selectedGameAssembly,
+				Files.readString(
+					publishDirectory(root).resolve("sts2.dll"),
+					StandardCharsets.UTF_8
+				)
+			);
+			assertContains(
+				"selected-game runtime identity",
+				environment.cacheState.runtimeId,
+				"runtimeSource=selected-game"
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
+	private static void testEmptyPublicRuntimePackDirectoryDoesNotBlockGame()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-empty-pack-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			Path source = environment.makeGameReady("public");
+			Files.createDirectories(root.resolve("runtime_packs/public"));
+
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, true);
+
+			assertTrue("empty pack directory does not block public game", result.isSuccess());
+			assertEquals(
+				"empty pack directory retains selected-game source",
+				Files.readString(
+					source.resolve("sts2.dll"),
+					StandardCharsets.UTF_8
+				),
+				Files.readString(
+					publishDirectory(root).resolve("sts2.dll"),
+					StandardCharsets.UTF_8
+				)
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
+	private static void testPatchedPublicRuntimePackPromotesAgainstManifestIdentity()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-public-pack-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			Path source = environment.makeGameReady("public");
+			String selectedGameAssembly = Files.readString(
+				source.resolve("sts2.dll"),
+				StandardCharsets.UTF_8
+			);
+			String patchedAssembly =
+				"patched-runtime-pack-sts2-that-has-a-different-size";
+			environment.makeRuntimePack(patchedAssembly);
+
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, true);
+
+			assertTrue("patched public runtime pack succeeds", result.isSuccess());
+			assertNotEquals(
+				"fixture proves source and patched sizes differ",
+				selectedGameAssembly.length(),
+				patchedAssembly.length()
+			);
+			assertEquals(
+				"patched runtime assembly promoted",
+				patchedAssembly,
+				Files.readString(
+					publishDirectory(root).resolve("sts2.dll"),
+					StandardCharsets.UTF_8
+				)
+			);
+			assertContains(
+				"runtime-pack cache identity",
+				environment.cacheState.runtimeId,
+				"runtimeSource=runtime-pack"
+			);
+			assertInfoContains(
+				"runtime-pack diagnostics expected source",
+				environment,
+				"sts2.dll",
+				"expectedSource=runtime-pack"
+			);
+			assertFalse(
+				"compatibility metadata is not copied into Mono cache",
+				Files.exists(
+					publishDirectory(root).resolve("compatibility.json")
+				)
+			);
+			assertFalse(
+				"patch report is not copied into Mono cache",
+				Files.exists(
+					publishDirectory(root).resolve("patch_validation.json")
+				)
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
+	private static void testPatchedRuntimePackCacheHitUsesManifestIdentity()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-pack-hit-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			environment.makeGameReady("public");
+			environment.makeRuntimePack("cache-hit-patched-runtime");
+			assertTrue(
+				"initial patched runtime pack succeeds",
+				prepare(environment, true).isSuccess()
+			);
+			environment.infoMessages.clear();
+
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, true);
+
+			assertTrue("patched runtime pack cache hit succeeds", result.isSuccess());
+			assertInfoContains(
+				"cache hit recorded",
+				environment,
+				"Assembly cache diagnostics [cache-hit]",
+				"runtimeSource=runtime-pack"
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
+	private static void
+		testPatchedPublicBetaRuntimePackPromotesAgainstManifestIdentity()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-beta-pack-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			environment.makeGameReady("public-beta");
+			String patchedAssembly = "beta-patched-runtime-pack-sts2";
+			environment.makeRuntimePack(patchedAssembly);
+
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, true);
+
+			assertTrue("patched beta runtime pack succeeds", result.isSuccess());
+			assertEquals(
+				"beta patched runtime assembly promoted",
+				patchedAssembly,
+				Files.readString(
+					publishDirectory(root).resolve("sts2.dll"),
+					StandardCharsets.UTF_8
+				)
+			);
+			assertEquals(
+				"beta branch recorded",
+				"public-beta",
+				environment.cacheState.branch
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
+	private static void
+		testRuntimePackSupportAssemblyOverridesSelectedGameAssembly()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-pack-support-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			Path source = environment.makeGameReady("public");
+			String selectedSteamworks = Files.readString(
+				source.resolve("Steamworks.NET.dll"),
+				StandardCharsets.UTF_8
+			);
+			String runtimeSteamworks =
+				"runtime-pack-steamworks-with-a-different-size";
+			Map<String, String> supportAssemblies = new LinkedHashMap<>();
+			supportAssemblies.put("Steamworks.NET.dll", runtimeSteamworks);
+			environment.makeRuntimePack(
+				"patched-runtime-with-support",
+				supportAssemblies
+			);
+
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, true);
+
+			assertTrue("runtime-pack support override succeeds", result.isSuccess());
+			assertNotEquals(
+				"support fixture differs from selected game",
+				selectedSteamworks,
+				runtimeSteamworks
+			);
+			assertEquals(
+				"runtime-pack support assembly promoted",
+				runtimeSteamworks,
+				Files.readString(
+					publishDirectory(root).resolve("Steamworks.NET.dll"),
+					StandardCharsets.UTF_8
+				)
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
+	private static void testChangedGameVersionRejectsStaleRuntimePack()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-version-drift-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			Path source = environment.makeGameReady("public");
+			String patchedAssembly = "version-one-patched-runtime";
+			environment.makeRuntimePack(patchedAssembly);
+			assertTrue(
+				"initial runtime pack succeeds",
+				prepare(environment, true).isSuccess()
+			);
+
+			Files.writeString(
+				source.resolve("sts2.dll"),
+				"game-version-two-source",
+				StandardCharsets.UTF_8
+			);
+			RecordingTimeline timeline = new RecordingTimeline();
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, true, timeline);
+
+			assertFalse("stale runtime pack rejected after game update", result.isSuccess());
+			assertEquals(
+				"previous active patched assembly preserved",
+				patchedAssembly,
+				Files.readString(
+					publishDirectory(root).resolve("sts2.dll"),
+					StandardCharsets.UTF_8
+				)
+			);
+			assertContains(
+				"stale pack diagnostics",
+				result.diagnostics(),
+				"Runtime pack usable: false"
+			);
+			assertEquals(
+				"stale pack retried once",
+				1,
+				timeline.count("native assembly setup retry")
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
+	private static void testChangedPckRejectsStaleRuntimePack()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-pck-drift-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			environment.makeGameReady("public");
+			String patchedAssembly = "known-good-pck-runtime";
+			environment.makeRuntimePack(patchedAssembly);
+			assertTrue(
+				"initial PCK runtime pack succeeds",
+				prepare(environment, true).isSuccess()
+			);
+
+			Path pck = environment.game.resolve("SlayTheSpire2.pck");
+			byte[] changedPck = Files.readAllBytes(pck);
+			changedPck[72] = 42;
+			Files.write(pck, changedPck);
+
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, true);
+
+			assertFalse("stale runtime pack rejected after PCK update", result.isSuccess());
+			assertEquals(
+				"PCK drift preserves previous active runtime",
+				patchedAssembly,
+				Files.readString(
+					publishDirectory(root).resolve("sts2.dll"),
+					StandardCharsets.UTF_8
+				)
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
+	private static void testCorruptedRuntimePackPreservesActiveCacheAndRetries()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-pack-corrupt-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			environment.makeGameReady("public");
+			String patchedAssembly = "known-good-patched-runtime";
+			Path runtimePack = environment.makeRuntimePack(patchedAssembly);
+			assertTrue(
+				"known-good runtime pack succeeds",
+				prepare(environment, true).isSuccess()
+			);
+
+			Files.writeString(
+				runtimePack.resolve("sts2.dll"),
+				"corrupted-runtime-pack",
+				StandardCharsets.UTF_8
+			);
+			RecordingTimeline timeline = new RecordingTimeline();
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, true, timeline);
+
+			assertFalse("corrupted runtime pack rejected", result.isSuccess());
+			assertEquals(
+				"known-good active cache preserved",
+				patchedAssembly,
+				Files.readString(
+					publishDirectory(root).resolve("sts2.dll"),
+					StandardCharsets.UTF_8
+				)
+			);
+			assertEquals(
+				"corrupted pack retried once",
+				1,
+				timeline.count("native assembly setup retry")
+			);
+			assertFalse(
+				"corrupted pack leaves no staging cache",
+				Files.exists(stagingDirectory(root))
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
+	private static void testMismatchedPatchReportRoutesToDiagnostics()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-report-mismatch-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			environment.makeGameReady("public-beta");
+			Path runtimePack = environment.makeRuntimePack("beta-patched-runtime");
+			Files.writeString(
+				runtimePack.resolve("patch_validation.json"),
+				"{\"status\":\"passed\",\"runtimePackId\":\"wrong-pack\"}",
+				StandardCharsets.UTF_8
+			);
+
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, true);
+
+			assertFalse("mismatched report rejects runtime pack", result.isSuccess());
+			assertContains(
+				"mismatched report diagnostics",
+				result.diagnostics(),
+				"Runtime pack usable: false"
+			);
+			assertFalse(
+				"mismatched report never promotes game cache",
+				Files.exists(publishDirectory(root).resolve("sts2.dll"))
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
+	private static void testBootstrapOnlyPreparationIgnoresRuntimePack()
+		throws Exception {
+		Path root = Files.createTempDirectory("sts2-assembly-bootstrap-pack-");
+		try {
+			FakeEnvironment environment = FakeEnvironment.create(root);
+			environment.makeGameReady("public");
+			environment.makeRuntimePack("patched-runtime-not-for-launcher");
+
+			AndroidAssemblyBootstrapper.Result result =
+				prepare(environment, false);
+
+			assertTrue("bootstrap-only preparation succeeds", result.isSuccess());
+			assertFalse(
+				"bootstrap-only cache contains no game assembly",
+				Files.exists(publishDirectory(root).resolve("sts2.dll"))
+			);
+			assertContains(
+				"bootstrap runtime identity retained",
+				environment.cacheState.runtimeId,
+				"bootstrap|package="
+			);
+		} finally {
+			deleteTree(root);
+		}
+	}
+
 	private static AndroidAssemblyBootstrapper.Result prepare(
 		FakeEnvironment environment
 	) {
@@ -535,10 +953,22 @@ public final class AndroidAssemblyBootstrapperTest {
 		FakeEnvironment environment,
 		boolean pendingGameLaunch
 	) {
-		return new AndroidAssemblyBootstrapper(
+		return prepare(
 			environment,
 			pendingGameLaunch,
 			new RecordingTimeline()
+		);
+	}
+
+	private static AndroidAssemblyBootstrapper.Result prepare(
+		FakeEnvironment environment,
+		boolean pendingGameLaunch,
+		RecordingTimeline timeline
+	) {
+		return new AndroidAssemblyBootstrapper(
+			environment,
+			pendingGameLaunch,
+			timeline
 		).prepare();
 	}
 
@@ -614,6 +1044,18 @@ public final class AndroidAssemblyBootstrapperTest {
 		}
 	}
 
+	private static void assertNotEquals(
+		String label,
+		Object unexpected,
+		Object actual
+	) {
+		if (unexpected.equals(actual)) {
+			throw new AssertionError(
+				label + ": did not expect=" + unexpected
+			);
+		}
+	}
+
 	private static void assertContains(
 		String label,
 		String actual,
@@ -638,6 +1080,23 @@ public final class AndroidAssemblyBootstrapperTest {
 					+ " but was " + actual
 			);
 		}
+	}
+
+	private static void assertInfoContains(
+		String label,
+		FakeEnvironment environment,
+		String first,
+		String second
+	) {
+		for (String message : environment.infoMessages) {
+			if (message.contains(first) && message.contains(second)) {
+				return;
+			}
+		}
+		throw new AssertionError(
+			label + ": expected one info message containing "
+				+ first + " and " + second
+		);
 	}
 
 	private static final class RecordingTimeline
@@ -671,6 +1130,8 @@ public final class AndroidAssemblyBootstrapperTest {
 		private int remainingAssetFailures;
 		private int remainingStagingPromotionFailures;
 		private long availableStorageBytes = 123_456L;
+		private String selectedBranch = "public";
+		private final List<String> infoMessages = new ArrayList<>();
 
 		private FakeEnvironment(
 			Path root,
@@ -717,6 +1178,11 @@ public final class AndroidAssemblyBootstrapperTest {
 		}
 
 		Path makePublicGameReady() throws IOException {
+			return makeGameReady("public");
+		}
+
+		Path makeGameReady(String branch) throws IOException {
+			selectedBranch = branch;
 			byte[] pck = new byte[96];
 			pck[0] = 0x47;
 			pck[1] = 0x44;
@@ -734,7 +1200,132 @@ public final class AndroidAssemblyBootstrapperTest {
 					StandardCharsets.UTF_8
 				);
 			}
+			if (!"public".equalsIgnoreCase(branch)) {
+				Path installSlot = root
+					.resolve("game_versions")
+					.resolve(SteamBranchInfo.stateDirectoryName(branch));
+				String marker = "Branch: " + branch + "\n"
+					+ "Install slot kind: "
+					+ SteamBranchInfo.installSlotKind(branch) + "\n"
+					+ "Install slot directory: " + installSlot + "\n"
+					+ "Depot manifest: 123456\n"
+					+ "Depot manifests matching public count: 0\n"
+					+ "Depot manifests differing from public count: 1\n"
+					+ "Depot manifests without public comparison count: 0\n"
+					+ "Depot manifests inherited from public count: 0\n"
+					+ "Depot manifests missing selected branch manifest count: 0\n";
+				Files.writeString(
+					game.resolve("steam_branch.txt"),
+					marker,
+					StandardCharsets.UTF_8
+				);
+			}
 			return source;
+		}
+
+		Path makeRuntimePack(String patchedAssembly) throws Exception {
+			return makeRuntimePack(
+				patchedAssembly,
+				java.util.Collections.emptyMap()
+			);
+		}
+
+		Path makeRuntimePack(
+			String patchedAssembly,
+			Map<String, String> supportAssemblies
+		) throws Exception {
+			Path source = game.resolve("data_android/sts2.dll");
+			Path pck = game.resolve("SlayTheSpire2.pck");
+			Path directory = Files.createDirectories(
+				root.resolve("runtime_packs").resolve(
+					SteamBranchInfo.stateDirectoryName(selectedBranch)
+				)
+			);
+			Path androidAssembly = directory.resolve("sts2.dll");
+			Files.writeString(
+				androidAssembly,
+				patchedAssembly,
+				StandardCharsets.UTF_8
+			);
+			String packId = selectedBranch + "-test-pack";
+			String sourceSlotId = selectedBranch + "-test-slot";
+			String pckSha256 = sha256Hex(pck);
+			String sourceSha256 = sha256Hex(source);
+			String androidSha256 = sha256Hex(androidAssembly);
+			StringBuilder supportNamesJson = new StringBuilder("[");
+			StringBuilder supportHashesJson = new StringBuilder("{");
+			boolean firstSupport = true;
+			for (
+				Map.Entry<String, String> support
+					: supportAssemblies.entrySet()
+			) {
+				if (!firstSupport) {
+					supportNamesJson.append(',');
+					supportHashesJson.append(',');
+				}
+				firstSupport = false;
+				Path supportPath = directory.resolve(support.getKey());
+				Files.writeString(
+					supportPath,
+					support.getValue(),
+					StandardCharsets.UTF_8
+				);
+				supportNamesJson
+					.append('"')
+					.append(support.getKey())
+					.append('"');
+				supportHashesJson
+					.append('"')
+					.append(support.getKey())
+					.append("\":\"")
+					.append(sha256Hex(supportPath))
+					.append('"');
+			}
+			supportNamesJson.append(']');
+			supportHashesJson.append('}');
+			String shared = "\"sourceRuntimeSlotId\":\"" + sourceSlotId + "\","
+				+ "\"sourceBranch\":\"" + selectedBranch + "\","
+				+ "\"sourcePckSha256\":\"" + pckSha256 + "\","
+				+ "\"sourceAssemblySha256\":\"" + sourceSha256 + "\","
+				+ "\"androidAssemblySha256\":\"" + androidSha256 + "\","
+				+ "\"patchSetVersion\":\"test-patch-set\","
+				+ "\"validationSurfaceVersion\":\"test-surface\","
+				+ "\"supportAssemblies\":" + supportNamesJson + ","
+				+ "\"supportAssemblySha256\":" + supportHashesJson + ","
+				+ "\"generatedFromCleanDirectory\":true";
+			String manifest = "{\"packId\":\"" + packId + "\","
+				+ shared + ",\"patchValidationStatus\":\"passed\"}";
+			String report = "{\"status\":\"passed\","
+				+ "\"runtimePackId\":\"" + packId + "\","
+				+ "\"branch\":\"" + selectedBranch + "\","
+				+ "\"pckSha256\":\"" + pckSha256 + "\","
+				+ shared + "}";
+			Files.writeString(
+				directory.resolve("compatibility.json"),
+				manifest,
+				StandardCharsets.UTF_8
+			);
+			Files.writeString(
+				directory.resolve("patch_validation.json"),
+				report,
+				StandardCharsets.UTF_8
+			);
+			return directory;
+		}
+
+		private static String sha256Hex(Path path) throws Exception {
+			MessageDigest digest;
+			try {
+				digest = MessageDigest.getInstance("SHA-256");
+			} catch (NoSuchAlgorithmException error) {
+				throw new IllegalStateException(error);
+			}
+			byte[] hash = digest.digest(Files.readAllBytes(path));
+			StringBuilder text = new StringBuilder(hash.length * 2);
+			for (byte value : hash) {
+				text.append(String.format("%02x", value & 0xff));
+			}
+			return text.toString();
 		}
 
 		private static void writeLongLittleEndian(
@@ -760,7 +1351,7 @@ public final class AndroidAssemblyBootstrapperTest {
 
 		@Override
 		public String selectedBranch() {
-			return "public";
+			return selectedBranch;
 		}
 
 		@Override
@@ -862,6 +1453,7 @@ public final class AndroidAssemblyBootstrapperTest {
 
 		@Override
 		public void info(String message) {
+			infoMessages.add(message);
 		}
 
 		@Override

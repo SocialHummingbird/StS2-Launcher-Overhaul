@@ -1,6 +1,6 @@
 # Current Android Status
 
-_Last updated: 2026-07-17_
+_Last updated: 2026-07-25_
 
 See [Unofficial project notice](unofficial-project-notice.md). StS2 Launcher is an unofficial community launcher, is not affiliated with or endorsed by Mega Crit Games, and bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
@@ -17,7 +17,15 @@ Current device evidence ledgers:
 
 ## Headline
 
-The app works on the validated ARM64 Android path, but it is still unofficial prerelease tester software rather than release-candidate signoff. `v0.2.401-native-modded-save-pull` is the current GitHub release. It retains the PowerVR-to-OpenGL compatibility work and adds native modded-save restoration after Manual Pull. The save repair has build and policy proof but still needs exact-APK device confirmation; PowerVR reporter confirmation, complete physical validation of the redesigned launcher, broader Workshop/mod and branch hardening, controller evidence, confirmed Push safety, and release-readiness cleanup also remain open.
+The app works on the validated ARM64 Android path, but it remains unofficial prerelease tester software rather than broad device signoff. `v0.2.416-startup-recovery-ime` is the current GitHub release. It corrects authentic patched runtime-pack validation, prevents native fallback restart loops, suppresses unintended launcher keyboard requests, and retains the observable/cancellable cloud workflow from `v0.2.412`. The exact final APK reaches real public-branch `NMainMenu` and remains there through the 60-second heartbeat on the connected Samsung device. Xiaomi issue #36 and Odin cloud issue #35 still require reporter confirmation; broader Workshop/mod, branch, controller, graphics-driver, and confirmed Steam Cloud Push coverage also remain open.
+
+July 25 Android startup/recovery/IME status:
+
+- Exact non-debuggable local-test APK `0.2.416-startup-recovery-ime-local` / version code `416001` / SHA-256 `fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b` was installed as an in-place update on Samsung `SM-F966B` / Android 16 / ARM64. The pulled installed `base.apk` hash matches the release artifact.
+- Public Start Game selected the usable public runtime pack, validated patched `sts2.dll` size `9305600` and SHA-256 `5c3c2bead75b05883073e7ed99420c1241ecd0f99c0407bda8677a9ec7caca27` against runtime-pack evidence, continued validating ordinary dependencies against the selected game install, promoted the staged cache, reached real `NMainMenu`, and logged 1s, 3s, 10s, 30s, and 60s heartbeats.
+- A controlled missing-runtime-validation-report probe on cumulative debuggable build `0.2.415-launcher-ime-evidence` retried once and routed to `NativeFallbackActivity` without starting `GodotApp`, `SuperNotCalledException`, cache replacement, fatal exception, or ANR. The report was restored with its original hash.
+- The actual native **Restart launcher** button cleared the carried game-launch payload, blocked duplicate routing, started `LauncherActivity` exactly once with transition skip, and reached the ready launcher. The launcher remained at `mInputShown=false` after cold start and boot cleanup.
+- Pure Android bootstrapper/lifecycle/routing/recovery/IME/boot tests, managed Release compilation, non-mutating cloud production-path tests, Gradle release assembly, ARM64 structure/crypto checks, and update compatibility from `v0.2.412` pass. No automated lock/sleep/power-key test and no Steam Cloud Push was run.
 
 July 16 PowerVR input compatibility status:
 
@@ -25,7 +33,7 @@ July 16 PowerVR input compatibility status:
 - Auto, Vulkan, and Safe Start show the game but do not accept touch. OpenGL accepts touch. Its menus are initially slow, while gameplay and the menu after returning from gameplay are normal. This is renderer/driver behavior, not evidence of an old or underpowered device and not a launcher handoff, shader-warmup, or memory-pressure crash.
 - `v0.2.400` records the live Godot adapter name, vendor, driver, and method in `graphics_device.txt`. If the adapter or vendor is PowerVR/ImgTec/Imagination, the managed launcher selects OpenGL and the native Android restart boundary forces `opengl3` plus `gl_compatibility` for every requested mode, including Vulkan and Safe Start.
 - Exact release APK `0.2.400-powervr-touch-compat-local` / version code `400001` / SHA-256 `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3` passed APK structure, ABI, crypto-patch, Java policy, static audit, and Release C# build checks. Its pulled installed `base.apk` hash matches the release artifact. On Samsung `SM-F966B` / Android 16 / Adreno 830, Auto remained Vulkan and accepted touch, Safe Start remained unforced Vulkan, explicit Vulkan remained Vulkan, and explicit OpenGL reached `NMainMenu` and accepted touch.
-- A synthetic reporter-class PowerVR marker on the same installed APK changed a saved Vulkan request to effective OpenGL, reached `NMainMenu`, wrote the three-second post-startup probe, and accepted the touch that opened character selection. This validates the Android policy handoff, not the real PowerVR driver. Reporter hardware must still confirm touch and measure the cold-menu delay. Steam Cloud Push was not run.
+- A synthetic reporter-class PowerVR marker on the same installed APK changed a saved Vulkan request to effective OpenGL, reached `NMainMenu`, wrote the three-second post-startup probe, and accepted the touch that opened character selection. The issue #34 reporter later confirmed the real PowerVR Auto route loads the game with active touch; broader PowerVR devices remain unproven. Steam Cloud Push was not run.
 
 July 15 Pixel / PowerVR cause analysis:
 
@@ -84,7 +92,7 @@ Validated locally on ARM64 hardware:
 - The selected `public-beta` branch launches from its side-by-side cache on the local ARM64 version-selection hardening build.
 - The latest local runtime-pack prerelease proves public-after-beta, public/default, and public-beta launch with matched PCK/runtime evidence on ARM64 hardware; fix30 also proves public can launch immediately after a `public-beta` runtime-cache switch without routing to `NativeFallbackActivity`.
 - The latest local UI/public-startup prerelease proves fresh public redownload of `v0.107.1` reaches the game main menu with branch-matched managed runtime evidence and removes the launcher startup status overlay after startup observation.
-- Latest connected `v0.2.400` Workshop/mod evidence reconfirms BaseLib and Quick Restart payload loading, Quick Restart's three Harmony targets, and real `NMainMenu` with no focused fatal or native signal. Same-device v0.2.399 evidence remains the behavioral Quick Restart proof. `v0.2.401` publishes the native modded-save Pull repair, but that behavior has not yet been device-tested on the exact APK; Steam Cloud Push was not run.
+- Latest connected `v0.2.400` Workshop/mod evidence reconfirms BaseLib and Quick Restart payload loading, Quick Restart's three Harmony targets, and real `NMainMenu` with no focused fatal or native signal. Same-device v0.2.399 evidence remains the behavioral Quick Restart proof. Current `v0.2.416` hardware validation used the vanilla public path, so it does not supersede that mod evidence. Steam Cloud Push was not run.
 - Force-stop/relaunch returns to the launcher with saved Steam credentials available.
 
 ## Latest hardening evidence
@@ -159,16 +167,16 @@ remaining=Shader scanner emits noisy Godot error stack traces for some material/
 Latest GitHub APK release evidence:
 
 ```text
-release=v0.2.401-native-modded-save-pull
-asset=StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk
-sha256=1295cdb113010063e2c3a44123cff379f110480bded5c80bd24e4896e8dbcea3
+release=v0.2.416-startup-recovery-ime
+asset=StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk
+sha256=fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b
 package=com.sts2launcher.overhaul.fork.local
-versionName=0.2.401-native-modded-save-pull-local
-versionCode=401001
-validation=Managed compilation, the four-scenario modded-save Pull policy probe, ARM64 structure/content/crypto checks, and package/signer/version update compatibility against v0.2.400 passed. Exact-APK device Manual Pull/save visibility remains untested.
+versionName=0.2.416-startup-recovery-ime-local
+versionCode=416001
+validation=Exact non-debuggable APK installed on Samsung SM-F966B / Android 16, rendered the launcher with IME hidden, promoted the manifest-matched patched public runtime pack, reached real NMainMenu, and remained stable through the 60-second heartbeat. Managed/Java/cloud tests, Gradle release assembly, ARM64 structure/content/crypto checks, installed-artifact hash equality, and package/signer/version update compatibility against v0.2.412 passed.
 cloudSafety=No Push to Cloud was run.
-knownIssue=The native modded-save Pull repair needs exact-APK device confirmation. The reporter proved v0.2.399 reaches the game but loses touch under Vulkan; reporter-class PowerVR testing has not yet confirmed the automatic OpenGL route. Exact-build full cover/inner five-destination visual coverage is also not claimed.
-evidence=GitHub release v0.2.401-native-modded-save-pull assets and metadata; no-device modded-save Pull policy probe; v0.2.400 connected PowerVR-policy and mod evidence.
+knownIssue=Xiaomi issue #36 and Odin cloud issue #35 require reporter confirmation. Exact-build modded startup, confirmed real Steam Cloud Push, broad manufacturer/GPU coverage, and full cover/inner five-destination visual coverage are not claimed.
+evidence=GitHub release v0.2.416-startup-recovery-ime assets and metadata; artifacts/android/v0.2.416-release-hardware-20260725; cumulative forced-failure/recovery evidence under artifacts/android/v0.2.415-cumulative-hardware-20260725.
 ```
 
 Previous GitHub atlas compatibility release evidence:

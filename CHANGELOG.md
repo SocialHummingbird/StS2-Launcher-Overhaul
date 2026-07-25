@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-25 - Android runtime-pack, native recovery, and IME hardening
+
+- Corrected Android assembly validation so the patched `sts2.dll` supplied by the active runtime pack is checked against `compatibility.json` / `patch_validation.json`, while ordinary game assemblies continue to be checked against the selected Steam installation. Patched and source DLLs may now differ in both size and hash without rejecting an authentic runtime pack.
+- Preserved transactional assembly-cache staging, full required-file validation, one retry, and the last valid active cache when runtime-pack evidence is stale, incomplete, corrupt, or interrupted.
+- Changed native fallback recovery to clear pending normal/Safe Start preferences and carried intent payloads before starting `LauncherActivity` exactly once. Restarting the launcher can no longer immediately retrigger the failed game route.
+- Added an Android launcher IME policy around Godot's hidden `GodotEditText`. Launcher startup, boot-transition cleanup, and non-editor resume/focus paths suppress Samsung's unintended keyboard request, while deliberate managed text-field focus remains allowed.
+- Built exact non-debuggable local-test APK `0.2.416-startup-recovery-ime-local` (`416001`, SHA-256 `fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b`) and installed it as an in-place update on ARM64 Samsung `SM-F966B` / Android 16. Public Start Game promoted the manifest-matched runtime-pack assembly, reached real `NMainMenu`, and logged stable 1s, 3s, 10s, 30s, and 60s heartbeats.
+- A cumulative debuggable build exercised a controlled missing-validation-report failure, routed to `NativeFallbackActivity` without `SuperNotCalledException`, preserved the patched active cache, and returned to the launcher through the actual **Restart launcher** button after clearing the pending payload.
+- Android bootstrapper/lifecycle/routing/recovery/IME/boot tests, managed Release compilation, non-mutating cloud production-path tests, Gradle release assembly, ARM64 APK structure and crypto checks, installed-artifact hash comparison, and update compatibility from `v0.2.412` pass. No device lock/power automation, Steam Cloud Push, or core-game modification was performed.
+
 ## 2026-07-17 - Automatic local save backup and recovery
 
 - Changed `Save Backup` from a cloud-operation-only guard into an automatic, path-preserving mirror under `StS2Launcher/Saves/Current`. Existing saves are captured when the setting is applied, before game launch, after Manual Pull/modded-save seeding, and immediately after each successful Android game-save write.

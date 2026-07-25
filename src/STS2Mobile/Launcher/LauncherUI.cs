@@ -20,6 +20,7 @@ internal sealed partial class LauncherUI : Control
     private LauncherController _controller;
     private Vector2 _lastViewportSize;
     private bool _inGameMode;
+    private bool _launcherImeActiveSignalled;
 
     internal void SetGameMode(bool inGameMode) => _inGameMode = inGameMode;
 

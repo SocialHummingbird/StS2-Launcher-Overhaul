@@ -30,7 +30,8 @@ internal sealed class StyledLineEdit : LineEdit
         ShortcutKeysEnabled = true;
         SelectAllOnFocus = true;
         ApplyTheme(scale);
-        FocusEntered += ShowAndroidKeyboard;
+        FocusEntered += OnFocusEntered;
+        FocusExited += OnFocusExited;
         GuiInput += inputEvent =>
         {
             if (ShouldShowKeyboard(inputEvent))
@@ -83,6 +84,7 @@ internal sealed class StyledLineEdit : LineEdit
 
         try
         {
+            AndroidGodotAppBridge.NotifyLauncherTextEditingRequested(true);
             DisplayServer.VirtualKeyboardShow(
                 Text,
                 new Rect2(GlobalPosition, Size),
@@ -96,6 +98,19 @@ internal sealed class StyledLineEdit : LineEdit
         {
             // Some desktop/editor backends do not expose a virtual keyboard.
         }
+    }
+
+    private void OnFocusEntered()
+    {
+        if (OperatingSystem.IsAndroid())
+            AndroidGodotAppBridge.NotifyLauncherTextEditingRequested(true);
+        ShowAndroidKeyboard();
+    }
+
+    private static void OnFocusExited()
+    {
+        if (OperatingSystem.IsAndroid())
+            AndroidGodotAppBridge.NotifyLauncherTextEditingRequested(false);
     }
 
     private static bool ShouldShowKeyboard(InputEvent inputEvent)

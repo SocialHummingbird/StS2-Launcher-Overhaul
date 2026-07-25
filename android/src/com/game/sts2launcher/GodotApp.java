@@ -91,6 +91,7 @@ public class GodotApp extends GodotActivity {
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 	private WifiManager.MulticastLock multicastLock;
 	private AndroidBootTransitionController bootTransitionController;
+	private AndroidLauncherImeController launcherImeController;
 	private String gameDir;
 	private static final String KEYSTORE_ALIAS = "sts2mobile_credentials";
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
@@ -162,6 +163,12 @@ public class GodotApp extends GodotActivity {
 		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
 		boolean pendingSafeLaunch = hasPendingSafeGameLaunchRequest();
 		boolean explicitBootTransitionSkip = consumeBootTransitionSkipExtra();
+		launcherImeController = new AndroidLauncherImeController(
+			this,
+			!pendingGameLaunch,
+			this::recordStartupPhase
+		);
+		launcherImeController.onLauncherStartup();
 		configureRequestedOrientation(pendingGameLaunch);
 		recordStartupPhase("native game directory resolved", "branch=" + selectedBranch + "; pendingGameLaunch=" + pendingGameLaunch);
 		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
@@ -192,6 +199,7 @@ public class GodotApp extends GodotActivity {
 			pendingGameLaunch && !pendingSafeLaunch,
 			pendingSafeLaunch,
 			explicitBootTransitionSkip,
+			this::onBootTransitionPresentationRemoved,
 			this::recordStartupPhase
 		);
 		EdgeToEdge.enable(this);
@@ -939,6 +947,12 @@ public class GodotApp extends GodotActivity {
 		boolean runtimeSlotReady = gameLaunchRequested && isRuntimeSlotEvidenceReadyForLaunch(selectedBranch);
 		Log.i(TAG, "Runtime slot evidence ready for startup: " + runtimeSlotReady);
 		boolean launchRequested = gameLaunchRequested && runtimeSlotReady;
+		if (launcherImeController != null) {
+			launcherImeController.setLauncherUiActive(
+				!launchRequested,
+				"native-command-line-route"
+			);
+		}
 		if (gamePckReady && !branchMarkerReady) {
 			Log.w(TAG, "Blocking selected game version startup because branch marker provenance is missing or mismatched; returning to launcher instead of falling back to another branch.");
 		}
@@ -1820,6 +1834,9 @@ public class GodotApp extends GodotActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
+		if (launcherImeController != null) {
+			launcherImeController.onResume();
+		}
 		if (bootTransitionController != null) {
 			bootTransitionController.resumeSound();
 		}
@@ -1829,6 +1846,9 @@ public class GodotApp extends GodotActivity {
 	@Override
 	protected void onPause() {
 		recordAppLifecycleEvent("activity onPause");
+		if (launcherImeController != null) {
+			launcherImeController.onPause();
+		}
 		if (bootTransitionController != null) {
 			bootTransitionController.pauseSound();
 		}
@@ -1844,6 +1864,9 @@ public class GodotApp extends GodotActivity {
 	@Override
 	public void onWindowFocusChanged(boolean hasFocus) {
 		super.onWindowFocusChanged(hasFocus);
+		if (launcherImeController != null) {
+			launcherImeController.onWindowFocusChanged(hasFocus);
+		}
 		recordAppLifecycleEvent(hasFocus ? "window focus gained" : "window focus lost");
 	}
 
@@ -1855,6 +1878,10 @@ public class GodotApp extends GodotActivity {
 			bootTransitionController = null;
 		}
 		clearSteamLoginCredentialPanel();
+		if (launcherImeController != null) {
+			launcherImeController.destroy();
+			launcherImeController = null;
+		}
 		if (multicastLock != null && multicastLock.isHeld()) {
 			multicastLock.release();
 			Log.i(TAG, "WiFi MulticastLock released");
@@ -1872,6 +1899,27 @@ public class GodotApp extends GodotActivity {
 			bootTransitionController.notifyLauncherReady();
 		} else {
 			recordStartupPhase("boot transition launcher-ready", "controller unavailable");
+		}
+	}
+
+	public void notifyLauncherUiActive(boolean active) {
+		if (launcherImeController != null) {
+			launcherImeController.setLauncherUiActive(active, "managed-launcher-ui");
+		}
+	}
+
+	public void notifyLauncherTextEditingRequested(boolean requested) {
+		if (launcherImeController != null) {
+			launcherImeController.onTextEditingRequested(
+				requested,
+				"managed-line-edit"
+			);
+		}
+	}
+
+	private void onBootTransitionPresentationRemoved() {
+		if (launcherImeController != null) {
+			launcherImeController.onBootTransitionCleanup();
 		}
 	}
 
@@ -2206,10 +2254,22 @@ public class GodotApp extends GodotActivity {
 	}
 
 	public void showSteamLoginCredentialPanel() {
+		if (launcherImeController != null) {
+			launcherImeController.onTextEditingRequested(
+				true,
+				"native-steam-login"
+			);
+		}
 		runOnUiThread(() -> {
 			ensureSteamLoginCredentialPanel();
 			reflowSteamLoginCredentialPanelForCurrentWindow();
 			if (steamLoginCredentialOverlay == null) {
+				if (launcherImeController != null) {
+					launcherImeController.onTextEditingRequested(
+						false,
+						"native-steam-login-unavailable"
+					);
+				}
 				Log.w(TAG, "Native Steam login panel unavailable");
 				return;
 			}
@@ -2234,6 +2294,12 @@ public class GodotApp extends GodotActivity {
 				hideKeyboardForSteamLoginCredentialPanel();
 				clearSteamLoginCredentialPanelSensitiveFields();
 				steamLoginCredentialOverlay.setVisibility(View.GONE);
+			}
+			if (launcherImeController != null) {
+				launcherImeController.onTextEditingRequested(
+					false,
+					"native-steam-login"
+				);
 			}
 		});
 	}

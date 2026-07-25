@@ -26,23 +26,25 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 ## Current Status
 
-StS2 Launcher works on some tested ARM64 Android devices, but compatibility is not broad yet. Treat every APK as prerelease tester software.
+StS2 Launcher works on tested ARM64 Android devices, but compatibility is not broad yet. Treat every APK as prerelease tester software.
 
-Latest published APK: [v0.2.401-native-modded-save-pull](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.401-native-modded-save-pull)
+Latest published APK: [v0.2.416-startup-recovery-ime](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.416-startup-recovery-ime)
 
-- APK asset: `StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk`
+- APK asset: `StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk`
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Version code: `401001`
-- SHA-256: `1295cdb113010063e2c3a44123cff379f110480bded5c80bd24e4896e8dbcea3`
-- Signing channel: local debug/test channel
+- Version code: `416001`
+- SHA-256: `fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b`
+- Signing channel: local test channel
 
 Known important limitations:
 
-- Device compatibility varies. The issue #34 reporter tested `v0.2.399` on Pixel 10 Pro / Android 17 / PowerVR: every renderer mode reached the game, but only OpenGL accepted touch. The `v0.2.400` compatibility fix, retained in `v0.2.401`, detects PowerVR and forces that OpenGL path for Auto, Vulkan, OpenGL, and Safe Start. Reporter confirmation is still required.
+- Device compatibility varies. The exact `v0.2.416` APK reaches the real public-branch game main menu and remains stable through the 60-second heartbeat on the connected Samsung ARM64 test device. This does not prove every manufacturer, Android version, or graphics driver.
+- `v0.2.416` fixes a runtime-pack validation failure that could reject an authentic patched game assembly, a native fallback loop caused by retained pending-launch state, and Samsung's unexpected launcher keyboard. Issue #36 still needs confirmation on the reporter's Xiaomi tablet.
 - The app currently targets ARM64 Android hardware. Android emulator and x86_64 builds are diagnostic only and are not supported for real game launch.
-- Some graphics drivers and renderer paths remain incompatible. On the reported PowerVR device, OpenGL works but its menus can be slow while graphics are first compiled; gameplay and later menu use were reported normal.
-- Steam version selection, beta branches, Workshop mods, and native modded-save compatibility are still experimental. `v0.2.401` deprecates SavesMerger because the game now owns separate modded save paths; its Manual Pull repair still needs exact-APK device confirmation.
-- Steam Cloud Push is intentionally cautious because it can overwrite remote saves. Pull from Steam Cloud first.
+- Some graphics drivers and renderer paths remain incompatible. PowerVR devices are routed to OpenGL because reporter testing found that Vulkan reached the game without usable touch.
+- Steam version selection, beta branches, Workshop mods, and native modded-save compatibility remain experimental.
+- Steam Cloud Pull now has visible phase/progress reporting and Upload explains every blocking safeguard. Steam Cloud Push is intentionally cautious because it can overwrite remote saves; issue #35 still needs confirmation on the reporter's Odin device.
+- No real Steam Cloud Push was run while validating `v0.2.416`. Pull from Steam Cloud first and keep independent backups.
 - This is not a finished consumer app. Expect bugs, incomplete device coverage, and device-specific problems.
 
 Before installing:
@@ -116,7 +118,7 @@ Saves compiled pipelines when the app loses focus, preventing recompilation afte
 - **Canvas ubershaders**  
 Enable ubershader fallback for 2D rendering, eliminating first-encounter VFX stutters from blocking pipeline compilation.
 - **PowerVR transform-feedback cache safety**
-The custom engine remains based on Godot 4.5.1 but backports Godot 4.5.2's all-PowerVR workaround, disabling the unsafe GLES3 transform-feedback shader cache whenever the renderer name contains `PowerVR`. `v0.2.400` additionally reads the live GPU identity and forces OpenGL Compatibility on PowerVR because reporter testing showed that Vulkan reached the game but did not accept touch. Non-PowerVR devices retain Auto, Vulkan, OpenGL, and Safe Start behavior. Pixel 10 / PowerVR issue #34 remains open until a reporter-class device confirms this release.
+The custom engine remains based on Godot 4.5.1 but backports Godot 4.5.2's all-PowerVR workaround, disabling the unsafe GLES3 transform-feedback shader cache whenever the renderer name contains `PowerVR`. `v0.2.400` additionally reads the live GPU identity and forces OpenGL Compatibility on PowerVR because reporter testing showed that Vulkan reached the game but did not accept touch. Non-PowerVR devices retain Auto, Vulkan, OpenGL, and Safe Start behavior. The issue #34 reporter subsequently confirmed that the automatic PowerVR/OpenGL route loads the game with active touch.
 
 ## Project Structure
 
@@ -167,7 +169,7 @@ For physical UI validation, connect one ARM64 Android device with USB debugging 
 .\scripts\test-launcher-ui-device.ps1
 ```
 
-This verifies and installs `StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk` without clearing app data, launches it, captures portrait and landscape screenshots plus focused lifecycle/fatal logs under `artifacts/android/launcher-ui-device-*`, and restores the device's rotation settings. It refuses to capture a locked or system-obscured display. It does not tap launcher actions or run Steam Cloud Push.
+This verifies and installs `StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk` without clearing app data, launches it, captures portrait and landscape screenshots plus focused lifecycle/fatal logs under `artifacts/android/launcher-ui-device-*`, and restores the device's rotation settings. It refuses to capture a locked or system-obscured display. It does not tap launcher actions or run Steam Cloud Push.
 
 ## Building
 

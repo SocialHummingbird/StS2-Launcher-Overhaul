@@ -8,7 +8,7 @@ The Android `x86_64` emulator is useful for install, routing, release packaging,
 
 Use an `arm64-v8a` Android device/build as the proof target for actual game launch.
 
-The latest published APK has passed structural asset inspection and update-compatibility verification against `v0.2.400`. ARM64 validation has proven the launcher path through runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game. `v0.2.401` retains the v0.2.400 PowerVR touch compatibility and adds native modded-save restoration after Manual Pull; that new save behavior still needs exact-APK device proof.
+The latest published APK has passed structural asset inspection and update-compatibility verification against `v0.2.412`. ARM64 validation has proven the launcher path through runtime install, Steam game download, Pull from Cloud, Android local save handoff, and game launch with the pulled profile visible in-game. Exact `v0.2.416` hardware evidence additionally proves manifest-matched patched runtime-pack promotion, real public `NMainMenu`, 60-second post-startup stability, launcher IME suppression, and installed-artifact hash equality.
 
 This is still a hardening state, not a finished release-candidate signoff. Newest-public-release Pull/confirmed-Push/game-launch smoke, persisted Steam-session/update UX, Samsung reporter retests if fresh reports arrive, stale assembly cache behavior, Workshop/mod compatibility polish, and repeated release-readiness coverage remain open validation gates.
 
@@ -62,10 +62,10 @@ This is still a hardening state, not a finished release-candidate signoff. Newes
 
 The current published tester APK is:
 
-- Release: `v0.2.401-native-modded-save-pull`
-- Asset: `StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk`
-- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.401-native-modded-save-pull
-- SHA-256: `1295cdb113010063e2c3a44123cff379f110480bded5c80bd24e4896e8dbcea3`
+- Release: `v0.2.416-startup-recovery-ime`
+- Asset: `StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk`
+- Release URL: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.416-startup-recovery-ime
+- SHA-256: `fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b`
 
 This is the current local test-package/signing-channel release. It is not production-signer or broad device-compatibility signoff.
 
@@ -73,16 +73,16 @@ Before installing, verify the uploaded GitHub release asset itself:
 
 ```powershell
 .\scripts\verify-android-release-apk.ps1 `
-  -ReleaseTag "v0.2.401-native-modded-save-pull" `
-  -AssetName "StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.416-startup-recovery-ime" `
+  -AssetName "StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk" `
   -Abi arm64-v8a
 ```
 
 Expected result:
 
 ```text
-Release digest OK: 1295cdb113010063e2c3a44123cff379f110480bded5c80bd24e4896e8dbcea3
-Release APK verification passed: v0.2.401-native-modded-save-pull/StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk
+Release digest OK: fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b
+Release APK verification passed: v0.2.416-startup-recovery-ime/StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk
 Verified ABIs: arm64-v8a
 ```
 
@@ -90,8 +90,8 @@ Install the verified release APK to a connected phone and capture diagnostics in
 
 ```powershell
 .\scripts\install-android-release.ps1 `
-  -ReleaseTag "v0.2.401-native-modded-save-pull" `
-  -AssetName "StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk" `
+  -ReleaseTag "v0.2.416-startup-recovery-ime" `
+  -AssetName "StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk" `
   -ClearAppData `
   -Launch `
   -CaptureDiagnostics
@@ -135,9 +135,10 @@ The smoke test writes:
 
 ## Remaining proof
 
-- Repeat confirmed Push to Cloud behavior on exact `v0.2.401`, including Steam Cloud metadata/file mutation after explicit user approval. Do not infer this from older confirmation/cancel evidence.
+- Repeat confirmed Push to Cloud behavior on exact `v0.2.416`, including Steam Cloud metadata/file mutation only after explicit user approval and controlled backups. Do not infer this from fake-store or older confirmation/cancel evidence.
 - Keep cancel/no-confirm Push safety evidence in every release-candidate pass.
-- The reporter proved `v0.2.399` reaches the game on Pixel/PowerVR in every mode, but touch works only under OpenGL and its first menu is slow. Retest the PowerVR-to-OpenGL policy retained in published `v0.2.401` on that device; inspect `graphics_device.txt`, `last_renderer_attempt.txt`, touch response, cold-menu timing, and `last_process_exit_info.txt` after any process exit.
+- PowerVR issue #34 is reporter-confirmed resolved through the Auto/OpenGL compatibility route. Continue collecting `graphics_device.txt`, requested/effective renderer, touch response, cold-menu timing, and `last_process_exit_info.txt` for new PowerVR devices rather than treating one device as broad signoff.
+- Retest Xiaomi issue #36 and Odin cloud issue #35 on their reporter devices. Connected Samsung evidence does not close either report.
 - Upgrade install evidence showing package `lastUpdateTime` advances and stale app-private assembly cache behavior does not recur.
 - Locked-screen interruption behavior showing Android focus loss does not get misclassified as a game crash.
 - Repeated release-readiness pass covering fresh install, upgrade install, Pull, Push, game launch, and diagnostics.

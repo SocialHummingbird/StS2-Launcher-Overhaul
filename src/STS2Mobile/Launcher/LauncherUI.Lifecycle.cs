@@ -11,6 +11,11 @@ internal sealed partial class LauncherUI
         LauncherLaunchMarkers.RecordPhase("launcher ui initialize", "Building managed launcher UI");
         ZIndex = LauncherZIndex;
         AndroidBridgeDispatcher.RegisterCurrentThread();
+        if (OperatingSystem.IsAndroid())
+        {
+            AndroidGodotAppBridge.NotifyLauncherUiActive(true);
+            _launcherImeActiveSignalled = true;
+        }
 
         try
         {
@@ -71,6 +76,11 @@ internal sealed partial class LauncherUI
 
     private void OnExitTree()
     {
+        if (_launcherImeActiveSignalled)
+        {
+            AndroidGodotAppBridge.NotifyLauncherUiActive(false);
+            _launcherImeActiveSignalled = false;
+        }
         var tree = GetTree();
         tree.ProcessFrame -= OnProcessFrame;
         tree.AutoAcceptQuit = true;

@@ -9,6 +9,11 @@ $sources = @(
     (Join-Path $root "scripts\tests\stubs\BuildConfig.java"),
     (Join-Path $root "scripts\tests\AndroidAssemblyBootstrapperTest.java")
 )
+$jsonSources = @(
+    (Join-Path $root "scripts\tests\stubs\org\json\JsonParser.java"),
+    (Join-Path $root "scripts\tests\stubs\org\json\JSONArray.java"),
+    (Join-Path $root "scripts\tests\stubs\org\json\JSONObject.java")
+)
 $output = Join-Path ([System.IO.Path]::GetTempPath()) (
     "sts2-assembly-bootstrapper-" + [Guid]::NewGuid().ToString("N")
 )
@@ -113,7 +118,12 @@ $classpath = "$output$([System.IO.Path]::PathSeparator)$androidJar"
 
 try {
     New-Item -ItemType Directory -Force -Path $output | Out-Null
-    & $javac -cp $androidJar -d $output @sources
+    & $javac -cp $androidJar -d $output @jsonSources
+    if ($LASTEXITCODE -ne 0) {
+        throw "javac failed for desktop org.json test support."
+    }
+
+    & $javac -cp $classpath -d $output @sources
     if ($LASTEXITCODE -ne 0) {
         throw "javac failed for AndroidAssemblyBootstrapper tests."
     }

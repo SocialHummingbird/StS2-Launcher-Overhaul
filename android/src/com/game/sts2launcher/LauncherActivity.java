@@ -25,9 +25,6 @@ public class LauncherActivity extends Activity {
 	private static final String GAME_BRANCH_FILE = "game_branch";
 	private static final String GAME_VERSIONS_DIR = "game_versions";
 	private static final String BRANCH_MARKER_FILE = "steam_branch.txt";
-	private static final String PREFS_NAME = "sts2mobile";
-	private static final String KEY_LAUNCH_GAME_ON_NEXT_START = "launch_game_on_next_start";
-	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
 	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
 	private final AndroidStartupRouteGate routeGate =
@@ -53,7 +50,9 @@ public class LauncherActivity extends Activity {
 	}
 
 	private void routeStartup() {
-		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
+		boolean nativeRecoveryRequest = consumeNativeRecoveryRequest();
+		boolean pendingGameLaunch =
+			!nativeRecoveryRequest && hasPendingGameLaunchRequest();
 		recordStartupPhase("native launcher activity onCreate", "pendingGameLaunch=" + pendingGameLaunch);
 		logSelectedBranchBeforeRouting(false);
 
@@ -210,18 +209,37 @@ public class LauncherActivity extends Activity {
 	}
 
 	private boolean hasPendingGameLaunchRequest() {
-		Intent intent = getIntent();
-		if (intent != null && intent.getBooleanExtra(EXTRA_LAUNCH_GAME_ON_START, false)) {
-			return true;
-		}
+		return AndroidPendingLaunchStateAdapter.hasPendingGameLaunch(
+			this,
+			getIntent()
+		);
+	}
 
-		try {
-			return getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-				.getBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, false);
-		} catch (Exception e) {
-			Log.w(TAG, "Could not inspect pending game launch request", e);
+	private boolean consumeNativeRecoveryRequest() {
+		Intent intent = getIntent();
+		if (
+			intent == null
+				|| !intent.getBooleanExtra(
+					AndroidPendingLaunchState.NATIVE_RECOVERY_INTENT_EXTRA,
+					false
+				)
+		) {
 			return false;
 		}
+
+		intent.removeExtra(
+			AndroidPendingLaunchState.NATIVE_RECOVERY_INTENT_EXTRA
+		);
+		AndroidPendingLaunchState.ClearResult clearedState =
+			AndroidPendingLaunchStateAdapter.clearForRecovery(this, intent);
+		String detail = clearedState.summary();
+		Log.i(
+			TAG,
+			"Consumed native fallback recovery before startup routing: "
+				+ detail
+		);
+		recordStartupPhase("native recovery state cleared", detail);
+		return true;
 	}
 
 	private boolean isForcedX86GodotTest() {

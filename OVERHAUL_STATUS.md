@@ -13,19 +13,22 @@ Validated baseline:
 - Pull from Cloud downloads Steam Cloud files into Android local app storage.
 - `v0.2.398-launcher-ui-redesign` publishes five stable Home/Saves/Versions/Mods/Help destinations with phone bottom navigation and wide/foldable top navigation. Its 20-viewport deterministic preview, accessibility/bounds/target checks, event contract, 819-check static audit, exact ARM64 update install, and release hygiene passed; final unlocked physical portrait/landscape capture remains pending after the device disconnected.
 - `v0.2.399-powervr-renderer-mod-runtime` publishes the all-PowerVR engine workaround, Auto/Vulkan/OpenGL/Safe Start policy, lifecycle/process-exit diagnostics, Android-safe mod identity hashing, public runtime-pack activation, and per-mod evidence. Connected Adreno validation reached real `NMainMenu` under Auto/Vulkan and explicit OpenGL, produced post-startup heartbeats through 120 seconds, and exercised Quick Restart in combat with zero selected-mod runtime failures.
-- The issue #34 reporter subsequently proved `v0.2.399` reaches the game in all four renderer modes on Pixel 10 Pro / Android 17 / PowerVR. Auto, Vulkan, and Safe Start lose touch; OpenGL accepts touch, with slow first menu use but normal gameplay and later menus. `v0.2.400-powervr-touch-compat` captures the live GPU and forces OpenGL for every PowerVR launch mode.
+- The issue #34 reporter subsequently confirmed that the PowerVR Auto route loads the game with active touch controls. The renderer/startup investigation is resolved; the retained policy still routes PowerVR to OpenGL.
 - The game launches and reads the pulled profile in-game.
-- `v0.2.401-native-modded-save-pull` fixes the stale native modded-profile problem after Pull: cloud modded namespaces win, missing ones are seeded from the fresh vanilla download, replaced local modded files receive app-private backups, and a provenance marker records the decision. The policy probe, managed build, APK checks, and update compatibility pass; exact-APK device validation is still pending and Steam Cloud Push was not run.
+- Native modded-save Pull support prefers cloud modded namespaces, seeds missing namespaces from the fresh vanilla download, backs up replaced files, and records provenance. Steam Cloud Push remains separate and explicit.
+- `v0.2.412-bootstrap-cloud-hardening` moved assembly preparation before Godot startup, corrected the `GodotActivity` superclass lifecycle, made cache replacement transactional, and added observable/cancellable Pull plus structured Upload eligibility without weakening overwrite protections.
+- `v0.2.416-startup-recovery-ime` corrects runtime-pack assembly identity validation, clears pending launch state during native recovery, and suppresses unintended launcher keyboard requests.
 - Startup freshness and assembly cache diagnostics prove the current installed runtime is being used.
-- Current GitHub release: `v0.2.401-native-modded-save-pull`, APK `StS2Launcher-v0.2.401-native-modded-save-pull-local-arm64-v8a.apk`, version code `401001`, local test signing channel.
+- Current GitHub release: `v0.2.416-startup-recovery-ime`, APK `StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk`, version code `416001`, SHA-256 `fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b`, local test signing channel.
 
 Active blockers:
 
-- Pixel 10 Pro / Android 17 / PowerVR issue #34 remains open after the reporter tested `v0.2.399`. The original startup crash is no longer present, but touch fails on PowerVR's Vulkan path. `v0.2.400` forces OpenGL for PowerVR and passes connected Adreno plus synthetic PowerVR-policy validation; reporter-class confirmation and cold-menu timing remain pending.
+- Xiaomi issue #36 requires reporter confirmation that `v0.2.416` accepts the authentic patched runtime pack, reaches the game, and recovers to the launcher without `SuperNotCalledException` if preparation still fails.
+- Odin issue #35 requires reporter confirmation that Pull progress and completion are clear and that **Review Upload** explains every blocking safeguard. A real Steam Cloud Push remains explicitly deferred.
 - Exact-build unlocked physical validation of all five launcher destinations, portrait/landscape rotation, cover/inner displays, and real game handoff remains incomplete.
 - Steam beta/version selection is implemented for validation but not release-signed. The launcher now exposes discovery-led public/non-public selector guidance, labels refreshed branch options with concise metadata badges, blocks known unavailable selected branches before game-version download/update attempts, records selected-version notes in diagnostics/logs/branch-switch/Pull/Push evidence, mirrors guidance in native routing/fallback diagnostics, blocks native selected-version launch when branch provenance is missing or mismatched, and guards the static contract through CI. ARM64 evidence still needs to prove public/default regression safety, account-visible non-public branch download/startup routing, branch marker provenance, inaccessible/private/password branch handling, cache cleanup, save compatibility, Pull-before-Push/current-backup safety, pre-Push backup evidence, and successful selected-version Push marker evidence. The current signoff contract is tracked in `docs/steam-version-selection-release-readiness.md`.
 - Confirmed Push to Cloud on the newest public APK still needs explicit overwrite-risk smoke because it can overwrite real Steam Cloud state.
-- The native modded-save Manual Pull repair is published in `v0.2.401` but still needs exact-APK device validation before it can be called device-proven.
+- Exact-build native modded-save Pull/profile visibility still needs broader device validation before it can be called broadly proven.
 - Upgrade install behavior needs repeated release-readiness evidence on the current signed line.
 - Locked-screen interruption has manual unlock-return evidence, but should remain part of recurring release smoke.
 - Diagnostics should be quieter and focused on actionable freshness/cache/cloud-save facts.
@@ -55,8 +58,8 @@ Canonical status: [docs/current-android-status.md](docs/current-android-status.m
 - Keep launcher recovery and sync status UX clear enough that successful startup and local-save runtime behavior are not presented as failures.
 - Reduce low-value diagnostics while preserving startup freshness, assembly cache, cloud-save, and release-evidence logs.
 - Maintain artifact hygiene for APKs, checksums, logs, summaries, and validation manifests.
-- Complete the remaining exact-build five-destination portrait/landscape and foldable display checks on `v0.2.401` without Steam Cloud Push.
-- Retest `v0.2.401` on Pixel/PowerVR hardware before calling issue #34 resolved.
+- Complete the remaining exact-build five-destination portrait/landscape and foldable display checks on `v0.2.416` without Steam Cloud Push.
+- Collect reporter confirmation for Xiaomi issue #36 and Odin cloud issue #35 before closing either issue.
 
 ## Notes
 

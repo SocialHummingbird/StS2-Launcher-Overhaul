@@ -55,6 +55,20 @@ internal sealed partial class LauncherView
     private void DismissKeyboard(InputEvent ev)
     {
         if (ev is InputEventMouseButton { Pressed: true } or InputEventScreenTouch { Pressed: true })
+        {
             _parent.GetViewport()?.GuiReleaseFocus();
+            if (OperatingSystem.IsAndroid())
+            {
+                try
+                {
+                    DisplayServer.VirtualKeyboardHide();
+                }
+                catch
+                {
+                    // Some Android backends may already have removed the IME connection.
+                }
+                AndroidGodotAppBridge.NotifyLauncherTextEditingRequested(false);
+            }
+        }
     }
 }

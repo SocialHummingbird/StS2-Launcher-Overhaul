@@ -36,6 +36,7 @@ final class AndroidBootTransitionController {
 		new AndroidBootTransitionPolicy.ReadinessGate();
 	private final boolean reducedMotion;
 	private final AndroidBootTransitionSoundSession soundSession;
+	private final Runnable presentationCleanup;
 	private final Runnable watchdog = this::handleWatchdog;
 
 	private FrameLayout overlay;
@@ -45,6 +46,7 @@ final class AndroidBootTransitionController {
 	private float registrationOffsetPx;
 	private boolean destroyed;
 	private boolean launcherReadyLogged;
+	private boolean presentationCleanupNotified;
 
 	static AndroidBootTransitionController install(
 		Activity activity,
@@ -52,6 +54,7 @@ final class AndroidBootTransitionController {
 		boolean pendingNormalLaunch,
 		boolean pendingSafeLaunch,
 		boolean explicitSkip,
+		Runnable presentationCleanup,
 		TimelineLogger logger
 	) {
 		AndroidBootTransitionPolicy.Decision decision;
@@ -71,7 +74,8 @@ final class AndroidBootTransitionController {
 			activity,
 			decision,
 			logger,
-			new SilentBootTransitionSound()
+			new SilentBootTransitionSound(),
+			presentationCleanup
 		);
 		controller.installSplashExitListener(splashScreen);
 		return controller;
@@ -81,11 +85,13 @@ final class AndroidBootTransitionController {
 		Activity activity,
 		AndroidBootTransitionPolicy.Decision decision,
 		TimelineLogger logger,
-		AndroidBootTransitionSound sound
+		AndroidBootTransitionSound sound,
+		Runnable presentationCleanup
 	) {
 		this.activity = activity;
 		this.decision = decision;
 		this.logger = logger;
+		this.presentationCleanup = presentationCleanup;
 		this.reducedMotion = detectReducedMotion(activity);
 		this.soundSession = new AndroidBootTransitionSoundSession(
 			sound,
@@ -133,6 +139,7 @@ final class AndroidBootTransitionController {
 				mainHandler.removeCallbacks(watchdog);
 				soundSession.close();
 				removeOverlay();
+				notifyPresentationCleanup();
 				Log.e(TAG, "Boot transition overlay installation failed", error);
 				logger.record(
 					"boot transition skipped",
@@ -316,6 +323,7 @@ final class AndroidBootTransitionController {
 		mainHandler.removeCallbacks(watchdog);
 		soundSession.close();
 		removeOverlay();
+		notifyPresentationCleanup();
 		animation = null;
 		activeSequencePhase = null;
 		logger.record(
@@ -333,6 +341,7 @@ final class AndroidBootTransitionController {
 		}
 		cancelAnimation();
 		removeOverlay();
+		notifyPresentationCleanup();
 		logger.record("boot transition timeout", "watchdogMs=" + WATCHDOG_MS);
 	}
 
@@ -353,6 +362,14 @@ final class AndroidBootTransitionController {
 		overlay = null;
 		identityView = null;
 		activeSequencePhase = null;
+	}
+
+	private void notifyPresentationCleanup() {
+		if (presentationCleanupNotified || presentationCleanup == null) {
+			return;
+		}
+		presentationCleanupNotified = true;
+		presentationCleanup.run();
 	}
 
 	private void suppressInputMethod() {
