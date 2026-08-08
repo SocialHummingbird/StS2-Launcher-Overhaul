@@ -46,9 +46,20 @@ public partial class PreviewRoot : Control
             touchOptimized: ReadBool("touch", true),
             viewportSize: new Vector2(width, height)
         );
+        if (ScrollRecoveryFixtureIntoView())
+        {
+            await NextFrames(3);
+            RenderingServer.ForceSync();
+            RenderingServer.ForceDraw(swapBuffers: false, frameStep: 0d);
+            await ToSignal(
+                RenderingServer.Singleton,
+                RenderingServer.SignalName.FramePostDraw
+            );
+        }
         LauncherCloudProgressPreviewValidator.Validate(
             _previewRoot,
-            Read("fixture", "ready")
+            Read("fixture", "ready"),
+            Read("destination", "home")
         );
         RenderingServer.ForceDraw(swapBuffers: false, frameStep: 0d);
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
@@ -143,10 +154,105 @@ public partial class PreviewRoot : Control
                 view.SetCloudOperationState(CompletedPullState());
                 view.SetPushPullDisabled(disabled: false);
                 break;
+            case "sync-source-choice":
+                ApplyReadyFixture(view);
+                view.SetAutomaticSyncBlocked(true);
+                view.SetStatus("Choose the save copy to trust before launch.");
+                view.ShowAutomaticSyncSourceChoice(
+                    "No trusted baseline exists for this exact account, game version, and mod set. "
+                        + "Use Android uploads the Android copy. Use Steam backs up Android first, then downloads the Steam copy.",
+                    _ => { }
+                );
+                break;
+            case "sync-reconciling":
+                ApplyReadyFixture(view);
+                view.SetAutomaticSyncBlocked(true);
+                view.SetStatus(
+                    "Reconciling Android and Steam saves before launch..."
+                );
+                break;
+            case "sync-conflict":
+                ApplyReadyFixture(view);
+                view.SetAutomaticSyncBlocked(false);
+                view.SetStatus(
+                    "Launch blocked by an Android/Steam save conflict. "
+                        + "Start Game will retry after you resolve which copy to keep."
+                );
+                break;
+            case "sync-offline-pending":
+                ApplyReadyFixture(view);
+                view.SetAutomaticSyncBlocked(false);
+                view.SetStatus(
+                    "Pending automatic save sync remains on disk because Steam is offline. "
+                        + "Start Game safely retries recovery."
+                );
+                break;
+            case "recovery-empty":
+                ApplyReadyFixture(view);
+                view.SetSaveRecoveryCandidates(
+                    Array.Empty<SaveRecoveryCandidatePresentation>()
+                );
+                view.SetSaveRecoveryState(
+                    "No local recovery copy is currently available. Steam was not contacted.",
+                    canUndo: false,
+                    canApprove: false
+                );
+                break;
+            case "recovery-unknown":
+                ApplyReadyFixture(view);
+                view.SetSaveRecoveryCandidates(
+                    new[] { UnknownRecoveryCandidate() }
+                );
+                view.SetSaveRecoveryState(
+                    "This copy can be restored on Android, but its unknown context must not be guessed or approved for sync yet.",
+                    canUndo: false,
+                    canApprove: false
+                );
+                break;
+            case "recovery-confirm":
+                ApplyReadyFixture(view);
+                view.SetSaveRecoveryCandidates(
+                    new[] { ValidatedRecoveryCandidate() }
+                );
+                view.SetSaveRecoveryState(
+                    "Validated and ready for explicit local restore. Steam will not be changed.",
+                    canUndo: false,
+                    canApprove: false
+                );
+                break;
+            case "recovery-restored":
+                ApplyReadyFixture(view);
+                view.SetSaveRecoveryCandidates(
+                    new[] { ValidatedRecoveryCandidate() }
+                );
+                view.SetSaveRecoveryState(
+                    "Restored and verified on Android. Steam was not changed. Check the save in game before approving it for sync.",
+                    canUndo: true,
+                    canApprove: true
+                );
+                break;
             default:
                 throw new ArgumentException($"Unknown preview fixture: {fixture}");
         }
     }
+
+    private static SaveRecoveryCandidatePresentation
+        UnknownRecoveryCandidate()
+        => new(
+            "legacy-local-pre-pull-profile1-20260707",
+            "07 Jul 2026 — Legacy Android backup",
+            "Source: local pre-Pull progress backup | Scope: progress.save only | Account: Unknown | Save type: Unknown | Game version: Unknown | Mod set: Unknown",
+            CanRestore: true
+        );
+
+    private static SaveRecoveryCandidatePresentation
+        ValidatedRecoveryCandidate()
+        => new(
+            "before-game-76561198000000001-public-vanilla",
+            "Before last game — Vanilla public",
+            "Source: immutable before-game snapshot | Captured: 06 Aug 2026 18:42 UTC | Account: 76561198000000001 | Save type: Vanilla | Game version: public | Mod set: None | Hashes: verified",
+            CanRestore: true
+        );
 
     private static void ApplyReadyFixture(LauncherView view)
     {
@@ -170,17 +276,13 @@ public partial class PreviewRoot : Control
         for (var index = 0; index < 8; index++)
         {
             tracker.TransferProcessed(
-                $"profile1/saves/history/download-{index + 1}.run",
-                completed: true,
-                skipped: false
+                $"profile1/saves/history/download-{index + 1}.run"
             );
         }
         for (var index = 0; index < 3; index++)
         {
             tracker.TransferProcessed(
-                $"profile2/saves/history/missing-{index + 1}.run",
-                completed: false,
-                skipped: true
+                $"profile2/saves/history/download-{index + 1}.run"
             );
         }
         tracker.TransferPathStarted("profile2/saves/progress.save");
@@ -191,44 +293,14 @@ public partial class PreviewRoot : Control
     {
         var tracker = PreparedPullTracker();
         tracker.TransferStarted(24);
-        for (var index = 0; index < 18; index++)
+        for (var index = 0; index < 24; index++)
         {
             tracker.TransferProcessed(
-                $"profile1/saves/history/download-{index + 1}.run",
-                completed: true,
-                skipped: false
+                $"profile{index % 3 + 1}/saves/history/download-{index + 1}.run"
             );
         }
-        for (var index = 0; index < 5; index++)
-        {
-            tracker.TransferProcessed(
-                $"profile2/saves/history/missing-{index + 1}.run",
-                completed: false,
-                skipped: true
-            );
-        }
-        tracker.TransferProcessed(
-            "profile3/saves/history/failed.run",
-            completed: false,
-            skipped: false
-        );
-        tracker.ProfileSeedingStarted(6);
-        for (var index = 0; index < 4; index++)
-        {
-            tracker.ProfileSeedProcessed(
-                $"modded/profile{index % 3 + 1}/saves/seed-{index + 1}.save",
-                seeded: true
-            );
-        }
-        for (var index = 0; index < 2; index++)
-        {
-            tracker.ProfileSeedProcessed(
-                $"modded/profile{index + 1}/saves/skipped-{index + 1}.save",
-                seeded: false
-            );
-        }
-        tracker.Finalizing("Refreshing the launcher backup mirror");
-        tracker.Completed("All cloud sync steps completed");
+        tracker.Finalizing("Verifying the save-context marker");
+        tracker.Completed("All save files were transferred and verified");
         return tracker.State;
     }
 
@@ -248,14 +320,6 @@ public partial class PreviewRoot : Control
                 created: index < 3
             );
         }
-        tracker.ProfilePreparationStarted(6);
-        for (var index = 0; index < 6; index++)
-        {
-            tracker.ProfilePreparationProcessed(
-                $"modded/profile{index % 3 + 1}/saves/target-{index + 1}.save",
-                backupCreated: index < 2
-            );
-        }
         return tracker;
     }
 
@@ -263,6 +327,39 @@ public partial class PreviewRoot : Control
     {
         for (var i = 0; i < count; i++)
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+    }
+
+    private bool ScrollRecoveryFixtureIntoView()
+    {
+        if (!Read("fixture", "ready").StartsWith(
+                "recovery-",
+                StringComparison.OrdinalIgnoreCase
+            ))
+        {
+            return false;
+        }
+
+        var scrolled = false;
+        foreach (var scroll in Descendants<ScrollContainer>(_previewRoot))
+        {
+            if (!scroll.IsVisibleInTree())
+                continue;
+
+            scroll.ScrollVertical = int.MaxValue;
+            scrolled = true;
+        }
+        return scrolled;
+    }
+
+    private static IEnumerable<T> Descendants<T>(Node root) where T : Node
+    {
+        foreach (var child in root.GetChildren())
+        {
+            if (child is T match)
+                yield return match;
+            foreach (var descendant in Descendants<T>(child))
+                yield return descendant;
+        }
     }
 
     private static LauncherDestination ReadDestination(string value)

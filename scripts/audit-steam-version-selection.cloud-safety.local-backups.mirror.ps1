@@ -1,27 +1,34 @@
 function Add-SteamVersionSelectionCloudSafetyLocalBackupMirrorChecks {
     Add-Check `
         "src\STS2Mobile\Steam\LocalSaveBackupPlan.cs" `
-        "keeps automatic local backups path-preserving and recovery conservative" `
+        "keeps automatic local backups path-preserving without restore policy" `
         @(
             'CurrentDirectoryName = "Current"',
             'HistoryDirectoryName = "History"',
             'MaxHistoryGenerations = 20',
+            'LauncherMetadataDirectoryName = "\.sts2-launcher"',
             'IsBackupEligible',
-            'ShouldRestoreMissing',
-            'profile\.save',
-            'progress\.save',
+            'lower == LauncherMetadataDirectoryName',
+            'lower\.StartsWith\(',
             'TryResolveUnderRoot',
             'segment is "\." or "\.\."'
         )
 
     Add-Check `
+        "src\STS2Mobile\Steam\CloudSyncCoordinator.SavePathDiscovery.Enumeration.cs" `
+        "does not enumerate launcher transfer backups or sentinels as game saves" `
+        @(
+            "IgnoredEnumerationDirectories",
+            "LocalSaveBackupPlan\.LauncherMetadataDirectoryName",
+            "ShouldSkipEnumeratedDirectory"
+        )
+
+    Add-Check `
         "src\STS2Mobile\Steam\CloudSyncCoordinator.SaveBackups.LocalMirror.cs" `
-        "mirrors local saves, archives changed content, and restores only missing stable files" `
+        "mirrors local saves and archives changed content without mutating local saves" `
         @(
             "RefreshLocalMirror",
-            "RestoreMissingStableFiles",
             "MirrorLocalWrite",
-            "local\.FileExists\(relativePath\) && local\.GetFileSize\(relativePath\) > 0",
             "TryArchiveMirrorFile",
             "WriteMirrorFile",
             "PruneLocalMirrorHistory",
@@ -34,11 +41,22 @@ function Add-SteamVersionSelectionCloudSafetyLocalBackupMirrorChecks {
             "Automatic local backup refresh"
         )
 
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Steam\CloudSyncCoordinator.SaveBackups.LocalMirror.cs" `
+        "keeps the local mirror backup-only so transfer tombstones cannot be resurrected" `
+        @(
+            "restoreMissing",
+            "RestoreMissingStableFiles",
+            "ShouldRestoreMissing",
+            "local\.WriteFile\(relativePath"
+        )
+
     Add-Check `
         "src\STS2Mobile\Steam\AndroidLocalSaveStore.FileIo.cs" `
-        "mirrors each successful Android game-save write without waiting for another launcher start" `
+        "transactionally stores and mirrors each successful Android game-save write" `
         @(
-            "File\.WriteAllBytes\(fullPath, bytes\)",
+            "CancellableAtomicFile\.WriteAllBytesAsync",
+            "overwrite: true",
             "CloudSyncCoordinator\.MirrorLocalSaveWrite\(path, bytes\)"
         )
 
@@ -63,12 +81,19 @@ function Add-SteamVersionSelectionCloudSafetyLocalBackupMirrorChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherPreferences.LocalBackup.cs" `
-        "refreshes and recovers the local save mirror when the enabled preference is applied" `
+        "refreshes the backup-only local save mirror when the enabled preference is applied" `
         @(
             "EnsureExternalDirectories",
-            "RefreshLocalBackup\(\s*restoreMissing: true\s*\)",
+            "RefreshLocalBackup\(\)",
             "SaveLocalBackupEnabledWithResult",
             "ApplyLocalBackupWithResult"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherPreferences.LocalBackup.cs" `
+        "does not request automatic restoration when local backup is enabled" `
+        @(
+            "restoreMissing"
         )
 
     Add-Check `
@@ -81,9 +106,9 @@ function Add-SteamVersionSelectionCloudSafetyLocalBackupMirrorChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherLaunchCoordinator.Attempt.cs" `
-        "refreshes the local save mirror and recovers stable files before game handoff" `
+        "refreshes the backup-only local save mirror before game handoff" `
         @(
-            "RefreshLocalBackup\(\s*restoreMissing: true\s*\)",
+            "RefreshLocalBackup\(\)",
             "_localBackupRecoveryCompleted"
         )
 
@@ -110,18 +135,22 @@ function Add-SteamVersionSelectionCloudSafetyLocalBackupMirrorChecks {
         @(
             "CaptureCurrentState",
             "CountImportantSaveEvidence",
-            "importantSaveCount > 0",
+            "CloudPushSafetyContext\.Create",
+            "EvaluateCloudPushEligibility",
             "CurrentMirrorSaveCount",
             "ApplyCloudPostOperationSnapshot",
             "LocalBackupRecoveryPresentation\.Create"
         )
 
-    Add-Check `
-        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Pull.cs" `
-        "refreshes automatic local backup after cloud Pull and modded save seeding" `
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Transfer.cs" `
+        "keeps trustworthy transfer independent of optional mirror refresh and cross-namespace seeding" `
         @(
-            "seedSession\.CompleteAsync",
-            "sync\.RefreshLocalBackupMirror\(\)"
+            "RefreshLocalBackupMirror",
+            "RefreshLocalMirror",
+            "ModdedSaveSeed",
+            "SeedModded",
+            "SavePathDiscovery"
         )
 
     Add-Check `
@@ -131,5 +160,30 @@ function Add-SteamVersionSelectionCloudSafetyLocalBackupMirrorChecks {
             "CurrentMirrorSaveCount",
             "LatestCurrentMirrorWriteUtc",
             "LocalSaveBackupPlan\.IsBackupEligible"
+        )
+
+    Add-Check `
+        "tools\LocalSaveRecoveryProductionPathProbe\Program.cs" `
+        "covers backup mirroring, tombstone preservation, archival, and corrupt-mirror isolation" `
+        @(
+            "eligible saves mirror into an isolated tree",
+            "LauncherTransferBackupPath",
+            "!File\.Exists\(MirrorPath\(root, LauncherTransferBackupPath\)\)",
+            "transfer tombstones remain deleted during backup refresh",
+            "newer local saves replace the mirror and archive old bytes",
+            "corrupt and partial mirror files never restore local saves",
+            "ReadCount",
+            "WriteCount",
+            "no credentials, network store, hardware, Steam Cloud operation",
+            "or automatic save restoration was used"
+        )
+
+    Add-Check `
+        "scripts\test-local-save-recovery-production-path.ps1" `
+        "provides a repeatable non-mutating local-save backup-only validation entry point" `
+        @(
+            "LocalSaveRecoveryProductionPathProbe\.csproj",
+            "temporary trees and in-memory stores",
+            "No automatic restore or Steam Cloud operation was performed"
         )
 }

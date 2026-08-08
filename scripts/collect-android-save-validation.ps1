@@ -1,8 +1,18 @@
+[CmdletBinding()]
 param(
     [string]$DeviceSerial = "",
-    [string]$PackageName = "com.sts2launcher.overhaul.fork.local",
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$')]
+    [string]$PackageName,
     [string]$AdbPath = "$(Join-Path $env:USERPROFILE '.w40k-android-toolchain\android-sdk\platform-tools\adb.exe')",
     [string]$OutputRoot = "artifacts\android",
+    [string]$ApkPath = "",
+    [string]$SourceCommit = "",
+    [ValidateSet("", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10")]
+    [string]$Stage5Row = "",
+    [ValidatePattern('^[a-z0-9][a-z0-9-]{0,63}$')]
+    [string]$EvidencePhase = "capture",
+    [string]$LogcatSince = "",
     [int]$WaitSeconds = 0,
     [int]$LogcatTailLines = 100000,
     [switch]$ClearLogcat,
@@ -12,152 +22,550 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Invoke-Adb {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
+if (-not [string]::IsNullOrWhiteSpace($Stage5Row) -and
+    ($ClearLogcat -or $EnableVerboseSaveDiagnostics)) {
+    throw "Stage 5 evidence capture is read-only: -ClearLogcat and -EnableVerboseSaveDiagnostics are forbidden when -Stage5Row is set."
+}
 
-    if ([string]::IsNullOrWhiteSpace($DeviceSerial)) {
-        & $AdbPath @Args
-    } else {
-        & $AdbPath -s $DeviceSerial @Args
+function Invoke-AdbRaw {
+    param([Parameter(Mandatory = $true)][string[]]$AdbArguments)
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = if ([string]::IsNullOrWhiteSpace($script:DeviceSerial)) {
+            @(& $script:AdbPath @AdbArguments 2>&1)
+        } else {
+            @(& $script:AdbPath -s $script:DeviceSerial @AdbArguments 2>&1)
+        }
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    [pscustomobject]@{
+        ExitCode = $exitCode
+        Output = $output
+    }
+}
+
+function Invoke-Adb {
+    param([Parameter(Mandatory = $true)][string[]]$AdbArguments)
+
+    $result = Invoke-AdbRaw -AdbArguments $AdbArguments
+    if ($result.ExitCode -ne 0) {
+        $detail = ($result.Output | Select-Object -Last 8) -join "`n"
+        throw "adb $($AdbArguments -join ' ') failed with exit code $($result.ExitCode).`n$detail"
+    }
+    return $result.Output
+}
+
+function Get-AdbText {
+    param([Parameter(Mandatory = $true)][string[]]$AdbArguments)
+
+    return ((Invoke-Adb -AdbArguments $AdbArguments) | Out-String).Trim()
+}
+
+function Get-TextSha256 {
+    param([Parameter(Mandatory = $true)][string]$Text)
+
+    $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return (($sha256.ComputeHash($bytes) | ForEach-Object { $_.ToString("x2") }) -join "")
+    } finally {
+        $sha256.Dispose()
+    }
+}
+
+function Resolve-AuthorizedDevice {
+    $savedSerial = $script:DeviceSerial
+    $script:DeviceSerial = ""
+    try {
+        $result = Invoke-AdbRaw -AdbArguments @("devices", "-l")
+    } finally {
+        $script:DeviceSerial = $savedSerial
+    }
+    if ($result.ExitCode -ne 0) {
+        throw "adb devices -l failed; no Android evidence was captured."
+    }
+
+    $targets = @(
+        $result.Output |
+            ForEach-Object { ([string]$_).Trim() } |
+            Where-Object { $_ -and $_ -notmatch '^List of devices' -and $_ -notmatch '^\*' } |
+            ForEach-Object {
+                if ($_ -match '^(\S+)\s+(\S+)(?:\s|$)') {
+                    [pscustomobject]@{ Serial = $Matches[1]; State = $Matches[2] }
+                }
+            }
+    )
+
+    if ($savedSerial) {
+        $selected = @($targets | Where-Object { $_.Serial -eq $savedSerial })
+        if ($selected.Count -ne 1) {
+            throw "Requested Android target is not attached; no evidence was captured."
+        }
+        if ($selected[0].State -ne "device") {
+            throw "Requested Android target is $($selected[0].State), not authorized; no evidence was captured."
+        }
+        return $savedSerial
+    }
+
+    $authorized = @($targets | Where-Object { $_.State -eq "device" })
+    if ($authorized.Count -eq 1) {
+        return $authorized[0].Serial
+    }
+    if ($authorized.Count -gt 1) {
+        throw "Multiple authorized Android targets are attached. Pass -DeviceSerial; no evidence was captured."
+    }
+
+    $states = @($targets | ForEach-Object { $_.State } | Sort-Object -Unique)
+    $stateText = if ($states.Count -gt 0) { $states -join ", " } else { "none" }
+    throw "No authorized Android target is available (attached states: $stateText); no evidence was captured."
+}
+
+function Add-PersistedRemoteManifestRows {
+    param(
+        [Parameter(Mandatory = $true)]$Document,
+        [Parameter(Mandatory = $true)][string]$DocumentPath,
+        [Parameter(Mandatory = $true)][string]$Role,
+        [Parameter(Mandatory = $true)]$Rows
+    )
+
+    $property = $Document.PSObject.Properties[$Role]
+    if (-not $property -or -not $property.Value) {
+        return
+    }
+    foreach ($entry in @($property.Value.Entries)) {
+        if (-not $entry) {
+            continue
+        }
+        $byteSha256 = [string]$entry.ByteSha256
+        $legacyTextSha256 = [string]$entry.Sha256
+        $Rows.Add([pscustomobject]@{
+            DocumentPath = $DocumentPath
+            ManifestRole = $Role
+            SavePath = [string]$entry.Path
+            Exists = [bool]$entry.Exists
+            HashKind = if (-not [bool]$entry.Exists) {
+                "missing"
+            } elseif (-not [string]::IsNullOrWhiteSpace($byteSha256)) {
+                "byte-sha256"
+            } else {
+                "legacy-text-sha256"
+            }
+            Sha256 = if (-not [bool]$entry.Exists) {
+                ""
+            } elseif (-not [string]::IsNullOrWhiteSpace($byteSha256)) {
+                $byteSha256.ToLowerInvariant()
+            } else {
+                $legacyTextSha256.ToLowerInvariant()
+            }
+        })
     }
 }
 
 if (-not (Test-Path -LiteralPath $AdbPath)) {
     throw "adb not found: $AdbPath"
 }
+if ($Stage5Row -and [string]::IsNullOrWhiteSpace($EvidencePhase)) {
+    throw "-EvidencePhase is required when -Stage5Row is supplied."
+}
+if ($LogcatSince -and
+    $LogcatSince -notmatch '^\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$') {
+    throw "-LogcatSince must use Android logcat time format MM-dd HH:mm:ss.fff."
+}
+
+# Authorization is checked before creating an evidence folder, clearing logcat,
+# or touching the optional verbose-diagnostics marker.
+$DeviceSerial = Resolve-AuthorizedDevice
+$script:DeviceSerial = $DeviceSerial
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+if ([string]::IsNullOrWhiteSpace($SourceCommit)) {
+    $SourceCommit = ((& git -C $repoRoot rev-parse HEAD 2>$null) | Out-String).Trim()
+}
+$sourceWorktreeDirty = [bool](@(& git -C $repoRoot status --porcelain 2>$null).Count)
+
+$candidateApkSha256 = ""
+$resolvedApkPath = ""
+if ($ApkPath) {
+    $resolvedApkPath = (Resolve-Path -LiteralPath $ApkPath).Path
+    $candidateApkSha256 = (Get-FileHash -LiteralPath $resolvedApkPath -Algorithm SHA256).Hash.ToLowerInvariant()
+}
 
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $outDir = Join-Path $OutputRoot "save-validation-$timestamp"
-New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-
-if ($EnableVerboseSaveDiagnostics) {
-    Invoke-Adb shell run-as $PackageName sh -c "touch files/.sts2_verbose_save_diagnostics" | Out-Null
+if (Test-Path -LiteralPath $outDir) {
+    throw "Refusing to overwrite an existing Android evidence capture: $outDir"
 }
+New-Item -ItemType Directory -Path $outDir | Out-Null
 
-if ($ClearLogcat) {
-    Invoke-Adb logcat -c | Out-Null
-}
-
-if ($WaitSeconds -gt 0) {
-    Write-Host "Waiting $WaitSeconds seconds before collecting logcat..."
-    Start-Sleep -Seconds $WaitSeconds
-}
-
-$properties = Invoke-Adb shell getprop | Out-String
-$properties | Set-Content -LiteralPath (Join-Path $outDir "getprop.txt") -Encoding UTF8
-
-$packageDump = Invoke-Adb shell dumpsys package $PackageName | Out-String
-$packageDump | Set-Content -LiteralPath (Join-Path $outDir "package.txt") -Encoding UTF8
-
-if ($LogcatTailLines -gt 0) {
-    $rawLog = Invoke-Adb logcat -d -t $LogcatTailLines | Out-String
-} else {
-    $rawLog = Invoke-Adb logcat -d | Out-String
-}
-$rawLogPath = Join-Path $outDir "logcat.txt"
-$rawLog | Set-Content -LiteralPath $rawLogPath -Encoding UTF8
-
-$patterns = @(
-    "Assembly cache diagnostics",
-    "Assembly cache required file",
-    "Android startup freshness",
-    "New version detected",
-    "re-copying all assemblies",
-    "cache-hit",
-    "expectedBytes",
-    "expectedSource",
-    "\[Cloud\]",
-    "Candidate sync paths",
-    "Enumerated cloud file sample",
-    "Android local save",
-    "Created Android local-only SaveManager",
-    "Created SaveManager with SteamKit2 cloud store",
-    "Pull complete",
-    "complete with no downloads",
-    "AndroidRuntime",
-    "FATAL EXCEPTION"
-)
-
-$filtered = Select-String -LiteralPath $rawLogPath -Pattern $patterns -CaseSensitive:$false
-$filtered | ForEach-Object { $_.Line } |
-    Set-Content -LiteralPath (Join-Path $outDir "filtered-logcat.txt") -Encoding UTF8
-
-$summary = [ordered]@{
-    output = $outDir
-    schema22Seen = [bool]($rawLog -match 'schema=22')
-    startupFreshnessSeen = [bool]($rawLog -match 'Android startup freshness:.*schema=22')
-    assemblyRecopySeen = [bool]($rawLog -match 'New version detected, re-copying all assemblies')
-    assemblyCacheHitSeen = [bool]($rawLog -match 'Assembly cache diagnostics \[cache-hit\]')
-    expectedBytesSeen = [bool]($rawLog -match 'expectedBytes=')
-    pullAttemptSeen = [bool]($rawLog -match 'Pulling cloud saves to local|Pull complete|complete with no downloads|Android local save write:')
-    oldPullConfirmationSeen = [bool]($rawLog -match 'Pull cloud saves to local\?')
-    candidatePathsSeen = [bool]($rawLog -match '\[Cloud\] Candidate sync paths:')
-    cloudSampleSeen = [bool]($rawLog -match '\[Cloud\] Enumerated cloud file sample:')
-    localSaveBaseSeen = [bool]($rawLog -match '\[Cloud\] Android local save base:')
-    localSaveWrites = ([regex]::Matches($rawLog, '\[Cloud\] Android local save write:')).Count
-    localSaveReads = ([regex]::Matches($rawLog, '\[Cloud\] Android local save read')).Count
-    localSaveExistsChecks = ([regex]::Matches($rawLog, '\[Cloud\] Android local save exists:')).Count
-    localOnlySaveManagerSeen = [bool]($rawLog -match '\[Cloud\] Created Android local-only SaveManager')
-    steamCloudSaveManagerSeen = [bool]($rawLog -match '\[Cloud\] Created SaveManager with SteamKit2 cloud store')
-    pullNoDownloadsSeen = [bool]($rawLog -match 'complete with no downloads')
-    pullWriteSeen = [bool]($rawLog -match '\[Cloud\] Pull wrote|\[Cloud\].*wrote .* bytes|\[Cloud\] Android local save write:')
-    pushPromptSeen = [bool]($rawLog -match 'Push local saves to Steam Cloud\?')
-    pushUploadMarkerSeen = [bool]($rawLog -match '\[Cloud\].*(Push|Upload|CommitFileUpload|BeginFileUpload)')
-    fatalExceptionSeen = [bool]($rawLog -match 'FATAL EXCEPTION|AndroidRuntime.*FATAL|AndroidRuntime.*Exception')
-}
-
-$summaryText = @(
-    "Android save validation summary",
-    "Output: $outDir",
-    "schema=22 seen: $($summary.schema22Seen)",
-    "startup freshness seen: $($summary.startupFreshnessSeen)",
-    "assembly recopy seen: $($summary.assemblyRecopySeen)",
-    "assembly cache-hit seen: $($summary.assemblyCacheHitSeen)",
-    "expectedBytes seen: $($summary.expectedBytesSeen)",
-    "pull attempt seen: $($summary.pullAttemptSeen)",
-    "old pull confirmation seen: $($summary.oldPullConfirmationSeen)",
-    "candidate paths seen: $($summary.candidatePathsSeen)",
-    "cloud file sample seen: $($summary.cloudSampleSeen)",
-    "local save base seen: $($summary.localSaveBaseSeen)",
-    "local save writes: $($summary.localSaveWrites)",
-    "local save reads: $($summary.localSaveReads)",
-    "local save exists checks: $($summary.localSaveExistsChecks)",
-    "local-only SaveManager seen: $($summary.localOnlySaveManagerSeen)",
-    "Steam cloud SaveManager seen: $($summary.steamCloudSaveManagerSeen)",
-    "pull no-downloads seen: $($summary.pullNoDownloadsSeen)",
-    "pull write seen: $($summary.pullWriteSeen)",
-    "push prompt seen: $($summary.pushPromptSeen)",
-    "push upload marker seen: $($summary.pushUploadMarkerSeen)",
-    "fatal exception seen: $($summary.fatalExceptionSeen)"
-)
-$summaryText | Set-Content -LiteralPath (Join-Path $outDir "summary.txt") -Encoding UTF8
-
-if ($DumpSaveFiles) {
-    $allFiles = Invoke-Adb shell run-as $PackageName sh -c "find files -maxdepth 8 -type f 2>/dev/null"
-    $saveFiles = $allFiles | Where-Object {
-        $_ -match '\.save$' -or
-        $_ -match '\.run$' -or
-        $_ -match '\.bak$' -or
-        $_ -match '/prefs$' -or
-        $_ -match '/prefs\.save$'
+$verboseMarkerEnabled = $false
+try {
+    if ($ClearLogcat) {
+        $preClearLog = Get-AdbText -AdbArguments @("logcat", "-d", "-v", "time")
+        [IO.File]::WriteAllText(
+            (Join-Path $outDir "logcat-before-clear.txt"),
+            $preClearLog,
+            [Text.UTF8Encoding]::new($false)
+        )
+        Invoke-Adb -AdbArguments @("logcat", "-c") | Out-Null
     }
 
-    $saveFiles | Set-Content -LiteralPath (Join-Path $outDir "save-files.txt") -Encoding UTF8
+    $runAsProbe = Invoke-AdbRaw -AdbArguments @("shell", "run-as", $PackageName, "sh", "-c", "echo RUN_AS_OK")
+    $runAsAvailable = $runAsProbe.ExitCode -eq 0 -and
+        (($runAsProbe.Output -join "`n") -match 'RUN_AS_OK')
+    if ($EnableVerboseSaveDiagnostics -and $runAsAvailable) {
+        Invoke-Adb -AdbArguments @("shell", "run-as", $PackageName, "sh", "-c", "touch files/.sts2_verbose_save_diagnostics") | Out-Null
+        $verboseMarkerEnabled = $true
+    }
+
+    if ($WaitSeconds -gt 0) {
+        Write-Host "Waiting $WaitSeconds seconds before collecting logcat..."
+        Start-Sleep -Seconds $WaitSeconds
+    }
+
+    $manufacturer = Get-AdbText -AdbArguments @("shell", "getprop", "ro.product.manufacturer")
+    $model = Get-AdbText -AdbArguments @("shell", "getprop", "ro.product.model")
+    $androidApi = Get-AdbText -AdbArguments @("shell", "getprop", "ro.build.version.sdk")
+    $abiList = Get-AdbText -AdbArguments @("shell", "getprop", "ro.product.cpu.abilist")
+    $buildFingerprint = Get-AdbText -AdbArguments @("shell", "getprop", "ro.build.fingerprint")
+    $deviceIdentity = [ordered]@{
+        serial = $DeviceSerial
+        serialSha256 = Get-TextSha256 -Text $DeviceSerial
+        manufacturer = $manufacturer
+        model = $model
+        androidApi = $androidApi
+        abiList = $abiList
+        buildFingerprint = $buildFingerprint
+    }
+
+    $properties = Get-AdbText -AdbArguments @("shell", "getprop")
+    [IO.File]::WriteAllText(
+        (Join-Path $outDir "getprop.txt"),
+        $properties,
+        [Text.UTF8Encoding]::new($false)
+    )
+
+    $packageDump = Get-AdbText -AdbArguments @("shell", "dumpsys", "package", $PackageName)
+    [IO.File]::WriteAllText(
+        (Join-Path $outDir "package.txt"),
+        $packageDump,
+        [Text.UTF8Encoding]::new($false)
+    )
+
+    $installedApkPath = ""
+    $installedApkSha256 = ""
+    $pmPathResult = Invoke-AdbRaw -AdbArguments @("shell", "pm", "path", $PackageName)
+    if ($pmPathResult.ExitCode -eq 0) {
+        $installedApkPath = @(
+            $pmPathResult.Output |
+                ForEach-Object { ([string]$_).Trim() } |
+                Where-Object { $_ -match '^package:.+base\.apk$' } |
+                ForEach-Object { $_.Substring("package:".Length) }
+        ) | Select-Object -First 1
+    }
+    if ($installedApkPath) {
+        $installedHashResult = Invoke-AdbRaw -AdbArguments @("shell", "sha256sum", $installedApkPath)
+        if ($installedHashResult.ExitCode -eq 0 -and
+            (($installedHashResult.Output -join " ") -match '([0-9a-fA-F]{64})')) {
+            $installedApkSha256 = $Matches[1].ToLowerInvariant()
+        }
+    }
+
+    if ($LogcatSince) {
+        $rawLog = Get-AdbText -AdbArguments @(
+            "logcat", "-d", "-v", "time", "-T", $LogcatSince
+        )
+    } elseif ($LogcatTailLines -gt 0) {
+        $rawLog = Get-AdbText -AdbArguments @("logcat", "-d", "-t", [string]$LogcatTailLines)
+    } else {
+        $rawLog = Get-AdbText -AdbArguments @("logcat", "-d")
+    }
+    $rawLogPath = Join-Path $outDir "logcat.txt"
+    [IO.File]::WriteAllText($rawLogPath, $rawLog, [Text.UTF8Encoding]::new($false))
+
+    $patterns = @(
+        "Assembly cache diagnostics",
+        "Assembly cache required file",
+        "Android startup freshness",
+        "New version detected",
+        "re-copying all assemblies",
+        "cache-hit",
+        "expectedBytes",
+        "expectedSource",
+        "\[Cloud\]",
+        "\[Save\]",
+        "\[Recovery\]",
+        "automatic save sync",
+        "automatic save synchronization",
+        "pending-sync",
+        "synchronized and verified",
+        "read-back",
+        "Destination deletion could not be verified",
+        "file_committed",
+        "commit",
+        "Restore",
+        "Undo",
+        "AndroidRuntime",
+        "FATAL EXCEPTION"
+    )
+    $filtered = Select-String -LiteralPath $rawLogPath -Pattern $patterns -CaseSensitive:$false
+    $filteredLines = @($filtered | ForEach-Object { $_.Line })
+    $filteredLines | Set-Content -LiteralPath (Join-Path $outDir "filtered-logcat.txt") -Encoding UTF8
+
+    $localSaveHashRows = @()
+    $stateHashRows = @()
+    $stateDocumentIndex = [System.Collections.Generic.List[object]]::new()
+    $persistedRemoteRows = [System.Collections.Generic.List[object]]::new()
+    $pendingPhases = [System.Collections.Generic.List[string]]::new()
+    if ($runAsAvailable) {
+        $localHashCommand = @'
+find files -maxdepth 9 -type f \( -name 'profile.save' -o -name 'progress.save' -o -name 'prefs' -o -name 'prefs.save' -o -name 'current_run.save' -o -name 'current_run_mp.save' -o -name '*.run' \) ! -path 'files/.sts2-launcher/*' ! -path 'files/.launcher_backups/*' ! -path 'files/game/*' ! -path 'files/cache/*' ! -path 'files/tmp/*' -print 2>/dev/null | sort | while IFS= read -r f; do h=$(sha256sum "$f"); h=${h%% *}; s=$(wc -c < "$f"); printf '%s\t%s\t%s\n' "$h" "$s" "$f"; done
+'@
+        $localHashResult = Invoke-AdbRaw -AdbArguments @("shell", "run-as", $PackageName, "sh", "-c", $localHashCommand)
+        if ($localHashResult.ExitCode -eq 0) {
+            $localSaveHashRows = @(
+                $localHashResult.Output |
+                    ForEach-Object { ([string]$_).Trim() } |
+                    Where-Object { $_ -match '^[0-9a-fA-F]{64}\t[0-9]+\tfiles/' }
+            )
+        }
+        @("sha256`tsizeBytes`tdevicePath") + $localSaveHashRows |
+            Set-Content -LiteralPath (Join-Path $outDir "local-save-byte-hashes.tsv") -Encoding UTF8
+        if ($DumpSaveFiles) {
+            $localSaveHashRows |
+                ForEach-Object { ($_ -split "`t", 3)[2] } |
+                Set-Content -LiteralPath (Join-Path $outDir "save-files.txt") -Encoding UTF8
+        }
+
+        $stateHashCommand = @'
+{ for root in files/.sts2-launcher/automatic-sync files/.sts2-launcher/recovery; do if [ -d "$root" ]; then find "$root" -type f -print 2>/dev/null; fi; done; } | sort | while IFS= read -r f; do h=$(sha256sum "$f"); h=${h%% *}; s=$(wc -c < "$f"); printf '%s\t%s\t%s\n' "$h" "$s" "$f"; done
+'@
+        $stateHashResult = Invoke-AdbRaw -AdbArguments @("shell", "run-as", $PackageName, "sh", "-c", $stateHashCommand)
+        if ($stateHashResult.ExitCode -eq 0) {
+            $stateHashRows = @(
+                $stateHashResult.Output |
+                    ForEach-Object { ([string]$_).Trim() } |
+                    Where-Object { $_ -match '^[0-9a-fA-F]{64}\t[0-9]+\tfiles/\.sts2-launcher/' }
+            )
+        }
+        @("sha256`tsizeBytes`tdevicePath") + $stateHashRows |
+            Set-Content -LiteralPath (Join-Path $outDir "sync-recovery-state-byte-hashes.tsv") -Encoding UTF8
+
+        $stateCaptureDir = Join-Path $outDir "sync-state"
+        New-Item -ItemType Directory -Force -Path $stateCaptureDir | Out-Null
+        foreach ($stateHashRow in $stateHashRows) {
+            $parts = $stateHashRow -split "`t", 3
+            $devicePath = $parts[2]
+            if ($devicePath -notmatch '^files/\.sts2-launcher/(automatic-sync|recovery)/' -or
+                $devicePath.Contains("..") -or
+                -not $devicePath.EndsWith(".json", [StringComparison]::OrdinalIgnoreCase)) {
+                continue
+            }
+
+            $documentResult = Invoke-AdbRaw -AdbArguments @("exec-out", "run-as", $PackageName, "cat", $devicePath)
+            if ($documentResult.ExitCode -ne 0) {
+                $stateDocumentIndex.Add([pscustomobject]@{
+                    devicePath = $devicePath
+                    capturedFile = ""
+                    deviceSha256 = $parts[0].ToLowerInvariant()
+                    deviceSizeBytes = [int64]$parts[1]
+                    parsed = $false
+                    error = "read failed"
+                })
+                continue
+            }
+
+            $documentText = $documentResult.Output -join "`n"
+            $nameHash = (Get-TextSha256 -Text $devicePath).Substring(0, 16)
+            $capturedName = "$nameHash-$([IO.Path]::GetFileName($devicePath))"
+            $capturedPath = Join-Path $stateCaptureDir $capturedName
+            [IO.File]::WriteAllText(
+                $capturedPath,
+                $documentText,
+                [Text.UTF8Encoding]::new($false)
+            )
+
+            $parsed = $false
+            $parseError = ""
+            try {
+                $document = $documentText | ConvertFrom-Json -ErrorAction Stop
+                $parsed = $true
+                Add-PersistedRemoteManifestRows -Document $document -DocumentPath $devicePath -Role "RemoteManifest" -Rows $persistedRemoteRows
+                Add-PersistedRemoteManifestRows -Document $document -DocumentPath $devicePath -Role "RemoteBaseline" -Rows $persistedRemoteRows
+                if ([IO.Path]::GetFileName($devicePath) -eq "pending-sync.json" -and $document.Phase) {
+                    $pendingPhases.Add([string]$document.Phase)
+                    if ([string]$document.Phase -eq "uploading") {
+                        Add-PersistedRemoteManifestRows -Document $document -DocumentPath $devicePath -Role "ExpectedDestinationManifest" -Rows $persistedRemoteRows
+                    } elseif ([string]$document.Phase -eq "downloading") {
+                        Add-PersistedRemoteManifestRows -Document $document -DocumentPath $devicePath -Role "SourceManifest" -Rows $persistedRemoteRows
+                    }
+                }
+            } catch {
+                $parseError = $_.Exception.Message
+            }
+            $stateDocumentIndex.Add([pscustomobject]@{
+                devicePath = $devicePath
+                capturedFile = "sync-state/$capturedName"
+                deviceSha256 = $parts[0].ToLowerInvariant()
+                deviceSizeBytes = [int64]$parts[1]
+                parsed = $parsed
+                error = $parseError
+            })
+        }
+    } else {
+        "sha256`tsizeBytes`tdevicePath" |
+            Set-Content -LiteralPath (Join-Path $outDir "local-save-byte-hashes.tsv") -Encoding UTF8
+        "sha256`tsizeBytes`tdevicePath" |
+            Set-Content -LiteralPath (Join-Path $outDir "sync-recovery-state-byte-hashes.tsv") -Encoding UTF8
+        @(
+            "run-as unavailable for $PackageName",
+            "No private Android files or byte hashes were captured.",
+            "This evidence cannot satisfy Review 5 local/remote file inspection."
+        ) | Set-Content -LiteralPath (Join-Path $outDir "private-storage-unavailable.txt") -Encoding UTF8
+    }
+
+    ConvertTo-Json -InputObject @($stateDocumentIndex) -Depth 5 |
+        Set-Content -LiteralPath (Join-Path $outDir "sync-state-index.json") -Encoding UTF8
+    @("documentPath`tmanifestRole`tsavePath`texists`thashKind`tsha256") + @(
+        $persistedRemoteRows | ForEach-Object {
+            "$($_.DocumentPath)`t$($_.ManifestRole)`t$($_.SavePath)`t$($_.Exists)`t$($_.HashKind)`t$($_.Sha256)"
+        }
+    ) | Set-Content -LiteralPath (Join-Path $outDir "persisted-steam-byte-hashes.tsv") -Encoding UTF8
+
+    $persistedSteamByteHashCount = @(
+        $persistedRemoteRows | Where-Object { $_.HashKind -eq "byte-sha256" }
+    ).Count
+    $persistedSteamLegacyTextHashCount = @(
+        $persistedRemoteRows | Where-Object { $_.HashKind -eq "legacy-text-sha256" }
+    ).Count
+
+    $summary = [ordered]@{
+        output = $outDir
+        authorizedDevice = $true
+        runAsAvailable = $runAsAvailable
+        sourceCommit = $SourceCommit
+        sourceWorktreeDirty = $sourceWorktreeDirty
+        stage5Row = $Stage5Row
+        evidencePhase = $EvidencePhase
+        logcatSince = $LogcatSince
+        candidateApkSha256 = $candidateApkSha256
+        installedApkSha256 = $installedApkSha256
+        candidateMatchesInstalled = [bool](
+            $candidateApkSha256 -and
+            $installedApkSha256 -and
+            $candidateApkSha256 -eq $installedApkSha256
+        )
+        localSaveByteHashCount = $localSaveHashRows.Count
+        syncRecoveryStateFileHashCount = $stateHashRows.Count
+        persistedSteamByteHashCount = $persistedSteamByteHashCount
+        persistedSteamLegacyTextHashCount = $persistedSteamLegacyTextHashCount
+        persistedSteamHashesAreLiveReadAtCapture = $false
+        pendingSyncDocumentCount = @($stateDocumentIndex | Where-Object { $_.devicePath -match '/pending-sync\.json$' }).Count
+        pendingSyncPhases = @($pendingPhases | Sort-Object -Unique)
+        recoveryJournalCount = @($stateDocumentIndex | Where-Object { $_.devicePath -match '/last-restore\.json$' }).Count
+        automaticSyncPendingLogSeen = [bool]($rawLog -match 'automatic save (sync|synchronization).*pending|pending-sync')
+        automaticSyncVerifiedLogSeen = [bool]($rawLog -match 'Local and Steam saves were synchronized and verified|automatic save reconciliation.*verified')
+        automaticSyncConflictLogSeen = [bool]($rawLog -match 'automatic save (sync|synchronization).*(conflict|both.*changed)')
+        readBackMismatchSeen = [bool]($rawLog -match 'read-back hash mismatch|could not be verified')
+        commitFailureSeen = [bool]($rawLog -match 'file_committed=false|commit.*fail')
+        recoveryLogSeen = [bool]($rawLog -match '\[Recovery\]|Restore|Undo')
+        localSaveBaseSeen = [bool]($rawLog -match '\[Save\] Android local save base:')
+        localSaveWrites = ([regex]::Matches($rawLog, '\[Save\] Android local save write:')).Count
+        localSaveReads = ([regex]::Matches($rawLog, '\[Save\] Android local save read')).Count
+        localSaveExistsChecks = ([regex]::Matches($rawLog, '\[Save\] Android local save exists:')).Count
+        localOnlySaveManagerSeen = [bool]($rawLog -match '\[Save\] Created Android gameplay SaveManager with local storage only')
+        steamGameplaySaveManagerSeen = [bool]($rawLog -match 'Created .*SaveManager.*Steam|Steam.*gameplay SaveManager')
+        fatalExceptionSeen = [bool]($rawLog -match 'FATAL EXCEPTION|AndroidRuntime.*FATAL|AndroidRuntime.*Exception')
+    }
+
+    $summaryText = @(
+        "Android Stage 5 save validation capture",
+        "Output: $outDir",
+        "Source commit: $SourceCommit",
+        "Source worktree dirty: $sourceWorktreeDirty",
+        "Stage 5 row: $Stage5Row",
+        "Evidence phase: $EvidencePhase",
+        "Scenario logcat since: $LogcatSince",
+        "Candidate APK SHA-256: $candidateApkSha256",
+        "Installed APK SHA-256: $installedApkSha256",
+        "Candidate matches installed: $($summary.candidateMatchesInstalled)",
+        "Authorized device: True",
+        "run-as/private storage available: $runAsAvailable",
+        "Local save byte hashes: $($summary.localSaveByteHashCount)",
+        "Sync/recovery state file hashes: $($summary.syncRecoveryStateFileHashCount)",
+        "Persisted Steam byte hashes: $($summary.persistedSteamByteHashCount)",
+        "Persisted Steam legacy text hashes: $($summary.persistedSteamLegacyTextHashCount)",
+        "Persisted Steam hashes live-read during capture: False",
+        "Pending sync documents: $($summary.pendingSyncDocumentCount)",
+        "Pending sync phases: $($summary.pendingSyncPhases -join ', ')",
+        "Recovery journals: $($summary.recoveryJournalCount)",
+        "Verified automatic-sync log seen: $($summary.automaticSyncVerifiedLogSeen)",
+        "Read-back mismatch seen: $($summary.readBackMismatchSeen)",
+        "Commit failure seen: $($summary.commitFailureSeen)",
+        "Local-only SaveManager seen: $($summary.localOnlySaveManagerSeen)",
+        "Steam gameplay SaveManager seen: $($summary.steamGameplaySaveManagerSeen)",
+        "Fatal exception seen: $($summary.fatalExceptionSeen)",
+        "Review 5 note: persisted remote hashes are not an independent live Steam query."
+    )
+    $summaryText | Set-Content -LiteralPath (Join-Path $outDir "summary.txt") -Encoding UTF8
+
+    $inventoryPath = "$outDir-evidence-inventory.json"
+    $captureManifest = [ordered]@{
+        schemaVersion = 2
+        kind = "stage5-android-save-validation-capture"
+        capturedUtc = [DateTime]::UtcNow.ToString("o")
+        output = $outDir
+        captureBinding = [ordered]@{
+            sourceCommit = $SourceCommit
+            sourceWorktreeDirty = $sourceWorktreeDirty
+            candidateApkPath = $resolvedApkPath
+            candidateApkSha256 = $candidateApkSha256
+            installedApkPath = $installedApkPath
+            installedApkSha256 = $installedApkSha256
+            candidateMatchesInstalled = $summary.candidateMatchesInstalled
+            packageName = $PackageName
+            stage5Row = $Stage5Row
+            evidencePhase = $EvidencePhase
+        }
+        device = $deviceIdentity
+        waitedSeconds = $WaitSeconds
+        logcatSince = $LogcatSince
+        clearedLogcatAfterPreservingBuffer = [bool]$ClearLogcat
+        logcat = $rawLogPath
+        filteredLogcat = (Join-Path $outDir "filtered-logcat.txt")
+        summary = (Join-Path $outDir "summary.txt")
+        package = (Join-Path $outDir "package.txt")
+        localSaveByteHashes = (Join-Path $outDir "local-save-byte-hashes.tsv")
+        syncRecoveryStateByteHashes = (Join-Path $outDir "sync-recovery-state-byte-hashes.tsv")
+        persistedSteamByteHashes = (Join-Path $outDir "persisted-steam-byte-hashes.tsv")
+        evidenceInventory = $inventoryPath
+        evidenceLimitations = @(
+            "A missing run-as capability means actual private Android files were not inspected.",
+            "Persisted Steam hashes came from launcher baseline/pending documents and are not an independent live Steam query at capture time.",
+            "A UI message or log line alone is not proof of synchronized remote bytes."
+        )
+        gates = $summary
+    }
+    $captureManifest |
+        ConvertTo-Json -Depth 8 |
+        Set-Content -LiteralPath (Join-Path $outDir "manifest.json") -Encoding UTF8
+
+    $inventoryScript = Join-Path $PSScriptRoot "new-stage5-android-evidence-inventory.ps1"
+    & $inventoryScript `
+        -EvidenceRoot $outDir `
+        -OutputPath $inventoryPath `
+        -SourceCommit $SourceCommit `
+        -ApkSha256 $(if ($candidateApkSha256) { $candidateApkSha256 } else { $installedApkSha256 }) `
+        -DeviceIdentity "$manufacturer $model; Android API $androidApi; ABI $abiList"
+
+    Write-Host "Saved Android Stage 5 save-validation evidence to $outDir"
+} finally {
+    if ($verboseMarkerEnabled) {
+        $cleanup = Invoke-AdbRaw -AdbArguments @("shell", "run-as", $PackageName, "sh", "-c", "rm -f files/.sts2_verbose_save_diagnostics")
+        if ($cleanup.ExitCode -ne 0) {
+            Write-Warning "Could not remove the verbose save diagnostics marker after capture."
+        }
+    }
 }
-
-if ($EnableVerboseSaveDiagnostics) {
-    Invoke-Adb shell run-as $PackageName sh -c "rm -f files/.sts2_verbose_save_diagnostics" | Out-Null
-}
-
-@{
-    output = $outDir
-    waitedSeconds = $WaitSeconds
-    logcat = $rawLogPath
-    filtered = (Join-Path $outDir "filtered-logcat.txt")
-    summary = (Join-Path $outDir "summary.txt")
-    package = (Join-Path $outDir "package.txt")
-    saveFiles = if ($DumpSaveFiles) { (Join-Path $outDir "save-files.txt") } else { $null }
-    gates = $summary
-} | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $outDir "manifest.json") -Encoding UTF8
-
-Write-Host "Saved Android save-validation evidence to $outDir"

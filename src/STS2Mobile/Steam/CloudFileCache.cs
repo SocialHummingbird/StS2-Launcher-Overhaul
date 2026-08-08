@@ -79,6 +79,13 @@ internal partial class SteamKit2CloudSaveStore
             _persistedFiles.TryRemove(key, out _);
         }
 
+        private void ClearLoadedFiles()
+        {
+            _files.Clear();
+            _persistedFiles.Clear();
+            _loaded = false;
+        }
+
         private (int Size, DateTimeOffset Timestamp)? GetFileInfo(string path)
             => GetFileInfoByKey(CacheKey(path));
 

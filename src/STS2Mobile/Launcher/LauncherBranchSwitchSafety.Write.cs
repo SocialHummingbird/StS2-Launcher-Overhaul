@@ -22,7 +22,6 @@ internal static partial class LauncherBranchSwitchSafety
                 + $"{SelectedVersionSlotDirectoryPrefix} {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
                 + $"{SelectedBranchNotePrefix} {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
                 + $"{LocalBackupForcedPrefix} true\n"
-                + $"{ManualPushRequiresBackupStoragePrefix} true\n"
                 + $"{WarningAcknowledgedPrefix} branch switch can require another download and saves may not be compatible between Steam branches.\n"
                 + $"{NonPublicBranchWarningAcknowledgedPrefix} branch may be private or password-protected; beta password entry is not implemented.\n";
             File.WriteAllText(MarkerPath(dataDir), text);

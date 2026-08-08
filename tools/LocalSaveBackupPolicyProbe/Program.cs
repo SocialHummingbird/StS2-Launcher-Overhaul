@@ -9,6 +9,14 @@ ExpectBackup("modded/profile2/saves/prefs", expected: true);
 ExpectBackup("profile3/saves/history/20260717.run", expected: true);
 ExpectBackup("profile1/saves/current_run.save.backup", expected: true);
 ExpectBackup("profile1/saves/current_run.save.tmp", expected: false);
+ExpectBackup(
+    ".sts2-launcher/transfer-backups/operation/profile1/saves/progress.save",
+    expected: false
+);
+ExpectBackup(
+    "user://.STS2-LAUNCHER/pull-incomplete/vanilla.save",
+    expected: false
+);
 ExpectBackup("cloud_sync/last_manual_pull.json", expected: false);
 ExpectBackup("profile1/saves/progress.save.bak", expected: false);
 
@@ -19,13 +27,6 @@ ExpectImportant("profile1/saves/current_run.save", expected: true);
 ExpectImportant("profile1/saves/prefs", expected: true);
 ExpectImportant("profile1/saves/history/20260717.run", expected: false);
 ExpectImportant("otherprofile.save", expected: false);
-
-ExpectRestore("profile.save", expected: true);
-ExpectRestore("modded/profile.save", expected: true);
-ExpectRestore("profile1/saves/progress.save", expected: true);
-ExpectRestore("modded/profile2/saves/prefs.save.backup", expected: true);
-ExpectRestore("profile1/saves/current_run.save", expected: false);
-ExpectRestore("profile1/saves/history/20260717.run", expected: false);
 
 var root = Path.Combine(Path.GetTempPath(), "sts2-local-backup-probe");
 ExpectResolved(root, "profile1/saves/progress.save", expected: true);
@@ -57,19 +58,13 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("Local save backup policy probe passed (backup classification, guarded recovery, path containment, namespace preservation).");
+Console.WriteLine("Local save backup policy probe passed (backup classification, path containment, namespace preservation).");
 return 0;
 
 void ExpectBackup(string path, bool expected)
     => Expect(
         LocalSaveBackupPlan.IsBackupEligible(path) == expected,
         $"backup eligibility for '{path}' should be {expected}"
-    );
-
-void ExpectRestore(string path, bool expected)
-    => Expect(
-        LocalSaveBackupPlan.ShouldRestoreMissing(path) == expected,
-        $"restore eligibility for '{path}' should be {expected}"
     );
 
 void ExpectImportant(string path, bool expected)

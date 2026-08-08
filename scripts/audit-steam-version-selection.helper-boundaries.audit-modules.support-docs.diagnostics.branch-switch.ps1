@@ -72,6 +72,6 @@ function Add-SteamVersionSelectionSupportDocsDiagnosticsBranchSwitchBoundaryChec
         @(
             "function Add-SteamVersionSelectionDiagnosticsReportingBranchSwitchBackupChecks",
             "LauncherDiagnostics.ReportBranchSwitchSafety.Backup.cs",
-            "Branch-switch pre-Push backup evidence satisfied"
+            "Pre-Push cloud backup evidence after branch switch"
         )
 }

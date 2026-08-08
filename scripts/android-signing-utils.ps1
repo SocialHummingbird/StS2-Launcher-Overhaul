@@ -30,7 +30,8 @@ function Resolve-AndroidBuildTool {
     )
 
     $extensions = @("")
-    if ($IsWindows) {
+    $runningOnWindows = $env:OS -eq "Windows_NT"
+    if ($runningOnWindows) {
         $extensions = @(".bat", ".exe", "")
     }
 

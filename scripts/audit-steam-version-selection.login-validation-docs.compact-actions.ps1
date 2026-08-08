@@ -50,7 +50,7 @@ function Add-SteamVersionSelectionLoginValidationDocsCompactActionChecks {
             "Launcher compact cloud options collapsible:",
             "Launcher primary cloud actions before cloud options:",
             "Launcher compact cloud option detail labels supported:",
-            "Launcher safer Pull-before-Push cloud ordering supported:",
+            "Launcher independent Pull/Upload cloud directions supported:",
             "Launcher compact cloud direction labels supported:",
             "Launcher compact cloud primary actions row supported:",
             "Launcher compact Pull detail label supported:",

@@ -2,15 +2,13 @@ using System;
 using System.Reflection;
 using Godot;
 using HarmonyLib;
-using STS2Mobile.Steam;
 
 namespace STS2Mobile.Patches;
 
 // Handles app backgrounding and foregrounding. Mutes audio, pauses the scene
-// tree, flushes cloud writes on background. Opens the pause menu on resume.
+// tree, and opens the pause menu on resume.
 internal static partial class AppLifecyclePatches
 {
-    private const int CloudFlushTimeoutMs = 5000;
     private const int PauseMenuValue = 4;
 
     internal static void Apply(Harmony harmony)
@@ -41,12 +39,12 @@ internal static partial class AppLifecyclePatches
             );
         }
 
-        // Redirect NGame.Quit to restart the app instead of force-killing the process.
+        // Let NGame.Quit perform its final local saves, then return to the launcher.
         PatchHelper.Patch(
             harmony,
             typeof(MegaCrit.Sts2.Core.Nodes.NGame),
             "Quit",
-            prefix: PatchHelper.Method(typeof(AppLifecyclePatches), nameof(QuitPrefix))
+            postfix: PatchHelper.Method(typeof(AppLifecyclePatches), nameof(QuitPostfix))
         );
     }
 
@@ -61,9 +59,6 @@ internal static partial class AppLifecyclePatches
 
             var node = (Node)__instance;
             node.GetTree().Paused = true;
-
-            // Flush pending cloud writes before the OS may kill the process
-            FlushCloudWrites("background");
 
             PatchHelper.Log("App backgrounded: audio muted, SceneTree paused");
         }
@@ -114,35 +109,17 @@ internal static partial class AppLifecyclePatches
         }
     }
 
-    // Replaces the default quit (force-kill) with a clean app restart via GodotApp.
-    // Saves are already written by the original Quit() callers before this runs.
-    private static bool QuitPrefix(object __instance)
+    // NGame.Quit has completed its synchronous final saves before this runs.
+    private static void QuitPostfix()
     {
         try
         {
-            FlushCloudWrites("quit");
-
-            PatchHelper.Log("NGame.Quit intercepted, restarting app");
+            PatchHelper.Log("NGame.Quit completed final local saves; restarting launcher");
             AndroidGodotAppBridge.RestartApp();
-            return false;
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"QuitPrefix failed, falling back to default: {ex.Message}");
-            return true;
-        }
-    }
-
-    private static void FlushCloudWrites(string reason)
-    {
-        try
-        {
-            if (!SteamKit2CloudSaveStore.FlushActive(CloudFlushTimeoutMs))
-                PatchHelper.Log($"Cloud flush on {reason} timed out, continuing");
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"Cloud flush on {reason} failed: {ex.Message}");
+            PatchHelper.Log($"Launcher restart after NGame.Quit failed: {ex.Message}");
         }
     }
 

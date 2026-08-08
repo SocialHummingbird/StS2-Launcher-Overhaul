@@ -12,21 +12,10 @@ internal enum CloudOperationPhase
     Preparing,
     Enumerating,
     BackingUp,
-    PreparingProfiles,
     Transferring,
-    SeedingProfiles,
     Finalizing,
     Completed,
-    PartiallyCompleted,
     Failed,
-}
-
-internal enum CloudTransferPathOutcome
-{
-    Completed,
-    Skipped,
-    Failed,
-    TimedOut,
 }
 
 internal readonly record struct CloudOperationState(
@@ -37,30 +26,19 @@ internal readonly record struct CloudOperationState(
     int BackupProcessedCount,
     int BackupTotalCount,
     int BackupCreatedCount,
-    int ProfilePreparationProcessedCount,
-    int ProfilePreparationTotalCount,
-    int PrivateBackupCreatedCount,
     int TransferProcessedCount,
     int TransferTotalCount,
     int TransferCompletedCount,
-    int TransferSkippedCount,
-    int TransferFailedCount,
-    int TransferTimedOutCount,
-    int ProfileSeedProcessedCount,
-    int ProfileSeedTotalCount,
-    int ProfileSeededCount,
     string ErrorMessage
 )
 {
     internal bool IsActive
         => Phase is not CloudOperationPhase.Idle
             and not CloudOperationPhase.Completed
-            and not CloudOperationPhase.PartiallyCompleted
             and not CloudOperationPhase.Failed;
 
     internal bool IsTerminal
         => Phase is CloudOperationPhase.Completed
-            or CloudOperationPhase.PartiallyCompleted
             or CloudOperationPhase.Failed;
 
     internal static CloudOperationState Idle(CloudOperationKind kind)
@@ -68,15 +46,6 @@ internal readonly record struct CloudOperationState(
             kind,
             CloudOperationPhase.Idle,
             "",
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
             0,
             0,
             0,

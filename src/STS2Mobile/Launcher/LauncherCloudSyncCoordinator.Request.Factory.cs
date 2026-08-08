@@ -11,7 +11,14 @@ internal sealed partial class LauncherCloudSyncCoordinator
             string selectedBranch,
             CloudOperationProgressTracker progress
         )
-            => new(
+        {
+            var saveNamespace = LauncherModSelectionState.IsModdedMode
+                ? SaveNamespace.Modded
+                : SaveNamespace.Vanilla;
+            var modSetFingerprint =
+                LauncherModSelectionState.EnabledModSetFingerprint() ?? "";
+            var runtimeIdentity = SteamGameBranch.StorageIdentity(selectedBranch);
+            return new ManualCloudSyncRequest(
                 PushConfirmationMessage(dataDir, selectedBranch),
                 "Push to Cloud",
                 "Cancel Push",
@@ -20,13 +27,18 @@ internal sealed partial class LauncherCloudSyncCoordinator
                 false,
                 cancellationToken =>
                     LauncherCloudSaveState.ManualPushAllAsync(
+                        saveNamespace,
+                        runtimeIdentity,
+                        modSetFingerprint,
                         progress,
                         cancellationToken
                     ),
                 prepareOperation: () =>
                     EnsureCloudPushStillEligible(
                         dataDir,
-                        selectedBranch
+                        selectedBranch,
+                        saveNamespace,
+                        modSetFingerprint
                     ),
                 onSuccessfulCompletion: () =>
                     LauncherCloudSyncEvidence.WriteManualPushMarker(
@@ -41,49 +53,45 @@ internal sealed partial class LauncherCloudSyncCoordinator
                     ),
                 operationProgress: progress
             );
+        }
 
         internal static ManualCloudSyncRequest Pull(
             string dataDir,
             string selectedBranch,
             CloudOperationProgressTracker progress
         )
-            => new(
-                "Pull Steam Cloud saves to Android?\nCloud modded saves are preferred. Where Steam Cloud has only vanilla saves, the launcher copies the freshly downloaded files into the matching modded profile. Existing local modded files are backed up inside the app before replacement.",
+        {
+            var saveNamespace = LauncherModSelectionState.IsModdedMode
+                ? SaveNamespace.Modded
+                : SaveNamespace.Vanilla;
+            var modSetFingerprint =
+                LauncherModSelectionState.EnabledModSetFingerprint() ?? "";
+            var runtimeIdentity = SteamGameBranch.StorageIdentity(selectedBranch);
+            return new ManualCloudSyncRequest(
+                $"Pull {saveNamespace.ToString().ToLowerInvariant()} Steam Cloud saves for {SteamGameBranch.DisplayName(selectedBranch)} to Android?\nMatching Android local save files may be replaced after app-private backups are verified.",
                 "Pull from Cloud",
                 "Cancel Pull",
                 "Pull",
-                "Pulling Steam Cloud saves and preparing Android modded profiles...",
+                "Pulling Steam Cloud saves to Android local storage...",
                 true,
                 cancellationToken =>
                     LauncherCloudSaveState.ManualPullAllAsync(
+                        saveNamespace,
+                        runtimeIdentity,
+                        modSetFingerprint,
                         progress,
                         cancellationToken
                     ),
                 prepareOperation: () =>
-                    LauncherCloudSyncEvidence.BeginManualPull(
-                        dataDir,
-                        selectedBranch
+                    EnsureSaveContextStillSelected(
+                        selectedBranch,
+                        saveNamespace,
+                        modSetFingerprint
                     ),
-                completionEvidenceRequired: true,
-                recordCompletionEvidence: () =>
+                onSuccessfulCompletion: () =>
                     LauncherCloudSyncEvidence.WriteManualPullMarker(
                         dataDir,
                         selectedBranch
-                    ),
-                recordIncompleteResult: result =>
-                    LauncherCloudSyncEvidence.WriteManualPullIncompleteMarker(
-                        dataDir,
-                        selectedBranch,
-                        result.Completion
-                            == ManualCloudSyncCompletion.PartialSuccess
-                            ? "partial-success"
-                            : "failure",
-                        $"completed={result.CompletedPathCount}; "
-                            + $"skipped={result.SkippedPathCount}; "
-                            + $"failed={result.FailedPathCount}; "
-                            + $"timedOut={result.TimedOutPathCount}; "
-                            + $"unfinished={result.UnprocessedPathCount}; "
-                            + $"postErrors={result.PostProcessingErrorCount}"
                     ),
                 recordTerminalFailure: (outcome, detail) =>
                     LauncherCloudSyncEvidence.WriteManualPullIncompleteMarker(
@@ -94,5 +102,6 @@ internal sealed partial class LauncherCloudSyncCoordinator
                     ),
                 operationProgress: progress
             );
+        }
     }
 }

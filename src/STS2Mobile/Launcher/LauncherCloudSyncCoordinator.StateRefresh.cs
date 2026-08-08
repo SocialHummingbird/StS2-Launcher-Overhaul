@@ -11,10 +11,7 @@ internal sealed partial class LauncherCloudSyncCoordinator
                 _model.DataDir
             );
         var context = CloudPushSafetyContext.Create(_model.DataDir);
-        var eligibility = EvaluateCloudPushEligibility(
-            context,
-            importantSaveCount > 0
-        );
+        var eligibility = EvaluateCloudPushEligibility(context);
         return new CloudPostOperationSnapshot(
             importantSaveCount,
             LauncherBackupEvidence.CurrentMirrorSaveCount(),
@@ -42,7 +39,6 @@ internal sealed partial class LauncherCloudSyncCoordinator
                         is LocalBackupRefreshCompletion.Skipped
                             or LocalBackupRefreshCompletion.Success
                 )
-                && result.Restored == 0
                 && result.Errors == 0
             )
                 return;

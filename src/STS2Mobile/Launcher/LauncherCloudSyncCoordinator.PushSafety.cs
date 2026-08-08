@@ -39,37 +39,18 @@ internal sealed partial class LauncherCloudSyncCoordinator
             pushContext.CaptureEligibilityState()
         );
 
-    private static CloudPushEligibilityResult EvaluateCloudPushEligibility(
-        CloudPushSafetyContext pushContext,
-        bool hasImportantLocalSaveEvidence
-    )
-        => CloudPushEligibilityPolicy.Evaluate(
-            pushContext.CaptureEligibilityState(
-                hasImportantLocalSaveEvidence
-            )
-        );
-
     private static bool EnsureCloudPushStillEligible(
         string dataDir,
-        string expectedBranch
+        string expectedBranch,
+        SaveNamespace expectedNamespace,
+        string expectedModSetFingerprint
     )
     {
-        var currentBranch = LauncherPreferences.ReadGameBranch();
-        if (
-            !string.Equals(
-                SteamGameBranch.Normalize(expectedBranch),
-                SteamGameBranch.Normalize(currentBranch),
-                StringComparison.OrdinalIgnoreCase
-            )
-        )
-        {
-            throw new InvalidOperationException(
-                "Upload blocked before any Steam Cloud write: "
-                    + $"the selected game version changed from "
-                    + $"{SteamGameBranch.DisplayName(expectedBranch)} to "
-                    + $"{SteamGameBranch.DisplayName(currentBranch)} after confirmation."
-            );
-        }
+        EnsureSaveContextStillSelected(
+            expectedBranch,
+            expectedNamespace,
+            expectedModSetFingerprint
+        );
 
         var eligibility = EvaluateCloudPushEligibility(
             CloudPushSafetyContext.Create(dataDir)
@@ -90,5 +71,52 @@ internal sealed partial class LauncherCloudSyncCoordinator
             "Upload blocked before any Steam Cloud write because its safety "
                 + $"state changed after confirmation. {reasons}"
         );
+    }
+
+    private static bool EnsureSaveContextStillSelected(
+        string expectedBranch,
+        SaveNamespace expectedNamespace,
+        string expectedModSetFingerprint
+    )
+    {
+        var currentBranch = LauncherPreferences.ReadGameBranch();
+        if (
+            !string.Equals(
+                SteamGameBranch.Normalize(expectedBranch),
+                SteamGameBranch.Normalize(currentBranch),
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "Upload blocked before any Steam Cloud write: "
+                    + $"the selected game version changed from "
+                    + $"{SteamGameBranch.DisplayName(expectedBranch)} to "
+                    + $"{SteamGameBranch.DisplayName(currentBranch)} after confirmation."
+            );
+        }
+
+        var currentNamespace = LauncherModSelectionState.IsModdedMode
+            ? SaveNamespace.Modded
+            : SaveNamespace.Vanilla;
+        var currentFingerprint =
+            LauncherModSelectionState.EnabledModSetFingerprint() ?? "";
+        if (
+            currentNamespace != expectedNamespace
+            || !string.Equals(
+                currentFingerprint,
+                expectedModSetFingerprint,
+                StringComparison.Ordinal
+            )
+        )
+        {
+            throw new InvalidOperationException(
+                "Save transfer blocked before any Steam Cloud write: "
+                    + "the selected vanilla/modded mode or enabled mod set "
+                    + "changed after confirmation."
+            );
+        }
+
+        return true;
     }
 }

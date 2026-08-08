@@ -33,6 +33,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.MessageDigest;
 
+import androidx.core.splashscreen.SplashScreen;
+import androidx.core.splashscreen.SplashScreenViewProvider;
+
 import org.json.JSONObject;
 
 public class NativeFallbackActivity extends Activity {
@@ -45,6 +48,7 @@ public class NativeFallbackActivity extends Activity {
 	private static final String GAME_CODE_ASSEMBLY = "sts2.dll";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
 	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
+	private static final long FALLBACK_SPLASH_FOCUS_HOLD_MS = 2000L;
 	public static final String EXTRA_REASON_TITLE = "com.game.sts2launcher.REASON_TITLE";
 	public static final String EXTRA_REASON_MESSAGE = "com.game.sts2launcher.REASON_MESSAGE";
 	public static final String EXTRA_REASON_DIAGNOSTICS = "com.game.sts2launcher.REASON_DIAGNOSTICS";
@@ -54,28 +58,78 @@ public class NativeFallbackActivity extends Activity {
 	private String reasonTitle;
 	private String reasonMessage;
 	private Thread diagnosticsThread;
+	private SplashScreenViewProvider fallbackSplashProvider;
+	private final Runnable fallbackSplashRemoval = this::removeFallbackSplash;
 	private final AndroidNativeRecoveryController recoveryController =
 		new AndroidNativeRecoveryController();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		SplashScreen splashScreen = SplashScreen.installSplashScreen(this);
 		super.onCreate(savedInstanceState);
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		recordStartupPhase("native fallback shown", getIntent().getStringExtra(EXTRA_REASON_TITLE));
 		Log.w(TAG, "Showing native x86 fallback instead of starting Godot.");
 		setContentView(createContentView());
+		splashScreen.setOnExitAnimationListener(
+			provider -> {
+				fallbackSplashProvider = provider;
+				if (hasWindowFocus()) {
+					scheduleFallbackSplashRemoval();
+				}
+			}
+		);
 		startDiagnosticsCollection();
+	}
+
+	@Override
+	public void onWindowFocusChanged(boolean hasFocus) {
+		super.onWindowFocusChanged(hasFocus);
+		if (hasFocus) {
+			scheduleFallbackSplashRemoval();
+		}
 	}
 
 	@Override
 	protected void onDestroy() {
 		destroyed = true;
+		View content = findViewById(android.R.id.content);
+		if (content != null) {
+			content.removeCallbacks(fallbackSplashRemoval);
+		}
+		removeFallbackSplash();
 		if (diagnosticsThread != null) {
 			diagnosticsThread.interrupt();
 			diagnosticsThread = null;
 		}
 		diagnosticsView = null;
 		super.onDestroy();
+	}
+
+	private void scheduleFallbackSplashRemoval() {
+		View content = findViewById(android.R.id.content);
+		if (content == null) {
+			removeFallbackSplash();
+			return;
+		}
+
+		content.removeCallbacks(fallbackSplashRemoval);
+		content.postDelayed(
+			fallbackSplashRemoval,
+			FALLBACK_SPLASH_FOCUS_HOLD_MS
+		);
+	}
+
+	private void removeFallbackSplash() {
+		View content = findViewById(android.R.id.content);
+		if (content != null) {
+			content.removeCallbacks(fallbackSplashRemoval);
+		}
+		SplashScreenViewProvider provider = fallbackSplashProvider;
+		fallbackSplashProvider = null;
+		if (provider != null) {
+			provider.remove();
+		}
 	}
 
 	private void recordStartupPhase(String phase, String detail) {
@@ -870,7 +924,7 @@ public class NativeFallbackActivity extends Activity {
 			true
 		);
 		intent.putExtra(AndroidBootTransitionPolicy.SKIP_INTENT_EXTRA, true);
-		intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+		intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
 		startActivity(intent);
 		recordStartupPhase(
 			"native fallback recovery route started",

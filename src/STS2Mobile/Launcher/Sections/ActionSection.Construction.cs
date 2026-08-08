@@ -84,6 +84,19 @@ internal sealed partial class ActionSection
         _localBackupToggle = cloudControls.LocalBackupToggle;
         _cloudSyncToggle = cloudControls.CloudSyncToggle;
 
+        var saveRecoveryControls = BuildSaveRecoveryControls(scale, compact);
+        _saveRecoveryGroup = saveRecoveryControls.Group;
+        _saveRecoveryScanButton = saveRecoveryControls.ScanButton;
+        _saveRecoveryCurrentExportButton =
+            saveRecoveryControls.CurrentExportButton;
+        _saveRecoveryCandidateDropdown =
+            saveRecoveryControls.CandidateDropdown;
+        _saveRecoveryExportButton = saveRecoveryControls.ExportButton;
+        _saveRecoveryRestoreButton = saveRecoveryControls.RestoreButton;
+        _saveRecoveryUndoButton = saveRecoveryControls.UndoButton;
+        _saveRecoveryApproveButton = saveRecoveryControls.ApproveButton;
+        _saveRecoveryStatusLabel = saveRecoveryControls.StatusLabel;
+
         ConfigureLocalBackupToggle();
         ConfigureCloudSyncToggle();
         UpdateBranchHelpText();

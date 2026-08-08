@@ -40,8 +40,6 @@ internal static partial class LauncherPreferences
             );
 
         AppPaths.EnsureExternalDirectories();
-        return CloudSyncCoordinator.RefreshLocalBackup(
-            restoreMissing: true
-        );
+        return CloudSyncCoordinator.RefreshLocalBackup();
     }
 }

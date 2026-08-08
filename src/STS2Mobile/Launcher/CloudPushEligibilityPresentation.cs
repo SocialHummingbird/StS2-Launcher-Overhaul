@@ -16,8 +16,8 @@ internal readonly record struct CloudPushEligibilityPresentation(
         {
             return new CloudPushEligibilityPresentation(
                 true,
-                "Upload available.\nAll safety checks passed. Review the overwrite warning before uploading.",
-                "Safety checks passed"
+                "Upload available.\nAndroid local saves are present. Review the overwrite warning before uploading.",
+                "Local saves found"
             );
         }
 

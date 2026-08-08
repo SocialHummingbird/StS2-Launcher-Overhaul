@@ -51,6 +51,38 @@ internal partial class SteamKit2CloudSaveStore
             }
         }
 
+        internal void EnsureLoadedOrThrow(
+            CancellationToken cancellationToken
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (_loadLock)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                _loaded = false;
+                ClearLoadedFiles();
+                try
+                {
+                    LoadFileList(cancellationToken);
+                    _loaded = true;
+                    _loadRetries = 0;
+                    _nextLoadRetryTime = DateTimeOffset.MinValue;
+                }
+                catch (OperationCanceledException)
+                    when (cancellationToken.IsCancellationRequested)
+                {
+                    ClearLoadedFiles();
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    ClearLoadedFiles();
+                    RecordLoadFailure(ex);
+                    throw;
+                }
+            }
+        }
+
         private bool CanAttemptLoad(DateTimeOffset now)
         {
             if (_loadRetries >= MaxLoadRetries)

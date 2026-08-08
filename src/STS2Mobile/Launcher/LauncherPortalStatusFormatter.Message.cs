@@ -47,20 +47,8 @@ internal static partial class LauncherPortalStatusFormatter
         if (ContainsAny(status, "Download cancelled"))
             return "Download cancelled.";
 
-        if (ContainsAny(status, "Pull from Cloud must complete"))
-            return "Get Steam saves before uploading.";
-
         if (ContainsAny(status, "no Android local save files"))
-            return "No Android saves found for this version.";
-
-        if (ContainsAny(status, "local save origin is not verified"))
-            return "Local saves are not verified for this version.";
-
-        if (ContainsAny(status, "backup storage permission"))
-            return "Allow backup storage before uploading.";
-
-        if (ContainsAny(status, "Push blocked: branch switch detected"))
-            return "Get Steam saves after switching versions.";
+            return "No transferable Android saves found.";
 
         if (ContainsAny(status, "Push blocked"))
             return "Upload blocked. Check save safety first.";

@@ -10,13 +10,13 @@ internal sealed partial class AndroidLocalSaveStore
 {
     string ISaveStore.ReadFile(string path)
     {
-        PatchHelper.Log($"[Cloud] Android local save read: {path} -> {FullPath(path)}");
+        PatchHelper.Log($"[Save] Android local save read: {path} -> {FullPath(path)}");
         return ReadTextFile(path);
     }
 
     Task<string> ISaveStore.ReadFileAsync(string path)
     {
-        PatchHelper.Log($"[Cloud] Android local save read async: {path} -> {FullPath(path)}");
+        PatchHelper.Log($"[Save] Android local save read async: {path} -> {FullPath(path)}");
         return Task.FromResult(ReadTextFile(path));
     }
 
@@ -25,8 +25,17 @@ internal sealed partial class AndroidLocalSaveStore
         CancellationToken cancellationToken
     )
     {
-        PatchHelper.Log($"[Cloud] Android local cancellable read: {path} -> {FullPath(path)}");
+        PatchHelper.Log($"[Save] Android local cancellable read: {path} -> {FullPath(path)}");
         return ReadTextFileAsync(path, cancellationToken);
+    }
+
+    Task<byte[]> IRawSaveStore.ReadFileBytesAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+    {
+        PatchHelper.Log($"[Save] Android local raw read: {path} -> {FullPath(path)}");
+        return ReadBytesFileAsync(path, cancellationToken);
     }
 
     void ISaveStore.WriteFile(string path, string content)
@@ -58,12 +67,32 @@ internal sealed partial class AndroidLocalSaveStore
     )
         => WriteTextFileAsync(path, content, cancellationToken);
 
+    Task IRawSaveStore.WriteFileBytesAsync(
+        string path,
+        byte[] content,
+        CancellationToken cancellationToken
+    )
+        => WriteBytesFileAsync(path, content, cancellationToken);
+
+    Task IRecoverySaveStore.WriteRecoveryFileBytesAsync(
+        string path,
+        byte[] content,
+        CancellationToken cancellationToken
+    )
+        => WriteRecoveryBytesFileAsync(path, content, cancellationToken);
+
+    Task IRecoverySaveStore.DeleteRecoveryFileAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+        => DeleteRecoveryFileDirectAsync(path, cancellationToken);
+
     bool ISaveStore.FileExists(string path)
     {
         var fullPath = FullPath(path);
         var exists = File.Exists(fullPath);
         if (exists || VerboseDiagnosticsEnabled)
-            PatchHelper.Log($"[Cloud] Android local save exists: {path} -> {fullPath} = {exists}");
+            PatchHelper.Log($"[Save] Android local save exists: {path} -> {fullPath} = {exists}");
         return exists;
     }
 

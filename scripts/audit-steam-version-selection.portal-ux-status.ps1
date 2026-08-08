@@ -27,7 +27,7 @@ function Add-SteamVersionSelectionPortalUxStatusFormatterChecks {
             "Download this game version to play",
             "Ready to play this version",
             "Signed in\. Checking game files",
-            "Get Steam saves before uploading",
+            "No transferable Android saves found",
             "Upload blocked\. Check save safety first",
             "Runtime files need repair\. Redownload this version",
             "Last launch failed\. Open details or try Safe Start"

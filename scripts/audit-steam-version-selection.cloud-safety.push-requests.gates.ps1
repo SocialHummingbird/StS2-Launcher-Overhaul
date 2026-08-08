@@ -22,25 +22,17 @@ function Add-SteamVersionSelectionCloudSafetyPushGateChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.Context.cs" `
-        "captures every read-only fact required for Push eligibility" `
+        "captures only local-save presence for Push eligibility" `
         @(
             "CloudPushSafetyContext",
             "LauncherPreferences\.ReadGameBranch\(\)",
-            "SteamGameBranch\.DisplayName",
             "SelectedBranch",
-            "SelectedVersion",
             "CaptureEligibilityState",
             "CloudPushEligibilityState",
-            "LauncherWorkshopModSafety\.ActiveSelectedModCount",
-            "LastManualPullCompletionRecorded",
-            "LastManualPullMatchesSelectedBranch",
-            "LauncherLocalSaveEvidence\.HasImportantSaveEvidence",
-            "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime",
-            "LauncherBranchSwitchSafety\.HasMarker",
-            "LauncherBranchSwitchSafety\.HasRequiredEvidence",
-            "LauncherCloudSyncEvidence\.HasManualPullAfterBranchSwitch",
-            "LauncherPreferences\.ReadLocalBackupEnabled",
-            "AppPaths\.HasStoragePermission"
+            "CloudSyncCoordinator\.HasTransferableLocalSaveContent",
+            "LauncherModSelectionState\.IsModdedMode",
+            "SaveNamespace\.Modded",
+            "SaveNamespace\.Vanilla"
         )
 
     Add-Check `
@@ -61,21 +53,15 @@ function Add-SteamVersionSelectionCloudSafetyPushGateChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\CloudPushEligibilityPolicy.cs" `
-        "collects every applicable Push blocker without short-circuiting" `
+        "blocks Push only when transferable local saves are absent" `
         @(
             "CloudPushEligibilityPolicy",
             "CloudPushEligibilityResult Evaluate",
-            "ModsSelected",
-            "ManualPullNotCompleted",
-            "ManualPullVersionMismatch",
+            "HasImportantLocalSaveEvidence",
             "ImportantLocalSavesMissing",
-            "LocalSaveOriginNotVerified",
-            "BranchSwitchEvidenceInvalid",
-            "ManualPullAfterBranchSwitchMissing",
-            "LocalBackupDisabledAfterBranchSwitch",
-            "BackupStoragePermissionMissing",
-            "AddBranchSwitchBlocks",
-            "HasBranchSwitchMarker"
+            "VerifyAndroidLocalSaves",
+            "No transferable Android local save files were found",
+            "Open the game and verify that Android local saves exist"
         )
 
     Add-Check `
@@ -104,16 +90,19 @@ function Add-SteamVersionSelectionCloudSafetyPushGateChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\CloudPushEligibilityPresentation.cs" `
-        "renders every blocker and unique next action as clear Upload guidance" `
+        "renders local-save eligibility and remediation as clear Upload guidance" `
         @(
             "CloudPushEligibilityPresentation",
+            "Upload available\.",
+            "Android local saves are present",
+            "Local saves found",
             "Upload unavailable:",
             "Why upload is unavailable:",
             "result\.BlockingReasons",
             "How to unlock upload:",
             "result\.RequiredNextActions",
             "ReviewButtonDetail",
-            "checks passed"
+            "check.*to fix"
         )
 
     Add-Check `
@@ -143,11 +132,17 @@ function Add-SteamVersionSelectionCloudSafetyPushGateChecks {
 
     Add-ForbiddenCheck `
         "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.Context.cs" `
-        "keeps eligibility fact capture read-only and UI-neutral" `
+        "keeps eligibility fact capture local-only, read-only, and UI-neutral" `
         @(
             "_view",
             "SetStatus",
             "AppendLog",
+            "LauncherWorkshopModSafety",
+            "LauncherCloudSyncEvidence",
+            "LauncherSaveOriginEvidence",
+            "LauncherBranchSwitchSafety",
+            "ReadLocalBackupEnabled",
+            "HasStoragePermission",
             "SaveLocalBackupEnabled",
             "RequestStoragePermission",
             "EnsureExternalDirectories",
@@ -180,11 +175,10 @@ function Add-SteamVersionSelectionCloudSafetyPushGateChecks {
 
     Add-Check `
         "scripts\test-launcher-cloud-safety-evidence.ps1" `
-        "runs real marker and backup-policy cloud safety regressions" `
+        "runs real marker and local-save eligibility regressions" `
         @(
             "LauncherMarkerFile\.Read\.cs",
             "CloudPushEligibilityPolicy\.cs",
-            "ManualPushBackupSafetyPolicy\.cs",
             "LauncherCloudSyncEvidence\.Pull\.cs",
             "LauncherCloudSafetyEvidenceTest\.cs",
             "TreatWarningsAsErrors>true",
@@ -193,15 +187,15 @@ function Add-SteamVersionSelectionCloudSafetyPushGateChecks {
 
     Add-Check `
         "scripts\tests\LauncherCloudSafetyEvidenceTest.cs" `
-        "proves incomplete Pulls and missing backup evidence cannot unlock Upload" `
+        "proves Pull diagnostics remain observable while live transfer state gates Upload" `
         @(
-            "PullStartInvalidatesPriorSuccess",
-            "PartialPullRemainsIneligible",
-            "SaveOriginFailureRemainsIneligible",
-            "BranchIdentityAndOrderingRemainEnforced",
-            "PrePushBackupEvidenceFailsClosed",
-            "ManualPullNotCompleted",
-            "LocalSaveOriginNotVerified",
-            "tests passed 6/6"
+            "SuccessfulPullRecordsEvidence",
+            "FailedPullRecordsDiagnosticOutcome",
+            "SaveOriginFailureRecordsEvidenceFailure",
+            "BranchEvidenceTracksIdentityAndOrdering",
+            "LocalSavePresenceControlsEligibility",
+            "ImportantLocalSavesMissing",
+            "VerifyAndroidLocalSaves",
+            "tests passed 5/5"
         )
 }

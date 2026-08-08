@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,6 +18,18 @@ internal sealed partial class LauncherCloudSyncCoordinator
     )
         => StartCloudSync(
             ManualCloudSyncRequest.Synthetic(name, run, timeoutMs)
+        );
+
+    internal Task ExecuteSyntheticRequestWithCompletionDiagnosticAsync(
+        Action completionDiagnostic
+    )
+        => StartCloudSync(
+            ManualCloudSyncRequest.Synthetic(
+                "Pull",
+                _ => Task.FromResult("verified transfer"),
+                2_000,
+                onSuccessfulCompletion: completionDiagnostic
+            )
         );
 
     internal Task ExecuteSyntheticPullRequestAsync(
@@ -70,7 +83,8 @@ internal sealed partial class LauncherCloudSyncCoordinator
             string name,
             Func<CancellationToken, Task<string>> run,
             int timeoutMs,
-            CloudOperationProgressTracker? progress = null
+            CloudOperationProgressTracker? progress = null,
+            Action? onSuccessfulCompletion = null
         )
             => new(
                 $"{name} confirmation",
@@ -93,18 +107,11 @@ internal sealed partial class LauncherCloudSyncCoordinator
                     return new ManualCloudSyncResult(
                         kind,
                         1,
-                        1,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
                         0,
                         detail
                     );
                 },
+                onSuccessfulCompletion: onSuccessfulCompletion,
                 timeoutMs: timeoutMs,
                 operationProgress: progress
             );
@@ -152,14 +159,6 @@ internal sealed partial class LauncherCloudSyncCoordinator
                         new ManualCloudSyncResult(
                             CloudOperationKind.Push,
                             1,
-                            1,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
-                            0,
                             0,
                             "Synthetic Push"
                         )
@@ -168,7 +167,9 @@ internal sealed partial class LauncherCloudSyncCoordinator
                 prepareOperation: () =>
                     EnsureCloudPushStillEligible(
                         dataDir,
-                        selectedBranch
+                        selectedBranch,
+                        SaveNamespace.Vanilla,
+                        ""
                     ),
                 onFailed: ex =>
                     LauncherCloudSyncEvidence.WriteManualPushBlockedMarker(
@@ -201,6 +202,10 @@ internal static class LauncherCloudCurrentBehaviorRegressionTest
             VerifyPullRefreshesEligibilityBeforeControlsAsync
         );
         await VerifyFixedAsync(
+            "diagnostic marker failure cannot downgrade a verified transfer",
+            VerifyDiagnosticFailureDoesNotDowngradeTransferAsync
+        );
+        await VerifyFixedAsync(
             "backup recovery publishes refreshed save state",
             VerifyBackupRecoveryRefreshesStateAsync
         );
@@ -221,9 +226,9 @@ internal static class LauncherCloudCurrentBehaviorRegressionTest
             VerifyLifecycleDisposalAsync
         );
 
-        AssertEqual("repaired contracts verified", 10, _fixed);
+        AssertEqual("repaired contracts verified", 11, _fixed);
         Console.WriteLine(
-            "Launcher cloud current-behaviour checks verified 10 repaired contracts."
+            "Launcher cloud current-behaviour checks verified 11 repaired contracts."
         );
         return 0;
     }
@@ -336,187 +341,55 @@ internal static class LauncherCloudCurrentBehaviorRegressionTest
 
     private static void VerifyStructuredUploadEligibility()
     {
-        var cases = new (
-            string Name,
-            Action Configure,
-            CloudPushEligibilityBlockCode ExpectedCode
-        )[]
-        {
-            (
-                "mods selected",
-                () => LauncherWorkshopModSafety.SelectedModCount = 2,
-                CloudPushEligibilityBlockCode.ModsSelected
-            ),
-            (
-                "Pull absent",
-                () => LauncherCloudSyncEvidence.PullCompletionRecorded = false,
-                CloudPushEligibilityBlockCode.ManualPullNotCompleted
-            ),
-            (
-                "Pull belongs to another version",
-                () => LauncherCloudSyncEvidence.PullMatchesSelectedBranch = false,
-                CloudPushEligibilityBlockCode.ManualPullVersionMismatch
-            ),
-            (
-                "local saves absent",
-                () => LauncherLocalSaveEvidence.ImportantSaveEvidenceAvailable = false,
-                CloudPushEligibilityBlockCode.ImportantLocalSavesMissing
-            ),
-            (
-                "save origin mismatches runtime",
-                () => LauncherSaveOriginEvidence.MatchesSelectedRuntime = false,
-                CloudPushEligibilityBlockCode.LocalSaveOriginNotVerified
-            ),
-            (
-                "branch-switch evidence invalid",
-                () =>
-                {
-                    LauncherBranchSwitchSafety.MarkerPresent = true;
-                    LauncherBranchSwitchSafety.RequiredEvidenceAvailable = false;
-                    LauncherPreferences.LocalBackupEnabled = true;
-                },
-                CloudPushEligibilityBlockCode.BranchSwitchEvidenceInvalid
-            ),
-            (
-                "Pull-after-switch absent",
-                () =>
-                {
-                    LauncherBranchSwitchSafety.MarkerPresent = true;
-                    LauncherCloudSyncEvidence.PullAfterBranchSwitch = false;
-                    LauncherPreferences.LocalBackupEnabled = true;
-                },
-                CloudPushEligibilityBlockCode.ManualPullAfterBranchSwitchMissing
-            ),
-            (
-                "local backup disabled after branch switch",
-                () =>
-                {
-                    LauncherBranchSwitchSafety.MarkerPresent = true;
-                    LauncherPreferences.LocalBackupEnabled = false;
-                },
-                CloudPushEligibilityBlockCode.LocalBackupDisabledAfterBranchSwitch
-            ),
-            (
-                "backup permission absent",
-                () =>
-                {
-                    LauncherBranchSwitchSafety.MarkerPresent = true;
-                    LauncherPreferences.LocalBackupEnabled = true;
-                    STS2Mobile.AppPaths.StoragePermissionAvailable = false;
-                },
-                CloudPushEligibilityBlockCode.BackupStoragePermissionMissing
-            ),
-        };
-
-        foreach (var testCase in cases)
-        {
-            CloudBehaviorGateState.Reset();
-            testCase.Configure();
-            var view = new LauncherView();
-            var coordinator = CreateCoordinator(view);
-            var localBackupBeforeEvaluation =
-                LauncherPreferences.LocalBackupEnabled;
-            var result = coordinator.EvaluateCloudPushEligibility();
-
-            AssertFalse(
-                $"{testCase.Name} unexpectedly allows Upload",
-                result.IsEligible
-            );
-            AssertEqual(
-                $"{testCase.Name} blocker count",
-                1,
-                result.BlockingReasons.Count
-            );
-            AssertEqual(
-                $"{testCase.Name} blocker code",
-                testCase.ExpectedCode,
-                result.BlockingReasons.Single().Code
-            );
-            AssertEqual(
-                $"{testCase.Name} required action count",
-                1,
-                result.RequiredNextActions.Count
-            );
-            AssertEqual(
-                $"{testCase.Name} status side effects",
-                0,
-                view.StatusMessages.Count
-            );
-            AssertEqual(
-                $"{testCase.Name} log side effects",
-                0,
-                view.LogMessages.Count
-            );
-            AssertEqual(
-                $"{testCase.Name} marker side effects",
-                0,
-                LauncherCloudSyncEvidence.BlockedReasons.Count
-            );
-            AssertEqual(
-                $"{testCase.Name} opened an Upload confirmation",
-                0,
-                view.ConfirmationCount
-            );
-            AssertEqual(
-                $"{testCase.Name} Local Backup state",
-                localBackupBeforeEvaluation,
-                LauncherPreferences.LocalBackupEnabled
-            );
-            AssertEqual(
-                $"{testCase.Name} requested storage permission",
-                0,
-                STS2Mobile.AppPaths.RequestStoragePermissionCalls
-            );
-            AssertEqual(
-                $"{testCase.Name} created storage directories",
-                0,
-                STS2Mobile.AppPaths.EnsureExternalDirectoriesCalls
-            );
-        }
-
         CloudBehaviorGateState.Reset();
-        LauncherWorkshopModSafety.SelectedModCount = 3;
-        LauncherCloudSyncEvidence.PullMatchesSelectedBranch = false;
-        LauncherLocalSaveEvidence.ImportantSaveEvidenceAvailable = false;
-        LauncherSaveOriginEvidence.MatchesSelectedRuntime = false;
-        LauncherBranchSwitchSafety.MarkerPresent = true;
-        LauncherBranchSwitchSafety.RequiredEvidenceAvailable = false;
-        LauncherCloudSyncEvidence.PullAfterBranchSwitch = false;
-        STS2Mobile.AppPaths.StoragePermissionAvailable = false;
-        var aggregateView = new LauncherView();
-        var aggregateResult = CreateCoordinator(
-            aggregateView
-        ).EvaluateCloudPushEligibility();
+        var view = new LauncherView();
+        var coordinator = CreateCoordinator(view);
+        var eligible = coordinator.EvaluateCloudPushEligibility();
 
-        AssertSequence(
-            "aggregate coordinator blockers",
-            new[]
-            {
-                CloudPushEligibilityBlockCode.ModsSelected,
-                CloudPushEligibilityBlockCode.ManualPullVersionMismatch,
-                CloudPushEligibilityBlockCode.ImportantLocalSavesMissing,
-                CloudPushEligibilityBlockCode.LocalSaveOriginNotVerified,
-                CloudPushEligibilityBlockCode.BranchSwitchEvidenceInvalid,
-                CloudPushEligibilityBlockCode.ManualPullAfterBranchSwitchMissing,
-                CloudPushEligibilityBlockCode.LocalBackupDisabledAfterBranchSwitch,
-                CloudPushEligibilityBlockCode.BackupStoragePermissionMissing
-            },
-            aggregateResult.BlockingReasons.Select(block => block.Code).ToArray()
+        AssertTrue("local saves allow Upload", eligible.IsEligible);
+        AssertEqual("eligible blocker count", 0, eligible.BlockingReasons.Count);
+        AssertEqual("eligible action count", 0, eligible.RequiredNextActions.Count);
+
+        LauncherLocalSaveEvidence.ImportantSaveEvidenceAvailable = false;
+        var blocked = coordinator.EvaluateCloudPushEligibility();
+
+        AssertFalse("missing local saves allow Upload", blocked.IsEligible);
+        AssertEqual("missing local save blocker count", 1, blocked.BlockingReasons.Count);
+        AssertEqual(
+            "missing local save blocker",
+            CloudPushEligibilityBlockCode.ImportantLocalSavesMissing,
+            blocked.BlockingReasons.Single().Code
         );
         AssertEqual(
-            "aggregate coordinator unique actions",
-            7,
-            aggregateResult.RequiredNextActions.Count
+            "missing local save action",
+            CloudPushRequiredActionCode.VerifyAndroidLocalSaves,
+            blocked.RequiredNextActions.Single().Code
+        );
+
+        LauncherLocalSaveEvidence.ImportantSaveEvidenceAvailable = true;
+        CloudSyncCoordinator.IncompletePullMarkerPresent = true;
+        var interrupted = coordinator.EvaluateCloudPushEligibility();
+        AssertFalse("incomplete Pull allows Upload", interrupted.IsEligible);
+        AssertEqual(
+            "incomplete Pull blocker",
+            CloudPushEligibilityBlockCode.IncompletePullRequiresRecovery,
+            interrupted.BlockingReasons.Single().Code
+        );
+        AssertFalse(
+            "state refresh bypasses incomplete Pull blocker",
+            coordinator.CaptureCurrentState().UploadEligibility.IsEligible
         );
         AssertEqual(
-            "aggregate coordinator UI side effects",
+            "eligibility UI side effects",
             0,
-            aggregateView.StatusMessages.Count + aggregateView.LogMessages.Count
+            view.StatusMessages.Count + view.LogMessages.Count
         );
+        AssertEqual("eligibility marker side effects", 0, LauncherCloudSyncEvidence.BlockedReasons.Count);
+        AssertEqual("eligibility confirmation side effects", 0, view.ConfirmationCount);
 
         _fixed++;
         Console.WriteLine(
-            "[FIXED] Upload eligibility is structured, read-only, and UI-neutral."
+            "[FIXED] Upload eligibility uses the exact save allowlist and blocks interrupted Pulls."
         );
     }
 
@@ -546,7 +419,7 @@ internal static class LauncherCloudCurrentBehaviorRegressionTest
             uploadStarted
         );
 
-        LauncherWorkshopModSafety.SelectedModCount = 1;
+        LauncherLocalSaveEvidence.ImportantSaveEvidenceAvailable = false;
         view.ConfirmPending();
         await WaitUntilAsync(
             () => LauncherCloudSyncEvidence.BlockedReasons.Count == 1,
@@ -592,6 +465,28 @@ internal static class LauncherCloudCurrentBehaviorRegressionTest
             "changed-version Upload status",
             view.StatusMessages.Last(),
             "selected game version changed"
+        );
+
+        CloudBehaviorGateState.Reset();
+        uploadStarted = false;
+        coordinator.RequestSyntheticSafetyCheckedPush(
+            "public",
+            () => uploadStarted = true
+        );
+        LauncherModSelectionState.IsModdedMode = true;
+        view.ConfirmPending();
+        await WaitUntilAsync(
+            () => LauncherCloudSyncEvidence.BlockedReasons.Count == 1,
+            "The changed-mod-set Upload approval was not rejected."
+        );
+        AssertFalse(
+            "changed-mod-set approved Upload reached cloud work",
+            uploadStarted
+        );
+        AssertContains(
+            "changed-mod-set Upload status",
+            view.StatusMessages.Last(),
+            "enabled mod set changed after confirmation"
         );
     }
 
@@ -683,10 +578,44 @@ internal static class LauncherCloudCurrentBehaviorRegressionTest
             view.UiEvents.ToArray()
         );
         AssertContains(
-            "immediate Upload unlock summary",
+            "verified Pull summary",
             view.StatusMessages.Last(),
-            "Upload is now available"
+            "verified Steam snapshot"
         );
+        AssertFalse(
+            "Pull summary does not claim an Upload lock",
+            view.StatusMessages.Last().Contains(
+                "locked",
+                StringComparison.OrdinalIgnoreCase
+            )
+        );
+    }
+
+    private static async Task VerifyDiagnosticFailureDoesNotDowngradeTransferAsync()
+    {
+        CloudBehaviorGateState.Reset();
+        var view = new LauncherView();
+        var coordinator = CreateCoordinator(view);
+
+        await coordinator.ExecuteSyntheticRequestWithCompletionDiagnosticAsync(
+            () => throw new IOException("diagnostic storage unavailable")
+        );
+
+        AssertContains(
+            "verified transfer remains successful",
+            view.StatusMessages.Last(),
+            "Pull succeeded"
+        );
+        AssertTrue(
+            "diagnostic failure logged",
+            STS2Mobile.Patches.PatchHelper.Messages.Any(message =>
+                message.Contains(
+                    "completion diagnostic could not be recorded",
+                    StringComparison.Ordinal
+                )
+            )
+        );
+        AssertFalse("controls restored", view.PushPullDisabled);
     }
 
     private static Task VerifyBackupRecoveryRefreshesStateAsync()
@@ -701,7 +630,6 @@ internal static class LauncherCloudCurrentBehaviorRegressionTest
             Discovered: 3,
             Mirrored: 2,
             Archived: 1,
-            Restored: 2,
             Errors: 0,
             FailureMessage: ""
         );
@@ -721,7 +649,7 @@ internal static class LauncherCloudCurrentBehaviorRegressionTest
         AssertContains(
             "recovery summary",
             view.StatusMessages.Last(),
-            "Save recovery succeeded"
+            "Save Backup refreshed"
         );
         return Task.CompletedTask;
     }
@@ -971,4 +899,31 @@ internal static class LauncherCloudCurrentBehaviorRegressionTest
 internal sealed partial class LauncherCloudSyncCoordinator
 {
     internal LauncherModel ModelForTest { get; set; } = null!;
+}
+
+internal enum SaveNamespace
+{
+    Vanilla,
+    Modded,
+}
+
+internal static class CloudSyncCoordinator
+{
+    internal static bool IncompletePullMarkerPresent { get; set; }
+
+    internal static bool HasTransferableLocalSaveContent(
+        SaveNamespace saveNamespace
+    )
+        => LauncherLocalSaveEvidence.ImportantSaveEvidenceAvailable;
+
+    internal static bool HasIncompletePullMarker()
+        => IncompletePullMarkerPresent;
+}
+
+internal static class LauncherModSelectionState
+{
+    internal static bool IsModdedMode { get; set; }
+
+    internal static string? EnabledModSetFingerprint()
+        => IsModdedMode ? "test-mod-set" : null;
 }

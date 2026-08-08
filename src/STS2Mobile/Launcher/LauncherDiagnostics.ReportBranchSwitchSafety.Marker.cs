@@ -26,11 +26,9 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Branch switch selected branch matches current selected branch: {BoolText(LauncherBranchSwitchSafety.SelectedBranchMatches(dataDir, selectedBranch))}");
         sb.AppendLine($"Branch switch selected branch note: {LauncherBranchSwitchSafety.SelectedBranchNote(dataDir)}");
         sb.AppendLine($"Branch switch local backup forced: {BoolText(LauncherBranchSwitchSafety.LocalBackupForced(dataDir))}");
-        sb.AppendLine($"Branch switch manual Push requires backup storage: {BoolText(LauncherBranchSwitchSafety.ManualPushRequiresBackupStorage(dataDir))}");
         sb.AppendLine($"Branch switch warning acknowledged: {BoolText(LauncherBranchSwitchSafety.WarningAcknowledged(dataDir))}");
         sb.AppendLine($"Branch switch non-public warning acknowledged: {BoolText(LauncherBranchSwitchSafety.NonPublicBranchWarningAcknowledged(dataDir))}");
         sb.AppendLine($"Branch switch marker has required safety evidence: {BoolText(LauncherBranchSwitchSafety.HasRequiredEvidence(dataDir))}");
         sb.AppendLine($"Branch switch marker has required safety evidence for selected branch: {BoolText(LauncherBranchSwitchSafety.HasRequiredEvidence(dataDir, selectedBranch))}");
-        sb.AppendLine($"Push requires backup storage after branch switch: {BoolText(branchSwitchMarkerPresent)}");
     }
 }

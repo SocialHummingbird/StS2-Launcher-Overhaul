@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-08-06 - Stage 5 desktop validation (unreleased; device matrix 0/10)
+
+- Added filesystem-backed automatic-sync fixtures for vanilla/modded saves on public/public-beta, exact namespace isolation, branch and mod-set mismatch blocking, safe pre-Play download, divergence, offline retry, commit/read-back failures, and byte-exact Restore/Undo. The integrated production-path probe passes 69/69 scenarios, including 9/9 filesystem scenarios.
+- Replaced same-process restart simulation as Stage 5 evidence with real child-process termination and fresh-process reopening of the Android local store plus persisted deterministic fake Steam state. The hard-restart matrix passes 118/118 before/after persistence edges: Begin 12, upload 32, Pull 30, Restore 28, and Undo 16.
+- Made save transfer, destination backup, and remote verification byte-exact. BOM, CRLF, NUL, and raw-byte-only changes now survive Push/Pull or fail read-back verification instead of being normalized through text hashes; launcher context/control documents remain textual.
+- Preserved and indexed historical Android logs as regression evidence, expanded the read-only Stage 5 collector, and changed Android automation to retain a commit-bound candidate APK without publishing it. The exact-candidate physical matrix and Review 5 remain 0/10, so none of this is a public fix or release claim.
+- Bound the sole candidate path to the affected v0.2.416 `.local` package, exact published APK baseline, and FD0E…E57A update signer. Package/baseline selection and signing-reset bypasses were removed; dedicated signing credentials remain unconfigured, and the candidate workflow still cannot publish.
+- Extended the always-available local support export with bounded, full, hash-verified retained and recovery-journal rollback snapshots without writing local data or contacting Steam. Ambiguous legacy transfer-backup trees are left for read-only recovery scanning instead of being guessed into full snapshots.
+
+## 2026-08-06 - Desktop-tested local save recovery implementation (unreleased; device validation pending)
+
+- Reused automatic-sync snapshots for bounded, content-addressed per-context recovery history plus byte-for-byte Restore and Undo. Recovery writes are Android-local, atomic, serialized against transfer operations, and held away from Steam until explicit post-validation approval.
+- Added a read-only legacy scan across vanilla, modded, temporary, launcher-backup, and retained-snapshot sources. Originals are never moved or deleted; imported candidates are read twice, unknown provenance stays unknown, and foreign-account candidates are quarantined.
+- Added support export bundles whose local bytes are read back and hashed, plus a Saves-page recovery flow that requires Export before Restore. Unknown-account recovery can be tested locally but cannot be approved or synchronized.
+- Removed automatic vanilla-to-modded seeding. Run-history progression reconstruction remains a manual support-only last resort rather than an automatic recovery path.
+- Hardened crash retry around Restore/Undo journals, partial overlays, account/context and snapshot-role binding, case-fold history collisions, and unrelated concurrent local edits. Desktop fake-store recovery/transfer coverage passes 59/59, the legacy scanner passes 6/6, namespace isolation passes 4/4, local gameplay safety passes 4/4, cancellation passes 11/11, and the 34-view UI matrix passes. Android-device recovery and real Steam Cloud validation remain pending; no real Steam Cloud operation was performed. This implementation is not a public fix or a release claim until the complete Stage 5 physical matrix passes.
+
+## 2026-07-25 - Android evidence consolidation (unreleased)
+
+- Consolidated Android evidence across the README, troubleshooting guidance, runtime/status ledgers, release notes, and validation checklists. The documentation now labels automated, API 36 x86_64 emulator, exact published ARM64 hardware, and outstanding ARM64 paths separately.
+- Recorded the visible Stage 5 emulator pass against current unreleased source: local x86_64 evidence APK `0.2.417-stage5-final5-evidence-local` (`241714`, SHA-256 `ce7f37ae898665ebba3798b923c9f98741c8b6092b14ae6b41851832dd7bc891`) validated native cold/cached routing, fallback/recovery controls, forced bootstrap failure and retry, active-cache preservation, rotation, Home/Recents resume, native IME state, and scoped fatal/ANR checks.
+- Preserved the architecture boundary: production x86_64 routes to native fallback, while a forced-Godot diagnostic reproduced the known GodotSharp/Mono signal-6 failure. The emulator did not validate the managed launcher, Steam services, ARM64 behavior, `NMainMenu`, or gameplay.
+- Corrected stale `v0.2.400`/`v0.2.401` current-release references and verification/install commands to the published `v0.2.416-startup-recovery-ime` ARM64 artifact.
+- Added the remaining exact-candidate ARM64 gate. No APK was built or released, no device or Steam Cloud Push was used, and no core-game file was modified for this documentation stage.
+
 ## 2026-07-25 - Android runtime-pack, native recovery, and IME hardening
 
 - Corrected Android assembly validation so the patched `sts2.dll` supplied by the active runtime pack is checked against `compatibility.json` / `patch_validation.json`, while ordinary game assemblies continue to be checked against the selected Steam installation. Patched and source DLLs may now differ in both size and hash without rejecting an authentic runtime pack.

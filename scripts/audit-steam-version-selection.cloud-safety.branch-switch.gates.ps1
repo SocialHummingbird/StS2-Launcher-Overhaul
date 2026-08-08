@@ -1,15 +1,20 @@
 function Add-SteamVersionSelectionCloudSafetyBranchSwitchGateChecks {
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherBranchSwitchSafety.Gates.cs" `
-        "enforces branch-switch safety gates before manual Push" `
+        "validates branch-switch marker history and selected-branch identity" `
         @(
             "HasRequiredEvidence",
             "SelectedBranchMatches",
+            "SteamGameBranch\.Normalize"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherBranchSwitchSafety.Gates.cs" `
+        "does not treat Pull, save-origin, branch history, or storage as Push eligibility" `
+        @(
             "ManualPushPrerequisitesSatisfied",
-            "SteamGameBranch\.Normalize",
-            "LauncherCloudSyncEvidence\.HasManualPullAfterBranchSwitch",
-            "LauncherLocalSaveEvidence\.HasImportantSaveEvidence",
-            "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime",
+            "HasManualPullAfterBranchSwitch",
+            "CurrentLocalSavesMatchSelectedRuntime",
             "AppPaths\.HasStoragePermission"
         )
 
@@ -19,7 +24,6 @@ function Add-SteamVersionSelectionCloudSafetyBranchSwitchGateChecks {
         @(
             "WriteMarker",
             "LocalBackupForcedPrefix",
-            "ManualPushRequiresBackupStoragePrefix",
             "WarningAcknowledgedPrefix",
             "NonPublicBranchWarningAcknowledgedPrefix",
             "SelectedBranchSelectionKindPrefix",

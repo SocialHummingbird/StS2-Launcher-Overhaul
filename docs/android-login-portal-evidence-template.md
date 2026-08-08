@@ -168,7 +168,7 @@ Compact phone version details start collapsed:
 Version details expand/collapse without changing selected version:
 Compact Home readiness summary is readable and keeps Save Check and Upload locked cues concise:
 Compact Home keeps Start Game and Safe Start above the fold without exposing Push controls:
-Compact Saves keeps Get Steam Saves before the locked upload flow:
+Compact Saves keeps Pull and Upload direction-explicit without making Pull a prerequisite:
 Compact Saves keeps backup and cloud-sync options below the guarded Pull/Push actions:
 Compact download progress appears directly below the disabled DOWNLOADING primary action:
 Compact download progress status stays as a stable two-line Downloading selected version label:
@@ -190,21 +190,21 @@ Compact support tools drawer shows Fixes & Help / Repair tools when closed and H
 Compact launcher-log copy action says Copy Log / Review first:
 Compact phone cloud safety starts collapsed:
 Compact cloud-safety cue remains beside the guarded Pull/Push controls:
-Compact expanded cloud-safety detail says Saves for and Get Steam saves before upload / Upload can overwrite Steam:
+Compact expanded cloud-safety detail explains Pull downloads to Android while Upload overwrites Steam Cloud:
 Cloud safety expands/collapses while preserving Pull/Push controls:
 Compact phone cloud options start collapsed:
 Cloud options expand/collapse while preserving Pull/Push controls:
 Compact Save Backup and Cloud Sync options use Local safety and Steam saves detail labels and share one low-profile row when width allows:
 Compact Save Backup and Cloud Sync options stack full-width on narrow compact viewports:
 Pull/Push controls appear before lower-frequency cloud options:
-Pull from Cloud appears before Push to Cloud:
+Pull and Upload remain direction-explicit independent actions:
 Compact cloud labels name Pull as Android-directed and Push as Steam-directed:
 Compact Pull action says Get Steam Saves / Download to Android:
 Compact locked Push toggle renders Upload Locked / Review first and Hide Upload / Keep locked as structured title/detail labels:
 Compact unlocked Push actions say Upload to Steam / Overwrite cloud and Confirm Upload / Overwrite cloud:
-Compact armed Push warning says Steam Cloud overwrite / Confirm only after Pull/local saves are verified:
+Compact armed Push warning says Steam Cloud overwrite / Confirm the selected Android save context:
 Compact Get Steam Saves and locked Steam upload share one two-button row when width allows:
-Compact Get Steam Saves and locked Steam upload stack with Get Steam Saves first on narrow compact viewports:
+Compact Get Steam Saves and locked Steam upload stack without implying Pull is required on narrow compact viewports:
 Push to Cloud guarded by confirmation:
 Armed Push state shows overwrite warning before final confirmation:
 Branch, redownload, cache, and final Push confirmations use contextual confirm/cancel labels instead of generic OK/Cancel buttons:
@@ -469,7 +469,7 @@ Launcher compact cloud-safety detail label supported:
 Launcher compact cloud options collapsible:
 Launcher primary cloud actions before cloud options:
 Launcher compact cloud option detail labels supported:
-Launcher safer Pull-before-Push cloud ordering supported:
+Launcher independent Pull/Upload cloud directions supported:
 Launcher compact cloud direction labels supported:
 Launcher compact cloud primary actions row supported:
 Launcher compact Pull detail label supported:
@@ -512,7 +512,10 @@ Selected game version slot kind:
 Selected game files ready:
 Manual Pull evidence marker present:
 Current important Android local save evidence present:
-Baseline manual Push prerequisites satisfied:
+Incomplete Pull marker present:
+Selected vanilla/modded namespace:
+Runtime compatibility / branch identity:
+Mod-set fingerprint:
 Latest manual Push evidence outcome:
 ```
 

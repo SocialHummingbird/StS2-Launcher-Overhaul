@@ -100,14 +100,6 @@ function Test-ModPlayMode([string]$Value) {
     return @("vanilla", "modded") -contains $Value.Trim().ToLowerInvariant()
 }
 
-function Test-BoolText([string]$Value) {
-    if ([string]::IsNullOrWhiteSpace($Value)) {
-        return $false
-    }
-
-    return @("true", "false") -contains $Value.Trim().ToLowerInvariant()
-}
-
 function Test-NonNegativeIntText([string]$Value) {
     if ([string]::IsNullOrWhiteSpace($Value)) {
         return $false
@@ -191,7 +183,6 @@ $launchAttemptModElapsed = Read-MarkerValueFromText -Text $launchAttemptText -Pr
 $launchAttemptModCacheStatus = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Mod readiness cache status:"
 $launchAttemptModPlayMode = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Mod play mode:"
 $launchAttemptModEnabledCount = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Mod enabled count:"
-$launchAttemptModdedSaveCloudPushLocked = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Modded save cloud push locked:"
 $launchAttemptBranch = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Selected branch:"
 $launchAttemptPck = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "PCK SHA256:"
 $launchAttemptSource = Read-MarkerValueFromText -Text $launchAttemptText -Prefix "Source sts2.dll SHA256:"
@@ -248,8 +239,7 @@ $launchAttemptMeasuredTimings = (Test-LaunchTimingValue -Value $launchAttemptEla
 $launchAttemptConcreteCache = Test-LaunchReadinessCacheStatus -Value $launchAttemptCacheStatus
 $launchAttemptConcreteModState = (Test-ModReadinessCacheStatus -Value $launchAttemptModCacheStatus) `
     -and (Test-ModPlayMode -Value $launchAttemptModPlayMode) `
-    -and (Test-NonNegativeIntText -Value $launchAttemptModEnabledCount) `
-    -and (Test-BoolText -Value $launchAttemptModdedSaveCloudPushLocked)
+    -and (Test-NonNegativeIntText -Value $launchAttemptModEnabledCount)
 $launchAttemptProofReady = $launchAttemptPreparedReady `
     -and $launchAttemptIdValid `
     -and $launchAttemptReadyState `
@@ -259,9 +249,9 @@ $launchAttemptProofReady = $launchAttemptPreparedReady `
     -and $launchAttemptConcreteModState
 if ($launchAttemptCaptured) {
     if ($launchAttemptProofReady) {
-        Add-ValidationRow -Lines $validationLines -Area "Start Game launch-attempt marker" -Status "captured" -Evidence "id=$launchAttemptId; idValid=$launchAttemptIdValid; utc=$launchAttemptUtc; phase=$launchAttemptPhase; action=$launchAttemptAction; launchSource=$launchAttemptSourceKind; ready=$launchAttemptReady; prepared=$launchAttemptPrepared; cache=$launchAttemptCacheStatus; attemptMs=$launchAttemptElapsed; readinessMs=$launchAttemptReadinessElapsed; modMs=$launchAttemptModElapsed; modCache=$launchAttemptModCacheStatus; playMode=$launchAttemptModPlayMode; enabledMods=$launchAttemptModEnabledCount; moddedCloudPushLocked=$launchAttemptModdedSaveCloudPushLocked" -RequiredNextAction "Use with runtime/cache evidence to prove the explicit Start Game path used prepared readiness."
+        Add-ValidationRow -Lines $validationLines -Area "Start Game launch-attempt marker" -Status "captured" -Evidence "id=$launchAttemptId; idValid=$launchAttemptIdValid; utc=$launchAttemptUtc; phase=$launchAttemptPhase; action=$launchAttemptAction; launchSource=$launchAttemptSourceKind; ready=$launchAttemptReady; prepared=$launchAttemptPrepared; cache=$launchAttemptCacheStatus; attemptMs=$launchAttemptElapsed; readinessMs=$launchAttemptReadinessElapsed; modMs=$launchAttemptModElapsed; modCache=$launchAttemptModCacheStatus; playMode=$launchAttemptModPlayMode; enabledMods=$launchAttemptModEnabledCount" -RequiredNextAction "Use with runtime/cache evidence to prove the explicit Start Game path used prepared readiness."
     } else {
-        Add-ValidationRow -Lines $validationLines -Area "Start Game launch-attempt marker" -Status "blocked" -Evidence "id=$launchAttemptId; idValid=$launchAttemptIdValid; utc=$launchAttemptUtc; phase=$launchAttemptPhase; action=$launchAttemptAction; launchSource=$launchAttemptSourceKind; successfulPhase=$launchAttemptSuccessfulPhase; ready=$launchAttemptReady; prepared=$launchAttemptPrepared; cache=$launchAttemptCacheStatus; measuredTimings=$launchAttemptMeasuredTimings; modCache=$launchAttemptModCacheStatus; playMode=$launchAttemptModPlayMode; enabledMods=$launchAttemptModEnabledCount; moddedCloudPushLocked=$launchAttemptModdedSaveCloudPushLocked" -RequiredNextAction "Inspect diagnostics/last_launch_attempt.txt before treating this launch as playable evidence."
+        Add-ValidationRow -Lines $validationLines -Area "Start Game launch-attempt marker" -Status "blocked" -Evidence "id=$launchAttemptId; idValid=$launchAttemptIdValid; utc=$launchAttemptUtc; phase=$launchAttemptPhase; action=$launchAttemptAction; launchSource=$launchAttemptSourceKind; successfulPhase=$launchAttemptSuccessfulPhase; ready=$launchAttemptReady; prepared=$launchAttemptPrepared; cache=$launchAttemptCacheStatus; measuredTimings=$launchAttemptMeasuredTimings; modCache=$launchAttemptModCacheStatus; playMode=$launchAttemptModPlayMode; enabledMods=$launchAttemptModEnabledCount" -RequiredNextAction "Inspect diagnostics/last_launch_attempt.txt before treating this launch as playable evidence."
     }
 } else {
     Add-ValidationRow -Lines $validationLines -Area "Start Game launch-attempt marker" -Status "missing" -Evidence "last_launch_attempt.txt missing or unreadable" -RequiredNextAction "Press Start Game once with this build and recapture evidence."
@@ -530,7 +520,6 @@ if ($launchAttemptCaptured) {
     $summaryLines.Add("Launch attempt mod readiness cache status: $launchAttemptModCacheStatus")
     $summaryLines.Add("Launch attempt mod play mode: $launchAttemptModPlayMode")
     $summaryLines.Add("Launch attempt enabled mod count: $launchAttemptModEnabledCount")
-    $summaryLines.Add("Launch attempt modded-save Cloud Push locked: $launchAttemptModdedSaveCloudPushLocked")
 } else {
     $summaryLines.Add("Launch attempt marker: missing")
 }

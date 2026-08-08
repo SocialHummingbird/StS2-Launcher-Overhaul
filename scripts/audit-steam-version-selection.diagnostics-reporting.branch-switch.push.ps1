@@ -27,12 +27,8 @@ function Add-SteamVersionSelectionDiagnosticsReportingBranchSwitchPushChecks {
             "Manual Push evidence recorded latest local backup UTC",
             "Manual Push evidence recorded latest cloud backup UTC",
             "Manual Push evidence recorded important local save evidence count",
-            "Manual Push evidence recorded baseline prerequisites satisfied",
-            "Manual Push completion flag recorded",
             "Manual Push evidence is after branch switch",
             "Manual Push evidence matches selected branch",
-            "Manual Push evidence recorded pre-Push backup evidence satisfied",
-            "Manual Push completed after branch switch for selected version with backup evidence",
             "LatestManualPushEvidenceOutcome"
         )
 
@@ -51,14 +47,11 @@ function Add-SteamVersionSelectionDiagnosticsReportingBranchSwitchPushChecks {
             "Manual Push blocked evidence selected version slot kind",
             "Manual Push blocked evidence selected version slot directory",
             "Manual Push blocked evidence matches selected branch",
-            "Manual Push blocked evidence recorded prerequisites satisfied",
             "Manual Push blocked evidence recorded local backup count",
             "Manual Push blocked evidence recorded cloud backup count",
             "Manual Push blocked evidence recorded latest local backup UTC",
             "Manual Push blocked evidence recorded latest cloud backup UTC",
             "Manual Push blocked evidence recorded important local save evidence count",
-            "Manual Push blocked evidence recorded baseline prerequisites satisfied",
-            "Manual Push blocked evidence recorded pre-Push backup evidence satisfied",
             "Manual Push blocked evidence reason",
             "Manual Push blocked before upload evidence recorded"
         )

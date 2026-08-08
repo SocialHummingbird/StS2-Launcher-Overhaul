@@ -16,6 +16,7 @@ internal static partial class CloudSyncCoordinator
         {
             ".godot",
             ".launcher_backups",
+            LocalSaveBackupPlan.LauncherMetadataDirectoryName,
             "cache",
             "game",
             "tmp",

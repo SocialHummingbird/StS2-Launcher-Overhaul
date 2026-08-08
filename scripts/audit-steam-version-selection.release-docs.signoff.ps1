@@ -8,9 +8,9 @@ function Add-SteamVersionSelectionReleaseDocsSignoffChecks {
             "Push safety matrix",
             "Public/default",
             "Beta",
-            "Pull from Cloud after the branch switch",
-            "last_manual_cloud_push\.txt",
-            "successful Push marker evidence"
+            "Pull and Upload are independent operations",
+            "exact account/runtime/mod-set context",
+            "destination backup and remote read-back verification"
         )
 
     Add-Check `
@@ -40,7 +40,8 @@ function Add-SteamVersionSelectionReleaseDocsSignoffChecks {
             "audit-steam-branch-guidance-parity\.ps1",
             "steam_branch\.txt",
             "selected-PCK startup routing",
-            "backup storage permission"
+            "absence of an interrupted Pull marker",
+            "read-back hash verification"
         )
 
 }

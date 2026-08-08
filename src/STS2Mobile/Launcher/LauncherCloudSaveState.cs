@@ -1,3 +1,5 @@
+using STS2Mobile.Steam;
+
 namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherCloudSaveState
@@ -8,8 +10,16 @@ internal static partial class LauncherCloudSaveState
     internal static string StatusSummary
         => $"HasToken={HasSavedCredentials}, CloudSync={_cloudSyncEnabled}";
 
-    private static bool HasSavedCredentials
+    internal static bool CloudSyncEnabled
+        => _cloudSyncEnabled;
+
+    internal static bool HasSavedCredentials
         => _savedCredentials.HasValue;
+
+    internal static bool HasAutomaticSyncPending()
+        => CloudSaveStoreFactory.CreateLocalStore().FileExists(
+            CloudSyncCoordinator.AutomaticSyncPendingPath
+        );
 
     internal static void SetCloudSyncEnabled(bool enabled)
     {

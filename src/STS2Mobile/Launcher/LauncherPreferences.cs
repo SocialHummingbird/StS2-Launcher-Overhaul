@@ -1,5 +1,3 @@
-using System;
-
 namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherPreferences
@@ -18,7 +16,7 @@ internal static partial class LauncherPreferences
     );
     private static readonly BooleanPreference CloudSyncPreference = new(
         CloudSyncPreferenceKey,
-        () => !OperatingSystem.IsAndroid(),
+        () => true,
         ApplyCloudSync
     );
 }

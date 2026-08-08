@@ -68,7 +68,7 @@ Known limitations:
 - Release-candidate startup and failure routing still need broader ARM64 evidence beyond the local `public-beta` proof.
 - Public-beta branch integrity is still under investigation: Steam may serve some depots with public-identical or public-inherited manifests, and art asset issues require per-depot manifest/file evidence before claiming the beta branch is complete.
 - Save compatibility between public and beta branches is not proven.
-- Manual Push must remain treated as destructive until current-version Pull evidence, local-save existence, storage permission, local/cloud pre-Push backup evidence, `last_manual_cloud_push.txt`, and aggregate successful selected-version Push evidence are captured. Branch switches additionally require Pull-after-switch evidence for the selected version and aggregate successful post-switch Push evidence.
+- Manual Upload remains destructive. Current-source Stage 2 is unreleased; its release evidence must prove transferable allowlisted local saves, exact account/namespace/runtime/mod-set context, an immutable source snapshot, a backup before every destination overwrite or deletion, propagated transfer/commit failures, and destination hash read-back before success. A prior Pull, Steam installation, branch-switch history, shared-storage permission, and modded mode are not Upload prerequisites.
 
 Validation references:
 

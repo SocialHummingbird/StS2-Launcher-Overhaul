@@ -191,14 +191,6 @@ namespace STS2Mobile.Launcher
         }
     }
 
-    internal static class LauncherWorkshopModSafety
-    {
-        internal static int SelectedModCount;
-
-        internal static int ActiveSelectedModCount()
-            => SelectedModCount;
-    }
-
     internal static class LauncherCloudSyncEvidence
     {
         internal static bool PullCompletionRecorded = true;
@@ -289,7 +281,8 @@ namespace STS2Mobile.Launcher
         internal static void Reset()
         {
             LauncherPreferences.Reset();
-            LauncherWorkshopModSafety.SelectedModCount = 0;
+            LauncherModSelectionState.IsModdedMode = false;
+            CloudSyncCoordinator.IncompletePullMarkerPresent = false;
             LauncherCloudSyncEvidence.Reset();
             LauncherLocalSaveEvidence.ImportantSaveEvidenceAvailable = true;
             LauncherBackupEvidence.CurrentMirrorCount = 0;

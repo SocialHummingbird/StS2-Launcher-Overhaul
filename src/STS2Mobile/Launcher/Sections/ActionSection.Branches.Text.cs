@@ -40,7 +40,7 @@ internal sealed partial class ActionSection
                 ? CompactReadyVersionSummary()
                 : $"Ready version: {SteamGameBranch.CompactDisplayName(_gameBranch, 22)}\n"
                     + $"Slot: {SteamGameInstallPaths.VersionSlotKind(_gameBranch)}. Start Game, Pull, and Upload use this version.\n"
-                    + "Cloud: Pull first. Review Upload lists every unmet safety check.";
+                    + "Cloud: Pull downloads saves. Review Upload before overwriting Steam Cloud.";
         }
         if (_cloudSafetyToggle != null)
         {

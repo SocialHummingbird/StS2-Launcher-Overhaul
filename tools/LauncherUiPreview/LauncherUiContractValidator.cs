@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using STS2Mobile.Launcher;
+using STS2Mobile.Steam;
 
 namespace LauncherUiPreview;
 
@@ -11,8 +12,30 @@ internal static class LauncherUiContractValidator
     {
         var events = new EventCounts();
         WireEvents(view, events);
+        WireSaveRecoveryEvents(view, events);
 
         view.SelectDestination(LauncherDestination.Home);
+        view.SetAutomaticSyncBlocked(true);
+        Expect(
+            FindVisibleButton(root, "Start Game").Disabled,
+            "Automatic reconciliation did not gate Start Game."
+        );
+        AutomaticSyncSourceChoice? selectedSource = null;
+        view.ShowAutomaticSyncSourceChoice(
+            "Choose the source copy.",
+            choice => selectedSource = choice
+        );
+        FindVisibleButton(root, "Use Steam");
+        Press(root, "Use Android");
+        Expect(
+            selectedSource == AutomaticSyncSourceChoice.Local,
+            "Use Android did not select the local automatic-sync source."
+        );
+        view.SetAutomaticSyncBlocked(false);
+        Expect(
+            !FindVisibleButton(root, "Start Game").Disabled,
+            "Start Game was not restored for a safe retry."
+        );
         Press(root, "Vulkan");
         Press(root, "Start Game");
         Press(root, "Safe Start");
@@ -41,6 +64,7 @@ internal static class LauncherUiContractValidator
             events.CloudOperationCancel == 1,
             "Cloud operation cancellation event was not preserved."
         );
+        ValidateSaveRecoveryContract(view, root, events);
 
         view.SelectDestination(LauncherDestination.Versions);
         Press(root, "Check for Updates");
@@ -125,6 +149,135 @@ internal static class LauncherUiContractValidator
         );
     }
 
+    private static void WireSaveRecoveryEvents(
+        LauncherView view,
+        EventCounts events
+    )
+    {
+        view.WireSaveRecoveryEvents(
+            scanRequested: () => events.SaveRecoveryScan++,
+            currentExportRequested: () => events.SaveRecoveryCurrentExport++,
+            exportRequested: candidateId =>
+            {
+                events.SaveRecoveryExport++;
+                events.SaveRecoveryExportId = candidateId;
+            },
+            restoreRequested: candidateId =>
+            {
+                events.SaveRecoveryRestore++;
+                events.SaveRecoveryRestoreId = candidateId;
+            },
+            undoRequested: () => events.SaveRecoveryUndo++,
+            approveRequested: () => events.SaveRecoveryApprove++
+        );
+    }
+
+    private static void ValidateSaveRecoveryContract(
+        LauncherView view,
+        Control root,
+        EventCounts events
+    )
+    {
+        const string invalidId = "contract-invalid-recovery";
+        const string validId = "contract-valid-recovery";
+
+        Expect(
+            !FindVisibleButton(root, "Export Current Android Saves").Disabled,
+            "Current Android save export required a recovery scan or candidate."
+        );
+        Press(root, "Export Current Android Saves");
+        Expect(
+            events.SaveRecoveryCurrentExport == 1,
+            "Current Android save export event was not preserved."
+        );
+
+        view.SetSaveRecoveryCandidates(
+            new[]
+            {
+                new SaveRecoveryCandidatePresentation(
+                    invalidId,
+                    "Invalid recovery copy",
+                    "Source hash mismatch | Account: Unknown",
+                    CanRestore: false
+                ),
+                new SaveRecoveryCandidatePresentation(
+                    validId,
+                    "Validated recovery copy",
+                    "Source: before-game snapshot | Hashes: verified",
+                    CanRestore: true
+                ),
+            },
+            invalidId
+        );
+
+        Press(root, "Scan for Recovery Copies");
+        Expect(
+            events.SaveRecoveryScan == 1,
+            "Recovery scan event was not preserved."
+        );
+        Expect(
+            FindVisibleButton(root, "Restore on Android").Disabled,
+            "An invalid recovery candidate enabled Restore."
+        );
+
+        var candidates = FindVisibleOptionButton(root, "Recovery copy");
+        candidates.Select(1);
+        candidates.EmitSignal(OptionButton.SignalName.ItemSelected, 1);
+        Expect(
+            !FindVisibleButton(root, "Restore on Android").Disabled,
+            "A validated recovery candidate did not enable Restore."
+        );
+
+        Press(root, "Export Recovery Bundle");
+        Press(root, "Restore on Android");
+        Expect(
+            events.SaveRecoveryExport == 1
+                && events.SaveRecoveryExportId == validId,
+            "Recovery export did not carry the selected stable candidate id."
+        );
+        Expect(
+            events.SaveRecoveryRestore == 1
+                && events.SaveRecoveryRestoreId == validId,
+            "Recovery restore did not carry the selected stable candidate id."
+        );
+
+        view.SetSaveRecoveryState(
+            "Restored locally and verified.",
+            canUndo: true,
+            canApprove: true
+        );
+        view.SetSaveRecoveryBusy(
+            busy: true,
+            "Finishing local recovery verification."
+        );
+        Expect(
+            FindVisibleButton(root, "Undo Last Restore").Disabled
+                && FindVisibleButton(
+                    root,
+                    "Approve Validated Save for Sync"
+                ).Disabled
+                && FindVisibleButton(
+                    root,
+                    "Export Current Android Saves"
+                ).Disabled,
+            "Busy recovery state did not gate Undo and approval."
+        );
+        view.SetSaveRecoveryBusy(
+            busy: false,
+            "Restored locally and verified."
+        );
+        Press(root, "Undo Last Restore");
+        Press(root, "Approve Validated Save for Sync");
+        Expect(
+            events.SaveRecoveryUndo == 1,
+            "Recovery Undo event was not preserved."
+        );
+        Expect(
+            events.SaveRecoveryApprove == 1,
+            "Recovery approval event was not preserved."
+        );
+    }
+
     private static void Press(Node root, string text)
         => FindVisibleButton(root, text).EmitSignal(Button.SignalName.Pressed);
 
@@ -172,6 +325,29 @@ internal static class LauncherUiContractValidator
         }
 
         throw new InvalidOperationException($"Input not found: {placeholder}");
+    }
+
+    private static OptionButton FindVisibleOptionButton(
+        Node root,
+        string accessibilityName
+    )
+    {
+        foreach (var input in Descendants<OptionButton>(root))
+        {
+            if (input.IsVisibleInTree()
+                && string.Equals(
+                    input.AccessibilityName,
+                    accessibilityName,
+                    StringComparison.OrdinalIgnoreCase
+                ))
+            {
+                return input;
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Visible option button not found: {accessibilityName}"
+        );
     }
 
     private static T FindVisible<T>(Node root) where T : CanvasItem
@@ -227,5 +403,13 @@ internal static class LauncherUiContractValidator
         internal int SafeLaunch;
         internal int WorkshopSync;
         internal int WorkshopClear;
+        internal int SaveRecoveryScan;
+        internal int SaveRecoveryCurrentExport;
+        internal int SaveRecoveryExport;
+        internal int SaveRecoveryRestore;
+        internal int SaveRecoveryUndo;
+        internal int SaveRecoveryApprove;
+        internal string SaveRecoveryExportId = "";
+        internal string SaveRecoveryRestoreId = "";
     }
 }

@@ -47,7 +47,6 @@ internal readonly struct LaunchAttemptSummary
         string modInstalledCount,
         string modEnabledCount,
         string modUnsupportedCount,
-        string moddedSaveCloudPushLocked,
         string selectedMods
     )
     {
@@ -94,7 +93,6 @@ internal readonly struct LaunchAttemptSummary
         ModInstalledCount = Clean(modInstalledCount);
         ModEnabledCount = Clean(modEnabledCount);
         ModUnsupportedCount = Clean(modUnsupportedCount);
-        ModdedSaveCloudPushLocked = Clean(moddedSaveCloudPushLocked);
         SelectedMods = Clean(selectedMods);
     }
 
@@ -141,7 +139,6 @@ internal readonly struct LaunchAttemptSummary
     internal string ModInstalledCount { get; }
     internal string ModEnabledCount { get; }
     internal string ModUnsupportedCount { get; }
-    internal string ModdedSaveCloudPushLocked { get; }
     internal string SelectedMods { get; }
 
     internal static LaunchAttemptSummary Missing()
@@ -214,7 +211,7 @@ internal readonly struct LaunchAttemptSummary
         var selected = HasConcrete(SelectedMods)
             ? SelectedMods
             : "<none>";
-        return $"Mod evidence: mode {Value(ModPlayMode)}, readiness phase {Value(ModReadinessPhase)}, installed {Value(ModInstalledCount)}, enabled {Value(ModEnabledCount)}, unsupported {Value(ModUnsupportedCount)}, readiness {Value(ModReadinessCacheStatus)}, cloud push locked: {Value(ModdedSaveCloudPushLocked)}, selected: {selected}.";
+        return $"Mod evidence: mode {Value(ModPlayMode)}, readiness phase {Value(ModReadinessPhase)}, installed {Value(ModInstalledCount)}, enabled {Value(ModEnabledCount)}, unsupported {Value(ModUnsupportedCount)}, readiness {Value(ModReadinessCacheStatus)}, selected: {selected}.";
     }
 
     internal string TimingLine()

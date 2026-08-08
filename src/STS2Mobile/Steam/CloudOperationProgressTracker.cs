@@ -54,7 +54,9 @@ internal sealed class CloudOperationProgressTracker
         => Update(state => state with
         {
             Phase = CloudOperationPhase.BackingUp,
-            CurrentItem = "Checking existing Android saves",
+            CurrentItem = state.Kind == CloudOperationKind.Pull
+                ? "Checking the Android destination"
+                : "Checking the Steam Cloud destination",
             BackupProcessedCount = 0,
             BackupTotalCount = totalCount,
             BackupCreatedCount = 0,
@@ -71,100 +73,26 @@ internal sealed class CloudOperationProgressTracker
     internal void BackupPathStarted(string path)
         => Update(state => state with { CurrentItem = path });
 
-    internal void ProfilePreparationStarted(int totalCount)
-        => Update(state => state with
-        {
-            Phase = CloudOperationPhase.PreparingProfiles,
-            CurrentItem = "Protecting local modded save targets",
-            ProfilePreparationProcessedCount = 0,
-            ProfilePreparationTotalCount = totalCount,
-            PrivateBackupCreatedCount = 0,
-        });
-
-    internal void ProfilePreparationProcessed(string path, bool backupCreated)
-        => Update(state => state with
-        {
-            CurrentItem = path,
-            ProfilePreparationProcessedCount =
-                state.ProfilePreparationProcessedCount + 1,
-            PrivateBackupCreatedCount =
-                state.PrivateBackupCreatedCount + (backupCreated ? 1 : 0),
-        });
-
-    internal void ProfilePreparationPathStarted(string path)
-        => Update(state => state with { CurrentItem = path });
-
     internal void TransferStarted(int totalCount)
         => Update(state => state with
         {
             Phase = CloudOperationPhase.Transferring,
-            CurrentItem = "Starting Steam Cloud downloads",
+            CurrentItem = "Starting verified save transfer",
             TransferProcessedCount = 0,
             TransferTotalCount = totalCount,
             TransferCompletedCount = 0,
-            TransferSkippedCount = 0,
-            TransferFailedCount = 0,
         });
 
     internal void TransferPathStarted(string path)
         => Update(state => state with { CurrentItem = path });
 
-    internal void TransferProcessed(
-        string path,
-        bool completed,
-        bool skipped
-    )
-        => TransferProcessed(
-            path,
-            completed
-                ? CloudTransferPathOutcome.Completed
-                : skipped
-                    ? CloudTransferPathOutcome.Skipped
-                    : CloudTransferPathOutcome.Failed
-        );
-
-    internal void TransferProcessed(
-        string path,
-        CloudTransferPathOutcome outcome
-    )
+    internal void TransferProcessed(string path)
         => Update(state => state with
         {
             CurrentItem = path,
             TransferProcessedCount = state.TransferProcessedCount + 1,
-            TransferCompletedCount =
-                state.TransferCompletedCount
-                    + (outcome == CloudTransferPathOutcome.Completed ? 1 : 0),
-            TransferSkippedCount =
-                state.TransferSkippedCount
-                    + (outcome == CloudTransferPathOutcome.Skipped ? 1 : 0),
-            TransferFailedCount =
-                state.TransferFailedCount
-                    + (outcome == CloudTransferPathOutcome.Failed ? 1 : 0),
-            TransferTimedOutCount =
-                state.TransferTimedOutCount
-                    + (outcome == CloudTransferPathOutcome.TimedOut ? 1 : 0),
+            TransferCompletedCount = state.TransferCompletedCount + 1,
         });
-
-    internal void ProfileSeedingStarted(int totalCount)
-        => Update(state => state with
-        {
-            Phase = CloudOperationPhase.SeedingProfiles,
-            CurrentItem = "Preparing modded profiles from fresh downloads",
-            ProfileSeedProcessedCount = 0,
-            ProfileSeedTotalCount = totalCount,
-            ProfileSeededCount = 0,
-        });
-
-    internal void ProfileSeedProcessed(string path, bool seeded)
-        => Update(state => state with
-        {
-            CurrentItem = path,
-            ProfileSeedProcessedCount = state.ProfileSeedProcessedCount + 1,
-            ProfileSeededCount = state.ProfileSeededCount + (seeded ? 1 : 0),
-        });
-
-    internal void ProfileSeedPathStarted(string path)
-        => Update(state => state with { CurrentItem = path });
 
     internal void Finalizing(string currentItem)
         => Update(state => state with
@@ -177,14 +105,6 @@ internal sealed class CloudOperationProgressTracker
         => Update(state => state with
         {
             Phase = CloudOperationPhase.Completed,
-            CurrentItem = currentItem,
-            ErrorMessage = "",
-        });
-
-    internal void PartiallyCompleted(string currentItem)
-        => Update(state => state with
-        {
-            Phase = CloudOperationPhase.PartiallyCompleted,
             CurrentItem = currentItem,
             ErrorMessage = "",
         });

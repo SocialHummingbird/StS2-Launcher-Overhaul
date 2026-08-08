@@ -10,7 +10,7 @@ internal sealed partial class ActionSection
         var pushConfirmationLabel = new StyledLabel(
             compact
                 ? CompactCloudPushWarningText()
-                : "Confirming Push uploads Android saves to Steam Cloud for the selected version and can overwrite remote Steam Cloud saves. Continue only after Pull and local save evidence are verified.",
+                : "Confirming Upload sends Android saves to Steam Cloud and can overwrite remote saves. Confirm the selected game version and play mode before continuing.",
             scale,
             fontSize: compact
                 ? CompactCloudPushWarningFontSize

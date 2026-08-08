@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -12,19 +10,18 @@ internal static class LauncherCloudSafetyEvidenceTest
 
     private static int Main()
     {
-        Run("successful Pull can satisfy Upload evidence", SuccessfulPullUnlocks);
-        Run("Pull start invalidates prior completion", PullStartInvalidatesPriorSuccess);
-        Run("partial Pull remains ineligible", PartialPullRemainsIneligible);
-        Run("save-origin failure remains ineligible", SaveOriginFailureRemainsIneligible);
-        Run("branch identity and ordering remain enforced", BranchIdentityAndOrderingRemainEnforced);
-        Run("pre-Push backup evidence fails closed", PrePushBackupEvidenceFailsClosed);
+        Run("successful Pull records diagnostic evidence", SuccessfulPullRecordsEvidence);
+        Run("failed Pull records a diagnostic outcome", FailedPullRecordsDiagnosticOutcome);
+        Run("save-origin failure records diagnostic failure", SaveOriginFailureRecordsEvidenceFailure);
+        Run("diagnostic marker tracks branch identity", BranchEvidenceTracksIdentityAndOrdering);
+        Run("only live transfer state controls Upload eligibility", LocalSavePresenceControlsEligibility);
 
-        AssertEqual("safety evidence tests passed", 6, _passed);
-        Console.WriteLine("Launcher cloud safety evidence tests passed 6/6.");
+        AssertEqual("diagnostic evidence tests passed", 5, _passed);
+        Console.WriteLine("Launcher cloud diagnostic evidence tests passed 5/5.");
         return 0;
     }
 
-    private static void SuccessfulPullUnlocks()
+    private static void SuccessfulPullRecordsEvidence()
         => WithDataDir(dataDir =>
         {
             LauncherSaveOriginEvidence.OriginWriteSucceeds = true;
@@ -46,78 +43,46 @@ internal static class LauncherCloudSafetyEvidenceTest
                 "success",
                 ReadOutcome(dataDir)
             );
-            AssertTrue(
-                "successful Pull eligibility",
-                EvaluateFromEvidence(dataDir, "public").IsEligible
+            var marker = File.ReadAllText(
+                LauncherCloudSyncEvidence.LastManualPullMarkerPath(dataDir)
             );
-        });
-
-    private static void PullStartInvalidatesPriorSuccess()
-        => WithDataDir(dataDir =>
-        {
-            LauncherSaveOriginEvidence.OriginWriteSucceeds = true;
-            AssertTrue(
-                "seed successful Pull",
-                LauncherCloudSyncEvidence.WriteManualPullMarker(
-                    dataDir,
-                    "public"
-                )
-            );
-            AssertTrue(
-                "begin Pull",
-                LauncherCloudSyncEvidence.BeginManualPull(
-                    dataDir,
-                    "public"
-                )
-            );
-
             AssertFalse(
-                "pending Pull retained completion",
-                LauncherCloudSyncEvidence.LastManualPullCompletionRecorded(
-                    dataDir
-                )
+                "Pull history claims it is a Push prerequisite",
+                marker.Contains("before Push", StringComparison.OrdinalIgnoreCase)
             );
-            AssertEqual("pending Pull outcome", "pending", ReadOutcome(dataDir));
-            AssertBlockedByMissingPull(dataDir, "public");
+            AssertFalse(
+                "Pull history claims branch-switch Push gating",
+                marker.Contains("branch-switch Push", StringComparison.OrdinalIgnoreCase)
+            );
         });
 
-    private static void PartialPullRemainsIneligible()
+    private static void FailedPullRecordsDiagnosticOutcome()
         => WithDataDir(dataDir =>
         {
-            LauncherSaveOriginEvidence.OriginWriteSucceeds = true;
-            LauncherCloudSyncEvidence.WriteManualPullMarker(
-                dataDir,
-                "public"
-            );
-            LauncherCloudSyncEvidence.BeginManualPull(
-                dataDir,
-                "public"
-            );
             AssertTrue(
-                "partial Pull marker write",
+                "failed Pull marker write",
                 LauncherCloudSyncEvidence.WriteManualPullIncompleteMarker(
                     dataDir,
                     "public",
-                    "partial-success",
-                    "completed=2; failed=1; unfinished=3"
+                    "failure",
+                    "Steam connection failed"
                 )
             );
 
             AssertFalse(
-                "partial Pull retained completion",
+                "failed Pull recorded completion",
                 LauncherCloudSyncEvidence.LastManualPullCompletionRecorded(
                     dataDir
                 )
             );
             AssertEqual(
-                "partial Pull outcome",
-                "partial-success",
+                "failed Pull outcome",
+                "failure",
                 ReadOutcome(dataDir)
             );
-            AssertBlockedByMissingPull(dataDir, "public");
         });
 
-    private static void SaveOriginFailureRemainsIneligible()
+    private static void SaveOriginFailureRecordsEvidenceFailure()
         => WithDataDir(dataDir =>
         {
             LauncherSaveOriginEvidence.OriginWriteSucceeds = false;
@@ -140,19 +105,9 @@ internal static class LauncherCloudSafetyEvidenceTest
                 "evidence-failure",
                 ReadOutcome(dataDir)
             );
-            var eligibility = EvaluateFromEvidence(dataDir, "public");
-            AssertSequence(
-                "origin-failed Pull blockers",
-                new[]
-                {
-                    CloudPushEligibilityBlockCode.ManualPullNotCompleted,
-                    CloudPushEligibilityBlockCode.LocalSaveOriginNotVerified
-                },
-                eligibility.BlockingReasons.Select(block => block.Code)
-            );
         });
 
-    private static void BranchIdentityAndOrderingRemainEnforced()
+    private static void BranchEvidenceTracksIdentityAndOrdering()
         => WithDataDir(dataDir =>
         {
             LauncherSaveOriginEvidence.OriginWriteSucceeds = true;
@@ -190,11 +145,11 @@ internal static class LauncherCloudSafetyEvidenceTest
             LauncherCloudSyncEvidence.WriteManualPullIncompleteMarker(
                 dataDir,
                 "public-beta",
-                "partial-success",
-                "unfinished=1"
+                "failure",
+                "Steam connection failed"
             );
             AssertFalse(
-                "partial Pull satisfied branch-switch ordering",
+                "failed Pull satisfied branch-switch ordering",
                 LauncherCloudSyncEvidence.HasManualPullAfterBranchSwitch(
                     dataDir,
                     "public-beta"
@@ -202,104 +157,27 @@ internal static class LauncherCloudSafetyEvidenceTest
             );
         });
 
-    private static void PrePushBackupEvidenceFailsClosed()
+    private static void LocalSavePresenceControlsEligibility()
     {
-        ManualPushBackupSafetyPolicy.EnsureSatisfied(
-            localBackupEnabled: false,
-            hasStoragePermission: false,
-            importantLocalSaveCount: 2,
-            localBackupCount: 0,
-            importantCloudSaveCount: 2,
-            cloudBackupCount: 0
+        var eligible = CloudPushEligibilityPolicy.Evaluate(
+            new CloudPushEligibilityState(true)
         );
+        AssertTrue("local saves allow Upload", eligible.IsEligible);
 
-        AssertThrows<InvalidOperationException>(
-            "missing backup storage",
-            () => ManualPushBackupSafetyPolicy.EnsureSatisfied(
-                localBackupEnabled: true,
-                hasStoragePermission: false,
-                importantLocalSaveCount: 1,
-                localBackupCount: 1,
-                importantCloudSaveCount: 1,
-                cloudBackupCount: 1
-            ),
-            "storage permission"
+        var blocked = CloudPushEligibilityPolicy.Evaluate(
+            new CloudPushEligibilityState(false)
         );
-        AssertThrows<InvalidOperationException>(
-            "incomplete local pre-Push backup",
-            () => ManualPushBackupSafetyPolicy.EnsureSatisfied(
-                localBackupEnabled: true,
-                hasStoragePermission: true,
-                importantLocalSaveCount: 2,
-                localBackupCount: 1,
-                importantCloudSaveCount: 1,
-                cloudBackupCount: 1
-            ),
-            "local pre-Push backup"
+        AssertFalse("missing local saves allow Upload", blocked.IsEligible);
+        AssertEqual("missing local save blocker count", 1, blocked.BlockingReasons.Count);
+        AssertEqual(
+            "missing local save blocker",
+            CloudPushEligibilityBlockCode.ImportantLocalSavesMissing,
+            blocked.BlockingReasons[0].Code
         );
-        AssertThrows<InvalidOperationException>(
-            "incomplete cloud pre-Push backup",
-            () => ManualPushBackupSafetyPolicy.EnsureSatisfied(
-                localBackupEnabled: true,
-                hasStoragePermission: true,
-                importantLocalSaveCount: 2,
-                localBackupCount: 2,
-                importantCloudSaveCount: 2,
-                cloudBackupCount: 1
-            ),
-            "cloud pre-Push backup"
-        );
-
-        ManualPushBackupSafetyPolicy.EnsureSatisfied(
-            localBackupEnabled: true,
-            hasStoragePermission: true,
-            importantLocalSaveCount: 2,
-            localBackupCount: 2,
-            importantCloudSaveCount: 2,
-            cloudBackupCount: 2
-        );
-    }
-
-    private static CloudPushEligibilityResult EvaluateFromEvidence(
-        string dataDir,
-        string selectedBranch
-    )
-        => CloudPushEligibilityPolicy.Evaluate(
-            new CloudPushEligibilityState(
-                selectedBranch,
-                0,
-                LauncherCloudSyncEvidence.LastManualPullCompletionRecorded(
-                    dataDir
-                ),
-                LauncherCloudSyncEvidence.LastManualPullMatchesSelectedBranch(
-                    dataDir,
-                    selectedBranch
-                ),
-                true,
-                LauncherSaveOriginEvidence
-                    .CurrentLocalSavesMatchSelectedRuntime(
-                        dataDir,
-                        selectedBranch
-                    ),
-                false,
-                true,
-                true,
-                true,
-                true
-            )
-        );
-
-    private static void AssertBlockedByMissingPull(
-        string dataDir,
-        string selectedBranch
-    )
-    {
-        var result = EvaluateFromEvidence(dataDir, selectedBranch);
-        AssertFalse("incomplete Pull eligibility", result.IsEligible);
-        AssertSequence(
-            "incomplete Pull blocker",
-            new[] { CloudPushEligibilityBlockCode.ManualPullNotCompleted },
-            result.BlockingReasons.Select(block => block.Code)
+        AssertEqual(
+            "missing local save action",
+            CloudPushRequiredActionCode.VerifyAndroidLocalSaves,
+            blocked.RequiredNextActions[0].Code
         );
     }
 
@@ -356,51 +234,4 @@ internal static class LauncherCloudSafetyEvidenceTest
         }
     }
 
-    private static void AssertSequence<T>(
-        string name,
-        IEnumerable<T> expected,
-        IEnumerable<T> actual
-    )
-    {
-        if (!expected.SequenceEqual(actual))
-        {
-            throw new InvalidOperationException(
-                $"{name}: expected [{string.Join(", ", expected)}], "
-                    + $"actual [{string.Join(", ", actual)}]."
-            );
-        }
-    }
-
-    private static void AssertThrows<TException>(
-        string name,
-        Action action,
-        string expectedMessage
-    )
-        where TException : Exception
-    {
-        try
-        {
-            action();
-        }
-        catch (TException ex)
-        {
-            if (
-                !ex.Message.Contains(
-                    expectedMessage,
-                    StringComparison.OrdinalIgnoreCase
-                )
-            )
-            {
-                throw new InvalidOperationException(
-                    $"{name}: expected '{expectedMessage}' in '{ex.Message}'."
-                );
-            }
-
-            return;
-        }
-
-        throw new InvalidOperationException(
-            $"{name}: expected {typeof(TException).Name}."
-        );
-    }
 }

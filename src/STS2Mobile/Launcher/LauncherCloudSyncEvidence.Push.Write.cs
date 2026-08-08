@@ -25,10 +25,7 @@ internal static partial class LauncherCloudSyncEvidence
                 + $"{PrePushCloudBackupEvidenceCountPrefix} {LauncherBackupEvidence.CloudPrePushBackupCount()}\n"
                 + $"{LatestPrePushLocalBackupUtcPrefix} {LauncherBackupEvidence.LatestLocalPrePushBackupUtc()}\n"
                 + $"{LatestPrePushCloudBackupUtcPrefix} {LauncherBackupEvidence.LatestCloudPrePushBackupUtc()}\n"
-                + $"{ImportantLocalSaveEvidenceCountPrefix} {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n"
-                + $"{BaselineManualPushPrerequisitesSatisfiedPrefix} {BaselineManualPushPrerequisitesSatisfied(dataDir, selectedBranch).ToString().ToLowerInvariant()}\n"
-                + $"{BranchSwitchPrePushBackupEvidenceSatisfiedPrefix} {LauncherBackupEvidence.HasPrePushBackupEvidenceAfterBranchSwitch(dataDir).ToString().ToLowerInvariant()}\n"
-                + $"{ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix} true\n";
+                + $"{ImportantLocalSaveEvidenceCountPrefix} {LauncherLocalSaveEvidence.CountImportantSaveEvidence(dataDir)}\n";
             File.WriteAllText(LastManualPushMarkerPath(dataDir), text);
         }
         catch (Exception ex)

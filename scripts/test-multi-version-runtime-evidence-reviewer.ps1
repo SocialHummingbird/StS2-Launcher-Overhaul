@@ -176,7 +176,6 @@ Mod play mode: vanilla
 Mod installed count: 0
 Mod enabled count: 0
 Mod unsupported count: 0
-Modded save cloud push locked: false
 "@
     } else {
         Save-TestText (Join-Path $BaseDir "diagnostics\runtime-marker-files.txt") ""

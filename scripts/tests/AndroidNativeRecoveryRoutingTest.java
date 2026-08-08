@@ -232,8 +232,8 @@ public final class AndroidNativeRecoveryRoutingTest {
 		);
 		requireContains(
 			source,
-			"Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK",
-			"Fallback restart does not replace the failed activity task."
+			"Intent.FLAG_ACTIVITY_NO_ANIMATION",
+			"Fallback restart does not preserve a seamless in-task handoff."
 		);
 	}
 

@@ -120,7 +120,9 @@ Validation results:
 
 The normal and Safe Start probes stopped after their native skip markers; this pass is not new downstream `NMainMenu` or shader-warmup evidence. The implementation itself does not alter those paths. Steam Cloud Push was not run, no release was published, and no downloaded/core-game file was modified. The local evidence bundle is `artifacts/android/boot-transition-hardware-0.2.407-20260717-115657/`.
 
-That hardware pass validates the transition policy and lifecycle safeguards, but it predates the larger four-second choreography and `StS2 LAUNCHER` wordmark. The revised timing, scale, and Help attribution require a new connected-device visual pass before release.
+That hardware pass validated the original transition policy and lifecycle safeguards. A later exact non-debuggable `v0.2.416` pass on the same Samsung ARM64 device validated the larger four-second choreography, `StS2 LAUNCHER` wordmark, launcher handoff with `mInputShown=false`, public Start Game through real `NMainMenu`, and heartbeats through 60 seconds. See [v0.2.416 release notes](release-notes/v0.2.416-startup-recovery-ime.md).
+
+Current source also contains post-release native first-frame, splash, task-routing, and fallback-recovery changes. The API 36 x86_64 emulator validates those native paths only; production x86_64 cannot run the managed launcher or game. The exact current-source candidate therefore still requires ARM64 visual and startup validation before release.
 
 ## Remaining stages
 

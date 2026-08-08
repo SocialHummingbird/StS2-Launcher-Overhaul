@@ -20,7 +20,7 @@ For the current release gate and evidence matrix, see [Steam version selection r
 - Warn before switching branches.
 - Show wrapped helper text under the game-version selector explaining current public/non-public branch limitations and the active install slot.
 - Enable local backup before branch switches.
-- Block manual Push after a branch switch when backup storage permission is unavailable.
+- Keep branch-switch history available for diagnostics without turning it into an Upload prerequisite.
 - Launch selected `public-beta` from `game_versions/public-beta-8128824d/game` on the local ARM64 hardening build.
 
 ## What is not supported yet
@@ -30,7 +30,7 @@ For the current release gate and evidence matrix, see [Steam version selection r
 - Release-signed behavior for private, inaccessible, or password-protected branches.
 - Release-candidate proof for selected-version launch/failure routing beyond the local `public-beta` hardening run.
 - Proven save compatibility between public and beta game versions.
-- Treating Steam Cloud Push as safe after a branch switch without Pull and backup evidence.
+- Treating Steam Cloud Upload as non-destructive; it can overwrite remote saves and always requires explicit confirmation.
 
 ## Version selector
 
@@ -133,7 +133,6 @@ Before switching versions, the launcher should warn that:
 - A download may be required.
 - Saves may not be compatible between branches.
 - Local backup will be enabled.
-- Manual Steam Cloud Push requires backup storage permission after switching.
 - Non-public branches may be private or password-protected.
 - Beta password entry is not implemented.
 
@@ -141,21 +140,11 @@ After switching, treat Steam Cloud Push as destructive until evidence proves oth
 
 ## Steam Cloud safety rules
 
-Before using Push to Cloud after branch switching:
+Before using Upload, select the intended vanilla or modded namespace and confirm it contains the Android saves you want Steam Cloud to mirror. If modded, keep the exact selected mod set unchanged through the transfer.
 
-1. Pull from Cloud first.
-2. Confirm Android local save files exist.
-3. Confirm local backup is enabled.
-4. Confirm backup storage permission is available.
-5. Confirm local pre-Push backup evidence exists.
-6. Confirm cloud pre-Push backup evidence exists.
-7. Only then perform a manual Push intentionally.
+Pull is a separate Cloud-to-Android operation and is not required before Upload. Installing the Steam game is also not required. Upload is eligible when the selected namespace contains transferable allowlisted local saves and no earlier Pull is still marked incomplete.
 
-If any step is missing, do not Push.
-
-Manual Push also requires the baseline evidence even without a branch switch: Pull from Cloud must have completed for the currently selected version, and Android local save evidence must exist before upload. If either prerequisite is missing, the launcher blocks Push with status/log text naming the selected game version. The Pull evidence marker records `Manual Pull completed before Push: true`; branch-switch validation also keeps the stricter branch-switch Pull flag.
-
-The Push confirmation should name the selected game version, the selected version slot, and the required selected-version safety evidence: Pull-after-switch, Android local save evidence, backup storage permission, local pre-Push backup evidence, and cloud pre-Push backup evidence.
+The transfer rejects a different Steam account, vanilla/modded namespace, runtime/public-beta identity, or mod-set fingerprint. It backs up the destination and verifies read-back hashes, but those are transfer correctness checks rather than UI eligibility gates. Always read and confirm the overwrite warning intentionally.
 
 ## Diagnostics to capture
 
@@ -283,12 +272,10 @@ Branch switch selected version slot directory:
 Branch switch selected branch matches current selected branch:
 Branch switch selected branch note:
 Branch switch local backup forced:
-Branch switch manual Push requires backup storage:
 Branch switch warning acknowledged:
 Branch switch non-public warning acknowledged:
 Branch switch marker has required safety evidence:
 Branch switch marker has required safety evidence for selected branch:
-Push requires backup storage after branch switch:
 Manual Pull evidence marker filename:
 Manual Pull evidence marker path:
 Manual Pull evidence marker present:
@@ -300,14 +287,18 @@ Manual Pull evidence selector mode:
 Manual Pull evidence selected version:
 Manual Pull evidence selected version slot kind:
 Manual Pull evidence selected version slot directory:
-Manual Pull completion flag recorded:
-Manual Pull completed before Push:
+Manual Pull outcome:
+Manual Pull outcome detail:
+Manual Pull completed:
 Manual Pull evidence is after branch switch:
 Manual Pull evidence matches selected branch:
 Manual Pull completed after branch switch for selected version:
 Current important Android local save evidence count:
 Current important Android local save evidence present:
-Baseline manual Push prerequisites satisfied:
+Incomplete Pull marker present:
+Selected save namespace:
+Runtime compatibility / branch identity:
+Mod-set fingerprint:
 Manual Push evidence marker filename:
 
 `last_manual_cloud_push.txt`
@@ -339,12 +330,8 @@ Manual Push evidence recorded cloud backup count:
 Manual Push evidence recorded latest local backup UTC:
 Manual Push evidence recorded latest cloud backup UTC:
 Manual Push evidence recorded important local save evidence count:
-Manual Push evidence recorded baseline prerequisites satisfied:
-Manual Push completion flag recorded:
 Manual Push evidence is after branch switch:
 Manual Push evidence matches selected branch:
-Manual Push evidence recorded pre-Push backup evidence satisfied:
-Manual Push completed after branch switch for selected version with backup evidence:
 Manual Push blocked evidence marker filename:
 Manual Push blocked evidence marker path:
 Manual Push blocked evidence marker present:
@@ -357,14 +344,11 @@ Manual Push blocked evidence selected version:
 Manual Push blocked evidence selected version slot kind:
 Manual Push blocked evidence selected version slot directory:
 Manual Push blocked evidence matches selected branch:
-Manual Push blocked evidence recorded prerequisites satisfied:
 Manual Push blocked evidence recorded local backup count:
 Manual Push blocked evidence recorded cloud backup count:
 Manual Push blocked evidence recorded latest local backup UTC:
 Manual Push blocked evidence recorded latest cloud backup UTC:
 Manual Push blocked evidence recorded important local save evidence count:
-Manual Push blocked evidence recorded baseline prerequisites satisfied:
-Manual Push blocked evidence recorded pre-Push backup evidence satisfied:
 Manual Push blocked evidence reason:
 Manual Push blocked before upload evidence recorded:
 Important Android local save evidence count in bounded scan:
@@ -372,14 +356,12 @@ Important Android local save evidence present:
 Backup storage permission available:
 Backup storage directory:
 Backup storage directory exists:
-Branch-switch manual Push prerequisites satisfied:
 Pre-Push local backup evidence count:
 Pre-Push cloud backup evidence count:
 Latest pre-Push local backup UTC:
 Latest pre-Push cloud backup UTC:
 Pre-Push local backup evidence after branch switch:
 Pre-Push cloud backup evidence after branch switch:
-Branch-switch pre-Push backup evidence satisfied:
 ```
 
 For GitHub reports, use `.github/ISSUE_TEMPLATE/steam_version_selection_report.md`.
@@ -409,7 +391,7 @@ The version selector is not release-ready until evidence proves:
 - Inactive cache cleanup preserves the selected cache and selected runtime pack while removing stale runtime packs.
 - Missing/private/password-protected beta behavior is understood.
 - Save compatibility across branches is known or explicitly unsupported.
-- Pull-after-switch, local-save, and backup evidence protects Steam Cloud state.
+- Exact transfer context, destination backup, failure propagation, and verified read-back protect Steam Cloud state; branch/Pull history remains diagnostic only.
 
 Track save behavior with `docs/steam-version-selection-save-compatibility.md`.
 Track implementation-versus-evidence status with `docs/steam-version-selection-release-readiness.md`.

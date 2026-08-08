@@ -9,39 +9,26 @@ internal static class CloudPushEligibilityPolicy
     )
     {
         var blocks = new List<CloudPushEligibilityBlock>();
-        var selectedVersion = string.IsNullOrWhiteSpace(state.SelectedVersion)
-            ? "the selected game version"
-            : state.SelectedVersion;
 
-        if (state.SelectedModCount > 0)
+        if (state.HasRecoverySyncHold)
         {
             AddBlock(
                 blocks,
-                CloudPushEligibilityBlockCode.ModsSelected,
-                $"{state.SelectedModCount} mod(s) are selected for launch. Modded saves cannot be uploaded to Steam Cloud safely.",
-                CloudPushRequiredActionCode.DeselectMods,
-                "Deselect all mods and use a vanilla launch state before uploading."
+                CloudPushEligibilityBlockCode.LocalRecoveryRequiresValidation,
+                "Upload is blocked because recovered saves are still Android-only.",
+                CloudPushRequiredActionCode.ValidateAndApproveRecoveredSaves,
+                "Open the recovered save locally, verify it, then explicitly approve it for sync."
             );
         }
 
-        if (!state.ManualPullCompleted)
+        if (state.HasIncompletePull)
         {
             AddBlock(
                 blocks,
-                CloudPushEligibilityBlockCode.ManualPullNotCompleted,
-                $"No completed Pull from Steam Cloud is recorded for {selectedVersion}.",
-                CloudPushRequiredActionCode.CompletePullForSelectedVersion,
-                $"Complete Pull from Steam Cloud for {selectedVersion}."
-            );
-        }
-        else if (!state.ManualPullMatchesSelectedVersion)
-        {
-            AddBlock(
-                blocks,
-                CloudPushEligibilityBlockCode.ManualPullVersionMismatch,
-                $"The latest completed Pull belongs to a different game version than {selectedVersion}.",
-                CloudPushRequiredActionCode.CompletePullForSelectedVersion,
-                $"Complete Pull from Steam Cloud for {selectedVersion}."
+                CloudPushEligibilityBlockCode.IncompletePullRequiresRecovery,
+                "Upload is blocked because a previous Pull did not complete.",
+                CloudPushRequiredActionCode.RecoverIncompletePull,
+                "Retry and complete the interrupted Pull before uploading."
             );
         }
 
@@ -50,80 +37,13 @@ internal static class CloudPushEligibilityPolicy
             AddBlock(
                 blocks,
                 CloudPushEligibilityBlockCode.ImportantLocalSavesMissing,
-                $"No important Android local save files were found for {selectedVersion}.",
+                "No transferable Android local save files were found.",
                 CloudPushRequiredActionCode.VerifyAndroidLocalSaves,
-                "Pull saves, open the game, and verify that Android local saves exist."
+                "Open the game and verify that Android local saves exist."
             );
-        }
-
-        if (!state.LocalSaveOriginMatchesSelectedRuntime)
-        {
-            AddBlock(
-                blocks,
-                CloudPushEligibilityBlockCode.LocalSaveOriginNotVerified,
-                $"The Android local saves are not verified against the installed {selectedVersion} runtime.",
-                CloudPushRequiredActionCode.CompletePullForSelectedVersion,
-                $"Complete Pull from Steam Cloud against the installed {selectedVersion} runtime."
-            );
-        }
-
-        if (state.HasBranchSwitchMarker)
-        {
-            AddBranchSwitchBlocks(blocks, state, selectedVersion);
         }
 
         return new CloudPushEligibilityResult(blocks);
-    }
-
-    private static void AddBranchSwitchBlocks(
-        ICollection<CloudPushEligibilityBlock> blocks,
-        CloudPushEligibilityState state,
-        string selectedVersion
-    )
-    {
-        if (!state.BranchSwitchEvidenceValid)
-        {
-            AddBlock(
-                blocks,
-                CloudPushEligibilityBlockCode.BranchSwitchEvidenceInvalid,
-                $"The recorded game-version switch is incomplete or does not match {selectedVersion}.",
-                CloudPushRequiredActionCode.RebuildBranchSwitchEvidence,
-                "Select the intended game version again to rebuild branch-switch safety evidence."
-            );
-        }
-
-        if (!state.HasManualPullAfterBranchSwitch)
-        {
-            AddBlock(
-                blocks,
-                CloudPushEligibilityBlockCode.ManualPullAfterBranchSwitchMissing,
-                $"No completed Pull is recorded after the switch to {selectedVersion}.",
-                CloudPushRequiredActionCode.CompletePullAfterBranchSwitch,
-                $"Complete Pull from Steam Cloud after switching to {selectedVersion}."
-            );
-        }
-
-        if (!state.IsLocalBackupEnabled)
-        {
-            AddBlock(
-                blocks,
-                CloudPushEligibilityBlockCode.LocalBackupDisabledAfterBranchSwitch,
-                "Local Backup is disabled after the game-version switch.",
-                CloudPushRequiredActionCode.EnableLocalBackup,
-                "Turn on Local Backup before uploading saves from the switched game version."
-            );
-        }
-
-        if (!state.HasBackupStoragePermission)
-        {
-            AddBlock(
-                blocks,
-                CloudPushEligibilityBlockCode.BackupStoragePermissionMissing,
-                "Backup storage permission is unavailable after the game-version switch.",
-                CloudPushRequiredActionCode.GrantBackupStoragePermission,
-                "Grant storage access so pre-upload backups can be written."
-            );
-        }
     }
 
     private static void AddBlock(

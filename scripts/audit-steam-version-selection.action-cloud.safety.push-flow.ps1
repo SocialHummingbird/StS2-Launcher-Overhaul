@@ -38,7 +38,7 @@ function Add-SteamVersionSelectionActionCloudSafetyPushFlowChecks {
             "_readyVersionSummaryLabel",
             "Ready version:",
             "Start Game, Pull, and Upload use this version",
-            "Review Upload lists every unmet safety check",
+            "Review Upload before overwriting Steam Cloud",
             "SteamGameInstallPaths\.VersionSlotKind",
             "Pull copies Steam Cloud saves to Android",
             "Push copies Android saves to Steam Cloud",

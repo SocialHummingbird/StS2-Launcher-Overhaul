@@ -32,7 +32,6 @@ function New-WorkshopEvidenceBundle(
     [switch]$NoLaunchRequested,
     [switch]$FallbackCrashLog,
     [switch]$AbortSignalLog,
-    [switch]$UnlockedWithStagedPck,
     [switch]$MissingWorkshopModLoaderScan,
     [switch]$CachedDownloadReuse,
     [switch]$StaleDownloadArtifact,
@@ -155,7 +154,6 @@ function New-WorkshopEvidenceBundle(
     Save-TestText (Join-Path $BaseDir "diagnostics\workshop-derived-state.json") (@{
         manifestActivePckCount = $manifestActivePckCount
         rawStagedPckCount = $rawStagedPckCount
-        workshopCloudPushLocked = if ($UnlockedWithStagedPck) { $false } else { ($rawStagedPckCount -gt 0) }
         steamCloudPushPerformed = $false
         source = "capture-workshop-mod-evidence.ps1"
     } | ConvertTo-Json -Depth 5)
@@ -204,7 +202,6 @@ function New-WorkshopEvidenceBundle(
         failedMods = if ($FailedRuntimeActivation) { 1 } else { 0 }
         inGameVerifiedMods = 0
         status = "Android mod load attempt completed; inspect per-mod activation evidence"
-        workshopModdedSaveCloudPushLocked = $true
         steamCloudPushPerformed = $false
         activationEvidence = @($activation)
         selectedMods = @($selectedMod)
@@ -327,10 +324,6 @@ try {
     New-WorkshopEvidenceBundle -BaseDir $modInitializerErrorDir -Phase "public-beta"
     Add-Content -LiteralPath (Join-Path $modInitializerErrorDir "logs\logcat-workshop-filtered.txt") -Value "Exception thrown when calling mod initializer of type BaseLib.BaseLibMain: System.MissingMethodException: Method not found: void System.Text.Json.Serialization.Metadata.JsonPropertyInfoValues``1.set_IsProperty(bool)"
     Invoke-ReviewShouldFail -EvidenceDir $modInitializerErrorDir -Phase "public-beta" -Description "public-beta evidence containing mod initializer MissingMethodException"
-
-    $unlockedWithStagedPckDir = Join-Path $runRoot "negative-staged-pck-unlocked"
-    New-WorkshopEvidenceBundle -BaseDir $unlockedWithStagedPckDir -Phase "simple" -StagedPck -UnlockedWithStagedPck
-    Invoke-ReviewShouldFail -EvidenceDir $unlockedWithStagedPckDir -Phase "simple" -Description "staged Workshop PCK without derived Cloud Push lock"
 
     $missingLoaderScanDir = Join-Path $runRoot "negative-missing-workshop-loader-scan"
     New-WorkshopEvidenceBundle -BaseDir $missingLoaderScanDir -Phase "simple" -StagedPck -MissingWorkshopModLoaderScan

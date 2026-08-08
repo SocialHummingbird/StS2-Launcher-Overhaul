@@ -53,7 +53,6 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Mod selector play mode: {(moddedMode ? "modded" : "vanilla")}");
         sb.AppendLine($"Mod selector installed mod count: {knownMods.Count(mod => !mod.IsUnsupported)}");
         sb.AppendLine($"Mod selector enabled mod count: {enabledMods.Length}");
-        sb.AppendLine($"Workshop modded-save Cloud Push locked: {BoolText(LauncherWorkshopModSafety.HasActiveSelectedMods(enabledMods.Length))}");
 
         foreach (var mod in enabledMods.Take(32))
         {

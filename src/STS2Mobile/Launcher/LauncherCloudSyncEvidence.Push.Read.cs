@@ -35,12 +35,4 @@ internal static partial class LauncherCloudSyncEvidence
     internal static string LastManualPushRecordedImportantLocalSaveEvidenceCount(string dataDir)
         => ReadMarkerValue(LastManualPushMarkerPath(dataDir), ImportantLocalSaveEvidenceCountPrefix) ?? "<none>";
 
-    internal static string LastManualPushRecordedBaselinePrerequisitesSatisfied(string dataDir)
-        => ReadMarkerValue(LastManualPushMarkerPath(dataDir), BaselineManualPushPrerequisitesSatisfiedPrefix) ?? "<none>";
-
-    internal static bool LastManualPushCompletionRecorded(string dataDir)
-        => HasCompletionFlag(LastManualPushMarkerPath(dataDir), ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix);
-
-    internal static bool LastManualPushPrePushBackupEvidenceSatisfied(string dataDir)
-        => HasCompletionFlag(LastManualPushMarkerPath(dataDir), BranchSwitchPrePushBackupEvidenceSatisfiedPrefix);
 }

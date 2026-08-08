@@ -10,6 +10,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
@@ -18,6 +19,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.security.MessageDigest;
+
+import androidx.core.splashscreen.SplashScreen;
 
 public class LauncherActivity extends Activity {
 	private static final String TAG = "STS2Mobile";
@@ -31,22 +34,64 @@ public class LauncherActivity extends Activity {
 		new AndroidStartupRouteGate();
 	private final Runnable startupRouting = this::routeStartup;
 	private View routingPlaceholder;
+	private ViewTreeObserver.OnPreDrawListener startupRoutingPreDrawListener;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		SplashScreen.installSplashScreen(this);
 		super.onCreate(savedInstanceState);
 		routingPlaceholder = createRoutingPlaceholder();
 		setContentView(routingPlaceholder);
-		routingPlaceholder.postOnAnimation(startupRouting);
+		scheduleStartupRoutingAfterFirstFrame();
 	}
 
 	@Override
 	protected void onDestroy() {
+		removeStartupRoutingPreDrawListener();
 		if (routingPlaceholder != null) {
 			routingPlaceholder.removeCallbacks(startupRouting);
 			routingPlaceholder = null;
 		}
 		super.onDestroy();
+	}
+
+	private void scheduleStartupRoutingAfterFirstFrame() {
+		View placeholder = routingPlaceholder;
+		if (placeholder == null) {
+			return;
+		}
+
+		startupRoutingPreDrawListener =
+			new ViewTreeObserver.OnPreDrawListener() {
+				@Override
+				public boolean onPreDraw() {
+					removeStartupRoutingPreDrawListener();
+					View currentPlaceholder = routingPlaceholder;
+					if (currentPlaceholder != null) {
+						// Preserve a submitted mark frame while bootstrap work blocks the UI thread.
+						currentPlaceholder.postOnAnimation(startupRouting);
+					}
+					return true;
+				}
+			};
+		placeholder
+			.getViewTreeObserver()
+			.addOnPreDrawListener(startupRoutingPreDrawListener);
+	}
+
+	private void removeStartupRoutingPreDrawListener() {
+		View placeholder = routingPlaceholder;
+		ViewTreeObserver.OnPreDrawListener listener =
+			startupRoutingPreDrawListener;
+		startupRoutingPreDrawListener = null;
+		if (placeholder == null || listener == null) {
+			return;
+		}
+
+		ViewTreeObserver observer = placeholder.getViewTreeObserver();
+		if (observer.isAlive()) {
+			observer.removeOnPreDrawListener(listener);
+		}
 	}
 
 	private void routeStartup() {

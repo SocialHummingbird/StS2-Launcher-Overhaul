@@ -21,13 +21,13 @@ internal sealed partial class ActionSection
 
     private string CompactCloudSafetySummary()
         => CompactPlaySyncDrawerText(
-            "Save Check",
-            $"Get saves first: {SteamGameBranch.CompactDisplayName(_gameBranch, 14)}"
+            "Save Transfer",
+            $"Version: {SteamGameBranch.CompactDisplayName(_gameBranch, 14)}"
         );
 
     private string CompactCloudSafetyDetailText()
         => $"Saves for: {SteamGameBranch.CompactDisplayName(_gameBranch, 18)}\n"
-            + "Get Steam saves before upload. Upload can overwrite Steam.";
+            + "Pull downloads saves. Upload can overwrite Steam Cloud saves.";
 
     private static string CompactCloudPullText()
         => CompactPlaySyncDrawerText("Get Steam Saves", "Download to Android");
@@ -48,5 +48,5 @@ internal sealed partial class ActionSection
         => CompactPlaySyncDrawerText("Confirm Upload", "Overwrite cloud");
 
     private static string CompactCloudPushWarningText()
-        => "Steam Cloud overwrite\nConfirm only after Pull/local saves are verified.";
+        => "Steam Cloud overwrite\nConfirm the selected saves and version.";
 }

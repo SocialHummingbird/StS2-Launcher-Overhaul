@@ -18,8 +18,6 @@ internal sealed partial class ActionSection
             LauncherViewLayoutMetrics.ThemeFontColor,
             presentation.IsFailed
                 ? LauncherComponentTheme.OrangeHot
-                : presentation.IsPartial
-                    ? LauncherComponentTheme.OrangeHot
                 : presentation.IsComplete
                     ? LauncherComponentTheme.TextPrimary
                     : LauncherComponentTheme.CyanAccent

@@ -12,6 +12,7 @@ internal sealed partial class LauncherController : IDisposable
     private readonly LauncherDiagnosticsCoordinator _diagnostics;
     private readonly LauncherVersionCoordinator _versions;
     private readonly LauncherCloudSyncCoordinator _cloud;
+    private readonly LauncherSaveRecoveryCoordinator _saveRecovery;
     private readonly LauncherLaunchCoordinator _launch;
     private readonly LauncherDownloadCoordinator _downloads;
     private readonly LauncherBranchSwitchCoordinator _branchSwitch;
@@ -33,9 +34,17 @@ internal sealed partial class LauncherController : IDisposable
         _diagnostics = new LauncherDiagnosticsCoordinator(model, view);
         _versions = new LauncherVersionCoordinator(model, view);
         _cloud = new LauncherCloudSyncCoordinator(model, view, runOnMainThread);
+        _saveRecovery = new LauncherSaveRecoveryCoordinator(
+            model,
+            view,
+            _cloud,
+            runOnMainThread
+        );
         _launch = new LauncherLaunchCoordinator(
             model,
             view,
+            _cloud,
+            runOnMainThread,
             _diagnostics,
             result => _cloud.LocalBackupRecoveryCompleted(
                 result,
@@ -93,11 +102,14 @@ internal sealed partial class LauncherController : IDisposable
         LauncherLaunchMarkers.RecordPhase("launcher preferences initialize");
         STS2Mobile.PatchHelper.Log("Launcher controller phase: initialize action preferences");
         _startup.InitializeActionPreferences();
+        _saveRecovery.RefreshState();
         STS2Mobile.PatchHelper.Log("Launcher controller phase complete: initialize action preferences");
         LauncherLaunchMarkers.RecordPhase("launcher session flow start");
         STS2Mobile.PatchHelper.Log("Launcher controller phase: start session flow");
         _session.StartSessionFlow();
         STS2Mobile.PatchHelper.Log("Launcher controller phase complete: start session flow");
+        if (!_model.InGameMode)
+            _cloud.RecoverAutomaticSyncOnStartup();
         return _automation.TryStartAutomation();
     }
 

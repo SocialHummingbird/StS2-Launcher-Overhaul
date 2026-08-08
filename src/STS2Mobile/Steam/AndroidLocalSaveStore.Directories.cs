@@ -14,12 +14,12 @@ internal sealed partial class AndroidLocalSaveStore
         var fullPath = FullPath(directoryPath);
         if (!Directory.Exists(fullPath))
         {
-            PatchHelper.Log($"[Cloud] Android local save files: {directoryPath} -> {fullPath} missing");
+            PatchHelper.Log($"[Save] Android local save files: {directoryPath} -> {fullPath} missing");
             return Array.Empty<string>();
         }
 
         var files = Directory.GetFiles(fullPath).Select(Path.GetFileName).ToArray();
-        PatchHelper.Log($"[Cloud] Android local save files: {directoryPath} -> {fullPath} count={files.Length}");
+        PatchHelper.Log($"[Save] Android local save files: {directoryPath} -> {fullPath} count={files.Length}");
         return files;
     }
 
@@ -28,12 +28,12 @@ internal sealed partial class AndroidLocalSaveStore
         var fullPath = FullPath(directoryPath);
         if (!Directory.Exists(fullPath))
         {
-            PatchHelper.Log($"[Cloud] Android local save directories: {directoryPath} -> {fullPath} missing");
+            PatchHelper.Log($"[Save] Android local save directories: {directoryPath} -> {fullPath} missing");
             return Array.Empty<string>();
         }
 
         var directories = Directory.GetDirectories(fullPath).Select(Path.GetFileName).ToArray();
-        PatchHelper.Log($"[Cloud] Android local save directories: {directoryPath} -> {fullPath} count={directories.Length}");
+        PatchHelper.Log($"[Save] Android local save directories: {directoryPath} -> {fullPath} count={directories.Length}");
         return directories;
     }
 

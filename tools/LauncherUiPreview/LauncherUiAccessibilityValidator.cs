@@ -15,7 +15,8 @@ internal static class LauncherUiAccessibilityValidator
         var minimumHeight = touchOptimized ? TouchTargetMinimum : DesktopTargetMinimum;
         foreach (var button in Descendants<BaseButton>(root))
         {
-            if (!button.IsVisibleInTree())
+            if (!button.IsVisibleInTree()
+                || !IsFullyExposedByScrollAncestors(button))
                 continue;
 
             var name = AccessibleName(button);
@@ -36,7 +37,8 @@ internal static class LauncherUiAccessibilityValidator
 
         foreach (var input in Descendants<LineEdit>(root))
         {
-            if (!input.IsVisibleInTree())
+            if (!input.IsVisibleInTree()
+                || !IsFullyExposedByScrollAncestors(input))
                 continue;
 
             var name = AccessibleName(input);
@@ -72,6 +74,27 @@ internal static class LauncherUiAccessibilityValidator
                 && rect.End.Y <= viewportSize.Y + BoundsTolerance,
             $"Control '{name}' is outside viewport {viewportSize}: {rect}."
         );
+    }
+
+    private static bool IsFullyExposedByScrollAncestors(Control control)
+    {
+        var rect = control.GetGlobalRect();
+        for (var ancestor = control.GetParent(); ancestor is not null; ancestor = ancestor.GetParent())
+        {
+            if (ancestor is not ScrollContainer scroll || !scroll.IsVisibleInTree())
+                continue;
+
+            var viewport = scroll.GetGlobalRect();
+            if (rect.Position.X < viewport.Position.X - BoundsTolerance
+                || rect.Position.Y < viewport.Position.Y - BoundsTolerance
+                || rect.End.X > viewport.End.X + BoundsTolerance
+                || rect.End.Y > viewport.End.Y + BoundsTolerance)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static IEnumerable<T> Descendants<T>(Node root) where T : Node

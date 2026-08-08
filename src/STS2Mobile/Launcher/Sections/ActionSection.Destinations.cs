@@ -42,6 +42,7 @@ internal sealed partial class ActionSection
         MoveTo(_homeDestination, _retryButton);
 
         MoveTo(_savesDestination, _cloudGroup);
+        MoveTo(_savesDestination, _saveRecoveryGroup);
 
         MoveTo(_versionsDestination, _branchDropdown);
         MoveTo(_versionsDestination, _branchDetailsToggle);

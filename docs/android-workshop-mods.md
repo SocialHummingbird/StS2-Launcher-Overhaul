@@ -13,13 +13,13 @@ Workshop/mod support is in progress. The current latest APK is `v0.2.401-native-
 - `Sync Workshop Mods` discovers subscribed Workshop items from Steam.
 - Usable Workshop items are downloaded from Steam depot manifests or direct UGC URLs.
 - Downloads are staged under app-private storage at `files/workshop_mods/staged`.
-- The launcher exposes a first-class Mods section on the main Play screen, showing staged and selected mod counts, unsupported Workshop item count, manual-import guidance, Cloud upload lock state, and primary `Sync Workshop` / `Clear Staged` actions before repair/help diagnostics.
+- The launcher exposes a first-class Mods section on the main Play screen, showing staged and selected mod counts, unsupported Workshop item count, manual-import guidance, and primary `Sync Workshop` / `Clear Staged` actions before repair/help diagnostics.
 - Public-beta `v0.108.0` now launches with matched beta PCK plus matched beta managed runtime after the adaptive ModelDb fix. Public-after-beta branch switching and core-release side-by-side launch were retested on July 3.
 - Core-release can be selected and launched through a side-by-side slot. Current Steam metadata still records it as inheriting the public depot manifest rather than a distinct core-release payload.
 - BaseLib and Quick Restart are staged from Workshop. Vanilla and Modded Saves Merger remains visible as a legacy item, but `v0.2.401` marks it deprecated and never selects or loads it.
 - The July 3 public-beta run historically proved that BaseLib and Quick Restart payloads reached their Android load paths and that the old launcher SavesMerger substitute was applied. Current source removes that substitute. Later focused testing remains valid proof that Quick Restart created and executed its restart action after the selected game assembly was Android-publicized.
-- Manual Pull now preserves the game's native modded directory model. For each account/profile, a Steam Cloud modded namespace is authoritative; otherwise the launcher seeds the exact upstream v0.108 first-launch file set from files downloaded during that Pull. Existing affected local modded files are backed up app-privately first, and `cloud_sync/last_manual_pull_modded_save_seed.json` records the result.
-- Current source builds also record launcher-side mod readiness in `last_launch_attempt.txt` before Start Game handoff. That marker captures vanilla/modded mode, selected mods, enabled count, selector cache status, and modded-save Cloud Push lock state. Mod readiness status values are centralized in `LauncherModLaunchReadinessCacheStatus`, including `not-needed-vanilla` for vanilla starts where runtime mod scans are intentionally skipped. The mod readiness cache hashes small selector/Workshop manifest metadata with a bounded 1 MiB content identity and uses one recursive metadata pass across staged/manual `.json`, `.pck`, and `.dll` files. It does not hash large mod payload contents, but changes anywhere in staged Workshop or manual import directories invalidate cached mod readiness. It is startup triage evidence. Marker v2 in `last_mod_launch.json` separately records each selected mod's payload readiness, load errors, Harmony patch types and installed targets, Android compatibility mode, activation status, and whether any in-game effect was actually exercised.
+- Current Pull and automatic sync preserve the game's native modded directory model. They transfer only the selected exact account, runtime, namespace, and mod-set context; they never copy vanilla save data into a missing modded namespace. Older installs may still contain `cloud_sync/last_manual_pull_modded_save_seed.json` as historical evidence, but current source neither produces nor acts on it.
+- Current source builds also record launcher-side mod readiness in `last_launch_attempt.txt` before Start Game handoff. That marker captures vanilla/modded mode, selected mods, enabled count, and selector cache status. Mod readiness status values are centralized in `LauncherModLaunchReadinessCacheStatus`, including `not-needed-vanilla` for vanilla starts where runtime mod scans are intentionally skipped. The mod readiness cache hashes small selector/Workshop manifest metadata with a bounded 1 MiB content identity and uses one recursive metadata pass across staged/manual `.json`, `.pck`, and `.dll` files. It does not hash large mod payload contents, but changes anywhere in staged Workshop or manual import directories invalidate cached mod readiness. It is startup triage evidence. Marker v2 in `last_mod_launch.json` separately records each selected mod's payload readiness, load errors, Harmony patch types and installed targets, Android compatibility mode, activation status, and whether any in-game effect was actually exercised.
 - Steam Cloud Push is not run by Workshop sync, Workshop clear, or Workshop evidence capture.
 
 This is not finished mod-manager UX yet:
@@ -49,7 +49,7 @@ cloudSafety=No Steam Cloud Push was run.
 Use the latest build containing selected-root diagnostics and run this sequence:
 
 1. Confirm the installed package is the expected local debug package and version.
-2. Keep Steam Cloud Push locked/off; do not press Push to Cloud.
+2. Do not press Push to Cloud during this read-only launch-evidence capture.
 3. Select public-beta and modded mode with BaseLib and Quick Restart enabled. Leave SavesMerger installed only if testing its deprecated classification; it must not appear in selected or activation evidence.
 4. Run `scripts/run-public-beta-modded-validation.ps1` to launch public-beta with focused logs and capture runtime/mod/save diagnostics. The script does not move `files/modded`, does not press Steam Cloud Push, requires zero compatibility substitutes, and fails if SavesMerger appears in runtime activation evidence.
 5. Classify the result:
@@ -185,8 +185,8 @@ Workshop mod support deliberately keeps save upload separate:
 
 - `Sync Workshop Mods` does not press or call Push to Cloud.
 - `Clear Workshop Mods` removes staged mod entries and clears the consent marker without uploading saves.
-- Evidence capture scripts state the same boundary and derive a Workshop Cloud Push lock when staged PCK files or selected mods are present.
-- Manual Push to Cloud is blocked when staged Workshop PCK files or selected mods are present.
+- Evidence capture scripts state the same boundary, record staged-PCK counts, and record `steamCloudPushPerformed=false`.
+- Manual Push and Pull use the same save-transfer operation. Modded transfers carry a modded namespace plus the exact enabled mod-set fingerprint, so they cannot cross into vanilla or a different mod set.
 
 Do not use Workshop launch evidence as proof that modded saves are safe to upload to Steam Cloud.
 
@@ -200,7 +200,7 @@ A complete Workshop evidence bundle should include:
 - Android PCK patch marker when the mounted Android PCK hash differs from the source/unpatched Steam PCK hash
 - Workshop manifest with source classification and item statuses
 - staged Workshop PCK hashes
-- derived Cloud Push lock state
+- derived staged-PCK counts and `steamCloudPushPerformed=false`
 - focused package logs showing Workshop scan and mod initialization
 - screenshots or window-state capture proving launch route reached the expected game state
 
@@ -221,4 +221,4 @@ Use `-RequirePhase public`, `-RequirePhase public-beta`, or `-RequirePhase core-
 - Add behavioral probes for supported mods so a loaded assembly is not the final compatibility signal.
 - Keep the strict public, public-beta, public-after-beta, and core-release branch-switch evidence current as the game and Workshop items update.
 - Decide whether a legitimate additional Steam content route exists for legacy UGC-only items.
-- Keep launcher UX copy focused on user actions: sync subscribed mods, clear staged mods, and understand that Push to Cloud remains locked while modded content is active.
+- Keep launcher UX copy focused on user actions: sync subscribed mods, clear staged mods, and transfer saves only through the matching account, branch, runtime, namespace, and mod-set context.

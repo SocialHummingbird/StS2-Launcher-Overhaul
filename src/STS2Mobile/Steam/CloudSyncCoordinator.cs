@@ -1,8 +1,11 @@
+using System;
+using System.Collections.Generic;
 using System.Threading;
+using MegaCrit.Sts2.Core.Saves;
 
 namespace STS2Mobile.Steam;
 
-// Stateless cloud sync coordinator: auto sync, manual push/pull, and save backups.
+// Launcher-only manual cloud sync plus local save backups.
 internal static partial class CloudSyncCoordinator
 {
     private static bool _localBackupEnabled;
@@ -12,9 +15,7 @@ internal static partial class CloudSyncCoordinator
         _localBackupEnabled = enabled;
     }
 
-    internal static LocalBackupRefreshResult RefreshLocalBackup(
-        bool restoreMissing
-    )
+    internal static LocalBackupRefreshResult RefreshLocalBackup()
     {
         if (!_localBackupEnabled)
         {
@@ -26,13 +27,44 @@ internal static partial class CloudSyncCoordinator
         try
         {
             return SaveBackups.RefreshLocalMirror(
-                CloudSaveStoreFactory.CreateLocalStore(),
-                restoreMissing
+                CloudSaveStoreFactory.CreateLocalStore()
             );
         }
         catch (System.Exception ex)
         {
             PatchHelper.Log($"[Cloud] Automatic local backup refresh failed: {ex.Message}");
+            return LocalBackupRefreshResult.Failed(ex.Message);
+        }
+    }
+
+    internal static LocalBackupRefreshResult RefreshLocalBackup(
+        ISaveStore local,
+        string backupsRoot,
+        IReadOnlyCollection<string> candidatePaths = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(local);
+        ArgumentException.ThrowIfNullOrWhiteSpace(backupsRoot);
+        try
+        {
+            return SaveBackups.RefreshLocalMirrorAtRoot(
+                local,
+                backupsRoot,
+                candidatePaths,
+                cancellationToken
+            );
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log(
+                $"[Cloud] Automatic local backup refresh failed: {ex.Message}"
+            );
             return LocalBackupRefreshResult.Failed(ex.Message);
         }
     }

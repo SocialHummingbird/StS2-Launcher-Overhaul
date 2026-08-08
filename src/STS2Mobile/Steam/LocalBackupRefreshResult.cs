@@ -16,14 +16,13 @@ internal readonly record struct LocalBackupRefreshResult(
     int Discovered,
     int Mirrored,
     int Archived,
-    int Restored,
     int Errors,
     string FailureMessage
 )
 {
     public override string ToString()
         => $"discovered={Discovered}; mirrored={Mirrored}; archived={Archived}; "
-            + $"restored={Restored}; errors={Errors}";
+            + $"errors={Errors}";
 
     internal LocalBackupRefreshCompletion Completion
     {
@@ -44,7 +43,6 @@ internal readonly record struct LocalBackupRefreshResult(
             return Discovered > 0
                 || Mirrored > 0
                 || Archived > 0
-                || Restored > 0
                 ? LocalBackupRefreshCompletion.PartialSuccess
                 : LocalBackupRefreshCompletion.Failure;
         }
@@ -57,7 +55,6 @@ internal readonly record struct LocalBackupRefreshResult(
             Discovered: 0,
             Mirrored: 0,
             Archived: 0,
-            Restored: 0,
             Errors: 0,
             FailureMessage: ""
         );
@@ -69,7 +66,6 @@ internal readonly record struct LocalBackupRefreshResult(
             Discovered: 0,
             Mirrored: 0,
             Archived: 0,
-            Restored: 0,
             Errors: 0,
             FailureMessage: "Shared-storage access is unavailable."
         );
@@ -81,7 +77,6 @@ internal readonly record struct LocalBackupRefreshResult(
             Discovered: 0,
             Mirrored: 0,
             Archived: 0,
-            Restored: 0,
             Errors: 0,
             FailureMessage: failureMessage
         );

@@ -7,6 +7,8 @@ internal sealed partial class LauncherLaunchCoordinator
 {
     private readonly LauncherModel _model;
     private readonly LauncherView _view;
+    private readonly LauncherCloudSyncCoordinator _cloud;
+    private readonly Action<Action> _runOnMainThread;
     private readonly LauncherDiagnosticsCoordinator _diagnostics;
     private readonly Action<LocalBackupRefreshResult>
         _localBackupRecoveryCompleted;
@@ -16,6 +18,8 @@ internal sealed partial class LauncherLaunchCoordinator
     internal LauncherLaunchCoordinator(
         LauncherModel model,
         LauncherView view,
+        LauncherCloudSyncCoordinator cloud,
+        Action<Action> runOnMainThread,
         LauncherDiagnosticsCoordinator diagnostics,
         Action<LocalBackupRefreshResult>
             localBackupRecoveryCompleted
@@ -23,6 +27,9 @@ internal sealed partial class LauncherLaunchCoordinator
     {
         _model = model;
         _view = view;
+        _cloud = cloud ?? throw new ArgumentNullException(nameof(cloud));
+        _runOnMainThread = runOnMainThread
+            ?? throw new ArgumentNullException(nameof(runOnMainThread));
         _diagnostics = diagnostics;
         _localBackupRecoveryCompleted =
             localBackupRecoveryCompleted

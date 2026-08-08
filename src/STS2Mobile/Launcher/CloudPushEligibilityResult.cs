@@ -5,26 +5,16 @@ namespace STS2Mobile.Launcher;
 
 internal enum CloudPushEligibilityBlockCode
 {
-    ModsSelected,
-    ManualPullNotCompleted,
-    ManualPullVersionMismatch,
     ImportantLocalSavesMissing,
-    LocalSaveOriginNotVerified,
-    BranchSwitchEvidenceInvalid,
-    ManualPullAfterBranchSwitchMissing,
-    LocalBackupDisabledAfterBranchSwitch,
-    BackupStoragePermissionMissing
+    IncompletePullRequiresRecovery,
+    LocalRecoveryRequiresValidation,
 }
 
 internal enum CloudPushRequiredActionCode
 {
-    DeselectMods,
-    CompletePullForSelectedVersion,
     VerifyAndroidLocalSaves,
-    RebuildBranchSwitchEvidence,
-    CompletePullAfterBranchSwitch,
-    EnableLocalBackup,
-    GrantBackupStoragePermission
+    RecoverIncompletePull,
+    ValidateAndApproveRecoveredSaves,
 }
 
 internal readonly record struct CloudPushRequiredAction(

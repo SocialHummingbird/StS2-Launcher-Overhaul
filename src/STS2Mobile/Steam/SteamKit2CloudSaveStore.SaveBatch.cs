@@ -4,26 +4,9 @@ namespace STS2Mobile.Steam;
 
 internal partial class SteamKit2CloudSaveStore
 {
-    void ICloudSaveStore.BeginSaveBatch()
-        => _saveBatch.BeginCollecting();
+    // Gameplay no longer writes to Steam. These interface hooks remain no-ops;
+    // launcher transfers await and verify every file individually.
+    void ICloudSaveStore.BeginSaveBatch() { }
 
-    void ICloudSaveStore.EndSaveBatch()
-    {
-        var files = _saveBatch.EndCollecting();
-        if (files.Count == 0)
-            return;
-
-        EnqueueBatchUpload(files);
-    }
-
-    internal void EndSaveBatchAndUploadNow()
-    {
-        var files = _saveBatch.EndCollecting();
-        if (files.Count == 0)
-            return;
-
-        PatchHelper.Log(UploadingBatchSynchronously(files.Count));
-        UploadSaveBatch(files);
-        PatchHelper.Log(UploadedBatchSynchronously(files.Count));
-    }
+    void ICloudSaveStore.EndSaveBatch() { }
 }

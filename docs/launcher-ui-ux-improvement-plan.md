@@ -259,7 +259,7 @@ Home must not show cache cleanup, raw logs, every mod, or a normal Upload Saves 
 
 - Current Android and Steam Cloud save status.
 - Download saves as the safe primary action.
-- Upload saves as a separated dangerous action with its prerequisites and confirmation.
+- Upload saves as a separated dangerous action with live eligibility reasons and confirmation.
 - Local backup and cloud sync switches.
 - Last operation result and timestamp.
 - Technical evidence in an expandable details area.

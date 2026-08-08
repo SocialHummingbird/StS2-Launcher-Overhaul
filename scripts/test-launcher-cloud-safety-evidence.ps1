@@ -10,7 +10,6 @@ $sources = @(
     (Join-Path $root "src\STS2Mobile\Launcher\CloudPushEligibilityState.cs"),
     (Join-Path $root "src\STS2Mobile\Launcher\CloudPushEligibilityResult.cs"),
     (Join-Path $root "src\STS2Mobile\Launcher\CloudPushEligibilityPolicy.cs"),
-    (Join-Path $root "src\STS2Mobile\Steam\ManualPushBackupSafetyPolicy.cs"),
     (Join-Path $root "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.cs"),
     (Join-Path $root "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Fields.cs"),
     (Join-Path $root "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Markers.cs"),

@@ -9,18 +9,6 @@ internal static class LauncherWorkshopModSafety
 {
     private const int MaxUnsupportedTitles = 2;
 
-    internal static bool HasActiveStagedMods()
-        => LauncherModSelectionState.PushShouldBeLocked();
-
-    internal static bool HasActiveStagedMods(LauncherModSelectionDocument document)
-        => LauncherModSelectionState.PushShouldBeLocked(document);
-
-    internal static bool HasActiveSelectedMods(int enabledModCount)
-        => enabledModCount > 0;
-
-    internal static int ActiveSelectedModCount()
-        => LauncherModSelectionState.EnabledModCount();
-
     internal static int ActiveStagedModCount()
     {
         var rawStagedPckCount = RawStagedPckCount();

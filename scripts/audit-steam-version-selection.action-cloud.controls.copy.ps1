@@ -20,7 +20,7 @@ function Add-SteamVersionSelectionActionCloudControlCopyChecks {
             "Overwrite cloud",
             "CompactCloudPushWarningText",
             "Steam Cloud overwrite",
-            "Confirm only after Pull/local saves are verified"
+            "Confirm the selected saves and version"
         )
 
     Add-Check `

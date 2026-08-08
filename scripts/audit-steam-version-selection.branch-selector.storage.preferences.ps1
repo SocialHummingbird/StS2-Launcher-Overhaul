@@ -8,7 +8,7 @@ function Add-SteamVersionSelectionBranchSelectorStoragePreferenceChecks {
             "game_branch",
             "GameBranchPreference",
             "BooleanPreference",
-            "OperatingSystem\.IsAndroid"
+            "\(\) => true"
         )
 
     Add-Check `

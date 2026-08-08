@@ -1,6 +1,8 @@
 # Reddit announcement prep - 2026-06-09
 
-## Current public claim
+> Historical draft — do not post or reuse as a current claim. It describes the superseded June 2026 manual Pull/Push implementation. Current local saving, automatic sync, and recovery are at 0/10 in the Stage 5 physical-device matrix and must not be described publicly as fixed.
+
+## Historical public claim
 
 StS2 Mobile now works on the validated ARM64 Android path: install, Steam login, game download, Pull from Cloud, local hardening Push to Cloud, Pull-after-Push, local save handoff, and game launch/profile visibility have been validated. The newest public release asset is published, structurally verified, and installed/launched on ARM64 hardware, but full newest-public-release Pull/Push/game-launch smoke is still pending before release-candidate signoff.
 

@@ -17,8 +17,9 @@ function Add-SteamVersionSelectionReleaseStatusDocsReleaseLimitationChecks {
             "audit-steam-branch-guidance-parity\.ps1",
             "Password-protected beta branches",
             "Steam Cloud Push is safe",
-            "last_manual_cloud_push\.txt",
-            "aggregate successful post-switch Push evidence",
+            "Current-source Stage 2 is unreleased",
+            "destination hash read-back before success",
+            "A prior Pull, Steam installation, branch-switch history, shared-storage permission, and modded mode are not Upload prerequisites",
             "bounded two-line Files for / Play version helper labels"
         )
 }

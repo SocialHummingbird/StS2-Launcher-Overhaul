@@ -10,9 +10,8 @@ function Add-SteamVersionSelectionCloudSafetyPushRequestConstructionChecks {
             "CancelText",
             "BypassConfirmation",
             "Func<CancellationToken, Task<ManualCloudSyncResult>> run",
-            "Func<bool>\? recordCompletionEvidence = null",
-            "Action<ManualCloudSyncResult>\? recordIncompleteResult = null",
             "Action<string, string>\? recordTerminalFailure = null",
+            "Action\? onSuccessfulCompletion = null",
             "Action<Exception>\? onFailed = null",
             "CloudOperationProgressTracker\? operationProgress = null",
             "timeoutMs = CloudSyncTimeoutMs",
@@ -22,39 +21,62 @@ function Add-SteamVersionSelectionCloudSafetyPushRequestConstructionChecks {
             "private CloudOperationProgressTracker\? OperationProgress"
         )
 
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.cs" `
+        "does not retain legacy completion-evidence or incomplete-result state" `
+        @(
+            "CompletionEvidenceRequired",
+            "RecordCompletionEvidence",
+            "RecordIncompleteResult",
+            "ManualCloudSyncCompletion"
+        )
+
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.Factory.cs" `
-        "routes manual Pull and Push requests through explicit markers and request callbacks" `
+        "captures one selected save context and routes both manual transfer directions through it" `
         @(
             "ManualCloudSyncRequest Push",
             "ManualCloudSyncRequest Pull",
             "PushConfirmationMessage\(dataDir, selectedBranch\)",
+            "var saveNamespace = LauncherModSelectionState\.IsModdedMode",
+            "LauncherModSelectionState\.EnabledModSetFingerprint\(\)",
+            "SteamGameBranch\.StorageIdentity\(selectedBranch\)",
             "LauncherCloudSaveState\.ManualPushAllAsync",
             "LauncherCloudSaveState\.ManualPullAllAsync",
+            "saveNamespace",
+            "runtimeIdentity",
+            "modSetFingerprint",
             "CloudOperationProgressTracker progress",
             "operationProgress: progress",
             "prepareOperation: \(\) =>",
             "EnsureCloudPushStillEligible",
+            "EnsureSaveContextStillSelected",
             "WriteManualPushMarker",
             "WriteManualPushBlockedMarker",
             "WriteManualPullMarker",
-            "Pull Steam Cloud saves to Android\?",
-            "Cloud modded saves are preferred"
+            "Steam Cloud saves for .* to Android\?",
+            "app-private backups are verified"
         )
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.PushConfirmation.cs" `
-        "warns final Push confirmation about selected version, branch switches, and save overwrite risk" `
+        "warns final Push confirmation about the selected context and account overwrite risk" `
         @(
-            "Selected version slot:",
-            "Pull-after-switch for",
-            "Android local save evidence",
+            "Push Android local saves to Steam Cloud\?",
+            "Selected game version:",
+            "overwrite Steam Cloud saves for this Steam account",
+            "selected game version and play mode match the local saves"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.PushConfirmation.cs" `
+        "does not present obsolete Pull-first or optional-backup requirements as Push gates" `
+        @(
+            "Pull-after-switch",
+            "Pull from Cloud first",
+            "backup storage permission",
             "local pre-Push backup",
             "cloud pre-Push backup",
-            "A game version switch was recorded",
-            "cross-version/destructive",
-            "LauncherBranchSwitchSafety\.HasMarker",
-            "SteamGameInstallPaths\.VersionSlotKind",
-            "Pull from Cloud first and verify the Android saves exist before pushing"
+            "LauncherBranchSwitchSafety"
         )
 }

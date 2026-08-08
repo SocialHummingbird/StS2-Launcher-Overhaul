@@ -7,7 +7,15 @@ param(
         "ready",
         "error",
         "pull-transfer",
-        "pull-complete"
+        "pull-complete",
+        "sync-source-choice",
+        "sync-reconciling",
+        "sync-conflict",
+        "sync-offline-pending",
+        "recovery-empty",
+        "recovery-unknown",
+        "recovery-confirm",
+        "recovery-restored"
     )]
     [string]$Fixture = "ready",
     [ValidateSet("home", "saves", "versions", "mods", "help")]

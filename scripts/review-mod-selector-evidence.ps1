@@ -301,13 +301,10 @@ function Require-ModRootSnapshots($Mods, [string]$Description) {
 }
 
 function Require-CommonMarkerSafety([string]$Label, $Marker) {
-    $cloudLocked = Require-Property $Marker "workshopModdedSaveCloudPushLocked" "$Label marker"
     $pushPerformed = Require-Property $Marker "steamCloudPushPerformed" "$Label marker"
     if ($null -ne $pushPerformed) {
         Require-Boolean $pushPerformed $false "$Label marker proves Steam Cloud Push was not performed"
     }
-
-    return $cloudLocked
 }
 
 function Require-CommonLaunchLogSafety([string]$Label) {
@@ -338,10 +335,7 @@ if ($null -ne $vanilla) {
     Require-Equals $vanillaMods.Count 0 "$VanillaLabel selected zero mods"
     $vanillaActivation = Get-ActivationArray $vanilla "$VanillaLabel marker"
     Require-Equals $vanillaActivation.Count 0 "$VanillaLabel has zero activation entries"
-    $vanillaCloudLocked = Require-CommonMarkerSafety $VanillaLabel $vanilla
-    if ($null -ne $vanillaCloudLocked) {
-        Require-Boolean $vanillaCloudLocked $false "$VanillaLabel leaves Cloud Push unlocked"
-    }
+    Require-CommonMarkerSafety $VanillaLabel $vanilla
     Require-CommonLaunchLogSafety $VanillaLabel
     Require-TextPattern "logs/$VanillaLabel-focused.txt" "$VanillaLabel skipped Android mod scan" "(?i)Android mod scan skipped|Play Vanilla"
     Require-ScenarioScreenshot $VanillaLabel
@@ -357,10 +351,7 @@ if ($null -ne $modded) {
     Require-ModNamePresence $moddedMods $DisabledModNamePattern $false "$ModdedLabel excludes deprecated $DisabledModNamePattern"
     Require-ModRootSnapshots $moddedMods "$ModdedLabel marker"
     Require-StandardActivationSet $modded "$ModdedLabel marker" $false | Out-Null
-    $moddedCloudLocked = Require-CommonMarkerSafety $ModdedLabel $modded
-    if ($null -ne $moddedCloudLocked) {
-        Require-Boolean $moddedCloudLocked $true "$ModdedLabel locks Cloud Push for selected mods"
-    }
+    Require-CommonMarkerSafety $ModdedLabel $modded
     Require-CommonLaunchLogSafety $ModdedLabel
     Require-TextPattern "logs/$ModdedLabel-focused.txt" "$ModdedLabel captured activation summary" "(?i)Activation evidence:"
     Require-ScenarioScreenshot $ModdedLabel
@@ -381,10 +372,7 @@ if ($null -ne $disabled) {
     } elseif ($null -ne $modded) {
         Add-Pass "$DisabledModLabel confirms deprecated SavesMerger does not affect enabled mod count"
     }
-    $disabledCloudLocked = Require-CommonMarkerSafety $DisabledModLabel $disabled
-    if ($null -ne $disabledCloudLocked) {
-        Require-Boolean $disabledCloudLocked $true "$DisabledModLabel keeps Cloud Push locked while other mods remain active"
-    }
+    Require-CommonMarkerSafety $DisabledModLabel $disabled
     Require-CommonLaunchLogSafety $DisabledModLabel
     Require-ScenarioScreenshot $DisabledModLabel
 }

@@ -24,7 +24,6 @@ function Add-SteamVersionSelectionCloudSafetyBranchSwitchMarkerChecks {
             "SelectedVersionSlotDirectoryPrefix = ""Selected version slot directory:""",
             "SelectedBranchNotePrefix = ""Selected branch note:""",
             "LocalBackupForcedPrefix = ""Local backup forced on:""",
-            "ManualPushRequiresBackupStoragePrefix = ""Manual Push requires backup storage:""",
             "WarningAcknowledgedPrefix = ""Warning acknowledged:""",
             "NonPublicBranchWarningAcknowledgedPrefix = ""Non-public branch warning acknowledged:"""
         )
@@ -44,7 +43,6 @@ function Add-SteamVersionSelectionCloudSafetyBranchSwitchMarkerChecks {
             "SelectedVersionSlotDirectory",
             "SelectedBranchNote",
             "LocalBackupForced",
-            "ManualPushRequiresBackupStorage",
             "WarningAcknowledged",
             "NonPublicBranchWarningAcknowledged",
             "ReadMarkerValue",

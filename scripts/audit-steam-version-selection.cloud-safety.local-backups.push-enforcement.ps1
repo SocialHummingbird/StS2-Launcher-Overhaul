@@ -1,35 +1,23 @@
 function Add-SteamVersionSelectionCloudSafetyBackupPushEnforcementChecks {
     Add-Check `
-        "src\STS2Mobile\Steam\ManualPushBackupSafetyPolicy.cs" `
-        "fails manual Push before upload when required backup evidence is missing" `
+        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Transfer.cs" `
+        "backs up and verifies every existing destination inside the transfer" `
         @(
-            "ManualPushBackupSafetyPolicy",
-            "EnsureSatisfied",
-            "localBackupEnabled",
-            "hasStoragePermission",
-            "importantLocalSaveCount",
-            "localBackupCount",
-            "importantCloudSaveCount",
-            "cloudBackupCount",
-            "Manual Push blocked: local backup is enabled but backup storage permission is unavailable",
-            "Manual Push blocked: local pre-Push backup evidence is incomplete",
-            "Manual Push blocked: cloud pre-Push backup evidence is incomplete",
-            "localBackupCount < importantLocalSaveCount",
-            "cloudBackupCount < importantCloudSaveCount"
+            "CreateBackupSessionAsync",
+            "\.sts2-launcher/transfer-backups/",
+            "BackupDestinationsAsync",
+            "DestinationFileExistsAsync",
+            "ReadDestinationFileAsync",
+            "WriteAndVerifyLocalAsync",
+            "RequireHash"
         )
 
     Add-Check `
-        "src\STS2Mobile\Steam\CloudSyncCoordinator.SaveBackups.Manual.cs" `
-        "connects backup counts and storage state to the fail-closed policy before upload" `
+        "scripts\test-cloud-sync-production-path.ps1" `
+        "runs mandatory transfer-backup behavior through the production-path probe" `
         @(
-            "EnforceManualPushBackupEvidence",
-            "ManualPushBackupSafetyPolicy\.EnsureSatisfied",
-            "_localBackupEnabled",
-            "AppPaths\.HasStoragePermission",
-            "importantPaths\.Count",
-            "localBackups",
-            "cloudImportantSaveCount",
-            "cloudBackups",
-            "CloudImportantSaveCount"
+            "CloudSyncProductionPathProbe\\CloudSyncProductionPathProbe\.csproj",
+            "dotnet\.Source run",
+            "Non-mutating cloud validation passed"
         )
 }

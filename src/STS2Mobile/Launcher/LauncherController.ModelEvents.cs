@@ -8,7 +8,7 @@ internal sealed partial class LauncherController
 {
     private void WireModelEvents()
     {
-        _model.SessionStateChanged += OnMainThread<LauncherModel.SessionState>(_session.UpdateUI);
+        _model.SessionStateChanged += OnMainThread<LauncherModel.SessionState>(OnSessionStateChanged);
         _model.LogReceived += OnMainThread<string>(_view.AppendLog);
         PatchHelper.LogEmitted += AppendCloudLog;
         _model.CodeNeeded += OnMainThread<bool>(_session.ShowCodePrompt);
@@ -28,6 +28,13 @@ internal sealed partial class LauncherController
         _model.WorkshopSyncFailed += OnMainThread<string>(_workshop.FailSync);
         _model.WorkshopClearCompleted += OnMainThread<int>(_workshop.CompleteClear);
         _model.WorkshopClearFailed += OnMainThread<string>(_workshop.FailClear);
+    }
+
+    private void OnSessionStateChanged(LauncherModel.SessionState state)
+    {
+        _session.UpdateUI(state);
+        if (state == LauncherModel.SessionState.LoggedIn && !_model.InGameMode)
+            _cloud.RecoverAutomaticSyncOnStartup();
     }
 
     private Action OnMainThread(Action action)

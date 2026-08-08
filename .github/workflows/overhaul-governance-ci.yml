@@ -26,6 +26,20 @@ jobs:
           test -f scripts/audit-steam-branch-guidance-parity.ps1 || { echo "Missing Steam branch guidance parity helper"; exit 1; }
           test -f docs/steam-version-selection-validation.md || { echo "Missing Steam version-selection validation docs"; exit 1; }
 
+      - name: Guard vanilla and modded save namespace isolation
+        shell: pwsh
+        run: ./scripts/test-no-vanilla-to-modded-seeding.ps1
+
+      - name: Guard Stage 5 candidate-only release boundary
+        shell: pwsh
+        run: ./scripts/test-stage5-release-gate.ps1
+
+      - name: Verify Stage 5 byte-evidence tooling
+        shell: pwsh
+        run: |
+          ./scripts/test-stage5-save-evidence-manifests.ps1
+          ./scripts/test-stage5-physical-matrix-reviewer.ps1
+
       - name: Validate repository diff hygiene
         run: |
           git diff --check
@@ -90,6 +104,16 @@ jobs:
             exit 1
           fi
           echo "REPO_REF=${{ github.sha }}" >> ci-smoke-artifacts/status.txt
+
+      - name: Verify local-only gameplay save safety
+        if: steps.prerequisites.outputs.available == 'true'
+        shell: pwsh
+        run: ./scripts/test-local-gameplay-save-safety.ps1
+
+      - name: Verify Stage 5 desktop save sync and hard-restart safety
+        if: steps.prerequisites.outputs.available == 'true'
+        shell: pwsh
+        run: ./scripts/test-cloud-sync-production-path.ps1
 
       - name: Skip build when publishing artifacts are unavailable
         if: steps.prerequisites.outputs.available != 'true'

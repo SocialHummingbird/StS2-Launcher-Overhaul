@@ -180,9 +180,6 @@ internal static partial class ModLoaderPatches
                 inGameVerifiedMods = activationEvidence.Count(mod => mod.InGameEffectVerified),
                 status,
                 selectionPath = AppPaths.AppPrivateModSelectionPath,
-                workshopModdedSaveCloudPushLocked = knownMods == null
-                    ? LauncherWorkshopModSafety.HasActiveStagedMods(selection)
-                    : LauncherModSelectionState.PushShouldBeLocked(knownMods),
                 steamCloudPushPerformed = false,
                 activationEvidence,
                 selectedMods = string.Equals(playMode, "modded", StringComparison.OrdinalIgnoreCase)
@@ -1254,7 +1251,7 @@ internal static partial class ModLoaderPatches
                 if (IsSavesMergerMod(manifestData))
                 {
                     PatchHelper.Log(
-                        "[Mods] SavesMerger is deprecated and was not loaded; the game now keeps native modded saves and Manual Pull seeds missing modded profiles"
+                        "[Mods] SavesMerger is deprecated and was not loaded; vanilla and native modded save paths remain separate"
                     );
                     return false;
                 }

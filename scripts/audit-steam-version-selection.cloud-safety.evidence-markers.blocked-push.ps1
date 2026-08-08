@@ -11,14 +11,11 @@ function Add-SteamVersionSelectionCloudSafetyEvidenceMarkerBlockedPushChecks {
             "LastManualPushBlockedSelectedVersion",
             "LastManualPushBlockedSelectedVersionSlotKind",
             "LastManualPushBlockedSelectedVersionSlotDirectory",
-            "LastManualPushBlockedRecordedPrerequisitesSatisfied",
             "LastManualPushBlockedRecordedLocalBackupCount",
             "LastManualPushBlockedRecordedCloudBackupCount",
             "LastManualPushBlockedRecordedLatestLocalBackupUtc",
             "LastManualPushBlockedRecordedLatestCloudBackupUtc",
             "LastManualPushBlockedRecordedImportantLocalSaveEvidenceCount",
-            "LastManualPushBlockedRecordedBaselinePrerequisitesSatisfied",
-            "LastManualPushBlockedRecordedPrePushBackupEvidenceSatisfied",
             "LastManualPushBlockedReason",
             "LastManualPushBlockedBeforeUpload",
             "LastManualPushBlockedMatchesSelectedBranch",
@@ -31,8 +28,16 @@ function Add-SteamVersionSelectionCloudSafetyEvidenceMarkerBlockedPushChecks {
             "LatestPrePushLocalBackupUtcPrefix",
             "LatestPrePushCloudBackupUtcPrefix",
             "ImportantLocalSaveEvidenceCountPrefix",
-            "BaselineManualPushPrerequisitesSatisfiedPrefix",
             "SelectedVersionPrefix",
             "SelectedBranchNotePrefix"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.BlockedPush.cs" `
+        "does not record obsolete Pull, branch, backup, or storage prerequisite verdicts" `
+        @(
+            "ManualPushPrerequisitesSatisfied",
+            "BaselineManualPushPrerequisitesSatisfied",
+            "PrePushBackupEvidenceSatisfied"
         )
 }

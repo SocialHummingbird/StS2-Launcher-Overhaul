@@ -74,6 +74,9 @@ internal static partial class LauncherDiagnostics
 
     private static string TryGetExternalDiagnosticsPath(string fileName)
     {
+        if (!OperatingSystem.IsAndroid())
+            return null;
+
         try
         {
             var externalDir = AndroidGodotAppBridge.GetExternalFilesDirPath();

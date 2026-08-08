@@ -35,7 +35,4 @@ internal static partial class LauncherBackupEvidence
     internal static bool HasCloudPrePushBackupAfterBranchSwitch(string dataDir)
         => HasBackupAfterBranchSwitch(dataDir, CloudPrePushSource);
 
-    internal static bool HasPrePushBackupEvidenceAfterBranchSwitch(string dataDir)
-        => HasLocalPrePushBackupAfterBranchSwitch(dataDir)
-            && HasCloudPrePushBackupAfterBranchSwitch(dataDir);
 }

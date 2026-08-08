@@ -15,26 +15,7 @@ internal static partial class CloudSyncCoordinator
 
         internal static LocalBackupRefreshResult RefreshLocalMirror(
             ISaveStore local,
-            bool restoreMissing,
             CancellationToken cancellationToken = default
-        )
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            lock (LocalMirrorGate)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                return RefreshLocalMirrorLocked(
-                    local,
-                    restoreMissing,
-                    cancellationToken
-                );
-            }
-        }
-
-        private static LocalBackupRefreshResult RefreshLocalMirrorLocked(
-            ISaveStore local,
-            bool restoreMissing,
-            CancellationToken cancellationToken
         )
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -45,34 +26,67 @@ internal static partial class CloudSyncCoordinator
 
             if (!AppPaths.HasStoragePermission())
             {
-                PatchHelper.Log("[Cloud] Automatic local backup waiting for shared-storage permission");
+                PatchHelper.Log(
+                    "[Cloud] Automatic local backup waiting for shared-storage permission"
+                );
                 return LocalBackupRefreshResult.StorageAccessMissing();
             }
 
-            var currentRoot = Path.Combine(
+            return RefreshLocalMirrorAtRoot(
+                local,
                 AppPaths.ExternalSaveBackupsDir,
+                candidatePaths: null,
+                cancellationToken
+            );
+        }
+
+        internal static LocalBackupRefreshResult RefreshLocalMirrorAtRoot(
+            ISaveStore local,
+            string backupsRoot,
+            IReadOnlyCollection<string> candidatePaths = null,
+            CancellationToken cancellationToken = default
+        )
+        {
+            ArgumentNullException.ThrowIfNull(local);
+            ArgumentException.ThrowIfNullOrWhiteSpace(backupsRoot);
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (LocalMirrorGate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return RefreshLocalMirrorLocked(
+                    local,
+                    backupsRoot,
+                    candidatePaths,
+                    cancellationToken
+                );
+            }
+        }
+
+        private static LocalBackupRefreshResult RefreshLocalMirrorLocked(
+            ISaveStore local,
+            string backupsRoot,
+            IReadOnlyCollection<string> candidatePaths,
+            CancellationToken cancellationToken
+        )
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var currentRoot = Path.Combine(
+                backupsRoot,
                 LocalSaveBackupPlan.CurrentDirectoryName
             );
             var historyRoot = Path.Combine(
-                AppPaths.ExternalSaveBackupsDir,
+                backupsRoot,
                 LocalSaveBackupPlan.HistoryDirectoryName
             );
             Directory.CreateDirectory(currentRoot);
             Directory.CreateDirectory(historyRoot);
 
             var errors = 0;
-            var restored = restoreMissing
-                ? RestoreMissingStableFiles(
+            var paths = candidatePaths
+                ?? SavePathDiscovery.Get(
                     local,
-                    currentRoot,
-                    ref errors,
                     cancellationToken
-                )
-                : 0;
-            var paths = SavePathDiscovery.Get(
-                local,
-                cancellationToken
-            );
+                );
             var discovered = 0;
             var mirrored = 0;
             var archived = 0;
@@ -87,12 +101,12 @@ internal static partial class CloudSyncCoordinator
                 discovered++;
                 try
                 {
-                    var content = CancellableSaveStore.ReadFileAsync(
+                    var content = CancellableSaveStore.ReadBytesAsync(
                         local,
                         path,
                         cancellationToken
                     ).GetAwaiter().GetResult();
-                    if (string.IsNullOrEmpty(content))
+                    if (content.Length == 0)
                         continue;
 
                     if (!LocalSaveBackupPlan.TryResolveUnderRoot(currentRoot, path, out var mirrorPath))
@@ -104,11 +118,11 @@ internal static partial class CloudSyncCoordinator
 
                     if (File.Exists(mirrorPath))
                     {
-                        var previousContent = File.ReadAllTextAsync(
+                        var previousContent = File.ReadAllBytesAsync(
                             mirrorPath,
                             cancellationToken
                         ).GetAwaiter().GetResult();
-                        if (string.Equals(previousContent, content, StringComparison.Ordinal))
+                        if (previousContent.AsSpan().SequenceEqual(content))
                             continue;
 
                         if (TryArchiveMirrorFile(historyRoot, generation, path, mirrorPath))
@@ -147,7 +161,6 @@ internal static partial class CloudSyncCoordinator
                 Discovered: discovered,
                 Mirrored: mirrored,
                 Archived: archived,
-                Restored: restored,
                 Errors: errors,
                 FailureMessage: ""
             );
@@ -233,114 +246,6 @@ internal static partial class CloudSyncCoordinator
             }
         }
 
-        private static int RestoreMissingStableFiles(
-            ISaveStore local,
-            string currentRoot,
-            ref int errors,
-            CancellationToken cancellationToken
-        )
-        {
-            if (!Directory.Exists(currentRoot))
-                return 0;
-
-            var restored = 0;
-            foreach (
-                var mirrorPath in EnumerateMirrorFiles(
-                    currentRoot,
-                    cancellationToken
-                )
-            )
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var relativePath = LocalSaveBackupPlan.NormalizeRelativePath(
-                    Path.GetRelativePath(currentRoot, mirrorPath)
-                );
-                if (
-                    !LocalSaveBackupPlan.IsBackupEligible(relativePath)
-                    || !LocalSaveBackupPlan.ShouldRestoreMissing(relativePath)
-                )
-                    continue;
-
-                try
-                {
-                    if (local.FileExists(relativePath) && local.GetFileSize(relativePath) > 0)
-                        continue;
-
-                    var content = File.ReadAllTextAsync(
-                        mirrorPath,
-                        cancellationToken
-                    ).GetAwaiter().GetResult();
-                    if (string.IsNullOrEmpty(content))
-                        continue;
-
-                    local.WriteFile(relativePath, content);
-                    local.SetLastModifiedTime(
-                        relativePath,
-                        new DateTimeOffset(File.GetLastWriteTimeUtc(mirrorPath), TimeSpan.Zero)
-                    );
-                    restored++;
-                    PatchHelper.Log($"[Cloud] Restored missing local save from automatic backup: {relativePath}");
-                }
-                catch (OperationCanceledException)
-                    when (cancellationToken.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    errors++;
-                    PatchHelper.Log($"[Cloud] Automatic local backup restore failed for {relativePath}: {ex.Message}");
-                }
-            }
-
-            return restored;
-        }
-
-        private static IEnumerable<string> EnumerateMirrorFiles(
-            string currentRoot,
-            CancellationToken cancellationToken
-        )
-        {
-            try
-            {
-                var files = new List<string>();
-                foreach (
-                    var path in Directory.EnumerateFiles(
-                        currentRoot,
-                        "*",
-                        SearchOption.AllDirectories
-                    )
-                )
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (
-                        !path.EndsWith(
-                            ".tmp",
-                            StringComparison.OrdinalIgnoreCase
-                        )
-                    )
-                    {
-                        files.Add(path);
-                    }
-
-                    if (files.Count >= LocalSaveBackupPlan.MaxFiles)
-                        break;
-                }
-
-                return files.OrderBy(path => path).ToArray();
-            }
-            catch (OperationCanceledException)
-                when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Cloud] Automatic local backup enumeration failed: {ex.Message}");
-                return Array.Empty<string>();
-            }
-        }
-
         private static bool TryArchiveMirrorFile(
             string historyRoot,
             string generation,
@@ -357,20 +262,6 @@ internal static partial class CloudSyncCoordinator
                 Directory.CreateDirectory(parent);
             File.Copy(mirrorPath, archivePath, overwrite: true);
             return true;
-        }
-
-        private static void WriteMirrorFile(
-            string mirrorPath,
-            string content,
-            CancellationToken cancellationToken
-        )
-        {
-            CancellableAtomicFile.WriteAllTextAsync(
-                mirrorPath,
-                content,
-                overwrite: true,
-                cancellationToken
-            ).GetAwaiter().GetResult();
         }
 
         private static void WriteMirrorFile(

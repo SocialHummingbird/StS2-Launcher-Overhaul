@@ -12,8 +12,8 @@ internal sealed class LauncherModLaunchReadiness
         int installedMods,
         int enabledMods,
         int unsupportedMods,
-        bool cloudPushLocked,
         string selectedMods,
+        string modSetFingerprint,
         string phase,
         string cacheStatus
     )
@@ -24,10 +24,12 @@ internal sealed class LauncherModLaunchReadiness
         InstalledMods = installedMods;
         EnabledMods = enabledMods;
         UnsupportedMods = unsupportedMods;
-        CloudPushLocked = cloudPushLocked;
         SelectedMods = string.IsNullOrWhiteSpace(selectedMods)
             ? "<none>"
             : selectedMods;
+        ModSetFingerprint = string.IsNullOrWhiteSpace(modSetFingerprint)
+            ? string.Empty
+            : modSetFingerprint.Trim().ToLowerInvariant();
         Phase = string.IsNullOrWhiteSpace(phase) ? string.Empty : phase;
         CacheStatus = string.IsNullOrWhiteSpace(cacheStatus)
             ? LauncherModLaunchReadinessCacheStatus.Fresh
@@ -38,8 +40,8 @@ internal sealed class LauncherModLaunchReadiness
     internal int InstalledMods { get; }
     internal int EnabledMods { get; }
     internal int UnsupportedMods { get; }
-    internal bool CloudPushLocked { get; }
     internal string SelectedMods { get; }
+    internal string ModSetFingerprint { get; }
     internal string Phase { get; }
     internal string CacheStatus { get; }
 
@@ -81,8 +83,8 @@ internal sealed class LauncherModLaunchReadiness
             InstalledMods,
             EnabledMods,
             UnsupportedMods,
-            CloudPushLocked,
             SelectedMods,
+            ModSetFingerprint,
             phase,
             cacheStatus
         );
@@ -114,8 +116,8 @@ internal sealed class LauncherModLaunchReadiness
             knownMods.Count(mod => !mod.IsUnsupported),
             enabledMods.Length,
             knownMods.Count(mod => mod.IsUnsupported),
-            LauncherWorkshopModSafety.HasActiveSelectedMods(enabledMods.Length),
             selectedModSummary,
+            LauncherModSelectionState.EnabledModSetFingerprint(knownMods),
             phase,
             LauncherModLaunchReadinessCacheStatus.Fresh
         );
@@ -132,8 +134,8 @@ internal sealed class LauncherModLaunchReadiness
             installedMods: 0,
             enabledMods: 0,
             unsupportedMods: 0,
-            cloudPushLocked: false,
             selectedMods: "<none>",
+            modSetFingerprint: string.Empty,
             phase,
             LauncherModLaunchReadinessCacheStatus.NotNeededVanilla
         );

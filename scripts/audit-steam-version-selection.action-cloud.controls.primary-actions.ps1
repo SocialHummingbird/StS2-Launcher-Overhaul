@@ -65,12 +65,13 @@ function Add-SteamVersionSelectionActionCloudControlPrimaryActionChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\Sections\ActionSection.Construction.Cloud.PushConfirmation.cs" `
-        "keeps compact cloud Push confirmation warning bounded and overwrite-explicit" `
+        "keeps compact cloud Upload confirmation bounded, context-aware, and overwrite-explicit" `
         @(
             "BuildCloudPushConfirmationLabel",
             "CompactCloudPushWarningText\(\)",
-            "Confirming Push uploads Android saves to Steam Cloud",
-            "can overwrite remote Steam Cloud saves",
+            "Confirming Upload sends Android saves to Steam Cloud",
+            "can overwrite remote saves",
+            "selected game version and play mode",
             "CompactCloudPushWarningFontSize",
             "CompactCloudPushWarningHeight",
             "pushConfirmationLabel\.ClipText = compact",

@@ -154,7 +154,6 @@ Expected branch-switch behavior:
 - Warn that a download may be required.
 - Warn that saves may be incompatible.
 - Warn that local backup will be enabled.
-- Warn that Steam Cloud Push requires backup storage permission after switching.
 - Warn that non-public branches may be private or password-protected.
 - Warn that beta password entry is not implemented.
 - Enable local backup before applying the branch switch.
@@ -163,27 +162,14 @@ Expected branch-switch behavior:
 
 ## Steam Cloud Push safety
 
-Manual Push after branch switching is destructive until proven otherwise. It can overwrite Steam Cloud state with local Android state from a different game version.
+Upload is destructive because it makes Steam Cloud mirror the selected Android save namespace. Branch history remains useful diagnostic evidence, but it is not an Upload gate.
 
-Push should remain blocked after a branch switch when branch-switch marker safety evidence is incomplete, belongs to a different selected branch, current Pull evidence is unavailable, Android local save evidence is unavailable, or backup storage permission is unavailable.
+Upload eligibility has two inputs only:
 
-Early branch-switch Push gate blocks write `last_manual_cloud_push_blocked.txt` before any upload request starts, so missing marker/Pull/local-save/permission evidence can be audited without relying only on logcat.
+- The selected vanilla or modded namespace contains at least one transferable local profile save from the explicit allowlist.
+- No interrupted Pull marker exists for that namespace.
 
-Before allowing a Push validation after branch switching, evidence must show:
-
-- Pull from Cloud completed after the branch switch for the selected version.
-- Pull evidence must have a parseable UTC after the branch-switch marker UTC, an explicit completion flag, and a selected branch matching the active game version.
-- Branch-switch marker evidence is complete, readable, and its selected branch matches the active selected branch.
-- Branch-switch marker safety booleans show local backup forced, manual Push backup-storage requirement, branch-switch warning acknowledgement, and non-public/password warning acknowledgement.
-- Android local saves exist.
-- Local backup is enabled.
-- Backup storage permission is available.
-- Local pre-Push backup evidence covers every important Android local save selected for Push.
-- Cloud pre-Push backup evidence covers every existing important Steam Cloud save selected for Push.
-- Diagnostics expose pre-Push local/cloud backup counts, latest local/cloud backup UTC, whether each side is newer than the branch-switch marker, and the aggregate branch-switch pre-Push backup evidence result.
-- When Local Backup is enabled, manual Push fails before upload if backup storage permission is unavailable, any important Android local save selected for Push cannot be backed up, or any existing important Steam Cloud save selected for Push cannot be backed up.
-- Blocked manual Push writes `last_manual_cloud_push_blocked.txt` with selected branch/version, prerequisite status, backup evidence status, and reason.
-- User intentionally confirmed the overwrite-risk action.
+A Steam game installation, preceding Pull, branch-switch marker, save-origin diagnostic, modded mode, and shared-storage permission are not eligibility prerequisites. The transfer itself then authenticates SteamID64, binds vanilla/modded namespace plus runtime/public-beta identity and (when modded) the exact mod-set fingerprint, rejects cross-context data, snapshots the source, backs up every destination before overwrite, propagates transport/commit failures, and verifies destination hashes before reporting success. Pull and Upload use this same operation.
 
 ## Diagnostics contract
 
@@ -211,8 +197,10 @@ Diagnostics should expose:
 - Cached non-public version inventory.
 - Branch switch marker filename.
 - Branch switch marker presence.
-- Push backup-storage requirement after branch switch.
-- Backup storage permission and directory state.
+- Transfer direction and outcome.
+- Transferable local-save presence and incomplete-Pull state.
+- Steam account, namespace, runtime identity, and mod-set context.
+- Destination-backup and remote read-back verification failures.
 
 This is required so tester reports can distinguish a real Steam branch/download problem from stale cache, marker, startup-routing, or save-safety issues.
 
@@ -227,4 +215,4 @@ The feature is not release-signed until current ARM64 evidence proves:
 - Inactive cache cleanup behavior.
 - Missing/private/password-protected beta behavior.
 - Save compatibility across branch switches, or explicit unsupported-risk wording.
-- Pull-after-switch and pre-Push backup safety after branch switching.
+- Exact account/namespace/runtime/mod-set isolation plus destination backup, tombstone, and read-back safety across branch switching.

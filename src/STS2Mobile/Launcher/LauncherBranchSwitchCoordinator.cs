@@ -56,8 +56,7 @@ internal sealed class LauncherBranchSwitchCoordinator
         var message =
             $"Switch game version from {previous} to {selected}?\n"
             + "This can require another download, and saves may not be compatible between Steam branches. "
-            + "Local backup will be enabled before switching. "
-            + "Steam Cloud Push will require backup storage permission after switching.\n\n"
+            + "Local backup will be enabled before switching.\n\n"
             + selectedNote
             + "\n"
             + selectedStatus;

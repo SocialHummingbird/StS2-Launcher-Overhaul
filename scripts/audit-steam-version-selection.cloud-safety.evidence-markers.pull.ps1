@@ -1,7 +1,7 @@
 function Add-SteamVersionSelectionCloudSafetyEvidenceMarkerPullChecks {
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Pull.cs" `
-        "records successful manual Pull evidence for branch-switch Push safety" `
+        "records manual Pull outcome and branch history without making Pull a Push prerequisite" `
         @(
             "HasManualPullAfterBranchSwitch",
             "LastManualPullUtc",
@@ -13,14 +13,24 @@ function Add-SteamVersionSelectionCloudSafetyEvidenceMarkerPullChecks {
             "LastManualPullSelectedVersionSlotKind",
             "LastManualPullSelectedVersionSlotDirectory",
             "LastManualPullCompletionRecorded",
-            "LastManualPullBeforePushCompletionRecorded",
-            "BaselineManualPushPrerequisitesSatisfied",
-            "ManualPullCompletedBeforePushPrefix",
+            "LastManualPullOutcome",
+            "LastManualPullOutcomeDetail",
+            "ManualPullOutcomePrefix",
+            "ManualPullOutcomeDetailPrefix",
             "LastManualPullIsAfterBranchSwitch",
             "LastManualPullMatchesSelectedBranch",
             "WriteManualPullMarker",
-            "ManualPullCompletedBeforeBranchSwitchPushPrefix",
             "SelectedVersionPrefix",
             "SelectedBranchNotePrefix"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Pull.cs" `
+        "keeps Pull evidence free of obsolete Push-prerequisite fields" `
+        @(
+            "BaselineManualPushPrerequisitesSatisfied",
+            "LastManualPullBeforePushCompletionRecorded",
+            "ManualPullCompletedBeforePushPrefix",
+            "ManualPullCompletedBeforeBranchSwitchPushPrefix"
         )
 }

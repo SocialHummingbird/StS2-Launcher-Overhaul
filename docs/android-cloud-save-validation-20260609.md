@@ -1,5 +1,7 @@
 # Android Cloud Save Validation - 2026-06-09
 
+Historical evidence only: this ledger predates the current local-only SaveManager, launcher-owned automatic sync, and recovery implementation. It contributes zero rows to the current Stage 5 matrix and is not evidence that the reported save-loss issue is fixed.
+
 ## Scope
 
 ARM64 phone validation for manual Steam Cloud Push/Pull hardening after the Pull baseline.

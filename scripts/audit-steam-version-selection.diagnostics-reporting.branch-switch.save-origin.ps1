@@ -18,7 +18,6 @@ function Add-SteamVersionSelectionDiagnosticsReportingBranchSwitchSaveOriginChec
             "Android save-origin selected runtime slot ID matches current runtime",
             "Android save-origin current selected runtime is playable",
             "Android local saves verified for selected branch",
-            "Android local saves verified for selected runtime",
-            "Baseline manual Push prerequisites satisfied"
+            "Android local saves verified for selected runtime"
         )
 }

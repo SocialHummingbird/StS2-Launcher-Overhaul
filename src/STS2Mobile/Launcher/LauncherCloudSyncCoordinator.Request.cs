@@ -22,9 +22,6 @@ internal sealed partial class LauncherCloudSyncCoordinator
             bool bypassConfirmation,
             Func<CancellationToken, Task<ManualCloudSyncResult>> run,
             Func<bool>? prepareOperation = null,
-            bool completionEvidenceRequired = false,
-            Func<bool>? recordCompletionEvidence = null,
-            Action<ManualCloudSyncResult>? recordIncompleteResult = null,
             Action<string, string>? recordTerminalFailure = null,
             Action? onSuccessfulCompletion = null,
             Action<Exception>? onFailed = null,
@@ -40,9 +37,6 @@ internal sealed partial class LauncherCloudSyncCoordinator
             BypassConfirmation = bypassConfirmation;
             Run = run;
             PrepareOperation = prepareOperation;
-            CompletionEvidenceRequired = completionEvidenceRequired;
-            RecordCompletionEvidence = recordCompletionEvidence;
-            RecordIncompleteResult = recordIncompleteResult;
             RecordTerminalFailureAction = recordTerminalFailure;
             OnSuccessfulCompletion = onSuccessfulCompletion;
             OnFailed = onFailed;
@@ -61,9 +55,6 @@ internal sealed partial class LauncherCloudSyncCoordinator
             Task<ManualCloudSyncResult>
         > Run { get; }
         private Func<bool>? PrepareOperation { get; }
-        private bool CompletionEvidenceRequired { get; }
-        private Func<bool>? RecordCompletionEvidence { get; }
-        private Action<ManualCloudSyncResult>? RecordIncompleteResult { get; }
         private Action<string, string>? RecordTerminalFailureAction { get; }
         private Action? OnSuccessfulCompletion { get; }
         private Action<Exception>? OnFailed { get; }

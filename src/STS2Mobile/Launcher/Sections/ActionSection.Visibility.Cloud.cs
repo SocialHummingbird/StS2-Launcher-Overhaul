@@ -5,11 +5,7 @@ internal sealed partial class ActionSection
     internal void SetPushPullDisabled(bool disabled)
     {
         _pushPullDisabled = disabled;
-        _cloudOptionsToggle.Disabled = disabled;
-        _localBackupToggle.Disabled = disabled;
-        _cloudSyncToggle.Disabled = disabled;
-        _branchDropdown.Disabled = disabled;
-        _branchDetailsToggle.Disabled = disabled;
+        ApplyCloudContextControlsDisabled();
         _cancelCloudOperationButton.Visible =
             disabled && _pushPullRow.Visible;
         _cancelCloudOperationButton.Disabled = false;
@@ -23,6 +19,16 @@ internal sealed partial class ActionSection
         }
 
         ApplyCloudPushDisabledState();
+    }
+
+    private void ApplyCloudContextControlsDisabled()
+    {
+        var disabled = _pushPullDisabled || ContextControlsDisabled;
+        _cloudOptionsToggle.Disabled = disabled;
+        _localBackupToggle.Disabled = disabled;
+        _cloudSyncToggle.Disabled = disabled;
+        _branchDropdown.Disabled = disabled;
+        _branchDetailsToggle.Disabled = disabled;
     }
 
     private void SetCloudControlsVisible(bool visible)

@@ -17,7 +17,7 @@ function Add-SteamVersionSelectionSupportDocsLoginValidationWorkflowActionBounda
             "function Add-SteamVersionSelectionLoginValidationDocsCompactActionChecks",
             "Launcher compact install primary detail label supported",
             "Launcher compact ready-version summary panel supported",
-            "Launcher safer Pull-before-Push cloud ordering supported",
+            "Launcher independent Pull/Upload cloud directions supported",
             "Launcher destination support tools supported"
         )
 

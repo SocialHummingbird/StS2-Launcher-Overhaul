@@ -18,7 +18,6 @@ internal static partial class LauncherDiagnostics
         AppendBranchSwitchBackupEvidence(
             sb,
             dataDir,
-            selectedBranch,
             importantSaveEvidenceCount
         );
     }

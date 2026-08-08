@@ -13,12 +13,29 @@ internal static partial class LauncherCloudSaveState
     internal static Task<ManualCloudSyncResult> ManualPushAllAsync(
         CancellationToken cancellationToken
     )
-        => RunManualSyncAsync(
-            CloudSyncCoordinator.ManualPushAllAsync,
+        => ManualPushAllAsync(
+            new CloudOperationProgressTracker(CloudOperationKind.Push),
             cancellationToken
         );
 
     internal static Task<ManualCloudSyncResult> ManualPushAllAsync(
+        CloudOperationProgressTracker progress,
+        CancellationToken cancellationToken
+    )
+        => ManualPushAllAsync(
+            CurrentSaveNamespace(),
+            SteamGameBranch.StorageIdentity(
+                LauncherPreferences.ReadGameBranch()
+            ),
+            CurrentModSetFingerprint(),
+            progress,
+            cancellationToken
+        );
+
+    internal static Task<ManualCloudSyncResult> ManualPushAllAsync(
+        SaveNamespace saveNamespace,
+        string runtimeIdentity,
+        string modSetFingerprint,
         CloudOperationProgressTracker progress,
         CancellationToken cancellationToken
     )
@@ -27,6 +44,9 @@ internal static partial class LauncherCloudSaveState
                 CloudSyncCoordinator.ManualPushAllAsync(
                     accountName,
                     refreshToken,
+                    saveNamespace,
+                    runtimeIdentity,
+                    modSetFingerprint,
                     progress,
                     token
                 ),
@@ -53,11 +73,31 @@ internal static partial class LauncherCloudSaveState
         CloudOperationProgressTracker progress,
         CancellationToken cancellationToken
     )
+        => ManualPullAllAsync(
+            CurrentSaveNamespace(),
+            SteamGameBranch.StorageIdentity(
+                LauncherPreferences.ReadGameBranch()
+            ),
+            CurrentModSetFingerprint(),
+            progress,
+            cancellationToken
+        );
+
+    internal static Task<ManualCloudSyncResult> ManualPullAllAsync(
+        SaveNamespace saveNamespace,
+        string runtimeIdentity,
+        string modSetFingerprint,
+        CloudOperationProgressTracker progress,
+        CancellationToken cancellationToken
+    )
         => RunManualSyncAsync(
             (accountName, refreshToken, token) =>
                 CloudSyncCoordinator.ManualPullAllAsync(
                     accountName,
                     refreshToken,
+                    saveNamespace,
+                    runtimeIdentity,
+                    modSetFingerprint,
                     progress,
                     token
                 ),
@@ -82,8 +122,16 @@ internal static partial class LauncherCloudSaveState
     {
         var credentials = _savedCredentials;
         if (!credentials.HasValue)
-            throw new InvalidOperationException("No saved Steam credentials. Log in again before pulling cloud saves.");
+            throw new InvalidOperationException("No saved Steam credentials. Log in again before transferring saves.");
 
         return credentials.Value;
     }
+
+    private static SaveNamespace CurrentSaveNamespace()
+        => LauncherModSelectionState.IsModdedMode
+            ? SaveNamespace.Modded
+            : SaveNamespace.Vanilla;
+
+    private static string CurrentModSetFingerprint()
+        => LauncherModSelectionState.EnabledModSetFingerprint() ?? "";
 }

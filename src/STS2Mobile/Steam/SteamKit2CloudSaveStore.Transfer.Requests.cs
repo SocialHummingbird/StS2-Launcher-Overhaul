@@ -47,6 +47,9 @@ internal partial class SteamKit2CloudSaveStore
 
         internal string ReadText(byte[] data)
             => CloudDownloadedFile.From(Path, Result, data).ReadText();
+
+        internal byte[] ReadBytes(byte[] data)
+            => CloudDownloadedFile.From(Path, Result, data).ReadBytes();
     }
 
     private static CCloud_ClientFileDownload_Request CreateFileDownloadRequest(string path)

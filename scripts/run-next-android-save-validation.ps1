@@ -1,34 +1,18 @@
-param(
-    [string]$DeviceSerial = $env:ANDROID_SERIAL,
-    [int]$WaitSeconds = 120,
-    [switch]$DumpSaveFiles
-)
+[CmdletBinding()]
+param()
 
 $ErrorActionPreference = "Stop"
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$buildScript = Join-Path $scriptDir "build-android-local.ps1"
-$captureScript = Join-Path $scriptDir "start-android-save-validation-capture.ps1"
+throw @"
+This legacy one-command Android validation path is disabled.
 
-if (-not (Test-Path -LiteralPath $buildScript)) {
-    throw "Build script not found: $buildScript"
-}
+It intentionally does not build, install, launch, force-stop, clear app data, clear
+logcat, or trigger a Steam operation. Stage 5 requires a byte-for-byte verified
+save export before any device lifecycle or install action, followed by an unchanged
+candidate APK bound to its source commit and installed-APK hash.
 
-if (-not (Test-Path -LiteralPath $captureScript)) {
-    throw "Capture script not found: $captureScript"
-}
+After those prerequisites are satisfied, collect read-only evidence with:
+  .\scripts\start-android-save-validation-capture.ps1 -DeviceSerial <serial> -ApkPath <exact-candidate.apk> -SourceCommit <40-character-commit> -PackageName com.sts2launcher.overhaul.fork.dev -Stage5Row <1-10> -EvidencePhase <phase> -LogcatSince "MM-dd HH:mm:ss.fff"
 
-Write-Host "Building and installing Android APK for $DeviceSerial..."
-& $buildScript -Install -DeviceSerial $DeviceSerial
-
-$captureArgs = @{
-    DeviceSerial = $DeviceSerial
-    WaitSeconds = $WaitSeconds
-}
-
-if ($DumpSaveFiles) {
-    $captureArgs.DumpSaveFiles = $true
-}
-
-Write-Host "Build/install finished. Starting validation capture..."
-& $captureScript @captureArgs
+See docs/android-release-validation.md for the current procedure.
+"@

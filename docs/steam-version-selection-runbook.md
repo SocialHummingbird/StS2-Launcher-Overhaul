@@ -8,7 +8,7 @@ Use [Steam version selection release readiness](steam-version-selection-release-
 
 - Validate the default/public Steam branch still works through the legacy install path.
 - Validate the beta branch path is branch-aware from selection through download, startup, diagnostics, and cleanup.
-- Preserve save safety by proving selected-version Pull-before-Push, Android local save evidence, and branch-switch backup posture before any Push test.
+- Preserve save safety by proving exact local allowlist eligibility, interrupted-Pull blocking, transfer-context isolation, destination backup/tombstones, and remote read-back before any real Upload test.
 - Keep private/password-protected beta behavior and save compatibility as release blockers until proven.
 
 ## Evidence targets
@@ -25,9 +25,9 @@ Required artifacts:
 - Branch marker files for each validated installed branch.
 - Public-vs-beta depot manifest comparison, including selected/public manifest IDs, manifest source, manifest request branch, inherited-public counts, and missing-selected-manifest counts.
 - Public/default and beta file inventories with SHA-256 hashes when beta content appears mixed or art assets look wrong.
-- Cloud Pull evidence for the selected version before any Push validation.
-- Android local save evidence before any Push validation.
-- Local pre-Push and cloud pre-Push backup evidence before any post-switch Push mutation.
+- Transferable local-save allowlist evidence and interrupted-Pull state for the selected namespace.
+- Exact SteamID64, vanilla/modded namespace, runtime/public-beta identity, and mod-set fingerprint evidence.
+- Immutable source-snapshot, destination-backup, tombstone, failure-propagation, and read-back hash evidence.
 
 ## Optional auth diagnostics
 
@@ -69,7 +69,7 @@ When enabled, diagnostics must still show `SteamKit debug logs sanitized for cre
 
 6. Switch warning gate
 
-   Refresh Game Versions, then select a non-public Steam branch exposed in the dropdown, such as `beta` if Steam app-info exposes it for the account. Confirm the branch-switch confirmation warns about download requirements, save compatibility risk, local backup enablement, manual Push backup-storage requirement, private/password-protected branches, and lack of beta password entry. If no non-public branch appears, record that as missing/private/inaccessible behavior instead of manually entering a branch.
+   Refresh Game Versions, then select a non-public Steam branch exposed in the dropdown, such as `beta` if Steam app-info exposes it for the account. Confirm the branch-switch confirmation warns about download requirements, save compatibility risk, local backup enablement, private/password-protected branches, and lack of beta password entry. It must not introduce a branch-specific Upload prerequisite. If no non-public branch appears, record that as missing/private/inaccessible behavior instead of manually entering a branch.
 
 7. Beta download path
 
@@ -111,21 +111,21 @@ When enabled, diagnostics must still show `SteamKit debug logs sanitized for cre
 
    Before any Push test, confirm local save files and Steam Cloud save files are understood for the selected branch. Treat compatibility between branches as unproven unless game behavior confirms otherwise.
 
-17. Cloud Pull gate
+17. Upload eligibility
 
-   Perform Pull from Cloud first for the selected game version. Confirm important save files exist locally after Pull and diagnostics show `Manual Pull completed before Push`, current important Android local save evidence count/presence, and `Baseline manual Push prerequisites satisfied` before considering any Push test.
+   Confirm Upload becomes eligible when the selected vanilla or modded namespace contains transferable allowlisted Android saves and no interrupted Pull marker exists. Confirm a Steam game installation, preceding Pull, branch-switch marker, save-origin diagnostic, modded mode, and shared-storage permission do not control eligibility. Also confirm an interrupted Pull remains a blocker until it is retried successfully.
 
-18. Backup permission gate
+18. Transfer-context isolation
 
-   For branch-switch Push testing, confirm local backup is enabled, branch-switch marker safety evidence is complete, Pull from Cloud completed after the branch switch for the selected version, Android local save evidence is present, backup storage permission is available, and diagnostics show structured branch-switch marker details, manual Pull evidence, local save evidence count/presence, backup directory path/existence, plus `Branch-switch manual Push prerequisites satisfied`. If a branch switch marker exists and branch-switch marker safety evidence, current Pull evidence, Android local save evidence, or backup storage permission is missing, Push must remain blocked and write `last_manual_cloud_push_blocked.txt`.
+   Exercise matching and mismatching SteamID64, vanilla/modded namespace, runtime/public-beta identity, and mod-set fingerprint. Every mismatch must fail without reporting `synced`; branch-switch and Pull markers may remain useful history but must not act as Upload prerequisites.
 
-19. Pre-Push backup evidence
+19. Transfer correctness
 
-   Before mutating Steam Cloud after a branch switch, confirm local-pre-push backups cover every important Android local save and cloud-pre-push backups cover every existing important Steam Cloud save. Capture `Pre-Push local backup evidence count`, `Pre-Push cloud backup evidence count`, `Latest pre-Push local backup UTC`, `Latest pre-Push cloud backup UTC`, `Pre-Push local backup evidence after branch switch`, `Pre-Push cloud backup evidence after branch switch`, and `Branch-switch pre-Push backup evidence satisfied`. If Local Backup is enabled and storage permission, full local pre-Push coverage, or full cloud pre-Push coverage for existing important Steam Cloud saves is missing, manual Push must fail before upload and write `last_manual_cloud_push_blocked.txt`.
+   With fake or controlled stores, verify the source is snapshotted before mutation, every destination overwrite has an app-private backup, allowlisted deletions/current-run tombstones propagate, upload and commit failures propagate, `file_committed=false` fails, and destination read-back hashes must match before success.
 
-20. Manual Push smoke test
+20. Manual Upload smoke test
 
-   Only after selected-version Pull, local save existence, storage permission where required, and branch-switch backup evidence where required are proven, perform a manual Push. Record selected game version, confirmation wording, baseline prerequisite evidence, backup evidence, upload result, and any crash/log output.
+   After the non-destructive checks pass, perform a separately authorised controlled Upload. Record selected context, confirmation wording, backup location, upload/commit result, read-back verification result, and any crash/log output. Pull is not a prerequisite for this smoke test.
 
 21. Final evidence package
 
@@ -138,12 +138,13 @@ When enabled, diagnostics must still show `SteamKit debug logs sanitized for cre
 - Selected beta cache can launch without matching branch marker provenance.
 - Beta marker lacks selected/public manifest comparison, manifest source, or manifest request branch evidence after a clean beta redownload.
 - Branch switch does not force local backup posture.
-- Manual Push can proceed after branch switch without backup storage permission.
-- Pull evidence or local save existence is missing before Push.
-- Pre-Push backup evidence is missing before Push.
+- Any Steam installation, preceding-Pull, modded-mode, branch-history, or shared-storage condition incorrectly controls Upload eligibility.
+- Upload is allowed with no transferable local saves or while an interrupted Pull marker exists.
+- Account, namespace, runtime identity, or mod-set context can cross without a hard failure.
+- Destination backup, commit failure, deletion, or read-back mismatch can be skipped or reported as success.
 - Diagnostics do not expose enough branch, marker, cache, and backup state to debug failures.
 - Public evidence redaction review fails, or screenshots/logs have not been manually reviewed for credentials, account identifiers, device notifications, private save/profile data, local paths, and device IDs.
 
 ## Release-readiness rule
 
-Release readiness requires evidence, not implementation intent. The version-selection feature remains blocked until public/default, beta, startup routing, cache cleanup, diagnostics, branch marker provenance, Pull-before-Push/local-save safety, Pull-after-switch/backup safety, backup evidence, missing/private/password beta behavior, and save compatibility are all proven or explicitly documented as unsupported user-facing limitations.
+Release readiness requires evidence, not implementation intent. The version-selection feature remains blocked until public/default, beta, startup routing, cache cleanup, diagnostics, branch marker provenance, exact save-transfer context isolation, verified destination backups/read-back, missing/private/password beta behavior, and save compatibility are all proven or explicitly documented as unsupported user-facing limitations.

@@ -22,7 +22,7 @@ function Add-SteamVersionSelectionSupportDocsReleaseDocsRunbookUserBoundaryCheck
         @(
             "function Add-SteamVersionSelectionReleaseDocsRunbookChecks",
             "steam-version-selection-runbook.md",
-            "Pre-Push backup evidence"
+            "Transfer correctness"
         )
 
     Add-Check `

@@ -47,6 +47,9 @@ internal partial class SteamKit2CloudSaveStore
         internal string ReadText()
             => Encoding.UTF8.GetString(ContentBytes());
 
+        internal byte[] ReadBytes()
+            => ContentBytes();
+
         private byte[] ContentBytes()
         {
             if (!ShouldDecompressDownloadedFile(Result, Data))
@@ -71,6 +74,38 @@ internal partial class SteamKit2CloudSaveStore
     )
         => ReadFileAsyncCore(path, cancellationToken);
 
+    Task<byte[]> IRawSaveStore.ReadFileBytesAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+        => ReadFileBytesAsyncCore(path, cancellationToken);
+
+    Task<string> ITransferSaveStore.ReadFileForVerificationAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+        => ReadFileAsyncCore(
+            path,
+            cancellationToken,
+            bypassCache: true
+        );
+
+    Task<byte[]> ITransferSaveStore.ReadFileBytesForVerificationAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+        => ReadFileBytesAsyncCore(
+            path,
+            cancellationToken,
+            bypassCache: true
+        );
+
+    Task<bool> ITransferSaveStore.FileExistsForVerificationAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+        => RemoteFileExistsAsync(path, cancellationToken);
+
     private string ReadFileCore(string path)
         => ReadFileAsyncCore(path, CancellationToken.None)
             .GetAwaiter()
@@ -78,13 +113,29 @@ internal partial class SteamKit2CloudSaveStore
 
     private async Task<string> ReadFileAsyncCore(
         string path,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        bool bypassCache = false
+    )
+        => Encoding.UTF8.GetString(
+            await ReadFileBytesAsyncCore(
+                path,
+                cancellationToken,
+                bypassCache
+            ).ConfigureAwait(false)
+        );
+
+    private async Task<byte[]> ReadFileBytesAsyncCore(
+        string path,
+        CancellationToken cancellationToken,
+        bool bypassCache = false
     )
     {
         cancellationToken.ThrowIfCancellationRequested();
         path = CloudSavePath.Canonicalize(path);
-        var cacheLoaded = _cache.IsLoaded();
-        PatchHelper.Log($"[Cloud] Read: starting {path} cacheLoaded={cacheLoaded}");
+        var cacheLoaded = !bypassCache && _cache.IsLoaded();
+        PatchHelper.Log(
+            $"[Cloud] Read: starting {path} cacheLoaded={cacheLoaded} bypassCache={bypassCache}"
+        );
 
         if (cacheLoaded && !_cache.FileExists(path))
             throw new FileNotFoundException($"Cloud file not found: {path}");
@@ -92,21 +143,21 @@ internal partial class SteamKit2CloudSaveStore
         if (cacheLoaded && _cache.GetFileSize(path) == 0)
         {
             PatchHelper.Log($"[Cloud] Read: cache says empty {path}");
-            return string.Empty;
+            return Array.Empty<byte>();
         }
 
-        PatchHelper.Log($"[Cloud] Read: requesting download URL for {path}");
-        var result = await _connection
-            .SendCloud<CCloud_ClientFileDownload_Request, CCloud_ClientFileDownload_Response>(
-                "ClientFileDownload",
-                CreateFileDownloadRequest(path),
-                cancellationToken
-            )
-            .ConfigureAwait(false);
+        var result = await RequestFileDownloadAsync(
+            path,
+            cancellationToken
+        ).ConfigureAwait(false);
 
         PatchHelper.Log(
             $"[Cloud] Read: download URL received for {path} host={(string.IsNullOrEmpty(result.url_host) ? "<none>" : result.url_host)} fileSize={result.file_size} rawSize={result.raw_file_size} encrypted={result.encrypted}"
         );
+        ValidateRemoteFileResponse(path, result);
+        if (result.file_size == 0 && result.raw_file_size == 0)
+            return Array.Empty<byte>();
+
         var download = CloudFileDownload.FromValidated(path, result);
         using var httpRequest = download.CreateHttpRequest();
         PatchHelper.Log($"[Cloud] Read: fetching bytes for {path}");
@@ -116,8 +167,69 @@ internal partial class SteamKit2CloudSaveStore
         ).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         PatchHelper.Log($"[Cloud] Read: fetched {data.Length} bytes for {path}");
-        var content = download.ReadText(data);
+        var content = download.ReadBytes(data);
         cancellationToken.ThrowIfCancellationRequested();
         return content;
     }
+
+    private async Task<bool> RemoteFileExistsAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        path = CloudSavePath.Canonicalize(path);
+        try
+        {
+            var result = await RequestFileDownloadAsync(
+                path,
+                cancellationToken
+            ).ConfigureAwait(false);
+            ValidateRemoteFileResponse(path, result);
+            return true;
+        }
+        catch (Exception ex) when (IsRemoteFileMissing(ex))
+        {
+            return false;
+        }
+    }
+
+    private async Task<CCloud_ClientFileDownload_Response> RequestFileDownloadAsync(
+        string path,
+        CancellationToken cancellationToken
+    )
+    {
+        PatchHelper.Log($"[Cloud] Read: requesting download URL for {path}");
+        return await _connection
+            .SendCloud<CCloud_ClientFileDownload_Request, CCloud_ClientFileDownload_Response>(
+                "ClientFileDownload",
+                CreateFileDownloadRequest(path),
+                cancellationToken
+            )
+            .ConfigureAwait(false);
+    }
+
+    private static void ValidateRemoteFileResponse(
+        string path,
+        CCloud_ClientFileDownload_Response result
+    )
+    {
+        if (result.appid != SteamCloudApp.AppId)
+            throw new InvalidOperationException($"Cloud download failed for {path}");
+
+        if (
+            (result.file_size > 0 || result.raw_file_size > 0)
+            && string.IsNullOrEmpty(result.url_host)
+        )
+        {
+            throw new InvalidOperationException($"Cloud download failed for {path}");
+        }
+    }
+
+    private static bool IsRemoteFileMissing(Exception ex)
+        => ex is FileNotFoundException
+            || ex.Message.Contains(
+                "FileNotFound",
+                StringComparison.OrdinalIgnoreCase
+            );
 }

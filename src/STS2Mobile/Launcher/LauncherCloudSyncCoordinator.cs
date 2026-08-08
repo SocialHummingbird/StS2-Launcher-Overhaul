@@ -27,8 +27,8 @@ internal sealed partial class LauncherCloudSyncCoordinator : IDisposable
         LauncherPreferences.SaveCloudSyncEnabled(pressed);
         _view.SetStatus(
             pressed
-                ? "Game cloud sync enabled. Manual Push/Pull remains available from the launcher."
-                : "Game cloud sync disabled. The game will use Android local saves; manual Push/Pull remains available."
+                ? "Automatic Steam save sync enabled. The launcher will reconcile saves before and after the game."
+                : "Automatic Steam save sync disabled. The game will use Android local saves; any existing pending sync must still recover first."
         );
     }
 
@@ -37,6 +37,14 @@ internal sealed partial class LauncherCloudSyncCoordinator : IDisposable
 
     internal Task CancelAndDrainAsync()
         => _operations.CancelAndDrainAsync();
+
+    // Recovery is local-only, but it shares this one operation owner so a
+    // restore can never overlap an in-flight Steam transfer.
+    internal bool TryRunExclusiveSaveOperation(
+        Func<System.Threading.CancellationToken, Task> run,
+        out Task execution
+    )
+        => _operations.TryRun(run, out execution);
 
     internal void Dispose()
     {

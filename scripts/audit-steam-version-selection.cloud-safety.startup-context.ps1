@@ -1,7 +1,7 @@
 function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherBranchSwitchCoordinator.cs" `
-        "uses centralized selector guidance and lightweight downloaded-state readiness in branch-switch flow" `
+        "uses centralized selector guidance and lightweight downloaded-state readiness without gating save transfer" `
         @(
             "BranchSwitchConfirmationMessage",
             "SteamGameBranch\.SelectorInstallSlotHelpText",
@@ -12,13 +12,21 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
             "SelectedOptionStatus",
             "SelectedOptionDownloadProblem",
             "AppendLog\(STS2Mobile\.Steam\.SteamGameBranch\.SelectorInstallSlotHelpText",
-            "Steam Cloud Push will require backup storage permission",
             "LauncherLaunchReadinessCache\.Clear",
             "_versions\.ReadGameBranchOptions",
             "SetActionPreferences\(LauncherPreferences\.ReadActionPreferences\(branch\), branches\)",
             "RefreshSelectedDownloadedStateEvidence",
             "branch switch downloaded-state readiness",
             "SelectedVersionReadyStatus\(readiness\)"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherBranchSwitchCoordinator.cs" `
+        "does not make optional external-backup permission a Steam transfer prerequisite" `
+        @(
+            "Steam Cloud Push will require backup storage permission",
+            "Push requires backup storage",
+            "Pull-after-switch"
         )
 
     Add-Check `
@@ -218,13 +226,14 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\Sections\ActionSection.cs" `
-        "keeps Start Game and Safe Start disabled while launch handoff is in progress" `
+        "keeps Start Game and Safe Start disabled during launch handoff or automatic reconciliation" `
         @(
             "_launchControlsDisabled",
+            "_automaticSyncBlocked",
             "internal void SetLaunchControlsDisabled\(bool disabled\)",
             "ApplyLaunchControlsDisabled",
-            "_launchButton\.Disabled = _launchControlsDisabled",
-            "_safeLaunchButton\.Disabled = _launchControlsDisabled"
+            "_launchButton\.Disabled = disabled",
+            "_safeLaunchButton\.Disabled = disabled"
         )
 
     Add-Check `
@@ -810,10 +819,8 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
             "EvaluateFresh\(phase, snapshot\.Mods\)",
             "LauncherModLaunchReadinessCache\.Store\(snapshot\.Identity, readiness\)",
             "LauncherModLaunchReadinessCache\.TryGet",
-            "LauncherWorkshopModSafety\.HasActiveSelectedMods",
             "runtime mod scan skipped",
-            "SelectedMods",
-            "CloudPushLocked"
+            "SelectedMods"
         )
 
     Add-Check `
@@ -822,7 +829,6 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
         @(
             "PlayModeFor\(Load\(\)\)",
             "IsModdedModeFor\(LauncherModSelectionDocument document\)",
-            "PushShouldBeLocked\(LauncherModSelectionDocument document\)",
             "EnabledModCount\(LauncherModSelectionDocument document\)",
             "KnownMods\(LauncherModSelectionDocument document\)",
             "IsPathEnabled\(string path, LauncherModSelectionDocument document\)",
@@ -1022,7 +1028,6 @@ function Add-SteamVersionSelectionCloudSafetyStartupContextChecks {
             "WriteLaunchAttempt",
             "LauncherLaunchAttemptTiming\.",
             "Stopwatch\.StartNew",
-            "LaunchExceptionProblem",
             "SetLaunchInProgress"
         )
 

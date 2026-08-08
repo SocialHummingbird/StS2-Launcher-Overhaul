@@ -1,6 +1,8 @@
 # Downloaded-game launch audit
 
-Current posture: this audit now supports a working ARM64 baseline. Pull is proven end to end; confirmed Push upload remains intentionally deferred because it can overwrite Steam Cloud. See [current Android status](current-android-status.md).
+Historical posture: this audit supports the June 2026 ARM64 launch baseline and superseded manual Pull path. It does not validate current automatic sync or recovery; those remain at 0/10 in the Stage 5 exact-candidate matrix. See [current Android status](current-android-status.md).
+
+> **Archived evidence only.** Every use of “current,” “next,” or “release readiness” below describes the 8 June 2026 manual-sync investigation, not the current source or a procedure to execute. Do not use this document to build/install an APK, operate manual cloud transfer, or sign off Stage 5. The only current device runbook is [Android release validation](android-release-validation.md), which requires a verified byte-for-byte save export before any install, force-stop, or launch.
 
 Last updated: 2026-06-08
 
@@ -139,12 +141,14 @@ Current evidence:
   - Logs showed `Startup fallback banner displayed`.
   - Screenshot `artifacts/android/sts2-forced-critical-fallback.png` showed launcher over a dark fallback surface, not the old broken game screen.
 
-## Cloud save path
+## Cloud save path (historical manual flow)
 
-Current manual pull behavior:
+Do not execute this flow. The following behavior is recorded solely to explain the June 2026 evidence.
 
-- The launcher `Pull from Cloud` confirmation dialog is currently unreliable on device: tapping `OK` can focus the button but not activate it.
-- The controller now bypasses the confirmation dialog only for manual pull, so `Pull from Cloud` should execute immediately after the next install if the fresh managed assembly is actually loaded.
+Manual-pull behavior recorded on 8 June 2026:
+
+- The launcher `Pull from Cloud` confirmation dialog was unreliable on device: tapping `OK` could focus the button but not activate it.
+- The controller then bypassed the confirmation dialog only for manual pull, so the historical investigation expected `Pull from Cloud` to execute immediately after its next install if the fresh managed assembly loaded.
 - Manual push still requires confirmation because it can overwrite Steam cloud saves.
 - Manual pull/push now reload encrypted Steam credentials from disk before starting, so button actions do not depend on stale static cloud state.
 - Credential reload is authoritative: if persisted credentials are missing or fail to decrypt, static cloud credentials are cleared before manual pull/push.
@@ -152,19 +156,19 @@ Current manual pull behavior:
 - The SteamKit2 cloud store singleton now recreates itself when account name or refresh token changes, so credential reload cannot keep using an old Steam cloud connection.
 - The dialog implementation also has fallback pointer hit testing for OK/Cancel, but this should not be the main dependency for pull.
 - Manual pull writes local files through `AndroidLocalSaveStore`, whose base path is `OS.GetUserDataDir()`.
-- Android local save store creation now logs `[Cloud] Android local save base: ...`.
+- Android local save store creation now logs `[Save] Android local save base: ...`.
 - Every cloud-to-local write now logs the logical save path and the concrete app-private filesystem path:
-  - `[Cloud] Android local save write: <logical> -> <full path> (<bytes> bytes)`
+  - `[Save] Android local save write: <logical> -> <full path> (<bytes> bytes)`
   - `[Cloud] Local write path: <logical> -> <full path>`
 - Android local save reads and file probes now log concrete app-private paths for save-like files:
-  - `[Cloud] Android local save exists: <logical> -> <full path> = <true|false>`
-  - `[Cloud] Android local save read: <logical> -> <full path>`
-  - `[Cloud] Android local save files: <logical dir> -> <full path> count=<n>`
+  - `[Save] Android local save exists: <logical> -> <full path> = <true|false>`
+  - `[Save] Android local save read: <logical> -> <full path>`
+  - `[Save] Android local save files: <logical dir> -> <full path> count=<n>`
 - Normal Android launch no longer disables `SaveManager` cloud/save-store injection. This is critical: the game must construct a patched save manager backed by the same local store that manual pull writes to.
 - Android `SaveManager` construction now falls back to a local-only `CloudSaveStore` using `AndroidLocalSaveStore` plus a disabled cloud store even when cloud sync is disabled or saved Steam credentials are not available in memory. Cloud credentials should decide cloud access only; they must not decide whether the game reads the Android save directory. The disabled cloud store reports reads as missing and ignores writes/deletes with logs so upstream save code can still complete local writes.
 - Safe launch and previous-stall recovery can still force cloud access off. Android local save-store injection remains available so local pulled saves can still be read.
 
-Historical cloud issues now superseded by Pull validation:
+Cloud issues recorded as superseded by that historical Pull validation:
 
 - Earlier cloud enumeration runs reported task-cancelled failures and required known-path fallback probing.
 - The validated Pull baseline now proves the current path can enumerate/download real Steam Cloud files on the connected ARM64 device.
@@ -189,7 +193,7 @@ Historical cloud issues now superseded by Pull validation:
 - Manual pull path candidates are canonicalized and deduplicated before probing cloud, so managed/fallback overlap does not trigger repeated downloads or misleading candidate counts.
 - Steam cloud enumeration now logs the first 25 canonical cloud file names. Comparing this sample to `[Cloud] Candidate sync paths` should expose path naming mismatches immediately.
 
-Current save-system failure model:
+June 2026 save-system failure model:
 
 1. If stale `STS2Mobile.dll` remains in `.godot/mono/publish/<arch>`, new C# fixes do not run. This explains why confirmation bypass/fallback fixes appeared ineffective on device.
 2. If normal Android game launch disables save-store injection, pulled files can be written into the launcher's Android local store while the game reads a different/default store. This explains a launch reaching the main menu but not surfacing pulled saves.
@@ -197,7 +201,7 @@ Current save-system failure model:
 4. If the SteamKit2 cloud store singleton keeps an old connection after credential reload/account switch, manual pull can query the wrong session. The singleton is now credential-sensitive.
 5. If cloud enumeration/path discovery misses backup or variant filenames, manual pull can complete with zero useful downloads despite Steam containing save files. Managed path probing, recursive path enumeration, and explicit zero-download logs are now in place to expose this.
 
-## Current verified state
+## June 2026 verified state (historical)
 
 Verified on connected ARM64 phone:
 
@@ -210,7 +214,7 @@ Verified on connected ARM64 phone:
 - Recovery controls self-clean after successful startup.
 - Normal `START GAME` launch no longer consumes stale safe-launch state.
 
-## Current local implementation state
+## June 2026 local implementation state (superseded)
 
 Originally implemented locally, now covered by the validated Pull baseline unless individually called out below:
 
@@ -229,11 +233,11 @@ Originally implemented locally, now covered by the validated Pull baseline unles
 - Android local save writes, reads, existence checks, and directory enumeration log concrete filesystem paths.
 - `scripts/collect-android-save-validation.ps1` captures focused evidence and writes `summary.txt` gate output.
 
-The first gate remains runtime freshness. If future device logs do not show the current assembly schema, stop interpreting cloud/game behavior until the install/cache path is fixed.
+For that historical investigation, the first gate was runtime freshness. Its device conclusions depended on logs showing the then-current assembly schema.
 
-## Next-session decision boundary
+## June 2026 session decision boundary (superseded)
 
-The next connected-device session must follow this order:
+The manual-sync investigation used the following decision order. It is retained to explain the historical evidence only and must not be used as a current device runbook:
 
 1. Prove the installed runtime is fresh.
    - Required evidence: `Assembly cache diagnostics ... schema=22`.
@@ -249,13 +253,13 @@ The next connected-device session must follow this order:
    - If enumeration succeeds, also compare `[Cloud] Enumerated cloud file sample: ...`.
    - If zero downloads and cloud sample names do not overlap candidates: fix path mapping.
 5. Prove local write/read alignment.
-   - Required evidence: `[Cloud] Android local save write: ... -> <full path>` followed by game startup probing/reading the same logical/full paths.
+   - Required evidence: `[Save] Android local save write: ... -> <full path>` followed by game startup probing/reading the same logical/full paths.
    - If writes happen but reads do not: fix `SaveManager`/local-store injection.
 6. Prove game surfacing.
    - Required evidence: pulled save/profile is visible/usable in normal launch.
    - If paths align but UI does not surface saves: investigate game save migration/profile selection, not Steam pull.
 
-Previously unverified Pull gates now proven:
+Manual-Pull gates recorded as proven in that investigation:
 
 - Fresh runtime install showed schema `22` on device.
 - Manual `Pull from Cloud` executed and downloaded real Steam Cloud files.
@@ -263,7 +267,7 @@ Previously unverified Pull gates now proven:
 - Game startup read the same Android local paths populated by Pull.
 - Pulled save state surfaced in-game as `Profile 1`.
 
-## Remaining launch-readiness blockers
+## June 2026 launch-readiness blockers (historical)
 
 1. FMOD extension initialization is still noisy on Android.
    - Fixed: `music_controller_proxy.gd` no longer reports missing `FmodEvent`, `FmodBankLoader`, or `FmodServer` types.
@@ -304,44 +308,13 @@ Previously unverified Pull gates now proven:
    - The connected device was reset to `sts2_force_critical_patch_failure=0` after proof.
    - Release validation should confirm this setting is off before any normal gameplay run.
 
-## Next validation pass
+## June 2026 validation procedure (retired)
 
-After rebuilding and installing:
+The former rebuild/install/manual-Pull checklist has been removed because it could overwrite or reclassify the very saves Stage 5 is meant to protect. The legacy one-command build/install script is disabled. For current work, preserve and verify a byte-for-byte export first, install only an immutable source-bound candidate through a separately reviewed update-preserving procedure, and use the read-only capture command in [Android release validation](android-release-validation.md).
 
-Use `scripts/run-next-android-save-validation.ps1` when the phone is connected and ready. It builds/installs, starts timed capture, and prints the phone actions to perform. Use `scripts/start-android-save-validation-capture.ps1` when the APK is already installed. Use `scripts/collect-android-save-validation.ps1 -DeviceSerial <serial> -ClearLogcat` for lower-level manual capture. For one-command capture, use `-ClearLogcat -WaitSeconds <n>`, perform the pull/launch while it waits, then read the generated `summary.txt`. Add `-DumpSaveFiles` after a pull attempt when `run-as` works for the installed package. The collector writes `summary.txt` and `manifest.json` gate booleans so schema/cache/cloud/save evidence can be read without manually scanning full logcat.
+## June 2026 Android cloud-save hardening gates (historical)
 
-1. Launch app.
-2. Confirm Java logs `New version detected, re-copying all assemblies`.
-3. Confirm `Assembly cache diagnostics [before-copy]` or `[after-copy]` includes `schema=22`.
-4. Confirm `Assembly cache diagnostics [after-copy]` shows `STS2Mobile.dll bytes=<n> expectedBytes=<same n>` with the fresh build size.
-5. Tap `Pull from Cloud`.
-6. Confirm no confirmation dialog blocks execution.
-7. Confirm logs include `[Cloud] Android local save base: ...`.
-8. Confirm logs include `[Cloud] Candidate sync paths: ...`.
-9. Confirm logs include `[Cloud] Enumerated cloud file sample: ...` when Steam enumeration succeeds.
-10. Compare the cloud file sample to candidate sync paths if pull downloads zero files.
-11. Confirm pull logs either `wrote <path>` for real save files or the explicit `complete with no downloads` message.
-12. Confirm the launcher UI also shows the manual pull summary, not only generic `Pull complete.`
-13. If files were written, compare `[Cloud] Android local save write` full paths to the logged Android local save base.
-14. Start game from launcher in normal mode.
-15. Confirm game startup logs `[Cloud] Created Android local-only SaveManager` or `[Cloud] Created SaveManager with SteamKit2 cloud store`.
-16. Compare `[Cloud] Android local save exists/read/files` paths during game startup to the pull write paths.
-17. Confirm main menu appears.
-18. Confirm no FMOD parse errors.
-19. Press `Proceed`.
-20. Exercise menu navigation and save/profile visibility.
-21. Run `Pull from Cloud` twice, once before and once after app restart.
-22. Capture only filtered logs for:
-   - `STS2Mobile`
-   - `Patch orchestration`
-   - `PCK`
-   - `FMOD` / `Fmod`
-   - `Cloud`
-   - `AndroidRuntime`
-
-## Remaining Android cloud-save hardening gates
-
-Status after end-to-end Pull validation:
+Status recorded after the June 2026 end-to-end Pull validation:
 
 - Fresh install/runtime freshness is proven by `schema=22` logs on device.
 - Pull from Cloud is proven on device: Steam files were enumerated, 103 files downloaded, and 58 candidate paths were absent from cloud.
@@ -373,20 +346,20 @@ Status after end-to-end Pull validation:
 - Fresh-build direct `Cancel` dismissed the Push confirmation dialog and returned to the launcher.
 - Fresh-build direct `Cancel` produced no StS2 push/upload/start markers in the filtered logcat window; unrelated Samsung/Play cloud-service lines were ignored.
 
-Live-cloud validation still required:
+Live-cloud validation that was still outstanding in June 2026:
 
 - Push to Cloud confirmed upload must be tested deliberately because it overwrites Steam cloud state.
 - Direct `Cancel` button activation is validated on the fresh latest build; Android Back/no-confirm dismissal was also previously validated as no-upload.
 - Required Push evidence: confirmation dialog appears before upload, cancel/no-confirm path performs no upload, confirmed push uploads changed local files, and a subsequent Steam/cloud enumeration shows the pushed remote metadata changed as expected.
 - Required safety check: after a confirmed push, Pull from Cloud should round-trip the same changed file back to Android local storage.
 
-Path-discovery review:
+June 2026 path-discovery review:
 
 - Current validation found 161 candidate paths and 58 not present in cloud.
 - The 58 absent candidates are not a blocker because Pull downloaded all available cloud files and the game read the important save files successfully.
 - Filtering should only be done if future captures show material slowdown, user-facing confusion, or repeated checks for paths that are known impossible for STS2 cloud saves.
 
-Release-readiness checklist:
+June 2026 release-readiness checklist (archived):
 
 - Fresh install: APK installs, schema freshness logs appear, launcher opens.
 - Upgrade install: package `lastUpdateTime` advances, schema/cache freshness is visible, no stale assembly cache behavior.
@@ -396,7 +369,7 @@ Release-readiness checklist:
 - Locked-screen interruption: app does not get misclassified as crashed when Android lockscreen/Dream steals focus.
 - Diagnostics: normal logs are not flooded by missing-path exists checks; validation scripts can enable verbose save diagnostics with the marker file.
 
-Current release-readiness gaps after latest local install:
+June 2026 release-readiness gaps after the then-latest local install:
 
 - Schema/cache freshness is now recaptured on the rebuilt freshness-probe install through normal logcat.
 - Direct app-private cache inspection is unavailable for the latest local package because `run-as` reports `package not debuggable: com.sts2launcher.overhaul.fork.local`.
@@ -405,9 +378,9 @@ Current release-readiness gaps after latest local install:
 - Confirmed Push upload remains intentionally deferred because it overwrites Steam Cloud.
 - Locked-screen interruption has partial smoke evidence only: after launcher start, Android Power lock/wake left the package process alive (`pidof` returned `28125`) and produced no app `AndroidRuntime`/fatal/stale-launch markers. Automated keyguard dismiss/swipe reached Android `Bouncer` with `mDreamingLockscreen=true`, so secure device unlock still blocks full return-to-app proof. A manual unlock-and-return validation is still required before release signoff.
 
-## Final Android cloud-save hardening status
+## June 2026 closing cloud-save hardening status (historical)
 
-Implemented and validated:
+Recorded as implemented and validated in June 2026:
 
 - Fresh install/runtime freshness is proven on ARM64 by package metadata, `Android startup freshness`, `schema=22`, matching stored package/version/schema, and `STS2Mobile.dll` cache bytes matching expected bytes.
 - Pull from Cloud is proven end to end: Steam files were enumerated/downloaded, Android local save files were written, the game read the same local paths, and the pulled save surfaced as `Profile 1`.

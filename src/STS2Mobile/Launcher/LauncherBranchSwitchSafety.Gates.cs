@@ -20,7 +20,6 @@ internal static partial class LauncherBranchSwitchSafety
             && HasValue(SelectedVersionSlotDirectory(dataDir))
             && HasValue(SelectedBranchNote(dataDir))
             && LocalBackupForced(dataDir)
-            && ManualPushRequiresBackupStorage(dataDir)
             && WarningAcknowledged(dataDir)
             && NonPublicBranchWarningAcknowledged(dataDir);
     }
@@ -40,15 +39,4 @@ internal static partial class LauncherBranchSwitchSafety
             );
     }
 
-    internal static bool ManualPushPrerequisitesSatisfied(string dataDir, string selectedBranch)
-    {
-        if (!HasMarker(dataDir))
-            return false;
-
-        return HasRequiredEvidence(dataDir, selectedBranch)
-            && LauncherCloudSyncEvidence.HasManualPullAfterBranchSwitch(dataDir, selectedBranch)
-            && LauncherLocalSaveEvidence.HasImportantSaveEvidence(dataDir)
-            && LauncherSaveOriginEvidence.CurrentLocalSavesMatchSelectedRuntime(dataDir, selectedBranch)
-            && STS2Mobile.AppPaths.HasStoragePermission();
-    }
 }

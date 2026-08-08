@@ -26,7 +26,7 @@ function Save-TestJson([string]$Path, $Value) {
 
 function New-ModSelectorEvidenceBundle(
     [string]$BaseDir,
-    [switch]$MissingCloudFields,
+    [switch]$MissingPushEvidence,
     [switch]$DisabledStillSelected,
     [switch]$VanillaScansMods,
     [switch]$PushPerformed,
@@ -162,7 +162,6 @@ function New-ModSelectorEvidenceBundle(
         inGameVerifiedMods = 0
         status = "Android mod scan skipped by launcher Play Vanilla mode"
         selectionPath = "/data/user/0/com.example/files/mods/mod_selection.json"
-        workshopModdedSaveCloudPushLocked = $false
         steamCloudPushPerformed = [bool]$PushPerformed
         activationEvidence = @()
         selectedMods = @()
@@ -191,7 +190,6 @@ function New-ModSelectorEvidenceBundle(
         inGameVerifiedMods = 0
         status = "Android mod load attempt completed; inspect per-mod activation evidence"
         selectionPath = "/data/user/0/com.example/files/mods/mod_selection.json"
-        workshopModdedSaveCloudPushLocked = $true
         steamCloudPushPerformed = [bool]$PushPerformed
         activationEvidence = $moddedActivation
         selectedMods = $moddedMods
@@ -215,7 +213,6 @@ function New-ModSelectorEvidenceBundle(
         inGameVerifiedMods = 0
         status = "Android mod load attempt completed; inspect per-mod activation evidence"
         selectionPath = "/data/user/0/com.example/files/mods/mod_selection.json"
-        workshopModdedSaveCloudPushLocked = $true
         steamCloudPushPerformed = [bool]$PushPerformed
         activationEvidence = @($baseLibActivation, $quickRestartActivation)
         selectedMods = $disabledMods
@@ -225,9 +222,8 @@ function New-ModSelectorEvidenceBundle(
         $modded.Remove("activationEvidence")
     }
 
-    if ($MissingCloudFields) {
+    if ($MissingPushEvidence) {
         foreach ($marker in @($vanilla, $modded, $disabled)) {
-            $marker.Remove("workshopModdedSaveCloudPushLocked")
             $marker.Remove("steamCloudPushPerformed")
         }
     }
@@ -295,9 +291,9 @@ try {
     & $reviewScript -EvidenceDir $screenshotDir -RequireScreenshots -Quiet | Out-Null
     Write-Host "PASS positive screenshot requirement accepted"
 
-    $missingCloudFieldsDir = Join-Path $runRoot "negative-missing-cloud-fields"
-    New-ModSelectorEvidenceBundle -BaseDir $missingCloudFieldsDir -MissingCloudFields
-    Invoke-ReviewShouldFail -EvidenceDir $missingCloudFieldsDir -Description "missing Cloud safety marker fields"
+    $missingPushEvidenceDir = Join-Path $runRoot "negative-missing-push-evidence"
+    New-ModSelectorEvidenceBundle -BaseDir $missingPushEvidenceDir -MissingPushEvidence
+    Invoke-ReviewShouldFail -EvidenceDir $missingPushEvidenceDir -Description "missing Steam Cloud Push evidence field"
 
     $disabledStillSelectedDir = Join-Path $runRoot "negative-disabled-still-selected"
     New-ModSelectorEvidenceBundle -BaseDir $disabledStillSelectedDir -DisabledStillSelected

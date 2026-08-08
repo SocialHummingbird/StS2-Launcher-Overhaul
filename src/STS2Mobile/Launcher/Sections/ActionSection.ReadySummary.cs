@@ -32,10 +32,10 @@ internal sealed partial class ActionSection
         if (_compactStackedActionRows)
         {
             return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadyStackedSummaryBranchLimit)}\n"
-                + $"Save Check | Upload locked{modSummary}";
+                + $"Saves | Get / Upload{modSummary}";
         }
 
-        return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadySummaryBranchLimit)} | Save Check | Upload locked{modSummary}";
+        return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadySummaryBranchLimit)} | Saves | Get / Upload{modSummary}";
     }
 
     private string CompactReadyVersionHelpText()

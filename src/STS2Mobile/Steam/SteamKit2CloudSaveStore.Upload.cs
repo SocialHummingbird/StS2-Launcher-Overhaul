@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2.Internal;
@@ -90,6 +91,7 @@ internal partial class SteamKit2CloudSaveStore
     )
     {
         var uploadSucceeded = false;
+        Exception uploadFailure = null;
         try
         {
             await upload.Payload
@@ -103,16 +105,34 @@ internal partial class SteamKit2CloudSaveStore
                 .ConfigureAwait(false);
             uploadSucceeded = true;
         }
-        finally
+        catch (Exception ex)
         {
-            if (!cancellationToken.IsCancellationRequested)
-            {
-                await CommitFileUploadAsync(
-                    upload,
-                    uploadSucceeded,
-                    cancellationToken
-                ).ConfigureAwait(false);
-            }
+            uploadFailure = ex;
         }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            if (uploadFailure != null)
+                ExceptionDispatchInfo.Capture(uploadFailure).Throw();
+
+            cancellationToken.ThrowIfCancellationRequested();
+        }
+
+        try
+        {
+            await CommitFileUploadAsync(
+                upload,
+                uploadSucceeded,
+                cancellationToken
+            ).ConfigureAwait(false);
+        }
+        catch (Exception commitFailure) when (uploadFailure != null)
+        {
+            PatchHelper.Log(CommitFailed(upload.Path, commitFailure));
+            ExceptionDispatchInfo.Capture(uploadFailure).Throw();
+        }
+
+        if (uploadFailure != null)
+            ExceptionDispatchInfo.Capture(uploadFailure).Throw();
     }
 }

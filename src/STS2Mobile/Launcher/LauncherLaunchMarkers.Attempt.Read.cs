@@ -48,7 +48,6 @@ internal static partial class LauncherLaunchMarkers
         ModInstalledCountPrefix,
         ModEnabledCountPrefix,
         ModUnsupportedCountPrefix,
-        ModdedSaveCloudPushLockedPrefix,
         SelectedModsPrefix,
     };
 
@@ -105,7 +104,6 @@ internal static partial class LauncherLaunchMarkers
             ReadAttemptValue(values, ModInstalledCountPrefix),
             ReadAttemptValue(values, ModEnabledCountPrefix),
             ReadAttemptValue(values, ModUnsupportedCountPrefix),
-            ReadAttemptValue(values, ModdedSaveCloudPushLockedPrefix),
             ReadAttemptValue(values, SelectedModsPrefix)
         );
     }

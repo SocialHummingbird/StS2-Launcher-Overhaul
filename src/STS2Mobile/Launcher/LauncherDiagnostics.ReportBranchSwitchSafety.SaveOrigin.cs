@@ -39,6 +39,5 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Android save-origin selected source sts2.dll matches current runtime: {BoolText(LauncherSaveOriginEvidence.SourceAssemblyMatchesSelectedRuntime(dataDir, selectedBranch))}");
         sb.AppendLine($"Android local saves verified for selected branch: {BoolText(LauncherSaveOriginEvidence.CurrentLocalSavesMatchSelectedBranch(dataDir, selectedBranch))}");
         sb.AppendLine($"Android local saves verified for selected runtime: {BoolText(LauncherSaveOriginEvidence.CurrentLocalSavesMatchSelectedRuntime(dataDir, selectedBranch))}");
-        sb.AppendLine($"Baseline manual Push prerequisites satisfied: {BoolText(LauncherCloudSyncEvidence.BaselineManualPushPrerequisitesSatisfied(dataDir, selectedBranch))}");
     }
 }

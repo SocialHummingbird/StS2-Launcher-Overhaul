@@ -91,6 +91,7 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly VBoxContainer _modsList;
     private readonly List<Button> _modToggleButtons = new();
     private readonly string[] _modToggleKeys = new string[MaxVisibleModToggles];
+    private readonly bool[] _modToggleCanChange = new bool[MaxVisibleModToggles];
     private readonly Button _diagnosticsButton;
     private readonly Button _showLastErrorButton;
     private readonly Button _copyRawLogButton;
@@ -119,6 +120,8 @@ internal sealed partial class ActionSection : VBoxContainer
     private bool _localBackupEnabled;
     private bool _cloudSyncEnabled;
     private bool _launchControlsDisabled;
+    private bool _automaticSyncBlocked;
+    private bool _workshopButtonsDisabled;
     private bool _powerVrCompatibilityRequired;
     private bool _homeActionsAvailable;
     private LauncherDestination _destination;
@@ -140,9 +143,9 @@ internal sealed partial class ActionSection : VBoxContainer
 
     internal void SetWorkshopButtonsDisabled(bool disabled)
     {
-        _workshopSyncButton.Disabled = disabled;
-        _workshopClearButton.Disabled = disabled;
-        if (!disabled && _modsGroup.Visible)
+        _workshopButtonsDisabled = disabled;
+        ApplySaveContextControlsDisabled();
+        if (!ContextControlsDisabled && !disabled && _modsGroup.Visible)
             RefreshModsStatus();
     }
 
@@ -150,6 +153,14 @@ internal sealed partial class ActionSection : VBoxContainer
     {
         _launchControlsDisabled = disabled;
         ApplyLaunchControlsDisabled();
+        ApplySaveContextControlsDisabled();
+    }
+
+    internal void SetAutomaticSyncBlocked(bool blocked)
+    {
+        _automaticSyncBlocked = blocked;
+        ApplyLaunchControlsDisabled();
+        ApplySaveContextControlsDisabled();
     }
 
     internal void SetPowerVrCompatibility(bool required)
@@ -169,10 +180,30 @@ internal sealed partial class ActionSection : VBoxContainer
 
     private void ApplyLaunchControlsDisabled()
     {
-        _launchButton.Disabled = _launchControlsDisabled;
-        _safeLaunchButton.Disabled = _launchControlsDisabled;
-        _rendererAutoButton.Disabled = _launchControlsDisabled || _powerVrCompatibilityRequired;
-        _rendererVulkanButton.Disabled = _launchControlsDisabled || _powerVrCompatibilityRequired;
-        _rendererOpenGlButton.Disabled = _launchControlsDisabled;
+        var disabled = _launchControlsDisabled || _automaticSyncBlocked;
+        _launchButton.Disabled = disabled;
+        _safeLaunchButton.Disabled = disabled;
+        _rendererAutoButton.Disabled = disabled || _powerVrCompatibilityRequired;
+        _rendererVulkanButton.Disabled = disabled || _powerVrCompatibilityRequired;
+        _rendererOpenGlButton.Disabled = disabled;
+    }
+
+    private bool ContextControlsDisabled
+        => _launchControlsDisabled || _automaticSyncBlocked;
+
+    private void ApplySaveContextControlsDisabled()
+    {
+        ApplyCloudContextControlsDisabled();
+        _playVanillaButton.Disabled = ContextControlsDisabled;
+        _playModdedButton.Disabled = ContextControlsDisabled;
+        _workshopSyncButton.Disabled =
+            _workshopButtonsDisabled || ContextControlsDisabled;
+        _workshopClearButton.Disabled =
+            _workshopButtonsDisabled || ContextControlsDisabled;
+        for (var i = 0; i < _modToggleButtons.Count; i++)
+        {
+            _modToggleButtons[i].Disabled =
+                ContextControlsDisabled || !_modToggleCanChange[i];
+        }
     }
 }

@@ -23,7 +23,7 @@ function Add-SteamVersionSelectionActionCoreReadySummaryChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\Sections\ActionSection.ReadySummary.cs" `
-        "uses responsive compact ready-version copy with Save Check and Upload-locked state" `
+        "uses responsive compact ready-version copy without a blanket upload lock" `
         @(
             "CompactReadySummaryBranchLimit",
             "CompactReadyStackedSummaryBranchLimit",
@@ -37,8 +37,15 @@ function Add-SteamVersionSelectionActionCoreReadySummaryChecks {
             "Separate files",
             "_compactStackedActionRows",
             "Ready:",
-            "Save Check \| Upload locked",
+            "Saves \| Get / Upload",
             "Mods off"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\Sections\ActionSection.ReadySummary.cs" `
+        "does not claim the ready save state is upload-locked" `
+        @(
+            "Upload locked"
         )
 
     Add-Check `

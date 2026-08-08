@@ -104,9 +104,9 @@ Cache switching and cleanup:
 | Check | Evidence | Result | Notes |
 | --- | --- | --- | --- |
 | Switching branches writes `last_game_branch_switch.txt` |  |  |  |
-| Branch switch marker records parseable UTC, Branch switch previous branch, Branch switch selected branch, selected branch selection kind, selector mode, selected version, selected version slot kind, selected version slot directory, selected branch match against the active selected branch, selected branch note, local backup, Push backup-storage requirement, warning acknowledgement, and required-evidence status for the selected branch |  |  |  |
+| Branch switch marker records parseable UTC, previous branch, selected branch, selection kind, selector mode, selected version, selected version slot kind/directory, selected-branch match, selected branch note, local-backup posture, and warning acknowledgements |  |  |  |
 | Branch switch confirmation shows refreshed selected-branch availability/status and any selected-branch blocked reason |  |  |  |
-| Pull-after-switch writes `last_manual_cloud_pull.txt` with parseable UTC, selected branch, selected branch selection kind, selector mode, selected version, selected version slot kind, selected version slot directory, selected branch note, and completion flag |  |  |  |
+| Pull history writes `last_manual_cloud_pull.txt` with parseable UTC, selected branch, selected branch selection kind, selector mode, selected version, selected version slot kind, selected version slot directory, selected branch note, outcome, and outcome detail |  |  |  |
 | Selected non-public cache is preserved by `CLEAR CACHED VERSIONS` |  |  |  |
 | Inactive non-public caches are removed by `CLEAR CACHED VERSIONS` |  |  |  |
 | Stale runtime packs are removed by `CLEAR CACHED VERSIONS` |  |  |  |
@@ -141,26 +141,23 @@ Steam Cloud save safety:
 | Check | Evidence | Result | Notes |
 | --- | --- | --- | --- |
 | Branch switch forces local backup ON |  |  |  |
-| Push after branch switch is blocked when branch-switch marker safety evidence is incomplete or belongs to a different selected branch |  |  |  |
-| Push after branch switch is blocked until Pull from Cloud completed after the switch for the selected version |  |  |  |
-| Diagnostics show manual Pull evidence marker filename, path, presence, UTC, UTC parseability, selected branch, completion flag, after-switch status, selected-branch match, and selected-version freshness |  |  |  |
-| Push after branch switch is blocked when Android local save evidence is missing |  |  |  |
-| Push after branch switch is blocked when backup storage permission is missing |  |  |  |
-| Early branch-switch Push gate blocks write `last_manual_cloud_push_blocked.txt` before any upload request starts |  |  |  |
-| Diagnostics show `Branch-switch manual Push prerequisites satisfied` only after marker evidence, Pull-after-switch evidence, Android local save evidence, and backup storage permission are all present |  |  |  |
-| Diagnostics show important Android local save evidence count in bounded scan and presence |  |  |  |
-| Diagnostics show backup storage permission and backup directory state |  |  |  |
-| Diagnostics show backup storage directory path and whether it exists |  |  |  |
-| Diagnostics show `Pre-Push local backup evidence count` and `Pre-Push cloud backup evidence count` |  |  |  |
-| Diagnostics show `Latest pre-Push local backup UTC` and `Latest pre-Push cloud backup UTC` |  |  |  |
-| Diagnostics show `Pre-Push local backup evidence after branch switch` and `Pre-Push cloud backup evidence after branch switch` |  |  |  |
-| Diagnostics show `Branch-switch pre-Push backup evidence satisfied` only after both local and cloud pre-Push backup evidence are newer than the branch-switch marker |  |  |  |
-| Manual Push creates `local-pre-push` backup evidence for every important Android local save before upload |  |  |  |
-| Manual Push creates `cloud-pre-push` backup evidence for every existing important Steam Cloud save before upload |  |  |  |
-| Manual Push fails before upload when Local Backup is enabled but required backup storage, full local pre-Push coverage, or full cloud pre-Push coverage is missing |  |  |  |
-| Blocked manual Push writes `last_manual_cloud_push_blocked.txt` with parseable UTC, selected branch, selected version, selected version slot kind, selected version slot directory, selected branch note, prerequisite status, local/cloud pre-Push backup counts, latest local/cloud backup UTC, backup evidence status, reason, and blocked-before-upload flag |  |  |  |
-| Successful manual Push writes `last_manual_cloud_push.txt` with parseable UTC, selected branch, selected version, selected version slot kind, selected version slot directory, selected branch note, local/cloud pre-Push backup counts, latest local/cloud backup UTC, completion flag, and recorded pre-Push backup evidence status |  |  |  |
-| Diagnostics show `Manual Push completed after branch switch for selected version with backup evidence` only after latest Push outcome is `completed`, Push marker freshness, completion, selected branch match, and pre-Push backup evidence are all satisfied |  |  |  |
+| Upload is eligible with transferable allowlisted local saves and no preceding Pull |  |  |  |
+| Upload is blocked when no transferable local saves exist |  |  |  |
+| Upload is blocked while an interrupted Pull marker exists |  |  |  |
+| Eligibility or context failures write `last_manual_cloud_push_blocked.txt` with the failure reason before any upload begins |  |  |  |
+| Steam game installation, branch-switch history, save-origin diagnostics, modded mode, and shared-storage permission do not control Upload eligibility |  |  |  |
+| Vanilla and modded transfers use explicit separate allowlists; device settings remain local |  |  |  |
+| Transfer context records authenticated SteamID64, vanilla/modded namespace, runtime/public-beta identity, and exact mod-set fingerprint when modded |  |  |  |
+| Account, namespace, runtime, branch, and mod-set mismatches fail without transfer success |  |  |  |
+| Source content is captured in an immutable snapshot before destination mutation |  |  |  |
+| Every destination overwrite or deletion is backed up before mutation |  |  |  |
+| Missing allowlisted primaries and history files propagate as destination tombstones; paired `.backup` sidecars are cleaned without becoming transfer content |  |  |  |
+| Upload, download, authentication, connection, deletion, and commit failures propagate; `file_committed=false` fails |  |  |  |
+| Destination data is read back and every transferred hash is verified before success |  |  |  |
+| No failure or hash mismatch reports `synced` |  |  |  |
+| Pull and Upload execute the same direction-parameterized transfer implementation |  |  |  |
+| Pull without a trusted remote context marker fails closed rather than silently adopting legacy data |  |  |  |
+| Branch-switch and Pull markers remain diagnostic history only, not Upload prerequisites |  |  |  |
 | Push confirmation names selected game version and preserves destructive overwrite warning |  |  |  |
 | Cross-branch save compatibility is validated or remains a release blocker |  |  |  |
 
@@ -229,14 +226,14 @@ Before collecting device evidence, run the local reviewer regression so false po
 | Workshop sync removes stale loose root-level staged files so only current item directories can be loaded by the recursive mod scan |  |  |  |
 | Broken/missing dependency/no-PCK Workshop mod records missing dependency IDs, failed/unsupported status, or `staged-no-pck` status and visible launcher/diagnostic status beginning with `Workshop mods need attention` instead of silently treating sync as clean |  |  |  |
 | Workshop manifest lists each item ID, title, status, PCK presence, file count, content hash, download source kind (`direct-url`, `ugc-hcontent`, or `depot-manifest`), manifest ID when depot-backed, expected download bytes, UGC content handle, fresh-vs-cached update state, sanitized download URL presence/host, dependency flag, required-by IDs, staged directory, source directory, and error without raw signed download URLs |  |  |  |
-| Derived Workshop state records manifest active PCK count, raw staged PCK count, `workshopCloudPushLocked`, and `steamCloudPushPerformed=false` |  |  |  |
+| Derived Workshop state records manifest active PCK count, raw staged PCK count, and `steamCloudPushPerformed=false` |  |  |  |
 | Required phase reviews prove `launchRequested=true` and reject focused launch logs containing `NativeFallback`, `FATAL EXCEPTION`, `SIGSEGV`, or equivalent crash/fallback signatures |  |  |  |
 | Public/public-beta/core-release game-start captures use `-StartGame` so logs prove the launcher tapped Start Game and loaded the selected PCK path |  |  |  |
-| Public/public-beta/core-release Workshop phase reviews prove staged Workshop PCK mods are present, Cloud Push is locked/off, and the Android Workshop mod-loader scan loaded staged mods |  |  |  |
+| Public/public-beta/core-release Workshop phase reviews prove staged Workshop PCK mods are present, no Steam Cloud Push occurred during capture, and the Android Workshop mod-loader scan loaded staged mods |  |  |  |
 | Public/public-beta/core-release Workshop phase evidence includes `current_runtime_slot.json`, `current_runtime_cache.txt`, `last_runtime_patch_validation.json`, runtime PCK/`sts2.dll` hashes, and selected runtime-pack manifest/validation files when a runtime pack is active |  |  |  |
 | Public-beta/core-release Workshop phase review rejects evidence unless the selected runtime cache PCK path is under `files/game_versions/<branch>-*`, runtime patch validation passed, and the selected runtime pack is clean/generated/validated |  |  |  |
-| Manual Steam Cloud Push is blocked when active Workshop PCK mods are staged, and the blocked marker records the reason before upload starts |  |  |  |
-| Manual Steam Cloud Push remains blocked when raw staged Workshop `.pck` files exist even if the Workshop manifest is missing or stale |  |  |  |
+| Manual modded Push uses a modded save namespace and the exact enabled mod-set fingerprint |  |  |  |
+| Manual modded Pull rejects a different account, branch/runtime identity, namespace, or mod-set fingerprint before overwriting local saves |  |  |  |
 | Public branch launches after Workshop sync or clear no-mods state with expected mod loader state |  |  |  |
 | Public-beta branch launches after Workshop sync or clear no-mods state with expected mod loader state |  |  |  |
 | Core-release branch launches after Workshop sync or clear no-mods state with expected mod loader state |  |  |  |
@@ -283,19 +280,16 @@ Use these exact labels when collecting validation screenshots or notes so the st
 - Branch switch selected branch matches current selected branch
 - Branch switch selected branch note
 - Branch switch local backup forced
-- Branch switch manual Push requires backup storage
 - Branch switch warning acknowledged
 - Branch switch non-public warning acknowledged
 - Branch switch marker has required safety evidence
 - Branch switch marker has required safety evidence for selected branch
-- Branch-switch manual Push prerequisites satisfied
 - Pre-Push local backup evidence count
 - Pre-Push cloud backup evidence count
 - Latest pre-Push local backup UTC
 - Latest pre-Push cloud backup UTC
 - Pre-Push local backup evidence after branch switch
 - Pre-Push cloud backup evidence after branch switch
-- Branch-switch pre-Push backup evidence satisfied
 - Manual Pull evidence marker filename
 - Manual Pull evidence marker path
 - Manual Pull evidence UTC
@@ -304,14 +298,18 @@ Use these exact labels when collecting validation screenshots or notes so the st
 - Manual Pull evidence selected version
 - Manual Pull evidence selected version slot kind
 - Manual Pull evidence selected version slot directory
-- Manual Pull completion flag recorded
-- Manual Pull completed before Push
+- Manual Pull outcome
+- Manual Pull outcome detail
+- Manual Pull completed
 - Manual Pull evidence is after branch switch
 - Manual Pull evidence matches selected branch
 - Manual Pull completed after branch switch
 - Current important Android local save evidence count
 - Current important Android local save evidence present
-- Baseline manual Push prerequisites satisfied
+- Incomplete Pull marker present
+- Selected save namespace
+- Runtime compatibility / branch identity
+- Mod-set fingerprint
 - Manual Push evidence marker filename
 - Manual Push evidence marker path
 - Manual Push evidence UTC
@@ -332,12 +330,8 @@ Use these exact labels when collecting validation screenshots or notes so the st
 - Manual Push evidence recorded latest local backup UTC
 - Manual Push evidence recorded latest cloud backup UTC
 - Manual Push evidence recorded important local save evidence count
-- Manual Push evidence recorded baseline prerequisites satisfied
-- Manual Push completion flag recorded
 - Manual Push evidence is after branch switch
 - Manual Push evidence matches selected branch
-- Manual Push evidence recorded pre-Push backup evidence satisfied
-- Manual Push completed after branch switch for selected version with backup evidence
 - Manual Push blocked evidence marker filename
 - Manual Push blocked evidence marker path
 - Manual Push blocked evidence UTC
@@ -347,14 +341,11 @@ Use these exact labels when collecting validation screenshots or notes so the st
 - Manual Push blocked evidence selected version slot kind
 - Manual Push blocked evidence selected version slot directory
 - Manual Push blocked evidence matches selected branch
-- Manual Push blocked evidence recorded prerequisites satisfied
 - Manual Push blocked evidence recorded local backup count
 - Manual Push blocked evidence recorded cloud backup count
 - Manual Push blocked evidence recorded latest local backup UTC
 - Manual Push blocked evidence recorded latest cloud backup UTC
 - Manual Push blocked evidence recorded important local save evidence count
-- Manual Push blocked evidence recorded baseline prerequisites satisfied
-- Manual Push blocked evidence recorded pre-Push backup evidence satisfied
 - Manual Push blocked evidence reason
 - Manual Push blocked before upload evidence recorded
 - Selected game branch marker depots matching public

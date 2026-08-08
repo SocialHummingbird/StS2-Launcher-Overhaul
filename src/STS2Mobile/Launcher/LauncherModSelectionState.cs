@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
+using STS2Mobile.Steam;
 using STS2Mobile.Steam.Workshop;
 
 namespace STS2Mobile.Launcher;
@@ -24,6 +26,7 @@ internal sealed class LauncherModSelectionDocument
 internal sealed class LauncherKnownMod
 {
     internal string Key { get; init; } = "";
+    internal string PortableIdentity { get; init; } = "";
     internal string Id { get; init; } = "";
     internal string Title { get; init; } = "";
     internal string Source { get; init; } = "";
@@ -78,15 +81,6 @@ internal static class LauncherModSelectionState
     internal static bool IsModdedModeFor(LauncherModSelectionDocument document)
         => PlayModeFor(document) == LauncherModPlayMode.Modded;
 
-    internal static bool PushShouldBeLocked()
-        => PushShouldBeLocked(Load());
-
-    internal static bool PushShouldBeLocked(LauncherModSelectionDocument document)
-        => IsModdedModeFor(document) && KnownMods(document).Any(mod => mod.Enabled && !mod.IsUnsupported);
-
-    internal static bool PushShouldBeLocked(IReadOnlyList<LauncherKnownMod> knownMods)
-        => EnabledModCount(knownMods) > 0;
-
     internal static int EnabledModCount()
         => EnabledModCount(Load());
 
@@ -97,6 +91,35 @@ internal static class LauncherModSelectionState
 
     internal static int EnabledModCount(IReadOnlyList<LauncherKnownMod> knownMods)
         => knownMods?.Count(mod => mod.Enabled && !mod.IsUnsupported) ?? 0;
+
+    internal static string EnabledModSetFingerprint()
+        => EnabledModSetFingerprint(Load());
+
+    internal static string EnabledModSetFingerprint(
+        LauncherModSelectionDocument document
+    )
+    {
+        if (!IsModdedModeFor(document))
+            return null;
+
+        return EnabledModSetFingerprint(KnownMods(document));
+    }
+
+    internal static string EnabledModSetFingerprint(
+        IReadOnlyList<LauncherKnownMod> knownMods
+    )
+    {
+        var identities = (knownMods ?? Array.Empty<LauncherKnownMod>())
+            .Where(mod => mod.Enabled && !mod.IsUnsupported)
+            .Select(mod => mod.PortableIdentity)
+            .Where(identity => !string.IsNullOrWhiteSpace(identity))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(identity => identity, StringComparer.Ordinal);
+        var canonical = string.Join("\n", identities);
+        return Convert.ToHexString(
+            AndroidJavaCrypto.Sha256HashData(Encoding.UTF8.GetBytes(canonical))
+        ).ToLowerInvariant();
+    }
 
     internal static int InstalledModCount()
         => KnownMods().Count(mod => !mod.IsUnsupported);
@@ -312,6 +335,7 @@ internal static class LauncherModSelectionState
             yield return new LauncherKnownMod
             {
                 Key = key,
+                PortableIdentity = key,
                 Id = item.PublishedFileId.ToString(),
                 Title = string.IsNullOrWhiteSpace(item.Title) ? item.PublishedFileId.ToString() : item.Title.Trim(),
                 Source = item.IsDependency ? "Workshop dependency" : "Workshop",
@@ -406,6 +430,7 @@ internal static class LauncherModSelectionState
             yield return new LauncherKnownMod
             {
                 Key = key,
+                PortableIdentity = ManualPortableIdentity(manifestId),
                 Id = id,
                 Title = title,
                 Source = "Manual",
@@ -482,6 +507,9 @@ internal static class LauncherModSelectionState
 
     private static string ManualKey(string directory, string id)
         => $"manual:{NormalizePath(directory)}:{id}";
+
+    private static string ManualPortableIdentity(string manifestId)
+        => $"manual:{(manifestId ?? string.Empty).Trim().ToLowerInvariant()}";
 
     private static string NormalizePath(string path)
     {

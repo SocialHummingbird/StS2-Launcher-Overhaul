@@ -29,14 +29,14 @@ function Add-SteamVersionSelectionActionCoreLayoutChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\Sections\ActionSection.CloudSafety.cs" `
-        "uses compact Play and Sync drawer detail labels for cloud-save safety" `
+        "uses compact transfer direction and overwrite copy for cloud-save safety" `
         @(
             "CompactPlaySyncDrawerText",
-            "Save Check",
-            "Get saves first",
+            "Save Transfer",
+            "Version:",
             "CompactCloudSafetyDetailText",
             "Saves for:",
-            "Get Steam saves before upload\. Upload can overwrite Steam\."
+            "Pull downloads saves\. Upload can overwrite Steam Cloud saves\."
         )
 
     Add-Check `

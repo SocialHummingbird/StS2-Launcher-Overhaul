@@ -32,8 +32,8 @@ Purpose:
 - Compact Steam Guard code-section checks are further split into construction, controls, responsive layout, and submission-normalization modules in `scripts/audit-steam-version-selection.code-section.construction.ps1`, `scripts/audit-steam-version-selection.code-section.controls.ps1`, `scripts/audit-steam-version-selection.code-section.responsive.ps1`, and `scripts/audit-steam-version-selection.code-section.submission.ps1`.
 - Branch runtime cache-safety checks are further split into selected redownload cleanup, inactive cache cleanup marker, and runtime-pack cleanup/preservation modules in `scripts/audit-steam-version-selection.branch-runtime.cache-safety.redownload.ps1`, `scripts/audit-steam-version-selection.branch-runtime.cache-safety.cleanup-markers.ps1`, and `scripts/audit-steam-version-selection.branch-runtime.cache-safety.runtime-packs.ps1`.
 - Native Android routing checks are further split into startup provenance, branch-info/pre-routing guidance, and fallback diagnostics/recovery modules in `scripts/audit-steam-version-selection.native-routing.startup-provenance.ps1`, `scripts/audit-steam-version-selection.native-routing.branch-info.ps1`, and `scripts/audit-steam-version-selection.native-routing.fallback.ps1`.
-- Manual Steam Cloud Push request checks are further split into safety gates, request construction/confirmation, and execution/lifecycle modules in `scripts/audit-steam-version-selection.cloud-safety.push-requests.gates.ps1`, `scripts/audit-steam-version-selection.cloud-safety.push-requests.request.ps1`, and `scripts/audit-steam-version-selection.cloud-safety.push-requests.execution.ps1`.
-- Branch-switch cloud-safety checks are further split into cached-version enumeration, marker identity/read parsing, and Push gate/write modules in `scripts/audit-steam-version-selection.cloud-safety.branch-switch.cache.ps1`, `scripts/audit-steam-version-selection.cloud-safety.branch-switch.marker.ps1`, and `scripts/audit-steam-version-selection.cloud-safety.branch-switch.gates.ps1`.
+- Manual Steam Cloud Upload request checks are split into live eligibility, request construction/confirmation, and execution/lifecycle modules in `scripts/audit-steam-version-selection.cloud-safety.push-requests.gates.ps1`, `scripts/audit-steam-version-selection.cloud-safety.push-requests.request.ps1`, and `scripts/audit-steam-version-selection.cloud-safety.push-requests.execution.ps1`.
+- Branch-switch cloud diagnostics are split into cached-version enumeration, marker identity/read parsing, and marker-history modules in `scripts/audit-steam-version-selection.cloud-safety.branch-switch.cache.ps1`, `scripts/audit-steam-version-selection.cloud-safety.branch-switch.marker.ps1`, and `scripts/audit-steam-version-selection.cloud-safety.branch-switch.gates.ps1`; branch history is not Upload eligibility.
 - Branch-switch local backup safety checks are further split into local save evidence, backup evidence, and Push enforcement modules in `scripts/audit-steam-version-selection.cloud-safety.local-backups.local-saves.ps1`, `scripts/audit-steam-version-selection.cloud-safety.local-backups.backup-evidence.ps1`, and `scripts/audit-steam-version-selection.cloud-safety.local-backups.push-enforcement.ps1`.
 - Auth/cloud cloud-safety boundary checks are further split into shell/Push orchestration, manual cloud evidence markers, and local backup/startup boundary modules in `scripts/audit-steam-version-selection.helper-boundaries.audit-modules.auth-cloud.cloud-safety.shell.ps1`, `scripts/audit-steam-version-selection.helper-boundaries.audit-modules.auth-cloud.cloud-safety.markers.ps1`, and `scripts/audit-steam-version-selection.helper-boundaries.audit-modules.auth-cloud.cloud-safety.backups.ps1`.
 - Native Android login-panel checks are further split into credential field/autofill, responsive layout/input routing, and short-lived credential handoff/cleanup modules in `scripts/audit-steam-version-selection.login-panel.native-android.fields.ps1`, `scripts/audit-steam-version-selection.login-panel.native-android.layout.ps1`, and `scripts/audit-steam-version-selection.login-panel.native-android.security.ps1`.
@@ -197,7 +197,7 @@ Purpose:
 - Captures non-secret local/cloud pre-Push backup filename listings and counts from external backup storage.
 - Copies `steam_branch.txt` marker files from app storage when present.
 - Copies `last_game_branch_switch.txt` branch-switch safety evidence when present.
-- Copies `last_manual_cloud_pull.txt` Pull-after-switch safety evidence when present.
+- Copies `last_manual_cloud_pull.txt` Pull branch-history evidence when present.
 - Copies `last_manual_cloud_push.txt` successful Push evidence when present.
 - Copies `last_manual_cloud_push_blocked.txt` blocked Push evidence when present.
 - Copies `last_game_version_cache_cleanup.txt` cleanup evidence when present.
@@ -358,7 +358,7 @@ Use the tools in this order:
 5. Capture device evidence after each meaningful phase.
 6. Run beta-integrity capture after a clean selected-branch redownload if public-beta appears mixed or art assets look wrong.
 7. Fill `evidence.md` as results are observed.
-8. Do not perform manual Push after a branch switch until Pull, local-save existence, backup permission, local pre-Push backup, and cloud pre-Push backup evidence are captured.
+8. Do not claim a manual transfer succeeded until the selected save context, immutable source snapshot, destination backup, propagated failure result, and destination hash read-back evidence are captured.
 
 ## Artifact hygiene
 

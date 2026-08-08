@@ -22,13 +22,14 @@ internal static partial class CloudSyncCoordinator
         internal static ManualSyncBudget StartingNow()
             => new(DateTime.UtcNow.AddMilliseconds(ManualSyncOverallTimeoutMs));
 
-        internal bool Exceeded(string message)
+        internal void ThrowIfExceeded()
         {
-            if (DateTime.UtcNow <= _deadline)
-                return false;
-
-            PatchHelper.Log(message);
-            return true;
+            if (DateTime.UtcNow > _deadline)
+            {
+                throw new TimeoutException(
+                    $"Save transfer exceeded {ManualSyncOverallTimeoutMs}ms"
+                );
+            }
         }
     }
 
@@ -36,6 +37,7 @@ internal static partial class CloudSyncCoordinator
     {
         private readonly ISaveStore _local;
         private readonly ICloudSaveStore _cloud;
+        private readonly ITransferSaveStore _cloudTransfer;
         private readonly ManualSyncBudget _budget;
         private readonly CloudOperationProgressTracker _progress;
         private readonly CancellationToken _cancellationToken;
@@ -50,111 +52,235 @@ internal static partial class CloudSyncCoordinator
         {
             _local = local;
             _cloud = cloud;
+            _cloudTransfer = cloud as ITransferSaveStore
+                ?? throw new InvalidOperationException(
+                    "Steam Cloud store does not support verified save transfer"
+                );
             _budget = budget;
             _progress = progress;
             _cancellationToken = cancellationToken;
         }
 
-        internal IReadOnlyCollection<string> DiscoverLocalPaths()
-        {
-            _cancellationToken.ThrowIfCancellationRequested();
-            return SavePathDiscovery.Get(_local, _cancellationToken);
-        }
+        internal Task<ulong> AuthenticateAsync()
+            => WaitAsync(
+                "Steam authentication",
+                token => _cloudTransfer.GetAuthenticatedSteamId64Async(token)
+            );
 
-        internal IReadOnlyCollection<string> DiscoverCloudPaths()
+        internal void PrepareCloudMetadata()
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-            if (_cloud is ICancellableCloudMetadataStore metadata)
+            Checkpoint();
+            if (_cloud is not ICancellableCloudMetadataStore metadata)
             {
-                metadata.PrepareFileMetadata(_cancellationToken);
+                throw new InvalidOperationException(
+                    "Steam Cloud store does not support reliable file listing"
+                );
             }
 
-            return SavePathDiscovery.Get(_cloud, _cancellationToken);
+            metadata.PrepareFileMetadata(_cancellationToken);
+            Checkpoint();
         }
 
-        internal bool CloudFileExists(string path)
+        internal IReadOnlyList<string> GetSourceHistoryFiles(
+            CloudOperationKind direction,
+            string directory
+        )
+            => GetHistoryFiles(
+                direction == CloudOperationKind.Push ? _local : _cloud,
+                directory
+            );
+
+        internal IReadOnlyList<string> GetDestinationHistoryFiles(
+            CloudOperationKind direction,
+            string directory
+        )
+            => GetHistoryFiles(
+                direction == CloudOperationKind.Push ? _cloud : _local,
+                directory
+            );
+
+        private IReadOnlyList<string> GetHistoryFiles(
+            ISaveStore store,
+            string directory
+        )
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-            return _cloud.FileExists(path);
+            Checkpoint();
+            if (!store.DirectoryExists(directory))
+                return Array.Empty<string>();
+
+            var files = store.GetFilesInDirectory(directory);
+            Checkpoint();
+            return files;
         }
 
-        internal async ValueTask<string?> ReadLocalFileAsync(string path)
-        {
-            _cancellationToken.ThrowIfCancellationRequested();
-            if (!_local.FileExists(path))
-                return null;
+        internal Task<bool> SourceFileExistsAsync(
+            CloudOperationKind direction,
+            string path
+        )
+            => direction == CloudOperationKind.Push
+                ? LocalFileExistsAsync(path)
+                : RemoteFileExistsAsync(path);
 
-            return await CancellableSaveStore.ReadFileAsync(
-                _local,
-                path,
-                _cancellationToken
-            ).ConfigureAwait(false);
-        }
+        internal Task<byte[]> ReadSourceFileBytesAsync(
+            CloudOperationKind direction,
+            string path
+        )
+            => direction == CloudOperationKind.Push
+                ? ReadLocalFileBytesAsync(path)
+                : ReadRemoteFileBytesForVerificationAsync(path);
 
-        internal async Task WriteLocalContentAsync(string path, string content)
-        {
-            await WaitForCloudOperationAsync(
-                $"WriteLocalFile {path}",
-                ManualSyncPerPathTimeoutMs,
-                token => CancellableSaveStore.WriteFileAsync(
-                    _local,
+        internal Task<bool> DestinationFileExistsAsync(
+            CloudOperationKind direction,
+            string path
+        )
+            => direction == CloudOperationKind.Push
+                ? RemoteFileExistsAsync(path)
+                : LocalFileExistsAsync(path);
+
+        internal Task<byte[]> ReadDestinationFileBytesAsync(
+            CloudOperationKind direction,
+            string path
+        )
+            => direction == CloudOperationKind.Push
+                ? ReadRemoteFileBytesForVerificationAsync(path)
+                : ReadLocalFileBytesAsync(path);
+
+        internal Task WriteDestinationFileBytesAsync(
+            CloudOperationKind direction,
+            string path,
+            byte[] content
+        )
+            => direction == CloudOperationKind.Push
+                ? WriteRemoteFileBytesAsync(path, content)
+                : WriteLocalFileBytesAsync(path, content);
+
+        internal Task DeleteDestinationFileAsync(
+            CloudOperationKind direction,
+            string path
+        )
+            => direction == CloudOperationKind.Push
+                ? DeleteRemoteFileAsync(path)
+                : DeleteLocalFileAsync(path);
+
+        internal Task<string> ReadRemoteFileForVerificationAsync(string path)
+            => WaitAsync(
+                $"Read and verify Steam Cloud file {path}",
+                token => _cloudTransfer.ReadFileForVerificationAsync(path, token)
+            );
+
+        internal Task<byte[]> ReadRemoteFileBytesForVerificationAsync(
+            string path
+        )
+            => WaitAsync(
+                $"Read and verify raw Steam Cloud file {path}",
+                token => _cloudTransfer.ReadFileBytesForVerificationAsync(
                     path,
-                    content,
                     token
-                ),
-                _cancellationToken
-            ).ConfigureAwait(false);
-            _cancellationToken.ThrowIfCancellationRequested();
-            PatchHelper.Log($"[Cloud] Local write path: {path} -> {_local.GetFullPath(path)}");
-        }
+                )
+            );
 
-        internal Task WriteCloudFileAsync(string path, string content)
-        {
-            return WaitForCloudOperationAsync(
-                $"WriteCloudFile {path}",
-                ManualSyncPerPathTimeoutMs,
+        internal Task<bool> RemoteFileExistsAsync(string path)
+            => WaitAsync(
+                $"Verify Steam Cloud file existence {path}",
+                token => _cloudTransfer.FileExistsForVerificationAsync(path, token)
+            );
+
+        internal Task WriteRemoteFileAsync(string path, string content)
+            => WaitAsync(
+                $"Write Steam Cloud file {path}",
                 token => CancellableSaveStore.WriteFileAsync(
                     _cloud,
                     path,
                     content,
                     token
-                ),
-                _cancellationToken
+                )
             );
+
+        internal Task WriteRemoteFileBytesAsync(string path, byte[] content)
+            => WaitAsync(
+                $"Write raw Steam Cloud file {path}",
+                token => CancellableSaveStore.WriteBytesAsync(
+                    _cloud,
+                    path,
+                    content,
+                    token
+                )
+            );
+
+        internal Task DeleteRemoteFileAsync(string path)
+            => WaitAsync(
+                $"Delete Steam Cloud file {path}",
+                token => _cloudTransfer.DeleteFileAsync(path, token)
+            );
+
+        internal Task<string> ReadLocalFileAsync(string path)
+            => WaitAsync(
+                $"Read local save {path}",
+                token => CancellableSaveStore.ReadFileAsync(
+                    _local,
+                    path,
+                    token
+                )
+            );
+
+        internal Task<byte[]> ReadLocalFileBytesAsync(string path)
+            => WaitAsync(
+                $"Read raw local save {path}",
+                token => CancellableSaveStore.ReadBytesAsync(
+                    _local,
+                    path,
+                    token
+                )
+            );
+
+        internal Task WriteLocalFileAsync(string path, string content)
+            => WaitAsync(
+                $"Write local save {path}",
+                token => CancellableSaveStore.WriteFileAsync(
+                    _local,
+                    path,
+                    content,
+                    token
+                )
+            );
+
+        internal Task WriteLocalFileBytesAsync(string path, byte[] content)
+            => WaitAsync(
+                $"Write raw local save {path}",
+                token => CancellableSaveStore.WriteBytesAsync(
+                    _local,
+                    path,
+                    content,
+                    token
+                )
+            );
+
+        internal Task DeleteLocalFileAsync(string path)
+            => WaitAsync(
+                $"Delete local save {path}",
+                token => CancellableSaveStore.DeleteFileAsync(
+                    _local,
+                    path,
+                    token
+                )
+            );
+
+        internal Task<bool> LocalFileExistsAsync(string path)
+        {
+            Checkpoint();
+            var exists = _local.FileExists(path);
+            Checkpoint();
+            return Task.FromResult(exists);
         }
 
-        internal Task<string> ReadCloudContentAsync(string path, string operation)
-            => CloudSyncCoordinator.ReadCloudContentAsync(
-                _cloud,
-                path,
-                operation,
-                ManualSyncPerPathTimeoutMs,
-                _cancellationToken
-            );
-
-        internal Task WriteLocalContentFromCloudAsync(string path, string content)
-            => CloudSyncCoordinator.WriteLocalContentFromCloudAsync(
-                _local,
-                _cloud,
-                path,
-                content,
-                ManualSyncPerPathTimeoutMs,
-                _cancellationToken
-            );
-
-        internal bool BudgetExceeded(string message)
+        internal void Checkpoint()
         {
             _cancellationToken.ThrowIfCancellationRequested();
-            return _budget.Exceeded(message);
+            _budget.ThrowIfExceeded();
         }
 
-        internal CancellationToken CancellationToken
-            => _cancellationToken;
-
-        internal void ReportEnumerationStarted()
-            => _progress.EnumerationStarted(
-                "Checking Steam Cloud save locations"
-            );
+        internal void ReportEnumerationStarted(string message)
+            => _progress.EnumerationStarted(message);
 
         internal void ReportEnumerationCompleted(int pathCount)
             => _progress.EnumerationCompleted(pathCount);
@@ -162,89 +288,59 @@ internal static partial class CloudSyncCoordinator
         internal void ReportBackupStarted(int totalCount)
             => _progress.BackupStarted(totalCount);
 
-        internal void ReportBackupProcessed(string path, bool created)
-            => _progress.BackupProcessed(path, created);
-
         internal void ReportBackupPathStarted(string path)
             => _progress.BackupPathStarted(path);
 
-        internal void ReportProfilePreparationStarted(int totalCount)
-            => _progress.ProfilePreparationStarted(totalCount);
-
-        internal void ReportProfilePreparationProcessed(
-            string path,
-            bool backupCreated
-        )
-            => _progress.ProfilePreparationProcessed(path, backupCreated);
-
-        internal void ReportProfilePreparationPathStarted(string path)
-            => _progress.ProfilePreparationPathStarted(path);
+        internal void ReportBackupProcessed(string path, bool created)
+            => _progress.BackupProcessed(path, created);
 
         internal void ReportTransferStarted(int totalCount)
             => _progress.TransferStarted(totalCount);
 
-        internal void ReportTransferProcessed(
-            string path,
-            CloudTransferPathOutcome outcome
-        )
-            => _progress.TransferProcessed(path, outcome);
-
         internal void ReportTransferPathStarted(string path)
             => _progress.TransferPathStarted(path);
 
-        internal void ReportProfileSeedingStarted(int totalCount)
-            => _progress.ProfileSeedingStarted(totalCount);
+        internal void ReportTransferProcessed(string path)
+            => _progress.TransferProcessed(path);
 
-        internal void ReportProfileSeedProcessed(string path, bool seeded)
-            => _progress.ProfileSeedProcessed(path, seeded);
-
-        internal void ReportProfileSeedPathStarted(string path)
-            => _progress.ProfileSeedPathStarted(path);
-
-        internal void ReportFinalizing(string currentItem)
-            => _progress.Finalizing(currentItem);
-
-        internal LocalBackupRefreshResult RefreshLocalBackupMirror()
-            => SaveBackups.RefreshLocalMirror(
-                _local,
-                restoreMissing: false,
-                _cancellationToken
-            );
+        internal void ReportFinalizing(string message)
+            => _progress.Finalizing(message);
 
         internal CloudOperationState ProgressState
             => _progress.State;
 
-    }
+        internal CancellationToken CancellationToken
+            => _cancellationToken;
 
-    private static ManualSyncContext CreateManualSyncContext(
-        string accountName,
-        string refreshToken,
-        CloudOperationProgressTracker progress,
-        CancellationToken cancellationToken
-    )
-    {
-        var store = CloudSaveStoreFactory.CreateCloudSaveStore(accountName, refreshToken);
-        return CreateManualSyncContext(
-            store.LocalStore,
-            store.CloudStore,
-            progress,
-            cancellationToken
-        );
-    }
+        internal ISaveStore LocalStore
+            => _local;
 
-    private static ManualSyncContext CreateManualSyncContext(
-        ISaveStore local,
-        ICloudSaveStore cloud,
-        CloudOperationProgressTracker progress,
-        CancellationToken cancellationToken
-    )
-    {
-        return new ManualSyncContext(
-            local,
-            cloud,
-            ManualSyncBudget.StartingNow(),
-            progress,
-            cancellationToken
-        );
+        private Task WaitAsync(
+            string operation,
+            Func<CancellationToken, Task> run
+        )
+        {
+            Checkpoint();
+            return WaitForCloudOperationAsync(
+                operation,
+                ManualSyncPerPathTimeoutMs,
+                run,
+                _cancellationToken
+            );
+        }
+
+        private Task<T> WaitAsync<T>(
+            string operation,
+            Func<CancellationToken, Task<T>> run
+        )
+        {
+            Checkpoint();
+            return WaitForCloudOperationAsync(
+                operation,
+                ManualSyncPerPathTimeoutMs,
+                run,
+                _cancellationToken
+            );
+        }
     }
 }

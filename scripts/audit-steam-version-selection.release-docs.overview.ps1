@@ -7,9 +7,10 @@ function Add-SteamVersionSelectionReleaseDocsOverviewChecks {
             "Current release decision: not release-ready",
             "active install slot",
             "selected-cache-preserved aggregate",
-            "Manual Pull completed before Push",
-            "Current important Android local save evidence count",
-            "Baseline manual Push prerequisites satisfied",
+            "Upload eligibility",
+            "transferable allowlisted saves",
+            "file_committed=false",
+            "destination read-back hash verification",
             "beta password",
             "save compatibility",
             "steam-version-selection-release-readiness\.md",
@@ -33,7 +34,7 @@ function Add-SteamVersionSelectionReleaseDocsOverviewChecks {
             "Autofill",
             "Artifact hygiene",
             "ARM64",
-            "Pull-before-Push",
+            "Current Stage 2 uses one verified Pull/Upload transfer",
             "not release-candidate signed off"
         )
 

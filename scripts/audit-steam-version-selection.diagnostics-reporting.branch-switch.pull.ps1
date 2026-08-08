@@ -1,7 +1,7 @@
 function Add-SteamVersionSelectionDiagnosticsReportingBranchSwitchPullChecks {
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportBranchSwitchSafety.Pull.cs" `
-        "reports Manual Pull evidence for branch-switch Push safety" `
+        "reports Manual Pull outcome and branch history independently of Push" `
         @(
             "AppendManualPullEvidence",
             "Manual Pull evidence marker filename",
@@ -15,8 +15,9 @@ function Add-SteamVersionSelectionDiagnosticsReportingBranchSwitchPullChecks {
             "Manual Pull evidence selected version",
             "Manual Pull evidence selected version slot kind",
             "Manual Pull evidence selected version slot directory",
-            "Manual Pull completion flag recorded",
-            "Manual Pull completed before Push",
+            "Manual Pull outcome",
+            "Manual Pull outcome detail",
+            "Manual Pull completed",
             "Manual Pull evidence is after branch switch",
             "Manual Pull evidence matches selected branch",
             "Manual Pull completed after branch switch for selected version"

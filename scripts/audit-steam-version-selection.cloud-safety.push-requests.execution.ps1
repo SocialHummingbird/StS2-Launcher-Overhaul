@@ -12,10 +12,23 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
             "SetPushPullDisabled\(true\)",
             "SetPushPullDisabled\(false\)",
             "CloudPostOperationRefresh\.ResolveCompletion",
+            "OnSuccessfulCompletion",
+            "completion diagnostic could not be recorded",
             "PatchHelper\.Log",
             "LauncherTimeout\.RunOrThrowAsync",
             "Task<ManualCloudSyncResult>",
             "TimeoutMs"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.Lifecycle.cs" `
+        "does not turn diagnostic marker failure into transfer failure or partial success" `
+        @(
+            "CompletionEvidenceRequired",
+            "RecordCompletionEvidence",
+            "RecordIncompleteResult",
+            "ManualCloudSyncCompletion",
+            "PartialSuccess"
         )
 
     Add-Check `
@@ -47,37 +60,43 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
 
     Add-Check `
         "src\STS2Mobile\Steam\CloudOperationState.cs" `
-        "models every observable Pull phase and cumulative operation count" `
+        "models only live Pull phases and verified cumulative counts" `
         @(
             "CloudOperationKind",
             "CloudOperationPhase",
             "Preparing",
             "Enumerating",
             "BackingUp",
-            "PreparingProfiles",
             "Transferring",
-            "SeedingProfiles",
             "Finalizing",
             "Completed",
-            "PartiallyCompleted",
             "Failed",
             "EnumeratedPathCount",
             "BackupProcessedCount",
             "BackupCreatedCount",
             "TransferProcessedCount",
             "TransferCompletedCount",
-            "TransferSkippedCount",
-            "TransferFailedCount",
-            "TransferTimedOutCount",
-            "ProfileSeedProcessedCount",
-            "ProfileSeededCount",
             "IsActive",
             "IsTerminal"
         )
 
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Steam\CloudOperationState.cs" `
+        "does not model transfer outcomes that the all-or-throw operation cannot return" `
+        @(
+            "PreparingProfiles",
+            "SeedingProfiles",
+            "PartiallyCompleted",
+            "CloudTransferPathOutcome",
+            "TransferSkippedCount",
+            "TransferFailedCount",
+            "TransferTimedOutCount",
+            "ProfileSeed"
+        )
+
     Add-Check `
         "src\STS2Mobile\Steam\CloudOperationProgressTracker.cs" `
-        "publishes immutable snapshots for every Pull phase and count update" `
+        "publishes immutable snapshots for live Pull phases and verified count updates" `
         @(
             "CloudOperationProgressTracker",
             "Action<CloudOperationState>",
@@ -86,81 +105,176 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
             "BackupStarted",
             "BackupPathStarted",
             "BackupProcessed",
-            "ProfilePreparationStarted",
-            "ProfilePreparationPathStarted",
-            "ProfilePreparationProcessed",
             "TransferStarted",
             "TransferPathStarted",
             "TransferProcessed",
-            "ProfileSeedingStarted",
-            "ProfileSeedPathStarted",
-            "ProfileSeedProcessed",
             "Finalizing",
             "Completed",
-            "PartiallyCompleted",
             "Failed",
             "_publish\?\.Invoke\(_state\)"
         )
 
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Steam\CloudOperationProgressTracker.cs" `
+        "does not retain skipped, partial, profile-preparation, or profile-seeding branches" `
+        @(
+            "CloudTransferPathOutcome",
+            "PartiallyCompleted",
+            "ProfilePreparation",
+            "ProfileSeed",
+            "TransferSkipped",
+            "TransferFailed",
+            "TransferTimedOut"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.cs" `
+        "routes context-required Push and Pull entry points to one direction-parameterized sync operation" `
+        @(
+            "ManualPushAllAsync",
+            "ManualPullAllAsync",
+            "SaveNamespace saveNamespace",
+            "string runtimeIdentity",
+            "string modSetFingerprint",
+            "CloudOperationKind\.Push",
+            "CloudOperationKind\.Pull",
+            "RunManualSyncAsync"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.cs" `
+        "does not restore contextless defaults or direction-specific transfer implementations" `
+        @(
+            "SaveNamespace saveNamespace = SaveNamespace\.Vanilla",
+            "RunManualPush",
+            "RunManualPull",
+            "ContentTransfer",
+            "ModdedSaveSeed"
+        )
+
     Add-Check `
         "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Plan.cs" `
-        "reports preparation, enumeration, backup, completion, and failure from the production sync plan" `
+        "owns authentication setup and reports only verified transfer completion or failure" `
         @(
             "progress\.Preparing",
-            "ReportEnumerationStarted",
-            "ReportEnumerationCompleted",
-            "ReportBackupStarted",
+            "new ManualSyncContext",
+            "RunTransferAsync",
             "progress\.Completed",
-            "progress\.Failed"
+            "progress\.Failed",
+            "throw;"
         )
 
     Add-Check `
-        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Pull.cs" `
-        "reports each production Pull transfer and finalization step" `
+        "src\STS2Mobile\Steam\ManualCloudSyncResult.cs" `
+        "reports only data from a fully verified transfer" `
         @(
-            "ReportTransferStarted\(paths\.Count\)",
-            "ReportTransferPathStarted\(path\)",
-            "ReportTransferProcessed",
-            "result\.Outcome",
-            "ManualSyncTransferSummary",
-            "BuildResult",
-            "ReportFinalizing"
+            "CloudOperationKind Kind",
+            "int TransferredPathCount",
+            "int BackupCreatedCount",
+            "string Detail"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Steam\ManualCloudSyncResult.cs" `
+        "does not represent partial, skipped, failed, timed-out, or post-processing outcomes" `
+        @(
+            "ManualCloudSyncCompletion",
+            "CandidatePathCount",
+            "CompletedPathCount",
+            "SkippedPathCount",
+            "FailedPathCount",
+            "TimedOutPathCount",
+            "UnprocessedPathCount",
+            "PrivateBackup",
+            "ProfileSeed",
+            "PostProcessing",
+            "FaultCount",
+            "CanRecordCompletionEvidence"
         )
 
     Add-Check `
-        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.ModdedSaveSeed.cs" `
-        "reports private target preparation and every modded profile seed decision" `
+        "src\STS2Mobile\Launcher\CloudOperationTerminalPresentation.cs" `
+        "reports verified completion as success and incomplete work only through thrown terminal outcomes" `
         @(
-            "ReportProfilePreparationStarted",
-            "ReportProfilePreparationPathStarted",
-            "ReportProfilePreparationProcessed",
-            "backupCreated: false",
-            "backupCreated: true",
-            "ReportProfileSeedingStarted",
-            "ReportProfileSeedPathStarted",
-            "ReportProfileSeedProcessed",
-            "seeded: false",
-            "seeded: true"
+            "CloudOperationTerminalOutcome\.Success",
+            "CreateCompletion",
+            "Pull succeeded",
+            "Upload succeeded",
+            "CreateTimeout",
+            "CreateFailure",
+            "CreateCancelled",
+            "TransferredPathCount"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\CloudOperationTerminalPresentation.cs" `
+        "does not claim partial transfer success or gate Upload on legacy evidence" `
+        @(
+            "PartialSuccess",
+            "ManualCloudSyncCompletion",
+            "CompletionEvidence",
+            "Upload remains locked"
         )
 
     Add-Check `
-        "src\STS2Mobile\Steam\CloudSyncCoordinator.SaveBackups.ManualRunner.cs" `
-        "publishes the current backup path before each potentially slow backup read or write" `
+        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Transfer.cs" `
+        "implements Push and Pull once from an immutable snapshot with mandatory backup and verification" `
         @(
-            "Action<string>\? reportStarted",
-            "Action<string, bool>\? reportProcessed",
-            "reportStarted\?\.Invoke\(path\)",
-            "await plan\.TryBackupPathAsync\(",
-            "cancellationToken",
-            "reportProcessed\?\.Invoke\(path, created\)"
+            "RunTransferAsync",
+            "CloudOperationKind direction",
+            "SaveContext\.Create",
+            "CaptureSourceSnapshotAsync",
+            "BackupDestinationsAsync",
+            "foreach \(var item in snapshot\)",
+            "WriteDestinationFileAsync",
+            "ReadDestinationFileAsync",
+            "DeleteDestinationFileAsync",
+            "RequireHash",
+            "WriteAndVerifyRemoteAsync",
+            "WriteAndVerifyLocalAsync"
         )
 
     Add-Check `
-        "src\STS2Mobile\Steam\CloudSyncCoordinator.SaveBackups.Manual.cs" `
-        "connects production backup passes to current-path and count reporting" `
+        "src\STS2Mobile\Steam\SaveContext.cs" `
+        "binds transfers to the authenticated account, namespace, runtime identity, and exact mod set" `
         @(
-            "sync\.ReportBackupPathStarted",
-            "sync\.ReportBackupProcessed"
+            "ulong SteamId64",
+            "SaveNamespace Namespace",
+            "string RuntimeIdentity",
+            "string ModSetFingerprint",
+            "SteamID64 must be authenticated",
+            "Vanilla saves cannot carry a mod-set fingerprint",
+            "Modded saves require a mod-set fingerprint",
+            "RequireExactMatch",
+            "Steam account",
+            "save namespace",
+            "runtime compatibility/branch",
+            "mod set"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Steam\SaveTransferAllowlist.cs" `
+        "defines explicit namespace-aware save paths while leaving device settings out" `
+        @(
+            'SharedProfilePath = "profile\.save"',
+            'ProgressFile = "progress\.save"',
+            'PreferencesFile = "prefs\.save"',
+            'CurrentRunFile = "current_run\.save"',
+            'CurrentMultiplayerRunFile = "current_run_mp\.save"',
+            'saveNamespace == SaveNamespace\.Modded \? "modded/" : ""',
+            'HistoryDirectory',
+            'RunHistoryLimit = 100',
+            'IsAllowedPath',
+            'IsAllowedHistoryFilename'
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Steam\SaveTransferAllowlist.cs" `
+        "does not broaden transfer scope to device settings or invented modded root metadata" `
+        @(
+            "settings",
+            'modded/profile\.save',
+            "SavePathDiscovery"
         )
 
     Add-Check `
@@ -170,17 +284,12 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
             "CloudOperationPresentation",
             "Finding Steam Cloud saves",
             "Backing up Android saves",
-            "Protecting modded profiles",
             "Downloading Steam Cloud saves",
-            "Preparing modded profiles",
             'Finishing \{operation\}',
             '\{operation\} complete',
-            "PartiallyCompleted",
             '\{operation\} stopped',
             "TransferProcessedCount",
             "TransferCompletedCount",
-            "TransferTimedOutCount",
-            "ProfileSeededCount",
             "Current:",
             "ProgressFor",
             "TransferTotalCount"
@@ -222,22 +331,20 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
             "CompletedPullState",
             "SetCloudOperationState",
             "TransferPathStarted",
-            "ProfileSeedProcessed",
             "tracker\.Completed"
         )
 
     Add-Check `
         "tools\LauncherUiPreview\LauncherCloudProgressPreviewValidator.cs" `
-        "checks rendered Pull phase, counts, current item, failures, seeds, and progress" `
+        "checks rendered Pull phase, verified counts, current item, and progress" `
         @(
             "Downloading Steam Cloud saves",
             "11/24 checked",
-            "8 downloaded",
+            "11 verified",
             "Current: profile2/saves/progress\.save",
             "Pull complete",
             "24/24 checked",
-            "1 failed",
-            "4 modded file\(s\) seeded",
+            "24 verified",
             "progress\.Value",
             "Cancel Cloud Operation",
             "expectedVisible: true",
@@ -394,16 +501,25 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
 
     Add-Check `
         "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Context.cs" `
-        "threads the owned token through discovery, metadata, reads, writes, and mirror finalization" `
+        "threads one owned token through direction-neutral source, destination, and verification operations" `
         @(
+            "ITransferSaveStore _cloudTransfer",
             "CancellationToken _cancellationToken",
-            "SavePathDiscovery\.Get\(_local, _cancellationToken\)",
+            "GetAuthenticatedSteamId64Async",
             "metadata\.PrepareFileMetadata\(_cancellationToken\)",
-            "SavePathDiscovery\.Get\(_cloud, _cancellationToken\)",
+            "GetSourceHistoryFiles",
+            "SourceFileExistsAsync",
+            "ReadSourceFileAsync",
+            "DestinationFileExistsAsync",
+            "ReadDestinationFileAsync",
+            "WriteDestinationFileAsync",
+            "DeleteDestinationFileAsync",
+            "ReadFileForVerificationAsync",
+            "FileExistsForVerificationAsync",
+            "DeleteFileAsync",
             "CancellableSaveStore\.ReadFileAsync",
             "CancellableSaveStore\.WriteFileAsync",
             "WaitForCloudOperationAsync",
-            "RefreshLocalMirror\(",
             "_cancellationToken"
         )
 
@@ -414,28 +530,34 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
             "internal string\? ReadLocalFile",
             "RunCloudBatchImmediate",
             "EndSaveBatchAndUploadNow",
-            "FlushCloudWrites"
+            "FlushCloudWrites",
+            "SavePathDiscovery",
+            "RefreshLocalMirror"
         )
 
     Add-Check `
-        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Push.cs" `
-        "awaits each manual upload directly under the operation token" `
+        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Transfer.cs" `
+        "awaits each transfer mutation and verifies the resulting destination state" `
         @(
-            "sync\.CancellationToken\.ThrowIfCancellationRequested\(\)",
-            "await sync\.ReadLocalFileAsync\(path\)",
-            "await sync\.WriteCloudFileAsync\(path, local\)",
-            "catch \(OperationCanceledException\)",
-            "when \(sync\.CancellationToken\.IsCancellationRequested\)"
+            "sync\.Checkpoint\(\)",
+            "await sync\.WriteDestinationFileAsync",
+            "await sync\.ReadDestinationFileAsync",
+            "await sync\.DeleteDestinationFileAsync",
+            "await sync\.DestinationFileExistsAsync",
+            'RequireHash\(item\.Path, item\.Sha256, verified, "destination"\)',
+            "ReportTransferProcessed"
         )
 
     Add-ForbiddenCheck `
-        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Push.cs" `
-        "cannot enqueue hidden manual uploads after Push returns" `
+        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Transfer.cs" `
+        "cannot enqueue hidden uploads, seed across namespaces, or refresh an optional mirror after returning" `
         @(
             "RunCloudBatchImmediate",
             "EndSaveBatchAndUploadNow",
             "EnqueueUpload",
-            "CancellationToken\.None"
+            "CancellationToken\.None",
+            "ModdedSaveSeed",
+            "RefreshLocalMirror"
         )
 
     Add-Check `

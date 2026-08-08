@@ -2,20 +2,18 @@ using HarmonyLib;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Saves;
 using STS2Mobile.Launcher;
-using STS2Mobile.Steam;
 using System;
-using System.Reflection;
 using System.Threading.Tasks;
 
 namespace STS2Mobile.Patches;
 
-// Installs Harmony hooks for the mobile launcher, cloud-save bridge, and Android startup behavior.
+// Installs Harmony hooks for the mobile launcher and Android startup behavior.
 internal static class LauncherPatches
 {
     internal static void Apply(Harmony harmony)
     {
         ApplyGamePatches(harmony);
-        ApplyCloudSavePatches(harmony);
+        ApplySaveManagerPatches(harmony);
     }
 
     private static void ApplyGamePatches(Harmony harmony)
@@ -41,7 +39,7 @@ internal static class LauncherPatches
         );
     }
 
-    private static void ApplyCloudSavePatches(Harmony harmony)
+    private static void ApplySaveManagerPatches(Harmony harmony)
     {
         PatchHelper.Patch(
             harmony,
@@ -50,46 +48,6 @@ internal static class LauncherPatches
             prefix: PatchHelper.Method(
                 typeof(LauncherPatches),
                 nameof(ConstructDefault)
-            )
-        );
-
-        PatchHelper.PatchCritical(
-            harmony,
-            typeof(CloudSaveStore),
-            "SyncCloudToLocal",
-            prefix: PatchHelper.Method(
-                typeof(LauncherPatches),
-                nameof(SyncCloudToLocal)
-            )
-        );
-
-        var firstTimeCloudSync = typeof(SaveManager).GetMethod(
-            "TryFirstTimeCloudSync",
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static
-        );
-        if (firstTimeCloudSync == null)
-        {
-            PatchHelper.Log("[Cloud] SaveManager.TryFirstTimeCloudSync not present; skipping first-time cloud sync patch");
-        }
-        else
-        {
-            harmony.Patch(
-                firstTimeCloudSync,
-                prefix: new HarmonyMethod(PatchHelper.Method(
-                    typeof(LauncherPatches),
-                    nameof(TryFirstTimeCloudSync)
-                ))
-            );
-            PatchHelper.Log("Patched SaveManager.TryFirstTimeCloudSync");
-        }
-
-        PatchHelper.PatchCritical(
-            harmony,
-            typeof(SaveManager),
-            "SyncCloudToLocal",
-            prefix: PatchHelper.Method(
-                typeof(LauncherPatches),
-                nameof(SaveManagerSyncCloudToLocal)
             )
         );
     }
@@ -111,48 +69,11 @@ internal static class LauncherPatches
 
     private static bool ConstructDefault(ref SaveManager __result)
     {
-        PatchHelper.Log($"[Cloud] ConstructDefaultPrefix called. {LauncherCloudSaveState.StatusSummary}");
-
-        if (!LauncherCloudSaveState.TryCreateEnabledSaveManager(out var saveManager))
-            return true;
-
-        __result = saveManager;
-        return false;
-    }
-
-    private static bool SyncCloudToLocal(
-        CloudSaveStore __instance,
-        string path,
-        ref Task __result
-    )
-    {
-        __result = CloudSyncCoordinator.AutoSyncFileAsync(
-            __instance.LocalStore,
-            __instance.CloudStore,
-            path
-        );
-        return false;
-    }
-
-    private static bool TryFirstTimeCloudSync(ref Task<bool> __result)
-    {
         if (!OperatingSystem.IsAndroid())
             return true;
 
-        __result = Task.FromResult(false);
-        PatchHelper.Log("[Cloud] Skipping upstream first-time cloud sync on Android");
+        PatchHelper.Log("[Save] Constructing Android gameplay SaveManager");
+        __result = LauncherCloudSaveState.CreateAndroidGameplaySaveManager();
         return false;
     }
-
-    private static bool SaveManagerSyncCloudToLocal(ref Task __result)
-    {
-        if (!OperatingSystem.IsAndroid())
-            return true;
-
-        __result = Task.CompletedTask;
-        PatchHelper.Log("[Cloud] Skipping upstream startup cloud sync on Android");
-        SteamKit2CloudSaveStore.DisposeActive("[Cloud] Disposing SteamKit cloud store after skipped Android startup sync");
-        return false;
-    }
-
 }

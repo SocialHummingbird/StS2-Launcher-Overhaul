@@ -1,6 +1,6 @@
 # Steam Version Selection Save Compatibility Matrix
 
-This matrix tracks save behavior when switching between Steam game versions. Until these rows have current ARM64 evidence, save compatibility across branches remains unknown. Steam Cloud Push must be treated as destructive unless the selected version has fresh Pull-before-Push evidence and Android local save evidence; after a branch switch, the extra branch-switch backup gates also apply.
+This matrix tracks save behavior when switching between Steam game versions. Until these rows have current ARM64 evidence, save compatibility across branches remains unknown. Steam Cloud Upload remains destructive, but Pull and branch history are not prerequisites; safety comes from exact transfer context, destination backup, failure propagation, and verified read-back.
 
 ## Rule
 
@@ -37,19 +37,21 @@ Each completed row should include:
 
 ## Push safety matrix
 
-| Scenario | Minimum gate before Push | Current state |
+| Scenario | Transfer requirement | Current state |
 | --- | --- | --- |
-| No branch switch in current session | Pull first for the selected version, verify Android local saves exist, confirm overwrite-risk prompt intentionally, and confirm diagnostics/markers show `Manual Pull completed before Push`, current important Android local save evidence, and `Baseline manual Push prerequisites satisfied` | Needs newest-public evidence |
-| Public/default to beta switch | Pull first for the selected version, local saves exist, local backup enabled, backup storage permission available, local pre-Push backup exists, cloud pre-Push backup exists, `last_manual_cloud_push.txt` records selected branch, baseline prerequisites, local-save evidence, and backup evidence | Missing ARM64 evidence |
-| Beta to public/default switch | Pull first for the selected version, local saves exist, local backup enabled, backup storage permission available, local pre-Push backup exists, cloud pre-Push backup exists, `last_manual_cloud_push.txt` records selected branch, baseline prerequisites, local-save evidence, and backup evidence | Missing ARM64 evidence |
-| Missing backup storage permission after branch switch | Push must remain blocked | Missing ARM64 evidence |
+| No branch switch in current session | Selected namespace has transferable allowlisted local saves, no interrupted Pull marker exists, and the overwrite prompt is confirmed intentionally | Needs newest-public evidence |
+| Public/default to beta switch | Runtime/public-beta context matches exactly; destination backup and verified read-back succeed | Missing ARM64 evidence |
+| Beta to public/default switch | Runtime/public-beta context matches exactly; destination backup and verified read-back succeed | Missing ARM64 evidence |
+| Vanilla to modded or changed mod set | Namespace and exact mod-set fingerprint must match; cross-context transfer fails | Missing ARM64 evidence |
+| Different Steam account | Authenticated SteamID64 mismatch fails without reporting success | Missing ARM64 evidence |
+| Interrupted Pull marker present | Upload remains blocked until the interrupted Pull is retried successfully | Missing ARM64 evidence |
 
 ## Release decision language
 
 Use this wording until the matrix is complete:
 
 ```text
-Save compatibility between public and beta Steam branches is not yet proven. Pull from Cloud for the selected version and verify Android local saves exist before any Push. After switching branches, do not Push unless Pull from Cloud after the branch switch, Pull-after-switch evidence, backup storage permission, local/cloud pre-Push backup evidence, and successful Push marker evidence are present.
+Save compatibility between public and beta Steam branches is not yet proven. Pull and Upload are independent operations; Pull is not an Upload prerequisite. Upload only the intended local namespace, verify the exact account/runtime/mod-set context, and keep the overwrite warning explicit until controlled ARM64 evidence proves destination backup and remote read-back verification.
 ```
 
 Only soften this wording after ARM64 evidence proves the relevant rows.

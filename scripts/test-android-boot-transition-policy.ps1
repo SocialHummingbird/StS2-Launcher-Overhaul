@@ -102,11 +102,16 @@ $androidNamespace = "http://schemas.android.com/apk/res/android"
 $activities = @($manifest.manifest.application.activity)
 $activityThemes = @{}
 $activityOrientations = @{}
+$activityLaunchModes = @{}
 foreach ($activity in $activities) {
     $name = $activity.GetAttribute("name", $androidNamespace)
     $activityThemes[$name] = $activity.GetAttribute("theme", $androidNamespace)
     $activityOrientations[$name] = $activity.GetAttribute(
         "screenOrientation",
+        $androidNamespace
+    )
+    $activityLaunchModes[$name] = $activity.GetAttribute(
+        "launchMode",
         $androidNamespace
     )
 }
@@ -117,11 +122,18 @@ if ($activityThemes[".LauncherActivity"] -ne "@style/LauncherRoutingSplashTheme"
 if ($activityThemes[".GodotApp"] -ne "@style/GodotAppSplashTheme") {
     throw "GodotApp must retain the controlled Godot-to-launcher splash theme."
 }
-if ($activityThemes[".NativeFallbackActivity"] -ne "@style/NativeFallbackTheme") {
-    throw "NativeFallbackActivity must open directly on its native main theme."
+if ($activityThemes[".NativeFallbackActivity"] -ne "@style/NativeFallbackSplashTheme") {
+    throw "NativeFallbackActivity must retain a splash-backed native handoff theme."
 }
 if ($activityOrientations[".NativeFallbackActivity"] -ne "fullSensor") {
     throw "NativeFallbackActivity must not force an orientation-changing blank handoff."
+}
+if (
+    $activityLaunchModes[".LauncherActivity"] -ne "singleTop" -or
+    $activityLaunchModes[".GodotApp"] -ne "singleTop" -or
+    $activityLaunchModes[".NativeFallbackActivity"] -ne "singleTop"
+) {
+    throw "Internal startup destinations must remain in the launcher task."
 }
 $themesPath = Join-Path $root "android\res\values\themes.xml"
 [xml]$themes = Get-Content -LiteralPath $themesPath -Raw
@@ -179,45 +191,89 @@ Assert-SourceContains $godotAppSource "bootTransitionController.destroy();" `
 Assert-SourceContains $godotAppSource `
     "intent.putExtra(AndroidBootTransitionPolicy.SKIP_INTENT_EXTRA, true);" `
     "Deliberate app restarts must retain the boot transition skip extra."
+$launcherSplashInstallIndex = $launcherActivitySource.IndexOf(
+    "SplashScreen.installSplashScreen(this);"
+)
 $launcherSuperIndex = $launcherActivitySource.IndexOf(
     "super.onCreate(savedInstanceState);"
 )
 $launcherPlaceholderIndex = $launcherActivitySource.IndexOf(
     "routingPlaceholder = createRoutingPlaceholder();"
 )
+$launcherFirstFrameScheduleIndex = $launcherActivitySource.IndexOf(
+    "scheduleStartupRoutingAfterFirstFrame();"
+)
 $launcherFrameIndex = $launcherActivitySource.IndexOf(
-    "routingPlaceholder.postOnAnimation(startupRouting);"
+    "currentPlaceholder.postOnAnimation(startupRouting);"
 )
 $launcherPreparationIndex = $launcherActivitySource.IndexOf(
     "assemblyBootstrapper.prepare();"
 )
 if (
+    $launcherSplashInstallIndex -lt 0 -or
+    $launcherSplashInstallIndex -ge $launcherSuperIndex -or
     $launcherSuperIndex -lt 0 -or
     $launcherPlaceholderIndex -le $launcherSuperIndex -or
-    $launcherFrameIndex -le $launcherPlaceholderIndex -or
+    $launcherFirstFrameScheduleIndex -le $launcherPlaceholderIndex -or
+    $launcherFrameIndex -le $launcherFirstFrameScheduleIndex -or
     $launcherPreparationIndex -le $launcherFrameIndex
 ) {
-    throw "LauncherActivity must schedule routing after its mark-backed content is ready to draw."
+    throw "LauncherActivity must schedule routing after its mark-backed content has submitted a frame."
 }
+Assert-SourceContains $launcherActivitySource `
+    "new ViewTreeObserver.OnPreDrawListener()" `
+    "LauncherActivity routing must wait for the mark-backed content's first draw."
+Assert-SourceContains $launcherActivitySource `
+    ".addOnPreDrawListener(startupRoutingPreDrawListener);" `
+    "LauncherActivity must register its first-frame routing listener."
 Assert-SourceContains $launcherActivitySource `
     "routingPlaceholder.removeCallbacks(startupRouting);" `
     "LauncherActivity destruction must cancel deferred startup routing."
+Assert-SourceContains $launcherActivitySource `
+    "removeStartupRoutingPreDrawListener();" `
+    "LauncherActivity destruction must cancel pending first-frame routing."
 $fallbackContentIndex = $nativeFallbackSource.IndexOf(
     "setContentView(createContentView());"
+)
+$fallbackSplashInstallIndex = $nativeFallbackSource.IndexOf(
+    "SplashScreen.installSplashScreen(this);"
+)
+$fallbackSuperIndex = $nativeFallbackSource.IndexOf(
+    "super.onCreate(savedInstanceState);"
 )
 $fallbackDiagnosticsIndex = $nativeFallbackSource.IndexOf(
     "startDiagnosticsCollection();",
     [Math]::Max(0, $fallbackContentIndex)
 )
 if (
+    $fallbackSplashInstallIndex -lt 0 -or
+    $fallbackSplashInstallIndex -ge $fallbackSuperIndex -or
     $fallbackContentIndex -lt 0 -or
     $fallbackDiagnosticsIndex -le $fallbackContentIndex
 ) {
-    throw "Native fallback must publish its controls before collecting diagnostics."
+    throw "Native fallback must install its splash handoff and publish controls before collecting diagnostics."
 }
 Assert-SourceContains $nativeFallbackSource `
     '"STS2NativeFallbackDiagnostics"' `
     "Native fallback diagnostics must remain off the Android main thread."
+Assert-SourceContains $nativeFallbackSource `
+    "fallbackSplashProvider = provider;" `
+    "Native fallback must retain its splash through the destination surface handoff."
+Assert-SourceContains $nativeFallbackSource `
+    "if (hasFocus) {" `
+    "Native fallback must complete its splash handoff after gaining window focus."
+Assert-SourceContains $nativeFallbackSource `
+    "private static final long FALLBACK_SPLASH_FOCUS_HOLD_MS = 2000L;" `
+    "Native fallback must bridge measured API 36 surface-presentation latency after focus."
+Assert-SourceContains $nativeFallbackSource `
+    "content.postDelayed(" `
+    "Native fallback must retain its mark through the post-focus presentation hold."
+Assert-SourceContains $nativeFallbackSource `
+    "content.removeCallbacks(fallbackSplashRemoval);" `
+    "Native fallback must cancel delayed splash removal during cleanup."
+Assert-SourceContains $nativeFallbackSource `
+    "removeFallbackSplash();" `
+    "Native fallback must clean up its retained splash provider."
 Assert-SourceContains $nativeFallbackSource "diagnosticsThread.interrupt();" `
     "Native fallback destruction must cancel diagnostics collection."
 Assert-SourceContains $nativeFallbackSource `

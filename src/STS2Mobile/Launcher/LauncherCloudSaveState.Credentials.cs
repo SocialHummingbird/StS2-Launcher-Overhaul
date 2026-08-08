@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using MegaCrit.Sts2.Core.Saves;
 using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
@@ -25,36 +24,23 @@ internal static partial class LauncherCloudSaveState
         )
             => new(accountName, refreshToken);
 
-        internal bool TryCreateSaveManager(out SaveManager saveManager)
-        {
-            saveManager = null;
-
-            try
-            {
-                saveManager = new SaveManager(
-                    CloudSaveStoreFactory.CreateCloudSaveStore(
-                        AccountName,
-                        RefreshToken
-                    )
-                );
-                PatchHelper.Log("[Cloud] Created SaveManager with SteamKit2 cloud store");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log(
-                    $"[Cloud] Cloud store injection failed, falling back to local: {ex.Message}"
-                );
-                return false;
-            }
-        }
-
         internal Task<ManualCloudSyncResult> RunManualSyncAsync(
             Func<
                 string,
                 string,
                 CancellationToken,
                 Task<ManualCloudSyncResult>
+            > sync,
+            CancellationToken cancellationToken
+        )
+            => sync(AccountName, RefreshToken, cancellationToken);
+
+        internal Task<AutomaticSyncResult> RunAutomaticSyncAsync(
+            Func<
+                string,
+                string,
+                CancellationToken,
+                Task<AutomaticSyncResult>
             > sync,
             CancellationToken cancellationToken
         )

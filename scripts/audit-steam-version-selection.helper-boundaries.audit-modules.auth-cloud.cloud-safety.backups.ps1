@@ -36,11 +36,11 @@ function Add-SteamVersionSelectionAuthCloudSafetyBackupBoundaryChecks {
 
     Add-Check `
         "scripts\audit-steam-version-selection.cloud-safety.local-backups.push-enforcement.ps1" `
-        "keeps pre-Push backup enforcement audit contracts focused" `
+        "keeps mandatory in-transfer backup audit contracts focused" `
         @(
             "function Add-SteamVersionSelectionCloudSafetyBackupPushEnforcementChecks",
-            "CloudSyncCoordinator.SaveBackups.Manual.cs",
-            "ManualPushBackupSafetyPolicy.cs"
+            "CloudSyncCoordinator.ManualSync.Transfer.cs",
+            "test-cloud-sync-production-path.ps1"
         )
 
     Add-Check `

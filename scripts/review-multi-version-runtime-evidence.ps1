@@ -240,7 +240,6 @@ if ($RequireLaunchAttempt) {
     Require-Pattern "diagnostics/last_launch_attempt.txt" "records numeric installed mod count" "(?m)^Mod installed count:\s*\d+\s*$"
     Require-Pattern "diagnostics/last_launch_attempt.txt" "records numeric enabled mod count" "(?m)^Mod enabled count:\s*\d+\s*$"
     Require-Pattern "diagnostics/last_launch_attempt.txt" "records numeric unsupported mod count" "(?m)^Mod unsupported count:\s*\d+\s*$"
-    Require-Pattern "diagnostics/last_launch_attempt.txt" "records modded-save Cloud Push lock state" "(?m)^Modded save cloud push locked:\s*(true|false)\s*$"
     Require-LaunchAttemptFreshness $MaxLaunchAttemptAgeMinutes
 }
 

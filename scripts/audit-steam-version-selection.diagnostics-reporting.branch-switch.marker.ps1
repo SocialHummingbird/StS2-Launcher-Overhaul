@@ -19,11 +19,9 @@ function Add-SteamVersionSelectionDiagnosticsReportingBranchSwitchMarkerChecks {
             "Branch switch selected branch matches current selected branch",
             "Branch switch selected branch note",
             "Branch switch local backup forced",
-            "Branch switch manual Push requires backup storage",
             "Branch switch warning acknowledged",
             "Branch switch non-public warning acknowledged",
             "Branch switch marker has required safety evidence",
-            "Branch switch marker has required safety evidence for selected branch",
-            "Push requires backup storage after branch switch"
+            "Branch switch marker has required safety evidence for selected branch"
         )
 }

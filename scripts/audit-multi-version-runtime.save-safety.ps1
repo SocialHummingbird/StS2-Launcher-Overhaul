@@ -88,30 +88,146 @@ function Add-MultiVersionRuntimeSaveSafetyChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSaveState.Credentials.cs" `
-        "captures persisted Steam credentials for cloud sync without app password storage" `
+        "keeps persisted Steam credentials confined to foreground launcher transfers" `
         @(
             "SavedSteamCredentials",
             "TryUseCredentials",
             "SaveCredentials\(string accountName, string refreshToken\)",
             "SavedSteamCredentials\.FromLogin",
+            "RunManualSyncAsync",
+            "RunAutomaticSyncAsync",
             "_savedCredentials = null",
             "Saved Steam credentials available for cloud sync",
             "Saved Steam credentials unavailable for cloud sync",
-            "ClearCredentials",
-            "CloudSaveStoreFactory\.CreateCloudSaveStore"
+            "ClearCredentials"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherCloudSaveState.Credentials.cs" `
+        "prevents saved Steam credentials from constructing a gameplay save store" `
+        @(
+            "new\s+SaveManager",
+            "CloudSaveStoreFactory",
+            "SteamKit2CloudSaveStore"
         )
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSaveState.SaveManager.cs" `
-        "uses cloud store only when credentials are available and falls back to Android local saves" `
+        "constructs one fail-closed Android gameplay SaveManager from local storage" `
         @(
-            "TryCreateEnabledSaveManager",
-            "TryGetSavedCredentialsForCloudSync",
-            "TryCreateAndroidLocalSaveManager",
-            "Cloud sync disabled - using Android local-only SaveManager when available",
-            "No saved credentials - using Android local-only SaveManager when available",
-            "CloudSaveStoreFactory\.CreateLocalOnlyCloudSaveStore",
-            "Created Android local-only SaveManager"
+            "CreateAndroidGameplaySaveManager",
+            "OperatingSystem\.IsAndroid",
+            "PlatformNotSupportedException",
+            "new SaveManager\(CloudSaveStoreFactory\.CreateLocalStore\(\)\)",
+            "Created Android gameplay SaveManager with local storage only"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherCloudSaveState.SaveManager.cs" `
+        "keeps gameplay SaveManager construction independent of Steam transfers" `
+        @(
+            "SavedSteamCredentials",
+            "TryGetSavedCredentials",
+            "CreateTransferCloudSaveStore",
+            "SteamKit2CloudSaveStore",
+            "DisposeActive"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Steam\AndroidLocalSaveStore.FileIo.cs" `
+        "commits synchronous and cancellable Android gameplay writes atomically" `
+        @(
+            "WriteBytesFile",
+            "WriteBytesFileAsync",
+            "CancellableAtomicFile\.WriteAllBytesAsync",
+            "CancellationToken\.None",
+            "overwrite: true"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Steam\AndroidLocalSaveStore.FileIo.cs" `
+        "keeps Android gameplay writes free of Steam upload and queue behavior" `
+        @(
+            "SteamKit2CloudSaveStore",
+            "CreateTransferCloudSaveStore",
+            "CloudWriteQueue",
+            "EnqueueUpload",
+            "FlushActive"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Steam\CloudSaveStoreFactory.cs" `
+        "separates the local gameplay store from the launcher-only transfer store" `
+        @(
+            "CreateTransferCloudSaveStore",
+            "CreateLocalStore",
+            "new AndroidLocalSaveStore",
+            "SteamKit2CloudSaveStore\.GetOrCreate"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Steam\CloudSaveStoreFactory.cs" `
+        "removes ambiguous and disabled gameplay cloud-store factory paths" `
+        @(
+            "CreateCloudSaveStore",
+            "CreateLocalOnlyCloudSaveStore",
+            "DisabledCloudSaveStore"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Patches\LauncherPatches.cs" `
+        "replaces Android default SaveManager construction with the local-only manager" `
+        @(
+            "ApplySaveManagerPatches",
+            "SaveManager",
+            "ConstructDefault",
+            "CreateAndroidGameplaySaveManager",
+            "return false"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Patches\LauncherPatches.cs" `
+        "prevents gameplay patches from starting or draining Steam operations" `
+        @(
+            "SyncCloudToLocal",
+            "AutoSync",
+            "Flush",
+            "SteamKit2CloudSaveStore",
+            "DisposeActive",
+            "CloudSaveStore"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Patches\AppLifecyclePatches.cs" `
+        "lets Quit finish its local saves before restarting the launcher" `
+        @(
+            "Let NGame\.Quit perform its final local saves",
+            '"Quit"',
+            "postfix: PatchHelper\.Method\(typeof\(AppLifecyclePatches\), nameof\(QuitPostfix\)\)",
+            "NGame\.Quit completed final local saves; restarting launcher",
+            "AndroidGodotAppBridge\.RestartApp"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Patches\AppLifecyclePatches.cs" `
+        "keeps temporary backgrounding and Quit free of save or Steam workarounds" `
+        @(
+            "QuitPrefix",
+            "FlushCloud",
+            "FlushActive",
+            "CloudSyncCoordinator",
+            "SteamKit2CloudSaveStore",
+            "SaveManager"
+        )
+
+    Add-Check `
+        "src\STS2Mobile\Steam\CloudSyncCoordinator.ManualSync.Plan.cs" `
+        "closes the launcher manual-sync Steam store in one explicit finally path" `
+        @(
+            "RunManualSyncAsync",
+            "finally",
+            "SteamKit2CloudSaveStore\.DisposeActive",
+            "Closing launcher manual-sync store"
         )
 
     Add-Check `
@@ -159,12 +275,12 @@ function Add-MultiVersionRuntimeSaveSafetyChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Pull.cs" `
-        "records save-origin evidence on Pull and includes it in baseline Push prerequisites" `
+        "records Pull outcome and save-origin diagnostic evidence without a Push prerequisite" `
         @(
             "LauncherSaveOriginEvidence\.TryWriteManualPullOrigin",
             "WriteManualPullIncompleteMarker",
-            "BaselineManualPushPrerequisitesSatisfied",
-            "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime"
+            "LastManualPullOutcome",
+            "ManualPullOutcomePrefix"
         )
 
     Add-Check `
@@ -172,8 +288,7 @@ function Add-MultiVersionRuntimeSaveSafetyChecks {
         "records save-origin evidence on successful manual Push" `
         @(
             "LauncherSaveOriginEvidence\.WriteManualPushOrigin",
-            "WriteManualPushMarker",
-            "ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix"
+            "WriteManualPushMarker"
         )
 
     Add-Check `
@@ -188,14 +303,21 @@ function Add-MultiVersionRuntimeSaveSafetyChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherBranchSwitchSafety.Gates.cs" `
-        "requires save-origin evidence before branch-switch Push" `
+        "validates branch-switch marker identity independently of Push" `
         @(
             "HasRequiredEvidence",
-            "LauncherCloudSyncEvidence\.HasManualPullAfterBranchSwitch",
-            "LauncherLocalSaveEvidence\.HasImportantSaveEvidence",
-            "LauncherSaveOriginEvidence\.CurrentLocalSavesMatchSelectedRuntime",
-            "AppPaths\.HasStoragePermission",
-            "ManualPushPrerequisitesSatisfied"
+            "SelectedBranchMatches",
+            "SteamGameBranch\.Normalize"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherBranchSwitchSafety.Gates.cs" `
+        "does not turn branch-switch history into a Push prerequisite" `
+        @(
+            "ManualPushPrerequisitesSatisfied",
+            "HasManualPullAfterBranchSwitch",
+            "CurrentLocalSavesMatchSelectedRuntime",
+            "AppPaths\.HasStoragePermission"
         )
 
     Add-Check `

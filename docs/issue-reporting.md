@@ -6,7 +6,7 @@ Good StS2 Launcher reports include enough evidence to separate launcher bugs, St
 
 Current recurring report themes are redesigned-launcher layout regressions, shader compile crashes or stalls, post-main-menu Android GPU/renderer failures, controller input on Android handhelds, public-beta/core branch freshness, and native modded-save visibility after Manual Pull. These are useful reports when they include exact APK, device, GPU/renderer, branch, mod, screenshot, and focused log details.
 
-For Start Game failures, include `last_launch_attempt.txt` when available. Current source builds write a per-press attempt ID, selected branch, ready/blocked state, runtime slot ID, selected PCK path/hash, source and active `sts2.dll` paths/hashes, runtime pack path/status, runtime cache marker path/presence, runtime patch-validation marker path/presence, patch compatibility marker path/status, whether the launch used the prepared readiness result rather than repeating primary-path validation, whether that readiness came from a fresh check or a safe in-memory cache hit, and elapsed timing for total launch attempt, selected-version readiness, and mod readiness. Modded starts also include play mode, enabled mod count, selected mods, selector cache status, whether modded-save Cloud Push was locked, and cache evidence that invalidates when selector metadata, Workshop metadata, or staged/manual mod file metadata changes.
+For Start Game failures, include `last_launch_attempt.txt` when available. Current source builds write a per-press attempt ID, selected branch, ready/blocked state, runtime slot ID, selected PCK path/hash, source and active `sts2.dll` paths/hashes, runtime pack path/status, runtime cache marker path/presence, runtime patch-validation marker path/presence, patch compatibility marker path/status, whether the launch used the prepared readiness result rather than repeating primary-path validation, whether that readiness came from a fresh check or a safe in-memory cache hit, and elapsed timing for total launch attempt, selected-version readiness, and mod readiness. Modded starts also include play mode, enabled mod count, selected mods, selector cache status, and cache evidence that invalidates when selector metadata, Workshop metadata, or staged/manual mod file metadata changes.
 
 When the launcher detects that the previous game startup failed, it now reads `last_launch_attempt.txt` and adds a short targeted recovery hint to the launcher log. Include that text in issue reports when available.
 
@@ -16,7 +16,7 @@ When the launcher detects that the previous game startup failed, it now reads `l
 | --- | --- |
 | Immediate crash, black screen, slow startup, NativeFallback, or Start Game hang | Crash, hang, or startup problem |
 | Public/default, public-beta, core-release, private/password branch, wrong branch, missing/mixed assets, PCK/runtime mismatch | Game download or Steam branch issue |
-| Steam login, Steam Guard, ownership, Pull from Cloud, Push to Cloud, Push blocked by safety gates | Steam login or Cloud save problem |
+| Steam login, Steam Guard, ownership, Pull from Cloud, Upload to Steam, Upload eligibility/context failure | Steam login or Cloud save problem |
 | Workshop sync, manual import, mod selection, modded launch, Vanilla and Modded Saves Merger, save compatibility | Mods, Workshop, or save-merger test |
 | New phone/tablet result, Samsung/One UI behavior, display scaling, keyboard/password-manager behavior | Device compatibility report |
 | Anything else reproducible | General bug report |
@@ -38,6 +38,20 @@ The older Steam version-selection report template remains available for deep bra
 - Focused logcat or diagnostics for crashes, hangs, failed startup, failed downloads, Steam login failures, cloud failures, and mod load failures.
 
 For launcher layout reports, include whether the Start Game/Play button is reachable, whether scrolling works, orientation, display size/font scale, and a screenshot.
+
+## If Save Progress Appears To Have Rolled Back
+
+The Recovery UI described below exists only in unreleased source and has not passed the Stage 5 physical-device matrix. It is a maintainer-supervised recovery procedure, not a public fix. Do not tell affected users to install a new build, launch again, Pull, Upload, or attempt Restore merely because the desktop tests pass. First preserve their existing Android saves and launcher backups byte-for-byte.
+
+Stop before launching the game again, using Pull or Upload, reinstalling, or choosing Restore. Preserve the current evidence first. On a released build that does not contain Recovery, do not install or launch an unreleased build as a substitute; a maintainer must first obtain a separate byte-for-byte copy of accessible app saves and launcher backups. Only then use the unreleased recovery flow under supervision:
+
+1. Open **Saves > Recovery**, run **Scan**, select the most relevant current or legacy candidate, and use **Export**. Restore remains locked until that bundle is written and read back successfully.
+2. Keep the exported bundle private. It can contain raw saves and Steam account/context metadata.
+3. Compare candidates from vanilla, modded, temporary, launcher-backup, and retained-snapshot locations. Treat **unknown** provenance as unknown; do not assign it to an account, beta branch, or mod set by inference. A candidate marked for another account stays quarantined.
+4. Restore only into the selected Android save context. This does not contact Steam. Open the recovered save locally with synchronization held and verify profiles, ascension/progression, and any current run.
+5. If it is wrong, use **Undo** to restore the byte-for-byte pre-Restore snapshot. If it is correct, approve synchronization only for the exact recorded Steam account, vanilla/modded namespace, game branch, and mod set.
+
+Do not try to rebuild progression automatically from run-history files. Support may inspect those files manually only when no intact current, legacy, temporary, backup, or retained snapshot remains.
 
 For controller reports, include controller/device model, connection mode, whether launcher navigation works, whether in-game actions work, and whether the result differs in vanilla versus modded launch.
 
@@ -121,17 +135,18 @@ Steam Cloud Push can overwrite remote save state. Any cloud issue must say wheth
 For Push reports, include:
 
 ```text
-Manual Pull completed before Push:
-Current important Android local save evidence count:
-Current important Android local save evidence present:
-Baseline manual Push prerequisites satisfied:
-Branch-switch manual Push prerequisites satisfied:
+Transfer direction:
+Transferable Android local save files present:
+Incomplete Pull marker present:
+Authenticated Steam account / SteamID64:
+Vanilla or modded namespace:
+Runtime compatibility / branch identity:
+Mod-set fingerprint, when modded:
 Latest manual Push evidence outcome:
 Latest manual Push blocked reason:
-Backup storage permission available:
 ```
 
-If you were testing branch switching or mods, do not treat a blocked Push as a bug unless the report explains why the launcher had enough safe evidence to upload.
+If Push is blocked, include the reported reason and the expected account, branch/runtime, vanilla-or-modded namespace, and mod-set identity so the transfer-context check can be reviewed.
 
 ## Workshop And Save-Merger Evidence
 
@@ -146,7 +161,7 @@ Enabled or disabled:
 Launcher showed unsupported/attention warning:
 ```
 
-For native modded-save visibility after Manual Pull, include:
+For native modded-save visibility after Pull or automatic sync, include:
 
 ```text
 Existing vanilla save present before test:
@@ -156,13 +171,13 @@ Push to Steam Cloud run during test:
 Save/profile became visible in-game:
 Save/profile loaded successfully:
 SavesMerger absent from selected/activation evidence:
-Manual Pull modded-save provenance marker present:
-Seeded modded file count:
-Cloud-authoritative modded namespace count:
-Private local modded backup count:
+Selected vanilla or modded namespace:
+Selected runtime/branch identity:
+Selected mod-set fingerprint unchanged through the transfer:
+Any unexpected vanilla-to-modded file copy observed:
 ```
 
-The current useful result is not just "the game reached main menu." The important evidence is whether the fresh Pull created or selected the expected native modded profile and whether that profile became visible and loadable without SavesMerger.
+The current useful result is not just "the game reached main menu." The important evidence is whether the exact-context native modded profile became visible and loadable without SavesMerger or any vanilla-to-modded copy.
 
 ## Current Support Boundaries
 
@@ -174,4 +189,4 @@ The current useful result is not just "the game reached main menu." The importan
 - Steam beta password entry is not currently a release-ready path.
 - Workshop/mod support is functional but still hardening. Some Workshop items exposed only as legacy UGC handles may still need manual import.
 - SavesMerger/UnifiedSavePath is deprecated in current source builds. If it appears in selected or activation evidence, report that as a selector regression.
-- Push to Cloud is intentionally guarded and may stay blocked when branch-switch, modded-save, local-save, Pull, or backup evidence is incomplete.
+- Current unreleased Upload is designed to be confirmed and context-bound, and its read-back contract is desktop-tested with a fake Steam store. It is not yet device- or real-Steam-verified. Report any account, branch/runtime, vanilla-or-modded namespace, mod-set, authentication, commit, or read-back verification failure.

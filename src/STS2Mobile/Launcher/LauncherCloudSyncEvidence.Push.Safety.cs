@@ -23,20 +23,4 @@ internal static partial class LauncherCloudSyncEvidence
         return switchUtc.HasValue && pushUtc.HasValue && pushUtc.Value >= switchUtc.Value;
     }
 
-    internal static bool HasManualPushAfterBranchSwitch(string dataDir, string selectedBranch)
-    {
-        if (!string.Equals(LatestManualPushEvidenceOutcome(dataDir), "completed", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        if (!LastManualPushIsAfterBranchSwitch(dataDir))
-            return false;
-
-        if (!LastManualPushCompletionRecorded(dataDir))
-            return false;
-
-        if (!LastManualPushMatchesSelectedBranch(dataDir, selectedBranch))
-            return false;
-
-        return LastManualPushPrePushBackupEvidenceSatisfied(dataDir);
-    }
 }

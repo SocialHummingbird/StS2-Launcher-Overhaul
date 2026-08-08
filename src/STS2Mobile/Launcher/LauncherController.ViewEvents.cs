@@ -29,6 +29,14 @@ internal sealed partial class LauncherController
             _workshop.SyncPressed,
             _workshop.ClearPressed
         );
+        _view.WireSaveRecoveryEvents(
+            _saveRecovery.ScanPressed,
+            _saveRecovery.CurrentExportPressed,
+            _saveRecovery.ExportPressed,
+            _saveRecovery.RestorePressed,
+            _saveRecovery.UndoPressed,
+            _saveRecovery.ApprovePressed
+        );
     }
 
     private void LocalBackupToggled(bool pressed)

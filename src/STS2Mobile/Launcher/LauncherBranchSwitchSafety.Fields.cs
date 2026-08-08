@@ -12,7 +12,6 @@ internal static partial class LauncherBranchSwitchSafety
     private const string SelectedVersionSlotDirectoryPrefix = "Selected version slot directory:";
     private const string SelectedBranchNotePrefix = "Selected branch note:";
     private const string LocalBackupForcedPrefix = "Local backup forced on:";
-    private const string ManualPushRequiresBackupStoragePrefix = "Manual Push requires backup storage:";
     private const string WarningAcknowledgedPrefix = "Warning acknowledged:";
     private const string NonPublicBranchWarningAcknowledgedPrefix = "Non-public branch warning acknowledged:";
 }

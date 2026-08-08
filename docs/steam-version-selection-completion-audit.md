@@ -16,7 +16,7 @@ The Steam version-selection goal is complete only when every requirement below h
 | Expose selected branch in launcher UI | Implemented as an account-visible Steam branch dropdown with public/default always available, branch metadata/status labels, wrapped/non-interactive selector guidance shown in managed UI, branch-switch confirmation, logs, diagnostics, native routing logs, and native fallback diagnostics | Visual/device evidence for discovered dropdown contents, public/default fallback option, metadata/status labels, switch warning, wrapped helper text, persisted selected-version display, native pre-routing logs, and fallback diagnostics | Not complete |
 | Branch-aware update/download/redownload flows | Implemented and documented through selected-version wording and cache rules | Public/default and beta download/update/redownload logs prove selected branch paths and messages | Not complete |
 | Safe branch-switch warnings | Implemented and documented with non-public/password/save/backup warnings | Device evidence captures confirmation text and local-backup enablement before applying switch | Not complete |
-| Save-backup protections | Implemented and documented with baseline Pull-before-Push evidence for the selected version, Android local-save evidence before any manual Push, complete branch-switch marker evidence gate, successful manual Pull evidence marker, Push backup-storage gate after branch switches, full local/cloud pre-Push backup coverage enforcement when Local Backup is enabled, blocked Push marker evidence, pre-Push backup evidence diagnostics, successful manual Push marker with backup counts/timestamps, Manual Push evidence marker filename diagnostics, and aggregate post-switch Push evidence diagnostic. Local fix28 ARM64 evidence proves stale selected-version Pull/save-origin evidence blocks before the destructive Push confirmation can be armed. | Release-candidate baseline Pull-before-Push evidence, `Manual Pull completed before Push`, current important Android local save evidence count/presence, `Baseline manual Push prerequisites satisfied`, complete branch-switch marker evidence, Pull-after-switch, backup permission, fail-before-upload evidence for incomplete backups, `last_manual_cloud_push_blocked.txt`, full local pre-Push coverage, full cloud pre-Push coverage, blocked-Push evidence, `last_manual_cloud_push.txt`, marker backup counts/timestamps, and `Manual Push completed after branch switch for selected version with backup evidence` after branch switch | Not complete |
+| Save-transfer protections | Implemented with one Pull/Upload operation, explicit vanilla/modded allowlists, exact SteamID64/runtime/mod-set context, immutable source snapshots, destination backups, tombstones, propagated failures, and destination read-back hashes. Upload eligibility is transferable local saves plus no interrupted Pull marker; Pull, Steam installation, branch history, modded mode, and shared storage are not prerequisites. | Release-candidate direct-Upload eligibility, interrupted-Pull block/recovery, account/namespace/runtime/mod-set mismatch, backup/tombstone, authentication/connection/commit failure, read-back mismatch, and controlled successful Pull/Upload evidence | Not complete |
 | Side-by-side per-branch install storage | Implemented and documented for `files/game_versions/<branch>/` | Device filesystem/diagnostics prove beta cache coexists with public cache and survives branch switches | Not complete |
 | Active-version startup selection | Implemented and documented for managed/native/fallback startup routing | Native startup/logcat proves selected public and selected beta PCK routing; non-public marker failures do not launch | Not complete |
 | Diagnostics | Implemented and documented for selected branch, selected-version note, native selected-branch note, marker, cache, and backup state | Captured diagnostics bundle and logcat prove fields are present and accurate on public/default and beta paths | Not complete |
@@ -61,13 +61,12 @@ Runtime evidence still required:
 - Selected-version redownload behavior.
 - Inactive cache cleanup behavior.
 - Missing/private/password-protected beta behavior.
-- Pull from Cloud for the selected version before any Push.
-- Android local save evidence before any Push.
-- Pull from Cloud after the branch switch for the selected version before post-switch Push.
-- Backup storage permission evidence.
-- Full local pre-Push and cloud pre-Push backup coverage evidence.
-- Fail-before-upload evidence and `last_manual_cloud_push_blocked.txt` when required backup coverage is incomplete. Local fix28 evidence at `artifacts/android/fix28-evidence-blocked-push-save-origin-20260619-112107` proves the stale selected-version Pull/save-origin block path before destructive confirmation, but backup-coverage failure evidence remains open.
-- Manual Push smoke only after safety gates, with `last_manual_cloud_push.txt` and `Manual Push completed after branch switch for selected version with backup evidence`.
+- Direct Upload eligibility with transferable allowlisted local saves and no preceding Pull or Steam game installation.
+- No-local-save and interrupted-Pull blocking evidence.
+- Exact SteamID64, namespace, runtime/public-beta, and mod-set mismatch evidence.
+- Destination backup and authoritative deletion/tombstone evidence.
+- Authentication, connection, upload/download, commit, and read-back mismatch failure evidence with no false success.
+- Controlled successful Pull and Upload using the same transfer implementation.
 - Save compatibility outcome across branch switches.
 
 ## Current release decision
@@ -79,5 +78,5 @@ Safe public wording:
 - Implemented for validation.
 - Available as an account-visible Steam branch dropdown with `public` as the default branch.
 - Still in hardening.
-- Not release-signed until ARM64 evidence proves beta/password/private branch behavior, save compatibility, startup routing, cache cleanup, Pull-before-Push/local-save safety, Pull-after-switch/backup safety, pre-Push backup evidence, and successful post-switch Push marker evidence.
+- Not release-signed until ARM64 evidence proves beta/password/private branch behavior, save compatibility, startup routing, cache cleanup, exact transfer context isolation, destination backup/tombstones, verified read-back, and controlled successful Upload.
 - Release-readiness remains governed by `docs/steam-version-selection-release-readiness.md` and the completed evidence template for the current candidate build.

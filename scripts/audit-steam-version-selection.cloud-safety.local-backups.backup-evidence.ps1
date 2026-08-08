@@ -12,8 +12,7 @@ function Add-SteamVersionSelectionCloudSafetyBackupEvidenceChecks {
             "LatestLocalPrePushBackupUtc",
             "LatestCloudPrePushBackupUtc",
             "HasLocalPrePushBackupAfterBranchSwitch",
-            "HasCloudPrePushBackupAfterBranchSwitch",
-            "HasPrePushBackupEvidenceAfterBranchSwitch"
+            "HasCloudPrePushBackupAfterBranchSwitch"
         )
 
     Add-Check `

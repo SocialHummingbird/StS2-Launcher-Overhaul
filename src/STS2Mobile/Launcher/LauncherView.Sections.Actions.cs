@@ -91,6 +91,9 @@ internal sealed partial class LauncherView
     internal void SetLaunchControlsDisabled(bool disabled)
         => Actions.SetLaunchControlsDisabled(disabled);
 
+    internal void SetAutomaticSyncBlocked(bool blocked)
+        => Actions.SetAutomaticSyncBlocked(blocked);
+
     internal void SetPowerVrCompatibility(bool required)
         => Actions.SetPowerVrCompatibility(required);
 

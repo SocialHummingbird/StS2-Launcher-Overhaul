@@ -142,7 +142,7 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "knownMods: knownMods",
             "WriteModLaunchMarker\(",
             "selection: selection",
-            "LauncherModSelectionState\.PushShouldBeLocked\(knownMods\)",
+            "steamCloudPushPerformed = false",
             "requiresWorkshopConsent: isWorkshop",
             "Selected root \{root\.Label\}",
             "FindAndroidManifestPath",
@@ -180,31 +180,34 @@ function Add-SteamVersionSelectionWorkshopModChecks {
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.PushSafety.Context.cs" `
-        "captures selected mods as a Push eligibility fact" `
+        "src\STS2Mobile\Launcher\LauncherModSelectionState.cs" `
+        "builds a stable portable fingerprint for the enabled mod set" `
         @(
-            "CaptureEligibilityState",
-            "LauncherWorkshopModSafety\.ActiveSelectedModCount"
+            "PortableIdentity",
+            "EnabledModSetFingerprint",
+            "workshop:\{publishedFileId\}",
+            "ManualPortableIdentity",
+            "Distinct\(StringComparer\.Ordinal\)",
+            "OrderBy\(identity => identity, StringComparer\.Ordinal\)",
+            "AndroidJavaCrypto\.Sha256HashData"
         )
 
     Add-Check `
-        "src\STS2Mobile\Launcher\CloudPushEligibilityPolicy.cs" `
-        "models selected mods as an actionable Steam Cloud Push blocker" `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncCoordinator.Request.Factory.cs" `
+        "passes the selected modded namespace and fingerprint into save transfer" `
         @(
-            "SelectedModCount > 0",
-            "CloudPushEligibilityBlockCode\.ModsSelected",
-            "Modded saves cannot be uploaded to Steam Cloud safely",
-            "CloudPushRequiredActionCode\.DeselectMods",
-            "Deselect all mods and use a vanilla launch state before uploading"
+            "LauncherModSelectionState\.IsModdedMode",
+            "SaveNamespace\.Modded",
+            "SaveNamespace\.Vanilla",
+            "LauncherModSelectionState\.EnabledModSetFingerprint",
+            "modSetFingerprint"
         )
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherWorkshopModSafety.cs" `
-        "blocks Cloud Push from raw staged Workshop PCK files even when manifest state is stale" `
+        "reports staged Workshop PCK files even when manifest state is stale" `
         @(
             "ActiveStagedModCount",
-            "HasActiveStagedMods\(LauncherModSelectionDocument document\)",
-            "LauncherModSelectionState\.PushShouldBeLocked\(document\)",
             "RawStagedPckCount",
             "Directory\.EnumerateFiles",
             "\*\.pck",
@@ -214,7 +217,7 @@ function Add-SteamVersionSelectionWorkshopModChecks {
 
     Add-Check `
         "src\STS2Mobile\Launcher\LauncherDiagnostics.ReportWorkshop.cs" `
-        "reports Workshop sync manifest, staged hashes, and Cloud Push lock state" `
+        "reports Workshop sync manifest, staged hashes, and selected mods" `
         @(
             "AppendWorkshopDiagnostics",
             "Workshop sync manifest path",
@@ -226,9 +229,7 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "Workshop missing dependency ids",
             "Workshop active staged PCK mod count",
             "Workshop raw staged PCK file count",
-            "Workshop modded-save Cloud Push locked",
             "LauncherModSelectionState\.KnownMods\(\)",
-            "LauncherWorkshopModSafety\.HasActiveSelectedMods\(enabledMods\.Length\)",
             "ContentSha256",
             "PublishedFileId",
             "DownloadSourceKind",
@@ -267,8 +268,6 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "Identity\.Matches\(identity\)",
             "internal static IReadOnlyList<LauncherKnownMod> KnownMods\(\)",
             "internal static IReadOnlyList<LauncherKnownMod> KnownMods\(LauncherModSelectionDocument document\)",
-            "PushShouldBeLocked\(LauncherModSelectionDocument document\)",
-            "PushShouldBeLocked\(IReadOnlyList<LauncherKnownMod> knownMods\)",
             "EnabledModCount\(LauncherModSelectionDocument document\)",
             "EnabledModCount\(IReadOnlyList<LauncherKnownMod> knownMods\)",
             "IsPathEnabled\(string path, LauncherModSelectionDocument document\)",
@@ -337,8 +336,9 @@ function Add-SteamVersionSelectionWorkshopModChecks {
         "disables Workshop support actions while Workshop operations run" `
         @(
             "SetWorkshopButtonsDisabled",
-            "_workshopSyncButton\.Disabled = disabled",
-            "_workshopClearButton\.Disabled = disabled"
+            "_workshopSyncButton\.Disabled =",
+            "_workshopClearButton\.Disabled =",
+            "_workshopButtonsDisabled \|\| ContextControlsDisabled"
         )
 
     Add-Check `
@@ -402,7 +402,7 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "Download source/update provenance captured",
             "Raw signed Workshop download URL omitted",
             "workshop-derived-state\.json",
-            "workshopCloudPushLocked",
+            "steamCloudPushPerformed",
             "Stale Workshop download temp artifacts absent",
             "workshop-hashes\.txt",
             "current_runtime_slot\.json",
@@ -434,7 +434,6 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "manifest is empty after clear",
             "no staged Workshop PCK remains after clear",
             "workshop-derived-state\.json",
-            "workshopCloudPushLocked",
             "rawStagedPckCount",
             "manifestActivePckCount",
             "Require-WorkshopModLoaderScanEvidence",
@@ -475,8 +474,6 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "runtime pack Android sts2\.dll hash matches runtime validation",
             "runtime pack validation report ID matches manifest",
             "public launch loaded public PCK path",
-            "Workshop derived state locks Cloud Push",
-            "Workshop derived state locks Cloud Push",
             "launch loaded selected non-public PCK path",
             "runtime patch validation passed",
             "selected runtime pack manifest is readable",
@@ -505,7 +502,6 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "public-beta evidence without app launch request",
             "public-beta evidence containing NativeFallback/crash log",
             "core-release",
-            "staged Workshop PCK without derived Cloud Push lock",
             "staged Workshop PCK without Workshop mod-loader scan log",
             "requested cached Workshop reuse without manifest/log evidence",
             "stale Workshop download temp artifact in evidence tree",
@@ -547,5 +543,34 @@ function Add-SteamVersionSelectionWorkshopModChecks {
             "Public-beta/core-release Workshop phase review rejects evidence",
             "Core-release branch launches",
             "selected runtime cache PCK path is under"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherModSelectionState.cs" `
+        "does not restore the obsolete blanket modded-save Push lock" `
+        @(
+            "PushShouldBeLocked"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Patches\ModLoaderPatches.cs" `
+        "keeps mod launch evidence free of the obsolete Push-lock field" `
+        @(
+            "workshopModdedSaveCloudPushLocked"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherModLaunchReadiness.cs" `
+        "keeps launch readiness independent of Steam transfer eligibility" `
+        @(
+            "CloudPushLocked"
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherLaunchMarkers.Attempt.cs" `
+        "keeps launch-attempt evidence free of the obsolete Push-lock marker" `
+        @(
+            "ModdedSaveCloudPushLocked",
+            "Modded save cloud push locked"
         )
 }

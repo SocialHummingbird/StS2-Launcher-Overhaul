@@ -5,6 +5,7 @@ namespace STS2Mobile.Steam;
 
 internal static class LocalSaveBackupPlan
 {
+    internal const string LauncherMetadataDirectoryName = ".sts2-launcher";
     internal const string CurrentDirectoryName = "Current";
     internal const string HistoryDirectoryName = "History";
     internal const int MaxFiles = 1000;
@@ -19,25 +20,23 @@ internal static class LocalSaveBackupPlan
     internal static bool IsBackupEligible(string path)
     {
         var lower = NormalizeRelativePath(path).ToLowerInvariant();
+        if (
+            lower == LauncherMetadataDirectoryName
+            || lower.StartsWith(
+                $"{LauncherMetadataDirectoryName}/",
+                StringComparison.Ordinal
+            )
+        )
+        {
+            return false;
+        }
+
         var name = FileName(lower);
         return lower.EndsWith(".save", StringComparison.Ordinal)
             || lower.EndsWith(".save.backup", StringComparison.Ordinal)
             || lower.EndsWith(".run", StringComparison.Ordinal)
             || string.Equals(name, "prefs", StringComparison.Ordinal)
             || string.Equals(name, "prefs.backup", StringComparison.Ordinal);
-    }
-
-    internal static bool ShouldRestoreMissing(string path)
-    {
-        var lower = NormalizeRelativePath(path).ToLowerInvariant();
-        var name = FileName(lower);
-        return string.Equals(name, "profile.save", StringComparison.Ordinal)
-            || string.Equals(name, "progress.save", StringComparison.Ordinal)
-            || string.Equals(name, "progress.save.backup", StringComparison.Ordinal)
-            || string.Equals(name, "prefs", StringComparison.Ordinal)
-            || string.Equals(name, "prefs.backup", StringComparison.Ordinal)
-            || string.Equals(name, "prefs.save", StringComparison.Ordinal)
-            || string.Equals(name, "prefs.save.backup", StringComparison.Ordinal);
     }
 
     internal static bool TryResolveUnderRoot(

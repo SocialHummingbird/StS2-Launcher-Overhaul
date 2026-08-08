@@ -38,17 +38,23 @@ internal static partial class LauncherCloudSyncEvidence
         => ReadMarkerValue(LastManualPullMarkerPath(dataDir), SelectedVersionSlotDirectoryPrefix) ?? "<none>";
 
     internal static bool LastManualPullCompletionRecorded(string dataDir)
-        => LastManualPullBeforePushCompletionRecorded(dataDir)
-            || HasCompletionFlag(LastManualPullMarkerPath(dataDir));
+        => string.Equals(
+            LastManualPullOutcome(dataDir),
+            "success",
+            StringComparison.OrdinalIgnoreCase
+        );
 
-    internal static bool LastManualPullBeforePushCompletionRecorded(string dataDir)
-        => HasCompletionFlag(LastManualPullMarkerPath(dataDir), ManualPullCompletedBeforePushPrefix);
+    internal static string LastManualPullOutcome(string dataDir)
+        => ReadMarkerValue(
+            LastManualPullMarkerPath(dataDir),
+            ManualPullOutcomePrefix
+        ) ?? "<none>";
 
-    internal static bool BaselineManualPushPrerequisitesSatisfied(string dataDir, string selectedBranch)
-        => LastManualPullCompletionRecorded(dataDir)
-            && LastManualPullMatchesSelectedBranch(dataDir, selectedBranch)
-            && LauncherLocalSaveEvidence.HasImportantSaveEvidence(dataDir)
-            && LauncherSaveOriginEvidence.CurrentLocalSavesMatchSelectedRuntime(dataDir, selectedBranch);
+    internal static string LastManualPullOutcomeDetail(string dataDir)
+        => ReadMarkerValue(
+            LastManualPullMarkerPath(dataDir),
+            ManualPullOutcomeDetailPrefix
+        ) ?? "<none>";
 
     internal static bool LastManualPullIsAfterBranchSwitch(string dataDir)
     {
@@ -79,19 +85,6 @@ internal static partial class LauncherCloudSyncEvidence
         return LastManualPullMatchesSelectedBranch(dataDir, selectedBranch);
     }
 
-    internal static bool BeginManualPull(
-        string dataDir,
-        string selectedBranch
-    )
-        => WriteManualPullState(
-            dataDir,
-            selectedBranch,
-            outcome: "pending",
-            detail: "Pull started; prior completion evidence was invalidated.",
-            completed: false,
-            invalidateExisting: true
-        );
-
     internal static bool WriteManualPullIncompleteMarker(
         string dataDir,
         string selectedBranch,
@@ -102,9 +95,7 @@ internal static partial class LauncherCloudSyncEvidence
             dataDir,
             selectedBranch,
             outcome,
-            detail,
-            completed: false,
-            invalidateExisting: false
+            detail
         );
 
     internal static bool WriteManualPullMarker(
@@ -134,9 +125,7 @@ internal static partial class LauncherCloudSyncEvidence
                 dataDir,
                 selectedBranch,
                 outcome: "success",
-                detail: "All required Pull steps completed.",
-                completed: true,
-                invalidateExisting: false
+                detail: "All required Pull steps completed."
             );
         }
         catch (Exception ex)
@@ -150,18 +139,12 @@ internal static partial class LauncherCloudSyncEvidence
         string dataDir,
         string selectedBranch,
         string outcome,
-        string detail,
-        bool completed,
-        bool invalidateExisting
+        string detail
     )
     {
         var markerPath = LastManualPullMarkerPath(dataDir);
         try
         {
-            if (invalidateExisting && File.Exists(markerPath))
-                File.Delete(markerPath);
-
-            var completion = completed ? "true" : "false";
             var text =
                 $"{UtcPrefix} {DateTime.UtcNow:O}\n"
                 + $"{SelectedBranchPrefix} {SteamGameBranch.Normalize(selectedBranch)}\n"
@@ -172,9 +155,7 @@ internal static partial class LauncherCloudSyncEvidence
                 + $"{SelectedVersionSlotDirectoryPrefix} {SteamGameInstallPaths.VersionSlotDirectory(dataDir, selectedBranch)}\n"
                 + $"{SelectedBranchNotePrefix} {SteamGameBranch.SelectorHelpText(selectedBranch)}\n"
                 + $"{ManualPullOutcomePrefix} {SanitizeSingleLine(outcome)}\n"
-                + $"{ManualPullOutcomeDetailPrefix} {SanitizeSingleLine(detail)}\n"
-                + $"{ManualPullCompletedBeforePushPrefix} {completion}\n"
-                + $"{ManualPullCompletedBeforeBranchSwitchPushPrefix} {completion}\n";
+                + $"{ManualPullOutcomeDetailPrefix} {SanitizeSingleLine(detail)}\n";
             File.WriteAllText(markerPath, text);
             return true;
         }

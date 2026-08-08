@@ -5,14 +5,11 @@ namespace STS2Mobile.Steam;
 
 internal static class CloudSaveStoreFactory
 {
-    internal static CloudSaveStore CreateCloudSaveStore(string accountName, string refreshToken)
+    internal static CloudSaveStore CreateTransferCloudSaveStore(
+        string accountName,
+        string refreshToken
+    )
         => new(CreateLocalStore(), CreateCloudStore(accountName, refreshToken));
-
-    internal static CloudSaveStore CreateLocalOnlyCloudSaveStore()
-    {
-        var local = CreateLocalStore();
-        return new CloudSaveStore(local, new DisabledCloudSaveStore(local));
-    }
 
     internal static ISaveStore CreateLocalStore()
         => OperatingSystem.IsAndroid()

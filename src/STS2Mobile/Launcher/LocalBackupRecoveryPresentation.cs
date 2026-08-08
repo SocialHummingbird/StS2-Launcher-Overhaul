@@ -17,22 +17,17 @@ internal readonly record struct LocalBackupRecoveryPresentation(
         {
             LocalBackupRefreshCompletion.Skipped
                 => "Save Backup is disabled. Existing backup files were kept.",
-            LocalBackupRefreshCompletion.Success when result.Restored > 0
-                => $"Save recovery succeeded: {result.Restored} restored, "
-                    + $"{result.Mirrored} mirrored, {result.Archived} archived. "
-                    + "Upload availability was refreshed.",
             LocalBackupRefreshCompletion.Success
                 => $"Save Backup refreshed: {result.Discovered} discovered, "
-                    + $"{result.Mirrored} mirrored, {result.Archived} archived; "
-                    + "no missing saves needed recovery.",
+                    + $"{result.Mirrored} mirrored, {result.Archived} archived.",
             LocalBackupRefreshCompletion.PartialSuccess
-                => $"Save recovery partially completed: {result.Restored} restored, "
-                    + $"{result.Mirrored} mirrored, {result.Archived} archived, "
-                    + $"{result.Errors} errors. Upload availability was refreshed.",
-            _ => "Save recovery failed: "
+                => $"Save Backup partially refreshed: {result.Mirrored} mirrored, "
+                    + $"{result.Archived} archived, {result.Errors} errors. "
+                    + "No save files were restored automatically.",
+            _ => "Save Backup failed: "
                 + (
                     string.IsNullOrWhiteSpace(result.FailureMessage)
-                        ? $"{result.Errors} errors prevented recovery."
+                        ? $"{result.Errors} errors prevented the backup refresh."
                         : result.FailureMessage
                 ),
         };

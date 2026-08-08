@@ -18,9 +18,6 @@ internal static partial class LauncherCloudSyncEvidence
     private static string? ReadMarkerValue(string path, string prefix)
         => LauncherMarkerFile.ReadOptionalValue(path, prefix);
 
-    private static bool HasCompletionFlag(string path)
-        => HasCompletionFlag(path, ManualPullCompletedBeforeBranchSwitchPushPrefix);
-
     private static bool HasCompletionFlag(string path, string prefix)
         => LauncherMarkerFile.ReadBoolFlag(path, prefix);
 }

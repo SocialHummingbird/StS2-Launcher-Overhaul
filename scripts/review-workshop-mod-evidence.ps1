@@ -335,7 +335,6 @@ function Require-WorkshopRuntimeActivationEvidence([string]$PhaseLabel) {
     Require-Pattern "diagnostics/workshop-hashes.txt" "$PhaseLabel Workshop PCK hash is captured" "\.pck"
     Require-JsonPattern "diagnostics/workshop-derived-state.json" "$PhaseLabel Workshop derived state has active manifest PCK" '(?i)"manifestActivePckCount"\s*:\s*[1-9]'
     Require-JsonPattern "diagnostics/workshop-derived-state.json" "$PhaseLabel Workshop derived state has raw staged PCK" '(?i)"rawStagedPckCount"\s*:\s*[1-9]'
-    Require-JsonPattern "diagnostics/workshop-derived-state.json" "$PhaseLabel Workshop derived state locks Cloud Push" '(?i)"workshopCloudPushLocked"\s*:\s*true'
     Require-WorkshopModLoaderScanEvidence "$PhaseLabel Workshop mod"
 
     $marker = Read-JsonEvidence "diagnostics/last-mod-launch.json" "$PhaseLabel mod activation marker"
@@ -502,7 +501,6 @@ if (-not [string]::IsNullOrWhiteSpace($RequirePhase)) {
             Require-JsonPattern "diagnostics/workshop-manifest.json" "manifest is empty after clear" '(?i)"Items"\s*:\s*\[\s*\]'
             Require-NoPattern "diagnostics/workshop-hashes.txt" "no staged Workshop PCK remains after clear" "files/workshop_mods/staged/.+\.pck"
             Require-JsonPattern "diagnostics/workshop-derived-state.json" "no-mods derived state has zero raw staged PCK files" '(?i)"rawStagedPckCount"\s*:\s*0'
-            Require-JsonPattern "diagnostics/workshop-derived-state.json" "no-mods derived state leaves Workshop Cloud Push unlocked" '(?i)"workshopCloudPushLocked"\s*:\s*false'
         }
         "simple" {
             Require-JsonPattern "diagnostics/workshop-manifest.json" "simple mod manifest is readable" "\{"
@@ -511,7 +509,6 @@ if (-not [string]::IsNullOrWhiteSpace($RequirePhase)) {
             Require-Pattern "diagnostics/workshop-hashes.txt" "simple mod has staged PCK hash" "\.pck"
             Require-JsonPattern "diagnostics/workshop-derived-state.json" "simple mod derived state has active manifest PCK" '(?i)"manifestActivePckCount"\s*:\s*[1-9]'
             Require-JsonPattern "diagnostics/workshop-derived-state.json" "simple mod derived state has raw staged PCK" '(?i)"rawStagedPckCount"\s*:\s*[1-9]'
-            Require-JsonPattern "diagnostics/workshop-derived-state.json" "simple mod derived state locks Workshop Cloud Push" '(?i)"workshopCloudPushLocked"\s*:\s*true'
             Require-WorkshopModLoaderScanEvidence "simple mod"
         }
         "dependency" {
@@ -522,7 +519,6 @@ if (-not [string]::IsNullOrWhiteSpace($RequirePhase)) {
             Require-WorkshopUsableSourceEvidence "dependency mod"
             Require-JsonPattern "diagnostics/workshop-derived-state.json" "dependency mod derived state has active manifest PCK" '(?i)"manifestActivePckCount"\s*:\s*[1-9]'
             Require-JsonPattern "diagnostics/workshop-derived-state.json" "dependency mod derived state has raw staged PCK" '(?i)"rawStagedPckCount"\s*:\s*[1-9]'
-            Require-JsonPattern "diagnostics/workshop-derived-state.json" "dependency mod derived state locks Workshop Cloud Push" '(?i)"workshopCloudPushLocked"\s*:\s*true'
             Require-WorkshopModLoaderScanEvidence "dependency mod"
         }
         "broken" {

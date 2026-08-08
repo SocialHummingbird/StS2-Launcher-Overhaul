@@ -119,10 +119,7 @@ internal sealed partial class ActionSection
             var issueText = unsupportedCount > 0
                 ? $" | {unsupportedCount} needs import"
                 : "";
-            var cloudText = moddedMode && enabledCount > 0
-                ? " | Cloud upload locked"
-                : "";
-            return $"Mods: {activeText}{issueText}{cloudText}";
+            return $"Mods: {activeText}{issueText}";
         }
 
         if (!moddedMode)
@@ -134,12 +131,12 @@ internal sealed partial class ActionSection
                 ? $"{unsupportedCount} Workshop item(s)"
                 : unsupportedSummary;
             return activeCount > 0 || externalManualCount > 0
-                ? $"Mods staged: Workshop {activeCount}, manual {externalManualCount}. {unsupportedCount} subscribed item(s) need manual import: {itemText}. Put mod folders or PCK files in {AppPaths.ExternalModsDir}. Steam Cloud upload stays locked while staged Workshop mods are selected for launch."
+                ? $"Mods staged: Workshop {activeCount}, manual {externalManualCount}. {unsupportedCount} subscribed item(s) need manual import: {itemText}. Put mod folders or PCK files in {AppPaths.ExternalModsDir}."
                 : $"Mods need attention: {unsupportedCount} subscribed item(s) need manual import: {itemText}. Put mod folders or PCK files in {AppPaths.ExternalModsDir}.";
         }
 
         if (activeCount > 0 || externalManualCount > 0)
-            return $"Play mode: Mods. Enabled {enabledCount} of {installedCount} installed mod(s). Workshop {activeCount} staged, manual {externalManualCount}. Steam Cloud upload stays locked while mods are selected for launch.";
+            return $"Play mode: Mods. Enabled {enabledCount} of {installedCount} installed mod(s). Workshop {activeCount} staged, manual {externalManualCount}.";
 
         return $"Mods: none staged or discovered. Sync Workshop or place manual mod folders/PCK files in {AppPaths.ExternalModsDir}.";
     }
@@ -160,6 +157,7 @@ internal sealed partial class ActionSection
         for (var i = 0; i < _modToggleButtons.Count; i++)
         {
             _modToggleKeys[i] = null;
+            _modToggleCanChange[i] = false;
             _modToggleButtons[i].Visible = false;
         }
 
@@ -172,11 +170,14 @@ internal sealed partial class ActionSection
             var label = ModToggleText(mod);
             var button = _modToggleButtons[index];
             _modToggleKeys[index] = mod.Key;
+            _modToggleCanChange[index] =
+                !mod.IsUnsupported && !mod.IsRequiredDependency;
             button.Visible = true;
             ApplyToggle(button, mod.Enabled, label);
-            button.Disabled = mod.IsUnsupported || mod.IsRequiredDependency;
             index++;
         }
+
+        ApplySaveContextControlsDisabled();
 
         PatchHelper.Log($"[Launcher] Mods refresh phase: update mod toggle slots complete count={index}");
     }

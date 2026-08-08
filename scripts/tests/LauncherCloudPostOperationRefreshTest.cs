@@ -10,423 +10,157 @@ internal static class LauncherCloudPostOperationRefreshTest
 
     private static int Main()
     {
-        Run("complete Pull permits completion evidence", CompletePullPermitsEvidence);
-        Run("transfer faults classify partial success", TransferFaultsClassifyPartial);
-        Run("zero-download Pull classifies failure", ZeroDownloadPullClassifiesFailure);
-        Run("timeout without progress classifies failure", TimeoutWithoutProgressClassifiesFailure);
-        Run("evidence precedes authoritative recapture", EvidencePrecedesRecapture);
-        Run("partial Pull never records completion evidence", PartialPullSkipsEvidence);
-        Run("evidence-write failure downgrades success", EvidenceFailureDowngradesSuccess);
-        Run("eligible recapture unlocks Upload immediately", EligibleRecaptureUnlocksUpload);
-        Run("remaining blocker is named after success", RemainingBlockerIsNamed);
-        Run("partial Pull summary preserves safety lock", PartialPullSummaryIsPrecise);
-        Run("Upload summaries use transfer language", UploadSummaryUsesTransferLanguage);
+        Run("sync result contains verified-success data only", SyncResultContainsSuccessDataOnly);
+        Run("verified completion recaptures current state", CompletionRecapturesCurrentState);
+        Run("Pull success copy is independent of legacy evidence", PullSuccessIgnoresLegacyEvidence);
+        Run("Upload summaries use verified transfer language", UploadSummaryUsesTransferLanguage);
         Run("operation timeout has a distinct summary", TimeoutHasDistinctSummary);
-        Run("operation failure retains precise progress", FailureRetainsProgress);
-        Run("recovery outcomes are precise", RecoveryOutcomesArePrecise);
+        Run("operation failure retains verified progress", FailureRetainsProgress);
+        Run("operation cancellation names unfinished work", CancellationNamesUnfinishedWork);
+        Run("local recovery outcomes remain precise", RecoveryOutcomesArePrecise);
 
-        AssertEqual("post-operation refresh tests passed", 14, _passed);
-        Console.WriteLine("Launcher cloud post-operation refresh tests passed 14/14.");
+        AssertEqual("post-operation refresh tests passed", 8, _passed);
+        Console.WriteLine("Launcher cloud post-operation refresh tests passed 8/8.");
         return 0;
     }
 
-    private static void CompletePullPermitsEvidence()
+    private static void SyncResultContainsSuccessDataOnly()
     {
-        var result = PullResult(completed: 3, skipped: 2);
-
-        AssertEqual(
-            "completion",
-            ManualCloudSyncCompletion.Success,
-            result.Completion
-        );
-        AssertTrue("completion evidence", result.CanRecordCompletionEvidence);
+        var result = PullResult(transferred: 3, backups: 2);
+        AssertEqual("kind", CloudOperationKind.Pull, result.Kind);
+        AssertEqual("transferred", 3, result.TransferredPathCount);
+        AssertEqual("backups", 2, result.BackupCreatedCount);
     }
 
-    private static void TransferFaultsClassifyPartial()
+    private static void CompletionRecapturesCurrentState()
     {
-        var result = PullResult(
-            completed: 2,
-            skipped: 1,
-            failed: 1,
-            timedOut: 1,
-            unprocessed: 2
-        );
-
-        AssertEqual(
-            "completion",
-            ManualCloudSyncCompletion.PartialSuccess,
-            result.Completion
-        );
-        AssertFalse("completion evidence", result.CanRecordCompletionEvidence);
-    }
-
-    private static void ZeroDownloadPullClassifiesFailure()
-    {
-        var result = PullResult(completed: 0, skipped: 5);
-
-        AssertEqual(
-            "completion",
-            ManualCloudSyncCompletion.Failure,
-            result.Completion
-        );
-        AssertFalse("completion evidence", result.CanRecordCompletionEvidence);
-    }
-
-    private static void TimeoutWithoutProgressClassifiesFailure()
-    {
-        var result = PullResult(
-            completed: 0,
-            timedOut: 1,
-            unprocessed: 4
-        );
-
-        AssertEqual(
-            "completion",
-            ManualCloudSyncCompletion.Failure,
-            result.Completion
-        );
-    }
-
-    private static void EvidencePrecedesRecapture()
-    {
-        var calls = new List<string>();
+        var captureCalls = 0;
         var resolution = CloudPostOperationRefresh.ResolveCompletion(
-            PullResult(completed: 2),
-            evidenceRequired: true,
+            PullResult(2),
             () =>
             {
-                calls.Add("evidence");
-                return true;
-            },
-            () =>
-            {
-                calls.Add("capture");
+                captureCalls++;
                 return Snapshot(Eligible());
             }
         );
 
-        AssertSequence(
-            "completion order",
-            new[] { "evidence", "capture" },
-            calls
-        );
-        AssertTrue("evidence recorded", resolution.CompletionEvidenceRecorded);
+        AssertEqual("capture calls", 1, captureCalls);
+        AssertTrue("captured eligibility", resolution.Snapshot.UploadEligibility.IsEligible);
     }
 
-    private static void PartialPullSkipsEvidence()
-    {
-        var evidenceCalls = 0;
-        var resolution = CloudPostOperationRefresh.ResolveCompletion(
-            PullResult(completed: 1, failed: 1),
-            evidenceRequired: true,
-            () =>
-            {
-                evidenceCalls++;
-                return true;
-            },
-            () => Snapshot(Ineligible("Complete a fully successful Pull."))
-        );
-
-        AssertEqual("evidence calls", 0, evidenceCalls);
-        AssertFalse("evidence recorded", resolution.CompletionEvidenceRecorded);
-    }
-
-    private static void EvidenceFailureDowngradesSuccess()
+    private static void PullSuccessIgnoresLegacyEvidence()
     {
         var resolution = CloudPostOperationRefresh.ResolveCompletion(
-            PullResult(completed: 3),
-            evidenceRequired: true,
-            () => false,
-            () => Snapshot(Ineligible("Pull completion evidence is missing."))
+            PullResult(3),
+            () => Snapshot(MissingLocalSaves())
         );
-        var presentation =
-            CloudOperationTerminalPresentation.CreateCompletion(resolution);
+        var presentation = CloudOperationTerminalPresentation.CreateCompletion(resolution);
 
-        AssertEqual(
-            "outcome",
-            CloudOperationTerminalOutcome.PartialSuccess,
-            presentation.Outcome
-        );
-        AssertContains(
-            "evidence failure",
-            presentation.StatusText,
-            "evidence"
-        );
-    }
-
-    private static void EligibleRecaptureUnlocksUpload()
-    {
-        var resolution = CloudPostOperationRefresh.ResolveCompletion(
-            PullResult(completed: 4, skipped: 1),
-            evidenceRequired: true,
-            () => true,
-            () => Snapshot(Eligible())
-        );
-        var presentation =
-            CloudOperationTerminalPresentation.CreateCompletion(resolution);
-
-        AssertEqual(
-            "outcome",
-            CloudOperationTerminalOutcome.Success,
-            presentation.Outcome
-        );
-        AssertTrue(
-            "captured eligibility",
-            resolution.Snapshot.UploadEligibility.IsEligible
-        );
-        AssertContains(
-            "unlock summary",
-            presentation.StatusText,
-            "Upload is now available"
-        );
-    }
-
-    private static void RemainingBlockerIsNamed()
-    {
-        var resolution = CloudPostOperationRefresh.ResolveCompletion(
-            PullResult(completed: 4),
-            evidenceRequired: true,
-            () => true,
-            () => Snapshot(Ineligible("Deselect all mods before Upload."))
-        );
-        var presentation =
-            CloudOperationTerminalPresentation.CreateCompletion(resolution);
-
-        AssertEqual(
-            "Pull outcome",
-            CloudOperationTerminalOutcome.Success,
-            presentation.Outcome
-        );
-        AssertContains(
-            "remaining blocker",
-            presentation.StatusText,
-            "Deselect all mods"
-        );
-    }
-
-    private static void TimeoutHasDistinctSummary()
-    {
-        var state = TransferState(
-            total: 5,
-            completed: 2,
-            skipped: 1,
-            failed: 0,
-            timedOut: 0
-        );
-        var presentation = CloudOperationTerminalPresentation.CreateTimeout(
-            "Pull",
-            state,
-            "Pull timed out after 180000ms",
-            Snapshot(Ineligible("Complete Pull from Steam Cloud."))
-        );
-
-        AssertEqual(
-            "outcome",
-            CloudOperationTerminalOutcome.Timeout,
-            presentation.Outcome
-        );
-        AssertContains("timeout title", presentation.StatusText, "timed out");
-        AssertContains("retained completed count", presentation.StatusText, "2 downloaded");
-        AssertContains("unfinished count", presentation.StatusText, "2 unfinished");
-    }
-
-    private static void PartialPullSummaryIsPrecise()
-    {
-        var resolution = CloudPostOperationRefresh.ResolveCompletion(
-            PullResult(completed: 2, failed: 1, unprocessed: 1),
-            evidenceRequired: true,
-            () => throw new InvalidOperationException(
-                "partial Pull must not write completion evidence"
-            ),
-            () => Snapshot(Ineligible("Retry Pull from Steam Cloud."))
-        );
-        var presentation =
-            CloudOperationTerminalPresentation.CreateCompletion(resolution);
-
-        AssertEqual(
-            "partial outcome",
-            CloudOperationTerminalOutcome.PartialSuccess,
-            presentation.Outcome
-        );
-        AssertContains(
-            "partial summary",
-            presentation.StatusText,
-            "partially succeeded"
-        );
-        AssertContains(
-            "partial safety lock",
-            presentation.StatusText,
-            "Upload remains locked"
-        );
+        AssertEqual("Pull outcome", CloudOperationTerminalOutcome.Success, presentation.Outcome);
+        AssertContains("verified snapshot", presentation.StatusText, "verified Steam snapshot");
+        AssertFalse("no Upload lock claim", presentation.StatusText.Contains("locked", StringComparison.OrdinalIgnoreCase));
+        AssertFalse("no evidence claim", presentation.StatusText.Contains("evidence", StringComparison.OrdinalIgnoreCase));
     }
 
     private static void UploadSummaryUsesTransferLanguage()
     {
         var result = new ManualCloudSyncResult(
             CloudOperationKind.Push,
-            CandidatePathCount: 3,
-            CompletedPathCount: 1,
-            SkippedPathCount: 0,
-            FailedPathCount: 1,
-            TimedOutPathCount: 0,
-            UnprocessedPathCount: 1,
+            TransferredPathCount: 3,
             BackupCreatedCount: 1,
-            PrivateBackupCreatedCount: 0,
-            ProfileSeededCount: 0,
-            PostProcessingErrorCount: 0,
-            Detail: ""
+            Detail: "Remote hashes verified."
         );
         var resolution = CloudPostOperationRefresh.ResolveCompletion(
             result,
-            evidenceRequired: false,
-            recordCompletionEvidence: null,
             () => Snapshot(Eligible())
         );
-        var presentation =
-            CloudOperationTerminalPresentation.CreateCompletion(resolution);
+        var presentation = CloudOperationTerminalPresentation.CreateCompletion(resolution);
 
-        AssertEqual(
-            "Upload partial outcome",
-            CloudOperationTerminalOutcome.PartialSuccess,
-            presentation.Outcome
+        AssertEqual("Upload outcome", CloudOperationTerminalOutcome.Success, presentation.Outcome);
+        AssertContains("Upload summary", presentation.StatusText, "Steam Cloud was updated");
+        AssertContains("Upload count", presentation.StatusText, "3 verified");
+        AssertFalse("Upload summary mentions Pull evidence", presentation.StatusText.Contains("completion evidence", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void TimeoutHasDistinctSummary()
+    {
+        var state = TransferState(total: 5, processed: 3, completed: 2);
+        var presentation = CloudOperationTerminalPresentation.CreateTimeout(
+            "Pull",
+            state,
+            "Pull timed out after 180000ms"
         );
-        AssertContains(
-            "Upload partial summary",
-            presentation.StatusText,
-            "Some saves were not updated in Steam Cloud"
-        );
-        AssertFalse(
-            "Upload summary mentions Pull evidence",
-            presentation.StatusText.Contains(
-                "Completion evidence",
-                StringComparison.Ordinal
-            )
-        );
+
+        AssertEqual("outcome", CloudOperationTerminalOutcome.Timeout, presentation.Outcome);
+        AssertContains("timeout title", presentation.StatusText, "timed out");
+        AssertContains("retained completed count", presentation.StatusText, "2 verified");
+        AssertContains("unfinished count", presentation.StatusText, "2 unfinished");
     }
 
     private static void FailureRetainsProgress()
     {
-        var state = TransferState(
-            total: 4,
-            completed: 1,
-            skipped: 0,
-            failed: 1,
-            timedOut: 0
-        );
+        var state = TransferState(total: 4, processed: 1, completed: 1);
         var presentation = CloudOperationTerminalPresentation.CreateFailure(
             "Pull",
             state,
-            "Steam connection failed",
-            Snapshot(Ineligible("Retry Pull from Steam Cloud."))
+            "Steam connection failed"
         );
 
-        AssertEqual(
-            "outcome",
-            CloudOperationTerminalOutcome.Failure,
-            presentation.Outcome
-        );
+        AssertEqual("outcome", CloudOperationTerminalOutcome.Failure, presentation.Outcome);
         AssertContains("failure reason", presentation.StatusText, "Steam connection failed");
-        AssertContains("retained completed count", presentation.StatusText, "1 downloaded");
-        AssertContains("failed count", presentation.StatusText, "1 failed");
+        AssertContains("retained completed count", presentation.StatusText, "1 verified");
+        AssertContains("unfinished count", presentation.StatusText, "3 unfinished");
+    }
+
+    private static void CancellationNamesUnfinishedWork()
+    {
+        var state = TransferState(total: 4, processed: 1, completed: 1);
+        var presentation = CloudOperationTerminalPresentation.CreateCancelled(
+            "Pull",
+            state
+        );
+
+        AssertEqual("outcome", CloudOperationTerminalOutcome.Cancelled, presentation.Outcome);
+        AssertContains("cancelled title", presentation.StatusText, "cancelled");
+        AssertContains("unfinished count", presentation.StatusText, "3 unfinished");
+        AssertContains("no hidden work", presentation.StatusText, "No hidden cloud work remains");
     }
 
     private static void RecoveryOutcomesArePrecise()
     {
         var success = LocalBackupRecoveryPresentation.Create(
-            new LocalBackupRefreshResult(
-                Attempted: true,
-                StorageAccessAvailable: true,
-                Discovered: 3,
-                Mirrored: 2,
-                Archived: 1,
-                Restored: 2,
-                Errors: 0,
-                FailureMessage: ""
-            )
+            new LocalBackupRefreshResult(true, true, 3, 2, 1, 0, "")
         );
         var partial = LocalBackupRecoveryPresentation.Create(
-            new LocalBackupRefreshResult(
-                Attempted: true,
-                StorageAccessAvailable: true,
-                Discovered: 3,
-                Mirrored: 1,
-                Archived: 0,
-                Restored: 1,
-                Errors: 2,
-                FailureMessage: ""
-            )
+            new LocalBackupRefreshResult(true, true, 3, 1, 0, 2, "")
         );
         var failure = LocalBackupRecoveryPresentation.Create(
             LocalBackupRefreshResult.Failed("Backup directory is unavailable")
         );
 
-        AssertEqual(
-            "success outcome",
-            LocalBackupRefreshCompletion.Success,
-            success.Completion
-        );
-        AssertContains("success restored count", success.StatusText, "2 restored");
-        AssertEqual(
-            "partial outcome",
-            LocalBackupRefreshCompletion.PartialSuccess,
-            partial.Completion
-        );
+        AssertEqual("success outcome", LocalBackupRefreshCompletion.Success, success.Completion);
+        AssertContains("success backup count", success.StatusText, "2 mirrored");
+        AssertNotContains("success does not claim restore", success.StatusText, "restored");
+        AssertEqual("partial outcome", LocalBackupRefreshCompletion.PartialSuccess, partial.Completion);
         AssertContains("partial errors", partial.StatusText, "2 errors");
-        AssertEqual(
-            "failure outcome",
-            LocalBackupRefreshCompletion.Failure,
-            failure.Completion
-        );
-        AssertContains(
-            "failure reason",
-            failure.StatusText,
-            "Backup directory is unavailable"
-        );
+        AssertContains("partial restore boundary", partial.StatusText, "No save files were restored automatically");
+        AssertEqual("failure outcome", LocalBackupRefreshCompletion.Failure, failure.Completion);
+        AssertContains("failure reason", failure.StatusText, "Backup directory is unavailable");
     }
 
-    private static ManualCloudSyncResult PullResult(
-        int completed,
-        int skipped = 0,
-        int failed = 0,
-        int timedOut = 0,
-        int unprocessed = 0
-    )
-        => new(
-            CloudOperationKind.Pull,
-            completed + skipped + failed + timedOut + unprocessed,
-            completed,
-            skipped,
-            failed,
-            timedOut,
-            unprocessed,
-            BackupCreatedCount: 1,
-            PrivateBackupCreatedCount: 0,
-            ProfileSeededCount: 1,
-            PostProcessingErrorCount: 0,
-            Detail: ""
-        );
+    private static ManualCloudSyncResult PullResult(int transferred, int backups = 1)
+        => new(CloudOperationKind.Pull, transferred, backups, "");
 
-    private static CloudOperationState TransferState(
-        int total,
-        int completed,
-        int skipped,
-        int failed,
-        int timedOut
-    )
+    private static CloudOperationState TransferState(int total, int processed, int completed)
         => CloudOperationState.Idle(CloudOperationKind.Pull) with
         {
             Phase = CloudOperationPhase.Transferring,
             TransferTotalCount = total,
-            TransferProcessedCount = completed + skipped + failed + timedOut,
+            TransferProcessedCount = processed,
             TransferCompletedCount = completed,
-            TransferSkippedCount = skipped,
-            TransferFailedCount = failed,
-            TransferTimedOutCount = timedOut,
         };
 
-    private static CloudPostOperationSnapshot Snapshot(
-        CloudPushEligibilityResult eligibility
-    )
+    private static CloudPostOperationSnapshot Snapshot(CloudPushEligibilityResult eligibility)
         => new(
             ImportantLocalSaveEvidenceCount: eligibility.IsEligible ? 2 : 0,
             CurrentMirrorSaveCount: eligibility.IsEligible ? 2 : 0,
@@ -436,16 +170,16 @@ internal static class LauncherCloudPostOperationRefreshTest
     private static CloudPushEligibilityResult Eligible()
         => new(Array.Empty<CloudPushEligibilityBlock>());
 
-    private static CloudPushEligibilityResult Ineligible(string reason)
+    private static CloudPushEligibilityResult MissingLocalSaves()
         => new(
             new[]
             {
                 new CloudPushEligibilityBlock(
-                    CloudPushEligibilityBlockCode.ManualPullNotCompleted,
-                    reason,
+                    CloudPushEligibilityBlockCode.ImportantLocalSavesMissing,
+                    "No transferable Android local save files were found.",
                     new CloudPushRequiredAction(
-                        CloudPushRequiredActionCode.CompletePullForSelectedVersion,
-                        reason
+                        CloudPushRequiredActionCode.VerifyAndroidLocalSaves,
+                        "Open the game and verify that Android local saves exist."
                     )
                 ),
             }
@@ -473,39 +207,25 @@ internal static class LauncherCloudPostOperationRefreshTest
     private static void AssertEqual<T>(string name, T expected, T actual)
     {
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
-        {
-            throw new InvalidOperationException(
-                $"{name}: expected {expected}, actual {actual}."
-            );
-        }
+            throw new InvalidOperationException($"{name}: expected {expected}, actual {actual}.");
     }
 
-    private static void AssertContains(
-        string name,
-        string actual,
-        string expected
-    )
+    private static void AssertContains(string name, string actual, string expected)
     {
         if (!actual.Contains(expected, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                $"{name}: expected '{expected}' in '{actual}'."
-            );
-        }
+            throw new InvalidOperationException($"{name}: expected '{expected}' in '{actual}'.");
     }
 
-    private static void AssertSequence<T>(
+    private static void AssertNotContains(
         string name,
-        IReadOnlyCollection<T> expected,
-        IReadOnlyCollection<T> actual
+        string actual,
+        string rejected
     )
     {
-        if (!System.Linq.Enumerable.SequenceEqual(expected, actual))
-        {
+        if (actual.Contains(rejected, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException(
-                $"{name}: expected [{string.Join(", ", expected)}], "
-                    + $"actual [{string.Join(", ", actual)}]."
+                $"{name}: did not expect '{rejected}' in '{actual}'."
             );
-        }
     }
+
 }

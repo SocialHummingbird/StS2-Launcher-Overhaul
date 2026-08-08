@@ -28,7 +28,7 @@ internal sealed partial class LauncherCloudSyncCoordinator
             if (PrepareOperation != null && !PrepareOperation())
             {
                 throw new InvalidOperationException(
-                    $"{Name} could not safely invalidate its previous completion evidence."
+                    $"{Name} is no longer safe for the selected save context."
                 );
             }
         }
@@ -40,20 +40,20 @@ internal sealed partial class LauncherCloudSyncCoordinator
         {
             var resolution = CloudPostOperationRefresh.ResolveCompletion(
                 result,
-                CompletionEvidenceRequired,
-                RecordCompletionEvidence,
-                captureCurrentState,
-                RecordIncompleteResult
+                captureCurrentState
             );
-            if (
-                result.Completion == ManualCloudSyncCompletion.Success
-                && (
-                    !CompletionEvidenceRequired
-                    || resolution.CompletionEvidenceRecorded
-                )
-            )
+            if (OnSuccessfulCompletion != null)
             {
-                OnSuccessfulCompletion?.Invoke();
+                try
+                {
+                    OnSuccessfulCompletion();
+                }
+                catch (Exception ex)
+                {
+                    PatchHelper.Log(
+                        $"[Cloud] {Name} completion diagnostic could not be recorded: {ex.Message}"
+                    );
+                }
             }
 
             return resolution;
@@ -65,9 +65,30 @@ internal sealed partial class LauncherCloudSyncCoordinator
             Exception? exception = null
         )
         {
-            RecordTerminalFailureAction?.Invoke(outcome, detail);
-            if (exception != null)
-                OnFailed?.Invoke(exception);
+            try
+            {
+                RecordTerminalFailureAction?.Invoke(outcome, detail);
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(
+                    $"[Cloud] {Name} failure diagnostic could not be recorded: {ex.Message}"
+                );
+            }
+
+            if (exception == null || OnFailed == null)
+                return;
+
+            try
+            {
+                OnFailed(exception);
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(
+                    $"[Cloud] {Name} blocked-operation diagnostic could not be recorded: {ex.Message}"
+                );
+            }
         }
 
         internal void ShowTerminal(

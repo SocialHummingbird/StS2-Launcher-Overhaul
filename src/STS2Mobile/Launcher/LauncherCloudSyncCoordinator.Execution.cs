@@ -196,20 +196,17 @@ internal sealed partial class LauncherCloudSyncCoordinator
                     => CloudOperationTerminalPresentation.CreateTimeout(
                         request.OperationName,
                         request.ProgressState,
-                        reason,
-                        snapshot
+                        reason
                     ),
                 CloudOperationTerminalOutcome.Cancelled
                     => CloudOperationTerminalPresentation.CreateCancelled(
                         request.OperationName,
-                        request.ProgressState,
-                        snapshot
+                        request.ProgressState
                     ),
                 _ => CloudOperationTerminalPresentation.CreateFailure(
                     request.OperationName,
                     request.ProgressState,
-                    reason,
-                    snapshot
+                    reason
                 ),
             };
             request.ShowTerminal(_view, presentation);

@@ -19,20 +19,27 @@ function Add-SteamVersionSelectionCloudSafetyEvidenceMarkerCoreChecks {
             "SelectedVersionSlotKindPrefix = ""Selected version slot kind:""",
             "SelectedVersionSlotDirectoryPrefix = ""Selected version slot directory:""",
             "SelectedBranchNotePrefix = ""Selected branch note:""",
-            "ManualPullCompletedBeforePushPrefix = ""Manual Pull completed before Push:""",
-            "ManualPullCompletedBeforeBranchSwitchPushPrefix = ""Manual Pull completed before branch-switch Push:""",
+            "ManualPullOutcomePrefix = ""Manual Pull outcome:""",
+            "ManualPullOutcomeDetailPrefix = ""Manual Pull outcome detail:""",
             "PrePushLocalBackupEvidenceCountPrefix = ""Pre-Push local backup evidence count:""",
             "PrePushCloudBackupEvidenceCountPrefix = ""Pre-Push cloud backup evidence count:""",
             "LatestPrePushLocalBackupUtcPrefix = ""Latest pre-Push local backup UTC:""",
             "LatestPrePushCloudBackupUtcPrefix = ""Latest pre-Push cloud backup UTC:""",
             "ImportantLocalSaveEvidenceCountPrefix = ""Important Android local save evidence count:""",
-            "BaselineManualPushPrerequisitesSatisfiedPrefix = ""Baseline manual Push prerequisites satisfied:""",
-            "BranchSwitchPrePushBackupEvidenceSatisfiedPrefix = ""Branch-switch pre-Push backup evidence satisfied:""",
-            "BranchSwitchManualPushPrerequisitesSatisfiedPrefix = ""Branch-switch manual Push prerequisites satisfied:""",
-            "ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix = ""Manual Push completed after branch-switch safety gates:""",
             "BlockedReasonPrefix = ""Blocked reason:""",
             "ManualPushBlockedBeforeUploadPrefix = ""Manual Push blocked before upload:""",
             "ManualPushBlockedReasonPrefix = ""Manual Push blocked:"""
+        )
+
+    Add-ForbiddenCheck `
+        "src\STS2Mobile\Launcher\LauncherCloudSyncEvidence.Fields.cs" `
+        "does not encode obsolete Pull-before-Push or branch/storage prerequisite claims" `
+        @(
+            "ManualPullCompletedBeforePushPrefix",
+            "ManualPullCompletedBeforeBranchSwitchPushPrefix",
+            "ManualPushPrerequisitesSatisfiedPrefix",
+            "BranchSwitchPrePushBackupEvidenceSatisfiedPrefix",
+            "ManualPushCompletedAfterBranchSwitchSafetyGatesPrefix"
         )
 
     Add-Check `

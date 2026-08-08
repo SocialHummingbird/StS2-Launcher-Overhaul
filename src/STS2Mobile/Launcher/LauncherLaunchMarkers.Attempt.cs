@@ -48,7 +48,6 @@ internal static partial class LauncherLaunchMarkers
     private const string ModInstalledCountPrefix = "Mod installed count:";
     private const string ModEnabledCountPrefix = "Mod enabled count:";
     private const string ModUnsupportedCountPrefix = "Mod unsupported count:";
-    private const string ModdedSaveCloudPushLockedPrefix = "Modded save cloud push locked:";
     private const string SelectedModsPrefix = "Selected mods:";
 
     private static string LaunchAttemptPath =>
@@ -115,7 +114,6 @@ internal static partial class LauncherLaunchMarkers
                 MarkerLine(ModInstalledCountPrefix, modReadiness?.InstalledMods ?? 0),
                 MarkerLine(ModEnabledCountPrefix, modReadiness?.EnabledMods ?? 0),
                 MarkerLine(ModUnsupportedCountPrefix, modReadiness?.UnsupportedMods ?? 0),
-                MarkerLine(ModdedSaveCloudPushLockedPrefix, modReadiness?.CloudPushLocked == true),
                 MarkerLine(SelectedModsPrefix, modReadiness?.SelectedMods),
             }.JoinLines(),
             "Failed to write launch attempt marker"

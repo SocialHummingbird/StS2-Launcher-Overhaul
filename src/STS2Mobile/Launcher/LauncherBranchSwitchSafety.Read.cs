@@ -38,9 +38,6 @@ internal static partial class LauncherBranchSwitchSafety
     internal static bool LocalBackupForced(string dataDir)
         => ReadMarkerBool(dataDir, LocalBackupForcedPrefix);
 
-    internal static bool ManualPushRequiresBackupStorage(string dataDir)
-        => ReadMarkerBool(dataDir, ManualPushRequiresBackupStoragePrefix);
-
     internal static bool WarningAcknowledged(string dataDir)
         => HasValue(ReadMarkerValue(dataDir, WarningAcknowledgedPrefix));
 
