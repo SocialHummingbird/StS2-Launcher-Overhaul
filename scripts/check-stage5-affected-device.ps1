@@ -322,6 +322,13 @@ if ([int64]$candidateIdentity.versionCode -le $baselineVersionCode) {
 }
 
 $buildInfo = Read-BuildInfo -Path $candidateBuildInfo
+if (-not $buildInfo.ContainsKey('unsigned_apk_sha256')) {
+    throw 'Candidate build-info is missing: unsigned_apk_sha256'
+}
+$unsignedApkSha256 = [string]$buildInfo['unsigned_apk_sha256']
+if ($unsignedApkSha256 -cnotmatch '^[0-9a-f]{64}$') {
+    throw 'Candidate build-info unsigned_apk_sha256 must be a lowercase SHA-256.'
+}
 Assert-BuildInfoValue $buildInfo 'package_name' $requiredPackage
 Assert-BuildInfoValue $buildInfo 'version_name' ([string]$candidateIdentity.versionName)
 Assert-BuildInfoValue $buildInfo 'version_code' ([string]$candidateIdentity.versionCode)
@@ -370,6 +377,7 @@ if ($Mode -eq 'PostInstall') {
     foreach ($binding in @(
         @('packageName', $requiredPackage),
         @('apkSha256', $candidateHash),
+        @('unsignedApkSha256', $unsignedApkSha256),
         @('checksumSha256', (Get-Sha256 -Path $candidateChecksum)),
         @('buildInfoSha256', (Get-Sha256 -Path $candidateBuildInfo)),
         @('sourceCommit', $expectedCommit),
@@ -450,6 +458,7 @@ $manifest = [ordered]@{
     candidate = [ordered]@{
         apkPath = $candidateApk
         apkSha256 = $candidateHash
+        unsignedApkSha256 = $unsignedApkSha256
         checksumPath = $candidateChecksum
         checksumSha256 = Get-Sha256 -Path $candidateChecksum
         buildInfoPath = $candidateBuildInfo

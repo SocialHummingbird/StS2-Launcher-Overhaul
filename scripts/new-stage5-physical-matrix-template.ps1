@@ -313,6 +313,7 @@ $template = [ordered]@{
         candidate = [ordered]@{
             apkPath = '<path-to-unchanged-candidate-apk>'
             apkSha256 = '<sha256>'
+            unsignedApkSha256 = '<sha256-from-candidate-build-info>'
             buildInfoPath = '<path-to-candidate-build-info.txt>'
             buildInfoSha256 = '<sha256>'
             sourceCommit = '<40-character-clean-source-commit>'

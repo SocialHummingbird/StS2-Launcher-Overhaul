@@ -684,6 +684,7 @@ $binding = $matrix.binding
 $candidate = $binding.candidate
 Assert-True -Condition ([string]$candidate.sourceCommit -match '^[0-9a-f]{40}$') -Message 'Matrix candidate sourceCommit must be a lowercase 40-character commit.'
 Assert-True -Condition ([string]$candidate.apkSha256 -match '^[0-9a-f]{64}$') -Message 'Matrix candidate APK hash must be lowercase SHA-256.'
+Assert-True -Condition ([string]$candidate.unsignedApkSha256 -cmatch '^[0-9a-f]{64}$') -Message 'Matrix candidate unsigned APK hash must be lowercase SHA-256.'
 Assert-True -Condition ([string]$candidate.buildInfoSha256 -match '^[0-9a-f]{64}$') -Message 'Matrix candidate build-info hash must be lowercase SHA-256.'
 Assert-True -Condition ([string]$candidate.signerSha256 -match '^[0-9a-f]{64}$') -Message 'Matrix candidate signer hash must be lowercase SHA-256.'
 Assert-True -Condition ([string]$candidate.updateBaselineApkSha256 -match '^[0-9a-f]{64}$') -Message 'Matrix update-baseline APK hash must be lowercase SHA-256.'
@@ -739,6 +740,7 @@ $expectedBuildInfo = [ordered]@{
     source_commit = [string]$candidate.sourceCommit
     candidate_run_id = [string]$candidate.candidateRunId
     candidate_run_attempt = [string]$candidate.candidateRunAttempt
+    unsigned_apk_sha256 = [string]$candidate.unsignedApkSha256
     apk_sha256 = ([string]$candidate.apkSha256).ToLowerInvariant()
     update_baseline_tag = [string]$candidate.updateBaselineTag
     update_baseline_asset_name = [string]$candidate.updateBaselineAssetName
@@ -2208,6 +2210,7 @@ $report = [ordered]@{
     sourceMatrixSha256 = $matrixSha256
     sourceCommit = [string]$candidate.sourceCommit
     candidateApkSha256 = [string]$candidate.apkSha256
+    candidateUnsignedApkSha256 = [string]$candidate.unsignedApkSha256
     candidateBuildInfoSha256 = [string]$candidate.buildInfoSha256
     packageName = [string]$candidate.packageName
     versionName = [string]$candidate.versionName

@@ -43,7 +43,7 @@ Current desktop evidence passes 70/70 integrated transfer/automatic-sync/recover
 
 Review 5 must inspect captured Android-local byte hashes and independently read Steam Cloud byte hashes, not UI text. The focused and full logs must show no dropped write or swallowed failure, and every displayed `Synced` result must be tied to the matching verified remote manifest. A persisted baseline is useful evidence, but is not an independent live Steam query by itself.
 
-The Android workflow now builds a candidate artifact only. It does not publish on tags and has no release-promotion job. Its build-info sidecar binds `source_commit`, `candidate_run_id`, `candidate_run_attempt`, `abi`, the exact `apk_sha256`, and the APK's verified actual `signer_sha256`; device evidence must additionally bind the installed base-APK SHA-256, package/version, and device identity. The tested APK must be promoted byte-for-byte after signoff rather than rebuilt. No promotion path should be added until it rejects an incomplete matrix or mismatched evidence binding.
+The Android workflow now builds a candidate artifact only. It does not publish on tags and has no release-promotion job. Its build-info sidecar binds `source_commit`, `candidate_run_id`, `candidate_run_attempt`, `abi`, the workflow-computed `unsigned_apk_sha256`, the exact signed `apk_sha256`, and the APK's verified actual `signer_sha256`; device evidence must additionally bind the installed base-APK SHA-256, package/version, and device identity. The tested APK must be promoted byte-for-byte after signoff rather than rebuilt. No promotion path should be added until it rejects an incomplete matrix or mismatched evidence binding.
 
 The only Stage 5 candidate line is the published v0.2.416 `.local` lineage. The workflow hard-codes package `com.sts2launcher.overhaul.fork.local` and verifies every candidate against the exact v0.2.416 APK bytes and signing certificate before retaining the artifact. This is necessary for an in-place update to preserve and read existing private saves; a side-by-side `.dev` install cannot do that. It is not sufficient release evidence: the dedicated v0.2.416 signing credentials must first be configured, the candidate must pass the complete matrix, and affected-user exports must be verified before any recovery or Steam operation.
 
@@ -117,8 +117,8 @@ Use the existing `cloud_sync_enabled` setting throughout this matrix. Do not add
 4. Confirm the output APK path is present in logs:
    - `android/build/outputs/apk/mono/release/StS2Launcher-v<version>.apk`
 5. Download the candidate artifact and keep it unchanged through the complete Stage 5 matrix.
-6. Confirm its build-info sidecar records the expected `source_commit`, `candidate_run_id`, `candidate_run_attempt`, `abi=arm64-v8a`, actual verified `signer_sha256`, and `apk_sha256`.
-7. Confirm `apk_sha256` matches both the checksum sidecar and a fresh hash of the downloaded APK. Every device capture must bind that hash and the installed base-APK hash.
+6. Confirm its build-info sidecar records the expected `source_commit`, `candidate_run_id`, `candidate_run_attempt`, `abi=arm64-v8a`, actual verified `signer_sha256`, `unsigned_apk_sha256`, and `apk_sha256`.
+7. Copy the lowercase `unsigned_apk_sha256` into the matrix candidate binding; device preflight validates the field but cannot rehash the unavailable unsigned artifact. Confirm `apk_sha256` matches both the checksum sidecar and a fresh hash of the downloaded signed APK. Every device capture must bind that signed hash and the installed base-APK hash.
 
 ## 2) Verify update guardrails
 
