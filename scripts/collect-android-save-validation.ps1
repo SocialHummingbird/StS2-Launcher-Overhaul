@@ -77,6 +77,17 @@ function Get-TextSha256 {
     }
 }
 
+function Get-ByteSha256 {
+    param([Parameter(Mandatory = $true)][AllowEmptyCollection()][byte[]]$Bytes)
+
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+        return (($sha256.ComputeHash($Bytes) | ForEach-Object { $_.ToString("x2") }) -join "")
+    } finally {
+        $sha256.Dispose()
+    }
+}
+
 function Resolve-AuthorizedDevice {
     $savedSerial = $script:DeviceSerial
     $script:DeviceSerial = ""
@@ -543,32 +554,94 @@ find files -maxdepth 9 -type f \( -name 'profile.save' -o -name 'progress.save' 
                 continue
             }
 
-            $documentResult = Invoke-AdbRaw -AdbArguments @("exec-out", "run-as", $PackageName, "cat", $devicePath)
+            $deviceSha256 = $parts[0].ToLowerInvariant()
+            $deviceSizeBytes = [int64]$parts[1]
+            $nameHash = (Get-TextSha256 -Text $devicePath).Substring(0, 16)
+            $capturedName = "$nameHash-$([IO.Path]::GetFileName($devicePath))"
+            $capturedPath = Join-Path $stateCaptureDir $capturedName
+            $documentResult = Invoke-AdbRaw -AdbArguments @(
+                "exec-out", "run-as", $PackageName, "base64", $devicePath
+            )
             if ($documentResult.ExitCode -ne 0) {
                 $stateDocumentIndex.Add([pscustomobject]@{
                     devicePath = $devicePath
                     capturedFile = ""
-                    deviceSha256 = $parts[0].ToLowerInvariant()
-                    deviceSizeBytes = [int64]$parts[1]
+                    deviceSha256 = $deviceSha256
+                    deviceSizeBytes = $deviceSizeBytes
+                    capturedSha256 = ""
+                    capturedSizeBytes = [int64]0
+                    byteIdentityVerified = $false
                     parsed = $false
                     error = "read failed"
                 })
                 continue
             }
 
-            $documentText = $documentResult.Output -join "`n"
-            $nameHash = (Get-TextSha256 -Text $devicePath).Substring(0, 16)
-            $capturedName = "$nameHash-$([IO.Path]::GetFileName($devicePath))"
-            $capturedPath = Join-Path $stateCaptureDir $capturedName
-            [IO.File]::WriteAllText(
-                $capturedPath,
-                $documentText,
-                [Text.UTF8Encoding]::new($false)
-            )
+            $encodedDocument = @(
+                $documentResult.Output | ForEach-Object { [string]$_ }
+            ) -join ""
+            $encodedDocument = $encodedDocument -replace '\s', ''
+            $validBase64 = $encodedDocument.Length % 4 -eq 0 -and
+                $encodedDocument -match '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$'
+            if (-not $validBase64) {
+                $stateDocumentIndex.Add([pscustomobject]@{
+                    devicePath = $devicePath
+                    capturedFile = ""
+                    deviceSha256 = $deviceSha256
+                    deviceSizeBytes = $deviceSizeBytes
+                    capturedSha256 = ""
+                    capturedSizeBytes = [int64]0
+                    byteIdentityVerified = $false
+                    parsed = $false
+                    error = "malformed base64"
+                })
+                continue
+            }
+
+            try {
+                [byte[]]$documentBytes = [Convert]::FromBase64String($encodedDocument)
+            } catch {
+                $stateDocumentIndex.Add([pscustomobject]@{
+                    devicePath = $devicePath
+                    capturedFile = ""
+                    deviceSha256 = $deviceSha256
+                    deviceSizeBytes = $deviceSizeBytes
+                    capturedSha256 = ""
+                    capturedSizeBytes = [int64]0
+                    byteIdentityVerified = $false
+                    parsed = $false
+                    error = "malformed base64"
+                })
+                continue
+            }
+
+            $capturedSha256 = Get-ByteSha256 -Bytes $documentBytes
+            $capturedSizeBytes = [int64]$documentBytes.LongLength
+            [IO.File]::WriteAllBytes($capturedPath, $documentBytes)
+            $byteIdentityVerified = $capturedSha256 -ceq $deviceSha256 -and
+                $capturedSizeBytes -eq $deviceSizeBytes
+            if (-not $byteIdentityVerified) {
+                $stateDocumentIndex.Add([pscustomobject]@{
+                    devicePath = $devicePath
+                    capturedFile = "sync-state/$capturedName"
+                    deviceSha256 = $deviceSha256
+                    deviceSizeBytes = $deviceSizeBytes
+                    capturedSha256 = $capturedSha256
+                    capturedSizeBytes = $capturedSizeBytes
+                    byteIdentityVerified = $false
+                    parsed = $false
+                    error = "captured bytes differ from device inventory"
+                })
+                continue
+            }
 
             $parsed = $false
             $parseError = ""
             try {
+                $documentText = [Text.UTF8Encoding]::new($false, $true).GetString($documentBytes)
+                if ($documentText.Length -gt 0 -and $documentText[0] -eq [char]0xfeff) {
+                    $documentText = $documentText.Substring(1)
+                }
                 $document = $documentText | ConvertFrom-Json -ErrorAction Stop
                 $parsed = $true
                 Add-PersistedRemoteManifestRows -Document $document -DocumentPath $devicePath -Role "RemoteManifest" -Rows $persistedRemoteRows
@@ -587,8 +660,11 @@ find files -maxdepth 9 -type f \( -name 'profile.save' -o -name 'progress.save' 
             $stateDocumentIndex.Add([pscustomobject]@{
                 devicePath = $devicePath
                 capturedFile = "sync-state/$capturedName"
-                deviceSha256 = $parts[0].ToLowerInvariant()
-                deviceSizeBytes = [int64]$parts[1]
+                deviceSha256 = $deviceSha256
+                deviceSizeBytes = $deviceSizeBytes
+                capturedSha256 = $capturedSha256
+                capturedSizeBytes = $capturedSizeBytes
+                byteIdentityVerified = $byteIdentityVerified
                 parsed = $parsed
                 error = $parseError
             })
@@ -641,6 +717,9 @@ find files -maxdepth 9 -type f \( -name 'profile.save' -o -name 'progress.save' 
         )
         localSaveByteHashCount = $localSaveHashRows.Count
         syncRecoveryStateFileHashCount = $stateHashRows.Count
+        syncStateCapturedDocumentCount = @($stateDocumentIndex | Where-Object { $_.capturedFile }).Count
+        syncStateByteIdentityFailureCount = @($stateDocumentIndex | Where-Object { -not $_.byteIdentityVerified }).Count
+        syncStateParseFailureCount = @($stateDocumentIndex | Where-Object { -not $_.parsed }).Count
         persistedSteamByteHashCount = $persistedSteamByteHashCount
         persistedSteamLegacyTextHashCount = $persistedSteamLegacyTextHashCount
         persistedSteamHashesAreLiveReadAtCapture = $false
@@ -687,6 +766,9 @@ find files -maxdepth 9 -type f \( -name 'profile.save' -o -name 'progress.save' 
         "run-as/private storage available: $runAsAvailable",
         "Local save byte hashes: $($summary.localSaveByteHashCount)",
         "Sync/recovery state file hashes: $($summary.syncRecoveryStateFileHashCount)",
+        "Sync-state documents captured byte-for-byte: $($summary.syncStateCapturedDocumentCount)",
+        "Sync-state byte-identity failures: $($summary.syncStateByteIdentityFailureCount)",
+        "Sync-state parse failures: $($summary.syncStateParseFailureCount)",
         "Persisted Steam byte hashes: $($summary.persistedSteamByteHashCount)",
         "Persisted Steam legacy text hashes: $($summary.persistedSteamLegacyTextHashCount)",
         "Persisted Steam hashes live-read during capture: False",

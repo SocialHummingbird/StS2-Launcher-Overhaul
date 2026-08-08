@@ -1316,7 +1316,80 @@ try {
         }
     Assert-ReviewerRejects -MatrixPath $unrelatedTagPath -Label 'Structured event under unrelated tag' -Aapt $aaptPath -ApkSigner $apkSignerPath
 
-    Write-Host 'Stage 5 physical matrix reviewer tests passed: 23/23'
+    $stateDevicePath = 'files/.sts2-launcher/automatic-sync/fixture/pending-sync.json'
+    $stateCapturedRelative = 'sync-state/fixture-pending-sync.json'
+    $stateDocumentA = [Text.Encoding]::UTF8.GetBytes('{"Version":1,"Phase":"uploading","Nonce":"A"}')
+    $stateDocumentB = [Text.Encoding]::UTF8.GetBytes('{"Version":1,"Phase":"uploading","Nonce":"B"}')
+    $stateDocumentASha256 = Get-Sha256Hex -Bytes $stateDocumentA
+    $exactStatePath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r8-pending-before-force-stop' `
+        -FixtureName 'exact-state-byte-chain-valid' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            $capturedPath = Join-Path $collectorRoot $stateCapturedRelative.Replace('/', [IO.Path]::DirectorySeparatorChar)
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $capturedPath) | Out-Null
+            [IO.File]::WriteAllBytes($capturedPath, $stateDocumentA)
+            [IO.File]::WriteAllText(
+                [string]$manifest.syncRecoveryStateByteHashes,
+                "sha256`tsizeBytes`tdevicePath`n$stateDocumentASha256`t$($stateDocumentA.LongLength)`t$stateDevicePath`n",
+                [Text.UTF8Encoding]::new($false)
+            )
+            $localRows = @($vB.Keys | Sort-Object | ForEach-Object {
+                $bytes = $vB[$_]
+                "$(Get-Sha256Hex -Bytes $bytes)`t$($bytes.LongLength)`tfiles/$($_.Replace('\', '/'))"
+            })
+            [IO.File]::WriteAllText(
+                [string]$manifest.localSaveByteHashes,
+                "sha256`tsizeBytes`tdevicePath`n$($localRows -join "`n")`n",
+                [Text.UTF8Encoding]::new($false)
+            )
+            Write-JsonNoBom -Path (Join-Path $collectorRoot 'sync-state-index.json') -Value @(
+                [ordered]@{
+                    devicePath = $stateDevicePath
+                    capturedFile = $stateCapturedRelative
+                    deviceSha256 = $stateDocumentASha256
+                    deviceSizeBytes = [int64]$stateDocumentA.LongLength
+                    capturedSha256 = $stateDocumentASha256
+                    capturedSizeBytes = [int64]$stateDocumentA.LongLength
+                    byteIdentityVerified = $true
+                    parsed = $true
+                    error = ''
+                }
+            )
+            $manifest.gates.runAsAvailable = $true
+            $manifest.gates.localSaveByteHashCount = $localRows.Count
+            $manifest.gates.syncRecoveryStateFileHashCount = 1
+            $manifest.gates.pendingSyncDocumentCount = 1
+            $manifest.gates.pendingSyncPhases = @('uploading')
+            $manifest.gates.recoveryJournalCount = 0
+            $manifest.evidenceLimitations = @()
+            $unavailableMarker = Join-Path $collectorRoot 'private-storage-unavailable.txt'
+            if (Test-Path -LiteralPath $unavailableMarker) {
+                Remove-Item -LiteralPath $unavailableMarker -Force
+            }
+        }
+    & $reviewer -MatrixPath $exactStatePath -AaptPath $aaptPath -ApkSignerPath $apkSignerPath *> $null
+
+    $mismatchedStatePath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $exactStatePath `
+        -CollectorId 'r8-pending-before-force-stop' `
+        -FixtureName 'captured-state-disagrees-with-device-inventory' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            # Keep the device TSV and state index self-consistent with document A,
+            # but inventory the different, valid JSON bytes from document B.
+            $capturedPath = Join-Path $collectorRoot $stateCapturedRelative.Replace('/', [IO.Path]::DirectorySeparatorChar)
+            [IO.File]::WriteAllBytes($capturedPath, $stateDocumentB)
+        }
+    Assert-ReviewerRejects `
+        -MatrixPath $mismatchedStatePath `
+        -Label 'Captured state bytes disagree with device TSV and state index' `
+        -Aapt $aaptPath `
+        -ApkSigner $apkSignerPath `
+        -ExpectedErrorPattern 'indexed captured SHA-256.*mismatch'
+
+    Write-Host 'Stage 5 physical matrix reviewer tests passed: 24/24'
 } finally {
     $resolvedTestRoot = [IO.Path]::GetFullPath($testRoot)
     $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd(

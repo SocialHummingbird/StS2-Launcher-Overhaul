@@ -76,6 +76,28 @@ function Read-JsonFile {
     }
 }
 
+function Read-StrictUtf8JsonBytes {
+    param(
+        [Parameter(Mandatory = $true)][byte[]]$Bytes,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    try {
+        $strictUtf8 = [Text.UTF8Encoding]::new($false, $true)
+        $text = $strictUtf8.GetString($Bytes)
+    } catch [Text.DecoderFallbackException] {
+        throw "$Label is not valid UTF-8: $($_.Exception.Message)"
+    }
+    if ($text.Length -gt 0 -and $text[0] -eq [char]0xfeff) {
+        $text = $text.Substring(1)
+    }
+    try {
+        return $text | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        throw "$Label is not valid UTF-8 JSON: $($_.Exception.Message)"
+    }
+}
+
 function Resolve-MatrixPath {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -1103,11 +1125,20 @@ function Get-CollectorStateSignals {
     foreach ($row in $localRows) {
         Assert-True -Condition ($row -match '^[0-9a-fA-F]{64}\t[0-9]+\tfiles/') -Message "$($Record.Spec.id) local-save hash row is invalid."
     }
-    $stateDevicePaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $stateFiles = [Collections.Generic.Dictionary[string, object]]::new(
+        [StringComparer]::Ordinal
+    )
     foreach ($row in $stateRows) {
         Assert-True -Condition ($row -match '^[0-9a-fA-F]{64}\t[0-9]+\tfiles/\.sts2-launcher/') -Message "$($Record.Spec.id) sync/recovery-state hash row is invalid."
-        $statePath = ($row -split "`t", 3)[2]
-        Assert-True -Condition ($stateDevicePaths.Add($statePath)) -Message "$($Record.Spec.id) sync/recovery-state hash table repeats $statePath."
+        $parts = $row -split "`t", 3
+        $stateSha256 = $parts[0].ToLowerInvariant()
+        $stateSizeBytes = [int64]$parts[1]
+        $statePath = $parts[2]
+        Assert-True -Condition (-not $stateFiles.ContainsKey($statePath)) -Message "$($Record.Spec.id) sync/recovery-state hash table repeats $statePath."
+        $stateFiles.Add($statePath, [pscustomobject][ordered]@{
+            sha256 = $stateSha256
+            sizeBytes = $stateSizeBytes
+        })
     }
 
     $byteHashCount = 0
@@ -1122,20 +1153,84 @@ function Get-CollectorStateSignals {
 
     $stateIndexPath = Join-Path $root 'sync-state-index.json'
     Assert-True -Condition (Test-Path -LiteralPath $stateIndexPath -PathType Leaf) -Message "$($Record.Spec.id) inventoried sync-state index is missing."
-    $stateIndex = @(Read-JsonFile -Path $stateIndexPath -Label "$($Record.Spec.id) sync-state index")
-    $pendingStatePaths = @($stateDevicePaths | Where-Object { $_ -match '/pending-sync\.json$' })
-    $journalStatePaths = @($stateDevicePaths | Where-Object { $_ -match '/last-restore\.json$' })
-    $pendingDocuments = @($stateIndex | Where-Object { [string]$_.devicePath -match '/pending-sync\.json$' })
+    $stateIndexDocument = Read-JsonFile -Path $stateIndexPath -Label "$($Record.Spec.id) sync-state index"
+    $stateIndex = @($stateIndexDocument | Where-Object { $null -ne $_ })
+    $eligibleStatePaths = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::Ordinal
+    )
+    foreach ($statePath in $stateFiles.Keys) {
+        if ($statePath -match '^files/\.sts2-launcher/(automatic-sync|recovery)/' -and
+            -not $statePath.Contains('..') -and
+            $statePath.EndsWith('.json', [StringComparison]::OrdinalIgnoreCase)) {
+            [void]$eligibleStatePaths.Add($statePath)
+        }
+    }
+
+    $indexedStatePaths = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::Ordinal
+    )
+    $capturedRelativePaths = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::OrdinalIgnoreCase
+    )
+    $indexedDocuments = [Collections.Generic.Dictionary[string, object]]::new(
+        [StringComparer]::Ordinal
+    )
+    foreach ($entry in $stateIndex) {
+        Assert-ExactProperties -Object $entry -Names @(
+            'devicePath', 'capturedFile', 'deviceSha256', 'deviceSizeBytes',
+            'capturedSha256', 'capturedSizeBytes', 'byteIdentityVerified',
+            'parsed', 'error'
+        ) -Label "$($Record.Spec.id) sync-state index entry"
+
+        $devicePath = [string]$entry.devicePath
+        Assert-True -Condition ($indexedStatePaths.Add($devicePath)) -Message "$($Record.Spec.id) sync-state index repeats $devicePath."
+        Assert-True -Condition ($eligibleStatePaths.Contains($devicePath)) -Message "$($Record.Spec.id) sync-state index references an un-inventoried or ineligible device file: $devicePath."
+        $deviceInventory = $stateFiles[$devicePath]
+
+        $deviceSha256 = ([string]$entry.deviceSha256).ToLowerInvariant()
+        Assert-True -Condition ($deviceSha256 -match '^[0-9a-f]{64}$') -Message "$($Record.Spec.id) sync-state index has an invalid device SHA-256 for $devicePath."
+        Assert-True -Condition (Test-IsJsonInteger $entry.deviceSizeBytes) -Message "$($Record.Spec.id) sync-state index has a non-integer device size for $devicePath."
+        Assert-Equal -Label "$($Record.Spec.id) indexed device SHA-256 for $devicePath" -Actual $deviceSha256 -Expected ([string]$deviceInventory.sha256)
+        Assert-True -Condition ([int64]$entry.deviceSizeBytes -eq [int64]$deviceInventory.sizeBytes) -Message "$($Record.Spec.id) indexed device size for $devicePath disagrees with the device hash table."
+
+        Assert-True -Condition ($entry.byteIdentityVerified -is [bool]) -Message "$($Record.Spec.id) sync-state byteIdentityVerified is not boolean for $devicePath."
+        Assert-True -Condition ($entry.parsed -is [bool]) -Message "$($Record.Spec.id) sync-state parsed is not boolean for $devicePath."
+        Assert-True -Condition (Test-IsJsonInteger $entry.capturedSizeBytes) -Message "$($Record.Spec.id) sync-state captured size is not an integer for $devicePath."
+        $capturedSha256 = ([string]$entry.capturedSha256).ToLowerInvariant()
+        Assert-True -Condition ($capturedSha256 -match '^[0-9a-f]{64}$') -Message "$($Record.Spec.id) sync-state capture has no valid SHA-256 for $devicePath."
+        Assert-True -Condition ([bool]$entry.byteIdentityVerified) -Message "$($Record.Spec.id) sync-state capture was not byte-verified for ${devicePath}: $([string]$entry.error)"
+        Assert-True -Condition ([bool]$entry.parsed) -Message "$($Record.Spec.id) sync-state capture was not parsed for ${devicePath}: $([string]$entry.error)"
+        Assert-True -Condition ([string]::IsNullOrEmpty([string]$entry.error)) -Message "$($Record.Spec.id) sync-state capture reports an error for $devicePath."
+
+        $capturedRelative = Normalize-SavePath -Path ([string]$entry.capturedFile)
+        Assert-True -Condition ($capturedRelativePaths.Add($capturedRelative)) -Message "$($Record.Spec.id) sync-state index reuses captured file $capturedRelative."
+        $capturedPath = [IO.Path]::GetFullPath((Join-Path $root $capturedRelative.Replace('/', [IO.Path]::DirectorySeparatorChar)))
+        Assert-True -Condition ($capturedPath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) -Message "$($Record.Spec.id) sync-state capture escaped its evidence root."
+        Assert-True -Condition (Test-Path -LiteralPath $capturedPath -PathType Leaf) -Message "$($Record.Spec.id) sync-state captured document is missing for $devicePath."
+
+        $capturedBytes = [IO.File]::ReadAllBytes($capturedPath)
+        $actualCapturedSha256 = Get-Sha256Hex -Bytes $capturedBytes
+        $actualCapturedSizeBytes = [int64]$capturedBytes.LongLength
+        Assert-Equal -Label "$($Record.Spec.id) indexed captured SHA-256 for $devicePath" -Actual $capturedSha256 -Expected $actualCapturedSha256
+        Assert-True -Condition ([int64]$entry.capturedSizeBytes -eq $actualCapturedSizeBytes) -Message "$($Record.Spec.id) indexed captured size for $devicePath disagrees with the exact captured file."
+        Assert-Equal -Label "$($Record.Spec.id) captured bytes versus device inventory for $devicePath" -Actual $actualCapturedSha256 -Expected ([string]$deviceInventory.sha256)
+        Assert-True -Condition ($actualCapturedSizeBytes -eq [int64]$deviceInventory.sizeBytes) -Message "$($Record.Spec.id) captured byte size for $devicePath disagrees with the device hash table."
+
+        $document = Read-StrictUtf8JsonBytes -Bytes $capturedBytes -Label "$($Record.Spec.id) sync-state captured document $devicePath"
+        $indexedDocuments.Add($devicePath, $document)
+    }
+    foreach ($eligibleStatePath in $eligibleStatePaths) {
+        Assert-True -Condition ($indexedStatePaths.Contains($eligibleStatePath)) -Message "$($Record.Spec.id) eligible sync/recovery state file has no exact captured index entry: $eligibleStatePath."
+    }
+    Assert-True -Condition ($indexedStatePaths.Count -eq $eligibleStatePaths.Count) -Message "$($Record.Spec.id) sync-state index does not exactly cover eligible device JSON files."
+
+    $pendingStatePaths = @($stateFiles.Keys | Where-Object { $_ -match '/pending-sync\.json$' })
+    $journalStatePaths = @($stateFiles.Keys | Where-Object { $_ -match '/last-restore\.json$' })
+    $pendingDocuments = @($indexedDocuments.Keys | Where-Object { $_ -match '/pending-sync\.json$' })
     Assert-True -Condition ($pendingDocuments.Count -eq $pendingStatePaths.Count) -Message "$($Record.Spec.id) pending-sync state index disagrees with the inventoried state hashes."
     $pendingPhases = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    foreach ($entry in $pendingDocuments) {
-        Assert-True -Condition ([string]$entry.devicePath -in $pendingStatePaths) -Message "$($Record.Spec.id) pending-sync state index references an un-hashed device file."
-        Assert-True -Condition ([bool]$entry.parsed) -Message "$($Record.Spec.id) pending-sync state document was not parsed by the collector."
-        $capturedRelative = Normalize-SavePath -Path ([string]$entry.capturedFile)
-        $capturedPath = [IO.Path]::GetFullPath((Join-Path $root $capturedRelative.Replace('/', [IO.Path]::DirectorySeparatorChar)))
-        Assert-True -Condition ($capturedPath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) -Message "$($Record.Spec.id) pending-sync capture escaped its evidence root."
-        Assert-True -Condition (Test-Path -LiteralPath $capturedPath -PathType Leaf) -Message "$($Record.Spec.id) pending-sync captured document is missing."
-        $document = Read-JsonFile -Path $capturedPath -Label "$($Record.Spec.id) pending-sync captured document"
+    foreach ($devicePath in $pendingDocuments) {
+        $document = $indexedDocuments[$devicePath]
         $phase = [string]$document.Phase
         Assert-True -Condition ($phase -in @('before-game', 'game-running', 'uploading', 'downloading')) -Message "$($Record.Spec.id) pending-sync captured document has invalid phase '$phase'."
         [void]$pendingPhases.Add($phase)
