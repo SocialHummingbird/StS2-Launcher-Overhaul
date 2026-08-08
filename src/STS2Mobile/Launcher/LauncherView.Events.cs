@@ -1,0 +1,61 @@
+using System;
+
+namespace STS2Mobile.Launcher;
+
+internal sealed partial class LauncherView
+{
+    internal void WireEvents(
+        Action<string, string> loginRequested,
+        Action<string> codeSubmitted,
+        Action downloadRequested,
+        Action<string> gameBranchChanged,
+        Action<string> rendererModeChanged,
+        Action launchPressed,
+        Action retryPressed,
+        Action<bool> localBackupToggled,
+        Action<bool> cloudSyncToggled,
+        Func<CloudPushEligibilityResult> cloudPushArmRequested,
+        Action cloudPushPressed,
+        Action cloudPullPressed,
+        Action cloudOperationCancelPressed,
+        Action checkForUpdatesPressed,
+        Action refreshGameVersionsPressed,
+        Action redownloadPressed,
+        Action clearCachedVersionsPressed,
+        Action diagnosticsPressed,
+        Action showLastErrorPressed,
+        Action copyRawLogPressed,
+        Action safeLaunchPressed,
+        Action workshopSyncPressed,
+        Action workshopClearPressed
+    )
+    {
+        Login.LoginRequested += loginRequested;
+        Login.StatusRequested += SetStatus;
+        Code.CodeSubmitted += codeSubmitted;
+        Download.DownloadRequested += downloadRequested;
+        Download.GameBranchChanged += gameBranchChanged;
+        Download.RefreshGameVersionsRequested += refreshGameVersionsPressed;
+        Actions.GameBranchChanged += gameBranchChanged;
+        Actions.RendererModeChanged += rendererModeChanged;
+        Actions.LaunchPressed += launchPressed;
+        Actions.RetryPressed += retryPressed;
+        Actions.LocalBackupToggled += localBackupToggled;
+        Actions.CloudSyncToggled += cloudSyncToggled;
+        Actions.CloudPushArmRequested += cloudPushArmRequested;
+        Actions.CloudPushPressed += cloudPushPressed;
+        Actions.CloudPullPressed += cloudPullPressed;
+        Actions.CloudOperationCancelPressed +=
+            cloudOperationCancelPressed;
+        Actions.CheckForUpdatesPressed += checkForUpdatesPressed;
+        Actions.RefreshGameVersionsPressed += refreshGameVersionsPressed;
+        Actions.RedownloadPressed += redownloadPressed;
+        Actions.ClearCachedVersionsPressed += clearCachedVersionsPressed;
+        Actions.DiagnosticsPressed += diagnosticsPressed;
+        Actions.ShowLastErrorPressed += showLastErrorPressed;
+        Actions.CopyRawLogPressed += copyRawLogPressed;
+        Actions.SafeLaunchPressed += safeLaunchPressed;
+        Actions.WorkshopSyncPressed += workshopSyncPressed;
+        Actions.WorkshopClearPressed += workshopClearPressed;
+    }
+}

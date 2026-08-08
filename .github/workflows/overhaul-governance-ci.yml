@@ -13,7 +13,9 @@ jobs:
       contents: read
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Verify governance docs exist
         run: |
@@ -21,6 +23,26 @@ jobs:
           test -f OVERHAUL_ROADMAP.md || { echo "Missing OVERHAUL_ROADMAP.md"; exit 1; }
           test -f OVERHAUL_STATUS.md || { echo "Missing OVERHAUL_STATUS.md"; exit 1; }
           test -f CONTRIBUTING.md || { echo "Missing CONTRIBUTING.md"; exit 1; }
+          test -f .github/workflows/steam-version-selection-static-audit.yml || { echo "Missing Steam version-selection static audit workflow"; exit 1; }
+          test -f scripts/audit-steam-version-selection.ps1 || { echo "Missing Steam version-selection static audit helper"; exit 1; }
+          test -f scripts/audit-steam-branch-guidance-parity.ps1 || { echo "Missing Steam branch guidance parity helper"; exit 1; }
+          test -f docs/steam-version-selection-validation.md || { echo "Missing Steam version-selection validation docs"; exit 1; }
+
+      - name: Guard vanilla and modded save namespace isolation
+        shell: pwsh
+        run: ./scripts/test-no-vanilla-to-modded-seeding.ps1
+
+      - name: Guard Stage 5 candidate-only release boundary
+        shell: pwsh
+        run: ./scripts/test-stage5-release-gate.ps1
+
+      - name: Verify Stage 5 byte-evidence tooling
+        shell: pwsh
+        run: |
+          ./scripts/test-stage5-save-evidence-manifests.ps1
+          ./scripts/test-stage5-collector-exact-byte-capture.ps1
+          ./scripts/test-stage5-affected-device-preflight.ps1
+          ./scripts/test-stage5-physical-matrix-reviewer.ps1
 
       - name: Validate repository diff hygiene
         run: |
@@ -33,6 +55,10 @@ jobs:
               "OVERHAUL_ROADMAP.md",
               "OVERHAUL_STATUS.md",
               "CONTRIBUTING.md",
+              ".github/workflows/steam-version-selection-static-audit.yml",
+              "scripts/audit-steam-version-selection.ps1",
+              "scripts/audit-steam-branch-guidance-parity.ps1",
+              "docs/steam-version-selection-validation.md",
           ]
 
           for name in critical:
@@ -51,10 +77,12 @@ jobs:
       contents: read
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: "9.0.x"
 
@@ -83,6 +111,16 @@ jobs:
           fi
           echo "REPO_REF=${{ github.sha }}" >> ci-smoke-artifacts/status.txt
 
+      - name: Verify local-only gameplay save safety
+        if: steps.prerequisites.outputs.available == 'true'
+        shell: pwsh
+        run: ./scripts/test-local-gameplay-save-safety.ps1
+
+      - name: Verify Stage 5 desktop save sync and hard-restart safety
+        if: steps.prerequisites.outputs.available == 'true'
+        shell: pwsh
+        run: ./scripts/test-cloud-sync-production-path.ps1
+
       - name: Skip build when publishing artifacts are unavailable
         if: steps.prerequisites.outputs.available != 'true'
         run: |
@@ -93,7 +131,7 @@ jobs:
 
       - name: Upload build smoke coverage artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: build-smoke-coverage-${{ github.run_id }}
           path: ci-smoke-artifacts

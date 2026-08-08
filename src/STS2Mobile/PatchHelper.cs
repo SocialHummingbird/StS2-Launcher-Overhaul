@@ -76,7 +76,26 @@ internal static class PatchHelper
     internal static void Log(string msg)
     {
         BootstrapTrace.Log(msg);
-        LogEmitted?.Invoke(msg);
+        EmitLog(msg);
+    }
+
+    private static void EmitLog(string msg)
+    {
+        var callbacks = LogEmitted;
+        if (callbacks == null)
+            return;
+
+        foreach (Action<string> callback in callbacks.GetInvocationList())
+        {
+            try
+            {
+                callback(msg);
+            }
+            catch (Exception ex)
+            {
+                BootstrapTrace.Log($"Log subscriber failed: {ex.Message}");
+            }
+        }
     }
 
     private static void PatchSafely(string label, Func<bool> patch)

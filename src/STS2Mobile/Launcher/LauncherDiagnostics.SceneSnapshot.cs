@@ -1,0 +1,98 @@
+using System;
+using System.Text;
+using Godot;
+
+namespace STS2Mobile.Launcher;
+
+internal static partial class LauncherDiagnostics
+{
+    private const int MaxSceneSnapshotChildrenPerNode = 40;
+    private const int MaxSceneSnapshotDepth = 6;
+
+    internal static void WriteStartupSceneSnapshot(Node root, string reason)
+    {
+        var snapshot = StartupSceneSnapshot(OS.GetDataDir());
+        try
+        {
+            snapshot.WriteAllText(BuildStartupSceneSnapshot(root, reason));
+            PatchHelper.Log($"Startup scene snapshot written: {reason}");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Startup scene snapshot failed: {ex.Message}");
+        }
+    }
+
+    private static void AppendSceneNode(
+        StringBuilder sb,
+        Node node,
+        int depth
+    )
+    {
+        if (node == null)
+            return;
+
+        var indent = new string(' ', depth * 2);
+        sb.Append(indent)
+            .Append(node.GetType().FullName)
+            .Append(" name=")
+            .Append(node.Name)
+            .Append(" children=")
+            .Append(node.GetChildCount());
+        AppendSceneNodeState(sb, node);
+        sb.AppendLine();
+
+        if (depth >= MaxSceneSnapshotDepth)
+            return;
+
+        var childCount = node.GetChildCount();
+        var limit = Math.Min(childCount, MaxSceneSnapshotChildrenPerNode);
+        for (var i = 0; i < limit; i++)
+            AppendSceneNode(sb, node.GetChild(i), depth + 1);
+
+        if (childCount > limit)
+        {
+            sb.Append(indent)
+                .Append("  ... ")
+                .Append(childCount - limit)
+                .AppendLine(" more children");
+        }
+    }
+
+    private static void AppendSceneNodeState(StringBuilder sb, Node node)
+    {
+        switch (node)
+        {
+            case CanvasItem canvasItem:
+                sb.Append(" visible=")
+                    .Append(canvasItem.Visible)
+                    .Append(" visibleInTree=")
+                    .Append(canvasItem.IsVisibleInTree());
+                break;
+            case CanvasLayer canvasLayer:
+                sb.Append(" visible=")
+                    .Append(canvasLayer.Visible);
+                break;
+        }
+
+        if (node is Control control)
+        {
+            sb.Append(" focusMode=")
+                .Append(control.FocusMode)
+                .Append(" hasFocus=")
+                .Append(control.HasFocus());
+        }
+    }
+
+    private static string BuildStartupSceneSnapshot(Node root, string reason)
+        => CreateTimestampedText(
+            "STS2 startup scene snapshot",
+            "UTC",
+            sb =>
+            {
+                sb.AppendLine($"Reason: {reason}");
+                sb.AppendLine();
+                AppendSceneNode(sb, root, depth: 0);
+            }
+        ).Build();
+}

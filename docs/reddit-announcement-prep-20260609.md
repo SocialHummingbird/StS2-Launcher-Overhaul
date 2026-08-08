@@ -1,17 +1,19 @@
 # Reddit announcement prep - 2026-06-09
 
-## Current public claim
+> Historical draft — do not post or reuse as a current claim. It describes the superseded June 2026 manual Pull/Push implementation. Current local saving, automatic sync, and recovery are at 0/10 in the Stage 5 physical-device matrix and must not be described publicly as fixed.
 
-StS2 Launcher now works on the validated ARM64 Android path: install, Steam login, game download, Pull from Cloud, local hardening Push to Cloud, Pull-after-Push, local save handoff, and game launch/profile visibility have been validated. The newest public release asset is published, structurally verified, and installed/launched on ARM64 hardware, but full newest-public-release Pull/Push/game-launch smoke is still pending before release-candidate signoff.
+## Historical public claim
+
+StS2 Mobile now works on the validated ARM64 Android path: install, Steam login, game download, Pull from Cloud, local hardening Push to Cloud, Pull-after-Push, local save handoff, and game launch/profile visibility have been validated. The newest public release asset is published, structurally verified, and installed/launched on ARM64 hardware, but full newest-public-release Pull/Push/game-launch smoke is still pending before release-candidate signoff.
 
 ## Public release to link
 
 - Repository: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul
-- Release: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.184-loading-scale
-- APK: `StS2Launcher-v0.2.184-loading-scale-arm64-v8a.apk`
+- Release: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.187-beta-art-fallback
+- APK: `StS2Launcher-v0.2.187-beta-art-fallback-arm64-v8a.apk`
 - Package: `com.sts2launcher.overhaul.fork.dev`
-- Version: `0.2.184-loading-scale` / `versionCode=218400`
-- SHA-256: `299f77e9c307b64521ffef73afb890fb2c69bb7a920bf7d24c971cf0b6663f2d`
+- Version: `0.2.187-beta-art-fallback` / `versionCode=218700`
+- SHA-256: `f2ef1c3ef2149d4901fc1051058d44cfdb2e45afb1c7a9ef5693d4714d31dffe`
 - Target: ARM64 Android phones only for real validation.
 
 ## Posting constraints checked
@@ -35,13 +37,13 @@ StS2 Launcher now works on the validated ARM64 Android path: install, Steam logi
 
 ## Suggested Reddit title
 
-StS2 Launcher now runs Slay the Spire 2 on ARM64 Android - working, but still in polish/hardening
+StS2 Mobile now runs Slay the Spire 2 on ARM64 Android - working, but still in polish/hardening
 
 ## Suggested Reddit body
 
 I have been working on an unofficial Android launcher for Slay the Spire 2: https://github.com/SocialHummingbird/StS2-Launcher-Overhaul
 
-The current ARM64 Android path now works in testing: the app installs, authenticates with Steam, downloads the game files from Steam, pulls Steam Cloud saves into Android local storage, launches the game, and shows the pulled profile in-game. Push to Cloud has also been validated on the local hardening build and the fix is included in the latest public APK. Recent public builds also include Samsung-layout reachability fixes, Steam login crash-boundary hardening, and adaptive native splash/loading-screen scaling.
+The current ARM64 Android path now works in testing: the app installs, authenticates with Steam, downloads the game files from Steam, pulls Steam Cloud saves into Android local storage, launches the game, and shows the pulled profile in-game. Push to Cloud has also been validated on the local hardening build and the fix is included in the latest public APK. Recent public builds also include Samsung-layout reachability fixes, Steam login crash-boundary hardening, adaptive native splash/loading-screen scaling, and a responsive launcher shell with active download progress and the Help Details drawer collapsed by default.
 
 This is not a finished release-candidate yet. It is in the polish/hardening phase, and I am looking for technically comfortable testers who understand the risks.
 
@@ -55,7 +57,7 @@ Important caveats:
 - Do not post credentials, guard codes, tokens, private save contents, or full unsanitized logs publicly.
 
 Latest public APK:
-https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.184-loading-scale
+https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.187-beta-art-fallback
 
 If you try it, the most useful feedback is device model, Android version, whether install/login/download/Pull/game launch worked, and any scrubbed crash log snippets. Please keep reports sanitized.
 

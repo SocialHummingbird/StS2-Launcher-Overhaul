@@ -7,7 +7,42 @@ $SteamLoginCrashPatterns = @(
     "Interop+Crypto",
     "AndroidCryptoNative_",
     "SafeEvpCipherCtxHandle",
-    "SafeSslHandle"
+    "SafeSslHandle",
+    "Android Java SHA-1 TryHashData bridge failed",
+    "MethodAccessException",
+    "MissingMethodException",
+    "EntryPointNotFoundException",
+    "Android Java random byte bridge returned an empty response",
+    "HTTP bridge request failed: GET wss://",
+    "Android Java HTTP bridge cannot handle WebSocket CM requests",
+    "Steam CM WebSocket using managed .NET transport",
+    "unknown protocol: wss"
+)
+$SteamLoginSuccessPatterns = @(
+    "[Auth] Authentication successful",
+    "[Launcher] Ownership verified"
+)
+$SteamLoginUnsupportedTargetPatterns = @(
+    "Routing to native x86 fallback",
+    "Showing native x86 fallback",
+    "This Android x86 emulator cannot safely run the Godot/.NET runtime"
+)
+$SteamLoginFailurePatterns = @(
+    "[Auth] Login failed",
+    "Login failed:",
+    "Could not establish a Steam auth connection",
+    "The SteamClient instance must be connected",
+    "InvalidPassword",
+    "AccountLoginDenied",
+    "AccountLogonDenied",
+    "TwoFactorCodeMismatch",
+    "ServiceUnavailable"
+)
+$SteamLoginInteractionRequiredPatterns = @(
+    "Steam Guard",
+    "two-factor",
+    "TwoFactor",
+    "EmailCode"
 )
 
 function Read-HiddenText {
@@ -117,10 +152,119 @@ function Resolve-SteamGuardCode {
     return $null
 }
 
+function Resolve-SteamLauncherPackageName {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [string]$DeviceSerial = "",
+        [string]$PackageName = ""
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($PackageName)) {
+        return $PackageName
+    }
+
+    $packages = @(
+        Invoke-SteamLoginAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "pm", "list", "packages", "com.sts2launcher.overhaul.fork") |
+            ForEach-Object {
+                $line = ([string]$_).Trim()
+                if ($line.StartsWith("package:")) {
+                    $line.Substring("package:".Length)
+                }
+            } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object -Unique
+    )
+
+    if ($packages.Count -eq 1) {
+        Write-Host "Resolved installed launcher package: $($packages[0])"
+        return $packages[0]
+    }
+
+    if ($packages.Count -gt 1) {
+        throw "Multiple StS2 launcher packages are installed: $($packages -join ', '). Pass -PackageName explicitly."
+    }
+
+    throw "No installed StS2 launcher package found. Pass -PackageName explicitly."
+}
+
+function Invoke-SteamLoginAdb {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [string]$DeviceSerial = "",
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+        [switch]$AllowFailure
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($DeviceSerial)) {
+        & $AdbPath -s $DeviceSerial @Arguments
+    } else {
+        & $AdbPath @Arguments
+    }
+
+    if (-not $AllowFailure -and $LASTEXITCODE -ne 0) {
+        throw "adb $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
+    }
+}
+
+function Invoke-SteamLoginAdbCapture {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [string]$DeviceSerial = "",
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments,
+        [switch]$AllowFailure
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($DeviceSerial)) {
+        $output = @(& $AdbPath -s $DeviceSerial @Arguments 2>&1)
+    } else {
+        $output = @(& $AdbPath @Arguments 2>&1)
+    }
+
+    if (-not $AllowFailure -and $LASTEXITCODE -ne 0) {
+        throw "adb $($Arguments -join ' ') failed with exit code $LASTEXITCODE."
+    }
+
+    return $output
+}
+
+function Clear-SteamLauncherForcedX86GodotFlag {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [string]$DeviceSerial = ""
+    )
+
+    Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "settings", "delete", "global", "sts2_force_godot_x86") -AllowFailure | Out-Null
+}
+
+function Start-SteamLauncherApp {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [string]$DeviceSerial = "",
+        [Parameter(Mandatory = $true)]
+        [string]$PackageName
+    )
+
+    Clear-SteamLauncherForcedX86GodotFlag -AdbPath $AdbPath -DeviceSerial $DeviceSerial
+
+    $launcherActivity = "$PackageName/com.game.sts2launcher.LauncherActivity"
+    Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "am", "start", "-n", $launcherActivity) | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to start launcher activity: $launcherActivity"
+    }
+}
+
 function Write-SteamGuardCodeFile {
     param(
         [Parameter(Mandatory = $true)]
         [string]$AdbPath,
+        [string]$DeviceSerial = "",
         [Parameter(Mandatory = $true)]
         [string]$PackageName,
         [Parameter(Mandatory = $true)]
@@ -133,17 +277,31 @@ function Write-SteamGuardCodeFile {
     $tempPath = [System.IO.Path]::GetTempFileName()
     try {
         Set-Content -LiteralPath $tempPath -Value $normalizedCode -NoNewline -Encoding ASCII
-        & $AdbPath shell mkdir -p $deviceDir | Out-Null
-        & $AdbPath push $tempPath $devicePath | Out-Null
+        Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "mkdir", "-p", $deviceDir) | Out-Null
+        Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("push", $tempPath, $devicePath) | Out-Null
     } finally {
         Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
     }
+}
+
+function Clear-SteamLoginHandoffFiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [string]$DeviceSerial = "",
+        [Parameter(Mandatory = $true)]
+        [string]$PackageName
+    )
+
+    $deviceDir = "/sdcard/Android/data/$PackageName/files"
+    Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "rm", "-f", "$deviceDir/steam_login_credentials.txt", "$deviceDir/steam_guard_code.txt") | Out-Null
 }
 
 function Write-SteamLoginCredentialFile {
     param(
         [Parameter(Mandatory = $true)]
         [string]$AdbPath,
+        [string]$DeviceSerial = "",
         [Parameter(Mandatory = $true)]
         [string]$PackageName,
         [Parameter(Mandatory = $true)]
@@ -159,8 +317,8 @@ function Write-SteamLoginCredentialFile {
         $usernameBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Username))
         $passwordBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Password))
         Set-Content -LiteralPath $tempPath -Value @($usernameBase64, $passwordBase64) -Encoding ASCII
-        & $AdbPath shell mkdir -p $deviceDir | Out-Null
-        & $AdbPath push $tempPath $devicePath | Out-Null
+        Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "mkdir", "-p", $deviceDir) | Out-Null
+        Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("push", $tempPath, $devicePath) | Out-Null
     } finally {
         Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
     }
@@ -170,6 +328,7 @@ function Send-AndroidInputText {
     param(
         [Parameter(Mandatory = $true)]
         [string]$AdbPath,
+        [string]$DeviceSerial = "",
         [Parameter(Mandatory = $true)]
         [string]$Text
     )
@@ -187,31 +346,131 @@ function Send-AndroidInputText {
         }
     }
 
-    & $AdbPath shell input text $builder.ToString() | Out-Null
+    Invoke-SteamLoginAdb -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "input", "text", $builder.ToString()) | Out-Null
+}
+
+function Find-FirstSteamLoginLogPattern {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Log,
+        [Parameter(Mandatory = $true)]
+        [string[]]$Patterns
+    )
+
+    foreach ($pattern in $Patterns) {
+        if ($Log.IndexOf($pattern, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            return $pattern
+        }
+    }
+
+    return $null
 }
 
 function Wait-SteamLoginPostGuardResult {
     param(
         [Parameter(Mandatory = $true)]
         [string]$AdbPath,
+        [string]$DeviceSerial = "",
         [int]$TimeoutSeconds = 180,
         [int]$PollSeconds = 3
     )
 
-    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    while ((Get-Date) -lt $deadline) {
-        Start-Sleep -Seconds $PollSeconds
-        $currentLog = (& $AdbPath logcat -d -v time | Out-String)
+    $result = Wait-SteamLoginSignal `
+        -AdbPath $AdbPath `
+        -DeviceSerial $DeviceSerial `
+        -TimeoutSeconds $TimeoutSeconds `
+        -PollSeconds $PollSeconds `
+        -AllowInteractionRequired:$false `
+        -SuccessLabel "post-2FA success"
 
-        if ($currentLog -like "*[Auth] Authentication successful*" -or $currentLog -like "*[Launcher] Ownership verified*") {
-            Write-Host "Detected post-2FA success signal."
-            return
+    if ($result -ne "success") {
+        Write-Host "Post-2FA login result wait completed: $result"
+    }
+
+    return $result
+}
+
+function Wait-SteamLoginResult {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [string]$DeviceSerial = "",
+        [int]$TimeoutSeconds = 180,
+        [int]$PollSeconds = 3
+    )
+
+    return Wait-SteamLoginSignal `
+        -AdbPath $AdbPath `
+        -DeviceSerial $DeviceSerial `
+        -TimeoutSeconds $TimeoutSeconds `
+        -PollSeconds $PollSeconds `
+        -AllowInteractionRequired:$true `
+        -SuccessLabel "auth success"
+}
+
+function Wait-SteamLoginSignal {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AdbPath,
+        [string]$DeviceSerial = "",
+        [int]$TimeoutSeconds = 180,
+        [int]$PollSeconds = 3,
+        [bool]$AllowInteractionRequired = $true,
+        [string]$SuccessLabel = "auth success"
+    )
+
+    if ($TimeoutSeconds -lt 1) {
+        $TimeoutSeconds = 1
+    }
+
+    if ($PollSeconds -lt 1) {
+        $PollSeconds = 1
+    }
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        Start-Sleep -Seconds $PollSeconds
+        $currentLog = (
+            Invoke-SteamLoginAdbCapture `
+                -AdbPath $AdbPath `
+                -DeviceSerial $DeviceSerial `
+                -Arguments @("logcat", "-d", "-v", "time") |
+                Out-String
+        )
+
+        $matchedSuccess = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginSuccessPatterns
+        if ($matchedSuccess) {
+            Write-Host "Detected ${SuccessLabel} signal: $matchedSuccess"
+            return "success"
         }
 
-        $matchedCrash = $SteamLoginCrashPatterns | Where-Object { $currentLog -like "*$_*" } | Select-Object -First 1
+        $matchedUnsupportedTarget = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginUnsupportedTargetPatterns
+        if ($matchedUnsupportedTarget) {
+            Write-Host "Detected unsupported validation target: $matchedUnsupportedTarget"
+            return "unsupported-target"
+        }
+
+        $matchedCrash = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginCrashPatterns
         if ($matchedCrash) {
             Write-Host "Detected crash signature: $matchedCrash"
-            return
+            return "crash"
         }
-    }
+
+        $matchedFailure = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginFailurePatterns
+        if ($matchedFailure) {
+            Write-Host "Detected auth failure signal: $matchedFailure"
+            return "failure"
+        }
+
+        if ($AllowInteractionRequired) {
+            $matchedInteractionRequired = Find-FirstSteamLoginLogPattern -Log $currentLog -Patterns $SteamLoginInteractionRequiredPatterns
+            if ($matchedInteractionRequired) {
+                Write-Host "Detected interaction-required signal: $matchedInteractionRequired"
+                return "interaction-required"
+            }
+        }
+    } while ((Get-Date) -lt $deadline)
+
+    Write-Host "Timed out waiting for auth result after $TimeoutSeconds seconds."
+    return "timeout"
 }

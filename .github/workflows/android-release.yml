@@ -1,12 +1,8 @@
-name: Android Release
+name: Android Release Candidate
 
 on:
   workflow_dispatch:
     inputs:
-      package_name:
-        description: "Android applicationId for generated APK."
-        required: false
-        default: "com.sts2launcher.overhaul.fork.dev"
       release_tag:
         description: "Release tag to use (optional, e.g. v0.2.1)."
         required: false
@@ -15,122 +11,125 @@ on:
         description: "Upstream release tag to source GodotSharp.dll when local artifacts are missing."
         required: false
         default: "0.2.0"
+      upstream_release_apk_sha256:
+        description: "Expected SHA-256 of the upstream release APK. Must be changed with upstream_release_tag."
+        required: false
+        default: "6dddbd6716c3830ec802e2672be2402bd06d4270dcf1bcd72c27e46ca05acf41"
       sts2_dll_source_url:
-        description: "Optional URL to a raw sts2.dll when the upstream release APK does not include it."
+        description: "Pinned URL or repository path to a raw sts2.dll or source APK."
         required: false
-        default: ""
-      patched_godot_apk_url:
-        description: "Optional APK URL to source patched arm64 libgodot_android.so from."
+        default: "https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.416-startup-recovery-ime/StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk"
+      sts2_dll_source_sha256:
+        description: "Expected SHA-256 of sts2_dll_source_url. Must be changed with the source."
         required: false
-        default: "https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.88-apk-native-verify/StS2Launcher-v0.2.88-universal-phone.apk"
+        default: "fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b"
       version_name:
         description: "Override APK version name (optional)."
         required: false
         default: ""
       version_code:
-        description: "Override APK version code (optional)."
-        required: false
-        default: ""
-      update_baseline_tag:
-        description: "Optional previous GitHub release tag whose APK this release must update. Defaults to latest prior APK release."
-        required: false
-        default: ""
-      allow_update_baseline_reset:
-        description: "Allow publishing the first stable signing baseline without proving update compatibility with the prior public APK."
-        type: boolean
-        required: false
-        default: false
-      create_release:
-        description: "Create or update a GitHub release."
-        type: boolean
-        required: false
-        default: true
-  push:
-    tags:
-      - "v*"
-
+        description: "APK version code. Must be greater than the pinned v0.2.416 .local baseline (416001)."
+        required: true
+        default: "417003"
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-android-release:
-    name: Build Android APK
-    runs-on: ubuntu-latest
+  build-android-unsigned:
+    name: Build unsigned Android APK
+    runs-on: ubuntu-24.04
     outputs:
-      version_name: ${{ steps.version.outputs.version_name }}
       package_name: ${{ steps.version.outputs.package_name }}
       release_tag: ${{ steps.version.outputs.release_tag }}
-      apk_path: ${{ steps.build.outputs.path }}
-      signed: ${{ steps.signing.outputs.enabled }}
-      create_release: ${{ steps.version.outputs.create_release }}
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      unsigned_sha256: ${{ steps.build_unsigned.outputs.sha256 }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Guard protected release ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::Android candidates may only be built from the protected main branch."
+            exit 1
+          fi
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "17.0.20+8"
+
+      - name: Setup Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.12.13"
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "9.0.316"
 
       - name: Resolve release metadata
         id: version
         shell: bash
+        env:
+          RELEASE_TAG_INPUT: "${{ github.event.inputs.release_tag }}"
+          VERSION_NAME_INPUT: "${{ github.event.inputs.version_name }}"
+          VERSION_CODE_INPUT: "${{ github.event.inputs.version_code }}"
         run: |
           set -euo pipefail
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            RELEASE_TAG="${{ github.event.inputs.release_tag }}"
-            CREATE_RELEASE="${{ github.event.inputs.create_release }}"
-          else
-            RELEASE_TAG="${GITHUB_REF_NAME}"
-            CREATE_RELEASE="true"
-          fi
+          RELEASE_TAG="${RELEASE_TAG_INPUT}"
 
           if [[ -z "${RELEASE_TAG}" ]]; then
             RELEASE_TAG="nightly-${GITHUB_SHA:0:7}"
           fi
-
-          VERSION_NAME="${{ github.event.inputs.version_name }}"
-          if [[ -z "${VERSION_NAME}" ]]; then
-            VERSION_NAME="${RELEASE_TAG#v}"
-          fi
-
-          PACKAGE_NAME="${{ github.event.inputs.package_name }}"
-          if [[ -z "${PACKAGE_NAME}" ]]; then
-            PACKAGE_NAME="com.sts2launcher.overhaul.fork"
-          fi
-          if [[ "${PACKAGE_NAME}" == *".local" || "${PACKAGE_NAME}" == *".emulator" ]]; then
-            echo "::error::Release workflow cannot publish local/emulator package name: ${PACKAGE_NAME}"
+          SAFE_RELEASE_METADATA_PATTERN='^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$'
+          if ! [[ "$RELEASE_TAG" =~ $SAFE_RELEASE_METADATA_PATTERN ]]; then
+            echo "::error::release_tag must be 1-80 ASCII letters, digits, dots, underscores, or hyphens and must start with a letter or digit."
             exit 1
           fi
 
-          VERSION_CODE="${{ github.event.inputs.version_code }}"
-          if [[ -z "${VERSION_CODE}" ]]; then
-            VERSION_CODE="${GITHUB_RUN_NUMBER}"
+          VERSION_NAME="${VERSION_NAME_INPUT}"
+          if [[ -z "${VERSION_NAME}" ]]; then
+            VERSION_NAME="${RELEASE_TAG#v}"
+          fi
+          if ! [[ "$VERSION_NAME" =~ $SAFE_RELEASE_METADATA_PATTERN ]]; then
+            echo "::error::version_name must be 1-80 ASCII letters, digits, dots, underscores, or hyphens and must start with a letter or digit."
+            exit 1
           fi
 
-          if ! [[ "${VERSION_CODE}" =~ ^[0-9]+$ ]] || (( VERSION_CODE < 1 )); then
-            VERSION_CODE="${GITHUB_RUN_NUMBER}"
+          PACKAGE_NAME="com.sts2launcher.overhaul.fork.local"
+
+          VERSION_CODE="${VERSION_CODE_INPUT}"
+          if ! [[ "${VERSION_CODE}" =~ ^[1-9][0-9]{0,9}$ ]] || (( 10#$VERSION_CODE > 2100000000 )); then
+            echo "::error::version_code must be a canonical positive Android version code no greater than 2100000000."
+            exit 1
           fi
-          if ! [[ "${VERSION_CODE}" =~ ^[0-9]+$ ]] || (( VERSION_CODE < 1 )); then
-            VERSION_CODE="1"
+          if (( 10#$VERSION_CODE <= 416001 )); then
+            echo "::error::version_code must exceed the pinned v0.2.416 .local baseline versionCode 416001."
+            exit 1
           fi
 
           echo "package_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
           echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
-          echo "create_release=$CREATE_RELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Check Android build prerequisites
         id: prerequisites
         shell: bash
+        env:
+          UPSTREAM_TAG_INPUT: "${{ github.event.inputs.upstream_release_tag }}"
+          UPSTREAM_APK_SHA256_INPUT: "${{ github.event.inputs.upstream_release_apk_sha256 }}"
+          STS2_SOURCE_INPUT: "${{ github.event.inputs.sts2_dll_source_url }}"
+          STS2_SOURCE_SHA256_INPUT: "${{ github.event.inputs.sts2_dll_source_sha256 }}"
         run: |
           set -euo pipefail
           PUBLISH_DIR="upstream/godot-export/.godot/mono/publish/arm64"
@@ -154,9 +153,19 @@ jobs:
             echo "::warning::Missing publish dependencies: ${MISSING_DLLS[*]}. Attempting to source from upstream release."
           fi
 
-          UPSTREAM_TAG="${{ github.event.inputs.upstream_release_tag }}"
+          UPSTREAM_TAG="${UPSTREAM_TAG_INPUT}"
           if [[ -z "${UPSTREAM_TAG}" ]]; then
             UPSTREAM_TAG="0.2.0"
+          fi
+          SAFE_UPSTREAM_TAG_PATTERN='^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
+          if ! [[ "$UPSTREAM_TAG" =~ $SAFE_UPSTREAM_TAG_PATTERN ]]; then
+            echo "::error::upstream_release_tag must be 1-64 ASCII letters, digits, dots, underscores, or hyphens and must start with a letter or digit."
+            exit 1
+          fi
+          UPSTREAM_APK_SHA256="${UPSTREAM_APK_SHA256_INPUT}"
+          if ! [[ "${UPSTREAM_APK_SHA256}" =~ ^[A-Fa-f0-9]{64}$ ]]; then
+            echo "::error::upstream_release_apk_sha256 must be the expected 64-character SHA-256 for upstream release ${UPSTREAM_TAG}."
+            exit 1
           fi
           UPSTREAM_APK="StS2Launcher-v${UPSTREAM_TAG}.apk"
           UPSTREAM_URL="https://github.com/Ekyso/StS2-Launcher/releases/download/${UPSTREAM_TAG}/${UPSTREAM_APK}"
@@ -164,9 +173,9 @@ jobs:
           TMP_APK="$TMP_DIR/$UPSTREAM_APK"
 
           if command -v curl >/dev/null 2>&1; then
-            curl -fsSL -o "$TMP_APK" "$UPSTREAM_URL"
+            curl -fsSL -o "$TMP_APK" -- "$UPSTREAM_URL"
           elif command -v wget >/dev/null 2>&1; then
-            wget -qO "$TMP_APK" "$UPSTREAM_URL"
+            wget -qO "$TMP_APK" -- "$UPSTREAM_URL"
           else
             echo "::error::Neither curl nor wget available to fetch upstream APK fallback."
             exit 1
@@ -176,94 +185,90 @@ jobs:
             echo "::error::Failed to download upstream APK from $UPSTREAM_URL"
             exit 1
           fi
+          ACTUAL_UPSTREAM_APK_SHA256="$(sha256sum "$TMP_APK" | awk '{print $1}')"
+          if [[ "${ACTUAL_UPSTREAM_APK_SHA256,,}" != "${UPSTREAM_APK_SHA256,,}" ]]; then
+            echo "::error::Upstream APK SHA-256 mismatch for ${UPSTREAM_URL}. Expected ${UPSTREAM_APK_SHA256}, got ${ACTUAL_UPSTREAM_APK_SHA256}. If upstream_release_tag was overridden, provide its matching upstream_release_apk_sha256."
+            exit 1
+          fi
 
           echo "Staging upstream Mono native runtime and base class libraries."
           mkdir -p android/libs/release/arm64-v8a android/assets/dotnet_bcl
           unzip -jo "$TMP_APK" 'lib/arm64-v8a/*.so' -d android/libs/release/arm64-v8a
           unzip -jo "$TMP_APK" 'assets/dotnet_bcl/*.dll' -d android/assets/dotnet_bcl
 
-          PATCHED_GODOT_APK_URL="${{ github.event.inputs.patched_godot_apk_url }}"
-          if [[ -z "${PATCHED_GODOT_APK_URL}" ]]; then
-            PATCHED_GODOT_APK_URL="https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.88-apk-native-verify/StS2Launcher-v0.2.88-universal-phone.apk"
-          fi
-          PATCHED_GODOT_APK="$TMP_DIR/patched-godot-source.apk"
-          echo "Staging patched libgodot_android.so from ${PATCHED_GODOT_APK_URL}"
-          if command -v curl >/dev/null 2>&1; then
-            curl -fsSL -o "$PATCHED_GODOT_APK" "$PATCHED_GODOT_APK_URL"
-          elif command -v wget >/dev/null 2>&1; then
-            wget -qO "$PATCHED_GODOT_APK" "$PATCHED_GODOT_APK_URL"
-          else
-            echo "::error::Neither curl nor wget available to fetch patched Godot APK."
-            exit 1
-          fi
-          if ! unzip -p "$PATCHED_GODOT_APK" 'lib/arm64-v8a/libgodot_android.so' > android/libs/release/arm64-v8a/libgodot_android.so; then
-            echo "::error::Patched Godot APK does not contain lib/arm64-v8a/libgodot_android.so."
-            exit 1
-          fi
-
-          STS2_SOURCE="${{ github.event.inputs.sts2_dll_source_url }}"
+          STS2_SOURCE="${STS2_SOURCE_INPUT}"
+          STS2_SOURCE_SHA256="${STS2_SOURCE_SHA256_INPUT}"
 
             if [[ " ${MISSING_DLLS[*]} " == *" sts2.dll "* ]]; then
               if [[ -z "${STS2_SOURCE}" ]]; then
-                echo "No sts2.dll source provided; attempting to discover latest release asset or APK."
-                TMP_RELEASE_JSON="$TMP_DIR/releases.json"
-                AUTH_HEADER=()
-                if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-                  AUTH_HEADER=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
-                fi
-              if ! curl -fsSL "${AUTH_HEADER[@]}" -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=20" \
-                > "$TMP_RELEASE_JSON"; then
-                echo "::error::Unable to fetch sts2.dll release metadata."
+                echo "::error::sts2_dll_source_url is required when the checked-out publish inputs do not contain sts2.dll."
                 exit 1
               fi
-              if ! command -v jq >/dev/null 2>&1; then
-                  echo "::error::jq is unavailable in runner; provide sts2_dll_source_url explicitly."
-                  exit 1
-                fi
-                STS2_SOURCE="$(jq -r '.[].assets[] | select(.name=="sts2.dll" or (.name | endswith(".apk"))) | .browser_download_url' "$TMP_RELEASE_JSON" | head -n 1)"
+              if ! [[ "${STS2_SOURCE_SHA256}" =~ ^[A-Fa-f0-9]{64}$ ]]; then
+                echo "::error::sts2_dll_source_sha256 must be the expected 64-character SHA-256 for sts2_dll_source_url."
+                exit 1
               fi
 
-              if [[ -n "${STS2_SOURCE}" ]]; then
-                if [[ "${STS2_SOURCE}" == http* ]]; then
-                  if [[ "${STS2_SOURCE}" == *.apk ]]; then
-                    echo "Fetching prior APK and extracting sts2.dll from assets/dotnet_bcl."
-                    PRIOR_APK="$TMP_DIR/prior-release.apk"
-                    if command -v curl >/dev/null 2>&1; then
-                      curl -fsSL -o "$PRIOR_APK" "$STS2_SOURCE"
-                    elif command -v wget >/dev/null 2>&1; then
-                      wget -qO "$PRIOR_APK" "$STS2_SOURCE"
-                    else
-                      echo "::error::Neither curl nor wget available to fetch prior APK."
-                      exit 1
-                    fi
-                    if ! unzip -p "$PRIOR_APK" 'assets/dotnet_bcl/sts2.dll' > "$PUBLISH_DIR/sts2.dll"; then
-                      echo "::error::Resolved prior APK does not contain assets/dotnet_bcl/sts2.dll."
-                      exit 1
-                    fi
-                  else
-                    echo "Fetching sts2.dll from resolved source."
-                    if command -v curl >/dev/null 2>&1; then
-                      curl -fsSL -o "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
-                    elif command -v wget >/dev/null 2>&1; then
-                      wget -qO "$PUBLISH_DIR/sts2.dll" "$STS2_SOURCE"
-                    else
-                      echo "::error::Neither curl nor wget available to fetch sts2.dll."
-                      exit 1
-                    fi
+              if (( ${#STS2_SOURCE} > 512 )); then
+                echo "::error::sts2_dll_source_url is too long."
+                exit 1
+              fi
+              STS2_SOURCE_IS_URL=false
+              SAFE_HTTPS_SOURCE_PATTERN='^https://[A-Za-z0-9][A-Za-z0-9.:-]{0,252}(/[A-Za-z0-9._~:/?#@!$%&()+,;=-]*)?$'
+              SAFE_REPOSITORY_SOURCE_PATTERN='^[A-Za-z0-9][A-Za-z0-9._/-]{0,511}$'
+              if [[ "$STS2_SOURCE" =~ $SAFE_HTTPS_SOURCE_PATTERN ]]; then
+                STS2_SOURCE_IS_URL=true
+              elif [[ "$STS2_SOURCE" =~ $SAFE_REPOSITORY_SOURCE_PATTERN ]]; then
+                IFS='/' read -r -a SOURCE_PATH_PARTS <<< "$STS2_SOURCE"
+                for source_part in "${SOURCE_PATH_PARTS[@]}"; do
+                  if [[ -z "$source_part" || "$source_part" == "." || "$source_part" == ".." ]]; then
+                    echo "::error::sts2_dll_source_url repository paths must be normalized and remain inside the checkout."
+                    exit 1
                   fi
+                done
+              else
+                echo "::error::sts2_dll_source_url must be a conservative HTTPS URL or normalized repository-relative path."
+                exit 1
+              fi
+
+              STS2_SOURCE_FILE="$TMP_DIR/sts2-source"
+              if [[ "$STS2_SOURCE_IS_URL" == "true" ]]; then
+                if command -v curl >/dev/null 2>&1; then
+                  curl -fsSL -o "$STS2_SOURCE_FILE" -- "$STS2_SOURCE"
+                elif command -v wget >/dev/null 2>&1; then
+                  wget -qO "$STS2_SOURCE_FILE" -- "$STS2_SOURCE"
                 else
-                  if [[ -f "$STS2_SOURCE" ]]; then
-                    cp "$STS2_SOURCE" "$PUBLISH_DIR/sts2.dll"
-                else
-                  echo "::error::Provided sts2_dll_source_url must be a URL or readable local path."
+                  echo "::error::Neither curl nor wget available to fetch sts2.dll source."
                   exit 1
                 fi
+              elif [[ -f "${STS2_SOURCE}" ]]; then
+                RESOLVED_REPOSITORY_SOURCE="$(realpath "$STS2_SOURCE")"
+                RESOLVED_WORKSPACE="$(realpath "$GITHUB_WORKSPACE")"
+                if [[ "$RESOLVED_REPOSITORY_SOURCE" != "$RESOLVED_WORKSPACE/"* ]]; then
+                  echo "::error::sts2_dll_source_url repository path resolves outside the checkout."
+                  exit 1
+                fi
+                cp -- "$RESOLVED_REPOSITORY_SOURCE" "$STS2_SOURCE_FILE"
+              else
+                echo "::error::sts2_dll_source_url must be a downloadable URL or readable repository path."
+                exit 1
               fi
-            else
-              echo "::error::Unable to resolve sts2.dll source."
-              exit 1
-            fi
+
+              ACTUAL_STS2_SOURCE_SHA256="$(sha256sum "$STS2_SOURCE_FILE" | awk '{print $1}')"
+              if [[ "${ACTUAL_STS2_SOURCE_SHA256,,}" != "${STS2_SOURCE_SHA256,,}" ]]; then
+                echo "::error::sts2.dll source SHA-256 mismatch for ${STS2_SOURCE}. Expected ${STS2_SOURCE_SHA256}, got ${ACTUAL_STS2_SOURCE_SHA256}. If sts2_dll_source_url was overridden, provide its matching sts2_dll_source_sha256."
+                exit 1
+              fi
+
+              if [[ "${STS2_SOURCE%%\?*}" == *.apk ]]; then
+                echo "Extracting sts2.dll from the verified source APK."
+                if ! unzip -p "$STS2_SOURCE_FILE" 'assets/dotnet_bcl/sts2.dll' > "$PUBLISH_DIR/sts2.dll"; then
+                  echo "::error::Verified source APK does not contain assets/dotnet_bcl/sts2.dll."
+                  exit 1
+                fi
+              else
+                cp "$STS2_SOURCE_FILE" "$PUBLISH_DIR/sts2.dll"
+              fi
 
             for i in "${!MISSING_DLLS[@]}"; do
               if [[ "${MISSING_DLLS[i]}" == "sts2.dll" ]]; then
@@ -285,6 +290,29 @@ jobs:
           fi
 
           echo "Recovered missing publish dependencies from upstream release: ${MISSING_DLLS[*]}"
+
+      - name: Verify save safety before building candidate
+        shell: pwsh
+        run: |
+          ./scripts/test-local-gameplay-save-safety.ps1
+          ./scripts/test-cloud-sync-production-path.ps1
+          ./scripts/test-local-save-recovery-production-path.ps1
+          ./scripts/test-legacy-save-recovery-scanner.ps1
+          ./scripts/test-no-vanilla-to-modded-seeding.ps1
+          ./scripts/audit-cloud-sync-production-path-nonmutation.ps1
+          ./scripts/test-stage5-save-evidence-manifests.ps1
+          ./scripts/test-stage5-collector-exact-byte-capture.ps1
+          ./scripts/test-stage5-affected-device-preflight.ps1
+          ./scripts/test-stage5-physical-matrix-reviewer.ps1
+
+      - name: Build patched Godot Android runtime
+        shell: bash
+        env:
+          ARCHES: arm64
+        run: |
+          set -euo pipefail
+          scripts/setup-godot-source.sh
+          scripts/build-godot.sh
 
       - name: Generate launcher bootstrap PCK
         shell: bash
@@ -313,7 +341,8 @@ jobs:
           UPSTREAM_DIR="$ROOT_DIR/upstream/godot-export/.godot/mono/publish/arm64"
 
           cd "$PATCHER_DIR"
-          dotnet publish -c Release
+          dotnet restore --locked-mode
+          dotnet publish -c Release --no-restore
 
           mkdir -p "$BCL_DIR"
           copy_dependency() {
@@ -339,9 +368,15 @@ jobs:
           if [[ ! -f "$BCL_DIR/Sentry.dll" ]]; then
             echo "Staging Sentry.dll required by sts2.dll metadata."
             SENTRY_VERSION="5.0.0"
+            SENTRY_PACKAGE_SHA256="91a7efd0b3813e06295fb60753744aed79b0567f70b8f7c766e7f0dfd69e15e7"
             SENTRY_PACKAGE="$RUNNER_TEMP/sentry.${SENTRY_VERSION}.nupkg"
             SENTRY_URL="https://api.nuget.org/v3-flatcontainer/sentry/${SENTRY_VERSION}/sentry.${SENTRY_VERSION}.nupkg"
             curl -fsSL -o "$SENTRY_PACKAGE" "$SENTRY_URL"
+            ACTUAL_SENTRY_PACKAGE_SHA256="$(sha256sum "$SENTRY_PACKAGE" | awk '{print $1}')"
+            if [[ "$ACTUAL_SENTRY_PACKAGE_SHA256" != "$SENTRY_PACKAGE_SHA256" ]]; then
+              echo "::error::Sentry ${SENTRY_VERSION} package SHA-256 mismatch."
+              exit 1
+            fi
             if ! unzip -p "$SENTRY_PACKAGE" 'lib/netstandard2.0/Sentry.dll' > "$BCL_DIR/Sentry.dll"; then
               echo "::error::Downloaded Sentry ${SENTRY_VERSION}, but lib/netstandard2.0/Sentry.dll was not found."
               exit 1
@@ -349,90 +384,62 @@ jobs:
           fi
 
           echo "Patching SteamKit2 Android crypto calls."
-          dotnet build "$ROOT_DIR/tools/SteamKitAndroidPatch/SteamKitAndroidPatch.csproj" -c Release
-          dotnet "$ROOT_DIR/tools/SteamKitAndroidPatch/bin/Release/net9.0/SteamKitAndroidPatch.dll" \
+          dotnet restore "$ROOT_DIR/tools/SteamKitAndroidPatch/SteamKitAndroidPatch.csproj" --locked-mode
+          dotnet build "$ROOT_DIR/tools/SteamKitAndroidPatch/SteamKitAndroidPatch.csproj" -c Release --no-restore
+          patch_output_file="$RUNNER_TEMP/steamkit-android-patch-output.txt"
+          if ! dotnet "$ROOT_DIR/tools/SteamKitAndroidPatch/bin/Release/net9.0/SteamKitAndroidPatch.dll" \
             "$BCL_DIR/SteamKit2.dll" \
             "$BCL_DIR/STS2Mobile.dll" \
-            "$BCL_DIR/sts2.dll"
-
-          resolve_tls_so() {
-            local runtime_version
-            runtime_version="$(dotnet --list-runtimes | awk '/^Microsoft.NETCore.App / {print $2; exit}')"
-            if [[ -z "${runtime_version}" ]]; then
-              echo "::warning::Unable to detect Microsoft.NETCore.App runtime version."
-              return 1
-            fi
-
-            local packaged_dir="$HOME/.nuget/packages/microsoft.netcore.app.runtime.mono.android-arm64/${runtime_version}"
-            local local_so="$(find "$packaged_dir" -path '*/runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so' 2>/dev/null | head -n 1 || true)"
-            if [[ -n "${local_so}" ]]; then
-              cp "${local_so}" "$BUILD_DIR/libs/release/arm64-v8a/"
-              return 0
-            fi
-
-            local pkg_name="microsoft.netcore.app.runtime.mono.android-arm64"
-            local pkg_file="$RUNNER_TEMP/${pkg_name}.${runtime_version}.nupkg"
-            local pkg_url="https://api.nuget.org/v3-flatcontainer/${pkg_name}/${runtime_version}/${pkg_name}.${runtime_version}.nupkg"
-            if ! curl -fsSL -o "$pkg_file" "$pkg_url"; then
-              echo "::warning::Failed to download ${pkg_name} ${runtime_version} from NuGet."
-              return 1
-            fi
-
-            local extract_dir="$RUNNER_TEMP/${pkg_name}_extract"
-            mkdir -p "$extract_dir"
-            if ! unzip -q "$pkg_file" -d "$extract_dir"; then
-              echo "::warning::Failed to extract ${pkg_name} ${runtime_version} archive."
-              return 1
-            fi
-
-            local downloaded_so="$(find "$extract_dir" -path '*/runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so' 2>/dev/null | head -n 1 || true)"
-            if [[ -z "${downloaded_so}" ]]; then
-              echo "::warning::Downloaded ${pkg_name} ${runtime_version} but native TLS .so is missing."
-              return 1
-            fi
-
-            cp "${downloaded_so}" "$BUILD_DIR/libs/release/arm64-v8a/"
-          }
-
-          mkdir -p "$BUILD_DIR/libs/release/arm64-v8a"
-          if ! resolve_tls_so; then
-            echo "::warning::TLS library libSystem.Security.Cryptography.Native.Android.so could not be resolved; proceeding without explicit native TLS copy."
+            "$BCL_DIR/sts2.dll" > "$patch_output_file" 2>&1; then
+            cat "$patch_output_file"
+            echo "::error::SteamKit Android patcher failed."
+            exit 1
           fi
-
-      - name: Configure optional release signing
-        id: signing
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" && -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}" && -n "${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}" ]]; then
-            mkdir -p "$RUNNER_TEMP/android-signing"
-            echo "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/android-signing/sts2.keystore"
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "path=$RUNNER_TEMP/android-signing/sts2.keystore" >> "$GITHUB_OUTPUT"
-            echo "password=${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}" >> "$GITHUB_OUTPUT"
-            echo "alias=${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::Release signing secrets are not configured. Refusing to publish an APK with a fresh throwaway key because it will be incompatible with previous installs."
+          cat "$patch_output_file"
+          if ! grep -Eq 'Patched System\.Net\.WebSockets\.Client\.dll: sha1TryHashData=[1-9][0-9]*' "$patch_output_file"; then
+            echo "::error::System.Net.WebSockets.Client.dll SHA1 patch summary was not emitted with a positive patch count."
             exit 1
           fi
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.11.1
+          stage_pinned_tls_so() {
+            local runtime_version="9.0.18"
+            local pkg_name="microsoft.netcore.app.runtime.mono.android-arm64"
+            local pkg_file="$RUNNER_TEMP/${pkg_name}.${runtime_version}.nupkg"
+            local pkg_url="https://api.nuget.org/v3-flatcontainer/${pkg_name}/${runtime_version}/${pkg_name}.${runtime_version}.nupkg"
+            local expected_pkg_sha256="81f74411bcb9286c5f6b7f11d05b80364ef5738555fda7a3b45215c9f18e12ee"
+            local actual_pkg_sha256
+            local extracted_so="$RUNNER_TEMP/libSystem.Security.Cryptography.Native.Android.so"
 
-      - name: Build release APK
-        id: build
+            curl -fsSL -o "$pkg_file" "$pkg_url"
+            actual_pkg_sha256="$(sha256sum "$pkg_file" | awk '{print $1}')"
+            if [[ "$actual_pkg_sha256" != "$expected_pkg_sha256" ]]; then
+              echo "::error::${pkg_name} ${runtime_version} package SHA-256 mismatch."
+              return 1
+            fi
+            if ! unzip -p "$pkg_file" 'runtimes/android-arm64/native/libSystem.Security.Cryptography.Native.Android.so' > "$extracted_so"; then
+              echo "::error::Verified ${pkg_name} ${runtime_version} does not contain the native TLS library."
+              return 1
+            fi
+            if [[ ! -s "$extracted_so" ]]; then
+              echo "::error::Verified ${pkg_name} ${runtime_version} produced an empty native TLS library."
+              return 1
+            fi
+            mv "$extracted_so" "$BUILD_DIR/libs/release/arm64-v8a/libSystem.Security.Cryptography.Native.Android.so"
+          }
+
+          mkdir -p "$BUILD_DIR/libs/release/arm64-v8a"
+          if ! stage_pinned_tls_so; then
+            echo "::error::Pinned TLS library could not be staged."
+            exit 1
+          fi
+
+      - name: Build unsigned release APK
+        id: build_unsigned
         shell: bash
         env:
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
           VERSION_CODE: ${{ steps.version.outputs.version_code }}
-          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
           EXPORT_PACKAGE_NAME: ${{ steps.version.outputs.package_name }}
-          SIGNING_ENABLED: ${{ steps.signing.outputs.enabled }}
-          KEYSTORE_PATH: ${{ steps.signing.outputs.path }}
-          KEYSTORE_PASSWORD: ${{ steps.signing.outputs.password }}
-          KEYSTORE_ALIAS: ${{ steps.signing.outputs.alias }}
         run: |
           set -euo pipefail
 
@@ -445,155 +452,348 @@ jobs:
             "-Pexport_edition=mono"
             "-Pexport_package_name=${EXPORT_PACKAGE_NAME}"
             "-Pexport_enabled_abis=arm64-v8a"
+            "-Pperform_signing=false"
+            "-Pperform_zipalign=true"
           )
 
-          if [[ "${SIGNING_ENABLED}" == "true" ]]; then
-            GRADLE_ARGS+=(
-              "-Pperform_signing=true"
-              "-Prelease_keystore_file=${KEYSTORE_PATH}"
-              "-Prelease_keystore_password=${KEYSTORE_PASSWORD}"
-              "-Prelease_keystore_alias=${KEYSTORE_ALIAS}"
-            )
-          else
-            GRADLE_ARGS+=("-Pperform_signing=false")
-          fi
+          ./gradlew --no-daemon "${GRADLE_ARGS[@]}"
 
-          gradle "${GRADLE_ARGS[@]}"
-
-          RAW_APK_PATH="$(find build/outputs/apk/mono/release -type f -name "StS2Launcher-v${VERSION_NAME}*.apk" | head -n 1)"
-          if [[ -z "${RAW_APK_PATH}" ]] || [[ ! -f "${RAW_APK_PATH}" ]]; then
+          mapfile -t RAW_APKS < <(find build/outputs/apk/mono/release -type f -name "StS2Launcher-v${VERSION_NAME}*.apk" -print)
+          if (( ${#RAW_APKS[@]} != 1 )); then
             echo "Files in build/outputs/apk/mono/release:"
             find build/outputs/apk/mono/release -type f
-            echo "::error::Expected APK not found at ${RAW_APK_PATH}"
+            echo "::error::Expected exactly one unsigned APK, found ${#RAW_APKS[@]}."
             exit 1
           fi
-          ABS_APK_PATH="$(pwd)/${RAW_APK_PATH}"
-          RENAMED_APK_PATH="$(dirname "${RAW_APK_PATH}")/StS2Launcher-v${VERSION_NAME}-arm64-v8a.apk"
+          RAW_APK_PATH="${RAW_APKS[0]}"
+          RENAMED_APK_PATH="$(dirname "${RAW_APK_PATH}")/StS2Launcher-v${VERSION_NAME}-arm64-v8a-unsigned.apk"
           mv "$RAW_APK_PATH" "$RENAMED_APK_PATH"
-          APK_PATH="android/${RENAMED_APK_PATH}"
-          ABS_APK_PATH="$(pwd)/${RENAMED_APK_PATH}"
+          UNSIGNED_APK_PATH="android/${RENAMED_APK_PATH}"
+          ABS_UNSIGNED_APK_PATH="$(pwd)/${RENAMED_APK_PATH}"
 
-          pwsh ../scripts/verify-android-apk.ps1 -ApkPath "$ABS_APK_PATH" -Abi arm64-v8a
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          BUILD_TOOLS="$SDK_ROOT/build-tools/35.0.0"
+          if [[ ! -x "$BUILD_TOOLS/zipalign" ]] || [[ ! -x "$BUILD_TOOLS/apksigner" ]]; then
+            echo "::error::Pinned Android build-tools 35.0.0 are unavailable."
+            exit 1
+          fi
+          "$BUILD_TOOLS/zipalign" -c -P 16 -v 4 "$ABS_UNSIGNED_APK_PATH"
+          if "$BUILD_TOOLS/apksigner" verify "$ABS_UNSIGNED_APK_PATH" >/dev/null 2>&1; then
+            echo "::error::The secret-free Gradle job unexpectedly produced a signed APK."
+            exit 1
+          fi
 
+          pwsh ../scripts/verify-android-apk.ps1 -ApkPath "$ABS_UNSIGNED_APK_PATH" -Abi arm64-v8a
+
+          UNSIGNED_SHA256="$(sha256sum "$ABS_UNSIGNED_APK_PATH" | awk '{print $1}')"
+          echo "path=$UNSIGNED_APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "sha256=$UNSIGNED_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload unsigned APK for isolated signing
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.build_unsigned.outputs.path }}
+          if-no-files-found: error
+          retention-days: 1
+
+  sign-android-candidate:
+    name: Sign and verify Android candidate
+    needs: build-android-unsigned
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment:
+      name: android-local-signing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Setup Java
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: "17.0.20+8"
+
+      - name: Download unsigned APK
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: android-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/android-unsigned
+
+      - name: Verify unsigned APK before signing
+        id: unsigned
+        shell: bash
+        env:
+          EXPECTED_PACKAGE_NAME: ${{ needs.build-android-unsigned.outputs.package_name }}
+          EXPECTED_VERSION_NAME: ${{ needs.build-android-unsigned.outputs.version_name }}
+          EXPECTED_VERSION_CODE: ${{ needs.build-android-unsigned.outputs.version_code }}
+          EXPECTED_UNSIGNED_SHA256: ${{ needs.build-android-unsigned.outputs.unsigned_sha256 }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t UNSIGNED_APKS < <(find "$RUNNER_TEMP/android-unsigned" -type f -name '*.apk' -print)
+          if (( ${#UNSIGNED_APKS[@]} != 1 )); then
+            echo "::error::Expected exactly one downloaded unsigned APK, found ${#UNSIGNED_APKS[@]}."
+            exit 1
+          fi
+          UNSIGNED_APK_PATH="${UNSIGNED_APKS[0]}"
+          ACTUAL_UNSIGNED_SHA256="$(sha256sum "$UNSIGNED_APK_PATH" | awk '{print $1}')"
+          if [[ "${ACTUAL_UNSIGNED_SHA256,,}" != "${EXPECTED_UNSIGNED_SHA256,,}" ]]; then
+            echo "::error::Downloaded unsigned APK SHA-256 does not match the secret-free build output."
+            exit 1
+          fi
+
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          BUILD_TOOLS="$SDK_ROOT/build-tools/35.0.0"
+          AAPT="$BUILD_TOOLS/aapt"
+          ZIPALIGN="$BUILD_TOOLS/zipalign"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          if [[ ! -x "$AAPT" ]] || [[ ! -x "$ZIPALIGN" ]] || [[ ! -x "$APKSIGNER" ]]; then
+            echo "::error::Pinned Android build-tools 35.0.0 are unavailable."
+            exit 1
+          fi
+
+          "$ZIPALIGN" -c -P 16 -v 4 "$UNSIGNED_APK_PATH"
+          if "$APKSIGNER" verify "$UNSIGNED_APK_PATH" >/dev/null 2>&1; then
+            echo "::error::Downloaded Gradle output is already signed; refusing to expose the release key."
+            exit 1
+          fi
+
+          BADGING="$($AAPT dump badging "$UNSIGNED_APK_PATH")"
+          ACTUAL_PACKAGE_NAME="$(sed -n "s/^package: name='\([^']*\)'.*/\1/p" <<< "$BADGING")"
+          ACTUAL_VERSION_CODE="$(sed -n "s/^package:.* versionCode='\([^']*\)'.*/\1/p" <<< "$BADGING")"
+          ACTUAL_VERSION_NAME="$(sed -n "s/^package:.* versionName='\([^']*\)'.*/\1/p" <<< "$BADGING")"
+          if [[ "$ACTUAL_PACKAGE_NAME" != "$EXPECTED_PACKAGE_NAME" \
+            || "$ACTUAL_VERSION_CODE" != "$EXPECTED_VERSION_CODE" \
+            || "$ACTUAL_VERSION_NAME" != "$EXPECTED_VERSION_NAME" ]]; then
+            echo "::error::Unsigned APK identity does not match the resolved release metadata."
+            exit 1
+          fi
+
+          echo "path=$UNSIGNED_APK_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Sign exact v0.2.416 local-line candidate
+        id: sign
+        shell: bash
+        env:
+          UNSIGNED_APK_PATH: ${{ steps.unsigned.outputs.path }}
+          VERSION_NAME: ${{ needs.build-android-unsigned.outputs.version_name }}
+          KEYSTORE_BASE64: "${{ secrets.ANDROID_LOCAL_UPDATE_KEYSTORE_BASE64 }}"
+          KEYSTORE_PASSWORD: "${{ secrets.ANDROID_LOCAL_UPDATE_KEYSTORE_PASSWORD }}"
+          KEYSTORE_ALIAS: "${{ secrets.ANDROID_LOCAL_UPDATE_KEY_ALIAS }}"
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${KEYSTORE_BASE64}" || -z "${KEYSTORE_PASSWORD}" || -z "${KEYSTORE_ALIAS}" ]]; then
+            echo "::error::Dedicated v0.2.416 local-update signing secrets are not configured. Refusing to sign the candidate."
+            exit 1
+          fi
+
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          APKSIGNER="$SDK_ROOT/build-tools/35.0.0/apksigner"
+          if [[ ! -x "$APKSIGNER" ]]; then
+            echo "::error::Pinned apksigner from Android build-tools 35.0.0 is unavailable."
+            exit 1
+          fi
+
+          SIGNED_DIR="$RUNNER_TEMP/android-signed"
+          SIGNED_APK_PATH="$SIGNED_DIR/StS2Launcher-v${VERSION_NAME}-arm64-v8a.apk"
+          mkdir -p "$SIGNED_DIR"
+
+          SIGNING_DIR="$(mktemp -d "$RUNNER_TEMP/android-signing.XXXXXX")"
+          KEYSTORE_PATH="$SIGNING_DIR/sts2.keystore"
+          cleanup_signing() {
+            rm -f -- "$KEYSTORE_PATH"
+            rmdir -- "$SIGNING_DIR" 2>/dev/null || true
+          }
+          trap cleanup_signing EXIT
+          umask 077
+          KEYSTORE_PAYLOAD="$KEYSTORE_BASE64"
+          unset KEYSTORE_BASE64
+          if ! printf '%s' "$KEYSTORE_PAYLOAD" | env -u KEYSTORE_PASSWORD -u KEYSTORE_ALIAS base64 --decode > "$KEYSTORE_PATH"; then
+            unset KEYSTORE_PAYLOAD KEYSTORE_PASSWORD KEYSTORE_ALIAS
+            echo "::error::Could not decode the signing keystore."
+            exit 1
+          fi
+          unset KEYSTORE_PAYLOAD
+          if [[ ! -s "$KEYSTORE_PATH" ]]; then
+            unset KEYSTORE_PASSWORD KEYSTORE_ALIAS
+            echo "::error::Decoded signing keystore is empty."
+            exit 1
+          fi
+
+          SIGN_EXIT_CODE=0
+          APKSIGNER_OUTPUT="$("$APKSIGNER" sign \
+            --ks "$KEYSTORE_PATH" \
+            --ks-key-alias "$KEYSTORE_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD \
+            --key-pass env:KEYSTORE_PASSWORD \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --v4-signing-enabled false \
+            --out "$SIGNED_APK_PATH" \
+            "$UNSIGNED_APK_PATH" 2>&1)" || SIGN_EXIT_CODE=$?
+          unset KEYSTORE_PASSWORD KEYSTORE_ALIAS
+          unset APKSIGNER_OUTPUT
+          if (( SIGN_EXIT_CODE != 0 )); then
+            echo "::error::apksigner failed with exit code ${SIGN_EXIT_CODE}."
+            exit "$SIGN_EXIT_CODE"
+          fi
+          if [[ ! -s "$SIGNED_APK_PATH" ]]; then
+            echo "::error::apksigner did not produce a signed APK."
+            exit 1
+          fi
+          echo "path=$SIGNED_APK_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Verify signed candidate and write metadata
+        id: verify
+        shell: bash
+        env:
+          APK_PATH: ${{ steps.sign.outputs.path }}
+          VERSION_NAME: ${{ needs.build-android-unsigned.outputs.version_name }}
+          VERSION_CODE: ${{ needs.build-android-unsigned.outputs.version_code }}
+          RELEASE_TAG: ${{ needs.build-android-unsigned.outputs.release_tag }}
+          EXPECTED_PACKAGE_NAME: ${{ needs.build-android-unsigned.outputs.package_name }}
+          EXPECTED_SIGNER_SHA256: ${{ vars.ANDROID_LOCAL_UPDATE_SIGNER_SHA256 }}
+          UNSIGNED_APK_SHA256: ${{ needs.build-android-unsigned.outputs.unsigned_sha256 }}
+        run: |
+          set -euo pipefail
+
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          BUILD_TOOLS="$SDK_ROOT/build-tools/35.0.0"
+          AAPT="$BUILD_TOOLS/aapt"
+          ZIPALIGN="$BUILD_TOOLS/zipalign"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          if [[ ! -x "$AAPT" ]] || [[ ! -x "$ZIPALIGN" ]] || [[ ! -x "$APKSIGNER" ]]; then
+            echo "::error::Pinned Android build-tools 35.0.0 are unavailable."
+            exit 1
+          fi
+          "$ZIPALIGN" -c -P 16 -v 4 "$APK_PATH"
+
+          APK_IDENTITY="$(
+            APK_TO_INSPECT="$APK_PATH" AAPT_TO_USE="$AAPT" APKSIGNER_TO_USE="$APKSIGNER" \
+              pwsh -NoProfile -NonInteractive -Command \
+              '. (Join-Path $env:GITHUB_WORKSPACE "scripts/android-signing-utils.ps1"); $identity = Get-AndroidApkIdentity -Path $env:APK_TO_INSPECT -Aapt $env:AAPT_TO_USE -ApkSigner $env:APKSIGNER_TO_USE; "{0}`t{1}" -f $identity.packageName, $identity.signerSha256'
+          )"
+          IFS=$'\t' read -r ACTUAL_PACKAGE_NAME ACTUAL_SIGNER_SHA256 <<< "$APK_IDENTITY"
+          EXPECTED_SIGNER_NORMALIZED="$(printf '%s' "$EXPECTED_SIGNER_SHA256" | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          if [[ "$ACTUAL_PACKAGE_NAME" != "$EXPECTED_PACKAGE_NAME" ]]; then
+            echo "::error::Signed APK package mismatch. Expected ${EXPECTED_PACKAGE_NAME}, got ${ACTUAL_PACKAGE_NAME}."
+            exit 1
+          fi
+          if ! [[ "$EXPECTED_SIGNER_NORMALIZED" =~ ^[A-F0-9]{64}$ ]]; then
+            echo "::error::Repository variable ANDROID_LOCAL_UPDATE_SIGNER_SHA256 is missing or invalid."
+            exit 1
+          fi
+          if [[ "$ACTUAL_SIGNER_SHA256" != "$EXPECTED_SIGNER_NORMALIZED" ]]; then
+            echo "::error::Signed APK signer mismatch. Expected ${EXPECTED_SIGNER_NORMALIZED}, got ${ACTUAL_SIGNER_SHA256}."
+            exit 1
+          fi
+
+          APK_SHA="$(sha256sum "$APK_PATH" | awk '{print $1}')"
           {
             echo "version_name=${VERSION_NAME}"
             echo "version_code=${VERSION_CODE}"
-            echo "package_name=${EXPORT_PACKAGE_NAME}"
+            echo "package_name=${ACTUAL_PACKAGE_NAME}"
+            echo "abi=arm64-v8a"
             echo "signing_channel=release"
+            echo "signer_sha256=${ACTUAL_SIGNER_SHA256}"
             echo "release_tag=${RELEASE_TAG}"
-          } > "${ABS_APK_PATH}.build-info.txt"
+            echo "source_commit=${GITHUB_SHA}"
+            echo "candidate_run_id=${GITHUB_RUN_ID}"
+            echo "candidate_run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "unsigned_apk_sha256=${UNSIGNED_APK_SHA256}"
+            echo "apk_sha256=${APK_SHA}"
+          } > "${APK_PATH}.build-info.txt"
 
+          printf '%s  %s\n' "$APK_SHA" "$(basename "$APK_PATH")" > "${APK_PATH}.sha256"
           echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
-          sha256sum "$ABS_APK_PATH" > "${ABS_APK_PATH}.sha256"
 
       - name: Verify release update compatibility
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          CURRENT_APK_PATH: ${{ steps.build.outputs.path }}
-          EXPECTED_PACKAGE_NAME: ${{ steps.version.outputs.package_name }}
-          EXPECTED_SIGNER_SHA256: ${{ vars.ANDROID_RELEASE_SIGNER_SHA256 }}
-          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
-          UPDATE_BASELINE_TAG: ${{ github.event.inputs.update_baseline_tag }}
-          ALLOW_UPDATE_BASELINE_RESET: ${{ github.event.inputs.allow_update_baseline_reset }}
+          CURRENT_APK_PATH: ${{ steps.verify.outputs.path }}
+          EXPECTED_PACKAGE_NAME: ${{ needs.build-android-unsigned.outputs.package_name }}
+          EXPECTED_SIGNER_SHA256: ${{ vars.ANDROID_LOCAL_UPDATE_SIGNER_SHA256 }}
+          UPDATE_BASELINE_TAG: v0.2.416-startup-recovery-ime
+          UPDATE_BASELINE_ASSET_NAME: StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk
+          UPDATE_BASELINE_APK_SHA256: fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b
         run: |
           set -euo pipefail
 
           PREVIOUS_DIR="$RUNNER_TEMP/previous-android-release"
-          RELEASES_JSON="$PREVIOUS_DIR/releases.json"
-          PREVIOUS_INFO="$PREVIOUS_DIR/previous.tsv"
           mkdir -p "$PREVIOUS_DIR"
 
           if [[ -z "${EXPECTED_SIGNER_SHA256}" ]]; then
-            echo "::error::Repository variable ANDROID_RELEASE_SIGNER_SHA256 is not configured. Refusing to publish because the release key cannot be pinned."
+            echo "::error::Repository variable ANDROID_LOCAL_UPDATE_SIGNER_SHA256 is not configured. Refusing to retain an unpinned candidate."
             exit 1
           fi
 
-          gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" > "$RELEASES_JSON"
-
-          if [[ -n "${UPDATE_BASELINE_TAG}" ]]; then
-            jq -r --arg baseline "$UPDATE_BASELINE_TAG" '
-              [.[] |
-                select(.tag_name == $baseline) |
-                . as $release |
-                $release.assets[]? |
-                select(.name | test("^StS2Launcher-v.*\\.apk$"; "i")) |
-                [$release.tag_name, .name] |
-                @tsv
-              ][0] // empty
-            ' "$RELEASES_JSON" > "$PREVIOUS_INFO"
-          else
-            jq -r --arg current "$RELEASE_TAG" '
-            [.[] |
-              select(.draft | not) |
-              select(.tag_name != $current) |
-              . as $release |
-              $release.assets[]? |
-              select(.name | test("^StS2Launcher-v.*\\.apk$"; "i")) |
-              [$release.tag_name, .name] |
-              @tsv
-            ][0] // empty
-            ' "$RELEASES_JSON" > "$PREVIOUS_INFO"
+          if [[ -z "${UPDATE_BASELINE_TAG}" ]]; then
+            echo "::error::update_baseline_tag is required. The workflow never guesses a baseline from the latest APK release."
+            exit 1
           fi
-
-          if [[ ! -s "$PREVIOUS_INFO" ]]; then
-            if [[ "${ALLOW_UPDATE_BASELINE_RESET}" == "true" ]]; then
-              echo "::warning::No previous release APK baseline found. Verifying only package and pinned signer because allow_update_baseline_reset=true."
-              pwsh scripts/verify-android-update-compat.ps1 \
-                -ApkPath "$CURRENT_APK_PATH" \
-                -ExpectedPackageName "$EXPECTED_PACKAGE_NAME" \
-                -ExpectedSignerSha256 "$EXPECTED_SIGNER_SHA256"
-              exit 0
-            fi
-
-            echo "::error::No previous GitHub release APK found. Refusing to publish without an update baseline. If this is the first stable signing baseline, rerun with allow_update_baseline_reset=true after setting ANDROID_RELEASE_SIGNER_SHA256."
+          if [[ -z "${UPDATE_BASELINE_ASSET_NAME}" ]]; then
+            echo "::error::update_baseline_asset_name is required with update_baseline_tag."
+            exit 1
+          fi
+          if ! [[ "${UPDATE_BASELINE_APK_SHA256}" =~ ^[A-Fa-f0-9]{64}$ ]]; then
+            echo "::error::update_baseline_apk_sha256 must be the expected 64-character SHA-256 for the selected baseline APK."
             exit 1
           fi
 
-          IFS=$'\t' read -r PREVIOUS_TAG PREVIOUS_ASSET < "$PREVIOUS_INFO"
-          echo "Checking update compatibility against ${PREVIOUS_TAG}/${PREVIOUS_ASSET}"
-          gh release download "$PREVIOUS_TAG" \
+          echo "Checking update compatibility against ${UPDATE_BASELINE_TAG}/${UPDATE_BASELINE_ASSET_NAME}"
+          gh release download "$UPDATE_BASELINE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --pattern "$PREVIOUS_ASSET" \
+            --pattern "$UPDATE_BASELINE_ASSET_NAME" \
             --dir "$PREVIOUS_DIR" \
             --clobber
 
+          PREVIOUS_APK_PATH="$PREVIOUS_DIR/$UPDATE_BASELINE_ASSET_NAME"
+          if [[ ! -f "$PREVIOUS_APK_PATH" ]]; then
+            echo "::error::Selected update-baseline APK was not downloaded: ${UPDATE_BASELINE_TAG}/${UPDATE_BASELINE_ASSET_NAME}"
+            exit 1
+          fi
+          ACTUAL_BASELINE_APK_SHA256="$(sha256sum "$PREVIOUS_APK_PATH" | awk '{print $1}')"
+          if [[ "${ACTUAL_BASELINE_APK_SHA256,,}" != "${UPDATE_BASELINE_APK_SHA256,,}" ]]; then
+            echo "::error::Update-baseline APK SHA-256 mismatch. Expected ${UPDATE_BASELINE_APK_SHA256}, got ${ACTUAL_BASELINE_APK_SHA256}. If the baseline was overridden, provide its matching update_baseline_apk_sha256."
+            exit 1
+          fi
+
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          BUILD_TOOLS="$SDK_ROOT/build-tools/35.0.0"
+          AAPT="$BUILD_TOOLS/aapt"
+          APKSIGNER="$BUILD_TOOLS/apksigner"
+          if [[ ! -x "$AAPT" ]] || [[ ! -x "$APKSIGNER" ]]; then
+            echo "::error::Pinned Android build-tools 35.0.0 are unavailable."
+            exit 1
+          fi
+
           pwsh scripts/verify-android-update-compat.ps1 \
             -ApkPath "$CURRENT_APK_PATH" \
-            -PreviousApkPath "$PREVIOUS_DIR/$PREVIOUS_ASSET" \
+            -PreviousApkPath "$PREVIOUS_APK_PATH" \
             -ExpectedPackageName "$EXPECTED_PACKAGE_NAME" \
-            -ExpectedSignerSha256 "$EXPECTED_SIGNER_SHA256"
+            -ExpectedSignerSha256 "$EXPECTED_SIGNER_SHA256" \
+            -Aapt "$AAPT" \
+            -ApkSigner "$APKSIGNER"
+
+          {
+            echo "update_baseline_tag=${UPDATE_BASELINE_TAG}"
+            echo "update_baseline_asset_name=${UPDATE_BASELINE_ASSET_NAME}"
+            echo "update_baseline_apk_sha256=${ACTUAL_BASELINE_APK_SHA256}"
+          } >> "${CURRENT_APK_PATH}.build-info.txt"
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: android-release-${{ steps.version.outputs.release_tag }}
+          name: android-release-${{ needs.build-android-unsigned.outputs.release_tag }}
           path: |
-            ${{ steps.build.outputs.path }}
-            ${{ steps.build.outputs.path }}.sha256
-            ${{ steps.build.outputs.path }}.build-info.txt
+            ${{ steps.verify.outputs.path }}
+            ${{ steps.verify.outputs.path }}.sha256
+            ${{ steps.verify.outputs.path }}.build-info.txt
           if-no-files-found: error
           retention-days: 30
-
-  publish-release:
-    name: Publish GitHub release
-    needs: build-android-release
-    runs-on: ubuntu-latest
-    if: needs.build-android-release.outputs.create_release == 'true'
-    steps:
-      - name: Download built APK
-        uses: actions/download-artifact@v4
-        with:
-          name: android-release-${{ needs.build-android-release.outputs.release_tag }}
-          path: release-artifacts
-
-      - name: Create GitHub release and attach APK
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.build-android-release.outputs.release_tag }}
-          name: "StS2 Launcher ${{ needs.build-android-release.outputs.version_name }}"
-          files: |
-            release-artifacts/**/*.apk
-            release-artifacts/**/*.sha256
-            release-artifacts/**/*.build-info.txt
-          generate_release_notes: true

@@ -1,56 +1,90 @@
-# Overhaul Roadmap
+# OVERHAUL_ROADMAP.md
 
-This roadmap tracks the ongoing rewrite and stabilization effort.
+This roadmap tracks the overhaul phases and the current Android release-hardening path.
 
-## Phase 0 — Baseline and migration
+## Current release posture
 
-- [x] Create independent project with clear provenance
-- [x] Baseline all branches from upstream lineage
-- [x] Finish contributor process files and templates
-- [x] Set branch protections / PR validation
+The app has a working ARM64 Android baseline, a five-destination launcher, a public-mod-runtime path, and published PowerVR renderer plus touch-routing compatibility. It is not yet release-candidate complete because reporter-class PowerVR confirmation, exact-build physical UI coverage, confirmed Push-to-Cloud upload, production-signing upgrade behavior, Steam version-selection hardening, and repeated release-readiness evidence remain open.
 
-## Phase 1 — Reliability hardening
+Canonical status: [docs/current-android-status.md](docs/current-android-status.md)
 
-- [x] Stabilize background/cloud async flow with timeouts and structured cancellation
-- [x] Fix lifecycle flushing correctness for cloud writes
-- [x] Remove thread-safety issues in parallel download/token caches
-- [x] Improve reflection patch hardening for version drift
+## Phase 1 - Reliability hardening
 
-## Phase 2 — Architecture cleanup
+- [x] Stabilize background/cloud async flow with timeouts and structured cancellation.
+- [x] Harden locale parsing and startup crash paths.
+- [x] Improve reflection patch hardening for version drift.
+- [x] Keep downloader resume/retry behavior from racing duplicate writes.
 
-- [x] Split optional patches from required startup path
-- [x] Introduce clearer service boundaries in launcher orchestration
-- [x] Reduce global/static mutable state where feasible
-- [x] Improve observability for recurring failure paths
+## Phase 2 - Android build and release hygiene
 
-## Phase 3 — Validation and maintainability
+- [x] Keep GitHub release APKs structurally verifiable.
+- [x] Require stable signing inputs before publishing update-compatible releases.
+- [x] Verify package name, signer, versionCode, native libraries, and release checksums.
+- [ ] Re-run release-readiness validation after the current Android hardening changes land in a published APK.
 
-- [x] Add runbooks for representative device matrix
-- [x] Add issue templates and issue triage labels
-- [x] Add recurring issue triage and status issue workflow
-- [x] Publish changelog for each tagged release
+## Phase 3 - Launcher and runtime UX
 
-## Phase 4 — Governance completion
+- [x] Present the launcher reliably on fresh ARM64 installs.
+- [x] Replace the all-in-one scroll surface with Home, Saves, Versions, Mods, and Help destinations plus phone/wide navigation.
+- [x] Add deterministic phone, landscape, foldable, and desktop preview/accessibility/event-contract validation.
+- [ ] Complete exact `v0.2.400` unlocked physical destination, rotation, and cover/inner display validation; real public game handoff is proven on the connected ARM64 device.
+- [x] Preserve Android local save behavior even when cloud sync is disabled.
+- [x] Improve cloud sync wording from ambiguous auto-sync language to explicit Game Cloud Sync behavior.
+- [ ] Continue polishing recovery/status text so successful startup is not presented as a failure.
+- [ ] Reduce noisy diagnostics while preserving actionable startup/cache/cloud evidence.
 
-- [x] Enforce branch protection for `main` with PR-first workflow
-- [x] Establish rollback strategy branch (`compat/legacy`)
-- [x] Publish release/changelog strategy and backport policy
-- [x] Document branch protection expectations and deployment safety steps
+## Phase 4 - Steam and cloud-save validation
 
-## Phase 5 — CI bootstrap and merge safety
+- [x] Validate Steam login and ownership-gated depot download on ARM64 hardware.
+- [x] Validate Pull from Cloud through Steam enumeration, download, Android local save write, and in-game profile load.
+- [x] Validate Push confirmation and cancel/no-confirm no-upload behavior.
+- [ ] Validate confirmed Push upload with controlled Steam Cloud overwrite evidence.
+- [ ] Validate Push/Pull round-trip after a controlled local save mutation.
 
-- [x] Add required-status-check workflow for governance/documentation safety
-- [x] Wire branch protection to require a deterministic CI check context
+## Phase 5 - Steam version selection and branch cache hardening
 
-## Phase 6 — CI smoke check expansion
+- [x] Persist selected Steam branch in launcher preferences.
+- [x] Add default/public versus `beta` selector for validation.
+- [x] Make manifest resolution, update checks, download state, and game directories branch-aware.
+- [x] Keep non-public branch installs in side-by-side `game_versions/<branch>/` caches.
+- [x] Require branch marker/provenance metadata before treating non-public caches as ready.
+- [x] Add selected-version diagnostics, cached-version inventory, and native startup/fallback marker reporting.
+- [x] Add wrapped selector guidance, selected-version notes in managed/native diagnostics, branch-switch marker evidence, and managed/native guidance parity guardrails.
+- [x] Replace normal-user branch text entry with a dropdown-first Steam game version selector.
+- [x] Add `Refresh Game Versions` metadata refresh from Steam app-info without downloading or deleting game files.
+- [x] Surface selected-branch availability/password/build metadata in helper text and diagnostics.
+- [x] Harden Login credential providers through the integrated native Steam credential panel, real Android username/password fields, and password-manager hints without app-owned password storage.
+- [x] Add Android one-shot native Autofill login dialog using password-manager hints without app-owned Autofill password storage.
+- [x] Keep SteamKit debug logs disabled by default with opt-in sanitized auth diagnostics via `sts2_steamkit_debug_logs=1`.
+- [x] Add safe branch-switch warnings and local-backup posture before switching versions.
+- [x] Gate manual Push after branch switches when backup storage permission is unavailable.
+- [x] Document validation checklist, runbook, user/tester guide, issue template, evidence template, and static audit helper.
+- [ ] Validate public/default regression on ARM64 hardware after version-selection changes.
+- [ ] Validate `beta` download, marker provenance, and selected-PCK startup routing on ARM64 hardware.
+- [ ] Validate missing/private/password-protected beta branch behavior or explicitly keep unsupported UI/docs wording.
+- [ ] Validate `Refresh Game Versions`, dropdown metadata labels, and Android/Samsung/password-manager suggestion behavior in the native credential panel on ARM64 hardware.
+- [ ] Validate save compatibility across public/non-public branch switches, including Pull-after-switch, local-save evidence, and backup safety, or explicitly document incompatibility risk.
+- [ ] Validate selected-version redownload and inactive-cache cleanup on device.
+- [ ] Validate Pull-after-switch, local-save evidence, pre-Push backup evidence, `last_manual_cloud_push.txt`, and aggregate successful post-switch Push evidence after a branch switch before accepting any manual Push mutation.
 
-- [x] Add optional artifact-aware build smoke job
-- [x] Keep build smoke non-blocking until artifacts are standardized
-- [x] Document required check expectations for both governance and build jobs
+## Phase 6 - Device lifecycle and install-path validation
 
-## Phase 7 — Reliability closure and workflow hardening
+- [x] Add startup freshness and assembly cache diagnostics for installed runtime/schema/cache evidence.
+- [x] Install exact `v0.2.400` over existing local-package app data and verify version code `400001` plus update-compatible package/signing continuity from `v0.2.399`.
+- [ ] Validate upgrade install behavior from the current public release baseline.
+- [ ] Validate locked-screen interruption and return-to-app after manual unlock.
+- [ ] Repeat stale assembly cache/freshness checks across reinstall and upgrade scenarios.
 
-- [x] Close out P0–P3 backlog outcomes in the current status tracking
-- [x] Keep both required check contexts active (`Governance Smoke Check`, `Build Smoke Check`) in branch protection
-- [x] Normalize artifact coverage notes for environments without publish outputs
-- [x] Complete phase handoff cleanup and prepare final tracking issue closeout
+## Phase 7 - Public release readiness
+
+- [x] Publish `v0.2.398` release notes that clearly say the app works on the validated ARM64 path but remains tester software.
+- [x] Backport the Godot 4.5.2 all-PowerVR transform-feedback shader-cache workaround and repair Auto/Vulkan/OpenGL plus Safe Start behavior in source.
+- [x] Capture renderer-attempt and Android historical process-exit evidence for post-restart diagnostics.
+- [x] Build and inspect an ARM64 local APK containing the patched native marker and renderer/process-exit DEX evidence.
+- [x] Publish `v0.2.399-powervr-renderer-mod-runtime` with the exact connected-device-tested APK, checksum, metadata, release limitations, and generated inventory.
+- [x] Publish `v0.2.400-powervr-touch-compat` with live GPU evidence, managed/native PowerVR-to-OpenGL routing, exact installed-APK hash proof, current mod activation evidence, and verified GitHub assets.
+- [ ] Retest issue #34 on reporter-class Pixel/PowerVR hardware before closing it.
+- [ ] Keep confirmed Push overwrite risk explicit until validated.
+- [ ] Keep Steam beta/version selection release blockers explicit until ARM64 evidence exists.
+- [ ] Keep x86_64 emulator limitations explicit.
+- [x] Keep the current APK, checksum, metadata, release body, and generated GitHub release inventory mutually consistent.

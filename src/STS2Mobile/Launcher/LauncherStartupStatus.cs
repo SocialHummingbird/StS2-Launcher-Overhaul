@@ -4,27 +4,21 @@ using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
 
-internal static class LauncherStartupStatus
+internal static partial class LauncherStartupStatus
 {
-    private const int FontSize = 22;
     private const string NodeName = "STS2MobileStartupStatus";
-    private const int ZIndex = 4096;
-    private static readonly Vector2 Position = new(24, 24);
+    private const int ZIndex = StartupPresentationLayerPolicy.StartupStatusZIndex;
 
     internal static Label CreateLabel(Node parent)
     {
         try
         {
-            var label = new Label
-            {
-                Name = NodeName,
-                Position = Position,
-                ZIndex = ZIndex,
-            };
-            label.AddThemeFontSizeOverride("font_size", FontSize);
-            label.AddThemeColorOverride("font_color", new Color(0.55f, 0.85f, 1f));
-            parent.AddChild(label);
-            return label;
+            var viewportSize = parent.GetViewport()?.GetVisibleRect().Size
+                ?? new Vector2(1920, 1080);
+            if (OperatingSystem.IsAndroid())
+                return CreateAndroidStatusCard(parent, viewportSize);
+
+            return CreateLegacyLabel(parent, viewportSize);
         }
         catch (Exception ex)
         {
@@ -49,4 +43,46 @@ internal static class LauncherStartupStatus
         }
     }
 
+    internal static bool QueueFree(Label label)
+    {
+        var target = FindStatusRoot(label);
+        if (target == null)
+            return true;
+
+        try
+        {
+            target.QueueFree();
+            return true;
+        }
+        catch (ObjectDisposedException)
+        {
+            PatchHelper.Log("Startup status already disposed");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"Startup status cleanup failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    internal static Node FindStatusRoot(Label label)
+    {
+        if (label == null)
+            return null;
+
+        for (Node current = label; current != null; current = current.GetParent())
+        {
+            if (current.Name == NodeName)
+                return current;
+        }
+
+        return label;
+    }
+
+    private static float CalculateSafeMargin(Vector2 viewportSize)
+    {
+        var shortEdge = Math.Min(viewportSize.X, viewportSize.Y);
+        return Math.Clamp(shortEdge * 0.035f, 16f, 48f);
+    }
 }

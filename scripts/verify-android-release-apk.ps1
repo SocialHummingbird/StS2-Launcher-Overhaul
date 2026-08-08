@@ -1,9 +1,9 @@
 param(
     [string]$Repo = "SocialHummingbird/StS2-Launcher-Overhaul",
-    [string]$ReleaseTag = "v0.2.88-apk-native-verify",
-    [string]$AssetName = "StS2Launcher-v0.2.88-universal-phone.apk",
+    [string]$ReleaseTag = "v0.2.177-login-a8729d6",
+    [string]$AssetName = "StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk",
     [ValidateSet("arm64-v8a", "x86_64", "universal")]
-    [string]$Abi = "universal",
+    [string]$Abi = "arm64-v8a",
     [string]$ArtifactsDir = ""
 )
 
@@ -46,6 +46,10 @@ if ($digest -and $digest.StartsWith("sha256:")) {
 
 $targetAbis = Resolve-AndroidApkTargetAbis -Abi $Abi
 Test-AndroidApkContents -ApkPath $apkPath -TargetAbis $targetAbis -TempRoot (Join-Path $root "tmp") -TempPrefix "release-apk-verify"
+& (Join-Path $PSScriptRoot "verify-android-apk-crypto-patches.ps1") -ApkPath $apkPath
+if ($LASTEXITCODE -ne 0) {
+    throw "Release APK Android crypto patch verification failed with exit code $LASTEXITCODE."
+}
 
 Write-Host "Release APK verification passed: $ReleaseTag/$AssetName"
 Write-Host "Verified ABIs: $($targetAbis -join ', ')"

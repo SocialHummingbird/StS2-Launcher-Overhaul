@@ -21,7 +21,30 @@ $fatalPatterns = @(
     "Interop\+Crypto",
     "AndroidCryptoNative_",
     "SafeEvpCipherCtxHandle",
-    "SafeSslHandle"
+    "SafeSslHandle",
+    "System\.Net\.WebSockets\.WebSocketHandle\.CreateSecKeyAndSecWebSocketAccept",
+    "System\.Security\.Cryptography\.SHA1\.TryHashData",
+    "MethodAccessException",
+    "MissingMethodException",
+    "EntryPointNotFoundException",
+    "Android Java SHA-1 TryHashData bridge failed",
+    "Android Java random byte bridge returned an empty response",
+    "Steam CM WebSocket using managed \.NET transport",
+    "HTTP bridge request failed: GET wss://",
+    "Android Java HTTP bridge cannot handle WebSocket CM requests",
+    "unknown protocol: wss"
+)
+
+$loginFailurePatterns = @(
+    "The SteamClient instance must be connected",
+    "Could not establish a Steam auth connection",
+    "\[Auth\] Login failed"
+)
+
+$unsupportedTargetPatterns = @(
+    "Routing to native x86 fallback",
+    "Showing native x86 fallback",
+    "This Android x86 emulator cannot safely run the Godot/\.NET runtime"
 )
 
 $preSteamGuardBoundaryPatterns = @(
@@ -35,6 +58,12 @@ $postSteamGuardBoundaryPatterns = @(
     "\[Launcher\] Ownership verified"
 )
 
+$requiredTransportEvidencePatterns = @(
+    "\[Auth\] Android Steam CM protocol configured: TCP",
+    "\[Auth\] Steam WebAPI/CDN using Android Java HTTP bridge",
+    "EnvelopeEncryptedConnection\] Encryption result: OK"
+)
+
 $fatalMatches = @()
 foreach ($pattern in $fatalPatterns) {
     if ($log -match $pattern) {
@@ -44,6 +73,42 @@ foreach ($pattern in $fatalPatterns) {
 
 if ($fatalMatches.Count -gt 0) {
     Write-Error "Steam login crash regression detected. Matched: $($fatalMatches -join ', ')"
+    exit 1
+}
+
+$unsupportedTargetMatches = @()
+foreach ($pattern in $unsupportedTargetPatterns) {
+    if ($log -match $pattern) {
+        $unsupportedTargetMatches += $pattern
+    }
+}
+
+if ($unsupportedTargetMatches.Count -gt 0) {
+    Write-Error "Steam login validation target unsupported. Matched: $($unsupportedTargetMatches -join ', '). Use a supported ARM64 Android device/build for authoritative login validation."
+    exit 1
+}
+
+$loginFailureMatches = @()
+foreach ($pattern in $loginFailurePatterns) {
+    if ($log -match $pattern) {
+        $loginFailureMatches += $pattern
+    }
+}
+
+if ($loginFailureMatches.Count -gt 0) {
+    Write-Error "Steam login failure regression detected. Matched: $($loginFailureMatches -join ', ')"
+    exit 1
+}
+
+$missingTransportEvidence = @()
+foreach ($pattern in $requiredTransportEvidencePatterns) {
+    if ($log -notmatch $pattern) {
+        $missingTransportEvidence += $pattern
+    }
+}
+
+if ($missingTransportEvidence.Count -gt 0) {
+    Write-Error "Steam login transport evidence missing. Missing: $($missingTransportEvidence -join ', ')"
     exit 1
 }
 
@@ -71,4 +136,4 @@ if (-not $reachedBoundary) {
     exit 1
 }
 
-Write-Host "Steam login native crypto crash regression check passed."
+Write-Host "Steam login transport/auth regression check passed."

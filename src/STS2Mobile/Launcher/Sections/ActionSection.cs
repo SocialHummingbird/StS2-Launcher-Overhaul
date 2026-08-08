@@ -1,305 +1,209 @@
 using System;
+using System.Collections.Generic;
 using Godot;
-using STS2Mobile.Launcher.Components;
+using STS2Mobile.Launcher;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher.Sections;
 
-internal sealed class ActionSection : VBoxContainer
+internal sealed partial class ActionSection : VBoxContainer
 {
+    private const string PushButtonText = "Upload Saves to Steam Cloud";
+    private const string PushConfirmButtonText = "Confirm: Overwrite Steam Cloud";
+    private const int CompactReadySummaryBranchLimit = 14;
+    private const int CompactReadyStackedSummaryBranchLimit = 28;
+    private const int CompactReadyVersionHelpBranchLimit = 22;
+    private const int CompactReadyVersionHelpStackedBranchLimit = 30;
+    private const int CompactReadyVersionHelpHeight = 54;
+    private const int CompactReadyVersionHelpFontSize = LauncherSectionMetrics.CompactVersionSummaryFontSize;
+    private const int CompactCloudPrimaryActionSeparation = 6;
+    private const int CompactCloudOptionToggleSeparation = 6;
+    private const int CompactCloudSafetyDetailHeight = 50;
+    private const int CompactCloudSafetyDetailFontSize = LauncherSectionMetrics.CompactVersionSummaryFontSize;
+    private const int CompactCloudPushWarningHeight = 50;
+    private const int CompactCloudPushWarningFontSize = LauncherSectionMetrics.CompactVersionSummaryFontSize;
+    private const int MaxVisibleModToggles = 12;
+
     internal event Action LaunchPressed;
     internal event Action RetryPressed;
+    internal event Action<string> GameBranchChanged;
+    internal event Action<string> RendererModeChanged;
     internal event Action<bool> LocalBackupToggled;
     internal event Action<bool> CloudSyncToggled;
+    internal event Func<CloudPushEligibilityResult> CloudPushArmRequested;
     internal event Action CloudPushPressed;
     internal event Action CloudPullPressed;
+    internal event Action CloudOperationCancelPressed;
     internal event Action CheckForUpdatesPressed;
+    internal event Action RefreshGameVersionsPressed;
     internal event Action RedownloadPressed;
+    internal event Action ClearCachedVersionsPressed;
     internal event Action DiagnosticsPressed;
     internal event Action ShowLastErrorPressed;
     internal event Action CopyRawLogPressed;
     internal event Action SafeLaunchPressed;
+    internal event Action WorkshopSyncPressed;
+    internal event Action WorkshopClearPressed;
+    internal event Action ModsSelectionChanged;
 
     private readonly Button _launchButton;
     private readonly Button _safeLaunchButton;
+    private readonly VBoxContainer _rendererGroup;
+    private readonly Button _rendererAutoButton;
+    private readonly Button _rendererVulkanButton;
+    private readonly Button _rendererOpenGlButton;
     private readonly Button _retryButton;
+    private readonly float _scale;
+    private readonly bool _compact;
+    private readonly bool _compactStackedActionRows;
+    private readonly OptionButton _branchDropdown;
+    private readonly Label _branchHelpLabel;
+    private readonly Button _branchDetailsToggle;
+    private readonly Button _readyVersionSummaryPanel;
+    private readonly Label _readyVersionSummaryLabel;
+    private readonly Label _cloudSafetyLabel;
+    private readonly Button _cloudSafetyToggle;
+    private readonly Button _cloudOptionsToggle;
+    private readonly Container _compactCloudOptionsRow;
     private readonly Button _localBackupToggle;
     private readonly Button _cloudSyncToggle;
     private readonly Button _pushButton;
+    private readonly Button _cloudPushToggle;
+    private readonly Button _confirmPushButton;
+    private readonly Button _cancelCloudOperationButton;
+    private readonly VBoxContainer _cloudOperationProgressGroup;
+    private readonly Label _cloudOperationPhaseLabel;
+    private readonly Label _cloudOperationDetailLabel;
+    private readonly ProgressBar _cloudOperationProgressBar;
+    private readonly Label _cloudPushEligibilityLabel;
+    private readonly Label _pushConfirmationLabel;
     private readonly Button _pullButton;
     private readonly Button _updateButton;
+    private readonly Button _refreshVersionsButton;
     private readonly Button _redownloadButton;
+    private readonly Button _clearCachedVersionsButton;
+    private readonly Button _workshopSyncButton;
+    private readonly Button _workshopClearButton;
+    private readonly VBoxContainer _modsGroup;
+    private readonly Button _playVanillaButton;
+    private readonly Button _playModdedButton;
+    private readonly Label _modsStatusLabel;
+    private readonly VBoxContainer _modsList;
+    private readonly List<Button> _modToggleButtons = new();
+    private readonly string[] _modToggleKeys = new string[MaxVisibleModToggles];
+    private readonly bool[] _modToggleCanChange = new bool[MaxVisibleModToggles];
     private readonly Button _diagnosticsButton;
     private readonly Button _showLastErrorButton;
     private readonly Button _copyRawLogButton;
-    private readonly HBoxContainer _pushPullRow;
+    private readonly VBoxContainer _cloudGroup;
+    private readonly VBoxContainer _supportGroup;
+    private readonly VBoxContainer _pushPullRow;
+    private readonly Button _supportToggle;
     private readonly StyleBoxFlat _toggleOffStyle;
     private readonly StyleBoxFlat _toggleOnStyle;
-
-    internal ActionSection(float scale)
-    {
-        var toggleRadius = (int)(4 * scale);
-        var toggleBorderWidth = Math.Max(1, (int)(2 * scale));
-        _toggleOffStyle = LauncherStyleBoxes.MakeOutline(
-            new Color(0.7f, 0.25f, 0.25f),
-            toggleRadius,
-            toggleBorderWidth
-        );
-        _toggleOnStyle = LauncherStyleBoxes.MakeOutline(
-            new Color(0.25f, 0.65f, 0.3f),
-            toggleRadius,
-            toggleBorderWidth
-        );
-
-        _retryButton = AddHiddenButton(
-            "RETRY",
-            scale,
-            LauncherSectionMetrics.PrimaryButtonFontSize,
-            LauncherSectionMetrics.PrimaryButtonHeight,
-            () => RetryPressed?.Invoke()
-        );
-
-        _localBackupToggle = AddSecondaryHiddenButton("Local Backup: OFF", scale, null);
-        _cloudSyncToggle = AddSecondaryHiddenButton("Auto Sync: OFF", scale, null);
-        ConfigureToggle(
-            _localBackupToggle,
-            LocalBackupText,
-            pressed => LocalBackupToggled?.Invoke(pressed)
-        );
-        ConfigureToggle(
-            _cloudSyncToggle,
-            CloudSyncText,
-            pressed => CloudSyncToggled?.Invoke(pressed)
-        );
-
-        _pushPullRow = new HBoxContainer();
-        _pushPullRow.Visible = false;
-        _pushPullRow.AddThemeConstantOverride(
-            LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.PushPullRowSeparation, scale)
-        );
-        _pushButton = AddPushPullButton(
-            _pushPullRow,
-            "Push to Cloud",
-            scale,
-            () => CloudPushPressed?.Invoke()
-        );
-        _pullButton = AddPushPullButton(
-            _pushPullRow,
-            "Pull from Cloud",
-            scale,
-            () => CloudPullPressed?.Invoke()
-        );
-        AddChild(_pushPullRow);
-
-        _updateButton = AddPrimaryHiddenButton(
-            "CHECK FOR UPDATES",
-            scale,
-            () => CheckForUpdatesPressed?.Invoke()
-        );
-        _redownloadButton = AddSecondaryHiddenButton(
-            "REDOWNLOAD GAME FILES",
-            scale,
-            () => RedownloadPressed?.Invoke()
-        );
-        _diagnosticsButton = AddSecondaryHiddenButton(
-            "EXPORT DIAGNOSTICS",
-            scale,
-            () => DiagnosticsPressed?.Invoke()
-        );
-        _showLastErrorButton = AddSecondaryHiddenButton(
-            "SHOW LAST ERROR",
-            scale,
-            () => ShowLastErrorPressed?.Invoke()
-        );
-        _copyRawLogButton = AddSecondaryHiddenButton(
-            "COPY RAW ERROR LOG",
-            scale,
-            () => CopyRawLogPressed?.Invoke()
-        );
-        _safeLaunchButton = AddSecondaryHiddenButton(
-            "SAFE LAUNCH",
-            scale,
-            () => SafeLaunchPressed?.Invoke()
-        );
-        _launchButton = AddPrimaryHiddenButton(
-            "LAUNCH",
-            scale,
-            () => LaunchPressed?.Invoke()
-        );
-    }
+    private VBoxContainer _homeDestination;
+    private VBoxContainer _savesDestination;
+    private VBoxContainer _versionsDestination;
+    private VBoxContainer _modsDestination;
+    private VBoxContainer _helpDestination;
+    private readonly List<LauncherBranchCatalog.BranchOption> _branchOptions = new();
+    private IReadOnlyList<LauncherBranchCatalog.BranchOption> _availableBranches = Array.Empty<LauncherBranchCatalog.BranchOption>();
+    private bool _supportExpanded;
+    private bool _branchDetailsExpanded;
+    private bool _branchControlsAvailable;
+    private bool _cloudSafetyExpanded;
+    private bool _cloudOptionsExpanded;
+    private bool _cloudPushExpanded;
+    private bool _cloudPushEligible;
+    private bool _pushPullDisabled;
+    private string _cloudPushReviewDetail = "Check requirements";
+    private bool _localBackupEnabled;
+    private bool _cloudSyncEnabled;
+    private bool _launchControlsDisabled;
+    private bool _automaticSyncBlocked;
+    private bool _workshopButtonsDisabled;
+    private bool _powerVrCompatibilityRequired;
+    private bool _homeActionsAvailable;
+    private LauncherDestination _destination;
+    private int _readySummaryEnabledModCount;
+    private string _gameBranch = SteamGameBranch.Public;
+    private string _rendererMode = LauncherRendererMode.Auto;
 
     internal void SetLocalBackupChecked(bool value)
-    {
-        SetToggleChecked(_localBackupToggle, value, LocalBackupText);
-    }
+        => ApplyLocalBackupToggle(value);
 
     internal void SetCloudSyncChecked(bool value)
-    {
-        SetToggleChecked(_cloudSyncToggle, value, CloudSyncText);
-    }
+        => ApplyCloudSyncToggle(value);
 
-    internal void ShowLaunch(string text, bool showCloudSync, bool showUpdate)
-    {
-        _launchButton.Text = text;
-        _launchButton.Visible = true;
-        SetCloudControlsVisible(showCloudSync);
-        ShowLaunchButtons(showUpdate);
-        _retryButton.Visible = false;
-    }
-
-    internal void ShowRetry()
-    {
-        _retryButton.Visible = true;
-        SetCloudControlsVisible(false);
-        ShowRetryButtons();
-    }
-
-    internal void HideAll()
-    {
-        _retryButton.Visible = false;
-        SetCloudControlsVisible(false);
-        HideSecondaryButtons();
-    }
-
-    internal void SetPushPullDisabled(bool disabled)
-    {
-        _pushButton.Disabled = disabled;
-        _pullButton.Disabled = disabled;
-    }
-
-    internal void SetUpdateButtonText(string text) => _updateButton.Text = text;
+    internal void SetUpdateButtonText(string text) => SetCompactActionButtonText(_updateButton, text);
 
     internal void SetUpdateButtonDisabled(bool disabled) => _updateButton.Disabled = disabled;
 
-    private void SetCloudControlsVisible(bool visible)
+    internal void SetRefreshVersionsButtonDisabled(bool disabled) => _refreshVersionsButton.Disabled = disabled;
+
+    internal void SetWorkshopButtonsDisabled(bool disabled)
     {
-        _localBackupToggle.Visible = visible;
-        _cloudSyncToggle.Visible = visible;
-        _pushPullRow.Visible = visible;
+        _workshopButtonsDisabled = disabled;
+        ApplySaveContextControlsDisabled();
+        if (!ContextControlsDisabled && !disabled && _modsGroup.Visible)
+            RefreshModsStatus();
     }
 
-    private void ShowLaunchButtons(bool showUpdate)
+    internal void SetLaunchControlsDisabled(bool disabled)
     {
-        ShowUpdateButton(showUpdate);
-        _redownloadButton.Visible = true;
-        SetSupportButtonsVisible(true);
-        _safeLaunchButton.Visible = true;
+        _launchControlsDisabled = disabled;
+        ApplyLaunchControlsDisabled();
+        ApplySaveContextControlsDisabled();
     }
 
-    private void ShowRetryButtons()
+    internal void SetAutomaticSyncBlocked(bool blocked)
     {
-        ShowUpdateButton(false);
-        _redownloadButton.Visible = false;
-        SetSupportButtonsVisible(true);
-        _safeLaunchButton.Visible = false;
-        _launchButton.Visible = false;
+        _automaticSyncBlocked = blocked;
+        ApplyLaunchControlsDisabled();
+        ApplySaveContextControlsDisabled();
     }
 
-    private void HideSecondaryButtons()
+    internal void SetPowerVrCompatibility(bool required)
     {
-        ShowUpdateButton(false);
-        _redownloadButton.Visible = false;
-        SetSupportButtonsVisible(false);
-        _safeLaunchButton.Visible = false;
-        _launchButton.Visible = false;
+        _powerVrCompatibilityRequired = required;
+        const string compatibilityReason = "OpenGL is required on this PowerVR device for working touch input.";
+        _rendererAutoButton.TooltipText = required ? compatibilityReason : "Use the project's default renderer.";
+        _rendererVulkanButton.TooltipText = required ? compatibilityReason : "Use the Vulkan Mobile renderer.";
+        _rendererOpenGlButton.TooltipText = required ? compatibilityReason : "Use the OpenGL Compatibility renderer.";
+        _rendererAutoButton.AccessibilityDescription = _rendererAutoButton.TooltipText;
+        _rendererVulkanButton.AccessibilityDescription = _rendererVulkanButton.TooltipText;
+        _rendererOpenGlButton.AccessibilityDescription = _rendererOpenGlButton.TooltipText;
+        ApplyLaunchControlsDisabled();
     }
 
-    private void ShowUpdateButton(bool visible)
+    internal VBoxContainer HelpDiagnosticsHost => _helpDestination;
+
+    private void ApplyLaunchControlsDisabled()
     {
-        _updateButton.Visible = visible;
-        _updateButton.Disabled = false;
-        _updateButton.Text = "CHECK FOR UPDATES";
+        var disabled = _launchControlsDisabled || _automaticSyncBlocked;
+        _launchButton.Disabled = disabled;
+        _safeLaunchButton.Disabled = disabled;
+        _rendererAutoButton.Disabled = disabled || _powerVrCompatibilityRequired;
+        _rendererVulkanButton.Disabled = disabled || _powerVrCompatibilityRequired;
+        _rendererOpenGlButton.Disabled = disabled;
     }
 
-    private void SetSupportButtonsVisible(bool visible)
+    private bool ContextControlsDisabled
+        => _launchControlsDisabled || _automaticSyncBlocked;
+
+    private void ApplySaveContextControlsDisabled()
     {
-        _diagnosticsButton.Visible = visible;
-        _showLastErrorButton.Visible = visible;
-        _copyRawLogButton.Visible = visible;
-    }
-
-    private Button AddPrimaryHiddenButton(string text, float scale, Action pressed)
-        => AddHiddenButton(
-            text,
-            scale,
-            LauncherSectionMetrics.PrimaryButtonFontSize,
-            LauncherSectionMetrics.PrimaryButtonHeight,
-            pressed
-        );
-
-    private Button AddSecondaryHiddenButton(string text, float scale, Action pressed)
-        => AddHiddenButton(
-            text,
-            scale,
-            LauncherSectionMetrics.SecondaryButtonFontSize,
-            LauncherSectionMetrics.SecondaryButtonHeight,
-            pressed
-        );
-
-    private Button AddHiddenButton(
-        string text,
-        float scale,
-        int fontSize,
-        int height,
-        Action pressed
-    )
-    {
-        var button = new StyledButton(text, scale, fontSize: fontSize, height: height);
-        button.Visible = false;
-        if (pressed != null)
-            button.Pressed += pressed;
-        AddChild(button);
-        return button;
-    }
-
-    private static Button AddPushPullButton(
-        HBoxContainer row,
-        string text,
-        float scale,
-        Action pressed
-    )
-    {
-        var button = new StyledButton(
-            text,
-            scale,
-            LauncherSectionMetrics.SecondaryButtonFontSize,
-            LauncherSectionMetrics.SecondaryButtonHeight
-        );
-        button.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        if (pressed != null)
-            button.Pressed += pressed;
-        row.AddChild(button);
-        return button;
-    }
-
-    private void ConfigureToggle(Button button, Func<bool, string> text, Action<bool> toggled)
-    {
-        button.ToggleMode = true;
-        ApplyToggle(button, false, text);
-        button.Toggled += pressed =>
+        ApplyCloudContextControlsDisabled();
+        _playVanillaButton.Disabled = ContextControlsDisabled;
+        _playModdedButton.Disabled = ContextControlsDisabled;
+        _workshopSyncButton.Disabled =
+            _workshopButtonsDisabled || ContextControlsDisabled;
+        _workshopClearButton.Disabled =
+            _workshopButtonsDisabled || ContextControlsDisabled;
+        for (var i = 0; i < _modToggleButtons.Count; i++)
         {
-            ApplyToggle(button, pressed, text);
-            toggled?.Invoke(pressed);
-        };
+            _modToggleButtons[i].Disabled =
+                ContextControlsDisabled || !_modToggleCanChange[i];
+        }
     }
-
-    private void SetToggleChecked(Button button, bool value, Func<bool, string> text)
-    {
-        button.ButtonPressed = value;
-        ApplyToggle(button, value, text);
-    }
-
-    private void ApplyToggle(Button button, bool value, Func<bool, string> text)
-    {
-        button.Text = text(value);
-        var style = value ? _toggleOnStyle : _toggleOffStyle;
-        button.AddThemeStyleboxOverride("normal", style);
-        button.AddThemeStyleboxOverride("hover", style);
-        button.AddThemeStyleboxOverride("pressed", style);
-        button.AddThemeStyleboxOverride("disabled", style);
-    }
-
-    private static string LocalBackupText(bool value) => value ? "Local Backup: ON" : "Local Backup: OFF";
-
-    private static string CloudSyncText(bool value) => value ? "Auto Sync: ON" : "Auto Sync: OFF";
 }

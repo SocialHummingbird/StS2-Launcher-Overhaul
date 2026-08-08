@@ -9,8 +9,9 @@ internal static class BootstrapTrace
     private const string AndroidLogTag = "STS2Mobile";
     private const int AndroidLogInfoPriority = 4;
     private const string FileName = "sts2_bootstrap_trace.log";
-    private const string FallbackPath =
-        "/data/data/com.sts2launcher.overhaul.fork.dev/files/sts2_bootstrap_trace.log";
+    private const string AndroidTraceFileEnv = "STS2_ANDROID_TRACE_FILE";
+    private const string TraceFileOverrideEnv = "STS2_BOOTSTRAP_TRACE_FILE";
+    private const string TempDirectoryName = "tmp";
     private const long MaxBytes = 256L * 1024L;
     private static readonly object Lock = new();
 
@@ -26,20 +27,126 @@ internal static class BootstrapTrace
         if (androidFailure != null)
             TryAppendTraceFile(FormatLine($"Bootstrap trace Android log sink failed: {androidFailure.Message}"));
 
+        if (!ShouldAppendTraceFile())
+            return;
+
         var fileFailure = TryAppendTraceFile(line);
         if (fileFailure != null)
             TryWriteAndroidLog($"Bootstrap trace file sink failed: {fileFailure.Message}");
     }
 
+    private static bool ShouldAppendTraceFile()
+        => !OperatingSystem.IsAndroid()
+            || string.Equals(
+                Environment.GetEnvironmentVariable(AndroidTraceFileEnv),
+                "1",
+                StringComparison.Ordinal
+            );
+
     private static string GetTracePath()
     {
+        var traceFileOverride = Environment.GetEnvironmentVariable(
+            TraceFileOverrideEnv
+        );
+        if (!string.IsNullOrWhiteSpace(traceFileOverride))
+        {
+            try
+            {
+                return Path.GetFullPath(traceFileOverride);
+            }
+            catch
+            {
+            }
+        }
+
         try
         {
             return Path.Combine(Godot.OS.GetDataDir(), FileName);
         }
         catch
         {
-            return FallbackPath;
+            return Path.Combine(ResolveFallbackDataDirectory(), FileName);
+        }
+    }
+
+    internal static string ResolveFallbackDataDirectory()
+    {
+        foreach (var variable in new[] { "TMPDIR", "TMP", "TEMP" })
+        {
+            var temp = Environment.GetEnvironmentVariable(variable);
+            if (string.IsNullOrWhiteSpace(temp))
+                continue;
+
+            if (!TryNormalizeDirectory(temp, out var normalized))
+                continue;
+
+            if (IsTempDirectoryName(normalized))
+            {
+                if (TryGetParentDirectory(normalized, out var parent))
+                    return parent;
+            }
+
+            return normalized;
+        }
+
+        try
+        {
+            if (TryNormalizeDirectory(Path.GetTempPath(), out var tempPath))
+                return tempPath;
+        }
+        catch
+        {
+        }
+
+        return ".";
+    }
+
+    internal static bool TryNormalizeDirectory(string path, out string normalized)
+    {
+        normalized = null;
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        try
+        {
+            normalized = Path.GetFullPath(path);
+            return !string.IsNullOrWhiteSpace(normalized);
+        }
+        catch
+        {
+            normalized = null;
+            return false;
+        }
+    }
+
+    private static bool IsTempDirectoryName(string path)
+    {
+        try
+        {
+            return string.Equals(
+                Path.GetFileName(path),
+                TempDirectoryName,
+                StringComparison.OrdinalIgnoreCase
+            );
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryGetParentDirectory(string path, out string parent)
+    {
+        parent = null;
+        try
+        {
+            parent = Path.GetDirectoryName(path);
+            return !string.IsNullOrWhiteSpace(parent);
+        }
+        catch
+        {
+            parent = null;
+            return false;
         }
     }
 

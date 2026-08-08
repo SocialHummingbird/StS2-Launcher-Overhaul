@@ -19,6 +19,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Mono.Cecil" Version="0.11.6" />
     <PackageReference Include="SteamKit2" Version="3.4.0" />
   </ItemGroup>
 </Project>

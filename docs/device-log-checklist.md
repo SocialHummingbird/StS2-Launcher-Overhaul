@@ -1,13 +1,25 @@
 # Device Log Checklist
 
-Use this checklist before filing overhaul issues that involve crashes, stutters, or startup failures.
+Current posture: collect logs for a working ARM64 baseline plus remaining hardening gates. Prioritize startup freshness, assembly cache expectedSource/expectedBytes, cloud Pull/Push evidence, save handoff, crash markers, and release package/version identity. See [current Android status](current-android-status.md).
+
+Use this checklist before filing overhaul issues that involve crashes, stutters, startup failures, branch/runtime mismatches, cloud-save problems, or mod-loading failures. See [Issue reporting](issue-reporting.md) for template selection and redaction rules.
 
 ## Required Capture
+- Evidence label: `hardware-arm64` for a physical ARM64 device. Do not label automated or x86_64 emulator output as hardware evidence.
 - Device model + OS + Android version
+- Device ABI
+- GPU model and active renderer/backend from Godot startup logs
 - App version / package version
+- Release tag / APK asset when testing a GitHub release
+- Package name and versionCode when available
+- APK SHA-256 and, when possible, the installed `base.apk` SHA-256 proving the tested artifact matches
 - Exact issue context (clean install, updated install, locale, cloud-sync state)
+- Selected Steam branch and whether mods were enabled
+- Whether Pull from Cloud ran and whether Push to Cloud ran
 - Timestamped sequence:
   - app launch -> launcher screen -> login/download/launch -> failure point
+
+If the path is still awaiting ARM64 hardware, record it as `unvalidated` rather than copying an automated or emulator result into the device ledger.
 
 ## Log Capture (Android)
 1. Start a fresh `adb logcat` stream:
@@ -20,15 +32,30 @@ adb logcat > sts2launcher-logcat.txt
 3. Stop stream and search for:
 - `Mono` / `Unhandled` / `Exception`
 - `PatchHelper` lines
+- `Steam` / `SteamKit` authentication lines
 - `Locale` / `CultureInfo` / `GetThreeLetterLanguageCode`
 - `ApplyLocaleFontSubstitution`
 - `Cloud` / `Flush`
+- `Pull` / `Push`
+- `NativeFallback`
+- `NMainMenu` / `NGame.GameStartup completed`
+- `PostStartupTrace` / `PostStartupHeartbeat`
+- `Native lifecycle event` / `has died`
+- `FATAL EXCEPTION` / `Fatal signal` / `SIGSEGV` / `SIGABRT`
+- `lowmemorykiller` / `lmkd` / `ANR`
+- `PowerVR` / `OpenGL` / `Vulkan`
+- `Workshop` / `Mods`
+- `Runtime pack` / `PCK`
 - `NGame` lifecycle events
 
 ## Evidence Requirements for Issue
 - Attach first 200-300 lines around the primary exception
 - Attach at least one 30-second sample around the failure window
 - Include device locale and region settings
+- Include whether Steam login reached Steam Guard, authentication success, ownership verification, or failed earlier
+- Include selected branch, PCK path/hash, runtime pack path/hash, active `sts2.dll` hash, runtime cache marker, and patch validation marker for branch/startup reports when available
+- Include selected mods, mod sources, and save visibility/load result for Workshop or SavesMerger reports
+- For a post-main-menu exit, include `last_post_startup_trace.txt`, `last_post_startup_heartbeat.txt`, `last_app_lifecycle_event.txt`, `last_renderer_attempt.txt`, and `last_process_exit_info.txt` or other Android tombstone data when available. A log captured only after the launcher restarts may omit the dying game process.
 
 ## Optional but Useful
 - Screenshot of launcher/overlay state

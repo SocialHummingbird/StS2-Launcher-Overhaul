@@ -1,5 +1,7 @@
 # Migration Checklist (Implemented Baseline)
 
+Current Android status: the ARM64 launcher path works locally and is now in polish/cloud-save hardening. See [docs/current-android-status.md](docs/current-android-status.md).
+
 This repo started as an independent copy of [Ekyso/StS2-Launcher](https://github.com/Ekyso/StS2-Launcher) with the goal of an architectural overhaul.
 
 ## 1) Repository Setup (Done)
@@ -26,7 +28,12 @@ This repo started as an independent copy of [Ekyso/StS2-Launcher](https://github
   - test plan + reproducibility notes
   - explicit risk/rollback note
 - [x] Add issue templates for:
-  - bug reports (device/log evidence required)
+  - crash/startup reports with device, APK, branch, PCK/runtime, marker, log, and redaction evidence
+  - download/branch reports with public/default, public-beta, core-release, private/password, PCK/runtime, missing/mixed asset, and cloud-safety evidence
+  - Steam login/cloud reports with Pull/Push and guarded upload safety evidence
+  - Workshop/mod/save-merger reports with selected mods, source files, launch state, save visibility, and Push safety evidence
+  - device compatibility reports with ARM64/x86 diagnostic boundary, performance, UI, branch, mod, and cloud context
+  - general bug reports (device/log evidence required)
   - feature proposals (scope + acceptance criteria)
 - [x] Add issue labels for severity and priority tracking
 
