@@ -62,6 +62,35 @@ function Get-FileSha256Hex {
     return Get-Sha256Hex -Bytes ([IO.File]::ReadAllBytes($Path))
 }
 
+function Sort-CanonicalFilesOrdinal {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Collections.IEnumerable]$Files
+    )
+
+    $ordered = [Collections.Generic.List[object]]::new()
+    foreach ($file in $Files) {
+        $ordered.Add($file)
+    }
+    $comparison = [Comparison[object]] {
+        param($left, $right)
+
+        $primary = [StringComparer]::OrdinalIgnoreCase.Compare(
+            [string]$left.path,
+            [string]$right.path
+        )
+        if ($primary -ne 0) {
+            return $primary
+        }
+        return [StringComparer]::Ordinal.Compare(
+            [string]$left.path,
+            [string]$right.path
+        )
+    }
+    $ordered.Sort($comparison)
+    return @($ordered)
+}
+
 function Read-JsonFile {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
@@ -928,9 +957,7 @@ function Validate-SteamManifest {
         Assert-True -Condition $valid -Message "$($Record.Spec.id) has invalid Steam path/role metadata for $path."
     }
 
-    $sorted = @($files | Sort-Object -Property @{ Expression = {
-        ([string]$_.path).ToLowerInvariant()
-    } }, @{ Expression = { [string]$_.path } })
+    $sorted = @(Sort-CanonicalFilesOrdinal -Files $files)
     $treeLines = $sorted | ForEach-Object {
         "$($_.path)`t$($_.role)`t$($_.exists.ToString().ToLowerInvariant())`t$($_.sizeBytes)`t$($_.sha256)"
     }
