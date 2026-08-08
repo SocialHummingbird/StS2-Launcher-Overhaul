@@ -30,6 +30,7 @@ internal sealed partial class SteamConnection
                 CloudRpcEndpoint(method),
                 request
             );
+            job.Timeout = TimeSpan.FromMilliseconds(CloudRpcTimeoutMs);
             var response = await WaitForCloudJobAsync(
                 method,
                 job.ToTask(),
