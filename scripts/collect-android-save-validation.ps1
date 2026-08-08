@@ -165,6 +165,168 @@ function Add-PersistedRemoteManifestRows {
     }
 }
 
+function Get-TimeLogEntries {
+    param([Parameter(Mandatory = $true)][AllowEmptyString()][string]$Text)
+
+    $entries = [Collections.Generic.List[object]]::new()
+    $index = 0
+    foreach ($line in @($Text -split '\r?\n')) {
+        $clean = $line.TrimStart([char]0xfeff)
+        if ($clean -match '^(?<time>\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+(?<pid>\d+)\s+(?<tid>\d+)\s+(?<priority>[VDIWEF])\s+(?<tag>[^:]+?)\s*:\s(?<message>.*)$') {
+            $entries.Add([pscustomobject]@{
+                Index = $index
+                Pid = [int]$Matches.pid
+                Tag = $Matches.tag.Trim()
+                Message = $Matches.message
+            })
+        }
+        $index++
+    }
+    return @($entries)
+}
+
+function Test-IsJsonInteger {
+    param($Value)
+    return $Value -is [byte] -or $Value -is [int16] -or
+        $Value -is [int32] -or $Value -is [int64]
+}
+
+function Assert-ExactJsonProperties {
+    param(
+        [Parameter(Mandatory = $true)]$Object,
+        [Parameter(Mandatory = $true)][string[]]$Names,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+    $actual = @($Object.PSObject.Properties.Name | Sort-Object)
+    $expected = @($Names | Sort-Object)
+    if (($actual -join "`n") -cne ($expected -join "`n")) {
+        throw "$Label has an unexpected structured schema."
+    }
+}
+
+function Get-StructuredLogAnalysis {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory = $true)][string]$PackageName
+    )
+
+    $entries = @(Get-TimeLogEntries -Text $Text)
+    $appEntries = @($entries | Where-Object { $_.Tag -ceq 'STS2Mobile' })
+    $appText = @($appEntries | ForEach-Object { $_.Message }) -join "`n"
+    $automatic = [Collections.Generic.List[object]]::new()
+    $recovery = [Collections.Generic.List[object]]::new()
+    $exports = [Collections.Generic.List[object]]::new()
+    foreach ($entry in $appEntries) {
+        if ($entry.Message.StartsWith('STS2_SAVE_EVENT ', [StringComparison]::Ordinal)) {
+            try {
+                $payload = $entry.Message.Substring('STS2_SAVE_EVENT '.Length) |
+                    ConvertFrom-Json -ErrorAction Stop
+            } catch {
+                throw 'STS2Mobile contains an invalid structured save terminal event.'
+            }
+            if ([string]$payload.Event -eq 'automatic-sync-terminal') {
+                Assert-ExactJsonProperties -Object $payload -Names @(
+                    'Event', 'Version', 'Operation', 'Outcome', 'Detail',
+                    'ContextSha256', 'RemoteVerified'
+                ) -Label 'Automatic-sync terminal event'
+                if (-not (Test-IsJsonInteger $payload.Version) -or
+                    [int64]$payload.Version -ne 1 -or
+                    $payload.RemoteVerified -isnot [bool] -or
+                    [string]$payload.Operation -notin @('recover', 'reconcile', 'begin-game') -or
+                    [string]$payload.Outcome -notin @('synchronized', 'source-choice-required', 'conflict', 'game-session-prepared', 'pending-recovery-required', 'failed') -or
+                    [string]$payload.Detail -notin @('verified', 'no-pending-work', 'source-choice-required', 'local-and-remote-diverged', 'account-mismatch', 'namespace-mismatch', 'branch-mismatch', 'mod-set-mismatch', 'context-missing', 'context-unreadable', 'independent-change', 'session-prepared', 'pending-recovery', 'commit-rejected', 'remote-readback-mismatch', 'operation-failed') -or
+                    ([string]$payload.ContextSha256 -and [string]$payload.ContextSha256 -notmatch '^[0-9a-f]{64}$') -or
+                    ([bool]$payload.RemoteVerified -and ([string]$payload.Outcome -ne 'synchronized' -or [string]$payload.Detail -ne 'verified' -or [string]$payload.ContextSha256 -notmatch '^[0-9a-f]{64}$')) -or
+                    ([string]$payload.Detail -eq 'verified' -and -not [bool]$payload.RemoteVerified)) {
+                    throw 'STS2Mobile contains an invalid automatic-sync terminal event.'
+                }
+                $automatic.Add($payload)
+            } elseif ([string]$payload.Event -eq 'save-recovery-terminal') {
+                Assert-ExactJsonProperties -Object $payload -Names @(
+                    'Event', 'Version', 'Operation', 'Outcome', 'Detail'
+                ) -Label 'Save-recovery terminal event'
+                if (-not (Test-IsJsonInteger $payload.Version) -or
+                    [int64]$payload.Version -ne 1 -or
+                    [string]$payload.Operation -notin @('restore', 'undo') -or
+                    [string]$payload.Outcome -cne 'completed' -or
+                    [string]$payload.Detail -cne 'byte-verified-local-only') {
+                    throw 'STS2Mobile contains an invalid save-recovery terminal event.'
+                }
+                $recovery.Add($payload)
+            } else {
+                throw "STS2Mobile contains an unknown structured save terminal event '$([string]$payload.Event)'."
+            }
+        } elseif ($entry.Message.StartsWith('[Recovery] STS2_SAVE_EXPORT_COMPLETE ', [StringComparison]::Ordinal)) {
+            try {
+                $payload = $entry.Message.Substring('[Recovery] STS2_SAVE_EXPORT_COMPLETE '.Length) |
+                    ConvertFrom-Json -ErrorAction Stop
+            } catch {
+                throw 'STS2Mobile contains an invalid structured save-export completion event.'
+            }
+            Assert-ExactJsonProperties -Object $payload -Names @(
+                'Event', 'Version', 'ExportId', 'BundleSha256',
+                'CurrentAndroidTreeSha256', 'SelectedSaveContextSha256'
+            ) -Label 'Save-export completion event'
+            if ([string]$payload.Event -cne 'save-recovery-export-complete' -or
+                -not (Test-IsJsonInteger $payload.Version) -or
+                [int64]$payload.Version -ne 1 -or
+                [string]$payload.ExportId -notmatch '^[0-9a-f]{32}$' -or
+                [string]$payload.BundleSha256 -notmatch '^[0-9a-f]{64}$' -or
+                [string]$payload.CurrentAndroidTreeSha256 -notmatch '^[0-9a-f]{64}$' -or
+                [string]$payload.SelectedSaveContextSha256 -notmatch '^[0-9a-f]{64}$') {
+                throw 'STS2Mobile contains an invalid save-export completion event.'
+            }
+            $exports.Add($payload)
+        }
+    }
+
+    $escapedPackage = [regex]::Escape($PackageName)
+    $fatal = $false
+    for ($i = 0; $i -lt $entries.Count; $i++) {
+        if ($entries[$i].Tag -cne 'AndroidRuntime' -or
+            $entries[$i].Message -notmatch '^FATAL EXCEPTION(?:\s|:)') { continue }
+        $last = [Math]::Min($entries.Count - 1, $i + 8)
+        for ($j = $i; $j -le $last; $j++) {
+            if ($entries[$j].Tag -ceq 'AndroidRuntime' -and
+                $entries[$j].Pid -eq $entries[$i].Pid -and
+                $entries[$j].Message -match "^Process:\s*$escapedPackage(?:,|\s|$)") {
+                $fatal = $true
+            }
+        }
+    }
+    $anr = [bool](@($entries | Where-Object {
+        $_.Tag -in @('ActivityManager', 'ActivityTaskManager', 'am_anr') -and
+        $_.Message -match "(?i)(?:\bANR in\s+|\bam_anr\b[^\r\n]*)$escapedPackage(?:/|:|,|\s|$)"
+    }).Count)
+    $contextMismatchDetails = @('account-mismatch', 'namespace-mismatch', 'branch-mismatch', 'mod-set-mismatch')
+    $localWriteExceptionPattern = '(?im)^[^\r\n]*(?:(?:\[Save\]|Android local save|local-only save|local save write)[^\r\n]*(?:exception|failed|failure|error|could not|unable to|denied|dropped|swallowed|ignored|discarded)|(?:exception|failed|failure|error|could not|unable to|denied)[^\r\n]*(?:Android local save|local save write))[^\r\n]*$'
+    return [pscustomobject][ordered]@{
+        automaticSyncPendingLogSeen = [bool](@($automatic | Where-Object { $_.Outcome -in @('conflict', 'pending-recovery-required', 'failed') }).Count)
+        automaticSyncVerifiedLogSeen = [bool](@($automatic | Where-Object { $_.Outcome -eq 'synchronized' -and [bool]$_.RemoteVerified }).Count)
+        automaticSyncConflictLogSeen = [bool](@($automatic | Where-Object { $_.Outcome -eq 'conflict' }).Count)
+        syncedLogSeen = [bool](@($automatic | Where-Object { $_.Outcome -eq 'synchronized' -and [bool]$_.RemoteVerified }).Count)
+        readBackMismatchSeen = [bool](@($automatic | Where-Object { $_.Outcome -eq 'failed' -and $_.Detail -eq 'remote-readback-mismatch' }).Count)
+        commitFailureSeen = [bool](@($automatic | Where-Object { $_.Outcome -eq 'failed' -and $_.Detail -eq 'commit-rejected' }).Count)
+        saveContextMismatchSeen = [bool](@($automatic | Where-Object { $_.Detail -in $contextMismatchDetails }).Count)
+        modSetMismatchSeen = [bool](@($automatic | Where-Object { $_.Detail -eq 'mod-set-mismatch' }).Count)
+        branchMismatchSeen = [bool](@($automatic | Where-Object { $_.Detail -eq 'branch-mismatch' }).Count)
+        recoveryLogSeen = [bool]($recovery.Count -gt 0 -or $exports.Count -gt 0)
+        recoveryRestoreLogCount = @($recovery | Where-Object { $_.Operation -eq 'restore' }).Count
+        recoveryUndoLogCount = @($recovery | Where-Object { $_.Operation -eq 'undo' }).Count
+        localSaveBaseSeen = [bool]($appText -match '\[Save\] Android local save base:')
+        localSaveWrites = ([regex]::Matches($appText, '\[Save\] Android local save write:')).Count
+        localSaveReads = ([regex]::Matches($appText, '\[Save\] Android local save read')).Count
+        localSaveExistsChecks = ([regex]::Matches($appText, '\[Save\] Android local save exists:')).Count
+        localOnlySaveManagerSeen = [bool]($appText -match '\[Save\] Created Android gameplay SaveManager with local storage only')
+        steamGameplaySaveManagerSeen = [bool]($appText -match 'Created .*SaveManager.*Steam|Steam.*gameplay SaveManager')
+        fatalExceptionSeen = $fatal
+        anrSeen = $anr
+        droppedSaveWriteSeen = [bool]($appText -match '(?im)dropped (save )?write|save write[^\r\n]*(ignored|discarded)')
+        swallowedFailureSeen = [bool]($appText -match '(?im)swallowed (exception|failure|error)')
+        localWriteExceptionCount = ([regex]::Matches($appText, $localWriteExceptionPattern)).Count
+    }
+}
+
 if (-not (Test-Path -LiteralPath $AdbPath)) {
     throw "adb not found: $AdbPath"
 }
@@ -278,9 +440,9 @@ try {
             "logcat", "-d", "-v", "time", "-T", $LogcatSince
         )
     } elseif ($LogcatTailLines -gt 0) {
-        $rawLog = Get-AdbText -AdbArguments @("logcat", "-d", "-t", [string]$LogcatTailLines)
+        $rawLog = Get-AdbText -AdbArguments @("logcat", "-d", "-v", "time", "-t", [string]$LogcatTailLines)
     } else {
-        $rawLog = Get-AdbText -AdbArguments @("logcat", "-d")
+        $rawLog = Get-AdbText -AdbArguments @("logcat", "-d", "-v", "time")
     }
     $rawLogPath = Join-Path $outDir "logcat.txt"
     [IO.File]::WriteAllText($rawLogPath, $rawLog, [Text.UTF8Encoding]::new($false))
@@ -297,18 +459,35 @@ try {
         "\[Cloud\]",
         "\[Save\]",
         "\[Recovery\]",
+        "STS2_SAVE_EXPORT_COMPLETE",
+        "STS2_SAVE_EVENT",
         "automatic save sync",
         "automatic save synchronization",
         "pending-sync",
+        "Synced",
         "synchronized and verified",
         "read-back",
         "Destination deletion could not be verified",
         "file_committed",
         "commit",
+        "save-context mismatch",
+        "mod set",
+        "branch mismatch",
+        "Steam gameplay SaveManager",
+        "dropped save write",
+        "dropped write",
+        "swallowed exception",
+        "swallowed failure",
+        "local save write exception",
+        "local save write failed",
         "Restore",
         "Undo",
         "AndroidRuntime",
-        "FATAL EXCEPTION"
+        "FATAL EXCEPTION",
+        "Application Not Responding",
+        "ANR in",
+        "am_anr",
+        "Input dispatching timed out"
     )
     $filtered = Select-String -LiteralPath $rawLogPath -Pattern $patterns -CaseSensitive:$false
     $filteredLines = @($filtered | ForEach-Object { $_.Line })
@@ -440,6 +619,9 @@ find files -maxdepth 9 -type f \( -name 'profile.save' -o -name 'progress.save' 
     $persistedSteamLegacyTextHashCount = @(
         $persistedRemoteRows | Where-Object { $_.HashKind -eq "legacy-text-sha256" }
     ).Count
+    $logAnalysis = Get-StructuredLogAnalysis `
+        -Text $rawLog `
+        -PackageName $PackageName
 
     $summary = [ordered]@{
         output = $outDir
@@ -465,19 +647,29 @@ find files -maxdepth 9 -type f \( -name 'profile.save' -o -name 'progress.save' 
         pendingSyncDocumentCount = @($stateDocumentIndex | Where-Object { $_.devicePath -match '/pending-sync\.json$' }).Count
         pendingSyncPhases = @($pendingPhases | Sort-Object -Unique)
         recoveryJournalCount = @($stateDocumentIndex | Where-Object { $_.devicePath -match '/last-restore\.json$' }).Count
-        automaticSyncPendingLogSeen = [bool]($rawLog -match 'automatic save (sync|synchronization).*pending|pending-sync')
-        automaticSyncVerifiedLogSeen = [bool]($rawLog -match 'Local and Steam saves were synchronized and verified|automatic save reconciliation.*verified')
-        automaticSyncConflictLogSeen = [bool]($rawLog -match 'automatic save (sync|synchronization).*(conflict|both.*changed)')
-        readBackMismatchSeen = [bool]($rawLog -match 'read-back hash mismatch|could not be verified')
-        commitFailureSeen = [bool]($rawLog -match 'file_committed=false|commit.*fail')
-        recoveryLogSeen = [bool]($rawLog -match '\[Recovery\]|Restore|Undo')
-        localSaveBaseSeen = [bool]($rawLog -match '\[Save\] Android local save base:')
-        localSaveWrites = ([regex]::Matches($rawLog, '\[Save\] Android local save write:')).Count
-        localSaveReads = ([regex]::Matches($rawLog, '\[Save\] Android local save read')).Count
-        localSaveExistsChecks = ([regex]::Matches($rawLog, '\[Save\] Android local save exists:')).Count
-        localOnlySaveManagerSeen = [bool]($rawLog -match '\[Save\] Created Android gameplay SaveManager with local storage only')
-        steamGameplaySaveManagerSeen = [bool]($rawLog -match 'Created .*SaveManager.*Steam|Steam.*gameplay SaveManager')
-        fatalExceptionSeen = [bool]($rawLog -match 'FATAL EXCEPTION|AndroidRuntime.*FATAL|AndroidRuntime.*Exception')
+        automaticSyncPendingLogSeen = [bool]$logAnalysis.automaticSyncPendingLogSeen
+        automaticSyncVerifiedLogSeen = [bool]$logAnalysis.automaticSyncVerifiedLogSeen
+        automaticSyncConflictLogSeen = [bool]$logAnalysis.automaticSyncConflictLogSeen
+        syncedLogSeen = [bool]$logAnalysis.syncedLogSeen
+        readBackMismatchSeen = [bool]$logAnalysis.readBackMismatchSeen
+        commitFailureSeen = [bool]$logAnalysis.commitFailureSeen
+        saveContextMismatchSeen = [bool]$logAnalysis.saveContextMismatchSeen
+        modSetMismatchSeen = [bool]$logAnalysis.modSetMismatchSeen
+        branchMismatchSeen = [bool]$logAnalysis.branchMismatchSeen
+        recoveryLogSeen = [bool]$logAnalysis.recoveryLogSeen
+        recoveryRestoreLogCount = [int]$logAnalysis.recoveryRestoreLogCount
+        recoveryUndoLogCount = [int]$logAnalysis.recoveryUndoLogCount
+        localSaveBaseSeen = [bool]$logAnalysis.localSaveBaseSeen
+        localSaveWrites = [int]$logAnalysis.localSaveWrites
+        localSaveReads = [int]$logAnalysis.localSaveReads
+        localSaveExistsChecks = [int]$logAnalysis.localSaveExistsChecks
+        localOnlySaveManagerSeen = [bool]$logAnalysis.localOnlySaveManagerSeen
+        steamGameplaySaveManagerSeen = [bool]$logAnalysis.steamGameplaySaveManagerSeen
+        fatalExceptionSeen = [bool]$logAnalysis.fatalExceptionSeen
+        anrSeen = [bool]$logAnalysis.anrSeen
+        droppedSaveWriteSeen = [bool]$logAnalysis.droppedSaveWriteSeen
+        swallowedFailureSeen = [bool]$logAnalysis.swallowedFailureSeen
+        localWriteExceptionCount = [int]$logAnalysis.localWriteExceptionCount
     }
 
     $summaryText = @(
@@ -502,11 +694,21 @@ find files -maxdepth 9 -type f \( -name 'profile.save' -o -name 'progress.save' 
         "Pending sync phases: $($summary.pendingSyncPhases -join ', ')",
         "Recovery journals: $($summary.recoveryJournalCount)",
         "Verified automatic-sync log seen: $($summary.automaticSyncVerifiedLogSeen)",
+        "Any Synced log seen: $($summary.syncedLogSeen)",
         "Read-back mismatch seen: $($summary.readBackMismatchSeen)",
         "Commit failure seen: $($summary.commitFailureSeen)",
+        "SaveContext mismatch seen: $($summary.saveContextMismatchSeen)",
+        "Mod-set mismatch seen: $($summary.modSetMismatchSeen)",
+        "Branch mismatch seen: $($summary.branchMismatchSeen)",
+        "Restore action lines: $($summary.recoveryRestoreLogCount)",
+        "Undo action lines: $($summary.recoveryUndoLogCount)",
         "Local-only SaveManager seen: $($summary.localOnlySaveManagerSeen)",
         "Steam gameplay SaveManager seen: $($summary.steamGameplaySaveManagerSeen)",
         "Fatal exception seen: $($summary.fatalExceptionSeen)",
+        "ANR seen: $($summary.anrSeen)",
+        "Dropped save write seen: $($summary.droppedSaveWriteSeen)",
+        "Swallowed failure seen: $($summary.swallowedFailureSeen)",
+        "Local write exceptions/failures: $($summary.localWriteExceptionCount)",
         "Review 5 note: persisted remote hashes are not an independent live Steam query."
     )
     $summaryText | Set-Content -LiteralPath (Join-Path $outDir "summary.txt") -Encoding UTF8

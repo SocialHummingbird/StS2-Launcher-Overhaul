@@ -392,7 +392,7 @@ Maintainers can trigger the candidate workflow manually from the Actions tab. It
   - Configure repository variable:
     - `ANDROID_LOCAL_UPDATE_SIGNER_SHA256`
 
-If these dedicated credentials are missing, the candidate workflow refuses to build. `ANDROID_LOCAL_UPDATE_SIGNER_SHA256` must be `FD0E3D5ACF435C1D23BFC5C426E99AA9EB5808619FF1FC214FFCA99CFAC7E57A`.
+Gradle builds and verifies an unsigned APK in a secret-free job. A fresh runner accepts only those hash-bound bytes, signs them with the temporary scoped keystore, removes the credentials, and then performs final verification. If the dedicated credentials are missing, the workflow refuses to sign or retain a candidate. `ANDROID_LOCAL_UPDATE_SIGNER_SHA256` must be `FD0E3D5ACF435C1D23BFC5C426E99AA9EB5808619FF1FC214FFCA99CFAC7E57A`.
 
 Use the helper script to configure GitHub from a stable release keystore:
 

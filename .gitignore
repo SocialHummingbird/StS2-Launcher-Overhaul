@@ -26,6 +26,7 @@ tmp-*/
 *.aar
 *.aar.bak*
 *.jar
+!android/gradle/wrapper/gradle-wrapper.jar
 *.keystore
 
 # Third-party sources & SDKs

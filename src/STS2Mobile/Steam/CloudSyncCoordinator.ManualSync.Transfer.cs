@@ -258,7 +258,14 @@ internal static partial class CloudSyncCoordinator
                     direction,
                     item.Path
                 ).ConfigureAwait(false);
-                RequireHash(item.Path, item.Sha256, verified, "destination");
+                RequireHash(
+                    item.Path,
+                    item.Sha256,
+                    verified,
+                    direction == CloudOperationKind.Push
+                        ? "Steam Cloud"
+                        : "Android local storage"
+                );
             }
 
             sync.ReportTransferProcessed(item.Path);
@@ -1005,10 +1012,11 @@ internal static partial class CloudSyncCoordinator
         var actualHash = HashContent(actualContent);
         if (!string.Equals(expectedHash, actualHash, StringComparison.Ordinal))
         {
-            throw new InvalidDataException(
-                $"{destination} read-back hash mismatch for {path}: "
-                    + $"expected={expectedHash}; actual={actualHash}"
-            );
+            var message = $"{destination} read-back hash mismatch for {path}: "
+                + $"expected={expectedHash}; actual={actualHash}";
+            if (string.Equals(destination, "Steam Cloud", StringComparison.Ordinal))
+                throw new SaveTransferReadBackMismatchException(message, remote: true);
+            throw new InvalidDataException(message);
         }
     }
 
@@ -1022,10 +1030,11 @@ internal static partial class CloudSyncCoordinator
         var actualHash = HashContent(actualContent);
         if (!string.Equals(expectedHash, actualHash, StringComparison.Ordinal))
         {
-            throw new InvalidDataException(
-                $"{destination} read-back hash mismatch for {path}: "
-                    + $"expected={expectedHash}; actual={actualHash}"
-            );
+            var message = $"{destination} read-back hash mismatch for {path}: "
+                + $"expected={expectedHash}; actual={actualHash}";
+            if (string.Equals(destination, "Steam Cloud", StringComparison.Ordinal))
+                throw new SaveTransferReadBackMismatchException(message, remote: true);
+            throw new InvalidDataException(message);
         }
     }
 

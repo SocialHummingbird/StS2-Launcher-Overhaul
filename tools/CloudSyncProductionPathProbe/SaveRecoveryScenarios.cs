@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using MegaCrit.Sts2.Core.Saves;
+using STS2Mobile;
 using STS2Mobile.Launcher;
 using STS2Mobile.Steam;
 
@@ -108,11 +109,21 @@ internal static class SaveRecoveryScenarios
     {
         var local = new InMemoryCloudSaveStore("current-export-local");
         var exactBytes = SpecialBytes(
-            "{\"ironclad\":10,\"regent\":8}\r\n\0"
+            "{\"ironclad\":10}\r\n\0"
         );
         var moddedBytes = SpecialBytes("{\"wrongNamespace\":true}");
-        local.Seed(ProfilePath, "{\"profile\":1}");
+        local.SeedBytes(ProfilePath, exactBytes);
         local.SeedBytes(ProgressPath, exactBytes);
+        foreach (var historyName in new[]
+        {
+            "a", "i", "z", "\u00e4", "\u00e5", "\u0130", "\u0131",
+        })
+        {
+            local.SeedBytes(
+                $"profile1/saves/history/{historyName}.run",
+                Encoding.UTF8.GetBytes($"history:{historyName}")
+            );
+        }
         local.SeedBytes("profile1/saves/STS2Modded/progress.save", moddedBytes);
         local.Seed(
             CloudSyncCoordinator.SaveRecoveryHoldPath,
@@ -152,6 +163,21 @@ internal static class SaveRecoveryScenarios
         var root = JsonNode.Parse(json)?.AsObject()
             ?? throw new InvalidDataException("Current save export was empty");
         Expect(root["Version"]?.GetValue<int>() == 2);
+        var exportId = root["ExportId"]?.GetValue<string>() ?? "";
+        var currentTreeSha256 = root["CurrentAndroidTreeSha256"]
+            ?.GetValue<string>() ?? "";
+        var selectedContextSha256 = root["SelectedSaveContextSha256"]
+            ?.GetValue<string>() ?? "";
+        Expect(exportId.Length == 32 && exportId.All(Uri.IsHexDigit));
+        Expect(currentTreeSha256.Length == 64
+            && currentTreeSha256.All(Uri.IsHexDigit));
+        Expect(
+            currentTreeSha256
+                == "a89a0a8151e69de8e8fff755ba3840cb1c7d3617de83bc7a800fd54834e8ec40",
+            $"Canonical Unicode tree hash changed: {currentTreeSha256}"
+        );
+        Expect(selectedContextSha256.Length == 64
+            && selectedContextSha256.All(Uri.IsHexDigit));
         Expect(root["SteamWasContacted"]?.GetValue<bool>() == false);
         Expect(root["OriginalSourcesWereModified"]?.GetValue<bool>() == false);
         Expect(root["CloudSyncEnabled"]?.GetValue<bool>() == false);
@@ -203,6 +229,18 @@ internal static class SaveRecoveryScenarios
             $"sts2-current-export-{Guid.NewGuid():N}"
         );
         Directory.CreateDirectory(outputRoot);
+        var completionLogs = new List<string>();
+        void CaptureCompletionLog(string message)
+        {
+            if (message.StartsWith(
+                    "[Recovery] STS2_SAVE_EXPORT_COMPLETE ",
+                    StringComparison.Ordinal
+                ))
+            {
+                completionLogs.Add(message);
+            }
+        }
+        PatchHelper.LogEmitted += CaptureCompletionLog;
         try
         {
             var path = LauncherDiagnostics.WriteSaveRecoveryBundle(
@@ -215,6 +253,15 @@ internal static class SaveRecoveryScenarios
                 json,
                 StringComparison.Ordinal
             ));
+            Expect(completionLogs.Count == 1);
+            ExpectExportCompletionLog(
+                completionLogs.Single(),
+                path,
+                exportId,
+                currentTreeSha256,
+                selectedContextSha256
+            );
+            completionLogs.Clear();
             var secondPath = LauncherDiagnostics.WriteSaveRecoveryBundle(
                 json: json,
                 fallbackDirectory: outputRoot
@@ -226,9 +273,18 @@ internal static class SaveRecoveryScenarios
                 json,
                 StringComparison.Ordinal
             ));
+            Expect(completionLogs.Count == 1);
+            ExpectExportCompletionLog(
+                completionLogs.Single(),
+                secondPath,
+                exportId,
+                currentTreeSha256,
+                selectedContextSha256
+            );
         }
         finally
         {
+            PatchHelper.LogEmitted -= CaptureCompletionLog;
             Directory.Delete(outputRoot, recursive: true);
         }
 
@@ -320,6 +376,32 @@ internal static class SaveRecoveryScenarios
 
         await CurrentSaveExportIncludesVerifiedRollbackSnapshotsAsync()
             .ConfigureAwait(false);
+    }
+
+    private static void ExpectExportCompletionLog(
+        string line,
+        string bundlePath,
+        string exportId,
+        string currentTreeSha256,
+        string selectedContextSha256
+    )
+    {
+        const string prefix = "[Recovery] STS2_SAVE_EXPORT_COMPLETE ";
+        var payload = JsonNode.Parse(line[prefix.Length..])?.AsObject()
+            ?? throw new InvalidDataException(
+                "Save export completion log was not structured JSON"
+            );
+        Expect(payload.Count == 6);
+        Expect(payload["Event"]?.GetValue<string>()
+            == "save-recovery-export-complete");
+        Expect(payload["Version"]?.GetValue<int>() == 1);
+        Expect(payload["ExportId"]?.GetValue<string>() == exportId);
+        Expect(payload["BundleSha256"]?.GetValue<string>()
+            == AutomaticSyncHash.Compute(File.ReadAllBytes(bundlePath)));
+        Expect(payload["CurrentAndroidTreeSha256"]?.GetValue<string>()
+            == currentTreeSha256);
+        Expect(payload["SelectedSaveContextSha256"]?.GetValue<string>()
+            == selectedContextSha256);
     }
 
     private static async Task
@@ -588,15 +670,31 @@ internal static class SaveRecoveryScenarios
         local.SeedBytes(HistoryB, extraHistory);
         cloud.Seed(ProgressPath, "{\"cloud\":\"untouched\"}");
 
-        var restored = await CloudSyncCoordinator.RestoreSaveSnapshotAsync(
-            local,
-            source.Path,
-            SaveNamespace.Vanilla,
-            SteamGameBranch.Public,
-            "",
-            InMemoryCloudSaveStore.DefaultSteamId64,
-            CancellationToken.None
-        ).ConfigureAwait(false);
+        var terminalLogs = new List<string>();
+        void CaptureTerminal(string message)
+        {
+            if (message.StartsWith(
+                    SaveEvidenceEvents.Marker,
+                    StringComparison.Ordinal
+                ))
+            {
+                terminalLogs.Add(message);
+            }
+        }
+        PatchHelper.LogEmitted += CaptureTerminal;
+        SaveRecoveryOperationResult restored;
+        SaveRecoveryOperationResult undone;
+        try
+        {
+            restored = await CloudSyncCoordinator.RestoreSaveSnapshotAsync(
+                local,
+                source.Path,
+                SaveNamespace.Vanilla,
+                SteamGameBranch.Public,
+                "",
+                InMemoryCloudSaveStore.DefaultSteamId64,
+                CancellationToken.None
+            ).ConfigureAwait(false);
 
         Expect(restored.Status.SyncHeld);
         Expect(restored.Status.ValidationRequired);
@@ -633,25 +731,62 @@ internal static class SaveRecoveryScenarios
         ).ConfigureAwait(false);
         Expect(cloud.Operations.Count == 0);
 
-        var recoveryWritesBeforeUndo = local.RecoveryWriteCount;
-        var undone = await CloudSyncCoordinator.UndoSaveRecoveryAsync(
-            local,
-            CancellationToken.None
-        ).ConfigureAwait(false);
+            var recoveryWritesBeforeUndo = local.RecoveryWriteCount;
+            undone = await CloudSyncCoordinator.UndoSaveRecoveryAsync(
+                local,
+                CancellationToken.None
+            ).ConfigureAwait(false);
+            Expect(local.RecoveryWriteCount > recoveryWritesBeforeUndo);
+        }
+        finally
+        {
+            PatchHelper.LogEmitted -= CaptureTerminal;
+        }
         Expect(!undone.Status.SyncHeld);
         Expect(!undone.Status.CanUndo);
         ExpectBytes(local, ProgressPath, regressed);
         ExpectBytes(local, CurrentRunPath, run);
         ExpectBytes(local, HistoryB, extraHistory);
-        Expect(local.RecoveryWriteCount > recoveryWritesBeforeUndo);
         Expect(local.RawWriteCount == 0);
         Expect(cloud.Operations.Count == 0);
+        ExpectRecoveryTerminal(terminalLogs, "restore");
+        ExpectRecoveryTerminal(terminalLogs, "undo");
         _ = await CloudSyncCoordinator.ReadVerifiedSnapshotAsync(
             local,
             source.Path,
             context,
             CancellationToken.None
         ).ConfigureAwait(false);
+    }
+
+    private static void ExpectRecoveryTerminal(
+        IEnumerable<string> messages,
+        string operation
+    )
+    {
+        var matches = 0;
+        foreach (var message in messages)
+        {
+            using var document = JsonDocument.Parse(
+                message[SaveEvidenceEvents.Marker.Length..]
+            );
+            var root = document.RootElement;
+            if (root.GetProperty("Event").GetString()
+                    != "save-recovery-terminal")
+            {
+                continue;
+            }
+            Expect(root.EnumerateObject().Count() == 5);
+            Expect(root.GetProperty("Version").ValueKind
+                == JsonValueKind.Number);
+            Expect(root.GetProperty("Version").GetInt32() == 1);
+            Expect(root.GetProperty("Outcome").GetString() == "completed");
+            Expect(root.GetProperty("Detail").GetString()
+                == "byte-verified-local-only");
+            if (root.GetProperty("Operation").GetString() == operation)
+                matches++;
+        }
+        Expect(matches == 1);
     }
 
     private static async Task CaseFoldHistoryCollisionBlocksBeforeMutationAsync()

@@ -21,8 +21,17 @@ internal static partial class CloudSyncCoordinator
     private readonly record struct AutomaticRemoteContextProbe(
         AutomaticRemoteContextStatus Status,
         AutomaticFileState MarkerState,
-        string Problem
+        string Problem,
+        AutomaticSyncEvidenceDetail Detail
     );
+
+    private sealed class AutomaticSyncEvidenceScope
+    {
+        internal string ContextSha256 { get; private set; } = "";
+
+        internal void Bind(SaveContext context)
+            => ContextSha256 = SaveEvidenceEvents.ContextSha256(context);
+    }
 
     internal static async Task<AutomaticSyncResult>
         RecoverAutomaticSyncAsync(
@@ -63,14 +72,18 @@ internal static partial class CloudSyncCoordinator
             CloudOperationProgressTracker progress,
             CancellationToken cancellationToken
         )
-        => RunWithSaveTransferAndRecoveryGateAsync(
-            () => RecoverAutomaticSyncCoreAsync(
-                local,
-                cloud,
-                progress,
+        => RunAutomaticSyncWithEvidenceAsync(
+            AutomaticSyncEvidenceOperation.Recover,
+            evidence => RunWithSaveTransferAndRecoveryGateAsync(
+                () => RecoverAutomaticSyncCoreAsync(
+                    local,
+                    cloud,
+                    progress,
+                    cancellationToken,
+                    evidence
+                ),
                 cancellationToken
-            ),
-            cancellationToken
+            )
         );
 
     private static async Task<AutomaticSyncResult>
@@ -78,7 +91,8 @@ internal static partial class CloudSyncCoordinator
             ISaveStore local,
             ICloudSaveStore cloud,
             CloudOperationProgressTracker progress,
-            CancellationToken cancellationToken
+            CancellationToken cancellationToken,
+            AutomaticSyncEvidenceScope evidence
         )
     {
         await RequireSaveRecoverySyncReadyAsync(local, cancellationToken)
@@ -97,7 +111,8 @@ internal static partial class CloudSyncCoordinator
         {
             return AutomaticResult(
                 AutomaticSyncOutcome.Synchronized,
-                "No automatic save synchronization is pending"
+                "No automatic save synchronization is pending",
+                AutomaticSyncEvidenceDetail.NoPendingWork
             );
         }
 
@@ -107,7 +122,8 @@ internal static partial class CloudSyncCoordinator
             sync,
             recordedContext.Namespace,
             recordedContext.RuntimeIdentity,
-            recordedContext.ModSetFingerprint
+            recordedContext.ModSetFingerprint,
+            evidence
         ).ConfigureAwait(false);
         try
         {
@@ -115,7 +131,13 @@ internal static partial class CloudSyncCoordinator
         }
         catch (InvalidOperationException ex)
         {
-            return AutomaticConflict(ex.Message);
+            return AutomaticConflict(
+                ex.Message,
+                SaveEvidenceEvents.ContextMismatch(
+                    recordedContext,
+                    context
+                )
+            );
         }
 
         await VerifyPendingBeforeGameSnapshotAsync(
@@ -198,18 +220,22 @@ internal static partial class CloudSyncCoordinator
             CloudOperationProgressTracker progress,
             CancellationToken cancellationToken
         )
-        => RunWithSaveTransferAndRecoveryGateAsync(
-            () => ReconcileAutomaticSyncCoreAsync(
-                local,
-                cloud,
-                saveNamespace,
-                runtimeIdentity,
-                modSetFingerprint,
-                sourceChoice,
-                progress,
+        => RunAutomaticSyncWithEvidenceAsync(
+            AutomaticSyncEvidenceOperation.Reconcile,
+            evidence => RunWithSaveTransferAndRecoveryGateAsync(
+                () => ReconcileAutomaticSyncCoreAsync(
+                    local,
+                    cloud,
+                    saveNamespace,
+                    runtimeIdentity,
+                    modSetFingerprint,
+                    sourceChoice,
+                    progress,
+                    cancellationToken,
+                    evidence
+                ),
                 cancellationToken
-            ),
-            cancellationToken
+            )
         );
 
     private static async Task<AutomaticSyncResult>
@@ -221,7 +247,8 @@ internal static partial class CloudSyncCoordinator
             string modSetFingerprint,
             AutomaticSyncSourceChoice? sourceChoice,
             CloudOperationProgressTracker progress,
-            CancellationToken cancellationToken
+            CancellationToken cancellationToken,
+            AutomaticSyncEvidenceScope evidence
         )
     {
         await RequireSaveRecoverySyncReadyAsync(local, cancellationToken)
@@ -244,7 +271,8 @@ internal static partial class CloudSyncCoordinator
             sync,
             saveNamespace,
             runtimeIdentity,
-            modSetFingerprint
+            modSetFingerprint,
+            evidence
         ).ConfigureAwait(false);
         return await ReconcileWithoutPendingAsync(
             sync,
@@ -302,17 +330,21 @@ internal static partial class CloudSyncCoordinator
             CloudOperationProgressTracker progress,
             CancellationToken cancellationToken
         )
-        => RunWithSaveTransferAndRecoveryGateAsync(
-            () => BeginAutomaticGameSessionCoreAsync(
-                local,
-                cloud,
-                saveNamespace,
-                runtimeIdentity,
-                modSetFingerprint,
-                progress,
+        => RunAutomaticSyncWithEvidenceAsync(
+            AutomaticSyncEvidenceOperation.BeginGame,
+            evidence => RunWithSaveTransferAndRecoveryGateAsync(
+                () => BeginAutomaticGameSessionCoreAsync(
+                    local,
+                    cloud,
+                    saveNamespace,
+                    runtimeIdentity,
+                    modSetFingerprint,
+                    progress,
+                    cancellationToken,
+                    evidence
+                ),
                 cancellationToken
-            ),
-            cancellationToken
+            )
         );
 
     private static async Task<AutomaticSyncResult>
@@ -323,7 +355,8 @@ internal static partial class CloudSyncCoordinator
             string runtimeIdentity,
             string modSetFingerprint,
             CloudOperationProgressTracker progress,
-            CancellationToken cancellationToken
+            CancellationToken cancellationToken,
+            AutomaticSyncEvidenceScope evidence
         )
     {
         await RequireSaveRecoverySyncReadyAsync(local, cancellationToken)
@@ -346,7 +379,8 @@ internal static partial class CloudSyncCoordinator
             sync,
             saveNamespace,
             runtimeIdentity,
-            modSetFingerprint
+            modSetFingerprint,
+            evidence
         ).ConfigureAwait(false);
         var reconciled = await ReconcileWithoutPendingAsync(
             sync,
@@ -360,7 +394,10 @@ internal static partial class CloudSyncCoordinator
         var marker = await ProbeRemoteContextAsync(sync, context)
             .ConfigureAwait(false);
         if (marker.Status != AutomaticRemoteContextStatus.Exact)
-            return AutomaticConflict(RemoteContextProblem(marker));
+            return AutomaticConflict(
+                RemoteContextProblem(marker),
+                marker.Detail
+            );
 
         var localSnapshot = await CaptureAutomaticSnapshotAsync(
             sync,
@@ -467,7 +504,8 @@ internal static partial class CloudSyncCoordinator
         ManualSyncContext sync,
         SaveNamespace saveNamespace,
         string runtimeIdentity,
-        string modSetFingerprint
+        string modSetFingerprint,
+        AutomaticSyncEvidenceScope evidence
     )
     {
         var context = SaveContext.Create(
@@ -477,15 +515,73 @@ internal static partial class CloudSyncCoordinator
             modSetFingerprint
         );
         RequireApprovedRecoveryTransferContext(sync.LocalStore, context);
+        evidence.Bind(context);
         return context;
     }
 
     private static AutomaticSyncResult AutomaticResult(
         AutomaticSyncOutcome outcome,
-        string message
+        string message,
+        AutomaticSyncEvidenceDetail detail =
+            AutomaticSyncEvidenceDetail.Unspecified,
+        bool remoteVerified = false
     )
-        => new(outcome, message);
+        => new(
+            outcome,
+            message,
+            detail == AutomaticSyncEvidenceDetail.Unspecified
+                ? outcome switch
+                {
+                    AutomaticSyncOutcome.Synchronized
+                        => AutomaticSyncEvidenceDetail.Verified,
+                    AutomaticSyncOutcome.SourceChoiceRequired
+                        => AutomaticSyncEvidenceDetail.SourceChoiceRequired,
+                    AutomaticSyncOutcome.Conflict
+                        => AutomaticSyncEvidenceDetail.IndependentChange,
+                    AutomaticSyncOutcome.GameSessionPrepared
+                        => AutomaticSyncEvidenceDetail.SessionPrepared,
+                    AutomaticSyncOutcome.PendingRecoveryRequired
+                        => AutomaticSyncEvidenceDetail.PendingRecovery,
+                    _ => AutomaticSyncEvidenceDetail.Unspecified,
+                }
+                : detail,
+            remoteVerified
+        );
 
-    private static AutomaticSyncResult AutomaticConflict(string message)
-        => AutomaticResult(AutomaticSyncOutcome.Conflict, message);
+    private static AutomaticSyncResult AutomaticConflict(
+        string message,
+        AutomaticSyncEvidenceDetail detail =
+            AutomaticSyncEvidenceDetail.IndependentChange
+    )
+        => AutomaticResult(AutomaticSyncOutcome.Conflict, message, detail);
+
+    private static async Task<AutomaticSyncResult>
+        RunAutomaticSyncWithEvidenceAsync(
+            AutomaticSyncEvidenceOperation operation,
+            Func<AutomaticSyncEvidenceScope, Task<AutomaticSyncResult>> action
+        )
+    {
+        var evidence = new AutomaticSyncEvidenceScope();
+        try
+        {
+            var result = await action(evidence).ConfigureAwait(false);
+            SaveEvidenceEvents.AutomaticSyncTerminal(
+                operation,
+                result.Outcome,
+                result.Detail,
+                evidence.ContextSha256,
+                result.RemoteVerified
+            );
+            return result;
+        }
+        catch (Exception ex)
+        {
+            SaveEvidenceEvents.AutomaticSyncFailure(
+                operation,
+                ex,
+                evidence.ContextSha256
+            );
+            throw;
+        }
+    }
 }

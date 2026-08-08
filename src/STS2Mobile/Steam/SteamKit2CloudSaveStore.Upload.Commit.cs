@@ -38,6 +38,8 @@ internal partial class SteamKit2CloudSaveStore
     )
     {
         if (uploadSucceeded && !fileCommitted)
-            throw new InvalidOperationException(CommitReturnedFalse(path));
+            throw new CloudFileCommitRejectedException(
+                CommitReturnedFalse(path)
+            );
     }
 }

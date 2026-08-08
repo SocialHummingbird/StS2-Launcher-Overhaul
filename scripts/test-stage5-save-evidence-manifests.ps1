@@ -20,6 +20,35 @@ function Get-Sha256Hex {
     }
 }
 
+function Sort-CanonicalFilesOrdinal {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Collections.IEnumerable]$Files
+    )
+
+    $ordered = [Collections.Generic.List[object]]::new()
+    foreach ($file in $Files) {
+        $ordered.Add($file)
+    }
+    $comparison = [Comparison[object]] {
+        param($left, $right)
+
+        $primary = [StringComparer]::OrdinalIgnoreCase.Compare(
+            [string]$left.path,
+            [string]$right.path
+        )
+        if ($primary -ne 0) {
+            return $primary
+        }
+        return [StringComparer]::Ordinal.Compare(
+            [string]$left.path,
+            [string]$right.path
+        )
+    }
+    $ordered.Sort($comparison)
+    return @($ordered)
+}
+
 function Write-JsonNoBom {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
@@ -35,6 +64,15 @@ function Write-JsonNoBom {
         ($Value | ConvertTo-Json -Depth 20),
         [Text.UTF8Encoding]::new($false)
     )
+}
+
+function Read-JsonUtf8 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    return [IO.File]::ReadAllText(
+        $Path,
+        [Text.Encoding]::UTF8
+    ) | ConvertFrom-Json
 }
 
 function Add-SnapshotEntry {
@@ -66,6 +104,46 @@ function Add-SnapshotEntry {
         ContentBase64 = [Convert]::ToBase64String($Bytes)
         ByteSha256 = $hash
     })
+}
+
+function Get-SnapshotTreeSha256 {
+    param([Parameter(Mandatory = $true)]$Snapshot)
+
+    $contents = @{}
+    foreach ($file in @($Snapshot.Files)) {
+        $contents[[string]$file.Path] = [Convert]::FromBase64String(
+            [string]$file.ContentBase64
+        )
+    }
+    $canonical = @($Snapshot.Manifest.Entries | ForEach-Object {
+        $path = [string]$_.Path
+        if ([bool]$_.Exists) {
+            $bytes = $contents[$path]
+            [pscustomobject]@{
+                path = $path
+                line = "$path`ttrue`t$($bytes.Length)`t$(Get-Sha256Hex -Bytes $bytes)"
+            }
+        } else {
+            [pscustomobject]@{
+                path = $path
+                line = "$path`tfalse`t0`t"
+            }
+        }
+    })
+    $lines = @(Sort-CanonicalFilesOrdinal -Files $canonical | ForEach-Object {
+        $_.line
+    })
+    return Get-Sha256Hex -Bytes (
+        [Text.Encoding]::UTF8.GetBytes(($lines -join "`n") + "`n")
+    )
+}
+
+function Get-ContextIdentitySha256 {
+    param([Parameter(Mandatory = $true)]$Context)
+
+    $text =
+        "$([string]$Context.SteamId64)`0$(([string]$Context.SaveNamespace).ToLowerInvariant())`0$([string]$Context.RuntimeIdentity)`0$([string]$Context.ModSetFingerprint)`0"
+    return Get-Sha256Hex -Bytes ([Text.Encoding]::UTF8.GetBytes($text))
 }
 
 New-Item -ItemType Directory -Path $testRoot | Out-Null
@@ -101,6 +179,22 @@ try {
                 -Manifest $entries `
                 -Files $files
         }
+    }
+    $historyNames = @(
+        'a',
+        'i',
+        'z',
+        [string][char]0x00e4,
+        [string][char]0x00e5,
+        [string][char]0x0130,
+        [string][char]0x0131
+    )
+    foreach ($historyName in $historyNames) {
+        Add-SnapshotEntry `
+            -Path "profile1/saves/history/$historyName.run" `
+            -Bytes ([Text.Encoding]::UTF8.GetBytes("history:$historyName")) `
+            -Manifest $entries `
+            -Files $files
     }
     $recoveryEntries = [Collections.Generic.List[object]]::new()
     $recoveryFiles = [Collections.Generic.List[object]]::new()
@@ -157,27 +251,32 @@ try {
         UndoSnapshotSha256 = $recoverySnapshotId
         AppliedSnapshotSha256 = $recoverySnapshotId
     } | ConvertTo-Json -Compress
+    $selectedContext = [ordered]@{
+        SteamId64 = 76561198000000001
+        SaveNamespace = 'Vanilla'
+        RuntimeIdentity = 'public'
+        ModSetFingerprint = ''
+    }
+    $currentSnapshot = [ordered]@{
+        Version = 2
+        ContextMarker = $contextMarker
+        Coverage = 'full'
+        SourceKind = 'local-recovery'
+        SourceLabel = 'support-export-current-android'
+        CapturedUtc = [DateTime]::UtcNow.ToString('o')
+        Manifest = [ordered]@{ Version = 1; Entries = @($entries) }
+        Files = @($files)
+    }
     $bundle = [ordered]@{
         Version = 2
+        ExportId = '0123456789abcdef0123456789abcdef'
+        CurrentAndroidTreeSha256 = Get-SnapshotTreeSha256 -Snapshot $currentSnapshot
+        SelectedSaveContextSha256 = Get-ContextIdentitySha256 -Context $selectedContext
         OriginalSourcesWereModified = $false
         SteamWasContacted = $false
         CloudSyncEnabled = $true
-        SelectedSaveContext = [ordered]@{
-            SteamId64 = 76561198000000001
-            SaveNamespace = 'Vanilla'
-            RuntimeIdentity = 'public'
-            ModSetFingerprint = ''
-        }
-        CurrentAndroidSnapshot = [ordered]@{
-            Version = 2
-            ContextMarker = $contextMarker
-            Coverage = 'full'
-            SourceKind = 'local-recovery'
-            SourceLabel = 'support-export-current-android'
-            CapturedUtc = [DateTime]::UtcNow.ToString('o')
-            Manifest = [ordered]@{ Version = 1; Entries = @($entries) }
-            Files = @($files)
-        }
+        SelectedSaveContext = $selectedContext
+        CurrentAndroidSnapshot = $currentSnapshot
         RecoverySnapshots = @([ordered]@{
             CandidateId = $recoverySnapshotId
             SourceKind = 'transfer-backup'
@@ -204,6 +303,11 @@ try {
         AutomaticSyncBaselineJson = $baselineJson
         AutomaticSyncBeforeGameSnapshotJson = ''
     }
+    $expectedCanonicalTreeSha256 =
+        'a89a0a8151e69de8e8fff755ba3840cb1c7d3617de83bc7a800fd54834e8ec40'
+    if ($bundle.CurrentAndroidTreeSha256 -ne $expectedCanonicalTreeSha256) {
+        throw "PowerShell canonical tree ordering changed: $($bundle.CurrentAndroidTreeSha256)"
+    }
     Write-JsonNoBom -Path $bundlePath -Value $bundle
 
     & $androidVerifier `
@@ -214,10 +318,21 @@ try {
         -ExpectedRuntimeIdentity public `
         -ExpectedModSetFingerprint '' `
         -RequireCloudSyncEnabled
-    $androidManifest = Get-Content -LiteralPath $androidManifestPath -Raw |
-        ConvertFrom-Json
+    $androidManifest = Read-JsonUtf8 -Path $androidManifestPath
     if ($androidManifest.kind -ne 'stage5-android-save-manifest' -or
-        $androidManifest.snapshot.files.Count -ne 16 -or
+        $androidManifest.exportBinding.event -ne
+            'save-recovery-export-complete' -or
+        $androidManifest.exportBinding.version -ne 1 -or
+        $androidManifest.exportBinding.exportId -ne $bundle.ExportId -or
+        $androidManifest.exportBinding.bundleSha256 -ne
+            (Get-Sha256Hex -Bytes ([IO.File]::ReadAllBytes($bundlePath))) -or
+        $androidManifest.exportBinding.currentAndroidTreeSha256 -ne
+            $bundle.CurrentAndroidTreeSha256 -or
+        $androidManifest.exportBinding.selectedSaveContextSha256 -ne
+            $bundle.SelectedSaveContextSha256 -or
+        $androidManifest.snapshot.files.Count -ne 23 -or
+        $androidManifest.snapshot.treeSha256 -ne
+            $expectedCanonicalTreeSha256 -or
         $androidManifest.recoverySnapshots.Count -ne 1 -or
         -not $androidManifest.launcherState.pending.present -or
         $androidManifest.launcherState.pending.phase -ne 'game-running' -or
@@ -241,7 +356,7 @@ try {
 
     $badAndroidBundlePath = Join-Path $testRoot 'bad-android-context-bundle.json'
     $badAndroidOutputPath = Join-Path $testRoot 'bad-android-context-manifest.json'
-    $badAndroidBundle = Get-Content -LiteralPath $bundlePath -Raw | ConvertFrom-Json
+    $badAndroidBundle = Read-JsonUtf8 -Path $bundlePath
     $badAndroidBundle.CurrentAndroidSnapshot.ContextMarker = ([ordered]@{
         Version = 1
         SteamId64 = 76561198000000001
@@ -268,6 +383,46 @@ try {
         throw "Android recovery-bundle verifier did not reject a snapshot context mismatch."
     }
 
+    foreach ($bindingCase in @(
+        [pscustomobject]@{
+            Name = 'tree'
+            Property = 'CurrentAndroidTreeSha256'
+            Value = 'f' * 64
+        },
+        [pscustomobject]@{
+            Name = 'context'
+            Property = 'SelectedSaveContextSha256'
+            Value = 'e' * 64
+        }
+    )) {
+        $badBindingBundlePath = Join-Path $testRoot (
+            "bad-$($bindingCase.Name)-binding-bundle.json"
+        )
+        $badBindingOutputPath = Join-Path $testRoot (
+            "bad-$($bindingCase.Name)-binding-manifest.json"
+        )
+        $badBindingBundle = Read-JsonUtf8 -Path $bundlePath
+        $badBindingBundle.($bindingCase.Property) = $bindingCase.Value
+        Write-JsonNoBom -Path $badBindingBundlePath -Value $badBindingBundle
+        $badBindingRejected = $false
+        try {
+            & $androidVerifier `
+                -BundlePath $badBindingBundlePath `
+                -OutputPath $badBindingOutputPath `
+                -Namespace Vanilla `
+                -ExpectedSteamId64 '76561198000000001' `
+                -ExpectedRuntimeIdentity public `
+                -ExpectedModSetFingerprint '' `
+                -RequireCloudSyncEnabled
+        } catch {
+            $badBindingRejected = $true
+        }
+        if (-not $badBindingRejected -or
+            (Test-Path -LiteralPath $badBindingOutputPath)) {
+            throw "Android recovery-bundle verifier accepted a tampered $($bindingCase.Name) identity."
+        }
+    }
+
     foreach ($propertyName in @(
         'OriginalSourcesWereModified',
         'SteamWasContacted',
@@ -279,8 +434,7 @@ try {
         $missingBooleanOutputPath = Join-Path $testRoot (
             "missing-$($propertyName.ToLowerInvariant())-manifest.json"
         )
-        $missingBooleanBundle = Get-Content -LiteralPath $bundlePath -Raw |
-            ConvertFrom-Json
+        $missingBooleanBundle = Read-JsonUtf8 -Path $bundlePath
         $missingBooleanBundle.PSObject.Properties.Remove($propertyName)
         Write-JsonNoBom `
             -Path $missingBooleanBundlePath `
@@ -309,8 +463,7 @@ try {
         $stringBooleanOutputPath = Join-Path $testRoot (
             "string-$($propertyName.ToLowerInvariant())-manifest.json"
         )
-        $stringBooleanBundle = Get-Content -LiteralPath $bundlePath -Raw |
-            ConvertFrom-Json
+        $stringBooleanBundle = Read-JsonUtf8 -Path $bundlePath
         $stringBooleanBundle.$propertyName = 'false'
         Write-JsonNoBom `
             -Path $stringBooleanBundlePath `
@@ -346,8 +499,7 @@ try {
         $versionThreeOutputPath = Join-Path $testRoot (
             "version-3-$versionTarget-manifest.json"
         )
-        $versionThreeBundle = Get-Content -LiteralPath $bundlePath -Raw |
-            ConvertFrom-Json
+        $versionThreeBundle = Read-JsonUtf8 -Path $bundlePath
         switch ($versionTarget) {
             'bundle' {
                 $versionThreeBundle.Version = 3
@@ -359,9 +511,9 @@ try {
                 $versionThreeBundle.RecoverySnapshots[0].Snapshot.Version = 3
             }
             'before-game-snapshot' {
-                $beforeGameSnapshot = Get-Content -LiteralPath $bundlePath -Raw |
-                    ConvertFrom-Json |
-                    Select-Object -ExpandProperty CurrentAndroidSnapshot
+                $beforeGameSnapshot = (
+                    Read-JsonUtf8 -Path $bundlePath
+                ).CurrentAndroidSnapshot
                 $beforeGameSnapshot.Version = 3
                 $versionThreeBundle.AutomaticSyncBeforeGameSnapshotJson =
                     $beforeGameSnapshot | ConvertTo-Json -Depth 20 -Compress
@@ -391,7 +543,7 @@ try {
 
     $restoreBundlePath = Join-Path $testRoot 'restore-held-bundle.json'
     $restoreManifestPath = Join-Path $testRoot 'restore-held-manifest.json'
-    $restoreBundle = Get-Content -LiteralPath $bundlePath -Raw | ConvertFrom-Json
+    $restoreBundle = Read-JsonUtf8 -Path $bundlePath
     $restoreBundle.CloudSyncEnabled = $false
     $restoreBundle.AutomaticSyncPendingJson = ''
     Write-JsonNoBom -Path $restoreBundlePath -Value $restoreBundle
@@ -402,8 +554,7 @@ try {
         -ExpectedSteamId64 '76561198000000001' `
         -ExpectedRuntimeIdentity public `
         -ExpectedModSetFingerprint ''
-    $restoreManifest = Get-Content -LiteralPath $restoreManifestPath -Raw |
-        ConvertFrom-Json
+    $restoreManifest = Read-JsonUtf8 -Path $restoreManifestPath
     if ($restoreManifest.cloudSyncEnabled -or
         $restoreManifest.launcherState.pending.present -or
         $restoreManifest.launcherState.recoveryJournal.phase -ne
@@ -444,17 +595,44 @@ try {
         -CaptureMethod 'deterministic fixture' `
         -RetainedImmutableSource `
         -OutputPath $steamManifestPath
-    $steamManifest = Get-Content -LiteralPath $steamManifestPath -Raw |
-        ConvertFrom-Json
+    $steamManifest = Read-JsonUtf8 -Path $steamManifestPath
     $remoteProgress = @($steamManifest.files | Where-Object {
         $_.path -eq 'profile1/saves/progress.save'
     })
     if ($steamManifest.kind -ne 'stage5-live-steam-save-manifest' -or
+        $steamManifest.schemaVersion -ne 2 -or
         $steamManifest.appId -ne 2868840 -or
+        $steamManifest.selectedContextMarker.state -ne 'present-valid' -or
+        -not $steamManifest.selectedContextMarker.exists -or
+        $steamManifest.selectedContextEvidence.kind -ne
+            'selected-context-marker' -or
         $remoteProgress.Count -ne 1 -or
         -not $remoteProgress[0].exists -or
         $remoteProgress[0].sha256 -ne (Get-Sha256Hex -Bytes $specialBytes)) {
         throw "Live Steam manifest did not preserve the exact fixture bytes."
+    }
+
+    $presentFailureOutput = Join-Path $testRoot 'present-marker-failure-capture.json'
+    $presentFailureRejected = $false
+    try {
+        & $steamCapture `
+            -SteamCloudRoot $steamRoot `
+            -SelectedNamespace Vanilla `
+            -ExpectedSteamId64 '76561198000000001' `
+            -ExpectedRuntimeIdentity public `
+            -ExpectedModSetFingerprint '' `
+            -SteamSyncEvidencePath $steamEvidence `
+            -CaptureMethod 'deterministic fixture' `
+            -RetainedImmutableSource `
+            -CaptureFailedTransferWithMissingSelectedMarker `
+            -BeforeSteamManifestPath $steamManifestPath `
+            -OutputPath $presentFailureOutput
+    } catch {
+        $presentFailureRejected = $true
+    }
+    if (-not $presentFailureRejected -or
+        (Test-Path -LiteralPath $presentFailureOutput)) {
+        throw "Failure-mode Steam capture accepted a present selected marker."
     }
 
     $badOutput = Join-Path $testRoot "bad-context.json"
@@ -477,7 +655,129 @@ try {
         throw "Live Steam manifest did not reject a context mismatch before writing output."
     }
 
-    Write-Host "Stage 5 save evidence manifest tests passed: 7/7"
+    $missingSteamRoot = Join-Path $testRoot 'steam-remote-missing-marker'
+    $missingProgressPath = Join-Path `
+        (Join-Path (Join-Path $missingSteamRoot 'profile1') 'saves') `
+        'progress.save'
+    New-Item `
+        -ItemType Directory `
+        -Force `
+        -Path (Split-Path -Parent $missingProgressPath) | Out-Null
+    [IO.File]::WriteAllBytes($missingProgressPath, $specialBytes)
+
+    $missingDefaultOutput = Join-Path $testRoot 'missing-marker-default.json'
+    $missingDefaultRejected = $false
+    try {
+        & $steamCapture `
+            -SteamCloudRoot $missingSteamRoot `
+            -SelectedNamespace Vanilla `
+            -ExpectedSteamId64 '76561198000000001' `
+            -ExpectedRuntimeIdentity public `
+            -ExpectedModSetFingerprint '' `
+            -SteamSyncEvidencePath $steamEvidence `
+            -CaptureMethod 'deterministic fixture' `
+            -RetainedImmutableSource `
+            -OutputPath $missingDefaultOutput
+    } catch {
+        $missingDefaultRejected = $true
+    }
+    if (-not $missingDefaultRejected -or
+        (Test-Path -LiteralPath $missingDefaultOutput)) {
+        throw "Default Steam capture accepted a missing selected marker."
+    }
+
+    $missingFailureOutput = Join-Path $testRoot 'missing-marker-failure.json'
+    & $steamCapture `
+        -SteamCloudRoot $missingSteamRoot `
+        -SelectedNamespace Vanilla `
+        -ExpectedSteamId64 '76561198000000001' `
+        -ExpectedRuntimeIdentity public `
+        -ExpectedModSetFingerprint '' `
+        -SteamSyncEvidencePath $steamEvidence `
+        -CaptureMethod 'deterministic fixture' `
+        -RetainedImmutableSource `
+        -CaptureFailedTransferWithMissingSelectedMarker `
+        -BeforeSteamManifestPath $steamManifestPath `
+        -OutputPath $missingFailureOutput
+    $missingFailureManifest = Read-JsonUtf8 -Path $missingFailureOutput
+    $missingSelectedMarker = @($missingFailureManifest.files | Where-Object {
+        $_.path -eq '.sts2-launcher/contexts/vanilla.json'
+    })
+    if ($missingFailureManifest.schemaVersion -ne 2 -or
+        $missingFailureManifest.selectedContextMarker.state -ne
+            'missing-tombstone-after-failed-transfer' -or
+        $missingFailureManifest.selectedContextMarker.exists -or
+        $missingFailureManifest.selectedContext.steamId64 -ne
+            '76561198000000001' -or
+        $missingFailureManifest.selectedContext.runtimeIdentity -ne 'public' -or
+        $missingFailureManifest.selectedContextEvidence.kind -ne
+            'before-steam-manifest' -or
+        $missingFailureManifest.selectedContextEvidence.sha256 -ne
+            (Get-Sha256Hex -Bytes ([IO.File]::ReadAllBytes($steamManifestPath))) -or
+        $missingSelectedMarker.Count -ne 1 -or
+        $missingSelectedMarker[0].exists) {
+        throw "Failure-mode Steam capture did not preserve its missing marker and independent SaveContext evidence."
+    }
+
+    $invalidPendingPath = Join-Path $testRoot 'invalid-pending-sync.json'
+    Write-JsonNoBom -Path $invalidPendingPath -Value ([ordered]@{
+        Version = 1
+        Phase = 'uploading'
+        ContextMarker = '{not-json'
+    })
+    $invalidPendingOutput = Join-Path $testRoot 'invalid-pending-output.json'
+    $invalidPendingRejected = $false
+    try {
+        & $steamCapture `
+            -SteamCloudRoot $missingSteamRoot `
+            -SelectedNamespace Vanilla `
+            -ExpectedSteamId64 '76561198000000001' `
+            -ExpectedRuntimeIdentity public `
+            -ExpectedModSetFingerprint '' `
+            -SteamSyncEvidencePath $steamEvidence `
+            -CaptureMethod 'deterministic fixture' `
+            -RetainedImmutableSource `
+            -CaptureFailedTransferWithMissingSelectedMarker `
+            -PendingSyncRecordPath $invalidPendingPath `
+            -OutputPath $invalidPendingOutput
+    } catch {
+        $invalidPendingRejected = $true
+    }
+    if (-not $invalidPendingRejected -or
+        (Test-Path -LiteralPath $invalidPendingOutput)) {
+        throw "Failure-mode Steam capture accepted invalid pending SaveContext evidence."
+    }
+
+    $goodPendingPath = Join-Path $testRoot 'pending-sync.json'
+    [IO.File]::WriteAllText(
+        $goodPendingPath,
+        $pendingJson,
+        [Text.UTF8Encoding]::new($false)
+    )
+    $mismatchedPendingOutput = Join-Path $testRoot 'mismatched-pending-output.json'
+    $mismatchedPendingRejected = $false
+    try {
+        & $steamCapture `
+            -SteamCloudRoot $missingSteamRoot `
+            -SelectedNamespace Vanilla `
+            -ExpectedSteamId64 '76561198000000001' `
+            -ExpectedRuntimeIdentity public-beta `
+            -ExpectedModSetFingerprint '' `
+            -SteamSyncEvidencePath $steamEvidence `
+            -CaptureMethod 'deterministic fixture' `
+            -RetainedImmutableSource `
+            -CaptureFailedTransferWithMissingSelectedMarker `
+            -PendingSyncRecordPath $goodPendingPath `
+            -OutputPath $mismatchedPendingOutput
+    } catch {
+        $mismatchedPendingRejected = $true
+    }
+    if (-not $mismatchedPendingRejected -or
+        (Test-Path -LiteralPath $mismatchedPendingOutput)) {
+        throw "Failure-mode Steam capture accepted mismatched expected SaveContext evidence."
+    }
+
+    Write-Host "Stage 5 save evidence manifest tests passed: 10/10"
 } finally {
     $resolvedTestRoot = [IO.Path]::GetFullPath($testRoot)
     $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd(

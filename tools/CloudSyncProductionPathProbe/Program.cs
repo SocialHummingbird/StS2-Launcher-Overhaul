@@ -179,10 +179,10 @@ internal static class Program
         Console.WriteLine(
             $"Cloud sync production-path probe passed "
                 + $"{_passed + automaticPassed + recoveryPassed + filesystemPassed}"
-                + "/69 scenarios."
+                + "/70 scenarios."
         );
         Console.WriteLine(
-            "The 69-scenario audit above used filesystem/in-memory local stores and the deterministic fake Steam store only; no credentials, network, hardware, or real Steam Cloud operation was used."
+            "The 70-scenario audit above used filesystem/in-memory local stores and the deterministic fake Steam store only; no credentials, network, hardware, or real Steam Cloud operation was used."
         );
         await Stage5ProcessDeathProbe.RunAllAsync().ConfigureAwait(false);
     }

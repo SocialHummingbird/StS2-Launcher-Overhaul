@@ -238,6 +238,7 @@ internal static partial class CloudSyncCoordinator
         ).ConfigureAwait(false);
 
         var status = InspectSaveRecoveryStatus(local);
+        SaveEvidenceEvents.RecoveryTerminal("restore");
         return new SaveRecoveryOperationResult(
             "Restored on Android only. Steam was not contacted or changed. Open the save locally, validate it, then explicitly approve sync.",
             status
@@ -477,6 +478,7 @@ internal static partial class CloudSyncCoordinator
             .ConfigureAwait(false);
 
         var status = InspectSaveRecoveryStatus(local);
+        SaveEvidenceEvents.RecoveryTerminal("undo");
         return new SaveRecoveryOperationResult(
             "Undo completed byte-for-byte on Android. Steam was not contacted or changed.",
             status

@@ -26,7 +26,7 @@ Historical manual Pull/Push, branch, mod, startup-recovery, and x86_64 emulator 
 
 Until physical-device testing starts, keep validation deterministic and local: use filesystem fixtures for vanilla/modded and public/beta contexts, the existing fake Steam store for success and injected failures, and test-process termination between persisted transitions to prove restart recovery. These checks are required regression coverage, but they do not satisfy a device row. Existing Android logs stay in place as historical regression evidence.
 
-Current desktop evidence passes 69/69 integrated transfer/automatic-sync/recovery scenarios, including 9/9 filesystem scenarios, plus 118/118 hard child-process termination edges (Begin 12, upload 32, Pull 30, Restore 28, Undo 16). Local gameplay safety passes 4/4, legacy recovery passes 6/6, and local backup-only recovery passes 5/5. These results use no device, credentials, network, or real Steam Cloud operation.
+Current desktop evidence passes 70/70 integrated transfer/automatic-sync/recovery scenarios, including 9/9 filesystem scenarios, plus 118/118 hard child-process termination edges (Begin 12, upload 32, Pull 30, Restore 28, Undo 16). Local gameplay safety passes 4/4, legacy recovery passes 6/6, and local backup-only recovery passes 5/5. These results use no device, credentials, network, or real Steam Cloud operation.
 
 | Required exact-candidate device row | Current evidence |
 | --- | --- |
@@ -55,6 +55,8 @@ Preserve existing Android artifacts in place. Create a read-only hash inventory 
   -OutputPath artifacts\stage5-android-regression-evidence-inventory.json
 ```
 
+The preserved historical tree was sealed on 2026-08-08 at source commit `c0ad9d78a842ba9f126d828a8c7627251f5ee371`: 14,896 files, 36,858,265,297 bytes, manifest SHA-256 `b86ac021fd4c98def319d3fd75a59f82f9d1268b13b3a0bb8762b47f34eccf73`. The ignored manifest remains at the path above so its contents can be rechecked without committing 6 MB of generated inventory. This seal is historical regression evidence only and satisfies zero current device rows.
+
 For a new exact-candidate capture, use the read-only wrapper and pass the candidate APK plus the full source commit so the capture records both candidate and installed hashes. If ADB is unauthorized, the collector exits before creating an evidence directory. If the exact package is non-debuggable, it records private-file evidence as unavailable rather than treating filenames or UI messages as byte proof. The published v0.2.416 APK is nondebuggable, so do not claim that ADB can export its private saves before the update. The verified in-app export introduced by the update-compatible candidate is the byte authority.
 
 ```powershell
@@ -68,7 +70,7 @@ For a new exact-candidate capture, use the read-only wrapper and pass the candid
   -LogcatSince "MM-dd HH:mm:ss.fff"
 ```
 
-The signed candidate is expected to be non-debuggable. Treat the verified in-app recovery export as the Android byte authority; `run-as` availability is optional collector cross-check evidence, not a matrix prerequisite. Convert every retained export phase into its canonical manifest:
+The signed candidate is expected to be non-debuggable. Treat the verified in-app recovery export as the Android byte authority; `run-as` availability is optional collector cross-check evidence, not a matrix prerequisite. Record `LogcatSince` before the phase, perform the in-app export while that scenario window is active, and retain the collector's raw `logcat.txt`. A completed export emits one `STS2_SAVE_EXPORT_COMPLETE` JSON line only after byte-for-byte write/read-back verification. Convert every retained export phase into its canonical manifest:
 
 ```powershell
 .\scripts\verify-stage5-android-save-bundle.ps1 `
@@ -101,7 +103,9 @@ Create one matrix, replace its placeholders with the exact candidate, device, co
   -OutputPath artifacts\stage5-physical-matrix-review.json
 ```
 
-The reviewer requires all 10 rows, both row 9 failure subcases, exact candidate/source/device binding, row-specific machine checks, and a later independent live-Steam equality check for every `Synced` log. Its deterministic fixture test is regression coverage only and cannot satisfy a physical-device row.
+The verifier independently recomputes the exported save tree and SaveContext identities and records them with the ExportId and exact bundle SHA-256. The reviewer requires that complete identity to match an inventoried raw completion line captured from the bound candidate and device, including when `run-as` is unavailable. A bundle or canonical manifest copied from another capture therefore cannot be substituted silently.
+
+The reviewer also requires all 10 rows, both row 9 failure subcases, exact candidate/source/device binding, row-specific machine checks, and a later independent live-Steam equality check for every `Synced` log. Its deterministic fixture test is regression coverage only and cannot satisfy a physical-device row.
 
 Use the existing `cloud_sync_enabled` setting throughout this matrix. Do not add a production feature flag or alternate sync mode to make a row easier to test.
 

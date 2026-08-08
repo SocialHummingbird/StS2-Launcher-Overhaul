@@ -26,7 +26,7 @@ internal static partial class CloudSyncCoordinator
         var marker = await ProbeRemoteContextAsync(sync, context)
             .ConfigureAwait(false);
         if (marker.Status == AutomaticRemoteContextStatus.Mismatch)
-            return AutomaticConflict(marker.Problem);
+            return AutomaticConflict(marker.Problem, marker.Detail);
 
         var localSnapshot = await CaptureAutomaticSnapshotAsync(
             sync,
@@ -74,7 +74,7 @@ internal static partial class CloudSyncCoordinator
                 destinationTarget
             );
             if (!string.IsNullOrEmpty(markerProblem))
-                return AutomaticConflict(markerProblem);
+                return AutomaticConflict(markerProblem, marker.Detail);
         }
         else if (marker.Status == AutomaticRemoteContextStatus.Missing
             && !pending.RemoteMarkerBaseline.Exists)
@@ -93,11 +93,17 @@ internal static partial class CloudSyncCoordinator
             marker = await ProbeRemoteContextAsync(sync, context)
                 .ConfigureAwait(false);
             if (marker.Status != AutomaticRemoteContextStatus.Exact)
-                return AutomaticConflict(RemoteContextProblem(marker));
+                return AutomaticConflict(
+                    RemoteContextProblem(marker),
+                    marker.Detail
+                );
         }
         else if (marker.Status != AutomaticRemoteContextStatus.Exact)
         {
-            return AutomaticConflict(RemoteContextProblem(marker));
+            return AutomaticConflict(
+                RemoteContextProblem(marker),
+                marker.Detail
+            );
         }
 
         var incompletePullExists = direction == CloudOperationKind.Pull
@@ -127,7 +133,10 @@ internal static partial class CloudSyncCoordinator
         var finalMarker = await ProbeRemoteContextAsync(sync, context)
             .ConfigureAwait(false);
         if (finalMarker.Status != AutomaticRemoteContextStatus.Exact)
-            return AutomaticConflict(RemoteContextProblem(finalMarker));
+            return AutomaticConflict(
+                RemoteContextProblem(finalMarker),
+                finalMarker.Detail
+            );
         var finalLocal = await CaptureAutomaticSnapshotAsync(
             sync,
             CloudOperationKind.Push,
@@ -212,7 +221,8 @@ internal static partial class CloudSyncCoordinator
             return new AutomaticRemoteContextProbe(
                 AutomaticRemoteContextStatus.Missing,
                 AutomaticFileState.Missing,
-                "Steam Cloud saves have no launcher save-context marker"
+                "Steam Cloud saves have no launcher save-context marker",
+                AutomaticSyncEvidenceDetail.ContextMissing
             );
         }
 
@@ -233,7 +243,8 @@ internal static partial class CloudSyncCoordinator
             return new AutomaticRemoteContextProbe(
                 AutomaticRemoteContextStatus.Unreadable,
                 state,
-                ex.Message
+                ex.Message,
+                AutomaticSyncEvidenceDetail.ContextUnreadable
             );
         }
 
@@ -243,7 +254,8 @@ internal static partial class CloudSyncCoordinator
             return new AutomaticRemoteContextProbe(
                 AutomaticRemoteContextStatus.Exact,
                 state,
-                ""
+                "",
+                AutomaticSyncEvidenceDetail.Unspecified
             );
         }
         catch (InvalidOperationException ex)
@@ -251,7 +263,8 @@ internal static partial class CloudSyncCoordinator
             return new AutomaticRemoteContextProbe(
                 AutomaticRemoteContextStatus.Mismatch,
                 state,
-                ex.Message
+                ex.Message,
+                SaveEvidenceEvents.ContextMismatch(context, remote)
             );
         }
     }

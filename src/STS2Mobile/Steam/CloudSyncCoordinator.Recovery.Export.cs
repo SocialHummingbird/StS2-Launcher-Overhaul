@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,9 @@ internal static partial class CloudSyncCoordinator
     private sealed class SaveRecoveryExportBundle
     {
         public int Version { get; set; } = SaveRecoveryExportVersion;
+        public string ExportId { get; set; } = "";
+        public string CurrentAndroidTreeSha256 { get; set; } = "";
+        public string SelectedSaveContextSha256 { get; set; } = "";
         public DateTimeOffset CreatedUtc { get; set; }
         public string Warning { get; set; } = "";
         public string SelectedCandidateId { get; set; } = "";
@@ -221,21 +225,23 @@ internal static partial class CloudSyncCoordinator
             "support-export-current-android",
             cancellationToken
         ).ConfigureAwait(false);
+        var selectedSaveContext = new SaveRecoveryExportSelectedSaveContext
+        {
+            SaveNamespace = RecoveryNamespaceName(selection.Namespace),
+            RuntimeIdentity = selection.RuntimeIdentity,
+            ModSetFingerprint = selection.ModSetFingerprint,
+            SteamId64 = exactContext?.SteamId64 ?? 0,
+        };
         var bundle = new SaveRecoveryExportBundle
         {
+            ExportId = Guid.NewGuid().ToString("N"),
             CreatedUtc = DateTimeOffset.UtcNow,
             Warning =
                 "Contains raw game save bytes and may contain Steam account identifiers. Share only with trusted support staff.",
             OriginalSourcesWereModified = false,
             SteamWasContacted = false,
             CloudSyncEnabled = cloudSyncEnabled,
-            SelectedSaveContext = new SaveRecoveryExportSelectedSaveContext
-            {
-                SaveNamespace = RecoveryNamespaceName(selection.Namespace),
-                RuntimeIdentity = selection.RuntimeIdentity,
-                ModSetFingerprint = selection.ModSetFingerprint,
-                SteamId64 = exactContext?.SteamId64 ?? 0,
-            },
+            SelectedSaveContext = selectedSaveContext,
             CurrentAndroidSnapshot = current,
             RecoveryHoldJson = ReadOptionalLocalText(
                 local,
@@ -244,6 +250,10 @@ internal static partial class CloudSyncCoordinator
             RecoveryJournalJson = recoveryJournalJson,
             AutomaticSyncPendingJson = pendingJson,
         };
+        bundle.CurrentAndroidTreeSha256 =
+            ComputeSaveRecoveryExportTreeSha256(current, exactContext);
+        bundle.SelectedSaveContextSha256 =
+            ComputeSaveRecoveryExportContextSha256(selectedSaveContext);
         if (exactContext.HasValue)
         {
             var context = exactContext.Value;
@@ -284,6 +294,64 @@ internal static partial class CloudSyncCoordinator
 
         return bundle;
     }
+
+    private static string ComputeSaveRecoveryExportTreeSha256(
+        AutomaticSaveSnapshot snapshot,
+        SaveContext? exactContext
+    )
+    {
+        ValidateAutomaticSnapshotPayload(
+            snapshot,
+            exactContext,
+            allowUnknownContext: !exactContext.HasValue
+        );
+        var lines = snapshot.Manifest.Entries
+            .Select(entry =>
+            {
+                var path = CloudSavePath.Relative(entry.Path);
+                if (!entry.Exists)
+                    return (Path: path, Line: $"{path}\tfalse\t0\t");
+
+                var bytes = ReadSnapshotFileBytes(snapshot, path);
+                var sha256 = AutomaticSyncHash.Compute(bytes);
+                if (!string.Equals(
+                        sha256,
+                        entry.ByteSha256,
+                        StringComparison.OrdinalIgnoreCase
+                    ))
+                {
+                    throw new InvalidDataException(
+                        $"Current Android export byte hash changed at {path}"
+                    );
+                }
+                return (
+                    Path: path,
+                    Line: $"{path}\ttrue\t{bytes.LongLength}\t{sha256}"
+                );
+            })
+            .OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Path, StringComparer.Ordinal)
+            .Select(item => item.Line);
+        return AutomaticSyncHash.Compute(
+            Encoding.UTF8.GetBytes(string.Join("\n", lines) + "\n")
+        );
+    }
+
+    private static string ComputeSaveRecoveryExportContextSha256(
+        SaveRecoveryExportSelectedSaveContext context
+    )
+        => AutomaticSyncHash.Compute(
+            Encoding.UTF8.GetBytes(
+                context.SteamId64
+                    + "\0"
+                    + context.SaveNamespace
+                    + "\0"
+                    + context.RuntimeIdentity
+                    + "\0"
+                    + context.ModSetFingerprint
+                    + "\0"
+            )
+        );
 
     private static async Task<long> IncludeRecoveryJournalSnapshotsAsync(
         ISaveStore local,

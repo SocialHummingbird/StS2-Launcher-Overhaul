@@ -19,7 +19,9 @@ internal enum AutomaticSyncOutcome
 
 internal readonly record struct AutomaticSyncResult(
     AutomaticSyncOutcome Outcome,
-    string Message
+    string Message,
+    AutomaticSyncEvidenceDetail Detail = AutomaticSyncEvidenceDetail.Unspecified,
+    bool RemoteVerified = false
 )
 {
     internal bool CanStartGame

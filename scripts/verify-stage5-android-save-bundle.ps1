@@ -92,6 +92,35 @@ function Get-Utf8TextSha256 {
     return Get-Sha256Hex -Bytes ([Text.Encoding]::UTF8.GetBytes($Text))
 }
 
+function Sort-CanonicalFilesOrdinal {
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.Collections.IEnumerable]$Files
+    )
+
+    $ordered = [Collections.Generic.List[object]]::new()
+    foreach ($file in $Files) {
+        $ordered.Add($file)
+    }
+    $comparison = [Comparison[object]] {
+        param($left, $right)
+
+        $primary = [StringComparer]::OrdinalIgnoreCase.Compare(
+            [string]$left.path,
+            [string]$right.path
+        )
+        if ($primary -ne 0) {
+            return $primary
+        }
+        return [StringComparer]::Ordinal.Compare(
+            [string]$left.path,
+            [string]$right.path
+        )
+    }
+    $ordered.Sort($comparison)
+    return @($ordered)
+}
+
 function Read-EmbeddedJson {
     param(
         [AllowEmptyString()][string]$Content,
@@ -302,9 +331,7 @@ function Convert-VerifiedSnapshot {
         }
     }
 
-    $sortedFiles = @($canonicalFiles | Sort-Object -Property @{ Expression = {
-        $_.path.ToLowerInvariant()
-    } }, @{ Expression = { $_.path } })
+    $sortedFiles = @(Sort-CanonicalFilesOrdinal -Files $canonicalFiles)
     $treeLines = $sortedFiles | ForEach-Object {
         "$($_.path)`t$($_.exists.ToString().ToLowerInvariant())`t$($_.sizeBytes)`t$($_.sha256)"
     }
@@ -333,6 +360,18 @@ try {
 
 if ([int]$bundle.Version -ne 2) {
     throw "Recovery bundle has an unsupported version; expected Version 2."
+}
+$exportId = [string]$bundle.ExportId
+$reportedCurrentTreeSha256 = [string]$bundle.CurrentAndroidTreeSha256
+$reportedContextSha256 = [string]$bundle.SelectedSaveContextSha256
+if ($exportId -notmatch '^[0-9a-f]{32}$') {
+    throw "Recovery bundle has no valid lowercase ExportId."
+}
+if ($reportedCurrentTreeSha256 -notmatch '^[0-9a-f]{64}$') {
+    throw "Recovery bundle has no valid current Android tree identity."
+}
+if ($reportedContextSha256 -notmatch '^[0-9a-f]{64}$') {
+    throw "Recovery bundle has no valid selected SaveContext identity."
 }
 
 $originalSourcesWereModified = Require-JsonBoolean `
@@ -402,6 +441,12 @@ if ([string]::IsNullOrWhiteSpace($runtimeIdentity)) {
 if ($RequireCloudSyncEnabled -and -not $cloudSyncEnabled) {
     throw "Recovery bundle records cloud_sync_enabled=false."
 }
+$contextIdentityText =
+    "$steamId64`0$($effectiveNamespace.ToLowerInvariant())`0$runtimeIdentity`0$modSetFingerprint`0"
+$contextSha256 = Get-Utf8TextSha256 -Text $contextIdentityText
+Require-Equal -Label 'Selected SaveContext SHA-256' `
+    -Actual $reportedContextSha256 `
+    -Expected $contextSha256
 $selectedExpectedContext = [pscustomobject][ordered]@{
     steamId64 = $steamId64
     saveNamespace = $effectiveNamespace.ToLowerInvariant()
@@ -415,6 +460,9 @@ $verifiedCurrent = Convert-VerifiedSnapshot `
     -Label 'Current Android snapshot'
 $sortedFiles = $verifiedCurrent.Files
 $treeSha256 = $verifiedCurrent.TreeSha256
+Require-Equal -Label 'Current Android tree SHA-256' `
+    -Actual $reportedCurrentTreeSha256 `
+    -Expected $treeSha256
 
 $currentContextMarker = [string]$verifiedCurrent.ContextMarker
 if ($steamId64 -eq '0') {
@@ -653,6 +701,14 @@ $result = [ordered]@{
     originalSourcesWereModified = $originalSourcesWereModified
     steamWasContacted = $steamWasContacted
     cloudSyncEnabled = $cloudSyncEnabled
+    exportBinding = [ordered]@{
+        event = 'save-recovery-export-complete'
+        version = 1
+        exportId = $exportId
+        bundleSha256 = $bundleSha256
+        currentAndroidTreeSha256 = $treeSha256
+        selectedSaveContextSha256 = $contextSha256
+    }
     context = [ordered]@{
         steamId64 = $steamId64
         saveNamespace = $effectiveNamespace.ToLowerInvariant()

@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using MegaCrit.Sts2.Core.Saves;
+using STS2Mobile;
 using STS2Mobile.Steam;
 
 namespace CloudSyncProductionPathProbe;
@@ -88,9 +89,13 @@ internal static class AutomaticSyncScenarios
             "version 1 fixed before-game snapshots remain recoverable",
             LegacyBeforeGameFallbackAsync
         );
+        await RunAsync(
+            "automatic sync emits exact structured terminal evidence",
+            StructuredTerminalEvidenceAsync
+        );
 
         Console.WriteLine(
-            $"Automatic sync production-path probe passed {_passed}/14 scenarios."
+            $"Automatic sync production-path probe passed {_passed}/15 scenarios."
         );
         return _passed;
     }
@@ -326,6 +331,217 @@ internal static class AutomaticSyncScenarios
         ExpectMissing(
             mismatchLocal,
             CloudSyncCoordinator.AutomaticSyncPendingPath
+        );
+    }
+
+    private static async Task StructuredTerminalEvidenceAsync()
+    {
+        var messages = new List<string>();
+        void Capture(string message)
+        {
+            if (message.StartsWith(
+                    SaveEvidenceEvents.Marker,
+                    StringComparison.Ordinal
+                ))
+            {
+                messages.Add(message);
+            }
+        }
+
+        PatchHelper.LogEmitted += Capture;
+        try
+        {
+            var local = Store("structured-evidence-local");
+            var cloud = Store("structured-evidence-cloud");
+            local.Seed(ProgressPath, A);
+            cloud.Seed(ProgressPath, A);
+            SeedMarker(cloud, VanillaContext());
+
+            var choice = await ReconcileAsync(local, cloud)
+                .ConfigureAwait(false);
+            ExpectOutcome(choice, AutomaticSyncOutcome.SourceChoiceRequired);
+            var synchronized = await ReconcileAsync(
+                local,
+                cloud,
+                AutomaticSyncSourceChoice.Local
+            ).ConfigureAwait(false);
+            ExpectOutcome(synchronized, AutomaticSyncOutcome.Synchronized);
+
+            var mismatchLocal = Store("structured-mismatch-local");
+            var mismatchCloud = Store("structured-mismatch-cloud");
+            mismatchLocal.Seed(ModdedProgressPath, A);
+            mismatchCloud.Seed(ModdedProgressPath, A);
+            SeedMarker(mismatchCloud, ModdedContext(ModFingerprintB));
+            var mismatch = await ReconcileAsync(
+                mismatchLocal,
+                mismatchCloud,
+                saveNamespace: SaveNamespace.Modded,
+                runtime: PublicBeta,
+                modFingerprint: ModFingerprintA
+            ).ConfigureAwait(false);
+            ExpectOutcome(mismatch, AutomaticSyncOutcome.Conflict);
+
+            var commitLocal = Store("structured-commit-local");
+            var commitCloud = Store("structured-commit-cloud");
+            commitLocal.Seed(ProgressPath, A);
+            commitCloud.Seed(ProgressPath, A);
+            SeedMarker(commitCloud, VanillaContext());
+            _ = await ReconcileAsync(
+                commitLocal,
+                commitCloud,
+                AutomaticSyncSourceChoice.Local
+            ).ConfigureAwait(false);
+            await ExpectPreparedAsync(commitLocal, commitCloud)
+                .ConfigureAwait(false);
+            commitLocal.Seed(ProgressPath, B);
+            commitCloud.WriteFailure = path => path.Equals(
+                ProgressPath,
+                StringComparison.OrdinalIgnoreCase
+            )
+                ? new CloudFileCommitRejectedException(
+                    "planned file_committed=false"
+                )
+                : null;
+            try
+            {
+                _ = await RecoverAsync(commitLocal, commitCloud)
+                    .ConfigureAwait(false);
+                throw new InvalidOperationException(
+                    "Structured commit fixture unexpectedly succeeded."
+                );
+            }
+            catch (CloudFileCommitRejectedException)
+            {
+            }
+
+            var readBackLocal = Store("structured-readback-local");
+            var readBackCloud = Store("structured-readback-cloud");
+            readBackLocal.Seed(ProgressPath, A);
+            readBackCloud.Seed(ProgressPath, A);
+            SeedMarker(readBackCloud, VanillaContext());
+            _ = await ReconcileAsync(
+                readBackLocal,
+                readBackCloud,
+                AutomaticSyncSourceChoice.Local
+            ).ConfigureAwait(false);
+            await ExpectPreparedAsync(readBackLocal, readBackCloud)
+                .ConfigureAwait(false);
+            readBackLocal.Seed(ProgressPath, B);
+            var writesBefore = readBackCloud.WriteCountFor(ProgressPath);
+            readBackCloud.VerificationRawReadTransform = (path, content) =>
+                path.Equals(ProgressPath, StringComparison.OrdinalIgnoreCase)
+                    && readBackCloud.WriteCountFor(path) > writesBefore
+                    ? content.Concat(new byte[] { 0xA5 }).ToArray()
+                    : content;
+            try
+            {
+                _ = await RecoverAsync(readBackLocal, readBackCloud)
+                    .ConfigureAwait(false);
+                throw new InvalidOperationException(
+                    "Structured read-back fixture unexpectedly succeeded."
+                );
+            }
+            catch (SaveTransferReadBackMismatchException)
+            {
+            }
+        }
+        finally
+        {
+            PatchHelper.LogEmitted -= Capture;
+        }
+
+        ExpectAutomaticTerminal(
+            messages,
+            "reconcile",
+            "source-choice-required",
+            "source-choice-required",
+            SaveEvidenceEvents.ContextSha256(VanillaContext()),
+            remoteVerified: false
+        );
+        ExpectAutomaticTerminal(
+            messages,
+            "reconcile",
+            "synchronized",
+            "verified",
+            SaveEvidenceEvents.ContextSha256(VanillaContext()),
+            remoteVerified: true
+        );
+        ExpectAutomaticTerminal(
+            messages,
+            "reconcile",
+            "conflict",
+            "mod-set-mismatch",
+            SaveEvidenceEvents.ContextSha256(ModdedContext(ModFingerprintA)),
+            remoteVerified: false
+        );
+        ExpectAutomaticTerminal(
+            messages,
+            "recover",
+            "failed",
+            "commit-rejected",
+            SaveEvidenceEvents.ContextSha256(VanillaContext()),
+            remoteVerified: false
+        );
+        ExpectAutomaticTerminal(
+            messages,
+            "recover",
+            "failed",
+            "remote-readback-mismatch",
+            SaveEvidenceEvents.ContextSha256(VanillaContext()),
+            remoteVerified: false
+        );
+    }
+
+    private static void ExpectAutomaticTerminal(
+        IEnumerable<string> messages,
+        string operation,
+        string outcome,
+        string detail,
+        string contextSha256,
+        bool remoteVerified
+    )
+    {
+        var matches = 0;
+        foreach (var message in messages)
+        {
+            using var document = JsonDocument.Parse(
+                message[SaveEvidenceEvents.Marker.Length..]
+            );
+            var root = document.RootElement;
+            Expect(
+                root.ValueKind == JsonValueKind.Object,
+                "Automatic terminal evidence is not a JSON object."
+            );
+            Expect(
+                root.EnumerateObject().Count() == 7,
+                "Automatic terminal evidence has unexpected fields."
+            );
+            Expect(root.GetProperty("Event").GetString()
+                == "automatic-sync-terminal",
+                "Automatic terminal evidence has the wrong event name."
+            );
+            Expect(root.GetProperty("Version").ValueKind
+                == JsonValueKind.Number,
+                "Automatic terminal evidence version is not numeric."
+            );
+            Expect(
+                root.GetProperty("Version").GetInt32() == 1,
+                "Automatic terminal evidence has the wrong version."
+            );
+            if (root.GetProperty("Operation").GetString() == operation
+                && root.GetProperty("Outcome").GetString() == outcome
+                && root.GetProperty("Detail").GetString() == detail
+                && root.GetProperty("ContextSha256").GetString()
+                    == contextSha256
+                && root.GetProperty("RemoteVerified").GetBoolean()
+                    == remoteVerified)
+            {
+                matches++;
+            }
+        }
+        Expect(
+            matches > 0,
+            $"Missing exact structured terminal {operation}/{outcome}/{detail}."
         );
     }
 

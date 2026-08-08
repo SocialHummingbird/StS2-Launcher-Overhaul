@@ -7,6 +7,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$expectedGodotCommit = "f62fdbde15035c5576dad93e586201f4d41ef0cb"
 . (Join-Path $PSScriptRoot "godot-source-utils.ps1")
 
 $GodotDir = Resolve-GodotSourceDirectory -GodotDir $GodotDir -Root $root
@@ -21,6 +22,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $GodotDir ".git"))) {
     Write-Host "Godot source already exists at $GodotDir"
 }
 
+$godotCommitOutput = @(git -C $GodotDir rev-parse HEAD 2>&1)
+$godotCommitExitCode = $LASTEXITCODE
+$actualGodotCommit = ($godotCommitOutput -join "`n").Trim()
+if ($godotCommitExitCode -ne 0 -or $actualGodotCommit -ne $expectedGodotCommit) {
+    throw "Godot checkout is '$actualGodotCommit', expected pinned 4.5.1-stable commit $expectedGodotCommit."
+}
+
 Apply-GodotPatches -GodotDir $GodotDir -Root $root
 
 if (-not (Test-Path -LiteralPath $venvDir)) {
@@ -28,14 +36,16 @@ if (-not (Test-Path -LiteralPath $venvDir)) {
 }
 
 $venvPython = Join-Path $venvDir "Scripts\python.exe"
-& $venvPython -m pip install --upgrade pip
-& $venvPython -m pip install scons
+& $venvPython -m pip install --require-hashes -r (Join-Path $root "scripts\requirements-godot-build.txt")
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to install hash-pinned SCons 4.10.1."
+}
 
 Write-Host ""
 Write-Host "Godot source is ready."
 Write-Host ""
 Write-Host "For emulator work, arm64-v8a and x86_64 libgodot_android.so must be built from the same engine checkout."
-Write-Host "If you have the original patched engine fork, rerun with GODOT_REPO and GODOT_REF set."
+Write-Host "Pinned Godot commit: $expectedGodotCommit"
 Write-Host ""
 Write-Host "Next:"
 Write-Host "  .\scripts\build-godot.ps1"

@@ -1,8 +1,15 @@
 # Changelog
 
+## 2026-08-08 - Stage 5 evidence and candidate custody hardening (unreleased; device matrix 0/10)
+
+- Bound every non-debuggable in-app save export to an exact-byte read-back hash, current Android tree identity, selected SaveContext identity, and a structured completion event in the inventoried raw device log. The physical-matrix reviewer rejects missing, reused, tampered, or wrong-session bindings.
+- Made inventoried raw logcat and captured state files authoritative for Review 5. Collector summary booleans and counts are independently recomputed, and fatal/ANR, Steam-backed gameplay saving, dropped or swallowed save failures, false `Synced`, and mismatched recovery/failure evidence fail the review.
+- Pinned the candidate workflow's GitHub Actions, Godot commit, SCons version, Gradle distribution, and checked-in wrapper bytes. Gradle now builds and verifies unsigned bytes without secrets; a fresh runner signs them with a scoped temporary keystore, removes credentials immediately, and only then verifies and retains the candidate.
+- Hash-sealed the 14,896-file historical Android evidence tree without moving or rewriting it. The sole v0.2.416 update keystore still has no verified independent offline backup, so signing credentials remain unconfigured and no candidate build, device test, Steam operation, or release has started.
+
 ## 2026-08-06 - Stage 5 desktop validation (unreleased; device matrix 0/10)
 
-- Added filesystem-backed automatic-sync fixtures for vanilla/modded saves on public/public-beta, exact namespace isolation, branch and mod-set mismatch blocking, safe pre-Play download, divergence, offline retry, commit/read-back failures, and byte-exact Restore/Undo. The integrated production-path probe passes 69/69 scenarios, including 9/9 filesystem scenarios.
+- Added filesystem-backed automatic-sync fixtures for vanilla/modded saves on public/public-beta, exact namespace isolation, branch and mod-set mismatch blocking, safe pre-Play download, divergence, offline retry, commit/read-back failures, and byte-exact Restore/Undo. The integrated production-path probe passes 70/70 scenarios, including 9/9 filesystem scenarios.
 - Replaced same-process restart simulation as Stage 5 evidence with real child-process termination and fresh-process reopening of the Android local store plus persisted deterministic fake Steam state. The hard-restart matrix passes 118/118 before/after persistence edges: Begin 12, upload 32, Pull 30, Restore 28, and Undo 16.
 - Made save transfer, destination backup, and remote verification byte-exact. BOM, CRLF, NUL, and raw-byte-only changes now survive Push/Pull or fail read-back verification instead of being normalized through text hashes; launcher context/control documents remain textual.
 - Preserved and indexed historical Android logs as regression evidence, expanded the read-only Stage 5 collector, and changed Android automation to retain a commit-bound candidate APK without publishing it. The exact-candidate physical matrix and Review 5 remain 0/10, so none of this is a public fix or release claim.

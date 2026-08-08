@@ -6,7 +6,7 @@ param(
     [string]$KeystorePassword,
     [Parameter(Mandatory = $true)]
     [string]$KeyAlias,
-    [string]$KeytoolPath = "keytool",
+    [string]$KeytoolPath = "",
     [switch]$OfflineBackupConfirmed
 )
 
@@ -18,8 +18,63 @@ if (-not $OfflineBackupConfirmed) {
 
 . (Join-Path $PSScriptRoot "android-signing-utils.ps1")
 
-if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+$ghCommand = Get-Command gh -ErrorAction SilentlyContinue
+if (-not $ghCommand) {
     throw "GitHub CLI not found: gh"
+}
+
+if ($Repo -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
+    throw "Repository must use the owner/name form without whitespace."
+}
+
+$signingEnvironment = "android-local-signing"
+$requiredReleaseBranch = "main"
+
+function Get-GitHubApiJson {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Endpoint
+    )
+
+    $apiOutput = @(& $ghCommand.Source api --method GET $Endpoint 2>&1)
+    $apiExitCode = $LASTEXITCODE
+    if ($apiExitCode -ne 0) {
+        throw "Could not verify the protected $signingEnvironment environment. Configure it manually first; no GitHub secret or variable was changed."
+    }
+
+    try {
+        return (($apiOutput -join "`n") | ConvertFrom-Json)
+    } catch {
+        throw "GitHub returned invalid environment-protection metadata. No GitHub secret or variable was changed."
+    }
+}
+
+$environmentMetadata = Get-GitHubApiJson `
+    -Endpoint "repos/$Repo/environments/$signingEnvironment"
+$requiredReviewerRules = @($environmentMetadata.protection_rules | Where-Object {
+    $_.type -eq "required_reviewers"
+})
+if ($requiredReviewerRules.Count -ne 1 -or
+    @($requiredReviewerRules[0].reviewers).Count -lt 1 -or
+    $requiredReviewerRules[0].prevent_self_review -ne $true) {
+    throw "Environment $signingEnvironment must require at least one reviewer and prevent self-review. No GitHub secret or variable was changed."
+}
+
+$deploymentPolicy = $environmentMetadata.deployment_branch_policy
+if (-not $deploymentPolicy -or
+    $deploymentPolicy.protected_branches -or
+    -not $deploymentPolicy.custom_branch_policies) {
+    throw "Environment $signingEnvironment must use a custom deployment-branch policy restricted to $requiredReleaseBranch. No GitHub secret or variable was changed."
+}
+
+$branchPolicyMetadata = Get-GitHubApiJson `
+    -Endpoint "repos/$Repo/environments/$signingEnvironment/deployment-branch-policies?per_page=100"
+$branchPolicies = @($branchPolicyMetadata.branch_policies)
+if ($branchPolicyMetadata.total_count -ne 1 -or
+    $branchPolicies.Count -ne 1 -or
+    $branchPolicies[0].name -cne $requiredReleaseBranch -or
+    $branchPolicies[0].type -cne "branch") {
+    throw "Environment $signingEnvironment must allow exactly the $requiredReleaseBranch branch and no tag or wildcard policy. No GitHub secret or variable was changed."
 }
 
 if (-not (Test-Path -LiteralPath $KeystorePath)) {
@@ -34,27 +89,30 @@ if ($signerSha256 -ne $expectedSigner) {
 }
 $keystoreBase64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($resolvedKeystore))
 
-gh secret set ANDROID_LOCAL_UPDATE_KEYSTORE_BASE64 --repo $Repo --body $keystoreBase64
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to set ANDROID_LOCAL_UPDATE_KEYSTORE_BASE64"
-}
+Invoke-ProcessWithStandardInput `
+    -Executable $ghCommand.Source `
+    -Arguments @('secret', 'set', 'ANDROID_LOCAL_UPDATE_KEYSTORE_BASE64', '--env', $signingEnvironment, '--repo', $Repo) `
+    -StandardInput $keystoreBase64 `
+    -FailureMessage "Failed to set ANDROID_LOCAL_UPDATE_KEYSTORE_BASE64" `
+    -SensitiveValues @($keystoreBase64)
+Invoke-ProcessWithStandardInput `
+    -Executable $ghCommand.Source `
+    -Arguments @('secret', 'set', 'ANDROID_LOCAL_UPDATE_KEYSTORE_PASSWORD', '--env', $signingEnvironment, '--repo', $Repo) `
+    -StandardInput $KeystorePassword `
+    -FailureMessage "Failed to set ANDROID_LOCAL_UPDATE_KEYSTORE_PASSWORD" `
+    -SensitiveValues @($KeystorePassword)
+Invoke-ProcessWithStandardInput `
+    -Executable $ghCommand.Source `
+    -Arguments @('secret', 'set', 'ANDROID_LOCAL_UPDATE_KEY_ALIAS', '--env', $signingEnvironment, '--repo', $Repo) `
+    -StandardInput $KeyAlias `
+    -FailureMessage "Failed to set ANDROID_LOCAL_UPDATE_KEY_ALIAS" `
+    -SensitiveValues @($KeyAlias)
+Invoke-ProcessWithStandardInput `
+    -Executable $ghCommand.Source `
+    -Arguments @('variable', 'set', 'ANDROID_LOCAL_UPDATE_SIGNER_SHA256', '--env', $signingEnvironment, '--repo', $Repo) `
+    -StandardInput $signerSha256 `
+    -FailureMessage "Failed to set ANDROID_LOCAL_UPDATE_SIGNER_SHA256"
 
-gh secret set ANDROID_LOCAL_UPDATE_KEYSTORE_PASSWORD --repo $Repo --body $KeystorePassword
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to set ANDROID_LOCAL_UPDATE_KEYSTORE_PASSWORD"
-}
-
-gh secret set ANDROID_LOCAL_UPDATE_KEY_ALIAS --repo $Repo --body $KeyAlias
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to set ANDROID_LOCAL_UPDATE_KEY_ALIAS"
-}
-
-gh variable set ANDROID_LOCAL_UPDATE_SIGNER_SHA256 --repo $Repo --body $signerSha256
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to set ANDROID_LOCAL_UPDATE_SIGNER_SHA256"
-}
-
-Write-Host "Configured v0.2.416 .local update signing for $Repo"
+Write-Host "Configured v0.2.416 .local update signing for $Repo environment $signingEnvironment"
 Write-Host "Keystore: $resolvedKeystore"
-Write-Host "Alias: $KeyAlias"
 Write-Host "ANDROID_LOCAL_UPDATE_SIGNER_SHA256=$signerSha256"

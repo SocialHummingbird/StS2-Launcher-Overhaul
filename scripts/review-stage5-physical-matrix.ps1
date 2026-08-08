@@ -298,9 +298,207 @@ function Get-SteamFullMap {
     return New-FileMap -Files $Record.Data.files -Label "$($Record.Spec.id) full Steam snapshot" -IncludeRole
 }
 
+function Get-RegexMatchCount {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory = $true)][string]$Pattern
+    )
+    return [regex]::Matches($Text, $Pattern).Count
+}
+
+function Get-TimeLogEntries {
+    param([Parameter(Mandatory = $true)][AllowEmptyString()][string]$Text)
+
+    $entries = [Collections.Generic.List[object]]::new()
+    $index = 0
+    foreach ($line in @($Text -split '\r?\n')) {
+        $clean = $line.TrimStart([char]0xfeff)
+        if ($clean -match '^(?<time>\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+(?<pid>\d+)\s+(?<tid>\d+)\s+(?<priority>[VDIWEF])\s+(?<tag>[^:]+?)\s*:\s(?<message>.*)$') {
+            $entries.Add([pscustomobject]@{
+                Index = $index
+                Time = $Matches.time
+                Pid = [int]$Matches.pid
+                Tid = [int]$Matches.tid
+                Priority = $Matches.priority
+                Tag = $Matches.tag.Trim()
+                Message = $Matches.message
+                Line = $clean
+            })
+        }
+        $index++
+    }
+    return @($entries)
+}
+
+function Test-IsJsonInteger {
+    param($Value)
+    return $Value -is [byte] -or $Value -is [int16] -or
+        $Value -is [int32] -or $Value -is [int64]
+}
+
+function Get-StructuredSaveEvents {
+    param([Parameter(Mandatory = $true)][object[]]$AppEntries)
+
+    $marker = 'STS2_SAVE_EVENT '
+    $events = [Collections.Generic.List[object]]::new()
+    foreach ($entry in $AppEntries) {
+        if (-not $entry.Message.StartsWith($marker, [StringComparison]::Ordinal)) {
+            continue
+        }
+        try {
+            $payload = $entry.Message.Substring($marker.Length) |
+                ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            throw "STS2Mobile contains an invalid structured save terminal event."
+        }
+        $eventName = [string]$payload.Event
+        if ($eventName -eq 'automatic-sync-terminal') {
+            Assert-ExactProperties -Object $payload -Names @(
+                'Event', 'Version', 'Operation', 'Outcome', 'Detail',
+                'ContextSha256', 'RemoteVerified'
+            ) -Label 'automatic-sync terminal event'
+            Assert-True -Condition (Test-IsJsonInteger $payload.Version) -Message 'Automatic-sync terminal Version must be a JSON integer.'
+            Assert-True -Condition ([int64]$payload.Version -eq 1) -Message 'Automatic-sync terminal Version must be 1.'
+            Assert-True -Condition ($payload.RemoteVerified -is [bool]) -Message 'Automatic-sync terminal RemoteVerified must be a JSON boolean.'
+            Assert-True -Condition ([string]$payload.Operation -in @('recover', 'reconcile', 'begin-game')) -Message 'Automatic-sync terminal operation is invalid.'
+            Assert-True -Condition ([string]$payload.Outcome -in @(
+                'synchronized', 'source-choice-required', 'conflict',
+                'game-session-prepared', 'pending-recovery-required', 'failed'
+            )) -Message 'Automatic-sync terminal outcome is invalid.'
+            Assert-True -Condition ([string]$payload.Detail -in @(
+                'verified', 'no-pending-work', 'source-choice-required',
+                'local-and-remote-diverged', 'account-mismatch',
+                'namespace-mismatch', 'branch-mismatch', 'mod-set-mismatch',
+                'context-missing', 'context-unreadable', 'independent-change',
+                'session-prepared', 'pending-recovery', 'commit-rejected',
+                'remote-readback-mismatch', 'operation-failed'
+            )) -Message 'Automatic-sync terminal detail is invalid.'
+            $contextSha256 = [string]$payload.ContextSha256
+            Assert-True -Condition (-not $contextSha256 -or $contextSha256 -match '^[0-9a-f]{64}$') -Message 'Automatic-sync terminal ContextSha256 is invalid.'
+            $verified = [bool]$payload.RemoteVerified
+            Assert-True -Condition (
+                (-not $verified) -or (
+                    [string]$payload.Outcome -eq 'synchronized' -and
+                    [string]$payload.Detail -eq 'verified' -and
+                    $contextSha256 -match '^[0-9a-f]{64}$'
+                )
+            ) -Message 'Automatic-sync terminal claims remote verification without a verified synchronized context.'
+            Assert-True -Condition (
+                [string]$payload.Detail -ne 'verified' -or $verified
+            ) -Message 'Automatic-sync terminal reports verified bytes without RemoteVerified=true.'
+        } elseif ($eventName -eq 'save-recovery-terminal') {
+            Assert-ExactProperties -Object $payload -Names @(
+                'Event', 'Version', 'Operation', 'Outcome', 'Detail'
+            ) -Label 'save-recovery terminal event'
+            Assert-True -Condition (Test-IsJsonInteger $payload.Version) -Message 'Save-recovery terminal Version must be a JSON integer.'
+            Assert-True -Condition ([int64]$payload.Version -eq 1) -Message 'Save-recovery terminal Version must be 1.'
+            Assert-True -Condition ([string]$payload.Operation -in @('restore', 'undo')) -Message 'Save-recovery terminal operation is invalid.'
+            Assert-Equal -Label 'Save-recovery terminal outcome' -Actual ([string]$payload.Outcome) -Expected 'completed'
+            Assert-Equal -Label 'Save-recovery terminal detail' -Actual ([string]$payload.Detail) -Expected 'byte-verified-local-only'
+        } else {
+            throw "STS2Mobile contains an unknown structured save terminal event '$eventName'."
+        }
+        $events.Add([pscustomobject]@{
+            Index = [int]$entry.Index
+            Event = $eventName
+            Payload = $payload
+        })
+    }
+    return @($events)
+}
+
+function Get-CollectorLogSignals {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory = $true)][string]$PackageName
+    )
+
+    $entries = @(Get-TimeLogEntries -Text $Text)
+    $appEntries = @($entries | Where-Object { $_.Tag -ceq 'STS2Mobile' })
+    $appText = @($appEntries | ForEach-Object { $_.Message }) -join "`n"
+    $events = @(Get-StructuredSaveEvents -AppEntries $appEntries)
+    $automatic = @($events | Where-Object { $_.Event -eq 'automatic-sync-terminal' })
+    $recovery = @($events | Where-Object { $_.Event -eq 'save-recovery-terminal' })
+    $contextMismatchDetails = @(
+        'account-mismatch', 'namespace-mismatch', 'branch-mismatch',
+        'mod-set-mismatch'
+    )
+    $escapedPackage = [regex]::Escape($PackageName)
+    $fatal = $false
+    for ($i = 0; $i -lt $entries.Count; $i++) {
+        $entry = $entries[$i]
+        if ($entry.Tag -cne 'AndroidRuntime' -or
+            $entry.Message -notmatch '^FATAL EXCEPTION(?:\s|:)') { continue }
+        $last = [Math]::Min($entries.Count - 1, $i + 8)
+        for ($j = $i; $j -le $last; $j++) {
+            $candidate = $entries[$j]
+            if ($candidate.Tag -ceq 'AndroidRuntime' -and
+                $candidate.Pid -eq $entry.Pid -and
+                $candidate.Message -match "^Process:\s*$escapedPackage(?:,|\s|$)") {
+                $fatal = $true
+            }
+        }
+    }
+    $anr = [bool](@($entries | Where-Object {
+        $_.Tag -in @('ActivityManager', 'ActivityTaskManager', 'am_anr') -and
+        $_.Message -match "(?i)(?:\bANR in\s+|\bam_anr\b[^\r\n]*)$escapedPackage(?:/|:|,|\s|$)"
+    }).Count)
+    $localWriteExceptionPattern =
+        '(?im)^[^\r\n]*(?:(?:\[Save\]|Android local save|local-only save|local save write)[^\r\n]*(?:exception|failed|failure|error|could not|unable to|denied|dropped|swallowed|ignored|discarded)|(?:exception|failed|failure|error|could not|unable to|denied)[^\r\n]*(?:Android local save|local save write))[^\r\n]*$'
+    return [pscustomobject][ordered]@{
+        automaticSyncPendingLogSeen = [bool](@($automatic | Where-Object { $_.Payload.Outcome -in @('conflict', 'pending-recovery-required', 'failed') }).Count)
+        automaticSyncVerifiedLogSeen = [bool](@($automatic | Where-Object { $_.Payload.Outcome -eq 'synchronized' -and [bool]$_.Payload.RemoteVerified }).Count)
+        automaticSyncConflictLogSeen = [bool](@($automatic | Where-Object { $_.Payload.Outcome -eq 'conflict' }).Count)
+        syncedLogSeen = [bool](@($automatic | Where-Object { $_.Payload.Outcome -eq 'synchronized' -and [bool]$_.Payload.RemoteVerified }).Count)
+        readBackMismatchSeen = [bool](@($automatic | Where-Object { $_.Payload.Outcome -eq 'failed' -and $_.Payload.Detail -eq 'remote-readback-mismatch' }).Count)
+        commitFailureSeen = [bool](@($automatic | Where-Object { $_.Payload.Outcome -eq 'failed' -and $_.Payload.Detail -eq 'commit-rejected' }).Count)
+        saveContextMismatchSeen = [bool](@($automatic | Where-Object { $_.Payload.Detail -in $contextMismatchDetails }).Count)
+        modSetMismatchSeen = [bool](@($automatic | Where-Object { $_.Payload.Detail -eq 'mod-set-mismatch' }).Count)
+        branchMismatchSeen = [bool](@($automatic | Where-Object { $_.Payload.Detail -eq 'branch-mismatch' }).Count)
+        recoveryLogSeen = [bool]($recovery.Count -gt 0 -or $appText -match 'STS2_SAVE_EXPORT_COMPLETE ')
+        recoveryRestoreLogCount = @($recovery | Where-Object { $_.Payload.Operation -eq 'restore' }).Count
+        recoveryUndoLogCount = @($recovery | Where-Object { $_.Payload.Operation -eq 'undo' }).Count
+        localSaveBaseSeen = [bool]($appText -match '\[Save\] Android local save base:')
+        localSaveWrites = Get-RegexMatchCount -Text $appText -Pattern '\[Save\] Android local save write:'
+        localSaveReads = Get-RegexMatchCount -Text $appText -Pattern '\[Save\] Android local save read'
+        localSaveExistsChecks = Get-RegexMatchCount -Text $appText -Pattern '\[Save\] Android local save exists:'
+        localOnlySaveManagerSeen = [bool]($appText -match '\[Save\] Created Android gameplay SaveManager with local storage only')
+        steamGameplaySaveManagerSeen = [bool]($appText -match 'Created .*SaveManager.*Steam|Steam.*gameplay SaveManager')
+        fatalExceptionSeen = $fatal
+        anrSeen = $anr
+        droppedSaveWriteSeen = [bool]($appText -match '(?im)dropped (save )?write|save write[^\r\n]*(ignored|discarded)')
+        swallowedFailureSeen = [bool]($appText -match '(?im)swallowed (exception|failure|error)')
+        localWriteExceptionCount = Get-RegexMatchCount -Text $appText -Pattern $localWriteExceptionPattern
+        entries = $entries
+        appEntries = $appEntries
+        structuredEvents = $events
+    }
+}
+
+function Assert-CollectorLogClaim {
+    param(
+        [Parameter(Mandatory = $true)]$Collector,
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)]$Expected
+    )
+
+    $property = $Collector.Data.gates.PSObject.Properties[$Name]
+    Assert-True -Condition ($null -ne $property) -Message "$($Collector.Spec.id) collector omits derived log claim $Name."
+    if ($Expected -is [bool]) {
+        Assert-True -Condition ($property.Value -is [bool]) -Message "$($Collector.Spec.id) collector log claim $Name is not boolean."
+        Assert-True -Condition ([bool]$property.Value -eq [bool]$Expected) -Message "$($Collector.Spec.id) collector log claim $Name disagrees with the inventoried raw log."
+        return
+    }
+    Assert-True -Condition (
+        $property.Value -is [byte] -or $property.Value -is [int16] -or
+        $property.Value -is [int32] -or $property.Value -is [int64]
+    ) -Message "$($Collector.Spec.id) collector log claim $Name is not an integer."
+    Assert-True -Condition ([int64]$property.Value -eq [int64]$Expected) -Message "$($Collector.Spec.id) collector log claim $Name disagrees with the inventoried raw log."
+}
+
 function Test-HasSyncedLog {
     param([Parameter(Mandatory = $true)]$Collector)
-    return [bool]($Collector.LogText -match '(?im)(\bSynced\b|synchronized and verified|automatic save reconciliation[^\r\n]*verified)')
+    return [bool]$Collector.LogSignals.syncedLogSeen
 }
 
 function Assert-PendingPresent {
@@ -313,8 +511,8 @@ function Assert-PendingPresent {
     Assert-True -Condition ([string]$pending.phase -in @('game-running', 'uploading', 'downloading')) -Message "$($Android.Spec.id) pending-sync phase is invalid."
     Assert-Context -Label "$($Android.Spec.id) pending context" -Actual $pending.context -Expected $Android.Data.context
     if ([bool]$Collector.Data.gates.runAsAvailable) {
-        Assert-True -Condition ([int]$Collector.Data.gates.pendingSyncDocumentCount -gt 0) -Message "$($Collector.Spec.id) run-as evidence did not see the pending-sync record."
-        Assert-True -Condition ([string]$pending.phase -in @($Collector.Data.gates.pendingSyncPhases)) -Message "$($Collector.Spec.id) run-as pending phase disagrees with the verified export."
+        Assert-True -Condition ([int]$Collector.StateSignals.pendingSyncDocumentCount -gt 0) -Message "$($Collector.Spec.id) run-as evidence did not see the pending-sync record."
+        Assert-True -Condition ([string]$pending.phase -in @($Collector.StateSignals.pendingSyncPhases)) -Message "$($Collector.Spec.id) run-as pending phase disagrees with the verified export."
     }
 }
 
@@ -325,13 +523,13 @@ function Assert-PendingCleared {
     )
     Assert-True -Condition (-not [bool]$Android.Data.launcherState.pending.present) -Message "$($Android.Spec.id) verified export still has a pending-sync record."
     if ([bool]$Collector.Data.gates.runAsAvailable) {
-        Assert-True -Condition ([int]$Collector.Data.gates.pendingSyncDocumentCount -eq 0) -Message "$($Collector.Spec.id) run-as evidence still has a pending-sync record."
+        Assert-True -Condition ([int]$Collector.StateSignals.pendingSyncDocumentCount -eq 0) -Message "$($Collector.Spec.id) run-as evidence still has a pending-sync record."
     }
 }
 
 function Assert-NoSynced {
     param([Parameter(Mandatory = $true)]$Collector)
-    Assert-True -Condition (-not [bool]$Collector.Data.gates.automaticSyncVerifiedLogSeen) -Message "$($Collector.Spec.id) reports verified synchronization on a non-success path."
+    Assert-True -Condition (-not [bool]$Collector.LogSignals.automaticSyncVerifiedLogSeen) -Message "$($Collector.Spec.id) reports verified synchronization on a non-success path."
     Assert-True -Condition (-not (Test-HasSyncedLog -Collector $Collector)) -Message "$($Collector.Spec.id) contains a false Synced log."
 }
 
@@ -379,11 +577,12 @@ function Assert-CollectorAndroidBytes {
 
 function Assert-SuccessCollector {
     param([Parameter(Mandatory = $true)]$Collector)
-    Assert-True -Condition ([bool]$Collector.Data.gates.automaticSyncVerifiedLogSeen) -Message "$($Collector.Spec.id) has no verified automatic-sync log."
+    Assert-True -Condition ([bool]$Collector.LogSignals.automaticSyncVerifiedLogSeen) -Message "$($Collector.Spec.id) has no verified automatic-sync log."
     Assert-True -Condition (Test-HasSyncedLog -Collector $Collector) -Message "$($Collector.Spec.id) has no Synced log to pair with live Steam bytes."
-    Assert-True -Condition (-not [bool]$Collector.Data.gates.automaticSyncConflictLogSeen) -Message "$($Collector.Spec.id) unexpectedly reports a conflict."
-    Assert-True -Condition (-not [bool]$Collector.Data.gates.commitFailureSeen) -Message "$($Collector.Spec.id) unexpectedly reports commit failure."
-    Assert-True -Condition (-not [bool]$Collector.Data.gates.readBackMismatchSeen) -Message "$($Collector.Spec.id) unexpectedly reports read-back mismatch."
+    Assert-True -Condition (-not [bool]$Collector.LogSignals.automaticSyncConflictLogSeen) -Message "$($Collector.Spec.id) unexpectedly reports a conflict."
+    Assert-True -Condition (-not [bool]$Collector.LogSignals.saveContextMismatchSeen) -Message "$($Collector.Spec.id) unexpectedly reports a SaveContext mismatch."
+    Assert-True -Condition (-not [bool]$Collector.LogSignals.commitFailureSeen) -Message "$($Collector.Spec.id) unexpectedly reports commit failure."
+    Assert-True -Condition (-not [bool]$Collector.LogSignals.readBackMismatchSeen) -Message "$($Collector.Spec.id) unexpectedly reports read-back mismatch."
 }
 
 $resolvedMatrix = (Resolve-Path -LiteralPath $MatrixPath).Path
@@ -542,6 +741,9 @@ foreach ($spec in @($matrix.evidence)) {
         Path = $path
         Data = $data
         LogText = ''
+        FocusedLogText = ''
+        LogSignals = $null
+        StateSignals = $null
     }
     $evidence.Add($id, $record)
 }
@@ -588,6 +790,26 @@ function Validate-AndroidManifest {
     }
 
     Assert-Context -Label "$($Record.Spec.id) Android context" -Actual $data.context -Expected $regenerated.context
+    Assert-ExactProperties `
+        -Object $data.exportBinding `
+        -Names @(
+            'event', 'version', 'exportId', 'bundleSha256',
+            'currentAndroidTreeSha256', 'selectedSaveContextSha256'
+        ) `
+        -Label "$($Record.Spec.id) export binding"
+    foreach ($field in @(
+        'event', 'version', 'exportId', 'bundleSha256',
+        'currentAndroidTreeSha256', 'selectedSaveContextSha256'
+    )) {
+        Assert-Equal `
+            -Label "$($Record.Spec.id) regenerated export binding $field" `
+            -Actual ([string]$data.exportBinding.$field) `
+            -Expected ([string]$regenerated.exportBinding.$field)
+    }
+    Assert-Equal `
+        -Label "$($Record.Spec.id) export binding bundle SHA-256" `
+        -Actual ([string]$data.exportBinding.bundleSha256) `
+        -Expected $bundleHash
     Assert-Equal -Label "$($Record.Spec.id) current tree hash" -Actual ([string]$data.snapshot.treeSha256) -Expected ([string]$regenerated.snapshot.treeSha256)
     Assert-MapsEqual `
         -Label "$($Record.Spec.id) regenerated current Android snapshot" `
@@ -633,7 +855,7 @@ function Validate-SteamManifest {
     param([Parameter(Mandatory = $true)]$Record)
 
     $data = $Record.Data
-    Assert-True -Condition ([int]$data.schemaVersion -eq 1) -Message "$($Record.Spec.id) Steam schemaVersion must be 1."
+    Assert-True -Condition ([int]$data.schemaVersion -eq 2) -Message "$($Record.Spec.id) Steam schemaVersion must be 2."
     Assert-Equal -Label "$($Record.Spec.id) kind" -Actual ([string]$data.kind) -Expected 'stage5-live-steam-save-manifest'
     Assert-Equal -Label "$($Record.Spec.id) authority" -Actual ([string]$data.authority) -Expected 'independent-live-steam-client-download'
     Assert-True -Condition ([int]$data.appId -eq 2868840) -Message "$($Record.Spec.id) has the wrong Steam app id."
@@ -695,25 +917,56 @@ function Validate-SteamManifest {
 
     $selectedNamespace = ([string]$data.selectedContext.saveNamespace).ToLowerInvariant()
     Assert-True -Condition ($selectedNamespace -in @('vanilla', 'modded')) -Message "$($Record.Spec.id) selected Steam namespace is invalid."
-    Assert-Equal -Label "$($Record.Spec.id) selected marker path" -Actual ([string]$data.selectedContext.markerPath) -Expected ".sts2-launcher/contexts/$selectedNamespace.json"
+    $selectedMarkerPath = ".sts2-launcher/contexts/$selectedNamespace.json"
+    Assert-Equal -Label "$($Record.Spec.id) selected marker path" -Actual ([string]$data.selectedContext.markerPath) -Expected $selectedMarkerPath
+    Assert-Equal -Label "$($Record.Spec.id) selected marker state path" -Actual ([string]$data.selectedContextMarker.path) -Expected $selectedMarkerPath
     $marker = @($files | Where-Object { [string]$_.path -eq [string]$data.selectedContext.markerPath })
-    Assert-True -Condition ($marker.Count -eq 1 -and [bool]$marker[0].exists) -Message "$($Record.Spec.id) selected Steam context marker is not present."
+    Assert-True -Condition ($marker.Count -eq 1) -Message "$($Record.Spec.id) selected Steam context marker row is missing."
+    $markerState = [string]$data.selectedContextMarker.state
+    $missingAfterFailedTransfer = $markerState -eq 'missing-tombstone-after-failed-transfer'
+    if ($missingAfterFailedTransfer) {
+        Assert-True -Condition ([string]$Record.Spec.id -match '^r9-') -Message "$($Record.Spec.id) may use missing-marker failed-transfer evidence only in row 9."
+        Assert-True -Condition (-not [bool]$marker[0].exists -and -not [bool]$data.selectedContextMarker.exists) -Message "$($Record.Spec.id) missing-marker evidence still reports the selected marker present."
+        Assert-True -Condition ([string]$data.selectedContextEvidence.kind -in @('before-steam-manifest', 'pending-sync-record')) -Message "$($Record.Spec.id) missing-marker evidence has no independent context source."
+    } else {
+        Assert-Equal -Label "$($Record.Spec.id) selected marker state" -Actual $markerState -Expected 'present-valid'
+        Assert-True -Condition ([bool]$marker[0].exists -and [bool]$data.selectedContextMarker.exists) -Message "$($Record.Spec.id) selected Steam context marker is not present."
+        Assert-Equal -Label "$($Record.Spec.id) context evidence kind" -Actual ([string]$data.selectedContextEvidence.kind) -Expected 'selected-context-marker'
+        Assert-Equal -Label "$($Record.Spec.id) context evidence path" -Actual ([string]$data.selectedContextEvidence.path) -Expected $selectedMarkerPath
+    }
+    Assert-True -Condition ([bool]$marker[0].exists -eq [bool]$data.selectedContextMarker.exists) -Message "$($Record.Spec.id) selected marker presence disagrees with its file row."
+    Assert-True -Condition ([int64]$marker[0].sizeBytes -eq [int64]$data.selectedContextMarker.sizeBytes) -Message "$($Record.Spec.id) selected marker size disagrees with its file row."
+    Assert-Equal -Label "$($Record.Spec.id) selected marker hash" -Actual ([string]$data.selectedContextMarker.sha256) -Expected ([string]$marker[0].sha256)
 
     $temporaryOutput = Join-Path ([IO.Path]::GetTempPath()) (
         "sts2-stage5-steam-review-" + [Guid]::NewGuid().ToString('N') + '.json'
     )
     $selectedNamespaceArgument = if ($selectedNamespace -eq 'vanilla') { 'Vanilla' } else { 'Modded' }
     try {
-        & $script:SteamManifestCapture `
-            -SteamCloudRoot $sourceRoot `
-            -SelectedNamespace $selectedNamespaceArgument `
-            -ExpectedSteamId64 ([string]$data.selectedContext.steamId64) `
-            -ExpectedRuntimeIdentity ([string]$data.selectedContext.runtimeIdentity) `
-            -ExpectedModSetFingerprint ([string]$data.selectedContext.modSetFingerprint) `
-            -SteamSyncEvidencePath $syncEvidencePath `
-            -CaptureMethod ([string]$data.captureMethod) `
-            -RetainedImmutableSource `
-            -OutputPath $temporaryOutput *> $null
+        $captureArguments = @{
+            SteamCloudRoot = $sourceRoot
+            SelectedNamespace = $selectedNamespaceArgument
+            ExpectedSteamId64 = [string]$data.selectedContext.steamId64
+            ExpectedRuntimeIdentity = [string]$data.selectedContext.runtimeIdentity
+            ExpectedModSetFingerprint = [string]$data.selectedContext.modSetFingerprint
+            SteamSyncEvidencePath = $syncEvidencePath
+            CaptureMethod = [string]$data.captureMethod
+            RetainedImmutableSource = $true
+            OutputPath = $temporaryOutput
+        }
+        if ($missingAfterFailedTransfer) {
+            $contextEvidencePath = [IO.Path]::GetFullPath([string]$data.selectedContextEvidence.path)
+            Assert-True -Condition (Test-Path -LiteralPath $contextEvidencePath -PathType Leaf) -Message "$($Record.Spec.id) failed-transfer context evidence is missing."
+            Assert-True -Condition ([int64]$data.selectedContextEvidence.sizeBytes -eq (Get-Item -LiteralPath $contextEvidencePath).Length) -Message "$($Record.Spec.id) failed-transfer context evidence size changed."
+            Assert-Equal -Label "$($Record.Spec.id) failed-transfer context evidence hash" -Actual (Get-FileSha256Hex -Path $contextEvidencePath) -Expected ([string]$data.selectedContextEvidence.sha256).ToLowerInvariant()
+            $captureArguments.CaptureFailedTransferWithMissingSelectedMarker = $true
+            if ([string]$data.selectedContextEvidence.kind -eq 'before-steam-manifest') {
+                $captureArguments.BeforeSteamManifestPath = $contextEvidencePath
+            } else {
+                $captureArguments.PendingSyncRecordPath = $contextEvidencePath
+            }
+        }
+        & $script:SteamManifestCapture @captureArguments *> $null
         $regenerated = Read-JsonFile -Path $temporaryOutput -Label "$($Record.Spec.id) regenerated live Steam manifest"
     } finally {
         if (Test-Path -LiteralPath $temporaryOutput) {
@@ -800,6 +1053,119 @@ function Validate-CollectorInventory {
     }
 }
 
+function Get-CollectorTsvRows {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$ExpectedHeader,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    $lines = @([IO.File]::ReadAllLines($Path, [Text.Encoding]::UTF8))
+    Assert-True -Condition ($lines.Count -gt 0) -Message "$Label is empty."
+    Assert-Equal -Label "$Label header" -Actual $lines[0].TrimStart([char]0xfeff) -Expected $ExpectedHeader
+    return @($lines | Select-Object -Skip 1 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
+
+function Assert-CollectorStateClaim {
+    param(
+        [Parameter(Mandatory = $true)]$Collector,
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][int64]$Expected
+    )
+
+    $property = $Collector.Data.gates.PSObject.Properties[$Name]
+    Assert-True -Condition ($null -ne $property) -Message "$($Collector.Spec.id) collector omits derived state claim $Name."
+    Assert-True -Condition (
+        $property.Value -is [byte] -or $property.Value -is [int16] -or
+        $property.Value -is [int32] -or $property.Value -is [int64]
+    ) -Message "$($Collector.Spec.id) collector state claim $Name is not an integer."
+    Assert-True -Condition ([int64]$property.Value -eq $Expected) -Message "$($Collector.Spec.id) collector state claim $Name disagrees with the inventoried files."
+}
+
+function Get-CollectorStateSignals {
+    param([Parameter(Mandatory = $true)]$Record)
+
+    $root = Resolve-RepoPath -Path ([string]$Record.Data.output)
+    $rootPrefix = $root.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+    $localRows = @(Get-CollectorTsvRows `
+        -Path (Resolve-RepoPath -Path ([string]$Record.Data.localSaveByteHashes)) `
+        -ExpectedHeader "sha256`tsizeBytes`tdevicePath" `
+        -Label "$($Record.Spec.id) local-save hash table")
+    $stateRows = @(Get-CollectorTsvRows `
+        -Path (Resolve-RepoPath -Path ([string]$Record.Data.syncRecoveryStateByteHashes)) `
+        -ExpectedHeader "sha256`tsizeBytes`tdevicePath" `
+        -Label "$($Record.Spec.id) sync/recovery-state hash table")
+    $persistedRows = @(Get-CollectorTsvRows `
+        -Path (Resolve-RepoPath -Path ([string]$Record.Data.persistedSteamByteHashes)) `
+        -ExpectedHeader "documentPath`tmanifestRole`tsavePath`texists`thashKind`tsha256" `
+        -Label "$($Record.Spec.id) persisted-Steam hash table")
+
+    foreach ($row in $localRows) {
+        Assert-True -Condition ($row -match '^[0-9a-fA-F]{64}\t[0-9]+\tfiles/') -Message "$($Record.Spec.id) local-save hash row is invalid."
+    }
+    $stateDevicePaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($row in $stateRows) {
+        Assert-True -Condition ($row -match '^[0-9a-fA-F]{64}\t[0-9]+\tfiles/\.sts2-launcher/') -Message "$($Record.Spec.id) sync/recovery-state hash row is invalid."
+        $statePath = ($row -split "`t", 3)[2]
+        Assert-True -Condition ($stateDevicePaths.Add($statePath)) -Message "$($Record.Spec.id) sync/recovery-state hash table repeats $statePath."
+    }
+
+    $byteHashCount = 0
+    $legacyHashCount = 0
+    foreach ($row in $persistedRows) {
+        $parts = $row -split "`t", 6
+        Assert-True -Condition ($parts.Count -eq 6) -Message "$($Record.Spec.id) persisted-Steam hash row is invalid."
+        if ($parts[4] -eq 'byte-sha256') { $byteHashCount++ }
+        elseif ($parts[4] -eq 'legacy-text-sha256') { $legacyHashCount++ }
+        elseif ($parts[4] -ne 'missing') { throw "$($Record.Spec.id) persisted-Steam hash row has unknown hash kind '$($parts[4])'." }
+    }
+
+    $stateIndexPath = Join-Path $root 'sync-state-index.json'
+    Assert-True -Condition (Test-Path -LiteralPath $stateIndexPath -PathType Leaf) -Message "$($Record.Spec.id) inventoried sync-state index is missing."
+    $stateIndex = @(Read-JsonFile -Path $stateIndexPath -Label "$($Record.Spec.id) sync-state index")
+    $pendingStatePaths = @($stateDevicePaths | Where-Object { $_ -match '/pending-sync\.json$' })
+    $journalStatePaths = @($stateDevicePaths | Where-Object { $_ -match '/last-restore\.json$' })
+    $pendingDocuments = @($stateIndex | Where-Object { [string]$_.devicePath -match '/pending-sync\.json$' })
+    Assert-True -Condition ($pendingDocuments.Count -eq $pendingStatePaths.Count) -Message "$($Record.Spec.id) pending-sync state index disagrees with the inventoried state hashes."
+    $pendingPhases = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($entry in $pendingDocuments) {
+        Assert-True -Condition ([string]$entry.devicePath -in $pendingStatePaths) -Message "$($Record.Spec.id) pending-sync state index references an un-hashed device file."
+        Assert-True -Condition ([bool]$entry.parsed) -Message "$($Record.Spec.id) pending-sync state document was not parsed by the collector."
+        $capturedRelative = Normalize-SavePath -Path ([string]$entry.capturedFile)
+        $capturedPath = [IO.Path]::GetFullPath((Join-Path $root $capturedRelative.Replace('/', [IO.Path]::DirectorySeparatorChar)))
+        Assert-True -Condition ($capturedPath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) -Message "$($Record.Spec.id) pending-sync capture escaped its evidence root."
+        Assert-True -Condition (Test-Path -LiteralPath $capturedPath -PathType Leaf) -Message "$($Record.Spec.id) pending-sync captured document is missing."
+        $document = Read-JsonFile -Path $capturedPath -Label "$($Record.Spec.id) pending-sync captured document"
+        $phase = [string]$document.Phase
+        Assert-True -Condition ($phase -in @('before-game', 'game-running', 'uploading', 'downloading')) -Message "$($Record.Spec.id) pending-sync captured document has invalid phase '$phase'."
+        [void]$pendingPhases.Add($phase)
+    }
+
+    $signals = [pscustomobject][ordered]@{
+        localSaveByteHashCount = $localRows.Count
+        syncRecoveryStateFileHashCount = $stateRows.Count
+        persistedSteamByteHashCount = $byteHashCount
+        persistedSteamLegacyTextHashCount = $legacyHashCount
+        pendingSyncDocumentCount = $pendingStatePaths.Count
+        pendingSyncPhases = @($pendingPhases | Sort-Object)
+        recoveryJournalCount = $journalStatePaths.Count
+    }
+    foreach ($name in @(
+        'localSaveByteHashCount', 'syncRecoveryStateFileHashCount',
+        'persistedSteamByteHashCount', 'persistedSteamLegacyTextHashCount',
+        'pendingSyncDocumentCount', 'recoveryJournalCount'
+    )) {
+        Assert-CollectorStateClaim -Collector $Record -Name $name -Expected ([int64]$signals.$name)
+    }
+    $claimedPhaseProperty = $Record.Data.gates.PSObject.Properties['pendingSyncPhases']
+    Assert-True -Condition ($null -ne $claimedPhaseProperty) -Message "$($Record.Spec.id) collector omits derived state claim pendingSyncPhases."
+    $rawClaimedPhases = @($claimedPhaseProperty.Value | ForEach-Object { [string]$_ })
+    $claimedPhases = @($rawClaimedPhases | Sort-Object -Unique)
+    Assert-True -Condition ($rawClaimedPhases.Count -eq $claimedPhases.Count) -Message "$($Record.Spec.id) collector repeats a pending-sync phase claim."
+    Assert-Equal -Label "$($Record.Spec.id) collector pending-sync phases" -Actual ($claimedPhases -join "`n") -Expected (@($signals.pendingSyncPhases) -join "`n")
+    return $signals
+}
+
 function Validate-Collector {
     param([Parameter(Mandatory = $true)]$Record)
 
@@ -821,15 +1187,8 @@ function Validate-Collector {
     }
     Assert-Equal -Label "$($spec.id) package" -Actual ([string]$data.captureBinding.packageName) -Expected ([string]$script:Binding.candidate.packageName)
     Assert-True -Condition ([bool]$data.gates.authorizedDevice) -Message "$($spec.id) device was not authorized."
-    if ([bool]$data.gates.runAsAvailable) {
-        Assert-True -Condition ([int]$data.gates.localSaveByteHashCount -gt 0) -Message "$($spec.id) advertised run-as but captured no Android-local save hashes."
-    } else {
-        Assert-True -Condition ([int]$data.gates.localSaveByteHashCount -eq 0) -Message "$($spec.id) has local hashes despite run-as being unavailable."
-    }
-    Assert-True -Condition (-not [bool]$data.gates.steamGameplaySaveManagerSeen) -Message "$($spec.id) observed a Steam-backed gameplay SaveManager."
-    Assert-True -Condition (-not [bool]$data.gates.fatalExceptionSeen) -Message "$($spec.id) contains a fatal exception."
     Assert-True -Condition (-not [bool]$data.clearedLogcatAfterPreservingBuffer) -Message "$($spec.id) cleared logcat during Stage 5 evidence collection."
-    Assert-True -Condition (-not [string]::IsNullOrWhiteSpace([string]$data.logcatSince)) -Message "$($spec.id) is not scenario-windowed with LogcatSince."
+    Assert-True -Condition ([string]$data.logcatSince -match '^\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$') -Message "$($spec.id) is not scenario-windowed with a valid LogcatSince marker."
     Assert-Equal -Label "$($spec.id) logcatSince gate" -Actual ([string]$data.gates.logcatSince) -Expected ([string]$data.logcatSince)
 
     foreach ($field in @('serialSha256', 'manufacturer', 'model', 'androidApi', 'abiList', 'buildFingerprint')) {
@@ -852,8 +1211,46 @@ function Validate-Collector {
     Validate-CollectorInventory -Record $Record -InventoryPath $inventoryPath -Inventory $inventory
 
     $logPath = Resolve-RepoPath -Path ([string]$data.logcat)
+    $focusedLogPath = Resolve-RepoPath -Path ([string]$data.filteredLogcat)
     $Record.LogText = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($logPath))
-    Assert-True -Condition ($Record.LogText -notmatch '(?im)dropped (save )?write|swallowed (exception|failure|error)|save write[^\r\n]*(ignored|discarded)') -Message "$($spec.id) log indicates a dropped write or swallowed failure."
+    $Record.FocusedLogText = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($focusedLogPath))
+    $rawLineSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($line in @($Record.LogText -split '\r?\n')) {
+        if (-not [string]::IsNullOrWhiteSpace($line)) { [void]$rawLineSet.Add($line.TrimStart([char]0xfeff)) }
+    }
+    foreach ($line in @($Record.FocusedLogText -split '\r?\n')) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        Assert-True -Condition ($rawLineSet.Contains($line.TrimStart([char]0xfeff))) -Message "$($spec.id) focused log contains a line absent from its inventoried raw log."
+    }
+
+    $Record.LogSignals = Get-CollectorLogSignals `
+        -Text $Record.LogText `
+        -PackageName ([string]$script:Binding.candidate.packageName)
+    foreach ($name in @(
+        'automaticSyncPendingLogSeen', 'automaticSyncVerifiedLogSeen',
+        'automaticSyncConflictLogSeen', 'syncedLogSeen', 'readBackMismatchSeen',
+        'commitFailureSeen', 'saveContextMismatchSeen', 'modSetMismatchSeen',
+        'branchMismatchSeen', 'recoveryLogSeen', 'recoveryRestoreLogCount',
+        'recoveryUndoLogCount', 'localSaveBaseSeen', 'localSaveWrites',
+        'localSaveReads', 'localSaveExistsChecks', 'localOnlySaveManagerSeen',
+        'steamGameplaySaveManagerSeen', 'fatalExceptionSeen', 'anrSeen',
+        'droppedSaveWriteSeen', 'swallowedFailureSeen', 'localWriteExceptionCount'
+    )) {
+        Assert-CollectorLogClaim -Collector $Record -Name $name -Expected $Record.LogSignals.$name
+    }
+    $Record.StateSignals = Get-CollectorStateSignals -Record $Record
+
+    if ([bool]$data.gates.runAsAvailable) {
+        Assert-True -Condition ([int]$Record.StateSignals.localSaveByteHashCount -gt 0) -Message "$($spec.id) advertised run-as but the inventoried evidence has no Android-local save hashes."
+    } else {
+        Assert-True -Condition ([int]$Record.StateSignals.localSaveByteHashCount -eq 0) -Message "$($spec.id) has local hashes despite run-as being unavailable."
+    }
+    Assert-True -Condition (-not [bool]$Record.LogSignals.steamGameplaySaveManagerSeen) -Message "$($spec.id) raw log observed a Steam-backed gameplay SaveManager."
+    Assert-True -Condition (-not [bool]$Record.LogSignals.fatalExceptionSeen) -Message "$($spec.id) raw log contains a fatal exception."
+    Assert-True -Condition (-not [bool]$Record.LogSignals.anrSeen) -Message "$($spec.id) raw log contains an ANR."
+    Assert-True -Condition (-not [bool]$Record.LogSignals.droppedSaveWriteSeen) -Message "$($spec.id) raw log indicates a dropped save write."
+    Assert-True -Condition (-not [bool]$Record.LogSignals.swallowedFailureSeen) -Message "$($spec.id) raw log indicates a swallowed failure."
+    Assert-True -Condition ([int]$Record.LogSignals.localWriteExceptionCount -eq 0) -Message "$($spec.id) raw log contains a local-save write exception or failure."
 }
 
 $script:AndroidVerifier = $androidVerifier
@@ -871,6 +1268,202 @@ foreach ($record in $evidence.Values) {
             Validate-Collector -Record $record
         }
     }
+}
+
+function Convert-CollectorExportCompletionBindings {
+    param([Parameter(Mandatory = $true)]$Collector)
+
+    $marker = 'STS2_SAVE_EXPORT_COMPLETE '
+    $bindings = [Collections.Generic.List[object]]::new()
+    $seenExportIds = [Collections.Generic.HashSet[string]]::new(
+        [StringComparer]::Ordinal
+    )
+    foreach ($entry in @($Collector.LogSignals.appEntries)) {
+        $markerIndex = $entry.Message.IndexOf(
+            $marker,
+            [StringComparison]::Ordinal
+        )
+        if ($markerIndex -lt 0) { continue }
+        Assert-True `
+            -Condition ($entry.Message.StartsWith(
+                '[Recovery] ' + $marker,
+                [StringComparison]::Ordinal
+            )) `
+            -Message "$($Collector.Spec.id) save-export marker is not an exact STS2Mobile recovery event."
+        $payloadText = $entry.Message.Substring(
+            $markerIndex + $marker.Length
+        ).Trim()
+        try {
+            $payload = $payloadText | ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            throw "$($Collector.Spec.id) contains an invalid structured save-export completion line."
+        }
+        Assert-ExactProperties `
+            -Object $payload `
+            -Names @(
+                'Event', 'Version', 'ExportId', 'BundleSha256',
+                'CurrentAndroidTreeSha256', 'SelectedSaveContextSha256'
+            ) `
+            -Label "$($Collector.Spec.id) save-export completion"
+        Assert-Equal `
+            -Label "$($Collector.Spec.id) save-export completion event" `
+            -Actual ([string]$payload.Event) `
+            -Expected 'save-recovery-export-complete'
+        Assert-True `
+            -Condition (Test-IsJsonInteger $payload.Version) `
+            -Message "$($Collector.Spec.id) save-export completion version must be a JSON integer."
+        Assert-True `
+            -Condition ([int64]$payload.Version -eq 1) `
+            -Message "$($Collector.Spec.id) save-export completion version must be 1."
+        $exportId = [string]$payload.ExportId
+        Assert-True `
+            -Condition ($exportId -match '^[0-9a-f]{32}$') `
+            -Message "$($Collector.Spec.id) save-export completion has an invalid ExportId."
+        Assert-True `
+            -Condition ($seenExportIds.Add($exportId)) `
+            -Message "$($Collector.Spec.id) repeats save-export completion ExportId $exportId."
+        foreach ($field in @(
+            'BundleSha256', 'CurrentAndroidTreeSha256',
+            'SelectedSaveContextSha256'
+        )) {
+            Assert-True `
+                -Condition ([string]$payload.$field -match '^[0-9a-f]{64}$') `
+                -Message "$($Collector.Spec.id) save-export completion has an invalid $field."
+        }
+        $bindings.Add([pscustomobject]@{
+            ExportId = $exportId
+            BundleSha256 = [string]$payload.BundleSha256
+            CurrentAndroidTreeSha256 =
+                [string]$payload.CurrentAndroidTreeSha256
+            SelectedSaveContextSha256 =
+                [string]$payload.SelectedSaveContextSha256
+            Index = [int]$entry.Index
+            CollectorId = [string]$Collector.Spec.id
+        })
+    }
+    return @($bindings)
+}
+
+function Get-ExportBindingSignature {
+    param([Parameter(Mandatory = $true)]$Binding)
+
+    return @(
+        [string]$Binding.ExportId,
+        [string]$Binding.BundleSha256,
+        [string]$Binding.CurrentAndroidTreeSha256,
+        [string]$Binding.SelectedSaveContextSha256
+    ) -join "`t"
+}
+
+function Get-ExpectedContextSha256 {
+    param([Parameter(Mandatory = $true)]$Context)
+
+    $text =
+        "$([string]$Context.steamId64)`0$(([string]$Context.saveNamespace).ToLowerInvariant())`0$([string]$Context.runtimeIdentity)`0$([string]$Context.modSetFingerprint)`0"
+    return Get-Sha256Hex -Bytes ([Text.Encoding]::UTF8.GetBytes($text))
+}
+
+function Get-RequiredAutomaticTerminal {
+    param(
+        [Parameter(Mandatory = $true)]$Collector,
+        [Parameter(Mandatory = $true)]$Context,
+        [Parameter(Mandatory = $true)][string]$Operation,
+        [Parameter(Mandatory = $true)][string]$Outcome,
+        [Parameter(Mandatory = $true)][string]$Detail,
+        [Parameter(Mandatory = $true)][bool]$RemoteVerified,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    $contextSha256 = Get-ExpectedContextSha256 -Context $Context
+    $matches = @($Collector.LogSignals.structuredEvents | Where-Object {
+        $_.Event -eq 'automatic-sync-terminal' -and
+        $_.Payload.Operation -eq $Operation -and
+        $_.Payload.Outcome -eq $Outcome -and
+        $_.Payload.Detail -eq $Detail -and
+        $_.Payload.ContextSha256 -eq $contextSha256 -and
+        [bool]$_.Payload.RemoteVerified -eq $RemoteVerified
+    })
+    Assert-True -Condition ($matches.Count -eq 1) -Message "$Label requires exactly one context-bound automatic terminal $Operation/$Outcome/$Detail (RemoteVerified=$RemoteVerified)."
+    return $matches[0]
+}
+
+function Get-RequiredRecoveryTerminal {
+    param(
+        [Parameter(Mandatory = $true)]$Collector,
+        [Parameter(Mandatory = $true)][ValidateSet('restore', 'undo')][string]$Operation,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    $matches = @($Collector.LogSignals.structuredEvents | Where-Object {
+        $_.Event -eq 'save-recovery-terminal' -and
+        $_.Payload.Operation -eq $Operation -and
+        $_.Payload.Outcome -eq 'completed' -and
+        $_.Payload.Detail -eq 'byte-verified-local-only'
+    })
+    Assert-True -Condition ($matches.Count -eq 1) -Message "$Label requires exactly one structured $Operation completion event."
+    return $matches[0]
+}
+
+function Assert-ExportRelativeToEvent {
+    param(
+        [Parameter(Mandatory = $true)]$Android,
+        [Parameter(Mandatory = $true)]$Collector,
+        [Parameter(Mandatory = $true)]$Event,
+        [Parameter(Mandatory = $true)][ValidateSet('before', 'after')][string]$Position,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    $binding = $Android.Data.exportBinding
+    $signature = Get-ExportBindingSignature -Binding ([pscustomobject]@{
+        ExportId = [string]$binding.exportId
+        BundleSha256 = [string]$binding.bundleSha256
+        CurrentAndroidTreeSha256 = [string]$binding.currentAndroidTreeSha256
+        SelectedSaveContextSha256 = [string]$binding.selectedSaveContextSha256
+    })
+    $match = @($collectorExportBindings[[string]$Collector.Spec.id] | Where-Object {
+        (Get-ExportBindingSignature -Binding $_) -eq $signature
+    })
+    Assert-True -Condition ($match.Count -eq 1) -Message "$Label export binding is missing from its collector."
+    $ordered = if ($Position -eq 'before') {
+        [int]$match[0].Index -lt [int]$Event.Index
+    } else {
+        [int]$match[0].Index -gt [int]$Event.Index
+    }
+    Assert-True -Condition $ordered -Message "$Label export must occur $Position its exact structured terminal event."
+}
+
+$collectorExportBindings = @{}
+$allCollectorExportBindings = [Collections.Generic.List[object]]::new()
+foreach ($collector in @($evidence.Values | Where-Object {
+    [string]$_.Spec.kind -eq 'collector'
+})) {
+    $bindings = @(
+        Convert-CollectorExportCompletionBindings -Collector $collector
+    )
+    $collectorExportBindings[[string]$collector.Spec.id] = $bindings
+    foreach ($binding in $bindings) {
+        $allCollectorExportBindings.Add($binding)
+    }
+}
+
+$seenAndroidExportIds = [Collections.Generic.HashSet[string]]::new(
+    [StringComparer]::Ordinal
+)
+$phaseBoundAndroidExportIds = [Collections.Generic.HashSet[string]]::new(
+    [StringComparer]::Ordinal
+)
+foreach ($android in @($evidence.Values | Where-Object {
+    [string]$_.Spec.kind -eq 'android-manifest'
+})) {
+    $id = [string]$android.Spec.id
+    Assert-True `
+        -Condition ($id -match '^r(10|[1-9])-') `
+        -Message "$id cannot be bound to a Stage 5 collector row."
+    $binding = $android.Data.exportBinding
+    $exportId = [string]$binding.exportId
+    Assert-True `
+        -Condition ($seenAndroidExportIds.Add($exportId)) `
+        -Message "Android ExportId $exportId is reused by more than one matrix manifest."
 }
 
 function Use-Evidence {
@@ -893,6 +1486,41 @@ function Use-Evidence {
     }
     [void]$script:UsedEvidence.Add($Id)
     return $record
+}
+
+function Assert-AndroidExportBoundToCollector {
+    param(
+        [Parameter(Mandatory = $true)]$Android,
+        [Parameter(Mandatory = $true)]$Collector,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    $androidId = [string]$Android.Spec.id
+    $collectorId = [string]$Collector.Spec.id
+    Assert-Equal -Label "$Label Android evidence kind" -Actual ([string]$Android.Spec.kind) -Expected 'android-manifest'
+    Assert-Equal -Label "$Label collector evidence kind" -Actual ([string]$Collector.Spec.kind) -Expected 'collector'
+    $binding = $Android.Data.exportBinding
+    $expectedSignature = Get-ExportBindingSignature -Binding ([pscustomobject]@{
+        ExportId = [string]$binding.exportId
+        BundleSha256 = [string]$binding.bundleSha256
+        CurrentAndroidTreeSha256 = [string]$binding.currentAndroidTreeSha256
+        SelectedSaveContextSha256 = [string]$binding.selectedSaveContextSha256
+    })
+    $matches = @($collectorExportBindings[$collectorId] | Where-Object {
+        (Get-ExportBindingSignature -Binding $_) -eq $expectedSignature
+    })
+    $globalMatches = @($allCollectorExportBindings | Where-Object {
+        (Get-ExportBindingSignature -Binding $_) -eq $expectedSignature
+    })
+    Assert-True `
+        -Condition ($globalMatches.Count -eq 1) `
+        -Message "$Label Android export $androidId must occur in exactly one collector globally; found $($globalMatches.Count)."
+    Assert-True `
+        -Condition ($matches.Count -eq 1) `
+        -Message "$Label Android export $androidId has no exact ExportId/bundle/tree/context match in the inventoried raw log for collector $collectorId."
+    Assert-True `
+        -Condition ($phaseBoundAndroidExportIds.Add($androidId)) `
+        -Message "$Label binds Android export $androidId more than once."
 }
 
 function Use-Context {
@@ -1053,14 +1681,16 @@ foreach ($number in 1..10) {
                 $androidAfter = Use-Evidence -Id $refs.androidAfter -Kind 'android-manifest' -Row $number
                 $steamAfter = Use-Evidence -Id $refs.steamAfter -Kind 'steam-manifest' -Row $number
                 $collector = Use-Evidence -Id $refs.collector -Kind 'collector' -Row $number -Phase 'after-quit-sync'
+                Assert-AndroidExportBoundToCollector -Android $androidAfter -Collector $collector -Label 'Row 1 after Quit'
                 foreach ($record in @($steamBefore, $androidAfter, $steamAfter)) { Assert-EvidenceContext -Record $record -Expected $context }
                 Assert-MapsDiffer -Label 'Row 1 upload' -Left (Get-SteamSelectedMap -Record $steamBefore) -Right (Get-SteamSelectedMap -Record $steamAfter)
                 Assert-SteamMutationIsolated -Before $steamBefore -After $steamAfter -Namespace 'vanilla' -Label 'Row 1 upload'
                 Assert-SuccessCollector -Collector $collector
+                $terminal = Get-RequiredAutomaticTerminal -Collector $collector -Context $context -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true -Label 'Row 1 verified upload'
+                Assert-ExportRelativeToEvent -Android $androidAfter -Collector $collector -Event $terminal -Position after -Label 'Row 1 after-sync export'
                 Assert-PendingCleared -Collector $collector -Android $androidAfter
-                $quitIndex = $collector.LogText.IndexOf('NGame.Quit completed final local saves; restarting launcher', [StringComparison]::Ordinal)
-                $postGameIndex = $collector.LogText.IndexOf('Automatic save sync: resuming the pending post-game reconciliation.', [StringComparison]::Ordinal)
-                Assert-True -Condition ($quitIndex -ge 0 -and $postGameIndex -gt $quitIndex) -Message 'Row 1 did not prove normal Quit followed by launcher-owned post-game reconciliation.'
+                $quit = @($collector.LogSignals.appEntries | Where-Object { $_.Message -ceq 'NGame.Quit completed final local saves; restarting launcher' })
+                Assert-True -Condition ($quit.Count -eq 1 -and [int]$terminal.Index -gt [int]$quit[0].Index) -Message 'Row 1 did not prove an STS2Mobile Quit signal followed by launcher-owned post-game reconciliation.'
                 Assert-CollectorAndroidBytes -Collector $collector -Android $androidAfter -Label 'Row 1 Android bytes'
                 Add-SyncedProof -Collector $collector -Android $androidAfter -Steam $steamAfter -Context $context -Label 'Row 1 verified upload'
             }
@@ -1072,6 +1702,9 @@ foreach ($number in 1..10) {
                 $androidAfter = Use-Evidence -Id $refs.androidAfter -Kind 'android-manifest' -Row $number
                 $steamAfter = Use-Evidence -Id $refs.steamAfter -Kind 'steam-manifest' -Row $number
                 $collector = Use-Evidence -Id $refs.collector -Kind 'collector' -Row $number -Phase 'before-play-reconcile'
+                foreach ($android in @($androidBefore, $androidAfter)) {
+                    Assert-AndroidExportBoundToCollector -Android $android -Collector $collector -Label 'Row 2 before Play'
+                }
                 foreach ($record in @($androidBefore, $steamBefore, $androidAfter, $steamAfter)) { Assert-EvidenceContext -Record $record -Expected $context }
                 $beforeSnapshot = Get-AndroidSnapshot -Record $androidBefore
                 $afterSnapshot = Get-AndroidSnapshot -Record $androidAfter
@@ -1084,6 +1717,9 @@ foreach ($number in 1..10) {
                 Assert-MapsEqual -Label 'Row 2 downloaded Android bytes' -Left $afterSnapshot.Files -Right (Get-SteamSelectedMap -Record $steamBefore)
                 Assert-MapsEqual -Label 'Row 2 Steam remained unchanged' -Left (Get-SteamFullMap -Record $steamBefore) -Right (Get-SteamFullMap -Record $steamAfter)
                 Assert-SuccessCollector -Collector $collector
+                $terminal = Get-RequiredAutomaticTerminal -Collector $collector -Context $context -Operation reconcile -Outcome synchronized -Detail verified -RemoteVerified $true -Label 'Row 2 safe download'
+                Assert-ExportRelativeToEvent -Android $androidBefore -Collector $collector -Event $terminal -Position before -Label 'Row 2 before-download export'
+                Assert-ExportRelativeToEvent -Android $androidAfter -Collector $collector -Event $terminal -Position after -Label 'Row 2 after-download export'
                 Assert-PendingCleared -Collector $collector -Android $androidAfter
                 Assert-CollectorAndroidBytes -Collector $collector -Android $androidAfter -Label 'Row 2 Android bytes'
                 Add-SyncedProof -Collector $collector -Android $androidAfter -Steam $steamAfter -Context $context -Label 'Row 2 safe download'
@@ -1098,6 +1734,9 @@ foreach ($number in 1..10) {
                 $localAfter = Use-Evidence -Id $refs.localAfter -Kind 'android-manifest' -Row $number
                 $remoteAfter = Use-Evidence -Id $refs.remoteAfter -Kind 'steam-manifest' -Row $number
                 $collector = Use-Evidence -Id $refs.collector -Kind 'collector' -Row $number -Phase 'divergence-conflict'
+                foreach ($android in @($baselineAndroid, $localBefore, $localAfter)) {
+                    Assert-AndroidExportBoundToCollector -Android $android -Collector $collector -Label 'Row 3 divergence'
+                }
                 foreach ($record in @($baselineAndroid, $baselineSteam, $localBefore, $remoteBefore, $localAfter, $remoteAfter)) { Assert-EvidenceContext -Record $record -Expected $context }
                 $baseline = (Get-AndroidSnapshot -Record $baselineAndroid).Files
                 $local = (Get-AndroidSnapshot -Record $localBefore).Files
@@ -1109,7 +1748,10 @@ foreach ($number in 1..10) {
                 Assert-MapsEqual -Label 'Row 3 local preserved' -Left $local -Right (Get-AndroidSnapshot -Record $localAfter).Files
                 Assert-MapsEqual -Label 'Row 3 remote preserved' -Left (Get-SteamFullMap -Record $remoteBefore) -Right (Get-SteamFullMap -Record $remoteAfter)
                 Assert-PendingPresent -Collector $collector -Android $localAfter
-                Assert-True -Condition ([bool]$collector.Data.gates.automaticSyncConflictLogSeen) -Message 'Row 3 did not report a synchronization conflict.'
+                $terminal = Get-RequiredAutomaticTerminal -Collector $collector -Context $context -Operation reconcile -Outcome conflict -Detail local-and-remote-diverged -RemoteVerified $false -Label 'Row 3 divergence'
+                Assert-ExportRelativeToEvent -Android $localBefore -Collector $collector -Event $terminal -Position before -Label 'Row 3 before-conflict export'
+                Assert-ExportRelativeToEvent -Android $localAfter -Collector $collector -Event $terminal -Position after -Label 'Row 3 after-conflict export'
+                Assert-True -Condition ([bool]$collector.LogSignals.automaticSyncConflictLogSeen) -Message 'Row 3 did not report a synchronization conflict in the inventoried raw log.'
                 Assert-NoSynced -Collector $collector
                 Assert-CollectorAndroidBytes -Collector $collector -Android $localAfter -Label 'Row 3 Android bytes'
             }
@@ -1120,10 +1762,13 @@ foreach ($number in 1..10) {
                 $androidAfter = Use-Evidence -Id $refs.androidAfter -Kind 'android-manifest' -Row $number
                 $steamAfter = Use-Evidence -Id $refs.steamAfter -Kind 'steam-manifest' -Row $number
                 $collector = Use-Evidence -Id $refs.collector -Kind 'collector' -Row $number -Phase 'after-modded-sync'
+                Assert-AndroidExportBoundToCollector -Android $androidAfter -Collector $collector -Label 'Row 4 modded sync'
                 foreach ($record in @($steamBefore, $androidAfter, $steamAfter)) { Assert-EvidenceContext -Record $record -Expected $context }
                 Assert-MapsDiffer -Label 'Row 4 modded upload' -Left (Get-SteamSelectedMap -Record $steamBefore) -Right (Get-SteamSelectedMap -Record $steamAfter)
                 Assert-SteamMutationIsolated -Before $steamBefore -After $steamAfter -Namespace 'modded' -Label 'Row 4 exact mod-set upload'
                 Assert-SuccessCollector -Collector $collector
+                $terminal = Get-RequiredAutomaticTerminal -Collector $collector -Context $context -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true -Label 'Row 4 modded sync'
+                Assert-ExportRelativeToEvent -Android $androidAfter -Collector $collector -Event $terminal -Position after -Label 'Row 4 after-sync export'
                 Assert-PendingCleared -Collector $collector -Android $androidAfter
                 Assert-CollectorAndroidBytes -Collector $collector -Android $androidAfter -Label 'Row 4 Android bytes'
                 Add-SyncedProof -Collector $collector -Android $androidAfter -Steam $steamAfter -Context $context -Label 'Row 4 modded namespace sync'
@@ -1138,12 +1783,18 @@ foreach ($number in 1..10) {
                 $localAfter = Use-Evidence -Id $refs.localAfter -Kind 'android-manifest' -Row $number
                 $steamAfter = Use-Evidence -Id $refs.steamAfter -Kind 'steam-manifest' -Row $number
                 $collector = Use-Evidence -Id $refs.collector -Kind 'collector' -Row $number -Phase 'changed-mod-set-blocked'
+                foreach ($android in @($localBefore, $localAfter)) {
+                    Assert-AndroidExportBoundToCollector -Android $android -Collector $collector -Label 'Row 5 changed mod set'
+                }
                 foreach ($record in @($localBefore, $localAfter)) { Assert-EvidenceContext -Record $record -Expected $localContext }
                 foreach ($record in @($steamBefore, $steamAfter)) { Assert-EvidenceContext -Record $record -Expected $remoteContext }
                 Assert-MapsEqual -Label 'Row 5 local bytes preserved' -Left (Get-AndroidSnapshot -Record $localBefore).Files -Right (Get-AndroidSnapshot -Record $localAfter).Files
                 Assert-MapsEqual -Label 'Row 5 Steam bytes preserved' -Left (Get-SteamFullMap -Record $steamBefore) -Right (Get-SteamFullMap -Record $steamAfter)
-                $blockedLog = [bool]$collector.Data.gates.automaticSyncConflictLogSeen -or $collector.LogText -match '(?im)save-context mismatch|mod[- ]set|mod set'
-                Assert-True -Condition $blockedLog -Message 'Row 5 has no changed-mod-set block evidence in its log.'
+                $terminal = Get-RequiredAutomaticTerminal -Collector $collector -Context $localContext -Operation reconcile -Outcome conflict -Detail mod-set-mismatch -RemoteVerified $false -Label 'Row 5 changed mod set'
+                Assert-ExportRelativeToEvent -Android $localBefore -Collector $collector -Event $terminal -Position before -Label 'Row 5 before-conflict export'
+                Assert-ExportRelativeToEvent -Android $localAfter -Collector $collector -Event $terminal -Position after -Label 'Row 5 after-conflict export'
+                Assert-True -Condition ([bool]$collector.LogSignals.saveContextMismatchSeen) -Message 'Row 5 has no SaveContext mismatch in its inventoried raw log.'
+                Assert-True -Condition ([bool]$collector.LogSignals.modSetMismatchSeen) -Message 'Row 5 has no changed-mod-set mismatch in its inventoried raw log.'
                 Assert-NoSynced -Collector $collector
                 Assert-CollectorAndroidBytes -Collector $collector -Android $localAfter -Label 'Row 5 Android bytes'
             }
@@ -1160,6 +1811,10 @@ foreach ($number in 1..10) {
                 $publicSteamAfter = Use-Evidence -Id $refs.publicSteamAfter -Kind 'steam-manifest' -Row $number
                 $betaCollector = Use-Evidence -Id $refs.betaCollector -Kind 'collector' -Row $number -Phase 'after-switch-to-beta'
                 $publicCollector = Use-Evidence -Id $refs.publicCollector -Kind 'collector' -Row $number -Phase 'after-switch-to-public'
+                foreach ($android in @($publicBefore, $betaBefore, $betaAfter)) {
+                    Assert-AndroidExportBoundToCollector -Android $android -Collector $betaCollector -Label 'Row 6 switch to beta'
+                }
+                Assert-AndroidExportBoundToCollector -Android $publicAfter -Collector $publicCollector -Label 'Row 6 switch to public'
                 foreach ($record in @($publicBefore, $publicAfter, $publicSteamAfter)) { Assert-EvidenceContext -Record $record -Expected $publicContext }
                 foreach ($record in @($betaBefore, $betaAfter, $betaSteamAfter)) { Assert-EvidenceContext -Record $record -Expected $betaContext }
                 $publicBytes = (Get-AndroidSnapshot -Record $publicBefore).Files
@@ -1169,6 +1824,12 @@ foreach ($number in 1..10) {
                 Assert-MapsEqual -Label 'Row 6 public branch restored in public direction' -Left $publicBytes -Right (Get-AndroidSnapshot -Record $publicAfter).Files
                 Assert-SuccessCollector -Collector $betaCollector
                 Assert-SuccessCollector -Collector $publicCollector
+                $betaTerminal = Get-RequiredAutomaticTerminal -Collector $betaCollector -Context $betaContext -Operation reconcile -Outcome synchronized -Detail verified -RemoteVerified $true -Label 'Row 6 beta reconciliation'
+                Assert-ExportRelativeToEvent -Android $publicBefore -Collector $betaCollector -Event $betaTerminal -Position before -Label 'Row 6 public-before export'
+                Assert-ExportRelativeToEvent -Android $betaBefore -Collector $betaCollector -Event $betaTerminal -Position before -Label 'Row 6 beta-before export'
+                Assert-ExportRelativeToEvent -Android $betaAfter -Collector $betaCollector -Event $betaTerminal -Position after -Label 'Row 6 beta-after export'
+                $publicTerminal = Get-RequiredAutomaticTerminal -Collector $publicCollector -Context $publicContext -Operation reconcile -Outcome synchronized -Detail verified -RemoteVerified $true -Label 'Row 6 public reconciliation'
+                Assert-ExportRelativeToEvent -Android $publicAfter -Collector $publicCollector -Event $publicTerminal -Position after -Label 'Row 6 public-after export'
                 Assert-PendingCleared -Collector $betaCollector -Android $betaAfter
                 Assert-PendingCleared -Collector $publicCollector -Android $publicAfter
                 Assert-CollectorAndroidBytes -Collector $betaCollector -Android $betaAfter -Label 'Row 6 beta Android bytes'
@@ -1187,6 +1848,10 @@ foreach ($number in 1..10) {
                 $remoteAfterRetry = Use-Evidence -Id $refs.remoteAfterRetry -Kind 'steam-manifest' -Row $number
                 $offlineCollector = Use-Evidence -Id $refs.offlineCollector -Kind 'collector' -Row $number -Phase 'offline-pending'
                 $retryCollector = Use-Evidence -Id $refs.retryCollector -Kind 'collector' -Row $number -Phase 'retry-complete'
+                foreach ($android in @($baselineAndroid, $localOffline)) {
+                    Assert-AndroidExportBoundToCollector -Android $android -Collector $offlineCollector -Label 'Row 7 offline phase'
+                }
+                Assert-AndroidExportBoundToCollector -Android $localAfterRetry -Collector $retryCollector -Label 'Row 7 retry phase'
                 foreach ($record in @($baselineAndroid, $baselineSteam, $localOffline, $remoteOffline, $localAfterRetry, $remoteAfterRetry)) { Assert-EvidenceContext -Record $record -Expected $context }
                 $baseline = (Get-AndroidSnapshot -Record $baselineAndroid).Files
                 $local = (Get-AndroidSnapshot -Record $localOffline).Files
@@ -1196,8 +1861,12 @@ foreach ($number in 1..10) {
                 Assert-MapsEqual -Label 'Row 7 local bytes preserved through retry' -Left $local -Right (Get-AndroidSnapshot -Record $localAfterRetry).Files
                 Assert-PendingPresent -Collector $offlineCollector -Android $localOffline
                 Assert-NoSynced -Collector $offlineCollector
-                Assert-True -Condition ($offlineCollector.LogText -match '(?im)offline|not connected|connection|network|authentication') -Message 'Row 7 offline capture has no connection-failure evidence.'
+                $offlineTerminal = Get-RequiredAutomaticTerminal -Collector $offlineCollector -Context $context -Operation recover -Outcome failed -Detail operation-failed -RemoteVerified $false -Label 'Row 7 offline failure'
+                Assert-ExportRelativeToEvent -Android $baselineAndroid -Collector $offlineCollector -Event $offlineTerminal -Position before -Label 'Row 7 baseline export'
+                Assert-ExportRelativeToEvent -Android $localOffline -Collector $offlineCollector -Event $offlineTerminal -Position after -Label 'Row 7 offline local export'
                 Assert-SuccessCollector -Collector $retryCollector
+                $retryTerminal = Get-RequiredAutomaticTerminal -Collector $retryCollector -Context $context -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true -Label 'Row 7 retry'
+                Assert-ExportRelativeToEvent -Android $localAfterRetry -Collector $retryCollector -Event $retryTerminal -Position after -Label 'Row 7 retry export'
                 Assert-PendingCleared -Collector $retryCollector -Android $localAfterRetry
                 Assert-CollectorAndroidBytes -Collector $offlineCollector -Android $localOffline -Label 'Row 7 offline Android bytes'
                 Assert-CollectorAndroidBytes -Collector $retryCollector -Android $localAfterRetry -Label 'Row 7 retry Android bytes'
@@ -1214,6 +1883,10 @@ foreach ($number in 1..10) {
                 $remoteAfterRestart = Use-Evidence -Id $refs.remoteAfterRestart -Kind 'steam-manifest' -Row $number
                 $beforeCollector = Use-Evidence -Id $refs.beforeCollector -Kind 'collector' -Row $number -Phase 'pending-before-force-stop'
                 $afterCollector = Use-Evidence -Id $refs.afterCollector -Kind 'collector' -Row $number -Phase 'after-restart'
+                foreach ($android in @($baselineAndroid, $localBeforeCrash)) {
+                    Assert-AndroidExportBoundToCollector -Android $android -Collector $beforeCollector -Label 'Row 8 before force-stop'
+                }
+                Assert-AndroidExportBoundToCollector -Android $localAfterRestart -Collector $afterCollector -Label 'Row 8 after restart'
                 foreach ($record in @($baselineAndroid, $baselineSteam, $localBeforeCrash, $remoteBeforeRestart, $localAfterRestart, $remoteAfterRestart)) { Assert-EvidenceContext -Record $record -Expected $context }
                 $baseline = (Get-AndroidSnapshot -Record $baselineAndroid).Files
                 $local = (Get-AndroidSnapshot -Record $localBeforeCrash).Files
@@ -1224,12 +1897,19 @@ foreach ($number in 1..10) {
                 Assert-PendingPresent -Collector $beforeCollector -Android $localBeforeCrash
                 Assert-NoSynced -Collector $beforeCollector
                 Assert-SuccessCollector -Collector $afterCollector
+                $restartTerminal = Get-RequiredAutomaticTerminal -Collector $afterCollector -Context $context -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true -Label 'Row 8 resumed reconciliation'
+                Assert-ExportRelativeToEvent -Android $localAfterRestart -Collector $afterCollector -Event $restartTerminal -Position after -Label 'Row 8 restarted export'
                 Assert-PendingCleared -Collector $afterCollector -Android $localAfterRestart
                 $escapedPackage = [regex]::Escape([string]$binding.candidate.packageName)
-                $forceStop = [regex]::Match($afterCollector.LogText, "(?im)Force stopping[^\r\n]*$escapedPackage|am_force_stop[^\r\n]*$escapedPackage")
-                $processStart = [regex]::Match($afterCollector.LogText, "(?im)(Start proc|am_proc_start|Start process)[^\r\n]*$escapedPackage")
-                Assert-True -Condition ($forceStop.Success -and $processStart.Success -and $processStart.Index -gt $forceStop.Index) -Message 'Row 8 does not contain an Android force-stop followed by a new app process.'
-                Assert-True -Condition ($afterCollector.LogText -match [regex]::Escape('Automatic save sync: resuming the pending post-game reconciliation.')) -Message 'Row 8 new launcher process did not log pending reconciliation recovery.'
+                $forceStops = @($afterCollector.LogSignals.entries | Where-Object {
+                    $_.Tag -in @('ActivityManager', 'ActivityTaskManager') -and
+                    $_.Message -match "(?i)^(?:Force stopping|am_force_stop\b)[^\r\n]*$escapedPackage(?:/|:|,|\s|$)"
+                })
+                $processStarts = @($afterCollector.LogSignals.entries | Where-Object {
+                    $_.Tag -in @('ActivityManager', 'ActivityTaskManager') -and
+                    $_.Message -match "(?i)^(?:Start proc|am_proc_start\b|Start process)[^\r\n]*$escapedPackage(?:/|:|,|\s|$)"
+                })
+                Assert-True -Condition ($forceStops.Count -eq 1 -and $processStarts.Count -eq 1 -and [int]$processStarts[0].Index -gt [int]$forceStops[0].Index -and [int]$restartTerminal.Index -gt [int]$processStarts[0].Index) -Message 'Row 8 does not contain package-bound force-stop, process start, then exact recovery terminal evidence.'
                 Assert-CollectorAndroidBytes -Collector $beforeCollector -Android $localBeforeCrash -Label 'Row 8 pre-force-stop Android bytes'
                 Assert-CollectorAndroidBytes -Collector $afterCollector -Android $localAfterRestart -Label 'Row 8 resumed Android bytes'
                 Add-SyncedProof -Collector $afterCollector -Android $localAfterRestart -Steam $remoteAfterRestart -Context $context -Label 'Row 8 resumed reconciliation'
@@ -1242,11 +1922,17 @@ foreach ($number in 1..10) {
                 $localAfter = Use-Evidence -Id $refs.localAfter -Kind 'android-manifest' -Row $number
                 $steamAfter = Use-Evidence -Id $refs.steamAfter -Kind 'steam-manifest' -Row $number
                 $collector = Use-Evidence -Id $refs.collector -Kind 'collector' -Row $number -Phase 'commit-failure'
+                foreach ($android in @($localBefore, $localAfter)) {
+                    Assert-AndroidExportBoundToCollector -Android $android -Collector $collector -Label 'Row 9 commit failure'
+                }
                 foreach ($record in @($localBefore, $steamBefore, $localAfter, $steamAfter)) { Assert-EvidenceContext -Record $record -Expected $context }
                 Assert-MapsDiffer -Label 'Row 9 commit-failure attempted upload' -Left (Get-AndroidSnapshot -Record $localBefore).Files -Right (Get-SteamSelectedMap -Record $steamBefore)
                 Assert-MapsEqual -Label 'Row 9 commit-failure local bytes preserved' -Left (Get-AndroidSnapshot -Record $localBefore).Files -Right (Get-AndroidSnapshot -Record $localAfter).Files
                 Assert-PendingPresent -Collector $collector -Android $localAfter
-                Assert-True -Condition ([bool]$collector.Data.gates.commitFailureSeen) -Message 'Row 9 commit subcase did not observe file_committed=false/commit failure.'
+                $terminal = Get-RequiredAutomaticTerminal -Collector $collector -Context $context -Operation recover -Outcome failed -Detail commit-rejected -RemoteVerified $false -Label 'Row 9 commit failure'
+                Assert-ExportRelativeToEvent -Android $localBefore -Collector $collector -Event $terminal -Position before -Label 'Row 9 commit before export'
+                Assert-ExportRelativeToEvent -Android $localAfter -Collector $collector -Event $terminal -Position after -Label 'Row 9 commit after export'
+                Assert-True -Condition ([bool]$collector.LogSignals.commitFailureSeen) -Message 'Row 9 commit subcase did not observe file_committed=false/commit failure in the inventoried raw log.'
                 Assert-NoSynced -Collector $collector
                 Assert-SteamCapturedAfter -Steam $steamAfter -Collector $collector -Label 'Row 9 commit failure'
                 Assert-CollectorAndroidBytes -Collector $collector -Android $localAfter -Label 'Row 9 commit-failure Android bytes'
@@ -1259,13 +1945,19 @@ foreach ($number in 1..10) {
                 $localAfter = Use-Evidence -Id $refs.localAfter -Kind 'android-manifest' -Row $number
                 $steamAfter = Use-Evidence -Id $refs.steamAfter -Kind 'steam-manifest' -Row $number
                 $collector = Use-Evidence -Id $refs.collector -Kind 'collector' -Row $number -Phase 'readback-failure'
+                foreach ($android in @($localBefore, $localAfter)) {
+                    Assert-AndroidExportBoundToCollector -Android $android -Collector $collector -Label 'Row 9 read-back failure'
+                }
                 foreach ($record in @($localBefore, $steamBefore, $localAfter, $steamAfter)) { Assert-EvidenceContext -Record $record -Expected $context }
                 $local = (Get-AndroidSnapshot -Record $localBefore).Files
                 Assert-MapsDiffer -Label 'Row 9 read-back attempted upload' -Left $local -Right (Get-SteamSelectedMap -Record $steamBefore)
                 Assert-MapsEqual -Label 'Row 9 read-back local bytes preserved' -Left $local -Right (Get-AndroidSnapshot -Record $localAfter).Files
                 Assert-MapsDiffer -Label 'Row 9 read-back mismatch remains unequal' -Left $local -Right (Get-SteamSelectedMap -Record $steamAfter)
                 Assert-PendingPresent -Collector $collector -Android $localAfter
-                Assert-True -Condition ([bool]$collector.Data.gates.readBackMismatchSeen) -Message 'Row 9 read-back subcase did not observe a remote read-back mismatch.'
+                $terminal = Get-RequiredAutomaticTerminal -Collector $collector -Context $context -Operation recover -Outcome failed -Detail remote-readback-mismatch -RemoteVerified $false -Label 'Row 9 read-back failure'
+                Assert-ExportRelativeToEvent -Android $localBefore -Collector $collector -Event $terminal -Position before -Label 'Row 9 read-back before export'
+                Assert-ExportRelativeToEvent -Android $localAfter -Collector $collector -Event $terminal -Position after -Label 'Row 9 read-back after export'
+                Assert-True -Condition ([bool]$collector.LogSignals.readBackMismatchSeen) -Message 'Row 9 read-back subcase did not observe a remote read-back mismatch in the inventoried raw log.'
                 Assert-NoSynced -Collector $collector
                 Assert-SteamCapturedAfter -Steam $steamAfter -Collector $collector -Label 'Row 9 read-back failure'
                 Assert-CollectorAndroidBytes -Collector $collector -Android $localAfter -Label 'Row 9 read-back Android bytes'
@@ -1281,6 +1973,10 @@ foreach ($number in 1..10) {
                 $steamAfterUndo = Use-Evidence -Id $refs.steamAfterUndo -Kind 'steam-manifest' -Row $number
                 $restoreCollector = Use-Evidence -Id $refs.restoreCollector -Kind 'collector' -Row $number -Phase 'after-restore'
                 $undoCollector = Use-Evidence -Id $refs.undoCollector -Kind 'collector' -Row $number -Phase 'after-undo'
+                foreach ($android in @($original, $restored)) {
+                    Assert-AndroidExportBoundToCollector -Android $android -Collector $restoreCollector -Label 'Row 10 Restore phase'
+                }
+                Assert-AndroidExportBoundToCollector -Android $undone -Collector $undoCollector -Label 'Row 10 Undo phase'
                 foreach ($record in @($original, $restored, $undone, $steamBefore, $steamAfterRestore, $steamAfterUndo)) { Assert-EvidenceContext -Record $record -Expected $context }
                 Assert-True -Condition ([bool]$original.Data.cloudSyncEnabled) -Message 'Row 10 original capture must begin with the existing Cloud Sync setting enabled.'
                 Assert-True -Condition (-not [bool]$restored.Data.cloudSyncEnabled) -Message 'Row 10 Restore did not persistently disable Cloud Sync for local validation.'
@@ -1298,8 +1994,15 @@ foreach ($number in 1..10) {
                 Assert-MapsEqual -Label 'Row 10 Undo exact-byte round trip' -Left $originalBytes -Right (Get-AndroidSnapshot -Record $undone).Files
                 Assert-MapsEqual -Label 'Row 10 Steam unchanged by Restore' -Left (Get-SteamFullMap -Record $steamBefore) -Right (Get-SteamFullMap -Record $steamAfterRestore)
                 Assert-MapsEqual -Label 'Row 10 Steam unchanged by Undo' -Left (Get-SteamFullMap -Record $steamBefore) -Right (Get-SteamFullMap -Record $steamAfterUndo)
+                Assert-True -Condition ([int]$restoreCollector.LogSignals.recoveryRestoreLogCount -gt 0) -Message "$($restoreCollector.Spec.id) has no Restore action in its inventoried raw log."
+                Assert-True -Condition ([int]$undoCollector.LogSignals.recoveryUndoLogCount -gt 0) -Message "$($undoCollector.Spec.id) has no Undo action in its inventoried raw log."
+                $restoreTerminal = Get-RequiredRecoveryTerminal -Collector $restoreCollector -Operation restore -Label 'Row 10 Restore'
+                Assert-ExportRelativeToEvent -Android $original -Collector $restoreCollector -Event $restoreTerminal -Position before -Label 'Row 10 original export'
+                Assert-ExportRelativeToEvent -Android $restored -Collector $restoreCollector -Event $restoreTerminal -Position after -Label 'Row 10 restored export'
+                $undoTerminal = Get-RequiredRecoveryTerminal -Collector $undoCollector -Operation undo -Label 'Row 10 Undo'
+                Assert-ExportRelativeToEvent -Android $undone -Collector $undoCollector -Event $undoTerminal -Position after -Label 'Row 10 undone export'
                 foreach ($collector in @($restoreCollector, $undoCollector)) {
-                    Assert-True -Condition ([bool]$collector.Data.gates.recoveryLogSeen) -Message "$($collector.Spec.id) has no recovery operation log."
+                    Assert-True -Condition ([bool]$collector.LogSignals.recoveryLogSeen) -Message "$($collector.Spec.id) has no recovery operation in its inventoried raw log."
                     Assert-NoSynced -Collector $collector
                 }
                 Assert-PendingCleared -Collector $restoreCollector -Android $restored
@@ -1324,6 +2027,19 @@ Assert-True -Condition ($usedEvidence.Count -eq $evidence.Count) -Message 'Matri
 foreach ($id in $evidence.Keys) {
     Assert-True -Condition ($usedEvidence.Contains($id)) -Message "Matrix evidence $id is not consumed by a required semantic check."
 }
+$androidEvidence = @($evidence.Values | Where-Object {
+    [string]$_.Spec.kind -eq 'android-manifest'
+})
+Assert-True `
+    -Condition ($phaseBoundAndroidExportIds.Count -eq $androidEvidence.Count) `
+    -Message 'Not every Android export is bound to the inventoried raw collector log for its exact semantic-check phase.'
+foreach ($android in $androidEvidence) {
+    $androidId = [string]$android.Spec.id
+    Assert-True `
+        -Condition ($phaseBoundAndroidExportIds.Contains($androidId)) `
+        -Message "Android export $androidId is not bound to the collector named by its semantic check."
+}
+$androidExportsBoundToRawCollector = $phaseBoundAndroidExportIds.Count
 
 $report = [ordered]@{
     schemaVersion = 1
@@ -1344,6 +2060,7 @@ $report = [ordered]@{
     semanticChecksPassed = 11
     row9SubcasesPassed = 2
     syncedCollectorsWithLaterLiveSteamProof = $syncedProofs.Count
+    androidExportsBoundToRawCollector = $androidExportsBoundToRawCollector
     evidenceFilesVerified = $evidence.Count
 }
 

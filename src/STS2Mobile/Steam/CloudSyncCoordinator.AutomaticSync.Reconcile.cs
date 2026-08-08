@@ -19,7 +19,7 @@ internal static partial class CloudSyncCoordinator
         var marker = await ProbeRemoteContextAsync(sync, context)
             .ConfigureAwait(false);
         if (marker.Status == AutomaticRemoteContextStatus.Mismatch)
-            return AutomaticConflict(marker.Problem);
+            return AutomaticConflict(marker.Problem, marker.Detail);
 
         var localSnapshot = await CaptureAutomaticSnapshotAsync(
             sync,
@@ -70,7 +70,8 @@ internal static partial class CloudSyncCoordinator
                 ))
             {
                 return AutomaticConflict(
-                    "Steam cannot be chosen because its save-context marker is unreadable"
+                    "Steam cannot be chosen because its save-context marker is unreadable",
+                    marker.Detail
                 );
             }
             return await StartAutomaticTransferAsync(
@@ -87,7 +88,10 @@ internal static partial class CloudSyncCoordinator
         }
 
         if (marker.Status != AutomaticRemoteContextStatus.Exact)
-            return AutomaticConflict(RemoteContextProblem(marker));
+            return AutomaticConflict(
+                RemoteContextProblem(marker),
+                marker.Detail
+            );
 
         var localChanged = !localSnapshot.Manifest.ContentEquals(
             baseline.LocalManifest
@@ -107,7 +111,8 @@ internal static partial class CloudSyncCoordinator
             ).ConfigureAwait(false);
             return AutomaticResult(
                 AutomaticSyncOutcome.Synchronized,
-                "Local and Steam saves match their trusted baseline"
+                "Local and Steam saves match their trusted baseline",
+                remoteVerified: true
             );
         }
 
@@ -142,7 +147,8 @@ internal static partial class CloudSyncCoordinator
         }
 
         return AutomaticConflict(
-            "Local and Steam saves changed differently from their trusted baseline"
+            "Local and Steam saves changed differently from their trusted baseline",
+            AutomaticSyncEvidenceDetail.LocalAndRemoteDiverged
         );
     }
 
@@ -156,7 +162,10 @@ internal static partial class CloudSyncCoordinator
         var marker = await ProbeRemoteContextAsync(sync, context)
             .ConfigureAwait(false);
         if (marker.Status != AutomaticRemoteContextStatus.Exact)
-            return AutomaticConflict(RemoteContextProblem(marker));
+            return AutomaticConflict(
+                RemoteContextProblem(marker),
+                marker.Detail
+            );
 
         var localSnapshot = await CaptureAutomaticSnapshotAsync(
             sync,
@@ -221,7 +230,8 @@ internal static partial class CloudSyncCoordinator
         }
 
         return AutomaticConflict(
-            "Local and Steam saves changed differently while the game session was active"
+            "Local and Steam saves changed differently while the game session was active",
+            AutomaticSyncEvidenceDetail.LocalAndRemoteDiverged
         );
     }
 
@@ -295,7 +305,8 @@ internal static partial class CloudSyncCoordinator
         ).ConfigureAwait(false);
         return AutomaticResult(
             AutomaticSyncOutcome.Synchronized,
-            "Local and Steam saves were synchronized and verified"
+            "Local and Steam saves were synchronized and verified",
+            remoteVerified: true
         );
     }
 }
