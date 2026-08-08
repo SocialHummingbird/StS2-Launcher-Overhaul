@@ -170,6 +170,40 @@ function Get-RequiredUtc {
     return $parsed.ToUniversalTime()
 }
 
+function Get-CanonicalInventoryModifiedUtc {
+    param(
+        [Parameter(Mandatory = $true)]$Value,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    if ($Value -is [DateTimeOffset]) {
+        return ([DateTimeOffset]$Value).ToUniversalTime().ToString(
+            "yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'",
+            [Globalization.CultureInfo]::InvariantCulture
+        )
+    }
+    if ($Value -is [DateTime]) {
+        return ([DateTime]$Value).ToUniversalTime().ToString(
+            "yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'",
+            [Globalization.CultureInfo]::InvariantCulture
+        )
+    }
+
+    $text = [string]$Value
+    $parsed = [DateTime]::MinValue
+    if (-not [DateTime]::TryParseExact(
+            $text,
+            "yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'",
+            [Globalization.CultureInfo]::InvariantCulture,
+            [Globalization.DateTimeStyles]::AssumeUniversal -bor
+                [Globalization.DateTimeStyles]::AdjustToUniversal,
+            [ref]$parsed
+        )) {
+        throw "$Label is not a canonical UTC inventory timestamp: '$text'."
+    }
+    return $text
+}
+
 function Normalize-SavePath {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -1074,7 +1108,9 @@ function Validate-CollectorInventory {
             relativePath = $relative
             sizeBytes = [int64]$entry.sizeBytes
             sha256 = ([string]$entry.sha256).ToLowerInvariant()
-            modifiedUtc = [string]$entry.modifiedUtc
+            modifiedUtc = Get-CanonicalInventoryModifiedUtc `
+                -Value $entry.modifiedUtc `
+                -Label "$($Record.Spec.id) inventory timestamp for $relative"
         }
         $canonicalLines.Add(($canonical | ConvertTo-Json -Compress))
         $totalBytes += $item.Length
