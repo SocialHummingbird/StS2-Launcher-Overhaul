@@ -615,6 +615,7 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
         @(
             "EnsureConnected\(cancellationToken\)",
             "_sendLock\.WaitAsync\(cancellationToken\)",
+            "job\.Timeout = TimeSpan\.FromMilliseconds\(CloudRpcTimeoutMs\)",
             "WaitForCloudJobAsync",
             "cancellationToken\.ThrowIfCancellationRequested\(\)",
             "Task\.Delay\(",
