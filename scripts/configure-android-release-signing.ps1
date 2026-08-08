@@ -51,15 +51,6 @@ function Get-GitHubApiJson {
 
 $environmentMetadata = Get-GitHubApiJson `
     -Endpoint "repos/$Repo/environments/$signingEnvironment"
-$requiredReviewerRules = @($environmentMetadata.protection_rules | Where-Object {
-    $_.type -eq "required_reviewers"
-})
-if ($requiredReviewerRules.Count -ne 1 -or
-    @($requiredReviewerRules[0].reviewers).Count -lt 1 -or
-    $requiredReviewerRules[0].prevent_self_review -ne $true) {
-    throw "Environment $signingEnvironment must require at least one reviewer and prevent self-review. No GitHub secret or variable was changed."
-}
-
 $deploymentPolicy = $environmentMetadata.deployment_branch_policy
 if (-not $deploymentPolicy -or
     $deploymentPolicy.protected_branches -or

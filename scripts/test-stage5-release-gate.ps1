@@ -7,6 +7,8 @@ $workflowPath = Join-Path $root ".github\workflows\android-release.yml"
 $readinessPath = Join-Path $root "scripts\check-android-release-readiness.ps1"
 $configuratorPath = Join-Path $root "scripts\configure-android-release-signing.ps1"
 $collectorPath = Join-Path $root "scripts\collect-android-save-validation.ps1"
+$affectedDevicePreflightPath = Join-Path $root "scripts\check-stage5-affected-device.ps1"
+$affectedDevicePreflightTestPath = Join-Path $root "scripts\test-stage5-affected-device-preflight.ps1"
 $matrixReviewerPath = Join-Path $root "scripts\review-stage5-physical-matrix.ps1"
 $matrixTemplatePath = Join-Path $root "scripts\new-stage5-physical-matrix-template.ps1"
 $governanceWorkflowPath = Join-Path $root ".github\workflows\overhaul-governance-ci.yml"
@@ -51,7 +53,9 @@ foreach ($requiredPath in @(
     $godotSetupPowerShellPath,
     $godotRequirementsPath,
     $signingUtilsPath,
-    $updateCompatibilityPath
+    $updateCompatibilityPath,
+    $affectedDevicePreflightPath,
+    $affectedDevicePreflightTestPath
 ) + $nugetLockPaths) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Android candidate supply-chain input is missing: $requiredPath"
@@ -329,8 +333,8 @@ function Assert-PinnedCandidateInputs {
 function Assert-ConfiguratorEnvironmentBoundary {
     param([Parameter(Mandatory = $true)][string]$CandidateConfigurator)
 
-    if ($CandidateConfigurator -notmatch '(?s)\$signingEnvironment\s*=\s*"android-local-signing".*?required_reviewers.*?prevent_self_review\s+-ne\s+\$true.*?deployment_branch_policy.*?deployment-branch-policies\?per_page=100.*?total_count\s+-ne\s+1') {
-        throw 'Signing configurator lacks its protected-environment preflight.'
+    if ($CandidateConfigurator -notmatch '(?s)\$signingEnvironment\s*=\s*"android-local-signing".*?\$requiredReleaseBranch\s*=\s*"main".*?deployment_branch_policy.*?custom_branch_policies.*?deployment-branch-policies\?per_page=100.*?total_count\s+-ne\s+1.*?name\s+-cne\s+\$requiredReleaseBranch.*?type\s+-cne\s+"branch"') {
+        throw 'Signing configurator lacks its exact main-only environment preflight.'
     }
     $environmentScopedWrites = [Regex]::Matches(
         $CandidateConfigurator,
@@ -352,9 +356,48 @@ function Assert-ConfiguratorEnvironmentBoundary {
     }
 }
 
+function Assert-ReadinessEnvironmentBoundary {
+    param([Parameter(Mandatory = $true)][string]$CandidateReadiness)
+
+    if ($CandidateReadiness -notmatch '(?s)function Invoke-GitHubRead.*?ErrorActionPreference\s*=\s*"Continue".*?\$exitCode\s*=\s*\$LASTEXITCODE.*?finally.*?\$ErrorActionPreference\s*=\s*\$previousErrorActionPreference') {
+        throw 'Release readiness cannot capture failed GitHub reads reliably.'
+    }
+    if ($CandidateReadiness -notmatch '(?s)\$SigningEnvironment\s*=\s*"android-local-signing".*?\$RequiredReleaseBranch\s*=\s*"main".*?environments/\$SigningEnvironment') {
+        throw 'Release readiness lacks its fixed signing environment and branch.'
+    }
+    if ($CandidateReadiness -notmatch '(?s)\$deploymentPolicy.*?protected_branches.*?custom_branch_policies.*?deployment-branch-policies\?per_page=100') {
+        throw 'Release readiness does not require a custom deployment branch policy.'
+    }
+    if ($CandidateReadiness -notmatch '(?s)\$branchPolicyMetadata\.total_count\s+-ne\s+1.*?\$branchPolicies\.Count\s+-ne\s+1.*?name\s+-cne\s+\$RequiredReleaseBranch.*?type\s+-cne\s+"branch"') {
+        throw 'Release readiness does not require exactly one main branch policy.'
+    }
+
+    $environmentScopedReads = [Regex]::Matches(
+        $CandidateReadiness,
+        "(?m)'(?:secret|variable)', 'list', '--env', \`$SigningEnvironment, '--repo', \`$Repo"
+    ).Count
+    if ($environmentScopedReads -ne 2 -or
+        $CandidateReadiness -match "(?m)'(?:secret|variable)', 'list', '--repo'") {
+        throw 'Release readiness does not scope both credential reads only to the protected environment.'
+    }
+
+    $policyIndex = $CandidateReadiness.IndexOf(
+        '$branchPolicyMetadata =',
+        [StringComparison]::Ordinal
+    )
+    $secretReadIndex = $CandidateReadiness.IndexOf(
+        '$secretRead =',
+        [StringComparison]::Ordinal
+    )
+    if ($policyIndex -lt 0 -or $secretReadIndex -le $policyIndex) {
+        throw 'Release readiness can read credential metadata before protection checks finish.'
+    }
+}
+
 Assert-ProtectedSigningBoundary -CandidateWorkflow $workflow
 Assert-PinnedCandidateInputs -CandidateWorkflow $workflow
 Assert-ConfiguratorEnvironmentBoundary -CandidateConfigurator $configurator
+Assert-ReadinessEnvironmentBoundary -CandidateReadiness $readiness
 
 $boundaryMutations = @(
     ($workflow -replace '(?m)^\s+name:\s*android-local-signing\s*$', '      name: unprotected-signing'),
@@ -394,8 +437,8 @@ foreach ($mutation in @(
 }
 
 foreach ($mutation in @(
-    $configurator.Replace('required_reviewers', 'optional_reviewers'),
-    $configurator.Replace('prevent_self_review -ne $true', 'prevent_self_review -ne $false'),
+    $configurator.Replace('custom_branch_policies', 'all_branch_policies'),
+    $configurator.Replace('$requiredReleaseBranch = "main"', '$requiredReleaseBranch = "*"'),
     $configurator.Replace(", '--env', `$signingEnvironment", '')
 )) {
     $rejected = $false
@@ -406,6 +449,23 @@ foreach ($mutation in @(
     }
     if (-not $rejected) {
         throw 'Stage 5 release gate accepted a weakened signing-environment configurator.'
+    }
+}
+
+foreach ($mutation in @(
+    $readiness.Replace('custom_branch_policies', 'all_branch_policies'),
+    $readiness.Replace('$RequiredReleaseBranch = "main"', '$RequiredReleaseBranch = "*"'),
+    $readiness.Replace("'secret', 'list', '--env', `$SigningEnvironment, '--repo', `$Repo", "'secret', 'list', '--repo', `$Repo"),
+    $readiness.Replace("'variable', 'list', '--env', `$SigningEnvironment, '--repo', `$Repo", "'variable', 'list', '--repo', `$Repo")
+)) {
+    $rejected = $false
+    try {
+        Assert-ReadinessEnvironmentBoundary -CandidateReadiness $mutation
+    } catch {
+        $rejected = $true
+    }
+    if (-not $rejected) {
+        throw 'Stage 5 release gate accepted a weakened readiness environment boundary.'
     }
 }
 
@@ -569,6 +629,9 @@ Require-Pattern `
     -Description "byte-evidence tooling gate before candidate build" `
     -Pattern '(?ms)Verify save safety before building candidate.*?test-stage5-save-evidence-manifests\.ps1.*?Build patched Godot Android runtime'
 Require-Pattern `
+    -Description "affected-device preflight regression gate before candidate build" `
+    -Pattern '(?ms)Verify save safety before building candidate.*?test-stage5-affected-device-preflight\.ps1.*?Build patched Godot Android runtime'
+Require-Pattern `
     -Description "read-only repository permission" `
     -Pattern '(?ms)^permissions:\s*\r?\n\s{2}contents:\s*read\s*$'
 
@@ -643,6 +706,24 @@ Require-ReadinessPattern `
     -Description "dedicated local-update signer variable" `
     -Pattern 'ANDROID_LOCAL_UPDATE_SIGNER_SHA256'
 Require-ReadinessPattern `
+    -Description "fixed protected signing environment" `
+    -Pattern '\$SigningEnvironment\s*=\s*"android-local-signing"'
+Require-ReadinessPattern `
+    -Description "fixed protected release branch" `
+    -Pattern '\$RequiredReleaseBranch\s*=\s*"main"'
+Require-ReadinessPattern `
+    -Description "signing environment existence preflight before credential reads" `
+    -Pattern '(?s)''api'',\s*''--method'',\s*''GET'',\s*"repos/\$Repo/environments/\$SigningEnvironment".*?missing or inaccessible.*?\$secretRead'
+Require-ReadinessPattern `
+    -Description "exact main-only branch-policy preflight before credential reads" `
+    -Pattern '(?s)deployment_branch_policy.*?custom_branch_policies.*?deployment-branch-policies\?per_page=100.*?total_count\s+-ne\s+1.*?name\s+-cne\s+\$RequiredReleaseBranch.*?type\s+-cne\s+"branch".*?\$secretRead'
+Require-ReadinessPattern `
+    -Description "environment-scoped secret-name read" `
+    -Pattern "'secret', 'list', '--env', \`$SigningEnvironment, '--repo', \`$Repo"
+Require-ReadinessPattern `
+    -Description "environment-scoped signer-variable read" `
+    -Pattern "'variable', 'list', '--env', \`$SigningEnvironment, '--repo', \`$Repo"
+Require-ReadinessPattern `
     -Description "actual downloaded baseline identity inspection" `
     -Pattern '(?s)\$baselineIdentity\s*=\s*Get-AndroidApkIdentity.*?-Path\s+\$baselineApkPath'
 Require-ReadinessPattern `
@@ -672,6 +753,12 @@ Reject-ReadinessPattern `
 Reject-ReadinessPattern `
     -Description "readiness must not accept unrelated release-signing credentials" `
     -Pattern 'ANDROID_RELEASE_'
+Reject-ReadinessPattern `
+    -Description "readiness must not inspect repository-scoped secret names" `
+    -Pattern "'secret', 'list', '--repo'"
+Reject-ReadinessPattern `
+    -Description "readiness must not inspect repository-scoped variables" `
+    -Pattern "'variable', 'list', '--repo'"
 
 Require-ConfiguratorPattern `
     -Description "published v0.2.416 signer pin" `
@@ -689,8 +776,8 @@ Require-ConfiguratorPattern `
     -Description "exact release branch policy" `
     -Pattern '\$requiredReleaseBranch\s*=\s*"main"'
 Require-ConfiguratorPattern `
-    -Description "environment reviewer and exact branch-policy preflight before writes" `
-    -Pattern '(?s)environments/\$signingEnvironment.*?required_reviewers.*?reviewers.*?prevent_self_review\s+-ne\s+\$true.*?deployment_branch_policy.*?custom_branch_policies.*?deployment-branch-policies\?per_page=100.*?total_count\s+-ne\s+1.*?Invoke-ProcessWithStandardInput'
+    -Description "exact main-only branch-policy preflight before writes" `
+    -Pattern '(?s)environments/\$signingEnvironment.*?deployment_branch_policy.*?custom_branch_policies.*?deployment-branch-policies\?per_page=100.*?total_count\s+-ne\s+1.*?name\s+-cne\s+\$requiredReleaseBranch.*?type\s+-cne\s+"branch".*?Invoke-ProcessWithStandardInput'
 Require-ConfiguratorPattern `
     -Description "environment-scoped key, password, alias, and signer writes" `
     -Pattern "(?s)'secret', 'set', 'ANDROID_LOCAL_UPDATE_KEYSTORE_BASE64', '--env', \`$signingEnvironment.*?'secret', 'set', 'ANDROID_LOCAL_UPDATE_KEYSTORE_PASSWORD', '--env', \`$signingEnvironment.*?'secret', 'set', 'ANDROID_LOCAL_UPDATE_KEY_ALIAS', '--env', \`$signingEnvironment.*?'variable', 'set', 'ANDROID_LOCAL_UPDATE_SIGNER_SHA256', '--env', \`$signingEnvironment"
@@ -746,6 +833,11 @@ Require-StaticPattern `
     -Subject 'governance workflow' `
     -Description 'immutable artifact action' `
     -Pattern 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02\s+#\s+v4\.6\.2'
+Require-StaticPattern `
+    -Content $governanceWorkflow `
+    -Subject 'governance workflow' `
+    -Description 'affected-device preflight regression gate' `
+    -Pattern 'test-stage5-affected-device-preflight\.ps1'
 $allowedGovernanceActions = @(
     'actions/checkout@11d5960a326750d5838078e36cf38b85af677262',
     'actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9',

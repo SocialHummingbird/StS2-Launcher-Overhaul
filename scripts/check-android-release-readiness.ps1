@@ -12,9 +12,35 @@ $ExpectedPackageName = "com.sts2launcher.overhaul.fork.local"
 $UpdateBaselineTag = "v0.2.416-startup-recovery-ime"
 $UpdateBaselineAssetName = "StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk"
 $UpdateBaselineApkSha256 = "fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b"
+$SigningEnvironment = "android-local-signing"
+$RequiredReleaseBranch = "main"
 
-if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+$ghCommand = Get-Command gh -ErrorAction SilentlyContinue
+if (-not $ghCommand) {
     throw "GitHub CLI not found: gh"
+}
+
+function Invoke-GitHubRead {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        # Windows PowerShell promotes native stderr to ErrorRecord objects.
+        # Keep it capturable so the caller can report the actual failed read.
+        $ErrorActionPreference = "Continue"
+        $output = @(& $ghCommand.Source @Arguments 2>&1)
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Output = @($output)
+    }
 }
 
 $requiredSecrets = @(
@@ -30,12 +56,56 @@ $failed = $false
 
 Write-Host "Checking Android release readiness for $Repo"
 
-$secretOutput = gh secret list --repo $Repo 2>&1
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to list GitHub secrets for $Repo.`n$($secretOutput -join "`n")"
+$environmentRead = Invoke-GitHubRead -Arguments @(
+    'api', '--method', 'GET', "repos/$Repo/environments/$SigningEnvironment"
+)
+if ($environmentRead.ExitCode -ne 0) {
+    throw "Required GitHub signing environment '$SigningEnvironment' is missing or inaccessible for $Repo. No signing credentials were read.`n$($environmentRead.Output -join "`n")"
+}
+try {
+    $environmentMetadata = ($environmentRead.Output -join "`n") | ConvertFrom-Json
+} catch {
+    throw "GitHub returned invalid metadata for required signing environment '$SigningEnvironment'. No signing credentials were read."
+}
+if ([string]$environmentMetadata.name -cne $SigningEnvironment) {
+    throw "GitHub returned the wrong signing environment. Expected '$SigningEnvironment', got '$([string]$environmentMetadata.name)'. No signing credentials were read."
+}
+$deploymentPolicy = $environmentMetadata.deployment_branch_policy
+if (-not $deploymentPolicy -or
+    $deploymentPolicy.protected_branches -or
+    -not $deploymentPolicy.custom_branch_policies) {
+    throw "GitHub environment '$SigningEnvironment' must use a custom deployment policy restricted to '$RequiredReleaseBranch'. No signing credentials were read."
 }
 
-$secretNames = @($secretOutput | ForEach-Object { ($_ -split "\s+")[0] } | Where-Object { $_ })
+$branchPolicyRead = Invoke-GitHubRead -Arguments @(
+    'api', '--method', 'GET',
+    "repos/$Repo/environments/$SigningEnvironment/deployment-branch-policies?per_page=100"
+)
+if ($branchPolicyRead.ExitCode -ne 0) {
+    throw "Could not verify deployment branch policies for GitHub environment '$SigningEnvironment'. No signing credentials were read.`n$($branchPolicyRead.Output -join "`n")"
+}
+try {
+    $branchPolicyMetadata = ($branchPolicyRead.Output -join "`n") | ConvertFrom-Json
+} catch {
+    throw "GitHub returned invalid deployment-policy metadata for environment '$SigningEnvironment'. No signing credentials were read."
+}
+$branchPolicies = @($branchPolicyMetadata.branch_policies)
+if ($branchPolicyMetadata.total_count -ne 1 -or
+    $branchPolicies.Count -ne 1 -or
+    $branchPolicies[0].name -cne $RequiredReleaseBranch -or
+    $branchPolicies[0].type -cne "branch") {
+    throw "GitHub environment '$SigningEnvironment' must allow exactly the '$RequiredReleaseBranch' branch and no tag or wildcard policy. No signing credentials were read."
+}
+Write-Host "OK main-only GitHub signing environment: $SigningEnvironment (branch=$RequiredReleaseBranch)"
+
+$secretRead = Invoke-GitHubRead -Arguments @(
+    'secret', 'list', '--env', $SigningEnvironment, '--repo', $Repo
+)
+if ($secretRead.ExitCode -ne 0) {
+    throw "Failed to list secret names in GitHub environment '$SigningEnvironment' for $Repo. No secret values were read.`n$($secretRead.Output -join "`n")"
+}
+
+$secretNames = @($secretRead.Output | ForEach-Object { ($_ -split "\s+")[0] } | Where-Object { $_ })
 foreach ($secret in $requiredSecrets) {
     if ($secretNames -contains $secret) {
         Write-Host "OK secret present: $secret"
@@ -45,13 +115,15 @@ foreach ($secret in $requiredSecrets) {
     }
 }
 
-$variableOutput = gh variable list --repo $Repo 2>&1
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to list GitHub variables for $Repo.`n$($variableOutput -join "`n")"
+$variableRead = Invoke-GitHubRead -Arguments @(
+    'variable', 'list', '--env', $SigningEnvironment, '--repo', $Repo
+)
+if ($variableRead.ExitCode -ne 0) {
+    throw "Failed to list GitHub variables in environment '$SigningEnvironment' for $Repo.`n$($variableRead.Output -join "`n")"
 }
 
 $variables = @{}
-foreach ($line in $variableOutput) {
+foreach ($line in $variableRead.Output) {
     $parts = @($line -split "\s+")
     if ($parts.Count -ge 2 -and $parts[0]) {
         $variables[$parts[0]] = $parts[1]

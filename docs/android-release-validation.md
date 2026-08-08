@@ -122,12 +122,12 @@ Use the existing `cloud_sync_enabled` setting throughout this matrix. Do not add
 
 ## 2) Verify update guardrails
 
-1. Confirm repository secrets are configured:
+1. Confirm these secrets are configured only in the protected `android-local-signing` GitHub environment:
    - `ANDROID_LOCAL_UPDATE_KEYSTORE_BASE64`
    - `ANDROID_LOCAL_UPDATE_KEYSTORE_PASSWORD`
    - `ANDROID_LOCAL_UPDATE_KEY_ALIAS`
-2. Confirm repository variable `ANDROID_LOCAL_UPDATE_SIGNER_SHA256` is configured to the published v0.2.416 certificate SHA-256 fingerprint `FD0E3D5ACF435C1D23BFC5C426E99AA9EB5808619FF1FC214FFCA99CFAC7E57A`.
-3. Audit the current repository setup. This requires authenticated GitHub CLI access, a JDK, and Android SDK build-tools. The script uses explicit `-AndroidHome` / `-JavaHome` paths when provided, otherwise checks the current environment and the repo-standard `.w40k-android-toolchain` SDK/JDK roots, restoring the caller's process environment afterward. It downloads the fixed baseline into a temporary directory, verifies its SHA-256, and reads the APK itself to prove package `com.sts2launcher.overhaul.fork.local` and signer match `ANDROID_LOCAL_UPDATE_SIGNER_SHA256`:
+2. Confirm environment variable `ANDROID_LOCAL_UPDATE_SIGNER_SHA256` is configured there with the published v0.2.416 certificate SHA-256 fingerprint `FD0E3D5ACF435C1D23BFC5C426E99AA9EB5808619FF1FC214FFCA99CFAC7E57A`.
+3. Audit the current repository setup. This requires authenticated GitHub CLI access, a JDK, and Android SDK build-tools. The script requires the exact `android-local-signing` environment to allow exactly the `main` branch through one custom deployment policy. It does not require a deployment reviewer because this repository has one maintainer; the candidate, device-matrix, and release gates remain unchanged. Only after the branch-policy checks pass does it read that environment's secret names and variables; it never reads secret values. It uses explicit `-AndroidHome` / `-JavaHome` paths when provided, otherwise checks the current environment and the repo-standard `.w40k-android-toolchain` SDK/JDK roots, restoring the caller's process environment afterward. It downloads the fixed baseline into a temporary directory, verifies its SHA-256, and reads the APK itself to prove package `com.sts2launcher.overhaul.fork.local` and signer match `ANDROID_LOCAL_UPDATE_SIGNER_SHA256`:
 
 ```powershell
 .\scripts\check-android-release-readiness.ps1
@@ -227,14 +227,27 @@ StS2Launcher-v<version>-arm64-v8a.apk: OK
 
 The affected-user recovery sequence is deliberately different from a clean test install. The published v0.2.416 package is nondebuggable and cannot expose its private files through ADB; claiming a verified pre-install private-save export is therefore false. Preserve the installed app and use only this sequence:
 
-1. Keep the existing `.local` install closed. Record its package, versionCode, base-APK SHA-256, and signer using read-only inspection. Do not launch, force-stop, uninstall, clear data, Pull, restore, or install any substitute build.
-2. Before touching the device, statically verify the unchanged candidate, checksum sidecar, and build-info sidecar. Verify the candidate against the retained v0.2.416 baseline with `verify-android-update-compat.ps1`; require package `com.sts2launcher.overhaul.fork.local`, signer `FD0E3D5ACF435C1D23BFC5C426E99AA9EB5808619FF1FC214FFCA99CFAC7E57A`, versionCode above `416001`, and the expected candidate source/run/APK hashes. If any check fails, stop.
-3. Take the device offline before installation and keep it offline. Install only the verified candidate as an update, without launching it: `adb install -r <exact-candidate.apk>`. Do not add `-d`, do not use a build/install wrapper, and do not uninstall or clear app data. Require `Success`, then read back the installed package/version/base-APK hash without launching. Any install incompatibility is a stop condition, not permission to uninstall.
-4. First-launch the updated `.local` app while the device is still offline. Startup performs session setup before the recovery controls are used, so offline operation is the safety boundary; do not press Play, Pull, Push, Restore, or Approve.
-5. Select **Play Vanilla**, press **Export Current Android Saves**, share/copy the resulting JSON outside the app's private storage, and run `verify-stage5-android-save-bundle.ps1` against that retained file. Keep the raw bundle and generated manifest.
-6. Select the exact installed mod set and **Play Modded**, then repeat **Export Current Android Saves** into a separate retained file and verify it separately. Never substitute one namespace's export for the other.
-7. Only after both current-save bundles are outside the app and read-back verified, press **Scan for Recovery Copies**. For every plausible vanilla, modded, temporary, or backup candidate, use **Export Recovery Bundle**, retain the bytes outside the app, and verify each bundle before considering Restore.
-8. Leave the affected-user device offline and stop. Inspect the exports first; do not run the destructive/conflict matrix on the user's only copy and do not enable Steam sync or restore anything yet.
+1. Keep the existing `.local` install closed. Do not force-stop it. Read-only copy every accessible `/sdcard/StS2Launcher` and app-specific shared-storage file outside the phone, then retain a path/size/SHA-256 inventory. This preserves only shared storage; it is not proof of the nondebuggable app's private saves.
+2. Run the fail-closed read-only preflight before installation. It verifies the unchanged candidate, checksum and build-info sidecars, current source/run binding, exact installed v0.2.416 APK, package, signer, device UID, first-install time, and data directory. It refuses a running app, multiple devices, or any lineage mismatch and performs no install or lifecycle operation:
+
+```powershell
+.\scripts\check-stage5-affected-device.ps1 `
+  -Mode PreInstall `
+  -CandidateApkPath <exact-candidate.apk> `
+  -CandidateChecksumPath <exact-candidate.apk.sha256> `
+  -CandidateBuildInfoPath <exact-candidate.apk.build-info.txt> `
+  -ExpectedSourceCommit <40-character-main-commit> `
+  -ExpectedCandidateRunId <workflow-run-id> `
+  -ExpectedCandidateRunAttempt <workflow-run-attempt>
+```
+
+3. Take the device offline before installation and keep it offline. Install only those exact candidate bytes as an update, without launching them: `adb install -r <exact-candidate.apk>`. Do not add `-d`, do not use a build/install wrapper, and do not uninstall or clear app data. Require literal `Success`; any incompatibility is a stop condition, not permission to uninstall.
+4. Before launch, rerun `check-stage5-affected-device.ps1` with `-Mode PostInstall` and the same candidate arguments plus `-PriorManifestPath <verified-preinstall-manifest.json>`. Require exact installed candidate bytes and unchanged serial, package, UID, first-install time, and data directory.
+5. First-launch the updated `.local` app exactly once while the device is still offline. Startup performs session setup before the recovery controls are used, so offline operation is the safety boundary; do not press Play, Pull, Push, Restore, or Approve.
+6. Record the namespace, runtime branch, and mod set already selected by the launcher, then press **Export Current Android Saves** before changing any play mode or mod selection. Share/copy the resulting JSON outside app-private and app-specific storage, run `verify-stage5-android-save-bundle.ps1`, and retain the raw bundle, manifest, and matching `STS2_SAVE_EXPORT_COMPLETE` log event.
+7. Only after that first bundle is safe, select the other namespace without changing or guessing the installed mod set, export it to a separate retained file, and verify it separately. Never substitute one namespace's export for the other; unknown context remains unknown.
+8. Only after both current-save bundles are outside the app and read-back verified, press **Scan for Recovery Copies**. For every plausible vanilla, modded, temporary, or backup candidate, use **Export Recovery Bundle**, retain the bytes outside the app, and verify each bundle before considering Restore.
+9. Leave the affected-user device offline and stop. Inspect the exports first; do not run the destructive/conflict matrix on the user's only copy and do not enable Steam sync or restore anything yet.
 
 The in-app current-save and recovery-bundle exporters are local-only, but the launcher startup path also initializes its session and may resume a pending reconciliation on installs that already contain one. A direct v0.2.416 upgrade is not expected to contain the new pending record; offline first launch is still required instead of relying on that assumption. The same exact candidate APK can proceed through the physical matrix only on a controlled device/data set after the affected-user bundles are safe.
 

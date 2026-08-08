@@ -385,14 +385,14 @@ Maintainers can trigger the candidate workflow manually from the Actions tab. It
 - Manual candidate build:
   - `workflow_dispatch` accepts candidate version/build-source metadata. Package and update baseline are fixed to the published v0.2.416 `.local` lineage.
 - Required v0.2.416 local-update signing:
-  - Configure repository secrets:
+  - Configure secrets only in the `android-local-signing` environment:
     - `ANDROID_LOCAL_UPDATE_KEYSTORE_BASE64`
     - `ANDROID_LOCAL_UPDATE_KEYSTORE_PASSWORD`
     - `ANDROID_LOCAL_UPDATE_KEY_ALIAS`
-  - Configure repository variable:
+  - Configure the signer variable in that environment:
     - `ANDROID_LOCAL_UPDATE_SIGNER_SHA256`
 
-Gradle builds and verifies an unsigned APK in a secret-free job. A fresh runner accepts only those hash-bound bytes, signs them with the temporary scoped keystore, removes the credentials, and then performs final verification. If the dedicated credentials are missing, the workflow refuses to sign or retain a candidate. `ANDROID_LOCAL_UPDATE_SIGNER_SHA256` must be `FD0E3D5ACF435C1D23BFC5C426E99AA9EB5808619FF1FC214FFCA99CFAC7E57A`.
+The signing environment must allow exactly the `main` branch. It does not require a deployment reviewer because the repository has one maintainer; this does not relax the candidate, device-matrix, or release gates. Gradle builds and verifies an unsigned APK in a secret-free job. A fresh runner accepts only those hash-bound bytes, signs them with the temporary scoped keystore, removes the credentials, and then performs final verification. If the dedicated credentials are missing, the workflow refuses to sign or retain a candidate. `ANDROID_LOCAL_UPDATE_SIGNER_SHA256` must be `FD0E3D5ACF435C1D23BFC5C426E99AA9EB5808619FF1FC214FFCA99CFAC7E57A`.
 
 Use the helper script to configure GitHub from a stable release keystore:
 

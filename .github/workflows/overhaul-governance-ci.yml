@@ -41,6 +41,7 @@ jobs:
         run: |
           ./scripts/test-stage5-save-evidence-manifests.ps1
           ./scripts/test-stage5-collector-exact-byte-capture.ps1
+          ./scripts/test-stage5-affected-device-preflight.ps1
           ./scripts/test-stage5-physical-matrix-reviewer.ps1
 
       - name: Validate repository diff hygiene

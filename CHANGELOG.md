@@ -2,9 +2,12 @@
 
 ## 2026-08-08 - Stage 5 evidence and candidate custody hardening (unreleased; device matrix 0/10)
 
+- Verified the connected affected phone read-only against the exact published v0.2.416 `.local` APK, retained its installed APK, and copied and independently hash-checked all 94 accessible shared-storage files without launching or stopping the app. The shared vanilla progress preserves Ironclad A10 but only Regent A5; private Android storage and Steam remain uninspected, so the reported Regent A6–8 data is not yet recovered and nothing has been uploaded.
+- Added a fail-closed, read-only affected-device preflight that binds the exact candidate APK, checksum, source/run metadata, v0.2.416 baseline, installed package/signer, device UID, first-install time, and data directory before and after an in-place update. It contains no install, launch, force-stop, clear, uninstall, or other mutating ADB operation.
 - Bound every non-debuggable in-app save export to an exact-byte read-back hash, current Android tree identity, selected SaveContext identity, and a structured completion event in the inventoried raw device log. The physical-matrix reviewer rejects missing, reused, tampered, or wrong-session bindings.
 - Made inventoried raw logcat and captured state files authoritative for Review 5. Collector summary booleans and counts are independently recomputed, and fatal/ANR, Steam-backed gameplay saving, dropped or swallowed save failures, false `Synced`, and mismatched recovery/failure evidence fail the review.
 - Pinned the candidate workflow's GitHub Actions, Godot commit, SCons version, Gradle distribution, and checked-in wrapper bytes. Gradle now builds and verifies unsigned bytes without secrets; a fresh runner signs them with a scoped temporary keystore, removes credentials immediately, and only then verifies and retains the candidate.
+- Kept signing credentials in an environment restricted to exactly `main`, while removing the impossible independent-reviewer requirement from this solo-maintainer repository. The offline-key-backup prerequisite and every candidate, device-matrix, and release gate remain in place.
 - Hash-sealed the 14,896-file historical Android evidence tree without moving or rewriting it. The sole v0.2.416 update keystore still has no verified independent offline backup, so signing credentials remain unconfigured and no candidate build, device test, Steam operation, or release has started.
 
 ## 2026-08-06 - Stage 5 desktop validation (unreleased; device matrix 0/10)
