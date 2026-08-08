@@ -1,0 +1,46 @@
+function Add-SteamVersionSelectionBetaIntegrityIssueTemplateBranchCacheChecks {
+    Add-Check `
+        ".github\ISSUE_TEMPLATE\steam_version_selection_report.md" `
+        "keeps branch cache, redownload, and depot provenance evidence in public reports" `
+        @(
+            "Selected game version note",
+            "Selected game version slot kind",
+            "Selected game version slot directory",
+            "Game version cache cleanup marker filename",
+            "Game version cache cleanup marker path",
+            "Game version cache cleanup marker present",
+            "Game version cache cleanup marker UTC",
+            "Game version cache cleanup marker selected branch",
+            "Game version cache cleanup marker selected version",
+            "Game version cache cleanup marker selected version slot kind",
+            "Game version cache cleanup marker selected version slot directory",
+            "Game version cache cleanup marker game_versions present",
+            "Game version cache cleanup marker runtime_packs present",
+            "Game version cache cleanup marker selected runtime pack directory",
+            "Game version cache cleanup marker selected runtime pack present before cleanup",
+            "Game version cache cleanup marker removed count",
+            "Game version cache cleanup marker removed runtime pack count",
+            "Game version cache cleanup marker selected cache preserved where applicable",
+            "Game version cache cleanup marker selected runtime pack preserved where applicable",
+            "Game version redownload marker filename",
+            "Game version redownload marker path",
+            "Game version redownload marker present",
+            "Game version redownload marker selected branch",
+            "Game version redownload marker selected version",
+            "Game version redownload marker selected version slot kind",
+            "Game version redownload marker selected version slot directory",
+            "Selected game branch marker depots matching public",
+            "Selected game branch marker depots differing from public",
+            "Selected game branch marker depots without public comparison",
+            "Selected game branch marker depots inherited from public",
+            "Selected game branch marker depots missing selected branch manifest",
+            "Selected game branch marker partial Steam branch evidence",
+            "Selected game branch marker depot manifest rows",
+            "manifestSource=<selected|public-inherited>",
+            "manifestRequestBranch=<selected|public>",
+            "Public-vs-beta file and art evidence",
+            "Public-sharing warning reviewed",
+            "SlayTheSpire2.pck",
+            "Art/bundle-like files"
+        )
+}

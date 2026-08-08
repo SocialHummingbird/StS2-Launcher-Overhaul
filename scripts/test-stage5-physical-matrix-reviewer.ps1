@@ -1,0 +1,1405 @@
+$ErrorActionPreference = "Stop"
+
+$templateScript = Join-Path $PSScriptRoot 'new-stage5-physical-matrix-template.ps1'
+$reviewer = Join-Path $PSScriptRoot 'review-stage5-physical-matrix.ps1'
+$androidVerifier = Join-Path $PSScriptRoot 'verify-stage5-android-save-bundle.ps1'
+$steamCapture = Join-Path $PSScriptRoot 'new-stage5-live-steam-manifest.ps1'
+$inventoryScript = Join-Path $PSScriptRoot 'new-stage5-android-evidence-inventory.ps1'
+$testRoot = Join-Path ([IO.Path]::GetTempPath()) (
+    'sts2-stage5-matrix-review-test-' + [Guid]::NewGuid().ToString('N')
+)
+
+$sourceCommit = '1234567890abcdef1234567890abcdef12345678'
+$steamId64 = '76561198000000001'
+$packageName = 'com.sts2launcher.overhaul.fork.local'
+$signerSha256 = 'fd0e3d5acf435c1d23bfc5c426e99aa9eb5808619ff1fc214ffca99cfac7e57a'
+$deviceSerial = 'fixture-device-01'
+$contexts = [ordered]@{
+    'vanilla-public' = [ordered]@{
+        SteamId64 = $steamId64; SaveNamespace = 'vanilla'; RuntimeIdentity = 'public'; ModSetFingerprint = ''
+    }
+    'vanilla-public-beta' = [ordered]@{
+        SteamId64 = $steamId64; SaveNamespace = 'vanilla'; RuntimeIdentity = 'public-beta'; ModSetFingerprint = ''
+    }
+    'modded-exact' = [ordered]@{
+        SteamId64 = $steamId64; SaveNamespace = 'modded'; RuntimeIdentity = 'public'; ModSetFingerprint = 'mods-exact-001'
+    }
+    'modded-changed' = [ordered]@{
+        SteamId64 = $steamId64; SaveNamespace = 'modded'; RuntimeIdentity = 'public'; ModSetFingerprint = 'mods-changed-002'
+    }
+}
+
+function Get-Sha256Hex {
+    param([Parameter(Mandatory = $true)][byte[]]$Bytes)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return (($sha.ComputeHash($Bytes) | ForEach-Object { $_.ToString('x2') }) -join '')
+    } finally {
+        $sha.Dispose()
+    }
+}
+
+function Get-FileHashHex {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    return Get-Sha256Hex -Bytes ([IO.File]::ReadAllBytes($Path))
+}
+
+function Write-JsonNoBom {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)]$Value
+    )
+    $parent = Split-Path -Parent $Path
+    if ($parent) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+    [IO.File]::WriteAllText(
+        $Path,
+        ($Value | ConvertTo-Json -Depth 30),
+        [Text.UTF8Encoding]::new($false)
+    )
+}
+
+function Copy-JsonEvidence {
+    param(
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Destination
+    )
+    $parent = Split-Path -Parent $Destination
+    New-Item -ItemType Directory -Force -Path $parent | Out-Null
+    [IO.File]::WriteAllBytes($Destination, [IO.File]::ReadAllBytes($Source))
+}
+
+function New-ContextMarker {
+    param([Parameter(Mandatory = $true)]$Context)
+    return ([ordered]@{
+        Version = 1
+        SteamId64 = [uint64]$Context.SteamId64
+        SaveNamespace = [string]$Context.SaveNamespace
+        RuntimeIdentity = [string]$Context.RuntimeIdentity
+        ModSetFingerprint = [string]$Context.ModSetFingerprint
+    } | ConvertTo-Json -Compress)
+}
+
+function New-State {
+    param(
+        [Parameter(Mandatory = $true)][string]$Namespace,
+        [Parameter(Mandatory = $true)][string]$ProfileLabel,
+        [Parameter(Mandatory = $true)][string]$ProgressLabel
+    )
+    $prefix = if ($Namespace -eq 'modded') { 'modded/' } else { '' }
+    $state = [Collections.Generic.Dictionary[string, byte[]]]::new([StringComparer]::OrdinalIgnoreCase)
+    $state.Add('profile.save', [Text.Encoding]::UTF8.GetBytes("profile:$ProfileLabel`r`n"))
+    $state.Add("${prefix}profile1/saves/progress.save", [Text.Encoding]::UTF8.GetBytes("progress:$ProgressLabel`r`n"))
+    return $state
+}
+
+function Merge-State {
+    param([Parameter(Mandatory = $true)][object[]]$States)
+    $merged = [Collections.Generic.Dictionary[string, byte[]]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($state in $States) {
+        foreach ($path in $state.Keys) {
+            if ($merged.ContainsKey($path)) {
+                if ((Get-Sha256Hex -Bytes $merged[$path]) -ne (Get-Sha256Hex -Bytes $state[$path])) {
+                    throw "Fixture state collision at $path."
+                }
+            } else {
+                $merged.Add($path, $state[$path])
+            }
+        }
+    }
+    return $merged
+}
+
+function New-Snapshot {
+    param(
+        [Parameter(Mandatory = $true)]$Context,
+        [Parameter(Mandatory = $true)]$State,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+    $entries = [Collections.Generic.List[object]]::new()
+    $files = [Collections.Generic.List[object]]::new()
+    $paths = [Collections.Generic.List[string]]::new()
+    $paths.Add('profile.save')
+    $prefix = if ([string]$Context.SaveNamespace -eq 'modded') { 'modded/' } else { '' }
+    foreach ($profileId in 1..3) {
+        foreach ($name in @('progress.save', 'prefs', 'prefs.save', 'current_run.save', 'current_run_mp.save')) {
+            $paths.Add("${prefix}profile${profileId}/saves/$name")
+        }
+    }
+    foreach ($path in $paths) {
+        if ($State.ContainsKey($path)) {
+            $bytes = $State[$path]
+            $hash = Get-Sha256Hex -Bytes $bytes
+            $entries.Add([ordered]@{ Path = $path; Exists = $true; Sha256 = $hash; ByteSha256 = $hash })
+            $files.Add([ordered]@{ Path = $path; ContentBase64 = [Convert]::ToBase64String($bytes); ByteSha256 = $hash })
+        } else {
+            $entries.Add([ordered]@{ Path = $path; Exists = $false; Sha256 = ''; ByteSha256 = '' })
+        }
+    }
+    return [ordered]@{
+        Version = 2
+        ContextMarker = New-ContextMarker -Context $Context
+        Coverage = 'full'
+        SourceKind = 'fixture'
+        SourceLabel = $Label
+        CapturedUtc = '2026-01-01T00:00:00.0000000+00:00'
+        Manifest = [ordered]@{ Version = 1; Entries = @($entries) }
+        Files = @($files)
+    }
+}
+
+function Get-SnapshotTreeSha256 {
+    param([Parameter(Mandatory = $true)]$Snapshot)
+
+    $contents = @{}
+    foreach ($file in @($Snapshot.Files)) {
+        $contents[[string]$file.Path] = [Convert]::FromBase64String(
+            [string]$file.ContentBase64
+        )
+    }
+    $lines = @($Snapshot.Manifest.Entries | ForEach-Object {
+        $path = [string]$_.Path
+        if ([bool]$_.Exists) {
+            $bytes = $contents[$path]
+            "$path`ttrue`t$($bytes.Length)`t$(Get-Sha256Hex -Bytes $bytes)"
+        } else {
+            "$path`tfalse`t0`t"
+        }
+    } | Sort-Object)
+    return Get-Sha256Hex -Bytes (
+        [Text.Encoding]::UTF8.GetBytes(($lines -join "`n") + "`n")
+    )
+}
+
+function Get-ContextIdentitySha256 {
+    param([Parameter(Mandatory = $true)]$Context)
+
+    $text =
+        "$([string]$Context.SteamId64)`0$(([string]$Context.SaveNamespace).ToLowerInvariant())`0$([string]$Context.RuntimeIdentity)`0$([string]$Context.ModSetFingerprint)`0"
+    return Get-Sha256Hex -Bytes ([Text.Encoding]::UTF8.GetBytes($text))
+}
+
+function New-AndroidBase {
+    param(
+        [Parameter(Mandatory = $true)][string]$Key,
+        [Parameter(Mandatory = $true)][string]$ContextId,
+        [Parameter(Mandatory = $true)]$State,
+        [bool]$CloudSyncEnabled = $true,
+        [string]$PendingPhase = '',
+        [string]$RecoveryPhase = '',
+        $RecoveryState = $null
+    )
+    $context = $contexts[$ContextId]
+    $currentSnapshot = New-Snapshot `
+        -Context $context `
+        -State $State `
+        -Label $Key
+    $bundle = [ordered]@{
+        Version = 2
+        ExportId = [Guid]::NewGuid().ToString('N')
+        CurrentAndroidTreeSha256 =
+            Get-SnapshotTreeSha256 -Snapshot $currentSnapshot
+        SelectedSaveContextSha256 =
+            Get-ContextIdentitySha256 -Context $context
+        CreatedUtc = '2026-01-01T00:00:00+00:00'
+        OriginalSourcesWereModified = $false
+        SteamWasContacted = $false
+        CloudSyncEnabled = $CloudSyncEnabled
+        SelectedSaveContext = $context
+        CurrentAndroidSnapshot = $currentSnapshot
+        RecoverySnapshots = @()
+        RecoveryHoldJson = ''
+        RecoveryJournalJson = ''
+        AutomaticSyncPendingJson = ''
+        AutomaticSyncBaselineJson = ''
+        AutomaticSyncBeforeGameSnapshotJson = ''
+    }
+    if ($PendingPhase) {
+        $bundle.AutomaticSyncPendingJson = ([ordered]@{
+            Version = 1
+            Phase = $PendingPhase
+            ContextMarker = New-ContextMarker -Context $context
+        } | ConvertTo-Json -Compress)
+    }
+    if ($RecoveryPhase) {
+        $bundle.RecoveryJournalJson = ([ordered]@{
+            Version = 2
+            Phase = $RecoveryPhase
+            SaveNamespace = [string]$context.SaveNamespace
+            RuntimeIdentity = [string]$context.RuntimeIdentity
+            ModSetFingerprint = [string]$context.ModSetFingerprint
+            TargetContextMarker = New-ContextMarker -Context $context
+            SourceSnapshotPath = '.sts2-launcher/recovery/source.json'
+            SourceSnapshotSha256 = ('b' * 64)
+            UndoSnapshotPath = '.sts2-launcher/recovery/undo.json'
+            UndoSnapshotSha256 = ('c' * 64)
+            AppliedSnapshotPath = '.sts2-launcher/recovery/applied.json'
+            AppliedSnapshotSha256 = ('d' * 64)
+            AppliedManifest = [ordered]@{ Version = 1; Entries = @() }
+            CreatedUtc = '2026-01-01T00:00:00Z'
+            UpdatedUtc = '2026-01-01T00:01:00Z'
+        } | ConvertTo-Json -Compress -Depth 8)
+    }
+    if ($null -ne $RecoveryState) {
+        $recoverySnapshot = New-Snapshot -Context $context -State $RecoveryState -Label 'transfer-destination-backup'
+        $reported = 'e' * 64
+        $bundle.RecoverySnapshots = @([ordered]@{
+            CandidateId = $reported
+            SourceKind = 'TransferBackup'
+            SourceLabel = 'transfer-destination-backup'
+            Classification = 'ExactContext'
+            Coverage = 'full'
+            SnapshotPath = '.sts2-launcher/recovery/transfer-backup.json'
+            SnapshotSha256 = $reported
+            Snapshot = $recoverySnapshot
+        })
+    }
+    $bundlePath = Join-Path $testRoot "android-bases/$Key-bundle.json"
+    $manifestPath = Join-Path $testRoot "android-bases/$Key-manifest.json"
+    Write-JsonNoBom -Path $bundlePath -Value $bundle
+    $namespace = if ([string]$context.SaveNamespace -eq 'modded') { 'Modded' } else { 'Vanilla' }
+    & $androidVerifier `
+        -BundlePath $bundlePath `
+        -OutputPath $manifestPath `
+        -Namespace $namespace `
+        -ExpectedSteamId64 $steamId64 `
+        -ExpectedRuntimeIdentity ([string]$context.RuntimeIdentity) `
+        -ExpectedModSetFingerprint ([string]$context.ModSetFingerprint) *> $null
+    return $manifestPath
+}
+
+function New-AndroidEvidenceWithFreshBinding {
+    param(
+        [Parameter(Mandatory = $true)][string]$BaseManifestPath,
+        [Parameter(Mandatory = $true)][string]$Destination
+    )
+
+    $baseManifest = Get-Content -LiteralPath $BaseManifestPath -Raw |
+        ConvertFrom-Json
+    $bundle = Get-Content -LiteralPath ([string]$baseManifest.sourceBundle) -Raw |
+        ConvertFrom-Json
+    $bundle.ExportId = [Guid]::NewGuid().ToString('N')
+    $bundlePath = "$Destination.bundle.json"
+    Write-JsonNoBom -Path $bundlePath -Value $bundle
+    $namespace = if (
+        ([string]$bundle.SelectedSaveContext.SaveNamespace).ToLowerInvariant() `
+            -eq 'modded'
+    ) { 'Modded' } else { 'Vanilla' }
+    & $androidVerifier `
+        -BundlePath $bundlePath `
+        -OutputPath $Destination `
+        -Namespace $namespace `
+        -ExpectedSteamId64 ([string]$bundle.SelectedSaveContext.SteamId64) `
+        -ExpectedRuntimeIdentity ([string]$bundle.SelectedSaveContext.RuntimeIdentity) `
+        -ExpectedModSetFingerprint ([string]$bundle.SelectedSaveContext.ModSetFingerprint) *> $null
+    return $Destination
+}
+
+function New-TimeLogLine {
+    param(
+        [Parameter(Mandatory = $true)][string]$Tag,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Message,
+        [int]$ProcessId = 4242,
+        [string]$Priority = 'I'
+    )
+    return "01-01 00:00:00.000 $ProcessId $ProcessId $Priority $Tag`: $Message"
+}
+
+function Get-ExportCompletionLine {
+    param([Parameter(Mandatory = $true)][string]$AndroidManifestPath)
+
+    $manifest = Get-Content -LiteralPath $AndroidManifestPath -Raw |
+        ConvertFrom-Json
+    $binding = $manifest.exportBinding
+    $payload = [ordered]@{
+        Event = 'save-recovery-export-complete'
+        Version = 1
+        ExportId = [string]$binding.exportId
+        BundleSha256 = [string]$binding.bundleSha256
+        CurrentAndroidTreeSha256 =
+            [string]$binding.currentAndroidTreeSha256
+        SelectedSaveContextSha256 =
+            [string]$binding.selectedSaveContextSha256
+    } | ConvertTo-Json -Compress
+    return New-TimeLogLine `
+        -Tag 'STS2Mobile' `
+        -Message "[Recovery] STS2_SAVE_EXPORT_COMPLETE $payload"
+}
+
+function New-SteamBase {
+    param(
+        [Parameter(Mandatory = $true)][string]$Key,
+        [Parameter(Mandatory = $true)][string]$ContextId,
+        [Parameter(Mandatory = $true)]$State,
+        [string]$CapturedUtc = '2026-01-01T02:00:00.0000000+00:00',
+        [switch]$MissingSelectedMarkerAfterFailedTransfer,
+        [string]$BeforeSteamManifestPath = ''
+    )
+    $context = $contexts[$ContextId]
+    $root = Join-Path $testRoot "steam-roots/$Key"
+    New-Item -ItemType Directory -Force -Path $root | Out-Null
+    foreach ($path in $State.Keys) {
+        $full = Join-Path $root $path.Replace('/', [IO.Path]::DirectorySeparatorChar)
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $full) | Out-Null
+        [IO.File]::WriteAllBytes($full, $State[$path])
+    }
+    $markerPath = Join-Path $root ".sts2-launcher/contexts/$([string]$context.SaveNamespace).json"
+    if (-not $MissingSelectedMarkerAfterFailedTransfer) {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $markerPath) | Out-Null
+        [IO.File]::WriteAllText(
+            $markerPath,
+            (New-ContextMarker -Context $context),
+            [Text.UTF8Encoding]::new($false)
+        )
+    }
+    $syncEvidence = Join-Path $testRoot "steam-sync/$Key.txt"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $syncEvidence) | Out-Null
+    [IO.File]::WriteAllText(
+        $syncEvidence,
+        "fixture independent Steam client download: $Key",
+        [Text.UTF8Encoding]::new($false)
+    )
+    $manifestPath = Join-Path $testRoot "steam-bases/$Key-manifest.json"
+    $namespace = if ([string]$context.SaveNamespace -eq 'modded') { 'Modded' } else { 'Vanilla' }
+    $captureArguments = @{
+        SteamCloudRoot = $root
+        SelectedNamespace = $namespace
+        ExpectedSteamId64 = $steamId64
+        ExpectedRuntimeIdentity = [string]$context.RuntimeIdentity
+        ExpectedModSetFingerprint = [string]$context.ModSetFingerprint
+        SteamSyncEvidencePath = $syncEvidence
+        CaptureMethod = 'deterministic retained fixture'
+        RetainedImmutableSource = $true
+        OutputPath = $manifestPath
+    }
+    if ($MissingSelectedMarkerAfterFailedTransfer) {
+        if (-not $BeforeSteamManifestPath) {
+            throw 'Missing-marker Steam fixture requires a before-transfer manifest.'
+        }
+        $captureArguments.CaptureFailedTransferWithMissingSelectedMarker = $true
+        $captureArguments.BeforeSteamManifestPath = $BeforeSteamManifestPath
+    }
+    & $steamCapture @captureArguments *> $null
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.capturedUtc = $CapturedUtc
+    Write-JsonNoBom -Path $manifestPath -Value $manifest
+    return $manifestPath
+}
+
+function Get-AutomaticTerminalLine {
+    param(
+        [Parameter(Mandatory = $true)][string]$ContextId,
+        [Parameter(Mandatory = $true)][string]$Operation,
+        [Parameter(Mandatory = $true)][string]$Outcome,
+        [Parameter(Mandatory = $true)][string]$Detail,
+        [Parameter(Mandatory = $true)][bool]$RemoteVerified,
+        $Version = 1,
+        [string]$Tag = 'STS2Mobile'
+    )
+    $payload = [ordered]@{
+        Event = 'automatic-sync-terminal'
+        Version = $Version
+        Operation = $Operation
+        Outcome = $Outcome
+        Detail = $Detail
+        ContextSha256 = Get-ContextIdentitySha256 -Context $contexts[$ContextId]
+        RemoteVerified = $RemoteVerified
+    } | ConvertTo-Json -Compress
+    return New-TimeLogLine -Tag $Tag -Message "STS2_SAVE_EVENT $payload"
+}
+
+function Get-RecoveryTerminalLine {
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('restore', 'undo')][string]$Operation,
+        $Version = 1,
+        [string]$Detail = 'byte-verified-local-only',
+        [string]$Tag = 'STS2Mobile'
+    )
+    $payload = [ordered]@{
+        Event = 'save-recovery-terminal'
+        Version = $Version
+        Operation = $Operation
+        Outcome = 'completed'
+        Detail = $Detail
+    } | ConvertTo-Json -Compress
+    return New-TimeLogLine -Tag $Tag -Message "STS2_SAVE_EVENT $payload"
+}
+
+function Get-CollectorLog {
+    param(
+        [Parameter(Mandatory = $true)][int]$Row,
+        [Parameter(Mandatory = $true)][string]$Phase,
+        [string[]]$ExportCompletionLines = @()
+    )
+    $exports = @($ExportCompletionLines)
+    switch ($Phase) {
+        'after-quit-sync' {
+            return @(
+                New-TimeLogLine -Tag STS2Mobile -Message 'NGame.Quit completed final local saves; restarting launcher'
+                Get-AutomaticTerminalLine -ContextId vanilla-public -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true
+                $exports[0]
+            ) -join "`n"
+        }
+        'before-play-reconcile' { return @($exports[0], (Get-AutomaticTerminalLine -ContextId vanilla-public -Operation reconcile -Outcome synchronized -Detail verified -RemoteVerified $true), $exports[1]) -join "`n" }
+        'divergence-conflict' { return @($exports[0], $exports[1], (Get-AutomaticTerminalLine -ContextId vanilla-public -Operation reconcile -Outcome conflict -Detail local-and-remote-diverged -RemoteVerified $false), $exports[2]) -join "`n" }
+        'after-modded-sync' { return @((Get-AutomaticTerminalLine -ContextId modded-exact -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true), $exports[0]) -join "`n" }
+        'changed-mod-set-blocked' { return @($exports[0], (Get-AutomaticTerminalLine -ContextId modded-changed -Operation reconcile -Outcome conflict -Detail mod-set-mismatch -RemoteVerified $false), $exports[1]) -join "`n" }
+        'after-switch-to-beta' { return @($exports[0], $exports[1], (Get-AutomaticTerminalLine -ContextId vanilla-public-beta -Operation reconcile -Outcome synchronized -Detail verified -RemoteVerified $true), $exports[2]) -join "`n" }
+        'after-switch-to-public' { return @((Get-AutomaticTerminalLine -ContextId vanilla-public -Operation reconcile -Outcome synchronized -Detail verified -RemoteVerified $true), $exports[0]) -join "`n" }
+        'offline-pending' { return @($exports[0], (Get-AutomaticTerminalLine -ContextId vanilla-public -Operation recover -Outcome failed -Detail operation-failed -RemoteVerified $false), $exports[1]) -join "`n" }
+        'retry-complete' { return @((Get-AutomaticTerminalLine -ContextId vanilla-public -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true), $exports[0]) -join "`n" }
+        'pending-before-force-stop' { return @($exports) -join "`n" }
+        'after-restart' {
+            return @(
+                New-TimeLogLine -Tag ActivityManager -Message "Force stopping $packageName appid=12345 user=0: fixture" -ProcessId 1000
+                New-TimeLogLine -Tag ActivityManager -Message "Start proc 4242:$packageName/u0a123 for activity $packageName/.MainActivity" -ProcessId 1000
+                Get-AutomaticTerminalLine -ContextId vanilla-public -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true
+                $exports[0]
+            ) -join "`n"
+        }
+        'commit-failure' { return @($exports[0], (Get-AutomaticTerminalLine -ContextId vanilla-public -Operation recover -Outcome failed -Detail commit-rejected -RemoteVerified $false), $exports[1]) -join "`n" }
+        'readback-failure' { return @($exports[0], (Get-AutomaticTerminalLine -ContextId vanilla-public -Operation recover -Outcome failed -Detail remote-readback-mismatch -RemoteVerified $false), $exports[1]) -join "`n" }
+        'after-restore' { return @($exports[0], (Get-RecoveryTerminalLine -Operation restore), $exports[1]) -join "`n" }
+        'after-undo' { return @((Get-RecoveryTerminalLine -Operation undo), $exports[0]) -join "`n" }
+        default { throw "Unknown fixture collector phase $Phase."
+        }
+    }
+}
+
+function New-CollectorEvidence {
+    param(
+        [Parameter(Mandatory = $true)]$Spec,
+        [Parameter(Mandatory = $true)][string]$CandidateApkPath,
+        [Parameter(Mandatory = $true)][string]$CandidateApkSha256,
+        [string[]]$ExportCompletionLines = @()
+    )
+    $id = [string]$Spec.id
+    $phase = [string]$Spec.phase
+    $row = [int]$Spec.row
+    $output = Join-Path $testRoot "collectors/$id"
+    New-Item -ItemType Directory -Force -Path $output | Out-Null
+    $log = Get-CollectorLog `
+        -Row $row `
+        -Phase $phase `
+        -ExportCompletionLines $ExportCompletionLines
+    $logPath = Join-Path $output 'logcat.txt'
+    $filteredPath = Join-Path $output 'filtered-logcat.txt'
+    $summaryPath = Join-Path $output 'summary.txt'
+    $packagePath = Join-Path $output 'package.txt'
+    $localHashesPath = Join-Path $output 'local-save-byte-hashes.tsv'
+    $stateHashesPath = Join-Path $output 'sync-recovery-state-byte-hashes.tsv'
+    $persistedPath = Join-Path $output 'persisted-steam-byte-hashes.tsv'
+    $stateIndexPath = Join-Path $output 'sync-state-index.json'
+    [IO.File]::WriteAllText($logPath, $log, [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($filteredPath, $log, [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($summaryPath, "fixture $id", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($packagePath, "Package [$packageName] versionName=fixture versionCode=500", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($localHashesPath, "sha256`tsizeBytes`tdevicePath`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($stateHashesPath, "sha256`tsizeBytes`tdevicePath`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($persistedPath, "documentPath`tmanifestRole`tsavePath`texists`thashKind`tsha256`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($stateIndexPath, '[]', [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText(
+        (Join-Path $output 'private-storage-unavailable.txt'),
+        'run-as unavailable; verified in-app recovery export is the Android byte authority',
+        [Text.UTF8Encoding]::new($false)
+    )
+
+    $success = $phase -in @(
+        'after-quit-sync', 'before-play-reconcile', 'after-modded-sync',
+        'after-switch-to-beta', 'after-switch-to-public', 'retry-complete',
+        'after-restart'
+    )
+    $conflict = $phase -in @('divergence-conflict', 'changed-mod-set-blocked')
+    $pendingLog = $phase -in @(
+        'divergence-conflict', 'changed-mod-set-blocked', 'offline-pending',
+        'commit-failure', 'readback-failure'
+    )
+    $gates = [ordered]@{
+        output = $output
+        authorizedDevice = $true
+        runAsAvailable = $false
+        sourceCommit = $sourceCommit
+        sourceWorktreeDirty = $false
+        stage5Row = [string]$row
+        evidencePhase = $phase
+        logcatSince = '01-01 00:00:00.000'
+        candidateApkSha256 = $CandidateApkSha256
+        installedApkSha256 = $CandidateApkSha256
+        candidateMatchesInstalled = $true
+        localSaveByteHashCount = 0
+        syncRecoveryStateFileHashCount = 0
+        persistedSteamByteHashCount = 0
+        persistedSteamLegacyTextHashCount = 0
+        persistedSteamHashesAreLiveReadAtCapture = $false
+        pendingSyncDocumentCount = 0
+        pendingSyncPhases = @()
+        recoveryJournalCount = 0
+        automaticSyncPendingLogSeen = $pendingLog
+        automaticSyncVerifiedLogSeen = $success
+        automaticSyncConflictLogSeen = $conflict
+        syncedLogSeen = $success
+        readBackMismatchSeen = $phase -eq 'readback-failure'
+        commitFailureSeen = $phase -eq 'commit-failure'
+        saveContextMismatchSeen = $phase -eq 'changed-mod-set-blocked'
+        modSetMismatchSeen = $phase -eq 'changed-mod-set-blocked'
+        branchMismatchSeen = $false
+        recoveryLogSeen = $phase -in @('after-restore', 'after-undo') -or
+            $ExportCompletionLines.Count -gt 0
+        recoveryRestoreLogCount = if ($phase -eq 'after-restore') { 1 } else { 0 }
+        recoveryUndoLogCount = if ($phase -eq 'after-undo') { 1 } else { 0 }
+        localSaveBaseSeen = $false
+        localSaveWrites = 0
+        localSaveReads = 0
+        localSaveExistsChecks = 0
+        localOnlySaveManagerSeen = $false
+        steamGameplaySaveManagerSeen = $false
+        fatalExceptionSeen = $false
+        anrSeen = $false
+        droppedSaveWriteSeen = $false
+        swallowedFailureSeen = $false
+        localWriteExceptionCount = 0
+    }
+    $inventoryPath = Join-Path $testRoot "collector-inventories/$id.json"
+    $manifest = [ordered]@{
+        schemaVersion = 2
+        kind = 'stage5-android-save-validation-capture'
+        capturedUtc = '2026-01-01T01:00:00.0000000+00:00'
+        output = $output
+        captureBinding = [ordered]@{
+            sourceCommit = $sourceCommit
+            sourceWorktreeDirty = $false
+            candidateApkPath = $CandidateApkPath
+            candidateApkSha256 = $CandidateApkSha256
+            installedApkPath = "/data/app/$packageName/base.apk"
+            installedApkSha256 = $CandidateApkSha256
+            candidateMatchesInstalled = $true
+            packageName = $packageName
+            stage5Row = [string]$row
+            evidencePhase = $phase
+        }
+        device = [ordered]@{
+            serial = $deviceSerial
+            serialSha256 = Get-Sha256Hex -Bytes ([Text.Encoding]::UTF8.GetBytes($deviceSerial))
+            manufacturer = 'FixtureCo'
+            model = 'Stage5Phone'
+            androidApi = '36'
+            abiList = 'arm64-v8a,armeabi-v7a'
+            buildFingerprint = 'fixture/stage5/device:16/TEST/1:user/release-keys'
+        }
+        waitedSeconds = 0
+        logcatSince = '01-01 00:00:00.000'
+        clearedLogcatAfterPreservingBuffer = $false
+        logcat = $logPath
+        filteredLogcat = $filteredPath
+        summary = $summaryPath
+        package = $packagePath
+        localSaveByteHashes = $localHashesPath
+        syncRecoveryStateByteHashes = $stateHashesPath
+        persistedSteamByteHashes = $persistedPath
+        evidenceInventory = $inventoryPath
+        evidenceLimitations = @('run-as unavailable; verified recovery export supplied separately')
+        gates = $gates
+    }
+    $manifestPath = Join-Path $output 'manifest.json'
+    Write-JsonNoBom -Path $manifestPath -Value $manifest
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $inventoryPath) | Out-Null
+    & $inventoryScript `
+        -EvidenceRoot $output `
+        -OutputPath $inventoryPath `
+        -SourceCommit $sourceCommit `
+        -ApkSha256 $CandidateApkSha256 `
+        -DeviceIdentity 'FixtureCo Stage5Phone; Android API 36; ABI arm64-v8a,armeabi-v7a' *> $null
+    return [pscustomobject]@{
+        ManifestPath = $manifestPath
+        InventoryPath = $inventoryPath
+        LogPath = $logPath
+        FilteredLogPath = $filteredPath
+    }
+}
+
+function Assert-ReviewerRejects {
+    param(
+        [Parameter(Mandatory = $true)][string]$MatrixPath,
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][string]$Aapt,
+        [Parameter(Mandatory = $true)][string]$ApkSigner,
+        [string]$ExpectedErrorPattern = ''
+    )
+    $rejected = $false
+    $rejectionMessage = ''
+    try {
+        & $reviewer -MatrixPath $MatrixPath -AaptPath $Aapt -ApkSignerPath $ApkSigner *> $null
+    } catch {
+        $rejected = $true
+        $rejectionMessage = [string]$_
+    }
+    if (-not $rejected) { throw "$Label was accepted by the Stage 5 matrix reviewer." }
+    if ($ExpectedErrorPattern -and $rejectionMessage -notmatch $ExpectedErrorPattern) {
+        throw "$Label was rejected for the wrong reason: $rejectionMessage"
+    }
+}
+
+function New-CollectorMutationMatrix {
+    param(
+        [Parameter(Mandatory = $true)][string]$ValidMatrixPath,
+        [Parameter(Mandatory = $true)][string]$CollectorId,
+        [Parameter(Mandatory = $true)][string]$FixtureName,
+        [Parameter(Mandatory = $true)][scriptblock]$Mutate
+    )
+
+    $matrix = Get-Content -LiteralPath $ValidMatrixPath -Raw | ConvertFrom-Json
+    $spec = @($matrix.evidence | Where-Object { [string]$_.id -eq $CollectorId })
+    if ($spec.Count -ne 1 -or [string]$spec[0].kind -ne 'collector') {
+        throw "Collector mutation fixture requires exactly one collector id $CollectorId."
+    }
+    $spec = $spec[0]
+    $sourceManifestPath = [IO.Path]::GetFullPath([string]$spec.path)
+    $sourceRoot = Split-Path -Parent $sourceManifestPath
+    $cloneRoot = Join-Path $testRoot "negative/$FixtureName/collector"
+    New-Item -ItemType Directory -Force -Path $cloneRoot | Out-Null
+    foreach ($item in Get-ChildItem -LiteralPath $sourceRoot -Force) {
+        Copy-Item -LiteralPath $item.FullName -Destination $cloneRoot -Recurse -Force
+    }
+
+    $manifestPath = Join-Path $cloneRoot 'manifest.json'
+    $inventoryPath = Join-Path $testRoot "negative/$FixtureName/inventory.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.output = $cloneRoot
+    $manifest.gates.output = $cloneRoot
+    foreach ($field in @(
+        'logcat', 'filteredLogcat', 'summary', 'package',
+        'localSaveByteHashes', 'syncRecoveryStateByteHashes',
+        'persistedSteamByteHashes'
+    )) {
+        $manifest.$field = Join-Path $cloneRoot ([IO.Path]::GetFileName([string]$manifest.$field))
+    }
+    $manifest.evidenceInventory = $inventoryPath
+    & $Mutate $manifest $cloneRoot
+    Write-JsonNoBom -Path $manifestPath -Value $manifest
+
+    & $inventoryScript `
+        -EvidenceRoot $cloneRoot `
+        -OutputPath $inventoryPath `
+        -SourceCommit $sourceCommit `
+        -ApkSha256 ([string]$manifest.gates.candidateApkSha256) `
+        -DeviceIdentity 'FixtureCo Stage5Phone; Android API 36; ABI arm64-v8a,armeabi-v7a' *> $null
+
+    $spec.path = $manifestPath
+    $spec.sha256 = Get-FileHashHex -Path $manifestPath
+    $spec.inventory.path = $inventoryPath
+    $spec.inventory.sha256 = Get-FileHashHex -Path $inventoryPath
+    # Keep the mutated matrix beside the valid matrix so unchanged relative
+    # evidence references still resolve to the original fixture tree.
+    $matrixPath = Join-Path $testRoot "negative-$FixtureName-matrix.json"
+    Write-JsonNoBom -Path $matrixPath -Value $matrix
+    return $matrixPath
+}
+
+function Replace-ExactCollectorLogLine {
+    param(
+        [Parameter(Mandatory = $true)]$Manifest,
+        [Parameter(Mandatory = $true)][string]$Expected,
+        [AllowNull()][string]$Replacement
+    )
+
+    foreach ($field in @('logcat', 'filteredLogcat')) {
+        $path = [string]$Manifest.$field
+        $lines = @([IO.File]::ReadAllLines($path))
+        $matches = @($lines | Where-Object {
+            [string]::Equals($_, $Expected, [StringComparison]::Ordinal)
+        })
+        if ($matches.Count -ne 1) {
+            throw "$field must contain exactly one expected export-completion line; found $($matches.Count)."
+        }
+        $updated = [Collections.Generic.List[string]]::new()
+        foreach ($line in $lines) {
+            if ([string]::Equals($line, $Expected, [StringComparison]::Ordinal)) {
+                if ($null -ne $Replacement) { $updated.Add($Replacement) }
+            } else {
+                $updated.Add($line)
+            }
+        }
+        [IO.File]::WriteAllLines($path, $updated, [Text.UTF8Encoding]::new($false))
+    }
+}
+
+function Add-CollectorLogLine {
+    param(
+        [Parameter(Mandatory = $true)]$Manifest,
+        [Parameter(Mandatory = $true)][string]$Line
+    )
+
+    foreach ($field in @('logcat', 'filteredLogcat')) {
+        [IO.File]::AppendAllText(
+            [string]$Manifest.$field,
+            "`n$Line",
+            [Text.UTF8Encoding]::new($false)
+        )
+    }
+}
+
+function New-FakeAndroidToolPair {
+    param(
+        [Parameter(Mandatory = $true)][string]$OutputDirectory,
+        [Parameter(Mandatory = $true)][string]$PackageName,
+        [Parameter(Mandatory = $true)][string]$VersionCode,
+        [Parameter(Mandatory = $true)][string]$VersionName,
+        [Parameter(Mandatory = $true)][string]$SignerSha256
+    )
+
+    $runningOnWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+    $toolExtension = if ($runningOnWindows) { '.cmd' } else { '.sh' }
+    $aapt = Join-Path $OutputDirectory "fake-aapt$toolExtension"
+    $apkSigner = Join-Path $OutputDirectory "fake-apksigner$toolExtension"
+    New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
+
+    if ($runningOnWindows) {
+        [IO.File]::WriteAllLines($aapt, @(
+            '@echo off',
+            "echo package: name='$PackageName' versionCode='$VersionCode' versionName='$VersionName'",
+            "echo native-code: 'arm64-v8a'",
+            'exit /b 0'
+        ), [Text.Encoding]::ASCII)
+        [IO.File]::WriteAllLines($apkSigner, @(
+            '@echo off',
+            "echo Signer #1 certificate SHA-256 digest: $SignerSha256",
+            'exit /b 0'
+        ), [Text.Encoding]::ASCII)
+    } else {
+        [IO.File]::WriteAllLines($aapt, @(
+            '#!/usr/bin/env sh',
+            ('printf "%s\n" "package: name=' + "'$PackageName'" + ' versionCode=' + "'$VersionCode'" + ' versionName=' + "'$VersionName'" + '"'),
+            'printf "%s\n" "native-code: ''arm64-v8a''"'
+        ), [Text.UTF8Encoding]::new($false))
+        [IO.File]::WriteAllLines($apkSigner, @(
+            '#!/usr/bin/env sh',
+            ('printf "%s\n" "Signer #1 certificate SHA-256 digest: ' + $SignerSha256 + '"')
+        ), [Text.UTF8Encoding]::new($false))
+        & chmod +x $aapt $apkSigner
+        if ($LASTEXITCODE -ne 0) { throw 'Could not make fixture Android tools executable.' }
+    }
+
+    return [pscustomobject]@{
+        Aapt = $aapt
+        ApkSigner = $apkSigner
+    }
+}
+
+function Assert-SelfConsistentLineageRejected {
+    param(
+        [Parameter(Mandatory = $true)][string]$ValidMatrixPath,
+        [Parameter(Mandatory = $true)][string]$BaseBuildInfoPath,
+        [Parameter(Mandatory = $true)][string]$FixtureRoot,
+        [Parameter(Mandatory = $true)][string]$FixtureName,
+        [Parameter(Mandatory = $true)][string]$MatrixProperty,
+        [Parameter(Mandatory = $true)][string]$BuildInfoKey,
+        [Parameter(Mandatory = $true)][string]$InvalidValue,
+        [Parameter(Mandatory = $true)][string]$BuildInfoValue,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    $invalidMatrix = Get-Content -LiteralPath $ValidMatrixPath -Raw | ConvertFrom-Json
+    $invalidMatrix.binding.candidate.$MatrixProperty = $InvalidValue
+
+    $fixtureDirectory = Join-Path $FixtureRoot "negative/lineage-$FixtureName"
+    New-Item -ItemType Directory -Force -Path $fixtureDirectory | Out-Null
+    $invalidBuildInfoPath = Join-Path $fixtureDirectory 'candidate.build-info.txt'
+    $buildInfoLines = [Collections.Generic.List[string]]::new()
+    $replacementCount = 0
+    foreach ($line in [IO.File]::ReadAllLines($BaseBuildInfoPath, [Text.Encoding]::UTF8)) {
+        if ($line.StartsWith("$BuildInfoKey=", [StringComparison]::Ordinal)) {
+            $buildInfoLines.Add("$BuildInfoKey=$BuildInfoValue")
+            $replacementCount++
+        } else {
+            $buildInfoLines.Add($line)
+        }
+    }
+    if ($replacementCount -ne 1) {
+        throw "Lineage fixture $FixtureName expected exactly one $BuildInfoKey build-info field."
+    }
+    [IO.File]::WriteAllLines(
+        $invalidBuildInfoPath,
+        $buildInfoLines,
+        [Text.UTF8Encoding]::new($false)
+    )
+    $invalidMatrix.binding.candidate.buildInfoPath = $invalidBuildInfoPath
+    $invalidMatrix.binding.candidate.buildInfoSha256 = Get-FileHashHex -Path $invalidBuildInfoPath
+
+    $tools = New-FakeAndroidToolPair `
+        -OutputDirectory (Join-Path $fixtureDirectory 'tools') `
+        -PackageName ([string]$invalidMatrix.binding.candidate.packageName) `
+        -VersionCode ([string]$invalidMatrix.binding.candidate.versionCode) `
+        -VersionName ([string]$invalidMatrix.binding.candidate.versionName) `
+        -SignerSha256 ([string]$invalidMatrix.binding.candidate.signerSha256)
+    $invalidMatrixPath = Join-Path $fixtureDirectory 'matrix.json'
+    Write-JsonNoBom -Path $invalidMatrixPath -Value $invalidMatrix
+    Assert-ReviewerRejects `
+        -MatrixPath $invalidMatrixPath `
+        -Label $Label `
+        -Aapt $tools.Aapt `
+        -ApkSigner $tools.ApkSigner
+}
+
+New-Item -ItemType Directory -Path $testRoot | Out-Null
+try {
+    $candidatePath = Join-Path $testRoot 'candidate/Stage5-fixture.apk'
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $candidatePath) | Out-Null
+    [IO.File]::WriteAllBytes($candidatePath, [Text.Encoding]::UTF8.GetBytes('fixture candidate apk bytes'))
+    $candidateHash = Get-FileHashHex -Path $candidatePath
+    $buildInfoPath = "$candidatePath.build-info.txt"
+    $buildInfoLines = @(
+        'version_name=0.2.417-stage5-fixture',
+        'version_code=417003',
+        "package_name=$packageName",
+        'abi=arm64-v8a',
+        'signing_channel=release',
+        "signer_sha256=$($signerSha256.ToUpperInvariant())",
+        'release_tag=v0.2.417-stage5-fixture',
+        "source_commit=$sourceCommit",
+        'candidate_run_id=123456789',
+        'candidate_run_attempt=1',
+        "apk_sha256=$candidateHash",
+        'update_baseline_tag=v0.2.416-startup-recovery-ime',
+        'update_baseline_asset_name=StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk',
+        'update_baseline_apk_sha256=fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b'
+    )
+    [IO.File]::WriteAllLines($buildInfoPath, $buildInfoLines, [Text.UTF8Encoding]::new($false))
+
+    $validTools = New-FakeAndroidToolPair `
+        -OutputDirectory (Join-Path $testRoot 'tools') `
+        -PackageName $packageName `
+        -VersionCode '417003' `
+        -VersionName '0.2.417-stage5-fixture' `
+        -SignerSha256 $signerSha256
+    $aaptPath = $validTools.Aapt
+    $apkSignerPath = $validTools.ApkSigner
+
+    $vA = New-State -Namespace vanilla -ProfileLabel 'A' -ProgressLabel 'A'
+    $vB = New-State -Namespace vanilla -ProfileLabel 'B' -ProgressLabel 'B'
+    $vC = New-State -Namespace vanilla -ProfileLabel 'C' -ProgressLabel 'C'
+    $betaB = New-State -Namespace vanilla -ProfileLabel 'BETA' -ProgressLabel 'BETA'
+    $modOld = New-State -Namespace modded -ProfileLabel 'MOD-SHARED' -ProgressLabel 'MOD-OLD'
+    $modNew = New-State -Namespace modded -ProfileLabel 'MOD-SHARED' -ProgressLabel 'MOD-NEW'
+    $modChanged = New-State -Namespace modded -ProfileLabel 'MOD-CHANGED' -ProgressLabel 'MOD-CHANGED'
+    $r4Vanilla = New-State -Namespace vanilla -ProfileLabel 'MOD-SHARED' -ProgressLabel 'VANILLA-HOLD'
+    $r4Before = Merge-State -States @($r4Vanilla, $modOld)
+    $r4After = Merge-State -States @($r4Vanilla, $modNew)
+
+    $androidBases = [ordered]@{}
+    $androidBases.vA = New-AndroidBase -Key 'vA' -ContextId 'vanilla-public' -State $vA
+    $androidBases.vB = New-AndroidBase -Key 'vB' -ContextId 'vanilla-public' -State $vB
+    $androidBases.vC = New-AndroidBase -Key 'vC' -ContextId 'vanilla-public' -State $vC
+    $androidBases.vBGamePending = New-AndroidBase -Key 'vB-game-pending' -ContextId 'vanilla-public' -State $vB -PendingPhase 'game-running'
+    $androidBases.vBUploadPending = New-AndroidBase -Key 'vB-upload-pending' -ContextId 'vanilla-public' -State $vB -PendingPhase 'uploading'
+    $androidBases.row2After = New-AndroidBase -Key 'row2-after-with-backup' -ContextId 'vanilla-public' -State $vB -RecoveryState $vA
+    $androidBases.modNew = New-AndroidBase -Key 'mod-new' -ContextId 'modded-exact' -State $modNew
+    $androidBases.modChanged = New-AndroidBase -Key 'mod-changed' -ContextId 'modded-changed' -State $modChanged
+    $androidBases.betaB = New-AndroidBase -Key 'beta-B' -ContextId 'vanilla-public-beta' -State $betaB
+    $androidBases.restored = New-AndroidBase -Key 'restored' -ContextId 'vanilla-public' -State $vC -CloudSyncEnabled:$false -RecoveryPhase 'validation-required'
+    $androidBases.undone = New-AndroidBase -Key 'undone' -ContextId 'vanilla-public' -State $vA -CloudSyncEnabled:$false -RecoveryPhase 'undone'
+
+    $steamBases = [ordered]@{}
+    $steamBases.vA = New-SteamBase -Key 'vA' -ContextId 'vanilla-public' -State $vA
+    $steamBases.vB = New-SteamBase -Key 'vB' -ContextId 'vanilla-public' -State $vB
+    $steamBases.vC = New-SteamBase -Key 'vC' -ContextId 'vanilla-public' -State $vC
+    $steamBases.betaB = New-SteamBase -Key 'beta-B' -ContextId 'vanilla-public-beta' -State $betaB
+    $steamBases.modOld = New-SteamBase -Key 'mod-old' -ContextId 'modded-exact' -State $modOld
+    $steamBases.r4Before = New-SteamBase -Key 'r4-before' -ContextId 'modded-exact' -State $r4Before
+    $steamBases.r4After = New-SteamBase -Key 'r4-after' -ContextId 'modded-exact' -State $r4After
+    $steamBases.vAFailedCommit = New-SteamBase -Key 'vA-failed-commit' -ContextId 'vanilla-public' -State $vA -MissingSelectedMarkerAfterFailedTransfer -BeforeSteamManifestPath $steamBases.vA
+    $steamBases.vCFailedReadback = New-SteamBase -Key 'vC-failed-readback' -ContextId 'vanilla-public' -State $vC -MissingSelectedMarkerAfterFailedTransfer -BeforeSteamManifestPath $steamBases.vA
+
+    $androidMapping = [ordered]@{
+        'r1-android-after' = 'vB'
+        'r2-android-before' = 'vA'; 'r2-android-after' = 'row2After'
+        'r3-baseline-android' = 'vA'; 'r3-local-before' = 'vB'; 'r3-local-after' = 'vBGamePending'
+        'r4-android-after' = 'modNew'
+        'r5-local-before' = 'modChanged'; 'r5-local-after' = 'modChanged'
+        'r6-public-before' = 'vA'; 'r6-beta-before' = 'betaB'; 'r6-beta-after' = 'betaB'; 'r6-public-after' = 'vA'
+        'r7-baseline-android' = 'vA'; 'r7-local-offline' = 'vBUploadPending'; 'r7-local-after-retry' = 'vB'
+        'r8-baseline-android' = 'vA'; 'r8-local-before-crash' = 'vBUploadPending'; 'r8-local-after-restart' = 'vB'
+        'r9-commit-local-before' = 'vB'; 'r9-commit-local-after' = 'vBUploadPending'
+        'r9-readback-local-before' = 'vB'; 'r9-readback-local-after' = 'vBUploadPending'
+        'r10-android-original' = 'vA'; 'r10-android-restored' = 'restored'; 'r10-android-undone' = 'undone'
+    }
+    $steamMapping = [ordered]@{
+        'r1-steam-before' = 'vA'; 'r1-steam-after' = 'vB'
+        'r2-steam-before' = 'vB'; 'r2-steam-after' = 'vB'
+        'r3-baseline-steam' = 'vA'; 'r3-remote-before' = 'vC'; 'r3-remote-after' = 'vC'
+        'r4-steam-before' = 'r4Before'; 'r4-steam-after' = 'r4After'
+        'r5-steam-before' = 'modOld'; 'r5-steam-after' = 'modOld'
+        'r6-beta-steam-after' = 'betaB'; 'r6-public-steam-after' = 'vA'
+        'r7-baseline-steam' = 'vA'; 'r7-remote-offline' = 'vA'; 'r7-remote-after-retry' = 'vB'
+        'r8-baseline-steam' = 'vA'; 'r8-remote-before-restart' = 'vA'; 'r8-remote-after-restart' = 'vB'
+        'r9-commit-steam-before' = 'vA'; 'r9-commit-steam-after' = 'vAFailedCommit'
+        'r9-readback-steam-before' = 'vA'; 'r9-readback-steam-after' = 'vCFailedReadback'
+        'r10-steam-before' = 'vA'; 'r10-steam-after-restore' = 'vA'; 'r10-steam-after-undo' = 'vA'
+    }
+
+    $templatePath = Join-Path $testRoot 'matrix-template.json'
+    & $templateScript -OutputPath $templatePath *> $null
+    $matrix = Get-Content -LiteralPath $templatePath -Raw | ConvertFrom-Json
+    $matrix.binding.candidate.apkPath = $candidatePath
+    $matrix.binding.candidate.apkSha256 = $candidateHash
+    $matrix.binding.candidate.buildInfoPath = $buildInfoPath
+    $matrix.binding.candidate.buildInfoSha256 = Get-FileHashHex -Path $buildInfoPath
+    $matrix.binding.candidate.sourceCommit = $sourceCommit
+    $matrix.binding.candidate.candidateRunId = '123456789'
+    $matrix.binding.candidate.candidateRunAttempt = '1'
+    $matrix.binding.candidate.signerSha256 = $signerSha256
+    $matrix.binding.candidate.packageName = $packageName
+    $matrix.binding.candidate.versionName = '0.2.417-stage5-fixture'
+    $matrix.binding.candidate.versionCode = '417003'
+    $matrix.binding.candidate.releaseTag = 'v0.2.417-stage5-fixture'
+    $matrix.binding.candidate.updateBaselineTag = 'v0.2.416-startup-recovery-ime'
+    $matrix.binding.candidate.updateBaselineAssetName = 'StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk'
+    $matrix.binding.candidate.updateBaselineApkSha256 = 'fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b'
+    $matrix.binding.steamId64 = $steamId64
+    $matrix.binding.device.serialSha256 = Get-Sha256Hex -Bytes ([Text.Encoding]::UTF8.GetBytes($deviceSerial))
+    $matrix.binding.device.manufacturer = 'FixtureCo'
+    $matrix.binding.device.model = 'Stage5Phone'
+    $matrix.binding.device.androidApi = '36'
+    $matrix.binding.device.abiList = 'arm64-v8a,armeabi-v7a'
+    $matrix.binding.device.buildFingerprint = 'fixture/stage5/device:16/TEST/1:user/release-keys'
+    foreach ($expected in $matrix.contexts) {
+        $source = $contexts[[string]$expected.id]
+        $expected.steamId64 = [string]$source.SteamId64
+        $expected.saveNamespace = [string]$source.SaveNamespace
+        $expected.runtimeIdentity = [string]$source.RuntimeIdentity
+        $expected.modSetFingerprint = [string]$source.ModSetFingerprint
+    }
+
+    $collectorFixtures = [ordered]@{}
+    $exportCollectorIdsByAndroidId = [ordered]@{
+        'r1-android-after' = @('r1-after-quit-sync')
+        'r2-android-before' = @('r2-before-play-reconcile'); 'r2-android-after' = @('r2-before-play-reconcile')
+        'r3-baseline-android' = @('r3-divergence-conflict'); 'r3-local-before' = @('r3-divergence-conflict'); 'r3-local-after' = @('r3-divergence-conflict')
+        'r4-android-after' = @('r4-after-modded-sync')
+        'r5-local-before' = @('r5-changed-mod-set-blocked'); 'r5-local-after' = @('r5-changed-mod-set-blocked')
+        'r6-public-before' = @('r6-after-switch-to-beta'); 'r6-beta-before' = @('r6-after-switch-to-beta'); 'r6-beta-after' = @('r6-after-switch-to-beta')
+        'r6-public-after' = @('r6-after-switch-to-public')
+        'r7-baseline-android' = @('r7-offline-pending'); 'r7-local-offline' = @('r7-offline-pending')
+        'r7-local-after-retry' = @('r7-retry-complete')
+        'r8-baseline-android' = @('r8-pending-before-force-stop'); 'r8-local-before-crash' = @('r8-pending-before-force-stop')
+        'r8-local-after-restart' = @('r8-after-restart')
+        'r9-commit-local-before' = @('r9-commit-failure'); 'r9-commit-local-after' = @('r9-commit-failure')
+        'r9-readback-local-before' = @('r9-readback-failure'); 'r9-readback-local-after' = @('r9-readback-failure')
+        'r10-android-original' = @('r10-after-restore'); 'r10-android-restored' = @('r10-after-restore')
+        'r10-android-undone' = @('r10-after-undo')
+    }
+    $exportCompletionLinesByCollector = @{}
+    foreach ($collectorSpec in @($matrix.evidence | Where-Object {
+        [string]$_.kind -eq 'collector'
+    })) {
+        $exportCompletionLinesByCollector[[string]$collectorSpec.id] =
+            [Collections.Generic.List[string]]::new()
+    }
+    foreach ($spec in @($matrix.evidence | Where-Object {
+        [string]$_.kind -ne 'collector'
+    })) {
+        if ([string]$spec.kind -eq 'android-manifest') {
+            $baseKey = [string]$androidMapping[[string]$spec.id]
+            if (-not $baseKey) { throw "No Android fixture mapping for $($spec.id)." }
+            $destination = Join-Path $testRoot ([string]$spec.path)
+            New-AndroidEvidenceWithFreshBinding `
+                -BaseManifestPath $androidBases[$baseKey] `
+                -Destination $destination | Out-Null
+            $collectorIds = @($exportCollectorIdsByAndroidId[[string]$spec.id])
+            if ($collectorIds.Count -eq 0) {
+                throw "Android fixture has no exact collector-phase binding: $($spec.id)."
+            }
+            $completionLine = Get-ExportCompletionLine -AndroidManifestPath $destination
+            foreach ($collectorId in $collectorIds) {
+                if (-not $exportCompletionLinesByCollector.ContainsKey($collectorId)) {
+                    throw "Android fixture $($spec.id) names unknown collector $collectorId."
+                }
+                $exportCompletionLinesByCollector[$collectorId].Add($completionLine)
+            }
+            $spec.sha256 = Get-FileHashHex -Path $destination
+        } else {
+            $baseKey = [string]$steamMapping[[string]$spec.id]
+            if (-not $baseKey) { throw "No Steam fixture mapping for $($spec.id)." }
+            $destination = Join-Path $testRoot ([string]$spec.path)
+            Copy-JsonEvidence -Source $steamBases[$baseKey] -Destination $destination
+            $spec.sha256 = Get-FileHashHex -Path $destination
+        }
+    }
+    foreach ($spec in @($matrix.evidence | Where-Object {
+        [string]$_.kind -eq 'collector'
+    })) {
+        $fixture = New-CollectorEvidence `
+            -Spec $spec `
+            -CandidateApkPath $candidatePath `
+            -CandidateApkSha256 $candidateHash `
+            -ExportCompletionLines @($exportCompletionLinesByCollector[[string]$spec.id])
+        $collectorFixtures[[string]$spec.id] = $fixture
+        $spec.path = $fixture.ManifestPath
+        $spec.sha256 = Get-FileHashHex -Path $fixture.ManifestPath
+        $spec.inventory.path = $fixture.InventoryPath
+        $spec.inventory.sha256 = Get-FileHashHex -Path $fixture.InventoryPath
+    }
+
+    $row2After = Get-Content -LiteralPath $androidBases.row2After -Raw | ConvertFrom-Json
+    $row2Check = @($matrix.rows | Where-Object { [int]$_.row -eq 2 })[0].checks[0]
+    $row2Check.refs.destinationBackupTreeSha256 = [string]$row2After.recoverySnapshots[0].treeSha256
+
+    $validMatrixPath = Join-Path $testRoot 'valid-matrix.json'
+    Write-JsonNoBom -Path $validMatrixPath -Value $matrix
+    $reviewPath = Join-Path $testRoot 'valid-review.json'
+    & $reviewer `
+        -MatrixPath $validMatrixPath `
+        -OutputPath $reviewPath `
+        -AaptPath $aaptPath `
+        -ApkSignerPath $apkSignerPath *> $null
+    $review = Get-Content -LiteralPath $reviewPath -Raw | ConvertFrom-Json
+    if ($review.result -ne 'passed' -or
+        $review.rowsPassed -ne 10 -or
+        $review.semanticChecksPassed -ne 11 -or
+        [int]$review.androidExportsBoundToRawCollector -ne $androidMapping.Count) {
+        throw 'Valid nondebuggable Stage 5 fixture did not produce a complete pass report.'
+    }
+
+    $lineageCases = @(
+        [pscustomobject]@{
+            FixtureName = 'dev-package'
+            MatrixProperty = 'packageName'
+            BuildInfoKey = 'package_name'
+            InvalidValue = 'com.sts2launcher.overhaul.fork.dev'
+            BuildInfoValue = 'com.sts2launcher.overhaul.fork.dev'
+            Label = 'Self-consistent .dev package lineage'
+        },
+        [pscustomobject]@{
+            FixtureName = 'wrong-signer'
+            MatrixProperty = 'signerSha256'
+            BuildInfoKey = 'signer_sha256'
+            InvalidValue = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+            BuildInfoValue = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+            Label = 'Self-consistent wrong signer lineage'
+        },
+        [pscustomobject]@{
+            FixtureName = 'old-version'
+            MatrixProperty = 'versionCode'
+            BuildInfoKey = 'version_code'
+            InvalidValue = '416001'
+            BuildInfoValue = '416001'
+            Label = 'Self-consistent version at the published baseline floor'
+        },
+        [pscustomobject]@{
+            FixtureName = 'wrong-baseline-tag'
+            MatrixProperty = 'updateBaselineTag'
+            BuildInfoKey = 'update_baseline_tag'
+            InvalidValue = 'v0.2.415-wrong-baseline'
+            BuildInfoValue = 'v0.2.415-wrong-baseline'
+            Label = 'Self-consistent wrong update-baseline tag'
+        },
+        [pscustomobject]@{
+            FixtureName = 'wrong-baseline-asset'
+            MatrixProperty = 'updateBaselineAssetName'
+            BuildInfoKey = 'update_baseline_asset_name'
+            InvalidValue = 'StS2Launcher-wrong-local-arm64-v8a.apk'
+            BuildInfoValue = 'StS2Launcher-wrong-local-arm64-v8a.apk'
+            Label = 'Self-consistent wrong update-baseline asset'
+        },
+        [pscustomobject]@{
+            FixtureName = 'wrong-baseline-hash'
+            MatrixProperty = 'updateBaselineApkSha256'
+            BuildInfoKey = 'update_baseline_apk_sha256'
+            InvalidValue = '0000000000000000000000000000000000000000000000000000000000000000'
+            BuildInfoValue = '0000000000000000000000000000000000000000000000000000000000000000'
+            Label = 'Self-consistent wrong update-baseline bytes'
+        }
+    )
+    foreach ($lineageCase in $lineageCases) {
+        Assert-SelfConsistentLineageRejected `
+            -ValidMatrixPath $validMatrixPath `
+            -BaseBuildInfoPath $buildInfoPath `
+            -FixtureRoot $testRoot `
+            -FixtureName $lineageCase.FixtureName `
+            -MatrixProperty $lineageCase.MatrixProperty `
+            -BuildInfoKey $lineageCase.BuildInfoKey `
+            -InvalidValue $lineageCase.InvalidValue `
+            -BuildInfoValue $lineageCase.BuildInfoValue `
+            -Label $lineageCase.Label
+    }
+
+    $missingMatrix = Get-Content -LiteralPath $validMatrixPath -Raw | ConvertFrom-Json
+    $row9 = @($missingMatrix.rows | Where-Object { [int]$_.row -eq 9 })[0]
+    $row9.checks = @($row9.checks | Where-Object { [string]$_.id -ne 'r9-readback-failure' })
+    $missingPath = Join-Path $testRoot 'missing-row9-subcase.json'
+    Write-JsonNoBom -Path $missingPath -Value $missingMatrix
+    Assert-ReviewerRejects -MatrixPath $missingPath -Label 'Missing row-9 read-back subcase' -Aapt $aaptPath -ApkSigner $apkSignerPath
+
+    $tamperedMatrix = Get-Content -LiteralPath $validMatrixPath -Raw | ConvertFrom-Json
+    $tamperedSpec = @($tamperedMatrix.evidence | Where-Object { [string]$_.id -eq 'r1-android-after' })[0]
+    $tamperedFile = Join-Path $testRoot 'negative/tampered-android-manifest.json'
+    Copy-JsonEvidence -Source (Resolve-Path (Join-Path $testRoot ([string]$tamperedSpec.path))).Path -Destination $tamperedFile
+    [IO.File]::AppendAllText($tamperedFile, 'tampered', [Text.UTF8Encoding]::new($false))
+    $tamperedSpec.path = $tamperedFile
+    $tamperedPath = Join-Path $testRoot 'tampered-evidence.json'
+    Write-JsonNoBom -Path $tamperedPath -Value $tamperedMatrix
+    Assert-ReviewerRejects -MatrixPath $tamperedPath -Label 'Tampered recorded evidence' -Aapt $aaptPath -ApkSigner $apkSignerPath
+
+    $caseRoot = Join-Path $testRoot 'case-variant-steam-root'
+    $caseMarker = Join-Path $caseRoot '.sts2-launcher/contexts/vanilla.json'
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $caseMarker) | Out-Null
+    [IO.File]::WriteAllText((Join-Path $caseRoot 'Profile.save'), 'case variant', [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($caseMarker, (New-ContextMarker -Context $contexts['vanilla-public']), [Text.UTF8Encoding]::new($false))
+    $caseSyncEvidence = Join-Path $testRoot 'case-variant-steam-sync.txt'
+    [IO.File]::WriteAllText($caseSyncEvidence, 'fixture sync', [Text.UTF8Encoding]::new($false))
+    $caseOutput = Join-Path $testRoot 'case-variant-steam-manifest.json'
+    $caseRejected = $false
+    try {
+        & $steamCapture `
+            -SteamCloudRoot $caseRoot `
+            -SelectedNamespace Vanilla `
+            -ExpectedSteamId64 $steamId64 `
+            -ExpectedRuntimeIdentity public `
+            -ExpectedModSetFingerprint '' `
+            -SteamSyncEvidencePath $caseSyncEvidence `
+            -CaptureMethod 'case-variant fixture' `
+            -RetainedImmutableSource `
+            -OutputPath $caseOutput *> $null
+    } catch {
+        $caseRejected = $true
+    }
+    if (-not $caseRejected -or (Test-Path -LiteralPath $caseOutput)) {
+        throw 'Case-variant Steam Cloud path was not rejected before manifest creation.'
+    }
+
+    $unexpectedFile = Join-Path $testRoot 'steam-roots/vA/device-settings.json'
+    [IO.File]::WriteAllText($unexpectedFile, '{}', [Text.UTF8Encoding]::new($false))
+    Assert-ReviewerRejects -MatrixPath $validMatrixPath -Label 'Unexpected Steam Cloud file' -Aapt $aaptPath -ApkSigner $apkSignerPath
+    Remove-Item -LiteralPath $unexpectedFile -Force
+
+    $tamperedRemotePath = Join-Path $testRoot 'steam-roots/vA/profile1/saves/progress.save'
+    $originalRemoteBytes = [IO.File]::ReadAllBytes($tamperedRemotePath)
+    [IO.File]::WriteAllBytes($tamperedRemotePath, [Text.Encoding]::UTF8.GetBytes('post-capture tamper'))
+    Assert-ReviewerRejects -MatrixPath $validMatrixPath -Label 'Post-capture retained Steam tamper' -Aapt $aaptPath -ApkSigner $apkSignerPath
+    [IO.File]::WriteAllBytes($tamperedRemotePath, $originalRemoteBytes)
+
+    $bindingMatrix = Get-Content -LiteralPath $validMatrixPath -Raw | ConvertFrom-Json
+    $r1AndroidSpec = @($bindingMatrix.evidence | Where-Object {
+        [string]$_.id -eq 'r1-android-after'
+    })[0]
+    $r2AndroidSpec = @($bindingMatrix.evidence | Where-Object {
+        [string]$_.id -eq 'r2-android-before'
+    })[0]
+    $r7OfflineAndroidSpec = @($bindingMatrix.evidence | Where-Object {
+        [string]$_.id -eq 'r7-local-offline'
+    })[0]
+    $bindingMatrixRoot = Split-Path -Parent ([IO.Path]::GetFullPath($validMatrixPath))
+    $r1AndroidPath = [IO.Path]::GetFullPath((Join-Path $bindingMatrixRoot ([string]$r1AndroidSpec.path)))
+    $r2AndroidPath = [IO.Path]::GetFullPath((Join-Path $bindingMatrixRoot ([string]$r2AndroidSpec.path)))
+    $r7OfflineAndroidPath = [IO.Path]::GetFullPath((Join-Path $bindingMatrixRoot ([string]$r7OfflineAndroidSpec.path)))
+    $r1ExportLine = Get-ExportCompletionLine -AndroidManifestPath $r1AndroidPath
+    $r2ExportLine = Get-ExportCompletionLine -AndroidManifestPath $r2AndroidPath
+    $r7OfflineExportLine = Get-ExportCompletionLine -AndroidManifestPath $r7OfflineAndroidPath
+
+    $mixedBundlePath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r1-after-quit-sync' `
+        -FixtureName 'mixed-export-bundle' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            Replace-ExactCollectorLogLine -Manifest $manifest -Expected $r1ExportLine -Replacement $r2ExportLine
+        }
+    Assert-ReviewerRejects -MatrixPath $mixedBundlePath -Label 'Export event from a different bundle' -Aapt $aaptPath -ApkSigner $apkSignerPath -ExpectedErrorPattern 'exactly one collector globally; found 0'
+
+    $r1AndroidManifest = Get-Content -LiteralPath $r1AndroidPath -Raw | ConvertFrom-Json
+    $r1BundleSha256 = [string]$r1AndroidManifest.exportBinding.bundleSha256
+    $tamperedFirstNibble = if ($r1BundleSha256[0] -eq '0') { '1' } else { '0' }
+    $tamperedBundleSha256 = $tamperedFirstNibble + $r1BundleSha256.Substring(1)
+    $tamperedExportLine = $r1ExportLine.Replace($r1BundleSha256, $tamperedBundleSha256)
+    $tamperedEventPath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r1-after-quit-sync' `
+        -FixtureName 'tampered-export-event' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            Replace-ExactCollectorLogLine -Manifest $manifest -Expected $r1ExportLine -Replacement $tamperedExportLine
+        }
+    Assert-ReviewerRejects -MatrixPath $tamperedEventPath -Label 'Tampered export completion hash' -Aapt $aaptPath -ApkSigner $apkSignerPath -ExpectedErrorPattern 'exactly one collector globally; found 0'
+
+    $wrongPhaseWithoutSourcePath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r7-offline-pending' `
+        -FixtureName 'wrong-phase-source' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            Replace-ExactCollectorLogLine -Manifest $manifest -Expected $r7OfflineExportLine -Replacement $null
+        }
+    $wrongPhasePath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $wrongPhaseWithoutSourcePath `
+        -CollectorId 'r7-retry-complete' `
+        -FixtureName 'wrong-phase-final' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            Add-CollectorLogLine -Manifest $manifest -Line $r7OfflineExportLine
+        }
+    Assert-ReviewerRejects -MatrixPath $wrongPhasePath -Label 'Valid export event moved to wrong same-row phase' -Aapt $aaptPath -ApkSigner $apkSignerPath -ExpectedErrorPattern 'Android export r7-local-offline has no exact .* collector r7-offline-pending'
+
+    $falseBooleanPath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r7-offline-pending' `
+        -FixtureName 'false-derived-boolean' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            $manifest.gates.automaticSyncPendingLogSeen = $false
+        }
+    Assert-ReviewerRejects -MatrixPath $falseBooleanPath -Label 'Falsified derived log boolean' -Aapt $aaptPath -ApkSigner $apkSignerPath
+
+    $falseCountPath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r1-after-quit-sync' `
+        -FixtureName 'false-derived-count' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            $manifest.gates.localSaveWrites = 1
+        }
+    Assert-ReviewerRejects -MatrixPath $falseCountPath -Label 'Falsified derived log count' -Aapt $aaptPath -ApkSigner $apkSignerPath
+
+    $localWriteFailurePath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r1-after-quit-sync' `
+        -FixtureName 'local-write-exception' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            $failureLine = New-TimeLogLine -Tag STS2Mobile -Message '[Save] Android local save write failed with IOException'
+            [IO.File]::AppendAllText([string]$manifest.logcat, "`n$failureLine", [Text.UTF8Encoding]::new($false))
+            [IO.File]::AppendAllText([string]$manifest.filteredLogcat, "`n$failureLine", [Text.UTF8Encoding]::new($false))
+            $manifest.gates.localWriteExceptionCount = 1
+        }
+    Assert-ReviewerRejects -MatrixPath $localWriteFailurePath -Label 'Local-save write exception' -Aapt $aaptPath -ApkSigner $apkSignerPath
+
+    $duplicateExportPath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r2-before-play-reconcile' `
+        -FixtureName 'duplicate-overlapping-export' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            Add-CollectorLogLine -Manifest $manifest -Line $r1ExportLine
+        }
+    Assert-ReviewerRejects -MatrixPath $duplicateExportPath -Label 'Duplicate export across overlapping collectors' -Aapt $aaptPath -ApkSigner $apkSignerPath -ExpectedErrorPattern 'exactly one collector globally; found 2'
+
+    $r1TerminalLine = Get-AutomaticTerminalLine -ContextId vanilla-public -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true
+    $stringVersionLine = $r1TerminalLine.Replace('"Version":1', '"Version":"1"')
+    $stringVersionPath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r1-after-quit-sync' `
+        -FixtureName 'string-event-version' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            Replace-ExactCollectorLogLine -Manifest $manifest -Expected $r1TerminalLine -Replacement $stringVersionLine
+        }
+    Assert-ReviewerRejects -MatrixPath $stringVersionPath -Label 'String-typed structured event version' -Aapt $aaptPath -ApkSigner $apkSignerPath -ExpectedErrorPattern 'Version must be a JSON integer'
+
+    $row3TerminalLine = Get-AutomaticTerminalLine -ContextId vanilla-public -Operation reconcile -Outcome conflict -Detail local-and-remote-diverged -RemoteVerified $false
+    $wrongDetailLine = Get-AutomaticTerminalLine -ContextId vanilla-public -Operation reconcile -Outcome conflict -Detail independent-change -RemoteVerified $false
+    $wrongDetailPath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r3-divergence-conflict' `
+        -FixtureName 'wrong-terminal-detail' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            Replace-ExactCollectorLogLine -Manifest $manifest -Expected $row3TerminalLine -Replacement $wrongDetailLine
+        }
+    Assert-ReviewerRejects -MatrixPath $wrongDetailPath -Label 'Wrong automatic terminal detail' -Aapt $aaptPath -ApkSigner $apkSignerPath -ExpectedErrorPattern 'requires exactly one context-bound automatic terminal'
+
+    $r4TerminalLine = Get-AutomaticTerminalLine -ContextId modded-exact -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true
+    $unrelatedTagLine = Get-AutomaticTerminalLine -ContextId modded-exact -Operation recover -Outcome synchronized -Detail verified -RemoteVerified $true -Tag UnrelatedTag
+    $unrelatedTagPath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r4-after-modded-sync' `
+        -FixtureName 'unrelated-terminal-tag' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            Replace-ExactCollectorLogLine -Manifest $manifest -Expected $r4TerminalLine -Replacement $unrelatedTagLine
+        }
+    Assert-ReviewerRejects -MatrixPath $unrelatedTagPath -Label 'Structured event under unrelated tag' -Aapt $aaptPath -ApkSigner $apkSignerPath
+
+    $stateDevicePath = 'files/.sts2-launcher/automatic-sync/fixture/pending-sync.json'
+    $stateCapturedRelative = 'sync-state/fixture-pending-sync.json'
+    $stateDocumentA = [Text.Encoding]::UTF8.GetBytes('{"Version":1,"Phase":"uploading","Nonce":"A"}')
+    $stateDocumentB = [Text.Encoding]::UTF8.GetBytes('{"Version":1,"Phase":"uploading","Nonce":"B"}')
+    $stateDocumentASha256 = Get-Sha256Hex -Bytes $stateDocumentA
+    $exactStatePath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $validMatrixPath `
+        -CollectorId 'r8-pending-before-force-stop' `
+        -FixtureName 'exact-state-byte-chain-valid' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            $capturedPath = Join-Path $collectorRoot $stateCapturedRelative.Replace('/', [IO.Path]::DirectorySeparatorChar)
+            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $capturedPath) | Out-Null
+            [IO.File]::WriteAllBytes($capturedPath, $stateDocumentA)
+            [IO.File]::WriteAllText(
+                [string]$manifest.syncRecoveryStateByteHashes,
+                "sha256`tsizeBytes`tdevicePath`n$stateDocumentASha256`t$($stateDocumentA.LongLength)`t$stateDevicePath`n",
+                [Text.UTF8Encoding]::new($false)
+            )
+            $localRows = @($vB.Keys | Sort-Object | ForEach-Object {
+                $bytes = $vB[$_]
+                "$(Get-Sha256Hex -Bytes $bytes)`t$($bytes.LongLength)`tfiles/$($_.Replace('\', '/'))"
+            })
+            [IO.File]::WriteAllText(
+                [string]$manifest.localSaveByteHashes,
+                "sha256`tsizeBytes`tdevicePath`n$($localRows -join "`n")`n",
+                [Text.UTF8Encoding]::new($false)
+            )
+            Write-JsonNoBom -Path (Join-Path $collectorRoot 'sync-state-index.json') -Value @(
+                [ordered]@{
+                    devicePath = $stateDevicePath
+                    capturedFile = $stateCapturedRelative
+                    deviceSha256 = $stateDocumentASha256
+                    deviceSizeBytes = [int64]$stateDocumentA.LongLength
+                    capturedSha256 = $stateDocumentASha256
+                    capturedSizeBytes = [int64]$stateDocumentA.LongLength
+                    byteIdentityVerified = $true
+                    parsed = $true
+                    error = ''
+                }
+            )
+            $manifest.gates.runAsAvailable = $true
+            $manifest.gates.localSaveByteHashCount = $localRows.Count
+            $manifest.gates.syncRecoveryStateFileHashCount = 1
+            $manifest.gates.pendingSyncDocumentCount = 1
+            $manifest.gates.pendingSyncPhases = @('uploading')
+            $manifest.gates.recoveryJournalCount = 0
+            $manifest.evidenceLimitations = @()
+            $unavailableMarker = Join-Path $collectorRoot 'private-storage-unavailable.txt'
+            if (Test-Path -LiteralPath $unavailableMarker) {
+                Remove-Item -LiteralPath $unavailableMarker -Force
+            }
+        }
+    & $reviewer -MatrixPath $exactStatePath -AaptPath $aaptPath -ApkSignerPath $apkSignerPath *> $null
+
+    $mismatchedStatePath = New-CollectorMutationMatrix `
+        -ValidMatrixPath $exactStatePath `
+        -CollectorId 'r8-pending-before-force-stop' `
+        -FixtureName 'captured-state-disagrees-with-device-inventory' `
+        -Mutate {
+            param($manifest, $collectorRoot)
+            # Keep the device TSV and state index self-consistent with document A,
+            # but inventory the different, valid JSON bytes from document B.
+            $capturedPath = Join-Path $collectorRoot $stateCapturedRelative.Replace('/', [IO.Path]::DirectorySeparatorChar)
+            [IO.File]::WriteAllBytes($capturedPath, $stateDocumentB)
+        }
+    Assert-ReviewerRejects `
+        -MatrixPath $mismatchedStatePath `
+        -Label 'Captured state bytes disagree with device TSV and state index' `
+        -Aapt $aaptPath `
+        -ApkSigner $apkSignerPath `
+        -ExpectedErrorPattern 'indexed captured SHA-256.*mismatch'
+
+    Write-Host 'Stage 5 physical matrix reviewer tests passed: 24/24'
+} finally {
+    $resolvedTestRoot = [IO.Path]::GetFullPath($testRoot)
+    $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd(
+        [IO.Path]::DirectorySeparatorChar
+    ) + [IO.Path]::DirectorySeparatorChar
+    if (-not $resolvedTestRoot.StartsWith($tempPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+        [IO.Path]::GetFileName($resolvedTestRoot) -notmatch '^sts2-stage5-matrix-review-test-[0-9a-f]{32}$') {
+        throw "Refusing to clean unexpected Stage 5 fixture root: $resolvedTestRoot"
+    }
+    if (Test-Path -LiteralPath $resolvedTestRoot) {
+        Remove-Item -LiteralPath $resolvedTestRoot -Recurse -Force
+    }
+}

@@ -1,9 +1,9 @@
 param(
     [string]$Repo = "SocialHummingbird/StS2-Launcher-Overhaul",
-    [string]$ReleaseTag = "v0.2.88-apk-native-verify",
-    [string]$AssetName = "StS2Launcher-v0.2.88-universal-phone.apk",
-    [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
-    [string]$PackageName = "com.sts2launcher.overhaul.fork.dev",
+    [string]$ReleaseTag = "v0.2.177-login-a8729d6",
+    [string]$AssetName = "StS2Launcher-v0.2.177-login-a8729d6-arm64-v8a.apk",
+    [string]$AdbPath = "$(Join-Path $env:USERPROFILE '.w40k-android-toolchain\android-sdk\platform-tools\adb.exe')",
+    [string]$PackageName = "",
     [string]$ArtifactsDir = "",
     [string]$DeviceSerial = "",
     [int]$WaitForDeviceSeconds = 0,
@@ -55,6 +55,11 @@ if ($digest -and $digest.StartsWith("sha256:")) {
     Write-Host "Checksum OK: $hash"
 } else {
     Write-Host "Release digest unavailable; local SHA256: $hash"
+}
+
+if ([string]::IsNullOrWhiteSpace($PackageName)) {
+    $PackageName = Get-AndroidApkPackageName -ApkPath $apkPath -AdbPath $AdbPath
+    Write-Host "Resolved APK package: $PackageName"
 }
 
 if ($UninstallFirst) {

@@ -4,14 +4,16 @@ param(
     [string]$PreviousApkPath = "",
     [string]$ExpectedPackageName = "",
     [string]$ExpectedSignerSha256 = "",
-    [int64]$ExpectedMinVersionCode = 0
+    [int64]$ExpectedMinVersionCode = 0,
+    [string]$Aapt = "",
+    [string]$ApkSigner = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "android-signing-utils.ps1")
 
-$current = Get-AndroidApkIdentity -Path $ApkPath
+$current = Get-AndroidApkIdentity -Path $ApkPath -Aapt $Aapt -ApkSigner $ApkSigner
 
 if ($ExpectedPackageName -and $current.packageName -ne $ExpectedPackageName) {
     throw "APK package mismatch. Expected $ExpectedPackageName, got $($current.packageName). This APK cannot update the intended app."
@@ -29,7 +31,7 @@ if ($ExpectedSignerSha256) {
 }
 
 if ($PreviousApkPath) {
-    $previous = Get-AndroidApkIdentity -Path $PreviousApkPath
+    $previous = Get-AndroidApkIdentity -Path $PreviousApkPath -Aapt $Aapt -ApkSigner $ApkSigner
 
     if ($current.packageName -ne $previous.packageName) {
         throw "APK cannot update previous release. Package changed from $($previous.packageName) to $($current.packageName)."

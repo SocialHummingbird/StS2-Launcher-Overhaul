@@ -1,63 +1,90 @@
-using System;
 using System.IO;
+using System.Diagnostics;
 using Godot;
 using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
 
-internal static class LauncherLaunchMarkers
+internal static partial class LauncherLaunchMarkers
 {
-    internal static string StartupMarkerPath =>
-        Path.Combine(OS.GetDataDir(), LauncherStorageNames.StartupMarker);
+    private static string StartupMarkerPath =>
+        MarkerPath(LauncherStorageNames.StartupMarker);
 
-    internal static string ManualSafeLaunchPath =>
-        Path.Combine(OS.GetDataDir(), LauncherStorageNames.ManualSafeLaunch);
+    private static string StartupContextPath =>
+        MarkerPath(LauncherStorageNames.StartupContext);
 
-    internal static bool PreviousGameLaunchIncomplete(out string phase)
+    private static string StartupTimelinePath =>
+        MarkerPath(LauncherStorageNames.StartupTimeline);
+
+    private static string ManualSafeLaunchPath =>
+        MarkerPath(LauncherStorageNames.ManualSafeLaunch);
+
+    private static readonly Stopwatch ProcessTimer = Stopwatch.StartNew();
+    private static int _phaseSequence;
+
+    internal static long ElapsedMilliseconds
+        => ProcessTimer.ElapsedMilliseconds;
+
+    private static bool TryWriteMarker(string path, string content, string failureMessage)
     {
-        phase = null;
         try
         {
-            if (!File.Exists(StartupMarkerPath))
-                return false;
-
-            var lines = File.ReadAllLines(StartupMarkerPath);
-            phase = lines.Length >= 2 ? lines[1].Trim() : null;
+            File.WriteAllText(path, content);
             return true;
         }
-        catch
+        catch (System.Exception ex)
         {
+            PatchHelper.Log($"{failureMessage}: {ex.Message}");
             return false;
         }
     }
 
-    internal static void SaveManualSafeLaunchMarker()
+    private static bool TryAppendMarker(string path, string content, string failureMessage)
     {
         try
         {
-            File.WriteAllText(ManualSafeLaunchPath, $"{DateTime.UtcNow:O}\n");
+            File.AppendAllText(path, content);
+            return true;
         }
-        catch (Exception ex)
+        catch (System.Exception ex)
         {
-            PatchHelper.Log($"[Launcher] Failed to write manual safe launch marker: {ex.Message}");
+            PatchHelper.Log($"{failureMessage}: {ex.Message}");
+            return false;
         }
     }
 
-    internal static bool ConsumeManualSafeLaunchMarker()
+    private static bool TryDeleteMarker(string path, string failureMessage, out bool existed)
+    {
+        existed = false;
+        try
+        {
+            if (!File.Exists(path))
+                return true;
+
+            File.Delete(path);
+            existed = true;
+            return true;
+        }
+        catch (System.Exception ex)
+        {
+            PatchHelper.Log($"{failureMessage}: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static string MarkerPath(string fileName)
     {
         try
         {
-            if (!File.Exists(ManualSafeLaunchPath))
-                return false;
-
-            File.Delete(ManualSafeLaunchPath);
-            PatchHelper.Log("Manual safe launch marker consumed");
-            return true;
+            var dataDir = OS.GetDataDir();
+            return string.IsNullOrWhiteSpace(dataDir)
+                ? fileName
+                : Path.Combine(dataDir, fileName);
         }
-        catch (Exception ex)
+        catch (System.Exception ex)
         {
-            PatchHelper.Log($"Failed to consume manual safe launch marker: {ex.Message}");
-            return true;
+            PatchHelper.Log($"Failed to resolve launcher marker path for {fileName}: {ex.Message}");
+            return fileName;
         }
     }
 }

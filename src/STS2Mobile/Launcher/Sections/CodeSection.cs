@@ -1,60 +1,61 @@
 using System;
 using Godot;
-using STS2Mobile.Launcher;
 using STS2Mobile.Launcher.Components;
 
 namespace STS2Mobile.Launcher.Sections;
 
-internal sealed class CodeSection : VBoxContainer
+internal sealed partial class CodeSection : VBoxContainer
 {
-    private const string DefaultPrompt = "Enter Steam Guard code";
-    private const string IncorrectPrompt = "Code was incorrect. Enter new code:";
+    private readonly bool _compact;
+    private bool _compactStackedActionRows;
+    private bool _normalizingCodeText;
 
     internal event Action<string> CodeSubmitted;
 
     private readonly LineEdit _codeField;
     private readonly Label _codeLabel;
+    private readonly Label _codeHelpLabel;
+    private readonly GridContainer _compactCodeActionRow;
 
-    internal CodeSection(float scale)
+    internal CodeSection(float scale, bool compact = false, bool compactStackedActionRows = false)
     {
-        AddThemeConstantOverride(
-            LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(LauncherSectionMetrics.SectionSeparation, scale)
-        );
-        Visible = false;
-
-        _codeLabel = new StyledLabel(
-            "Enter Steam Guard code",
+        _compact = compact;
+        _compactStackedActionRows = compact && compactStackedActionRows;
+        LauncherSectionSetup.ConfigureHiddenSection(
+            this,
             scale,
-            fontSize: LauncherSectionMetrics.PromptFontSize
+            "Steam Guard",
+            "Complete Steam's second factor challenge without storing your Steam password.",
+            LauncherComponentTheme.CyanAccent,
+            compact,
+            "Current code"
         );
+
+        _codeLabel = CreateCodePromptLabel(scale, compact);
         AddChild(_codeLabel);
 
-        _codeField = new StyledLineEdit("Code", scale);
-        _codeField.MaxLength = LauncherSectionMetrics.CodeMaxLength;
-        AddChild(_codeField);
+        _codeHelpLabel = CreateCodeHelpLabel(scale, compact);
+        AddChild(_codeHelpLabel);
 
-        var submitButton = new StyledButton("SUBMIT", scale);
+        Container codeActionParent = this;
+        Container compactCodeActionRow = null;
+        if (compact)
+        {
+            _compactCodeActionRow = BuildCompactCodeActionRow(scale, _compactStackedActionRows);
+            compactCodeActionRow = _compactCodeActionRow;
+            AddChild(compactCodeActionRow);
+            codeActionParent = compactCodeActionRow;
+        }
+
+        _codeField = CreateCodeField(scale, compact);
+        codeActionParent.AddChild(_codeField);
+
+        var submitButton = CreateCodeSubmitButton(scale, compact);
+        _codeField.TextChanged += NormalizeCodeText;
         _codeField.TextSubmitted += _ => OnSubmit();
         submitButton.Pressed += OnSubmit;
-        AddChild(submitButton);
-    }
-
-    internal void Show(bool wasIncorrect)
-    {
-        Visible = true;
-        _codeField.Text = "";
-        _codeLabel.Text = wasIncorrect ? IncorrectPrompt : DefaultPrompt;
-        _codeField.GrabFocus();
-    }
-
-    private void OnSubmit()
-    {
-        var code = _codeField.Text.Trim().ToUpperInvariant();
-        if (string.IsNullOrEmpty(code))
-            return;
-
-        Visible = false;
-        CodeSubmitted?.Invoke(code);
+        codeActionParent.AddChild(submitButton);
+        if (compactCodeActionRow != null)
+            MoveChild(_codeHelpLabel, compactCodeActionRow.GetIndex() + 1);
     }
 }

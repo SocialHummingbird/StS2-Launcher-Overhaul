@@ -74,11 +74,16 @@ for ARCH in $ARCHES; do
     fi
 
     echo "Updating libgodot_android.so for $ABI..."
-    TMPDIR=$(mktemp -d)
-    mkdir -p "$TMPDIR/jni/$ABI" "$ANDROID_LIBS/$ABI"
-    cp "$BUILT_SO" "$TMPDIR/jni/$ABI/libgodot_android.so"
-    (cd "$TMPDIR" && zip -u "$ANDROID_LIBS/godot-lib.template_release.aar" "jni/$ABI/libgodot_android.so")
-    rm -rf "$TMPDIR"
+    mkdir -p "$ANDROID_LIBS/$ABI"
+    if [ -f "$ANDROID_LIBS/godot-lib.template_release.aar" ]; then
+        TMPDIR=$(mktemp -d)
+        mkdir -p "$TMPDIR/jni/$ABI"
+        cp "$BUILT_SO" "$TMPDIR/jni/$ABI/libgodot_android.so"
+        (cd "$TMPDIR" && zip -u "$ANDROID_LIBS/godot-lib.template_release.aar" "jni/$ABI/libgodot_android.so")
+        rm -rf "$TMPDIR"
+    else
+        echo "No local Godot AAR found; updating JNI library only."
+    fi
 
     cp "$BUILT_SO" "$ANDROID_LIBS/$ABI/libgodot_android.so"
 done

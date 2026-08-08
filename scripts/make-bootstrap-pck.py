@@ -31,14 +31,11 @@ _custom_features="dotnet"
 config/name="sts2"
 config/features=PackedStringArray("4.5", "Forward Plus", "C#")
 run/main_scene="res://bootstrap.tscn"
+boot_splash/show_image=false
 
 [display]
 
-window/size/viewport_width=1920
-window/size/viewport_height=1080
-window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
-window/handheld/orientation=4
+window/handheld/orientation=6
 
 [dotnet]
 
@@ -46,8 +43,8 @@ project/assembly_name="sts2"
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
 """
 
 BOOTSTRAP_SCENE = """\
@@ -56,6 +53,7 @@ BOOTSTRAP_SCENE = """\
 [node name="BootstrapScene" type="Node"]
 """
 
+VARIANT_BOOL = 1
 VARIANT_INT = 2
 VARIANT_STRING = 4
 VARIANT_PACKED_STRING_ARRAY = 34
@@ -65,14 +63,11 @@ PROJECT_SETTINGS = [
     ("application/config/name", ("string", "sts2")),
     ("application/config/features", ("packed_string_array", ["4.5", "Forward Plus", "C#"])),
     ("application/run/main_scene", ("string", "res://bootstrap.tscn")),
-    ("display/window/size/viewport_width", ("int", 1920)),
-    ("display/window/size/viewport_height", ("int", 1080)),
-    ("display/window/stretch/mode", ("string", "canvas_items")),
-    ("display/window/stretch/aspect", ("string", "expand")),
-    ("display/window/handheld/orientation", ("int", 4)),
+    ("application/boot_splash/show_image", ("bool", False)),
+    ("display/window/handheld/orientation", ("int", 6)),
     ("dotnet/project/assembly_name", ("string", "sts2")),
-    ("rendering/renderer/rendering_method", ("string", "gl_compatibility")),
-    ("rendering/renderer/rendering_method.mobile", ("string", "gl_compatibility")),
+    ("rendering/renderer/rendering_method", ("string", "mobile")),
+    ("rendering/renderer/rendering_method.mobile", ("string", "mobile")),
 ]
 
 
@@ -100,6 +95,8 @@ def encode_padded_string(value):
 
 def encode_variant(value):
     kind, payload = value
+    if kind == "bool":
+        return struct.pack("<II", VARIANT_BOOL, 1 if payload else 0)
     if kind == "int":
         return struct.pack("<II", VARIANT_INT, int(payload))
     if kind == "string":

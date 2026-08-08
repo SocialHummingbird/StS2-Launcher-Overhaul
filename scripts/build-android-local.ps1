@@ -2,14 +2,17 @@ param(
     [string]$VersionName = "0.2.0-local",
     [int]$VersionCode = 200000,
     [string]$PackageName = "com.sts2launcher.overhaul.fork.local",
-    [string]$AndroidHome = "C:\Users\ap010\.w40k-android-toolchain\android-sdk",
-    [string]$JavaHome = "C:\Users\ap010\.w40k-android-toolchain\jdk-17",
-    [string]$GradlePath = "C:\Users\ap010\.gradle\wrapper\dists\gradle-8.14.3-all\10utluxaxniiv4wxiphsi49nj\gradle-8.14.3\bin\gradle.bat",
+    [string]$AndroidHome = "$(Join-Path $env:USERPROFILE '.w40k-android-toolchain\android-sdk')",
+    [string]$JavaHome = "$(Join-Path $env:USERPROFILE '.w40k-android-toolchain\jdk-17')",
+    [string]$GradlePath = "$(Join-Path $env:USERPROFILE '.gradle\wrapper\dists\gradle-8.14.3-all\10utluxaxniiv4wxiphsi49nj\gradle-8.14.3\bin\gradle.bat')",
     [string]$KeystorePath = "tmp\localtest.keystore",
     [string]$KeystorePassword = "android",
     [string]$KeystoreAlias = "androiddebugkey",
     [ValidateSet("arm64-v8a", "x86_64", "universal")]
-    [string]$Abi = "arm64-v8a"
+    [string]$Abi = "arm64-v8a",
+    [switch]$Install,
+    [switch]$EvidenceDebuggable,
+    [string]$DeviceSerial = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -50,6 +53,13 @@ $env:ANDROID_SDK_ROOT = $AndroidHome
 $env:JAVA_HOME = $JavaHome
 $env:PATH = "$JavaHome\bin;$AndroidHome\platform-tools;$AndroidHome\emulator;$AndroidHome\cmdline-tools\latest\bin;$env:PATH"
 
+$bootstrapGenerator = Join-Path $root "scripts\make-bootstrap-pck.py"
+Write-Host "Generating launcher bootstrap PCK..."
+python $bootstrapGenerator
+if ($LASTEXITCODE -ne 0) {
+    throw "Launcher bootstrap PCK generation failed"
+}
+
 Write-Host "Publishing STS2Mobile..."
 dotnet publish $projectPath -c Release
 if ($LASTEXITCODE -ne 0) {
@@ -82,6 +92,7 @@ $managedDependencies = @(
     "protobuf-net.Core.dll",
     "System.IO.Hashing.dll",
     "ZstdSharp.dll",
+    "Mono.Cecil.dll",
     "0Harmony.dll",
     "GodotSharp.dll"
 )
@@ -206,14 +217,55 @@ foreach ($targetAbi in (Resolve-AndroidApkTargetAbis -Abi $Abi)) {
     }
 }
 
+function Build-FmodBridgeLibrary([string]$TargetAbi) {
+    $ndkRoot = Get-ChildItem -LiteralPath (Join-Path $AndroidHome "ndk") -Directory |
+        Sort-Object Name -Descending |
+        Select-Object -First 1
+    if (-not $ndkRoot) {
+        throw "Android NDK not found under $AndroidHome\ndk."
+    }
+
+    $clang = Join-Path $ndkRoot.FullName "toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe"
+    if (-not (Test-Path -LiteralPath $clang)) {
+        throw "Android NDK clang not found: $clang"
+    }
+
+    $target = switch ($TargetAbi) {
+        "arm64-v8a" { "aarch64-linux-android24" }
+        "x86_64" { "x86_64-linux-android24" }
+        default { throw "Unsupported FMOD bridge ABI: $TargetAbi" }
+    }
+
+    $source = Join-Path $androidDir "native\sts2fmodbridge\sts2fmodbridge.c"
+    $outputDir = Join-Path $androidDir "libs\release\$TargetAbi"
+    $output = Join-Path $outputDir "libsts2fmodbridge.so"
+    New-Item -ItemType Directory -Force $outputDir | Out-Null
+
+    & $clang "--target=$target" "-shared" "-fPIC" "-O2" "-o" $output $source "-ldl"
+    if ($LASTEXITCODE -ne 0) {
+        throw "FMOD JNI bridge build failed for $TargetAbi"
+    }
+}
+
+foreach ($targetAbi in (Resolve-AndroidApkTargetAbis -Abi $Abi)) {
+    Build-FmodBridgeLibrary $targetAbi
+}
+
 Write-Host "Building SteamKit Android patcher..."
 dotnet build $patcherProject -c Release
 if ($LASTEXITCODE -ne 0) {
     throw "SteamKit Android patcher build failed"
 }
 
-Write-Host "Patching SteamKit2.dll Android crypto calls..."
-dotnet $patcherDll (Join-Path $bclDir "SteamKit2.dll") (Join-Path $bclDir "STS2Mobile.dll")
+Write-Host "Patching SteamKit2.dll and System.Net.WebSockets.Client.dll Android crypto calls..."
+$patchOutput = & dotnet $patcherDll (Join-Path $bclDir "SteamKit2.dll") (Join-Path $bclDir "STS2Mobile.dll") 2>&1
+$patchOutput | ForEach-Object { Write-Host $_ }
+if ($LASTEXITCODE -ne 0) {
+    throw "SteamKit Android patcher failed with exit code $LASTEXITCODE."
+}
+if (-not (($patchOutput | Out-String) -match "Patched System\.Net\.WebSockets\.Client\.dll: sha1TryHashData=[0-9]+")) {
+    throw "System.Net.WebSockets.Client.dll SHA1 patch summary was not emitted."
+}
 if ($LASTEXITCODE -ne 0) {
     throw "SteamKit Android patch failed"
 }
@@ -226,16 +278,22 @@ Write-Host "Stopping existing Gradle daemons..."
 & $GradlePath "--stop" | Out-Null
 
 Write-Host "Building Android APK..."
-& $GradlePath `
-    "-p" "$androidDir" `
-    "assembleMonoRelease" `
-    "-Pexport_version_name=$VersionName" `
-    "-Pexport_version_code=$VersionCode" `
-    "-Pexport_package_name=$PackageName" `
-    "-Pexport_enabled_abis=$gradleAbiList" `
-    "-Prelease_keystore_file=$resolvedKeystore" `
-    "-Prelease_keystore_password=$KeystorePassword" `
+$gradleArgs = @(
+    "-p", "$androidDir",
+    "assembleMonoRelease",
+    "-Pexport_version_name=$VersionName",
+    "-Pexport_version_code=$VersionCode",
+    "-Pexport_package_name=$PackageName",
+    "-Pexport_enabled_abis=$gradleAbiList",
+    "-Prelease_keystore_file=$resolvedKeystore",
+    "-Prelease_keystore_password=$KeystorePassword",
     "-Prelease_keystore_alias=$KeystoreAlias"
+)
+if ($EvidenceDebuggable) {
+    $gradleArgs += "-Psts2_evidence_debuggable=true"
+}
+
+& $GradlePath @gradleArgs
 
 if ($LASTEXITCODE -ne 0) {
     throw "Gradle build failed"
@@ -256,6 +314,10 @@ if ($apk.Name -ne "StS2Launcher-v$VersionName.apk") {
 Write-Host "APK built: $($apk.FullName)"
 Test-AndroidApkContents -ApkPath $apk.FullName -TargetAbis $targetAbis -TempRoot (Join-Path $root "tmp") -TempPrefix "apk-verify"
 Write-Host "APK verification passed for ABIs: $($targetAbis -join ', ')"
+& (Join-Path $PSScriptRoot "verify-android-apk-crypto-patches.ps1") -ApkPath $apk.FullName
+if ($LASTEXITCODE -ne 0) {
+    throw "APK Android crypto patch verification failed with exit code $LASTEXITCODE."
+}
 
 $artifactDir = Join-Path $root "artifacts\android"
 $safeVersionName = $VersionName -replace '[^A-Za-z0-9._-]', '_'
@@ -285,4 +347,37 @@ $metadata = [ordered]@{
 $metadata | ConvertTo-Json | Set-Content -LiteralPath $metadataPath -Encoding UTF8
 Write-Host "APK metadata: $metadataPath"
 
+if ($Install) {
+    $adbPath = Join-Path $AndroidHome "platform-tools\adb.exe"
+    if (-not (Test-Path -LiteralPath $adbPath)) {
+        throw "adb not found: $adbPath"
+    }
+
+    $adbArgs = @()
+    if (-not [string]::IsNullOrWhiteSpace($DeviceSerial)) {
+        $adbArgs += @("-s", $DeviceSerial)
+    }
+
+    $adbDeviceArgs = $adbArgs
+    $adbArgs += @("install", "-r", $archivedApk)
+
+    Write-Host "Installing APK on Android device..."
+    & $adbPath @adbArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "adb install failed with exit code $LASTEXITCODE."
+    }
+
+    Write-Host "APK installed on Android device."
+    $packageDump = & $adbPath @adbDeviceArgs shell dumpsys package $PackageName | Out-String
+    $installedVersion = [regex]::Match($packageDump, 'versionName=([^\r\n]+)')
+    $installedUpdate = [regex]::Match($packageDump, 'lastUpdateTime=([^\r\n]+)')
+    if ($installedVersion.Success) {
+        Write-Host "Installed package $PackageName $($installedVersion.Groups[1].Value.Trim())"
+    }
+    if ($installedUpdate.Success) {
+        Write-Host "Installed package lastUpdateTime=$($installedUpdate.Groups[1].Value.Trim())"
+    } else {
+        Write-Host "Installed package metadata captured, but lastUpdateTime was not found."
+    }
+}
 

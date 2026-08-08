@@ -1,0 +1,67 @@
+using System;
+using System.IO;
+
+namespace STS2Mobile.Steam;
+
+internal static partial class CloudSyncCoordinator
+{
+    private static partial class SaveBackups
+    {
+        private static string NormalizeSavePath(string path)
+        {
+            return CloudSavePath.Canonicalize(path);
+        }
+
+        private static string NormalizeSavePathLower(string path)
+            => CloudSavePath.CanonicalizeLower(path);
+
+        private static string BuildBackupPathForSave(
+            string path,
+            string? fileNameOverride,
+            BackupSource source
+        )
+        {
+            var canonPath = NormalizeSavePath(path);
+            return BuildBackupPath(
+                GetProfileDir(canonPath),
+                fileNameOverride ?? Path.GetFileName(canonPath),
+                source
+            );
+        }
+
+        private static string GetProfileDir(string canonPath)
+        {
+            var parts = canonPath.Split('/');
+            var profileDir = "default";
+            foreach (var part in parts)
+            {
+                if (part.StartsWith("profile"))
+                {
+                    profileDir = part;
+                    break;
+                }
+            }
+
+            return parts.Length > 0 && string.Equals(
+                parts[0],
+                "modded",
+                StringComparison.OrdinalIgnoreCase
+            )
+                ? Path.Combine("modded", profileDir)
+                : profileDir;
+        }
+
+        private static string BuildBackupPath(
+            string profileDir,
+            string fileName,
+            BackupSource source
+        )
+        {
+            var backupDir = Path.Combine(AppPaths.ExternalSaveBackupsDir, profileDir);
+            Directory.CreateDirectory(backupDir);
+
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            return Path.Combine(backupDir, $"{fileName}.{timestamp}.{source}.bak");
+        }
+    }
+}

@@ -1,6 +1,6 @@
 param(
-    [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
-    [string]$PackageName = "com.sts2launcher.overhaul.fork.dev",
+    [string]$AdbPath = "$(Join-Path $env:USERPROFILE '.w40k-android-toolchain\android-sdk\platform-tools\adb.exe')",
+    [string]$PackageName = "",
     [string]$ArtifactsDir = "",
     [string]$DeviceSerial = "",
     [int]$WaitForDeviceSeconds = 0,
@@ -25,6 +25,7 @@ Assert-AndroidAdbPath -AdbPath $AdbPath
 
 $device = Resolve-AndroidTargetDevice -AdbPath $AdbPath -DeviceSerial $DeviceSerial -WaitForDeviceSeconds $WaitForDeviceSeconds
 $DeviceSerial = $device
+$PackageName = Resolve-AndroidInstalledLauncherPackageName -AdbPath $AdbPath -DeviceSerial $DeviceSerial -PackageName $PackageName
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $outDir = Join-Path $ArtifactsDir "phone-diagnostics-$timestamp"
 New-Item -ItemType Directory -Force $outDir | Out-Null
@@ -40,7 +41,7 @@ if ($Launch) {
     Start-Sleep -Seconds $WaitSeconds
 }
 
-$patterns = "STS2Mobile|Routing to native x86 fallback|Showing native x86 fallback|Assembly cache diagnostics|Assembly cache required file|\.NET:|\.NET assemblies not found|Unable to find the \.NET assemblies directory|api_assemblies_dir|Missing required cache file|Assembly setup failed|AndroidRuntime|FATAL EXCEPTION|FORTIFY|F/libc|crash"
+$patterns = "Routing to native x86 fallback|Showing native x86 fallback|Android startup freshness|Assembly cache diagnostics|Assembly cache required file|expectedSource|expectedBytes|\.NET:|\.NET assemblies not found|Unable to find the \.NET assemblies directory|api_assemblies_dir|Missing required cache file|Assembly setup failed|\[Launcher\]|\[Cloud\]|AndroidRuntime|FATAL EXCEPTION|FORTIFY|F/libc|crash"
 
 Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("devices", "-l") | Set-Content -LiteralPath (Join-Path $outDir "adb-devices.txt") -Encoding UTF8
 Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", "ro.product.cpu.abilist") | Set-Content -LiteralPath (Join-Path $outDir "abi-list.txt") -Encoding UTF8

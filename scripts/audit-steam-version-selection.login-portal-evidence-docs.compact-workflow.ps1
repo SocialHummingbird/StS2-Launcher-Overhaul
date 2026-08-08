@@ -1,0 +1,48 @@
+function Add-SteamVersionSelectionLoginPortalEvidenceDocsCompactWorkflowChecks {
+    Add-Check `
+        "docs\android-login-portal-evidence-template.md" `
+        "captures compact launcher workflow, layout, status, and section evidence" `
+        @(
+            "Quick-start guide visible",
+            "On compact phone layout, quick-start guidance starts collapsed",
+            "Compact quick-start toggle says Quick Start / Get saves first and is touch-safe",
+            "Compact quick-start toggle renders Quick Start / Get saves first as structured title/detail labels",
+            "Compact expanded quick-start guide stays bounded and shows Sign in, Get files, Get saves, Play, and Upload locked rows",
+            "Compact expanded quick-start guide renders each step inside a bounded row card",
+            "Compact active task screens suppress the quick-start drawer so primary controls stay higher",
+            "Quick-start guidance expands/collapses without hiding the primary task",
+            "Compact phone layout uses most of the usable screen height",
+            "Compact phone layout avoids excessive internal panel margins",
+            "Compact phone shell uses dense panel padding",
+            "Compact phone layout uses dense vertical spacing between repeated launcher regions",
+            "Compact phone layout uses dynamic content width instead of a narrow fixed column",
+            "Tablet/wide layout avoids a narrow fixed inner column",
+            "Android warmup/loading screen uses a mobile-width compact panel with readable styled progress",
+            "Android post-launch startup status uses a framed mobile-width readable card",
+            "Native fallback verbose diagnostics collapsed until requested",
+            "Startup recovery compact actions render Restart App / Open launcher, Safe Start / Cloud off, Help Report / Share details, Copy Log / Review first, and Hide Help / Keep waiting",
+            "Native fallback recovery actions split into responsive rows on narrow landscape screens",
+            "Portal task flow is top anchored rather than vertically stranded",
+            "Compact phone status appears as a readable vertical next-step card",
+            "Compact phone status card is low-profile but still readable",
+            "Compact status card uses an inline phase and next-action headline where width allows",
+            "Compact status card stacks phase and next action without squeezing either label on narrow compact screens",
+            "Compact status uses short mobile detail copy and expands full raw status when tapped",
+            "Compact status exposes a visible Details / Hide cue in a touch-safe row",
+            "Launcher compact touch-safe status detail button supported",
+            "Launcher compact status detail cue supported",
+            "Home, Saves, Versions, Mods, and Help are all reachable through persistent navigation",
+            "Phone portrait and landscape use bottom navigation above the Android system area",
+            "Foldable/tablet layouts use top navigation with a constrained content surface",
+            "Home contains Start Game, Safe Start, and concise readiness status without save upload controls",
+            "Saves contains Pull, locked Push, backup, and cloud-sync controls without launch controls",
+            "Versions contains branch selection, update, repair, refresh, and cache controls",
+            "Mods contains vanilla/modded selection and Workshop controls",
+            "Help contains recovery, error, report, and launcher-log controls",
+            "Changing destinations resets only the destination page to its top without jumping to a stale task anchor",
+            "Repeated destination changes do not leave stale, black, or partially redrawn regions",
+            "Portrait navigation remains above the bottom gesture or three-button system inset",
+            "Landscape content and navigation remain clear of left/right system navigation insets",
+            "Rotating or folding the device preserves the current process without clipped or overlapping controls"
+        )
+}

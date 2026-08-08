@@ -1,5 +1,7 @@
 # Contributing
 
+Before claiming release readiness, check [docs/current-android-status.md](docs/current-android-status.md) and keep Push-to-Cloud overwrite risk explicit until confirmed Push evidence exists.
+
 Thank you for contributing to this overhaul project.
 
 This repository is an independent continuation of the original launcher with a strong focus on reliability and architecture changes.
@@ -35,6 +37,7 @@ This repository is an independent continuation of the original launcher with a s
 - Prefer local behavior checks on target devices.
 - Include log snippets for startup/crash/lifecycle paths when relevant.
 - If build/test setup is incomplete, explain exact blockers in PR notes.
+- For public bug reports, use the focused issue forms and [issue reporting guide](docs/issue-reporting.md) so device/app version, branch/runtime evidence, cloud safety state, mod state, and redaction checks are captured consistently.
 
 ## Communication
 

@@ -1,6 +1,6 @@
 param(
-    [string]$AdbPath = "C:\Users\ap010\.w40k-android-toolchain\android-sdk\platform-tools\adb.exe",
-    [string]$PackageName = "com.sts2launcher.overhaul.fork.dev",
+    [string]$AdbPath = "$(Join-Path $env:USERPROFILE '.w40k-android-toolchain\android-sdk\platform-tools\adb.exe')",
+    [string]$PackageName = "",
     [string]$ArtifactsDir = "",
     [int]$WaitSeconds = 10,
     [switch]$ClearAppData,
@@ -12,6 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "android-adb-utils.ps1")
+. (Join-Path $PSScriptRoot "android-apk-utils.ps1")
 
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 if (-not $ArtifactsDir) {
@@ -28,30 +29,16 @@ function Resolve-ApkForAbi([string]$AbiList) {
         return (Resolve-Path $ApkPath).Path
     }
 
-    $universalApk = Get-ChildItem -LiteralPath $ArtifactsDir -Filter "*universal*.apk" |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-    if ($universalApk) {
-        return $universalApk.FullName
-    }
-
     if ($AbiList -match "x86_64") {
-        $pattern = "*x86_64.apk"
+        $targetAbi = "x86_64"
     } elseif ($AbiList -match "arm64-v8a") {
-        $pattern = "*arm64-v8a.apk"
+        $targetAbi = "arm64-v8a"
     } else {
         throw "Unsupported device ABI list: $AbiList"
     }
 
-    $apk = Get-ChildItem -LiteralPath $ArtifactsDir -Filter $pattern |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-
-    if (-not $apk) {
-        throw "No APK matching $pattern found in $ArtifactsDir"
-    }
-
-    return $apk.FullName
+    $selected = Select-AndroidApk -Directory $ArtifactsDir -AdbPath $AdbPath -TargetAbi $targetAbi -PackageName $PackageName
+    return $selected.Path
 }
 
 function Test-ApkChecksum([string]$Path) {
@@ -78,6 +65,10 @@ $device = Resolve-AndroidTargetDevice -AdbPath $AdbPath -DeviceSerial $DeviceSer
 $DeviceSerial = $device
 $abiList = (Invoke-AndroidAdbCapture -AdbPath $AdbPath -DeviceSerial $DeviceSerial -Arguments @("shell", "getprop", "ro.product.cpu.abilist") | Out-String).Trim()
 $apk = Resolve-ApkForAbi $abiList
+if ([string]::IsNullOrWhiteSpace($PackageName)) {
+    $PackageName = Get-AndroidApkPackageName -ApkPath $apk -AdbPath $AdbPath
+    Write-Host "Resolved APK package: $PackageName"
+}
 $component = Get-AndroidLauncherComponent -PackageName $PackageName
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $fullLogPath = Join-Path $ArtifactsDir "logcat-smoke-$timestamp-full.txt"
@@ -134,6 +125,7 @@ Write-Host "Result: $result"
     "Device: $device"
     "ABI list: $abiList"
     "APK: $apk"
+    "Package: $PackageName"
     "Full logcat: $fullLogPath"
     "Filtered logcat: $filteredLogPath"
     "Result: $result"

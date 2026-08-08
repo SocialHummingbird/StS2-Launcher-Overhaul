@@ -1,0 +1,54 @@
+namespace STS2Mobile.Launcher;
+
+internal sealed partial class LauncherDiagnosticsCoordinator
+{
+    private readonly LauncherModel _model;
+    private readonly LauncherView _view;
+    private bool _automaticDiagnosticsWritten;
+
+    internal LauncherDiagnosticsCoordinator(LauncherModel model, LauncherView view)
+    {
+        _model = model;
+        _view = view;
+    }
+
+    internal void ShowLastErrorPressed()
+        => RunDiagnosticsAction(
+            "Problem summary failed",
+            () => ShowDiagnosticsSummary(
+                _view,
+                _model.BuildDiagnosticsSummaryForDisplay()
+            )
+        );
+
+    internal void CopyRawLogPressed()
+        => RunDiagnosticsAction(
+            "Launcher log copy failed",
+            () => CopyRawLogToClipboard(
+                _view,
+                _model.BuildRawErrorLogForClipboard()
+            )
+        );
+
+    private static void ShowDiagnosticsSummary(LauncherView view, string summary)
+    {
+        view.SetStatus("Last problem opened.");
+        view.AppendLog(summary);
+        view.ShowDiagnosticsConsole();
+    }
+
+    private static void CopyRawLogToClipboard(LauncherView view, string rawLog)
+    {
+        var clipboardText = new LauncherClipboardText(
+            "Public sharing warning: review and redact this launcher log before posting publicly.\n"
+            + "It may include account names, local paths, device details, save/cloud state, and log excerpts.\n\n"
+            + rawLog
+        );
+        clipboardText.CopyToClipboard();
+        view.SetStatus("Launcher log copied. Review before sharing.");
+        view.AppendLog(
+            $"Launcher log copied to clipboard ({clipboardText.Length:N0} chars). Review/redact before public posting."
+        );
+        view.ShowDiagnosticsConsole();
+    }
+}

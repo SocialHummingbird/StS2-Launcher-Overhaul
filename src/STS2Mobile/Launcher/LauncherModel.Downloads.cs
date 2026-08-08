@@ -1,0 +1,29 @@
+using System;
+using System.Threading;
+using STS2Mobile.Steam;
+
+namespace STS2Mobile.Launcher;
+
+internal partial class LauncherModel
+{
+    private CancellationTokenSource _downloadCts;
+    private DepotDownloader _downloader;
+    private int _downloadRunning;
+
+    internal event Action<DepotDownloader.DownloadProgress> DownloadProgressChanged;
+    internal event Action<string> DownloadLogReceived;
+    internal event Action<string> DownloadCompleted;
+    internal event Action<LauncherBranchOperationFailure> DownloadFailed;
+    internal event Action<string> DownloadCancelled;
+    internal event Action<LauncherUpdateCheckResult> UpdateCheckCompleted;
+    internal event Action<LauncherBranchOperationFailure> UpdateCheckFailed;
+    internal event Action BranchCatalogRefreshCompleted;
+    internal event Action<string> BranchCatalogRefreshFailed;
+    internal event Action<string> WorkshopSyncLogReceived;
+    internal event Action<string> WorkshopSyncCompleted;
+    internal event Action<string> WorkshopSyncFailed;
+    internal event Action<int> WorkshopClearCompleted;
+    internal event Action<string> WorkshopClearFailed;
+
+    private bool DownloadIsRunning => Interlocked.CompareExchange(ref _downloadRunning, 0, 0) == 1;
+}

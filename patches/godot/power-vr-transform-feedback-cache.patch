@@ -1,0 +1,15 @@
+diff --git a/drivers/gles3/storage/config.cpp b/drivers/gles3/storage/config.cpp
+index a9d8e4e..6a8f578 100644
+--- a/drivers/gles3/storage/config.cpp
++++ b/drivers/gles3/storage/config.cpp
+@@ -232,8 +232,9 @@ Config::Config() {
+ 			//https://github.com/godotengine/godot/issues/92662#issuecomment-2161199477
+ 			//disable_particles_workaround = false;
+ 		}
+-	} else if (rendering_device_name == "PowerVR Rogue GE8320") {
++	} else if (rendering_device_name.contains("PowerVR")) {
+ 		disable_transform_feedback_shader_cache = true;
++		print_verbose("OpenGL: PowerVR renderer detected; transform feedback shader cache disabled");
+ 	}
+ 
+ 	if (OS::get_singleton()->get_current_rendering_driver_name() == "opengl3_angle") {

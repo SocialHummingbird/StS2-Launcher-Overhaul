@@ -1,10 +1,12 @@
 ---
 name: Overhaul monthly status
-about: Post recurring monthly status for startup and reliability efforts
+about: Post recurring status for refactor, release validation, startup, and reliability efforts
 title: "[STATUS] Overhaul - <YYYY-MM>"
 labels: ["status"]
 assignees: []
 ---
+
+This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
 ## Status window
 
@@ -29,6 +31,7 @@ Report date:
 | Area | Device(s) | Outcome | Notes |
 | --- | --- | --- | --- |
 | Startup | | | |
+| Steam login/authentication | | | |
 | Locale/path compatibility | | | |
 | Cloud sync | | | |
 | Multiplayer/launcher flow | | | |

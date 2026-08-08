@@ -1,12 +1,22 @@
+using System;
 using Godot;
 
 namespace STS2Mobile.Launcher.Components;
 
 internal sealed class StyledLineEdit : LineEdit
 {
-    internal StyledLineEdit(string placeholder, float scale, bool secret = false)
+    private readonly DisplayServer.VirtualKeyboardType _keyboardType;
+
+    internal StyledLineEdit(
+        string placeholder,
+        float scale,
+        bool secret = false,
+        DisplayServer.VirtualKeyboardType keyboardType = DisplayServer.VirtualKeyboardType.Default
+    )
     {
+        _keyboardType = keyboardType;
         PlaceholderText = placeholder;
+        AccessibilityName = placeholder;
         Secret = secret;
         CustomMinimumSize = new Vector2(
             0,
@@ -19,7 +29,9 @@ internal sealed class StyledLineEdit : LineEdit
         ContextMenuEnabled = true;
         ShortcutKeysEnabled = true;
         SelectAllOnFocus = true;
-        FocusEntered += ShowAndroidKeyboard;
+        ApplyTheme(scale);
+        FocusEntered += OnFocusEntered;
+        FocusExited += OnFocusExited;
         GuiInput += inputEvent =>
         {
             if (ShouldShowKeyboard(inputEvent))
@@ -27,14 +39,56 @@ internal sealed class StyledLineEdit : LineEdit
         };
     }
 
+    private void ApplyTheme(float scale)
+    {
+        var radius = LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LineEditRadius);
+        var borderWidth = Math.Max(1, LauncherComponentTheme.ScaleInt(scale, 1));
+        AddThemeStyleboxOverride(
+            LauncherComponentTheme.StateNormal,
+            BuildStyleBox(LauncherComponentTheme.LineEditNormalBorder, radius, borderWidth, scale)
+        );
+        AddThemeStyleboxOverride(
+            "focus",
+            BuildStyleBox(LauncherComponentTheme.LineEditFocusBorder, radius, borderWidth + 1, scale)
+        );
+        AddThemeStyleboxOverride(
+            "read_only",
+            BuildStyleBox(LauncherComponentTheme.LineEditNormalBorder.Darkened(0.2f), radius, borderWidth, scale)
+        );
+        AddThemeColorOverride("font_color", LauncherComponentTheme.TextPrimary);
+        AddThemeColorOverride("font_placeholder_color", LauncherComponentTheme.TextMuted);
+        AddThemeColorOverride("caret_color", LauncherComponentTheme.CyanAccent);
+        AddThemeColorOverride("selection_color", new Color(0.04f, 0.84f, 0.95f, 0.28f));
+    }
+
+    private static StyleBoxFlat BuildStyleBox(Color border, int radius, int borderWidth, float scale)
+    {
+        var style = LauncherStyleBoxes.MakeFilled(LauncherComponentTheme.LineEditBackground, radius);
+        style.BorderColor = border;
+        style.SetBorderWidthAll(borderWidth);
+        var horizontalPadding = LauncherComponentTheme.ScaleInt(
+            scale,
+            LauncherComponentTheme.LineEditHorizontalPadding
+        );
+        style.ContentMarginLeft = horizontalPadding;
+        style.ContentMarginRight = horizontalPadding;
+        style.ContentMarginTop = LauncherComponentTheme.ScaleInt(scale, 6);
+        style.ContentMarginBottom = LauncherComponentTheme.ScaleInt(scale, 6);
+        return style;
+    }
+
     private void ShowAndroidKeyboard()
     {
+        if (!OperatingSystem.IsAndroid())
+            return;
+
         try
         {
+            AndroidGodotAppBridge.NotifyLauncherTextEditingRequested(true);
             DisplayServer.VirtualKeyboardShow(
                 Text,
                 new Rect2(GlobalPosition, Size),
-                DisplayServer.VirtualKeyboardType.Default,
+                _keyboardType,
                 MaxLength,
                 CaretColumn,
                 CaretColumn
@@ -44,6 +98,19 @@ internal sealed class StyledLineEdit : LineEdit
         {
             // Some desktop/editor backends do not expose a virtual keyboard.
         }
+    }
+
+    private void OnFocusEntered()
+    {
+        if (OperatingSystem.IsAndroid())
+            AndroidGodotAppBridge.NotifyLauncherTextEditingRequested(true);
+        ShowAndroidKeyboard();
+    }
+
+    private static void OnFocusExited()
+    {
+        if (OperatingSystem.IsAndroid())
+            AndroidGodotAppBridge.NotifyLauncherTextEditingRequested(false);
     }
 
     private static bool ShouldShowKeyboard(InputEvent inputEvent)

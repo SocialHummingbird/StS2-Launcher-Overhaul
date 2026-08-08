@@ -4,21 +4,55 @@ namespace STS2Mobile.Steam;
 
 // Persists Steam account credentials encrypted with Android Keystore (AES-256-GCM).
 // Reads and writes a single encrypted JSON file via the Java bridge to GodotApp.
-internal sealed class SteamCredentialStore
+internal sealed partial class SteamCredentialStore
 {
     private const string CredentialsFileName = "steam_credentials.enc";
-    private const string DecryptionFailedLogMessage = "[Credentials] Decryption failed, deleting stale file";
-    private const string EncryptionFailedLogMessage = "[Credentials] Encryption returned null";
 
     private readonly string _credentialsPath;
     private SteamCredentials _credentials;
 
-    internal string AccountName => _credentials?.AccountName;
-    internal string RefreshToken => _credentials?.RefreshToken;
-    internal string GuardData => _credentials?.GuardData;
+    private bool HasCredentials
+        => _credentials?.HasUsableTokens() == true;
 
-    internal bool HasCredentials =>
-        _credentials?.RefreshToken != null && _credentials?.AccountName != null;
+    internal bool HasUsableCredentials()
+        => HasCredentials;
+
+    internal string AccountNameOrEmpty()
+        => _credentials?.AccountNameOrEmpty() ?? string.Empty;
+
+    internal bool HasAccount()
+        => _credentials?.HasAccount() == true;
+
+    internal bool IsAccount(string accountName)
+        => _credentials?.IsAccount(accountName) == true;
+
+    internal bool TryGetAccountName(out string accountName)
+    {
+        accountName = null;
+        return _credentials?.TryGetAccountName(out accountName) == true;
+    }
+
+    internal bool TryCreateConnection(out SteamConnection connection)
+    {
+        connection = null;
+        if (!HasCredentials)
+            return false;
+
+        connection = _credentials.CreateConnection();
+        return true;
+    }
+
+    internal bool TryUseCredentials(Action<string, string> useCredentials)
+    {
+        if (!HasCredentials)
+            return false;
+
+        _credentials.Use(useCredentials);
+        return true;
+    }
+
+    internal string GuardDataOrEmpty()
+        => _credentials?.GuardDataOrEmpty() ?? string.Empty;
 
     internal SteamCredentialStore(string dataDir)
     {
@@ -38,55 +72,29 @@ internal sealed class SteamCredentialStore
         }
     }
 
-    internal void Save(string accountName, string refreshToken, string guardData)
+    internal bool Save(string accountName, string refreshToken, string guardData)
     {
-        _credentials = new SteamCredentials
-        {
-            AccountName = accountName,
-            RefreshToken = refreshToken,
-            GuardData = guardData,
-        };
+        var credentials = new SteamCredentials(accountName, refreshToken, guardData);
 
         try
         {
-            SaveCredentials(_credentials);
+            if (!SaveCredentials(credentials))
+                return false;
+
+            _credentials = credentials;
             PatchHelper.Log("[Credentials] Saved (Android Keystore encrypted)");
+            return true;
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"[Credentials] Save failed: {ex.Message}");
+            return false;
         }
     }
 
-    private SteamCredentials LoadCredentials()
+    internal void Clear()
     {
-        if (!File.Exists(_credentialsPath))
-            return null;
-
-        var credentials = AndroidEncryptedJsonFile.Load<SteamCredentials>(_credentialsPath);
-        if (credentials != null)
-            return credentials;
-
-        PatchHelper.Log(DecryptionFailedLogMessage);
+        _credentials = null;
         DeleteCredentialsFile();
-        return null;
-    }
-
-    private void SaveCredentials(SteamCredentials credentials)
-    {
-        if (!AndroidEncryptedJsonFile.Save(_credentialsPath, credentials))
-            PatchHelper.Log(EncryptionFailedLogMessage);
-    }
-
-    private void DeleteCredentialsFile()
-    {
-        AndroidEncryptedJsonFile.DeleteQuietly(_credentialsPath);
-    }
-
-    private sealed class SteamCredentials
-    {
-        public string AccountName { get; set; }
-        public string RefreshToken { get; set; }
-        public string GuardData { get; set; }
     }
 }

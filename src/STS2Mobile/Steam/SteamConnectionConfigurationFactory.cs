@@ -1,149 +1,112 @@
 using System;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
+using System.Threading;
 using SteamKit2;
 
 namespace STS2Mobile.Steam;
 
-internal static class SteamConnectionConfigurationFactory
+internal static partial class SteamConnectionConfigurationFactory
 {
-    private const string AddMethodName = "Add";
-    private const string GenerationTableFieldName = "generationTable";
-    private const string HardwareUtilsTypeName = "SteamKit2.HardwareUtils, SteamKit2";
-    private const string MachineIdTypeName = "MachineID";
-    private const string MachineIdPatchUnavailableLogMessage = "[Auth] SteamKit machine-id patch unavailable";
-    private const string MachineIdSeedUnavailableLogMessage = "[Auth] SteamKit machine-id cache seed unavailable";
-    private const string Set3B3MethodName = "Set3B3";
-    private const string SetBB3MethodName = "SetBB3";
-    private const string SetFF2MethodName = "SetFF2";
-    private static readonly object MachineIdPatchLock = new();
-    private static readonly string BB3SeedValue = FortyHex('b');
-    private static readonly string FF2SeedValue = FortyHex('f');
-    private static readonly string ThreeB3SeedValue = FortyHex('3');
+    private const ProtocolTypes AndroidProtocolTypes = ProtocolTypes.Tcp;
+    internal const bool SteamKitDebugLogsSanitized = true;
+    internal static bool SteamKitDebugLogsOptInEnabled
+        => OperatingSystem.IsAndroid()
+            && string.Equals(
+                Environment.GetEnvironmentVariable("STS2_STEAMKIT_DEBUG_LOGS"),
+                "1",
+                StringComparison.Ordinal
+            );
+    private static readonly Regex SensitiveJsonValueRegex = new Regex(
+        "\"(?<key>password|passwd|refresh[_-]?token|access[_-]?token|login[_-]?key|steamLoginSecure|sessionid|shared[_-]?secret|identity[_-]?secret|guard[_-]?code|twofactorcode|authorization)\"\\s*:\\s*\"[^\"]*\"",
+        RegexOptions.IgnoreCase
+    );
+    private static readonly Regex SensitiveKeyValueRegex = new Regex(
+        "\\b(?<key>password|passwd|refresh[_-]?token|access[_-]?token|login[_-]?key|steamLoginSecure|sessionid|shared[_-]?secret|identity[_-]?secret|guard[_-]?code|twofactorcode|authorization)\\b\\s*[:=]\\s*['\"]?[^'\"\\s,;&]+",
+        RegexOptions.IgnoreCase
+    );
+    private static readonly Regex BearerTokenRegex = new Regex(
+        "\\bBearer\\s+[A-Za-z0-9._~+/=-]+",
+        RegexOptions.IgnoreCase
+    );
+    private static int _androidProtocolLogged;
+    private static int _androidSteamKitDebugLogged;
 
     internal static SteamConfiguration Create()
     {
         AndroidJavaHttpMessageHandler.Prime();
+        ConfigureAndroidSteamKitDebugLogOnce();
+        LogAndroidProtocolConfigurationOnce();
 
         var config = SteamConfiguration.Create(builder =>
         {
-            builder.WithProtocolTypes(OperatingSystem.IsAndroid() ? ProtocolTypes.Tcp : ProtocolTypes.WebSocket);
+            builder.WithProtocolTypes(
+                OperatingSystem.IsAndroid() ? AndroidProtocolTypes : ProtocolTypes.WebSocket
+            );
 
             if (!OperatingSystem.IsAndroid())
                 return;
 
             builder.WithHttpClientFactory(AndroidJavaHttpMessageHandler.CreateClient);
-            builder.WithMachineInfoProvider(new AndroidMachineInfoProvider());
+            builder.WithMachineInfoProvider(AndroidMachineInfo);
         });
 
         SeedAndroidMachineIdCache(config);
         return config;
     }
 
-    private static void SeedAndroidMachineIdCache(SteamConfiguration configuration)
+    private static void LogAndroidProtocolConfigurationOnce()
     {
-        if (!OperatingSystem.IsAndroid() || configuration == null)
+        if (!OperatingSystem.IsAndroid())
             return;
 
-        lock (MachineIdPatchLock)
-        {
-            if (TrySeedAndroidMachineIdCache(configuration))
-                PatchHelper.Log("[Auth] SteamKit Android machine-id cache seeded");
-        }
+        if (Interlocked.Exchange(ref _androidProtocolLogged, 1) == 0)
+            PatchHelper.Log("[Auth] Android Steam CM protocol configured: TCP");
     }
 
-    private static bool TrySeedAndroidMachineIdCache(SteamConfiguration configuration)
+    private static void ConfigureAndroidSteamKitDebugLogOnce()
     {
-        try
+        if (!OperatingSystem.IsAndroid())
+            return;
+
+        if (Interlocked.Exchange(ref _androidSteamKitDebugLogged, 1) != 0)
+            return;
+
+        if (!SteamKitDebugLogsOptInEnabled)
         {
-            if (!TryLoadSteamKitMachineIdInternals(out var machineIdType, out var tableField))
-            {
-                PatchHelper.Log(MachineIdPatchUnavailableLogMessage);
-                return false;
-            }
-
-            var task = CreateMachineIdTask(machineIdType);
-            var table = tableField.GetValue(null);
-            var provider = configuration.MachineInfoProvider;
-
-            if (task == null || table == null || provider == null)
-            {
-                PatchHelper.Log(MachineIdSeedUnavailableLogMessage);
-                return false;
-            }
-
-            AddMachineIdGenerationTableEntry(table, provider, task);
-            return true;
+            DebugLog.Enabled = false;
+            PatchHelper.Log("[Auth] Android SteamKit debug logging disabled by default; set sts2_steamkit_debug_logs=1 to enable sanitized diagnostics");
+            return;
         }
-        catch (Exception ex)
+
+        DebugLog.Enabled = true;
+        PatchHelper.Log("[Auth] Android SteamKit debug logging enabled with credential/token sanitization");
+        DebugLog.AddListener((category, message) =>
         {
-            PatchHelper.Log($"[Auth] SteamKit machine-id cache seed failed: {ex}");
-            return false;
-        }
+            if (
+                string.IsNullOrWhiteSpace(category)
+                || string.IsNullOrWhiteSpace(message)
+            )
+                return;
+
+            PatchHelper.Log(
+                $"[Auth][SteamKit:{SanitizeSteamKitDebugMessage(category)}] {SanitizeSteamKitDebugMessage(message)}"
+            );
+        });
     }
 
-    private static bool TryLoadSteamKitMachineIdInternals(out Type machineIdType, out FieldInfo tableField)
+    private static string SanitizeSteamKitDebugMessage(string value)
     {
-        var type = Type.GetType(HardwareUtilsTypeName);
-        machineIdType = type?.GetNestedType(MachineIdTypeName, BindingFlags.NonPublic);
-        tableField = type?.GetField(
-            GenerationTableFieldName,
-            BindingFlags.NonPublic | BindingFlags.Static
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        var sanitized = SensitiveJsonValueRegex.Replace(
+            value,
+            match => $"\"{match.Groups["key"].Value}\":\"<redacted>\""
         );
-
-        return machineIdType != null && tableField != null;
-    }
-
-    private static object CreateMachineIdTask(Type machineIdType)
-    {
-        var machineId = Activator.CreateInstance(machineIdType, nonPublic: true);
-        SetMachineIdPart(machineIdType, machineId, SetBB3MethodName, BB3SeedValue);
-        SetMachineIdPart(machineIdType, machineId, SetFF2MethodName, FF2SeedValue);
-        SetMachineIdPart(machineIdType, machineId, Set3B3MethodName, ThreeB3SeedValue);
-
-        return typeof(Task)
-            .GetMethod(nameof(Task.FromResult))
-            ?.MakeGenericMethod(machineIdType)
-            .Invoke(null, new[] { machineId });
-    }
-
-    private static void SetMachineIdPart(Type machineIdType, object machineId, string methodName, string value)
-    {
-        machineIdType.GetMethod(methodName)?.Invoke(machineId, new object[] { value });
-    }
-
-    private static void AddMachineIdGenerationTableEntry(object table, object provider, object task)
-    {
-        try
-        {
-            table.GetType().GetMethod(AddMethodName)?.Invoke(table, new[] { provider, task });
-        }
-        catch (TargetInvocationException ex)
-            when (ex.InnerException is ArgumentException)
-        {
-            // Already seeded for this provider.
-        }
-    }
-
-    private static string FortyHex(char value) => new(value, 40);
-
-    private sealed class AndroidMachineInfoProvider : IMachineInfoProvider
-    {
-        private static readonly byte[] MacAddress =
-        {
-            0x02,
-            0x53,
-            0x54,
-            0x53,
-            0x32,
-            0x41,
-        };
-
-        public byte[] GetMachineGuid() => Encoding.ASCII.GetBytes("sts2launcher-android-machine-guid");
-
-        public byte[] GetMacAddress() => (byte[])MacAddress.Clone();
-
-        public byte[] GetDiskId() => Encoding.ASCII.GetBytes("sts2launcher-android-disk");
+        sanitized = SensitiveKeyValueRegex.Replace(
+            sanitized,
+            match => $"{match.Groups["key"].Value}=<redacted>"
+        );
+        return BearerTokenRegex.Replace(sanitized, "Bearer <redacted>");
     }
 }

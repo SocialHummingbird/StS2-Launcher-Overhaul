@@ -1,0 +1,18 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <AssemblyName>LauncherUiPreview</AssemblyName>
+    <RootNamespace>LauncherUiPreview</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/STS2Mobile/STS2Mobile.csproj" />
+    <Reference Include="0Harmony">
+      <HintPath>../../upstream/godot-export/.godot/mono/publish/arm64/0Harmony.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="sts2">
+      <HintPath>../../upstream/godot-export/.godot/mono/publish/arm64/sts2.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

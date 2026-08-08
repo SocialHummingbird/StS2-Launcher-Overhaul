@@ -13,6 +13,22 @@ function Resolve-GodotSourceDirectory {
     return [System.IO.Path]::GetFullPath((Join-Path $Root $GodotDir))
 }
 
+function Test-GodotGitApply {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Arguments
+    )
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        & git @Arguments *> $null
+        return $LASTEXITCODE -eq 0
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
 function Apply-GodotPatches {
     param(
         [Parameter(Mandatory = $true)]
@@ -30,8 +46,7 @@ function Apply-GodotPatches {
     foreach ($patch in $patches) {
         Push-Location $GodotDir
         try {
-            & git apply --check --ignore-whitespace $patch.FullName *> $null
-            if ($LASTEXITCODE -eq 0) {
+            if (Test-GodotGitApply -Arguments @("apply", "--check", "--ignore-whitespace", $patch.FullName)) {
                 Write-Host "Applying Godot patch: $($patch.Name)"
                 & git apply --ignore-whitespace $patch.FullName
                 if ($LASTEXITCODE -ne 0) {
@@ -40,8 +55,7 @@ function Apply-GodotPatches {
                 continue
             }
 
-            & git apply --reverse --check --ignore-whitespace $patch.FullName *> $null
-            if ($LASTEXITCODE -eq 0) {
+            if (Test-GodotGitApply -Arguments @("apply", "--reverse", "--check", "--ignore-whitespace", $patch.FullName)) {
                 Write-Host "Godot patch already applied: $($patch.Name)"
                 continue
             }

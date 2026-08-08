@@ -1,47 +1,25 @@
-﻿namespace STS2Mobile.Launcher;
+using STS2Mobile.Steam;
 
-internal static class LauncherCloudSaveState
+namespace STS2Mobile.Launcher;
+
+internal static partial class LauncherCloudSaveState
 {
     private static bool _cloudSyncEnabled = true;
-    private static string _savedAccountName;
-    private static string _savedRefreshToken;
+    private static SavedSteamCredentials? _savedCredentials;
 
     internal static string StatusSummary
         => $"HasToken={HasSavedCredentials}, CloudSync={_cloudSyncEnabled}";
 
-    internal static bool TryGetSavedCredentials(
-        out string accountName,
-        out string refreshToken
-    )
-    {
-        accountName = _savedAccountName;
-        refreshToken = _savedRefreshToken;
-        return accountName != null && refreshToken != null;
-    }
+    internal static bool CloudSyncEnabled
+        => _cloudSyncEnabled;
 
-    internal static bool TryGetEnabledCredentials(
-        out string accountName,
-        out string refreshToken,
-        out string unavailableReason
-    )
-    {
-        if (!_cloudSyncEnabled)
-        {
-            accountName = null;
-            refreshToken = null;
-            unavailableReason = "[Cloud] Cloud sync disabled by user - using local-only SaveManager";
-            return false;
-        }
+    internal static bool HasSavedCredentials
+        => _savedCredentials.HasValue;
 
-        if (!TryGetSavedCredentials(out accountName, out refreshToken))
-        {
-            unavailableReason = "[Cloud] No saved credentials - using local-only SaveManager";
-            return false;
-        }
-
-        unavailableReason = null;
-        return true;
-    }
+    internal static bool HasAutomaticSyncPending()
+        => CloudSaveStoreFactory.CreateLocalStore().FileExists(
+            CloudSyncCoordinator.AutomaticSyncPendingPath
+        );
 
     internal static void SetCloudSyncEnabled(bool enabled)
     {
@@ -52,17 +30,4 @@ internal static class LauncherCloudSaveState
     {
         _cloudSyncEnabled = false;
     }
-
-    internal static void SaveCredentials(string accountName, string refreshToken)
-    {
-        if (string.IsNullOrWhiteSpace(accountName))
-            return;
-
-        _savedAccountName = accountName;
-        _savedRefreshToken = refreshToken;
-    }
-
-    private static bool HasSavedCredentials
-        => _savedAccountName != null && _savedRefreshToken != null;
 }
-
