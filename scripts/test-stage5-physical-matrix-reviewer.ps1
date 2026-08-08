@@ -13,6 +13,7 @@ $sourceCommit = '1234567890abcdef1234567890abcdef12345678'
 $steamId64 = '76561198000000001'
 $packageName = 'com.sts2launcher.overhaul.fork.local'
 $signerSha256 = 'fd0e3d5acf435c1d23bfc5c426e99aa9eb5808619ff1fc214ffca99cfac7e57a'
+$unsignedApkSha256 = '60f3f748f358e009ba6fc5baf615cec23f5cfcc9ec545f41c0cf71419d5bed15'
 $deviceSerial = 'fixture-device-01'
 $contexts = [ordered]@{
     'vanilla-public' = [ordered]@{
@@ -884,6 +885,7 @@ try {
         "source_commit=$sourceCommit",
         'candidate_run_id=123456789',
         'candidate_run_attempt=1',
+        "unsigned_apk_sha256=$unsignedApkSha256",
         "apk_sha256=$candidateHash",
         'update_baseline_tag=v0.2.416-startup-recovery-ime',
         'update_baseline_asset_name=StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk',
@@ -967,6 +969,7 @@ try {
     $matrix = Get-Content -LiteralPath $templatePath -Raw | ConvertFrom-Json
     $matrix.binding.candidate.apkPath = $candidatePath
     $matrix.binding.candidate.apkSha256 = $candidateHash
+    $matrix.binding.candidate.unsignedApkSha256 = $unsignedApkSha256
     $matrix.binding.candidate.buildInfoPath = $buildInfoPath
     $matrix.binding.candidate.buildInfoSha256 = Get-FileHashHex -Path $buildInfoPath
     $matrix.binding.candidate.sourceCommit = $sourceCommit
@@ -1081,6 +1084,7 @@ try {
     if ($review.result -ne 'passed' -or
         $review.rowsPassed -ne 10 -or
         $review.semanticChecksPassed -ne 11 -or
+        [string]$review.candidateUnsignedApkSha256 -cne $unsignedApkSha256 -or
         [int]$review.androidExportsBoundToRawCollector -ne $androidMapping.Count) {
         throw 'Valid nondebuggable Stage 5 fixture did not produce a complete pass report.'
     }
@@ -1147,6 +1151,40 @@ try {
             -BuildInfoValue $lineageCase.BuildInfoValue `
             -Label $lineageCase.Label
     }
+
+    $uppercaseUnsignedMatrix = Get-Content -LiteralPath $validMatrixPath -Raw | ConvertFrom-Json
+    $uppercaseUnsignedMatrix.binding.candidate.unsignedApkSha256 = $unsignedApkSha256.ToUpperInvariant()
+    $uppercaseUnsignedPath = Join-Path $testRoot 'uppercase-unsigned-apk-sha256.json'
+    Write-JsonNoBom -Path $uppercaseUnsignedPath -Value $uppercaseUnsignedMatrix
+    Assert-ReviewerRejects `
+        -MatrixPath $uppercaseUnsignedPath `
+        -Label 'Uppercase unsigned candidate hash binding' `
+        -Aapt $aaptPath `
+        -ApkSigner $apkSignerPath `
+        -ExpectedErrorPattern 'unsigned APK hash must be lowercase SHA-256'
+
+    $mismatchedUnsignedMatrix = Get-Content -LiteralPath $validMatrixPath -Raw | ConvertFrom-Json
+    $mismatchedUnsignedDirectory = Join-Path $testRoot 'negative/mismatched-unsigned-apk-sha256'
+    New-Item -ItemType Directory -Force -Path $mismatchedUnsignedDirectory | Out-Null
+    $mismatchedUnsignedBuildInfoPath = Join-Path $mismatchedUnsignedDirectory 'candidate.build-info.txt'
+    [IO.File]::WriteAllText(
+        $mismatchedUnsignedBuildInfoPath,
+        ([IO.File]::ReadAllText($buildInfoPath)).Replace(
+            "unsigned_apk_sha256=$unsignedApkSha256",
+            "unsigned_apk_sha256=$('0' * 64)"
+        ),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $mismatchedUnsignedMatrix.binding.candidate.buildInfoPath = $mismatchedUnsignedBuildInfoPath
+    $mismatchedUnsignedMatrix.binding.candidate.buildInfoSha256 = Get-FileHashHex -Path $mismatchedUnsignedBuildInfoPath
+    $mismatchedUnsignedPath = Join-Path $testRoot 'mismatched-unsigned-apk-sha256.json'
+    Write-JsonNoBom -Path $mismatchedUnsignedPath -Value $mismatchedUnsignedMatrix
+    Assert-ReviewerRejects `
+        -MatrixPath $mismatchedUnsignedPath `
+        -Label 'Build-info unsigned candidate hash mismatch' `
+        -Aapt $aaptPath `
+        -ApkSigner $apkSignerPath `
+        -ExpectedErrorPattern 'build-info unsigned_apk_sha256 mismatch'
 
     $missingMatrix = Get-Content -LiteralPath $validMatrixPath -Raw | ConvertFrom-Json
     $row9 = @($missingMatrix.rows | Where-Object { [int]$_.row -eq 9 })[0]
@@ -1416,7 +1454,7 @@ try {
         -ApkSigner $apkSignerPath `
         -ExpectedErrorPattern 'indexed captured SHA-256.*mismatch'
 
-    Write-Host 'Stage 5 physical matrix reviewer tests passed: 24/24'
+    Write-Host 'Stage 5 physical matrix reviewer tests passed: 26/26'
 } finally {
     $resolvedTestRoot = [IO.Path]::GetFullPath($testRoot)
     $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd(

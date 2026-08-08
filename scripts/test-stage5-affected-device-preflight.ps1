@@ -23,6 +23,7 @@ $fakeApkTool = Join-Path $testRoot $(if ($runningOnWindows) { 'fake-apk-tool.exe
 $adbLog = Join-Path $testRoot 'adb-invocations.txt'
 $packageName = 'com.sts2launcher.overhaul.fork.local'
 $baselineHash = 'fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b'
+$unsignedApkSha256 = '60f3f748f358e009ba6fc5baf615cec23f5cfcc9ec545f41c0cf71419d5bed15'
 $signer = 'FD0E3D5ACF435C1D23BFC5C426E99AA9EB5808619FF1FC214FFCA99CFAC7E57A'
 $sourceCommit = (& git -C (Resolve-Path (Join-Path $PSScriptRoot '..')).Path rev-parse HEAD).Trim().ToLowerInvariant()
 if ($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[0-9a-f]{40}$') { throw 'Could not resolve fixture source commit.' }
@@ -306,6 +307,7 @@ exit 64
             "source_commit=$sourceCommit",
             'candidate_run_id=123456789',
             'candidate_run_attempt=1',
+            "unsigned_apk_sha256=$unsignedApkSha256",
             "apk_sha256=$hash",
             'update_baseline_tag=v0.2.416-startup-recovery-ime',
             'update_baseline_asset_name=StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk',
@@ -386,6 +388,7 @@ exit 64
     $pre = [IO.File]::ReadAllText($preManifest) | ConvertFrom-Json
     Assert-True ([string]$pre.mode -eq 'PreInstall' -and [string]$pre.result -eq 'verified') 'PreInstall manifest is not verified.'
     Assert-True ([string]$pre.device.pulledApkSha256 -eq $baselineHash) 'PreInstall did not bind the pinned baseline bytes.'
+    Assert-True ([string]$pre.candidate.unsignedApkSha256 -ceq $unsignedApkSha256) 'PreInstall did not bind the unsigned candidate bytes recorded by the build.'
 
     [Environment]::SetEnvironmentVariable('STS2_PREFLIGHT_FAKE_INSTALLED_APK', $valid.Apk, [EnvironmentVariableTarget]::Process)
     $postDirectory = Invoke-Preflight -Mode PostInstall -Candidate $valid -OutputName post-success -PriorManifest $preManifest
@@ -428,6 +431,31 @@ exit 64
     [IO.File]::AppendAllText($wrongHash.Apk, 'tampered', [Text.UTF8Encoding]::new($false))
     Assert-PreflightRejects -Label 'wrong candidate hash binding' -Pattern 'checksum mismatch' -Action {
         Invoke-Preflight -Mode PreInstall -Candidate $wrongHash -OutputName reject-hash | Out-Null
+    }
+
+    $missingUnsignedHash = New-CandidateFixture -Name missing-unsigned-hash
+    [IO.File]::WriteAllLines(
+        $missingUnsignedHash.BuildInfo,
+        @([IO.File]::ReadAllLines($missingUnsignedHash.BuildInfo) | Where-Object {
+            -not $_.StartsWith('unsigned_apk_sha256=', [StringComparison]::Ordinal)
+        }),
+        [Text.UTF8Encoding]::new($false)
+    )
+    Assert-PreflightRejects -Label 'missing unsigned candidate hash' -Pattern 'missing: unsigned_apk_sha256' -Action {
+        Invoke-Preflight -Mode PreInstall -Candidate $missingUnsignedHash -OutputName reject-missing-unsigned-hash | Out-Null
+    }
+
+    $malformedUnsignedHash = New-CandidateFixture -Name malformed-unsigned-hash
+    [IO.File]::WriteAllText(
+        $malformedUnsignedHash.BuildInfo,
+        ([IO.File]::ReadAllText($malformedUnsignedHash.BuildInfo)).Replace(
+            "unsigned_apk_sha256=$unsignedApkSha256",
+            "unsigned_apk_sha256=$('A' * 64)"
+        ),
+        [Text.UTF8Encoding]::new($false)
+    )
+    Assert-PreflightRejects -Label 'malformed unsigned candidate hash' -Pattern 'must be a lowercase SHA-256' -Action {
+        Invoke-Preflight -Mode PreInstall -Candidate $malformedUnsignedHash -OutputName reject-malformed-unsigned-hash | Out-Null
     }
 
     [Environment]::SetEnvironmentVariable('STS2_PREFLIGHT_FAKE_DEVICE_MODE', 'multiple', [EnvironmentVariableTarget]::Process)
@@ -479,7 +507,7 @@ exit 64
         Assert-True (@($allowedAdb | Where-Object { $invocation -match $_ }).Count -eq 1) "Unexpected ADB operation observed: $invocation"
     }
 
-    Write-Host 'Stage 5 affected-device preflight tests passed: pre/post exact identity, fail-closed version/signer/process/continuity, and no mutating ADB operations.'
+    Write-Host 'Stage 5 affected-device preflight tests passed: pre/post exact identity, unsigned-candidate binding, fail-closed version/signer/process/continuity, and no mutating ADB operations.'
 } finally {
     foreach ($name in $environmentNames) {
         [Environment]::SetEnvironmentVariable($name, $oldEnvironment[$name], [EnvironmentVariableTarget]::Process)
