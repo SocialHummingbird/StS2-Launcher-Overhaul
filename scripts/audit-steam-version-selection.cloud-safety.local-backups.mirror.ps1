@@ -34,8 +34,7 @@ function Add-SteamVersionSelectionCloudSafetyLocalBackupMirrorChecks {
             "PruneLocalMirrorHistory",
             "lock \(LocalMirrorGate\)",
             "SavePathDiscovery\.Get\(\s*local,\s*cancellationToken",
-            "CancellableSaveStore\.ReadFileAsync",
-            "CancellableAtomicFile\.WriteAllTextAsync",
+            "CancellableSaveStore\.ReadBytesAsync",
             "CancellableAtomicFile\.WriteAllBytesAsync",
             "catch \(OperationCanceledException\)",
             "Automatic local backup refresh"

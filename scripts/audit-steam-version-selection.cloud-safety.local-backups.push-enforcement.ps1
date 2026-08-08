@@ -7,7 +7,7 @@ function Add-SteamVersionSelectionCloudSafetyBackupPushEnforcementChecks {
             "\.sts2-launcher/transfer-backups/",
             "BackupDestinationsAsync",
             "DestinationFileExistsAsync",
-            "ReadDestinationFileAsync",
+            "ReadDestinationFileBytesAsync",
             "WriteAndVerifyLocalAsync",
             "RequireHash"
         )
@@ -18,6 +18,6 @@ function Add-SteamVersionSelectionCloudSafetyBackupPushEnforcementChecks {
         @(
             "CloudSyncProductionPathProbe\\CloudSyncProductionPathProbe\.csproj",
             "dotnet\.Source run",
-            "Non-mutating cloud validation passed"
+            "Non-mutating desktop cloud validation passed"
         )
 }

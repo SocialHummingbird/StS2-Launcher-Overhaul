@@ -35,13 +35,13 @@ function Add-SteamVersionSelectionReleaseDocsSignoffChecks {
         "docs\android-release-validation.md" `
         "keeps release signoff gated on branch/version evidence" `
         @(
-            "Steam version-selection validation",
+            "Steam version selection runbook",
             "audit-steam-version-selection\.ps1",
             "audit-steam-branch-guidance-parity\.ps1",
             "steam_branch\.txt",
             "selected-PCK startup routing",
-            "absence of an interrupted Pull marker",
-            "read-back hash verification"
+            "pending reconciliation",
+            "byte-hash read-back"
         )
 
 }

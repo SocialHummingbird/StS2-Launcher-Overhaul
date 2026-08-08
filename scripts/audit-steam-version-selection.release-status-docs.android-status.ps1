@@ -29,7 +29,7 @@ function Add-SteamVersionSelectionReleaseStatusDocsAndroidStatusChecks {
             "ARM64",
             "Current unreleased source keeps game saving local-only",
             "Launcher-owned automatic sync is enabled by default",
-            "same verified transfer used by the manual recovery controls",
+            "same desktop-tested transfer used by the manual recovery controls",
             "Published .v0\.2\.416. safe public trial checklist",
             "SteamKit debug logs are disabled by default",
             "does not store or inject Steam passwords"

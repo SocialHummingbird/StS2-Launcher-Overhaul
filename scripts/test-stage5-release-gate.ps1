@@ -1270,6 +1270,9 @@ printf '%s\n' 'SHA256: FD:0E:3D:5A:CF:43:5C:1D:23:BF:C5:C4:26:E9:9A:A9:EB:58:08:
     if (-not $keytoolFailureWasRedacted) {
         throw "Keytool failure output did not redact the password and alias (redaction=$($keytoolFailureText.Contains('<redacted>')); password=$($keytoolFailureText.Contains($fakePassword)); alias=$($keytoolFailureText.Contains($fakeAlias)))."
     }
+    # The native failure above is expected and fully asserted. Do not leak its
+    # process status into pwsh's eventual script exit code on Linux runners.
+    $global:LASTEXITCODE = 0
     [Environment]::SetEnvironmentVariable(
         'STS2_FAKE_KEYTOOL_FAIL',
         $null,
