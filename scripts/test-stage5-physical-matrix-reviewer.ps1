@@ -156,15 +156,42 @@ function Get-SnapshotTreeSha256 {
             [string]$file.ContentBase64
         )
     }
-    $lines = @($Snapshot.Manifest.Entries | ForEach-Object {
+    $canonical = @($Snapshot.Manifest.Entries | ForEach-Object {
         $path = [string]$_.Path
         if ([bool]$_.Exists) {
             $bytes = $contents[$path]
-            "$path`ttrue`t$($bytes.Length)`t$(Get-Sha256Hex -Bytes $bytes)"
+            [pscustomobject]@{
+                path = $path
+                line = "$path`ttrue`t$($bytes.Length)`t$(Get-Sha256Hex -Bytes $bytes)"
+            }
         } else {
-            "$path`tfalse`t0`t"
+            [pscustomobject]@{
+                path = $path
+                line = "$path`tfalse`t0`t"
+            }
         }
-    } | Sort-Object)
+    })
+    $ordered = [Collections.Generic.List[object]]::new()
+    foreach ($entry in $canonical) {
+        $ordered.Add($entry)
+    }
+    $comparison = [Comparison[object]] {
+        param($left, $right)
+
+        $primary = [StringComparer]::OrdinalIgnoreCase.Compare(
+            [string]$left.path,
+            [string]$right.path
+        )
+        if ($primary -ne 0) {
+            return $primary
+        }
+        return [StringComparer]::Ordinal.Compare(
+            [string]$left.path,
+            [string]$right.path
+        )
+    }
+    $ordered.Sort($comparison)
+    $lines = @($ordered | ForEach-Object { $_.line })
     return Get-Sha256Hex -Bytes (
         [Text.Encoding]::UTF8.GetBytes(($lines -join "`n") + "`n")
     )
