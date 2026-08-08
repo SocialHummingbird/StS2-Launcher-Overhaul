@@ -26,7 +26,9 @@ function Assert-True {
 
 $collectorPath = Join-Path $PSScriptRoot "collect-android-save-validation.ps1"
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) "sts2-stage5-collector-bytes-$([Guid]::NewGuid().ToString('N'))"
-$fakeAdbPath = Join-Path $testRoot "fake-adb.exe"
+$isWindowsHost = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+$fakeAdbName = if ($isWindowsHost) { "fake-adb.exe" } else { "fake-adb" }
+$fakeAdbPath = Join-Path $testRoot $fakeAdbName
 $statePath = "files/.sts2-launcher/automatic-sync/pending-sync.json"
 $environmentNames = @(
     "STS2_FAKE_ADB_MODE",
@@ -45,7 +47,8 @@ foreach ($name in $environmentNames) {
 
 try {
     New-Item -ItemType Directory -Path $testRoot | Out-Null
-    $fakeAdbSource = @'
+    if ($isWindowsHost) {
+        $fakeAdbSource = @'
 using System;
 using System.Collections.Generic;
 
@@ -129,10 +132,90 @@ public static class Stage5FakeAdb
     }
 }
 '@
-    Add-Type `
-        -TypeDefinition $fakeAdbSource `
-        -OutputAssembly $fakeAdbPath `
-        -OutputType ConsoleApplication
+        Add-Type `
+            -TypeDefinition $fakeAdbSource `
+            -OutputAssembly $fakeAdbPath `
+            -OutputType ConsoleApplication
+    } else {
+        $fakeAdbSource = @'
+#!/usr/bin/env bash
+set -u
+
+if [[ "${1:-}" == "-s" ]]; then
+    shift 2
+fi
+
+joined=""
+for argument in "$@"; do
+    if [[ -n "$joined" ]]; then
+        joined+=$'\n'
+    fi
+    joined+="$argument"
+done
+
+if [[ "${1:-}" == "devices" ]]; then
+    printf '%s\n' "List of devices attached"
+    printf '%s\n' "stage5-fake-device device product:fake model:Fake transport_id:1"
+    exit 0
+fi
+if [[ "$joined" == *"echo RUN_AS_OK"* ]]; then
+    printf '%s\n' "RUN_AS_OK"
+    exit 0
+fi
+if [[ "${1:-}" == "shell" && "${2:-}" == "getprop" ]]; then
+    if [[ $# -eq 2 ]]; then
+        printf '%s\n' "[ro.product.model]: [Fake]"
+    else
+        case "${3:-}" in
+            ro.product.manufacturer) printf '%s\n' "Stage5" ;;
+            ro.product.model) printf '%s\n' "Fake Device" ;;
+            ro.build.version.sdk) printf '%s\n' "35" ;;
+            ro.product.cpu.abilist) printf '%s\n' "arm64-v8a" ;;
+            ro.build.fingerprint) printf '%s\n' "stage5/fake/device:15/test" ;;
+        esac
+    fi
+    exit 0
+fi
+if [[ "${1:-}" == "shell" && "${2:-}" == "dumpsys" && "${3:-}" == "package" ]]; then
+    printf '%s\n' "Package [com.sts2launcher.overhaul.fork.local]"
+    exit 0
+fi
+if [[ "${1:-}" == "shell" && "${2:-}" == "pm" && "${3:-}" == "path" ]]; then
+    printf '%s\n' "package:/data/app/fake/base.apk"
+    exit 0
+fi
+if [[ "${1:-}" == "shell" && "${2:-}" == "sha256sum" && "${3:-}" == "/data/app/fake/base.apk" ]]; then
+    printf '%s  %s\n' "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" "/data/app/fake/base.apk"
+    exit 0
+fi
+if [[ "${1:-}" == "logcat" ]]; then
+    exit 0
+fi
+if [[ "$joined" == *"for root in files/.sts2-launcher/automatic-sync files/.sts2-launcher/recovery"* ]]; then
+    printf '%s\t%s\t%s\n' "${STS2_FAKE_STATE_SHA256-}" "${STS2_FAKE_STATE_SIZE-}" "${STS2_FAKE_STATE_PATH-}"
+    exit 0
+fi
+if [[ "$joined" == *"find files -maxdepth 9 -type f"* ]]; then
+    exit 0
+fi
+if [[ $# -ge 5 && "${1:-}" == "exec-out" && "${2:-}" == "run-as" && "${4:-}" == "base64" ]]; then
+    if [[ "${STS2_FAKE_ADB_MODE-}" == "read-failure" ]]; then
+        printf '%s\n' "simulated private-state read failure" >&2
+        exit 7
+    fi
+    printf '%s' "${STS2_FAKE_STATE_BASE64-}"
+    exit 0
+fi
+
+printf '%s\n' "Unexpected fake adb invocation: $joined" >&2
+exit 64
+'@
+        [IO.File]::WriteAllText($fakeAdbPath, $fakeAdbSource, [Text.UTF8Encoding]::new($false))
+        & chmod "+x" "--" $fakeAdbPath
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not make the non-Windows fake adb executable."
+        }
+    }
 
     $unicodeMarker = [char]0x00e5
     [byte[]]$inventoryBytes = @(

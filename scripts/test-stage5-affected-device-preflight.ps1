@@ -17,8 +17,9 @@ function Get-RealSha256 {
 
 $preflightPath = Join-Path $PSScriptRoot 'check-stage5-affected-device.ps1'
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) "sts2-stage5-affected-preflight-$([Guid]::NewGuid().ToString('N'))"
-$fakeAdb = Join-Path $testRoot 'fake-adb.exe'
-$fakeApkTool = Join-Path $testRoot 'fake-apk-tool.exe'
+$runningOnWindows = [IO.Path]::DirectorySeparatorChar -eq '\'
+$fakeAdb = Join-Path $testRoot $(if ($runningOnWindows) { 'fake-adb.exe' } else { 'fake-adb' })
+$fakeApkTool = Join-Path $testRoot $(if ($runningOnWindows) { 'fake-apk-tool.exe' } else { 'fake-apk-tool' })
 $adbLog = Join-Path $testRoot 'adb-invocations.txt'
 $packageName = 'com.sts2launcher.overhaul.fork.local'
 $baselineHash = 'fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b'
@@ -42,7 +43,8 @@ foreach ($name in $environmentNames) {
 try {
     New-Item -ItemType Directory -Path $testRoot | Out-Null
 
-    $fakeAdbSource = @'
+    if ($runningOnWindows) {
+        $fakeAdbSource = @'
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -118,9 +120,9 @@ public static class Stage5AffectedFakeAdb
     }
 }
 '@
-    Add-Type -TypeDefinition $fakeAdbSource -OutputAssembly $fakeAdb -OutputType ConsoleApplication
+        Add-Type -TypeDefinition $fakeAdbSource -OutputAssembly $fakeAdb -OutputType ConsoleApplication
 
-    $fakeApkToolSource = @'
+        $fakeApkToolSource = @'
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -158,7 +160,108 @@ public static class Stage5AffectedFakeApkTool
     }
 }
 '@
-    Add-Type -TypeDefinition $fakeApkToolSource -OutputAssembly $fakeApkTool -OutputType ConsoleApplication
+        Add-Type -TypeDefinition $fakeApkToolSource -OutputAssembly $fakeApkTool -OutputType ConsoleApplication
+    } else {
+        $fakeAdbSource = @'
+#!/bin/sh
+
+if [ -n "${STS2_PREFLIGHT_FAKE_ADB_LOG:-}" ]; then
+    {
+        first=true
+        for argument in "$@"; do
+            if [ "$first" = false ]; then printf '\t'; fi
+            printf '%s' "$argument"
+            first=false
+        done
+        printf '\n'
+    } >> "$STS2_PREFLIGHT_FAKE_ADB_LOG"
+fi
+
+if [ "$#" -eq 2 ] && [ "$1" = devices ] && [ "$2" = -l ]; then
+    printf 'List of devices attached\n'
+    printf 'affected-device\tdevice product:fake model:Fold transport_id:1\n'
+    if [ "${STS2_PREFLIGHT_FAKE_DEVICE_MODE:-}" = multiple ]; then
+        printf 'unexpected-device\tdevice product:fake model:Other transport_id:2\n'
+    fi
+    exit 0
+fi
+
+if [ "$#" -ge 2 ] && [ "$1" = -s ]; then
+    shift 2
+fi
+
+installed=${STS2_PREFLIGHT_FAKE_INSTALLED_APK:-}
+field() {
+    sed -n "s/^$1=//p" "$installed"
+}
+
+if [ "$#" -eq 3 ] && [ "$1" = shell ] && [ "$2" = pidof ] && [ "$3" = com.sts2launcher.overhaul.fork.local ]; then
+    if [ -n "${STS2_PREFLIGHT_FAKE_PROCESS:-}" ]; then
+        printf '%s\n' "$STS2_PREFLIGHT_FAKE_PROCESS"
+        exit 0
+    fi
+    exit 1
+fi
+if [ "$#" -eq 3 ] && [ "$1" = shell ] && [ "$2" = getprop ] && [ "$3" = ro.product.model ]; then
+    printf "%s\n" "Alexander's Z Fold8"
+    exit 0
+fi
+if [ "$#" -eq 3 ] && [ "$1" = shell ] && [ "$2" = getprop ] && [ "$3" = ro.build.fingerprint ]; then
+    printf 'samsung/fake/fold:16/test\n'
+    exit 0
+fi
+if [ "$#" -eq 4 ] && [ "$1" = shell ] && [ "$2" = pm ] && [ "$3" = path ] && [ "$4" = com.sts2launcher.overhaul.fork.local ]; then
+    printf 'package:/data/app/affected/base.apk\n'
+    exit 0
+fi
+if [ "$#" -eq 6 ] && [ "$1" = shell ] && [ "$2" = pm ] && [ "$3" = list ] && [ "$4" = packages ] && [ "$5" = -U ] && [ "$6" = com.sts2launcher.overhaul.fork.local ]; then
+    printf 'package:com.sts2launcher.overhaul.fork.local uid:%s\n' "$STS2_PREFLIGHT_FAKE_UID"
+    exit 0
+fi
+if [ "$#" -eq 4 ] && [ "$1" = shell ] && [ "$2" = dumpsys ] && [ "$3" = package ] && [ "$4" = com.sts2launcher.overhaul.fork.local ]; then
+    printf 'Package [com.sts2launcher.overhaul.fork.local] (fixture):\n'
+    printf '  appId=%s\n' "$STS2_PREFLIGHT_FAKE_UID"
+    printf '  versionCode=%s minSdk=28 targetSdk=35\n' "$(field versionCode)"
+    printf '  dataDir=/data/user/0/com.sts2launcher.overhaul.fork.local\n'
+    printf '  firstInstallTime=%s\n' "$STS2_PREFLIGHT_FAKE_FIRST_INSTALL"
+    exit 0
+fi
+if [ "$#" -eq 3 ] && [ "$1" = pull ] && [ "$2" = /data/app/affected/base.apk ]; then
+    cp "$installed" "$3"
+    printf '1 file pulled\n'
+    exit 0
+fi
+
+printf 'Unexpected fake adb invocation:' >&2
+for argument in "$@"; do printf ' %s' "$argument" >&2; done
+printf '\n' >&2
+exit 64
+'@
+        $fakeApkToolSource = @'
+#!/bin/sh
+
+if [ "$#" -lt 3 ]; then exit 64; fi
+for path in "$@"; do :; done
+field() {
+    sed -n "s/^$1=//p" "$path"
+}
+
+if [ "$1" = dump ] && [ "$2" = badging ]; then
+    printf "package: name='%s' versionCode='%s' versionName='%s'\n" "$(field package)" "$(field versionCode)" "$(field versionName)"
+    printf "native-code: 'arm64-v8a'\n"
+    exit 0
+fi
+if [ "$1" = verify ] && [ "$2" = --print-certs ]; then
+    printf 'Signer #1 certificate SHA-256 digest: %s\n' "$(field signer)"
+    exit 0
+fi
+exit 64
+'@
+        [IO.File]::WriteAllText($fakeAdb, $fakeAdbSource.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
+        [IO.File]::WriteAllText($fakeApkTool, $fakeApkToolSource.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
+        & chmod '+x' $fakeAdb $fakeApkTool
+        if ($LASTEXITCODE -ne 0) { throw 'Could not make non-Windows fake tools executable.' }
+    }
 
     function Write-ApkFixture {
         param(
