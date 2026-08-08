@@ -20,29 +20,37 @@ internal sealed partial class SteamConnection
         where TResult : ProtoBuf.IExtensible, new()
     {
         EnsureConnected(cancellationToken);
+        SuspendIdleTimeout();
 
-        await _sendLock.WaitAsync(cancellationToken)
-            .ConfigureAwait(false);
         try
         {
-            ThrowIfDisposing();
-            var job = _unifiedMessages.SendMessage<TRequest, TResult>(
-                CloudRpcEndpoint(method),
-                request
-            );
-            job.Timeout = TimeSpan.FromMilliseconds(CloudRpcTimeoutMs);
-            var response = await WaitForCloudJobAsync(
-                method,
-                job.ToTask(),
-                cancellationToken
-            ).ConfigureAwait(false);
-            if (response.Result != EResult.OK)
-                throw CloudRpcFailed(method, response.Result);
-            return response.Body;
+            await _sendLock.WaitAsync(cancellationToken)
+                .ConfigureAwait(false);
+            try
+            {
+                ThrowIfDisposing();
+                var job = _unifiedMessages.SendMessage<TRequest, TResult>(
+                    CloudRpcEndpoint(method),
+                    request
+                );
+                job.Timeout = TimeSpan.FromMilliseconds(CloudRpcTimeoutMs);
+                var response = await WaitForCloudJobAsync(
+                    method,
+                    job.ToTask(),
+                    cancellationToken
+                ).ConfigureAwait(false);
+                if (response.Result != EResult.OK)
+                    throw CloudRpcFailed(method, response.Result);
+                return response.Body;
+            }
+            finally
+            {
+                _sendLock.Release();
+            }
         }
         finally
         {
-            _sendLock.Release();
+            ResumeIdleTimeout();
         }
     }
 

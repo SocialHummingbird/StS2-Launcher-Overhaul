@@ -614,6 +614,7 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
         "cancels Steam RPC waits by disconnecting and draining the pending job" `
         @(
             "EnsureConnected\(cancellationToken\)",
+            "SuspendIdleTimeout\(\)",
             "_sendLock\.WaitAsync\(cancellationToken\)",
             "job\.Timeout = TimeSpan\.FromMilliseconds\(CloudRpcTimeoutMs\)",
             "WaitForCloudJobAsync",
@@ -623,7 +624,8 @@ function Add-SteamVersionSelectionCloudSafetyPushExecutionChecks {
             "AbortAndDrainCloudJobAsync",
             "_client\.Disconnect\(\)",
             "while \(!task\.IsCompleted\)",
-            "await task\.ConfigureAwait\(false\)"
+            "await task\.ConfigureAwait\(false\)",
+            "ResumeIdleTimeout\(\)"
         )
 
     Add-Check `
