@@ -68,12 +68,6 @@ internal partial class LauncherModel : IDisposable
         return StartSession();
     }
 
-    internal bool RefreshCloudSaveCredentials()
-    {
-        _credentialStore.Load();
-        return LauncherCloudSaveState.SaveCredentials(_credentialStore);
-    }
-
     internal void ResetGameFilesForRedownload()
     {
         LauncherLaunchReadinessCache.Clear("selected version redownload reset");
@@ -89,7 +83,7 @@ internal partial class LauncherModel : IDisposable
     {
         CancelDownload();
         ResetDownload();
-        _steamSession.Dispose(preserveLaunchConnection: PreserveLaunchConnection);
+        _steamSession.Dispose();
     }
 
     private static void Raise(Action callback, string name)

@@ -26,25 +26,6 @@ public static partial class ModEntry
             return;
         }
 
-        var bootstrapUiMode = BootstrapUiMode();
-        if (bootstrapUiMode == "1")
-        {
-            AddMinimalBootstrapUi(tree);
-            return;
-        }
-
-        if (bootstrapUiMode == "2")
-        {
-            AddPlainControlsBootstrapUi(tree);
-            return;
-        }
-
-        if (bootstrapUiMode == "3")
-        {
-            AddStyledControlsBootstrapUi(tree);
-            return;
-        }
-
         var launcher = new LauncherUI();
         AddStartupFallbackShield(tree);
         tree.Root.AddChild(launcher);
@@ -54,22 +35,6 @@ public static partial class ModEntry
         RaiseStartupFallbackLauncher(launcher);
         AddStartupFallbackBanner(tree);
         PatchHelper.Log("Standalone launcher displayed");
-    }
-
-    private static bool IsMinimalBootstrapUiRequested()
-        => string.Equals(
-            System.Environment.GetEnvironmentVariable(MinimalBootstrapUiVariable),
-            "1",
-            StringComparison.Ordinal
-        );
-
-    private static string BootstrapUiMode()
-    {
-        var mode = System.Environment.GetEnvironmentVariable(BootstrapUiModeVariable);
-        if (!string.IsNullOrWhiteSpace(mode))
-            return mode.Trim();
-
-        return IsMinimalBootstrapUiRequested() ? "1" : "0";
     }
 
     private static void AddStartupFallbackShield(SceneTree tree)

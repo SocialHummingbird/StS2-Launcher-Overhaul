@@ -51,7 +51,6 @@ internal static partial class LauncherStartupFlow
                         return;
 
                     MarkObserved();
-                    await LauncherGameStartupRecovery.HoldAndroidStartupTaskAfterObservedAsync();
                 }
 
                 private Task<bool> TryRecoverFromWatchdogAsync()

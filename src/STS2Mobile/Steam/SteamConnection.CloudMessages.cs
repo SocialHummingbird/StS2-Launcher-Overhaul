@@ -9,35 +9,35 @@ internal sealed partial class SteamConnection
 {
     private const int CloudRpcTimeoutMs = 45_000;
 
-    // Sends a CCloud RPC. Connects on demand and retries on
-    // transient connection failure.
-    internal async Task<TResult> SendCloud<TRequest, TResult>(
+    internal async Task<TResult> SendCloudAsync<TRequest, TResult>(
         string method,
         TRequest request,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken
     )
         where TRequest : ProtoBuf.IExtensible, new()
         where TResult : ProtoBuf.IExtensible, new()
     {
         EnsureConnected(cancellationToken);
-
-        await _sendLock.WaitAsync(cancellationToken)
-            .ConfigureAwait(false);
+        await _sendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             ThrowIfDisposing();
             var job = _unifiedMessages.SendMessage<TRequest, TResult>(
-                CloudRpcEndpoint(method),
+                $"Cloud.{method}#1",
                 request
             );
             job.Timeout = TimeSpan.FromMilliseconds(CloudRpcTimeoutMs);
+
             var response = await WaitForCloudJobAsync(
                 method,
                 job.ToTask(),
                 cancellationToken
             ).ConfigureAwait(false);
             if (response.Result != EResult.OK)
-                throw CloudRpcFailed(method, response.Result);
+                throw new InvalidOperationException(
+                    $"Cloud.{method} failed: {response.Result}"
+                );
+
             return response.Body;
         }
         finally
@@ -46,9 +46,6 @@ internal sealed partial class SteamConnection
         }
     }
 
-    private static string CloudRpcEndpoint(string method)
-        => $"Cloud.{method}#1";
-
     private async Task<TResponse> WaitForCloudJobAsync<TResponse>(
         string method,
         Task<TResponse> task,
@@ -56,7 +53,6 @@ internal sealed partial class SteamConnection
     )
     {
         var deadline = Environment.TickCount64 + CloudRpcTimeoutMs;
-
         try
         {
             while (!task.IsCompleted)
@@ -64,11 +60,11 @@ internal sealed partial class SteamConnection
                 cancellationToken.ThrowIfCancellationRequested();
                 if (Environment.TickCount64 >= deadline)
                 {
-                    await AbortAndDrainCloudJobAsync(method, task)
-                        .ConfigureAwait(false);
-                    throw CloudRpcTimedOut(method);
+                    AbortCloudRequest(method);
+                    throw new TimeoutException(
+                        $"Cloud.{method} timed out after {CloudRpcTimeoutMs}ms"
+                    );
                 }
-
                 if (OperatingSystem.IsAndroid())
                     AndroidBridgeDispatcher.Pump();
 
@@ -82,67 +78,34 @@ internal sealed partial class SteamConnection
                 ).ConfigureAwait(false);
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
             return await task.ConfigureAwait(false);
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
         {
-            await AbortAndDrainCloudJobAsync(method, task)
-                .ConfigureAwait(false);
-            throw new OperationCanceledException(cancellationToken);
+            AbortCloudRequest(method);
+            throw;
         }
         catch (TaskCanceledException ex)
         {
-            throw CloudRpcCanceled(method, ex);
+            AbortCloudRequest(method);
+            throw new TimeoutException(
+                $"Cloud.{method} timed out after {CloudRpcTimeoutMs}ms",
+                ex
+            );
         }
     }
 
-    private async Task AbortAndDrainCloudJobAsync<TResponse>(
-        string method,
-        Task<TResponse> task
-    )
+    private void AbortCloudRequest(string method)
     {
-        if (!task.IsCompleted)
-        {
-            PatchHelper.Log(
-                $"[Cloud] Aborting Cloud.{method} by disconnecting its Steam session"
-            );
-            try
-            {
-                _client.Disconnect();
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log(
-                    $"[Cloud] Steam disconnect while aborting Cloud.{method} failed: {ex.Message}; waiting for the RPC to drain"
-                );
-            }
-        }
-
-        while (!task.IsCompleted)
-        {
-            if (OperatingSystem.IsAndroid())
-                AndroidBridgeDispatcher.Pump();
-            await Task.Delay(10).ConfigureAwait(false);
-        }
-
+        PatchHelper.Log($"[Cloud] Aborting Cloud.{method} by disconnecting its Steam session");
         try
         {
-            await task.ConfigureAwait(false);
+            DisconnectToIdle();
         }
-        catch
+        catch (Exception ex)
         {
-            // The caller receives the original timeout or cancellation reason.
+            PatchHelper.Log($"[Cloud] Disconnect after Cloud.{method} failed: {ex.Message}");
         }
     }
-
-    private static InvalidOperationException CloudRpcFailed(string method, EResult result)
-        => new($"Cloud.{method} failed: {result}");
-
-    private static TimeoutException CloudRpcTimedOut(string method)
-        => new($"Cloud.{method} timed out after {CloudRpcTimeoutMs}ms");
-
-    private static TimeoutException CloudRpcCanceled(string method, TaskCanceledException ex)
-        => new($"Cloud.{method} was canceled before completion", ex);
 }

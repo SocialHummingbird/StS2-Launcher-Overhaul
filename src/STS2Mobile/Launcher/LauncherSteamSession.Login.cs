@@ -78,8 +78,7 @@ internal sealed partial class LauncherSteamSession
         if (!result.SaveTo(_credentialStore))
             return "Could not save Steam credentials. Login was not completed.";
 
-        if (!LauncherCloudSaveState.SaveCredentials(_credentialStore))
-            return "Could not update cloud save credentials. Login was not completed.";
+        SaveSyncService.Configure(_credentialStore);
 
         if (!SaveOwnershipMarker(result.AccountName))
             return "Could not save ownership marker. Login was not completed.";

@@ -10,14 +10,8 @@ internal sealed partial class LauncherController
             _downloads.DownloadPressed,
             _branchSwitch.GameBranchChanged,
             RendererModeChanged,
-            _launch.LaunchPressed,
-            _session.RetryPressed,
-            LocalBackupToggled,
-            _cloud.CloudSyncToggled,
-            _cloud.EvaluateCloudPushEligibility,
-            _cloud.CloudPushPressed,
-            _cloud.CloudPullPressed,
-            _cloud.CloudOperationCancelPressed,
+            LaunchPressed,
+            SessionRetryPressed,
             _updates.RunUpdateCheck,
             _versions.RunBranchCatalogRefresh,
             _downloads.RedownloadPressed,
@@ -25,23 +19,12 @@ internal sealed partial class LauncherController
             _diagnostics.DiagnosticsPressed,
             _diagnostics.ShowLastErrorPressed,
             _diagnostics.CopyRawLogPressed,
-            _launch.SafeLaunchPressed,
+            SafeLaunchPressed,
+            SaveSyncNowPressed,
+            SavePullPressed,
+            SavePushPressed,
             _workshop.SyncPressed,
             _workshop.ClearPressed
         );
-        _view.WireSaveRecoveryEvents(
-            _saveRecovery.ScanPressed,
-            _saveRecovery.CurrentExportPressed,
-            _saveRecovery.ExportPressed,
-            _saveRecovery.RestorePressed,
-            _saveRecovery.UndoPressed,
-            _saveRecovery.ApprovePressed
-        );
-    }
-
-    private void LocalBackupToggled(bool pressed)
-    {
-        var result = _session.LocalBackupToggled(pressed);
-        _cloud.LocalBackupRecoveryCompleted(result);
     }
 }

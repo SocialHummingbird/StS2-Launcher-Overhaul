@@ -77,7 +77,7 @@ internal sealed partial class SteamConnection
 
         var request = new CPublishedFile_GetItemInfo_Request
         {
-            appid = SteamCloudApp.AppId,
+            appid = SteamGameApp.AppId,
         };
         foreach (var id in itemIds)
         {
@@ -109,7 +109,7 @@ internal sealed partial class SteamConnection
 
         var request = new CPublishedFile_GetDetails_Request
         {
-            appid = SteamCloudApp.AppId,
+            appid = SteamGameApp.AppId,
             includechildren = true,
             includemetadata = true,
             short_description = true,
@@ -179,7 +179,7 @@ internal sealed partial class SteamConnection
         while (results.Count < total);
 
         return results
-            .Where(detail => detail.consumer_appid == 0 || detail.consumer_appid == SteamCloudApp.AppId)
+            .Where(detail => detail.consumer_appid == 0 || detail.consumer_appid == SteamGameApp.AppId)
             .GroupBy(detail => detail.publishedfileid)
             .Select(group => group.First())
             .ToArray();
@@ -193,13 +193,13 @@ internal sealed partial class SteamConnection
         var request = new CPublishedFile_GetUserFiles_Request
         {
             steamid = _steamUser.SteamID.ConvertToUInt64(),
-            appid = SteamCloudApp.AppId,
+            appid = SteamGameApp.AppId,
             page = page,
             numperpage = WorkshopPageSize,
             type = query.Type,
         };
         if (query.IncludeCreatorAppId)
-            request.creator_appid = SteamCloudApp.AppId;
+            request.creator_appid = SteamGameApp.AppId;
         if (query.IncludeSortMethod)
             request.sortmethod = "lastupdated";
         if (query.IncludeDetails)

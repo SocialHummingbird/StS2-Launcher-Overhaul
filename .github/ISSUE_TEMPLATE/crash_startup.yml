@@ -121,5 +121,3 @@ body:
       options:
         - label: I removed Steam credentials, Steam Guard codes, refresh tokens, private account details, private save contents, and full unsanitized logs.
           required: true
-        - label: I stated whether Steam Cloud Push ran, or confirmed it did not run.
-          required: true

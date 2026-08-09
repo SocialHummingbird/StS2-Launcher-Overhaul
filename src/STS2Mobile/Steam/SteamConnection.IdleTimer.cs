@@ -13,7 +13,7 @@ internal sealed partial class SteamConnection
         _idleTimer = new Timer(
             _ =>
             {
-                if (IsConnected)
+                if (_idleSuspendCount == 0 && IsConnected)
                 {
                     PatchHelper.Log("[Connection] Idle timeout, disconnecting");
                     DisconnectToIdle();

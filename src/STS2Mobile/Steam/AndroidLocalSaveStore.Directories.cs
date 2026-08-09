@@ -42,8 +42,11 @@ internal sealed partial class AndroidLocalSaveStore
     void ISaveStore.DeleteDirectory(string directoryPath)
     {
         var fullPath = FullPath(directoryPath);
-        if (Directory.Exists(fullPath))
-            Directory.Delete(fullPath, recursive: true);
+        if (!Directory.Exists(fullPath))
+            return;
+
+        Directory.Delete(fullPath, recursive: true);
+        NotifyMutationCommitted(directoryPath);
     }
 
     void ISaveStore.DeleteTemporaryFiles(string directoryPath)

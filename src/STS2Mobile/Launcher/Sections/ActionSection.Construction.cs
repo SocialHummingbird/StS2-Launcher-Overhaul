@@ -15,8 +15,8 @@ internal sealed partial class ActionSection
         LauncherSectionSetup.ConfigureHiddenSection(
             this,
             scale,
-            "Play and Sync",
-            "Launch, update, switch versions, and move cloud saves only when you choose.",
+            "Play",
+            "Launch the game, choose a version, and manage mods.",
             LauncherComponentTheme.OrangeHot,
             compact,
             "Play safely"
@@ -51,6 +51,12 @@ internal sealed partial class ActionSection
         _rendererOpenGlButton = rendererControls.OpenGlButton;
         ApplyRendererMode(_rendererMode, notify: false);
 
+        var homeJourney = BuildHomeJourney(scale, compact);
+        _homeJourney = homeJourney.Group;
+        _homeAccountState = homeJourney.AccountState;
+        _homeGameState = homeJourney.GameState;
+        _homeSaveState = homeJourney.SaveState;
+
         var branchControls = BuildBranchControls(scale, compact);
         _branchDetailsToggle = branchControls.DetailsToggle;
         _branchDropdown = branchControls.Dropdown;
@@ -60,45 +66,18 @@ internal sealed partial class ActionSection
         _readyVersionSummaryPanel = readySummary.Panel;
         _readyVersionSummaryLabel = readySummary.Label;
 
+        var saveSyncControls = BuildSaveSyncControls(scale, compact);
+        _saveSyncGroup = saveSyncControls.Group;
+        _saveSyncNowButton = saveSyncControls.SyncNowButton;
+        _savePullButton = saveSyncControls.PullButton;
+        _savePushButton = saveSyncControls.PushButton;
+        _saveSyncStatus = saveSyncControls.Status;
+        _saveLastSuccessState = saveSyncControls.LastSuccessState;
+        _saveLocalState = saveSyncControls.LocalState;
+        _saveSteamState = saveSyncControls.SteamState;
+
         SetGameBranch(_gameBranch);
 
-        var cloudControls = BuildCloudControls(scale, compact);
-        _cloudGroup = cloudControls.Group;
-        _pushPullRow = cloudControls.PushPullRow;
-        _pullButton = cloudControls.PullButton;
-        _cloudPushToggle = cloudControls.CloudPushToggle;
-        _pushButton = cloudControls.PushButton;
-        _confirmPushButton = cloudControls.ConfirmPushButton;
-        _cancelCloudOperationButton =
-            cloudControls.CancelOperationButton;
-        _cloudOperationProgressGroup = cloudControls.OperationProgressGroup;
-        _cloudOperationPhaseLabel = cloudControls.OperationPhaseLabel;
-        _cloudOperationDetailLabel = cloudControls.OperationDetailLabel;
-        _cloudOperationProgressBar = cloudControls.OperationProgressBar;
-        _cloudPushEligibilityLabel = cloudControls.PushEligibilityLabel;
-        _pushConfirmationLabel = cloudControls.PushConfirmationLabel;
-        _cloudSafetyLabel = cloudControls.CloudSafetyLabel;
-        _cloudSafetyToggle = cloudControls.CloudSafetyToggle;
-        _cloudOptionsToggle = cloudControls.CloudOptionsToggle;
-        _compactCloudOptionsRow = cloudControls.CompactCloudOptionsRow;
-        _localBackupToggle = cloudControls.LocalBackupToggle;
-        _cloudSyncToggle = cloudControls.CloudSyncToggle;
-
-        var saveRecoveryControls = BuildSaveRecoveryControls(scale, compact);
-        _saveRecoveryGroup = saveRecoveryControls.Group;
-        _saveRecoveryScanButton = saveRecoveryControls.ScanButton;
-        _saveRecoveryCurrentExportButton =
-            saveRecoveryControls.CurrentExportButton;
-        _saveRecoveryCandidateDropdown =
-            saveRecoveryControls.CandidateDropdown;
-        _saveRecoveryExportButton = saveRecoveryControls.ExportButton;
-        _saveRecoveryRestoreButton = saveRecoveryControls.RestoreButton;
-        _saveRecoveryUndoButton = saveRecoveryControls.UndoButton;
-        _saveRecoveryApproveButton = saveRecoveryControls.ApproveButton;
-        _saveRecoveryStatusLabel = saveRecoveryControls.StatusLabel;
-
-        ConfigureLocalBackupToggle();
-        ConfigureCloudSyncToggle();
         UpdateBranchHelpText();
 
         var modsControls = BuildModsControls(scale, compact);

@@ -1,4 +1,5 @@
 using STS2Mobile.Patches;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -18,10 +19,8 @@ internal partial class LauncherModel
     {
         PatchHelper.Log("[Launcher] Fast path phase: credential store load");
         _credentialStore.Load();
+        SaveSyncService.Configure(_credentialStore);
         PatchHelper.Log("[Launcher] Fast path phase complete: credential store load");
-        PatchHelper.Log("[Launcher] Fast path phase: cloud credential cache");
-        LauncherCloudSaveState.SaveCredentials(_credentialStore);
-        PatchHelper.Log("[Launcher] Fast path phase complete: cloud credential cache");
 
         PatchHelper.Log("[Launcher] Fast path phase: credential usability");
         var hasCredentials = _credentialStore.HasUsableCredentials();

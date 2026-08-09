@@ -33,7 +33,7 @@ internal sealed partial class LauncherView
             height: LauncherSectionMetrics.CompactDrawerToggleHeight
         );
         LauncherButtonStyles.ApplySupportAction(toggle, scale);
-        SetCompactSafeFlowToggleText(toggle, scale, "Quick Start", "Get saves first");
+        SetCompactSafeFlowToggleText(toggle, scale, "Quick Start", "Sign in and play");
         wrapper.AddChild(toggle);
 
         var guide = BuildFirstRunGuidePanel(scale, compact: true);
@@ -46,7 +46,7 @@ internal sealed partial class LauncherView
             if (guide.Visible)
                 SetCompactSafeFlowToggleText(toggle, scale, "Hide Guide", "Safe order");
             else
-                SetCompactSafeFlowToggleText(toggle, scale, "Quick Start", "Get saves first");
+                SetCompactSafeFlowToggleText(toggle, scale, "Quick Start", "Sign in and play");
         };
 
         return wrapper;

@@ -34,10 +34,6 @@ internal static partial class LauncherDiagnostics
         yield return LaunchAttempt(dataDir);
         yield return ManualSafeLaunchMarker(dataDir);
         yield return new DiagnosticFile(
-            "Last game branch switch",
-            LauncherBranchSwitchSafety.MarkerPath(dataDir)
-        );
-        yield return new DiagnosticFile(
             "Selected game branch marker",
             STS2Mobile.Steam.SteamGameInstallPaths.BranchMarkerPath(dataDir, LauncherPreferences.ReadGameBranch())
         );

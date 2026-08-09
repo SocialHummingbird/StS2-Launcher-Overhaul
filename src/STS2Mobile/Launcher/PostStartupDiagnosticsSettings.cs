@@ -7,22 +7,6 @@ namespace STS2Mobile.Launcher;
 
 internal static class PostStartupDiagnosticsSettings
 {
-    private sealed class RuntimeConfigurationSource :
-        IPostStartupDiagnosticsConfigurationSource
-    {
-        internal RuntimeConfigurationSource(bool markerExists)
-        {
-            MarkerExists = markerExists;
-        }
-
-        public string EnvironmentValue
-            => System.Environment.GetEnvironmentVariable(
-                PostStartupDiagnosticsPolicy.EnvironmentVariable
-            );
-
-        public bool MarkerExists { get; }
-    }
-
     internal static bool DetailedTraceEnabled()
     {
         var markerExists = false;
@@ -42,8 +26,11 @@ internal static class PostStartupDiagnosticsSettings
             );
         }
 
-        return PostStartupDiagnosticsConfiguration.DetailedTraceEnabled(
-            new RuntimeConfigurationSource(markerExists)
+        return PostStartupDiagnosticsPolicy.DetailedTraceEnabled(
+            System.Environment.GetEnvironmentVariable(
+                PostStartupDiagnosticsPolicy.EnvironmentVariable
+            ),
+            markerExists
         );
     }
 }

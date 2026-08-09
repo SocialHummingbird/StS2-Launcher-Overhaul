@@ -5,18 +5,10 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherUI
 {
-    private void AutoLaunchIfRequested(bool automationStarted)
+    private void AutoLaunchIfRequested()
     {
         if (!_inGameMode)
             return;
-
-        if (automationStarted)
-        {
-            Environment.SetEnvironmentVariable(AutoLaunchVariable, "0");
-            Environment.SetEnvironmentVariable(AutoSafeLaunchVariable, "0");
-            PatchHelper.Log("Auto-launch suppressed while launcher automation is running.");
-            return;
-        }
 
         if (
             !string.Equals(

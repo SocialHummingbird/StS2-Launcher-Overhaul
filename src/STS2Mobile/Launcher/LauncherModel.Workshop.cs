@@ -44,7 +44,7 @@ internal partial class LauncherModel
             var removed = stager.ClearStagedMods();
             LauncherModSelectionState.ClearKnownModsCache("workshop staged mods cleared");
             RaiseWorkshopSyncLogReceived(
-                $"Workshop mods cleared: removed {removed} staged mod entries; Steam Cloud Push was not run."
+                $"Workshop mods cleared: removed {removed} staged mod entries."
             );
             RaiseWorkshopClearCompleted(removed);
         }

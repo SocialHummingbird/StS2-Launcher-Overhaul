@@ -28,9 +28,7 @@ if (-not $dotnet) {
 
 & $dotnet.Source run `
     --project $project `
-    --configuration Release `
-    -- `
-    $upstreamAssembly
+    --configuration Release
 if ($LASTEXITCODE -ne 0) {
     throw "Local gameplay save-safety validation failed."
 }

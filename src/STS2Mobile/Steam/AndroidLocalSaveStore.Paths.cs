@@ -7,12 +7,25 @@ internal sealed partial class AndroidLocalSaveStore
 {
     private string FullPath(string path)
     {
-        var canonical = CloudSavePath.Relative(path);
-        var fullPath = Path.GetFullPath(Path.Combine(_basePath, canonical));
+        var fullPath = Path.GetFullPath(
+            Path.Combine(_basePath, RelativePath(path))
+        );
         if (!IsInsideBasePath(fullPath))
             throw new IOException($"Save path escapes app data directory: {path}");
 
         return fullPath;
+    }
+
+    private static string RelativePath(string path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        var relativePath = path.Replace('\\', '/');
+        if (relativePath.StartsWith("user://", StringComparison.Ordinal))
+            relativePath = relativePath["user://".Length..];
+        if (Path.IsPathRooted(relativePath))
+            throw new IOException($"Save path must be relative: {path}");
+
+        return relativePath;
     }
 
     private void EnsureParentDirectory(string fullPath)

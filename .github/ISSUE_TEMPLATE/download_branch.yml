@@ -35,7 +35,7 @@ body:
     id: steps
     attributes:
       label: Reproduction steps
-      description: Include branch refresh, branch selection, download/update, Pull, Start Game, and the failure point where relevant.
+      description: Include branch refresh, branch selection, download/update, Start Game, and the failure point where relevant.
       value: |
         1.
         2.
@@ -110,16 +110,13 @@ body:
         Selected branch comparison captured:
         Screenshots attached:
   - type: textarea
-    id: cloud-safety
+    id: save-compatibility
     attributes:
-      label: Steam Cloud safety
+      label: Local save compatibility
       value: |
-        Pull from Cloud ran:
-        Push to Cloud ran:
-        If Push ran, why it was safe:
+        Save/profile visible before branch switch:
+        Save/profile visible after branch switch:
         Save compatibility after branch switch tested:
-    validations:
-      required: true
   - type: textarea
     id: logs
     attributes:

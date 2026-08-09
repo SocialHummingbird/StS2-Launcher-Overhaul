@@ -93,5 +93,5 @@ internal sealed partial class SteamConnection
     }
 
     private static bool IsMainApp(uint appId)
-        => appId == SteamCloudApp.AppId;
+        => appId == SteamGameApp.AppId;
 }

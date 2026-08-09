@@ -5,17 +5,7 @@ param(
         "guard",
         "download",
         "ready",
-        "error",
-        "pull-transfer",
-        "pull-complete",
-        "sync-source-choice",
-        "sync-reconciling",
-        "sync-conflict",
-        "sync-offline-pending",
-        "recovery-empty",
-        "recovery-unknown",
-        "recovery-confirm",
-        "recovery-restored"
+        "error"
     )]
     [string]$Fixture = "ready",
     [ValidateSet("home", "saves", "versions", "mods", "help")]
@@ -25,7 +15,7 @@ param(
     [bool]$TouchOptimized = $true,
     [string]$OutputPath = "",
     [switch]$SkipBuild,
-    [switch]$ValidateContract
+    [switch]$InteractionTest
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,16 +33,22 @@ if (-not $GodotPath) {
 if (-not (Test-Path -LiteralPath $GodotPath -PathType Leaf)) {
     throw "Godot 4.5.1 Mono was not found: $GodotPath"
 }
-if (-not $OutputPath) {
-    $OutputPath = Join-Path $root (
-        "artifacts\ui-preview\$Fixture-$Destination-$($Width)x$($Height).png"
-    )
+if ($InteractionTest -and $OutputPath) {
+    throw "OutputPath cannot be used with InteractionTest."
 }
 
-$resolvedOutput = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath(
-    $OutputPath
-)
-New-Item -ItemType Directory -Force -Path (Split-Path -Parent $resolvedOutput) | Out-Null
+$resolvedOutput = ""
+if (-not $InteractionTest) {
+    if (-not $OutputPath) {
+        $OutputPath = Join-Path $root (
+            "artifacts\ui-preview\$Fixture-$Destination-$($Width)x$($Height).png"
+        )
+    }
+    $resolvedOutput = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath(
+        $OutputPath
+    )
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $resolvedOutput) | Out-Null
+}
 
 if (-not $SkipBuild) {
     dotnet build (Join-Path $project "LauncherUiPreview.csproj") -c Debug
@@ -62,7 +58,7 @@ if (-not $SkipBuild) {
 }
 
 $touch = if ($TouchOptimized) { "true" } else { "false" }
-$contract = if ($ValidateContract) { "true" } else { "false" }
+$interaction = if ($InteractionTest) { "true" } else { "false" }
 & $GodotPath `
     --quiet `
     --path $project `
@@ -72,10 +68,15 @@ $contract = if ($ValidateContract) { "true" } else { "false" }
     "--width=$Width" `
     "--height=$Height" `
     "--touch=$touch" `
-    "--validate-contract=$contract" `
+    "--interaction-test=$interaction" `
     "--output=$resolvedOutput"
 if ($LASTEXITCODE -ne 0) {
     throw "Launcher UI preview process failed"
+}
+
+if ($InteractionTest) {
+    Write-Host "Launcher UI interaction test passed."
+    return
 }
 
 if (-not (Test-Path -LiteralPath $resolvedOutput -PathType Leaf)) {

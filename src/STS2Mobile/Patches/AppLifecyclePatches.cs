@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using Godot;
 using HarmonyLib;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Patches;
 
@@ -10,6 +11,7 @@ namespace STS2Mobile.Patches;
 internal static partial class AppLifecyclePatches
 {
     private const int PauseMenuValue = 4;
+    private static readonly TimeSpan FinalPushFlushTimeout = TimeSpan.FromSeconds(5);
 
     internal static void Apply(Harmony harmony)
     {
@@ -114,12 +116,37 @@ internal static partial class AppLifecyclePatches
     {
         try
         {
-            PatchHelper.Log("NGame.Quit completed final local saves; restarting launcher");
-            AndroidGodotAppBridge.RestartApp();
+            PatchHelper.Log(
+                "NGame.Quit completed final local saves; requesting final Push"
+            );
+            var flushed = SaveSyncService.RequestFinalPushAndFlush(
+                FinalPushFlushTimeout
+            );
+            PatchHelper.Log(
+                flushed
+                    ? "[Cloud] Final Push flush completed"
+                    : "[Cloud] Final Push flush did not complete within the bound; dirty state retained"
+            );
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"Launcher restart after NGame.Quit failed: {ex.Message}");
+            PatchHelper.Log(
+                $"[Cloud] Final Push flush failed: {ex.GetType().Name}"
+            );
+        }
+        finally
+        {
+            try
+            {
+                PatchHelper.Log("Restarting launcher after NGame.Quit");
+                AndroidGodotAppBridge.RestartApp();
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(
+                    $"Launcher restart after NGame.Quit failed: {ex.Message}"
+                );
+            }
         }
     }
 

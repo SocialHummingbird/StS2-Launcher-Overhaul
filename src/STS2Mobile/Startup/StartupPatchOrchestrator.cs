@@ -14,17 +14,6 @@ internal static partial class StartupPatchOrchestrator
         var results = new List<PatchGroupResult>(Groups.Length);
         var criticalFailed = false;
 
-        if (ForceCriticalPatchFailureRequested())
-        {
-            var forcedResult = ForcedCriticalPatchFailureResult(stopwatch);
-            PatchHelper.Log(
-                $"[startup] Patch orchestration finished in {forcedResult.Duration.TotalMilliseconds:F1}ms: "
-                + $"{forcedResult.AppliedPatchCount}/{forcedResult.TotalPatchCount} applied, "
-                + $"{forcedResult.FailedPatchCount} failed, criticalFailed={forcedResult.CriticalFailed}"
-            );
-            return forcedResult;
-        }
-
         foreach (var group in Groups)
         {
             BootstrapTrace.Log($"Starting patch group: {group.Name}");

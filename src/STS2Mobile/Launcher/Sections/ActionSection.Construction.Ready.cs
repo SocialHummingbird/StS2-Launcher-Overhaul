@@ -13,8 +13,8 @@ internal sealed partial class ActionSection
             ClipText = true,
             Visible = false,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            MouseDefaultCursorShape = Control.CursorShape.PointingHand,
-            TooltipText = "Open save safety check",
+            MouseDefaultCursorShape = Control.CursorShape.Arrow,
+            TooltipText = "Selected game version",
             CustomMinimumSize = new Vector2(
                 0,
                 LauncherViewLayoutMetrics.ScaleInt(
@@ -26,7 +26,6 @@ internal sealed partial class ActionSection
             ),
         };
         ApplyReadyVersionSummaryButtonStyle(readyVersionSummaryPanel, scale, compact);
-        readyVersionSummaryPanel.Pressed += OpenCompactCloudSafetyFromReadySummary;
         AddChild(readyVersionSummaryPanel);
 
         var readyVersionSummaryLabel = new StyledLabel(

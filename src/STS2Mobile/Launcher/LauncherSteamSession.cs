@@ -39,14 +39,14 @@ internal sealed partial class LauncherSteamSession : IDisposable
         ResetAuth();
     }
 
-    internal void Dispose(bool preserveLaunchConnection)
+    internal void Dispose()
     {
         ResetAuth();
-        if (!preserveLaunchConnection)
-            _connection?.Dispose();
+        _connection?.Dispose();
+        _connection = null;
     }
 
-    void IDisposable.Dispose() => Dispose(preserveLaunchConnection: false);
+    void IDisposable.Dispose() => Dispose();
 
     private void ResetAuth()
     {

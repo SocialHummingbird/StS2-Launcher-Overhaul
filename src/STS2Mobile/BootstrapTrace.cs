@@ -59,6 +59,11 @@ internal static class BootstrapTrace
             }
         }
 
+        // Managed desktop consumers can log before the Godot engine exists.
+        // Use the existing filesystem fallback without touching native state.
+        if (!OperatingSystem.IsAndroid())
+            return Path.Combine(ResolveFallbackDataDirectory(), FileName);
+
         try
         {
             return Path.Combine(Godot.OS.GetDataDir(), FileName);

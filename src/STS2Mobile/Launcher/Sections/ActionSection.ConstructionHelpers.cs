@@ -15,7 +15,7 @@ internal sealed partial class ActionSection
         return group;
     }
 
-    private static Container BuildCompactCloudPrimaryActionsRow(
+    private static Container BuildCompactActionRow(
         Container parent,
         float scale,
         bool compactStackedActionRows
@@ -25,26 +25,10 @@ internal sealed partial class ActionSection
         row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         row.AddThemeConstantOverride(
             LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(CompactCloudPrimaryActionSeparation, scale)
+            LauncherViewLayoutMetrics.ScaleInt(CompactActionSeparation, scale)
         );
         parent.AddChild(row);
         return row;
     }
 
-    private static Container BuildCompactCloudOptionsRow(
-        Container parent,
-        float scale,
-        bool compactStackedActionRows
-    )
-    {
-        Container row = compactStackedActionRows ? new VBoxContainer() : new HBoxContainer();
-        row.Visible = false;
-        row.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        row.AddThemeConstantOverride(
-            LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(CompactCloudOptionToggleSeparation, scale)
-        );
-        parent.AddChild(row);
-        return row;
-    }
 }

@@ -69,7 +69,7 @@ internal static partial class LauncherGameStartupRecovery
         internal void Run()
         {
             PatchHelper.Log(
-                "Post-startup recovery UI cleanup started after rendered-frame handoff"
+                "Post-startup recovery UI cleanup started after main-menu handoff"
             );
             var controlsHidden = HideIfAlive(RecoveryControls, "recovery controls");
             var statusHidden = HideIfAlive(

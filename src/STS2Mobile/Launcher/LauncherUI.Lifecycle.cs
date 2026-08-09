@@ -60,10 +60,10 @@ internal sealed partial class LauncherUI
         {
             LauncherLaunchMarkers.RecordPhase("launcher controller starting");
             PatchHelper.Log("Launcher controller starting");
-            var automationStarted = _controller.Start();
-            LauncherLaunchMarkers.RecordPhase("launcher controller started", $"automationStarted={automationStarted}");
+            _controller.Start();
+            LauncherLaunchMarkers.RecordPhase("launcher controller started");
             PatchHelper.Log("Launcher controller started");
-            AutoLaunchIfRequested(automationStarted);
+            AutoLaunchIfRequested();
         }
         catch (Exception ex)
         {
@@ -76,6 +76,7 @@ internal sealed partial class LauncherUI
 
     private void OnExitTree()
     {
+        _controller?.CancelSaveSyncForLauncherExit();
         if (_launcherImeActiveSignalled)
         {
             AndroidGodotAppBridge.NotifyLauncherUiActive(false);
@@ -84,7 +85,6 @@ internal sealed partial class LauncherUI
         var tree = GetTree();
         tree.ProcessFrame -= OnProcessFrame;
         tree.AutoAcceptQuit = true;
-        _controller?.Dispose();
         _model?.Dispose();
         if (!_inGameMode)
             AndroidBridgeDispatcher.UnregisterCurrentThread();

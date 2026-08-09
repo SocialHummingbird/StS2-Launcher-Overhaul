@@ -5,7 +5,6 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -241,11 +240,6 @@ public class LauncherActivity extends Activity {
 	}
 
 	private boolean shouldUseNativeX86Fallback() {
-		if (isForcedX86GodotTest()) {
-			Log.w(TAG, "Bypassing native x86 fallback because sts2_force_godot_x86=1.");
-			return false;
-		}
-
 		boolean fallback = isX86Runtime();
 		if (fallback) {
 			Log.w(TAG, "Routing to native x86 fallback; Godot/.NET runtime crashes Android x86 emulator.");
@@ -285,15 +279,6 @@ public class LauncherActivity extends Activity {
 		);
 		recordStartupPhase("native recovery state cleared", detail);
 		return true;
-	}
-
-	private boolean isForcedX86GodotTest() {
-		try {
-			return Settings.Global.getInt(getContentResolver(), "sts2_force_godot_x86", 0) == 1;
-		} catch (Exception e) {
-			Log.w(TAG, "Could not read sts2_force_godot_x86 setting", e);
-			return false;
-		}
 	}
 
 	private boolean isX86Runtime() {

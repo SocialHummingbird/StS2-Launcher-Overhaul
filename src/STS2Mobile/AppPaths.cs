@@ -20,7 +20,6 @@ internal static class AppPaths
     private const string LastModLaunchFileName = "last_mod_launch.json";
 
     internal const string ExternalModsDir = ExternalStorageRoot + "/Mods";
-    internal const string ExternalSaveBackupsDir = ExternalStorageRoot + "/Saves";
     internal static string AppPrivateWorkshopDownloadsDir =>
         WorkshopDownloadsDir(AppPrivateDataDir);
     internal static string AppPrivateWorkshopStagedModsDir =>
@@ -57,7 +56,7 @@ internal static class AppPaths
     internal static string LastModLaunchPath(string dataDir) =>
         Path.Combine(dataDir, ModsDirectoryName, LastModLaunchFileName);
 
-    private static string AppPrivateDataDir => ResolveAppPrivateDataDirectory();
+    internal static string AppPrivateDataDir => ResolveAppPrivateDataDirectory();
 
     // Returns true if the app has permission to write to shared external storage.
     internal static bool HasStoragePermission()
@@ -93,25 +92,12 @@ internal static class AppPaths
         }
     }
 
-    // Creates the external Mods and Saves directories if storage permission is granted.
-    internal static void EnsureExternalDirectories()
-    {
-        if (!HasStoragePermission())
-            return;
-
-        EnsureExternalDirectory(ExternalModsDir);
-        EnsureExternalDirectory(ExternalSaveBackupsDir);
-    }
-
     internal static void EnsureWorkshopDirectories()
     {
         EnsureDirectory(AppPrivateWorkshopDownloadsDir, "Workshop downloads");
         EnsureDirectory(AppPrivateWorkshopStagedModsDir, "Workshop staged mods");
         EnsureDirectory(Path.GetDirectoryName(AppPrivateModSelectionPath), "mod selection");
     }
-
-    private static void EnsureExternalDirectory(string path)
-        => EnsureDirectory(path, "external storage");
 
     private static void EnsureDirectory(string path, string label)
     {

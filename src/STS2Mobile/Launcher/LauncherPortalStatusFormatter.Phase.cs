@@ -22,9 +22,6 @@ internal static partial class LauncherPortalStatusFormatter
         if (ContainsAny(status, "game version", "branch", "metadata", "version list", "selected version"))
             return "Version";
 
-        if (ContainsAny(status, "Cloud", "cloud", "Pull", "Push", "save", "backup"))
-            return "Cloud";
-
         if (ContainsAny(status, "Diagnostics", "diagnostics", "Help Details", "Help & Reports", "Help report", "details opened", "console", "log copied", "launcher log", "error log", "Last error", "Last problem"))
             return "Details";
 

@@ -65,7 +65,7 @@ internal sealed partial class LauncherView
         }
 
         var guidance = new StyledLabel(
-            "Sign in, choose a game version, get Steam saves, then start the game. Upload stays locked until you deliberately open it after checking local saves.",
+            "Sign in, choose a game version, download its files, then start the game.",
             scale,
             fontSize: 11,
             align: HorizontalAlignment.Left

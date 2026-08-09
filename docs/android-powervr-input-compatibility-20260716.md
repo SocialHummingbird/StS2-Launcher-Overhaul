@@ -54,5 +54,3 @@ The APK installed as an update with app data preserved and passed APK content/AB
 The first integrated run exposed and fixed a parser regression where the text `PowerVR compatibility required: False` could match a naive PowerVR substring search. The native parser now honors the explicit boolean before vendor-name fallback, and the exact Adreno evidence file is a regression test.
 
 The exact installed APK SHA-256 matches the release artifact: `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3`. The synthetic marker proves the native handoff and renderer command-line policy. It does not reproduce or certify the reporter's PowerVR driver. Actual Pixel/PowerVR testing is still required before issue #34 can be closed. OpenGL cold-menu performance remains a measured compatibility tradeoff; no speculative game-content or shader redesign was made.
-
-Steam Cloud Push was not run.

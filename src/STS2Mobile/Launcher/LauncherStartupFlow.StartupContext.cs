@@ -46,9 +46,6 @@ internal static partial class LauncherStartupFlow
             LauncherStartupStatus.Set(Status, status);
         }
 
-        internal void ApplySaveMode()
-            => Mode.ApplySaveMode();
-
         internal void ShowShaderWarmupSkipped()
         {
             PatchHelper.Log(Mode.ShaderWarmupSkipLog);

@@ -12,6 +12,7 @@ internal sealed partial class LauncherView
     {
         var frame = new MarginContainer
         {
+            Name = "DestinationNavigation",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         var navigation = new GridContainer

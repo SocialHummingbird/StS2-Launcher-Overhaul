@@ -19,7 +19,7 @@ internal sealed partial class SteamConnection
     internal async Task<byte[]> GetDepotDecryptionKeyAsync(uint depotId)
     {
         var result = await RunConnectedAsync(
-            async () => await _steamApps.GetDepotDecryptionKey(depotId, SteamCloudApp.AppId)
+            async () => await _steamApps.GetDepotDecryptionKey(depotId, SteamGameApp.AppId)
         ).ConfigureAwait(false);
         if (result.Result != EResult.OK)
             throw new InvalidOperationException(
@@ -38,7 +38,7 @@ internal sealed partial class SteamConnection
         return await RunConnectedAsync(
             async () => await _steamContent.GetManifestRequestCode(
                 depotId,
-                SteamCloudApp.AppId,
+                SteamGameApp.AppId,
                 manifestId,
                 branch
             )
@@ -49,7 +49,7 @@ internal sealed partial class SteamConnection
     {
         var result = await RunConnectedAsync(
             async () => await _steamContent.GetCDNAuthToken(
-                SteamCloudApp.AppId,
+                SteamGameApp.AppId,
                 depotId,
                 host
             )

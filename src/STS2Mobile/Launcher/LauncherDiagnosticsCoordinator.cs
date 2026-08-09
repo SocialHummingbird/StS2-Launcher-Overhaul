@@ -41,7 +41,7 @@ internal sealed partial class LauncherDiagnosticsCoordinator
     {
         var clipboardText = new LauncherClipboardText(
             "Public sharing warning: review and redact this launcher log before posting publicly.\n"
-            + "It may include account names, local paths, device details, save/cloud state, and log excerpts.\n\n"
+            + "It may include account names, local paths, device details, launcher state, and log excerpts.\n\n"
             + rawLog
         );
         clipboardText.CopyToClipboard();

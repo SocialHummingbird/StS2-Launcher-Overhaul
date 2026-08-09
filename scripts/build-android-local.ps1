@@ -11,7 +11,6 @@ param(
     [ValidateSet("arm64-v8a", "x86_64", "universal")]
     [string]$Abi = "arm64-v8a",
     [switch]$Install,
-    [switch]$EvidenceDebuggable,
     [string]$DeviceSerial = ""
 )
 
@@ -289,9 +288,6 @@ $gradleArgs = @(
     "-Prelease_keystore_password=$KeystorePassword",
     "-Prelease_keystore_alias=$KeystoreAlias"
 )
-if ($EvidenceDebuggable) {
-    $gradleArgs += "-Psts2_evidence_debuggable=true"
-}
 
 & $GradlePath @gradleArgs
 

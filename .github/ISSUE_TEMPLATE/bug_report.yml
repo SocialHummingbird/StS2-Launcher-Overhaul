@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use a focused template instead when possible: crash/startup, download/branch, Steam Cloud/login, mods/save-merger, or device compatibility.
+        Use a focused template instead when possible: crash/startup, download/branch, or mods/save compatibility. Use this form for Steam login and save-synchronization problems.
 
         This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
@@ -51,7 +51,7 @@ body:
         - Game download or update
         - Steam branch selection
         - Game launch/runtime
-        - Steam Cloud Pull or Push
+        - Save synchronization (automatic or manual)
         - Workshop/mod loading
         - Save compatibility
         - Android x86 fallback/diagnostics
@@ -75,6 +75,8 @@ body:
         Clean install or update install:
         Selected game branch:
         Mods enabled:
+        Steam session reused or fresh sign-in:
+        Save status before the failure:
     validations:
       required: true
   - type: textarea
@@ -84,6 +86,8 @@ body:
       description: Attach focused evidence. For crashes, include 200-300 lines around the primary exception.
       value: |
         Attached:
+        Sync action, automatic / Sync now / Pull / Push:
+        Sync result shown in the launcher:
         Relevant logcat markers:
         Screenshot/screen recording:
         Launcher diagnostics/report file:
@@ -98,5 +102,3 @@ body:
           required: true
         - label: I removed Steam credentials, Steam Guard codes, refresh tokens, private account details, and full unsanitized logs.
           required: true
-        - label: I stated whether Steam Cloud Push ran, or confirmed it did not run.
-          required: false

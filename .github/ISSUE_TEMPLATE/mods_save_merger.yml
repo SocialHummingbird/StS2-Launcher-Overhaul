@@ -6,11 +6,10 @@ body:
   - type: markdown
     attributes:
       value: |
-        This is the preferred template for Workshop/mod reports. SavesMerger is deprecated in current source builds; the highest-value save report is whether Manual Pull makes the native modded profile visible without it.
+        This is the preferred template for Workshop/mod reports. SavesMerger is deprecated in current source builds; report whether the game's native modded profile is visible without it.
 
         This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, Steam, or Valve, and it bundles no Slay the Spire 2 game files, assets, or Workshop content. Steam ownership is required.
 
-        Do not run Push to Cloud during mod testing unless you intentionally want to upload the tested Android save state.
   - type: dropdown
     id: test-type
     attributes:
@@ -38,7 +37,7 @@ body:
     id: steps
     attributes:
       label: Reproduction steps
-      description: Include Workshop sync/manual import, mod selection, Pull, launch mode, save check, and whether mods were disabled afterward.
+      description: Include Workshop sync/manual import, mod selection, launch mode, save check, and whether mods were disabled afterward.
       value: |
         1.
         2.
@@ -90,24 +89,19 @@ body:
         Selected mod count:
         Active mod status text:
         Unsupported item warning text:
-        Cloud Push locked because of mod risk:
     validations:
       required: true
   - type: textarea
     id: save-behavior
     attributes:
       label: Save behavior
-      description: Report whether Manual Pull made native modded saves visible and loadable. Do not attach private save files publicly.
+      description: Report whether native local modded saves were visible and loadable. Do not attach private save files publicly.
       value: |
         Existing vanilla save present before test:
         Existing modded save present before test:
-        Pull from Steam Cloud run before test:
-        Push to Steam Cloud run during test:
         Save/profile became visible in-game:
         Save/profile loaded successfully:
         SavesMerger was absent from selected/activation evidence:
-        Manual Pull modded-save provenance marker present:
-        Seeded/cloud-authoritative/private-backup counts:
     validations:
       required: true
   - type: checkboxes
@@ -118,10 +112,9 @@ body:
         - label: Game reached main menu.
         - label: Game loaded selected mods.
         - label: Game launched vanilla with zero mods.
-        - label: Manual Pull made the native modded save usable.
-        - label: Manual Pull did not make the native modded save usable.
+        - label: The native modded save was usable.
+        - label: The native modded save was not usable.
         - label: App crashed or hung.
-        - label: Launcher blocked Push to Cloud because modded-save risk was active.
   - type: textarea
     id: evidence
     attributes:
@@ -142,7 +135,5 @@ body:
     attributes:
       label: Safety checks
       options:
-        - label: I did not run Push to Cloud unless I intentionally wanted to upload the tested Android save state.
-          required: true
         - label: I removed Steam credentials, refresh tokens, private account details, private save contents, and full unsanitized logs.
           required: true

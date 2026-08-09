@@ -4,9 +4,9 @@ internal sealed partial class DepotDownloader
 {
     private readonly partial struct ProductInfoApp
     {
-        private bool IsMainApp => AppId == SteamCloudApp.AppId;
+        private bool IsMainApp => AppId == SteamGameApp.AppId;
         private string Name => IsMainApp
-            ? $"{SteamCloudApp.Name} ({SteamCloudApp.AppId})"
+            ? $"{SteamGameApp.Name} ({SteamGameApp.AppId})"
             : $"referenced app {AppId}";
         private string OwnershipHint => IsMainApp
             ? "; ownership/session may be invalid"

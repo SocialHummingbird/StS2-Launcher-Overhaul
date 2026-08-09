@@ -11,38 +11,36 @@ internal sealed partial class ActionSection
 
         _homeDestination = BuildDestination(
             "Home",
-            "Start the installed game or use Safe Start when troubleshooting.",
+            "Check status, then play.",
             LauncherComponentTheme.OrangeAccent
         );
         _savesDestination = BuildDestination(
             "Saves",
-            "Download Steam saves safely. Upload remains locked until you deliberately confirm it.",
-            new Color(0.24f, 0.7f, 0.36f)
+            "Automatic sync or choose a direction.",
+            new Color(0.25f, 0.65f, 0.75f)
         );
         _versionsDestination = BuildDestination(
             "Versions",
-            "Choose, update, repair, or remove downloaded game files.",
+            "Choose or repair game files.",
             LauncherComponentTheme.CyanAccent
         );
         _modsDestination = BuildDestination(
             "Mods",
-            "Choose vanilla or modded play and manage staged Workshop files.",
+            "Choose vanilla or mods.",
             new Color(0.72f, 0.46f, 0.9f)
         );
         _helpDestination = BuildDestination(
             "Help",
-            "Troubleshooting, error details, and launcher reports.",
+            "Compatibility, repair, and reports.",
             LauncherComponentTheme.TextSecondary
         );
 
-        MoveTo(_homeDestination, _rendererGroup);
+        MoveTo(_homeDestination, _homeJourney);
         MoveTo(_homeDestination, _launchButton);
-        MoveTo(_homeDestination, _safeLaunchButton);
         MoveTo(_homeDestination, _readyVersionSummaryPanel);
         MoveTo(_homeDestination, _retryButton);
 
-        MoveTo(_savesDestination, _cloudGroup);
-        MoveTo(_savesDestination, _saveRecoveryGroup);
+        MoveTo(_savesDestination, _saveSyncGroup);
 
         MoveTo(_versionsDestination, _branchDropdown);
         MoveTo(_versionsDestination, _branchDetailsToggle);
@@ -54,6 +52,8 @@ internal sealed partial class ActionSection
 
         MoveTo(_modsDestination, _modsGroup);
 
+        MoveTo(_helpDestination, _safeLaunchButton);
+        MoveTo(_helpDestination, _rendererGroup);
         MoveTo(_helpDestination, _diagnosticsButton);
         MoveTo(_helpDestination, _showLastErrorButton);
         MoveTo(_helpDestination, _copyRawLogButton);
@@ -124,7 +124,7 @@ internal sealed partial class ActionSection
 
     private void ApplyDestinationVisibility()
     {
-        _homeDestination.Visible = _destination == LauncherDestination.Home && _homeActionsAvailable;
+        _homeDestination.Visible = _destination == LauncherDestination.Home;
         _savesDestination.Visible = _destination == LauncherDestination.Saves;
         _versionsDestination.Visible = _destination == LauncherDestination.Versions;
         _modsDestination.Visible = _destination == LauncherDestination.Mods;

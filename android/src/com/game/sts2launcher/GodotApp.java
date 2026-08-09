@@ -105,9 +105,6 @@ public class GodotApp extends GodotActivity {
 	private static final String ENV_AUTO_LAUNCH_GAME = "STS2_AUTO_LAUNCH_GAME";
 	private static final String ENV_AUTO_SAFE_LAUNCH = "STS2_AUTO_SAFE_LAUNCH";
 	private static final String ENV_ANDROID_FILES_DIR = "STS2_ANDROID_FILES_DIR";
-	private static final String ENV_BOOTSTRAP_UI_MODE = "STS2_BOOTSTRAP_UI_MODE";
-	private static final String ENV_MINIMAL_BOOTSTRAP_UI = "STS2_MINIMAL_BOOTSTRAP_UI";
-	private static final String ENV_FORCE_CRITICAL_PATCH_FAILURE = "STS2_FORCE_CRITICAL_PATCH_FAILURE";
 	private static final String ENV_STEAMKIT_DEBUG_LOGS = "STS2_STEAMKIT_DEBUG_LOGS";
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String EXTRA_SAFE_LAUNCH_ON_START = "sts2_safe_launch";
@@ -960,7 +957,6 @@ public class GodotApp extends GodotActivity {
 			Log.w(TAG, "Blocking selected game version startup because runtime slot evidence is missing, stale, or not playable; returning to launcher instead of mounting the selected PCK.");
 		}
 		setAutoLaunchGameMode(launchRequested);
-		setForcedCriticalPatchFailureMode();
 		setSteamKitDebugLogMode();
 		if (launchRequested) {
 			setLauncherBootstrapMode(false);
@@ -990,7 +986,6 @@ public class GodotApp extends GodotActivity {
 			// Start in the launcher unless a one-shot game launch was requested; use bootstrap PCK so Godot can initialize for the
 			// launcher.
 			setLauncherBootstrapMode(true);
-			setMinimalBootstrapUiMode();
 			String bootstrapPck = extractBootstrapPck();
 			if (bootstrapPck != null) {
 				commands.add("--main-pack");
@@ -1060,25 +1055,6 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
-	private void setMinimalBootstrapUiMode() {
-		int mode = 0;
-		try {
-			mode = android.provider.Settings.Global.getInt(getContentResolver(), "sts2_bootstrap_ui_mode", 0);
-			boolean enabled = mode == 1 || android.provider.Settings.Global.getInt(getContentResolver(), "sts2_minimal_bootstrap_ui", 0) == 1;
-			android.system.Os.setenv(ENV_BOOTSTRAP_UI_MODE, Integer.toString(enabled && mode == 0 ? 1 : mode), true);
-			android.system.Os.setenv(ENV_MINIMAL_BOOTSTRAP_UI, enabled ? "1" : "0", true);
-			Log.i(TAG, "Bootstrap UI diagnostic mode: " + mode);
-			Log.i(TAG, "Minimal bootstrap UI mode: " + enabled);
-		} catch (Exception e) {
-			Log.w(TAG, "Failed to set minimal bootstrap UI mode", e);
-			try {
-				android.system.Os.setenv(ENV_BOOTSTRAP_UI_MODE, "0", true);
-				android.system.Os.setenv(ENV_MINIMAL_BOOTSTRAP_UI, "0", true);
-			} catch (Exception ignored) {
-			}
-		}
-	}
-
 	private void setAutoLaunchGameMode(boolean enabled) {
 		try {
 			android.system.Os.setenv(ENV_AUTO_LAUNCH_GAME, enabled ? "1" : "0", true);
@@ -1094,23 +1070,6 @@ public class GodotApp extends GodotActivity {
 			Log.i(TAG, "Auto-safe-launch mode: " + enabled);
 		} catch (Exception e) {
 			Log.w(TAG, "Failed to set auto-safe-launch mode", e);
-		}
-	}
-
-	private void setForcedCriticalPatchFailureMode() {
-		boolean enabled = false;
-		try {
-			enabled = android.provider.Settings.Global.getInt(getContentResolver(), "sts2_force_critical_patch_failure", 0) == 1;
-			android.system.Os.setenv(ENV_FORCE_CRITICAL_PATCH_FAILURE, enabled ? "1" : "0", true);
-			if (enabled) {
-				Log.w(TAG, "Forced critical patch failure mode enabled by Android global setting");
-			}
-		} catch (Exception e) {
-			Log.w(TAG, "Failed to set forced critical patch failure mode", e);
-			try {
-				android.system.Os.setenv(ENV_FORCE_CRITICAL_PATCH_FAILURE, "0", true);
-			} catch (Exception ignored) {
-			}
 		}
 	}
 

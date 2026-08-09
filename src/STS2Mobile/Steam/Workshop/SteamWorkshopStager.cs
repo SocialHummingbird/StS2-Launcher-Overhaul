@@ -414,7 +414,6 @@ internal sealed class SteamWorkshopStager
                 $"reason={SanitizeMarkerValue(reason)}",
                 $"removedStagedDirectoryCount={removedDirectories}",
                 $"removedStagedRootFileCount={removedFiles}",
-                $"steamCloudPushPerformed=false",
                 $"downloadsPreserved=true",
             });
         }

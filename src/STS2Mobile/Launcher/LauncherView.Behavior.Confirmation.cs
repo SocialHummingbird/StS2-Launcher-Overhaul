@@ -1,5 +1,4 @@
 using System;
-using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -26,20 +25,17 @@ internal sealed partial class LauncherView
         ));
     }
 
-    internal void ShowAutomaticSyncSourceChoice(
-        string message,
-        Action<AutomaticSyncSourceChoice> onSelected
+    internal void ShowSaveSyncConflict(
+        Action useSteamSaves,
+        Action useDeviceSaves
     )
-    {
-        ArgumentNullException.ThrowIfNull(onSelected);
-        ShowConfirmation(
-            message,
-            () => onSelected(AutomaticSyncSourceChoice.Local),
-            () => onSelected(AutomaticSyncSourceChoice.Steam),
-            "Use Android",
-            "Use Steam"
+        => ShowConfirmation(
+            "Android and Steam saves changed differently. Choose the version to keep.",
+            useDeviceSaves,
+            useSteamSaves,
+            confirmText: "Use this device",
+            cancelText: "Use Steam saves"
         );
-    }
 
     internal void ShowConfirmation(string message, Action onConfirmed, Action onCancelled)
     {

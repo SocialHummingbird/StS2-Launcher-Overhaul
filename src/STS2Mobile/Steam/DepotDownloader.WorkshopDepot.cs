@@ -104,10 +104,10 @@ internal sealed partial class DepotDownloader
         }
 
         Log(
-            $"Steam app metadata did not expose Workshop manifest {manifestId}; using SteamPipe Workshop depot {SteamCloudApp.AppId}"
+            $"Steam app metadata did not expose Workshop manifest {manifestId}; using SteamPipe Workshop depot {SteamGameApp.AppId}"
         );
         return new WorkshopDepotManifestReference(
-            SteamCloudApp.AppId,
+            SteamGameApp.AppId,
             manifestId,
             SteamGameBranch.Public
         );

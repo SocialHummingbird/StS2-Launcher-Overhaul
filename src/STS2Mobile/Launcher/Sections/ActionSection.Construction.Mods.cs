@@ -42,10 +42,10 @@ internal sealed partial class ActionSection
         group.Visible = false;
 
         Container modeParent = compact && !_compactStackedActionRows
-            ? BuildCompactCloudPrimaryActionsRow(group, scale, compactStackedActionRows: false)
+            ? BuildCompactActionRow(group, scale, compactStackedActionRows: false)
             : group;
 
-        var playVanillaButton = AddPushPullButton(
+        var playVanillaButton = AddActionButton(
             modeParent,
             compact ? CompactSupportToolText("Play Vanilla", "No mods") : "Play Vanilla",
             scale,
@@ -53,13 +53,13 @@ internal sealed partial class ActionSection
         );
         LauncherButtonStyles.ApplySupportAction(playVanillaButton, scale);
 
-        var playModdedButton = AddPushPullButton(
+        var playModdedButton = AddActionButton(
             modeParent,
             compact ? CompactSupportToolText("Play With Mods", "Selected") : "Play With Mods",
             scale,
             () => SetModPlayMode(LauncherModPlayMode.Modded)
         );
-        LauncherButtonStyles.ApplyCloudPullAction(playModdedButton, scale);
+        LauncherButtonStyles.ApplyAccentAction(playModdedButton, scale);
 
         var statusLabel = new StyledLabel(
             "",
@@ -86,19 +86,19 @@ internal sealed partial class ActionSection
         BuildModToggleSlots(modsList, scale);
 
         Container actionsParent = compact && !_compactStackedActionRows
-            ? BuildCompactCloudPrimaryActionsRow(group, scale, compactStackedActionRows: false)
+            ? BuildCompactActionRow(group, scale, compactStackedActionRows: false)
             : group;
 
-        var workshopSyncButton = AddPushPullButton(
+        var workshopSyncButton = AddActionButton(
             actionsParent,
             compact ? CompactSupportToolText("Sync Workshop", "Mods") : "Sync Workshop Mods",
             scale,
             () => WorkshopSyncPressed?.Invoke()
         );
-        LauncherButtonStyles.ApplyCloudPullAction(workshopSyncButton, scale);
+        LauncherButtonStyles.ApplyAccentAction(workshopSyncButton, scale);
         SetCompactActionButtonText(workshopSyncButton, workshopSyncButton.Text);
 
-        var workshopClearButton = AddPushPullButton(
+        var workshopClearButton = AddActionButton(
             actionsParent,
             compact ? CompactSupportToolText("Clear Staged", "Keep files") : "Clear Staged Mods",
             scale,
@@ -124,7 +124,7 @@ internal sealed partial class ActionSection
         for (var i = 0; i < MaxVisibleModToggles; i++)
         {
             var slot = i;
-            var button = AddPushPullButton(
+            var button = AddActionButton(
                 modsList,
                 "",
                 scale,

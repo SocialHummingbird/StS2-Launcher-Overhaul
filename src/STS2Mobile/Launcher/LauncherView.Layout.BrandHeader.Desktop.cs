@@ -23,7 +23,7 @@ internal sealed partial class LauncherView
         copy.AddChild(title);
 
         var subtitle = new StyledLabel(
-            "Sign in. Save safely. Play.",
+            "Sign in. Download. Play.",
             scale,
             fontSize: 11
         );

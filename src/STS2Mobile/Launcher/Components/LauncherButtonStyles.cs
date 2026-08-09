@@ -35,7 +35,7 @@ internal static partial class LauncherButtonStyles
             borderWidth: 1
         );
 
-    internal static void ApplyCloudPullAction(Button button, float scale)
+    internal static void ApplyAccentAction(Button button, float scale)
         => Apply(
             button,
             scale,

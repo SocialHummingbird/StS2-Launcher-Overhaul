@@ -44,7 +44,7 @@ internal sealed partial class ActionSection
         return button;
     }
 
-    private static Button AddPushPullButton(
+    private static Button AddActionButton(
         Container row,
         string text,
         float scale,

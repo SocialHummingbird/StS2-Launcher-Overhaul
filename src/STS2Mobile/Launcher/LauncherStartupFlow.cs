@@ -60,10 +60,8 @@ internal static partial class LauncherStartupFlow
 
         private void BeginLaunch()
         {
-            Startup.ApplySaveMode();
             Startup.SetPhase(PhaseLaunchRequested, "Starting game...");
             PatchHelper.Log("User launched game, proceeding to startup...");
-            ResetSaveManagerInstance();
         }
 
         private void CloseLauncher()
@@ -78,7 +76,7 @@ internal static partial class LauncherStartupFlow
         private async Task RunStartupAsync()
         {
             await RunShaderWarmupIfNeededAsync(Startup);
-            if (!InitializeSettingsAndSaves(Startup))
+            if (!await InitializeSettingsAndSavesAsync(Startup))
                 return;
 
             await RunGameStartupAsync(Startup);

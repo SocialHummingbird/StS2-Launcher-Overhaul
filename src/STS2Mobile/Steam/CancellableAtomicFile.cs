@@ -53,7 +53,7 @@ internal static class CancellableAtomicFile
             Directory.CreateDirectory(parent);
 
         var stagingPath =
-            $"{destinationPath}.sts2-cloud-{Guid.NewGuid():N}.tmp";
+            $"{destinationPath}.sts2-atomic-{Guid.NewGuid():N}.tmp";
         try
         {
             await writeStaging(stagingPath, cancellationToken)

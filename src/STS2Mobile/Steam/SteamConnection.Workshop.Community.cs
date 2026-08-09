@@ -103,7 +103,7 @@ internal sealed partial class SteamConnection
         var sessionId = Guid.NewGuid().ToString("N")[..24];
         var url =
             $"https://steamcommunity.com/profiles/{steamId}/myworkshopfiles/"
-            + $"?appid={SteamCloudApp.AppId}"
+            + $"?appid={SteamGameApp.AppId}"
             + "&browsefilter=mysubscriptions"
             + "&section=items"
             + $"&p={page}"

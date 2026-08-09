@@ -21,7 +21,7 @@ Always report the exact tag and filename. Current-source emulator evidence may b
 ## Installation Problems
 
 - `INSTALL_PARSE_FAILED_NO_CERTIFICATES`: re-download the APK and verify its SHA-256.
-- `INSTALL_FAILED_UPDATE_INCOMPATIBLE`: stop. The candidate package or signer does not match the installed `.local` lineage. Verify both APK identities; never uninstall or clear the published install unless its private save bytes have already been exported and independently read-back verified.
+- `INSTALL_FAILED_UPDATE_INCOMPATIBLE`: stop. The candidate package or signer does not match the installed `.local` lineage. Verify both APK identities; do not uninstall or clear the affected install.
 - `INSTALL_FAILED_OLDER_SDK`: the Android version is below the APK's minimum.
 - `App isn't compatible with your phone`: confirm the device supports `arm64-v8a`. Public test APKs are ARM64-only.
 - Immediate crash or `INSTALL_FAILED_DEXOPT`: capture focused logcat and open an issue.
@@ -36,7 +36,7 @@ Do not delete the game, saves, credentials, or assembly cache before collecting 
 
 ## Keyboard Appears Without Text Entry
 
-`v0.2.416` suppresses the hidden Godot editor's unintended IME request during launcher startup and non-editor resume. If the keyboard still appears while no text field was selected, record the device model, OEM skin, exact APK, and whether the app had just resumed, rotated, unlocked, or completed Cloud Pull. Deliberate username, password, Steam Guard, and other editable-field focus must still open the keyboard.
+`v0.2.416` suppresses the hidden Godot editor's unintended IME request during launcher startup and non-editor resume. If the keyboard still appears while no text field was selected, record the device model, OEM skin, exact APK, and whether the app had just resumed, rotated, or unlocked. Deliberate username, password, Steam Guard, and other editable-field focus must still open the keyboard.
 
 ## Black Screen or Long Loading
 
@@ -58,18 +58,16 @@ Reaching `NMainMenu` proves startup completed, not that the process remained hea
 
 Search focused logcat for `FATAL EXCEPTION`, `AndroidRuntime`, `Fatal signal`, `SIGSEGV`, `SIGABRT`, `ANR`, `lmkd`, `has died`, `PowerVR`, `OpenGL`, and `Vulkan`.
 
-## Cloud Saves
+## Local Saves
 
-Pull should show its current phase and transfer counts. **Review Upload** should list every reason Upload remains blocked and what action is required. Pull does not upload.
-
-Do not run a real Steam Cloud Push merely to diagnose the interface. Push can overwrite remote saves and requires separate explicit authorisation plus controlled backups. Report whether Pull or Push was selected, whether saves appeared in-game, and the exact blocked or completion summary.
+If a profile is missing, record whether it is vanilla or modded, the selected branch, whether the app was cleared, uninstalled, or restored by Android, and whether the APK package or signer changed. Do not clear or uninstall the affected app while investigating it.
 
 ## Evidence Boundaries
 
 | Evidence source | Valid conclusions | Invalid conclusions |
 | --- | --- | --- |
-| Automated tests | Build, policy, fixtures, deadlines, cache and fake-store safety | Physical rendering, OEM behavior, real Steam services, gameplay |
-| API 36 x86_64 emulator | Native routing, fallback/recovery, forced bootstrap failure, rotation, Home/resume, native IME state | Godot/.NET launcher, Steam workflows, ARM64, `NMainMenu`, gameplay |
-| Exact `v0.2.416` on Samsung ARM64 | Published artifact, cold transition, launcher, public runtime pack, `NMainMenu`, 60-second heartbeat | Reporter devices, broad compatibility, every branch/mod/GPU, real Push |
+| Focused local tests | Local paths, atomic writes, synchronization policy, failure handling, startup order, and launcher wiring | Physical rendering, OEM behavior, real Steam services, gameplay |
+| API 36 x86_64 emulator | Native routing, fallback/recovery, rotation, Home/resume, native IME state | Godot/.NET launcher, Steam workflows, ARM64, `NMainMenu`, gameplay |
+| Exact `v0.2.416` on Samsung ARM64 | Published artifact, cold transition, launcher, public runtime pack, `NMainMenu`, 60-second heartbeat | Reporter devices, broad compatibility, or every branch/mod/GPU |
 
-Use the [Android validation runbook](runbook-android-validation.md) and [device log checklist](device-log-checklist.md) for a complete report.
+Use the [Android validation runbook](runbook-android-validation.md) for the current validation boundary.

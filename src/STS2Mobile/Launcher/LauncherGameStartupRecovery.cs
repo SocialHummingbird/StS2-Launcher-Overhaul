@@ -1,6 +1,5 @@
 using Godot;
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace STS2Mobile.Launcher;
@@ -30,17 +29,6 @@ internal static partial class LauncherGameStartupRecovery
         );
         if (!mainMenuReady)
             return HandleMainMenuGuardFailure(ui);
-
-        var preparation = await AndroidMainMenuPreparation.RunAsync(
-            gameNode,
-            startupStatus
-        );
-        if (!preparation.CanExposeMainMenu)
-            return HandleMainMenuPreparationFailure(ui, preparation);
-
-        PatchHelper.Log(
-            $"Main-menu handoff admitted by rendered-frame gate: {preparation.Detail}"
-        );
         return true;
     }
 
@@ -58,14 +46,4 @@ internal static partial class LauncherGameStartupRecovery
         SchedulePostStartupDiagnostics(game, gameNode);
     }
 
-    internal static async Task HoldAndroidStartupTaskAfterObservedAsync()
-    {
-        if (!OperatingSystem.IsAndroid())
-            return;
-
-        PatchHelper.Log(
-            "Android post-startup task anchor active; keeping GameStartupWrapper pending after startup observation"
-        );
-        await Task.Delay(Timeout.InfiniteTimeSpan);
-    }
 }

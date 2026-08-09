@@ -12,12 +12,6 @@ internal sealed partial class LauncherView
         Action<string> rendererModeChanged,
         Action launchPressed,
         Action retryPressed,
-        Action<bool> localBackupToggled,
-        Action<bool> cloudSyncToggled,
-        Func<CloudPushEligibilityResult> cloudPushArmRequested,
-        Action cloudPushPressed,
-        Action cloudPullPressed,
-        Action cloudOperationCancelPressed,
         Action checkForUpdatesPressed,
         Action refreshGameVersionsPressed,
         Action redownloadPressed,
@@ -26,6 +20,9 @@ internal sealed partial class LauncherView
         Action showLastErrorPressed,
         Action copyRawLogPressed,
         Action safeLaunchPressed,
+        Action saveSyncNowPressed,
+        Action savePullPressed,
+        Action savePushPressed,
         Action workshopSyncPressed,
         Action workshopClearPressed
     )
@@ -40,13 +37,6 @@ internal sealed partial class LauncherView
         Actions.RendererModeChanged += rendererModeChanged;
         Actions.LaunchPressed += launchPressed;
         Actions.RetryPressed += retryPressed;
-        Actions.LocalBackupToggled += localBackupToggled;
-        Actions.CloudSyncToggled += cloudSyncToggled;
-        Actions.CloudPushArmRequested += cloudPushArmRequested;
-        Actions.CloudPushPressed += cloudPushPressed;
-        Actions.CloudPullPressed += cloudPullPressed;
-        Actions.CloudOperationCancelPressed +=
-            cloudOperationCancelPressed;
         Actions.CheckForUpdatesPressed += checkForUpdatesPressed;
         Actions.RefreshGameVersionsPressed += refreshGameVersionsPressed;
         Actions.RedownloadPressed += redownloadPressed;
@@ -55,6 +45,9 @@ internal sealed partial class LauncherView
         Actions.ShowLastErrorPressed += showLastErrorPressed;
         Actions.CopyRawLogPressed += copyRawLogPressed;
         Actions.SafeLaunchPressed += safeLaunchPressed;
+        Actions.SaveSyncNowPressed += saveSyncNowPressed;
+        Actions.SavePullPressed += savePullPressed;
+        Actions.SavePushPressed += savePushPressed;
         Actions.WorkshopSyncPressed += workshopSyncPressed;
         Actions.WorkshopClearPressed += workshopClearPressed;
     }

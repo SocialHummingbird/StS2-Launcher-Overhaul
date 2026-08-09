@@ -34,7 +34,7 @@ internal sealed partial class LauncherView
         SetCompactReadyInstallSectionVisible(false);
         SetCompactWorkflowStep(CompactWorkflowStep.Play);
         Actions.ShowLaunch(launchText, showUpdate);
-        SetCompactCurrentTask("Play", Actions.ReadyScrollTarget, "Play and saves");
+        SetCompactCurrentTask("Play", Actions.ReadyScrollTarget, "Ready");
         ScrollCompactPrimaryTo(Actions.ReadyScrollTarget);
     }
 
@@ -48,8 +48,6 @@ internal sealed partial class LauncherView
 
     internal void SetActionPreferences(LauncherPreferences.ActionPreferences preferences)
     {
-        Actions.SetLocalBackupChecked(preferences.LocalBackupEnabled);
-        Actions.SetCloudSyncChecked(preferences.CloudSyncEnabled);
         Actions.SetRendererMode(preferences.RendererMode);
         SetGameBranch(preferences.GameBranch);
     }
@@ -59,31 +57,10 @@ internal sealed partial class LauncherView
         System.Collections.Generic.IReadOnlyList<LauncherBranchCatalog.BranchOption> branches
     )
     {
-        Actions.SetLocalBackupChecked(preferences.LocalBackupEnabled);
-        Actions.SetCloudSyncChecked(preferences.CloudSyncEnabled);
         Actions.SetRendererMode(preferences.RendererMode);
         Download.SetGameBranchOptions(preferences.GameBranch, branches);
         Actions.SetGameBranchOptions(preferences.GameBranch, branches);
     }
-
-    internal void SetPushPullDisabled(bool disabled)
-        => Actions.SetPushPullDisabled(disabled);
-
-    internal void RefreshCloudPushEligibility()
-        => Actions.RefreshCloudPushEligibility();
-
-    internal void ApplyCloudPostOperationSnapshot(
-        CloudPostOperationSnapshot snapshot
-    )
-        => Actions.ApplyCloudPostOperationSnapshot(snapshot);
-
-    internal void SetCloudOperationState(
-        Steam.CloudOperationState state
-    )
-        => Actions.SetCloudOperationState(state);
-
-    internal void ClearCloudOperationState()
-        => Actions.ClearCloudOperationState();
 
     internal void SetWorkshopButtonsDisabled(bool disabled)
         => Actions.SetWorkshopButtonsDisabled(disabled);
@@ -91,8 +68,22 @@ internal sealed partial class LauncherView
     internal void SetLaunchControlsDisabled(bool disabled)
         => Actions.SetLaunchControlsDisabled(disabled);
 
-    internal void SetAutomaticSyncBlocked(bool blocked)
-        => Actions.SetAutomaticSyncBlocked(blocked);
+    internal void SetSaveSyncControlsDisabled(bool disabled)
+        => Actions.SetSaveSyncControlsDisabled(disabled);
+
+    internal void SetHomeAccountState(string state)
+        => Actions.SetHomeAccountState(state);
+
+    internal void SetHomeGameState(string state)
+        => Actions.SetHomeGameState(state);
+
+    internal void SetSaveSyncPresentation(
+        string headline,
+        string lastSuccess,
+        string localState,
+        string steamState
+    )
+        => Actions.SetSaveSyncPresentation(headline, lastSuccess, localState, steamState);
 
     internal void SetPowerVrCompatibility(bool required)
         => Actions.SetPowerVrCompatibility(required);

@@ -7,7 +7,7 @@ namespace STS2Mobile.Launcher;
 internal sealed class LauncherWorkshopCoordinator
 {
     private const string WorkshopModConsentMessage =
-        "Steam Workshop mods can run community code and change game content. Syncing uses your subscribed Steam Workshop items only. Steam Cloud saves are not pushed or uploaded.";
+        "Steam Workshop mods can run community code and change game content. Syncing uses your subscribed Steam Workshop items only.";
     private readonly LauncherModel _model;
     private readonly LauncherView _view;
 
@@ -36,7 +36,7 @@ internal sealed class LauncherWorkshopCoordinator
             WorkshopModConsent.Accept("launcher-workshop-sync");
             _view.SetWorkshopButtonsDisabled(true);
             _view.SetStatus("Syncing Steam Workshop mods...");
-            _view.AppendLog("Syncing Steam Workshop mods. Steam Cloud Push is not run.");
+            _view.AppendLog("Syncing Steam Workshop mods.");
             await _model.StartWorkshopSyncAsync();
         }
         catch (Exception ex)
@@ -56,7 +56,7 @@ internal sealed class LauncherWorkshopCoordinator
         LauncherLaunchMarkers.RecordPhase("workshop sync completed", summary);
         var detail = string.IsNullOrWhiteSpace(summary) ? "Workshop mods synced" : summary;
         _view.SetStatus($"{detail}. Restart the game if it was already running.");
-        _view.AppendLog($"{detail}. Steam Cloud Push was not run.");
+        _view.AppendLog(detail);
     }
 
     internal void FailSync(string message)
@@ -72,7 +72,7 @@ internal sealed class LauncherWorkshopCoordinator
             LauncherLaunchMarkers.RecordPhase("workshop clear requested");
             _view.SetWorkshopButtonsDisabled(true);
             _view.SetStatus("Clearing staged Workshop mods...");
-            _view.AppendLog("Clearing staged Workshop mods. Steam Cloud Push is not run.");
+            _view.AppendLog("Clearing staged Workshop mods.");
             WorkshopModConsent.Clear();
             _model.ClearWorkshopMods();
         }
@@ -95,7 +95,7 @@ internal sealed class LauncherWorkshopCoordinator
             $"Workshop mods cleared: removed {removedCount} staged entries. Restart the game if it was already running."
         );
         _view.AppendLog(
-            $"Workshop mods cleared: removed {removedCount} staged entries. Steam Cloud Push was not run."
+            $"Workshop mods cleared: removed {removedCount} staged entries."
         );
     }
 

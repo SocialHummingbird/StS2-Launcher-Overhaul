@@ -10,9 +10,7 @@ internal sealed partial class ActionSection
             ? CompactReadyVersionHelpText()
             : SteamGameBranch.SelectorInstallSlotHelpText(_gameBranch)
                 + "\n"
-                + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches)
-                + "\n"
-                + "Version/download actions affect local game files only. Steam Cloud saves move only through Pull/Upload.";
+                + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches);
         _branchHelpLabel.Visible = _branchDropdown.Visible && _branchDetailsExpanded;
         if (_branchDetailsToggle != null)
         {
@@ -27,27 +25,12 @@ internal sealed partial class ActionSection
                     ? "Hide Version Details"
                     : "Show Version Details"));
         }
-        if (_cloudSafetyLabel != null)
-        {
-            _cloudSafetyLabel.Text = _compact
-                ? CompactCloudSafetyDetailText()
-                : $"Steam Cloud actions apply to selected version: {SteamGameBranch.DisplayName(_gameBranch)}.\nPull copies Steam Cloud saves to Android. Push copies Android saves to Steam Cloud and can overwrite remote saves.";
-            _cloudSafetyLabel.Visible = !_compact || _cloudSafetyExpanded;
-        }
         if (_readyVersionSummaryLabel != null)
         {
             _readyVersionSummaryLabel.Text = _compact
                 ? CompactReadyVersionSummary()
                 : $"Ready version: {SteamGameBranch.CompactDisplayName(_gameBranch, 22)}\n"
-                    + $"Slot: {SteamGameInstallPaths.VersionSlotKind(_gameBranch)}. Start Game, Pull, and Upload use this version.\n"
-                    + "Cloud: Pull downloads saves. Review Upload before overwriting Steam Cloud.";
-        }
-        if (_cloudSafetyToggle != null)
-        {
-            _cloudSafetyToggle.Visible = _compact;
-            SetCompactActionButtonText(_cloudSafetyToggle, _cloudSafetyExpanded
-                ? CompactPlaySyncDrawerText("Hide Save Check", "Keep saves safe")
-                : CompactCloudSafetySummary());
+                    + $"Slot: {SteamGameInstallPaths.VersionSlotKind(_gameBranch)}. Play uses this version.";
         }
     }
 }

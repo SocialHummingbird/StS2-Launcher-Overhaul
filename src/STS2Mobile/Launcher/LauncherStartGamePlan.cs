@@ -110,38 +110,6 @@ internal sealed class LauncherStartGamePlan
             preLaunchLog: "Safe Start requested: OpenGL compatibility on PowerVR, project renderer otherwise, no shader warmup, and local saves only for one run."
         );
 
-    internal static LauncherStartGamePlan AutomationNormal()
-        => new(
-            safe: false,
-            action: "normal",
-            source: LauncherLaunchSource.Automation,
-            buttonPressedPhase: "automation launch requested",
-            readinessPhase: "automation launch readiness",
-            readinessPassedPhase: "automation launch readiness passed",
-            blockedPhase: "automation launch blocked",
-            modReadinessPhase: "automation launch mod readiness",
-            checkingStatus: "Checking selected game version before automated launch...",
-            startingStatus: "Starting selected game version...",
-            readyDetail: "Automation launch readiness passed",
-            preLaunchLog: ""
-        );
-
-    internal static LauncherStartGamePlan AutomationSafe()
-        => new(
-            safe: true,
-            action: "safe",
-            source: LauncherLaunchSource.Automation,
-            buttonPressedPhase: "automation safe launch requested",
-            readinessPhase: "automation safe launch readiness",
-            readinessPassedPhase: "automation safe launch readiness passed",
-            blockedPhase: "automation safe launch blocked",
-            modReadinessPhase: "automation safe launch mod readiness",
-            checkingStatus: "Checking selected game version before automated safe launch...",
-            startingStatus: "Starting selected game version in safe mode...",
-            readyDetail: "Automation safe launch readiness passed",
-            preLaunchLog: "Safe Start requested: OpenGL compatibility on PowerVR, project renderer otherwise, no shader warmup, and local saves only for one run."
-        );
-
     internal LauncherLaunchHandoffResult Launch(
         LauncherModel model,
         LauncherLaunchReadiness readiness,

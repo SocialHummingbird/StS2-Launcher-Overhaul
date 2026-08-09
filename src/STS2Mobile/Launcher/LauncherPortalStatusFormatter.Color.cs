@@ -12,7 +12,6 @@ internal static partial class LauncherPortalStatusFormatter
             "Steam" => LauncherComponentTheme.CyanAccent,
             "Version" => LauncherComponentTheme.CyanAccent,
             "Install" => LauncherComponentTheme.OrangeAccent,
-            "Cloud" => LauncherComponentTheme.CyanAccent,
             "Ready" => new Color(0.36f, 0.9f, 0.42f),
             "Details" => LauncherComponentTheme.TextSecondary,
             _ => LauncherComponentTheme.TextSecondary,

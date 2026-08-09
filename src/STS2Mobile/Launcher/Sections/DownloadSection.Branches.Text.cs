@@ -13,7 +13,7 @@ internal sealed partial class DownloadSection
                 + "\n"
                 + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches)
                 + "\n"
-                + "Download/update changes local files for the selected game version only; it does not change Steam Cloud saves.";
+                + "Download and update affect only the selected game version's local files.";
         ApplyBranchControlVisibility();
         if (_branchDetailsToggle != null)
         {
@@ -37,7 +37,7 @@ internal sealed partial class DownloadSection
             _compactSelectedVersionLabel.Text = _compact
                 ? CompactSelectedVersionHeadline()
                 : $"Selected version: {SteamGameBranch.CompactDisplayName(_gameBranch, 22)}\n"
-                    + $"Install slot: {SteamGameInstallPaths.VersionSlotKind(_gameBranch)}. Downloads do not change Steam Cloud saves.";
+                    + $"Install slot: {SteamGameInstallPaths.VersionSlotKind(_gameBranch)}.";
             _compactSelectedVersionLabel.Visible = _compact;
         }
         if (_compactSelectedVersionPanel != null)

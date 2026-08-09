@@ -81,7 +81,7 @@ internal static class SteamGameBranch
         branch = Normalize(branch);
         return string.Equals(branch, Public, StringComparison.OrdinalIgnoreCase)
             ? "Default/public Steam branch. Choose a game version from the dropdown. Account-visible branch options refresh after Steam app-info is available; beta password entry is still being hardened."
-            : $"Steam branch '{branch}' selected from the game version dropdown. Private/password-protected branches may be inaccessible because beta password entry is not supported. Failed downloads do not change Steam Cloud saves. Save compatibility is unproven.";
+            : $"Steam branch '{branch}' selected from the game version dropdown. Private/password-protected branches may be inaccessible because beta password entry is not supported. Failed downloads leave application-local saves unchanged. Save compatibility is unproven.";
     }
 
     internal static string SelectorInstallSlotHelpText(string branch)

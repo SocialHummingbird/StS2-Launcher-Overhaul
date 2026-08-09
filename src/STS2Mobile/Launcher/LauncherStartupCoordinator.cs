@@ -16,7 +16,7 @@ internal sealed class LauncherStartupCoordinator
 
     internal void InitializeActionPreferences()
     {
-        var preferences = LauncherPreferences.LoadAndApplyActionPreferences();
+        var preferences = LauncherPreferences.ReadActionPreferences();
         var branches = _versions.ReadGameBranchOptions();
         _view.SetActionPreferences(preferences, branches);
     }

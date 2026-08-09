@@ -24,10 +24,11 @@ internal sealed partial class ActionSection
 
         var launchButton = AddPrimaryHiddenButton(
             this,
-            "Start Game",
+            "Play",
             scale,
             () => LaunchPressed?.Invoke()
         );
+        launchButton.Name = "Play";
         LauncherButtonStyles.ApplyPrimaryAction(launchButton, scale);
         var safeLaunchButton = compact
             ? AddCompactSupportToolButton(
@@ -35,7 +36,7 @@ internal sealed partial class ActionSection
                 "Safe Start",
                 scale,
                 () => SafeLaunchPressed?.Invoke(),
-                "Auto / Cloud off"
+                "Compatibility mode"
             )
             : AddSecondaryHiddenButton(
                 this,
@@ -45,7 +46,7 @@ internal sealed partial class ActionSection
             );
         LauncherButtonStyles.ApplySafeAction(safeLaunchButton, scale);
         safeLaunchButton.AccessibilityDescription =
-            "Start with the project renderer, shader warmup skipped, and cloud saves disabled for one run.";
+            "Start with the project renderer and skip shader warmup for this run.";
 
         return (retryButton, launchButton, safeLaunchButton);
     }

@@ -39,18 +39,14 @@ internal sealed partial class LauncherLaunchCoordinator
     }
 
     internal string SelectedVersionReadyStatus(LauncherLaunchReadiness readiness)
-    {
-        return SelectedVersionReadyStatus(_model.LoggedInStatus(), readiness);
-    }
+        => "Ready to play.";
 
     internal string SelectedVersionReadyStatus(string baseStatus, LauncherLaunchReadiness readiness)
     {
-        var branch = readiness?.Branch ?? LauncherPreferences.ReadGameBranch();
-        var cacheStatus = readiness?.CacheStatus ?? "not checked";
-        var runtimeStatus = readiness?.HasRuntimeSlot == true
-            ? "Runtime pairing is verified."
-            : "Downloaded files are present; final runtime pairing check runs when Start Game is pressed.";
-        return $"{baseStatus} Selected game version: {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}. Active install slot: {STS2Mobile.Steam.SteamGameInstallPaths.VersionSlotKind(branch)}. {runtimeStatus} Readiness check: {cacheStatus}.";
+        var prefix = baseStatus?.Trim().TrimEnd('.');
+        return string.IsNullOrWhiteSpace(prefix)
+            ? "Ready to play."
+            : $"{prefix}. Ready to play.";
     }
 
     internal LauncherLaunchReadiness RefreshSelectedRuntimeSlotEvidence()
@@ -89,6 +85,6 @@ internal sealed partial class LauncherLaunchCoordinator
     private string SelectedVersionDownloadRequiredStatus(LauncherLaunchReadiness readiness)
     {
         var branch = readiness?.Branch ?? LauncherPreferences.ReadGameBranch();
-        return $"{_model.LoggedInStatus()} Download selected game version: {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}. Active install slot: {STS2Mobile.Steam.SteamGameInstallPaths.VersionSlotKind(branch)}.";
+        return $"Download {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)} to play.";
     }
 }

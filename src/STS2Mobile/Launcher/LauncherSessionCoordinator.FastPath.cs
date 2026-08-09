@@ -11,7 +11,7 @@ internal sealed partial class LauncherSessionCoordinator
         {
             case LauncherModel.FastPathOutcome.ReadyToLaunch:
                 _launch.ShowReadyToLaunch(
-                    _launch.SelectedVersionReadyStatus(_model.WelcomeBackStatus(), result.Readiness),
+                    "Ready to play",
                     LaunchUpdateAction.Visible
                 );
                 break;

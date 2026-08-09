@@ -48,7 +48,4 @@ internal sealed class LauncherMonotonicDeadline
 
     internal static LauncherMonotonicDeadline Start(TimeSpan budget)
         => new(budget, () => Environment.TickCount64, long.MaxValue);
-
-    internal static LauncherMonotonicDeadline ForTest(TimeSpan budget, Func<long> clock)
-        => new(budget, clock, long.MaxValue);
 }

@@ -180,7 +180,6 @@ internal static partial class ModLoaderPatches
                 inGameVerifiedMods = activationEvidence.Count(mod => mod.InGameEffectVerified),
                 status,
                 selectionPath = AppPaths.AppPrivateModSelectionPath,
-                steamCloudPushPerformed = false,
                 activationEvidence,
                 selectedMods = string.Equals(playMode, "modded", StringComparison.OrdinalIgnoreCase)
                     ? (knownMods ?? LauncherModSelectionState.KnownMods(selection))

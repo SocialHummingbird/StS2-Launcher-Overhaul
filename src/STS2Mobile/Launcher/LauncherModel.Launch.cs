@@ -24,7 +24,7 @@ internal partial class LauncherModel
     }
 
     internal string LaunchButtonText()
-        => "Start Game";
+        => "Play";
 
     internal Task WaitForLaunch()
     {
@@ -83,8 +83,6 @@ internal partial class LauncherModel
             );
 
         SetSafeLaunchMarker(safe);
-        LauncherLaunchMarkers.RecordPhase("launch credentials saving", action);
-        SaveLaunchCredentials();
 
         timingSnapshot ??= LauncherLaunchAttemptTiming.NotMeasured;
 
@@ -98,15 +96,8 @@ internal partial class LauncherModel
         return RestartForLaunch(safe, readiness, modReadiness, launchSource, attemptId, timingSnapshot);
     }
 
-    private bool PreserveLaunchConnection => _launchTcs != null;
-
     private static TaskCompletionSource<bool> CreateLaunchSignal()
         => new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-    private void SaveLaunchCredentials()
-    {
-        LauncherCloudSaveState.SaveCredentials(_credentialStore);
-    }
 
     private static void SetSafeLaunchMarker(bool safe)
     {

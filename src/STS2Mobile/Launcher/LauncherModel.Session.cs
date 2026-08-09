@@ -39,6 +39,11 @@ internal partial class LauncherModel
     internal string WelcomeBackStatus()
         => $"Welcome back, {AccountName}";
 
+    internal string SteamAccountStatus()
+        => string.IsNullOrWhiteSpace(AccountName)
+            ? "Sign in required"
+            : AccountName;
+
     internal string FailureStatus()
         => $"Error: {FailReason}";
 

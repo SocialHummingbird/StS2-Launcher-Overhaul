@@ -27,9 +27,7 @@ internal sealed partial class LauncherView
     {
         new("1", "Sign in", "Steam account", LauncherComponentTheme.OrangeAccent),
         new("2", "Get files", "Version on Android", LauncherComponentTheme.CyanAccent),
-        new("3", "Get saves", "Steam to Android", LauncherComponentTheme.CyanAccent),
-        new("4", "Play", "Ready version", LauncherComponentTheme.OrangeHot),
-        new("5", "Upload locked", "Review before uploading", LauncherComponentTheme.TextMuted),
+        new("3", "Play", "Ready version", LauncherComponentTheme.OrangeHot),
     };
 
     private static void AddCompactSafeFlowSteps(VBoxContainer body, float scale)

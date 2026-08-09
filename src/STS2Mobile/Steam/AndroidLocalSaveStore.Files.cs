@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using MegaCrit.Sts2.Core.Saves;
 
@@ -18,24 +17,6 @@ internal sealed partial class AndroidLocalSaveStore
     {
         PatchHelper.Log($"[Save] Android local save read async: {path} -> {FullPath(path)}");
         return Task.FromResult(ReadTextFile(path));
-    }
-
-    Task<string> ICancellableSaveStore.ReadFileAsync(
-        string path,
-        CancellationToken cancellationToken
-    )
-    {
-        PatchHelper.Log($"[Save] Android local cancellable read: {path} -> {FullPath(path)}");
-        return ReadTextFileAsync(path, cancellationToken);
-    }
-
-    Task<byte[]> IRawSaveStore.ReadFileBytesAsync(
-        string path,
-        CancellationToken cancellationToken
-    )
-    {
-        PatchHelper.Log($"[Save] Android local raw read: {path} -> {FullPath(path)}");
-        return ReadBytesFileAsync(path, cancellationToken);
     }
 
     void ISaveStore.WriteFile(string path, string content)
@@ -60,38 +41,11 @@ internal sealed partial class AndroidLocalSaveStore
         return Task.CompletedTask;
     }
 
-    Task ICancellableSaveStore.WriteFileAsync(
-        string path,
-        string content,
-        CancellationToken cancellationToken
-    )
-        => WriteTextFileAsync(path, content, cancellationToken);
-
-    Task IRawSaveStore.WriteFileBytesAsync(
-        string path,
-        byte[] content,
-        CancellationToken cancellationToken
-    )
-        => WriteBytesFileAsync(path, content, cancellationToken);
-
-    Task IRecoverySaveStore.WriteRecoveryFileBytesAsync(
-        string path,
-        byte[] content,
-        CancellationToken cancellationToken
-    )
-        => WriteRecoveryBytesFileAsync(path, content, cancellationToken);
-
-    Task IRecoverySaveStore.DeleteRecoveryFileAsync(
-        string path,
-        CancellationToken cancellationToken
-    )
-        => DeleteRecoveryFileDirectAsync(path, cancellationToken);
-
     bool ISaveStore.FileExists(string path)
     {
         var fullPath = FullPath(path);
         var exists = File.Exists(fullPath);
-        if (exists || VerboseDiagnosticsEnabled)
+        if (exists)
             PatchHelper.Log($"[Save] Android local save exists: {path} -> {fullPath} = {exists}");
         return exists;
     }
@@ -99,8 +53,12 @@ internal sealed partial class AndroidLocalSaveStore
     void ISaveStore.DeleteFile(string path)
     {
         var fullPath = FullPath(path);
-        if (File.Exists(fullPath))
-            File.Delete(fullPath);
+        if (!File.Exists(fullPath))
+            return;
+
+        File.Delete(fullPath);
+        PatchHelper.Log($"[Save] Android local save delete: {path} -> {fullPath}");
+        NotifyMutationCommitted(path);
     }
 
     void ISaveStore.RenameFile(string sourcePath, string destinationPath)
@@ -110,6 +68,10 @@ internal sealed partial class AndroidLocalSaveStore
         EnsureParentDirectory(destination);
 
         File.Move(source, destination, overwrite: true);
+        PatchHelper.Log(
+            $"[Save] Android local save rename: {sourcePath} -> {destinationPath}"
+        );
+        NotifyMutationCommitted(destinationPath);
     }
 
     DateTimeOffset ISaveStore.GetLastModifiedTime(string path)

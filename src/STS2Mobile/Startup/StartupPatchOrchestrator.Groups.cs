@@ -55,7 +55,6 @@ internal static partial class StartupPatchOrchestrator
             {
                 new("LAN multiplayer", LanMultiplayerPatcher.Apply),
                 new("Mod loader integration", ModLoaderPatches.Apply),
-                new("Save diagnostics", SaveDiagnosticPatches.Apply),
             }
         );
 }

@@ -51,7 +51,7 @@ internal static partial class LauncherDiagnostics
     private static void AppendPublicSharingWarning(StringBuilder sb)
     {
         sb.AppendLine("Public sharing warning: review and redact this diagnostics report before posting publicly.");
-        sb.AppendLine("It may include account names, local paths, device details, save/cloud state, and log excerpts.");
+        sb.AppendLine("It may include account names, local paths, device details, launcher state, and log excerpts.");
         sb.AppendLine();
     }
 }

@@ -23,7 +23,7 @@ internal sealed partial class LauncherView
         "Account",
         "Steam Guard",
         "Game files",
-        "Saves safe",
+        "Ready to play",
     };
 
     private static readonly string[] CompactWorkflowStepTooltips =
@@ -31,7 +31,7 @@ internal sealed partial class LauncherView
         "Open sign-in",
         "Open Steam Guard",
         "Open game files",
-        "Open play and saves",
+        "Open play controls",
     };
 
     private enum CompactWorkflowStep

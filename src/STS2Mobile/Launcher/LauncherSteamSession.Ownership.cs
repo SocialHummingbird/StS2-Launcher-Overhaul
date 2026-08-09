@@ -75,7 +75,7 @@ internal sealed partial class LauncherSteamSession
     private static async Task EnsureAppAccessTokenNotDeniedAsync(SteamConnection connection)
     {
         await connection.GetAppAccessTokenOrPublicAsync(
-            SteamCloudApp.AppId,
+            SteamGameApp.AppId,
             AppAccessTokenDeniedMessage
         );
     }
@@ -85,7 +85,7 @@ internal sealed partial class LauncherSteamSession
         try
         {
             await connection.GetAppAccessTokenOrPublicAsync(
-                SteamCloudApp.AppId,
+                SteamGameApp.AppId,
                 OwnershipDeniedMessage
             );
             return true;

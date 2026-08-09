@@ -111,14 +111,14 @@ internal static class LauncherThreadedResourceLoadOperation
                 switch (decision)
                 {
                     case LauncherThreadedLoadDecision.Complete:
-                    {
-                        var resource = resources.Retrieve(path);
-                        return resource != null
-                            ? LauncherThreadedResourceOperationResult<TResource>.Loaded(resource)
-                            : LauncherThreadedResourceOperationResult<TResource>.Failed(
-                                "threaded load completed without a resource"
-                            );
-                    }
+                        {
+                            var resource = resources.Retrieve(path);
+                            return resource != null
+                                ? LauncherThreadedResourceOperationResult<TResource>.Loaded(resource)
+                                : LauncherThreadedResourceOperationResult<TResource>.Failed(
+                                    "threaded load completed without a resource"
+                                );
+                        }
                     case LauncherThreadedLoadDecision.Fail:
                         return LauncherThreadedResourceOperationResult<TResource>.Failed(
                             $"threaded load finished with status {status}"

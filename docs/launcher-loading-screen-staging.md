@@ -118,13 +118,13 @@ Validation results:
 - focused logs contained no `NativeFallback`, fatal Android exception, fatal signal, app ANR, unexpected app process death, or transition timeout; and
 - managed Release compilation, all Java policy/identity/sequence/sound tests, ARM64 APK structure, crypto-patch verification, installed hash comparison, and diff checks passed.
 
-The normal and Safe Start probes stopped after their native skip markers; this pass is not new downstream `NMainMenu` or shader-warmup evidence. The implementation itself does not alter those paths. Steam Cloud Push was not run, no release was published, and no downloaded/core-game file was modified. The local evidence bundle is `artifacts/android/boot-transition-hardware-0.2.407-20260717-115657/`.
+The normal and Safe Start probes stopped after their native skip markers; this pass is not new downstream `NMainMenu` or shader-warmup evidence. The implementation itself does not alter those paths. No release was published and no downloaded/core-game file was modified. The local evidence bundle is `artifacts/android/boot-transition-hardware-0.2.407-20260717-115657/`.
 
 That hardware pass validated the original transition policy and lifecycle safeguards. A later exact non-debuggable `v0.2.416` pass on the same Samsung ARM64 device validated the larger four-second choreography, `StS2 LAUNCHER` wordmark, launcher handoff with `mInputShown=false`, public Start Game through real `NMainMenu`, and heartbeats through 60 seconds. See [v0.2.416 release notes](release-notes/v0.2.416-startup-recovery-ime.md).
 
 Current source also contains post-release native first-frame, splash, task-routing, and fallback-recovery changes. The API 36 x86_64 emulator validates those native paths only; production x86_64 cannot run the managed launcher or game. The exact current-source candidate therefore still requires ARM64 visual and startup validation before release.
 
-## Remaining stages
+## Future work
 
 Stage 4 should add richer launch progress copy:
 
@@ -132,19 +132,11 @@ Stage 4 should add richer launch progress copy:
 - last meaningful launcher log line;
 - a visible diagnostics shortcut if startup stalls.
 
-Stage 5 should improve the longer-running warmup/loading surface without hiding real progress:
+Longer-running warmup and loading work should not hide real progress:
 
 - scalable icon/logo treatment using the orange/cyan launcher identity;
 - real Godot controls for all text and actions;
 - responsive composition for phones, foldables, tablets, notches, and navigation bars;
 - no text baked into images.
 
-The connected Samsung foldable baseline is complete. Wider matrix coverage remains desirable for device-specific sizing and OEM splash behavior:
-
-- short/wide Samsung-style landscape screen;
-- normal phone landscape;
-- foldable inner display;
-- tablet landscape;
-- high-DPI small-height viewport.
-
-For each additional device, capture force-stop cold launch in portrait and landscape, reduced motion, Home/resume, rotation, locked-screen return, game restart, Safe Start, and return-to-launcher. Confirm there is no logo flash or accidental blank frame, launcher controls stay behind the overlay, touch works after removal, and game startup behavior is unchanged. Steam Cloud Push remains outside this validation.
+The historical Samsung foldable result applies only to its recorded build. Current-source layout checks use the deterministic desktop preview until hardware testing is separately authorized.

@@ -24,7 +24,6 @@ internal static class LauncherSectionMetrics
     internal const int PrimaryButtonFontSize = 18;
     internal const int PrimaryButtonHeight = 64;
     internal const int PromptFontSize = 16;
-    internal const int PushPullRowSeparation = 10;
     internal const int CompactSectionSeparation = 8;
     internal const int SectionSeparation = 10;
     internal const int SecondaryButtonFontSize = 16;

@@ -19,8 +19,6 @@ public static partial class ModEntry
     private const string GameVersionsDirectoryName = "game_versions";
     private const string GamePckFileName = "SlayTheSpire2.pck";
     private const string LauncherBootstrapVariable = "STS2_LAUNCHER_BOOTSTRAP";
-    private const string BootstrapUiModeVariable = "STS2_BOOTSTRAP_UI_MODE";
-    private const string MinimalBootstrapUiVariable = "STS2_MINIMAL_BOOTSTRAP_UI";
     private const int StartupFallbackShieldZIndex = 4090;
     private const int StartupFallbackLauncherZIndex = 4092;
     private const int MinimumPckHeaderLength = 96;

@@ -31,7 +31,7 @@ internal sealed partial class ActionSection
         PatchHelper.Log("[Launcher] ActionSection secondary visibility phase: disabled state");
         ApplyLaunchControlsDisabled();
         PatchHelper.Log("[Launcher] ActionSection secondary visibility phase: ready summary");
-        _readyVersionSummaryPanel.Visible = _compact && visibility.Launch;
+        _readyVersionSummaryPanel.Visible = false;
         PatchHelper.Log("[Launcher] ActionSection secondary visibility phase complete");
     }
 }

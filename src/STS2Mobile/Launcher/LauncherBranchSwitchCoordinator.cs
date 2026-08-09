@@ -55,8 +55,7 @@ internal sealed class LauncherBranchSwitchCoordinator
         );
         var message =
             $"Switch game version from {previous} to {selected}?\n"
-            + "This can require another download, and saves may not be compatible between Steam branches. "
-            + "Local backup will be enabled before switching.\n\n"
+            + "This can require another download, and saves may not be compatible between Steam branches.\n\n"
             + selectedNote
             + "\n"
             + selectedStatus;
@@ -71,12 +70,10 @@ internal sealed class LauncherBranchSwitchCoordinator
     {
         LauncherPreferences.SaveGameBranch(branch);
         LauncherLaunchReadinessCache.Clear($"branch changed from {previousBranch} to {branch}");
-        LauncherPreferences.SaveLocalBackupEnabled(true);
         LauncherBranchAvailabilityStatus.Clear(_model.DataDir);
         var branches = _versions.ReadGameBranchOptions();
-        LauncherBranchSwitchSafety.WriteMarker(_model.DataDir, previousBranch, branch);
         _view.SetActionPreferences(LauncherPreferences.ReadActionPreferences(branch), branches);
-        _view.AppendLog($"Game version set to {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}. Local backup enabled for branch switching.");
+        _view.AppendLog($"Game version set to {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}.");
         _view.AppendLog(STS2Mobile.Steam.SteamGameBranch.SelectorInstallSlotHelpText(branch));
 
         var readiness = _launch.RefreshSelectedDownloadedStateEvidence(

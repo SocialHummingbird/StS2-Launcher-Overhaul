@@ -9,16 +9,16 @@ internal sealed partial class ActionSection
         => CompactPlaySyncDrawerText("Try Again", "Restart task");
 
     private static string CompactLaunchButtonText(string text)
-        => CompactPlaySyncDrawerText(CompactLaunchTitle(text), "Ready version");
+        => CompactPlaySyncDrawerText(LaunchTitle(text), "Ready version");
 
-    private static string CompactLaunchTitle(string text)
+    private static string LaunchTitle(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
-            return "Start Game";
+            return "Play";
 
         var normalized = text.Trim();
         return string.Equals(normalized, "Start Game", StringComparison.OrdinalIgnoreCase)
-            ? "Start Game"
+            ? "Play"
             : normalized;
     }
 
@@ -32,10 +32,10 @@ internal sealed partial class ActionSection
         if (_compactStackedActionRows)
         {
             return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadyStackedSummaryBranchLimit)}\n"
-                + $"Saves | Get / Upload{modSummary}";
+                + $"Play{modSummary}";
         }
 
-        return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadySummaryBranchLimit)} | Saves | Get / Upload{modSummary}";
+        return $"Ready: {SteamGameBranch.CompactDisplayName(_gameBranch, CompactReadySummaryBranchLimit)} | Play{modSummary}";
     }
 
     private string CompactReadyVersionHelpText()
@@ -45,7 +45,7 @@ internal sealed partial class ActionSection
             : CompactReadyVersionHelpBranchLimit;
 
         return $"Play version: {SteamGameBranch.CompactDisplayName(_gameBranch, branchLimit)} | {CompactReadyFileScope(_gameBranch)}\n"
-            + $"{LauncherBranchCatalog.SelectedOptionCompactStatus(_gameBranch, _availableBranches)} | Saves: Get/Upload";
+            + LauncherBranchCatalog.SelectedOptionCompactStatus(_gameBranch, _availableBranches);
     }
 
     private static string CompactReadyFileScope(string branch)

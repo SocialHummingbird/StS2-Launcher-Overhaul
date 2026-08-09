@@ -23,38 +23,11 @@ internal static partial class LauncherStartupFlow
         private bool SafeLaunchRequested
             => ManualSafeLaunch || IsPreviousPhase(PhaseManualSafeLaunch);
 
-        private bool ShouldForceLocalSaves()
-            => SafeLaunchRequested
-                || IsPreviousPhase(PhaseSettingsAndSaves)
-                || IsPreviousPhase(PhaseGameStartup);
-
-        private StartupSaveModePlan SaveModePlan
-            => StartupSaveModePlan.Create(
-                ShouldForceLocalSaves(),
-                LocalSavesReasonLog
-            );
-
         internal bool ShouldSkipShaderWarmup()
             => SafeLaunchRequested;
 
         internal string SettingsAndSavesStatus
-            => SaveModePlan.SettingsAndSavesStatus;
-
-        internal void ApplySaveMode()
-            => SaveModePlan.Apply();
-
-        private string LocalSavesReasonLog
-        {
-            get
-            {
-                if (ManualSafeLaunch)
-                    return "Disabling cloud access for manual safe launch; Android local saves remain available";
-
-                return _previousPhase.DescribePreviousStall(
-                    "Disabling cloud access for this launch because previous launch stalled at"
-                );
-            }
-        }
+            => "Loading settings and saves...";
 
         internal string ShaderWarmupSkipLog
             => SafeLaunchMessage(

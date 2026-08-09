@@ -31,13 +31,13 @@ internal sealed partial class SteamAuth
     )
     {
         var details = new AuthSessionDetails
-            {
-                Username = username,
-                Password = password,
-                IsPersistentSession = true,
-                GuardData = guardData,
-                Authenticator = this,
-            };
+        {
+            Username = username,
+            Password = password,
+            IsPersistentSession = true,
+            GuardData = guardData,
+            Authenticator = this,
+        };
 
         if (OperatingSystem.IsAndroid())
         {

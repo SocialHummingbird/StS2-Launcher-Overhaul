@@ -2,6 +2,7 @@ using HarmonyLib;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Saves;
 using STS2Mobile.Launcher;
+using STS2Mobile.Steam;
 using System;
 using System.Threading.Tasks;
 
@@ -41,7 +42,7 @@ internal static class LauncherPatches
 
     private static void ApplySaveManagerPatches(Harmony harmony)
     {
-        PatchHelper.Patch(
+        PatchHelper.PatchCritical(
             harmony,
             typeof(SaveManager),
             "ConstructDefault",
@@ -73,7 +74,11 @@ internal static class LauncherPatches
             return true;
 
         PatchHelper.Log("[Save] Constructing Android gameplay SaveManager");
-        __result = LauncherCloudSaveState.CreateAndroidGameplaySaveManager();
+        __result = new SaveManager(
+            new AndroidLocalSaveStore(
+                SaveSyncService.NotifyGameplayMutationCommitted
+            )
+        );
         return false;
     }
 }

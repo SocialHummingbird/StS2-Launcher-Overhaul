@@ -17,6 +17,7 @@ internal sealed partial class LauncherView
     {
         var scale = profile.Scale;
         BoxContainer buttonRow = profile.Compact ? new VBoxContainer() : new HBoxContainer();
+        buttonRow.Name = "ConfirmationActions";
         buttonRow.MouseFilter = Control.MouseFilterEnum.Pass;
         buttonRow.AddThemeConstantOverride(
             LauncherComponentTheme.ThemeSeparation,

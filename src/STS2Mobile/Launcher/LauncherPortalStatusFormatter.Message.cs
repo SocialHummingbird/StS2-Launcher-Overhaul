@@ -47,12 +47,6 @@ internal static partial class LauncherPortalStatusFormatter
         if (ContainsAny(status, "Download cancelled"))
             return "Download cancelled.";
 
-        if (ContainsAny(status, "no Android local save files"))
-            return "No transferable Android saves found.";
-
-        if (ContainsAny(status, "Push blocked"))
-            return "Upload blocked. Check save safety first.";
-
         if (ContainsAny(status, "runtime pack not usable", "requires a usable runtime pack"))
             return "Runtime files need repair. Redownload this version.";
 

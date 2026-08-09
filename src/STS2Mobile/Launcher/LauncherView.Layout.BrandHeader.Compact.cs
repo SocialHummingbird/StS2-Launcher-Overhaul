@@ -47,7 +47,7 @@ internal sealed partial class LauncherView
     private static StyledLabel BuildCompactBrandSubtitle(float scale)
     {
         var subtitle = new StyledLabel(
-            "Saves safe. Ready to play.",
+            "Ready to play.",
             scale,
             fontSize: CompactBrandSubtitleFontSize,
             align: HorizontalAlignment.Right

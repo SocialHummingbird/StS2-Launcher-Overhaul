@@ -70,7 +70,7 @@ internal sealed partial class DepotDownloader
         private uint AppId { get; }
 
         private static ProductInfoApp Main(DepotDownloader owner)
-            => new(owner, SteamCloudApp.AppId);
+            => new(owner, SteamGameApp.AppId);
 
         private static ProductInfoApp Referenced(DepotDownloader owner, uint appId)
             => new(owner, appId);
