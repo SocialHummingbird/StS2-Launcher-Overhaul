@@ -898,6 +898,15 @@ internal sealed class SaveSyncService
                 )
             )
             {
+                if (
+                    local.Files.TryGetValue(file.Entry.Path, out var existing)
+                    && EntriesEqual(existing.Entry, file.Entry)
+                )
+                {
+                    stagedEntries.Add(existing.Entry);
+                    continue;
+                }
+
                 await EnsureRemoteBytesAsync(transport, file, cancellationToken)
                     .ConfigureAwait(false);
                 var stagedPath = ContainedStagingPath(
@@ -1167,6 +1176,12 @@ internal sealed class SaveSyncService
         foreach (var file in local.Files.Values)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (
+                remote.Files.TryGetValue(file.Entry.Path, out var existing)
+                && EntriesEqual(existing.Entry, file.Entry)
+            )
+                continue;
+
             if (
                 await transport.UploadAsync(
                     new SteamCloudTransport.UploadFile(

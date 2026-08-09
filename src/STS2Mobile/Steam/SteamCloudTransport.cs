@@ -159,6 +159,7 @@ internal sealed class SteamCloudTransport : ISaveRemote
     )
     {
         var files = new List<RemoteFile>();
+        var filesWithHashes = 0;
         uint startIndex = 0;
 
         while (true)
@@ -173,6 +174,7 @@ internal sealed class SteamCloudTransport : ISaveRemote
                     appid = SteamGameApp.AppId,
                     start_index = startIndex,
                     count = PageSize,
+                    extended_details = true,
                 },
                 cancellationToken
             ).ConfigureAwait(false);
@@ -182,12 +184,15 @@ internal sealed class SteamCloudTransport : ISaveRemote
 
             foreach (var file in result.files)
             {
+                var contentHash = file.file_sha ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(contentHash))
+                    filesWithHashes++;
                 files.Add(
                     new RemoteFile(
                         CanonicalizePath(file.filename),
                         file.file_size,
                         UnixTimestamp(file.timestamp),
-                        file.file_sha ?? string.Empty
+                        contentHash
                     )
                 );
             }
@@ -197,7 +202,9 @@ internal sealed class SteamCloudTransport : ISaveRemote
                 break;
         }
 
-        PatchHelper.Log($"[Cloud] Enumerated {files.Count} Steam save files");
+        PatchHelper.Log(
+            $"[Cloud] Enumerated {files.Count} Steam save files ({filesWithHashes} content hashes)"
+        );
         return files;
     }
 

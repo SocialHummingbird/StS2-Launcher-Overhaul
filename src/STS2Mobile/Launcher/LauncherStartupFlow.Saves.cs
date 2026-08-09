@@ -9,7 +9,7 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherStartupFlow
 {
-    private static readonly TimeSpan PreloadSyncTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan PreloadSyncTimeout = TimeSpan.FromMinutes(3);
 
     private static async Task<bool> InitializeSettingsAndSavesAsync(
         StartupContext startup

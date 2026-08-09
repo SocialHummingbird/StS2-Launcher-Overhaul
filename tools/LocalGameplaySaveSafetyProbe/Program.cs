@@ -404,6 +404,13 @@ internal static class Program
             var remoteChange = Bytes("progress-steam");
             WriteSave(root, path, original);
             var remote = new FakeSaveRemote((path, original));
+            for (var index = 0; index < 200; index++)
+            {
+                var historyPath = $"profile1/saves/history/{index:D3}.run";
+                var history = Bytes($"history-{index:D3}");
+                WriteSave(root, historyPath, history);
+                remote.SetFile(historyPath, history);
+            }
             var service = new SaveSyncService(
                 new AndroidLocalSaveStore(root),
                 remote
@@ -413,6 +420,7 @@ internal static class Program
                 "The manual-sync fixture did not establish a baseline."
             );
 
+            remote.ResetTransferCounts();
             WriteSave(root, path, localChange);
             var push = await service.SyncAsync(
                 SaveSyncService.SyncRequest.Push,
@@ -423,11 +431,13 @@ internal static class Program
             Expect(
                 push.Success
                     && push.Outcome == SaveSyncService.SyncOutcome.Push
-                    && remote.ReadFile(path).SequenceEqual(localChange),
+                    && remote.ReadFile(path).SequenceEqual(localChange)
+                    && remote.UploadCount == 1,
                 "Manual Push did not use the synchronization service."
             );
 
             remote.SetFile(path, remoteChange);
+            remote.ResetTransferCounts();
             var pull = await service.SyncAsync(
                 SaveSyncService.SyncRequest.Pull,
                 overwriteConfirmed: true,
@@ -437,7 +447,8 @@ internal static class Program
             Expect(
                 pull.Success
                     && pull.Outcome == SaveSyncService.SyncOutcome.Pull
-                    && File.ReadAllBytes(SavePath(root, path)).SequenceEqual(remoteChange),
+                    && File.ReadAllBytes(SavePath(root, path)).SequenceEqual(remoteChange)
+                    && remote.DownloadCount == 1,
                 "Manual Pull did not use the same synchronization service."
             );
         }
@@ -611,6 +622,8 @@ internal static class Program
         private string? _interruptedDownloadPath;
         private bool _failNextUpload;
         private bool _holdNextUpload;
+        private int _downloadCount;
+        private int _uploadCount;
         private TaskCompletionSource<bool> _uploadEntered = NewSignal();
         private TaskCompletionSource<bool> _releaseUpload = NewSignal();
 
@@ -626,6 +639,24 @@ internal static class Program
             {
                 lock (_gate)
                     return _uploadEntered.Task;
+            }
+        }
+
+        internal int DownloadCount
+        {
+            get
+            {
+                lock (_gate)
+                    return _downloadCount;
+            }
+        }
+
+        internal int UploadCount
+        {
+            get
+            {
+                lock (_gate)
+                    return _uploadCount;
             }
         }
 
@@ -669,6 +700,15 @@ internal static class Program
                 _releaseUpload.TrySetResult(true);
         }
 
+        internal void ResetTransferCounts()
+        {
+            lock (_gate)
+            {
+                _downloadCount = 0;
+                _uploadCount = 0;
+            }
+        }
+
         public Task<IReadOnlyList<SteamCloudTransport.RemoteFile>> EnumerateAsync(
             CancellationToken cancellationToken
         )
@@ -697,6 +737,7 @@ internal static class Program
             cancellationToken.ThrowIfCancellationRequested();
             lock (_gate)
             {
+                _downloadCount++;
                 var path = Canonical(file.Path);
                 if (
                     string.Equals(
@@ -721,6 +762,7 @@ internal static class Program
             Task? heldUpload = null;
             lock (_gate)
             {
+                _uploadCount++;
                 if (_holdNextUpload)
                 {
                     _holdNextUpload = false;
