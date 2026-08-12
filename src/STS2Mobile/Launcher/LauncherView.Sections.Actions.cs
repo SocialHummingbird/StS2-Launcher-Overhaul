@@ -85,6 +85,9 @@ internal sealed partial class LauncherView
     )
         => Actions.SetSaveSyncPresentation(headline, lastSuccess, localState, steamState);
 
+    internal void SetModsPresentation(LauncherModsPresentation presentation)
+        => Actions.SetModsPresentation(presentation);
+
     internal void SetPowerVrCompatibility(bool required)
         => Actions.SetPowerVrCompatibility(required);
 

@@ -36,6 +36,22 @@ internal sealed partial class ActionSection
         );
         group.AddChild(explanation);
 
+        var namespaceExplanation = new StyledLabel(
+            "Both save sets sync separately. They are not merged.",
+            scale,
+            fontSize: compact ? 12 : 13,
+            align: HorizontalAlignment.Left
+        )
+        {
+            Name = "SaveNamespaceExplanation",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        namespaceExplanation.AddThemeColorOverride(
+            "font_color",
+            LauncherComponentTheme.TextSecondary
+        );
+        group.AddChild(namespaceExplanation);
+
         var status = new StyledLabel(
             "Sign in required",
             scale,

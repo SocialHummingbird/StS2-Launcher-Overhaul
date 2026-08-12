@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-08-13 - Mod-loading candidate prerelease
+
+- Converged Workshop and manual mods into one validated, persisted launch plan and one loader path.
+- Made missing or corrupt selection default to Vanilla and made Modded mode require an explicit selection.
+- Added truthful persisted mod results and launcher states for installed, enabled, loaded last launch, partial, failed, stale, and not tested.
+- Added early compiled-script registration for the representative importer, fail-closed activation evidence, current `ModManager` compatibility, and an Android-safe BaseLib path that omits the demonstrated hanging CustomPile compatibility patch.
+- Reduced the retained mod tests to one representative fixture, fresh-process Vanilla/disabled/active checks, and one launcher interaction journey.
+- Built and inspected the ARM64 `0.2.425-mod-chain-fix2-unverified` candidate. A limited device run showed BaseLib and ImportVanillaSaves loading and activating, the modded save namespace being used, and main-menu startup. A later freeze/crash left the importer control and relaunch result unverified, so this is an unverified prerelease rather than a phone-ready release.
+
 ## 2026-08-09 - Save-sync restoration and reduction (unreleased)
 
 - Replaced the former coordinator/cache/recovery/evidence stack with one Steam Cloud transport, one manifest-based synchronization service, and one atomic four-field sync-state document.

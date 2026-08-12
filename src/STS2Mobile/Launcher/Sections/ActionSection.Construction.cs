@@ -56,6 +56,7 @@ internal sealed partial class ActionSection
         _homeAccountState = homeJourney.AccountState;
         _homeGameState = homeJourney.GameState;
         _homeSaveState = homeJourney.SaveState;
+        _homeSaveNamespaceState = homeJourney.SaveNamespaceState;
 
         var branchControls = BuildBranchControls(scale, compact);
         _branchDetailsToggle = branchControls.DetailsToggle;
@@ -84,6 +85,8 @@ internal sealed partial class ActionSection
         _modsGroup = modsControls.Group;
         _playVanillaButton = modsControls.PlayVanillaButton;
         _playModdedButton = modsControls.PlayModdedButton;
+        _modsSelectedModeLabel = modsControls.SelectedModeLabel;
+        _modsSaveNamespaceLabel = modsControls.SaveNamespaceLabel;
         _modsStatusLabel = modsControls.StatusLabel;
         _modsList = modsControls.ModsList;
         _workshopSyncButton = modsControls.WorkshopSyncButton;

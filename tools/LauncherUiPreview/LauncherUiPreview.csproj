@@ -10,6 +10,34 @@
       <HintPath>../../upstream/godot-export/.godot/mono/publish/arm64/0Harmony.dll</HintPath>
       <Private>true</Private>
     </Reference>
+    <Reference Include="Mono.Cecil">
+      <HintPath>../../android/assets/dotnet_bcl/Mono.Cecil.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Content Include="../../android/assets/dotnet_bcl/Mono.Cecil.dll">
+      <Link>Mono.Cecil.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Reference Include="MonoMod.Backports">
+      <HintPath>../../android/assets/dotnet_bcl/MonoMod.Backports.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="MonoMod.Core">
+      <HintPath>../../android/assets/dotnet_bcl/MonoMod.Core.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="MonoMod.Iced">
+      <HintPath>../../android/assets/dotnet_bcl/MonoMod.Iced.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="MonoMod.ILHelpers">
+      <HintPath>../../android/assets/dotnet_bcl/MonoMod.ILHelpers.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="MonoMod.Utils">
+      <HintPath>../../android/assets/dotnet_bcl/MonoMod.Utils.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
     <Reference Include="sts2">
       <HintPath>../../upstream/godot-export/.godot/mono/publish/arm64/sts2.dll</HintPath>
       <Private>true</Private>

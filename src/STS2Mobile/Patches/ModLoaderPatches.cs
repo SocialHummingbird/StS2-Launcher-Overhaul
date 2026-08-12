@@ -5,12 +5,10 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
-using System.Text.Json;
+using System.Threading.Tasks;
 using Godot;
 using HarmonyLib;
-using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Modding;
-using MegaCrit.Sts2.Core.Saves;
 using STS2Mobile.Launcher;
 
 namespace STS2Mobile.Patches;
@@ -24,10 +22,19 @@ internal static partial class ModLoaderPatches
         BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
     private static readonly BindingFlags AllInstance =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-    private const BindingFlags LoadedMarkerFlags =
-        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+    private const string ModManagerFileIoTypeName =
+        "MegaCrit.Sts2.Core.Modding.IModManagerFileIo";
+    private const string ModSettingsTypeName = "MegaCrit.Sts2.Core.Modding.ModSettings";
+    private const string SemanticVersionTypeName =
+        "MegaCrit.Sts2.Core.Debug.SemanticVersion";
     private static Harmony _harmony;
     private static readonly HashSet<string> AppliedModCompatibilityPatches = new(StringComparer.Ordinal);
+    internal static IReadOnlyList<string> BaseLibAndroidSafeHarmonyPatchTypes { get; } =
+        new[] { "BaseLib.Abstracts.CustomBadgesPatch" };
+    private static readonly object RegisteredGodotScriptAssembliesGate = new();
+    private static readonly HashSet<string> RegisteredGodotScriptAssemblies = new(
+        StringComparer.Ordinal
+    );
     private static readonly HashSet<string> BaseLibAndroidSkippedPatchTypes = new(StringComparer.Ordinal)
     {
         "BaseLib.Patches.Fixes.CombatRoomFromSerializableRewardExtPatch",
@@ -42,101 +49,323 @@ internal static partial class ModLoaderPatches
     internal static void Apply(Harmony harmony)
     {
         _harmony = harmony;
-        PatchBaseLibAssemblyLoadHooks(harmony);
+        PatchGodotScriptRegistration(harmony);
+        PatchModAssemblyLoadHooks(harmony);
+        PatchModManagerInitialize(harmony);
+        if (!IsInitializePostfixInstalled())
+        {
+            PatchHelper.Log("FAILED ModManager.Initialize: loader postfix ownership verification failed");
+            TryWriteUnavailableActivationMarker(
+                "The ModManager.Initialize loader patch was not installed."
+            );
+        }
+    }
+
+    private static void PatchModManagerInitialize(Harmony harmony)
+    {
+        var target = FindInitializeTarget(typeof(ModManager));
+        var postfix = GetInitializePostfix(target);
+        if (target == null || postfix == null)
+        {
+            PatchHelper.Log(
+                "FAILED ModManager.Initialize: no exact supported void/two-parameter or Task/three-parameter signature was found"
+            );
+            return;
+        }
+
+        try
+        {
+            harmony.Patch(target, postfix: new HarmonyMethod(postfix));
+            PatchHelper.Log(
+                $"Patched ModManager.Initialize ({(target.ReturnType == typeof(Task) ? "Task" : "void")})"
+            );
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"FAILED ModManager.Initialize: {ex.Message}");
+        }
+    }
+
+    internal static MethodInfo FindInitializeTarget(Type modManagerType)
+    {
+        if (modManagerType == null)
+            return null;
+
+        MethodInfo[] supported;
+        try
+        {
+            supported = modManagerType
+                .GetMethods(AllStatic)
+                .Where(IsSupportedInitializeTarget)
+                .ToArray();
+        }
+        catch
+        {
+            return null;
+        }
+
+        return supported.Length == 1 ? supported[0] : null;
+    }
+
+    private static bool IsSupportedInitializeTarget(MethodInfo method)
+    {
+        if (method == null
+            || !method.IsStatic
+            || !string.Equals(method.Name, "Initialize", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var parameters = method.GetParameters();
+        if (parameters.Length < 2
+            || !string.Equals(
+                parameters[0].ParameterType.FullName,
+                ModManagerFileIoTypeName,
+                StringComparison.Ordinal
+            )
+            || !string.Equals(
+                parameters[1].ParameterType.FullName,
+                ModSettingsTypeName,
+                StringComparison.Ordinal
+            ))
+        {
+            return false;
+        }
+
+        if (method.ReturnType == typeof(void))
+            return parameters.Length == 2;
+
+        return method.ReturnType == typeof(Task)
+            && parameters.Length == 3
+            && string.Equals(
+                parameters[2].ParameterType.FullName,
+                SemanticVersionTypeName,
+                StringComparison.Ordinal
+            );
+    }
+
+    private static MethodInfo GetInitializePostfix(MethodInfo target)
+    {
+        if (target?.ReturnType == typeof(void))
+        {
+            return PatchHelper.Method(
+                typeof(ModLoaderPatches),
+                nameof(InitializePostfix)
+            );
+        }
+
+        if (target?.ReturnType == typeof(Task))
+        {
+            return PatchHelper.Method(
+                typeof(ModLoaderPatches),
+                nameof(InitializeTaskPostfix)
+            );
+        }
+
+        return null;
+    }
+
+    private static void PatchGodotScriptRegistration(Harmony harmony)
+    {
         PatchHelper.Patch(
             harmony,
-            typeof(ModManager),
-            "Initialize",
-            postfix: PatchHelper.Method(typeof(ModLoaderPatches), nameof(InitializePostfix))
+            typeof(Godot.Bridge.ScriptManagerBridge),
+            nameof(Godot.Bridge.ScriptManagerBridge.LookupScriptsInAssembly),
+            prefix: PatchHelper.Method(
+                typeof(ModLoaderPatches),
+                nameof(GodotScriptRegistrationPrefix)
+            ),
+            postfix: PatchHelper.Method(
+                typeof(ModLoaderPatches),
+                nameof(GodotScriptRegistrationPostfix)
+            )
         );
+    }
+
+    private static bool GodotScriptRegistrationPrefix(Assembly __0)
+    {
+        if (__0 == null || !DeclaresGodotScripts(__0))
+            return true;
+
+        var assemblyKey = AssemblyIdentity(__0);
+        lock (RegisteredGodotScriptAssembliesGate)
+            return !RegisteredGodotScriptAssemblies.Contains(assemblyKey);
+    }
+
+    private static void GodotScriptRegistrationPostfix(Assembly __0)
+    {
+        if (__0 == null || !DeclaresGodotScripts(__0))
+            return;
+
+        lock (RegisteredGodotScriptAssembliesGate)
+            RegisteredGodotScriptAssemblies.Add(AssemblyIdentity(__0));
+    }
+
+    internal static bool IsInitializePostfixInstalled()
+    {
+        try
+        {
+            var target = FindInitializeTarget(typeof(ModManager));
+            var postfix = GetInitializePostfix(target);
+            var owner = _harmony?.Id;
+            if (target == null || postfix == null || string.IsNullOrWhiteSpace(owner))
+                return false;
+
+            var patches = Harmony.GetPatchInfo(target);
+            return patches?.Postfixes.Any(patch =>
+                string.Equals(patch.owner, owner, StringComparison.Ordinal)
+                && patch.PatchMethod == postfix
+            ) == true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void InitializeTaskPostfix(ref Task __result)
+    {
+        if (__result == null)
+        {
+            PatchHelper.Log(
+                "[Mods] ModManager.Initialize returned a null Task; Android mods were not loaded"
+            );
+            TryWriteUnavailableActivationMarker(
+                "ModManager.Initialize returned a null Task; selected mods were not loaded."
+            );
+            return;
+        }
+
+        __result = AwaitInitializeThenLoad(__result);
+    }
+
+    private static Task AwaitInitializeThenLoad(Task initializeTask)
+        => AwaitInitializeThenRun(initializeTask, InitializePostfix);
+
+    internal static async Task AwaitInitializeThenRun(
+        Task initializeTask,
+        Action afterCompletion
+    )
+    {
+        ArgumentNullException.ThrowIfNull(initializeTask);
+        ArgumentNullException.ThrowIfNull(afterCompletion);
+
+        await initializeTask;
+        afterCompletion();
     }
 
     // Runs after the original Initialize() to pick up Android-only mod roots.
     private static void InitializePostfix()
     {
+        LauncherModSelectionDocument selection = null;
+        LauncherModLaunchPlan launchPlan = null;
         try
         {
-            if (!TryLoadModManagerAccess(out var access))
+            selection = LauncherModSelectionState.Load();
+            var resolution = LauncherModLaunchPlan.Resolve(selection);
+            if (!resolution.Success)
             {
-                TryWriteUnavailableActivationMarker(
-                    "Android mod manager reflection bridge was unavailable; no mod activation evidence was produced"
+                var failure = FormatLaunchPlanFailure(resolution.Error);
+                PatchHelper.Log($"[Mods] {failure}");
+                WriteModLaunchMarker(
+                    LauncherModSelectionState.ModdedModeName,
+                    selection,
+                    planError: resolution.Error
                 );
                 return;
             }
 
-            var selection = LauncherModSelectionState.Load();
-            if (!LauncherModSelectionState.IsModdedModeFor(selection))
+            launchPlan = resolution.Plan;
+            if (launchPlan.Mode == LauncherModPlayMode.Vanilla)
             {
                 WriteModLaunchMarker(
-                    "vanilla",
-                    0,
-                    0,
-                    "Android mod scan skipped by launcher Play Vanilla mode",
-                    selection: selection
+                    LauncherModSelectionState.VanillaModeName,
+                    selection,
+                    launchPlan
                 );
                 PatchHelper.Log("[Mods] Android mod scan skipped: launcher Play Vanilla mode is selected");
                 return;
             }
 
-            var knownMods = LauncherModSelectionState.KnownMods(selection);
-            var loadedRoots = LoadAndroidModRoots(access, knownMods);
-            if (loadedRoots == 0)
+            if (!TryLoadModManagerAccess(out var access))
             {
-                var unavailableSelectedModCount = LauncherModSelectionState.EnabledModCount(knownMods);
-                var unavailableActivationEvidence = access.BuildActivationEvidence(knownMods);
+                const string unavailable =
+                    "Android mod manager reflection bridge was unavailable; selected mods were not loaded";
                 WriteModLaunchMarker(
-                    "modded",
-                    0,
-                    unavailableSelectedModCount,
-                    "No Android mod roots were available; selected mods were not activated",
-                    unavailableActivationEvidence,
-                    selection: selection,
-                    knownMods: knownMods
+                    LauncherModSelectionState.ModdedModeName,
+                    selection,
+                    launchPlan,
+                    BuildUnavailableActivationEvidence(launchPlan, unavailable)
                 );
-                PatchHelper.Log("[Mods] No Android mod roots were available for scanning");
                 return;
             }
 
-            access.RebuildLoadedModsCacheIfAvailable();
-            var selectedEnabledMods = LauncherModSelectionState.EnabledModCount(knownMods);
-            var activationEvidence = access.BuildActivationEvidence(knownMods);
+            var loadedRoots = LoadAndroidModRoots(access, launchPlan);
+            if (loadedRoots == 0)
+            {
+                var unavailableActivationEvidence = access.BuildActivationEvidence(launchPlan);
+                WriteModLaunchMarker(
+                    LauncherModSelectionState.ModdedModeName,
+                    selection,
+                    launchPlan,
+                    unavailableActivationEvidence
+                );
+                PatchHelper.Log("[Mods] No validated Android mod payload was loaded");
+                return;
+            }
+
+            var activationEvidence = access.BuildActivationEvidence(launchPlan);
             WriteModLaunchMarker(
-                "modded",
-                loadedRoots,
-                selectedEnabledMods,
-                "Android mod load attempt completed; inspect per-mod activation evidence",
-                activationEvidence,
+                LauncherModSelectionState.ModdedModeName,
                 selection,
-                knownMods
+                launchPlan,
+                activationEvidence
             );
         }
         catch (Exception ex)
         {
             PatchHelper.Log($"[Mods] Failed to load Android mods: {ex}");
             TryWriteUnavailableActivationMarker(
-                $"Android mod load failed before activation evidence completed: {ex.GetType().Name}"
+                $"Android mod load failed before activation evidence completed: {ex.GetType().Name}",
+                selection,
+                launchPlan
             );
         }
     }
 
-    private static void TryWriteUnavailableActivationMarker(string status)
+    private static void TryWriteUnavailableActivationMarker(
+        string status,
+        LauncherModSelectionDocument selection = null,
+        LauncherModLaunchPlan launchPlan = null
+    )
     {
         try
         {
-            var selection = LauncherModSelectionState.Load();
-            var knownMods = LauncherModSelectionState.KnownMods(selection);
-            var playMode = LauncherModSelectionState.IsModdedModeFor(selection)
-                ? "modded"
-                : "vanilla";
+            selection ??= LauncherModSelectionState.Load();
+            if (launchPlan == null)
+            {
+                var resolution = LauncherModLaunchPlan.Resolve(selection);
+                if (!resolution.Success)
+                {
+                    WriteModLaunchMarker(
+                        LauncherModSelectionState.ModdedModeName,
+                        selection,
+                        planError: resolution.Error
+                    );
+                    return;
+                }
+
+                launchPlan = resolution.Plan;
+            }
+
+            var playMode = launchPlan.Mode == LauncherModPlayMode.Modded
+                ? LauncherModSelectionState.ModdedModeName
+                : LauncherModSelectionState.VanillaModeName;
             WriteModLaunchMarker(
                 playMode,
-                0,
-                string.Equals(playMode, "modded", StringComparison.OrdinalIgnoreCase)
-                    ? LauncherModSelectionState.EnabledModCount(knownMods)
-                    : 0,
-                status,
-                selection: selection,
-                knownMods: knownMods
+                selection,
+                launchPlan,
+                BuildUnavailableActivationEvidence(launchPlan, status)
             );
         }
         catch (Exception ex)
@@ -146,100 +375,119 @@ internal static partial class ModLoaderPatches
     }
 
     private static void WriteModLaunchMarker(
-        string playMode,
-        int scannedRoots,
-        int enabledMods,
-        string status,
+        string launchMode,
+        LauncherModSelectionDocument selection,
+        LauncherModLaunchPlan launchPlan = null,
         RuntimeModActivationSummary[] activationEvidence = null,
-        LauncherModSelectionDocument selection = null,
-        IReadOnlyList<LauncherKnownMod> knownMods = null
+        LauncherModDiscoveryError planError = null
     )
     {
-        try
+        selection ??= LauncherModSelectionState.Load();
+        if (planError != null)
         {
-            var parent = Path.GetDirectoryName(AppPaths.AppPrivateLastModLaunchPath);
-            if (!string.IsNullOrWhiteSpace(parent))
-                Directory.CreateDirectory(parent);
+            LauncherModLaunchResultStore.WritePlanFailure(selection, planError);
+            return;
+        }
 
-            activationEvidence ??= Array.Empty<RuntimeModActivationSummary>();
-            var payload = new
-            {
-                version = 2,
-                generatedAtUtc = DateTime.UtcNow.ToString("O"),
-                playMode,
-                scannedRoots,
-                enabledMods,
-                payloadReadyMods = activationEvidence.Count(mod => mod.PayloadReady),
-                runtimePatchedMods = activationEvidence.Count(mod => mod.HarmonyTargetCount > 0),
-                partialCompatibilityMods = activationEvidence.Count(mod => mod.CompatibilityMode == "partial-android"),
-                compatibilitySubstituteMods = activationEvidence.Count(mod => mod.CompatibilityMode == "launcher-substitute"),
-                failedMods = Math.Max(
-                    0,
-                    enabledMods - activationEvidence.Count(mod => mod.RuntimeLoadSucceeded)
-                ),
-                inGameVerifiedMods = activationEvidence.Count(mod => mod.InGameEffectVerified),
-                status,
-                selectionPath = AppPaths.AppPrivateModSelectionPath,
-                activationEvidence,
-                selectedMods = string.Equals(playMode, "modded", StringComparison.OrdinalIgnoreCase)
-                    ? (knownMods ?? LauncherModSelectionState.KnownMods(selection))
-                    .Where(mod => mod.Enabled && !mod.IsUnsupported)
-                    .Select(mod => new
-                    {
-                        mod.Key,
-                        mod.Id,
-                        mod.Title,
-                        mod.Source,
-                        mod.Path,
-                        mod.IsDependency,
-                        mod.IsRequiredDependency,
-                        Root = InspectSelectedModRoot(mod.Path),
-                    })
-                    .ToArray()
-                    : Array.Empty<object>(),
-            };
-            File.WriteAllText(
-                AppPaths.AppPrivateLastModLaunchPath,
-                JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true })
-            );
-        }
-        catch (Exception ex)
+        if (launchPlan?.Mode == LauncherModPlayMode.Vanilla)
         {
-            PatchHelper.Log($"[Mods] Failed to write mod launch marker: {ex.Message}");
+            LauncherModLaunchResultStore.WriteVanilla(selection);
+            return;
         }
+
+        activationEvidence ??= Array.Empty<RuntimeModActivationSummary>();
+        var results = BuildModLaunchResults(launchPlan, activationEvidence);
+        LauncherModLaunchResultStore.Write(
+            launchMode,
+            selection,
+            activationEvidence.Count(mod => mod.Discovered),
+            activationEvidence.Count(mod => mod.PayloadLoadingSucceeded),
+            results
+        );
     }
 
-    private static void PatchBaseLibAssemblyLoadHooks(Harmony harmony)
+    private static LauncherModLaunchResult[] BuildModLaunchResults(
+        LauncherModLaunchPlan launchPlan,
+        IReadOnlyList<RuntimeModActivationSummary> activationEvidence
+    )
+    {
+        if (launchPlan?.Mode == LauncherModPlayMode.Modded)
+        {
+            return launchPlan.EnabledMods
+                .Select(mod =>
+                {
+                    var evidence = (activationEvidence ?? Array.Empty<RuntimeModActivationSummary>())
+                        .FirstOrDefault(item =>
+                            string.Equals(item.Id, mod.ManifestId, StringComparison.Ordinal)
+                            && string.Equals(
+                                item.SelectionKey,
+                                mod.SelectionKey,
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                        );
+                    if (evidence?.ActivationSucceeded == true
+                        && string.Equals(
+                            evidence.CompatibilityMode,
+                            "partial-android",
+                            StringComparison.Ordinal
+                        ))
+                    {
+                        return new LauncherModLaunchResult(
+                            mod.ManifestId,
+                            "Partial",
+                            "Concrete activation was observed, but Android compatibility remains partial."
+                        );
+                    }
+
+                    if (evidence?.ActivationSucceeded == true)
+                    {
+                        return new LauncherModLaunchResult(
+                            mod.ManifestId,
+                            "Active",
+                            "Initialization and activation verified."
+                        );
+                    }
+
+                    return new LauncherModLaunchResult(
+                        mod.ManifestId,
+                        "Failed",
+                        ShortFailure(evidence?.FirstFailingGate)
+                    );
+                })
+                .ToArray();
+        }
+
+        return Array.Empty<LauncherModLaunchResult>();
+    }
+
+    private static string ShortFailure(string gate)
+        => gate switch
+        {
+            DiscoveryGate => "Discovery failed.",
+            PayloadLoadingGate => "Payload loading failed.",
+            InitializationGate => "Initialization failed.",
+            ActivationGate => "Activation was not verified.",
+            _ => "Runtime loading was not verified.",
+        };
+
+    private static string FormatLaunchPlanFailure(LauncherModDiscoveryError error)
+    {
+        if (error == null)
+            return "Mod discovery failed without a specific error.";
+
+        var selection = string.IsNullOrWhiteSpace(error.SelectionKey)
+            ? "<unknown selection>"
+            : error.SelectionKey;
+        return $"Mod discovery failed [{error.Code}] for '{selection}': {error.Message}";
+    }
+
+    private static void PatchModAssemblyLoadHooks(Harmony harmony)
     {
         var postfix = PatchHelper.Method(
             typeof(ModLoaderPatches),
-            nameof(BaseLibAssemblyLoadPostfix)
+            nameof(ModAssemblyLoadPostfix)
         );
 
-        PatchAssemblyLoadMethod(
-            harmony,
-            typeof(Assembly).GetMethod(nameof(Assembly.LoadFrom), new[] { typeof(string) }),
-            "Assembly.LoadFrom(string)",
-            postfix
-        );
-        PatchAssemblyLoadMethod(
-            harmony,
-            typeof(Assembly).GetMethod(nameof(Assembly.LoadFile), new[] { typeof(string) }),
-            "Assembly.LoadFile(string)",
-            postfix
-        );
-        PatchAssemblyLoadMethod(
-            harmony,
-            typeof(Assembly).GetMethod(nameof(Assembly.Load), new[] { typeof(byte[]) }),
-            "Assembly.Load(byte[])",
-            postfix
-        );
-        PatchAssemblyLoadMethod(
-            harmony,
-            typeof(Assembly).GetMethod(nameof(Assembly.Load), new[] { typeof(byte[]), typeof(byte[]) }),
-            "Assembly.Load(byte[], byte[])",
-            postfix
-        );
         PatchAssemblyLoadMethod(
             harmony,
             typeof(AssemblyLoadContext).GetMethod(
@@ -250,30 +498,6 @@ internal static partial class ModLoaderPatches
                 modifiers: null
             ),
             "AssemblyLoadContext.LoadFromAssemblyPath(string)",
-            postfix
-        );
-        PatchAssemblyLoadMethod(
-            harmony,
-            typeof(AssemblyLoadContext).GetMethod(
-                nameof(AssemblyLoadContext.LoadFromStream),
-                AllInstance,
-                binder: null,
-                types: new[] { typeof(Stream) },
-                modifiers: null
-            ),
-            "AssemblyLoadContext.LoadFromStream(Stream)",
-            postfix
-        );
-        PatchAssemblyLoadMethod(
-            harmony,
-            typeof(AssemblyLoadContext).GetMethod(
-                nameof(AssemblyLoadContext.LoadFromStream),
-                AllInstance,
-                binder: null,
-                types: new[] { typeof(Stream), typeof(Stream) },
-                modifiers: null
-            ),
-            "AssemblyLoadContext.LoadFromStream(Stream, Stream)",
             postfix
         );
     }
@@ -302,9 +526,62 @@ internal static partial class ModLoaderPatches
         }
     }
 
-    private static void BaseLibAssemblyLoadPostfix(Assembly __result)
+    private static void ModAssemblyLoadPostfix(Assembly __result)
     {
+        TryRegisterGodotScripts(__result);
         TryApplyBaseLibJsonCompatibilityPatch(__result);
+    }
+
+    private static void TryRegisterGodotScripts(Assembly assembly)
+    {
+        if (assembly == null || !DeclaresGodotScripts(assembly))
+            return;
+
+        var assemblyKey = AssemblyIdentity(assembly);
+        lock (RegisteredGodotScriptAssembliesGate)
+        {
+            if (RegisteredGodotScriptAssemblies.Contains(assemblyKey))
+                return;
+        }
+
+        try
+        {
+            // ModManager loads the DLL before its PCK and invokes the initializer afterwards.
+            // Registering compiled Godot script types at the assembly-load boundary lets PCK
+            // scenes resolve their ScriptPath entries even when a mod's static initializer
+            // preloads a scene before its Initialize method performs the same registration.
+            Godot.Bridge.ScriptManagerBridge.LookupScriptsInAssembly(assembly);
+            lock (RegisteredGodotScriptAssembliesGate)
+                RegisteredGodotScriptAssemblies.Add(assemblyKey);
+            PatchHelper.Log($"[Mods] Registered compiled Godot scripts for {assembly.GetName().Name}");
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log(
+                $"[Mods] Godot script registration failed for {assembly.GetName().Name}: {ex.GetType().Name}: {ex.Message}"
+            );
+        }
+    }
+
+    private static string AssemblyIdentity(Assembly assembly)
+        => assembly.FullName ?? assembly.GetName().Name ?? string.Empty;
+
+    private static bool DeclaresGodotScripts(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetCustomAttributesData().Any(attribute =>
+                string.Equals(
+                    attribute.AttributeType.FullName,
+                    "Godot.AssemblyHasScriptsAttribute",
+                    StringComparison.Ordinal
+                )
+            );
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static void ApplyLoadedAssemblyCompatibilityPatches()
@@ -465,12 +742,13 @@ internal static partial class ModLoaderPatches
         TryRegisterBaseLibConfig(baseLibAssembly);
 
         var mainHarmony = ResolveBaseLibMainHarmony(baseLibMain);
-        TryInvokeBaseLibPatch(
-            baseLibAssembly,
-            "BaseLib.Patches.Content.TheBigPatchToCardPileCmdAdd",
-            mainHarmony
+        foreach (var patchType in BaseLibAndroidSafeHarmonyPatchTypes)
+            TryInvokeBaseLibPatch(baseLibAssembly, patchType, mainHarmony);
+        PatchHelper.Log(
+            "[Mods] BaseLib Android-safe initializer skipped "
+                + "BaseLib.Patches.Content.TheBigPatchToCardPileCmdAdd.Patch; "
+                + "the BaseLib CustomPile compatibility patch hangs on the current Android runtime."
         );
-        TryInvokeBaseLibPatch(baseLibAssembly, "BaseLib.Abstracts.CustomBadgesPatch", mainHarmony);
         BaseLibExtendedSavePatchesPatchPrefix();
         PatchHelper.Log(
             "[Mods] BaseLib Android-safe initializer skipped BaseLib PatchAll; full type enumeration hangs on Android public-beta."
@@ -544,23 +822,6 @@ internal static partial class ModLoaderPatches
     )
     {
         TryInvokeStatic(baseLibAssembly, typeName, "Patch", harmony);
-    }
-
-    private static void TryInvokeBaseLibTryPatchAll(Assembly baseLibAssembly, Harmony harmony)
-    {
-        try
-        {
-            var harmonyExtensions = baseLibAssembly.GetType(
-                "BaseLib.Extensions.HarmonyExtensions",
-                throwOnError: false
-            );
-            var tryPatchAllMethod = harmonyExtensions?.GetMethod("TryPatchAll", AllStatic);
-            tryPatchAllMethod?.Invoke(null, new object[] { harmony, baseLibAssembly, null });
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Mods] BaseLib Android PatchAll invocation failed: {ex.Message}");
-        }
     }
 
     private static void TryInvokeStatic(
@@ -658,141 +919,34 @@ internal static partial class ModLoaderPatches
         return string.IsNullOrEmpty(processorCategory);
     }
 
-    private static bool TryLoadBaseLibForAndroid(Mod mod)
-    {
-        if (mod?.manifest == null
-            || !string.Equals(mod.manifest.id, "BaseLib", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        var errors = mod.errors ?? new List<LocString>();
-        Assembly assembly = null;
-
-        try
-        {
-            TrySetModSemanticVersion(mod);
-
-            var loadedSomething = false;
-            var dllPath = Path.Combine(mod.path, "BaseLib.dll");
-            if (mod.manifest.hasDll)
-            {
-                if (Godot.FileAccess.FileExists(dllPath))
-                {
-                    PatchHelper.Log($"[Mods] Loading BaseLib DLL via Android-safe path: {dllPath}");
-                    var loadContext = AssemblyLoadContext.GetLoadContext(Assembly.GetExecutingAssembly());
-                    assembly = loadContext?.LoadFromAssemblyPath(dllPath) ?? Assembly.LoadFrom(dllPath);
-                    TryApplyBaseLibJsonCompatibilityPatch(assembly);
-                    loadedSomething = true;
-                }
-                else
-                {
-                    PatchHelper.Log($"[Mods] BaseLib manifest declares DLL but file is missing: {dllPath}");
-                }
-            }
-
-            var pckPath = Path.Combine(mod.path, "BaseLib.pck");
-            if (mod.manifest.hasPck)
-            {
-                if (Godot.FileAccess.FileExists(pckPath))
-                {
-                    PatchHelper.Log($"[Mods] Loading BaseLib PCK via Android-safe path: {pckPath}");
-                    if (!ProjectSettings.LoadResourcePack(pckPath, true, 0))
-                        throw new InvalidOperationException("Godot errored while loading BaseLib PCK.");
-
-                    loadedSomething = true;
-                }
-                else
-                {
-                    PatchHelper.Log($"[Mods] BaseLib manifest declares PCK but file is missing: {pckPath}");
-                }
-            }
-
-            if (!loadedSomething)
-                throw new InvalidOperationException("Neither BaseLib DLL nor BaseLib PCK was loaded.");
-
-            if (assembly != null)
-            {
-                PatchHelper.Log("[Mods] Running BaseLib Android-safe initializer through direct loader");
-                RunBaseLibAndroidSafeInitialize(assembly);
-                PatchHelper.Log("[Mods] BaseLib Android-safe initializer through direct loader complete");
-            }
-            else
-            {
-                PatchHelper.Log("[Mods] BaseLib Android-safe initializer skipped because no assembly was returned");
-            }
-
-            mod.state = ModLoadState.Loaded;
-            mod.assembly = assembly;
-            mod.errors = errors.Count == 0 ? null : errors;
-            PatchHelper.Log("[Mods] BaseLib loaded through Android-safe staged Workshop path");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Mods] BaseLib Android-safe load failed: {ex}");
-            mod.state = ModLoadState.Failed;
-            mod.assembly = assembly;
-            mod.errors = errors.Count == 0 ? null : errors;
-            return true;
-        }
-    }
-
-    private static void TrySetModSemanticVersion(Mod mod)
-    {
-        if (mod?.manifest?.version == null)
-            return;
-
-        try
-        {
-            var versionField = mod.GetType().GetField("version", AllInstance);
-            if (versionField == null)
-                return;
-
-            var semanticVersionType = versionField.FieldType;
-            var tryFromString = semanticVersionType.GetMethod(
-                "TryFromString",
-                BindingFlags.Public | BindingFlags.Static
-            );
-            if (tryFromString == null)
-                return;
-
-            var args = new object[] { mod.manifest.version, null };
-            if (tryFromString.Invoke(null, args) is true)
-                versionField.SetValue(mod, args[1]);
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Mods] BaseLib version parse skipped on Android: {ex.Message}");
-        }
-    }
-
     private static bool HasHarmonyPatchAttribute(Type type)
     {
-        foreach (var attribute in type.GetCustomAttributes(inherit: true))
-        {
-            var attributeType = attribute.GetType();
-            if (string.Equals(attributeType.Namespace, "HarmonyLib", StringComparison.Ordinal)
-                && attributeType.Name.StartsWith("Harmony", StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
+        if (type == null)
+            return false;
 
-        return false;
+        try
+        {
+            return type.GetCustomAttributesData().Any(attribute =>
+                string.Equals(
+                    attribute.AttributeType.Namespace,
+                    "HarmonyLib",
+                    StringComparison.Ordinal
+                )
+                && attribute.AttributeType.Name.StartsWith("Harmony", StringComparison.Ordinal)
+            );
+        }
+        catch
+        {
+            // Diagnostics must not load unrelated attribute dependencies or turn a
+            // successfully loaded mod into a marker-writing failure.
+            return false;
+        }
     }
 
     private static bool TryLoadModManagerAccess(out ModManagerAccess access)
     {
         var modManagerType = typeof(ModManager);
         access = null;
-
-        var scanMethod = FindScanMethod(modManagerType);
-        if (scanMethod == null)
-        {
-            PatchHelper.Log("[Mods] Failed to locate a compatible ModManager mod scan method");
-            return false;
-        }
 
         var modsField = modManagerType.GetField("_mods", AllStatic);
         if (modsField == null)
@@ -801,15 +955,27 @@ internal static partial class ModLoaderPatches
             return false;
         }
 
-        var initializedField = modManagerType.GetField("_initialized", AllStatic);
-        var stateProperty = modManagerType.GetProperty("State", AllStatic);
-        if (initializedField == null && stateProperty == null)
+        if (!TryResolveRuntimeLoadState(
+            modManagerType,
+            out var initializedField,
+            out var stateProperty
+        ))
         {
-            PatchHelper.Log("[Mods] Failed to locate a ModManager runtime load gate");
+            PatchHelper.Log(
+                "[Mods] Failed to locate an exact ModManager runtime-load state (_initialized bool or State enum with None=0)"
+            );
             return false;
         }
 
-        var sourceType = scanMethod.GetParameters()[1].ParameterType;
+        var tryLoadMod = FindTryLoadMod(modManagerType);
+        if (tryLoadMod == null)
+        {
+            PatchHelper.Log("[Mods] Failed to locate ModManager.TryLoadMod(Mod)");
+            return false;
+        }
+
+        var modType = tryLoadMod.GetParameters()[0].ParameterType;
+        var sourceType = modType.GetField("modSource", AllInstance)?.FieldType;
         var sourceValue = ResolveModSource(sourceType);
         if (sourceValue == null)
         {
@@ -817,53 +983,91 @@ internal static partial class ModLoaderPatches
             return false;
         }
 
-        var tryLoadMod = FindTryLoadMod(modManagerType);
-        var modType = ResolveModType(scanMethod, tryLoadMod, modsField);
         var manifestType = ResolveManifestType(modType);
-        var newModsListType = modType == null ? null : typeof(List<>).MakeGenericType(modType);
+        if (manifestType == null)
+        {
+            PatchHelper.Log("[Mods] Failed to locate Mod.manifest");
+            return false;
+        }
 
         access = new ModManagerAccess(
             initializedField,
             stateProperty,
-            scanMethod,
             tryLoadMod,
-            modManagerType.GetMethod("SortModList", AllStatic),
             modsField,
-            modManagerType.GetField("_loadedMods", AllStatic),
             modManagerType.GetField("_settings", AllStatic),
             sourceValue,
             modType,
-            manifestType,
-            newModsListType
+            manifestType
         );
         return true;
     }
 
-    private static MethodInfo FindScanMethod(Type modManagerType)
+    internal static bool TryResolveRuntimeLoadState(
+        Type modManagerType,
+        out FieldInfo initializedField,
+        out PropertyInfo stateProperty
+    )
     {
-        foreach (var methodName in new[] { "ReadModsInDirRecursive", "LoadModsInDirRecursive" })
+        initializedField = null;
+        stateProperty = null;
+        if (modManagerType == null)
+            return false;
+
+        try
         {
-            foreach (var method in modManagerType.GetMethods(AllStatic))
-            {
-                if (!string.Equals(method.Name, methodName, StringComparison.Ordinal))
-                    continue;
+            var legacyField = modManagerType.GetField("_initialized", AllStatic);
+            var legacySupported = legacyField != null
+                && legacyField.IsStatic
+                && !legacyField.IsInitOnly
+                && !legacyField.IsLiteral
+                && legacyField.FieldType == typeof(bool);
 
-                var parameters = method.GetParameters();
-                if (parameters.Length is < 2 or > 3)
-                    continue;
+            var currentProperty = modManagerType.GetProperty("State", AllStatic);
+            var getter = currentProperty?.GetGetMethod(nonPublic: true);
+            var setter = currentProperty?.GetSetMethod(nonPublic: true);
+            var currentSupported = currentProperty != null
+                && currentProperty.GetIndexParameters().Length == 0
+                && getter?.IsStatic == true
+                && setter?.IsStatic == true
+                && IsExactNoneState(currentProperty.PropertyType);
 
-                if (!parameters[1].ParameterType.IsEnum)
-                    continue;
+            // More than one recognized gate is ambiguous. Refuse to mutate either.
+            if (legacySupported == currentSupported)
+                return false;
 
-                if (parameters[0].ParameterType == typeof(string)
-                    || typeof(DirAccess).IsAssignableFrom(parameters[0].ParameterType))
-                {
-                    return method;
-                }
-            }
+            if (legacySupported)
+                initializedField = legacyField;
+            else
+                stateProperty = currentProperty;
+
+            return true;
+        }
+        catch
+        {
+            initializedField = null;
+            stateProperty = null;
+            return false;
+        }
+    }
+
+    private static bool IsExactNoneState(Type stateType)
+    {
+        if (stateType?.IsEnum != true
+            || !Enum.GetNames(stateType).Contains("None", StringComparer.Ordinal))
+        {
+            return false;
         }
 
-        return null;
+        try
+        {
+            var none = Enum.Parse(stateType, "None", ignoreCase: false);
+            return Convert.ToInt64(none) == 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static MethodInfo FindTryLoadMod(Type modManagerType)
@@ -880,49 +1084,6 @@ internal static partial class ModLoaderPatches
         return null;
     }
 
-    private static Type ResolveModType(
-        MethodInfo scanMethod,
-        MethodInfo tryLoadMod,
-        FieldInfo modsField
-    )
-    {
-        var tryLoadParameters = tryLoadMod?.GetParameters();
-        if (tryLoadParameters?.Length == 1)
-            return tryLoadParameters[0].ParameterType;
-
-        var scanParameters = scanMethod.GetParameters();
-        if (scanParameters.Length == 3)
-        {
-            var scanListElementType = ResolveEnumerableElementType(scanParameters[2].ParameterType);
-            if (scanListElementType != null)
-                return scanListElementType;
-        }
-
-        return ResolveEnumerableElementType(modsField.FieldType);
-    }
-
-    private static Type ResolveEnumerableElementType(Type type)
-    {
-        if (type == null)
-            return null;
-
-        if (type.IsArray)
-            return type.GetElementType();
-
-        if (type.IsGenericType && type.GetGenericArguments().Length == 1)
-            return type.GetGenericArguments()[0];
-
-        foreach (var interfaceType in type.GetInterfaces())
-        {
-            if (interfaceType.IsGenericType
-                && interfaceType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-            {
-                return interfaceType.GetGenericArguments()[0];
-            }
-        }
-
-        return null;
-    }
 
     private static Type ResolveManifestType(Type modType)
     {
@@ -948,414 +1109,196 @@ internal static partial class ModLoaderPatches
 
     private static int LoadAndroidModRoots(
         ModManagerAccess access,
-        IReadOnlyList<LauncherKnownMod> knownMods
+        LauncherModLaunchPlan launchPlan
     )
     {
-        AppPaths.EnsureWorkshopDirectories();
-
         var loadedRoots = 0;
-        foreach (var root in AndroidModRoots(knownMods))
+        foreach (var mod in launchPlan.EnabledMods)
         {
-            LogModRootSnapshot(root);
-            var androidManifestPath = FindAndroidManifestPath(root.Path);
-            if (!string.IsNullOrWhiteSpace(androidManifestPath))
-            {
-                PatchHelper.Log($"[Mods] Android manifest candidate for scanner bypass: {androidManifestPath}");
-                if (access.TryLoadManifestForAndroid(root, androidManifestPath))
-                    loadedRoots++;
-                else
-                    PatchHelper.Log($"[Mods] Android scanner bypass failed for {root.Label}; skipping game scanner to avoid known Android hangs");
-                continue;
-            }
-
-            using var dirAccess = DirAccess.Open(root.Path);
-            if (dirAccess == null)
-            {
-                PatchHelper.Log(
-                    $"[Mods] {root.Label} not found: {root.Path} (error: {DirAccess.GetOpenError()})"
-                );
-                continue;
-            }
-
-            PatchHelper.Log($"[Mods] Scanning {root.Label}: {root.Path}");
-            if (access.LoadModsInRoot(root, dirAccess, knownMods))
+            var root = new ModRoot(
+                $"{mod.Source} mod {mod.Name}",
+                mod.RootPath,
+                mod.RequiresWorkshopConsent
+            );
+            PatchHelper.Log(
+                $"[Mods] Loading validated manifest for {mod.ManifestId}: {mod.ManifestPath}"
+            );
+            if (access.TryLoadPlannedMod(root, mod))
                 loadedRoots++;
+            else
+                PatchHelper.Log($"[Mods] Validated Android mod load failed for {root.Label}");
         }
 
         return loadedRoots;
     }
 
-    private static void LogModRootSnapshot(ModRoot root)
+    internal static bool IsRuntimeModExplicitlyLoaded(object mod)
     {
-        var snapshot = InspectSelectedModRoot(root.Path);
-        PatchHelper.Log(
-            $"[Mods] Selected root {root.Label}: exists={snapshot.Exists}, manifests={snapshot.ManifestCount}, pcks={snapshot.PckCount}, dlls={snapshot.DllCount}, path={root.Path}"
-        );
+        return TryReadRuntimeLoadState(mod, out var state)
+            && state != null
+            && state.GetType().IsEnum
+            && string.Equals(state.ToString(), "Loaded", StringComparison.Ordinal);
     }
 
-    private static SelectedModRootSnapshot InspectSelectedModRoot(string path)
+    internal static Assembly TryReadRuntimeAssembly(object mod)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            return SelectedModRootSnapshot.Missing;
+        if (mod == null)
+            return null;
 
         try
         {
-            if (!Directory.Exists(path))
-                return SelectedModRootSnapshot.Missing;
+            object ReadMember(string name)
+            {
+                var type = mod.GetType();
+                var field = type.GetField(name, AllInstance);
+                if (field != null)
+                    return field.GetValue(mod);
 
-            return new SelectedModRootSnapshot(
-                exists: true,
-                manifestCount: CountFiles(path, "*.json"),
-                pckCount: CountFiles(path, "*.pck"),
-                dllCount: CountFiles(path, "*.dll")
-            );
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Mods] Failed to inspect selected mod root {path}: {ex.Message}");
-            return SelectedModRootSnapshot.Missing;
-        }
-    }
+                var property = type.GetProperty(name, AllInstance);
+                return property?.GetIndexParameters().Length == 0
+                    ? property.GetValue(mod)
+                    : null;
+            }
 
-    private static int CountFiles(string directory, string pattern)
-    {
-        try
-        {
-            return Directory.EnumerateFiles(directory, pattern, SearchOption.AllDirectories).Take(128).Count();
+            var legacyAssembly = ReadMember("assembly") as Assembly
+                ?? ReadMember("Assembly") as Assembly;
+            if (legacyAssembly != null)
+                return legacyAssembly;
+
+            var assemblies = ReadMember("assemblies") ?? ReadMember("Assemblies");
+            if (assemblies is IEnumerable values)
+            {
+                foreach (var value in values)
+                {
+                    if (value is Assembly assembly)
+                        return assembly;
+                }
+            }
         }
         catch
         {
-            return 0;
         }
+
+        return null;
     }
 
-    private static string FindAndroidManifestPath(string rootPath)
+    private static bool TryReadRuntimeLoadState(object mod, out object state)
     {
+        state = null;
+        if (mod == null)
+            return false;
+
         try
         {
-            if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
-                return null;
-
-            foreach (var candidate in Directory.EnumerateFiles(rootPath, "*.json", SearchOption.AllDirectories).Take(16))
+            var type = mod.GetType();
+            var field = type.GetField("state", AllInstance)
+                ?? type.GetField("State", AllInstance);
+            if (field != null)
             {
-                var fileName = Path.GetFileName(candidate);
-                if (!fileName.StartsWith(".", StringComparison.Ordinal))
-                    return candidate;
+                state = field.GetValue(mod);
+                return state != null;
             }
 
-            return null;
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Mods] Android manifest probe failed for {rootPath}: {ex.Message}");
-            return null;
-        }
-    }
-
-    private static IEnumerable<ModRoot> AndroidModRoots(IReadOnlyList<LauncherKnownMod> knownMods)
-    {
-        var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var mod in knownMods ?? Array.Empty<LauncherKnownMod>())
-        {
-            if (!mod.Enabled || mod.IsUnsupported || string.IsNullOrWhiteSpace(mod.Path))
-                continue;
-
-            if (!emitted.Add(mod.Path))
-                continue;
-
-            var isWorkshop = mod.Source.StartsWith("Workshop", StringComparison.OrdinalIgnoreCase);
-            yield return new ModRoot(
-                $"{mod.Source} mod {mod.Title}",
-                mod.Path,
-                requiresWorkshopConsent: isWorkshop
-            );
-        }
-    }
-
-    private static object CreateLoadedModsList(IEnumerable allMods, Type targetListType)
-    {
-        try
-        {
-            if (!typeof(IEnumerable).IsAssignableFrom(targetListType))
-                return null;
-
-            if (Activator.CreateInstance(targetListType) is not IList targetList)
+            var property = type.GetProperty("state", AllInstance)
+                ?? type.GetProperty("State", AllInstance);
+            if (property != null && property.GetIndexParameters().Length == 0)
             {
-                PatchHelper.Log("[Mods] _loadedMods field is not a concrete IList");
-                return null;
+                state = property.GetValue(mod);
+                return state != null;
             }
-
-            foreach (var mod in allMods)
-            {
-                if (mod == null || !IsLoaded(mod))
-                    continue;
-
-                targetList.Add(mod);
-            }
-
-            return targetList;
         }
-        catch (Exception ex)
+        catch
         {
-            PatchHelper.Log($"[Mods] Rebuild of _loadedMods failed: {ex.Message}");
-            return null;
-        }
-    }
-
-    private static bool IsLoaded(object mod)
-    {
-        foreach (var member in LoadedMarkerCandidates(mod.GetType()))
-        {
-            if (member is null)
-                continue;
-
-            object value = member switch
-            {
-                FieldInfo field => field.GetValue(mod),
-                PropertyInfo prop => prop.GetValue(mod),
-                _ => null,
-            };
-
-            if (value is bool loaded)
-                return loaded;
-
-            if (value != null && value.GetType().IsEnum)
-                return string.Equals(value.ToString(), "Loaded", StringComparison.Ordinal);
         }
 
-        // Without a reliable marker, assume loaded to avoid dropping mods.
-        return true;
-    }
-
-    private static IEnumerable<MemberInfo> LoadedMarkerCandidates(Type modType)
-    {
-        yield return modType.GetField("wasLoaded", LoadedMarkerFlags);
-        yield return modType.GetField("WasLoaded", LoadedMarkerFlags);
-        yield return modType.GetField("isLoaded", LoadedMarkerFlags);
-        yield return modType.GetField("IsLoaded", LoadedMarkerFlags);
-        yield return modType.GetField("state", LoadedMarkerFlags);
-        yield return modType.GetField("State", LoadedMarkerFlags);
-        yield return modType.GetProperty("wasLoaded", LoadedMarkerFlags);
-        yield return modType.GetProperty("WasLoaded", LoadedMarkerFlags);
-        yield return modType.GetProperty("isLoaded", LoadedMarkerFlags);
-        yield return modType.GetProperty("IsLoaded", LoadedMarkerFlags);
-        yield return modType.GetProperty("state", LoadedMarkerFlags);
-        yield return modType.GetProperty("State", LoadedMarkerFlags);
+        return false;
     }
 
     private sealed partial class ModManagerAccess
     {
         private readonly FieldInfo _initializedField;
         private readonly PropertyInfo _stateProperty;
-        private readonly MethodInfo _scanMethod;
         private readonly MethodInfo _tryLoadMod;
-        private readonly MethodInfo _sortModList;
         private readonly FieldInfo _modsField;
-        private readonly FieldInfo _loadedModsField;
         private readonly FieldInfo _settingsField;
         private readonly object _sourceValue;
         private readonly Type _modType;
         private readonly Type _manifestType;
-        private readonly Type _newModsListType;
 
         internal ModManagerAccess(
             FieldInfo initializedField,
             PropertyInfo stateProperty,
-            MethodInfo scanMethod,
             MethodInfo tryLoadMod,
-            MethodInfo sortModList,
             FieldInfo modsField,
-            FieldInfo loadedModsField,
             FieldInfo settingsField,
             object sourceValue,
             Type modType,
-            Type manifestType,
-            Type newModsListType
+            Type manifestType
         )
         {
             _initializedField = initializedField;
             _stateProperty = stateProperty;
-            _scanMethod = scanMethod;
             _tryLoadMod = tryLoadMod;
-            _sortModList = sortModList;
             _modsField = modsField;
-            _loadedModsField = loadedModsField;
             _settingsField = settingsField;
             _sourceValue = sourceValue;
             _modType = modType;
             _manifestType = manifestType;
-            _newModsListType = newModsListType;
         }
 
-        internal bool LoadModsInRoot(
-            ModRoot root,
-            DirAccess dirAccess,
-            IReadOnlyList<LauncherKnownMod> knownMods
-        )
+        internal bool TryLoadPlannedMod(ModRoot root, LauncherResolvedMod plannedMod)
         {
-            var newMods = CreateNewModsList();
-            var scanArguments = BuildScanArguments(root.Path, dirAccess, newMods);
-            if (scanArguments == null)
-            {
-                PatchHelper.Log($"[Mods] Unsupported scan signature for {root.Label}");
-                return false;
-            }
+            return TryLoadPlannedModCore(root, plannedMod);
+        }
 
-            using var loadWindow = BeginRuntimeLoadWindow();
+        private bool TryLoadPlannedModCore(ModRoot root, LauncherResolvedMod plannedMod)
+        {
             try
             {
-                ApplyWorkshopConsentIfAvailable(root);
-                _scanMethod.Invoke(null, scanArguments);
-                var discovered = Count(newMods);
-
-                ApplyLoadedAssemblyCompatibilityPatches();
-                var attempted = TryLoadNewMods(newMods, knownMods);
-                var loadedTotal = CountLoadedMods();
+                if (plannedMod == null || string.IsNullOrWhiteSpace(plannedMod.ManifestId))
+                    return false;
 
                 PatchHelper.Log(
-                    $"[Mods] {root.Label} scan complete. Discovered: {discovered}, load attempts: {attempted}, total loaded: {loadedTotal}"
+                    $"[Mods] Loading planned mod {plannedMod.ManifestId}: {plannedMod.ManifestPath}"
                 );
-                return true;
-            }
-            catch (TargetInvocationException ex)
-            {
-                PatchHelper.Log($"[Mods] {root.Label} scan failed: {ex.InnerException ?? ex}");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Mods] {root.Label} scan failed: {ex}");
-                return false;
-            }
-        }
-
-        internal bool TryLoadManifestForAndroid(ModRoot root, string manifestPath)
-        {
-            PatchHelper.Log($"[Mods] Entering Android-safe scanner bypass: {manifestPath}");
-            return TryLoadManifestForAndroidCore(root, manifestPath);
-        }
-
-        private bool TryLoadManifestForAndroidCore(ModRoot root, string manifestPath)
-        {
-            try
-            {
-                PatchHelper.Log($"[Mods] Loading mod through Android-safe scanner bypass: {manifestPath}");
-                var manifestData = ReadBaseLibManifestData(manifestPath);
-                if (manifestData == null || string.IsNullOrWhiteSpace(manifestData.Id))
-                {
-                    PatchHelper.Log($"[Mods] Android scanner bypass ignored unreadable manifest: {manifestPath}");
-                    return false;
-                }
-
-                if (IsSavesMergerMod(manifestData))
-                {
-                    PatchHelper.Log(
-                        "[Mods] SavesMerger is deprecated and was not loaded; vanilla and native modded save paths remain separate"
-                    );
-                    return false;
-                }
-
-                var modPath = Path.GetDirectoryName(manifestPath) ?? root.Path;
-                var mod = CreateSyntheticBaseLibMod(modPath, manifestData);
+                var mod = CreatePlannedRuntimeMod(plannedMod);
                 if (mod == null)
                 {
-                    PatchHelper.Log("[Mods] Android scanner bypass could not create synthetic mod object");
+                    PatchHelper.Log("[Mods] Planned loader could not create the runtime mod object");
                     return false;
                 }
 
                 TrySetModSource(mod);
 
-                var loaded = string.Equals(manifestData.Id, "BaseLib", StringComparison.OrdinalIgnoreCase)
-                    ? TryLoadBaseLibForAndroidObject(mod, modPath, manifestData)
-                    : TryLoadStandardAndroidModObject(root, mod, manifestData);
-                if (!loaded || !IsLoaded(mod))
+                var loaded = string.Equals(
+                        plannedMod.ManifestId,
+                        "BaseLib",
+                        StringComparison.Ordinal
+                    )
+                    ? TryLoadBaseLibForAndroidObject(mod, plannedMod)
+                    : TryLoadWithModManager(root, mod, plannedMod);
+                if (!loaded || !IsRuntimeModExplicitlyLoaded(mod))
                 {
-                    PatchHelper.Log($"[Mods] Android scanner bypass did not produce a loaded mod: {manifestData.Id}");
+                    PatchHelper.Log(
+                        $"[Mods] Planned loader did not produce a loaded mod: {plannedMod.ManifestId}"
+                    );
                     return false;
                 }
 
                 AddOrReplaceMod(mod);
-                PatchHelper.Log($"[Mods] Android scanner bypass complete. Id={manifestData.Id} Path={modPath}");
+                PatchHelper.Log(
+                    $"[Mods] Planned mod load complete. Id={plannedMod.ManifestId} Path={plannedMod.RootPath}"
+                );
                 return true;
             }
             catch (Exception ex)
             {
-                PatchHelper.Log($"[Mods] Android scanner bypass failed: {ex}");
+                PatchHelper.Log($"[Mods] Planned mod load failed: {ex}");
                 return false;
             }
         }
 
-        internal void RebuildLoadedModsCacheIfAvailable()
-        {
-            if (_loadedModsField == null)
-            {
-                PatchHelper.Log($"[Mods] External scan complete. Total loaded: {CountLoadedMods()}");
-                return;
-            }
-
-            var allMods = _modsField.GetValue(null) as IEnumerable;
-            if (allMods == null)
-            {
-                PatchHelper.Log("[Mods] ModManager._mods was null; skipping loaded-mod rebuild");
-                return;
-            }
-
-            var loadedMods = CreateLoadedModsList(allMods, _loadedModsField.FieldType);
-            if (loadedMods == null)
-            {
-                PatchHelper.Log("[Mods] Failed to rebuild _loadedMods via reflection");
-                return;
-            }
-
-            _loadedModsField.SetValue(null, loadedMods);
-            PatchHelper.Log(
-                $"[Mods] External scan complete. Total loaded: {(loadedMods as ICollection)?.Count ?? 0}"
-            );
-        }
-
-        private object CreateNewModsList()
-        {
-            if (_newModsListType == null)
-                return null;
-
-            try
-            {
-                return Activator.CreateInstance(_newModsListType);
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Mods] Failed to create new-mod capture list: {ex.Message}");
-                return null;
-            }
-        }
-
-        private static string FindBaseLibManifestPath(string rootPath)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath))
-                    return null;
-
-                foreach (var candidate in new[]
-                {
-                    Path.Combine(rootPath, "BaseLib.json"),
-                    Path.Combine(rootPath, "BaseLib", "BaseLib.json"),
-                })
-                {
-                    if (File.Exists(candidate))
-                        return candidate;
-                }
-
-                return null;
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Mods] BaseLib manifest probe failed for {rootPath}: {ex.Message}");
-                return null;
-            }
-        }
-
-        private object CreateSyntheticBaseLibMod(string modPath, BaseLibManifestData manifestData)
+        private object CreatePlannedRuntimeMod(LauncherResolvedMod plannedMod)
         {
             if (_modType == null || _manifestType == null)
                 return null;
@@ -1366,28 +1309,31 @@ internal static partial class ModLoaderPatches
                 if (manifest == null)
                     return null;
 
-                SetMemberValue(manifest, "id", manifestData.Id);
-                SetMemberValue(manifest, "name", manifestData.Name);
-                SetMemberValue(manifest, "author", manifestData.Author);
-                SetMemberValue(manifest, "description", manifestData.Description);
-                SetMemberValue(manifest, "version", manifestData.Version);
-                SetMemberValue(manifest, "hasPck", manifestData.HasPck);
-                SetMemberValue(manifest, "hasDll", manifestData.HasDll);
-                SetMemberValue(manifest, "affectsGameplay", manifestData.AffectsGameplay);
-                SetManifestDependencies(manifest, manifestData.Dependencies ?? new List<string>());
+                SetMemberValue(manifest, "id", plannedMod.ManifestId);
+                SetMemberValue(manifest, "name", plannedMod.Name);
+                SetMemberValue(manifest, "author", plannedMod.Author);
+                SetMemberValue(manifest, "description", plannedMod.Description);
+                SetMemberValue(manifest, "version", plannedMod.Version);
+                SetMemberValue(manifest, "hasPck", !string.IsNullOrWhiteSpace(plannedMod.PckPath));
+                SetMemberValue(manifest, "hasDll", !string.IsNullOrWhiteSpace(plannedMod.DllPath));
+                SetMemberValue(manifest, "affectsGameplay", plannedMod.AffectsGameplay);
+                SetManifestDependencies(
+                    manifest,
+                    plannedMod.Dependencies.Select(dependency => dependency.Id).ToArray()
+                );
 
                 var mod = Activator.CreateInstance(_modType);
                 if (mod == null)
                     return null;
 
-                SetMemberValue(mod, "path", modPath);
+                SetMemberValue(mod, "path", plannedMod.RootPath);
                 SetMemberValue(mod, "manifest", manifest);
                 SetMemberValue(mod, "errors", null);
                 return mod;
             }
             catch (Exception ex)
             {
-                PatchHelper.Log($"[Mods] BaseLib scanner bypass synthetic object creation failed: {ex.Message}");
+                PatchHelper.Log($"[Mods] Planned runtime object creation failed: {ex.Message}");
                 return null;
             }
         }
@@ -1403,108 +1349,21 @@ internal static partial class ModLoaderPatches
             }
             catch (Exception ex)
             {
-                PatchHelper.Log($"[Mods] BaseLib scanner bypass could not set mod source: {ex.Message}");
+                PatchHelper.Log($"[Mods] Planned loader could not set mod source: {ex.Message}");
             }
         }
 
-        private static BaseLibManifestData ReadBaseLibManifestData(string manifestPath)
-        {
-            using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
-            var root = document.RootElement;
-            var manifest = new BaseLibManifestData
-            {
-                Id = ReadJsonString(root, "id"),
-                Name = ReadJsonString(root, "name"),
-                Author = ReadJsonString(root, "author"),
-                Description = ReadJsonString(root, "description"),
-                Version = ReadJsonString(root, "version"),
-                HasPck = ReadJsonBool(root, "hasPck") || ReadJsonBool(root, "has_pck"),
-                HasDll = ReadJsonBool(root, "hasDll") || ReadJsonBool(root, "has_dll"),
-                AffectsGameplay = ReadJsonBool(root, "affectsGameplay") || ReadJsonBool(root, "affects_gameplay"),
-                Dependencies = ReadJsonStringList(root, "dependencies"),
-            };
-
-            if (string.IsNullOrWhiteSpace(manifest.Id))
-                manifest.Id = "BaseLib";
-            if (string.IsNullOrWhiteSpace(manifest.Name))
-                manifest.Name = manifest.Id;
-
-            return manifest;
-        }
-
-        private static string ReadJsonString(JsonElement root, string propertyName)
-        {
-            if (!TryGetJsonProperty(root, propertyName, out var property)
-                || property.ValueKind != JsonValueKind.String)
-            {
-                return "";
-            }
-
-            return property.GetString() ?? "";
-        }
-
-        private static bool ReadJsonBool(JsonElement root, string propertyName)
-        {
-            if (!TryGetJsonProperty(root, propertyName, out var property))
-                return false;
-
-            return property.ValueKind switch
-            {
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                JsonValueKind.String => bool.TryParse(property.GetString(), out var value) && value,
-                _ => false,
-            };
-        }
-
-        private static List<string> ReadJsonStringList(JsonElement root, string propertyName)
-        {
-            var values = new List<string>();
-            if (!TryGetJsonProperty(root, propertyName, out var property)
-                || property.ValueKind != JsonValueKind.Array)
-            {
-                return values;
-            }
-
-            foreach (var item in property.EnumerateArray())
-            {
-                if (item.ValueKind == JsonValueKind.String)
-                {
-                    values.Add(item.GetString() ?? "");
-                    continue;
-                }
-
-                if (item.ValueKind == JsonValueKind.Object
-                    && TryGetJsonProperty(item, "id", out var idProperty)
-                    && idProperty.ValueKind == JsonValueKind.String)
-                {
-                    values.Add(idProperty.GetString() ?? "");
-                }
-            }
-
-            return values;
-        }
-
-        private static bool TryGetJsonProperty(JsonElement root, string propertyName, out JsonElement property)
-        {
-            foreach (var candidate in root.EnumerateObject())
-            {
-                if (string.Equals(candidate.Name, propertyName, StringComparison.OrdinalIgnoreCase))
-                {
-                    property = candidate.Value;
-                    return true;
-                }
-            }
-
-            property = default;
-            return false;
-        }
-
-        private bool TryLoadStandardAndroidModObject(ModRoot root, object mod, BaseLibManifestData manifest)
+        private bool TryLoadWithModManager(
+            ModRoot root,
+            object mod,
+            LauncherResolvedMod plannedMod
+        )
         {
             if (_tryLoadMod == null)
             {
-                PatchHelper.Log($"[Mods] Android scanner bypass cannot load {manifest.Id}: ModManager.TryLoadMod was not found");
+                PatchHelper.Log(
+                    $"[Mods] Planned loader cannot load {plannedMod.ManifestId}: ModManager.TryLoadMod was not found"
+                );
                 return false;
             }
 
@@ -1513,62 +1372,61 @@ internal static partial class ModLoaderPatches
             {
                 ApplyWorkshopConsentIfAvailable(root);
                 AddOrReplaceMod(mod);
-                PatchHelper.Log($"[Mods] Loading {manifest.Id} through Android-safe synthetic mod path");
+                PatchHelper.Log($"[Mods] Loading planned mod {plannedMod.ManifestId}");
                 _tryLoadMod.Invoke(null, new[] { mod });
                 ApplyLoadedAssemblyCompatibilityPatches();
-                LogAndroidModHarmonyDiagnostics(manifest, mod);
-                PatchHelper.Log($"[Mods] Android-safe synthetic mod load complete: {manifest.Id} loaded={IsLoaded(mod)}");
-                return true;
+                LogAndroidModHarmonyDiagnostics(plannedMod, mod);
+                var explicitlyLoaded = IsRuntimeModExplicitlyLoaded(mod);
+                PatchHelper.Log(
+                    $"[Mods] Planned mod load complete: {plannedMod.ManifestId} loaded={explicitlyLoaded}"
+                );
+                return explicitlyLoaded;
             }
             catch (TargetInvocationException ex)
             {
-                PatchHelper.Log($"[Mods] Android-safe synthetic mod load failed for {manifest.Id}: {ex.InnerException ?? ex}");
+                PatchHelper.Log(
+                    $"[Mods] Planned mod load failed for {plannedMod.ManifestId}: {ex.InnerException ?? ex}"
+                );
                 return false;
             }
             catch (Exception ex)
             {
-                PatchHelper.Log($"[Mods] Android-safe synthetic mod load failed for {manifest.Id}: {ex}");
+                PatchHelper.Log($"[Mods] Planned mod load failed for {plannedMod.ManifestId}: {ex}");
                 return false;
             }
         }
 
-        private static void LogAndroidModHarmonyDiagnostics(BaseLibManifestData manifest, object mod)
+        private static void LogAndroidModHarmonyDiagnostics(
+            LauncherResolvedMod plannedMod,
+            object mod
+        )
         {
             try
             {
                 var assembly = TryReadAssemblyMember(mod)
-                    ?? FindLoadedAssemblyBySimpleName(manifest?.Id)
-                    ?? FindLoadedAssemblyBySimpleName(SanitizeAssemblyName(manifest?.Name));
+                    ?? FindLoadedAssemblyBySimpleName(plannedMod?.ManifestId);
                 var assemblyName = assembly?.GetName().Name ?? "<none>";
                 var patchTypes = CountHarmonyPatchTypes(assembly);
-                var ownerCandidates = BuildHarmonyOwnerCandidates(manifest, assembly).ToArray();
+                var ownerCandidates = new[] { plannedMod?.ManifestId }
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .ToArray();
                 var targetSummaries = FindHarmonyTargetsForOwners(ownerCandidates, out var matchedTargetCount);
 
                 PatchHelper.Log(
-                    $"[Mods] Harmony diagnostics for {manifest?.Id ?? "<unknown>"}: assembly={assemblyName} patchTypes={patchTypes} ownerCandidates=[{string.Join(", ", ownerCandidates)}] matchedTargets={matchedTargetCount}"
+                    $"[Mods] Harmony diagnostics for {plannedMod?.ManifestId ?? "<unknown>"}: assembly={assemblyName} patchTypes={patchTypes} ownerCandidates=[{string.Join(", ", ownerCandidates)}] matchedTargets={matchedTargetCount}"
                 );
 
                 foreach (var target in targetSummaries)
-                    PatchHelper.Log($"[Mods] Harmony target for {manifest?.Id ?? "<unknown>"}: {target}");
+                    PatchHelper.Log($"[Mods] Harmony target for {plannedMod?.ManifestId ?? "<unknown>"}: {target}");
             }
             catch (Exception ex)
             {
-                PatchHelper.Log($"[Mods] Harmony diagnostics failed for {manifest?.Id ?? "<unknown>"}: {ex.GetType().Name}: {ex.Message}");
+                PatchHelper.Log($"[Mods] Harmony diagnostics failed for {plannedMod?.ManifestId ?? "<unknown>"}: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
         private static Assembly TryReadAssemblyMember(object mod)
-        {
-            try
-            {
-                return TryReadMemberValue(mod, "assembly") as Assembly
-                    ?? TryReadMemberValue(mod, "Assembly") as Assembly;
-            }
-            catch
-            {
-                return null;
-            }
-        }
+            => TryReadRuntimeAssembly(mod);
 
         private static Assembly FindLoadedAssemblyBySimpleName(string simpleName)
         {
@@ -1606,24 +1464,6 @@ internal static partial class ModLoaderPatches
                 return ex.Types
                     .Where(type => type != null)
                     .Count(HasHarmonyPatchAttribute);
-            }
-        }
-
-        private static IEnumerable<string> BuildHarmonyOwnerCandidates(BaseLibManifestData manifest, Assembly assembly)
-        {
-            var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            AddCandidate(manifest?.Id);
-            AddCandidate(manifest?.Name);
-            AddCandidate(SanitizeAssemblyName(manifest?.Name));
-            AddCandidate(assembly?.GetName().Name);
-
-            foreach (var candidate in candidates)
-                yield return candidate;
-
-            void AddCandidate(string value)
-            {
-                if (!string.IsNullOrWhiteSpace(value))
-                    candidates.Add(value.Trim());
             }
         }
 
@@ -1701,14 +1541,14 @@ internal static partial class ModLoaderPatches
             return chars.Length == 0 ? null : new string(chars);
         }
 
-        private static bool IsSavesMergerMod(BaseLibManifestData manifest)
-            => DeprecatedSavePathMod.IsMatch(manifest?.Id, manifest?.Name);
-
-        private bool TryLoadBaseLibForAndroidObject(object mod, string modPath, BaseLibManifestData manifest)
+        private bool TryLoadBaseLibForAndroidObject(
+            object mod,
+            LauncherResolvedMod plannedMod
+        )
         {
             if (mod == null
-                || manifest == null
-                || !string.Equals(manifest.Id, "BaseLib", StringComparison.Ordinal))
+                || plannedMod == null
+                || !string.Equals(plannedMod.ManifestId, "BaseLib", StringComparison.Ordinal))
             {
                 return false;
             }
@@ -1717,8 +1557,8 @@ internal static partial class ModLoaderPatches
             try
             {
                 var loadedSomething = false;
-                var dllPath = Path.Combine(modPath, "BaseLib.dll");
-                if (manifest.HasDll)
+                var dllPath = plannedMod.DllPath;
+                if (!string.IsNullOrWhiteSpace(dllPath))
                 {
                     if (Godot.FileAccess.FileExists(dllPath))
                     {
@@ -1734,8 +1574,8 @@ internal static partial class ModLoaderPatches
                     }
                 }
 
-                var pckPath = Path.Combine(modPath, "BaseLib.pck");
-                if (manifest.HasPck)
+                var pckPath = plannedMod.PckPath;
+                if (!string.IsNullOrWhiteSpace(pckPath))
                 {
                     if (Godot.FileAccess.FileExists(pckPath))
                     {
@@ -1761,9 +1601,20 @@ internal static partial class ModLoaderPatches
                     PatchHelper.Log("[Mods] BaseLib Android-safe initializer through reflection loader complete");
                 }
 
-                SetEnumMember(mod, "state", "Loaded");
-                SetMemberValue(mod, "assembly", assembly);
+                if (assembly != null && !TryRecordRuntimeAssembly(mod, assembly))
+                {
+                    throw new InvalidOperationException(
+                        "BaseLib payload completed, but ModManager exposed no supported assembly marker."
+                    );
+                }
                 SetMemberValue(mod, "errors", null);
+                if (!SetEnumMember(mod, "state", "Loaded")
+                    || !IsRuntimeModExplicitlyLoaded(mod))
+                {
+                    throw new InvalidOperationException(
+                        "BaseLib payload completed, but an exact Loaded runtime state could not be recorded."
+                    );
+                }
                 PatchHelper.Log("[Mods] BaseLib loaded through Android-safe staged Workshop path");
                 return true;
             }
@@ -1771,8 +1622,42 @@ internal static partial class ModLoaderPatches
             {
                 PatchHelper.Log($"[Mods] BaseLib Android-safe load failed: {ex}");
                 SetEnumMember(mod, "state", "Failed");
-                SetMemberValue(mod, "assembly", assembly);
-                return true;
+                if (assembly != null)
+                    TryRecordRuntimeAssembly(mod, assembly);
+                return false;
+            }
+        }
+
+        private static bool TryRecordRuntimeAssembly(object mod, Assembly assembly)
+        {
+            if (mod == null || assembly == null)
+                return false;
+
+            try
+            {
+                var legacyType = GetWritableMemberType(mod, "assembly")
+                    ?? GetWritableMemberType(mod, "Assembly");
+                if (legacyType?.IsInstanceOfType(assembly) == true)
+                {
+                    return SetMemberValue(mod, "assembly", assembly)
+                        || SetMemberValue(mod, "Assembly", assembly);
+                }
+
+                var values = TryReadMemberValue(mod, "assemblies") as IList
+                    ?? TryReadMemberValue(mod, "Assemblies") as IList;
+                if (values == null)
+                    return false;
+
+                if (!values.Contains(assembly))
+                    values.Add(assembly);
+                return values.Contains(assembly);
+            }
+            catch (Exception ex)
+            {
+                PatchHelper.Log(
+                    $"[Mods] Failed to record runtime assembly for {assembly.GetName().Name}: {ex.Message}"
+                );
+                return false;
             }
         }
 
@@ -1812,13 +1697,13 @@ internal static partial class ModLoaderPatches
             }
         }
 
-        private static void SetEnumMember(object target, string name, string enumName)
+        private static bool SetEnumMember(object target, string name, string enumName)
         {
             var memberType = GetWritableMemberType(target, name);
             if (memberType == null || !memberType.IsEnum)
-                return;
+                return false;
 
-            SetMemberValue(target, name, Enum.Parse(memberType, enumName));
+            return SetMemberValue(target, name, Enum.Parse(memberType, enumName));
         }
 
         private static Type GetWritableMemberType(object target, string name)
@@ -1869,7 +1754,7 @@ internal static partial class ModLoaderPatches
         {
             if (_modsField.GetValue(null) is not IList mods)
             {
-                PatchHelper.Log("[Mods] BaseLib scanner bypass could not update ModManager._mods");
+                PatchHelper.Log("[Mods] Planned loader could not update ModManager._mods");
                 return;
             }
 
@@ -1884,37 +1769,6 @@ internal static partial class ModLoaderPatches
             }
 
             mods.Add(mod);
-        }
-
-        private sealed class BaseLibManifestData
-        {
-            internal string Id { get; set; }
-            internal string Name { get; set; }
-            internal string Author { get; set; }
-            internal string Description { get; set; }
-            internal string Version { get; set; }
-            internal bool HasPck { get; set; }
-            internal bool HasDll { get; set; }
-            internal bool AffectsGameplay { get; set; }
-            internal List<string> Dependencies { get; set; }
-        }
-
-        private object[] BuildScanArguments(string path, DirAccess dirAccess, object newMods)
-        {
-            var parameters = _scanMethod.GetParameters();
-            if (parameters.Length == 2)
-            {
-                if (parameters[0].ParameterType == typeof(string))
-                    return new[] { path, _sourceValue };
-
-                if (typeof(DirAccess).IsAssignableFrom(parameters[0].ParameterType))
-                    return new object[] { dirAccess, _sourceValue };
-            }
-
-            if (parameters.Length == 3 && parameters[0].ParameterType == typeof(string))
-                return new[] { path, _sourceValue, newMods };
-
-            return null;
         }
 
         private RuntimeLoadWindow BeginRuntimeLoadWindow()
@@ -1972,128 +1826,6 @@ internal static partial class ModLoaderPatches
             }
         }
 
-        private void SortModsIfAvailable()
-        {
-            if (_sortModList == null)
-                return;
-
-            try
-            {
-                var parameters = _sortModList.GetParameters();
-                if (parameters.Length != 1)
-                    return;
-
-                var modList = ResolveSettingsModList(parameters[0].ParameterType);
-                if (modList == null)
-                    return;
-
-                _sortModList.Invoke(null, new[] { modList });
-            }
-            catch (Exception ex)
-            {
-                PatchHelper.Log($"[Mods] Mod sort skipped: {ex.Message}");
-            }
-        }
-
-        private object ResolveSettingsModList(Type parameterType)
-        {
-            var settings = _settingsField?.GetValue(null);
-            if (settings != null)
-            {
-                var modList = settings.GetType()
-                    .GetProperty("ModList", AllInstance)
-                    ?.GetValue(settings);
-                if (modList != null && parameterType.IsInstanceOfType(modList))
-                    return modList;
-            }
-
-            try
-            {
-                return Activator.CreateInstance(parameterType);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private int TryLoadNewMods(
-            object newMods,
-            IReadOnlyList<LauncherKnownMod> knownMods
-        )
-        {
-            if (_tryLoadMod == null || newMods is not IEnumerable mods)
-                return 0;
-
-            var newModSet = new HashSet<object>();
-            foreach (var mod in mods)
-            {
-                if (mod != null)
-                    newModSet.Add(mod);
-            }
-
-            var attempts = 0;
-            foreach (var mod in OrderedNewMods(newModSet))
-            {
-                if (mod == null)
-                    continue;
-
-                try
-                {
-                    if (!IsSelectedForLaunch(mod, knownMods))
-                    {
-                        PatchHelper.Log($"[Mods] Skipping disabled launcher-selected mod: {DescribeMod(mod)}");
-                        continue;
-                    }
-
-                    if (mod is Mod typedMod && TryLoadBaseLibForAndroid(typedMod))
-                    {
-                        attempts++;
-                        continue;
-                    }
-
-                    _tryLoadMod.Invoke(null, new[] { mod });
-                    attempts++;
-                }
-                catch (TargetInvocationException ex)
-                {
-                    PatchHelper.Log($"[Mods] Mod load failed: {ex.InnerException ?? ex}");
-                }
-                catch (Exception ex)
-                {
-                    PatchHelper.Log($"[Mods] Mod load failed: {ex}");
-                }
-            }
-
-            return attempts;
-        }
-
-        private static bool IsSelectedForLaunch(
-            object mod,
-            IReadOnlyList<LauncherKnownMod> knownMods
-        )
-        {
-            if (mod is Mod typedMod)
-                return LauncherModSelectionState.IsPathEnabled(typedMod.path, knownMods);
-
-            var path = TryReadStringMember(mod, "path")
-                ?? TryReadStringMember(mod, "Path")
-                ?? "";
-            return LauncherModSelectionState.IsPathEnabled(path, knownMods);
-        }
-
-        private static string DescribeMod(object mod)
-        {
-            if (mod is Mod typedMod)
-                return $"{typedMod.manifest?.id ?? "<unknown>"} at {typedMod.path}";
-
-            var id = TryReadManifestId(mod) ?? "<unknown>";
-            var path = TryReadStringMember(mod, "path")
-                ?? TryReadStringMember(mod, "Path")
-                ?? "<unknown path>";
-            return $"{id} at {path}";
-        }
-
         private static string TryReadManifestId(object mod)
         {
             try
@@ -2147,68 +1879,6 @@ internal static partial class ModLoaderPatches
             }
         }
 
-        private IEnumerable<object> OrderedNewMods(ISet<object> newMods)
-        {
-            if (newMods == null || newMods.Count == 0)
-                yield break;
-
-            if (_modsField.GetValue(null) is not IEnumerable allMods)
-                yield break;
-
-            var orderedNewMods = new List<object>();
-            foreach (var mod in allMods)
-            {
-                if (mod != null && newMods.Contains(mod))
-                    orderedNewMods.Add(mod);
-            }
-
-            foreach (var mod in orderedNewMods
-                .OrderByDescending(IsBaseLibMod)
-                .ThenBy(DescribeMod, StringComparer.OrdinalIgnoreCase))
-            {
-                yield return mod;
-            }
-        }
-
-        private static bool IsBaseLibMod(object mod)
-        {
-            var id = TryReadManifestId(mod);
-            return string.Equals(id, "BaseLib", StringComparison.OrdinalIgnoreCase);
-        }
-
-        private int CountLoadedMods()
-        {
-            var allMods = _modsField.GetValue(null) as IEnumerable;
-            if (allMods == null)
-                return 0;
-
-            var count = 0;
-            foreach (var mod in allMods)
-            {
-                if (mod != null && IsLoaded(mod))
-                    count++;
-            }
-
-            return count;
-        }
-
-        private static int Count(object list)
-        {
-            return list switch
-            {
-                ICollection collection => collection.Count,
-                IEnumerable enumerable => CountEnumerable(enumerable),
-                _ => 0,
-            };
-        }
-
-        private static int CountEnumerable(IEnumerable enumerable)
-        {
-            var count = 0;
-            foreach (var _ in enumerable)
-                count++;
-            return count;
-        }
     }
 
     private sealed class RuntimeLoadWindow : IDisposable
@@ -2216,8 +1886,6 @@ internal static partial class ModLoaderPatches
         private readonly FieldInfo _initializedField;
         private readonly PropertyInfo _stateProperty;
         private readonly object _previousInitialized;
-        private readonly object _previousState;
-        private readonly bool _changedInitialized;
         private readonly bool _changedState;
 
         internal RuntimeLoadWindow(FieldInfo initializedField, PropertyInfo stateProperty)
@@ -2229,50 +1897,37 @@ internal static partial class ModLoaderPatches
             {
                 _previousInitialized = _initializedField.GetValue(null);
                 _initializedField.SetValue(null, false);
-                _changedInitialized = true;
+                _changedState = true;
+                return;
             }
 
-            if (_stateProperty != null && TryResolveStateValue(_stateProperty.PropertyType, out var noneState))
-            {
-                _previousState = _stateProperty.GetValue(null);
-                SetState(_stateProperty, noneState);
-                _changedState = true;
-            }
+            if (_stateProperty == null)
+                throw new InvalidOperationException("No supported ModManager runtime-load state was resolved.");
+
+            _previousInitialized = _stateProperty.GetValue(null);
+            var none = Enum.Parse(_stateProperty.PropertyType, "None", ignoreCase: false);
+            SetState(_stateProperty, none);
+            _changedState = true;
         }
 
         public void Dispose()
         {
-            if (_changedState)
-                SetState(_stateProperty, _previousState);
+            if (!_changedState)
+                return;
 
-            if (_changedInitialized)
+            if (_initializedField != null)
                 _initializedField.SetValue(null, _previousInitialized);
-        }
-
-        private static bool TryResolveStateValue(Type stateType, out object noneState)
-        {
-            try
-            {
-                noneState = Enum.Parse(stateType, "None");
-                return true;
-            }
-            catch
-            {
-                noneState = null;
-                return false;
-            }
+            else
+                SetState(_stateProperty, _previousInitialized);
         }
 
         private static void SetState(PropertyInfo stateProperty, object value)
         {
-            var setter = stateProperty.GetSetMethod(true);
-            if (setter != null)
-            {
-                setter.Invoke(null, new[] { value });
-                return;
-            }
-
-            stateProperty.SetValue(null, value);
+            var setter = stateProperty?.GetSetMethod(nonPublic: true)
+                ?? throw new InvalidOperationException(
+                    "The resolved ModManager State property has no setter."
+                );
+            setter.Invoke(null, new[] { value });
         }
     }
 
@@ -2290,21 +1945,4 @@ internal static partial class ModLoaderPatches
         internal bool RequiresWorkshopConsent { get; }
     }
 
-    private readonly struct SelectedModRootSnapshot
-    {
-        internal static SelectedModRootSnapshot Missing => new(false, 0, 0, 0);
-
-        internal SelectedModRootSnapshot(bool exists, int manifestCount, int pckCount, int dllCount)
-        {
-            Exists = exists;
-            ManifestCount = manifestCount;
-            PckCount = pckCount;
-            DllCount = dllCount;
-        }
-
-        public bool Exists { get; }
-        public int ManifestCount { get; }
-        public int PckCount { get; }
-        public int DllCount { get; }
-    }
 }

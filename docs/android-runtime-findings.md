@@ -1,6 +1,6 @@
 # Android runtime findings
 
-Updated: 2026-08-09
+Updated: 2026-08-10
 
 The current source is an unverified save-synchronization candidate. Historical emulator and device results apply only to the exact artifacts that produced them.
 
@@ -19,8 +19,10 @@ No current-source Android or live-Steam validation is available.
 ```powershell
 dotnet build src\STS2Mobile\STS2Mobile.csproj -c Release
 .\scripts\test-local-gameplay-save-safety.ps1
-.\scripts\test-launcher-ui-preview.ps1
 ```
+
+Run the launcher/mod test with the three explicit local fixture paths shown in
+[Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-activation).
 
 For an offline APK candidate:
 
@@ -36,7 +38,7 @@ For an offline APK candidate:
   -Abi arm64-v8a
 ```
 
-The save suite uses a small deterministic fake remote. It proves local policy and failure behavior only; it does not prove Steam transport or Android transport. The desktop launcher test does not prove Android rendering, touch, lifecycle, or gameplay.
+The save suite uses a small deterministic fake remote. It proves local policy and failure behavior only; it does not prove Steam transport or Android transport. The desktop mod fixture does not prove Android mod activation or an in-game effect.
 
 ## Remaining proof
 

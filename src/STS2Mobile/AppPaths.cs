@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Godot;
+using STS2Mobile.Launcher;
 
 namespace STS2Mobile;
 
@@ -9,6 +10,8 @@ internal static class AppPaths
 {
     private const string ExternalStorageRoot = "/storage/emulated/0/StS2Launcher";
     private const string AndroidFilesDirEnvironmentVariable = "STS2_ANDROID_FILES_DIR";
+    internal const string LauncherPreviewDataDirEnvironmentVariable =
+        "STS2_LAUNCHER_PREVIEW_DATA_DIR";
     private const string WorkshopModsDirectoryName = "workshop_mods";
     private const string WorkshopDownloadsDirectoryName = "downloads";
     private const string WorkshopStagedDirectoryName = "staged";
@@ -113,6 +116,15 @@ internal static class AppPaths
 
     private static string ResolveAppPrivateDataDirectory()
     {
+        if (LauncherPreviewMode.Enabled)
+        {
+            var previewDataDir = System.Environment.GetEnvironmentVariable(
+                LauncherPreviewDataDirEnvironmentVariable
+            );
+            if (BootstrapTrace.TryNormalizeDirectory(previewDataDir, out var normalizedPreviewDataDir))
+                return normalizedPreviewDataDir;
+        }
+
         if (OperatingSystem.IsAndroid())
         {
             try

@@ -21,7 +21,7 @@ internal sealed partial class ActionSection
         _branchControlsAvailable = visibility.Branch;
         ApplyBranchControlVisibility();
         PatchHelper.Log("[Launcher] ActionSection secondary visibility phase: mods");
-        SetModsControlsVisible(visibility.Launch);
+        ShowModsControls();
         PatchHelper.Log("[Launcher] ActionSection secondary visibility phase: support");
         SetSupportButtonsVisible(visibility.Support);
         PatchHelper.Log("[Launcher] ActionSection secondary visibility phase: safe launch");

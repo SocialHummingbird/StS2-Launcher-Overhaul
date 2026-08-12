@@ -8,111 +8,237 @@ namespace LauncherUiPreview;
 
 internal static class LauncherUiInteractionTest
 {
-    private static readonly string[] DestinationLabels =
-        ["Home", "Saves", "Versions", "Mods", "Help"];
-
     internal static void Run(LauncherView view, Control root)
     {
         var events = new EventCounts();
         WireEvents(view, events);
 
-        var navigation = FindUniqueVisibleNamed<Control>(
+        view.HideActions();
+        Press(root, "Mods");
+        AssertVisibleLabelText(root, "SelectedModMode", "Selected mode: Vanilla");
+        AssertVisibleLabelText(root, "NextSaveNamespace", "Next save set: Vanilla saves");
+
+        _ = FindVisibleButton(root, "Vanilla \u00B7 Selected");
+        Press(root, "Modded");
+        AssertPersistedSelection(LauncherModPlayMode.Modded, importerEnabled: false);
+        view.SetModsPresentation(DisabledModdedPresentation());
+        Press(
             root,
-            "DestinationNavigation"
+            "Import Vanilla Saves: Workshop \u00B7 Installed \u00B7 Disabled for Modded \u00B7 Not tested yet"
         );
-        var destinations = Descendants<Button>(navigation)
-            .Where(IsLiveAndVisible)
-            .ToArray();
+        AssertPersistedSelection(LauncherModPlayMode.Modded, importerEnabled: true);
+        view.SetModsPresentation(CurrentModdedPresentation());
+        AssertCurrentModdedPresentation(root);
+        Press(
+            root,
+            "Import Vanilla Saves: Workshop \u00B7 Installed \u00B7 Enabled for Modded \u00B7 Loaded last launch"
+        );
+        AssertPersistedSelection(LauncherModPlayMode.Modded, importerEnabled: false);
+        view.SetModsPresentation(DisabledModdedPresentation());
+        Press(
+            root,
+            "Import Vanilla Saves: Workshop \u00B7 Installed \u00B7 Disabled for Modded \u00B7 Not tested yet"
+        );
+        AssertPersistedSelection(LauncherModPlayMode.Modded, importerEnabled: true);
+
+        Press(root, "Vanilla");
+        AssertPersistedSelection(LauncherModPlayMode.Vanilla, importerEnabled: true);
+        AssertVisibleLabelText(root, "SelectedModMode", "Selected mode: Vanilla");
+        AssertVisibleLabelText(root, "NextSaveNamespace", "Next save set: Vanilla saves");
+        Press(root, "Modded");
+        AssertPersistedSelection(LauncherModPlayMode.Modded, importerEnabled: true);
+        view.SetModsPresentation(CurrentModdedPresentation());
+
+        view.SetModsPresentation(PartialModdedPresentation());
+        AssertVisibleModRows(
+            root,
+            "Import Vanilla Saves: Workshop \u00B7 Installed \u00B7 Enabled for Modded \u00B7 Partial"
+        );
+        view.SetModsPresentation(FailedModdedPresentation());
+        AssertVisibleModRows(
+            root,
+            "Import Vanilla Saves: Workshop \u00B7 Installed \u00B7 Enabled for Modded \u00B7 Failed"
+        );
+        view.SetModsPresentation(StaleModdedPresentation());
+        AssertVisibleModRows(
+            root,
+            "Import Vanilla Saves: Workshop \u00B7 Installed \u00B7 Enabled for Modded \u00B7 Not tested yet"
+        );
         Expect(
-            destinations.Select(button => button.Text).SequenceEqual(DestinationLabels),
-            "Launcher navigation must contain Home, Saves, Versions, Mods, and Help in order."
+            !Descendants<Button>(FindUniqueVisibleNamed<Control>(root, "ModsList"))
+                .Where(IsLiveAndVisible)
+                .Any(button => button.Text.Contains("Loaded last launch", StringComparison.Ordinal)),
+            "A stale activation result was presented as loaded."
+        );
+        view.SetModsPresentation(MissingResultModdedPresentation());
+        AssertVisibleModRows(
+            root,
+            "Import Vanilla Saves: Workshop \u00B7 Installed \u00B7 Enabled for Modded \u00B7 Not tested yet"
+        );
+        view.SetModsPresentation(CurrentModdedPresentation());
+
+        Press(root, "Saves");
+        AssertVisibleLabelText(
+            root,
+            "SaveNamespaceExplanation",
+            "Both save sets sync separately. They are not merged."
         );
 
-        SelectDestination(root, "Saves", "Sync now");
-        var saveActions = FindUniqueVisibleNamed<Control>(root, "SaveSyncActions");
-        AssertVisibleButtonTexts(
-            saveActions,
-            "Sync now",
-            "Pull from Steam",
-            "Push to Steam"
+        view.ShowLaunchActions("Play", showUpdate: true);
+        Press(root, "Home");
+        AssertVisibleLabelText(root, "HomeSaveNamespaceState", "Modded saves");
+        var play = FindVisibleButton(root, "Play Modded \u00B7 1 enabled");
+        Expect(
+            !play.Disabled,
+            "Play became unavailable because the last modded launch contained a failure."
         );
-        Press(saveActions, "Sync now");
-        Press(saveActions, "Pull from Steam");
-        Press(saveActions, "Push to Steam");
-        AssertConflictChoices(view, root, events);
-
-        SelectDestination(root, "Versions", "Check for Updates");
-        Press(root, "Check for Updates");
-
-        SelectDestination(root, "Mods", "Sync Workshop Mods");
-        Press(root, "Sync Workshop Mods");
-
-        SelectDestination(root, "Help", "Safe Start");
-        Press(root, "Safe Start");
-
-        SelectDestination(root, "Home", "Play");
-        Press(root, "Play");
+        play.EmitSignal(Button.SignalName.Pressed);
 
         Expect(events.Launch == 1, "Play callback was not invoked exactly once.");
-        Expect(events.SaveSyncNow == 1, "Sync now callback was not invoked exactly once.");
-        Expect(events.SavePull == 1, "Pull callback was not invoked exactly once.");
-        Expect(events.SavePush == 1, "Push callback was not invoked exactly once.");
-        Expect(events.CheckForUpdates == 1, "Version action callback was not invoked exactly once.");
-        Expect(events.WorkshopSync == 1, "Mods action callback was not invoked exactly once.");
-        Expect(events.SafeLaunch == 1, "Help action callback was not invoked exactly once.");
+        Expect(events.ModsSelectionChanged == 6, "Mode selectors or mod toggles did not persist each change.");
     }
 
-    private static void SelectDestination(
-        Node root,
-        string destination,
-        string expectedAction
-    )
+    private static void AssertCurrentModdedPresentation(Node root)
     {
-        Press(root, destination);
-        _ = FindVisibleButton(root, expectedAction);
+        AssertVisibleLabelText(root, "SelectedModMode", "Selected mode: Modded");
+        AssertVisibleLabelText(root, "NextSaveNamespace", "Next save set: Modded saves");
+        _ = FindVisibleButton(root, "Modded \u00B7 Selected");
+        AssertVisibleModRows(
+            root,
+            "Import Vanilla Saves: Workshop \u00B7 Installed \u00B7 Enabled for Modded \u00B7 Loaded last launch"
+        );
     }
 
-    private static void AssertConflictChoices(
-        LauncherView view,
-        Node root,
-        EventCounts events
+    private static void AssertVisibleModRows(Node root, params string[] expected)
+    {
+        var list = FindUniqueVisibleNamed<Control>(root, "ModsList");
+        AssertVisibleButtonTexts(list, expected);
+    }
+
+    private static void AssertPersistedSelection(
+        LauncherModPlayMode expectedMode,
+        bool importerEnabled
     )
     {
-        view.ShowSaveSyncConflict(
-            () => events.UseSteamSaves++,
-            () => events.UseDeviceSaves++
-        );
-        var steamChoice = FindUniqueVisibleNamed<Control>(
-            root,
-            "ConfirmationActions"
-        );
-        AssertVisibleButtonTexts(
-            steamChoice,
-            "Use Steam saves",
-            "Use this device"
-        );
-        Press(steamChoice, "Use Steam saves");
-
-        view.ShowSaveSyncConflict(
-            () => events.UseSteamSaves++,
-            () => events.UseDeviceSaves++
-        );
-        var deviceChoice = FindUniqueVisibleNamed<Control>(
-            root,
-            "ConfirmationActions"
-        );
-        AssertVisibleButtonTexts(
-            deviceChoice,
-            "Use Steam saves",
-            "Use this device"
-        );
-        Press(deviceChoice, "Use this device");
-
+        var reloaded = LauncherModSelectionState.Load();
+        var actualMode = LauncherModSelectionState.IsModdedModeFor(reloaded)
+            ? LauncherModPlayMode.Modded
+            : LauncherModPlayMode.Vanilla;
+        var actualEnabled = reloaded.EnabledMods.TryGetValue(
+            "workshop:3747503308",
+            out var enabled
+        ) && enabled;
         Expect(
-            events.UseSteamSaves == 1 && events.UseDeviceSaves == 1,
-            "Save-conflict choices did not invoke their matching callbacks."
+            actualMode == expectedMode && actualEnabled == importerEnabled,
+            $"Fresh mod_selection.json load was {actualMode}/{actualEnabled}; expected {expectedMode}/{importerEnabled}."
         );
     }
+
+    private static LauncherModsPresentation CurrentModdedPresentation()
+        => ModsPresentation(
+            "preview-current",
+            "Play Modded \u00B7 1 enabled",
+            new LauncherModPresentationItem(
+                "workshop:3747503308",
+                "ImportVanillaSaves",
+                "Import Vanilla Saves",
+                "Workshop",
+                Installed: true,
+                Enabled: true,
+                CanChange: true,
+                LastLaunchState: LauncherModLastLaunchState.LoadedLastLaunch,
+                IsLastLaunchStale: false,
+                Detail: "Initialization and activation verified."
+            )
+        );
+
+    private static LauncherModsPresentation DisabledModdedPresentation()
+        => ImporterPresentation(
+            "preview-disabled",
+            enabled: false,
+            LauncherModLastLaunchState.NotTestedYet,
+            stale: false
+        );
+
+    private static LauncherModsPresentation PartialModdedPresentation()
+        => ImporterPresentation(
+            "preview-partial",
+            enabled: true,
+            LauncherModLastLaunchState.Partial,
+            stale: false
+        );
+
+    private static LauncherModsPresentation FailedModdedPresentation()
+        => ImporterPresentation(
+            "preview-failed",
+            enabled: true,
+            LauncherModLastLaunchState.Failed,
+            stale: false
+        );
+
+    private static LauncherModsPresentation StaleModdedPresentation()
+        => ImporterPresentation(
+            "preview-stale",
+            enabled: true,
+            LauncherModLastLaunchState.LoadedLastLaunch,
+            stale: true
+        );
+
+    private static LauncherModsPresentation MissingResultModdedPresentation()
+        => ImporterPresentation(
+            "preview-missing",
+            enabled: true,
+            LauncherModLastLaunchState.NotTestedYet,
+            stale: false
+        );
+
+    private static LauncherModsPresentation ImporterPresentation(
+        string fingerprint,
+        bool enabled,
+        LauncherModLastLaunchState state,
+        bool stale
+    )
+        => ModsPresentation(
+            fingerprint,
+            $"Play Modded \u00B7 {(enabled ? 1 : 0)} enabled",
+            new LauncherModPresentationItem(
+                "workshop:3747503308",
+                "ImportVanillaSaves",
+                "Import Vanilla Saves",
+                "Workshop",
+                Installed: true,
+                Enabled: enabled,
+                CanChange: true,
+                LastLaunchState: state,
+                IsLastLaunchStale: stale,
+                Detail: stale
+                    ? "Last launch used a different mod selection."
+                    : state switch
+                    {
+                        LauncherModLastLaunchState.Partial => "Activation was only partially verified.",
+                        LauncherModLastLaunchState.Failed => "Activation failed.",
+                        LauncherModLastLaunchState.LoadedLastLaunch => "Initialization and activation verified.",
+                        _ => "No matching result from the last launch.",
+                    }
+            )
+        );
+
+    private static LauncherModsPresentation ModsPresentation(
+        string fingerprint,
+        string playLabel,
+        params LauncherModPresentationItem[] mods
+    )
+        => new(
+            LauncherModPlayMode.Modded,
+            fingerprint,
+            "Modded saves",
+            playLabel,
+            "Modded selected",
+            mods,
+            mods.Count(mod => mod.Installed),
+            mods.Count(mod => mod.Enabled),
+            mods.Any(mod => mod.IsLastLaunchStale)
+        );
 
     private static void Press(Node root, string text)
         => FindVisibleButton(root, text).EmitSignal(Button.SignalName.Pressed);
@@ -163,6 +289,15 @@ internal static class LauncherUiInteractionTest
         return matches[0];
     }
 
+    private static void AssertVisibleLabelText(Node root, string name, string expected)
+    {
+        var label = FindUniqueVisibleNamed<Label>(root, name);
+        Expect(
+            string.Equals(label.Text, expected, StringComparison.Ordinal),
+            $"Expected {name} to read '{expected}'; found '{label.Text}'."
+        );
+    }
+
     private static bool IsLiveAndVisible(CanvasItem item)
     {
         for (Node current = item; current is not null; current = current.GetParent())
@@ -200,32 +335,26 @@ internal static class LauncherUiInteractionTest
             rendererModeChanged: _ => { },
             launchPressed: () => events.Launch++,
             retryPressed: () => { },
-            checkForUpdatesPressed: () => events.CheckForUpdates++,
+            checkForUpdatesPressed: () => { },
             refreshGameVersionsPressed: () => { },
             redownloadPressed: () => { },
             clearCachedVersionsPressed: () => { },
             diagnosticsPressed: () => { },
             showLastErrorPressed: () => { },
             copyRawLogPressed: () => { },
-            safeLaunchPressed: () => events.SafeLaunch++,
-            saveSyncNowPressed: () => events.SaveSyncNow++,
-            savePullPressed: () => events.SavePull++,
-            savePushPressed: () => events.SavePush++,
-            workshopSyncPressed: () => events.WorkshopSync++,
-            workshopClearPressed: () => { }
+            safeLaunchPressed: () => { },
+            saveSyncNowPressed: () => { },
+            savePullPressed: () => { },
+            savePushPressed: () => { },
+            workshopSyncPressed: () => { },
+            workshopClearPressed: () => { },
+            modsSelectionChanged: () => events.ModsSelectionChanged++
         );
     }
 
     private sealed class EventCounts
     {
         internal int Launch;
-        internal int SaveSyncNow;
-        internal int SavePull;
-        internal int SavePush;
-        internal int CheckForUpdates;
-        internal int WorkshopSync;
-        internal int SafeLaunch;
-        internal int UseSteamSaves;
-        internal int UseDeviceSaves;
+        internal int ModsSelectionChanged;
     }
 }

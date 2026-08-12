@@ -24,7 +24,8 @@ internal sealed partial class LauncherView
         Action savePullPressed,
         Action savePushPressed,
         Action workshopSyncPressed,
-        Action workshopClearPressed
+        Action workshopClearPressed,
+        Action modsSelectionChanged = null
     )
     {
         Login.LoginRequested += loginRequested;
@@ -50,5 +51,7 @@ internal sealed partial class LauncherView
         Actions.SavePushPressed += savePushPressed;
         Actions.WorkshopSyncPressed += workshopSyncPressed;
         Actions.WorkshopClearPressed += workshopClearPressed;
+        if (modsSelectionChanged != null)
+            Actions.ModsSelectionChanged += modsSelectionChanged;
     }
 }

@@ -12,6 +12,8 @@ internal sealed partial class ActionSection
             VBoxContainer group,
             Button playVanillaButton,
             Button playModdedButton,
+            Label selectedModeLabel,
+            Label saveNamespaceLabel,
             Label statusLabel,
             VBoxContainer modsList,
             Button workshopSyncButton,
@@ -21,6 +23,8 @@ internal sealed partial class ActionSection
             Group = group;
             PlayVanillaButton = playVanillaButton;
             PlayModdedButton = playModdedButton;
+            SelectedModeLabel = selectedModeLabel;
+            SaveNamespaceLabel = saveNamespaceLabel;
             StatusLabel = statusLabel;
             ModsList = modsList;
             WorkshopSyncButton = workshopSyncButton;
@@ -30,6 +34,8 @@ internal sealed partial class ActionSection
         internal VBoxContainer Group { get; }
         internal Button PlayVanillaButton { get; }
         internal Button PlayModdedButton { get; }
+        internal Label SelectedModeLabel { get; }
+        internal Label SaveNamespaceLabel { get; }
         internal Label StatusLabel { get; }
         internal VBoxContainer ModsList { get; }
         internal Button WorkshopSyncButton { get; }
@@ -39,6 +45,7 @@ internal sealed partial class ActionSection
     private ModsControls BuildModsControls(float scale, bool compact)
     {
         var group = BuildActionGroup(scale);
+        group.Name = "ModsControls";
         group.Visible = false;
 
         Container modeParent = compact && !_compactStackedActionRows
@@ -47,7 +54,7 @@ internal sealed partial class ActionSection
 
         var playVanillaButton = AddActionButton(
             modeParent,
-            compact ? CompactSupportToolText("Play Vanilla", "No mods") : "Play Vanilla",
+            compact ? CompactSupportToolText("Vanilla", "Selector") : "Vanilla",
             scale,
             () => SetModPlayMode(LauncherModPlayMode.Vanilla)
         );
@@ -55,11 +62,43 @@ internal sealed partial class ActionSection
 
         var playModdedButton = AddActionButton(
             modeParent,
-            compact ? CompactSupportToolText("Play With Mods", "Selected") : "Play With Mods",
+            compact ? CompactSupportToolText("Modded", "Selector") : "Modded",
             scale,
             () => SetModPlayMode(LauncherModPlayMode.Modded)
         );
         LauncherButtonStyles.ApplyAccentAction(playModdedButton, scale);
+
+        var selectedModeLabel = new StyledLabel(
+            "Selected mode: Vanilla",
+            scale,
+            fontSize: compact ? 14 : 15,
+            align: HorizontalAlignment.Left
+        )
+        {
+            Name = "SelectedModMode",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        selectedModeLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextPrimary
+        );
+        group.AddChild(selectedModeLabel);
+
+        var saveNamespaceLabel = new StyledLabel(
+            "Next save set: Vanilla saves",
+            scale,
+            fontSize: compact ? 12 : 13,
+            align: HorizontalAlignment.Left
+        )
+        {
+            Name = "NextSaveNamespace",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        saveNamespaceLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextSecondary
+        );
+        group.AddChild(saveNamespaceLabel);
 
         var statusLabel = new StyledLabel(
             "",
@@ -79,11 +118,11 @@ internal sealed partial class ActionSection
 
         var modsList = new VBoxContainer
         {
+            Name = "ModsList",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         modsList.AddThemeConstantOverride("separation", Math.Max(3, (int)(4 * scale)));
         group.AddChild(modsList);
-        BuildModToggleSlots(modsList, scale);
 
         Container actionsParent = compact && !_compactStackedActionRows
             ? BuildCompactActionRow(group, scale, compactStackedActionRows: false)
@@ -100,11 +139,13 @@ internal sealed partial class ActionSection
 
         var workshopClearButton = AddActionButton(
             actionsParent,
-            compact ? CompactSupportToolText("Clear Staged", "Keep files") : "Clear Staged Mods",
+            compact ? CompactSupportToolText("Clear staged...", "Confirmation") : "Clear staged mods...",
             scale,
             () => WorkshopClearPressed?.Invoke()
         );
         LauncherButtonStyles.ApplySupportAction(workshopClearButton, scale);
+        workshopClearButton.TooltipText = "Review before removing staged Workshop mods.";
+        workshopClearButton.AccessibilityDescription = workshopClearButton.TooltipText;
         SetCompactActionButtonText(workshopClearButton, workshopClearButton.Text);
 
         AddChild(group);
@@ -112,6 +153,8 @@ internal sealed partial class ActionSection
             group,
             playVanillaButton,
             playModdedButton,
+            selectedModeLabel,
+            saveNamespaceLabel,
             statusLabel,
             modsList,
             workshopSyncButton,
@@ -119,20 +162,4 @@ internal sealed partial class ActionSection
         );
     }
 
-    private void BuildModToggleSlots(Container modsList, float scale)
-    {
-        for (var i = 0; i < MaxVisibleModToggles; i++)
-        {
-            var slot = i;
-            var button = AddActionButton(
-                modsList,
-                "",
-                scale,
-                () => ToggleModAtIndex(slot)
-            );
-            button.Visible = false;
-            LauncherButtonStyles.ApplySupportAction(button, scale);
-            _modToggleButtons.Add(button);
-        }
-    }
 }

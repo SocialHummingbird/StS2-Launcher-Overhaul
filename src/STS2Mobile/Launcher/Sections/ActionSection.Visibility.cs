@@ -11,7 +11,10 @@ internal sealed partial class ActionSection
         ApplyDestinationVisibility();
         PatchHelper.Log("[Launcher] ActionSection.ShowLaunch phase: launch button text");
         var launchTitle = LaunchTitle(text);
-        SetCompactActionButtonText(_launchButton, _compact ? CompactLaunchButtonText(launchTitle) : launchTitle);
+        if (string.Equals(launchTitle, "Play", System.StringComparison.OrdinalIgnoreCase))
+            ApplyContextualPlayLabel();
+        else
+            SetCompactActionButtonText(_launchButton, _compact ? CompactLaunchButtonText(launchTitle) : launchTitle);
         PatchHelper.Log("[Launcher] ActionSection.ShowLaunch phase: launch buttons");
         ShowLaunchButtons(showUpdate);
         PatchHelper.Log("[Launcher] ActionSection.ShowLaunch phase: retry hidden");

@@ -3,17 +3,20 @@
 using System.Text;
 using System.Text.Json;
 using MegaCrit.Sts2.Core.Saves;
+using STS2Mobile;
 using STS2Mobile.Launcher;
 using STS2Mobile.Steam;
+using STS2Mobile.Steam.Workshop;
 
 namespace LocalGameplaySaveSafetyProbe;
 
 internal static class Program
 {
     private static int _passed;
-
-    private static async Task Main()
+    private static async Task Main(string[] args)
     {
+        if (args.Length != 0)
+            throw new ArgumentException("The focused probe does not accept arguments.");
         await RunAsync(
             "local save paths stay contained",
             LocalSavePathsStayContainedAsync
@@ -46,10 +49,17 @@ internal static class Program
             "manual Push and Pull use one synchronization service",
             ManualPushAndPullUseOneServiceAsync
         );
+        await RunAsync(
+            "mod selection and discovery survive restart",
+            ModSelectionAndDiscoverySurviveRestartAsync
+        );
 
-        Console.WriteLine($"Focused local-save and synchronization probe passed {_passed}/8 scenarios.");
+        Console.WriteLine($"Focused local-save, synchronization, and mod probe passed {_passed}/9 scenarios.");
         Console.WriteLine(
             "Scope: FakeSaveRemote validates deterministic synchronization behavior only; it does not prove Steam Cloud or Android transport."
+        );
+        Console.WriteLine(
+            "Scope: the representative mod is a desktop fixture; it does not prove Android mod activation or an in-game effect."
         );
     }
 
@@ -456,6 +466,432 @@ internal static class Program
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    private static Task ModSelectionAndDiscoverySurviveRestartAsync()
+    {
+        const ulong workshopId = 3747503308;
+        const string selectionKey = "workshop:3747503308";
+        const string manifestId = "ImportVanillaSaves";
+
+        var root = NewTempDirectory();
+        try
+        {
+            var fixtureRoot = Path.Combine(root, "workshop", workshopId.ToString());
+            var manifestPath = Path.Combine(fixtureRoot, manifestId + ".json");
+            var dllPath = Path.Combine(fixtureRoot, manifestId + ".dll");
+            var pckPath = Path.Combine(fixtureRoot, manifestId + ".pck");
+            const string validManifest =
+                """
+                {
+                  "id": "ImportVanillaSaves",
+                  "name": "Import Vanilla Saves",
+                  "version": "v0.2.1",
+                  "author": "offline fixture",
+                  "description": "One representative desktop fixture.",
+                  "affects_gameplay": false,
+                  "has_dll": true,
+                  "has_pck": true,
+                  "dependencies": []
+                }
+                """;
+            WriteFixtureFile(manifestPath, validManifest);
+            WriteFixtureFile(dllPath, "representative-dll");
+            WriteFixtureFile(pckPath, "representative-pck");
+
+            var workshopManifest = SteamWorkshopSyncManifest.Empty(
+                Path.Combine(root, "downloads"),
+                Path.Combine(root, "workshop")
+            );
+            workshopManifest.Items.Add(new SteamWorkshopSyncManifestItem
+            {
+                PublishedFileId = workshopId,
+                Title = "Import Vanilla Saves",
+                SourceDirectory = fixtureRoot,
+                StagedDirectory = fixtureRoot,
+                Status = "staged",
+                FileCount = 3,
+                HasPck = true,
+            });
+            workshopManifest.SubscribedItemCount = 1;
+            workshopManifest.TotalItemCount = 1;
+
+            var selectionPath = Path.Combine(root, "state", "mod_selection.json");
+            var selected = new LauncherModSelectionDocument
+            {
+                PlayMode = LauncherModSelectionState.ModdedModeName,
+                EnabledMods = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [selectionKey] = true,
+                },
+            };
+            LauncherModSelectionState.Save(selectionPath, selected);
+
+            // Mutate the source object so the next assertions can only pass by
+            // reading the atomically persisted document through a fresh call.
+            selected.PlayMode = LauncherModSelectionState.VanillaModeName;
+            selected.EnabledMods.Clear();
+            var reloaded = LauncherModSelectionState.Load(selectionPath);
+            var discovered = LauncherModSelectionState.DiscoverKnownMods(
+                reloaded,
+                workshopManifest,
+                Path.Combine(root, "manual")
+            );
+            var resolution = LauncherModLaunchPlan.Resolve(reloaded, discovered);
+            Expect(
+                reloaded.PlayMode == LauncherModSelectionState.ModdedModeName
+                    && reloaded.EnabledMods.Count == 1
+                    && reloaded.EnabledMods.TryGetValue(selectionKey, out var enabled)
+                    && enabled,
+                "A fresh load lost the persisted Modded mode or enabled importer."
+            );
+            Expect(
+                discovered.Count == 1
+                    && discovered[0].Key == selectionKey
+                    && discovered[0].Enabled,
+                "The representative Workshop fixture did not resolve to one enabled discovery."
+            );
+            Expect(
+                resolution.Success
+                    && resolution.Plan.Mode == LauncherModPlayMode.Modded
+                    && resolution.Plan.SaveNamespace == LauncherModSaveNamespace.Modded
+                    && resolution.Plan.EnabledMods.Length == 1
+                    && resolution.Plan.Dependencies.IsEmpty
+                    && resolution.Plan.Roots.Length == 1,
+                $"The representative launch plan failed: {resolution.Error?.Message}"
+            );
+            var plannedMod = resolution.Plan.EnabledMods[0];
+            Expect(
+                plannedMod.ManifestId == manifestId
+                    && plannedMod.SelectionKey == selectionKey
+                    && string.Equals(
+                        plannedMod.RootPath,
+                        Path.GetFullPath(fixtureRoot),
+                        StringComparison.OrdinalIgnoreCase
+                    ),
+                "The representative launch plan resolved the wrong identity or root."
+            );
+            ExpectResolvedPayloads(plannedMod, manifestPath, dllPath, pckPath);
+
+            var afterRestart = LauncherModSelectionState.Load(selectionPath);
+            var restarted = LauncherModLaunchPlan.Resolve(
+                afterRestart,
+                LauncherModSelectionState.DiscoverKnownMods(
+                    afterRestart,
+                    workshopManifest,
+                    Path.Combine(root, "manual")
+                )
+            );
+            Expect(
+                restarted.Success
+                    && restarted.Plan.Fingerprint == resolution.Plan.Fingerprint
+                    && restarted.Plan.Mode == resolution.Plan.Mode
+                    && restarted.Plan.EnabledMods.Length == 1
+                    && restarted.Plan.EnabledMods[0].ManifestId == manifestId
+                    && string.Equals(
+                        restarted.Plan.EnabledMods[0].RootPath,
+                        plannedMod.RootPath,
+                        StringComparison.OrdinalIgnoreCase
+                    ),
+                "The exact selection was not visible after the simulated restart boundary."
+            );
+
+            ExpectTruthfulModsPresentation(afterRestart, discovered, root);
+
+            var disabled = new LauncherModSelectionDocument
+            {
+                PlayMode = LauncherModSelectionState.ModdedModeName,
+                EnabledMods = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [selectionKey] = false,
+                },
+            };
+            var disabledResolution = LauncherModLaunchPlan.Resolve(disabled, discovered);
+            Expect(
+                !disabledResolution.Success
+                    && disabledResolution.Plan == null
+                    && disabledResolution.Error?.Code
+                        == LauncherModDiscoveryErrorCode.SelectionRequired,
+                "A disabled selection produced a loadable mod plan."
+            );
+
+            var vanilla = new LauncherModSelectionDocument
+            {
+                PlayMode = LauncherModSelectionState.VanillaModeName,
+                EnabledMods = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [selectionKey] = true,
+                },
+            };
+            var vanillaResolution = LauncherModLaunchPlan.Resolve(vanilla, discovered);
+            Expect(
+                vanillaResolution.Success
+                    && vanillaResolution.Plan.Mode == LauncherModPlayMode.Vanilla
+                    && vanillaResolution.Plan.SaveNamespace
+                        == LauncherModSaveNamespace.Vanilla
+                    && vanillaResolution.Plan.EnabledMods.IsEmpty
+                    && vanillaResolution.Plan.Roots.IsEmpty,
+                "Vanilla mode produced a loadable mod plan."
+            );
+
+            WriteFixtureFile(manifestPath, "{ malformed");
+            var badManifest = LauncherModLaunchPlan.Resolve(
+                afterRestart,
+                LauncherModSelectionState.DiscoverKnownMods(
+                    afterRestart,
+                    workshopManifest,
+                    Path.Combine(root, "manual")
+                )
+            );
+            ExpectDiscoveryErrorCode(
+                badManifest,
+                LauncherModDiscoveryErrorCode.ManifestInvalid,
+                selectionKey,
+                "A malformed representative manifest did not fail discovery."
+            );
+            ExpectPlanFailureMarker(
+                Path.Combine(root, "results", "bad-manifest"),
+                afterRestart,
+                badManifest.Error,
+                expectedSelectedMods: 1
+            );
+
+            WriteFixtureFile(manifestPath, validManifest);
+            File.Delete(pckPath);
+            var badPayload = LauncherModLaunchPlan.Resolve(
+                afterRestart,
+                LauncherModSelectionState.DiscoverKnownMods(
+                    afterRestart,
+                    workshopManifest,
+                    Path.Combine(root, "manual")
+                )
+            );
+            ExpectDiscoveryErrorCode(
+                badPayload,
+                LauncherModDiscoveryErrorCode.PayloadMissing,
+                selectionKey,
+                "A missing declared payload did not fail discovery."
+            );
+            ExpectPlanFailureMarker(
+                Path.Combine(root, "results", "bad-payload"),
+                afterRestart,
+                badPayload.Error,
+                expectedSelectedMods: 1
+            );
+
+            return Task.CompletedTask;
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static void ExpectTruthfulModsPresentation(
+        LauncherModSelectionDocument selection,
+        IReadOnlyList<LauncherKnownMod> discoveredMods,
+        string fixtureRoot
+    )
+    {
+        var dataDir = Path.Combine(fixtureRoot, "results", "ui-states");
+        WithPreviewDataDirectory(dataDir, () =>
+        {
+            LauncherModsPresentation WriteAndRead(
+                LauncherModSelectionDocument markerSelection,
+                string result,
+                int loaded
+            )
+            {
+                LauncherModLaunchResultStore.Write(
+                    LauncherModSelectionState.ModdedModeName,
+                    markerSelection,
+                    discovered: 1,
+                    loaded,
+                    new[]
+                    {
+                        new LauncherModLaunchResult(
+                            "ImportVanillaSaves",
+                            result,
+                            result switch
+                            {
+                                "Active" => "Initialization and activation verified.",
+                                "Partial" => "Activation was only partially verified.",
+                                _ => "Activation failed.",
+                            }
+                        ),
+                    }
+                );
+                return LauncherModsPresentationState.Build(
+                    selection,
+                    discoveredMods,
+                    AppPaths.AppPrivateLastModLaunchPath
+                );
+            }
+
+            var current = WriteAndRead(selection, "Active", loaded: 1);
+            var currentImporter = current.Mods.Single(mod =>
+                mod.Key == "workshop:3747503308"
+            );
+            Expect(
+                current.Mode == LauncherModPlayMode.Modded
+                    && current.PrimaryPlayLabel == "Play Modded \u00B7 1 enabled"
+                    && currentImporter.Enabled
+                    && currentImporter.LastLaunchState
+                        == LauncherModLastLaunchState.LoadedLastLaunch,
+                "A current persisted result was not surfaced as Loaded last launch."
+            );
+
+            var partial = WriteAndRead(selection, "Partial", loaded: 1);
+            Expect(
+                partial.Mods.Single().LastLaunchState
+                    == LauncherModLastLaunchState.Partial,
+                "A persisted Partial result was not surfaced as Partial."
+            );
+
+            var failed = WriteAndRead(selection, "Failed", loaded: 0);
+            Expect(
+                failed.Mods.Single().LastLaunchState
+                    == LauncherModLastLaunchState.Failed,
+                "A persisted Failed result was not surfaced as Failed."
+            );
+
+            var differentSelection = new LauncherModSelectionDocument
+            {
+                PlayMode = LauncherModSelectionState.ModdedModeName,
+                EnabledMods = new Dictionary<string, bool>(
+                    selection.EnabledMods,
+                    StringComparer.OrdinalIgnoreCase
+                )
+                {
+                    ["manual:different-selection"] = true,
+                },
+            };
+            var stale = WriteAndRead(differentSelection, "Active", loaded: 1);
+            var staleImporter = stale.Mods.Single();
+            Expect(
+                stale.HasStaleLastLaunchResult
+                    && staleImporter.IsLastLaunchStale
+                    && staleImporter.LastLaunchState
+                        == LauncherModLastLaunchState.NotTestedYet,
+                "A different selection fingerprint was not surfaced as stale and Not tested yet."
+            );
+
+            File.Delete(AppPaths.AppPrivateLastModLaunchPath);
+            var missing = LauncherModsPresentationState.Build(
+                selection,
+                discoveredMods,
+                AppPaths.AppPrivateLastModLaunchPath
+            );
+            Expect(
+                !missing.HasStaleLastLaunchResult
+                    && missing.Mods.Single().LastLaunchState
+                        == LauncherModLastLaunchState.NotTestedYet,
+                "A missing runtime result did not surface as Not tested yet."
+            );
+        });
+    }
+
+    private static void ExpectPlanFailureMarker(
+        string dataDir,
+        LauncherModSelectionDocument selection,
+        LauncherModDiscoveryError error,
+        int expectedSelectedMods
+    )
+    {
+        WithPreviewDataDirectory(dataDir, () =>
+        {
+            var markerPath = AppPaths.AppPrivateLastModLaunchPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(markerPath)!);
+            File.WriteAllText(markerPath, "{\"staleActiveResult\":true}");
+
+            LauncherModLaunchResultStore.WritePlanFailure(selection, error);
+            var marker = LauncherModsPresentationState.ReadMarker(markerPath);
+            Expect(
+                marker != null
+                    && marker.LaunchMode == LauncherModSelectionState.ModdedModeName
+                    && marker.SelectionFingerprint
+                        == LauncherModSelectionState.SelectionFingerprint(selection)
+                    && marker.Discovered == 0
+                    && marker.Loaded == 0
+                    && marker.Active == 0
+                    && marker.Partial == 0
+                    && marker.Failed == expectedSelectedMods
+                    && marker.Mods.Length == expectedSelectedMods
+                    && marker.Mods.All(mod => mod.Result == "Failed"),
+                $"A {error.Code} plan failure did not overwrite the stale marker with explicit Failed results."
+            );
+            Expect(
+                !File.Exists(markerPath + ".tmp"),
+                "The atomic mod-launch result write left its temporary file behind."
+            );
+        });
+    }
+
+    private static void WithPreviewDataDirectory(string dataDir, Action action)
+    {
+        const string previewModeVariable = "STS2_LAUNCHER_PREVIEW";
+        var previousPreviewMode = Environment.GetEnvironmentVariable(previewModeVariable);
+        var previousDataDir = Environment.GetEnvironmentVariable(
+            AppPaths.LauncherPreviewDataDirEnvironmentVariable
+        );
+        try
+        {
+            Environment.SetEnvironmentVariable(previewModeVariable, "1");
+            Environment.SetEnvironmentVariable(
+                AppPaths.LauncherPreviewDataDirEnvironmentVariable,
+                Path.GetFullPath(dataDir)
+            );
+            action();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(previewModeVariable, previousPreviewMode);
+            Environment.SetEnvironmentVariable(
+                AppPaths.LauncherPreviewDataDirEnvironmentVariable,
+                previousDataDir
+            );
+        }
+    }
+
+    private static void ExpectResolvedPayloads(
+        LauncherResolvedMod mod,
+        string manifestPath,
+        string dllPath,
+        string pckPath
+    )
+    {
+        Expect(
+            string.Equals(mod.ManifestPath, Path.GetFullPath(manifestPath), StringComparison.OrdinalIgnoreCase)
+                && string.Equals(mod.DllPath, Path.GetFullPath(dllPath), StringComparison.OrdinalIgnoreCase)
+                && string.Equals(mod.PckPath, Path.GetFullPath(pckPath), StringComparison.OrdinalIgnoreCase),
+            $"The launch plan resolved the wrong manifest or payload for {mod.ManifestId}."
+        );
+    }
+
+    private static void ExpectDiscoveryErrorCode(
+        LauncherModLaunchPlanResolution resolution,
+        LauncherModDiscoveryErrorCode code,
+        string selectionKey,
+        string failureMessage
+    )
+    {
+        Expect(
+            !resolution.Success
+                && resolution.Plan == null
+                && resolution.Error != null
+                && resolution.Error.Code == code
+                && resolution.Error.SelectionKey == selectionKey
+                && !string.IsNullOrWhiteSpace(resolution.Error.Message),
+            $"{failureMessage} Got {resolution.Error}."
+        );
+    }
+
+    private static void WriteFixtureFile(string path, string contents)
+    {
+        var parent = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(parent))
+            Directory.CreateDirectory(parent);
+        File.WriteAllText(path, contents);
     }
 
     private static Task<SaveSyncService.SyncResult> ReconcileAsync(

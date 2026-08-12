@@ -1,5 +1,8 @@
 param(
-    [string]$GodotPath = ""
+    [string]$GodotPath = "",
+    [string]$ImportVanillaSavesRoot = "",
+    [string]$BaseGamePckPath = "",
+    [string]$SteamworksNetPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,4 +30,32 @@ if ($GodotPath) {
 }
 & $runner @arguments
 
-Write-Host "Launcher navigation and action wiring passed."
+Write-Host "Launcher mod journey wiring passed."
+
+if ([string]::IsNullOrWhiteSpace($ImportVanillaSavesRoot)) {
+    throw "The focused offline suite requires one explicit ImportVanillaSavesRoot fixture."
+}
+if ([string]::IsNullOrWhiteSpace($SteamworksNetPath)) {
+    throw "Offline mod runtime activation requires an explicit SteamworksNetPath."
+}
+if ([string]::IsNullOrWhiteSpace($BaseGamePckPath)) {
+    throw "Offline mod runtime activation requires an explicit BaseGamePckPath."
+}
+
+foreach ($scenario in @("vanilla", "disabled", "active")) {
+    $runtimeArguments = @{
+        ModRuntimeTest = $true
+        ModRuntimeScenario = $scenario
+        ImportVanillaSavesRoot = $ImportVanillaSavesRoot
+        BaseGamePckPath = $BaseGamePckPath
+        SteamworksNetPath = $SteamworksNetPath
+        SkipBuild = $true
+    }
+    if ($GodotPath) {
+        $runtimeArguments.GodotPath = $GodotPath
+    }
+    & $runner @runtimeArguments
+}
+
+Write-Host "Desktop ImportVanillaSaves fixture stayed unloaded for Vanilla/disabled selection and activated when enabled."
+Write-Host "Scope: desktop fixtures do not prove Android mod activation or an in-game effect."

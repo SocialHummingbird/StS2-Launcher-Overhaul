@@ -14,17 +14,44 @@ dotnet build src/STS2Mobile/STS2Mobile.csproj -c Release
 .\scripts\test-local-gameplay-save-safety.ps1
 ```
 
-This runs eight focused desktop behaviors: local path containment; atomic local writes; the four deterministic synchronization decisions; interrupted Pull preserving local saves; failed Push staying dirty and retryable; Pull-before-save-load ordering; a gameplay save queuing Push without returning to the launcher; and manual Push/Pull through the same synchronization service.
+This runs nine focused desktop behaviors: local path containment; atomic local writes; the four deterministic synchronization decisions; interrupted Pull preserving local saves; failed Push staying dirty and retryable; Pull-before-save-load ordering; a gameplay save queuing Push without returning to the launcher; manual Push/Pull through the same synchronization service; and persisted mod selection with validated manifest discovery.
 
 The policy tests use one in-memory `FakeSaveRemote`. It does not prove Steam Cloud or Android transport.
 
-## Launcher navigation and actions
+## Launcher navigation and mod activation
 
 ```powershell
-.\scripts\test-launcher-ui-preview.ps1
+.\scripts\test-launcher-ui-preview.ps1 `
+  -ImportVanillaSavesRoot "C:\Program Files (x86)\Steam\steamapps\workshop\content\2868840\3747503308" `
+  -BaseGamePckPath "C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\SlayTheSpire2.pck" `
+  -SteamworksNetPath "C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\data_sts2_windows_x86_64\Steamworks.NET.dll"
 ```
 
-This runs one screenshot-free interaction smoke for Home, Saves, Versions, Mods, and Help plus representative action callbacks. It does not prove Android rendering, touch behavior, Android transport, or real Steam transport.
+This reads one already-downloaded `ImportVanillaSaves` fixture without opening
+Steam. It runs one screenshot-free interaction test plus fresh desktop processes
+for Vanilla, disabled, and enabled selection. Desktop fixtures do not prove
+Android mod activation or an in-game effect.
+
+## Deferred two-mod device-acceptance preflight
+
+Before the one-device journey, the exact BaseLib plus importer chain can be
+checked once in a fresh desktop Godot process:
+
+```powershell
+.\scripts\run-launcher-ui-preview.ps1 `
+  -ModRuntimeTest `
+  -ModRuntimeScenario stage9-chain `
+  -BaseLibRoot "C:\Program Files (x86)\Steam\steamapps\workshop\content\2868840\3737335127" `
+  -ImportVanillaSavesRoot "C:\Program Files (x86)\Steam\steamapps\workshop\content\2868840\3747503308" `
+  -BaseGamePckPath "C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\SlayTheSpire2.pck" `
+  -SteamworksNetPath "C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\data_sts2_windows_x86_64\Steamworks.NET.dll"
+```
+
+This opt-in check requires exactly those two selected mods, concrete Harmony
+activation for both, and a durable result of BaseLib `Partial` plus
+ImportVanillaSaves `Active`. It does not prove Android activation, the importer
+control, the modded save namespace, or an in-game effect; those remain the
+mandatory one-device acceptance.
 
 When one desktop screenshot is useful for UI work, render only that state and destination:
 

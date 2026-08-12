@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Godot;
 using STS2Mobile.Launcher;
@@ -33,6 +36,46 @@ public partial class PreviewRoot : Control
     {
         System.Environment.SetEnvironmentVariable("STS2_LAUNCHER_PREVIEW", "1");
         ParseArguments(OS.GetCmdlineUserArgs());
+
+        if (ReadBool("mod-runtime-test", false))
+        {
+            var context = AssemblyLoadContext.GetLoadContext(typeof(PreviewRoot).Assembly)
+                ?? AssemblyLoadContext.Default;
+            var managedRuntimeDirectory = ReadRequiredDirectory(
+                "managed-runtime-directory"
+            );
+            Assembly? ResolveFromManagedRuntime(
+                AssemblyLoadContext loadContext,
+                AssemblyName requestedName
+            ) => ResolveManagedRuntimeDependency(
+                loadContext,
+                requestedName,
+                managedRuntimeDirectory
+            );
+
+            context.Resolving += ResolveFromManagedRuntime;
+            try
+            {
+                LoadManagedRuntimeDependency(
+                    context,
+                    ReadRequiredPath("steamworks-net-path"),
+                    "Steamworks.NET"
+                );
+                await ModRuntimeActivationTest.RunAsync(
+                    ReadRequiredPath("runtime-data-dir"),
+                    ReadRequiredPath("base-game-pck-path"),
+                    ReadRequiredPath("import-vanilla-saves-root"),
+                    Read("base-lib-root", ""),
+                    Read("mod-runtime-scenario", "active")
+                );
+            }
+            finally
+            {
+                context.Resolving -= ResolveFromManagedRuntime;
+            }
+            GetTree().Quit();
+            return;
+        }
 
         var width = ReadInt("width", 1280);
         var height = ReadInt("height", 800);
@@ -149,7 +192,35 @@ public partial class PreviewRoot : Control
         );
         view.SetStatus("Ready to play.");
         view.ShowLaunchActions("Play", showUpdate: true);
+        view.SetModsPresentation(ReadyVanillaModsPresentation());
     }
+
+    private static LauncherModsPresentation ReadyVanillaModsPresentation()
+        => new(
+            LauncherModPlayMode.Vanilla,
+            selectionFingerprint: "preview-vanilla",
+            saveNamespaceLabel: "Vanilla saves",
+            primaryPlayLabel: "Play Vanilla",
+            statusText: "Vanilla selected \u00B7 Vanilla saves",
+            mods: new[]
+            {
+                new LauncherModPresentationItem(
+                    "workshop:3747503308",
+                    "ImportVanillaSaves",
+                    "Import Vanilla Saves",
+                    "Workshop",
+                    Installed: true,
+                    Enabled: false,
+                    CanChange: true,
+                    LastLaunchState: LauncherModLastLaunchState.NotTestedYet,
+                    IsLastLaunchStale: false,
+                    Detail: "No matching result from the last launch."
+                ),
+            },
+            installedCount: 1,
+            enabledCount: 0,
+            hasStaleLastLaunchResult: false
+        );
 
     private async Task NextFrames(int count)
     {
@@ -188,4 +259,79 @@ public partial class PreviewRoot : Control
 
     private bool ReadBool(string name, bool fallback)
         => bool.TryParse(Read(name, ""), out var value) ? value : fallback;
+
+    private string ReadRequiredPath(string name)
+    {
+        var value = Read(name, "");
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException($"Missing required preview argument: --{name}=<path>");
+
+        return Path.GetFullPath(value);
+    }
+
+    private string ReadRequiredDirectory(string name)
+    {
+        var path = ReadRequiredPath(name);
+        if (!Directory.Exists(path))
+            throw new DirectoryNotFoundException(
+                $"Required preview directory was not found: {path}"
+            );
+
+        return path;
+    }
+
+    private static Assembly? ResolveManagedRuntimeDependency(
+        AssemblyLoadContext context,
+        AssemblyName requestedName,
+        string managedRuntimeDirectory
+    )
+    {
+        var simpleName = requestedName.Name;
+        if (string.IsNullOrWhiteSpace(simpleName)
+            || !string.Equals(simpleName, Path.GetFileName(simpleName), StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var dependencyPath = Path.Combine(managedRuntimeDirectory, simpleName + ".dll");
+        return File.Exists(dependencyPath)
+            ? LoadManagedRuntimeDependency(
+                context,
+                dependencyPath,
+                simpleName
+            )
+            : null;
+    }
+
+    private static Assembly LoadManagedRuntimeDependency(
+        AssemblyLoadContext context,
+        string path,
+        string expectedAssemblyName
+    )
+    {
+        if (!File.Exists(path))
+            throw new FileNotFoundException(
+                $"Required managed preview dependency was not found: {path}",
+                path
+            );
+
+        var assembly = context.Assemblies.FirstOrDefault(candidate =>
+            string.Equals(
+                candidate.GetName().Name,
+                expectedAssemblyName,
+                StringComparison.Ordinal
+            )
+        ) ?? context.LoadFromAssemblyPath(path);
+        if (!string.Equals(
+                assembly.GetName().Name,
+                expectedAssemblyName,
+                StringComparison.Ordinal
+            ))
+        {
+            throw new InvalidDataException(
+                $"Expected managed dependency '{expectedAssemblyName}', loaded '{assembly.GetName().Name}'."
+            );
+        }
+        return assembly;
+    }
 }

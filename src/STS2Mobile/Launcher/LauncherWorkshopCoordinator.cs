@@ -10,11 +10,17 @@ internal sealed class LauncherWorkshopCoordinator
         "Steam Workshop mods can run community code and change game content. Syncing uses your subscribed Steam Workshop items only.";
     private readonly LauncherModel _model;
     private readonly LauncherView _view;
+    private readonly Action _refreshModsPresentation;
 
-    internal LauncherWorkshopCoordinator(LauncherModel model, LauncherView view)
+    internal LauncherWorkshopCoordinator(
+        LauncherModel model,
+        LauncherView view,
+        Action refreshModsPresentation
+    )
     {
         _model = model;
         _view = view;
+        _refreshModsPresentation = refreshModsPresentation ?? (() => { });
     }
 
     internal void SyncPressed()
@@ -26,7 +32,18 @@ internal sealed class LauncherWorkshopCoordinator
         );
 
     internal void ClearPressed()
-        => ClearMods();
+        => ShowClearStagedModsConfirmation(_view, ClearMods);
+
+    internal static void ShowClearStagedModsConfirmation(
+        LauncherView view,
+        Action onConfirmed
+    )
+        => view.ShowConfirmation(
+            "Clear all staged Workshop mods from this device? Your persisted choices remain visible, but selected Workshop mods cannot load until they are synced again.",
+            onConfirmed,
+            "Clear staged mods",
+            "Cancel"
+        );
 
     private async Task RunSyncAsync()
     {
@@ -57,12 +74,14 @@ internal sealed class LauncherWorkshopCoordinator
         var detail = string.IsNullOrWhiteSpace(summary) ? "Workshop mods synced" : summary;
         _view.SetStatus($"{detail}. Restart the game if it was already running.");
         _view.AppendLog(detail);
+        RefreshModsPresentation();
     }
 
     internal void FailSync(string message)
     {
         _view.SetStatus($"Workshop mod sync failed: {message}");
         _view.AppendLog($"Workshop mod sync failed: {message}");
+        RefreshModsPresentation();
     }
 
     private void ClearMods()
@@ -97,11 +116,25 @@ internal sealed class LauncherWorkshopCoordinator
         _view.AppendLog(
             $"Workshop mods cleared: removed {removedCount} staged entries."
         );
+        RefreshModsPresentation();
     }
 
     internal void FailClear(string message)
     {
         _view.SetStatus($"Workshop mod clear failed: {message}");
         _view.AppendLog($"Workshop mod clear failed: {message}");
+        RefreshModsPresentation();
+    }
+
+    private void RefreshModsPresentation()
+    {
+        try
+        {
+            _refreshModsPresentation();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Launcher] Mods presentation refresh failed: {ex.Message}");
+        }
     }
 }

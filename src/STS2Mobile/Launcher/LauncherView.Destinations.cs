@@ -10,6 +10,8 @@ internal sealed partial class LauncherView
     private static readonly Color AndroidCompositionRefreshTintA = new(0, 0, 0, 1f / 255f);
     private static readonly Color AndroidCompositionRefreshTintB = new(0, 0, 0, 2f / 255f);
 
+    internal event Action<LauncherDestination> DestinationSelected;
+
     private void WireDestinationNavigation()
     {
         for (var i = 0; i < _destinationButtons.Length; i++)
@@ -40,6 +42,7 @@ internal sealed partial class LauncherView
         PrimaryScroll.QueueSort();
         Callable.From(ResetDestinationScroll).CallDeferred();
         RequestAndroidCompositionRefresh();
+        DestinationSelected?.Invoke(destination);
     }
 
     private void ResetDestinationScroll()

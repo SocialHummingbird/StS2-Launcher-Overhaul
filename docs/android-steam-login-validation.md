@@ -1,6 +1,6 @@
 # Android Steam login validation
 
-Updated: 2026-08-08
+Updated: 2026-08-13
 
 ## Implementation boundary
 
@@ -30,6 +30,6 @@ The focused save tests do not validate authentication. Their fake remote proves 
 - Real authentication, ownership, and download.
 - Process death and resume behavior.
 
-No device is available for the current reduction, so those results must remain unclaimed.
+No device is currently connected. The recent limited mod-loading run did not exercise or validate authentication, ownership, or download, so those results remain unclaimed.
 
 Never publish passwords, Steam Guard codes, refresh tokens, account identifiers, private save data, or unreviewed full logs.

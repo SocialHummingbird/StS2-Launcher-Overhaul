@@ -2,84 +2,98 @@ using Godot;
 using System.Linq;
 using STS2Mobile;
 using STS2Mobile.Launcher;
+using STS2Mobile.Launcher.Components;
 
 namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection
 {
-    private void SetModsControlsVisible(bool visible)
+    private void ShowModsControls()
     {
-        _modsGroup.Visible = visible;
-        _workshopSyncButton.Visible = visible;
-        _workshopClearButton.Visible = visible;
-        if (visible)
-            ShowModsStartupSummary();
+        // Selection and discovery are local state. Keep them available even when
+        // account, download, or mod loading state prevents a normal launch.
+        _modsGroup.Visible = true;
+        _workshopSyncButton.Visible = true;
+        _workshopClearButton.Visible = true;
+        ShowModsStartupSummary();
     }
 
     private void ShowModsStartupSummary()
-    {
-        var moddedMode = !LauncherPreviewMode.Enabled
-            && LauncherModSelectionState.IsModdedMode;
-        _readySummaryEnabledModCount = 0;
-        _modsStatusLabel.Text = _compact
-            ? moddedMode
-                ? "Mods: selected | refresh from Mods controls"
-                : "Mods: vanilla"
-            : moddedMode
-                ? "Play mode: Mods. Mod details load when you change mod mode or sync Workshop; Play remains available immediately."
-                : "Play mode: Vanilla. Android Workshop and manual mod folders will not be scanned when the game starts.";
-        RefreshModModeButtons(moddedMode, enabledCount: 0);
-        RefreshModList(System.Array.Empty<LauncherKnownMod>());
-        SetCompactWorkshopButtonText(activeCount: 0);
-        UpdateBranchHelpText();
-    }
+        => RefreshModsStatus();
 
     private void RefreshModsStatus()
     {
-        PatchHelper.Log("[Launcher] Mods refresh phase: status start");
-        var moddedMode = LauncherModSelectionState.IsModdedMode;
-        if (!moddedMode)
+        try
         {
-            _readySummaryEnabledModCount = 0;
-            _modsStatusLabel.Text = BuildModsStatusText(
-                activeCount: 0,
-                externalManualCount: 0,
-                unsupportedCount: 0,
-                installedCount: 0,
-                enabledCount: 0,
-                moddedMode: false,
-                unsupportedSummary: ""
-            );
-            RefreshModModeButtons(moddedMode, enabledCount: 0);
-            RefreshModList(System.Array.Empty<LauncherKnownMod>());
-            SetCompactWorkshopButtonText(activeCount: 0);
-            UpdateBranchHelpText();
-            PatchHelper.Log("[Launcher] Mods refresh phase: vanilla complete");
-            return;
+            SetModsPresentation(LauncherModsPresentationState.ReadCurrent());
         }
+        catch (System.Exception ex)
+        {
+            PatchHelper.Log($"[Mods] Failed to refresh Mods page: {ex.Message}");
+            var selection = LauncherModSelectionState.Load();
+            SetModsPresentation(
+                LauncherModsPresentationState.Build(
+                    selection,
+                    System.Array.Empty<LauncherKnownMod>(),
+                    marker: null
+                )
+            );
+        }
+    }
 
-        PatchHelper.Log("[Launcher] Mods refresh phase: scan known mods");
-        var activeCount = LauncherWorkshopModSafety.ActiveStagedModCount();
-        var externalManualCount = LauncherWorkshopModSafety.ExternalManualModPckCount();
-        var unsupportedCount = LauncherWorkshopModSafety.UnsupportedWorkshopItemCount();
-        var mods = LauncherModSelectionState.KnownMods();
-        var installedCount = mods.Count(mod => !mod.IsUnsupported);
-        var enabledCount = mods.Count(mod => mod.Enabled && !mod.IsUnsupported);
-        _readySummaryEnabledModCount = enabledCount;
-        _modsStatusLabel.Text = BuildModsStatusText(
-            activeCount,
-            externalManualCount,
-            unsupportedCount,
-            installedCount,
-            enabledCount,
-            moddedMode,
-            LauncherWorkshopModSafety.UnsupportedWorkshopItemSummary()
+    internal void SetModsPresentation(LauncherModsPresentation presentation)
+    {
+        if (presentation == null)
+            return;
+
+        var moddedMode = presentation.Mode == LauncherModPlayMode.Modded;
+        _readySummaryEnabledModCount = moddedMode ? presentation.EnabledCount : 0;
+        _modsStatusLabel.Text = PresentationText(
+            presentation.StatusText,
+            presentation.Mods.Count == 0
+                ? "No mods discovered."
+                : $"{presentation.InstalledCount} installed; {presentation.EnabledCount} enabled."
         );
-        RefreshModModeButtons(moddedMode, enabledCount);
-        RefreshModList(mods);
-        SetCompactWorkshopButtonText(activeCount);
+        RefreshModModeButtons(moddedMode, presentation.EnabledCount);
+        ApplyModJourneyPresentation(
+            moddedMode,
+            presentation.EnabledCount,
+            presentation.SaveNamespaceLabel,
+            presentation.PrimaryPlayLabel
+        );
+        RefreshModList(presentation.Mods);
+        SetCompactWorkshopButtonText(LauncherWorkshopModSafety.ActiveStagedModCount());
         UpdateBranchHelpText();
-        PatchHelper.Log("[Launcher] Mods refresh phase: modded complete");
+    }
+
+    private void ApplyModJourneyPresentation(
+        bool moddedMode,
+        int enabledCount,
+        string saveNamespace,
+        string playLabel
+    )
+    {
+        var modeName = moddedMode ? "Modded" : "Vanilla";
+        saveNamespace = PresentationText(
+            saveNamespace,
+            moddedMode ? "Modded saves" : "Vanilla saves"
+        );
+        _modsSelectedModeLabel.Text = $"Selected mode: {modeName}";
+        _modsSaveNamespaceLabel.Text = $"Next save set: {saveNamespace}";
+        _homeSaveNamespaceState.Text = saveNamespace;
+        _contextualPlayLabel = PresentationText(
+            playLabel,
+            moddedMode ? $"Play Modded · {enabledCount} enabled" : "Play Vanilla"
+        );
+        ApplyContextualPlayLabel();
+    }
+
+    private void ApplyContextualPlayLabel()
+    {
+        var text = _compact
+            ? CompactPlaySyncDrawerText(_contextualPlayLabel, _homeSaveNamespaceState.Text)
+            : _contextualPlayLabel;
+        SetCompactActionButtonText(_launchButton, text);
     }
 
     private void SetCompactWorkshopButtonText(int activeCount)
@@ -93,73 +107,40 @@ internal sealed partial class ActionSection
         SetCompactActionButtonText(
             _workshopClearButton,
             _compact
-                ? CompactSupportToolText("Clear Staged", activeCount > 0 ? $"{activeCount} staged" : "None staged")
-                : "Clear Staged Mods"
+                ? CompactSupportToolText("Clear staged...", activeCount > 0 ? $"{activeCount} staged" : "Confirmation")
+                : "Clear staged mods..."
         );
-    }
-
-    private string BuildModsStatusText(
-        int activeCount,
-        int externalManualCount,
-        int unsupportedCount,
-        int installedCount,
-        int enabledCount,
-        bool moddedMode,
-        string unsupportedSummary
-    )
-    {
-        if (_compact)
-        {
-            var activeText = moddedMode
-                ? $"{enabledCount}/{installedCount} enabled"
-                : "vanilla";
-            var issueText = unsupportedCount > 0
-                ? $" | {unsupportedCount} needs import"
-                : "";
-            return $"Mods: {activeText}{issueText}";
-        }
-
-        if (!moddedMode)
-            return "Play mode: Vanilla. Android Workshop and manual mod folders will not be scanned when the game starts.";
-
-        if (unsupportedCount > 0)
-        {
-            var itemText = string.IsNullOrWhiteSpace(unsupportedSummary)
-                ? $"{unsupportedCount} Workshop item(s)"
-                : unsupportedSummary;
-            return activeCount > 0 || externalManualCount > 0
-                ? $"Mods staged: Workshop {activeCount}, manual {externalManualCount}. {unsupportedCount} subscribed item(s) need manual import: {itemText}. Put mod folders or PCK files in {AppPaths.ExternalModsDir}."
-                : $"Mods need attention: {unsupportedCount} subscribed item(s) need manual import: {itemText}. Put mod folders or PCK files in {AppPaths.ExternalModsDir}.";
-        }
-
-        if (activeCount > 0 || externalManualCount > 0)
-            return $"Play mode: Mods. Enabled {enabledCount} of {installedCount} installed mod(s). Workshop {activeCount} staged, manual {externalManualCount}.";
-
-        return $"Mods: none staged or discovered. Sync Workshop or place manual mod folders/PCK files in {AppPaths.ExternalModsDir}.";
     }
 
     private void RefreshModModeButtons(bool moddedMode, int enabledCount)
     {
         ApplyToggle(_playVanillaButton, !moddedMode, _compact
-            ? CompactSupportToolText("Play Vanilla", "No mods")
-            : "Play Vanilla");
+            ? CompactSupportToolText("Vanilla", !moddedMode ? "Selected" : "Choose")
+            : !moddedMode ? "Vanilla · Selected" : "Vanilla");
         ApplyToggle(_playModdedButton, moddedMode, _compact
-            ? CompactSupportToolText("Play With Mods", $"{enabledCount} enabled")
-            : "Play With Mods");
+            ? CompactSupportToolText("Modded", moddedMode ? "Selected" : $"{enabledCount} enabled")
+            : moddedMode ? "Modded · Selected" : "Modded");
     }
 
-    private void RefreshModList(System.Collections.Generic.IReadOnlyList<LauncherKnownMod> mods)
+    private void RefreshModList(
+        System.Collections.Generic.IReadOnlyList<LauncherModPresentationItem> mods
+    )
     {
-        PatchHelper.Log("[Launcher] Mods refresh phase: update mod toggle slots");
+        PatchHelper.Log("[Launcher] Mods refresh phase: update truthful mod rows");
+        var visibleMods = (mods ?? System.Array.Empty<LauncherModPresentationItem>())
+            .ToArray();
+        EnsureModToggleSlots(visibleMods.Length);
         for (var i = 0; i < _modToggleButtons.Count; i++)
         {
             _modToggleKeys[i] = null;
             _modToggleCanChange[i] = false;
             _modToggleButtons[i].Visible = false;
+            _modToggleButtons[i].TooltipText = "";
+            _modToggleButtons[i].AccessibilityDescription = "";
         }
 
         var index = 0;
-        foreach (var mod in mods.Take(MaxVisibleModToggles))
+        foreach (var mod in visibleMods)
         {
             if (index >= _modToggleButtons.Count)
                 break;
@@ -167,33 +148,53 @@ internal sealed partial class ActionSection
             var label = ModToggleText(mod);
             var button = _modToggleButtons[index];
             _modToggleKeys[index] = mod.Key;
-            _modToggleCanChange[index] =
-                !mod.IsUnsupported && !mod.IsRequiredDependency;
+            _modToggleCanChange[index] = mod.CanChange;
             button.Visible = true;
             ApplyToggle(button, mod.Enabled, label);
+            button.TooltipText = PresentationText(mod.Detail, label.Replace('\n', ' '));
+            button.AccessibilityDescription = button.TooltipText;
             index++;
         }
 
         ApplyContextControlsDisabled();
-
-        PatchHelper.Log($"[Launcher] Mods refresh phase: update mod toggle slots complete count={index}");
+        PatchHelper.Log($"[Launcher] Mods refresh phase: truthful mod rows complete count={index}");
     }
 
-    private string ModToggleText(LauncherKnownMod mod)
+    private void EnsureModToggleSlots(int count)
     {
-        var state = mod.IsDeprecated
-            ? "Deprecated - native modded saves"
-            : mod.IsUnsupported
-                ? "Needs import"
-            : mod.Enabled
-                ? "Enabled"
-                : "Disabled";
+        while (_modToggleButtons.Count < count)
+        {
+            var slot = _modToggleButtons.Count;
+            var button = AddActionButton(
+                _modsList,
+                "",
+                _scale,
+                () => ToggleModAtIndex(slot)
+            );
+            button.Visible = false;
+            LauncherButtonStyles.ApplySupportAction(button, _scale);
+            _modToggleButtons.Add(button);
+            _modToggleKeys.Add(null);
+            _modToggleCanChange.Add(false);
+        }
+    }
+
+    private string ModToggleText(LauncherModPresentationItem mod)
+    {
         var title = string.IsNullOrWhiteSpace(mod.Title) ? mod.Id : mod.Title;
-        var detail = $"{mod.Source} | {state}";
-        if (mod.IsRequiredDependency)
-            detail += " | Required";
-        if (mod.IsDependency)
-            detail += " | Dependency";
+        var installedState = mod.Installed ? "Installed" : "Not installed";
+        var enabledState = mod.Enabled ? "Enabled for Modded" : "Disabled for Modded";
+        var lastLaunchState = mod.IsLastLaunchStale
+            ? "Not tested yet"
+            : mod.LastLaunchState switch
+            {
+                LauncherModLastLaunchState.LoadedLastLaunch => "Loaded last launch",
+                LauncherModLastLaunchState.Partial => "Partial",
+                LauncherModLastLaunchState.Failed => "Failed",
+                _ => "Not tested yet",
+            };
+        var source = string.IsNullOrWhiteSpace(mod.Source) ? "Unknown source" : mod.Source;
+        var detail = $"{source} · {installedState} · {enabledState} · {lastLaunchState}";
         if (_compact)
             return CompactSupportToolText(title, detail);
         return $"{title}: {detail}";
@@ -215,17 +216,15 @@ internal sealed partial class ActionSection
 
     private void ToggleModAtIndex(int index)
     {
-        if (index < 0 || index >= _modToggleKeys.Length)
+        if (index < 0 || index >= _modToggleKeys.Count)
             return;
 
         var key = _modToggleKeys[index];
-        if (string.IsNullOrWhiteSpace(key))
+        if (string.IsNullOrWhiteSpace(key) || !_modToggleCanChange[index])
             return;
 
-        var mod = LauncherModSelectionState.KnownMods().FirstOrDefault(candidate => candidate.Key == key);
-        if (mod == null || mod.IsUnsupported || mod.IsRequiredDependency)
-            return;
-
-        ToggleMod(key, !mod.Enabled);
+        var selection = LauncherModSelectionState.Load();
+        var selected = selection.EnabledMods.TryGetValue(key, out var enabled) && enabled;
+        ToggleMod(key, !selected);
     }
 }

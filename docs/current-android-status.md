@@ -1,18 +1,19 @@
 # Current Android status
 
-Updated: 2026-08-09
+Updated: 2026-08-13
 
-StS2 Launcher is an unofficial Android launcher for Steam owners of Slay the Spire 2. The current source retains code for Steam authentication, owned-game download, and ARM64 launch, but this reduced candidate has not been exercised on Android hardware.
+StS2 Launcher is an unofficial Android launcher for Steam owners of Slay the Spire 2. The current source retains Steam authentication, owned-game and Workshop download, ARM64 launch, save synchronization, and one validated mod-loading path. The current candidate has not completed its Android acceptance journey.
 
 ## Current source
 
-The current reduction keeps five product responsibilities:
+The current reduction keeps six product responsibilities:
 
 - Steam authentication and ownership checking.
 - Game and Workshop download.
 - Game launch, including existing renderer recovery choices.
 - Atomic application-local gameplay saving.
 - One Steam save-synchronization path shared by automatic and manual actions.
+- One validated Workshop/manual mod launch plan and loader with truthful last-launch results.
 
 ## Save data
 
@@ -20,19 +21,21 @@ Android gameplay writes land first in Godot's `user://` directory inside the pri
 
 Startup-crash recovery and Help diagnostics remain. They recover launcher startup or collect troubleshooting information; they do not manage gameplay saves.
 
-## Published artifact
+## Current prerelease artifact
 
-The latest published artifact remains `v0.2.416-startup-recovery-ime`. It predates the current reduction and synchronization implementation and must not be treated as proof of current source behavior.
+The current public test candidate is the prerelease `v0.2.425-mod-chain-fix2-unverified`. It is not a stable or phone-ready release.
 
 - Package: `com.sts2launcher.overhaul.fork.local`
-- Version code: `416001`
-- APK SHA-256: `fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b`
+- Version code: `425000`
+- APK SHA-256: `2A80E58A6301EFD0C6A0251FF9BC0887434071661DD8E002EF9CA89E25BEDA0B`
 
-Preserving that package identity and signing continuity is required for an in-place update to retain existing app-private data. Update compatibility and signer continuity were not tested for the current candidate.
+The asset is `StS2Launcher-v0.2.425-mod-chain-fix2-unverified-arm64-v8a.apk`. Its package and signer match the prior local-test lineage and its archive contains only `arm64-v8a`.
+
+Preserving that package identity and signing continuity is required for an in-place update to retain existing app-private data.
 
 ## Evidence boundary
 
-No Android device is available for this reduction. Current checks cover managed compilation, focused local-save and synchronization behavior, and basic desktop launcher interaction. The fake remote used by the synchronization tests proves neither Steam transport nor Android transport. Desktop interaction cannot prove Android rendering, Steam service behavior, game startup, or gameplay.
+No Android device is currently connected. In the retained one-device run, both exact selected mods were discovered, payload-loaded, initialized, and activated; BaseLib remained honestly `Partial`, a real `modded/` save path was used, and the game reached the main menu. The user reported marked improvement and that mods appeared to work. The run did not directly capture the importer control or a matching relaunch result, and a later freeze/crash was reported after the retained filtered log ended. It therefore does not complete Stage 9 or prove broad Android mod compatibility. Real Android Steam transfer also remains unproven.
 
 Historical device evidence applies only to the exact historical artifact and path recorded with it.
 
@@ -41,3 +44,4 @@ Historical device evidence applies only to the exact historical artifact and pat
 - ARM64 Android remains the intended game target; x86_64 emulator results are diagnostic only.
 - Device, Android-version, and graphics-driver compatibility varies.
 - Steam branches and Workshop mods remain experimental.
+- The exact one-device BaseLib plus ImportVanillaSaves journey remains mandatory before any Android mod-loading success claim.

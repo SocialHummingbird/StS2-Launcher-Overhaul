@@ -9,7 +9,8 @@ internal sealed partial class ActionSection
         VBoxContainer Group,
         Label AccountState,
         Label GameState,
-        Label SaveState
+        Label SaveState,
+        Label SaveNamespaceState
     ) BuildHomeJourney(float scale, bool compact)
     {
         var group = BuildActionGroup(scale);
@@ -44,8 +45,16 @@ internal sealed partial class ActionSection
             scale,
             compact
         );
+        var saveNamespaceState = AddStateRow(
+            rows,
+            "Next save set",
+            "Vanilla saves",
+            "HomeSaveNamespaceState",
+            scale,
+            compact
+        );
 
-        return (group, accountState, gameState, saveState);
+        return (group, accountState, gameState, saveState, saveNamespaceState);
     }
 
     private static GridContainer BuildStateRows(float scale)

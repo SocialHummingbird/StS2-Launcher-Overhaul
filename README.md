@@ -12,13 +12,13 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 ## Current Status
 
-The current source is an **unverified save-synchronization candidate**. It builds and its focused desktop tests pass, but the current automatic and manual Steam transfer path has not been validated against real Steam Cloud or on an Android device. Do not publish it or call it phone-ready.
+The current source is an **unverified save-synchronization and mod-loading candidate**. It builds and its focused desktop tests pass. A limited one-device run of `0.2.425` showed both selected mods loading and activating, the modded save namespace being used, and the game reaching the main menu. A later freeze/crash prevented the importer control and relaunch result from being verified, so the candidate is published only as an unverified prerelease and must not be called phone-ready or release-ready.
 
 - Package name: `com.sts2launcher.overhaul.fork.local`
 - Target hardware: ARM64 Android
 - Android emulator and x86_64 paths are diagnostic only.
 - Branch selection, Workshop mods, renderer compatibility, and device coverage remain experimental.
-- No published APK contains the current synchronization changes.
+- The current ARM64 prerelease candidate is `0.2.425-mod-chain-fix2-unverified`; it uses the existing local-test package and signer lineage.
 
 Android gameplay saves live in application-private storage. Clearing application data or uninstalling the app removes those local files. See [Current Android status](docs/current-android-status.md#save-data) before using a build with saves that matter.
 
@@ -51,7 +51,7 @@ Run the focused save and launch probe:
 .\scripts\test-local-gameplay-save-safety.ps1
 ```
 
-It runs eight focused desktop behaviors:
+It runs nine focused desktop behaviors:
 
 - Local path containment.
 - Atomic local writes.
@@ -61,16 +61,25 @@ It runs eight focused desktop behaviors:
 - Pull completing before save loading.
 - A gameplay save queuing Push without returning to the launcher.
 - Manual Push and Pull using the same synchronization service.
+- Persisted mod selection and validated manifest discovery surviving a simulated restart.
 
 The synchronization tests use one in-memory `FakeSaveRemote`. That fake proves deterministic policy behavior only; it does not prove Steam Cloud or Android transport.
 
-Run the small screenshot-free launcher interaction test:
+Run the focused launcher/mod test against the already-downloaded representative
+fixture (adjust the three local paths if Steam is installed elsewhere):
 
 ```powershell
-.\scripts\test-launcher-ui-preview.ps1
+.\scripts\test-launcher-ui-preview.ps1 `
+  -ImportVanillaSavesRoot "C:\Program Files (x86)\Steam\steamapps\workshop\content\2868840\3747503308" `
+  -BaseGamePckPath "C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\SlayTheSpire2.pck" `
+  -SteamworksNetPath "C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\data_sts2_windows_x86_64\Steamworks.NET.dll"
 ```
 
-It visits all five destinations and invokes representative Home, Saves, Versions, Mods, and Help actions, including the three Saves actions and both conflict choices. It does not prove Android rendering, touch behavior, Android transport, or real Steam transport.
+This runs one screenshot-free interaction test and fresh desktop-host checks that
+the same `ImportVanillaSaves` fixture stays unloaded for Vanilla/disabled selection
+and reaches Active when enabled. It reads only the explicit local files and does
+not open Steam. Desktop fixtures do not prove Android mod activation or an in-game
+effect.
 
 ## Optional Desktop UI Preview
 
@@ -94,7 +103,7 @@ Required local inputs include:
 Use the existing build wrapper so the managed assemblies, Android runtime libraries, and ABI selection stay aligned:
 
 ```powershell
-.\scripts\build-android-local.ps1 -VersionName "0.2.421-auto-sync-unverified" -VersionCode 421000 -Abi arm64-v8a
+.\scripts\build-android-local.ps1 -VersionName "0.2.425-mod-chain-fix2-unverified" -VersionCode 425000 -Abi arm64-v8a
 ```
 
 The wrapper archives the APK and checksum under `artifacts/android/`. For a later build, choose a unique version name and a version code higher than the installed APK. A successful build or structural APK inspection does not establish phone compatibility, gameplay success, or working Steam save transfer.

@@ -15,7 +15,6 @@ internal sealed partial class ActionSection : VBoxContainer
     private const int CompactReadyVersionHelpHeight = 54;
     private const int CompactReadyVersionHelpFontSize = LauncherSectionMetrics.CompactVersionSummaryFontSize;
     private const int CompactActionSeparation = 6;
-    private const int MaxVisibleModToggles = 12;
 
     internal event Action LaunchPressed;
     internal event Action RetryPressed;
@@ -42,6 +41,7 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Label _homeAccountState;
     private readonly Label _homeGameState;
     private readonly Label _homeSaveState;
+    private readonly Label _homeSaveNamespaceState;
     private readonly VBoxContainer _rendererGroup;
     private readonly Button _rendererAutoButton;
     private readonly Button _rendererVulkanButton;
@@ -72,11 +72,13 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly VBoxContainer _modsGroup;
     private readonly Button _playVanillaButton;
     private readonly Button _playModdedButton;
+    private readonly Label _modsSelectedModeLabel;
+    private readonly Label _modsSaveNamespaceLabel;
     private readonly Label _modsStatusLabel;
     private readonly VBoxContainer _modsList;
     private readonly List<Button> _modToggleButtons = new();
-    private readonly string[] _modToggleKeys = new string[MaxVisibleModToggles];
-    private readonly bool[] _modToggleCanChange = new bool[MaxVisibleModToggles];
+    private readonly List<string> _modToggleKeys = new();
+    private readonly List<bool> _modToggleCanChange = new();
     private readonly Button _diagnosticsButton;
     private readonly Button _showLastErrorButton;
     private readonly Button _copyRawLogButton;
@@ -99,6 +101,7 @@ internal sealed partial class ActionSection : VBoxContainer
     private bool _powerVrCompatibilityRequired;
     private LauncherDestination _destination;
     private int _readySummaryEnabledModCount;
+    private string _contextualPlayLabel = "Play Vanilla";
     private string _gameBranch = SteamGameBranch.Public;
     private string _rendererMode = LauncherRendererMode.Auto;
 

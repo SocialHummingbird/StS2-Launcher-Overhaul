@@ -4,19 +4,19 @@ StS2 Launcher is unofficial ARM64 Android tester software. It downloads a Steam 
 
 ## Identify the APK First
 
-The latest published APK is:
+The current public test APK is the unverified prerelease:
 
 ```text
-Release: v0.2.416-startup-recovery-ime
-Asset: StS2Launcher-v0.2.416-startup-recovery-ime-local-arm64-v8a.apk
+Release: v0.2.425-mod-chain-fix2-unverified
+Asset: StS2Launcher-v0.2.425-mod-chain-fix2-unverified-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.416-startup-recovery-ime-local
-VersionCode: 416001
-SHA-256: fdf2dcfcf2352d0e1a370da76922fb5b70cee3654d98c5fe9afbbd39554fc17b
+VersionName: 0.2.425-mod-chain-fix2-unverified
+VersionCode: 425000
+SHA-256: 2A80E58A6301EFD0C6A0251FF9BC0887434071661DD8E002EF9CA89E25BEDA0B
 ABI: arm64-v8a
 ```
 
-Always report the exact tag and filename. Current-source emulator evidence may be newer than this release and must not be treated as published ARM64 evidence.
+Always report the exact tag and filename. This prerelease is experimental: one device run showed substantial mod-loading progress but later froze/crashed before the importer journey was fully verified.
 
 ## Installation Problems
 

@@ -1,14 +1,16 @@
 # Testing needed
 
-Updated: 2026-08-09
+Updated: 2026-08-10
 
-No Android device is available for the current reduction. The immediate test plan is therefore limited to evidence that can run locally and deterministically.
+This focused gate is deliberately limited to evidence that can run locally and deterministically.
 
 ## Required now
 
 - Build `src/STS2Mobile/STS2Mobile.csproj` in Release configuration.
 - Run `scripts/test-local-gameplay-save-safety.ps1`.
-- Run `scripts/test-launcher-ui-preview.ps1`.
+- Run `scripts/test-launcher-ui-preview.ps1` with the explicit local importer,
+  base-game PCK, and managed-runtime paths shown in
+  [Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-activation).
 
 The save suite is deliberately limited to:
 
@@ -20,7 +22,10 @@ The save suite is deliberately limited to:
 - A local gameplay save queuing Push without reopening the launcher.
 - Manual Push and Pull using the same synchronization service.
 
-The launcher check covers basic destination navigation and action wiring.
+The launcher check uses one representative importer fixture and one interaction
+test. It proves persisted selection, honest result mapping, action wiring, and
+desktop-host activation; it does not prove Android mod activation or an in-game
+effect.
 
 ## Not provable now
 
