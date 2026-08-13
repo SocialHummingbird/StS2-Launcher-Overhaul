@@ -72,7 +72,7 @@ internal sealed partial class LauncherDownloadCoordinator
         var message = string.IsNullOrWhiteSpace(exception?.Message)
             ? "No exception message was provided."
             : exception.Message.Replace('\r', ' ').Replace('\n', ' ').Trim();
-        return $"Selected game version downloaded ({STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}), but runtime validation failed. Redownload selected version and attach a Help Report if it repeats. ({exceptionName}: {message})";
+        return $"Selected game version downloaded ({STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}), but runtime validation failed. Redownload selected version and attach a support report if it repeats. ({exceptionName}: {message})";
     }
 
     internal void FailDownload(LauncherBranchOperationFailure failure)

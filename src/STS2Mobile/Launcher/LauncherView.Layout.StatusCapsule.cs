@@ -8,9 +8,6 @@ internal sealed partial class LauncherView
 {
     private const int CompactStatusBodySeparation = 5;
     private const int CompactStatusAccentHeight = 3;
-    private const int CompactStatusHeadlineSeparation = 3;
-    private const int CompactStatusHeadlineInlineSeparation = 6;
-    private const int CompactStatusPhaseInlineWidth = 112;
     private const int CompactStatusPhaseHorizontalMargin = 7;
     private const int CompactStatusPhaseVerticalMargin = 3;
     private const int CompactStatusActionMinHeight = 24;
@@ -24,13 +21,10 @@ internal sealed partial class LauncherView
 
     private static (
         Control Capsule,
-        GridContainer CompactHeadline,
-        PanelContainer CompactPhasePanel,
         Button CompactDetailButton,
         StyledLabel CompactDetailCue
     ) BuildStatusCapsule(
         StyledLabel statusPhaseLabel,
-        StyledLabel statusActionLabel,
         StyledLabel statusLabel,
         ColorRect statusAccent,
         LauncherLayoutProfile profile
@@ -38,9 +32,10 @@ internal sealed partial class LauncherView
     {
         var scale = profile.Scale;
         if (profile.Compact)
-            return BuildCompactStatusCapsule(statusPhaseLabel, statusActionLabel, statusLabel, statusAccent, profile);
+            return BuildCompactStatusCapsule(statusPhaseLabel, statusLabel, statusAccent, profile);
 
         var panel = new PanelContainer();
+        panel.Name = "GlobalStatusCapsule";
         panel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         panel.AddThemeStyleboxOverride(
             LauncherComponentTheme.Panel,
@@ -78,12 +73,11 @@ internal sealed partial class LauncherView
         );
         statusPhaseLabel.VerticalAlignment = VerticalAlignment.Center;
         phaseBody.AddChild(statusPhaseLabel);
-        phaseBody.AddChild(statusActionLabel);
         phasePanel.AddChild(phaseBody);
         body.AddChild(phasePanel);
 
         statusLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         body.AddChild(statusLabel);
-        return (panel, null, null, null, null);
+        return (panel, null, null);
     }
 }

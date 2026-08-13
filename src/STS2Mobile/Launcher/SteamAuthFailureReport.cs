@@ -74,7 +74,7 @@ internal readonly struct SteamAuthFailureReport
 
         return Create(
             "unknown",
-            "Steam sign-in failed. Try signing in again; if it repeats, attach Help & Reports diagnostics.",
+            "Steam sign-in failed. Try signing in again; if it repeats, attach a support report.",
             root
         );
     }

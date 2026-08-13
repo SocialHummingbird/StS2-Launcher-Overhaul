@@ -10,7 +10,8 @@ internal sealed partial class LauncherView
     )
     {
         var scale = profile.Scale;
-        var initialPhase = LauncherPortalStatusFormatter.PhaseFor("Initializing...");
+        const LauncherStatusSeverity initialSeverity = LauncherStatusSeverity.Working;
+        var initialPhase = LauncherPortalStatusFormatter.LabelFor(initialSeverity);
         var statusPhaseLabel = new StyledLabel(
             initialPhase,
             scale,
@@ -19,26 +20,17 @@ internal sealed partial class LauncherView
         );
         statusPhaseLabel.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
-            LauncherPortalStatusFormatter.ColorFor(initialPhase)
+            LauncherPortalStatusFormatter.ColorFor(initialSeverity)
         );
-
-        var statusActionLabel = new StyledLabel(
-            LauncherPortalStatusFormatter.ActionFor("Initializing..."),
-            scale,
-            fontSize: profile.Compact ? 13 : 10,
-            align: HorizontalAlignment.Center
-        );
-        statusActionLabel.AddThemeColorOverride(
-            LauncherViewLayoutMetrics.ThemeFontColor,
-            LauncherComponentTheme.TextSecondary
-        );
+        statusPhaseLabel.Name = "GlobalStatusSeverity";
 
         var statusLabel = new StyledLabel(
-            LauncherPortalStatusFormatter.MessageFor("Initializing..."),
+            LauncherPortalStatusFormatter.MessageFor("Starting launcher..."),
             scale,
             fontSize: profile.Compact ? 15 : 14,
             align: HorizontalAlignment.Left
         );
+        statusLabel.Name = "GlobalStatusMessage";
         statusLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         statusLabel.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
@@ -46,10 +38,9 @@ internal sealed partial class LauncherView
         );
 
         var statusAccent = new ColorRect();
-        statusAccent.Color = LauncherPortalStatusFormatter.ColorFor(initialPhase);
+        statusAccent.Color = LauncherPortalStatusFormatter.ColorFor(initialSeverity);
         var statusCapsule = BuildStatusCapsule(
             statusPhaseLabel,
-            statusActionLabel,
             statusLabel,
             statusAccent,
             profile
@@ -57,14 +48,11 @@ internal sealed partial class LauncherView
 
         return new LauncherViewPrimaryStatus(
             statusPhaseLabel,
-            statusActionLabel,
             statusLabel,
             statusAccent,
             statusCapsule.Capsule,
             statusCapsule.CompactDetailButton,
-            statusCapsule.CompactDetailCue,
-            statusCapsule.CompactHeadline,
-            statusCapsule.CompactPhasePanel
+            statusCapsule.CompactDetailCue
         );
     }
 }

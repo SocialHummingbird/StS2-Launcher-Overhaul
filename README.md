@@ -12,13 +12,13 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 ## Current Status
 
-The current source is an **unverified save-synchronization and mod-loading candidate**. It builds and its focused desktop tests pass. A limited one-device run of `0.2.425` showed both selected mods loading and activating, the modded save namespace being used, and the game reaching the main menu. A later freeze/crash prevented the importer control and relaunch result from being verified, so the candidate is published only as an unverified prerelease and must not be called phone-ready or release-ready.
+The current source is an **unverified Android candidate**. It builds and its focused desktop tests pass, but no Android device was available to validate this build. A limited historical run of `0.2.425` showed both selected mods loading and activating, the modded save namespace being used, and the game reaching the main menu. That retained event is an intermittent live-process freeze after the main menu appeared, not a proven process crash. It does not validate the current APK, which is published only as an unverified prerelease and must not be called phone-ready or release-ready.
 
 - Package name: `com.sts2launcher.overhaul.fork.local`
 - Target hardware: ARM64 Android
 - Android emulator and x86_64 paths are diagnostic only.
 - Branch selection, Workshop mods, renderer compatibility, and device coverage remain experimental.
-- The current ARM64 prerelease candidate is `0.2.425-mod-chain-fix2-unverified`; it uses the existing local-test package and signer lineage.
+- The current ARM64 prerelease candidate is `0.2.428-launcher-simplification-unverified`; it uses the existing local-test package and signer lineage.
 
 Android gameplay saves live in application-private storage. Clearing application data or uninstalling the app removes those local files. See [Current Android status](docs/current-android-status.md#save-data) before using a build with saves that matter.
 
@@ -32,7 +32,7 @@ The launcher retains:
 - One application-local gameplay save store with atomic local writes.
 - One Steam Cloud transport and one synchronization service shared by automatic and manual operations.
 - Automatic Pull before the game loads saves and queued Push after committed gameplay saves.
-- Manual **Sync now**, **Pull from Steam**, and **Push to Steam** actions.
+- Manual **Sync now**, **Get saves from Steam**, and **Send saves to Steam** actions.
 - Home, Saves, Versions, Mods, and Help destinations, with Play remaining available when synchronization is temporarily unavailable.
 
 When both Android and Steam changed differently, synchronization stops and asks the player to choose which copy to keep. Failed or interrupted transfers must not report success or discard the durable dirty/retry state.
@@ -51,17 +51,20 @@ Run the focused save and launch probe:
 .\scripts\test-local-gameplay-save-safety.ps1
 ```
 
-It runs nine focused desktop behaviors:
+It runs twelve focused desktop behaviors:
 
 - Local path containment.
 - Atomic local writes.
 - The four deterministic synchronization decisions.
+- Truthful presentation of success, first-use, failure, and offline save states.
 - Interrupted Pull preserving local saves.
 - Failed Push staying dirty and retryable.
 - Pull completing before save loading.
 - A gameplay save queuing Push without returning to the launcher.
 - Manual Push and Pull using the same synchronization service.
 - Persisted mod selection and validated manifest discovery surviving a simulated restart.
+- Persisted game-version selection reaching the matching launch-readiness path.
+- The restored Android startup handoff staying alive through main-menu preparation.
 
 The synchronization tests use one in-memory `FakeSaveRemote`. That fake proves deterministic policy behavior only; it does not prove Steam Cloud or Android transport.
 
@@ -103,7 +106,7 @@ Required local inputs include:
 Use the existing build wrapper so the managed assemblies, Android runtime libraries, and ABI selection stay aligned:
 
 ```powershell
-.\scripts\build-android-local.ps1 -VersionName "0.2.425-mod-chain-fix2-unverified" -VersionCode 425000 -Abi arm64-v8a
+.\scripts\build-android-local.ps1 -VersionName "0.2.428-launcher-simplification-unverified" -VersionCode 428000 -Abi arm64-v8a
 ```
 
 The wrapper archives the APK and checksum under `artifacts/android/`. For a later build, choose a unique version name and a version code higher than the installed APK. A successful build or structural APK inspection does not establish phone compatibility, gameplay success, or working Steam save transfer.

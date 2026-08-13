@@ -35,9 +35,9 @@ internal sealed partial class ActionSection
             toggleBorderWidth
         );
 
-        var supportFoundation = BuildSupportFoundation(scale, compact, _compactStackedActionRows);
-        _supportGroup = supportFoundation.Group;
-        var supportToolsParent = supportFoundation.ToolsParent;
+        var supportToolsParent = BuildActionGroup(scale);
+        supportToolsParent.Visible = false;
+        AddChild(supportToolsParent);
 
         var primaryActions = BuildPrimaryActionControls(scale, compact, supportToolsParent);
         _retryButton = primaryActions.RetryButton;
@@ -53,19 +53,13 @@ internal sealed partial class ActionSection
 
         var homeJourney = BuildHomeJourney(scale, compact);
         _homeJourney = homeJourney.Group;
-        _homeAccountState = homeJourney.AccountState;
-        _homeGameState = homeJourney.GameState;
-        _homeSaveState = homeJourney.SaveState;
-        _homeSaveNamespaceState = homeJourney.SaveNamespaceState;
+        _homeStateLine = homeJourney.StateLine;
+        _homeHelpButton = homeJourney.HelpButton;
 
         var branchControls = BuildBranchControls(scale, compact);
-        _branchDetailsToggle = branchControls.DetailsToggle;
+        _versionSelectionGroup = branchControls.Group;
         _branchDropdown = branchControls.Dropdown;
-        _branchHelpLabel = branchControls.HelpLabel;
-
-        var readySummary = BuildReadyVersionSummaryControls(scale, compact);
-        _readyVersionSummaryPanel = readySummary.Panel;
-        _readyVersionSummaryLabel = readySummary.Label;
+        _branchHelpLabel = branchControls.StateLabel;
 
         var saveSyncControls = BuildSaveSyncControls(scale, compact);
         _saveSyncGroup = saveSyncControls.Group;
@@ -73,27 +67,20 @@ internal sealed partial class ActionSection
         _savePullButton = saveSyncControls.PullButton;
         _savePushButton = saveSyncControls.PushButton;
         _saveSyncStatus = saveSyncControls.Status;
-        _saveLastSuccessState = saveSyncControls.LastSuccessState;
+        _saveSyncDetails = saveSyncControls.Details;
         _saveLocalState = saveSyncControls.LocalState;
         _saveSteamState = saveSyncControls.SteamState;
-
-        SetGameBranch(_gameBranch);
-
-        UpdateBranchHelpText();
 
         var modsControls = BuildModsControls(scale, compact);
         _modsGroup = modsControls.Group;
         _playVanillaButton = modsControls.PlayVanillaButton;
         _playModdedButton = modsControls.PlayModdedButton;
-        _modsSelectedModeLabel = modsControls.SelectedModeLabel;
-        _modsSaveNamespaceLabel = modsControls.SaveNamespaceLabel;
-        _modsStatusLabel = modsControls.StatusLabel;
+        _modsLaunchSummaryLabel = modsControls.LaunchSummaryLabel;
         _modsList = modsControls.ModsList;
         _workshopSyncButton = modsControls.WorkshopSyncButton;
         _workshopClearButton = modsControls.WorkshopClearButton;
 
         var supportControls = BuildSupportControls(scale, compact, supportToolsParent);
-        _supportToggle = supportControls.SupportToggle;
         _updateButton = supportControls.UpdateButton;
         _refreshVersionsButton = supportControls.RefreshVersionsButton;
         _redownloadButton = supportControls.RedownloadButton;
@@ -102,6 +89,8 @@ internal sealed partial class ActionSection
         _showLastErrorButton = supportControls.ShowLastErrorButton;
         _copyRawLogButton = supportControls.CopyRawLogButton;
 
+        SetGameBranch(_gameBranch);
         BuildDestinationLayout();
+        supportToolsParent.QueueFree();
     }
 }

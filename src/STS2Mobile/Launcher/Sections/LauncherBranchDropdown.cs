@@ -51,6 +51,7 @@ internal static class LauncherBranchDropdown
             var index = branchOptions.Count;
             branchOptions.Add(option);
             dropdown.AddItem(option.Label);
+            dropdown.SetItemMetadata(index, option.Branch);
 
             if (string.Equals(option.Branch, selectedBranch, StringComparison.OrdinalIgnoreCase))
                 selectedIndex = index;

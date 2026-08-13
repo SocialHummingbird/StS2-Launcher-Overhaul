@@ -10,18 +10,18 @@ internal sealed partial class ActionSection
         var updateButton = compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "Check Files",
+                "Check for updates",
                 scale,
-                () => CheckForUpdatesPressed?.Invoke(),
-                "Updates"
+                InvokeVersionPrimaryAction
             )
             : AddPrimaryHiddenButton(
-                _supportGroup,
+                supportToolsParent,
                 "Check for Updates",
                 scale,
-                () => CheckForUpdatesPressed?.Invoke()
+                InvokeVersionPrimaryAction
             );
-        LauncherButtonStyles.ApplySupportAction(updateButton, scale);
+        LauncherButtonStyles.ApplyPrimaryAction(updateButton, scale);
+        updateButton.AccessibilityName = "Check for updates";
         return updateButton;
     }
 
@@ -29,14 +29,13 @@ internal sealed partial class ActionSection
         => compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "Game Versions",
+                "Refresh list",
                 scale,
-                () => RefreshGameVersionsPressed?.Invoke(),
-                "Refresh list"
+                () => RefreshGameVersionsPressed?.Invoke()
             )
             : AddSecondaryHiddenButton(
-                _supportGroup,
-                "Refresh Game Versions",
+                supportToolsParent,
+                "Refresh list",
                 scale,
                 () => RefreshGameVersionsPressed?.Invoke()
             );
@@ -45,14 +44,13 @@ internal sealed partial class ActionSection
         => compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "Repair Files",
+                "Repair current version",
                 scale,
-                () => RedownloadPressed?.Invoke(),
-                "Rebuild game"
+                () => RedownloadPressed?.Invoke()
             )
             : AddSecondaryHiddenButton(
-                _supportGroup,
-                "Redownload Selected Version",
+                supportToolsParent,
+                "Repair current version",
                 scale,
                 () => RedownloadPressed?.Invoke()
             );
@@ -61,14 +59,13 @@ internal sealed partial class ActionSection
         => compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "Free Space",
+                "Remove old versions...",
                 scale,
-                () => ClearCachedVersionsPressed?.Invoke(),
-                "Old versions"
+                () => ClearCachedVersionsPressed?.Invoke()
             )
             : AddSecondaryHiddenButton(
-                _supportGroup,
-                "Clear Cached Versions",
+                supportToolsParent,
+                "Remove old versions...",
                 scale,
                 () => ClearCachedVersionsPressed?.Invoke()
             );

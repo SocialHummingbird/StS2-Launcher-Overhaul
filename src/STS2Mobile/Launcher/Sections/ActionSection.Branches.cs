@@ -8,18 +8,16 @@ internal sealed partial class ActionSection
     {
         var selection = LauncherBranchDropdown.NormalizeSelection(_gameBranch, branch);
         _gameBranch = selection.Branch;
+        _versionCheckOutcome = LauncherVersionCheckOutcome.None;
+        SetVersionPrimaryAction(LauncherVersionPrimaryAction.CheckForUpdates);
+        UpdateHomeStateLine();
         PopulateBranchDropdown();
-        if (selection.Changed)
-        {
-            CollapseCompactBranchDetailsAfterSelection();
-            return;
-        }
-
         UpdateBranchHelpText();
     }
 
     internal void SetAvailableBranches(IReadOnlyList<LauncherBranchCatalog.BranchOption> branches)
     {
+        _versionCheckOutcome = LauncherVersionCheckOutcome.None;
         _availableBranches = LauncherBranchDropdown.NormalizeAvailableBranches(branches);
         PopulateBranchDropdown();
         UpdateBranchHelpText();
@@ -31,28 +29,12 @@ internal sealed partial class ActionSection
     )
     {
         _gameBranch = LauncherBranchDropdown.NormalizeSelection(_gameBranch, branch).Branch;
+        _versionCheckOutcome = LauncherVersionCheckOutcome.None;
+        SetVersionPrimaryAction(LauncherVersionPrimaryAction.CheckForUpdates);
+        UpdateHomeStateLine();
         _availableBranches = LauncherBranchDropdown.NormalizeAvailableBranches(branches);
         PopulateBranchDropdown();
         UpdateBranchHelpText();
-    }
-
-    private void ToggleBranchDetails()
-    {
-        _branchDetailsExpanded = !_branchDetailsExpanded;
-        ApplyBranchControlVisibility();
-        UpdateBranchHelpText();
-    }
-
-    private void ApplyBranchControlVisibility()
-    {
-        if (_compact && !_branchControlsAvailable)
-        {
-            _branchDetailsExpanded = false;
-        }
-
-        _branchDropdown.Visible = _branchControlsAvailable;
-        _branchHelpLabel.Visible = _branchControlsAvailable && _branchDetailsExpanded;
-        _branchDetailsToggle.Visible = _branchControlsAvailable;
     }
 
     private void ApplyGameBranch(long index)
@@ -61,18 +43,7 @@ internal sealed partial class ActionSection
             return;
 
         SetGameBranch(branch);
-        CollapseCompactBranchDetailsAfterSelection();
         GameBranchChanged?.Invoke(_gameBranch);
-    }
-
-    private void CollapseCompactBranchDetailsAfterSelection()
-    {
-        if (!_compact)
-            return;
-
-        _branchDetailsExpanded = false;
-        ApplyBranchControlVisibility();
-        UpdateBranchHelpText();
     }
 
     private void PopulateBranchDropdown()

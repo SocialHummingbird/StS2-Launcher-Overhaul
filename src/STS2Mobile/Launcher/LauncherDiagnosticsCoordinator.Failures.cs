@@ -79,7 +79,7 @@ internal sealed partial class LauncherDiagnosticsCoordinator
         {
             LogDiagnosticsFailure(Context, Detail);
             if (ShowStatus)
-                view.SetStatus($"{Context}: {Exception.Message}");
+                view.SetStatus($"{Context}: {Exception.Message}", LauncherStatusSeverity.Error);
         }
     }
 

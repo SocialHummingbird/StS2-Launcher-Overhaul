@@ -13,7 +13,7 @@ internal static partial class LauncherBranchCatalog
         private string DropdownLabelWithMetadata()
         {
             var label = SteamGameBranch.DropdownLabel(Branch);
-            if (string.Equals(Source, "local install", StringComparison.OrdinalIgnoreCase))
+            if (IsInstalled)
                 return $"{label} (installed)";
 
             if (!string.Equals(Source, "Steam app-info", StringComparison.OrdinalIgnoreCase))

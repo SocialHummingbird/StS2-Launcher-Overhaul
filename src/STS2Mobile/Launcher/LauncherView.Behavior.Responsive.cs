@@ -36,24 +36,4 @@ internal sealed partial class LauncherView
         Code.UpdateViewportProfile(profile);
     }
 
-    private void UpdateCompactStatusHeadline(Vector2 viewportSize)
-    {
-        if (!_profile.Compact
-            || !GodotObject.IsInstanceValid(_compactStatusHeadline)
-            || !GodotObject.IsInstanceValid(_compactStatusPhasePanel)
-            || !GodotObject.IsInstanceValid(_statusActionLabel))
-        {
-            return;
-        }
-
-        var profile = viewportSize.X > 0f && viewportSize.Y > 0f
-            ? LauncherLayoutProfile.ForViewport(viewportSize, _profile.TouchOptimized)
-            : _profile;
-        ApplyCompactStatusHeadlineLayout(
-            _compactStatusHeadline,
-            _compactStatusPhasePanel,
-            _statusActionLabel,
-            profile
-        );
-    }
 }

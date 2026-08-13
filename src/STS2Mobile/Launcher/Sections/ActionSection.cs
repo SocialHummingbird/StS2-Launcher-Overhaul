@@ -8,12 +8,6 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection : VBoxContainer
 {
-    private const int CompactReadySummaryBranchLimit = 14;
-    private const int CompactReadyStackedSummaryBranchLimit = 28;
-    private const int CompactReadyVersionHelpBranchLimit = 22;
-    private const int CompactReadyVersionHelpStackedBranchLimit = 30;
-    private const int CompactReadyVersionHelpHeight = 54;
-    private const int CompactReadyVersionHelpFontSize = LauncherSectionMetrics.CompactVersionSummaryFontSize;
     private const int CompactActionSeparation = 6;
 
     internal event Action LaunchPressed;
@@ -21,6 +15,7 @@ internal sealed partial class ActionSection : VBoxContainer
     internal event Action<string> GameBranchChanged;
     internal event Action<string> RendererModeChanged;
     internal event Action CheckForUpdatesPressed;
+    internal event Action UpdateSelectedVersionPressed;
     internal event Action RefreshGameVersionsPressed;
     internal event Action RedownloadPressed;
     internal event Action ClearCachedVersionsPressed;
@@ -34,14 +29,13 @@ internal sealed partial class ActionSection : VBoxContainer
     internal event Action WorkshopSyncPressed;
     internal event Action WorkshopClearPressed;
     internal event Action ModsSelectionChanged;
+    internal event Action HomeHelpPressed;
 
     private readonly Button _launchButton;
     private readonly Button _safeLaunchButton;
     private readonly VBoxContainer _homeJourney;
-    private readonly Label _homeAccountState;
-    private readonly Label _homeGameState;
-    private readonly Label _homeSaveState;
-    private readonly Label _homeSaveNamespaceState;
+    private readonly Label _homeStateLine;
+    private readonly Button _homeHelpButton;
     private readonly VBoxContainer _rendererGroup;
     private readonly Button _rendererAutoButton;
     private readonly Button _rendererVulkanButton;
@@ -50,11 +44,9 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly float _scale;
     private readonly bool _compact;
     private readonly bool _compactStackedActionRows;
+    private readonly VBoxContainer _versionSelectionGroup;
     private readonly OptionButton _branchDropdown;
     private readonly Label _branchHelpLabel;
-    private readonly Button _branchDetailsToggle;
-    private readonly Button _readyVersionSummaryPanel;
-    private readonly Label _readyVersionSummaryLabel;
     private readonly Button _updateButton;
     private readonly Button _refreshVersionsButton;
     private readonly Button _redownloadButton;
@@ -66,24 +58,18 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _savePullButton;
     private readonly Button _savePushButton;
     private readonly Label _saveSyncStatus;
-    private readonly Label _saveLastSuccessState;
+    private readonly GridContainer _saveSyncDetails;
     private readonly Label _saveLocalState;
     private readonly Label _saveSteamState;
     private readonly VBoxContainer _modsGroup;
     private readonly Button _playVanillaButton;
     private readonly Button _playModdedButton;
-    private readonly Label _modsSelectedModeLabel;
-    private readonly Label _modsSaveNamespaceLabel;
-    private readonly Label _modsStatusLabel;
+    private readonly Label _modsLaunchSummaryLabel;
     private readonly VBoxContainer _modsList;
-    private readonly List<Button> _modToggleButtons = new();
-    private readonly List<string> _modToggleKeys = new();
-    private readonly List<bool> _modToggleCanChange = new();
+    private readonly List<ModRowControls> _modRows = new();
     private readonly Button _diagnosticsButton;
     private readonly Button _showLastErrorButton;
     private readonly Button _copyRawLogButton;
-    private readonly VBoxContainer _supportGroup;
-    private readonly Button _supportToggle;
     private readonly StyleBoxFlat _toggleOffStyle;
     private readonly StyleBoxFlat _toggleOnStyle;
     private VBoxContainer _homeDestination;
@@ -91,21 +77,64 @@ internal sealed partial class ActionSection : VBoxContainer
     private VBoxContainer _versionsDestination;
     private VBoxContainer _modsDestination;
     private VBoxContainer _helpDestination;
+    private VBoxContainer _versionMaintenanceGroup;
     private readonly List<LauncherBranchCatalog.BranchOption> _branchOptions = new();
     private IReadOnlyList<LauncherBranchCatalog.BranchOption> _availableBranches = Array.Empty<LauncherBranchCatalog.BranchOption>();
-    private bool _supportExpanded;
-    private bool _branchDetailsExpanded;
-    private bool _branchControlsAvailable;
     private bool _launchControlsDisabled;
     private bool _workshopButtonsDisabled;
     private bool _powerVrCompatibilityRequired;
     private LauncherDestination _destination;
-    private int _readySummaryEnabledModCount;
     private string _contextualPlayLabel = "Play Vanilla";
+    private string _homeSaveNamespace = "Vanilla saves";
+    private string _homeSyncState = "Not synced yet";
     private string _gameBranch = SteamGameBranch.Public;
+    private bool _selectedVersionInstalled;
+    private LauncherVersionPrimaryAction _versionPrimaryAction =
+        LauncherVersionPrimaryAction.CheckForUpdates;
+    private LauncherVersionCheckOutcome _versionCheckOutcome;
     private string _rendererMode = LauncherRendererMode.Auto;
 
+    private void UpdateVersionActionAvailability()
+    {
+        _redownloadButton.Visible = _selectedVersionInstalled;
+        if (_versionMaintenanceGroup != null)
+            _versionMaintenanceGroup.Visible =
+                _redownloadButton.Visible || _clearCachedVersionsButton.Visible;
+    }
+
     internal void SetUpdateButtonText(string text) => SetCompactActionButtonText(_updateButton, text);
+
+    internal void SetVersionPrimaryAction(LauncherVersionPrimaryAction action)
+    {
+        _versionPrimaryAction = action;
+        SetCompactActionButtonText(
+            _updateButton,
+            action == LauncherVersionPrimaryAction.UpdateSelectedVersion
+                ? "Update selected version"
+                : "Check for updates"
+        );
+        _updateButton.AccessibilityName =
+            action == LauncherVersionPrimaryAction.UpdateSelectedVersion
+                ? "Update selected version"
+                : "Check for updates";
+    }
+
+    internal void SetVersionSelectionDisabled(bool disabled)
+        => _branchDropdown.Disabled = disabled;
+
+    internal void SetVersionCheckOutcome(LauncherVersionCheckOutcome outcome)
+    {
+        _versionCheckOutcome = outcome;
+        UpdateBranchHelpText();
+    }
+
+    private void InvokeVersionPrimaryAction()
+    {
+        if (_versionPrimaryAction == LauncherVersionPrimaryAction.UpdateSelectedVersion)
+            UpdateSelectedVersionPressed?.Invoke();
+        else
+            CheckForUpdatesPressed?.Invoke();
+    }
 
     internal void SetUpdateButtonDisabled(bool disabled) => _updateButton.Disabled = disabled;
 
@@ -162,10 +191,10 @@ internal sealed partial class ActionSection : VBoxContainer
             _workshopButtonsDisabled || ContextControlsDisabled;
         _workshopClearButton.Disabled =
             _workshopButtonsDisabled || ContextControlsDisabled;
-        for (var i = 0; i < _modToggleButtons.Count; i++)
+        for (var i = 0; i < _modRows.Count; i++)
         {
-            _modToggleButtons[i].Disabled =
-                ContextControlsDisabled || !_modToggleCanChange[i];
+            _modRows[i].EnabledToggle.Disabled =
+                ContextControlsDisabled || !_modRows[i].CanChange;
         }
     }
 }

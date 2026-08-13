@@ -13,7 +13,8 @@ internal static partial class LauncherBranchCatalog
             string passwordRequired = "",
             string buildId = "",
             string description = "",
-            string source = "fallback"
+            string source = "fallback",
+            bool isInstalled = false
         )
         {
             Branch = SteamGameBranch.Normalize(branch);
@@ -23,6 +24,7 @@ internal static partial class LauncherBranchCatalog
             BuildId = buildId ?? "";
             Description = description ?? "";
             Source = source ?? "fallback";
+            IsInstalled = isInstalled;
         }
 
         internal string Branch { get; }
@@ -32,5 +34,18 @@ internal static partial class LauncherBranchCatalog
         internal string BuildId { get; }
         internal string Description { get; }
         internal string Source { get; }
+        internal bool IsInstalled { get; }
+
+        internal BranchOption WithInstalled(bool isInstalled = true)
+            => new(
+                Branch,
+                MetadataVisible,
+                WindowsManifestDepotCount,
+                PasswordRequired,
+                BuildId,
+                Description,
+                Source,
+                isInstalled
+            );
     }
 }

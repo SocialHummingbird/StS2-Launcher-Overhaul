@@ -32,7 +32,7 @@ internal sealed partial class LauncherDiagnosticsCoordinator
 
     private static void ShowDiagnosticsSummary(LauncherView view, string summary)
     {
-        view.SetStatus("Last problem opened.");
+        view.SetStatus("Last error opened.", LauncherStatusSeverity.Information);
         view.AppendLog(summary);
         view.ShowDiagnosticsConsole();
     }
@@ -45,7 +45,7 @@ internal sealed partial class LauncherDiagnosticsCoordinator
             + rawLog
         );
         clipboardText.CopyToClipboard();
-        view.SetStatus("Launcher log copied. Review before sharing.");
+        view.SetStatus("Launcher log copied.", LauncherStatusSeverity.Information);
         view.AppendLog(
             $"Launcher log copied to clipboard ({clipboardText.Length:N0} chars). Review/redact before public posting."
         );

@@ -30,6 +30,12 @@ internal sealed partial class LauncherController
 
     private void OnSessionStateChanged(LauncherModel.SessionState state)
     {
+        if (state == LauncherModel.SessionState.LoggedIn)
+        {
+            SaveSyncService.ReportAvailability(
+                SaveSyncService.SyncAvailability.Available
+            );
+        }
         _session.UpdateUI(state);
         RefreshSaveSyncPresentation();
         if (state == LauncherModel.SessionState.LoggedIn)
@@ -39,19 +45,16 @@ internal sealed partial class LauncherController
     private void OnDownloadCompleted(string branch)
     {
         _downloads.CompleteDownload(branch);
-        _session.RefreshHomeGameState();
     }
 
     private void OnDownloadFailed(LauncherBranchOperationFailure failure)
     {
         _downloads.FailDownload(failure);
-        _session.RefreshHomeGameState();
     }
 
     private void OnDownloadCancelled(string branch)
     {
         _downloads.CancelDownload(branch);
-        _session.RefreshHomeGameState();
     }
 
     private Action OnMainThread(Action action)

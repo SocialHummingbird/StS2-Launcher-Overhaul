@@ -7,24 +7,18 @@ internal sealed partial class ActionSection
         private SecondaryButtonVisibility(
             bool update,
             bool redownload,
-            bool branch,
-            bool support,
             bool safeLaunch,
             bool launch
         )
         {
             Update = update;
             Redownload = redownload;
-            Branch = branch;
-            Support = support;
             SafeLaunch = safeLaunch;
             Launch = launch;
         }
 
         internal bool Update { get; }
         internal bool Redownload { get; }
-        internal bool Branch { get; }
-        internal bool Support { get; }
         internal bool SafeLaunch { get; }
         internal bool Launch { get; }
 
@@ -32,8 +26,6 @@ internal sealed partial class ActionSection
             => new(
                 update: showUpdate,
                 redownload: true,
-                branch: true,
-                support: true,
                 safeLaunch: true,
                 launch: true
             );
@@ -42,8 +34,6 @@ internal sealed partial class ActionSection
             => new(
                 update: false,
                 redownload: false,
-                branch: false,
-                support: true,
                 safeLaunch: false,
                 launch: false
             );
@@ -52,8 +42,6 @@ internal sealed partial class ActionSection
             => new(
                 update: false,
                 redownload: false,
-                branch: false,
-                support: false,
                 safeLaunch: false,
                 launch: false
             );

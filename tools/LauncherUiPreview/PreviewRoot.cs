@@ -148,22 +148,22 @@ public partial class PreviewRoot : Control
         switch (fixture.Trim().ToLowerInvariant())
         {
             case "signed-out":
-                view.SetStatus("Sign in to continue.");
+                view.SetStatus("Sign in to continue.", LauncherStatusSeverity.Warning);
                 view.HideActions();
                 view.SetLoginFormVisible(visible: true, disabled: false);
                 break;
             case "guard":
-                view.SetStatus("Enter your Steam Guard code.");
+                view.SetStatus("Enter your Steam Guard code.", LauncherStatusSeverity.Warning);
                 view.ShowCodePrompt(wasIncorrect: false);
                 break;
             case "download":
-                view.SetStatus("Downloading...");
+                view.SetStatus("Downloading...", LauncherStatusSeverity.Working);
                 view.ShowDownloadAction("Download Game");
                 view.ShowDownloadProgress("Downloading public game files...");
                 view.SetDownloadProgress(42, "42% | 3.8 GB of 9.1 GB");
                 break;
             case "error":
-                view.SetStatus("Download required.");
+                view.SetStatus("Download required.", LauncherStatusSeverity.Warning);
                 view.ShowRetry();
                 break;
             case "ready":
@@ -180,17 +180,33 @@ public partial class PreviewRoot : Control
             new LauncherPreferences.ActionPreferences(
                 gameBranch: "public",
                 rendererMode: LauncherRendererMode.Auto
+            ),
+            new[]
+            {
+                new LauncherBranchCatalog.BranchOption(
+                    "public",
+                    source: "local install",
+                    isInstalled: true
+                ),
+                new LauncherBranchCatalog.BranchOption(
+                    "beta",
+                    metadataVisible: true,
+                    windowsManifestDepotCount: 1,
+                    passwordRequired: "false",
+                    source: "Steam app-info"
+                ),
+            }
+        );
+        view.SetSaveSyncPresentation(
+            new LauncherSaveSyncPresentation(
+                LauncherSaveSyncState.UpToDate,
+                "Up to date · Last synced 9 Aug 2026, 10:30",
+                "Synced",
+                "Up to date",
+                "Up to date"
             )
         );
-        view.SetHomeAccountState("Signed in");
-        view.SetHomeGameState("Default installed");
-        view.SetSaveSyncPresentation(
-            "Synced",
-            "9 Aug 2026, 10:30",
-            "Up to date",
-            "Up to date when last checked"
-        );
-        view.SetStatus("Ready to play.");
+        view.SetStatus("Ready to play.", LauncherStatusSeverity.Ready);
         view.ShowLaunchActions("Play", showUpdate: true);
         view.SetModsPresentation(ReadyVanillaModsPresentation());
     }
@@ -200,8 +216,6 @@ public partial class PreviewRoot : Control
             LauncherModPlayMode.Vanilla,
             selectionFingerprint: "preview-vanilla",
             saveNamespaceLabel: "Vanilla saves",
-            primaryPlayLabel: "Play Vanilla",
-            statusText: "Vanilla selected \u00B7 Vanilla saves",
             mods: new[]
             {
                 new LauncherModPresentationItem(

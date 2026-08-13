@@ -8,8 +8,12 @@ internal readonly struct LauncherViewPrimaryColumn
 {
     internal LauncherViewPrimaryColumn(
         StyledLabel statusPhase,
-        StyledLabel statusAction,
         StyledLabel status,
+        Control statusCapsule,
+        Control secondaryStatusBanner,
+        StyledLabel secondaryStatusSeverity,
+        StyledLabel secondaryStatusMessage,
+        ColorRect secondaryStatusAccent,
         Button compactStatusDetailsButton,
         StyledLabel compactStatusDetailsCue,
         ColorRect statusAccent,
@@ -18,8 +22,6 @@ internal readonly struct LauncherViewPrimaryColumn
         StyledLabel[] workflowStepDetailLabels,
         ColorRect[] workflowStepAccents,
         Button[] workflowStepButtons,
-        GridContainer compactStatusHeadline,
-        PanelContainer compactStatusPhasePanel,
         GridContainer compactStickyTaskHeader,
         Control compactWorkflowStrip,
         Button compactCurrentTaskButton,
@@ -34,8 +36,12 @@ internal readonly struct LauncherViewPrimaryColumn
     )
     {
         StatusPhase = statusPhase;
-        StatusAction = statusAction;
         Status = status;
+        StatusCapsule = statusCapsule;
+        SecondaryStatusBanner = secondaryStatusBanner;
+        SecondaryStatusSeverity = secondaryStatusSeverity;
+        SecondaryStatusMessage = secondaryStatusMessage;
+        SecondaryStatusAccent = secondaryStatusAccent;
         CompactStatusDetailsButton = compactStatusDetailsButton;
         CompactStatusDetailsCue = compactStatusDetailsCue;
         StatusAccent = statusAccent;
@@ -44,8 +50,6 @@ internal readonly struct LauncherViewPrimaryColumn
         WorkflowStepDetailLabels = workflowStepDetailLabels;
         WorkflowStepAccents = workflowStepAccents;
         WorkflowStepButtons = workflowStepButtons;
-        CompactStatusHeadline = compactStatusHeadline;
-        CompactStatusPhasePanel = compactStatusPhasePanel;
         CompactStickyTaskHeader = compactStickyTaskHeader;
         CompactWorkflowStrip = compactWorkflowStrip;
         CompactCurrentTaskButton = compactCurrentTaskButton;
@@ -60,8 +64,12 @@ internal readonly struct LauncherViewPrimaryColumn
     }
 
     internal StyledLabel StatusPhase { get; }
-    internal StyledLabel StatusAction { get; }
     internal StyledLabel Status { get; }
+    internal Control StatusCapsule { get; }
+    internal Control SecondaryStatusBanner { get; }
+    internal StyledLabel SecondaryStatusSeverity { get; }
+    internal StyledLabel SecondaryStatusMessage { get; }
+    internal ColorRect SecondaryStatusAccent { get; }
     internal Button CompactStatusDetailsButton { get; }
     internal StyledLabel CompactStatusDetailsCue { get; }
     internal ColorRect StatusAccent { get; }
@@ -70,8 +78,6 @@ internal readonly struct LauncherViewPrimaryColumn
     internal StyledLabel[] WorkflowStepDetailLabels { get; }
     internal ColorRect[] WorkflowStepAccents { get; }
     internal Button[] WorkflowStepButtons { get; }
-    internal GridContainer CompactStatusHeadline { get; }
-    internal PanelContainer CompactStatusPhasePanel { get; }
     internal GridContainer CompactStickyTaskHeader { get; }
     internal Control CompactWorkflowStrip { get; }
     internal Button CompactCurrentTaskButton { get; }

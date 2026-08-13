@@ -1,5 +1,6 @@
 using System;
 using STS2Mobile.Patches;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -11,6 +12,7 @@ internal sealed partial class LauncherSteamSession
         string? userPrefix = null
     )
     {
+        SaveSyncService.ReportFailure(SaveSyncService.FailureKindFor(ex));
         var authFailure = SteamAuthFailureReport.From(ex);
         LauncherLaunchMarkers.RecordSteamAuthFailure(authFailure, logContext);
         PatchHelper.Log($"[Launcher] {logContext}: {ex}");

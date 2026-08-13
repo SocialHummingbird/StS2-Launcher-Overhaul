@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using Godot;
 using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
@@ -54,7 +53,7 @@ internal static partial class LauncherPreferences
     }
 
     private static string PreferencePath(string fileName)
-        => Path.Combine(OS.GetDataDir(), fileName);
+        => Path.Combine(AppPaths.AppPrivateDataDir, fileName);
 
     private static void EnsurePreferenceDirectory(string path)
     {

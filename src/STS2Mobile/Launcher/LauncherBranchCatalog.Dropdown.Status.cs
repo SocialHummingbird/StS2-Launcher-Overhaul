@@ -66,6 +66,35 @@ internal static partial class LauncherBranchCatalog
         return "Refresh before download";
     }
 
+    internal static string SelectedVersionState(
+        string selectedBranch,
+        IReadOnlyList<BranchOption> discoveredBranches
+    )
+    {
+        selectedBranch = SteamGameBranch.Normalize(selectedBranch);
+        var option = DropdownOptions(selectedBranch, discoveredBranches)
+            .FirstOrDefault(candidate =>
+                string.Equals(candidate.Branch, selectedBranch, StringComparison.OrdinalIgnoreCase)
+            );
+
+        return option.IsInstalled
+            ? "Selected for Play · Installed on this device"
+            : "Selected for Play · Not installed";
+    }
+
+    internal static bool SelectedVersionInstalled(
+        string selectedBranch,
+        IReadOnlyList<BranchOption> discoveredBranches
+    )
+    {
+        selectedBranch = SteamGameBranch.Normalize(selectedBranch);
+        return DropdownOptions(selectedBranch, discoveredBranches)
+            .FirstOrDefault(candidate =>
+                string.Equals(candidate.Branch, selectedBranch, StringComparison.OrdinalIgnoreCase)
+            )
+            .IsInstalled;
+    }
+
     internal static string SelectedOptionDownloadProblem(string selectedBranch, IReadOnlyList<BranchOption> discoveredBranches)
     {
         selectedBranch = SteamGameBranch.Normalize(selectedBranch);

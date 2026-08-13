@@ -6,7 +6,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherStartupRecoveryControlPanel
 {
-    private const string CopyRawErrorLogButton = "Copy Launcher Log (Review First)";
+    private const string CopyRawErrorLogButton = "Copy Launcher Log";
     private const string ExportDiagnosticsButton = "Create Startup Help Report";
     private const string HideControlsButton = "Hide Recovery Controls";
     private const string RestartSafeLaunchButton = "Restart with Safe Launch";
@@ -67,8 +67,8 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
         {
             RecoveryButtonSpec.CreateButton(compactCopy ? "Restart App" : ReturnToLauncherButton, "Open launcher", AndroidGodotAppBridge.RestartApp, scale, buttonMinimumSize, compactCopy),
             RecoveryButtonSpec.CreateButton(compactCopy ? "Safe Start" : RestartSafeLaunchButton, "Compatibility mode", RestartWithSafeLaunch, scale, buttonMinimumSize, compactCopy),
-            RecoveryButtonSpec.CreateButton(compactCopy ? "Help Report" : ExportDiagnosticsButton, "Share details", ExportDiagnostics, scale, buttonMinimumSize, compactCopy),
-            RecoveryButtonSpec.CreateButton(compactCopy ? "Copy Log" : CopyRawErrorLogButton, "Review first", CopyRawErrorLog, scale, buttonMinimumSize, compactCopy),
+            RecoveryButtonSpec.CreateButton(compactCopy ? "Help Report" : ExportDiagnosticsButton, "", ExportDiagnostics, scale, buttonMinimumSize, compactCopy),
+            RecoveryButtonSpec.CreateButton(compactCopy ? "Copy Log" : CopyRawErrorLogButton, "", CopyRawErrorLog, scale, buttonMinimumSize, compactCopy),
             RecoveryButtonSpec.CreateButton(compactCopy ? "Hide Help" : HideControlsButton, "Keep waiting", HideRecoveryControls, scale, buttonMinimumSize, compactCopy),
         };
 

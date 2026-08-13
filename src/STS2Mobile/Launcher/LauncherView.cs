@@ -27,8 +27,12 @@ internal sealed partial class LauncherView
     private readonly float _scale;
     private readonly LauncherLayoutProfile _profile;
     private readonly StyledLabel _statusPhaseLabel;
-    private readonly StyledLabel _statusActionLabel;
     private readonly StyledLabel _statusLabel;
+    private readonly Control _statusCapsule;
+    private readonly Control _secondaryStatusBanner;
+    private readonly StyledLabel _secondaryStatusSeverityLabel;
+    private readonly StyledLabel _secondaryStatusMessageLabel;
+    private readonly ColorRect _secondaryStatusAccent;
     private readonly Button _compactStatusDetailsButton;
     private readonly StyledLabel _compactStatusDetailsCueLabel;
     private readonly ColorRect _statusAccent;
@@ -37,8 +41,6 @@ internal sealed partial class LauncherView
     private readonly StyledLabel[] _workflowStepDetailLabels;
     private readonly ColorRect[] _workflowStepAccents;
     private readonly Button[] _workflowStepButtons;
-    private readonly GridContainer _compactStatusHeadline;
-    private readonly PanelContainer _compactStatusPhasePanel;
     private readonly GridContainer _compactStickyTaskHeader;
     private readonly Control _compactWorkflowStrip;
     private readonly Button _compactCurrentTaskButton;
@@ -65,8 +67,12 @@ internal sealed partial class LauncherView
         _profile = profile;
         var primary = BuildPrimaryColumn(profile, shell.Content);
         _statusPhaseLabel = primary.StatusPhase;
-        _statusActionLabel = primary.StatusAction;
         _statusLabel = primary.Status;
+        _statusCapsule = primary.StatusCapsule;
+        _secondaryStatusBanner = primary.SecondaryStatusBanner;
+        _secondaryStatusSeverityLabel = primary.SecondaryStatusSeverity;
+        _secondaryStatusMessageLabel = primary.SecondaryStatusMessage;
+        _secondaryStatusAccent = primary.SecondaryStatusAccent;
         _compactStatusDetailsButton = primary.CompactStatusDetailsButton;
         _compactStatusDetailsCueLabel = primary.CompactStatusDetailsCue;
         _statusAccent = primary.StatusAccent;
@@ -75,8 +81,6 @@ internal sealed partial class LauncherView
         _workflowStepDetailLabels = primary.WorkflowStepDetailLabels;
         _workflowStepAccents = primary.WorkflowStepAccents;
         _workflowStepButtons = primary.WorkflowStepButtons;
-        _compactStatusHeadline = primary.CompactStatusHeadline;
-        _compactStatusPhasePanel = primary.CompactStatusPhasePanel;
         _compactStickyTaskHeader = primary.CompactStickyTaskHeader;
         _compactWorkflowStrip = primary.CompactWorkflowStrip;
         _compactCurrentTaskButton = primary.CompactCurrentTaskButton;
@@ -87,10 +91,14 @@ internal sealed partial class LauncherView
         Code = primary.Code;
         Download = primary.Download;
         Actions = primary.Actions;
+        Actions.HomeHelpPressed += () => SelectDestination(LauncherDestination.Help);
         var diagnostics = BuildLogColumn(profile, Actions.HelpDiagnosticsHost, dismissKeyboard);
         Log = diagnostics.Log;
         DiagnosticsDrawer = diagnostics.Drawer;
         DiagnosticsToggle = diagnostics.Toggle;
+        Actions.HelpDiagnosticsHost.AddChild(
+            BuildHelpAttributionFooter(_profile.Scale, _profile.Compact)
+        );
         var navigation = BuildDestinationNavigation(profile);
         shell.Content.AddChild(navigation.Root);
         if (!profile.Compact)

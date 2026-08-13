@@ -38,7 +38,7 @@ internal sealed partial class SteamConnection
                 return;
             }
 
-            _connectError = new InvalidOperationException($"Login failed: {cb.Result}");
+            _connectError = new SteamLogonFailedException(cb.Result);
             _connectedGate.Set();
         });
     }

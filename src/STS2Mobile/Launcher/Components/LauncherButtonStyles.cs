@@ -1,11 +1,21 @@
 using Godot;
+using STS2Mobile.Launcher.Sections;
 
 namespace STS2Mobile.Launcher.Components;
 
 internal static partial class LauncherButtonStyles
 {
     internal static void ApplyPrimaryAction(Button button, float scale)
-        => Apply(
+    {
+        button.SetMeta("launcher_primary_action", true);
+        button.CustomMinimumSize = new Vector2(
+            button.CustomMinimumSize.X,
+            LauncherViewLayoutMetrics.ScaleInt(
+                LauncherSectionMetrics.PrimaryButtonHeight,
+                scale
+            )
+        );
+        Apply(
             button,
             scale,
             LauncherComponentTheme.OrangeAccent,
@@ -13,6 +23,7 @@ internal static partial class LauncherButtonStyles
             LauncherComponentTheme.DarkInk,
             borderWidth: 2
         );
+    }
 
     internal static void ApplySafeAction(Button button, float scale)
         => Apply(

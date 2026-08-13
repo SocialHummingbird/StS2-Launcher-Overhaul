@@ -19,6 +19,7 @@ internal sealed partial class ActionSection
         ShowLaunchButtons(showUpdate);
         PatchHelper.Log("[Launcher] ActionSection.ShowLaunch phase: retry hidden");
         _retryButton.Visible = false;
+        _homeHelpButton.Visible = false;
         PatchHelper.Log("[Launcher] ActionSection.ShowLaunch phase complete");
     }
 
@@ -27,6 +28,7 @@ internal sealed partial class ActionSection
         Visible = true;
         ApplyDestinationVisibility();
         _retryButton.Visible = true;
+        _homeHelpButton.Visible = false;
         ShowRetryButtons();
     }
 
@@ -35,6 +37,7 @@ internal sealed partial class ActionSection
         Visible = true;
         ApplyDestinationVisibility();
         _retryButton.Visible = false;
+        _homeHelpButton.Visible = false;
         HideSecondaryButtons();
     }
 

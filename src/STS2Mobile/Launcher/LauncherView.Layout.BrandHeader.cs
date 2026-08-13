@@ -6,7 +6,6 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class LauncherView
 {
     private const int CompactBrandTitleFontSize = 18;
-    private const int CompactBrandSubtitleFontSize = 12;
     private const int CompactBrandRowSeparation = 6;
     private const int CompactBrandHeaderSeparation = 2;
 

@@ -34,6 +34,18 @@ internal static partial class LauncherGameStartupRecovery
         );
         if (recovered)
         {
+            var preparation = await AndroidMainMenuPreparation.RunAsync(
+                gameNode,
+                startupStatus
+            );
+            if (!preparation.CanExposeMainMenu)
+            {
+                ui.ShowFailure(
+                    RecoveryStateUpdate.MainMenuRenderingUnstable(preparation)
+                );
+                return;
+            }
+
             ui.MarkRecoveredStartup(
                 recoveryControls,
                 RecoveryStateUpdate.WatchdogRecovered()

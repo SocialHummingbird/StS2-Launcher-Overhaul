@@ -11,7 +11,7 @@ internal sealed partial class ActionSection
         Button PullButton,
         Button PushButton,
         Label Status,
-        Label LastSuccessState,
+        GridContainer Details,
         Label LocalState,
         Label SteamState
     ) BuildSaveSyncControls(float scale, bool compact)
@@ -20,24 +20,8 @@ internal sealed partial class ActionSection
         group.Name = "SaveSyncPresentation";
         AddChild(group);
 
-        var explanation = new StyledLabel(
-            "Saves sync automatically before play and after changes.",
-            scale,
-            fontSize: compact ? 12 : 13,
-            align: HorizontalAlignment.Left
-        )
-        {
-            Name = "SaveSyncExplanation",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        };
-        explanation.AddThemeColorOverride(
-            "font_color",
-            LauncherComponentTheme.TextSecondary
-        );
-        group.AddChild(explanation);
-
         var namespaceExplanation = new StyledLabel(
-            "Both save sets sync separately. They are not merged.",
+            "Vanilla and modded saves are separate. Both sync automatically.",
             scale,
             fontSize: compact ? 12 : 13,
             align: HorizontalAlignment.Left
@@ -53,7 +37,7 @@ internal sealed partial class ActionSection
         group.AddChild(namespaceExplanation);
 
         var status = new StyledLabel(
-            "Sign in required",
+            "Not synced yet",
             scale,
             fontSize: compact ? 15 : 16,
             align: HorizontalAlignment.Left
@@ -67,15 +51,8 @@ internal sealed partial class ActionSection
 
         var details = BuildStateRows(scale);
         details.Name = "SaveSyncDetails";
+        details.Visible = false;
         group.AddChild(details);
-        var lastSuccessState = AddStateRow(
-            details,
-            "Last successful sync",
-            "Not yet",
-            "SaveLastSuccessState",
-            scale,
-            compact
-        );
         var localState = AddStateRow(
             details,
             "This device",
@@ -86,7 +63,7 @@ internal sealed partial class ActionSection
         );
         var steamState = AddStateRow(
             details,
-            "Steam",
+            "Steam Cloud",
             "Checking...",
             "SaveSteamState",
             scale,
@@ -103,22 +80,32 @@ internal sealed partial class ActionSection
             scale,
             () => SaveSyncNowPressed?.Invoke()
         );
+        syncNow.AccessibilityName = "Sync now";
         LauncherButtonStyles.ApplyPrimaryAction(syncNow, scale);
 
-        var pull = AddActionButton(
+        var manualActions = BuildCompactActionRow(
             actions,
-            "Pull from Steam",
+            scale,
+            _compactStackedActionRows
+        );
+        manualActions.Name = "SaveManualActions";
+
+        var pull = AddActionButton(
+            manualActions,
+            "Get saves from Steam",
             scale,
             () => SavePullPressed?.Invoke()
         );
+        pull.AccessibilityName = "Get saves from Steam";
         LauncherButtonStyles.ApplySupportAction(pull, scale);
 
         var push = AddActionButton(
-            actions,
-            "Push to Steam",
+            manualActions,
+            "Send saves to Steam",
             scale,
             () => SavePushPressed?.Invoke()
         );
+        push.AccessibilityName = "Send saves to Steam";
         LauncherButtonStyles.ApplySupportAction(push, scale);
 
         return (
@@ -127,7 +114,7 @@ internal sealed partial class ActionSection
             pull,
             push,
             status,
-            lastSuccessState,
+            details,
             localState,
             steamState
         );
@@ -140,17 +127,78 @@ internal sealed partial class ActionSection
         _savePushButton.Disabled = disabled;
     }
 
-    internal void SetSaveSyncPresentation(
-        string headline,
-        string lastSuccess,
-        string localState,
-        string steamState
+    internal void SetSaveSyncPresentation(LauncherSaveSyncPresentation presentation)
+    {
+        _saveSyncStatus.Text = PresentationText(
+            presentation.Summary,
+            "Not synced yet"
+        );
+        _saveSyncStatus.SetMeta("save_sync_state", presentation.State.ToString());
+        _saveSyncDetails.Visible = presentation.ShowEndpointDetails;
+        _saveLocalState.Text = PresentationText(
+            presentation.LocalState,
+            "Saved locally"
+        );
+        _saveSteamState.Text = PresentationText(
+            presentation.SteamState,
+            "Not checked"
+        );
+        _homeSyncState = PresentationText(
+            presentation.HomeState,
+            "Not synced yet"
+        );
+        UpdateHomeStateLine();
+    }
+
+    private static GridContainer BuildStateRows(float scale)
+    {
+        var rows = new GridContainer
+        {
+            Columns = 2,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        rows.AddThemeConstantOverride(
+            "h_separation",
+            LauncherViewLayoutMetrics.ScaleInt(12, scale)
+        );
+        rows.AddThemeConstantOverride(
+            "v_separation",
+            LauncherViewLayoutMetrics.ScaleInt(8, scale)
+        );
+        return rows;
+    }
+
+    private static Label AddStateRow(
+        GridContainer rows,
+        string title,
+        string value,
+        string valueName,
+        float scale,
+        bool compact
     )
     {
-        _saveSyncStatus.Text = PresentationText(headline, "Sign in required");
-        _saveLastSuccessState.Text = PresentationText(lastSuccess, "Not yet");
-        _saveLocalState.Text = PresentationText(localState, "Checking...");
-        _saveSteamState.Text = PresentationText(steamState, "Checking...");
-        _homeSaveState.Text = _saveSyncStatus.Text;
+        var titleLabel = new StyledLabel(
+            title,
+            scale,
+            fontSize: compact ? 12 : 13,
+            align: HorizontalAlignment.Left
+        );
+        titleLabel.AddThemeColorOverride("font_color", LauncherComponentTheme.TextSecondary);
+        rows.AddChild(titleLabel);
+
+        var valueLabel = new StyledLabel(
+            value,
+            scale,
+            fontSize: compact ? 12 : 13,
+            align: HorizontalAlignment.Left
+        )
+        {
+            Name = valueName,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        valueLabel.AddThemeColorOverride("font_color", LauncherComponentTheme.TextPrimary);
+        rows.AddChild(valueLabel);
+        return valueLabel;
     }
 }

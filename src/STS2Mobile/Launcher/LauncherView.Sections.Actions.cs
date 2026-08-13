@@ -23,6 +23,9 @@ internal sealed partial class LauncherView
         ScrollCompactPrimaryTo(Actions.RetryScrollTarget);
     }
 
+    internal void ShowHomeHelpAction()
+        => Actions.ShowHomeHelpAction();
+
     internal void ShowLaunchActions(
         string launchText,
         bool showUpdate
@@ -71,19 +74,8 @@ internal sealed partial class LauncherView
     internal void SetSaveSyncControlsDisabled(bool disabled)
         => Actions.SetSaveSyncControlsDisabled(disabled);
 
-    internal void SetHomeAccountState(string state)
-        => Actions.SetHomeAccountState(state);
-
-    internal void SetHomeGameState(string state)
-        => Actions.SetHomeGameState(state);
-
-    internal void SetSaveSyncPresentation(
-        string headline,
-        string lastSuccess,
-        string localState,
-        string steamState
-    )
-        => Actions.SetSaveSyncPresentation(headline, lastSuccess, localState, steamState);
+    internal void SetSaveSyncPresentation(LauncherSaveSyncPresentation presentation)
+        => Actions.SetSaveSyncPresentation(presentation);
 
     internal void SetModsPresentation(LauncherModsPresentation presentation)
         => Actions.SetModsPresentation(presentation);
@@ -97,9 +89,19 @@ internal sealed partial class LauncherView
     internal void SetUpdateCheckBusy(bool busy)
     {
         Actions.SetUpdateButtonDisabled(busy);
+        Actions.SetVersionSelectionDisabled(busy);
         if (busy)
+        {
+            Actions.SetVersionCheckOutcome(LauncherVersionCheckOutcome.None);
             Actions.SetUpdateButtonText("Checking...");
+        }
     }
+
+    internal void SetVersionPrimaryAction(LauncherVersionPrimaryAction action)
+        => Actions.SetVersionPrimaryAction(action);
+
+    internal void SetVersionCheckOutcome(LauncherVersionCheckOutcome outcome)
+        => Actions.SetVersionCheckOutcome(outcome);
 
     internal void SetUpdateButtonText(string text)
         => Actions.SetUpdateButtonText(text);

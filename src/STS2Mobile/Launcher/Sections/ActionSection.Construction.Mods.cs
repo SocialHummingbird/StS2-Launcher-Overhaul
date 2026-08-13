@@ -12,9 +12,7 @@ internal sealed partial class ActionSection
             VBoxContainer group,
             Button playVanillaButton,
             Button playModdedButton,
-            Label selectedModeLabel,
-            Label saveNamespaceLabel,
-            Label statusLabel,
+            Label launchSummaryLabel,
             VBoxContainer modsList,
             Button workshopSyncButton,
             Button workshopClearButton
@@ -23,9 +21,7 @@ internal sealed partial class ActionSection
             Group = group;
             PlayVanillaButton = playVanillaButton;
             PlayModdedButton = playModdedButton;
-            SelectedModeLabel = selectedModeLabel;
-            SaveNamespaceLabel = saveNamespaceLabel;
-            StatusLabel = statusLabel;
+            LaunchSummaryLabel = launchSummaryLabel;
             ModsList = modsList;
             WorkshopSyncButton = workshopSyncButton;
             WorkshopClearButton = workshopClearButton;
@@ -34,9 +30,7 @@ internal sealed partial class ActionSection
         internal VBoxContainer Group { get; }
         internal Button PlayVanillaButton { get; }
         internal Button PlayModdedButton { get; }
-        internal Label SelectedModeLabel { get; }
-        internal Label SaveNamespaceLabel { get; }
-        internal Label StatusLabel { get; }
+        internal Label LaunchSummaryLabel { get; }
         internal VBoxContainer ModsList { get; }
         internal Button WorkshopSyncButton { get; }
         internal Button WorkshopClearButton { get; }
@@ -54,7 +48,7 @@ internal sealed partial class ActionSection
 
         var playVanillaButton = AddActionButton(
             modeParent,
-            compact ? CompactSupportToolText("Vanilla", "Selector") : "Vanilla",
+            "Vanilla",
             scale,
             () => SetModPlayMode(LauncherModPlayMode.Vanilla)
         );
@@ -62,59 +56,27 @@ internal sealed partial class ActionSection
 
         var playModdedButton = AddActionButton(
             modeParent,
-            compact ? CompactSupportToolText("Modded", "Selector") : "Modded",
+            "Modded",
             scale,
             () => SetModPlayMode(LauncherModPlayMode.Modded)
         );
-        LauncherButtonStyles.ApplyAccentAction(playModdedButton, scale);
+        LauncherButtonStyles.ApplySupportAction(playModdedButton, scale);
 
-        var selectedModeLabel = new StyledLabel(
-            "Selected mode: Vanilla",
+        var launchSummaryLabel = new StyledLabel(
+            "Uses Vanilla saves",
             scale,
             fontSize: compact ? 14 : 15,
             align: HorizontalAlignment.Left
         )
         {
-            Name = "SelectedModMode",
+            Name = "ModsLaunchSummary",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        selectedModeLabel.AddThemeColorOverride(
+        launchSummaryLabel.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
             LauncherComponentTheme.TextPrimary
         );
-        group.AddChild(selectedModeLabel);
-
-        var saveNamespaceLabel = new StyledLabel(
-            "Next save set: Vanilla saves",
-            scale,
-            fontSize: compact ? 12 : 13,
-            align: HorizontalAlignment.Left
-        )
-        {
-            Name = "NextSaveNamespace",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        };
-        saveNamespaceLabel.AddThemeColorOverride(
-            LauncherViewLayoutMetrics.ThemeFontColor,
-            LauncherComponentTheme.TextSecondary
-        );
-        group.AddChild(saveNamespaceLabel);
-
-        var statusLabel = new StyledLabel(
-            "",
-            scale,
-            fontSize: compact
-                ? LauncherSectionMetrics.CompactVersionSummaryFontSize
-                : LauncherSectionMetrics.ProgressFontSize,
-            align: HorizontalAlignment.Left
-        );
-        statusLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        statusLabel.VerticalAlignment = VerticalAlignment.Center;
-        statusLabel.AddThemeColorOverride(
-            LauncherViewLayoutMetrics.ThemeFontColor,
-            LauncherComponentTheme.TextSecondary
-        );
-        group.AddChild(statusLabel);
+        group.AddChild(launchSummaryLabel);
 
         var modsList = new VBoxContainer
         {
@@ -130,21 +92,23 @@ internal sealed partial class ActionSection
 
         var workshopSyncButton = AddActionButton(
             actionsParent,
-            compact ? CompactSupportToolText("Sync Workshop", "Mods") : "Sync Workshop Mods",
+            "Update Workshop mods",
             scale,
             () => WorkshopSyncPressed?.Invoke()
         );
-        LauncherButtonStyles.ApplyAccentAction(workshopSyncButton, scale);
+        workshopSyncButton.AccessibilityName = "Update Workshop mods";
+        LauncherButtonStyles.ApplyPrimaryAction(workshopSyncButton, scale);
         SetCompactActionButtonText(workshopSyncButton, workshopSyncButton.Text);
 
         var workshopClearButton = AddActionButton(
             actionsParent,
-            compact ? CompactSupportToolText("Clear staged...", "Confirmation") : "Clear staged mods...",
+            "Remove downloaded Workshop mods\u2026",
             scale,
             () => WorkshopClearPressed?.Invoke()
         );
         LauncherButtonStyles.ApplySupportAction(workshopClearButton, scale);
-        workshopClearButton.TooltipText = "Review before removing staged Workshop mods.";
+        workshopClearButton.AccessibilityName = "Remove downloaded Workshop mods\u2026";
+        workshopClearButton.TooltipText = "Review before removing downloaded Workshop mods.";
         workshopClearButton.AccessibilityDescription = workshopClearButton.TooltipText;
         SetCompactActionButtonText(workshopClearButton, workshopClearButton.Text);
 
@@ -153,9 +117,7 @@ internal sealed partial class ActionSection
             group,
             playVanillaButton,
             playModdedButton,
-            selectedModeLabel,
-            saveNamespaceLabel,
-            statusLabel,
+            launchSummaryLabel,
             modsList,
             workshopSyncButton,
             workshopClearButton

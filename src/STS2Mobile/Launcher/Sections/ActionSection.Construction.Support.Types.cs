@@ -4,22 +4,9 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection
 {
-    private readonly struct SupportFoundation
-    {
-        internal SupportFoundation(VBoxContainer group, Container toolsParent)
-        {
-            Group = group;
-            ToolsParent = toolsParent;
-        }
-
-        internal VBoxContainer Group { get; }
-        internal Container ToolsParent { get; }
-    }
-
     private readonly struct SupportControls
     {
         internal SupportControls(
-            Button supportToggle,
             Button updateButton,
             Button refreshVersionsButton,
             Button redownloadButton,
@@ -29,7 +16,6 @@ internal sealed partial class ActionSection
             Button copyRawLogButton
         )
         {
-            SupportToggle = supportToggle;
             UpdateButton = updateButton;
             RefreshVersionsButton = refreshVersionsButton;
             RedownloadButton = redownloadButton;
@@ -39,7 +25,6 @@ internal sealed partial class ActionSection
             CopyRawLogButton = copyRawLogButton;
         }
 
-        internal Button SupportToggle { get; }
         internal Button UpdateButton { get; }
         internal Button RefreshVersionsButton { get; }
         internal Button RedownloadButton { get; }

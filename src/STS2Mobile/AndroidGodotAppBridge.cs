@@ -54,6 +54,13 @@ internal static class AndroidGodotAppBridge
             () => (string)GetInstanceOnCurrentThread()?.Call("getVersionName")
         );
 
+    internal static bool IsDeferredPreloadExperimentEnabled()
+        => AndroidBridgeDispatcher.Run(
+            () => (bool)(GetInstanceOnCurrentThread()?.Call(
+                "isDeferredPreloadExperimentEnabled"
+            ) ?? false)
+        );
+
     internal static string GetDeviceDiagnostics()
         => AndroidBridgeDispatcher.Run(
             () => (string)(GetInstanceOnCurrentThread()?.Call("getDeviceDiagnostics") ?? "")

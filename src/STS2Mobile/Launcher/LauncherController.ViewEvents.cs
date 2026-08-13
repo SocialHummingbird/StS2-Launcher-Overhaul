@@ -13,6 +13,7 @@ internal sealed partial class LauncherController
             LaunchPressed,
             SessionRetryPressed,
             _updates.RunUpdateCheck,
+            _downloads.UpdateSelectedVersionPressed,
             _versions.RunBranchCatalogRefresh,
             _downloads.RedownloadPressed,
             _downloads.ClearCachedVersionsPressed,

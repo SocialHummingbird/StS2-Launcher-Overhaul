@@ -54,7 +54,6 @@ internal sealed partial class LauncherSessionCoordinator
 
     private void HandleSessionFlow(LauncherModel.FastPathResult result)
     {
-        UpdateHomeState(result);
         if (
             !result.ReadyToLaunch
             && TryStartImmediateLocalLoginHandoff()

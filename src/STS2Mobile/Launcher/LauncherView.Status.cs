@@ -7,27 +7,35 @@ internal sealed partial class LauncherView
 {
     private string _compactStatusShortMessage = "";
     private string _compactStatusFullMessage = "";
-    private string _compactStatusPhase = "Status";
+    private LauncherStatusSeverity _currentStatusSeverity = LauncherStatusSeverity.Working;
     private bool _compactStatusExpanded;
 
-    internal void SetStatus(string text)
+    internal void SetStatus(string text, LauncherStatusSeverity severity)
     {
-        var phase = LauncherPortalStatusFormatter.PhaseFor(text);
-        var color = LauncherPortalStatusFormatter.ColorFor(phase);
+        var label = LauncherPortalStatusFormatter.LabelFor(severity);
+        var color = LauncherPortalStatusFormatter.ColorFor(severity);
         var fullMessage = LauncherPortalStatusFormatter.MessageFor(text);
         var message = _profile.Compact
             ? LauncherPortalStatusFormatter.CompactMessageFor(text)
             : fullMessage;
         _compactStatusShortMessage = message;
         _compactStatusFullMessage = fullMessage;
-        _compactStatusPhase = phase;
-        _compactStatusExpanded = ShouldAutoExpandCompactStatusDetails(phase);
-        _statusPhaseLabel.Text = phase;
+        _currentStatusSeverity = severity;
+        _compactStatusExpanded = ShouldAutoExpandCompactStatusDetails(severity);
+        _statusPhaseLabel.Text = label;
         _statusPhaseLabel.AddThemeColorOverride(LauncherViewLayoutMetrics.ThemeFontColor, color);
-        _statusActionLabel.Text = LauncherPortalStatusFormatter.ActionFor(text);
         _statusAccent.Color = color;
         _statusLabel.Text = _compactStatusExpanded ? fullMessage : message;
         _statusLabel.TooltipText = fullMessage;
+        _secondaryStatusSeverityLabel.Text = label;
+        _secondaryStatusSeverityLabel.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            color
+        );
+        _secondaryStatusMessageLabel.Text = fullMessage;
+        _secondaryStatusMessageLabel.TooltipText = fullMessage;
+        _secondaryStatusAccent.Color = color;
+        UpdateStatusVisibility();
         if (_profile.Compact)
         {
             ApplyCompactStatusDetailLayout();
@@ -82,6 +90,16 @@ internal sealed partial class LauncherView
         _compactStatusDetailsCueLabel.Text = expanded ? "Hide" : "Details";
     }
 
-    private static bool ShouldAutoExpandCompactStatusDetails(string phase)
-        => string.Equals(phase, "Attention", StringComparison.Ordinal);
+    private static bool ShouldAutoExpandCompactStatusDetails(LauncherStatusSeverity severity)
+        => severity is LauncherStatusSeverity.Warning or LauncherStatusSeverity.Error;
+
+    private void UpdateStatusVisibility()
+    {
+        var home = _destination == LauncherDestination.Home;
+        var needsAttention = _currentStatusSeverity is LauncherStatusSeverity.Working
+                or LauncherStatusSeverity.Warning
+                or LauncherStatusSeverity.Error;
+        _statusCapsule.Visible = home && needsAttention;
+        _secondaryStatusBanner.Visible = !home && needsAttention;
+    }
 }

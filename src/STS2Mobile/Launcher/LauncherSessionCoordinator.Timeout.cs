@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -79,16 +80,21 @@ internal sealed partial class LauncherSessionCoordinator
 
         internal void Apply(LauncherView view, LauncherLaunchCoordinator launch)
         {
+            SaveSyncService.ReportFailure(
+                SaveSyncService.SyncFailureKind.Other
+            );
+
             if (_readiness != null && _launchAction.HasValue)
             {
                 launch.ShowReadyToLaunch(
                     launch.SelectedVersionReadyStatus(_status, _readiness),
-                    _launchAction.Value
+                    _launchAction.Value,
+                    LauncherStatusSeverity.Warning
                 );
             }
             else
             {
-                view.SetStatus(_status);
+                view.SetStatus(_status, LauncherStatusSeverity.Error);
             }
 
             if (_logMessage != null)

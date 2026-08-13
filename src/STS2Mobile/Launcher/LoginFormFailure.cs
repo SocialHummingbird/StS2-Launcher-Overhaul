@@ -52,7 +52,10 @@ internal readonly struct LoginFormFailure
         var authFailure = SteamAuthFailureReport.From(ex);
         LauncherLaunchMarkers.RecordSteamAuthFailure(authFailure, LogContext);
         PatchHelper.Log($"[Launcher] {LogContext}: {LogDetail(ex)}");
-        view.SetStatus($"{StatusPrefix}: {authFailure.UserMessage} {RecoveryMessage}");
+        view.SetStatus(
+            $"{StatusPrefix}: {authFailure.UserMessage} {RecoveryMessage}",
+            LauncherStatusSeverity.Error
+        );
         view.SetLoginFormVisible(visible: true, disabled: false);
     }
 

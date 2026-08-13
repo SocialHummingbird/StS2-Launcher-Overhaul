@@ -18,6 +18,8 @@ internal sealed partial class DownloadSection
                 ? CompactDownloadActionHeight
                 : LauncherSectionMetrics.DownloadButtonHeight
         );
+        button.Name = "DownloadGameFilesAction";
+        LauncherButtonStyles.ApplyPrimaryAction(button, scale);
         SetCompactDownloadButtonText(button, button.Text);
         button.Pressed += () => DownloadRequested?.Invoke();
         return button;

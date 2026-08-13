@@ -1,120 +1,71 @@
 using Godot;
 using STS2Mobile.Launcher.Components;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection
 {
-    private (
-        VBoxContainer Group,
-        Label AccountState,
-        Label GameState,
-        Label SaveState,
-        Label SaveNamespaceState
-    ) BuildHomeJourney(float scale, bool compact)
+    private (VBoxContainer Group, Label StateLine, Button HelpButton) BuildHomeJourney(
+        float scale,
+        bool compact
+    )
     {
         var group = BuildActionGroup(scale);
         group.Name = "HomeJourney";
         AddChild(group);
 
-        var rows = BuildStateRows(scale);
-        rows.Name = "HomeJourneyRows";
-        group.AddChild(rows);
-
-        var accountState = AddStateRow(
-            rows,
-            "Steam account",
-            "Checking...",
-            "HomeAccountState",
+        var stateLine = new StyledLabel(
+            "Public · Vanilla saves · Not synced yet",
             scale,
-            compact
-        );
-        var gameState = AddStateRow(
-            rows,
-            "Game installation",
-            "Checking...",
-            "HomeGameState",
-            scale,
-            compact
-        );
-        var saveState = AddStateRow(
-            rows,
-            "Saves",
-            "Sign in required",
-            "HomeSaveState",
-            scale,
-            compact
-        );
-        var saveNamespaceState = AddStateRow(
-            rows,
-            "Next save set",
-            "Vanilla saves",
-            "HomeSaveNamespaceState",
-            scale,
-            compact
-        );
-
-        return (group, accountState, gameState, saveState, saveNamespaceState);
-    }
-
-    private static GridContainer BuildStateRows(float scale)
-    {
-        var rows = new GridContainer
-        {
-            Columns = 2,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-        };
-        rows.AddThemeConstantOverride(
-            "h_separation",
-            LauncherViewLayoutMetrics.ScaleInt(12, scale)
-        );
-        rows.AddThemeConstantOverride(
-            "v_separation",
-            LauncherViewLayoutMetrics.ScaleInt(8, scale)
-        );
-        return rows;
-    }
-
-    private static Label AddStateRow(
-        GridContainer rows,
-        string title,
-        string value,
-        string valueName,
-        float scale,
-        bool compact
-    )
-    {
-        var titleLabel = new StyledLabel(
-            title,
-            scale,
-            fontSize: compact ? 12 : 13,
-            align: HorizontalAlignment.Left
-        );
-        titleLabel.AddThemeColorOverride("font_color", LauncherComponentTheme.TextSecondary);
-        rows.AddChild(titleLabel);
-
-        var valueLabel = new StyledLabel(
-            value,
-            scale,
-            fontSize: compact ? 12 : 13,
+            fontSize: compact ? 15 : 16,
             align: HorizontalAlignment.Left
         )
         {
-            Name = valueName,
+            Name = "HomeStateLine",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
-        valueLabel.AddThemeColorOverride("font_color", LauncherComponentTheme.TextPrimary);
-        rows.AddChild(valueLabel);
-        return valueLabel;
+        stateLine.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextPrimary
+        );
+        group.AddChild(stateLine);
+
+        var helpButton = AddSecondaryHiddenButton(
+            group,
+            "Open Help",
+            scale,
+            () => HomeHelpPressed?.Invoke()
+        );
+        helpButton.AccessibilityName = "Open Help";
+        LauncherButtonStyles.ApplySupportAction(helpButton, scale);
+
+        return (group, stateLine, helpButton);
     }
 
-    internal void SetHomeAccountState(string state)
-        => _homeAccountState.Text = PresentationText(state, "Checking...");
-
-    internal void SetHomeGameState(string state)
-        => _homeGameState.Text = PresentationText(state, "Checking...");
+    private void UpdateHomeStateLine()
+    {
+        var normalizedBranch = SteamGameBranch.Normalize(_gameBranch);
+        var branch = string.Equals(
+            normalizedBranch,
+            SteamGameBranch.Public,
+            System.StringComparison.OrdinalIgnoreCase
+        )
+            ? "Public"
+            : string.Equals(
+                normalizedBranch,
+                SteamGameBranch.Beta,
+                System.StringComparison.OrdinalIgnoreCase
+            )
+                ? "Beta"
+                : SteamGameBranch.DisplayName(_gameBranch);
+        _homeStateLine.Text = $"{branch} · {_homeSaveNamespace} · {_homeSyncState}";
+    }
 
     private static string PresentationText(string value, string fallback)
         => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    internal void ShowHomeHelpAction()
+        => _homeHelpButton.Visible = true;
 }

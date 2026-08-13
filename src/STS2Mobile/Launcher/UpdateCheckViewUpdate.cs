@@ -2,56 +2,54 @@ namespace STS2Mobile.Launcher;
 
 internal readonly struct UpdateCheckViewUpdate
 {
-    private const string UpdateCheckFailedButtonText = "Check Failed";
-    private const string UpdateCheckBlockedButtonText = "Check Blocked";
-    private const string UpToDateButtonText = "Up to Date";
-    private const string UpdateGameFilesButtonText = "Update Selected Version";
-
     private UpdateCheckViewUpdate(
         string logMessage = null,
-        string updateButtonText = null,
-        string downloadButtonText = null,
         string status = null,
-        bool hideActions = false
+        LauncherStatusSeverity? statusSeverity = null,
+        LauncherVersionPrimaryAction primaryAction =
+            LauncherVersionPrimaryAction.CheckForUpdates,
+        LauncherVersionCheckOutcome outcome = LauncherVersionCheckOutcome.None
     )
     {
         LogMessage = logMessage;
-        UpdateButtonText = updateButtonText;
-        DownloadButtonText = downloadButtonText;
         Status = status;
-        HideActions = hideActions;
+        StatusSeverity = statusSeverity;
+        PrimaryAction = primaryAction;
+        Outcome = outcome;
     }
 
     private string LogMessage { get; }
-    private string UpdateButtonText { get; }
-    private string DownloadButtonText { get; }
     private string Status { get; }
-    private bool HideActions { get; }
+    private LauncherStatusSeverity? StatusSeverity { get; }
+    private LauncherVersionPrimaryAction PrimaryAction { get; }
+    private LauncherVersionCheckOutcome Outcome { get; }
 
     internal static UpdateCheckViewUpdate Completed(bool hasUpdate, string selectedVersion)
         => hasUpdate
             ? new(
-                downloadButtonText: UpdateGameFilesButtonText,
+                logMessage: $"Update available for selected game version ({selectedVersion}).",
                 status: $"Update available for selected game version ({selectedVersion}).",
-                hideActions: true
+                statusSeverity: LauncherStatusSeverity.Warning,
+                primaryAction: LauncherVersionPrimaryAction.UpdateSelectedVersion,
+                outcome: LauncherVersionCheckOutcome.UpdateAvailable
             )
             : new(
                 logMessage: $"Selected game version is up to date ({selectedVersion}).",
-                updateButtonText: UpToDateButtonText
+                outcome: LauncherVersionCheckOutcome.UpToDate
             );
 
     internal static UpdateCheckViewUpdate Failed(string message, string selectedVersion)
         => new(
             logMessage: $"Update check failed for selected game version ({selectedVersion}): {message}",
-            updateButtonText: UpdateCheckFailedButtonText,
-            status: $"Update check failed for selected game version ({selectedVersion}): {message}"
+            status: $"Update check failed for selected game version ({selectedVersion}): {message}",
+            statusSeverity: LauncherStatusSeverity.Error
         );
 
     internal static UpdateCheckViewUpdate Blocked(string message, string selectedVersion)
         => new(
             logMessage: $"Update check blocked for selected game version ({selectedVersion}): {message}",
-            updateButtonText: UpdateCheckBlockedButtonText,
-            status: $"Update check blocked for selected game version ({selectedVersion}): {message}"
+            status: $"Update check blocked for selected game version ({selectedVersion}): {message}",
+            statusSeverity: LauncherStatusSeverity.Warning
         );
 
     internal void Apply(LauncherView view)
@@ -59,16 +57,16 @@ internal readonly struct UpdateCheckViewUpdate
         if (LogMessage != null)
             view.AppendLog(LogMessage);
 
-        if (HideActions)
-            view.HideActions();
-
-        if (DownloadButtonText != null)
-            view.ShowDownloadAction(DownloadButtonText);
-
         if (Status != null)
-            view.SetStatus(Status);
+            view.SetStatus(
+                Status,
+                StatusSeverity
+                    ?? throw new System.InvalidOperationException(
+                        "An update status message requires an explicit severity."
+                    )
+            );
 
-        if (UpdateButtonText != null)
-            view.SetUpdateButtonText(UpdateButtonText);
+        view.SetVersionCheckOutcome(Outcome);
+        view.SetVersionPrimaryAction(PrimaryAction);
     }
 }

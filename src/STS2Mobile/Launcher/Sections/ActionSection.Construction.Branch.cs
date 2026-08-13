@@ -5,38 +5,47 @@ namespace STS2Mobile.Launcher.Sections;
 
 internal sealed partial class ActionSection
 {
-    private (Button DetailsToggle, OptionButton Dropdown, Label HelpLabel) BuildBranchControls(
+    private (VBoxContainer Group, OptionButton Dropdown, Label StateLabel) BuildBranchControls(
         float scale,
         bool compact
     )
     {
-        var branchDetailsToggle = new StyledButton(
-            "Show Version Details",
+        var group = new VBoxContainer
+        {
+            Name = "GameVersionSelection",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        group.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(6, scale)
+        );
+
+        var title = new StyledLabel(
+            "Game version",
             scale,
             fontSize: compact
-                ? LauncherSectionMetrics.CompactDetailButtonFontSize
+                ? LauncherSectionMetrics.CompactVersionSummaryFontSize
                 : LauncherSectionMetrics.ProgressFontSize,
-            height: compact
-                ? LauncherSectionMetrics.CompactDrawerToggleHeight
-                : LauncherSectionMetrics.SecondaryButtonHeight
+            align: HorizontalAlignment.Left
         );
-        LauncherButtonStyles.ApplySupportAction(branchDetailsToggle, scale);
-        branchDetailsToggle.Visible = false;
-        branchDetailsToggle.Pressed += ToggleBranchDetails;
-        AddChild(branchDetailsToggle);
+        title.Name = "GameVersionLabel";
+        title.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextPrimary
+        );
+        group.AddChild(title);
 
         var branchDropdown = new OptionButton
         {
             FitToLongestItem = !compact,
         };
         branchDropdown.AccessibilityName = "Game version";
-        branchDropdown.AccessibilityDescription = "Select the installed Steam game version.";
-        branchDropdown.Visible = false;
+        branchDropdown.AccessibilityDescription = "Select the game version Play will use.";
         branchDropdown.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         branchDropdown.CustomMinimumSize = new Vector2(
             0,
             LauncherViewLayoutMetrics.ScaleInt(
-                compact ? LauncherSectionMetrics.PrimaryButtonHeight : LauncherSectionMetrics.SecondaryButtonHeight,
+                LauncherSectionMetrics.SecondaryButtonHeight,
                 scale
             )
         );
@@ -47,35 +56,27 @@ internal sealed partial class ActionSection
             compact
         );
         branchDropdown.ItemSelected += ApplyGameBranch;
-        AddChild(branchDropdown);
+        group.AddChild(branchDropdown);
 
         var branchHelpLabel = new StyledLabel(
             "",
             scale,
             fontSize: compact
-                ? CompactReadyVersionHelpFontSize
+                ? LauncherSectionMetrics.CompactDetailLabelFontSize
                 : LauncherSectionMetrics.ProgressFontSize,
             align: HorizontalAlignment.Left
         );
         branchHelpLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        branchHelpLabel.ClipText = compact;
-        branchHelpLabel.VerticalAlignment = VerticalAlignment.Center;
-        if (compact)
-        {
-            branchHelpLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-            branchHelpLabel.CustomMinimumSize = new Vector2(
-                0,
-                LauncherViewLayoutMetrics.ScaleInt(CompactReadyVersionHelpHeight, scale)
-            );
-        }
+        branchHelpLabel.Name = "SelectedGameVersionState";
+        branchHelpLabel.VerticalAlignment = VerticalAlignment.Top;
         branchHelpLabel.MouseFilter = MouseFilterEnum.Ignore;
         branchHelpLabel.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
             LauncherViewLayoutMetrics.LogTitleColor
         );
-        branchHelpLabel.Visible = false;
-        AddChild(branchHelpLabel);
+        group.AddChild(branchHelpLabel);
+        AddChild(group);
 
-        return (branchDetailsToggle, branchDropdown, branchHelpLabel);
+        return (group, branchDropdown, branchHelpLabel);
     }
 }

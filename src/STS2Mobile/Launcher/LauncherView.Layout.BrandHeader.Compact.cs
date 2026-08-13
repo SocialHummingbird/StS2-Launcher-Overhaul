@@ -23,7 +23,6 @@ internal sealed partial class LauncherView
         );
         row.AddChild(BuildBrandMark(scale, compact: true));
         row.AddChild(BuildCompactBrandTitle(scale));
-        row.AddChild(BuildCompactBrandSubtitle(scale));
         header.AddChild(row);
         header.AddChild(BuildBrandDivider(scale, height: 1));
         return header;
@@ -42,23 +41,5 @@ internal sealed partial class LauncherView
             LauncherComponentTheme.TextPrimary
         );
         return title;
-    }
-
-    private static StyledLabel BuildCompactBrandSubtitle(float scale)
-    {
-        var subtitle = new StyledLabel(
-            "Ready to play.",
-            scale,
-            fontSize: CompactBrandSubtitleFontSize,
-            align: HorizontalAlignment.Right
-        );
-        subtitle.VerticalAlignment = VerticalAlignment.Center;
-        subtitle.ClipText = true;
-        subtitle.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-        subtitle.AddThemeColorOverride(
-            LauncherViewLayoutMetrics.ThemeFontColor,
-            LauncherComponentTheme.CyanAccent
-        );
-        return subtitle;
     }
 }

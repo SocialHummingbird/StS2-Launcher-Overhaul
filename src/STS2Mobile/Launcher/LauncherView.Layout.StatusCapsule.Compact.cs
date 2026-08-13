@@ -7,13 +7,10 @@ internal sealed partial class LauncherView
 {
     private static (
         Control Capsule,
-        GridContainer CompactHeadline,
-        PanelContainer CompactPhasePanel,
         Button CompactDetailButton,
         StyledLabel CompactDetailCue
     ) BuildCompactStatusCapsule(
         StyledLabel statusPhaseLabel,
-        StyledLabel statusActionLabel,
         StyledLabel statusLabel,
         ColorRect statusAccent,
         LauncherLayoutProfile profile
@@ -21,6 +18,7 @@ internal sealed partial class LauncherView
     {
         var scale = profile.Scale;
         var panel = new PanelContainer();
+        panel.Name = "GlobalStatusCapsule";
         panel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         panel.AddThemeStyleboxOverride(
             LauncherComponentTheme.Panel,
@@ -56,16 +54,8 @@ internal sealed partial class LauncherView
         phasePanel.AddChild(statusPhaseLabel);
         headline.AddChild(phasePanel);
 
-        statusActionLabel.HorizontalAlignment = HorizontalAlignment.Left;
-        statusActionLabel.VerticalAlignment = VerticalAlignment.Center;
-        statusActionLabel.AddThemeColorOverride(
-            LauncherViewLayoutMetrics.ThemeFontColor,
-            LauncherComponentTheme.TextSecondary
-        );
-        statusActionLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        statusActionLabel.ClipText = false;
-        headline.AddChild(statusActionLabel);
-        ApplyCompactStatusHeadlineLayout(headline, phasePanel, statusActionLabel, profile);
+        headline.Columns = 1;
+        phasePanel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         body.AddChild(headline);
 
         var detailButton = BuildCompactStatusDetailButton(scale);
@@ -76,37 +66,6 @@ internal sealed partial class LauncherView
         detailButton.AddChild(detailRow);
         body.AddChild(detailButton);
 
-        return (panel, headline, phasePanel, detailButton, detailCue);
-    }
-
-    private static void ApplyCompactStatusHeadlineLayout(
-        GridContainer headline,
-        PanelContainer phasePanel,
-        StyledLabel statusActionLabel,
-        LauncherLayoutProfile profile
-    )
-    {
-        var scale = profile.Scale;
-        var stacked = profile.CompactStackedActionRows;
-        headline.Columns = stacked ? 1 : 2;
-        headline.AddThemeConstantOverride(
-            LauncherViewLayoutMetrics.ThemeSeparation,
-            LauncherViewLayoutMetrics.ScaleInt(
-                stacked ? CompactStatusHeadlineSeparation : CompactStatusHeadlineInlineSeparation,
-                scale
-            )
-        );
-        phasePanel.CustomMinimumSize = new Vector2(
-            LauncherViewLayoutMetrics.ScaleInt(stacked ? 0 : CompactStatusPhaseInlineWidth, scale),
-            0
-        );
-        phasePanel.SizeFlagsHorizontal = stacked
-            ? Control.SizeFlags.ExpandFill
-            : Control.SizeFlags.ShrinkBegin;
-        statusActionLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        statusActionLabel.CustomMinimumSize = new Vector2(
-            0,
-            LauncherViewLayoutMetrics.ScaleInt(CompactStatusActionMinHeight, scale)
-        );
+        return (panel, detailButton, detailCue);
     }
 }

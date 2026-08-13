@@ -34,8 +34,6 @@ internal sealed class LauncherModsPresentation
         LauncherModPlayMode mode,
         string selectionFingerprint,
         string saveNamespaceLabel,
-        string primaryPlayLabel,
-        string statusText,
         IReadOnlyList<LauncherModPresentationItem> mods,
         int installedCount,
         int enabledCount,
@@ -45,8 +43,6 @@ internal sealed class LauncherModsPresentation
         Mode = mode;
         SelectionFingerprint = selectionFingerprint ?? string.Empty;
         SaveNamespaceLabel = saveNamespaceLabel ?? string.Empty;
-        PrimaryPlayLabel = primaryPlayLabel ?? string.Empty;
-        StatusText = statusText ?? string.Empty;
         Mods = mods ?? Array.Empty<LauncherModPresentationItem>();
         InstalledCount = Math.Max(0, installedCount);
         EnabledCount = Math.Max(0, enabledCount);
@@ -56,8 +52,6 @@ internal sealed class LauncherModsPresentation
     internal LauncherModPlayMode Mode { get; }
     internal string SelectionFingerprint { get; }
     internal string SaveNamespaceLabel { get; }
-    internal string PrimaryPlayLabel { get; }
-    internal string StatusText { get; }
     internal IReadOnlyList<LauncherModPresentationItem> Mods { get; }
     internal int InstalledCount { get; }
     internal int EnabledCount { get; }
@@ -189,21 +183,10 @@ internal static class LauncherModsPresentationState
         var enabledCount = orderedItems.Count(item => item.Enabled);
         var modded = mode == LauncherModPlayMode.Modded;
         var saveNamespace = modded ? "Modded saves" : "Vanilla saves";
-        var playLabel = modded
-            ? $"Play Modded \u00B7 {enabledCount} enabled"
-            : "Play Vanilla";
-        var status = modded
-            ? $"Modded selected \u00B7 {enabledCount} enabled \u00B7 {saveNamespace}"
-            : $"Vanilla selected \u00B7 {saveNamespace}";
-        if (markerIsStale)
-            status += " \u00B7 Last launch used a different selection";
-
         return new LauncherModsPresentation(
             mode,
             fingerprint,
             saveNamespace,
-            playLabel,
-            status,
             orderedItems,
             installedCount,
             enabledCount,

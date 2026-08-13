@@ -4,6 +4,7 @@ internal readonly struct DownloadViewUpdate
 {
     private DownloadViewUpdate(
         string status = null,
+        LauncherStatusSeverity? statusSeverity = null,
         string logMessage = null,
         string downloadAction = null,
         string resetDownloadButton = null,
@@ -16,6 +17,7 @@ internal readonly struct DownloadViewUpdate
     )
     {
         Status = status;
+        StatusSeverity = statusSeverity;
         LogMessage = logMessage;
         DownloadAction = downloadAction;
         ResetDownloadButton = resetDownloadButton;
@@ -28,6 +30,7 @@ internal readonly struct DownloadViewUpdate
     }
 
     private string Status { get; }
+    private LauncherStatusSeverity? StatusSeverity { get; }
     private string LogMessage { get; }
     private string DownloadAction { get; }
     private string ResetDownloadButton { get; }
@@ -49,6 +52,7 @@ internal readonly struct DownloadViewUpdate
     internal static DownloadViewUpdate RedownloadApplied()
         => new(
             status: LauncherDownloadCoordinator.RedownloadStatusMessage,
+            statusSeverity: LauncherStatusSeverity.Warning,
             logMessage: LauncherDownloadCoordinator.RedownloadLogMessage,
             downloadAction: LauncherDownloadCoordinator.DownloadGameFilesButtonText,
             downloadButtonDisabled: false,
@@ -64,6 +68,9 @@ internal readonly struct DownloadViewUpdate
             status: filesReady
                 ? $"Selected game version downloaded ({selectedVersion}). Start game when ready."
                 : readinessProblem,
+            statusSeverity: filesReady
+                ? LauncherStatusSeverity.Ready
+                : LauncherStatusSeverity.Error,
             hideDownload: true,
             launchAction: filesReady
                 ? LaunchUpdateAction.Hidden
@@ -76,12 +83,14 @@ internal readonly struct DownloadViewUpdate
             ? new(resetDownload: true)
             : new(
                 status: $"Download failed for selected game version ({selectedVersion}): {message}",
+                statusSeverity: LauncherStatusSeverity.Error,
                 resetDownloadButton: LauncherDownloadCoordinator.RetryDownloadButtonText
             );
 
     internal static DownloadViewUpdate Cancelled()
         => new(
             status: LauncherDownloadCoordinator.DownloadCancelledStatus,
+            statusSeverity: LauncherStatusSeverity.Information,
             downloadButtonDisabled: false
         );
 
@@ -97,7 +106,13 @@ internal readonly struct DownloadViewUpdate
             view.SetDownloadButtonDisabled(DownloadButtonDisabled.Value);
 
         if (Status != null)
-            view.SetStatus(Status);
+            view.SetStatus(
+                Status,
+                StatusSeverity
+                    ?? throw new System.InvalidOperationException(
+                        "A download status message requires an explicit severity."
+                    )
+            );
 
         if (LogMessage != null)
             view.AppendLog(LogMessage);

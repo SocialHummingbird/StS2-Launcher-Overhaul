@@ -8,26 +8,37 @@ internal sealed partial class LauncherLaunchCoordinator
         var readiness = RefreshSelectedDownloadedStateEvidence("login downloaded-state readiness");
         if (readiness.Ready)
         {
-            ShowReadyToLaunch(SelectedVersionReadyStatus(readiness), LaunchUpdateAction.Visible);
+            ShowReadyToLaunch(
+                SelectedVersionReadyStatus(readiness),
+                LaunchUpdateAction.Visible,
+                LauncherStatusSeverity.Ready
+            );
             return;
         }
 
         var readinessProblem = readiness.ReadinessProblem;
-        _view.SetStatus(readinessProblem ?? SelectedVersionDownloadRequiredStatus(readiness));
+        _view.SetStatus(
+            readinessProblem ?? SelectedVersionDownloadRequiredStatus(readiness),
+            LauncherStatusSeverity.Warning
+        );
         showDownloadReadyAction();
     }
 
-    internal void ShowReadyToLaunch(string status, LaunchUpdateAction updateAction)
+    internal void ShowReadyToLaunch(
+        string status,
+        LaunchUpdateAction updateAction,
+        LauncherStatusSeverity severity
+    )
     {
         STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase: set status");
-        _view.SetStatus(status);
+        _view.SetStatus(status, severity);
         STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase complete: set status");
-        STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase: previous launch warning");
-        _diagnostics.ShowPreviousLaunchWarningIfNeeded();
-        STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase complete: previous launch warning");
         STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase: show launch actions");
         ShowLaunchActions(updateAction);
         STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase complete: show launch actions");
+        STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase: previous launch warning");
+        _diagnostics.ShowPreviousLaunchWarningIfNeeded();
+        STS2Mobile.PatchHelper.Log("[Launcher] Ready-to-launch UI phase complete: previous launch warning");
     }
 
     internal void ShowLaunchActions(LaunchUpdateAction updateAction)

@@ -13,7 +13,7 @@ internal sealed partial class ActionSection
     {
         var retryButton = AddHiddenButton(
             this,
-            compact ? CompactRetryButtonText() : "Retry",
+            "Try Again",
             scale,
             LauncherSectionMetrics.PrimaryButtonFontSize,
             LauncherSectionMetrics.PrimaryButtonHeight,
@@ -29,14 +29,14 @@ internal sealed partial class ActionSection
             () => LaunchPressed?.Invoke()
         );
         launchButton.Name = "Play";
+        launchButton.AccessibilityName = "Play";
         LauncherButtonStyles.ApplyPrimaryAction(launchButton, scale);
         var safeLaunchButton = compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
                 "Safe Start",
                 scale,
-                () => SafeLaunchPressed?.Invoke(),
-                "Compatibility mode"
+                () => SafeLaunchPressed?.Invoke()
             )
             : AddSecondaryHiddenButton(
                 this,
@@ -44,9 +44,10 @@ internal sealed partial class ActionSection
                 scale,
                 () => SafeLaunchPressed?.Invoke()
             );
-        LauncherButtonStyles.ApplySafeAction(safeLaunchButton, scale);
+        LauncherButtonStyles.ApplyPrimaryAction(safeLaunchButton, scale);
+        safeLaunchButton.AccessibilityName = "Safe Start";
         safeLaunchButton.AccessibilityDescription =
-            "Start with the project renderer and skip shader warmup for this run.";
+            "Uses local saves and skips shader warmup for one run. Uses OpenGL on PowerVR; otherwise uses the game's default renderer.";
 
         return (retryButton, launchButton, safeLaunchButton);
     }

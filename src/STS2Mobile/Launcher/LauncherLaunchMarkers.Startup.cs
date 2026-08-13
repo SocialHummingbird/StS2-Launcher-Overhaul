@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Threading;
-using Godot;
 using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
@@ -169,7 +168,7 @@ internal static partial class LauncherLaunchMarkers
         {
             try
             {
-                return OS.GetDataDir();
+                return AppPaths.AppPrivateDataDir;
             }
             catch (Exception ex)
             {

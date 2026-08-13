@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using STS2Mobile.Steam;
@@ -8,21 +7,14 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
-    private readonly record struct SaveSyncPresentation(
-        string Headline,
-        string LastSuccess,
-        string LocalState,
-        string SteamState
-    );
-
     private int _saveSyncRunning;
     private int _saveSyncUiAvailable = 1;
     private int _launchAfterSaveSyncPending;
     private int _automaticSaveSyncStarted;
     private CancellationTokenSource _saveSyncCancellation;
     private Task _saveSyncTask = Task.CompletedTask;
-    private SaveSyncPresentation _saveSyncPresentation;
-    private SaveSyncPresentation _saveSyncPresentationBeforeOperation;
+    private LauncherSaveSyncPresentation _saveSyncPresentation;
+    private LauncherSaveSyncPresentation _saveSyncPresentationBeforeOperation;
     private bool _saveSyncPresentationInitialized;
 
     private void LaunchPressed()
@@ -71,7 +63,9 @@ internal sealed partial class LauncherController
             return;
 
         ApplySaveSyncPresentation(
-            PresentationFromStatus(SaveSyncService.GetStatusSnapshot())
+            LauncherSaveSyncPresentation.FromStatus(
+                SaveSyncService.GetStatusSnapshot()
+            )
         );
     }
 
@@ -87,7 +81,9 @@ internal sealed partial class LauncherController
         {
             Interlocked.Exchange(ref _saveSyncRunning, 0);
             ApplySaveSyncPresentation(
-                PresentationFromStatus(SaveSyncService.GetStatusSnapshot())
+                LauncherSaveSyncPresentation.FromStatus(
+                    SaveSyncService.GetStatusSnapshot()
+                )
             );
             return;
         }
@@ -95,13 +91,15 @@ internal sealed partial class LauncherController
         if (!_saveSyncPresentationInitialized)
         {
             ApplySaveSyncPresentation(
-                PresentationFromStatus(SaveSyncService.GetStatusSnapshot())
+                LauncherSaveSyncPresentation.FromStatus(
+                    SaveSyncService.GetStatusSnapshot()
+                )
             );
         }
         _saveSyncPresentationBeforeOperation = _saveSyncPresentation;
         _view.SetSaveSyncControlsDisabled(true);
         ApplySaveSyncPresentation(
-            SyncingPresentation(SaveSyncService.GetStatusSnapshot())
+            LauncherSaveSyncPresentation.Syncing()
         );
         var cancellation = new CancellationTokenSource();
         _saveSyncCancellation = cancellation;
@@ -154,7 +152,9 @@ internal sealed partial class LauncherController
         if (result.Prompt == SaveSyncService.SyncPrompt.ChooseSource)
         {
             ApplySaveSyncPresentation(
-                ConflictPresentation(SaveSyncService.GetStatusSnapshot())
+                LauncherSaveSyncPresentation.Conflict(
+                    SaveSyncService.GetStatusSnapshot()
+                )
             );
             _view.ShowSaveSyncConflict(
                 () => StartSaveSync(
@@ -171,20 +171,21 @@ internal sealed partial class LauncherController
 
         if (result.Prompt == SaveSyncService.SyncPrompt.ConfirmOverwrite)
         {
-            var action = request == SaveSyncService.SyncRequest.Pull
-                ? "Pull from Steam"
-                : "Push to Steam";
-            var confirmation = request == SaveSyncService.SyncRequest.Pull
-                ? "Steam saves differ from this device. Pulling will replace or delete local save files. Continue?"
-                : "This device differs from Steam. Pushing will replace or delete Steam save files. Continue?";
             RestoreSaveSyncPresentationBeforeOperation();
-            _view.ShowConfirmation(
-                confirmation,
-                () => StartSaveSync(request, overwriteConfirmed: true),
-                RestoreSaveSyncPresentationBeforeOperation,
-                confirmText: action,
-                cancelText: "Cancel"
-            );
+            if (request == SaveSyncService.SyncRequest.Pull)
+            {
+                _view.ShowGetSavesOverwriteConfirmation(
+                    () => StartSaveSync(request, overwriteConfirmed: true),
+                    RestoreSaveSyncPresentationBeforeOperation
+                );
+            }
+            else
+            {
+                _view.ShowSendSavesOverwriteConfirmation(
+                    () => StartSaveSync(request, overwriteConfirmed: true),
+                    RestoreSaveSyncPresentationBeforeOperation
+                );
+            }
             return;
         }
 
@@ -197,21 +198,35 @@ internal sealed partial class LauncherController
         if (!result.Success)
         {
             ApplySaveSyncPresentation(
-                FailedPresentation(SaveSyncService.GetStatusSnapshot())
+                result.FailureKind == SaveSyncService.SyncFailureKind.Offline
+                    ? LauncherSaveSyncPresentation.Offline(
+                        SaveSyncService.GetStatusSnapshot()
+                    )
+                    : result.FailureKind
+                        == SaveSyncService.SyncFailureKind.Authentication
+                        ? LauncherSaveSyncPresentation.SignInRequired()
+                        : LauncherSaveSyncPresentation.SyncFailed(
+                        SaveSyncService.GetStatusSnapshot()
+                    )
             );
             return;
         }
 
         ApplySaveSyncPresentation(
-            PresentationFromStatus(SaveSyncService.GetStatusSnapshot())
+            LauncherSaveSyncPresentation.FromStatus(
+                SaveSyncService.GetStatusSnapshot()
+            )
         );
     }
 
     private void FinishSaveSyncFailure()
     {
+        SaveSyncService.ReportFailure(SaveSyncService.SyncFailureKind.Other);
         _view.SetSaveSyncControlsDisabled(false);
         ApplySaveSyncPresentation(
-            FailedPresentation(SaveSyncService.GetStatusSnapshot())
+            LauncherSaveSyncPresentation.SyncFailed(
+                SaveSyncService.GetStatusSnapshot()
+            )
         );
     }
 
@@ -227,107 +242,15 @@ internal sealed partial class LauncherController
         });
     }
 
-    private void ApplySaveSyncPresentation(SaveSyncPresentation presentation)
+    private void ApplySaveSyncPresentation(LauncherSaveSyncPresentation presentation)
     {
         _saveSyncPresentation = presentation;
         _saveSyncPresentationInitialized = true;
-        _view.SetSaveSyncPresentation(
-            presentation.Headline,
-            presentation.LastSuccess,
-            presentation.LocalState,
-            presentation.SteamState
-        );
+        _view.SetSaveSyncPresentation(presentation);
     }
 
     private void RestoreSaveSyncPresentationBeforeOperation()
         => ApplySaveSyncPresentation(_saveSyncPresentationBeforeOperation);
-
-    private static SaveSyncPresentation PresentationFromStatus(
-        SaveSyncService.StatusSnapshot status
-    )
-    {
-        if (!status.HasCredentials)
-            return SignInPresentation(status);
-
-        if (status.ChangesQueued || status.RetryRequired)
-            return OfflinePresentation(status);
-
-        if (status.HasSuccessfulSync)
-        {
-            return new SaveSyncPresentation(
-                "Synced",
-                LastSuccess(status),
-                "Up to date",
-                "Up to date when last checked"
-            );
-        }
-
-        // A signed-in first run immediately starts one reconciliation pass.
-        // Until that pass completes, this is the only honest non-success state.
-        return OfflinePresentation(status);
-    }
-
-    private static SaveSyncPresentation SyncingPresentation(
-        SaveSyncService.StatusSnapshot status
-    )
-        => new(
-            "Syncing",
-            LastSuccess(status),
-            "Checking",
-            "Checking"
-        );
-
-    private static SaveSyncPresentation ConflictPresentation(
-        SaveSyncService.StatusSnapshot status
-    )
-        => new(
-            "Conflict — choose a copy",
-            LastSuccess(status),
-            "Different copy",
-            "Different copy"
-        );
-
-    private static SaveSyncPresentation FailedPresentation(
-        SaveSyncService.StatusSnapshot status
-    )
-        => status.HasCredentials
-            ? OfflinePresentation(status)
-            : SignInPresentation(status);
-
-    private static SaveSyncPresentation OfflinePresentation(
-        SaveSyncService.StatusSnapshot status
-    )
-        => new(
-            "Offline — changes queued",
-            LastSuccess(status),
-            status.ChangesQueued
-                ? "Changes queued"
-                : status.RetryRequired ? "Update queued" : "Saved locally",
-            "Unavailable"
-        );
-
-    private static SaveSyncPresentation SignInPresentation(
-        SaveSyncService.StatusSnapshot status
-    )
-        => new(
-            "Sign in required",
-            LastSuccess(status),
-            "Saved locally",
-            "Sign in to check"
-        );
-
-    private static string LastSuccess(SaveSyncService.StatusSnapshot status)
-    {
-        if (status.LastSuccessfulSyncUtc is { } completedAt)
-        {
-            return completedAt.ToLocalTime().ToString(
-                "g",
-                CultureInfo.CurrentCulture
-            );
-        }
-
-        return status.HasSuccessfulSync ? "Earlier" : "Never";
-    }
 
     private void LaunchAfterSaveSync(Action launch)
     {

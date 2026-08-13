@@ -1,6 +1,5 @@
 using System.IO;
 using System.Diagnostics;
-using Godot;
 using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
@@ -76,7 +75,7 @@ internal static partial class LauncherLaunchMarkers
     {
         try
         {
-            var dataDir = OS.GetDataDir();
+            var dataDir = AppPaths.AppPrivateDataDir;
             return string.IsNullOrWhiteSpace(dataDir)
                 ? fileName
                 : Path.Combine(dataDir, fileName);

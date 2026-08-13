@@ -35,7 +35,7 @@ internal sealed partial class LauncherVersionCoordinator
 
         _branchCatalogRefreshRunning = true;
         _view.SetRefreshGameVersionsBusy(true);
-        _view.SetStatus("Refreshing Steam game version list...");
+        _view.SetStatus("Refreshing Steam game version list...", LauncherStatusSeverity.Working);
         _view.AppendLog("Refreshing Steam game version list from Steam app-info. This does not download or modify game files.");
 
         try
@@ -67,9 +67,14 @@ internal sealed partial class LauncherVersionCoordinator
         var selectedStatus = LauncherBranchCatalog.SelectedOptionStatus(selectedBranch, branches);
         var selectedProblem = LauncherBranchCatalog.SelectedOptionDownloadProblem(selectedBranch, branches);
 
-        _view.SetStatus(string.IsNullOrWhiteSpace(selectedProblem)
-            ? $"Steam game version list refreshed. Selected version: {selectedVersion}."
-            : selectedProblem);
+        _view.SetStatus(
+            string.IsNullOrWhiteSpace(selectedProblem)
+                ? $"Steam game version list refreshed. Selected version: {selectedVersion}."
+                : selectedProblem,
+            string.IsNullOrWhiteSpace(selectedProblem)
+                ? LauncherStatusSeverity.Information
+                : LauncherStatusSeverity.Warning
+        );
         _view.AppendLog($"Steam game version list refreshed from account-visible app-info metadata. Selected version: {selectedVersion}. {selectedStatus}");
     }
 
@@ -77,7 +82,10 @@ internal sealed partial class LauncherVersionCoordinator
     {
         RefreshGameBranchOptions();
         var compact = LauncherBranchAvailabilityStatus.CompactFailureMessage(_model.DataDir, message);
-        _view.SetStatus($"Could not refresh Steam game version list: {compact}");
+        _view.SetStatus(
+            $"Could not refresh Steam game version list: {compact}",
+            LauncherStatusSeverity.Error
+        );
         _view.AppendLog($"Could not refresh Steam game version list: {compact}");
     }
 }

@@ -15,7 +15,7 @@ internal sealed partial class LauncherLaunchCoordinator
             "launch handoff: entered",
             $"action={plan.Action}; source={plan.Source}; branch={attempt.Branch}"
         );
-        _view.SetStatus(plan.StartingStatus);
+        _view.SetStatus(plan.StartingStatus, LauncherStatusSeverity.Working);
         if (!string.IsNullOrWhiteSpace(plan.PreLaunchLog))
             _view.AppendLog(plan.PreLaunchLog);
 

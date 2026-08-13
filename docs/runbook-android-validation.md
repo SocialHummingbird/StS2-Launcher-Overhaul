@@ -17,6 +17,78 @@ No device is currently connected. A limited `0.2.425` one-device run is recorded
 
 The save suite covers local path containment, atomic writes, the four synchronization decisions, transactional Pull failure, retryable Push failure, pre-load ordering, gameplay Push queuing, and shared manual synchronization. Its fake remote is deterministic test infrastructure; it proves neither Steam nor Android transport. The launcher/mod test uses one desktop fixture and one interaction test; it does not prove Android mod activation or an in-game effect.
 
+## Stage 3: deferred-preload A/B (waiting for one device)
+
+Use only
+`artifacts/android/StS2Launcher-v0.2.427-deferred-preload-experiment-arm64-v8a.apk`
+(version code `427000`, SHA-256
+`78889980818C16E311B42BCAA87E28EDF00377C2C7C61CD9328F209E04DABAFF`).
+The APK is normal by default. It samples the Android global setting
+`sts2_deferred_preload_experiment` once in `GodotApp.onCreate`; changing the
+setting cannot alter a running process.
+
+Before the comparison, select **Modded** and enable only **Import Vanilla
+Saves**. Do not enable BaseLib: the importer declares no BaseLib dependency.
+Keep the same device, branch, renderer, selection fingerprint, APK, and startup
+path for both arms. Start one continuous filtered log before arm A and keep it
+running through arm B.
+
+```powershell
+adb -s <serial> logcat -c
+adb -s <serial> logcat -b main -b system -b crash -v threadtime STS2Mobile:I AndroidRuntime:E libc:F DEBUG:F ActivityManager:I '*:S' > artifacts/android/stage3-deferred-preload-ab.log
+```
+
+Arm A uses normal loading:
+
+```powershell
+adb -s <serial> shell am force-stop com.sts2launcher.overhaul.fork.local
+adb -s <serial> shell settings delete global sts2_deferred_preload_experiment
+adb -s <serial> shell log -p i -t STS2Mobile "STAGE3 ARM A BEGIN"
+```
+
+Arm B suppresses only the deferred startup invocation immediately following
+`OneTimeInitialization.ExecuteDeferred()`:
+
+```powershell
+adb -s <serial> shell am force-stop com.sts2launcher.overhaul.fork.local
+adb -s <serial> shell settings put global sts2_deferred_preload_experiment 1
+adb -s <serial> shell log -p i -t STS2Mobile "STAGE3 ARM B BEGIN"
+```
+
+Launch the launcher and press the same contextual Play action after each
+force-stop. In both fresh game processes require the same branch/runtime hashes,
+selection-file SHA, importer-only activation, stable menu handoff, and heartbeat
+sequence through 60 seconds. The log must show `ExecuteDeferred completed` in
+both arms. It must show `call=1 action=normal` in A and
+`call=1 action=suppressed` in B. Delete the global setting after arm B.
+
+For each gameplay PID, require the native `Deferred preload experiment arm:`
+and managed `[DeferredPreloadExperiment] installed arm=` lines to agree, plus
+successful patch lines for both exact target methods. Importer-only proof is
+`enabled=1`, selection of Import Vanilla Saves, its validated manifest/planned
+load, and an activation aggregate of
+`selected=1 discovered=1 payloadLoaded=1 initialized=1 activated=1 partial=0 failed=0`.
+Any BaseLib planned-load line invalidates that arm.
+
+After observing the first missing milestone or the 60-second heartbeat, write an
+`ARM A END` or `ARM B END` operator boundary to the same log before the next
+deliberate force-stop. This keeps an intentional stop distinct from a genuine
+process exit.
+
+```powershell
+adb -s <serial> shell settings delete global sts2_deferred_preload_experiment
+```
+
+- A freezes at its first missing required milestone and B reaches 60 seconds: deferred
+  common/menu loading is implicated, not proved as the ultimate cause.
+- B freezes at the same boundary despite the suppression marker: that call is
+  ruled out as a necessary cause.
+- Both runs are healthy, or only B freezes: inconclusive. Do not manufacture a
+  stability or causality claim from an intermittent non-reproduction.
+
+Record a genuine process exit separately from a live-process freeze. Do not add
+another collector, mod, device, branch, or renderer to this comparison.
+
 ## Stage 9: one-device mod acceptance (incomplete)
 
 This is the only authorized mod-loading device journey. Do not begin a renderer,
@@ -50,13 +122,13 @@ The importer does not depend on BaseLib. Both must be enabled explicitly.
 
 ### Select the exact chain
 
-Use the launcher, not desktop Steam. If either item is absent, use **Sync
-Workshop Mods** once. Open **Mods**, choose **Modded**, disable every other mod,
+Use the launcher, not desktop Steam. If either item is absent, use **Update
+Workshop mods** once. Open **Mods**, choose **Modded**, disable every other mod,
 and enable only BaseLib and Import Vanilla Saves. Before Play, require:
 
-- `Play Modded · 2 enabled`
-- `Next save set: Modded saves`
-- both rows show installed and enabled for Modded
+- `Play Modded · 2 mods`
+- `Uses Modded saves · 2 mods enabled`
+- both rows' `Enabled` toggles are on
 
 ### Retain one filtered log
 
@@ -83,13 +155,14 @@ selected=2 discovered=2 payloadLoaded=2 initialized=2 activated=2 partial=1 fail
 2. Require at least one real `[Save] Android local save ...` line whose logical
    path begins `modded/`. The launcher label alone is not runtime proof.
 3. Exit normally and let the launcher relaunch without changing the selection.
-4. Reopen Mods. Require the same two enabled items, BaseLib `Partial`, importer
-   `Loaded last launch`, and no stale-selection warning.
+4. Reopen Mods. Require the same two enabled items, BaseLib `Partly loaded`,
+   importer `Active last launch`, and no `Not run with this setup` result.
 5. Stop the capture and retain only that one filtered log.
 
 Stop and report failure on a crash, missing payload, missing Harmony target,
-wrong aggregate, absent importer controls, non-`modded/` save access, `Failed` or
-`Not tested yet` result, or changed selection. A pass proves only this exact
+wrong aggregate, absent importer controls, non-`modded/` save access,
+`Failed last launch` or `Not run with this setup` result, or changed selection.
+A pass proves only this exact
 device, branch, APK, and mod chain; it is not broad compatibility evidence.
 
 ### Latest attempt
@@ -98,7 +171,9 @@ The retained `0.2.425` filtered log shows both selected mods discovered,
 payload-loaded, initialized, and activated, the expected aggregate above, a real
 `modded/` save path, and main-menu startup. The user observed marked improvement
 and mods appearing to work. The importer control and matching relaunch result
-were not captured, and a later freeze/crash was reported after the retained log
-ended. The device has since been disconnected. This attempt is useful partial
+were not captured. The retained event is an intermittent live-process freeze
+after the main menu appeared, not a proven process crash; the precise timeline
+and first missing milestone are recorded in `current-android-status.md`. The
+device has since been disconnected. This attempt is useful partial
 evidence, not a Stage 9 pass; repeat the same single journey before making a
 working or release-ready claim.

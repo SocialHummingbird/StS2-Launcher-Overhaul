@@ -69,7 +69,10 @@ internal sealed partial class LauncherUI
         {
             LauncherLaunchMarkers.RecordPhase("launcher controller failed", ex.GetBaseException().Message);
             PatchHelper.Log($"Launcher controller startup FAILED: {ex}");
-            _view?.SetStatus("Launcher startup failed. Diagnostics are available below.");
+            _view?.SetStatus(
+                "Launcher startup failed. Diagnostics are available below.",
+                LauncherStatusSeverity.Error
+            );
             _view?.AppendLog(ex.ToString());
         }
     }

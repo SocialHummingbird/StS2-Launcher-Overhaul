@@ -20,7 +20,7 @@ internal sealed partial class DepotDownloader
 
     private async Task<bool> CheckForUpdatesCoreAsync(CancellationToken ct)
     {
-        var depots = await PrepareAndGetMainAppDepotsAsync(requireAny: false);
+        var depots = await PrepareAndGetMainAppDepotsAsync(requireAny: true);
 
         foreach (var depot in depots)
         {

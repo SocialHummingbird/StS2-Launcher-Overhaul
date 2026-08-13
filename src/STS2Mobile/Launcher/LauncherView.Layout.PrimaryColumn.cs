@@ -23,6 +23,8 @@ internal sealed partial class LauncherView
 
         var status = BuildPrimaryStatus(profile);
         left.AddChild(status.Capsule);
+        var secondaryStatus = BuildSecondaryStatusBanner(profile);
+        left.AddChild(secondaryStatus.Banner);
         var firstRunGuide = BuildFirstRunGuide(scale, profile.Compact);
         var homeSections = new VBoxContainer
         {
@@ -67,12 +69,14 @@ internal sealed partial class LauncherView
             left.AddChild(compactDiagnosticsHost);
         }
 
-        actions.HelpDiagnosticsHost.AddChild(BuildProjectAttributionSection(scale, profile.Compact));
-        actions.HelpDiagnosticsHost.AddChild(BuildFmodAttributionSection(scale, profile.Compact));
         return new LauncherViewPrimaryColumn(
             status.Phase,
-            status.Action,
             status.Message,
+            status.Capsule,
+            secondaryStatus.Banner,
+            secondaryStatus.Severity,
+            secondaryStatus.Message,
+            secondaryStatus.Accent,
             status.CompactDetailButton,
             status.CompactDetailCue,
             status.Accent,
@@ -81,8 +85,6 @@ internal sealed partial class LauncherView
             workflowStepDetailLabels,
             workflowStepAccents,
             workflowStepButtons,
-            status.CompactHeadline,
-            status.CompactPhasePanel,
             compactStickyTaskHeader,
             compactWorkflowStrip,
             compactCurrentTaskButton,

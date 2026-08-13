@@ -26,9 +26,13 @@ internal sealed partial class LauncherView
         _destination = destination;
         HomeSections.Visible = destination == LauncherDestination.Home;
         Actions.SetDestination(destination);
+        UpdateStatusVisibility();
         DiagnosticsToggle.Visible = destination == LauncherDestination.Help;
         if (destination != LauncherDestination.Help)
+        {
             DiagnosticsDrawer.Visible = false;
+            SetDiagnosticsToggleText(DiagnosticsToggle, _profile, visible: false);
+        }
 
         for (var i = 0; i < _destinationButtons.Length; i++)
         {

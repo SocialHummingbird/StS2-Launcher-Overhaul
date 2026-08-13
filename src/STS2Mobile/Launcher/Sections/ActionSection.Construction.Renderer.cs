@@ -14,6 +14,7 @@ internal sealed partial class ActionSection
     {
         var group = new VBoxContainer
         {
+            Name = "GraphicsSection",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         group.AddThemeConstantOverride(
@@ -22,11 +23,12 @@ internal sealed partial class ActionSection
         );
 
         var label = new StyledLabel(
-            "Graphics renderer",
+            "Graphics",
             scale,
             compact ? 13 : 14,
             HorizontalAlignment.Left
         );
+        label.Name = "GraphicsSectionLabel";
         label.AddThemeColorOverride("font_color", LauncherComponentTheme.TextSecondary);
         group.AddChild(label);
 
@@ -47,6 +49,9 @@ internal sealed partial class ActionSection
         var auto = AddRendererButton(row, buttonGroup, "Auto", LauncherRendererMode.Auto, scale, compact);
         var vulkan = AddRendererButton(row, buttonGroup, "Vulkan", LauncherRendererMode.Vulkan, scale, compact);
         var openGl = AddRendererButton(row, buttonGroup, "OpenGL", LauncherRendererMode.OpenGl, scale, compact);
+        auto.Name = "RendererAuto";
+        vulkan.Name = "RendererVulkan";
+        openGl.Name = "RendererOpenGL";
 
         return (group, auto, vulkan, openGl);
     }
@@ -73,7 +78,9 @@ internal sealed partial class ActionSection
             ButtonGroup = buttonGroup,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             AccessibilityName = $"Renderer {text}",
-            AccessibilityDescription = $"Use {text} for normal game starts.",
+            AccessibilityDescription = mode == LauncherRendererMode.Auto
+                ? "Recommended for normal game starts."
+                : $"Use {text} for graphics troubleshooting.",
         };
         LauncherButtonStyles.ApplySupportAction(button, scale);
         button.Pressed += () => ApplyRendererMode(mode, notify: true);

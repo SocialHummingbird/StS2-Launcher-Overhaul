@@ -9,10 +9,27 @@ internal sealed partial class LauncherView
     private const string ProjectRepositoryUrl =
         "https://github.com/SocialHummingbird/StS2-Launcher-Overhaul";
 
+    private static VBoxContainer BuildHelpAttributionFooter(float scale, bool compact)
+    {
+        var footer = new VBoxContainer
+        {
+            Name = "HelpAttributionFooter",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        footer.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(3, scale)
+        );
+        footer.AddChild(BuildProjectAttributionSection(scale, compact));
+        footer.AddChild(BuildFmodAttributionSection(scale, compact));
+        return footer;
+    }
+
     private static VBoxContainer BuildProjectAttributionSection(float scale, bool compact)
     {
         var section = new VBoxContainer
         {
+            Name = "ProjectAttribution",
             SizeFlagsHorizontal = compact
                 ? Control.SizeFlags.ShrinkCenter
                 : Control.SizeFlags.ExpandFill,

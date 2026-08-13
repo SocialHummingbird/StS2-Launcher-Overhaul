@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -19,6 +20,7 @@ internal sealed class SaveSyncService
     private const int MaxSaveFiles = 1000;
     private const int MaxDirectoryDepth = 8;
     internal const string StateFileName = "sync-state.json";
+    internal const string StatusFileName = "sync-status.json";
 
     internal enum SyncOutcome
     {
@@ -40,6 +42,21 @@ internal sealed class SaveSyncService
         None,
         ChooseSource,
         ConfirmOverwrite,
+    }
+
+    internal enum SyncAvailability
+    {
+        Unknown,
+        Available,
+        Unavailable,
+    }
+
+    internal enum SyncFailureKind
+    {
+        None,
+        Offline,
+        Authentication,
+        Other,
     }
 
     internal sealed record ManifestEntry
@@ -78,6 +95,15 @@ internal sealed class SaveSyncService
 
     }
 
+    internal sealed record SyncStatus
+    {
+        [JsonPropertyName("lastSuccessfulSyncUtc")]
+        public DateTimeOffset? LastSuccessfulSyncUtc { get; init; }
+
+        [JsonPropertyName("lastFailureKind")]
+        public SyncFailureKind LastFailureKind { get; init; }
+    }
+
     internal readonly record struct SyncDecision(
         SyncOutcome Outcome,
         SyncPrompt Prompt
@@ -89,7 +115,8 @@ internal sealed class SaveSyncService
         bool Canceled,
         SyncPrompt Prompt,
         int FilesTransferred,
-        string Message
+        string Message,
+        SyncFailureKind FailureKind = SyncFailureKind.None
     );
 
     internal readonly record struct StatusSnapshot(
@@ -97,7 +124,10 @@ internal sealed class SaveSyncService
         bool HasSuccessfulSync,
         DateTimeOffset? LastSuccessfulSyncUtc,
         bool ChangesQueued,
-        bool RetryRequired
+        bool RetryRequired,
+        SyncAvailability Availability = SyncAvailability.Unknown,
+        SyncFailureKind LastFailureKind = SyncFailureKind.None,
+        bool SyncStatusUnknown = false
     );
 
     private sealed class CapturedFile
@@ -142,8 +172,10 @@ internal sealed class SaveSyncService
     private readonly AndroidLocalSaveStore _local;
     private readonly ISaveStore _localStore;
     private string _statePath;
+    private string _statusPath;
     private readonly SemaphoreSlim _syncLock = new(1, 1);
     private readonly SemaphoreSlim _stateFileLock = new(1, 1);
+    private readonly SemaphoreSlim _statusFileLock = new(1, 1);
     private readonly object _stateLock = new();
     private readonly object _credentialLock = new();
     private readonly Func<ISaveRemote> _transportFactory;
@@ -161,6 +193,9 @@ internal sealed class SaveSyncService
     private bool _automaticPushRunning;
     private bool _automaticPushPending;
     private DateTimeOffset? _lastSuccessfulSyncUtc;
+    private SyncAvailability _availability;
+    private SyncFailureKind _lastFailureKind;
+    private bool _statusRecordValid;
 
     private SaveSyncService(
         AndroidLocalSaveStore local,
@@ -175,7 +210,12 @@ internal sealed class SaveSyncService
         _refreshToken = refreshToken ?? string.Empty;
         _transportFactory = transportFactory;
         _statePath = StatePath(local.RootPath, _accountName);
+        _statusPath = StatusPath(local.RootPath, _accountName);
         _state = LoadState();
+        var status = LoadStatus();
+        _statusRecordValid = status != null;
+        _lastSuccessfulSyncUtc = status?.LastSuccessfulSyncUtc;
+        _lastFailureKind = status?.LastFailureKind ?? SyncFailureKind.None;
     }
 
     internal SaveSyncService(
@@ -253,6 +293,24 @@ internal sealed class SaveSyncService
         return service?.ReadStatusSnapshot() ?? default;
     }
 
+    internal static void ReportAvailability(SyncAvailability availability)
+    {
+        SaveSyncService service;
+        lock (ActiveLock)
+            service = _active;
+
+        service?.SetAvailability(availability);
+    }
+
+    internal static void ReportFailure(SyncFailureKind failureKind)
+    {
+        SaveSyncService service;
+        lock (ActiveLock)
+            service = _active;
+
+        service?.PersistFailureAsync(failureKind).GetAwaiter().GetResult();
+    }
+
     internal static void NotifyGameplayMutationCommitted(string path)
     {
         try
@@ -281,14 +339,29 @@ internal sealed class SaveSyncService
     {
         lock (_stateLock)
         {
+            var hasBaseline = _state.LastLocalManifest != null;
+            var hasCompletion = _lastSuccessfulSyncUtc.HasValue;
             return new StatusSnapshot(
                 HasCredentials,
-                _state.LastLocalManifest != null,
+                hasBaseline && hasCompletion && _statusRecordValid,
                 _lastSuccessfulSyncUtc,
                 _state.LocalChangesWaitingToUpload,
-                _state.InterruptedTransferMustBeRetried
+                _state.InterruptedTransferMustBeRetried,
+                _availability,
+                _lastFailureKind,
+                hasBaseline != hasCompletion
+                    || (hasBaseline && !_statusRecordValid)
             );
         }
+    }
+
+    internal StatusSnapshot GetCurrentStatusSnapshot()
+        => ReadStatusSnapshot();
+
+    private void SetAvailability(SyncAvailability availability)
+    {
+        lock (_stateLock)
+            _availability = availability;
     }
 
     internal bool MarkLocalChangesPending()
@@ -530,7 +603,10 @@ internal sealed class SaveSyncService
             var automaticPushWasAllowed = AutomaticPushAllowed;
             Volatile.Write(ref _automaticPushAllowed, 0);
             if (!HasCredentials)
-                return Failed("Steam credentials are unavailable");
+                return await FailedAsync(
+                    "Steam credentials are unavailable",
+                    SyncFailureKind.Authentication
+                ).ConfigureAwait(false);
 
             var transport = GetTransport();
             var remoteFiles = await transport.EnumerateAsync(cancellationToken)
@@ -634,28 +710,20 @@ internal sealed class SaveSyncService
             // Pull is a pre-game/launcher operation. It is never allowed while
             // gameplay can write the same application-local files.
             if (decision.Outcome == SyncOutcome.Pull && !localWritesAreStopped)
-                return new SyncResult(
+                return await FailedAsync(
                     SyncOutcome.Pull,
-                    false,
-                    false,
-                    SyncPrompt.None,
-                    0,
                     "Pull requires gameplay save writes to be stopped"
-                );
+                ).ConfigureAwait(false);
 
             if (
                 decision.Outcome == SyncOutcome.Push
                 && !localWritesAreStopped
                 && !automaticPushWasAllowed
             )
-                return new SyncResult(
+                return await FailedAsync(
                     SyncOutcome.Push,
-                    false,
-                    false,
-                    SyncPrompt.None,
-                    0,
                     "Automatic Push is paused until Steam state is reconciled"
-                );
+                ).ConfigureAwait(false);
 
             if (Interlocked.Read(ref _localChangeVersion) != capturedLocalVersion)
                 throw new LocalSnapshotChangedException(
@@ -713,8 +781,9 @@ internal sealed class SaveSyncService
         catch (LocalSnapshotChangedException ex)
         {
             if (!localWritesAreStopped)
-                return RetryAfterLocalSnapshotChange(ex.Message);
-            return Failed(ex.Message);
+                return await RetryAfterLocalSnapshotChangeAsync(ex.Message)
+                    .ConfigureAwait(false);
+            return await FailedAsync(ex.Message).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
@@ -728,7 +797,10 @@ internal sealed class SaveSyncService
             PatchHelper.Log(
                 $"[Cloud] Save synchronization failed: {ex.GetType().Name}"
             );
-            return Failed(ex.GetType().Name);
+            return await FailedAsync(
+                ex.GetType().Name,
+                FailureKindFor(ex)
+            ).ConfigureAwait(false);
         }
         finally
         {
@@ -1555,6 +1627,12 @@ internal sealed class SaveSyncService
         );
     }
 
+    private static string StatusPath(string rootPath, string accountName)
+        => Path.Combine(
+            Path.GetDirectoryName(StatePath(rootPath, accountName))!,
+            StatusFileName
+        );
+
     private SyncState LoadState()
     {
         try
@@ -1572,6 +1650,25 @@ internal sealed class SaveSyncService
                 $"[Cloud] Ignoring unreadable sync state: {ex.GetType().Name}"
             );
             return new SyncState();
+        }
+    }
+
+    private SyncStatus LoadStatus()
+    {
+        try
+        {
+            if (!File.Exists(_statusPath))
+                return null;
+            return JsonSerializer.Deserialize<SyncStatus>(
+                    File.ReadAllText(_statusPath)
+                ) ?? new SyncStatus();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log(
+                $"[Cloud] Ignoring unreadable sync status: {ex.GetType().Name}"
+            );
+            return null;
         }
     }
 
@@ -1647,8 +1744,21 @@ internal sealed class SaveSyncService
                 CompletedState(baseline, pendingLocalChanges),
                 cancellationToken
             ).ConfigureAwait(false);
+            var completedAt = DateTimeOffset.UtcNow;
             lock (_stateLock)
-                _lastSuccessfulSyncUtc = DateTimeOffset.UtcNow;
+            {
+                _lastSuccessfulSyncUtc = completedAt;
+                _lastFailureKind = SyncFailureKind.None;
+            }
+            var statusWritten = await WriteStatusBestEffortAsync(
+                new SyncStatus
+                {
+                    LastSuccessfulSyncUtc = completedAt,
+                    LastFailureKind = SyncFailureKind.None,
+                }
+            ).ConfigureAwait(false);
+            lock (_stateLock)
+                _statusRecordValid = statusWritten;
         }
         finally
         {
@@ -1704,6 +1814,33 @@ internal sealed class SaveSyncService
             LocalChangesWaitingToUpload = localChangesWaiting,
             InterruptedTransferMustBeRetried = false,
         };
+
+    private async Task<bool> WriteStatusBestEffortAsync(SyncStatus status)
+    {
+        var statusPath = _statusPath;
+        await _statusFileLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await CancellableAtomicFile.WriteAllTextAsync(
+                statusPath,
+                JsonSerializer.Serialize(status),
+                overwrite: true,
+                CancellationToken.None
+            ).ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log(
+                $"[Cloud] Could not persist sync status: {ex.GetType().Name}"
+            );
+            return false;
+        }
+        finally
+        {
+            _statusFileLock.Release();
+        }
+    }
 
     private ISaveRemote GetTransport()
         => _transport ??= _transportFactory?.Invoke()
@@ -1799,11 +1936,17 @@ internal sealed class SaveSyncService
         try
         {
             _statePath = StatePath(_local.RootPath, accountName);
+            _statusPath = StatusPath(_local.RootPath, accountName);
             var state = LoadState();
+            var status = LoadStatus();
             lock (_stateLock)
             {
                 _state = state;
-                _lastSuccessfulSyncUtc = null;
+                _statusRecordValid = status != null;
+                _lastSuccessfulSyncUtc = status?.LastSuccessfulSyncUtc;
+                _availability = SyncAvailability.Unknown;
+                _lastFailureKind = status?.LastFailureKind
+                    ?? SyncFailureKind.None;
             }
         }
         finally
@@ -1819,19 +1962,77 @@ internal sealed class SaveSyncService
     )
     {
         Volatile.Write(ref _automaticPushAllowed, 1);
+        lock (_stateLock)
+        {
+            _availability = SyncAvailability.Available;
+            _lastFailureKind = SyncFailureKind.None;
+        }
         return new(outcome, true, false, SyncPrompt.None, filesTransferred, message);
     }
 
-    private SyncResult Failed(string message)
+    private Task<SyncResult> FailedAsync(
+        string message,
+        SyncFailureKind failureKind = SyncFailureKind.Other
+    )
+        => FailedAsync(SyncOutcome.Conflict, message, failureKind);
+
+    private async Task<SyncResult> FailedAsync(
+        SyncOutcome outcome,
+        string message,
+        SyncFailureKind failureKind = SyncFailureKind.Other
+    )
     {
         Volatile.Write(ref _automaticPushAllowed, 0);
-        return new(SyncOutcome.Conflict, false, false, SyncPrompt.None, 0, message);
+        await PersistFailureAsync(failureKind).ConfigureAwait(false);
+        return new(
+            outcome,
+            false,
+            false,
+            SyncPrompt.None,
+            0,
+            message,
+            failureKind
+        );
     }
 
-    private SyncResult RetryAfterLocalSnapshotChange(string message)
+    private async Task PersistFailureAsync(SyncFailureKind failureKind)
+    {
+        DateTimeOffset? lastSuccessfulSyncUtc;
+        lock (_stateLock)
+        {
+            _lastFailureKind = failureKind;
+            _availability = failureKind == SyncFailureKind.Offline
+                ? SyncAvailability.Unavailable
+                : SyncAvailability.Unknown;
+            lastSuccessfulSyncUtc = _lastSuccessfulSyncUtc;
+        }
+
+        var statusWritten = await WriteStatusBestEffortAsync(
+            new SyncStatus
+            {
+                LastSuccessfulSyncUtc = lastSuccessfulSyncUtc,
+                LastFailureKind = failureKind,
+            }
+        ).ConfigureAwait(false);
+        lock (_stateLock)
+            _statusRecordValid = statusWritten;
+    }
+
+    private async Task<SyncResult> RetryAfterLocalSnapshotChangeAsync(
+        string message
+    )
     {
         Volatile.Write(ref _automaticPushAllowed, 1);
-        return new(SyncOutcome.Push, false, false, SyncPrompt.None, 0, message);
+        await PersistFailureAsync(SyncFailureKind.Other).ConfigureAwait(false);
+        return new(
+            SyncOutcome.Push,
+            false,
+            false,
+            SyncPrompt.None,
+            0,
+            message,
+            SyncFailureKind.Other
+        );
     }
 
     private SyncResult Canceled()
@@ -1845,5 +2046,25 @@ internal sealed class SaveSyncService
             0,
             "Save synchronization canceled"
         );
+    }
+
+    internal static SyncFailureKind FailureKindFor(Exception exception)
+    {
+        for (var current = exception; current != null; current = current.InnerException)
+        {
+            if (current is SteamLogonFailedException authentication)
+                return authentication.RequiresNewAuthentication
+                    ? SyncFailureKind.Authentication
+                    : SyncFailureKind.Other;
+
+            if (
+                current is SocketException socket
+                && socket.SocketErrorCode is SocketError.NetworkDown
+                    or SocketError.NetworkUnreachable
+            )
+                return SyncFailureKind.Offline;
+        }
+
+        return SyncFailureKind.Other;
     }
 }

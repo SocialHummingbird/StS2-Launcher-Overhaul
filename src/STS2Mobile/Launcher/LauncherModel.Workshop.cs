@@ -80,7 +80,7 @@ internal partial class LauncherModel
         );
         var missingDependencies = manifest.MissingDependencyIds?.Count ?? manifest.MissingDependencyItemCount;
         var hasIssues = noPck > 0 || unsupported > 0 || failed > 0 || missingDependencies > 0;
-        var prefix = hasIssues ? "Workshop mods need attention" : "Workshop mods synced";
+        var prefix = hasIssues ? "Workshop mods need attention" : "Workshop mods updated";
         var detail = WorkshopIssueSummary(manifest);
         return string.IsNullOrWhiteSpace(detail)
             ? $"{prefix}: staged={staged}, noPck={noPck}, unsupported={unsupported}, failed={failed}, missingDeps={missingDependencies}"

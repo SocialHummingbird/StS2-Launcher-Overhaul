@@ -20,6 +20,7 @@ internal sealed partial class LauncherView
     {
         var section = new VBoxContainer
         {
+            Name = "FmodAttribution",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = compact
                 ? Control.SizeFlags.ShrinkBegin

@@ -8,14 +8,13 @@ internal sealed partial class ActionSection
         => compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "Help Report",
+                "Create support report",
                 scale,
-                () => DiagnosticsPressed?.Invoke(),
-                "Share details"
+                () => DiagnosticsPressed?.Invoke()
             )
             : AddSecondaryHiddenButton(
-                _supportGroup,
-                "Create Help Report",
+                supportToolsParent,
+                "Create support report",
                 scale,
                 () => DiagnosticsPressed?.Invoke()
             );
@@ -24,14 +23,13 @@ internal sealed partial class ActionSection
         => compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "Last Problem",
+                "View last error",
                 scale,
-                () => ShowLastErrorPressed?.Invoke(),
-                "Open details"
+                () => ShowLastErrorPressed?.Invoke()
             )
             : AddSecondaryHiddenButton(
-                _supportGroup,
-                "Show Last Problem",
+                supportToolsParent,
+                "View last error",
                 scale,
                 () => ShowLastErrorPressed?.Invoke()
             );
@@ -40,14 +38,13 @@ internal sealed partial class ActionSection
         => compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "Copy Log",
+                "Copy launcher log",
                 scale,
-                () => CopyRawLogPressed?.Invoke(),
-                "Review first"
+                () => CopyRawLogPressed?.Invoke()
             )
             : AddSecondaryHiddenButton(
-                _supportGroup,
-                "Copy Launcher Log (Review First)",
+                supportToolsParent,
+                "Copy launcher log",
                 scale,
                 () => CopyRawLogPressed?.Invoke()
             );

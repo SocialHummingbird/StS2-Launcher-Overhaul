@@ -22,17 +22,6 @@ internal sealed partial class LauncherView
         );
         copy.AddChild(title);
 
-        var subtitle = new StyledLabel(
-            "Sign in. Download. Play.",
-            scale,
-            fontSize: 11
-        );
-        subtitle.HorizontalAlignment = HorizontalAlignment.Left;
-        subtitle.AddThemeColorOverride(
-            LauncherViewLayoutMetrics.ThemeFontColor,
-            LauncherComponentTheme.CyanAccent
-        );
-        copy.AddChild(subtitle);
         return copy;
     }
 }

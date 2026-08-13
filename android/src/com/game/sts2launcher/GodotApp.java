@@ -106,6 +106,7 @@ public class GodotApp extends GodotActivity {
 	private static final String ENV_AUTO_SAFE_LAUNCH = "STS2_AUTO_SAFE_LAUNCH";
 	private static final String ENV_ANDROID_FILES_DIR = "STS2_ANDROID_FILES_DIR";
 	private static final String ENV_STEAMKIT_DEBUG_LOGS = "STS2_STEAMKIT_DEBUG_LOGS";
+	private static final String DEFERRED_PRELOAD_EXPERIMENT_SETTING = "sts2_deferred_preload_experiment";
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String EXTRA_SAFE_LAUNCH_ON_START = "sts2_safe_launch";
 	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v35";
@@ -144,6 +145,7 @@ public class GodotApp extends GodotActivity {
 	private boolean steamLoginCredentialWideLayout;
 	private boolean steamLoginCredentialShortHeightLayout;
 	private boolean fmodAndroidInitialized;
+	private boolean deferredPreloadExperimentEnabled;
 	private static final String STEAM_CREDENTIAL_WEB_DOMAIN_STORE = "store.steampowered.com";
 	private static final long STEAM_LOGIN_CREDENTIAL_RESULT_TTL_MS = 60L * 1000L;
 	private static final String RUNTIME_PACK_ANDROID_ASSEMBLY = "sts2.dll";
@@ -152,6 +154,8 @@ public class GodotApp extends GodotActivity {
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		instance = this;
+		deferredPreloadExperimentEnabled = readDeferredPreloadExperimentSetting();
+		Log.i(TAG, "Deferred preload experiment arm: " + (deferredPreloadExperimentEnabled ? "suppress-first" : "normal"));
 		installAndroidExceptionHandler();
 		captureHistoricalProcessExitInfo();
 		recordStartupPhase("native godot activity onCreate", "GodotApp.onCreate entered");
@@ -1888,6 +1892,23 @@ public class GodotApp extends GodotActivity {
 
 	public String getVersionName() {
 		return BuildConfig.VERSION_NAME;
+	}
+
+	public boolean isDeferredPreloadExperimentEnabled() {
+		return deferredPreloadExperimentEnabled;
+	}
+
+	private boolean readDeferredPreloadExperimentSetting() {
+		try {
+			return android.provider.Settings.Global.getInt(
+				getContentResolver(),
+				DEFERRED_PRELOAD_EXPERIMENT_SETTING,
+				0
+			) == 1;
+		} catch (Exception e) {
+			Log.w(TAG, "Deferred preload experiment setting unavailable; using normal loading", e);
+			return false;
+		}
 	}
 
 	public String getDeviceDiagnostics() {

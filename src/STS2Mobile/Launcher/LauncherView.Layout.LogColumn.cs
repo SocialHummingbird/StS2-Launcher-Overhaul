@@ -18,9 +18,12 @@ internal sealed partial class LauncherView
     )
     {
         var scale = profile.Scale;
-        var drawer = new VBoxContainer();
-        drawer.Visible = false;
-        drawer.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        var drawer = new VBoxContainer
+        {
+            Name = "TechnicalDetailsDrawer",
+            Visible = false,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
         drawer.AddThemeConstantOverride(
             LauncherViewLayoutMetrics.ThemeSeparation,
             LauncherViewLayoutMetrics.ScaleInt(6, scale)
@@ -36,6 +39,7 @@ internal sealed partial class LauncherView
                 ? LauncherSectionMetrics.CompactDrawerToggleHeight
                 : 48
         );
+        toggle.Name = "TechnicalDetailsToggle";
         LauncherButtonStyles.ApplySupportAction(toggle, scale);
         SetDiagnosticsToggleText(toggle, profile, visible: false);
         toggle.Pressed += () =>
@@ -46,35 +50,19 @@ internal sealed partial class LauncherView
         root.AddChild(toggle);
 
         var title = new StyledLabel(
-            "Help & Reports",
+            "Technical details",
             scale,
             fontSize: profile.Compact
                 ? LauncherSectionMetrics.PromptFontSize
                 : LauncherViewLayoutMetrics.LogTitleFontSize,
             align: HorizontalAlignment.Left
         );
+        title.Name = "TechnicalDetailsTitle";
         title.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
             LauncherComponentTheme.TextSecondary
         );
         drawer.AddChild(title);
-
-        var help = new StyledLabel(
-            profile.Compact
-                ? "Problem details and help reports. Review before sharing."
-                : "Hidden by default. Create a help report when sharing launcher issue details.",
-            scale,
-            fontSize: profile.Compact
-                ? LauncherSectionMetrics.ProgressFontSize
-                : 11,
-            align: HorizontalAlignment.Left
-        );
-        help.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        help.AddThemeColorOverride(
-            LauncherViewLayoutMetrics.ThemeFontColor,
-            LauncherComponentTheme.TextMuted
-        );
-        drawer.AddChild(help);
 
         var log = BuildLogView(profile);
         log.CustomMinimumSize = new Vector2(0, DiagnosticsLogHeight(profile));

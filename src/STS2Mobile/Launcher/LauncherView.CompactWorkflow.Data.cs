@@ -23,7 +23,7 @@ internal sealed partial class LauncherView
         "Account",
         "Steam Guard",
         "Game files",
-        "Ready to play",
+        "Launch",
     };
 
     private static readonly string[] CompactWorkflowStepTooltips =

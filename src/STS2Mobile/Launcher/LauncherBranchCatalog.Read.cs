@@ -48,7 +48,15 @@ internal static partial class LauncherBranchCatalog
             AddOrReplace(options, branch);
 
         foreach (var branch in ReadInstalledBranches(dataDir))
-            AddIfMissing(options, branch);
+        {
+            var existingIndex = options.FindIndex(existing =>
+                string.Equals(existing.Branch, branch.Branch, StringComparison.OrdinalIgnoreCase)
+            );
+            if (existingIndex >= 0)
+                options[existingIndex] = options[existingIndex].WithInstalled();
+            else
+                options.Add(branch);
+        }
 
         return options
             .OrderBy(option => string.Equals(option.Branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase) ? 0 : 1)

@@ -39,7 +39,7 @@ internal sealed partial class LauncherDiagnosticsCoordinator
             "[Launcher] Previous launch warning shown; automatic diagnostics deferred to avoid blocking launcher display."
         );
         _view.AppendLog(
-            "Help report was not collected automatically to keep the launcher responsive. Use Help Report after the launcher is visible."
+            "A support report was not collected automatically to keep the launcher responsive. Use Create support report after the launcher is visible."
         );
     }
 
@@ -48,7 +48,7 @@ internal sealed partial class LauncherDiagnosticsCoordinator
         private const string LauncherAvailableMessage =
             "The launcher stayed open so you are not stuck on a black screen.";
         private const string DiagnosticsActionMessage =
-            "Tap Last Problem to show what happened, or Help Report to share details.";
+            "Open Help to view the last error or create a support report.";
 
         internal PreviousLaunchWarning(
             string previousLaunchPhase,
@@ -64,7 +64,8 @@ internal sealed partial class LauncherDiagnosticsCoordinator
 
         internal void Show(LauncherView view)
         {
-            view.SetStatus(PreviousLaunchWarningStatus);
+            view.SetStatus(PreviousLaunchWarningStatus, LauncherStatusSeverity.Warning);
+            view.ShowHomeHelpAction();
 
             foreach (var line in LogLines())
                 view.AppendLog(line);

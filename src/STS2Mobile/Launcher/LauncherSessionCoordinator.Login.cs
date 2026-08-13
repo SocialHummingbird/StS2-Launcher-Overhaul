@@ -9,7 +9,10 @@ internal sealed partial class LauncherSessionCoordinator
     {
         if (_manualLoginInProgress)
         {
-            _view.SetStatus("Steam sign-in is already running. Wait for the result or retry after it fails.");
+            _view.SetStatus(
+                "Steam sign-in is already running. Wait for the result or retry after it fails.",
+                LauncherStatusSeverity.Working
+            );
             return;
         }
 
@@ -28,7 +31,7 @@ internal sealed partial class LauncherSessionCoordinator
 
     internal void CodeSubmitPressed(string code)
     {
-        _view.SetStatus("Verifying code...");
+        _view.SetStatus("Verifying code...", LauncherStatusSeverity.Working);
         _model.SubmitCode(code);
     }
 
@@ -63,7 +66,7 @@ internal sealed partial class LauncherSessionCoordinator
 
     private void ShowLoginForm(string status)
     {
-        _view.SetStatus(status);
+        _view.SetStatus(status, LauncherStatusSeverity.Warning);
         SetLoginFormVisible(true, disabled: false);
     }
 

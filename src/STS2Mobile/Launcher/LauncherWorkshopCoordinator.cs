@@ -7,7 +7,7 @@ namespace STS2Mobile.Launcher;
 internal sealed class LauncherWorkshopCoordinator
 {
     private const string WorkshopModConsentMessage =
-        "Steam Workshop mods can run community code and change game content. Syncing uses your subscribed Steam Workshop items only.";
+        "Steam Workshop mods can run community code and change game content. Updating uses your subscribed Steam Workshop items only.";
     private readonly LauncherModel _model;
     private readonly LauncherView _view;
     private readonly Action _refreshModsPresentation;
@@ -27,21 +27,21 @@ internal sealed class LauncherWorkshopCoordinator
         => _view.ShowConfirmation(
             WorkshopModConsentMessage,
             () => _ = RunSyncAsync(),
-            "Enable Workshop Mods",
+            "Update Workshop mods",
             "Cancel"
         );
 
     internal void ClearPressed()
-        => ShowClearStagedModsConfirmation(_view, ClearMods);
+        => ShowRemoveDownloadedModsConfirmation(_view, ClearMods);
 
-    internal static void ShowClearStagedModsConfirmation(
+    internal static void ShowRemoveDownloadedModsConfirmation(
         LauncherView view,
         Action onConfirmed
     )
         => view.ShowConfirmation(
-            "Clear all staged Workshop mods from this device? Your persisted choices remain visible, but selected Workshop mods cannot load until they are synced again.",
+            "Remove the launcher's local Workshop mod copies? Your selections and cached downloads remain, but these mods cannot load until Workshop mods are updated again.",
             onConfirmed,
-            "Clear staged mods",
+            "Remove downloaded Workshop mods",
             "Cancel"
         );
 
@@ -52,8 +52,8 @@ internal sealed class LauncherWorkshopCoordinator
             LauncherLaunchMarkers.RecordPhase("workshop sync requested");
             WorkshopModConsent.Accept("launcher-workshop-sync");
             _view.SetWorkshopButtonsDisabled(true);
-            _view.SetStatus("Syncing Steam Workshop mods...");
-            _view.AppendLog("Syncing Steam Workshop mods.");
+            _view.SetStatus("Updating Workshop mods...", LauncherStatusSeverity.Working);
+            _view.AppendLog("Updating Workshop mods.");
             await _model.StartWorkshopSyncAsync();
         }
         catch (Exception ex)
@@ -71,16 +71,19 @@ internal sealed class LauncherWorkshopCoordinator
     internal void CompleteSync(string summary)
     {
         LauncherLaunchMarkers.RecordPhase("workshop sync completed", summary);
-        var detail = string.IsNullOrWhiteSpace(summary) ? "Workshop mods synced" : summary;
-        _view.SetStatus($"{detail}. Restart the game if it was already running.");
+        var detail = string.IsNullOrWhiteSpace(summary) ? "Workshop mods updated" : summary;
+        _view.SetStatus(
+            $"{detail}. Restart the game if it was already running.",
+            LauncherStatusSeverity.Information
+        );
         _view.AppendLog(detail);
         RefreshModsPresentation();
     }
 
     internal void FailSync(string message)
     {
-        _view.SetStatus($"Workshop mod sync failed: {message}");
-        _view.AppendLog($"Workshop mod sync failed: {message}");
+        _view.SetStatus($"Workshop mod update failed: {message}", LauncherStatusSeverity.Error);
+        _view.AppendLog($"Workshop mod update failed: {message}");
         RefreshModsPresentation();
     }
 
@@ -90,8 +93,8 @@ internal sealed class LauncherWorkshopCoordinator
         {
             LauncherLaunchMarkers.RecordPhase("workshop clear requested");
             _view.SetWorkshopButtonsDisabled(true);
-            _view.SetStatus("Clearing staged Workshop mods...");
-            _view.AppendLog("Clearing staged Workshop mods.");
+            _view.SetStatus("Removing Workshop mods from the launcher...", LauncherStatusSeverity.Working);
+            _view.AppendLog("Removing Workshop mods from the launcher.");
             WorkshopModConsent.Clear();
             _model.ClearWorkshopMods();
         }
@@ -111,17 +114,18 @@ internal sealed class LauncherWorkshopCoordinator
     {
         LauncherLaunchMarkers.RecordPhase("workshop clear completed", $"removedCount={removedCount}");
         _view.SetStatus(
-            $"Workshop mods cleared: removed {removedCount} staged entries. Restart the game if it was already running."
+            $"Removed {removedCount} Workshop mod entries from the launcher. Restart the game if it was already running.",
+            LauncherStatusSeverity.Information
         );
         _view.AppendLog(
-            $"Workshop mods cleared: removed {removedCount} staged entries."
+            $"Removed {removedCount} Workshop mod entries from the launcher."
         );
         RefreshModsPresentation();
     }
 
     internal void FailClear(string message)
     {
-        _view.SetStatus($"Workshop mod clear failed: {message}");
+        _view.SetStatus($"Workshop mod clear failed: {message}", LauncherStatusSeverity.Error);
         _view.AppendLog($"Workshop mod clear failed: {message}");
         RefreshModsPresentation();
     }

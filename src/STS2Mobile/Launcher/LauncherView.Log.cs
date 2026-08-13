@@ -20,6 +20,7 @@ internal sealed partial class LauncherView
         var compact = profile.Compact;
         var log = new RichTextLabel
         {
+            Name = "TechnicalDetailsLog",
             CustomMinimumSize = new Vector2(
                 0,
                 LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.LogHeight)

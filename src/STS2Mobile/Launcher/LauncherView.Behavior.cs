@@ -8,7 +8,6 @@ internal sealed partial class LauncherView
     {
         _panelBaseY = _panel.Position.Y + _keyboardOffset;
         _panel.UpdateSizeFromViewport(viewportSize, _profile.PanelHeightRatio);
-        UpdateCompactStatusHeadline(viewportSize);
         UpdateCompactStickyTaskHeader(viewportSize);
         UpdateCompactSectionResponsiveRows(viewportSize);
         UpdateDiagnosticsLogViewport(viewportSize);

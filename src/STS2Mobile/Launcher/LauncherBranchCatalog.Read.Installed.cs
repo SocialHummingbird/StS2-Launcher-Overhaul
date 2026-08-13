@@ -10,13 +10,32 @@ internal static partial class LauncherBranchCatalog
     private static IReadOnlyList<BranchOption> ReadInstalledBranches(string dataDir)
     {
         var versionsDir = Path.Combine(dataDir, LauncherStorageNames.GameVersionsDirectory);
-        if (!Directory.Exists(versionsDir))
-            return Array.Empty<BranchOption>();
-
         var options = new List<BranchOption>();
         try
         {
-            foreach (var slotDir in Directory.GetDirectories(versionsDir))
+            if (
+                LauncherGameFiles.DownloadedForValidation(
+                    dataDir,
+                    SteamGameBranch.Public,
+                    out _
+                )
+            )
+            {
+                AddIfMissing(
+                    options,
+                    new BranchOption(
+                        SteamGameBranch.Public,
+                        source: "local install",
+                        isInstalled: true
+                    )
+                );
+            }
+
+            foreach (
+                var slotDir in Directory.Exists(versionsDir)
+                    ? Directory.GetDirectories(versionsDir)
+                    : Array.Empty<string>()
+            )
             {
                 var markerPath = Path.Combine(
                     slotDir,
@@ -36,7 +55,13 @@ internal static partial class LauncherBranchCatalog
                 if (!string.Equals(actualDirectoryName, expectedDirectoryName, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                AddIfMissing(options, new BranchOption(branch, source: "local install"));
+                if (!LauncherGameFiles.DownloadedForValidation(dataDir, branch, out _))
+                    continue;
+
+                AddIfMissing(
+                    options,
+                    new BranchOption(branch, source: "local install", isInstalled: true)
+                );
             }
         }
         catch

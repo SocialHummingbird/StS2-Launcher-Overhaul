@@ -3,6 +3,7 @@
 using System.Text;
 using System.Text.Json;
 using MegaCrit.Sts2.Core.Saves;
+using SteamKit2;
 using STS2Mobile;
 using STS2Mobile.Launcher;
 using STS2Mobile.Steam;
@@ -30,6 +31,10 @@ internal static class Program
             SynchronizationMakesFourDecisionsAsync
         );
         await RunAsync(
+            "save status presentation distinguishes four truthful states",
+            SaveStatusPresentationDistinguishesFourTruthfulStatesAsync
+        );
+        await RunAsync(
             "interrupted Pull leaves local saves intact",
             InterruptedPullLeavesLocalSavesIntactAsync
         );
@@ -53,14 +58,167 @@ internal static class Program
             "mod selection and discovery survive restart",
             ModSelectionAndDiscoverySurviveRestartAsync
         );
+        await RunAsync(
+            "selected game version survives restart and drives launch readiness",
+            SelectedGameVersionSurvivesRestartAndDrivesLaunchReadinessAsync
+        );
+        await RunAsync(
+            "Android startup guard stays alive after main-menu preparation",
+            AndroidStartupGuardStaysAliveAfterMainMenuPreparationAsync
+        );
 
-        Console.WriteLine($"Focused local-save, synchronization, and mod probe passed {_passed}/9 scenarios.");
+        Console.WriteLine($"Focused local-save, synchronization, mod, version, and startup probe passed {_passed}/12 scenarios.");
         Console.WriteLine(
             "Scope: FakeSaveRemote validates deterministic synchronization behavior only; it does not prove Steam Cloud or Android transport."
         );
         Console.WriteLine(
             "Scope: the representative mod is a desktop fixture; it does not prove Android mod activation or an in-game effect."
         );
+    }
+
+    private static Task SelectedGameVersionSurvivesRestartAndDrivesLaunchReadinessAsync()
+    {
+        var root = NewTempDirectory();
+        try
+        {
+            WithPreviewDataDirectory(root, () =>
+            {
+                const string selectedBranch = "beta";
+                LauncherPreferences.SaveGameBranch(selectedBranch);
+
+                var fresh = LauncherPreferences.ReadActionPreferences();
+                Expect(
+                    fresh.GameBranch == selectedBranch,
+                    "The selected game version did not survive a fresh preference load."
+                );
+
+                var slotDirectory = SteamGameInstallPaths.VersionSlotDirectory(
+                    root,
+                    selectedBranch
+                );
+                var gameDirectory = SteamGameInstallPaths.GameDirectory(
+                    root,
+                    selectedBranch
+                );
+                var pckPath = Path.Combine(gameDirectory, LauncherStorageNames.GamePck);
+                var sourceAssemblyPath = Path.Combine(
+                    gameDirectory,
+                    "data_sts2_windows_x86_64",
+                    "sts2.dll"
+                );
+                Directory.CreateDirectory(Path.GetDirectoryName(sourceAssemblyPath)!);
+                WriteValidFixturePck(pckPath);
+                File.WriteAllBytes(sourceAssemblyPath, new byte[] { 1 });
+                File.WriteAllLines(
+                    SteamGameInstallPaths.BranchMarkerPath(root, selectedBranch),
+                    new[]
+                    {
+                        $"{LauncherBranchMarkerFields.Branch} {selectedBranch}",
+                        $"{LauncherBranchMarkerFields.DepotManifestCount} 1",
+                        $"{LauncherBranchMarkerFields.DepotManifestRow} 2868840:123",
+                        $"{LauncherBranchMarkerFields.DepotsMatchingPublic} 0",
+                        $"{LauncherBranchMarkerFields.DepotsDifferingFromPublic} 1",
+                        $"{LauncherBranchMarkerFields.DepotsWithoutPublicComparison} 0",
+                        $"{LauncherBranchMarkerFields.DepotsInheritedFromPublic} 0",
+                        $"{LauncherBranchMarkerFields.DepotsMissingSelectedManifest} 0",
+                        $"{LauncherBranchMarkerFields.InstallSlotKind} {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}",
+                        $"{LauncherBranchMarkerFields.InstallSlotDirectory} {slotDirectory}",
+                    }
+                );
+
+                var readiness = LauncherLaunchReadiness.EvaluateDownloadedState(
+                    root,
+                    fresh.GameBranch,
+                    "focused selected-version test"
+                );
+                Expect(
+                    readiness.Ready && readiness.Branch == selectedBranch,
+                    $"Fresh version selection did not reach launch readiness: {readiness.ReadinessProblem}"
+                );
+                var discovered = LauncherBranchCatalog.ReadSelectableBranches(root);
+                Expect(
+                    discovered.Single(option => option.Branch == selectedBranch).IsInstalled,
+                    "Valid downloaded evidence did not mark the selected version as installed."
+                );
+                Expect(
+                    string.Equals(
+                        LauncherGameFiles.PckPath(root, fresh.GameBranch),
+                        pckPath,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                        && Path.GetFullPath(pckPath).StartsWith(
+                            Path.GetFullPath(slotDirectory) + Path.DirectorySeparatorChar,
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                        && !File.Exists(
+                            LauncherGameFiles.PckPath(root, SteamGameBranch.Public)
+                        ),
+                    "Launch readiness widened the selected beta version to the public slot."
+                );
+            });
+
+            return Task.CompletedTask;
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static async Task AndroidStartupGuardStaysAliveAfterMainMenuPreparationAsync()
+    {
+        var preparationCompleted = NewSignal();
+        var releasePreparation = NewSignal();
+        var startupObserved = NewSignal();
+        var lifetimeAnchorEntered = NewSignal();
+        var releaseLifetimeAnchor = NewSignal();
+
+        async Task<bool> PrepareMainMenuAsync()
+        {
+            await releasePreparation.Task;
+            preparationCompleted.TrySetResult(true);
+            return true;
+        }
+
+        void MarkStartupObserved()
+        {
+            Expect(
+                preparationCompleted.Task.IsCompletedSuccessfully,
+                "Startup was observed before main-menu preparation completed."
+            );
+            startupObserved.TrySetResult(true);
+        }
+
+        Task HoldStartupLifetimeAsync()
+        {
+            Expect(
+                startupObserved.Task.IsCompletedSuccessfully,
+                "The startup lifetime guard ran before startup was observed."
+            );
+            lifetimeAnchorEntered.TrySetResult(true);
+            return LauncherGameStartupRecovery.HoldAndroidStartupTaskAfterObservedAsync(
+                isAndroid: true,
+                releaseLifetimeAnchor.Task
+            );
+        }
+
+        var handoff = LauncherGameStartupRecovery.CompleteMainMenuHandoffAsync(
+            PrepareMainMenuAsync,
+            MarkStartupObserved,
+            HoldStartupLifetimeAsync
+        );
+        releasePreparation.TrySetResult(true);
+        await preparationCompleted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await startupObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await lifetimeAnchorEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Expect(
+            !handoff.IsCompleted,
+            "The Android startup task returned when main-menu preparation completed."
+        );
+
+        releaseLifetimeAnchor.TrySetResult(true);
+        await handoff.WaitAsync(TimeSpan.FromSeconds(2));
     }
 
     private static Task LocalSavePathsStayContainedAsync()
@@ -207,6 +365,202 @@ internal static class Program
             SaveSyncService.SyncPrompt.ChooseSource
         );
         return Task.CompletedTask;
+    }
+
+    private static async Task SaveStatusPresentationDistinguishesFourTruthfulStatesAsync()
+    {
+        var completedAt = new DateTimeOffset(2026, 8, 9, 9, 30, 0, TimeSpan.Zero);
+        var upToDate = LauncherSaveSyncPresentation.FromStatus(
+            new SaveSyncService.StatusSnapshot(
+                HasCredentials: true,
+                HasSuccessfulSync: true,
+                LastSuccessfulSyncUtc: completedAt,
+                ChangesQueued: false,
+                RetryRequired: false,
+                Availability: SaveSyncService.SyncAvailability.Available
+            )
+        );
+        Expect(
+            upToDate.State == LauncherSaveSyncState.UpToDate
+                && upToDate.Summary.StartsWith(
+                    "Up to date · Last synced ",
+                    StringComparison.Ordinal
+                )
+                && !upToDate.ShowEndpointDetails,
+            "A completed reconciliation did not map to the compact Up to date state."
+        );
+
+        var notSynced = LauncherSaveSyncPresentation.FromStatus(
+            new SaveSyncService.StatusSnapshot(
+                HasCredentials: true,
+                HasSuccessfulSync: false,
+                LastSuccessfulSyncUtc: null,
+                ChangesQueued: false,
+                RetryRequired: false,
+                Availability: SaveSyncService.SyncAvailability.Available
+            )
+        );
+        Expect(
+            notSynced.State == LauncherSaveSyncState.NotSyncedYet
+                && notSynced.Summary == "Not synced yet"
+                && !notSynced.ShowEndpointDetails,
+            "A credentialed first use did not map to Not synced yet."
+        );
+
+        var failed = LauncherSaveSyncPresentation.FromStatus(
+            new SaveSyncService.StatusSnapshot(
+                HasCredentials: true,
+                HasSuccessfulSync: true,
+                LastSuccessfulSyncUtc: completedAt,
+                ChangesQueued: false,
+                RetryRequired: false,
+                Availability: SaveSyncService.SyncAvailability.Available,
+                LastFailureKind: SaveSyncService.SyncFailureKind.Other
+            )
+        );
+        Expect(
+            failed.State == LauncherSaveSyncState.SyncFailed
+                && failed.Summary == "Sync failed"
+                && failed.ShowEndpointDetails,
+            "A failed latest attempt was hidden behind an older successful sync."
+        );
+
+        var offline = LauncherSaveSyncPresentation.FromStatus(
+            new SaveSyncService.StatusSnapshot(
+                HasCredentials: true,
+                HasSuccessfulSync: true,
+                LastSuccessfulSyncUtc: completedAt,
+                ChangesQueued: true,
+                RetryRequired: false,
+                Availability: SaveSyncService.SyncAvailability.Unavailable
+            )
+        );
+        Expect(
+            offline.State == LauncherSaveSyncState.Offline
+                && offline.Summary == "Offline"
+                && offline.ShowEndpointDetails,
+            "Explicit connection unavailability did not map to Offline."
+        );
+
+        var queued = LauncherSaveSyncPresentation.FromStatus(
+            new SaveSyncService.StatusSnapshot(
+                HasCredentials: true,
+                HasSuccessfulSync: true,
+                LastSuccessfulSyncUtc: completedAt,
+                ChangesQueued: true,
+                RetryRequired: false,
+                Availability: SaveSyncService.SyncAvailability.Available
+            )
+        );
+        Expect(
+            queued.State == LauncherSaveSyncState.ChangesQueued,
+            "Queued local changes were falsely presented as Offline."
+        );
+        Expect(
+            SaveSyncService.FailureKindFor(
+                new SteamLogonFailedException(
+                    EResult.InvalidPassword
+                )
+            ) == SaveSyncService.SyncFailureKind.Authentication,
+            "A rejected password did not require new authentication."
+        );
+        Expect(
+            SaveSyncService.FailureKindFor(
+                new SteamLogonFailedException(
+                    EResult.ServiceUnavailable
+                )
+            ) == SaveSyncService.SyncFailureKind.Other,
+            "A transient Steam service failure was mislabeled as bad credentials."
+        );
+        Expect(
+            SaveSyncService.FailureKindFor(
+                new System.Net.Sockets.SocketException(
+                    (int)System.Net.Sockets.SocketError.NetworkDown
+                )
+            ) == SaveSyncService.SyncFailureKind.Offline,
+            "An explicit network-down socket result did not map to Offline."
+        );
+        Expect(
+            SaveSyncService.FailureKindFor(
+                new System.Net.Sockets.SocketException(
+                    (int)System.Net.Sockets.SocketError.ConnectionRefused
+                )
+            ) == SaveSyncService.SyncFailureKind.Other,
+            "A reachable-network socket failure was mislabeled Offline."
+        );
+        var root = NewTempDirectory();
+        try
+        {
+            var remote = new FakeSaveRemote();
+            var service = new SaveSyncService(
+                new AndroidLocalSaveStore(root),
+                remote
+            );
+            var completed = await ReconcileAsync(service);
+            Expect(completed.Success, "The status fixture did not complete reconciliation.");
+
+            var statusPath = Directory.GetFiles(
+                root,
+                SaveSyncService.StatusFileName,
+                SearchOption.AllDirectories
+            ).Single();
+            var persisted = JsonSerializer.Deserialize<SaveSyncService.SyncStatus>(
+                File.ReadAllText(statusPath)
+            );
+            Expect(
+                persisted?.LastSuccessfulSyncUtc != null
+                    && persisted.LastFailureKind == SaveSyncService.SyncFailureKind.None,
+                "A successful reconciliation did not persist its completion truth."
+            );
+
+            remote.FailNextEnumerationOffline();
+            var unavailable = await ReconcileAsync(service);
+            Expect(
+                !unavailable.Success
+                    && unavailable.FailureKind == SaveSyncService.SyncFailureKind.Offline,
+                "An explicit socket-unavailable failure did not produce Offline."
+            );
+            persisted = JsonSerializer.Deserialize<SaveSyncService.SyncStatus>(
+                File.ReadAllText(statusPath)
+            );
+            Expect(
+                persisted?.LastFailureKind == SaveSyncService.SyncFailureKind.Offline,
+                "The latest failed attempt was not persisted over the earlier success."
+            );
+
+            File.Delete(statusPath);
+            var missingStatus = new SaveSyncService(
+                new AndroidLocalSaveStore(root),
+                remote
+            ).GetCurrentStatusSnapshot();
+            Expect(
+                missingStatus.SyncStatusUnknown
+                    && LauncherSaveSyncPresentation.FromStatus(missingStatus).State
+                        == LauncherSaveSyncState.StatusUnknown,
+                "A baseline without its completion record falsely appeared current."
+            );
+
+            var recovered = await ReconcileAsync(service);
+            Expect(recovered.Success, "The disagreement fixture did not restore status.");
+            File.WriteAllText(
+                FindSyncStatePath(root),
+                "{ not valid sync state"
+            );
+            var missingBaseline = new SaveSyncService(
+                new AndroidLocalSaveStore(root),
+                remote
+            ).GetCurrentStatusSnapshot();
+            Expect(
+                missingBaseline.SyncStatusUnknown
+                    && LauncherSaveSyncPresentation.FromStatus(missingBaseline).State
+                        == LauncherSaveSyncState.StatusUnknown,
+                "A completion record without a valid baseline falsely appeared current."
+            );
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     private static async Task InterruptedPullLeavesLocalSavesIntactAsync()
@@ -432,6 +786,19 @@ internal static class Program
 
             remote.ResetTransferCounts();
             WriteSave(root, path, localChange);
+            var pushPrompt = await service.SyncAsync(
+                SaveSyncService.SyncRequest.Push,
+                overwriteConfirmed: false,
+                localWritesAreStopped: true,
+                cancellationToken: CancellationToken.None
+            );
+            Expect(
+                !pushPrompt.Success
+                    && pushPrompt.Prompt == SaveSyncService.SyncPrompt.ConfirmOverwrite
+                    && remote.UploadCount == 0
+                    && remote.ReadFile(path).SequenceEqual(original),
+                "Manual Send changed Steam saves before replacement confirmation."
+            );
             var push = await service.SyncAsync(
                 SaveSyncService.SyncRequest.Push,
                 overwriteConfirmed: true,
@@ -448,6 +815,19 @@ internal static class Program
 
             remote.SetFile(path, remoteChange);
             remote.ResetTransferCounts();
+            var pullPrompt = await service.SyncAsync(
+                SaveSyncService.SyncRequest.Pull,
+                overwriteConfirmed: false,
+                localWritesAreStopped: true,
+                cancellationToken: CancellationToken.None
+            );
+            Expect(
+                !pullPrompt.Success
+                    && pullPrompt.Prompt == SaveSyncService.SyncPrompt.ConfirmOverwrite
+                    && remote.DownloadCount == 0
+                    && File.ReadAllBytes(SavePath(root, path)).SequenceEqual(localChange),
+                "Manual Get changed device saves before replacement confirmation."
+            );
             var pull = await service.SyncAsync(
                 SaveSyncService.SyncRequest.Pull,
                 overwriteConfirmed: true,
@@ -734,7 +1114,8 @@ internal static class Program
             );
             Expect(
                 current.Mode == LauncherModPlayMode.Modded
-                    && current.PrimaryPlayLabel == "Play Modded \u00B7 1 enabled"
+                    && current.SaveNamespaceLabel == "Modded saves"
+                    && current.EnabledCount == 1
                     && currentImporter.Enabled
                     && currentImporter.LastLaunchState
                         == LauncherModLastLaunchState.LoadedLastLaunch,
@@ -894,6 +1275,23 @@ internal static class Program
         File.WriteAllText(path, contents);
     }
 
+    private static void WriteValidFixturePck(string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var stream = File.Create(path);
+        using var writer = new BinaryWriter(stream);
+        writer.Write(0x43504447u);
+        writer.Write(3u);
+        writer.Write(0u);
+        writer.Write(0u);
+        writer.Write(0u);
+        writer.Write(0u);
+        writer.Write(0L);
+        writer.Write(96L);
+        stream.Position = 96;
+        writer.Write(1u);
+    }
+
     private static Task<SaveSyncService.SyncResult> ReconcileAsync(
         SaveSyncService service
     )
@@ -979,11 +1377,17 @@ internal static class Program
     private static Dictionary<string, byte[]> SnapshotLocalFiles(string root)
         => Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
             .Where(path =>
-                !string.Equals(
-                    Path.GetFileName(path),
-                    SaveSyncService.StateFileName,
-                    StringComparison.Ordinal
-                )
+                Path.GetFileName(path) is var fileName
+                    && !string.Equals(
+                        fileName,
+                        SaveSyncService.StateFileName,
+                        StringComparison.Ordinal
+                    )
+                    && !string.Equals(
+                        fileName,
+                        SaveSyncService.StatusFileName,
+                        StringComparison.Ordinal
+                    )
             )
             .ToDictionary(
                 path => Path.GetRelativePath(root, path).Replace('\\', '/'),
@@ -1057,6 +1461,7 @@ internal static class Program
         private readonly Dictionary<string, byte[]> _files = new(StringComparer.Ordinal);
         private string? _interruptedDownloadPath;
         private bool _failNextUpload;
+        private bool _failNextEnumerationOffline;
         private bool _holdNextUpload;
         private int _downloadCount;
         private int _uploadCount;
@@ -1114,6 +1519,12 @@ internal static class Program
                 _failNextUpload = true;
         }
 
+        internal void FailNextEnumerationOffline()
+        {
+            lock (_gate)
+                _failNextEnumerationOffline = true;
+        }
+
         internal void InterruptNextDownload(string path)
         {
             lock (_gate)
@@ -1152,6 +1563,13 @@ internal static class Program
             cancellationToken.ThrowIfCancellationRequested();
             lock (_gate)
             {
+                if (_failNextEnumerationOffline)
+                {
+                    _failNextEnumerationOffline = false;
+                    throw new System.Net.Sockets.SocketException(
+                        (int)System.Net.Sockets.SocketError.NetworkDown
+                    );
+                }
                 IReadOnlyList<SteamCloudTransport.RemoteFile> files = _files
                     .OrderBy(pair => pair.Key, StringComparer.Ordinal)
                     .Select(pair => new SteamCloudTransport.RemoteFile(

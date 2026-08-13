@@ -14,7 +14,7 @@ dotnet build src/STS2Mobile/STS2Mobile.csproj -c Release
 .\scripts\test-local-gameplay-save-safety.ps1
 ```
 
-This runs nine focused desktop behaviors: local path containment; atomic local writes; the four deterministic synchronization decisions; interrupted Pull preserving local saves; failed Push staying dirty and retryable; Pull-before-save-load ordering; a gameplay save queuing Push without returning to the launcher; manual Push/Pull through the same synchronization service; and persisted mod selection with validated manifest discovery.
+This runs twelve focused desktop behaviors: local path containment; atomic local writes; the four deterministic synchronization decisions; truthful save-status presentation; interrupted Pull preserving local saves; failed Push staying dirty and retryable; Pull-before-save-load ordering; a gameplay save queuing Push without returning to the launcher; manual Push/Pull through the same synchronization service; persisted mod selection with validated manifest discovery; persisted game-version selection reaching the matching launch-readiness path; and the restored Android startup handoff staying alive through main-menu preparation.
 
 The policy tests use one in-memory `FakeSaveRemote`. It does not prove Steam Cloud or Android transport.
 

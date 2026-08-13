@@ -84,14 +84,18 @@ internal sealed class LauncherBranchSwitchCoordinator
         {
             _launch.ShowReadyToLaunch(
                 _launch.SelectedVersionReadyStatus(readiness),
-                LaunchUpdateAction.Visible
+                LaunchUpdateAction.Visible,
+                LauncherStatusSeverity.Ready
             );
             return;
         }
 
         var readinessProblem = readiness.ReadinessProblem;
-        _view.SetStatus(readinessProblem
-            ?? "Selected game version is not downloaded. Download game files to continue.");
+        _view.SetStatus(
+            readinessProblem
+                ?? "Selected game version is not downloaded. Download game files to continue.",
+            LauncherStatusSeverity.Warning
+        );
         _view.HideActions();
         if (LauncherGameFiles.HasBranchMetadataProblem(_model.DataDir, branch))
             _downloads.ShowRedownloadSelectedVersionAction();

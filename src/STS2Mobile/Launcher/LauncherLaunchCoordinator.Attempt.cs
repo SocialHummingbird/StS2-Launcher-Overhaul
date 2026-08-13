@@ -17,7 +17,10 @@ internal sealed partial class LauncherLaunchCoordinator
                 "launch request ignored",
                 $"action={plan.Action}; source={plan.Source}; branch={ignoredBranch}; reason=launch already in progress"
             );
-            _view.SetStatus("Start Game is already running. Waiting for launch handoff...");
+            _view.SetStatus(
+                "Start Game is already running. Waiting for launch handoff...",
+                LauncherStatusSeverity.Working
+            );
             return false;
         }
 
@@ -105,7 +108,8 @@ internal sealed partial class LauncherLaunchCoordinator
             timing,
             problem
         );
-        _view.SetStatus(problem);
+        _view.SetStatus(problem, LauncherStatusSeverity.Error);
+        _view.ShowHomeHelpAction();
         _view.AppendLog(problem);
         if (writePatchLog)
             PatchHelper.Log($"[Launcher] {problem}");

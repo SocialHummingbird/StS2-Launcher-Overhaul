@@ -23,19 +23,45 @@ Startup-crash recovery and Help diagnostics remain. They recover launcher startu
 
 ## Current prerelease artifact
 
-The current public test candidate is the prerelease `v0.2.425-mod-chain-fix2-unverified`. It is not a stable or phone-ready release.
+The current public test candidate is the prerelease `v0.2.428-launcher-simplification-unverified`. It is not a stable or phone-ready release, and no Android device was available to validate this build.
 
 - Package: `com.sts2launcher.overhaul.fork.local`
-- Version code: `425000`
-- APK SHA-256: `2A80E58A6301EFD0C6A0251FF9BC0887434071661DD8E002EF9CA89E25BEDA0B`
+- Version code: `428000`
+- APK SHA-256: `CC79353BE2B22641BC76424BBAB9AB36F7AB4A57F8C900379D20E91862005C4C`
 
-The asset is `StS2Launcher-v0.2.425-mod-chain-fix2-unverified-arm64-v8a.apk`. Its package and signer match the prior local-test lineage and its archive contains only `arm64-v8a`.
+The asset is `StS2Launcher-v0.2.428-launcher-simplification-unverified-arm64-v8a.apk`. Its package and signer match the prior local-test lineage and its archive contains only `arm64-v8a`.
 
 Preserving that package identity and signing continuity is required for an in-place update to retain existing app-private data.
 
+## Offline diagnostic artifact
+
+**DIAGNOSTIC MAIN-MENU HANDOFF APK — ANDROID STABILITY UNVERIFIED**
+
+`StS2Launcher-v0.2.426-main-menu-handoff-diagnostic-arm64-v8a.apk` was built and inspected offline with version code `426000`, package `com.sts2launcher.overhaul.fork.local`, ARM64-only contents, and APK SHA-256 `5FFE86369B05C78CCF528C2186A46CD2E901A186CFB91F490F5C63B44490F294`.
+
+This diagnostic APK restores the existing menu-preparation/startup-task lifetime guard, but it has not been run on Android and does not establish that the intermittent main-menu freeze—or any crash, mod, save, or Steam behaviour—is fixed. It is not the current public prerelease.
+
+## Deferred-preload experiment artifact
+
+`StS2Launcher-v0.2.427-deferred-preload-experiment-arm64-v8a.apk` is a second
+offline diagnostic artifact. It has version code `427000`, package
+`com.sts2launcher.overhaul.fork.local`, ARM64-only contents, signer continuity
+with the local-test lineage, and APK SHA-256
+`78889980818C16E311B42BCAA87E28EDF00377C2C7C61CD9328F209E04DABAFF`.
+
+The same APK supports both experiment arms. Normal loading is the default; an
+ADB-controlled setting sampled at process creation arms a one-shot suppression
+of only the first deferred `LoadCommonAndMainMenuAssets()` call after
+`ExecuteDeferred()` completes. Later calls remain normal. No device is attached,
+so neither arm has run and no stability or causality conclusion exists yet.
+
 ## Evidence boundary
 
-No Android device is currently connected. In the retained one-device run, both exact selected mods were discovered, payload-loaded, initialized, and activated; BaseLib remained honestly `Partial`, a real `modded/` save path was used, and the game reached the main menu. The user reported marked improvement and that mods appeared to work. The run did not directly capture the importer control or a matching relaunch result, and a later freeze/crash was reported after the retained filtered log ended. It therefore does not complete Stage 9 or prove broad Android mod compatibility. Real Android Steam transfer also remains unproven.
+No Android device is currently connected. In the retained one-device run, both exact selected mods were discovered, payload-loaded, initialized, and activated; BaseLib remained honestly `Partial`, a real `modded/` save path was used, and the game reached the main menu. The user reported marked improvement and that mods appeared to work.
+
+The single authoritative failure timeline in `artifacts/android/stage9-one-device-filtered.log` is: **mod activation completed → `NMainMenu` appeared → the 1-second heartbeat ran → the 3-second heartbeat ran → the expected 10-second heartbeat was the first missing milestone**. The same process emitted focus lifecycle events minutes later, and the retained log contains no fatal exception, native signal, ANR, low-memory kill, or process-death evidence. Classify this event as an **intermittent live-process main-loop freeze after the main menu appeared**, not a proven process crash. Any future event with genuine process-exit evidence must be recorded as a separate incident rather than used to reclassify this one.
+
+The run did not directly capture the importer control or a matching relaunch result. It therefore does not complete Stage 9 or prove broad Android mod compatibility. Real Android Steam transfer also remains unproven.
 
 Historical device evidence applies only to the exact historical artifact and path recorded with it.
 

@@ -36,7 +36,7 @@ internal sealed partial class LauncherView
 
         CompactButtonDetailLabels.Apply(
             toggle,
-            visible ? "Hide Help\nBack to launcher" : "Help & Reports\nPrivate until opened",
+            visible ? "Hide technical details" : "Show technical details",
             profile.Scale,
             enabled: true,
             CompactDiagnosticsToggleLabels
@@ -44,5 +44,5 @@ internal sealed partial class LauncherView
     }
 
     private static string DiagnosticsToggleText(bool visible)
-        => visible ? "Hide Help & Reports" : "Show Help & Reports";
+        => visible ? "Hide technical details" : "Show technical details";
 }

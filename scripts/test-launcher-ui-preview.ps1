@@ -16,19 +16,24 @@ if ($LASTEXITCODE -ne 0) {
     throw "Launcher UI preview build failed"
 }
 
-$arguments = @{
-    Fixture = "ready"
-    Destination = "home"
-    Width = 1280
-    Height = 800
-    TouchOptimized = $false
-    InteractionTest = $true
-    SkipBuild = $true
+foreach ($profile in @(
+    @{ Width = 412; Height = 915; TouchOptimized = $true },
+    @{ Width = 1280; Height = 800; TouchOptimized = $false }
+)) {
+    $arguments = @{
+        Fixture = "ready"
+        Destination = "home"
+        Width = $profile.Width
+        Height = $profile.Height
+        TouchOptimized = $profile.TouchOptimized
+        InteractionTest = $true
+        SkipBuild = $true
+    }
+    if ($GodotPath) {
+        $arguments.GodotPath = $GodotPath
+    }
+    & $runner @arguments
 }
-if ($GodotPath) {
-    $arguments.GodotPath = $GodotPath
-}
-& $runner @arguments
 
 Write-Host "Launcher mod journey wiring passed."
 

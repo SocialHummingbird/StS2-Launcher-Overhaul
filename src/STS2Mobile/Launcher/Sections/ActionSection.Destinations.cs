@@ -11,63 +11,173 @@ internal sealed partial class ActionSection
 
         _homeDestination = BuildDestination(
             "Home",
-            "Check status, then play.",
             LauncherComponentTheme.OrangeAccent
         );
         _savesDestination = BuildDestination(
             "Saves",
-            "Automatic sync or choose a direction.",
             new Color(0.25f, 0.65f, 0.75f)
         );
         _versionsDestination = BuildDestination(
             "Versions",
-            "Choose or repair game files.",
             LauncherComponentTheme.CyanAccent
         );
         _modsDestination = BuildDestination(
             "Mods",
-            "Choose vanilla or mods.",
             new Color(0.72f, 0.46f, 0.9f)
         );
         _helpDestination = BuildDestination(
             "Help",
-            "Compatibility, repair, and reports.",
             LauncherComponentTheme.TextSecondary
         );
 
         MoveTo(_homeDestination, _homeJourney);
         MoveTo(_homeDestination, _launchButton);
-        MoveTo(_homeDestination, _readyVersionSummaryPanel);
         MoveTo(_homeDestination, _retryButton);
 
         MoveTo(_savesDestination, _saveSyncGroup);
 
-        MoveTo(_versionsDestination, _branchDropdown);
-        MoveTo(_versionsDestination, _branchDetailsToggle);
-        MoveTo(_versionsDestination, _branchHelpLabel);
+        MoveTo(_versionsDestination, _versionSelectionGroup);
         MoveTo(_versionsDestination, _updateButton);
         MoveTo(_versionsDestination, _refreshVersionsButton);
-        MoveTo(_versionsDestination, _redownloadButton);
-        MoveTo(_versionsDestination, _clearCachedVersionsButton);
+        _versionMaintenanceGroup = BuildVersionMaintenanceGroup();
+        _versionsDestination.AddChild(_versionMaintenanceGroup);
 
         MoveTo(_modsDestination, _modsGroup);
 
+        _helpDestination.AddChild(BuildHelpRecoveryGuidance());
         MoveTo(_helpDestination, _safeLaunchButton);
         MoveTo(_helpDestination, _rendererGroup);
-        MoveTo(_helpDestination, _diagnosticsButton);
-        MoveTo(_helpDestination, _showLastErrorButton);
-        MoveTo(_helpDestination, _copyRawLogButton);
+        _helpDestination.AddChild(BuildHelpDiagnosticsGroup());
 
-        _supportToggle.Visible = false;
-        _supportGroup.Visible = false;
         Visible = true;
         SetDestination(LauncherDestination.Home);
     }
 
-    private VBoxContainer BuildDestination(string title, string subtitle, Color accent)
+    private VBoxContainer BuildVersionMaintenanceGroup()
+    {
+        var group = new VBoxContainer
+        {
+            Name = "RepairAndStorageGroup",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        group.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(6, _scale)
+        );
+        var title = new StyledLabel(
+            "Repair and storage",
+            _scale,
+            fontSize: _compact
+                ? LauncherSectionMetrics.CompactVersionSummaryFontSize
+                : LauncherSectionMetrics.ProgressFontSize,
+            align: HorizontalAlignment.Left
+        );
+        title.Name = "RepairAndStorageLabel";
+        title.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextSecondary
+        );
+        group.AddChild(title);
+
+        var actions = new GridContainer
+        {
+            Name = "RepairAndStorageActions",
+            Columns = _compactStackedActionRows ? 1 : 2,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        actions.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(6, _scale)
+        );
+        MoveTo(actions, _redownloadButton);
+        MoveTo(actions, _clearCachedVersionsButton);
+        group.AddChild(actions);
+        return group;
+    }
+
+    private Label BuildHelpRecoveryGuidance()
+    {
+        var guidance = new StyledLabel(
+            "If the game freezes or shows a black screen, try Safe Start.",
+            _scale,
+            fontSize: _compact ? 15 : 16,
+            align: HorizontalAlignment.Left
+        )
+        {
+            Name = "HelpRecoveryGuidance",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        guidance.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextPrimary
+        );
+        return guidance;
+    }
+
+    private VBoxContainer BuildHelpDiagnosticsGroup()
+    {
+        var group = new VBoxContainer
+        {
+            Name = "HelpDiagnosticsGroup",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        group.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(6, _scale)
+        );
+
+        var title = new StyledLabel(
+            "Diagnostics",
+            _scale,
+            fontSize: _compact
+                ? LauncherSectionMetrics.CompactVersionSummaryFontSize
+                : LauncherSectionMetrics.ProgressFontSize,
+            align: HorizontalAlignment.Left
+        )
+        {
+            Name = "HelpDiagnosticsLabel",
+        };
+        title.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextSecondary
+        );
+        group.AddChild(title);
+
+        var actions = new GridContainer
+        {
+            Name = "HelpDiagnosticsActions",
+            Columns = _compactStackedActionRows ? 1 : 3,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        actions.AddThemeConstantOverride(
+            LauncherViewLayoutMetrics.ThemeSeparation,
+            LauncherViewLayoutMetrics.ScaleInt(6, _scale)
+        );
+        MoveTo(actions, _diagnosticsButton);
+        MoveTo(actions, _showLastErrorButton);
+        MoveTo(actions, _copyRawLogButton);
+        group.AddChild(actions);
+        return group;
+    }
+
+    private void UpdateVersionMaintenanceVisibility()
+    {
+        if (_versionMaintenanceGroup == null)
+            return;
+
+        _clearCachedVersionsButton.Visible = true;
+        _refreshVersionsButton.Visible = true;
+        _versionSelectionGroup.Visible = true;
+        _versionMaintenanceGroup.Visible = true;
+        UpdateVersionActionAvailability();
+    }
+
+    private VBoxContainer BuildDestination(string title, Color accent)
     {
         var destination = new VBoxContainer
         {
+            Name = $"{title}Destination",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             Visible = false,
         };
@@ -78,6 +188,7 @@ internal sealed partial class ActionSection
 
         var heading = new VBoxContainer
         {
+            Name = $"{title}DestinationHeader",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         heading.AddThemeConstantOverride("separation", LauncherViewLayoutMetrics.ScaleInt(4, _scale));
@@ -93,18 +204,9 @@ internal sealed partial class ActionSection
             fontSize: _compact ? 18 : 20,
             align: HorizontalAlignment.Left
         );
+        titleLabel.Name = $"{title}DestinationTitle";
         titleLabel.AddThemeColorOverride("font_color", LauncherComponentTheme.TextPrimary);
         heading.AddChild(titleLabel);
-
-        var subtitleLabel = new StyledLabel(
-            subtitle,
-            _scale,
-            fontSize: _compact ? 12 : 13,
-            align: HorizontalAlignment.Left
-        );
-        subtitleLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        subtitleLabel.AddThemeColorOverride("font_color", LauncherComponentTheme.TextSecondary);
-        heading.AddChild(subtitleLabel);
         destination.AddChild(heading);
         AddChild(destination);
         return destination;

@@ -7,7 +7,7 @@ internal sealed partial class LauncherLaunchCoordinator
         if (!TryBeginLaunchAttempt(plan, out var attempt))
             return;
 
-        _view.SetStatus(plan.CheckingStatus);
+        _view.SetStatus(plan.CheckingStatus, LauncherStatusSeverity.Working);
         if (!TryEvaluateSelectedLaunchReadiness(plan, attempt, out var readiness))
             return;
 

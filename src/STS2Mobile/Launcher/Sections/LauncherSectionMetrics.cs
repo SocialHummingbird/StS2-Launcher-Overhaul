@@ -18,7 +18,7 @@ internal static class LauncherSectionMetrics
     internal const int CompactVersionSummaryHorizontalMargin = 10;
     internal const int CompactVersionSummaryVerticalMargin = 6;
     internal const int CompactSupportToolFontSize = CompactDetailButtonFontSize;
-    internal const int CompactSupportToolHeight = CompactDetailButtonHeight;
+    internal const int CompactSupportToolHeight = 48;
     internal const int DownloadButtonHeight = 60;
     internal const int ProgressFontSize = 14;
     internal const int PrimaryButtonFontSize = 18;
@@ -27,5 +27,5 @@ internal static class LauncherSectionMetrics
     internal const int CompactSectionSeparation = 8;
     internal const int SectionSeparation = 10;
     internal const int SecondaryButtonFontSize = 16;
-    internal const int SecondaryButtonHeight = 58;
+    internal const int SecondaryButtonHeight = 48;
 }

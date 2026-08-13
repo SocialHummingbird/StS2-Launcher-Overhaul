@@ -46,7 +46,8 @@ internal sealed partial class LauncherUpdateCoordinator
                 AppUpdateAvailableLogColor
             );
             view.SetStatus(
-                $"Launcher update available! Visit GitHub to download v{LatestVersion}"
+                $"Launcher update available! Visit GitHub to download v{LatestVersion}",
+                LauncherStatusSeverity.Information
             );
         }
     }
