@@ -7,10 +7,4 @@ internal static partial class LauncherGameFiles
 
     private static int? ReadMarkerInt(string path, string prefix)
         => LauncherMarkerFile.ReadInt(path, prefix);
-
-    private static bool MarkerUtcParseable(string path)
-        => LauncherMarkerFile.UtcParseable(path);
-
-    private static bool MarkerHasLine(string path, string prefix)
-        => LauncherMarkerFile.HasLine(path, prefix);
 }

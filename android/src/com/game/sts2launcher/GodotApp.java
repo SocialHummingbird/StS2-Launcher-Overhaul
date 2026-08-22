@@ -32,7 +32,6 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -98,9 +97,6 @@ public class GodotApp extends GodotActivity {
 	private static final String PREFS_NAME = "sts2mobile";
 	private static final String KEY_LAUNCH_GAME_ON_NEXT_START = "launch_game_on_next_start";
 	private static final String KEY_SAFE_LAUNCH_ON_NEXT_START = "safe_launch_on_next_start";
-	private static final String GAME_BRANCH_FILE = "game_branch";
-	private static final String GAME_VERSIONS_DIR = "game_versions";
-	private static final String BRANCH_MARKER_FILE = "steam_branch.txt";
 	private static final String ENV_LAUNCHER_BOOTSTRAP = "STS2_LAUNCHER_BOOTSTRAP";
 	private static final String ENV_AUTO_LAUNCH_GAME = "STS2_AUTO_LAUNCH_GAME";
 	private static final String ENV_AUTO_SAFE_LAUNCH = "STS2_AUTO_SAFE_LAUNCH";
@@ -109,7 +105,6 @@ public class GodotApp extends GodotActivity {
 	private static final String DEFERRED_PRELOAD_EXPERIMENT_SETTING = "sts2_deferred_preload_experiment";
 	private static final String EXTRA_LAUNCH_GAME_ON_START = "sts2_launch_game";
 	private static final String EXTRA_SAFE_LAUNCH_ON_START = "sts2_safe_launch";
-	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v35";
 	private static final String LAST_ANDROID_EXCEPTION_FILE = "last_android_uncaught_exception.txt";
 	private static final String LAST_APP_LIFECYCLE_EVENT_FILE = "last_app_lifecycle_event.txt";
 	private static final String LAST_PROCESS_EXIT_INFO_FILE = "last_process_exit_info.txt";
@@ -149,7 +144,6 @@ public class GodotApp extends GodotActivity {
 	private static final String STEAM_CREDENTIAL_WEB_DOMAIN_STORE = "store.steampowered.com";
 	private static final long STEAM_LOGIN_CREDENTIAL_RESULT_TTL_MS = 60L * 1000L;
 	private static final String RUNTIME_PACK_ANDROID_ASSEMBLY = "sts2.dll";
-	private static final String CURRENT_RUNTIME_SLOT_MARKER = "current_runtime_slot.json";
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -172,7 +166,7 @@ public class GodotApp extends GodotActivity {
 		launcherImeController.onLauncherStartup();
 		configureRequestedOrientation(pendingGameLaunch);
 		recordStartupPhase("native game directory resolved", "branch=" + selectedBranch + "; pendingGameLaunch=" + pendingGameLaunch);
-		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
+		File branchMarker = new File(gameDir, LauncherArtifactLayout.BRANCH_MARKER_FILE);
 		Log.i(TAG, "Selected Steam branch: " + selectedBranch);
 		Log.i(TAG, "Selected Steam branch note: " + SteamBranchInfo.selectorHelpText(selectedBranch));
 		Log.i(TAG, "Selected game version slot kind: " + SteamBranchInfo.installSlotKind(selectedBranch));
@@ -526,7 +520,7 @@ public class GodotApp extends GodotActivity {
 	}
 
 	private String readSelectedBranch() {
-		File branchFile = new File(getFilesDir(), GAME_BRANCH_FILE);
+		File branchFile = LauncherArtifactLayout.selectedBranchFile(getFilesDir());
 		if (!branchFile.exists() || !branchFile.isFile()) {
 			return "public";
 		}
@@ -647,16 +641,18 @@ public class GodotApp extends GodotActivity {
 		return files != null && files.length > 0;
 	}
 
-	private boolean markerIsFreshForFile(File marker, File file) {
-		if (marker == null || file == null || !marker.exists() || !file.exists()) {
-			return false;
-		}
-
-		return marker.lastModified() + 2000L >= file.lastModified();
-	}
-
 	private boolean isGamePckReady() {
 		String branch = readSelectedBranch();
+		BranchInstallationState.Result installationState =
+			BranchInstallationState.inspect(getFilesDir(), branch);
+		if (!installationState.isReady()) {
+			Log.w(
+				TAG,
+				"Selected branch is not launchable: "
+					+ installationState.summary()
+			);
+			return false;
+		}
 		File pck = new File(gameDir, PCK_FILE);
 		if (!pck.exists() || !pck.isFile() || pck.length() < 96) {
 			return false;
@@ -698,7 +694,10 @@ public class GodotApp extends GodotActivity {
 	}
 
 	private boolean isRuntimeSlotEvidenceReadyForLaunch(String selectedBranch) {
-		File marker = new File(getFilesDir(), CURRENT_RUNTIME_SLOT_MARKER);
+		File marker = new File(
+			getFilesDir(),
+			LauncherArtifactLayout.CURRENT_RUNTIME_SLOT_EVIDENCE
+		);
 		if (!marker.exists() || !marker.isFile()) {
 			Log.w(TAG, "Blocking selected game startup because runtime slot evidence is missing: " + marker.getAbsolutePath());
 			return false;
@@ -712,38 +711,40 @@ public class GodotApp extends GodotActivity {
 			boolean playable = json.optBoolean("playable", false);
 			boolean runtimeCompatible = json.optBoolean("runtimeCompatible", false);
 			boolean patchCompatible = json.optBoolean("patchCompatible", false);
+			String markerInstallGeneration = json.optString("installGeneration", "");
 			String markerPckSha256 = json.optString("pckSha256", "");
 			String markerSourceAssemblySha256 = json.optString("sourceAssemblySha256", "");
+			String markerGameIdentityId = json.optString("gameIdentityId", "");
+			File installMarker = new File(gameDir, LauncherArtifactLayout.BRANCH_MARKER_FILE);
+			String currentInstallGeneration = installMarker.isFile()
+				? sha256Hex(installMarker)
+				: "";
 			File selectedPck = new File(gameDir, PCK_FILE);
-			String selectedPckSha256 = selectedPckSha256ForRuntimeSlotEvidence(selectedPck, marker, json, selectedBranch);
+			String selectedPckSha256 = selectedPck.isFile()
+				? sha256Hex(selectedPck)
+				: "";
 			File srcDir = findAssembliesDir();
 			File selectedSourceAssembly = srcDir == null ? null : new File(srcDir, RUNTIME_PACK_ANDROID_ASSEMBLY);
 			String selectedSourceAssemblySha256 = selectedSourceAssembly != null && selectedSourceAssembly.exists() && selectedSourceAssembly.isFile()
 				? sha256Hex(selectedSourceAssembly)
 				: "";
-			File activeAndroidAssembly = activeAndroidAssemblyFile();
-			String activeAndroidAssemblySha256 = activeAndroidAssembly.exists() && activeAndroidAssembly.isFile()
-				? sha256Hex(activeAndroidAssembly)
-				: "";
-			boolean pckMatches = pckMatchesRuntimeSource(selectedPck, markerPckSha256, selectedPckSha256);
+			boolean pckMatches = !markerPckSha256.trim().isEmpty()
+				&& markerPckSha256.equalsIgnoreCase(selectedPckSha256);
 			boolean sourceAssemblyMatches = !markerSourceAssemblySha256.trim().isEmpty() && markerSourceAssemblySha256.equalsIgnoreCase(selectedSourceAssemblySha256);
-			if (branchMatches && filesReady && playable && runtimeCompatible && patchCompatible && pckMatches && sourceAssemblyMatches) {
-				Log.i(TAG, "Runtime slot evidence ready for selected game startup: slot=" + json.optString("runtimeSlotId", "") + " branch=" + markerBranch);
+			boolean installGenerationMatches = !markerInstallGeneration.trim().isEmpty()
+				&& markerInstallGeneration.equalsIgnoreCase(currentInstallGeneration);
+			String currentGameIdentityId = canonicalGameIdentityId(
+				selectedBranch,
+				currentInstallGeneration,
+				selectedPckSha256,
+				selectedSourceAssemblySha256
+			);
+			boolean gameIdentityMatches = !markerGameIdentityId.trim().isEmpty()
+				&& markerGameIdentityId.equalsIgnoreCase(currentGameIdentityId);
+			if (branchMatches && filesReady && playable && runtimeCompatible && patchCompatible && installGenerationMatches && pckMatches && sourceAssemblyMatches && gameIdentityMatches) {
+				Log.i(TAG, "Runtime slot evidence ready for selected game startup: gameIdentity=" + json.optString("gameIdentityId", "") + " branch=" + markerBranch);
 				return true;
 			}
-
-			boolean publicLegacyRuntimeReady = "public".equalsIgnoreCase(selectedBranch)
-				&& !selectedSourceAssemblySha256.trim().isEmpty()
-				&& selectedSourceAssemblySha256.equalsIgnoreCase(activeAndroidAssemblySha256);
-			if (!branchMatches && publicLegacyRuntimeReady) {
-				Log.i(
-					TAG,
-					"Runtime slot evidence marker belongs to '" + markerBranch
-						+ "', but selected public runtime cache matches the public source assembly; allowing public legacy startup after branch switch."
-				);
-				return true;
-			}
-
 			Log.w(
 				TAG,
 				"Blocking selected game startup because runtime slot evidence is not playable: "
@@ -753,9 +754,10 @@ public class GodotApp extends GodotActivity {
 					+ " playable=" + playable
 					+ " runtimeCompatible=" + runtimeCompatible
 					+ " patchCompatible=" + patchCompatible
+					+ " installGenerationMatches=" + installGenerationMatches
 					+ " pckMatches=" + pckMatches
 					+ " sourceAssemblyMatches=" + sourceAssemblyMatches
-					+ " activeAndroidAssemblyMatchesPublic=" + publicLegacyRuntimeReady
+					+ " gameIdentityMatches=" + gameIdentityMatches
 					+ " readinessProblem=" + json.optString("readinessProblem", "")
 					+ " runtimePackStatus=" + json.optString("runtimePackUsabilityStatus", "")
 					+ " patchStatus=" + json.optString("patchCompatibilityStatus", "")
@@ -767,35 +769,8 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
-	private String selectedPckSha256ForRuntimeSlotEvidence(File selectedPck, File marker, JSONObject json, String selectedBranch) {
-		if (selectedPck == null || !selectedPck.exists() || !selectedPck.isFile()) {
-			return "";
-		}
-
-		String markerBranch = json.optString("branch", "");
-		String markerPckSha256 = json.optString("pckSha256", "");
-		if (
-			markerBranch.equalsIgnoreCase(selectedBranch)
-				&& !markerPckSha256.trim().isEmpty()
-				&& markerIsFreshForFile(marker, selectedPck)
-		) {
-			Log.i(TAG, "Using current runtime slot marker PCK hash for startup readiness.");
-			return markerPckSha256;
-		}
-
-		Log.i(TAG, "Current runtime slot marker PCK hash is unavailable or stale; hashing selected PCK for startup readiness.");
-		return sha256Hex(selectedPck);
-	}
-
-	private File activeAndroidAssemblyFile() {
-		return new File(
-			new File(getFilesDir(), ".godot/mono/publish/" + getRuntimeGodotArchDir()),
-			RUNTIME_PACK_ANDROID_ASSEMBLY
-		);
-	}
-
 	private boolean isBranchMarkerReady(String branch) {
-		File marker = new File(gameDir, BRANCH_MARKER_FILE);
+		File marker = new File(gameDir, LauncherArtifactLayout.BRANCH_MARKER_FILE);
 		if (!marker.exists() || !marker.isFile()) {
 			return "public".equalsIgnoreCase(branch);
 		}
@@ -926,7 +901,7 @@ public class GodotApp extends GodotActivity {
 		File pckFile = new File(gameDir, PCK_FILE);
 		String selectedBranch = readSelectedBranch();
 		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
-		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
+		File branchMarker = new File(gameDir, LauncherArtifactLayout.BRANCH_MARKER_FILE);
 		Log.i(TAG, "Selected Steam branch for startup: " + selectedBranch);
 		Log.i(TAG, "Selected Steam branch note for startup: " + SteamBranchInfo.selectorHelpText(selectedBranch));
 		Log.i(TAG, "Selected game version slot kind for startup: " + SteamBranchInfo.installSlotKind(selectedBranch));
@@ -971,7 +946,6 @@ public class GodotApp extends GodotActivity {
 				safeLaunch,
 				readInternalTextFile(GRAPHICS_DEVICE_FILE)
 			);
-			patchGamePckForAndroid(pckFile);
 			rendererPlan.appendCommandLine(commands);
 			recordRendererAttempt(rendererPlan, safeLaunch);
 			Log.i(TAG, "Android renderer policy: " + rendererPlan.description());
@@ -1006,46 +980,6 @@ public class GodotApp extends GodotActivity {
 			Log.i(TAG, "Launcher bootstrap mode: " + enabled);
 		} catch (Exception e) {
 			Log.w(TAG, "Failed to set launcher bootstrap mode", e);
-		}
-	}
-
-	private boolean pckMatchesRuntimeSource(File selectedPck, String expectedSourcePckSha256, String selectedPckSha256) {
-		if (expectedSourcePckSha256 == null || expectedSourcePckSha256.trim().isEmpty()) {
-			return false;
-		}
-		if (selectedPckSha256 != null && expectedSourcePckSha256.equalsIgnoreCase(selectedPckSha256)) {
-			return true;
-		}
-		if (selectedPck == null || !selectedPck.exists() || !selectedPck.isFile()) {
-			return false;
-		}
-		File marker = new File(selectedPck.getParentFile(), PCK_ANDROID_PATCH_MARKER);
-		if (!marker.exists() || !marker.isFile() || marker.lastModified() < selectedPck.lastModified()) {
-			return false;
-		}
-
-		String markerSource = readPckPatchMarkerHash(marker, "sourcePckSha256");
-		if (!markerSource.trim().isEmpty()) {
-			boolean matched = expectedSourcePckSha256.equalsIgnoreCase(markerSource);
-			if (!matched) {
-				Log.w(TAG, "Android PCK patch marker source hash mismatch: expected=" + expectedSourcePckSha256 + " marker=" + markerSource);
-			}
-			return matched;
-		}
-
-		Log.i(TAG, "Accepting legacy Android-patched PCK marker for runtime source hash " + expectedSourcePckSha256);
-		return true;
-	}
-
-	private String readPckPatchMarkerHash(File marker, String name) {
-		try {
-			if (marker == null || !marker.exists() || !marker.isFile() || marker.length() <= 0) {
-				return "";
-			}
-			JSONObject json = new JSONObject(readSmallTextFile(marker, 16 * 1024));
-			return json.optString(name, "").trim();
-		} catch (Exception e) {
-			return "";
 		}
 	}
 
@@ -1181,218 +1115,6 @@ public class GodotApp extends GodotActivity {
 		prefs.edit().remove(KEY_SAFE_LAUNCH_ON_NEXT_START).apply();
 		Log.i(TAG, "Consuming one-shot safe launch request");
 		return true;
-	}
-
-	private void patchGamePckForAndroid(File pckFile) {
-		File marker = new File(gameDir, PCK_ANDROID_PATCH_MARKER);
-		if (marker.exists() && marker.lastModified() >= pckFile.lastModified()) {
-			return;
-		}
-
-		String prePatchPckSha256 = pckFile.exists() && pckFile.isFile() ? sha256Hex(pckFile) : "";
-		String sourcePckSha256 = resolveAndroidPckPatchSourceSha256(pckFile, prePatchPckSha256);
-		JSONArray fmodBankEntries = new JSONArray();
-		boolean diagnosticsEnabled = isPckDiagnosticsDumpEnabled();
-		try (RandomAccessFile raf = new RandomAccessFile(pckFile, "rw")) {
-			long magic = readUInt32LE(raf);
-			if (magic != 0x43504447L) {
-				return;
-			}
-
-			readUInt32LE(raf); // format version
-			readUInt32LE(raf); // major
-			readUInt32LE(raf); // minor
-			readUInt32LE(raf); // patch
-			long flags = readUInt32LE(raf);
-			long fileBase = readLongLE(raf);
-			long dirBase = readLongLE(raf);
-			raf.seek(raf.getFilePointer() + 16L * 4L);
-
-			boolean relativeOffsets = (flags & 0x02L) != 0;
-			raf.seek(dirBase);
-			long fileCount = readUInt32LE(raf);
-			boolean patched = false;
-
-			for (long i = 0; i < fileCount; i++) {
-				long pathLen = readUInt32LE(raf);
-				if (pathLen <= 0 || pathLen > 8192) {
-					Log.w(TAG, "PCK startup patch skipped: invalid path length " + pathLen);
-					return;
-				}
-
-				byte[] pathBytes = new byte[(int)pathLen];
-				raf.readFully(pathBytes);
-				String path = new String(pathBytes, "UTF-8").replace("\u0000", "");
-				long offset = readLongLE(raf);
-				long size = readLongLE(raf);
-				byte[] md5 = new byte[16];
-				raf.readFully(md5);
-				readUInt32LE(raf); // entry flags
-
-				long absOffset = relativeOffsets ? fileBase + offset : offset;
-				if (isFmodBankPath(path)) {
-					JSONObject bankEntry = new JSONObject();
-					bankEntry.put("path", path);
-					bankEntry.put("bytes", size);
-					bankEntry.put("md5", bytesToHex(md5));
-					if (diagnosticsEnabled && !isX86Runtime()) {
-						extractFmodBankForAndroid(path, raf, absOffset, size, bankEntry);
-					}
-					fmodBankEntries.put(bankEntry);
-					if (diagnosticsEnabled) {
-						Log.i(TAG, "PCK FMOD bank entry present: " + path + " bytes=" + size + " md5=" + bytesToHex(md5));
-					}
-				}
-				dumpPckEntryForDiagnostics(path, raf, absOffset, size);
-				if (isPckPath(path, "project.binary")) {
-					patched |= patchPckBinaryProjectEntry(raf, absOffset, size);
-				} else if (isPckPath(path, "project.godot")) {
-					patched |= patchPckTextEntry(raf, absOffset, size, new String[] {
-						"SentryInit=\"*res://addons/sentry/SentryInit.gd\"",
-						"FmodManager=\"*res://addons/fmod/FmodManager.gd\""
-					});
-				} else if (isPckPath(path, ".godot/extension_list.cfg")) {
-					patched |= patchPckTextEntryReplacements(raf, absOffset, size, new String[][] {
-						{ spacesFor("res://addons/fmod/fmod.gdextension"), "res://addons/fmod/fmod.gdextension" }
-					});
-					if (isX86Runtime()) {
-						patched |= patchPckTextEntry(raf, absOffset, size, new String[] {
-							"res://addons/sentry/sentry.gdextension",
-							"res://addons/spine/spine_godot_extension.gdextension"
-						});
-					} else {
-						patched |= patchPckTextEntry(raf, absOffset, size, new String[] {
-							"res://addons/sentry/sentry.gdextension"
-						});
-					}
-				} else if (isPckPath(path, "scenes/game.tscn")) {
-					String[] fmodSceneEntries = new String[] {
-						"[ext_resource type=\"Script\" uid=\"uid://c6blhu0io0iwp\" path=\"res://src/gdscript/audio_manager_proxy.gd\" id=\"3_xfu11\"]",
-						"[node name=\"FmodBankLoader\" type=\"FmodBankLoader\" parent=\".\"]",
-						FMOD_DESKTOP_BANK_PATHS,
-						"script = ExtResource(\"3_xfu11\")",
-						"[node name=\"FmodListener2D\" type=\"FmodListener2D\" parent=\"AudioManager\"]"
-					};
-					if (isX86Runtime()) {
-						patched |= patchPckTextEntry(raf, absOffset, size, fmodSceneEntries);
-					} else {
-						patched |= patchPckTextEntryRestorations(raf, absOffset, size, fmodSceneEntries);
-						patched |= patchPckTextEntryReplacements(raf, absOffset, size, new String[][] {
-							{
-								padPckReplacement(FMOD_DESKTOP_BANK_PATHS, FMOD_USER_BANK_PATHS),
-								FMOD_DESKTOP_BANK_PATHS
-							},
-							{
-								padPckReplacement(FMOD_DESKTOP_BANK_PATHS, FMOD_SDCARD_BANK_PATHS),
-								FMOD_DESKTOP_BANK_PATHS
-							}
-						});
-					}
-				}
-			}
-
-			if (patched) {
-				Log.i(TAG, "Patched game PCK startup data for Android");
-			}
-		} catch (Exception e) {
-			Log.w(TAG, "PCK startup patch failed", e);
-		}
-
-		try {
-			String androidPckSha256 = pckFile.exists() && pckFile.isFile() ? sha256Hex(pckFile) : "";
-			JSONObject json = new JSONObject();
-			json.put("markerVersion", 1);
-			json.put("sourcePckSha256", sourcePckSha256);
-			json.put("androidPckSha256", androidPckSha256);
-			json.put("pckBytes", pckFile.exists() ? pckFile.length() : -1);
-			json.put("fmodBankEntries", fmodBankEntries);
-			json.put("utcMillis", System.currentTimeMillis());
-			try (OutputStream out = new FileOutputStream(marker, false)) {
-				out.write(json.toString(2).getBytes(StandardCharsets.UTF_8));
-			}
-			marker.setLastModified(System.currentTimeMillis());
-		} catch (Exception e) {
-			Log.w(TAG, "Failed to write PCK Android patch marker", e);
-		}
-	}
-
-	private String resolveAndroidPckPatchSourceSha256(File pckFile, String currentPckSha256) {
-		if (pckFile == null || pckFile.getParentFile() == null || currentPckSha256 == null || currentPckSha256.trim().isEmpty()) {
-			return currentPckSha256 == null ? "" : currentPckSha256;
-		}
-
-		String resolved = currentPckSha256.trim();
-		HashSet<String> seen = new HashSet<String>();
-		boolean changed = true;
-		while (changed && seen.add(resolved.toLowerCase(java.util.Locale.ROOT))) {
-			changed = false;
-			File[] markers = pckFile.getParentFile().listFiles((dir, name) -> name.startsWith(".android_pck_patch_v"));
-			if (markers == null) {
-				break;
-			}
-			PckPatchMarkerCandidate candidate = findBestPckPatchMarkerCandidate(markers, resolved);
-			if (candidate != null && !candidate.sourcePckSha256.equalsIgnoreCase(resolved)) {
-				resolved = candidate.sourcePckSha256;
-				changed = true;
-			}
-		}
-
-		if (!resolved.equalsIgnoreCase(currentPckSha256)) {
-			Log.i(TAG, "Resolved Android PCK patch source hash through prior markers: current=" + currentPckSha256 + " source=" + resolved);
-		}
-		return resolved;
-	}
-
-	private PckPatchMarkerCandidate findBestPckPatchMarkerCandidate(File[] markers, String androidPckSha256) {
-		PckPatchMarkerCandidate best = null;
-		for (File marker : markers) {
-			String markerAndroid = readPckPatchMarkerHash(marker, "androidPckSha256").trim();
-			String markerSource = readPckPatchMarkerHash(marker, "sourcePckSha256").trim();
-			if (markerAndroid.isEmpty()
-				|| markerSource.isEmpty()
-				|| !markerAndroid.equalsIgnoreCase(androidPckSha256)) {
-				continue;
-			}
-
-			PckPatchMarkerCandidate candidate = new PckPatchMarkerCandidate(markerSource, parsePckPatchMarkerVersion(marker));
-			if (candidate.sourcePckSha256.equalsIgnoreCase(androidPckSha256)) {
-				return candidate;
-			}
-
-			if (best == null || candidate.version > best.version) {
-				best = candidate;
-			}
-		}
-
-		return best;
-	}
-
-	private int parsePckPatchMarkerVersion(File marker) {
-		if (marker == null) {
-			return -1;
-		}
-
-		String name = marker.getName();
-		int index = name.lastIndexOf("_v");
-		if (index < 0 || index + 2 >= name.length()) {
-			return -1;
-		}
-
-		try {
-			return Integer.parseInt(name.substring(index + 2));
-		} catch (Exception ignored) {
-			return -1;
-		}
-	}
-
-	private static final class PckPatchMarkerCandidate {
-		final String sourcePckSha256;
-		final int version;
-
-		PckPatchMarkerCandidate(String sourcePckSha256, int version) {
-			this.sourcePckSha256 = sourcePckSha256;
-			this.version = version;
-		}
 	}
 
 	private void extractFmodBankForAndroid(String path, RandomAccessFile raf, long offset, long size, JSONObject bankEntry) {
@@ -1993,6 +1715,100 @@ public class GodotApp extends GodotActivity {
         }
         restartApp();
     }
+
+	public String prepareRuntimePackForLaunch(
+		String expectedBranch,
+		String expectedGameIdentityId,
+		String expectedRuntimePackId
+	) {
+		String selectedBranch = readSelectedBranch();
+		if (
+			expectedBranch == null
+				|| !selectedBranch.trim().equalsIgnoreCase(expectedBranch.trim())
+		) {
+			return "Selected Steam branch changed before active assembly-cache preparation: expected="
+				+ expectedBranch + "; actual=" + selectedBranch + ".";
+		}
+		if (
+			expectedGameIdentityId == null
+				|| expectedGameIdentityId.trim().isEmpty()
+				|| expectedRuntimePackId == null
+				|| expectedRuntimePackId.trim().isEmpty()
+		) {
+			return "Active assembly-cache preparation requires exact game and runtime-pack identities.";
+		}
+
+		File runtimePackDirectory = LauncherArtifactLayout.runtimePackDirectory(
+			getFilesDir(),
+			selectedBranch
+		);
+		String identityProblem = runtimePackIdentityProblem(
+			runtimePackDirectory,
+			expectedGameIdentityId,
+			expectedRuntimePackId
+		);
+		if (!identityProblem.isEmpty()) {
+			return identityProblem;
+		}
+
+		AndroidAssemblyBootstrapper bootstrapper =
+			new AndroidAssemblyBootstrapper(
+				this,
+				resolveGameDir(),
+				selectedBranch,
+				true,
+				this::recordStartupPhase
+			);
+		AndroidAssemblyBootstrapper.Result result = bootstrapper.prepare();
+		if (!result.isSuccess()) {
+			return result.message() + "\n\n" + result.diagnostics();
+		}
+
+		String finalBranch = readSelectedBranch();
+		if (!finalBranch.trim().equalsIgnoreCase(expectedBranch.trim())) {
+			return "Selected Steam branch changed while the active assembly cache was prepared.";
+		}
+		return runtimePackIdentityProblem(
+			runtimePackDirectory,
+			expectedGameIdentityId,
+			expectedRuntimePackId
+		);
+	}
+
+	private String runtimePackIdentityProblem(
+		File runtimePackDirectory,
+		String expectedGameIdentityId,
+		String expectedRuntimePackId
+	) {
+		try {
+			File manifestFile = new File(
+				runtimePackDirectory,
+				LauncherArtifactLayout.RUNTIME_PACK_COMPATIBILITY_MANIFEST
+			);
+			if (!manifestFile.isFile()) {
+				return "Validated runtime-pack manifest is missing before active assembly-cache preparation: "
+					+ manifestFile.getAbsolutePath() + ".";
+			}
+			JSONObject manifest = new JSONObject(
+				readSmallTextFile(manifestFile, 64 * 1024)
+			);
+			String gameIdentityId = manifest.optString("gameIdentityId", "");
+			String runtimePackId = manifest.optString("packId", "");
+			if (
+				!expectedGameIdentityId.equals(gameIdentityId)
+					|| !expectedRuntimePackId.equals(runtimePackId)
+			) {
+				return "Runtime pack changed before active assembly-cache preparation: expectedGameIdentity="
+					+ expectedGameIdentityId + "; actualGameIdentity=" + gameIdentityId
+					+ "; expectedPack=" + expectedRuntimePackId
+					+ "; actualPack=" + runtimePackId + ".";
+			}
+			return "";
+		} catch (Exception error) {
+			return "Runtime-pack identity could not be reconfirmed for active assembly-cache preparation: "
+				+ error.getMessage();
+		}
+	}
 
 	public void restartApp() {
 		Log.i(TAG, "Restarting app...");
@@ -3634,6 +3450,26 @@ public class GodotApp extends GodotActivity {
 		} catch (Exception e) {
 			Log.w(TAG, "Failed to compute game PCK SHA-256: " + file.getAbsolutePath(), e);
 			return "<unavailable:" + e.getClass().getSimpleName() + ">";
+		}
+	}
+
+	private static String canonicalGameIdentityId(
+		String branch,
+		String installGeneration,
+		String pckSha256,
+		String sourceAssemblySha256
+	) {
+		try {
+			String canonical = "game-identity-v1\n"
+				+ "branch=" + branch.trim().toLowerCase(java.util.Locale.ROOT) + "\n"
+				+ "installGeneration=" + installGeneration.toLowerCase(java.util.Locale.ROOT) + "\n"
+				+ "pckSha256=" + pckSha256.toLowerCase(java.util.Locale.ROOT) + "\n"
+				+ "sourceAssemblySha256=" + sourceAssemblySha256.toLowerCase(java.util.Locale.ROOT);
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			return bytesToHex(digest.digest(canonical.getBytes(StandardCharsets.UTF_8)));
+		} catch (Exception error) {
+			Log.w(TAG, "Failed to calculate current game identity", error);
+			return "";
 		}
 	}
 

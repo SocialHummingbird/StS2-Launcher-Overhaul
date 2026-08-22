@@ -12,6 +12,8 @@ internal sealed partial class RuntimePackManifest
         => new RuntimePackManifest(
             context.ManifestPath,
             context.ExpectedBranch,
+            context.ExpectedGameIdentity,
+            string.Empty,
             string.Empty,
             string.Empty,
             string.Empty,

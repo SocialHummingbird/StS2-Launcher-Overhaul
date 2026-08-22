@@ -7,6 +7,7 @@ internal sealed partial class DepotDownloader
 {
     private void DeleteObsoleteFiles(IEnumerable<string> fileNames)
     {
+        RequireUpdatingBeforeInstalledMutation();
         foreach (var fileName in fileNames)
         {
             string path;

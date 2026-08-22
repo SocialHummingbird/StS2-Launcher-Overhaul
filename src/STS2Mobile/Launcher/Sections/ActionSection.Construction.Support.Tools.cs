@@ -55,19 +55,4 @@ internal sealed partial class ActionSection
                 () => RedownloadPressed?.Invoke()
             );
 
-    private Button BuildClearCachedVersionsSupportButton(float scale, bool compact, Container supportToolsParent)
-        => compact
-            ? AddCompactSupportToolButton(
-                supportToolsParent,
-                "Remove old versions...",
-                scale,
-                () => ClearCachedVersionsPressed?.Invoke()
-            )
-            : AddSecondaryHiddenButton(
-                supportToolsParent,
-                "Remove old versions...",
-                scale,
-                () => ClearCachedVersionsPressed?.Invoke()
-            );
-
 }

@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using STS2Mobile.Launcher;
 using SteamKit2.CDN;
 
 namespace STS2Mobile.Steam;
@@ -18,6 +21,7 @@ internal sealed partial class DepotDownloader : IDisposable
     private const long AndroidMinimumFreeSpaceBytes = 256L * 1024L * 1024L;
     private const long MaxDepotChunkBytes = 64L * 1024L * 1024L;
     private const long MaxDepotFileBytes = 32L * 1024L * 1024L * 1024L;
+    private const string AndroidPckPreparationVersion = "android-pck-v1";
 
     private readonly SteamConnection _connection;
     private readonly string _dataDir;
@@ -25,6 +29,7 @@ internal sealed partial class DepotDownloader : IDisposable
     private readonly string _gameDir;
     private readonly DownloadStateStore _stateStore;
     private readonly Client _cdnClient;
+    private BranchInstallUpdate _installUpdate;
 
     internal DepotDownloader(SteamConnection connection, string dataDir, string branch = SteamGameBranch.Public)
     {
@@ -36,13 +41,11 @@ internal sealed partial class DepotDownloader : IDisposable
         _cdnClient = connection.CreateCdnClient();
     }
 
-    internal Task DownloadAsync(CancellationToken ct = default)
+    internal Task<BranchInstallCompletion> DownloadAsync(CancellationToken ct = default)
         => RunWithSuspendedIdleTimeoutAsync(() => DownloadCoreAsync(ct));
 
-    private async Task DownloadCoreAsync(CancellationToken ct)
+    private async Task<BranchInstallCompletion> DownloadCoreAsync(CancellationToken ct)
     {
-        Directory.CreateDirectory(_gameDir);
-
         Log(
             $"Downloader mode: android={OperatingSystem.IsAndroid()}, "
                 + $"maxConcurrency={MaxConcurrentDownloads}, "
@@ -51,20 +54,62 @@ internal sealed partial class DepotDownloader : IDisposable
         Log("Fetching app info...");
 
         var depots = await PrepareAndGetMainAppDepotsAsync(requireAny: true);
+        using var installUpdate = BranchInstallUpdate.StartOrResume(
+            _dataDir,
+            _branch,
+            depots
+                .Select(depot => new BranchInstallDepot(
+                    depot.DepotId,
+                    depot.ManifestId,
+                    depot.ManifestSource
+                ))
+                .ToArray()
+        );
+        _installUpdate = installUpdate;
 
-        _servers = await LoadCdnServersAsync(ct);
-
-        foreach (var depot in depots)
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            await DownloadDepotAsync(depot, ct);
+            installUpdate.RequireUpdatingBeforeInstalledMutation();
+            Directory.CreateDirectory(_gameDir);
+            installUpdate.UpdatePhase("loading-cdn-servers");
+            _servers = await LoadCdnServersAsync(ct);
+
+            installUpdate.UpdatePhase("downloading");
+            foreach (var depot in depots)
+            {
+                ct.ThrowIfCancellationRequested();
+                await DownloadDepotAsync(depot, ct);
+            }
+
+            Log("All game files downloaded!");
+
+            installUpdate.UpdatePhase("preparing-android-pck");
+            // Remove Android-incompatible startup references while keeping the FMOD extension registered for script types.
+            PatchGamePck(Path.Combine(_gameDir, "SlayTheSpire2.pck"));
+
+            installUpdate.UpdatePhase("publishing-completed-steam-generation");
+            WriteBranchMarker(depots);
+
+            var completion = installUpdate.CompleteInstalledFiles(
+                AndroidPckPreparationVersion
+            );
+            Log(
+                $"Published ready installation state for '{_branch}' identity={completion.GameIdentity.Id} transaction={completion.TransactionId:D}"
+            );
+            return completion;
         }
-
-        Log("All game files downloaded!");
-
-        // Remove Android-incompatible startup references while keeping the FMOD extension registered for script types.
-        PatchGamePck(Path.Combine(_gameDir, "SlayTheSpire2.pck"));
-        WriteBranchMarker(depots);
+        catch (Exception ex)
+        {
+            installUpdate.RecordFailure(
+                ex is OperationCanceledException ? "cancelled" : "failed",
+                ex
+            );
+            throw;
+        }
+        finally
+        {
+            _installUpdate = null;
+        }
     }
 
     private void WriteBranchMarker(IReadOnlyList<DepotManifestReference> depots)
@@ -129,7 +174,11 @@ internal sealed partial class DepotDownloader : IDisposable
             text += $"Depot manifest: depot={depot.DepotId} manifest={depot.ManifestId} branch={depot.Branch} selectedBranchManifest={selectedBranchManifest} publicManifest={publicManifest} manifestSource={depot.ManifestSource} manifestRequestBranch={depot.ManifestRequestBranch} selectedMatchesPublic={selectedMatchesPublic} effectiveMatchesPublic={effectiveMatchesPublic}\n";
         }
 
-        File.WriteAllText(markerPath, text);
+        RequireUpdatingBeforeInstalledMutation();
+        new AtomicFileWriter().WriteAllBytes(
+            markerPath,
+            Encoding.UTF8.GetBytes(text)
+        );
         Log($"Wrote Steam branch marker: {markerPath}");
     }
 

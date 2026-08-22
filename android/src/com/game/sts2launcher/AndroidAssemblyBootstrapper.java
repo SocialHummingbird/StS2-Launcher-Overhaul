@@ -35,16 +35,9 @@ final class AndroidAssemblyBootstrapper {
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
 	private static final String KEY_ASSEMBLY_CACHE_BRANCH = "assembly_cache_branch";
 	private static final String KEY_ASSEMBLY_CACHE_RUNTIME_ID = "assembly_cache_runtime_id";
-	private static final int ASSEMBLY_CACHE_SCHEMA = 25;
+	private static final int ASSEMBLY_CACHE_SCHEMA = 26;
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
-	private static final String PCK_ANDROID_PATCH_MARKER = ".android_pck_patch_v35";
-	private static final String BRANCH_MARKER_FILE = "steam_branch.txt";
-	private static final String RUNTIME_PACKS_DIRECTORY = "runtime_packs";
 	private static final String RUNTIME_PACK_ANDROID_ASSEMBLY = "sts2.dll";
-	private static final String RUNTIME_PACK_COMPATIBILITY_MANIFEST = "compatibility.json";
-	private static final String RUNTIME_PACK_PATCH_VALIDATION_REPORT = "patch_validation.json";
-	private static final String CURRENT_RUNTIME_SLOT_MARKER = "current_runtime_slot.json";
-	private static final String CURRENT_RUNTIME_CACHE_MARKER = "current_runtime_cache.txt";
 	private static final String CACHE_STAGING_SUFFIX = ".staging";
 	private static final String CACHE_BACKUP_SUFFIX = ".backup";
 	private static final long STAGING_STORAGE_RESERVE_BYTES = 64L * 1024L;
@@ -193,8 +186,6 @@ final class AndroidAssemblyBootstrapper {
 	private final Environment environment;
 	private final boolean pendingGameLaunch;
 	private final Timeline timeline;
-	private File cachedRuntimePackDirectory;
-	private String cachedRuntimePackValidationKey = "";
 
 	AndroidAssemblyBootstrapper(
 		Context context,
@@ -218,6 +209,55 @@ final class AndroidAssemblyBootstrapper {
 		this.environment = environment;
 		this.pendingGameLaunch = pendingGameLaunch;
 		this.timeline = timeline == null ? (phase, detail) -> { } : timeline;
+	}
+
+	/**
+	 * Removes only the cache metadata owned by the recovered branch. The active
+	 * cache directory is intentionally preserved until a later validated staged
+	 * replacement succeeds.
+	 */
+	static boolean clearRecoveredBranchCacheEvidence(
+		Context context,
+		String recoveredBranch
+	) {
+		SharedPreferences preferences = context.getSharedPreferences(
+			PREFS_NAME,
+			Context.MODE_PRIVATE
+		);
+		String storedBranch;
+		try {
+			storedBranch = preferences.getString(KEY_ASSEMBLY_CACHE_BRANCH, "");
+		} catch (ClassCastException corruptEvidence) {
+			return preferences.edit()
+				.remove(KEY_ASSEMBLY_CACHE_BRANCH)
+				.remove(KEY_ASSEMBLY_CACHE_RUNTIME_ID)
+				.commit();
+		}
+		if (!cacheEvidenceMustBeCleared(storedBranch, recoveredBranch)) {
+			return true;
+		}
+		return preferences.edit()
+			.remove(KEY_ASSEMBLY_CACHE_BRANCH)
+			.remove(KEY_ASSEMBLY_CACHE_RUNTIME_ID)
+			.commit();
+	}
+
+	static boolean cacheEvidenceMustBeCleared(
+		String storedBranch,
+		String recoveredBranch
+	) {
+		if (storedBranch == null || storedBranch.trim().isEmpty()) {
+			return false;
+		}
+		String trimmed = storedBranch.trim();
+		for (int index = 0; index < trimmed.length(); index++) {
+			if (Character.isISOControl(trimmed.charAt(index))) {
+				return true;
+			}
+		}
+		return SteamBranchInfo.storageIdentity(trimmed).equals(
+			SteamBranchInfo.storageIdentity(recoveredBranch)
+		);
 	}
 
 	void logStartupFreshnessProbe() {
@@ -251,7 +291,6 @@ final class AndroidAssemblyBootstrapper {
 	}
 
 	Result prepare() {
-		RuntimeException firstFailure;
 		try {
 			timeline.record(
 				"native assembly setup",
@@ -264,46 +303,17 @@ final class AndroidAssemblyBootstrapper {
 			);
 			return Result.success();
 		} catch (RuntimeException error) {
-			firstFailure = error;
 			timeline.record("native assembly setup failed", error.getMessage());
 			environment.error(
-				"Assembly setup failed, discarding staging and retrying once",
+				"Assembly setup failed; discarding only incomplete staging",
 				error
 			);
-		}
-
-		discardFailedStaging();
-		try {
-			timeline.record(
-				"native assembly setup retry",
-				"Failed staging discarded"
-			);
-			prepareOnce();
-			timeline.record(
-				"native assembly setup retry complete",
-				"Assembly cache prepared after reset"
-			);
-			return Result.success();
-		} catch (RuntimeException secondFailure) {
-			timeline.record(
-				"native assembly setup fatal",
-				secondFailure.getMessage()
-			);
-			environment.error(
-				"Assembly setup failed after recovery",
-				secondFailure
-			);
 			discardFailedStaging();
-			return Result.failure(
-				buildFailureDiagnostics(firstFailure, secondFailure)
-			);
+			return Result.failure(buildFailureDiagnostics(error));
 		}
 	}
 
-	private String buildFailureDiagnostics(
-		RuntimeException firstFailure,
-		RuntimeException secondFailure
-	) {
+	private String buildFailureDiagnostics(RuntimeException firstFailure) {
 		File destination = publishDirectory();
 		File source = findAssembliesDirectory();
 		File runtimePackCandidate = runtimePackCandidateDirectory();
@@ -311,10 +321,7 @@ final class AndroidAssemblyBootstrapper {
 		CacheState cacheState = environment.readCacheState();
 		PreparationFailure originalContext =
 			findPreparationFailure(firstFailure);
-		PreparationFailure retryContext =
-			findPreparationFailure(secondFailure);
 		Throwable originalCause = rootCause(firstFailure);
-		Throwable retryCause = rootCause(secondFailure);
 		StringBuilder diagnostics = new StringBuilder();
 		diagnostics.append("Android assembly bootstrap failure\n");
 		diagnostics.append("Package: ").append(environment.packageName()).append('\n');
@@ -347,7 +354,7 @@ final class AndroidAssemblyBootstrapper {
 
 		diagnostics.append("\nRuntime-pack state\n");
 		diagnostics.append("Runtime pack required: ")
-			.append(selectedBranchRequiresRuntimePack())
+			.append(true)
 			.append('\n');
 		diagnostics.append("Runtime pack candidate: ")
 			.append(runtimePackCandidate.getAbsolutePath())
@@ -358,12 +365,12 @@ final class AndroidAssemblyBootstrapper {
 		appendFileDiagnostic(
 			diagnostics,
 			"Runtime pack compatibility manifest",
-			new File(runtimePackCandidate, RUNTIME_PACK_COMPATIBILITY_MANIFEST)
+			new File(runtimePackCandidate, LauncherArtifactLayout.RUNTIME_PACK_COMPATIBILITY_MANIFEST)
 		);
 		appendFileDiagnostic(
 			diagnostics,
 			"Runtime pack validation report",
-			new File(runtimePackCandidate, RUNTIME_PACK_PATCH_VALIDATION_REPORT)
+			new File(runtimePackCandidate, LauncherArtifactLayout.RUNTIME_PACK_VALIDATION_REPORT)
 		);
 		appendFileDiagnostic(
 			diagnostics,
@@ -410,12 +417,9 @@ final class AndroidAssemblyBootstrapper {
 			originalContext,
 			originalCause
 		);
-		appendFailureDiagnostic(
-			diagnostics,
-			"Retry",
-			secondFailure,
-			retryContext,
-			retryCause
+		diagnostics.append("Retry result: skipped\n");
+		diagnostics.append(
+			"Retry reason: clearing staging cannot repair selected files or derived runtime-pack identity; use selected-branch recovery\n"
 		);
 		return diagnostics.toString();
 	}
@@ -559,30 +563,14 @@ final class AndroidAssemblyBootstrapper {
 			runtimePackGameAssembly != null
 				&& runtimePackGameAssembly.exists()
 				&& runtimePackGameAssembly.isFile();
-		boolean selectedBranchRequiresRuntimePack =
-			gameReady && selectedBranchRequiresRuntimePack();
-		boolean runtimePackCandidatePresent =
-			hasRuntimePackCandidateEvidence();
-		boolean launchRequiresUsableRuntimePack =
-			gameReady
-				&& (
-					selectedBranchRequiresRuntimePack
-						|| runtimePackCandidatePresent
-				);
+		boolean launchRequiresUsableRuntimePack = gameReady;
 		boolean requiresGameAssemblies =
 			gameReady
 				&& pendingGameLaunch
-				&& (
-					hasGameAssemblies(sourceDirectory)
-						|| hasRuntimePackGameAssembly
-				)
-				&& (
-					!launchRequiresUsableRuntimePack
-						|| hasRuntimePackGameAssembly
-				);
+				&& hasRuntimePackGameAssembly;
 		Set<String> packagedBclNames = getPackagedBclNames();
 		String runtimeId = pendingGameLaunch
-			? currentRuntimeCacheId()
+			? currentRuntimeCacheId(runtimePackDirectory)
 			: bootstrapRuntimeCacheId();
 
 		boolean bootstrapHasGameCode =
@@ -598,6 +586,7 @@ final class AndroidAssemblyBootstrapper {
 			sourceDirectory,
 			requiresGameAssemblies,
 			packagedBclNames,
+			runtimePackDirectory,
 			runtimeId
 		);
 		environment.info(
@@ -628,6 +617,7 @@ final class AndroidAssemblyBootstrapper {
 				sourceDirectory,
 				requiresGameAssemblies,
 				packagedBclNames,
+				runtimePackDirectory,
 				runtimeId
 			);
 			throw preparationFailure(
@@ -674,12 +664,14 @@ final class AndroidAssemblyBootstrapper {
 				sourceDirectory,
 				requiresGameAssemblies,
 				packagedBclNames,
+				runtimePackDirectory,
 				runtimeId
 			);
 			markAssemblyCacheStateAsCurrent(
 				currentVersion,
 				runtimeId,
-				pendingGameLaunch
+				pendingGameLaunch,
+				runtimePackDirectory
 			);
 			discardObsoleteBackup();
 			return;
@@ -695,8 +687,7 @@ final class AndroidAssemblyBootstrapper {
 			packagedBclNames,
 			sourceDirectory,
 			runtimePackDirectory,
-			hasRuntimePackGameAssembly,
-			selectedBranchRequiresRuntimePack
+			hasRuntimePackGameAssembly
 		);
 		File staging = prepareStagingDirectory();
 		if (!staging.mkdirs() && !staging.isDirectory()) {
@@ -715,8 +706,7 @@ final class AndroidAssemblyBootstrapper {
 			staging,
 			packagedBclNames,
 			runtimePackDirectory,
-			hasRuntimePackGameAssembly,
-			selectedBranchRequiresRuntimePack
+			hasRuntimePackGameAssembly
 		);
 		copyRuntimePackAssemblies(
 			runtimePackDirectory,
@@ -732,6 +722,7 @@ final class AndroidAssemblyBootstrapper {
 				sourceDirectory,
 				requiresGameAssemblies,
 				packagedBclNames,
+				runtimePackDirectory,
 				runtimeId
 			);
 			String mode = requiresGameAssemblies ? "game" : "launcher-only";
@@ -751,6 +742,7 @@ final class AndroidAssemblyBootstrapper {
 				sourceDirectory,
 				requiresGameAssemblies,
 				packagedBclNames,
+				runtimePackDirectory,
 				runtimeId
 			);
 			throw preparationFailure(
@@ -778,6 +770,7 @@ final class AndroidAssemblyBootstrapper {
 				sourceDirectory,
 				true,
 				packagedBclNames,
+				runtimePackDirectory,
 				runtimeId
 			);
 			throw preparationFailure(
@@ -795,13 +788,15 @@ final class AndroidAssemblyBootstrapper {
 			sourceDirectory,
 			requiresGameAssemblies,
 			packagedBclNames,
+			runtimePackDirectory,
 			runtimeId
 		);
 		replaceActiveCache(staging, destination);
 		markAssemblyCacheStateAsCurrent(
 			currentVersion,
 			runtimeId,
-			pendingGameLaunch
+			pendingGameLaunch,
+			runtimePackDirectory
 		);
 	}
 
@@ -809,8 +804,7 @@ final class AndroidAssemblyBootstrapper {
 		Set<String> packagedBclNames,
 		File sourceDirectory,
 		File runtimePackDirectory,
-		boolean hasRuntimePackGameAssembly,
-		boolean selectedBranchRequiresRuntimePack
+		boolean hasRuntimePackGameAssembly
 	) {
 		long requiredBytes = STAGING_STORAGE_RESERVE_BYTES;
 		for (String name : packagedBclNames) {
@@ -834,11 +828,7 @@ final class AndroidAssemblyBootstrapper {
 					) {
 						continue;
 					}
-					if (
-						selectedBranchRequiresRuntimePack
-							&& !hasRuntimePackGameAssembly
-							&& isBranchGameCodeAssembly(name)
-					) {
+					if (!hasRuntimePackGameAssembly && isBranchGameCodeAssembly(name)) {
 						continue;
 					}
 					if (shouldCopyGameAssemblyFile(name, packagedBclNames)) {
@@ -946,8 +936,7 @@ final class AndroidAssemblyBootstrapper {
 		File destination,
 		Set<String> packagedBclNames,
 		File runtimePackDirectory,
-		boolean hasRuntimePackGameAssembly,
-		boolean selectedBranchRequiresRuntimePack
+		boolean hasRuntimePackGameAssembly
 	) {
 		if (
 			sourceDirectory == null
@@ -988,11 +977,7 @@ final class AndroidAssemblyBootstrapper {
 			) {
 				continue;
 			}
-			if (
-				selectedBranchRequiresRuntimePack
-					&& !hasRuntimePackGameAssembly
-					&& isBranchGameCodeAssembly(name)
-			) {
+			if (!hasRuntimePackGameAssembly && isBranchGameCodeAssembly(name)) {
 				environment.warn(
 					"Skipping selected-game branch code assembly without usable "
 						+ "runtime pack: " + name
@@ -1130,35 +1115,39 @@ final class AndroidAssemblyBootstrapper {
 	}
 
 	private String currentRuntimeCacheId() {
-		File pck = selectedPck();
-		File sourceDirectory = findAssembliesDirectory();
-		File runtimePackDirectory = findRuntimePackDirectory();
-		File runtimePackAssembly =
-			runtimePackGameAssembly(runtimePackDirectory);
-		boolean requiresRuntimePack = selectedBranchRequiresRuntimePack();
-		File sourceGameAssembly =
-			runtimePackAssembly != null && runtimePackAssembly.exists()
-				? runtimePackAssembly
-				: requiresRuntimePack
-					? null
-					: sourceDirectory == null
-						? null
-						: new File(sourceDirectory, RUNTIME_PACK_ANDROID_ASSEMBLY);
-		String sourceHash =
-			sourceGameAssembly != null && sourceGameAssembly.exists()
-				? sha256Hex(sourceGameAssembly)
-				: "<no-source-sts2>";
-		String runtimeSource =
-			runtimePackAssembly != null && runtimePackAssembly.exists()
-				? "runtime-pack"
-				: requiresRuntimePack
-					? "no-usable-runtime"
-					: "selected-game";
-		return environment.selectedBranch()
-			+ "|pck=" + fileIdentity(pck)
-			+ "|runtimeSource=" + runtimeSource
-			+ "|runtimePack=" + runtimePackIdentity(runtimePackDirectory)
-			+ "|sts2=" + sourceHash;
+		return currentRuntimeCacheId(findRuntimePackDirectory());
+	}
+
+	private String currentRuntimeCacheId(File runtimePackDirectory) {
+		String[] identity = runtimePackCacheIdentity(runtimePackDirectory);
+		return "schema=" + ASSEMBLY_CACHE_SCHEMA
+			+ "|branch=" + environment.selectedBranch().trim().toLowerCase(java.util.Locale.ROOT)
+			+ "|gameIdentityId=" + identity[0]
+			+ "|packId=" + identity[1];
+	}
+
+	private String[] runtimePackCacheIdentity(File runtimePackDirectory) {
+		String[] unavailable = new String[] { "<unavailable>", "<unavailable>" };
+		if (runtimePackDirectory == null || !runtimePackDirectory.isDirectory()) {
+			return unavailable;
+		}
+		try {
+			JSONObject manifest = new JSONObject(
+				readSmallTextFile(
+					new File(runtimePackDirectory, LauncherArtifactLayout.RUNTIME_PACK_COMPATIBILITY_MANIFEST),
+					64 * 1024
+				)
+			);
+			String gameIdentityId = manifest.optString("gameIdentityId", "");
+			String packId = manifest.optString("packId", "");
+			if (gameIdentityId.trim().isEmpty() || packId.trim().isEmpty()) {
+				return unavailable;
+			}
+			return new String[] { gameIdentityId, packId };
+		} catch (Exception error) {
+			environment.warn("Failed to read validated runtime-pack cache identity", error);
+			return unavailable;
+		}
 	}
 
 	private File publishDirectory() {
@@ -1180,29 +1169,10 @@ final class AndroidAssemblyBootstrapper {
 	}
 
 	private File runtimePackCandidateDirectory() {
-		return new File(
-			new File(environment.filesDirectory(), RUNTIME_PACKS_DIRECTORY),
-			SteamBranchInfo.stateDirectoryName(environment.selectedBranch())
+		return LauncherArtifactLayout.runtimePackDirectory(
+			environment.filesDirectory(),
+			environment.selectedBranch()
 		);
-	}
-
-	private boolean hasRuntimePackCandidateEvidence() {
-		File directory = runtimePackCandidateDirectory();
-		if (!directory.isDirectory()) {
-			return false;
-		}
-		return new File(
-			directory,
-			RUNTIME_PACK_COMPATIBILITY_MANIFEST
-		).exists()
-			|| new File(
-				directory,
-				RUNTIME_PACK_PATCH_VALIDATION_REPORT
-			).exists()
-			|| new File(
-				directory,
-				RUNTIME_PACK_ANDROID_ASSEMBLY
-			).exists();
 	}
 
 	private File selectedPck() {
@@ -1248,6 +1218,7 @@ final class AndroidAssemblyBootstrapper {
 		File sourceDirectory,
 		boolean requireGameAssemblies,
 		Set<String> packagedBclNames,
+		File runtimePackDirectory,
 		String runtimeId
 	) {
 		environment.info(
@@ -1287,9 +1258,6 @@ final class AndroidAssemblyBootstrapper {
 				java.util.Arrays.asList(GAME_REQUIRED_ASSEMBLIES)
 			);
 		}
-		File runtimePackDirectory = pendingGameLaunch
-			? findRuntimePackDirectory()
-			: null;
 		Map<String, RuntimePackAssemblyExpectation>
 			runtimePackExpectations =
 				runtimePackAssemblyExpectations(runtimePackDirectory);
@@ -1305,25 +1273,15 @@ final class AndroidAssemblyBootstrapper {
 					name.toLowerCase(java.util.Locale.ROOT)
 				);
 			boolean branchCodeBlocked =
-				selectedBranchRequiresRuntimePack()
-					&& runtimePackExpectation == null
+				runtimePackExpectation == null
 					&& isBranchGameCodeAssembly(name);
-			boolean branchCode =
-				isBranchGameCodeAssembly(name)
-					&& source != null
-					&& source.exists()
-					&& !branchCodeBlocked
-					&& runtimePackExpectation == null;
 			boolean packaged =
 				packagedBclNames != null
-					&& packagedBclNames.contains(name)
-					&& !branchCode;
+					&& packagedBclNames.contains(name);
 			long expectedBytes = runtimePackExpectation != null
 				? runtimePackExpectation.source.length()
 				: branchCodeBlocked
-				? 0
-				: branchCode
-					? source.length()
+					? 0
 					: packaged
 						? packagedAssetLength("dotnet_bcl/" + name)
 						: source != null && source.exists()
@@ -1332,9 +1290,7 @@ final class AndroidAssemblyBootstrapper {
 			String expectedSource = runtimePackExpectation != null
 				? "runtime-pack"
 				: branchCodeBlocked
-				? "no-usable-runtime"
-				: branchCode
-					? "selected-game"
+					? "no-usable-runtime"
 					: packaged
 						? "packaged-bcl"
 						: source != null && source.exists()
@@ -1372,7 +1328,8 @@ final class AndroidAssemblyBootstrapper {
 	private void markAssemblyCacheStateAsCurrent(
 		int currentVersion,
 		String runtimeId,
-		boolean writeRuntimeMarker
+		boolean writeRuntimeMarker,
+		File runtimePackDirectory
 	) {
 		environment.writeCacheState(
 			new CacheState(
@@ -1384,36 +1341,18 @@ final class AndroidAssemblyBootstrapper {
 			)
 		);
 		if (writeRuntimeMarker) {
-			writeRuntimeCacheMarker(currentVersion, runtimeId);
+			writeRuntimeCacheMarker(currentVersion, runtimePackDirectory);
 		}
 	}
 
 	private void writeRuntimeCacheMarker(
 		int currentVersion,
-		String runtimeId
+		File runtimePackDirectory
 	) {
 		try {
-			File pck = selectedPck();
-			File sourceDirectory = findAssembliesDirectory();
-			File runtimePackDirectory = findRuntimePackDirectory();
 			File runtimePackAssembly =
 				runtimePackGameAssembly(runtimePackDirectory);
-			File selectedSourceAssembly = sourceDirectory == null
-				? null
-				: new File(sourceDirectory, RUNTIME_PACK_ANDROID_ASSEMBLY);
-			boolean requiresRuntimePack = selectedBranchRequiresRuntimePack();
-			File activeSourceAssembly =
-				runtimePackAssembly != null && runtimePackAssembly.exists()
-					? runtimePackAssembly
-					: requiresRuntimePack
-						? null
-						: selectedSourceAssembly;
-			String runtimeSource =
-				runtimePackAssembly != null && runtimePackAssembly.exists()
-					? "runtime-pack"
-					: requiresRuntimePack
-						? "no-usable-runtime"
-						: "selected-game";
+			String[] identity = runtimePackCacheIdentity(runtimePackDirectory);
 			File publishDirectory = publishDirectory();
 			String text =
 				"UTC millis: " + environment.currentTimeMillis() + "\n"
@@ -1421,9 +1360,9 @@ final class AndroidAssemblyBootstrapper {
 				+ "Version name: " + environment.versionName() + "\n"
 				+ "Version code: " + currentVersion + "\n"
 				+ "Assembly cache schema: " + ASSEMBLY_CACHE_SCHEMA + "\n"
-				+ "Selected branch: " + environment.selectedBranch() + "\n"
-				+ "Runtime ID: " + runtimeId + "\n"
-				+ "Runtime source: " + runtimeSource + "\n"
+				+ "Active branch: " + environment.selectedBranch() + "\n"
+				+ "Game identity ID: " + identity[0] + "\n"
+				+ "Runtime pack ID: " + identity[1] + "\n"
 				+ "Runtime pack directory: "
 				+ (
 					runtimePackDirectory == null
@@ -1436,38 +1375,11 @@ final class AndroidAssemblyBootstrapper {
 						? "<none>"
 						: runtimePackAssembly.getAbsolutePath()
 				) + "\n"
-				+ "Selected branch requires runtime pack: "
-				+ requiresRuntimePack + "\n"
-				+ "Game directory: "
-				+ environment.gameDirectory().getAbsolutePath() + "\n"
-				+ "Selected PCK path: " + pck.getAbsolutePath() + "\n"
-				+ "Selected PCK identity: " + fileIdentity(pck) + "\n"
-				+ "Selected PCK SHA256: "
-				+ (pck.isFile() ? sha256Hex(pck) : "<missing>") + "\n"
-				+ "Selected source sts2.dll: "
+				+ "Runtime pack sts2.dll SHA256: "
 				+ (
-					selectedSourceAssembly == null
-						? "<none>"
-						: selectedSourceAssembly.getAbsolutePath()
-				) + "\n"
-				+ "Selected source sts2.dll SHA256: "
-				+ (
-					selectedSourceAssembly != null
-						&& selectedSourceAssembly.isFile()
-							? sha256Hex(selectedSourceAssembly)
-							: "<missing>"
-				) + "\n"
-				+ "Active source sts2.dll: "
-				+ (
-					activeSourceAssembly == null
-						? "<none>"
-						: activeSourceAssembly.getAbsolutePath()
-				) + "\n"
-				+ "Active source sts2.dll SHA256: "
-				+ (
-					activeSourceAssembly != null
-						&& activeSourceAssembly.isFile()
-							? sha256Hex(activeSourceAssembly)
+					runtimePackAssembly != null
+						&& runtimePackAssembly.isFile()
+							? sha256Hex(runtimePackAssembly)
 							: "<missing>"
 				) + "\n"
 				+ "Publish cache directory: "
@@ -1480,7 +1392,7 @@ final class AndroidAssemblyBootstrapper {
 					)
 				) + "\n";
 			environment.writeInternalTextFile(
-				CURRENT_RUNTIME_CACHE_MARKER,
+				LauncherArtifactLayout.CURRENT_RUNTIME_CACHE_EVIDENCE,
 				text
 			);
 		} catch (Exception error) {
@@ -1822,70 +1734,6 @@ final class AndroidAssemblyBootstrapper {
 		return false;
 	}
 
-	private boolean selectedBranchRequiresRuntimePack() {
-		return !"public".equalsIgnoreCase(environment.selectedBranch());
-	}
-
-	private String runtimePackIdentity(File runtimePackDirectory) {
-		if (
-			runtimePackDirectory == null
-				|| !runtimePackDirectory.exists()
-				|| !runtimePackDirectory.isDirectory()
-		) {
-			return "<none>";
-		}
-		StringBuilder identity = new StringBuilder(
-			"dir=" + runtimePackDirectory.getName()
-		);
-		appendRuntimePackFileIdentity(
-			identity,
-			new File(
-				runtimePackDirectory,
-				RUNTIME_PACK_COMPATIBILITY_MANIFEST
-			)
-		);
-		appendRuntimePackFileIdentity(
-			identity,
-			new File(
-				runtimePackDirectory,
-				RUNTIME_PACK_PATCH_VALIDATION_REPORT
-			)
-		);
-		File[] files = runtimePackDirectory.listFiles(
-			(directory, name) ->
-				name.toLowerCase(java.util.Locale.ROOT).endsWith(".dll")
-		);
-		if (files != null) {
-			java.util.Arrays.sort(
-				files,
-				(left, right) ->
-					left.getName().compareToIgnoreCase(right.getName())
-			);
-			for (File file : files) {
-				appendRuntimePackFileIdentity(identity, file);
-			}
-		}
-		return identity.toString();
-	}
-
-	private void appendRuntimePackFileIdentity(
-		StringBuilder identity,
-		File file
-	) {
-		identity
-			.append("|")
-			.append(file.getName())
-			.append("=")
-			.append(fileIdentity(file));
-	}
-
-	private String fileIdentity(File file) {
-		if (file == null || !file.exists() || !file.isFile()) {
-			return "<missing>";
-		}
-		return "bytes=" + file.length() + ",mtime=" + file.lastModified();
-	}
-
 	private File findAssembliesDirectory() {
 		if (!isGamePckReady()) {
 			return null;
@@ -1927,37 +1775,14 @@ final class AndroidAssemblyBootstrapper {
 			return null;
 		}
 
-		String validationKey = runtimePackValidationCacheKey(directory);
-		if (
-			cachedRuntimePackDirectory != null
-				&& cachedRuntimePackDirectory.equals(directory)
-				&& validationKey.equals(cachedRuntimePackValidationKey)
-		) {
-			return cachedRuntimePackDirectory;
-		}
 		if (!isRuntimePackManifestUsable(directory)) {
 			environment.warn(
 				"Ignoring runtime pack with incomplete or mismatched manifest: "
 					+ directory.getAbsolutePath()
 			);
-			cachedRuntimePackDirectory = null;
-			cachedRuntimePackValidationKey = "";
 			return null;
 		}
-		cachedRuntimePackDirectory = directory;
-		cachedRuntimePackValidationKey = validationKey;
 		return directory;
-	}
-
-	private String runtimePackValidationCacheKey(File runtimePackDirectory) {
-		File sourceDirectory = findAssembliesDirectory();
-		File selectedSourceAssembly = sourceDirectory == null
-			? null
-			: new File(sourceDirectory, RUNTIME_PACK_ANDROID_ASSEMBLY);
-		return "branch=" + environment.selectedBranch()
-			+ "|pck=" + fileIdentity(selectedPck())
-			+ "|source=" + fileIdentity(selectedSourceAssembly)
-			+ "|runtimePack=" + runtimePackIdentity(runtimePackDirectory);
 	}
 
 	private boolean isRuntimePackManifestUsable(
@@ -1973,11 +1798,11 @@ final class AndroidAssemblyBootstrapper {
 
 		File manifest = new File(
 			runtimePackDirectory,
-			RUNTIME_PACK_COMPATIBILITY_MANIFEST
+			LauncherArtifactLayout.RUNTIME_PACK_COMPATIBILITY_MANIFEST
 		);
 		File report = new File(
 			runtimePackDirectory,
-			RUNTIME_PACK_PATCH_VALIDATION_REPORT
+			LauncherArtifactLayout.RUNTIME_PACK_VALIDATION_REPORT
 		);
 		File gameAssembly = new File(
 			runtimePackDirectory,
@@ -2000,13 +1825,15 @@ final class AndroidAssemblyBootstrapper {
 				readSmallTextFile(manifest, 64 * 1024)
 			);
 			String packId = json.optString("packId", "");
-			String sourceRuntimeSlotId =
-				json.optString("sourceRuntimeSlotId", "");
 			String sourceBranch = json.optString("sourceBranch", "");
+			String installGeneration =
+				json.optString("installGeneration", "");
 			String sourcePckSha256 =
 				json.optString("sourcePckSha256", "");
 			String sourceAssemblySha256 =
 				json.optString("sourceAssemblySha256", "");
+			String gameIdentityId =
+				json.optString("gameIdentityId", "");
 			String androidAssemblySha256 =
 				json.optString("androidAssemblySha256", "");
 			String patchValidationStatus =
@@ -2020,15 +1847,67 @@ final class AndroidAssemblyBootstrapper {
 
 			if (
 				packId.trim().isEmpty()
-					|| sourceRuntimeSlotId.trim().isEmpty()
 					|| sourceBranch.trim().isEmpty()
+					|| installGeneration.trim().isEmpty()
 					|| sourcePckSha256.trim().isEmpty()
 					|| sourceAssemblySha256.trim().isEmpty()
+					|| gameIdentityId.trim().isEmpty()
 					|| androidAssemblySha256.trim().isEmpty()
 			) {
 				environment.warn(
 					"Runtime pack manifest is missing required identity/hash "
 						+ "fields: " + manifest.getAbsolutePath()
+				);
+				return false;
+			}
+			String calculatedGameIdentityId = gameIdentityId(
+				sourceBranch,
+				installGeneration,
+				sourcePckSha256,
+				sourceAssemblySha256
+			);
+			if (
+				!gameIdentityId.equalsIgnoreCase(calculatedGameIdentityId)
+			) {
+				environment.warn(
+					"Runtime pack canonical game identity mismatch: declared="
+						+ gameIdentityId + " calculated="
+						+ calculatedGameIdentityId
+				);
+				return false;
+			}
+			BranchInstallationState.Result installationState =
+				BranchInstallationState.inspect(
+					environment.filesDirectory(),
+					environment.selectedBranch()
+				);
+			if (
+				!installationState.matchesGameIdentity(
+					sourceBranch,
+					installGeneration,
+					sourcePckSha256,
+					sourceAssemblySha256
+				)
+			) {
+				environment.warn(
+					"Runtime pack does not match the exact ready installation "
+						+ "GameIdentity: " + installationState.summary()
+				);
+				return false;
+			}
+			File installMarker = new File(
+				environment.gameDirectory(),
+				LauncherArtifactLayout.BRANCH_MARKER_FILE
+			);
+			if (
+				!installMarker.isFile()
+					|| !installGeneration.equalsIgnoreCase(
+						sha256Hex(installMarker)
+					)
+			) {
+				environment.warn(
+					"Runtime pack completed install generation mismatch: "
+						+ installMarker.getAbsolutePath()
 				);
 				return false;
 			}
@@ -2068,18 +1947,8 @@ final class AndroidAssemblyBootstrapper {
 				);
 				return false;
 			}
-			String selectedPckSha256 =
-				selectedPckSha256ForRuntimePackValidation(
-					selectedPck,
-					sourcePckSha256
-				);
-			if (
-				!pckMatchesRuntimeSource(
-					selectedPck,
-					sourcePckSha256,
-					selectedPckSha256
-				)
-			) {
+			String selectedPckSha256 = sha256Hex(selectedPck);
+			if (!sourcePckSha256.equalsIgnoreCase(selectedPckSha256)) {
 				environment.warn(
 					"Runtime pack selected PCK hash mismatch: declared="
 						+ sourcePckSha256 + " selected=" + selectedPckSha256
@@ -2149,11 +2018,14 @@ final class AndroidAssemblyBootstrapper {
 				!packId.equalsIgnoreCase(
 					reportJson.optString("runtimePackId", "")
 				)
-					|| !sourceRuntimeSlotId.equalsIgnoreCase(
-						reportJson.optString("sourceRuntimeSlotId", "")
-					)
 					|| !sourceBranch.equalsIgnoreCase(
 						reportJson.optString("branch", "")
+					)
+					|| !installGeneration.equalsIgnoreCase(
+						reportJson.optString("installGeneration", "")
+					)
+					|| !gameIdentityId.equalsIgnoreCase(
+						reportJson.optString("gameIdentityId", "")
 					)
 					|| !sourcePckSha256.equalsIgnoreCase(
 						reportJson.optString("pckSha256", "")
@@ -2347,64 +2219,6 @@ final class AndroidAssemblyBootstrapper {
 		return true;
 	}
 
-	private String selectedPckSha256ForRuntimePackValidation(
-		File selectedPck,
-		String expectedSourcePckSha256
-	) {
-		if (selectedPck == null || !selectedPck.isFile()) {
-			return "";
-		}
-		try {
-			File marker = new File(
-				environment.filesDirectory(),
-				CURRENT_RUNTIME_SLOT_MARKER
-			);
-			if (
-				marker.isFile()
-					&& markerIsFreshForFile(marker, selectedPck)
-			) {
-				JSONObject json = new JSONObject(
-					readSmallTextFile(marker, 64 * 1024)
-				);
-				String markerBranch = json.optString("branch", "");
-				String markerPckSha256 =
-					json.optString("pckSha256", "");
-				if (
-					markerBranch.equalsIgnoreCase(
-						environment.selectedBranch()
-					)
-						&& !markerPckSha256.trim().isEmpty()
-						&& pckMatchesRuntimeSource(
-							selectedPck,
-							expectedSourcePckSha256,
-							markerPckSha256
-						)
-				) {
-					environment.info(
-						"Using current runtime slot marker PCK hash for native "
-							+ "runtime-pack validation."
-					);
-					return markerPckSha256;
-				}
-			}
-		} catch (Exception error) {
-			environment.warn(
-				"Runtime slot marker could not satisfy native runtime-pack "
-					+ "validation; hashing selected PCK.",
-				error
-			);
-		}
-		return sha256Hex(selectedPck);
-	}
-
-	private boolean markerIsFreshForFile(File marker, File file) {
-		return marker != null
-			&& file != null
-			&& marker.exists()
-			&& file.exists()
-			&& marker.lastModified() + 2000L >= file.lastModified();
-	}
-
 	private Set<String> runtimePackDeclaredAssemblyNames(
 		File runtimePackDirectory
 	) {
@@ -2432,7 +2246,7 @@ final class AndroidAssemblyBootstrapper {
 
 		File manifest = new File(
 			runtimePackDirectory,
-			RUNTIME_PACK_COMPATIBILITY_MANIFEST
+			LauncherArtifactLayout.RUNTIME_PACK_COMPATIBILITY_MANIFEST
 		);
 		try {
 			JSONObject json = new JSONObject(
@@ -2628,15 +2442,12 @@ final class AndroidAssemblyBootstrapper {
 			return false;
 		}
 		if (
-			selectedBranchRequiresRuntimePack()
-				&& (
-					runtimePackGameAssembly == null
-						|| !runtimePackGameAssembly.isFile()
-				)
+			runtimePackGameAssembly == null
+				|| !runtimePackGameAssembly.isFile()
 		) {
 			environment.info(
-				"Game assembly cache is not current because selected non-public "
-					+ "branch has no usable runtime pack."
+				"Game assembly cache is not current because the selected branch "
+					+ "has no usable runtime pack."
 			);
 			return false;
 		}
@@ -2818,6 +2629,19 @@ final class AndroidAssemblyBootstrapper {
 	}
 
 	private boolean isGamePckReady() {
+		BranchInstallationState.Result installationState =
+			BranchInstallationState.inspect(
+				environment.filesDirectory(),
+				environment.selectedBranch()
+			);
+		if (!installationState.isReady()) {
+			environment.warn(
+				"Selected branch is not launchable: "
+					+ installationState.summary()
+			);
+			return false;
+		}
+
 		File pck = selectedPck();
 		if (!pck.isFile() || pck.length() < 96) {
 			return false;
@@ -2867,7 +2691,7 @@ final class AndroidAssemblyBootstrapper {
 		String branch = environment.selectedBranch();
 		File marker = new File(
 			environment.gameDirectory(),
-			BRANCH_MARKER_FILE
+			LauncherArtifactLayout.BRANCH_MARKER_FILE
 		);
 		if (!marker.isFile()) {
 			return "public".equalsIgnoreCase(branch);
@@ -3046,75 +2870,6 @@ final class AndroidAssemblyBootstrapper {
 		return normalized;
 	}
 
-	private boolean pckMatchesRuntimeSource(
-		File selectedPck,
-		String expectedSourcePckSha256,
-		String selectedPckSha256
-	) {
-		if (
-			expectedSourcePckSha256 == null
-				|| expectedSourcePckSha256.trim().isEmpty()
-		) {
-			return false;
-		}
-		if (
-			selectedPckSha256 != null
-				&& expectedSourcePckSha256.equalsIgnoreCase(
-					selectedPckSha256
-				)
-		) {
-			return true;
-		}
-		if (selectedPck == null || !selectedPck.isFile()) {
-			return false;
-		}
-		File marker = new File(
-			selectedPck.getParentFile(),
-			PCK_ANDROID_PATCH_MARKER
-		);
-		if (
-			!marker.isFile()
-				|| marker.lastModified() < selectedPck.lastModified()
-		) {
-			return false;
-		}
-		String markerSource = readPckPatchMarkerHash(
-			marker,
-			"sourcePckSha256"
-		);
-		if (!markerSource.isEmpty()) {
-			boolean matched =
-				expectedSourcePckSha256.equalsIgnoreCase(markerSource);
-			if (!matched) {
-				environment.warn(
-					"Android PCK patch marker source hash mismatch: expected="
-						+ expectedSourcePckSha256
-						+ " marker=" + markerSource
-				);
-			}
-			return matched;
-		}
-		environment.info(
-			"Accepting legacy Android-patched PCK marker for runtime source "
-				+ "hash " + expectedSourcePckSha256
-		);
-		return true;
-	}
-
-	private String readPckPatchMarkerHash(File marker, String name) {
-		try {
-			if (marker == null || !marker.isFile() || marker.length() <= 0) {
-				return "";
-			}
-			JSONObject json = new JSONObject(
-				readSmallTextFile(marker, 16 * 1024)
-			);
-			return json.optString(name, "").trim();
-		} catch (Exception error) {
-			return "";
-		}
-	}
-
 	private String readSmallTextFile(File file, int maxBytes) {
 		try (FileInputStream input = new FileInputStream(file)) {
 			ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -3137,7 +2892,8 @@ final class AndroidAssemblyBootstrapper {
 					"\n[truncated]\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)
 				);
 			}
-			return output.toString(
+			return new String(
+				output.toByteArray(),
 				java.nio.charset.StandardCharsets.UTF_8
 			);
 		} catch (Exception error) {
@@ -3195,6 +2951,35 @@ final class AndroidAssemblyBootstrapper {
 			);
 			return "<unavailable:"
 				+ error.getClass().getSimpleName() + ">";
+		}
+	}
+
+	boolean isRuntimePackManifestUsableForTesting(File runtimePackDirectory) {
+		return isRuntimePackManifestUsable(runtimePackDirectory);
+	}
+
+	private String gameIdentityId(
+		String branch,
+		String installGeneration,
+		String pckSha256,
+		String sourceAssemblySha256
+	) {
+		try {
+			String canonical = "game-identity-v1\n"
+				+ "branch=" + branch.trim().toLowerCase(java.util.Locale.ROOT) + "\n"
+				+ "installGeneration=" + installGeneration.toLowerCase(java.util.Locale.ROOT) + "\n"
+				+ "pckSha256=" + pckSha256.toLowerCase(java.util.Locale.ROOT) + "\n"
+				+ "sourceAssemblySha256="
+				+ sourceAssemblySha256.toLowerCase(java.util.Locale.ROOT);
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			return bytesToHex(
+				digest.digest(
+					canonical.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+				)
+			);
+		} catch (Exception error) {
+			environment.warn("Failed to calculate canonical game identity ID.", error);
+			return "<unavailable:" + error.getClass().getSimpleName() + ">";
 		}
 	}
 

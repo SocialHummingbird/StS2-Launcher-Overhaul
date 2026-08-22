@@ -1,5 +1,4 @@
 using System.Text;
-using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -18,12 +17,4 @@ internal static partial class LauncherDiagnostics
     private static string BoolText(bool value)
         => value ? "true" : "false";
 
-    private static bool MarkerBranchMatchesSelected(string markerBranch, string selectedBranch)
-        => !string.IsNullOrWhiteSpace(markerBranch)
-            && !markerBranch.StartsWith("<", System.StringComparison.Ordinal)
-            && string.Equals(
-                SteamGameBranch.Normalize(markerBranch),
-                SteamGameBranch.Normalize(selectedBranch),
-                System.StringComparison.OrdinalIgnoreCase
-            );
 }

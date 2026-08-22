@@ -14,7 +14,6 @@ internal sealed partial class ActionSection
         _diagnosticsButton.Visible = true;
         _refreshVersionsButton.Visible = true;
         _redownloadButton.Visible = true;
-        _clearCachedVersionsButton.Visible = true;
         _showLastErrorButton.Visible = true;
         _copyRawLogButton.Visible = true;
     }

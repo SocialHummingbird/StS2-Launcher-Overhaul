@@ -57,7 +57,7 @@ internal sealed partial class ActionSection
     {
         var group = new VBoxContainer
         {
-            Name = "RepairAndStorageGroup",
+            Name = "SelectedVersionRepairGroup",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         group.AddThemeConstantOverride(
@@ -65,14 +65,14 @@ internal sealed partial class ActionSection
             LauncherViewLayoutMetrics.ScaleInt(6, _scale)
         );
         var title = new StyledLabel(
-            "Repair and storage",
+            "Selected version repair",
             _scale,
             fontSize: _compact
                 ? LauncherSectionMetrics.CompactVersionSummaryFontSize
                 : LauncherSectionMetrics.ProgressFontSize,
             align: HorizontalAlignment.Left
         );
-        title.Name = "RepairAndStorageLabel";
+        title.Name = "SelectedVersionRepairLabel";
         title.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
             LauncherComponentTheme.TextSecondary
@@ -81,8 +81,8 @@ internal sealed partial class ActionSection
 
         var actions = new GridContainer
         {
-            Name = "RepairAndStorageActions",
-            Columns = _compactStackedActionRows ? 1 : 2,
+            Name = "SelectedVersionRepairActions",
+            Columns = 1,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         actions.AddThemeConstantOverride(
@@ -90,7 +90,6 @@ internal sealed partial class ActionSection
             LauncherViewLayoutMetrics.ScaleInt(6, _scale)
         );
         MoveTo(actions, _redownloadButton);
-        MoveTo(actions, _clearCachedVersionsButton);
         group.AddChild(actions);
         return group;
     }
@@ -166,7 +165,6 @@ internal sealed partial class ActionSection
         if (_versionMaintenanceGroup == null)
             return;
 
-        _clearCachedVersionsButton.Visible = true;
         _refreshVersionsButton.Visible = true;
         _versionSelectionGroup.Visible = true;
         _versionMaintenanceGroup.Visible = true;

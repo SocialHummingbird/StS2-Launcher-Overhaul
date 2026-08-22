@@ -14,7 +14,7 @@ internal sealed partial class LauncherController
             _downloads.UpdateDownloadProgress
         );
         _model.DownloadLogReceived += OnMainThread<string>(_view.AppendLog);
-        _model.DownloadCompleted += OnMainThread<string>(OnDownloadCompleted);
+        _model.DownloadCompleted += OnMainThread<BranchInstallCompletion>(OnDownloadCompleted);
         _model.DownloadFailed += OnMainThread<LauncherBranchOperationFailure>(OnDownloadFailed);
         _model.DownloadCancelled += OnMainThread<string>(OnDownloadCancelled);
         _model.UpdateCheckCompleted += OnMainThread<LauncherUpdateCheckResult>(_versions.CompleteUpdateCheck);
@@ -42,9 +42,9 @@ internal sealed partial class LauncherController
             StartAutomaticSaveSync();
     }
 
-    private void OnDownloadCompleted(string branch)
+    private void OnDownloadCompleted(BranchInstallCompletion completion)
     {
-        _downloads.CompleteDownload(branch);
+        _downloads.CompleteDownload(completion);
     }
 
     private void OnDownloadFailed(LauncherBranchOperationFailure failure)

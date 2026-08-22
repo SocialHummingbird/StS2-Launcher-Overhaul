@@ -43,6 +43,9 @@ def localCryptoBridgeJava =
 dependencies {
     implementation "androidx.fragment:fragment:$versions.fragmentVersion"
     implementation "androidx.core:core-splashscreen:$versions.splashscreenVersion"
+    testImplementation 'junit:junit:4.13.2'
+    // Android's org.json implementation is a throwing stub in local JVM tests.
+    testImplementation 'org.json:json:20240303'
 
     if (rootProject.findProject(":lib")) {
         implementation project(":lib")
@@ -244,6 +247,7 @@ android {
             aidl.srcDirs = ['aidl']
             assets.srcDirs = ['assets']
         }
+        test.java.srcDirs = ['tests']
         debug.jniLibs.srcDirs = ['libs/debug', 'libs/debug/vulkan_validation_layers']
         dev.jniLibs.srcDirs = ['libs/dev']
         release.jniLibs.srcDirs = ['libs/release']

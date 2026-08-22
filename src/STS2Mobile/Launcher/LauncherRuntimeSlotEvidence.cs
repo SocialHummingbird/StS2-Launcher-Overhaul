@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using STS2Mobile.Patches;
 
@@ -14,17 +13,17 @@ internal static partial class LauncherRuntimeSlotEvidence
     internal static bool MarkerPresent(string dataDir)
         => File.Exists(MarkerPath(dataDir));
 
-    internal static void Clear(string dataDir)
+    internal static void Revoke(string dataDir)
     {
-        try
-        {
-            var path = MarkerPath(dataDir);
-            if (File.Exists(path))
-                File.Delete(path);
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Launcher] Failed to clear runtime slot evidence marker: {ex.Message}");
-        }
+        var path = MarkerPath(dataDir);
+        if (!File.Exists(path))
+            return;
+
+        File.Delete(path);
+        if (File.Exists(path))
+            throw new IOException($"Failed to revoke launch authorization marker: {path}.");
+
+        PatchHelper.Log($"[Launcher] Revoked runtime-slot launch authorization: {path}");
     }
+
 }

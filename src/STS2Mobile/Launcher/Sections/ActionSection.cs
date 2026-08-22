@@ -18,7 +18,6 @@ internal sealed partial class ActionSection : VBoxContainer
     internal event Action UpdateSelectedVersionPressed;
     internal event Action RefreshGameVersionsPressed;
     internal event Action RedownloadPressed;
-    internal event Action ClearCachedVersionsPressed;
     internal event Action DiagnosticsPressed;
     internal event Action ShowLastErrorPressed;
     internal event Action CopyRawLogPressed;
@@ -50,7 +49,6 @@ internal sealed partial class ActionSection : VBoxContainer
     private readonly Button _updateButton;
     private readonly Button _refreshVersionsButton;
     private readonly Button _redownloadButton;
-    private readonly Button _clearCachedVersionsButton;
     private readonly Button _workshopSyncButton;
     private readonly Button _workshopClearButton;
     private readonly VBoxContainer _saveSyncGroup;
@@ -98,8 +96,7 @@ internal sealed partial class ActionSection : VBoxContainer
     {
         _redownloadButton.Visible = _selectedVersionInstalled;
         if (_versionMaintenanceGroup != null)
-            _versionMaintenanceGroup.Visible =
-                _redownloadButton.Visible || _clearCachedVersionsButton.Visible;
+            _versionMaintenanceGroup.Visible = _redownloadButton.Visible;
     }
 
     internal void SetUpdateButtonText(string text) => SetCompactActionButtonText(_updateButton, text);

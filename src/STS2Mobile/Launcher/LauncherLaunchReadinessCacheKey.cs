@@ -21,13 +21,20 @@ internal sealed class LauncherLaunchReadinessCacheKey
     private string DataDir { get; }
     private LauncherLaunchReadinessCacheIdentities Identities { get; }
 
-    internal static LauncherLaunchReadinessCacheKey Create(string dataDir, string branch)
+    internal static LauncherLaunchReadinessCacheKey Create(
+        string dataDir,
+        LauncherLaunchReadiness readiness
+    )
     {
-        branch = SteamGameBranch.Normalize(branch);
+        var branch = SteamGameBranch.StorageIdentity(readiness.Branch);
         return new LauncherLaunchReadinessCacheKey(
             dataDir,
             branch,
-            LauncherLaunchReadinessCacheIdentities.Capture(dataDir, branch)
+            LauncherLaunchReadinessCacheIdentities.Capture(
+                dataDir,
+                branch,
+                readiness.RuntimeSlot.GameIdentity
+            )
         );
     }
 

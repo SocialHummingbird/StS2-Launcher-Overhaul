@@ -14,13 +14,17 @@ internal partial class LauncherModel
             return false;
         }
 
-        if (readiness.Ready)
+        var authorizationProblem = string.Empty;
+        if (readiness.Ready
+            && readiness.HasCurrentLaunchAuthorization(out authorizationProblem))
         {
             problem = "";
             return true;
         }
 
-        problem = readiness.ReadinessProblem;
+        problem = readiness.Ready
+            ? $"Launch blocked: {authorizationProblem}"
+            : readiness.ReadinessProblem;
         LauncherLaunchMarkers.RecordPhase("launch model blocked", problem);
         return false;
     }

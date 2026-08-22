@@ -85,7 +85,7 @@ internal static class LauncherLaunchReadinessCache
 
         LauncherLaunchMarkers.RecordPhase(
             $"{phase}: launch readiness cache hit",
-            $"branch={readiness.Branch}; ready={readiness.Ready}; slot={readiness.RuntimeSlotId}"
+            $"branch={readiness.Branch}; ready={readiness.Ready}; gameIdentity={readiness.GameIdentityId}"
         );
         return true;
     }
@@ -116,7 +116,7 @@ internal static class LauncherLaunchReadinessCache
 
         try
         {
-            var key = LauncherLaunchReadinessCacheKey.Create(dataDir, readiness.Branch);
+            var key = LauncherLaunchReadinessCacheKey.Create(dataDir, readiness);
             lock (Gate)
             {
                 _cached = new CacheEntry(

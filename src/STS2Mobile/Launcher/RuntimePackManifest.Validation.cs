@@ -9,11 +9,13 @@ internal sealed partial class RuntimePackManifest
         => new(
             Path,
             ExpectedBranch,
+            ExpectedGameIdentity,
             PackId,
-            SourceRuntimeSlotId,
             SourceBranch,
+            InstallGeneration,
             SourcePckSha256,
             SourceAssemblySha256,
+            GameIdentityId,
             AndroidAssemblySha256,
             PatchSetVersion,
             PatchValidationStatus,
@@ -37,22 +39,26 @@ internal sealed partial class RuntimePackManifest
             ActualAndroidAssemblySha256
         );
 
-    private static string RuntimePackStatus(RuntimePackManifest manifest, string selectedPckSha256, string selectedSourceAssemblySha256, string selectedPckPath)
+    private static string RuntimePackStatus(RuntimePackManifest manifest)
     {
         if (!manifest.Exists)
             return "not installed";
         if (!manifest.Readable)
             return manifest.Status;
-        if (!manifest.BranchMatches)
-            return "branch mismatch";
+        if (manifest.SourceGameIdentity == null)
+            return "missing or invalid source game identity";
+        if (manifest.ExpectedGameIdentity == null)
+            return "current game identity unavailable";
+        if (!string.Equals(manifest.GameIdentityId, manifest.SourceGameIdentity.Id, StringComparison.OrdinalIgnoreCase))
+            return "game identity ID mismatch";
+        if (manifest.SourceGameIdentity != manifest.ExpectedGameIdentity)
+            return "game identity mismatch";
         if (string.IsNullOrWhiteSpace(manifest.PackId))
             return "missing runtime pack ID";
         if (!string.Equals(manifest.PatchSetVersion, PatchCompatibilityValidator.PatchSetVersion, StringComparison.OrdinalIgnoreCase))
             return $"runtime pack patch-set mismatch: {manifest.PatchSetVersion}";
         if (!manifest.GeneratedFromCleanDirectory)
             return "runtime pack was not generated from a clean directory";
-        if (string.IsNullOrWhiteSpace(manifest.SourceRuntimeSlotId))
-            return "missing source runtime slot ID";
         if (!manifest.AndroidAssemblyExists)
             return "missing Android sts2.dll";
         if (string.IsNullOrWhiteSpace(manifest.AndroidAssemblySha256))
@@ -66,14 +72,6 @@ internal sealed partial class RuntimePackManifest
         var supportAssemblyProblem = RuntimePackSupportAssemblyProblem(manifest);
         if (!string.IsNullOrWhiteSpace(supportAssemblyProblem))
             return supportAssemblyProblem;
-        if (string.IsNullOrWhiteSpace(manifest.SourcePckSha256))
-            return "missing source PCK hash";
-        if (!SourcePckMatches(manifest.SourcePckSha256, selectedPckSha256, selectedPckPath))
-            return "PCK hash mismatch";
-        if (string.IsNullOrWhiteSpace(manifest.SourceAssemblySha256))
-            return "missing source assembly hash";
-        if (!MatchesDeclared(manifest.SourceAssemblySha256, selectedSourceAssemblySha256))
-            return "source assembly hash mismatch";
         if (string.IsNullOrWhiteSpace(manifest.PatchValidationStatus))
             return "missing patch validation status";
         if (!manifest.PatchValidationPassed)

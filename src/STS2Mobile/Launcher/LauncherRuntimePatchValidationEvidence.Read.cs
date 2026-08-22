@@ -34,8 +34,8 @@ internal static partial class LauncherRuntimePatchValidationEvidence
     internal static string SelectedSourceAssemblySha256(string dataDir)
         => ReadString(dataDir, "selectedSourceAssemblySha256");
 
-    internal static string RuntimeSlotId(string dataDir)
-        => ReadString(dataDir, "runtimeSlotId");
+    internal static string GameIdentityId(string dataDir)
+        => ReadString(dataDir, "gameIdentityId");
 
     internal static string ActiveAndroidAssemblySha256(string dataDir)
         => ReadString(dataDir, "activeAndroidAssemblySha256");

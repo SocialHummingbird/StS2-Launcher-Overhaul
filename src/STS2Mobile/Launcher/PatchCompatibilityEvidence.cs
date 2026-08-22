@@ -2,17 +2,14 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class PatchCompatibilityEvidence
 {
-    internal const string GameDirectoryMarkerFileName = ".android_patch_validation.json";
-
     private PatchCompatibilityEvidence(
         string branch,
         string source,
         string markerPath,
         string status,
         string detail,
-        string validatedBranch,
-        string validatedPckSha256,
-        string validatedSourceAssemblySha256,
+        GameIdentity expectedGameIdentity,
+        GameIdentity validatedGameIdentity,
         string patchSetVersion,
         string validationMode,
         string validationSurfaceVersion,
@@ -20,12 +17,8 @@ internal sealed partial class PatchCompatibilityEvidence
         int checkedSymbolCount,
         int presentSymbolCount,
         int missingSymbolCount,
-        bool required,
         bool exists,
-        bool readable,
-        bool branchMatches,
-        bool pckMatches,
-        bool sourceAssemblyMatches
+        bool readable
     )
     {
         Branch = branch;
@@ -33,9 +26,8 @@ internal sealed partial class PatchCompatibilityEvidence
         MarkerPath = markerPath;
         Status = status;
         Detail = detail;
-        ValidatedBranch = validatedBranch;
-        ValidatedPckSha256 = validatedPckSha256;
-        ValidatedSourceAssemblySha256 = validatedSourceAssemblySha256;
+        ExpectedGameIdentity = expectedGameIdentity;
+        ValidatedGameIdentity = validatedGameIdentity;
         PatchSetVersion = patchSetVersion;
         ValidationMode = validationMode;
         ValidationSurfaceVersion = validationSurfaceVersion;
@@ -43,12 +35,8 @@ internal sealed partial class PatchCompatibilityEvidence
         CheckedSymbolCount = checkedSymbolCount;
         PresentSymbolCount = presentSymbolCount;
         MissingSymbolCount = missingSymbolCount;
-        Required = required;
         Exists = exists;
         Readable = readable;
-        BranchMatches = branchMatches;
-        PckMatches = pckMatches;
-        SourceAssemblyMatches = sourceAssemblyMatches;
     }
 
     internal string Branch { get; }
@@ -56,9 +44,8 @@ internal sealed partial class PatchCompatibilityEvidence
     internal string MarkerPath { get; }
     internal string Status { get; }
     internal string Detail { get; }
-    internal string ValidatedBranch { get; }
-    internal string ValidatedPckSha256 { get; }
-    internal string ValidatedSourceAssemblySha256 { get; }
+    internal GameIdentity ExpectedGameIdentity { get; }
+    internal GameIdentity ValidatedGameIdentity { get; }
     internal string PatchSetVersion { get; }
     internal string ValidationMode { get; }
     internal string ValidationSurfaceVersion { get; }
@@ -66,10 +53,8 @@ internal sealed partial class PatchCompatibilityEvidence
     internal int CheckedSymbolCount { get; }
     internal int PresentSymbolCount { get; }
     internal int MissingSymbolCount { get; }
-    internal bool Required { get; }
     internal bool Exists { get; }
     internal bool Readable { get; }
-    internal bool BranchMatches { get; }
-    internal bool PckMatches { get; }
-    internal bool SourceAssemblyMatches { get; }
+    internal bool GameIdentityMatches =>
+        ExpectedGameIdentity != null && ExpectedGameIdentity == ValidatedGameIdentity;
 }

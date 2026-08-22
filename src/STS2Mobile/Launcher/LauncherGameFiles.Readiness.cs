@@ -12,17 +12,24 @@ internal static partial class LauncherGameFiles
         out string problem
     )
     {
-        var result = ValidateDownloadedStateForLaunch(dataDir, branch);
-        problem = result.Problem;
-        return result.Ready;
+        return TryReadReadyIdentity(
+            dataDir,
+            branch,
+            out _,
+            out problem
+        );
     }
 
-    private static DownloadValidationResult ValidateDownloadedStateForLaunch(
+    internal static bool TryReadReadyIdentity(
         string dataDir,
-        string branch
+        string branch,
+        out GameIdentity identity,
+        out string problem
     )
     {
         branch = SteamGameBranch.Normalize(branch);
+        identity = null;
+        problem = string.Empty;
         PatchHelper.Log($"[Launcher] Game files ready phase: resolve PCK path for branch '{branch}'");
         var pckPath = PckPath(dataDir, branch);
         PatchHelper.Log($"[Launcher] Game files ready phase complete: resolve PCK path -> '{pckPath}' length={(pckPath == null ? -1 : pckPath.Length)} rooted={(!string.IsNullOrWhiteSpace(pckPath) && Path.IsPathRooted(pckPath))}");
@@ -30,50 +37,39 @@ internal static partial class LauncherGameFiles
         if (!IsValidPck(pckPath))
         {
             PatchHelper.Log("[Launcher] Game files ready phase complete: validate PCK -> false");
-            return DownloadValidationResult.Blocked(
-                "Selected game version is not downloaded or the downloaded PCK is invalid. Download selected version to continue."
-            );
+            problem = "Selected game version is not downloaded or the downloaded PCK is invalid. Download selected version to continue.";
+            return false;
         }
 
         PatchHelper.Log("[Launcher] Game files ready phase complete: validate PCK -> true");
-        PatchHelper.Log("[Launcher] Game files ready phase: branch marker");
-        if (!BranchMarkerReady(dataDir, branch))
+        PatchHelper.Log("[Launcher] Game files ready phase: authoritative installed identity");
+        try
         {
-            PatchHelper.Log("[Launcher] Game files ready phase complete: branch marker -> false");
-            return DownloadValidationResult.Blocked(
-                "Selected game version has missing or mismatched branch metadata. Redownload selected version to rebuild the cache safely."
-            );
+            identity = GameIdentityReader.ReadInstalled(dataDir, branch);
+        }
+        catch (GameIdentityException ex)
+        {
+            problem = ex.Message;
+            PatchHelper.Log($"[Launcher] Game files ready phase complete: authoritative installed identity -> {ex.Kind}: {problem}");
+            return false;
         }
 
-        PatchHelper.Log("[Launcher] Game files ready phase complete: branch marker -> true");
-        PatchHelper.Log("[Launcher] Game files ready phase: source assembly path");
-        var sourceAssemblyPath = GameRuntimeSlot.FindSourceAssemblyPath(GameDirectoryPath(dataDir, branch));
-        PatchHelper.Log($"[Launcher] Game files ready phase complete: source assembly path -> '{sourceAssemblyPath}'");
-        PatchHelper.Log("[Launcher] Game files ready phase: source assembly exists");
-        var sourceAssemblyExists = File.Exists(sourceAssemblyPath);
-        PatchHelper.Log($"[Launcher] Game files ready phase complete: source assembly exists -> {sourceAssemblyExists}");
-        return sourceAssemblyExists
-            ? DownloadValidationResult.Passed()
-            : DownloadValidationResult.Blocked(
-                "Selected game version is missing its source game-code assembly. Redownload selected version to rebuild runtime evidence."
-            );
-    }
-
-    private readonly struct DownloadValidationResult
-    {
-        private DownloadValidationResult(bool ready, string problem)
+        PatchHelper.Log($"[Launcher] Game files ready phase complete: authoritative installed identity -> {identity.Id}");
+        PatchHelper.Log("[Launcher] Game files ready phase: installation state");
+        if (!BranchInstallStateStore.Current.TryReadReady(
+                dataDir,
+                branch,
+                identity,
+                out _,
+                out problem
+            ))
         {
-            Ready = ready;
-            Problem = problem ?? string.Empty;
+            PatchHelper.Log($"[Launcher] Game files ready phase complete: installation state -> blocked: {problem}");
+            identity = null;
+            return false;
         }
 
-        internal bool Ready { get; }
-        internal string Problem { get; }
-
-        internal static DownloadValidationResult Passed()
-            => new(true, string.Empty);
-
-        internal static DownloadValidationResult Blocked(string problem)
-            => new(false, problem);
+        PatchHelper.Log("[Launcher] Game files ready phase complete: installation state -> ready");
+        return true;
     }
 }

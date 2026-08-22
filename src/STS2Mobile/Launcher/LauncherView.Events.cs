@@ -16,7 +16,6 @@ internal sealed partial class LauncherView
         Action updateSelectedVersionPressed,
         Action refreshGameVersionsPressed,
         Action redownloadPressed,
-        Action clearCachedVersionsPressed,
         Action diagnosticsPressed,
         Action showLastErrorPressed,
         Action copyRawLogPressed,
@@ -43,7 +42,6 @@ internal sealed partial class LauncherView
         Actions.UpdateSelectedVersionPressed += updateSelectedVersionPressed;
         Actions.RefreshGameVersionsPressed += refreshGameVersionsPressed;
         Actions.RedownloadPressed += redownloadPressed;
-        Actions.ClearCachedVersionsPressed += clearCachedVersionsPressed;
         Actions.DiagnosticsPressed += diagnosticsPressed;
         Actions.ShowLastErrorPressed += showLastErrorPressed;
         Actions.CopyRawLogPressed += copyRawLogPressed;

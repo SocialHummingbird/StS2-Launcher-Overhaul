@@ -10,6 +10,8 @@ internal static class SteamGameInstallPaths
     internal const string DownloadStateDirectory = "download_state";
     internal const string BranchMarkerFileName = "steam_branch.txt";
     internal const string BranchAvailabilityMarkerFileName = "last_steam_branch_availability.txt";
+    internal const string InstallationStateFileName = "installation_state.json";
+    internal const string InstallationStateLockFileName = "installation_state.lock";
 
     internal static string VersionSlotDirectory(string dataDir, string branch)
     {
@@ -45,6 +47,12 @@ internal static class SteamGameInstallPaths
 
     internal static string BranchMarkerPath(string dataDir, string branch)
         => Path.Combine(GameDirectory(dataDir, branch), BranchMarkerFileName);
+
+    internal static string InstallationStatePath(string dataDir, string branch)
+        => Path.Combine(VersionSlotDirectory(dataDir, branch), InstallationStateFileName);
+
+    internal static string InstallationStateLockPath(string dataDir, string branch)
+        => Path.Combine(VersionSlotDirectory(dataDir, branch), InstallationStateLockFileName);
 
     internal static string BranchAvailabilityMarkerPath(string dataDir)
         => Path.Combine(dataDir, BranchAvailabilityMarkerFileName);

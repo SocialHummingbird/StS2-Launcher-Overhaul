@@ -13,9 +13,8 @@ internal sealed partial class PatchCompatibilityEvidence
             markerPath,
             "missing",
             "validation evidence not found",
-            string.Empty,
-            string.Empty,
-            string.Empty,
+            null,
+            null,
             string.Empty,
             string.Empty,
             string.Empty,
@@ -23,12 +22,8 @@ internal sealed partial class PatchCompatibilityEvidence
             0,
             0,
             0,
-            required: true,
             exists: false,
-            readable: false,
-            branchMatches: false,
-            pckMatches: false,
-            sourceAssemblyMatches: false
+            readable: false
         );
     }
 }

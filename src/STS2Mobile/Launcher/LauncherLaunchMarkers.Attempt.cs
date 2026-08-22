@@ -23,7 +23,7 @@ internal static partial class LauncherLaunchMarkers
     private const string FilesReadyPrefix = "Files ready:";
     private const string ReadinessProblemPrefix = "Readiness problem:";
     private const string RuntimeSlotInspectedPrefix = "Runtime slot inspected:";
-    private const string RuntimeSlotIdPrefix = "Runtime slot ID:";
+    private const string GameIdentityIdPrefix = "Game identity ID:";
     private const string RuntimePairingStatusPrefix = "Runtime pairing status:";
     private const string PatchCompatibilityStatusPrefix = "Patch compatibility status:";
     private const string GameDirectoryPrefix = "Game directory:";
@@ -89,7 +89,7 @@ internal static partial class LauncherLaunchMarkers
                 MarkerLine(FilesReadyPrefix, readiness?.Ready == true),
                 MarkerLine(ReadinessProblemPrefix, readiness?.ReadinessProblem),
                 MarkerLine(RuntimeSlotInspectedPrefix, readiness?.HasRuntimeSlot == true),
-                MarkerLine(RuntimeSlotIdPrefix, readiness?.RuntimeSlotId),
+                MarkerLine(GameIdentityIdPrefix, readiness?.GameIdentityId),
                 MarkerLine(RuntimePairingStatusPrefix, readiness?.RuntimePairingStatus),
                 MarkerLine(PatchCompatibilityStatusPrefix, readiness?.PatchCompatibilityStatus),
                 MarkerLine(GameDirectoryPrefix, readiness?.GameDirectory),

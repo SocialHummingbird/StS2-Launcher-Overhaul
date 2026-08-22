@@ -1,5 +1,3 @@
-using STS2Mobile.Steam;
-
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherDownloadCoordinator
@@ -59,32 +57,8 @@ internal sealed partial class LauncherDownloadCoordinator
             "Keep Files"
         );
 
-    internal void ClearCachedVersionsPressed()
-        => _view.ShowConfirmation(
-            "Remove old downloaded game versions?\nThis keeps the selected version and removes other downloaded version caches.",
-            ClearCachedVersions,
-            "Remove old versions",
-            "Keep versions"
-        );
-
-    private void ClearCachedVersions()
-    {
-        var selectedBranch = LauncherPreferences.ReadGameBranch();
-        var selectedVersion = SteamGameBranch.DisplayName(selectedBranch);
-        var removed = LauncherGameFiles.DeleteInactiveVersionCaches(
-            _model.DataDir,
-            selectedBranch,
-            out var removedRuntimePacks
-        );
-        _refreshGameBranchOptions();
-        var message = $"Removed {removed} inactive cached game version(s) and {removedRuntimePacks} runtime pack cache(s). Selected version preserved: {selectedVersion}.";
-        _view.SetStatus(message, LauncherStatusSeverity.Information);
-        _view.AppendLog(message);
-    }
-
     private void ApplyRedownload()
     {
-        LauncherLaunchReadinessCache.Clear("selected version redownload requested");
         _model.ResetGameFilesForRedownload();
         _refreshGameBranchOptions();
         DownloadViewUpdate.RedownloadApplied().Apply(_view, _launch);
@@ -92,7 +66,6 @@ internal sealed partial class LauncherDownloadCoordinator
 
     private void ApplyRedownloadAndDownload()
     {
-        LauncherLaunchReadinessCache.Clear("selected version redownload and download requested");
         _model.ResetGameFilesForRedownload();
         _refreshGameBranchOptions();
         _view.SetStatus(
@@ -105,7 +78,6 @@ internal sealed partial class LauncherDownloadCoordinator
 
     private void ApplyRedownloadBlockedByBranchProblem(string downloadProblem)
     {
-        LauncherLaunchReadinessCache.Clear("selected version cache cleared while download remains blocked");
         _model.ResetGameFilesForRedownload();
         _refreshGameBranchOptions();
         _view.SetStatus(downloadProblem, LauncherStatusSeverity.Warning);

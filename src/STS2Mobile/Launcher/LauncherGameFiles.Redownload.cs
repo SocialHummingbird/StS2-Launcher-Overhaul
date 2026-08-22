@@ -1,4 +1,3 @@
-using System.IO;
 using STS2Mobile.Patches;
 using STS2Mobile.Steam;
 
@@ -11,47 +10,15 @@ internal static partial class LauncherGameFiles
 
     internal static void DeleteDownloadedState(string dataDir, string branch)
     {
-        branch = SteamGameBranch.Normalize(branch);
-        LauncherLaunchReadinessCache.Clear($"downloaded state deleted for {branch}");
-        var gameDirectory = GameDirectoryPath(dataDir, branch);
-        var downloadStateDirectory = SteamGameInstallPaths.DownloadStateDirectoryPath(dataDir, branch);
-        var runtimePackDirectory = GameRuntimeSlot.RuntimePackDirectoryPath(dataDir, branch);
-        var gameDirectoryExisted = Directory.Exists(gameDirectory);
-        var downloadStateDirectoryExisted = Directory.Exists(downloadStateDirectory);
-        var runtimePackDirectoryExisted = Directory.Exists(runtimePackDirectory);
-        WriteRedownloadMarker(
+        branch = SteamGameBranch.StorageIdentity(branch);
+        var result = SelectedBranchRecovery.Execute(
             dataDir,
             branch,
-            gameDirectory,
-            gameDirectoryExisted,
-            null,
-            downloadStateDirectory,
-            downloadStateDirectoryExisted,
-            null,
-            runtimePackDirectory,
-            runtimePackDirectoryExisted,
-            null
+            SelectedBranchRecoveryMode.FullRedownload
         );
-        DeleteDirectory(gameDirectory);
-        DeleteDirectory(downloadStateDirectory);
-        DeleteDirectory(runtimePackDirectory);
-        LauncherRuntimeSlotEvidence.Clear(dataDir);
-        LauncherRuntimeCacheEvidence.Clear(dataDir);
-        LauncherRuntimePatchValidationEvidence.Clear(dataDir);
-        WriteRedownloadMarker(
-            dataDir,
-            branch,
-            gameDirectory,
-            gameDirectoryExisted,
-            Directory.Exists(gameDirectory),
-            downloadStateDirectory,
-            downloadStateDirectoryExisted,
-            Directory.Exists(downloadStateDirectory),
-            runtimePackDirectory,
-            runtimePackDirectoryExisted,
-            Directory.Exists(runtimePackDirectory)
+        result.RequireSuccess();
+        PatchHelper.Log(
+            $"[Launcher] Cleared selected branch '{branch}' for redownload ({result.RemovedArtifactCount} owned artifact(s))."
         );
-        LauncherLaunchMarkers.ClearStartupMarker();
-        PatchHelper.Log($"[Launcher] Deleted downloaded game files and download state for branch '{branch}'");
     }
 }

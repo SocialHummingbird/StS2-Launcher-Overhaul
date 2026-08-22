@@ -39,7 +39,7 @@ internal sealed partial class LauncherLaunchReadiness
     internal string CacheStatus { get; }
     internal bool HasRuntimeSlot => RuntimeSlot != null;
 
-    internal string RuntimeSlotId => HasRuntimeSlot ? RuntimeSlot.RuntimeSlotId : "<none>";
+    internal string GameIdentityId => HasRuntimeSlot ? RuntimeSlot.GameIdentityId : "<none>";
     internal string RuntimePairingStatus => HasRuntimeSlot ? RuntimeSlot.RuntimePairingStatus : "<not inspected>";
     internal string PatchCompatibilityStatus => HasRuntimeSlot ? RuntimeSlot.PatchCompatibility?.Status ?? "<none>" : "<not inspected>";
     internal string GameDirectory => HasRuntimeSlot ? RuntimeSlot.GameDirectory : "<none>";
@@ -59,6 +59,22 @@ internal sealed partial class LauncherLaunchReadiness
     internal string RuntimePackStatus => HasRuntimeSlot ? RuntimeSlot.RuntimePack?.Status ?? "<none>" : "<not inspected>";
     internal bool RuntimePackUsable => HasRuntimeSlot && RuntimeSlot.RuntimePackUsable;
     private bool HasDataDir => !string.IsNullOrWhiteSpace(DataDir);
+
+    internal bool HasCurrentLaunchAuthorization(out string problem)
+    {
+        if (!Ready || !HasDataDir || RuntimeSlot?.GameIdentity == null)
+        {
+            problem = "Launch readiness does not contain a complete authorized runtime slot.";
+            return false;
+        }
+
+        return RuntimePackLaunchLifecycle.ReconfirmAuthorization(
+            DataDir,
+            RuntimeSlot.GameIdentity,
+            RuntimeSlot.RuntimePack?.PackId,
+            out problem
+        );
+    }
 
     internal LauncherLaunchReadiness WithCacheStatus(string phase, string cacheStatus)
         => new(

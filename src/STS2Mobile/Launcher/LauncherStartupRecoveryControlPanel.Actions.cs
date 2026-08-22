@@ -51,8 +51,34 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private static void RestartWithSafeLaunch()
     {
-        LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
-        AndroidGodotAppBridge.LaunchGameSafelyOnRestart();
+        try
+        {
+            var dataDir = AppPaths.AppPrivateDataDir;
+            var branch = LauncherPreferences.ReadGameBranch();
+            var readiness = LauncherLaunchReadiness.Evaluate(
+                dataDir,
+                branch,
+                "startup recovery safe-launch authorization"
+            );
+            var problem = readiness.ReadinessProblem;
+            if (!readiness.Ready
+                || !readiness.HasCurrentLaunchAuthorization(out problem))
+            {
+                PatchHelper.Log(
+                    $"Startup recovery safe launch blocked: {problem ?? readiness.ReadinessProblem}"
+                );
+                return;
+            }
+
+            LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
+            AndroidGodotAppBridge.LaunchGameSafelyOnRestart();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log(
+                $"Startup recovery safe launch authorization failed: {ex.GetBaseException().Message}"
+            );
+        }
     }
 
     private void ExportDiagnostics()

@@ -9,32 +9,47 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class PatchCompatibilityValidator
 {
-    internal static PatchCompatibilityEvidence ValidateSelectedVersion(string dataDir, string branch)
-        => ValidateSelectedVersionSlot(dataDir, branch).PatchCompatibility;
-
-    internal static GameRuntimeSlot ValidateSelectedVersionSlot(string dataDir, string branch)
+    internal static PatchCompatibilityValidationResult ValidateSelectedVersionSlot(
+        string dataDir,
+        GameIdentity gameIdentity,
+        GameRuntimeSlot slot
+    )
     {
-        branch = SteamGameBranch.Normalize(branch);
-        var slot = GameRuntimeSlot.Inspect(dataDir, branch);
-        if (SelectedVersionSlotAlreadyValidated(slot))
+        if (gameIdentity == null)
+            throw new ArgumentNullException(nameof(gameIdentity));
+        if (slot == null)
+            throw new ArgumentNullException(nameof(slot));
+
+        var branch = gameIdentity.Branch;
+        if (slot.GameIdentity != gameIdentity)
+        {
+            var mismatch = "Runtime-slot inspection does not contain the authoritative GameIdentity supplied for validation.";
+            PatchHelper.Log($"[Launcher] Patch compatibility validation for '{branch}' rejected: {mismatch}");
+            return new PatchCompatibilityValidationResult(slot, null, mismatch);
+        }
+        if (CurrentIdentityHasUsableValidatedPack(slot, gameIdentity))
         {
             PatchHelper.Log(
                 $"[Launcher] Patch compatibility validation for '{branch}' skipped: current runtime pack already passed validation."
             );
-            return slot;
+            return new PatchCompatibilityValidationResult(slot, null, string.Empty);
         }
 
-        var markerPath = Path.Combine(
-            slot.GameDirectory ?? string.Empty,
-            PatchCompatibilityEvidence.GameDirectoryMarkerFileName
-        );
         var failures = new List<string>();
         if (!slot.SourceAssemblyExists)
             failures.Add("selected source sts2.dll is missing");
         if (!File.Exists(slot.PckPath))
             failures.Add("selected PCK is missing");
-        if (!LauncherGameFiles.BranchMarkerReady(dataDir, branch))
-            failures.Add("branch marker is missing or mismatched");
+        if (!BranchInstallStateStore.Current.TryReadReady(
+                dataDir,
+                branch,
+                gameIdentity,
+                out _,
+                out var installStateProblem
+            ))
+        {
+            failures.Add($"installation state is not ready: {installStateProblem}");
+        }
 
         var symbolChecks = Array.Empty<SymbolCheck>();
         if (failures.Count == 0)
@@ -45,38 +60,48 @@ internal static partial class PatchCompatibilityValidator
             failures.AddRange(symbolChecks.Where(symbol => !symbol.Present).Select(symbol => symbol.FailureMessage));
         }
 
+        RuntimePackCandidate candidate = null;
         if (failures.Count == 0)
         {
-            var runtimePackWritten = RuntimePackWriter.WriteValidatedRuntimePack(
-                slot,
+            var generation = RuntimePackWriter.GenerateCandidate(
+                dataDir,
+                gameIdentity,
                 PatchSetVersion,
                 ValidationMode,
                 "Critical startup patch symbols were found in the selected source assembly.",
                 symbolChecks
             );
-            if (!runtimePackWritten)
-                failures.Add("runtime pack generation failed after patch compatibility validation");
+            if (!generation.Succeeded)
+                failures.Add($"runtime pack candidate generation failed: {generation.Problem}");
+            else
+                candidate = generation.Candidate;
         }
 
-        var status = failures.Count == 0 ? "passed" : "failed";
-        if (failures.Count > 0)
-        {
-            RuntimePackWriter.DeleteRuntimePack(slot, "selected-version patch compatibility validation failed");
-        }
-        WriteMarker(markerPath, slot, status, failures, symbolChecks);
-
+        var status = failures.Count == 0 ? "candidate generated" : "failed";
         LauncherLaunchReadinessCache.Clear($"patch compatibility validation updated runtime evidence for {branch}");
-        var validatedSlot = GameRuntimeSlot.Inspect(dataDir, branch);
+        var validatedSlot = GameRuntimeSlot.RefreshDerivedEvidence(dataDir, slot);
         PatchHelper.Log(
             $"[Launcher] Patch compatibility validation for '{branch}' {status}: "
-            + (failures.Count == 0 ? "critical symbols present" : string.Join("; ", failures.Take(4)))
+            + (failures.Count == 0
+                ? $"critical symbols present; staging={candidate.StagingDirectory}; promotion pending"
+                : string.Join("; ", failures.Take(4)))
         );
-        return validatedSlot;
+        return new PatchCompatibilityValidationResult(
+            validatedSlot,
+            candidate,
+            failures.Count == 0 ? string.Empty : string.Join("; ", failures)
+        );
     }
 
-    private static bool SelectedVersionSlotAlreadyValidated(GameRuntimeSlot slot)
-        => slot?.Playable == true
+    private static bool CurrentIdentityHasUsableValidatedPack(
+        GameRuntimeSlot slot,
+        GameIdentity gameIdentity
+    )
+        => slot?.GameIdentity != null
+            && slot.GameIdentity == gameIdentity
+            && slot.Playable
             && slot.RuntimePackUsable
+            && slot.RuntimePack.SourceGameIdentity == gameIdentity
             && slot.RuntimePack?.PatchValidationPassed == true
             && slot.PatchCompatibility?.Passed == true;
 }

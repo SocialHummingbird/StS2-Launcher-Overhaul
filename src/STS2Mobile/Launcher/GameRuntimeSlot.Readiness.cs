@@ -5,7 +5,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class GameRuntimeSlot
 {
-    internal bool RuntimePackUsable => RuntimePack?.Usable == true && RuntimePackSlotIdMatches;
+    internal bool RuntimePackUsable => RuntimePack?.Usable == true;
 
     internal string RuntimePackUsabilityStatus
     {
@@ -15,10 +15,6 @@ internal sealed partial class GameRuntimeSlot
                 return "not inspected";
             if (!RuntimePack.Usable)
                 return RuntimePack.Status;
-            if (string.IsNullOrWhiteSpace(RuntimePack.SourceRuntimeSlotId))
-                return "missing source runtime slot ID";
-            if (!RuntimePackSlotIdMatches)
-                return "runtime slot ID mismatch";
             return "usable";
         }
     }
@@ -31,7 +27,7 @@ internal sealed partial class GameRuntimeSlot
     internal string PreparedAndroidAssemblySha256 =>
         RuntimePackUsable
             ? RuntimePack.ActualAndroidAssemblySha256
-            : SourceAssemblySha256;
+            : "<missing>";
 
     internal bool ActiveAndroidAssemblyMatchesPreparedRuntime =>
         ActiveAndroidAssemblyExists
@@ -47,29 +43,16 @@ internal sealed partial class GameRuntimeSlot
         RuntimePackUsable
         && !ActiveAndroidAssemblyMatchesPreparedRuntime;
 
-    internal bool BranchMatchedAndroidRuntimePrepared =>
-        SourceAssemblyExists
-        && ActiveAndroidAssemblyExists
-        && SourceMatchesActiveAndroidAssembly;
-
     internal bool BranchRuntimeAvailable =>
-        RuntimePackUsable
-        || (!RequiresRuntimePackOrPreparedCache && BranchMatchedAndroidRuntimePrepared);
+        GameIdentity != null && RuntimePackUsable;
 
-    internal bool UsesLegacyPackagedPublicRuntime =>
-        string.Equals(Branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase)
-        && (ActiveAndroidAssemblyExists || SourceAssemblyExists);
+    internal bool RequiresRuntimePackOrPreparedCache => true;
 
-    internal bool RequiresRuntimePackOrPreparedCache =>
-        !string.Equals(Branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase);
-
-    internal bool RuntimeCompatible =>
-        BranchRuntimeAvailable
-        || UsesLegacyPackagedPublicRuntime;
+    internal bool RuntimeCompatible => BranchRuntimeAvailable;
 
     internal bool PatchCompatible => PatchCompatibility?.Passed == true;
 
-    internal bool Playable => RuntimeCompatible && PatchCompatible;
+    internal bool Playable => GameIdentity != null && RuntimeCompatible && PatchCompatible;
 
     internal string RuntimePairingStatus
     {
@@ -77,20 +60,14 @@ internal sealed partial class GameRuntimeSlot
         {
             if (!ActiveAndroidAssemblyExists)
             {
-                if (UsesLegacyPackagedPublicRuntime)
-                    return "legacy public runtime available; Android cache will be prepared at launch";
                 if (RuntimePackUsable)
                     return "runtime pack available; Android cache will be prepared at launch";
                 return "missing Android runtime assembly";
             }
-            if (SourceMatchesActiveAndroidAssembly && !RequiresRuntimePackOrPreparedCache)
-                return "branch-matched runtime";
             if (RuntimePackUsable)
                 return ActiveAndroidAssemblyMatchesPreparedRuntime
                     ? "prepared runtime pack is active"
                     : "runtime pack available; Android cache will be prepared at launch";
-            if (UsesLegacyPackagedPublicRuntime)
-                return "legacy packaged public runtime";
             if (!SourceAssemblyExists)
                 return RuntimePackManifestExists
                     ? $"runtime pack not usable: {RuntimePackUsabilityStatus}"
@@ -98,9 +75,7 @@ internal sealed partial class GameRuntimeSlot
             if (SourceAssemblyExists)
                 return RuntimePackManifestExists
                     ? $"runtime pack not usable: {RuntimePackUsabilityStatus}"
-                    : RequiresRuntimePackOrPreparedCache
-                        ? "selected branch source assembly is present, but non-public versions require a usable runtime pack"
-                        : "selected branch source assembly is present, but no usable Android runtime pack or prepared branch-matched cache exists";
+                    : "selected branch source assembly is present, but a usable runtime pack is required";
             return "runtime pack required";
         }
     }
@@ -119,6 +94,11 @@ internal sealed partial class GameRuntimeSlot
 
     private string RuntimeReadinessProblem()
     {
+        if (GameIdentity == null)
+            return string.IsNullOrWhiteSpace(GameIdentityProblem)
+                ? "Selected game identity could not be calculated from the current installed files. Redownload selected version."
+                : GameIdentityProblem;
+
         if (!HasUsableHash(PckSha256))
             return "Selected game version is not downloaded or the downloaded PCK is invalid. Download selected version to continue.";
 
@@ -130,7 +110,7 @@ internal sealed partial class GameRuntimeSlot
             return "Selected game version is missing its source game-code assembly. Redownload selected version.";
         }
 
-        if (RequiresRuntimePackOrPreparedCache && !RuntimePackUsable)
+        if (!RuntimePackUsable)
             return RuntimePackManifestExists
                 ? $"Selected game version requires a usable runtime pack, but its runtime pack is not usable ({RuntimePackUsabilityStatus}). Redownload selected version."
                 : "Selected game version requires a usable runtime pack. Redownload selected version to regenerate runtime-pack evidence.";

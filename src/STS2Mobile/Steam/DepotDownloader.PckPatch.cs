@@ -6,12 +6,13 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private static void PatchGamePck(string pckPath)
+    private void PatchGamePck(string pckPath)
     {
         const uint maxPckPathBytes = 4096;
 
+        RequireUpdatingBeforeInstalledMutation();
         if (!File.Exists(pckPath))
-            return;
+            throw new FileNotFoundException("Cannot prepare the Android PCK because the downloaded PCK is missing.", pckPath);
 
         try
         {
@@ -20,7 +21,7 @@ internal sealed partial class DepotDownloader
 
             uint magic = reader.ReadUInt32();
             if (magic != 0x43504447) // "GDPC"
-                return;
+                throw new InvalidDataException($"Downloaded PCK has invalid magic: {pckPath}");
 
             reader.ReadUInt32(); // format version
             reader.ReadUInt32(); // major
@@ -42,8 +43,9 @@ internal sealed partial class DepotDownloader
                 uint pathLen = reader.ReadUInt32();
                 if (pathLen == 0 || pathLen > maxPckPathBytes)
                 {
-                    PatchHelper.Log($"PCK patching skipped: invalid path length {pathLen}");
-                    return;
+                    throw new InvalidDataException(
+                        $"Downloaded PCK contains invalid path length {pathLen}: {pckPath}"
+                    );
                 }
 
                 byte[] pathBytes = reader.ReadBytes((int)pathLen);
@@ -63,7 +65,11 @@ internal sealed partial class DepotDownloader
         }
         catch (Exception ex)
         {
-            PatchHelper.Log($"PCK patching failed (non-fatal): {ex.Message}");
+            PatchHelper.Log($"PCK patching failed: {ex.Message}");
+            throw new IOException(
+                $"Failed to prepare downloaded PCK for Android: {ex.Message}",
+                ex
+            );
         }
     }
 

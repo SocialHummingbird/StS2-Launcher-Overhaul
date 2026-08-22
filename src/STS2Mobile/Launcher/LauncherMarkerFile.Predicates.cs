@@ -27,27 +27,6 @@ internal static partial class LauncherMarkerFile
         }
     }
 
-    internal static bool HasLine(string path, string prefix)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-                return false;
-
-            foreach (var line in File.ReadLines(path))
-            {
-                if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-        }
-        catch
-        {
-            return false;
-        }
-
-        return false;
-    }
-
     internal static bool HasConcreteValue(string value)
         => !string.IsNullOrWhiteSpace(value) && !value.StartsWith("<", StringComparison.Ordinal);
 }

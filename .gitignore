@@ -15,6 +15,8 @@ src/STS2Mobile/bin/
 src/STS2Mobile/obj/
 tools/**/bin/
 tools/**/obj/
+tests/**/bin/
+tests/**/obj/
 tmp/
 tmp-*/
 

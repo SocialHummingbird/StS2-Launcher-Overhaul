@@ -14,8 +14,9 @@ internal sealed partial class RuntimePackManifest
             if (!StringPropertyMatches(root, "status", "passed"))
                 return false;
             return StringPropertyMatches(root, "runtimePackId", manifest.PackId)
-                && StringPropertyMatches(root, "sourceRuntimeSlotId", manifest.SourceRuntimeSlotId)
                 && StringPropertyMatches(root, "branch", manifest.SourceBranch)
+                && StringPropertyMatches(root, "installGeneration", manifest.InstallGeneration)
+                && StringPropertyMatches(root, "gameIdentityId", manifest.GameIdentityId)
                 && StringPropertyMatches(root, "pckSha256", manifest.SourcePckSha256)
                 && StringPropertyMatches(root, "sourceAssemblySha256", manifest.SourceAssemblySha256)
                 && StringPropertyMatches(root, "androidAssemblySha256", manifest.AndroidAssemblySha256)

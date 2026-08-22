@@ -1,6 +1,4 @@
-using System;
 using System.IO;
-using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
@@ -9,93 +7,37 @@ internal sealed partial class PatchCompatibilityEvidence
     private const string RuntimePackReportFileName = "patch_validation.json";
 
     internal static PatchCompatibilityEvidence Inspect(
-        string dataDir,
-        string branch,
-        string gameDirectory,
-        string selectedPckSha256,
-        string selectedSourceAssemblySha256,
-        RuntimePackManifest runtimePack,
-        bool runtimePackSlotIdMatches = true
+        GameIdentity gameIdentity,
+        RuntimePackManifest runtimePack
     )
     {
-        branch = SteamGameBranch.Normalize(branch);
-        if (runtimePack?.Usable == true && runtimePack.PatchValidationPassed && runtimePackSlotIdMatches)
-        {
-            return new PatchCompatibilityEvidence(
-                branch,
-                "runtime pack manifest",
-                runtimePack.Path,
-                runtimePack.PatchValidationStatus,
-                "runtime pack declares passed Android patch compatibility validation",
-                runtimePack.SourceBranch,
-                runtimePack.SourcePckSha256,
-                runtimePack.SourceAssemblySha256,
-                runtimePack.PatchSetVersion,
-                runtimePack.ValidationMode,
-                runtimePack.ValidationSurfaceVersion,
-                runtimePack.CheckedSymbolCount,
-                runtimePack.CheckedSymbolCount,
-                runtimePack.PresentSymbolCount,
-                runtimePack.MissingSymbolCount,
-                required: true,
-                exists: runtimePack.Exists,
-                readable: runtimePack.Readable,
-                branchMatches: runtimePack.BranchMatches,
-                pckMatches: MatchesDeclared(runtimePack.SourcePckSha256, selectedPckSha256),
-                sourceAssemblyMatches: MatchesDeclared(runtimePack.SourceAssemblySha256, selectedSourceAssemblySha256)
-            );
-        }
+        if (gameIdentity == null)
+            return Missing(string.Empty, string.Empty, "current game identity");
 
-        var runtimePackReportPath = string.IsNullOrWhiteSpace(runtimePack?.DirectoryPath) || !runtimePackSlotIdMatches
+        var reportPath = string.IsNullOrWhiteSpace(runtimePack?.DirectoryPath)
             ? string.Empty
             : Path.Combine(runtimePack.DirectoryPath, RuntimePackReportFileName);
-        var runtimePackReport = ReadValidationMarker(
-            runtimePackReportPath,
-            branch,
-            selectedPckSha256,
-            selectedSourceAssemblySha256,
-            "runtime pack validation report"
+        if (runtimePack == null || !runtimePack.Exists)
+            return Missing(gameIdentity.Branch, reportPath, "runtime pack validation report");
+
+        var declared = runtimePack.SourceGameIdentity;
+        return new PatchCompatibilityEvidence(
+            gameIdentity.Branch,
+            "runtime pack validation report",
+            reportPath,
+            runtimePack.Usable ? runtimePack.PatchValidationStatus : runtimePack.Status,
+            runtimePack.Status,
+            gameIdentity,
+            declared,
+            runtimePack.PatchSetVersion,
+            runtimePack.ValidationMode,
+            runtimePack.ValidationSurfaceVersion,
+            runtimePack.CheckedSymbolCount,
+            runtimePack.CheckedSymbolCount,
+            runtimePack.PresentSymbolCount,
+            runtimePack.MissingSymbolCount,
+            exists: runtimePack.Exists,
+            readable: runtimePack.Readable
         );
-        if (runtimePackReport.Exists)
-            return runtimePackReport;
-
-        var gameDirectoryReport = ReadValidationMarker(
-            Path.Combine(gameDirectory ?? string.Empty, GameDirectoryMarkerFileName),
-            branch,
-            selectedPckSha256,
-            selectedSourceAssemblySha256,
-            "selected game directory validation marker"
-        );
-        if (gameDirectoryReport.Exists)
-            return gameDirectoryReport;
-
-        if (string.Equals(branch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase))
-        {
-            return new PatchCompatibilityEvidence(
-                branch,
-                "legacy public APK baseline",
-                string.Empty,
-                PassedStatus,
-                "public branch has not generated a validated Android runtime pack yet",
-                branch,
-                selectedPckSha256,
-                selectedSourceAssemblySha256,
-                runtimePack?.PatchSetVersion ?? string.Empty,
-                "legacy-public-baseline",
-                "legacy-public-baseline",
-                0,
-                0,
-                0,
-                0,
-                required: false,
-                exists: true,
-                readable: true,
-                branchMatches: true,
-                pckMatches: true,
-                sourceAssemblyMatches: true
-            );
-        }
-
-        return gameDirectoryReport;
     }
 }

@@ -4,8 +4,8 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
-    private void RaiseDownloadCompleted(string branch)
-        => Raise(DownloadCompleted, branch, nameof(DownloadCompleted));
+    private void RaiseDownloadCompleted(BranchInstallCompletion completion)
+        => Raise(DownloadCompleted, completion, nameof(DownloadCompleted));
 
     private void RaiseDownloadCancelled(string branch)
         => Raise(DownloadCancelled, branch, nameof(DownloadCancelled));

@@ -28,14 +28,6 @@ internal static partial class LauncherMarkerFile
             : null;
     }
 
-    internal static bool UtcParseable(string path, string prefix = "UTC:")
-        => DateTime.TryParse(
-            ReadValue(path, prefix),
-            CultureInfo.InvariantCulture,
-            DateTimeStyles.AdjustToUniversal,
-            out _
-        );
-
     internal static bool ReadBoolFlag(string path, string prefix)
         => string.Equals(
             ReadOptionalValue(path, prefix),

@@ -8,38 +8,30 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherRuntimeSlotEvidence
 {
-    internal static void Write(string dataDir, string branch, bool filesReady, string readinessProblem)
-    {
-        try
-        {
-            branch = SteamGameBranch.Normalize(branch);
-            var slot = GameRuntimeSlot.Inspect(dataDir, branch);
-            Write(dataDir, slot, filesReady, readinessProblem);
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Launcher] Failed to write runtime slot evidence marker: {ex.Message}");
-        }
-    }
+    private const int AuthorizationSchemaVersion = 1;
 
-    internal static void Write(string dataDir, GameRuntimeSlot slot, bool filesReady, string readinessProblem)
+    internal static void WriteAuthorization(string dataDir, GameRuntimeSlot slot)
     {
-        try
+        if (slot?.GameIdentity == null)
+            throw new ArgumentException("A complete runtime slot is required for launch authorization.", nameof(slot));
+        if (!slot.Playable
+            || slot.RuntimePack?.Usable != true
+            || slot.RuntimePack.SourceGameIdentity != slot.GameIdentity)
         {
-            var branch = SteamGameBranch.Normalize(slot.Branch);
-            File.WriteAllText(
-                MarkerPath(dataDir),
-                JsonSerializer.Serialize(
-                    BuildPayload(dataDir, branch, slot, filesReady, readinessProblem),
-                    new JsonSerializerOptions { WriteIndented = true }
-                )
+            throw new InvalidDataException(
+                "Only a playable runtime slot with a validated exact-identity runtime pack can authorize launch."
             );
-            PatchHelper.Log($"[Launcher] Runtime slot evidence marker written: branch={branch} slot={slot.RuntimeSlotId} playable={slot.Playable} path={MarkerPath(dataDir)}");
         }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Launcher] Failed to write runtime slot evidence marker: {ex.Message}");
-        }
+
+        var branch = SteamGameBranch.Normalize(slot.Branch);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(
+            BuildPayload(dataDir, branch, slot, filesReady: true, readinessProblem: string.Empty),
+            new JsonSerializerOptions { WriteIndented = true }
+        );
+        new AtomicFileWriter().WriteAllBytes(MarkerPath(dataDir), bytes);
+        PatchHelper.Log(
+            $"[Launcher] Runtime slot authorization marker written last: branch={branch} gameIdentity={slot.GameIdentityId} pack={slot.RuntimePack.PackId} path={MarkerPath(dataDir)}"
+        );
     }
 
     private static object BuildPayload(
@@ -51,22 +43,22 @@ internal static partial class LauncherRuntimeSlotEvidence
     )
         => new
         {
+            schemaVersion = AuthorizationSchemaVersion,
             utc = DateTime.UtcNow.ToString("O"),
             branch,
             selectedVersion = SteamGameBranch.DisplayName(branch),
             selectedVersionSlotKind = SteamGameInstallPaths.VersionSlotKind(branch),
             selectedVersionSlotDirectory = SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch),
-            runtimeSlotId = slot.RuntimeSlotId,
-            runtimeSlotIdentity = slot.RuntimeSlotIdentity,
+            gameIdentityId = slot.GameIdentityId,
             filesReady,
             readinessProblem = string.IsNullOrWhiteSpace(readinessProblem) ? string.Empty : readinessProblem,
             playable = slot.Playable,
             runtimeCompatible = slot.RuntimeCompatible,
             patchCompatible = slot.PatchCompatible,
-            branchMatchedAndroidRuntimePrepared = slot.BranchMatchedAndroidRuntimePrepared,
             requiresUsableRuntimePack = slot.RequiresRuntimePackOrPreparedCache,
             requiresRuntimePackOrPreparedCache = slot.RequiresRuntimePackOrPreparedCache,
             runtimePairingStatus = slot.RuntimePairingStatus,
+            installGeneration = slot.InstallGeneration,
             pckPath = slot.PckPath,
             pckSha256 = slot.PckSha256,
             sourceAssemblyPath = slot.SourceAssemblyPath,
@@ -87,8 +79,7 @@ internal static partial class LauncherRuntimeSlotEvidence
             runtimePackStatus = slot.RuntimePack.Status,
             runtimePackUsabilityStatus = slot.RuntimePackUsabilityStatus,
             runtimePackUsable = slot.RuntimePackUsable,
-            runtimePackSourceRuntimeSlotId = slot.RuntimePack.SourceRuntimeSlotId,
-            runtimePackSourceRuntimeSlotIdMatchesSelected = slot.RuntimePackSlotIdMatches,
+            runtimePackGameIdentityId = slot.RuntimePack.GameIdentityId,
             patchCompatibilitySource = slot.PatchCompatibility.Source,
             patchCompatibilityStatus = slot.PatchCompatibility.Status,
             patchCompatibilityDetail = slot.PatchCompatibility.Detail,

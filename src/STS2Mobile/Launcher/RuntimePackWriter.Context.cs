@@ -7,12 +7,12 @@ namespace STS2Mobile.Launcher;
 internal static partial class RuntimePackWriter
 {
     private readonly record struct RuntimePackWriteContext(
-        GameRuntimeSlot Slot,
+        GameIdentity GameIdentity,
+        string DisplayName,
+        RuntimeSlotMetadata Metadata,
         string PatchSetVersion,
         string ValidationMode,
         string PackId,
-        string RuntimeSlotId,
-        string RuntimeSlotIdentity,
         IReadOnlyList<PatchCompatibilityValidator.SymbolCheck> SymbolChecks,
         PatchCompatibilityValidator.SymbolCheck[] MissingSymbols,
         object[] CategorySummaries,
@@ -25,7 +25,9 @@ internal static partial class RuntimePackWriter
     );
 
     private static RuntimePackWriteContext BuildRuntimePackWriteContext(
-        GameRuntimeSlot slot,
+        GameIdentity gameIdentity,
+        string displayName,
+        RuntimeSlotMetadata metadata,
         string patchSetVersion,
         string validationMode,
         IReadOnlyList<PatchCompatibilityValidator.SymbolCheck> symbolChecks,
@@ -39,15 +41,21 @@ internal static partial class RuntimePackWriter
         var missingSymbols = symbolChecks.Where(symbol => !symbol.Present).ToArray();
         var checkedSymbolCount = symbolChecks.Count;
         var presentSymbolCount = symbolChecks.Count(symbol => symbol.Present);
-        var packId = RuntimePackId(slot, patchSetVersion);
+        var packId = RuntimePackId(
+            gameIdentity,
+            patchSetVersion,
+            PatchCompatibilityValidator.ValidationSurfaceVersion,
+            androidAssemblySha256,
+            supportAssemblySha256
+        );
 
         return new RuntimePackWriteContext(
-            slot,
+            gameIdentity,
+            displayName,
+            metadata,
             patchSetVersion,
             validationMode,
             packId,
-            GameRuntimeSlot.BuildRuntimePackSlotId(slot, patchSetVersion, packId, androidAssemblySha256),
-            GameRuntimeSlot.BuildRuntimePackSlotIdentity(slot, patchSetVersion, packId, androidAssemblySha256),
             symbolChecks,
             missingSymbols,
             BuildCategorySummaries(symbolChecks),

@@ -7,13 +7,13 @@ internal sealed partial class RuntimePackManifest
 {
     internal static RuntimePackManifest Inspect(
         string path,
-        string expectedBranch,
-        string selectedPckSha256,
-        string selectedSourceAssemblySha256,
-        string selectedPckPath
+        GameIdentity expectedGameIdentity
     )
     {
-        var context = new RuntimePackManifestInspectionContext(path, expectedBranch);
+        if (expectedGameIdentity == null)
+            throw new ArgumentNullException(nameof(expectedGameIdentity));
+
+        var context = new RuntimePackManifestInspectionContext(path, expectedGameIdentity);
 
         if (!File.Exists(context.ManifestPath))
         {
@@ -22,12 +22,7 @@ internal sealed partial class RuntimePackManifest
 
         try
         {
-            return InspectReadable(
-                context,
-                selectedPckSha256,
-                selectedSourceAssemblySha256,
-                selectedPckPath
-            );
+            return InspectReadable(context);
         }
         catch (Exception ex)
         {

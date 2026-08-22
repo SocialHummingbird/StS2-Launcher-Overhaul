@@ -22,7 +22,7 @@ internal readonly struct LaunchAttemptSummary
         string filesReady,
         string readinessProblem,
         string runtimeSlotInspected,
-        string runtimeSlotId,
+        string gameIdentityId,
         string runtimePairingStatus,
         string patchCompatibilityStatus,
         string gameDirectory,
@@ -68,7 +68,7 @@ internal readonly struct LaunchAttemptSummary
         FilesReady = Clean(filesReady);
         ReadinessProblem = Clean(readinessProblem);
         RuntimeSlotInspected = Clean(runtimeSlotInspected);
-        RuntimeSlotId = Clean(runtimeSlotId);
+        GameIdentityId = Clean(gameIdentityId);
         RuntimePairingStatus = Clean(runtimePairingStatus);
         PatchCompatibilityStatus = Clean(patchCompatibilityStatus);
         GameDirectory = Clean(gameDirectory);
@@ -114,7 +114,7 @@ internal readonly struct LaunchAttemptSummary
     internal string FilesReady { get; }
     internal string ReadinessProblem { get; }
     internal string RuntimeSlotInspected { get; }
-    internal string RuntimeSlotId { get; }
+    internal string GameIdentityId { get; }
     internal string RuntimePairingStatus { get; }
     internal string PatchCompatibilityStatus { get; }
     internal string GameDirectory { get; }
@@ -176,7 +176,7 @@ internal readonly struct LaunchAttemptSummary
         if (!Present)
             return string.Empty;
 
-        return $"Runtime evidence: slot {Value(RuntimeSlotId)}, pairing {Value(RuntimePairingStatus)}, patch {Value(PatchCompatibilityStatus)}, runtime pack usable: {Value(RuntimePackUsable)}.";
+        return $"Runtime evidence: game identity {Value(GameIdentityId)}, pairing {Value(RuntimePairingStatus)}, patch {Value(PatchCompatibilityStatus)}, runtime pack usable: {Value(RuntimePackUsable)}.";
     }
 
     internal string PathLine()

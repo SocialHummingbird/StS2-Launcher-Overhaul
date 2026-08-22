@@ -12,8 +12,8 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Selected runtime pack usability status: {slot.RuntimePackUsabilityStatus}");
         sb.AppendLine($"Selected runtime pack usable: {BoolText(slot.RuntimePackUsable)}");
         sb.AppendLine($"Selected runtime pack id: {ValueOrMissing(slot.RuntimePack.PackId)}");
-        sb.AppendLine($"Selected runtime pack source runtime slot ID: {ValueOrMissing(slot.RuntimePack.SourceRuntimeSlotId)}");
-        sb.AppendLine($"Selected runtime pack source runtime slot ID matches selected runtime: {BoolText(slot.RuntimePackSlotIdMatches)}");
+        sb.AppendLine($"Selected runtime pack game identity ID: {ValueOrMissing(slot.RuntimePack.GameIdentityId)}");
+        sb.AppendLine($"Selected runtime pack install generation: {ValueOrMissing(slot.RuntimePack.InstallGeneration)}");
         sb.AppendLine($"Selected runtime pack source branch: {ValueOrMissing(slot.RuntimePack.SourceBranch)}");
         sb.AppendLine($"Selected runtime pack source branch matches selected: {BoolText(slot.RuntimePack.BranchMatches)}");
         sb.AppendLine($"Selected runtime pack source PCK SHA256: {ValueOrMissing(slot.RuntimePack.SourcePckSha256)}");

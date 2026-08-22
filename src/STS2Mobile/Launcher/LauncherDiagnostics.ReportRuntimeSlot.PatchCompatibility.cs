@@ -8,17 +8,13 @@ internal static partial class LauncherDiagnostics
     {
         sb.AppendLine($"Selected patch compatibility source: {slot.PatchCompatibility.Source}");
         sb.AppendLine($"Selected patch compatibility marker path: {ValueOrMissing(slot.PatchCompatibility.MarkerPath)}");
-        sb.AppendLine($"Selected patch compatibility required: {BoolText(slot.PatchCompatibility.Required)}");
         sb.AppendLine($"Selected patch compatibility evidence present: {BoolText(slot.PatchCompatibility.Exists)}");
         sb.AppendLine($"Selected patch compatibility evidence readable: {BoolText(slot.PatchCompatibility.Readable)}");
         sb.AppendLine($"Selected patch compatibility status: {slot.PatchCompatibility.Status}");
         sb.AppendLine($"Selected patch compatibility detail: {ValueOrMissing(slot.PatchCompatibility.Detail)}");
-        sb.AppendLine($"Selected patch compatibility validated branch: {ValueOrMissing(slot.PatchCompatibility.ValidatedBranch)}");
-        sb.AppendLine($"Selected patch compatibility branch matches selected: {BoolText(slot.PatchCompatibility.BranchMatches)}");
-        sb.AppendLine($"Selected patch compatibility validated PCK SHA256: {ValueOrMissing(slot.PatchCompatibility.ValidatedPckSha256)}");
-        sb.AppendLine($"Selected patch compatibility PCK matches selected: {BoolText(slot.PatchCompatibility.PckMatches)}");
-        sb.AppendLine($"Selected patch compatibility validated source assembly SHA256: {ValueOrMissing(slot.PatchCompatibility.ValidatedSourceAssemblySha256)}");
-        sb.AppendLine($"Selected patch compatibility source assembly matches selected: {BoolText(slot.PatchCompatibility.SourceAssemblyMatches)}");
+        sb.AppendLine($"Selected patch compatibility expected game identity: {ValueOrMissing(slot.PatchCompatibility.ExpectedGameIdentity?.Id)}");
+        sb.AppendLine($"Selected patch compatibility validated game identity: {ValueOrMissing(slot.PatchCompatibility.ValidatedGameIdentity?.Id)}");
+        sb.AppendLine($"Selected patch compatibility game identity matches: {BoolText(slot.PatchCompatibility.GameIdentityMatches)}");
         sb.AppendLine($"Selected patch compatibility patch-set version: {ValueOrMissing(slot.PatchCompatibility.PatchSetVersion)}");
         sb.AppendLine($"Selected patch compatibility validation mode: {ValueOrMissing(slot.PatchCompatibility.ValidationMode)}");
         sb.AppendLine($"Selected patch compatibility validation surface version: {ValueOrMissing(slot.PatchCompatibility.ValidationSurfaceVersion)}");
@@ -39,7 +35,7 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Runtime patch validation status: {LauncherRuntimePatchValidationEvidence.Status(dataDir)}");
         sb.AppendLine($"Runtime patch validation selected branch: {LauncherRuntimePatchValidationEvidence.SelectedBranch(dataDir)}");
         sb.AppendLine($"Runtime patch validation selected version: {LauncherRuntimePatchValidationEvidence.SelectedVersion(dataDir)}");
-        sb.AppendLine($"Runtime patch validation runtime slot ID: {LauncherRuntimePatchValidationEvidence.RuntimeSlotId(dataDir)}");
+        sb.AppendLine($"Runtime patch validation game identity ID: {LauncherRuntimePatchValidationEvidence.GameIdentityId(dataDir)}");
         sb.AppendLine($"Runtime patch validation selected PCK SHA256: {LauncherRuntimePatchValidationEvidence.SelectedPckSha256(dataDir)}");
         sb.AppendLine($"Runtime patch validation selected source sts2.dll SHA256: {LauncherRuntimePatchValidationEvidence.SelectedSourceAssemblySha256(dataDir)}");
         sb.AppendLine($"Runtime patch validation active Android sts2.dll SHA256: {LauncherRuntimePatchValidationEvidence.ActiveAndroidAssemblySha256(dataDir)}");

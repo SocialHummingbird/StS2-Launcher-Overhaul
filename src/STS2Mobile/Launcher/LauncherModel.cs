@@ -70,7 +70,6 @@ internal partial class LauncherModel : IDisposable
 
     internal void ResetGameFilesForRedownload()
     {
-        LauncherLaunchReadinessCache.Clear("selected version redownload reset");
         CancelDownloadForRetry();
         ResetDownload();
         LauncherGameFiles.DeleteDownloadedState(_dataDir);

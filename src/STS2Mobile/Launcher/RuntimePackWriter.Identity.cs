@@ -1,14 +1,45 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.Launcher;
 
 internal static partial class RuntimePackWriter
 {
-    private static string RuntimePackId(GameRuntimeSlot slot, string patchSetVersion)
+    internal static string RuntimePackId(
+        GameIdentity gameIdentity,
+        string patchSetVersion,
+        string validationSurfaceVersion,
+        string androidAssemblySha256,
+        IReadOnlyDictionary<string, string> supportAssemblySha256
+    )
     {
-        var pck = ShortHash(slot.PckSha256);
-        var asm = ShortHash(slot.SourceAssemblySha256);
-        return $"{slot.Branch}-{pck}-{asm}-{patchSetVersion}";
+        if (gameIdentity == null)
+            throw new ArgumentNullException(nameof(gameIdentity));
+
+        var support = supportAssemblySha256 == null
+            ? string.Empty
+            : string.Join(
+                "\n",
+                supportAssemblySha256
+                    .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(pair => $"support={pair.Key.ToLowerInvariant()}:{pair.Value.ToLowerInvariant()}")
+            );
+        var canonical = string.Join(
+            "\n",
+            "runtime-pack-v1",
+            $"gameIdentityId={gameIdentity.Id}",
+            $"patchSetVersion={patchSetVersion}",
+            $"validationSurfaceVersion={validationSurfaceVersion}",
+            $"androidAssemblySha256={androidAssemblySha256}",
+            support
+        );
+        var hash = Convert.ToHexString(
+            AndroidJavaCrypto.Sha256HashData(Encoding.UTF8.GetBytes(canonical))
+        ).ToLowerInvariant();
+        return $"{gameIdentity.Branch}-{ShortHash(hash)}";
     }
 
     private static string ShortHash(string value)

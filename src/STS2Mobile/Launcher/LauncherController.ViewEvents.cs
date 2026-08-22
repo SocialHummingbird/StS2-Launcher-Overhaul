@@ -16,7 +16,6 @@ internal sealed partial class LauncherController
             _downloads.UpdateSelectedVersionPressed,
             _versions.RunBranchCatalogRefresh,
             _downloads.RedownloadPressed,
-            _downloads.ClearCachedVersionsPressed,
             _diagnostics.DiagnosticsPressed,
             _diagnostics.ShowLastErrorPressed,
             _diagnostics.CopyRawLogPressed,

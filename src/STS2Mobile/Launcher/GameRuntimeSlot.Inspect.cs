@@ -9,35 +9,52 @@ internal sealed partial class GameRuntimeSlot
         var context = new GameRuntimeSlotInspectionContext(dataDir, branch);
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase: paths for branch '{branch}'");
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: paths pck='{context.PckPath}' source='{context.SourceAssemblyPath}' active='{context.ActiveAndroidAssemblyPath}' manifest='{context.RuntimePackManifestPath}'");
-        PatchHelper.Log("[Launcher] Runtime slot inspect phase: PCK SHA256");
-        var pckSha256 = PckSha256OrMissing(
-            dataDir,
-            context.Branch,
-            context.GameDirectory,
-            context.PckPath,
-            context.RuntimePackManifestPath
-        );
-        PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: PCK SHA256 -> {pckSha256}");
-        if (!HasUsableHash(pckSha256))
+        PatchHelper.Log("[Launcher] Runtime slot inspect phase: authoritative installed game identity");
+        GameIdentity gameIdentity;
+        try
         {
-            PatchHelper.Log("[Launcher] Runtime slot inspect phase: selected PCK missing or invalid; skipping source/runtime file probes");
-            var incompleteSlot = BuildIncompleteRuntimeSlot(context, pckSha256);
-            PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: incomplete files -> {incompleteSlot.RuntimeSlotId}");
+            gameIdentity = GameIdentityReader.ReadInstalled(dataDir, context.Branch);
+        }
+        catch (GameIdentityException ex)
+        {
+            PatchHelper.Log($"[Launcher] Runtime slot inspect phase failed: authoritative installed game identity -> {ex.Kind}: {ex.Message}");
+            var incompleteSlot = BuildIncompleteRuntimeSlot(context, ex.Message);
+            PatchHelper.Log("[Launcher] Runtime slot inspect phase complete: current game identity unavailable");
             return incompleteSlot;
         }
-        PatchHelper.Log("[Launcher] Runtime slot inspect phase: source assembly SHA256");
-        var sourceAssemblySha256 = SourceAssemblySha256OrMissing(
+
+        return Inspect(dataDir, context, gameIdentity);
+    }
+
+    internal static GameRuntimeSlot Inspect(
+        string dataDir,
+        GameIdentity gameIdentity
+    )
+    {
+        if (gameIdentity == null)
+            throw new System.ArgumentNullException(nameof(gameIdentity));
+
+        var context = new GameRuntimeSlotInspectionContext(
             dataDir,
-            context.Branch,
-            context.SourceAssemblyPath
+            gameIdentity.Branch
         );
-        PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: source assembly SHA256 -> {sourceAssemblySha256}");
+        PatchHelper.Log(
+            $"[Launcher] Runtime slot inspect using supplied authoritative identity {gameIdentity.Id} for branch '{gameIdentity.Branch}'"
+        );
+        return Inspect(dataDir, context, gameIdentity);
+    }
+
+    private static GameRuntimeSlot Inspect(
+        string dataDir,
+        GameRuntimeSlotInspectionContext context,
+        GameIdentity gameIdentity
+    )
+    {
+        var pckSha256 = gameIdentity.PckSha256;
+        var sourceAssemblySha256 = gameIdentity.SourceAssemblySha256;
+        PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: authoritative installed game identity -> {gameIdentity.Id} generation={gameIdentity.InstallGeneration} PCK={pckSha256} source={sourceAssemblySha256}");
         PatchHelper.Log("[Launcher] Runtime slot inspect phase: active Android assembly SHA256");
-        var activeAndroidAssemblySha256 = ActiveAndroidAssemblySha256OrMissing(
-            dataDir,
-            context.Branch,
-            context.ActiveAndroidAssemblyPath
-        );
+        var activeAndroidAssemblySha256 = Sha256OrMissing(context.ActiveAndroidAssemblyPath);
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: active Android assembly SHA256 -> {activeAndroidAssemblySha256}");
         PatchHelper.Log("[Launcher] Runtime slot inspect phase: metadata");
         var metadata = RuntimeSlotMetadata.Inspect(
@@ -48,56 +65,23 @@ internal sealed partial class GameRuntimeSlot
         PatchHelper.Log("[Launcher] Runtime slot inspect phase: runtime pack manifest");
         var runtimePack = RuntimePackManifest.Inspect(
             context.RuntimePackManifestPath,
-            context.Branch,
-            pckSha256,
-            sourceAssemblySha256,
-            context.PckPath
+            gameIdentity
         );
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: runtime pack manifest -> {runtimePack?.Status ?? "<none>"}");
-        pckSha256 = CanonicalizeRuntimePackSourcePckSha256(pckSha256, runtimePack);
-        PatchHelper.Log("[Launcher] Runtime slot inspect phase: runtime pack slot ID");
-        var runtimePackSlotIdMatches = RuntimePackSlotIdMatchesFor(
-            metadata,
-            runtimePack,
-            context.Branch,
-            pckSha256,
-            sourceAssemblySha256
-        );
-        PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: runtime pack slot ID -> {runtimePackSlotIdMatches}");
         PatchHelper.Log("[Launcher] Runtime slot inspect phase: patch compatibility");
         var patchCompatibility = PatchCompatibilityEvidence.Inspect(
-            dataDir,
-            context.Branch,
-            context.GameDirectory,
-            pckSha256,
-            sourceAssemblySha256,
-            runtimePack,
-            runtimePackSlotIdMatches
+            gameIdentity,
+            runtimePack
         );
         PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: patch compatibility -> {patchCompatibility?.Status ?? "<none>"}");
-        PatchHelper.Log("[Launcher] Runtime slot inspect phase: runtime slot identity");
-        var runtimeSlotIdentity = BuildRuntimeSlotIdentity(
-            context.Branch,
-            metadata,
-            runtimePack,
-            runtimePackSlotIdMatches,
-            patchCompatibility,
-            pckSha256,
-            sourceAssemblySha256
-        );
-        var runtimeSlotId = BuildRuntimeSlotId(context.Branch, runtimeSlotIdentity);
-        PatchHelper.Log($"[Launcher] Runtime slot inspect phase complete: runtime slot identity -> {runtimeSlotId}");
 
         return BuildRuntimeSlot(
             context,
             metadata,
             runtimePack,
             patchCompatibility,
-            runtimePackSlotIdMatches,
-            runtimeSlotId,
-            runtimeSlotIdentity,
-            pckSha256,
-            sourceAssemblySha256,
+            gameIdentity,
+            string.Empty,
             activeAndroidAssemblySha256
         );
     }

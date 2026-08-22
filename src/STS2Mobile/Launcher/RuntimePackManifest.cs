@@ -8,16 +8,16 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class RuntimePackManifest
 {
     internal const string AndroidAssemblyFileName = "sts2.dll";
-    private const string AndroidPckPatchMarkerFileName = ".android_pck_patch_v35";
-
     private RuntimePackManifest(
         string path,
         string expectedBranch,
+        GameIdentity expectedGameIdentity,
         string packId,
-        string sourceRuntimeSlotId,
         string sourceBranch,
+        string installGeneration,
         string sourcePckSha256,
         string sourceAssemblySha256,
+        string gameIdentityId,
         string androidAssemblySha256,
         string patchSetVersion,
         string patchValidationStatus,
@@ -44,11 +44,21 @@ internal sealed partial class RuntimePackManifest
         Path = path;
         DirectoryPath = System.IO.Path.GetDirectoryName(path) ?? string.Empty;
         ExpectedBranch = expectedBranch;
+        ExpectedGameIdentity = expectedGameIdentity;
         PackId = packId;
-        SourceRuntimeSlotId = sourceRuntimeSlotId;
         SourceBranch = sourceBranch;
+        InstallGeneration = installGeneration;
         SourcePckSha256 = sourcePckSha256;
         SourceAssemblySha256 = sourceAssemblySha256;
+        GameIdentityId = gameIdentityId;
+        GameIdentity.TryCreate(
+            sourceBranch,
+            installGeneration,
+            sourcePckSha256,
+            sourceAssemblySha256,
+            out var sourceGameIdentity
+        );
+        SourceGameIdentity = sourceGameIdentity;
         AndroidAssemblySha256 = androidAssemblySha256;
         PatchSetVersion = patchSetVersion;
         PatchValidationStatus = patchValidationStatus;
@@ -75,11 +85,14 @@ internal sealed partial class RuntimePackManifest
     internal string Path { get; }
     internal string DirectoryPath { get; }
     internal string ExpectedBranch { get; }
+    internal GameIdentity ExpectedGameIdentity { get; }
     internal string PackId { get; }
-    internal string SourceRuntimeSlotId { get; }
     internal string SourceBranch { get; }
+    internal string InstallGeneration { get; }
     internal string SourcePckSha256 { get; }
     internal string SourceAssemblySha256 { get; }
+    internal string GameIdentityId { get; }
+    internal GameIdentity SourceGameIdentity { get; }
     internal string AndroidAssemblySha256 { get; }
     internal string PatchSetVersion { get; }
     internal string PatchValidationStatus { get; }
@@ -122,6 +135,4 @@ internal sealed partial class RuntimePackManifest
     internal bool PatchValidationPassed =>
         string.Equals(PatchValidationStatus, "passed", StringComparison.OrdinalIgnoreCase);
 
-    internal bool SourcePckMatchesSelectedPck(string selectedPckSha256, string selectedPckPath)
-        => SourcePckMatches(SourcePckSha256, selectedPckSha256, selectedPckPath);
 }

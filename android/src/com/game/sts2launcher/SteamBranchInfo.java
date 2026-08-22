@@ -27,11 +27,14 @@ final class SteamBranchInfo {
 		if (PUBLIC_BRANCH.equalsIgnoreCase(normalize(branch))) {
 			return filesDir;
 		}
-		return new File(new File(filesDir, "game_versions"), stateDirectoryName(branch));
+		return new File(
+			new File(filesDir, LauncherArtifactLayout.GAME_VERSIONS_DIRECTORY),
+			stateDirectoryName(branch)
+		);
 	}
 
 	static File gameDirectory(File filesDir, String branch) {
-		return new File(installSlotDirectory(filesDir, branch), "game");
+		return LauncherArtifactLayout.gameDirectory(filesDir, branch);
 	}
 
 	static String stateDirectoryName(String branch) {
@@ -64,11 +67,11 @@ final class SteamBranchInfo {
 		return safePrefix + "-" + stableBranchHash(normalized);
 	}
 
-	private static String storageIdentity(String branch) {
+	static String storageIdentity(String branch) {
 		return normalize(branch).toLowerCase(Locale.ROOT);
 	}
 
-	private static String normalize(String branch) {
+	static String normalize(String branch) {
 		if (branch == null) {
 			return PUBLIC_BRANCH;
 		}

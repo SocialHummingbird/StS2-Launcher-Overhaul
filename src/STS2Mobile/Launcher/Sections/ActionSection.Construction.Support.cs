@@ -9,7 +9,6 @@ internal sealed partial class ActionSection
             BuildUpdateSupportButton(scale, compact, supportToolsParent),
             BuildRefreshVersionsSupportButton(scale, compact, supportToolsParent),
             BuildRedownloadSupportButton(scale, compact, supportToolsParent),
-            BuildClearCachedVersionsSupportButton(scale, compact, supportToolsParent),
             BuildDiagnosticsSupportButton(scale, compact, supportToolsParent),
             BuildShowLastErrorSupportButton(scale, compact, supportToolsParent),
             BuildCopyRawLogSupportButton(scale, compact, supportToolsParent)

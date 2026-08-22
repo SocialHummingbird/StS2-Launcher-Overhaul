@@ -12,31 +12,63 @@ internal static partial class RuntimePackWriter
     {
     };
 
-    private static string PreparePackDirectory(GameRuntimeSlot slot)
+    private static string CreateStagingDirectory(
+        string finalPackDirectory,
+        Guid installTransactionId,
+        Guid attemptId
+    )
     {
-        var packDirectory = Path.GetDirectoryName(slot.RuntimePackManifestPath);
-        if (string.IsNullOrWhiteSpace(packDirectory))
-            return null;
+        var parent = Path.GetDirectoryName(finalPackDirectory);
+        if (string.IsNullOrWhiteSpace(parent))
+            throw new IOException("Cannot resolve the runtime-pack parent directory.");
 
-        if (Directory.Exists(packDirectory))
-            Directory.Delete(packDirectory, recursive: true);
-        Directory.CreateDirectory(packDirectory);
-        return packDirectory;
+        Directory.CreateDirectory(parent);
+        var stagingDirectory = Path.GetFullPath(
+            $"{finalPackDirectory}.staging.{installTransactionId:N}.{attemptId:N}"
+        );
+        var parentPrefix = Path.GetFullPath(parent)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        if (!stagingDirectory.StartsWith(parentPrefix, comparison))
+            throw new IOException($"Refusing to stage a runtime pack outside its parent: {stagingDirectory}.");
+        if (Directory.Exists(stagingDirectory) || File.Exists(stagingDirectory))
+            throw new IOException($"Runtime-pack staging attempt already exists: {stagingDirectory}.");
+
+        Directory.CreateDirectory(stagingDirectory);
+        return stagingDirectory;
     }
 
-    private static RuntimeAssemblyCopyResult CopyRuntimeAssembly(GameRuntimeSlot slot, string packDirectory)
+    private static RuntimeAssemblyCopyResult CopyRuntimeAssembly(
+        string sourceAssemblyPath,
+        string activeAndroidAssemblyPath,
+        string stagingDirectory,
+        GameIdentity gameIdentity,
+        RuntimePackGenerationHooks hooks
+    )
     {
-        var destinationPath = Path.Combine(packDirectory, RuntimeAssemblyFileName);
-        File.Copy(
-            slot.SourceAssemblyPath,
-            destinationPath,
-            overwrite: true
-        );
+        var destinationPath = Path.Combine(stagingDirectory, RuntimeAssemblyFileName);
+        File.Copy(sourceAssemblyPath, destinationPath, overwrite: false);
 
+        var copiedSourceSha256 = Sha256Hex(destinationPath);
+        if (!string.Equals(
+                copiedSourceSha256,
+                gameIdentity.SourceAssemblySha256,
+                StringComparison.Ordinal
+            ))
+        {
+            throw new InvalidDataException(
+                $"Copied source sts2.dll does not match the authoritative GameIdentity: expected={gameIdentity.SourceAssemblySha256}; actual={copiedSourceSha256}."
+            );
+        }
+
+        hooks?.AfterSourceCopied?.Invoke(stagingDirectory);
         var publicizerResult = AndroidAssemblyPublicizer.Publicize(
             destinationPath,
-            slot.SourceAssemblyPath,
-            slot.ActiveAndroidAssemblyPath
+            sourceAssemblyPath,
+            activeAndroidAssemblyPath
         );
         return new RuntimeAssemblyCopyResult(
             destinationPath,
@@ -46,12 +78,12 @@ internal static partial class RuntimePackWriter
     }
 
     private static string[] CopyRuntimeSupportAssemblies(
-        GameRuntimeSlot slot,
-        string packDirectory,
+        string sourceAssemblyPath,
+        string stagingDirectory,
         IDictionary<string, string> supportAssemblySha256
     )
     {
-        var sourceDirectory = Path.GetDirectoryName(slot.SourceAssemblyPath);
+        var sourceDirectory = Path.GetDirectoryName(sourceAssemblyPath);
         if (string.IsNullOrWhiteSpace(sourceDirectory) || !Directory.Exists(sourceDirectory))
             return Array.Empty<string>();
 
@@ -62,8 +94,8 @@ internal static partial class RuntimePackWriter
             if (!File.Exists(sourcePath))
                 continue;
 
-            var destinationPath = Path.Combine(packDirectory, fileName);
-            File.Copy(sourcePath, destinationPath, overwrite: true);
+            var destinationPath = Path.Combine(stagingDirectory, fileName);
+            File.Copy(sourcePath, destinationPath, overwrite: false);
             copied.Add(fileName);
             supportAssemblySha256[fileName] = Sha256Hex(destinationPath);
         }
@@ -71,7 +103,7 @@ internal static partial class RuntimePackWriter
         return copied.ToArray();
     }
 
-    private static string Sha256Hex(string path)
+    internal static string Sha256Hex(string path)
     {
         byte[] hash;
         if (OperatingSystem.IsAndroid())
@@ -84,7 +116,7 @@ internal static partial class RuntimePackWriter
             hash = SHA256.HashData(stream);
         }
 
-        return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private readonly record struct RuntimeAssemblyCopyResult(
@@ -92,4 +124,34 @@ internal static partial class RuntimePackWriter
         string Sha256,
         AndroidAssemblyPublicizer.Result PublicizerResult
     );
+
+    private readonly struct RuntimePackGenerationPaths
+    {
+        internal RuntimePackGenerationPaths(string dataDir, GameIdentity gameIdentity)
+        {
+            var gameDirectory = Steam.SteamGameInstallPaths.GameDirectory(
+                dataDir,
+                gameIdentity.Branch
+            );
+            SourceAssemblyPath = GameIdentityReader.ResolveInstalledSourceAssemblyPath(
+                gameDirectory
+            );
+            ActiveAndroidAssemblyPath = GameRuntimeSlot.FindActiveAndroidAssemblyPath(dataDir);
+            ReleaseInfoPath = Path.Combine(gameDirectory, "release_info.json");
+            BranchMarkerPath = Steam.SteamGameInstallPaths.BranchMarkerPath(
+                dataDir,
+                gameIdentity.Branch
+            );
+            FinalPackDirectory = GameRuntimeSlot.RuntimePackDirectoryPath(
+                dataDir,
+                gameIdentity.Branch
+            );
+        }
+
+        internal string SourceAssemblyPath { get; }
+        internal string ActiveAndroidAssemblyPath { get; }
+        internal string ReleaseInfoPath { get; }
+        internal string BranchMarkerPath { get; }
+        internal string FinalPackDirectory { get; }
+    }
 }

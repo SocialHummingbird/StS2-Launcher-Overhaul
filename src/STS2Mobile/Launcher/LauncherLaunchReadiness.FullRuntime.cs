@@ -30,7 +30,12 @@ internal sealed partial class LauncherLaunchReadiness
             $"branch={branch}"
         );
 
-        if (!LauncherGameFiles.DownloadedForValidation(dataDir, branch, out var downloadProblem))
+        if (!LauncherGameFiles.TryReadReadyIdentity(
+                dataDir,
+                branch,
+                out var gameIdentity,
+                out var downloadProblem
+            ))
         {
             var problem = downloadProblem
                 ?? "Selected game version is not ready to launch.";
@@ -46,28 +51,107 @@ internal sealed partial class LauncherLaunchReadiness
             );
         }
 
+        return EvaluateReadyIdentity(dataDir, gameIdentity, phase);
+    }
+
+    internal static LauncherLaunchReadiness EvaluateCompletedInstall(
+        string dataDir,
+        GameIdentity gameIdentity,
+        string phase
+    )
+    {
+        if (gameIdentity == null)
+            throw new System.ArgumentNullException(nameof(gameIdentity));
+
+        if (!BranchInstallStateStore.Current.TryReadReady(
+                dataDir,
+                gameIdentity.Branch,
+                gameIdentity,
+                out _,
+                out var stateProblem
+            ))
+        {
+            return new LauncherLaunchReadiness(
+                dataDir,
+                gameIdentity.Branch,
+                ready: false,
+                stateProblem,
+                runtimeSlot: null,
+                phase,
+                LauncherLaunchReadinessCacheStatus.Fresh
+            );
+        }
+
+        var readiness = EvaluateReadyIdentity(dataDir, gameIdentity, phase);
+        LauncherLaunchReadinessCache.Store(dataDir, readiness);
+        return readiness;
+    }
+
+    private static LauncherLaunchReadiness EvaluateReadyIdentity(
+        string dataDir,
+        GameIdentity gameIdentity,
+        string phase
+    )
+    {
+        var branch = gameIdentity.Branch;
+
         LauncherLaunchMarkers.RecordPhase(
             $"{phase}: validating patch compatibility",
-            $"branch={branch}"
+            $"branch={branch}; gameIdentity={gameIdentity.Id}"
         );
-        var slot = PatchCompatibilityValidator.ValidateSelectedVersionSlot(dataDir, branch);
+        var inspectedSlot = GameRuntimeSlot.Inspect(dataDir, gameIdentity);
+        var validation = PatchCompatibilityValidator.ValidateSelectedVersionSlot(
+            dataDir,
+            gameIdentity,
+            inspectedSlot
+        );
+        var slot = validation.RuntimeSlot;
+
+        if (!string.IsNullOrWhiteSpace(validation.Problem))
+        {
+            LauncherRuntimeSlotEvidence.Revoke(dataDir);
+            LauncherLaunchMarkers.RecordPhase(
+                $"{phase}: runtime-pack candidate blocked",
+                $"branch={branch}; gameIdentity={gameIdentity.Id}; problem={validation.Problem}"
+            );
+            return new LauncherLaunchReadiness(
+                dataDir,
+                branch,
+                ready: false,
+                validation.Problem,
+                slot,
+                phase,
+                LauncherLaunchReadinessCacheStatus.Fresh
+            );
+        }
+
+        var launchPreparation = RuntimePackLaunchLifecycle.Complete(
+            dataDir,
+            gameIdentity,
+            validation.Candidate
+        );
+        slot = launchPreparation.RuntimeSlot ?? GameRuntimeSlot.Inspect(dataDir, gameIdentity);
 
         LauncherLaunchMarkers.RecordPhase(
             $"{phase}: runtime pairing inspected",
-            $"branch={branch}; slot={slot.RuntimeSlotId}"
+            $"branch={branch}; gameIdentity={slot.GameIdentityId}"
         );
-        var readinessProblem = slot.Playable ? string.Empty : slot.ReadinessProblem();
-        LauncherRuntimeSlotEvidence.Write(dataDir, slot, slot.Playable, readinessProblem);
+        var ready = launchPreparation.Succeeded && slot.Playable;
+        var readinessProblem = ready
+            ? string.Empty
+            : !string.IsNullOrWhiteSpace(launchPreparation.Problem)
+                ? launchPreparation.Problem
+                : slot.ReadinessProblem();
 
         LauncherLaunchMarkers.RecordPhase(
-            slot.Playable ? $"{phase}: readiness passed" : $"{phase}: readiness blocked",
-            $"branch={branch}; slot={slot.RuntimeSlotId}; runtime={slot.RuntimePairingStatus}; patch={slot.PatchCompatibility?.Status ?? "<none>"}; problem={readinessProblem}"
+            ready ? $"{phase}: readiness passed" : $"{phase}: readiness blocked",
+            $"branch={branch}; gameIdentity={slot.GameIdentityId}; runtime={slot.RuntimePairingStatus}; patch={slot.PatchCompatibility?.Status ?? "<none>"}; problem={readinessProblem}"
         );
 
         return new LauncherLaunchReadiness(
             dataDir,
             branch,
-            slot.Playable,
+            ready,
             readinessProblem,
             slot,
             phase,

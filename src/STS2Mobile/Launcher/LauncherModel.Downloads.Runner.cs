@@ -12,8 +12,9 @@ internal partial class LauncherModel
     {
         try
         {
-            await _downloader.DownloadAsync(_downloadCts.Token).ConfigureAwait(false);
-            RaiseDownloadCompleted(branch);
+            var completion = await _downloader.DownloadAsync(_downloadCts.Token)
+                .ConfigureAwait(false);
+            RaiseDownloadCompleted(completion);
         }
         catch (OperationCanceledException)
         {

@@ -31,18 +31,21 @@ internal sealed partial class LauncherDownloadCoordinator
     internal void UpdateDownloadProgress(DepotDownloader.DownloadProgress progress)
         => progress.ApplyTo(_view.SetDownloadProgress, _view.AppendLog);
 
-    internal void CompleteDownload(string branch)
+    internal void CompleteDownload(BranchInstallCompletion completion)
     {
+        if (completion == null)
+            throw new ArgumentNullException(nameof(completion));
+        var branch = completion.Branch;
         LauncherLaunchMarkers.RecordPhase(
             "game download completed",
-            $"branch={branch}"
+            $"branch={branch}; gameIdentity={completion.GameIdentity.Id}; transaction={completion.TransactionId:D}"
         );
         LauncherLaunchReadinessCache.Clear("game download completed");
         _refreshGameBranchOptions();
         LauncherLaunchReadiness readiness;
         try
         {
-            readiness = _launch.RefreshSelectedRuntimeSlotEvidence(branch);
+            readiness = _launch.RefreshSelectedRuntimeSlotEvidence(completion);
         }
         catch (Exception ex)
         {

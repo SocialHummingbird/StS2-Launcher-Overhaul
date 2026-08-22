@@ -14,26 +14,13 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Runtime cache marker version name: {LauncherRuntimeCacheEvidence.VersionName(dataDir)}");
         sb.AppendLine($"Runtime cache marker version code: {LauncherRuntimeCacheEvidence.VersionCode(dataDir)}");
         sb.AppendLine($"Runtime cache marker assembly cache schema: {LauncherRuntimeCacheEvidence.AssemblyCacheSchema(dataDir)}");
-        sb.AppendLine($"Runtime cache marker selected branch: {LauncherRuntimeCacheEvidence.SelectedBranch(dataDir)}");
-        sb.AppendLine($"Runtime cache marker selected branch requires runtime pack: {LauncherRuntimeCacheEvidence.SelectedBranchRequiresRuntimePack(dataDir)}");
-        sb.AppendLine($"Runtime cache marker runtime ID: {LauncherRuntimeCacheEvidence.RuntimeId(dataDir)}");
-        sb.AppendLine($"Runtime cache marker runtime source: {LauncherRuntimeCacheEvidence.RuntimeSource(dataDir)}");
+        sb.AppendLine($"Runtime cache marker active branch: {LauncherRuntimeCacheEvidence.ActiveBranch(dataDir)}");
+        sb.AppendLine($"Runtime cache marker game identity ID: {LauncherRuntimeCacheEvidence.GameIdentityId(dataDir)}");
+        sb.AppendLine($"Runtime cache marker runtime pack ID: {LauncherRuntimeCacheEvidence.RuntimePackId(dataDir)}");
         sb.AppendLine($"Runtime cache marker runtime pack directory: {LauncherRuntimeCacheEvidence.RuntimePackDirectory(dataDir)}");
         sb.AppendLine($"Runtime cache marker runtime pack game assembly: {LauncherRuntimeCacheEvidence.RuntimePackGameAssembly(dataDir)}");
-        sb.AppendLine($"Runtime cache marker game directory: {LauncherRuntimeCacheEvidence.GameDirectory(dataDir)}");
-        sb.AppendLine($"Runtime cache marker selected PCK path: {LauncherRuntimeCacheEvidence.SelectedPckPath(dataDir)}");
-        sb.AppendLine($"Runtime cache marker selected PCK identity: {LauncherRuntimeCacheEvidence.SelectedPckIdentity(dataDir)}");
-        sb.AppendLine($"Runtime cache marker selected PCK SHA256: {LauncherRuntimeCacheEvidence.SelectedPckSha256(dataDir)}");
-        sb.AppendLine($"Runtime cache marker selected source sts2.dll: {LauncherRuntimeCacheEvidence.SelectedSourceAssembly(dataDir)}");
-        sb.AppendLine($"Runtime cache marker selected source sts2.dll SHA256: {LauncherRuntimeCacheEvidence.SelectedSourceAssemblySha256(dataDir)}");
-        sb.AppendLine($"Runtime cache marker active source sts2.dll: {LauncherRuntimeCacheEvidence.ActiveSourceAssembly(dataDir)}");
-        sb.AppendLine($"Runtime cache marker active source sts2.dll SHA256: {LauncherRuntimeCacheEvidence.ActiveSourceAssemblySha256(dataDir)}");
+        sb.AppendLine($"Runtime cache marker runtime pack sts2.dll SHA256: {LauncherRuntimeCacheEvidence.RuntimePackAssemblySha256(dataDir)}");
         sb.AppendLine($"Runtime cache marker publish cache directory: {LauncherRuntimeCacheEvidence.PublishCacheDirectory(dataDir)}");
         sb.AppendLine($"Runtime cache marker publish cache active sts2.dll SHA256: {LauncherRuntimeCacheEvidence.PublishCacheActiveAssemblySha256(dataDir)}");
-        sb.AppendLine($"Runtime cache marker matches selected branch: {BoolText(LauncherRuntimeCacheEvidence.MatchesSelectedBranch(dataDir, branch))}");
-        sb.AppendLine($"Runtime cache marker selected PCK matches selected runtime: {BoolText(LauncherRuntimeCacheEvidence.PckMatchesSelectedRuntime(dataDir, branch))}");
-        sb.AppendLine($"Runtime cache marker selected source sts2.dll matches selected runtime: {BoolText(LauncherRuntimeCacheEvidence.SourceAssemblyMatchesSelectedRuntime(dataDir, branch))}");
-        sb.AppendLine($"Runtime cache publish sts2.dll matches selected runtime: {BoolText(LauncherRuntimeCacheEvidence.PublishCacheMatchesSelectedRuntime(dataDir, branch))}");
-        sb.AppendLine($"Runtime cache prepared for selected runtime: {BoolText(LauncherRuntimeCacheEvidence.CachePreparedForSelectedRuntime(dataDir, branch))}");
     }
 }

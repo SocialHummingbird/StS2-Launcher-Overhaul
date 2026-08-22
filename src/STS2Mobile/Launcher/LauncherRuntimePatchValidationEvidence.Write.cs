@@ -20,12 +20,6 @@ internal static partial class LauncherRuntimePatchValidationEvidence
                 : result.HasFailures
                     ? "passed_with_noncritical_failures"
                     : "passed";
-            var runtimeId = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.RuntimeIdPrefix);
-            var selectedPckSha256 = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.SelectedPckSha256Prefix);
-            var selectedSourceAssemblySha256 = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.SelectedSourceAssemblySha256Prefix);
-            var activeAndroidAssemblySha256 = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.ActiveSourceAssemblySha256Prefix);
-            var runtimePackDirectory = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.RuntimePackDirectoryPrefix);
-            var runtimePackGameAssembly = RuntimeCacheValue(dataDir, LauncherRuntimeCacheEvidence.RuntimePackGameAssemblyPrefix);
             var slot = GameRuntimeSlot.Inspect(dataDir, branch);
 
             var payload = new
@@ -36,19 +30,15 @@ internal static partial class LauncherRuntimePatchValidationEvidence
                 selectedVersion = SteamGameBranch.DisplayName(branch),
                 selectedVersionSlotKind = SteamGameInstallPaths.VersionSlotKind(branch),
                 selectedVersionSlotDirectory = SteamGameInstallPaths.VersionSlotDirectory(dataDir, branch),
-                runtimeSlotId = slot.RuntimeSlotId,
-                runtimeCacheId = runtimeId,
-                selectedPckSha256,
-                selectedSourceAssemblySha256,
-                activeAndroidAssemblySha256,
-                runtimePackId = slot.RuntimePack?.PackId ?? runtimePackDirectory,
-                runtimePackStatus = RuntimePackStatus(runtimePackDirectory, runtimePackGameAssembly),
+                gameIdentityId = slot.GameIdentityId,
+                selectedPckSha256 = slot.PckSha256,
+                selectedSourceAssemblySha256 = slot.SourceAssemblySha256,
+                activeAndroidAssemblySha256 = slot.ActiveAndroidAssemblySha256,
+                runtimePackId = slot.RuntimePack?.PackId ?? string.Empty,
+                runtimePackStatus = slot.RuntimePackUsabilityStatus,
                 patchCompatibleBeforeLaunch = !result.CriticalFailed,
-                runtimeCompatibleBeforeLaunch = !string.IsNullOrWhiteSpace(activeAndroidAssemblySha256)
-                    && !activeAndroidAssemblySha256.StartsWith("<", StringComparison.Ordinal),
-                playableBeforeLaunch = !result.CriticalFailed
-                    && !string.IsNullOrWhiteSpace(activeAndroidAssemblySha256)
-                    && !activeAndroidAssemblySha256.StartsWith("<", StringComparison.Ordinal),
+                runtimeCompatibleBeforeLaunch = slot.RuntimeCompatible,
+                playableBeforeLaunch = slot.Playable && !result.CriticalFailed,
                 criticalFailed = result.CriticalFailed,
                 hasFailures = result.HasFailures,
                 appliedPatchCount = result.AppliedPatchCount,

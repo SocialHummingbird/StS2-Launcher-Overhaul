@@ -5,6 +5,28 @@ namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
+    private void RequireUpdatingBeforeInstalledMutation()
+    {
+        if (_installUpdate == null)
+        {
+            throw new IOException(
+                $"Refusing to mutate installed files for branch '{_branch}' without an updating installation transaction."
+            );
+        }
+
+        _installUpdate.RequireUpdatingBeforeInstalledMutation();
+    }
+
+    private void CommitInstalledGameFile(
+        string tempPath,
+        string filePath,
+        string fileName
+    )
+    {
+        RequireUpdatingBeforeInstalledMutation();
+        CommitDownloadedFile(tempPath, filePath, fileName);
+    }
+
     private void CommitDownloadedFile(string tempPath, string filePath, string fileName)
     {
         try

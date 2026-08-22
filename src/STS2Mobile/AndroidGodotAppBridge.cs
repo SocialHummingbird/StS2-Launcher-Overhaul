@@ -29,6 +29,19 @@ internal static class AndroidGodotAppBridge
     internal static void LaunchGameSafelyOnRestart()
         => CallVoid("launchGameSafelyOnRestart");
 
+    internal static string PrepareRuntimePackForLaunch(
+        string branch,
+        string gameIdentityId,
+        string runtimePackId
+    ) => AndroidBridgeDispatcher.Run(
+        () => (string)(GetInstanceOnCurrentThread()?.Call(
+            "prepareRuntimePackForLaunch",
+            branch,
+            gameIdentityId,
+            runtimePackId
+        ) ?? "Android Godot bridge is unavailable for active assembly-cache preparation.")
+    );
+
     internal static bool ShareTextFile(string path)
         => AndroidBridgeDispatcher.Run(
             () => (bool)(GetInstanceOnCurrentThread()?.Call("shareTextFile", path) ?? false)

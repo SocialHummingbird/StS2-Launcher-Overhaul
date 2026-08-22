@@ -12,7 +12,7 @@ internal partial class LauncherModel
 
     internal event Action<DepotDownloader.DownloadProgress> DownloadProgressChanged;
     internal event Action<string> DownloadLogReceived;
-    internal event Action<string> DownloadCompleted;
+    internal event Action<BranchInstallCompletion> DownloadCompleted;
     internal event Action<LauncherBranchOperationFailure> DownloadFailed;
     internal event Action<string> DownloadCancelled;
     internal event Action<LauncherUpdateCheckResult> UpdateCheckCompleted;

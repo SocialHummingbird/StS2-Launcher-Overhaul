@@ -38,6 +38,7 @@ internal sealed partial class DepotDownloader
 
         internal static DepotFileTarget Create(DepotDownloader owner, string fileName)
         {
+            owner.RequireUpdatingBeforeInstalledMutation();
             var filePath = owner.ResolveGamePath(fileName);
             var fileDir = Path.GetDirectoryName(filePath);
             if (fileDir != null)
@@ -64,6 +65,7 @@ internal sealed partial class DepotDownloader
             await writeLock.WaitAsync(ct);
             try
             {
+                owner.RequireUpdatingBeforeInstalledMutation();
                 owner._currentDownloadFile = FileName;
                 owner.ForceReportProgress();
 
@@ -172,7 +174,7 @@ internal sealed partial class DepotDownloader
                 throw new IOException($"SHA-1 verification failed for {FileName} after download");
             }
 
-            owner.CommitDownloadedFile(TempPath, FilePath, FileName);
+            owner.CommitInstalledGameFile(TempPath, FilePath, FileName);
         }
     }
 

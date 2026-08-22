@@ -24,9 +24,6 @@ import androidx.core.splashscreen.SplashScreen;
 public class LauncherActivity extends Activity {
 	private static final String TAG = "STS2Mobile";
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
-	private static final String GAME_BRANCH_FILE = "game_branch";
-	private static final String GAME_VERSIONS_DIR = "game_versions";
-	private static final String BRANCH_MARKER_FILE = "steam_branch.txt";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
 	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
 	private final AndroidStartupRouteGate routeGate =
@@ -293,7 +290,7 @@ public class LauncherActivity extends Activity {
 	private void logSelectedBranchBeforeRouting(boolean includeExpensiveHashes) {
 		File gameDir = resolveGameDir();
 		String branch = readSelectedBranch();
-		File branchMarker = new File(gameDir, BRANCH_MARKER_FILE);
+		File branchMarker = new File(gameDir, LauncherArtifactLayout.BRANCH_MARKER_FILE);
 		Log.i(TAG, "Selected Steam branch before routing: " + branch);
 		Log.i(TAG, "Selected Steam branch note before routing: " + SteamBranchInfo.selectorHelpText(branch));
 		Log.i(TAG, "Selected game version slot kind before routing: " + SteamBranchInfo.installSlotKind(branch));
@@ -312,7 +309,18 @@ public class LauncherActivity extends Activity {
 	}
 
 	private boolean isBranchMarkerReady(File gameDir, String branch) {
-		File marker = new File(gameDir, BRANCH_MARKER_FILE);
+		BranchInstallationState.Result installationState =
+			BranchInstallationState.inspect(getFilesDir(), branch);
+		if (!installationState.isReady()) {
+			Log.w(
+				TAG,
+				"Selected branch installation state is not ready before routing: "
+					+ installationState.summary()
+			);
+			return false;
+		}
+
+		File marker = new File(gameDir, LauncherArtifactLayout.BRANCH_MARKER_FILE);
 		if (!marker.exists() || !marker.isFile()) {
 			return "public".equalsIgnoreCase(branch);
 		}
@@ -472,7 +480,7 @@ public class LauncherActivity extends Activity {
 	}
 
 	private String readSelectedBranch() {
-		File branchFile = new File(getFilesDir(), GAME_BRANCH_FILE);
+		File branchFile = LauncherArtifactLayout.selectedBranchFile(getFilesDir());
 		if (!branchFile.exists() || !branchFile.isFile()) {
 			return "public";
 		}

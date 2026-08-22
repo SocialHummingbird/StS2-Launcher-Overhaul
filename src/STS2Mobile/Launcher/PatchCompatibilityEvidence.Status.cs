@@ -8,7 +8,5 @@ internal sealed partial class PatchCompatibilityEvidence
 
     internal bool Passed =>
         string.Equals(Status, PassedStatus, StringComparison.OrdinalIgnoreCase)
-        && BranchMatches
-        && PckMatches
-        && SourceAssemblyMatches;
+        && GameIdentityMatches;
 }

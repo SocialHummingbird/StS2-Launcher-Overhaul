@@ -41,10 +41,6 @@ import org.json.JSONObject;
 public class NativeFallbackActivity extends Activity {
 	private static final String TAG = "STS2Mobile";
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
-	private static final String GAME_BRANCH_FILE = "game_branch";
-	private static final String GAME_VERSIONS_DIR = "game_versions";
-	private static final String BRANCH_MARKER_FILE = "steam_branch.txt";
-	private static final String CURRENT_RUNTIME_SLOT_MARKER = "current_runtime_slot.json";
 	private static final String GAME_CODE_ASSEMBLY = "sts2.dll";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
 	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
@@ -272,12 +268,7 @@ public class NativeFallbackActivity extends Activity {
 		Button clearButton = new Button(this);
 		clearButton.setText(landscape ? "Clear files" : "Clear downloaded files");
 		styleActionButton(clearButton, Color.rgb(82, 48, 28), Color.rgb(245, 150, 70), Color.rgb(255, 236, 220));
-		clearButton.setOnClickListener(v -> {
-			deleteRecursive(new File(getFilesDir(), "game"));
-			deleteRecursive(new File(getFilesDir(), GAME_VERSIONS_DIR));
-			deleteRecursive(new File(getFilesDir(), ".godot"));
-			restartApp();
-		});
+		clearButton.setOnClickListener(v -> startSelectedBranchRecovery(clearButton));
 		addActionButton(secondActionTarget, clearButton, landscape, compactActionRows ? 0 : 8);
 
 		final Button detailsButton = new Button(this);
@@ -468,7 +459,10 @@ public class NativeFallbackActivity extends Activity {
 		StringBuilder state,
 		String selectedPckSha256
 	) {
-		File marker = new File(getFilesDir(), CURRENT_RUNTIME_SLOT_MARKER);
+		File marker = new File(
+			getFilesDir(),
+			LauncherArtifactLayout.CURRENT_RUNTIME_SLOT_EVIDENCE
+		);
 		state.append("\nRuntime slot evidence: ");
 		state.append(marker.getAbsolutePath());
 		state.append("\nRuntime slot evidence exists: ");
@@ -481,8 +475,8 @@ public class NativeFallbackActivity extends Activity {
 			JSONObject json = new JSONObject(readSmallTextFile(marker, 64 * 1024));
 			state.append("\nRuntime slot branch: ");
 			state.append(json.optString("branch", "<missing>"));
-			state.append("\nRuntime slot ID: ");
-			state.append(json.optString("runtimeSlotId", "<missing>"));
+			state.append("\nGame identity ID: ");
+			state.append(json.optString("gameIdentityId", "<missing>"));
 			state.append("\nRuntime slot files ready: ");
 			state.append(json.optBoolean("filesReady", false) ? "yes" : "no");
 			state.append("\nRuntime slot playable: ");
@@ -565,7 +559,10 @@ public class NativeFallbackActivity extends Activity {
 	}
 
 	private void appendBranchMarkerState(StringBuilder state) {
-		File marker = new File(resolveGameDir(), BRANCH_MARKER_FILE);
+		File marker = new File(
+			resolveGameDir(),
+			LauncherArtifactLayout.BRANCH_MARKER_FILE
+		);
 		String selectedBranch = readSelectedBranch();
 		state.append("\nSteam branch marker: ");
 		state.append(marker.getAbsolutePath());
@@ -714,7 +711,7 @@ public class NativeFallbackActivity extends Activity {
 	}
 
 	private String readSelectedBranch() {
-		File branchFile = new File(getFilesDir(), GAME_BRANCH_FILE);
+		File branchFile = LauncherArtifactLayout.selectedBranchFile(getFilesDir());
 		if (!branchFile.exists() || !branchFile.isFile()) {
 			return "public";
 		}
@@ -903,6 +900,57 @@ public class NativeFallbackActivity extends Activity {
 		}
 	}
 
+	private void startSelectedBranchRecovery(Button clearButton) {
+		clearButton.setEnabled(false);
+		Thread recoveryThread = new Thread(() -> {
+			SelectedBranchRecovery.Result result =
+				SelectedBranchRecovery.recover(getFilesDir());
+			boolean cacheEvidenceCleared = !result.succeeded()
+				|| AndroidAssemblyBootstrapper.clearRecoveredBranchCacheEvidence(
+					this,
+					result.branch()
+				);
+			Log.i(TAG, "Native selected-branch recovery: " + result.summary());
+			recordStartupPhase("native selected-branch recovery", result.summary());
+			runOnUiThread(() -> finishSelectedBranchRecovery(
+				clearButton,
+				result,
+				cacheEvidenceCleared
+			));
+		}, "STS2SelectedBranchRecovery");
+		recoveryThread.start();
+	}
+
+	private void finishSelectedBranchRecovery(
+		Button clearButton,
+		SelectedBranchRecovery.Result result,
+		boolean cacheEvidenceCleared
+	) {
+		if (destroyed) {
+			return;
+		}
+		if (!result.succeeded() || !cacheEvidenceCleared) {
+			clearButton.setEnabled(true);
+			String failure =
+				"Selected-branch cleanup failed closed. No other branch or save data was removed.\n\n"
+					+ result.summary()
+					+ (cacheEvidenceCleared ? "" : " | selected active-cache metadata could not be cleared");
+			diagnosticsText += "\n\nRecovery failure:\n" + failure;
+			if (diagnosticsView != null) {
+				diagnosticsView.setText(diagnosticsText);
+				diagnosticsView.setVisibility(View.VISIBLE);
+			}
+			Toast.makeText(this, "Could not clear selected branch", Toast.LENGTH_LONG).show();
+			return;
+		}
+		Toast.makeText(
+			this,
+			"Cleared downloaded files for " + result.branch(),
+			Toast.LENGTH_SHORT
+		).show();
+		restartApp();
+	}
+
 	private void startLauncherAfterNativeRecovery(
 		AndroidPendingLaunchState.ClearResult clearedState
 	) {
@@ -933,18 +981,4 @@ public class NativeFallbackActivity extends Activity {
 		finish();
 	}
 
-	private void deleteRecursive(File target) {
-		if (target == null || !target.exists()) {
-			return;
-		}
-		File[] children = target.listFiles();
-		if (children != null) {
-			for (File child : children) {
-				deleteRecursive(child);
-			}
-		}
-		if (!target.delete()) {
-			Log.w(TAG, "Could not delete file: " + target.getAbsolutePath());
-		}
-	}
 }

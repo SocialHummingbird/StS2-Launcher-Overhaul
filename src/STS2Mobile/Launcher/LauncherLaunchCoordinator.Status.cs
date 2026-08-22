@@ -98,4 +98,18 @@ internal sealed partial class LauncherLaunchCoordinator
         var branch = readiness?.Branch ?? LauncherPreferences.ReadGameBranch();
         return $"Download {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)} to play.";
     }
+
+    internal LauncherLaunchReadiness RefreshSelectedRuntimeSlotEvidence(
+        BranchInstallCompletion completion
+    )
+    {
+        if (completion == null)
+            throw new System.ArgumentNullException(nameof(completion));
+
+        return LauncherLaunchReadiness.EvaluateCompletedInstall(
+            _model.DataDir,
+            completion.GameIdentity,
+            "completed download runtime evidence refresh"
+        );
+    }
 }

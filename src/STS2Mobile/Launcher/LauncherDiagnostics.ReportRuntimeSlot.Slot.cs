@@ -14,11 +14,7 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Runtime slot evidence marker path: {LauncherRuntimeSlotEvidence.MarkerPath(dataDir)}");
         sb.AppendLine($"Runtime slot evidence marker present: {BoolText(LauncherRuntimeSlotEvidence.MarkerPresent(dataDir))}");
         sb.AppendLine($"Runtime slot evidence selected branch: {LauncherRuntimeSlotEvidence.Branch(dataDir)}");
-        sb.AppendLine($"Runtime slot evidence selected branch matches current runtime: {BoolText(LauncherRuntimeSlotEvidence.BranchMatchesSelectedRuntime(dataDir, branch))}");
-        sb.AppendLine($"Runtime slot evidence runtime slot ID: {LauncherRuntimeSlotEvidence.RuntimeSlotId(dataDir)}");
-        sb.AppendLine($"Runtime slot evidence runtime slot ID matches current runtime: {BoolText(LauncherRuntimeSlotEvidence.RuntimeSlotIdMatchesSelectedRuntime(dataDir, branch))}");
-        sb.AppendLine($"Runtime slot evidence selected PCK matches current runtime: {BoolText(LauncherRuntimeSlotEvidence.PckMatchesSelectedRuntime(dataDir, branch))}");
-        sb.AppendLine($"Runtime slot evidence selected source sts2.dll matches current runtime: {BoolText(LauncherRuntimeSlotEvidence.SourceAssemblyMatchesSelectedRuntime(dataDir, branch))}");
+        sb.AppendLine($"Runtime slot evidence game identity ID: {LauncherRuntimeSlotEvidence.GameIdentityId(dataDir)}");
         sb.AppendLine($"Runtime slot evidence files ready: {LauncherRuntimeSlotEvidence.FilesReady(dataDir)}");
         sb.AppendLine($"Runtime slot evidence readiness problem: {ValueOrMissing(LauncherRuntimeSlotEvidence.ReadinessProblem(dataDir))}");
         sb.AppendLine($"Runtime slot evidence runtime pack usability status: {LauncherRuntimeSlotEvidence.RuntimePackUsabilityStatus(dataDir)}");
@@ -41,8 +37,7 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Selected runtime depots missing selected manifest: {slot.Metadata.DepotsMissingSelectedManifest}");
         sb.AppendLine($"Selected runtime depot manifest fingerprint: {slot.Metadata.DepotManifestFingerprint}");
         sb.AppendLine($"Selected runtime identity summary: {slot.Metadata.IdentitySummary}");
-        sb.AppendLine($"Selected runtime slot ID: {slot.RuntimeSlotId}");
-        sb.AppendLine($"Selected runtime slot identity: {slot.RuntimeSlotIdentity.Replace("\n", " | ")}");
+        sb.AppendLine($"Selected game identity ID: {slot.GameIdentityId}");
         sb.AppendLine($"Selected runtime source sts2.dll path: {slot.SourceAssemblyPath}");
         sb.AppendLine($"Selected runtime source sts2.dll exists: {BoolText(slot.SourceAssemblyExists)}");
         sb.AppendLine($"Selected runtime source sts2.dll SHA256: {slot.SourceAssemblySha256}");
@@ -54,6 +49,5 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Selected runtime requires process restart for prepared runtime: {BoolText(slot.RequiresProcessRestartForPreparedRuntime)}");
         sb.AppendLine($"Selected runtime branch source available: {BoolText(slot.BranchRuntimeAvailable)}");
         sb.AppendLine($"Selected runtime source matches active Android assembly: {BoolText(slot.SourceMatchesActiveAndroidAssembly)}");
-        sb.AppendLine($"Selected runtime uses legacy packaged public runtime: {BoolText(slot.UsesLegacyPackagedPublicRuntime)}");
     }
 }

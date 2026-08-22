@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="src/STS2Mobile/STS2Mobile.csproj" />
+  <Project Path="tests/STS2Mobile.GameIdentityTests/STS2Mobile.GameIdentityTests.csproj" />
 </Solution>

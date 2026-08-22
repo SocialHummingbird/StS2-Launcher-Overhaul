@@ -5,10 +5,11 @@ namespace STS2Mobile.Launcher;
 
 internal readonly struct RuntimePackManifestInspectionContext
 {
-    internal RuntimePackManifestInspectionContext(string manifestPath, string expectedBranch)
+    internal RuntimePackManifestInspectionContext(string manifestPath, GameIdentity expectedGameIdentity)
     {
         ManifestPath = manifestPath;
-        ExpectedBranch = SteamGameBranch.Normalize(expectedBranch);
+        ExpectedGameIdentity = expectedGameIdentity;
+        ExpectedBranch = expectedGameIdentity?.Branch ?? SteamGameBranch.Public;
         AndroidAssemblyPath = Path.Combine(
             Path.GetDirectoryName(manifestPath) ?? string.Empty,
             RuntimePackManifest.AndroidAssemblyFileName
@@ -16,8 +17,15 @@ internal readonly struct RuntimePackManifestInspectionContext
         AndroidAssemblyExists = File.Exists(AndroidAssemblyPath);
     }
 
+    internal RuntimePackManifestInspectionContext(string manifestPath, string expectedBranch)
+        : this(manifestPath, expectedGameIdentity: null)
+    {
+        ExpectedBranch = SteamGameBranch.StorageIdentity(expectedBranch);
+    }
+
     internal string ManifestPath { get; }
     internal string ExpectedBranch { get; }
+    internal GameIdentity ExpectedGameIdentity { get; }
     internal string AndroidAssemblyPath { get; }
     internal bool AndroidAssemblyExists { get; }
 }

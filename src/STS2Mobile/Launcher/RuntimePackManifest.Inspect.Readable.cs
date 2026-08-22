@@ -10,19 +10,14 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class RuntimePackManifest
 {
     private static RuntimePackManifest InspectReadable(
-        RuntimePackManifestInspectionContext context,
-        string selectedPckSha256,
-        string selectedSourceAssemblySha256,
-        string selectedPckPath
+        RuntimePackManifestInspectionContext context
     )
     {
         using var document = JsonDocument.Parse(File.ReadAllText(context.ManifestPath));
         var root = document.RootElement;
         var manifest = ReadManifest(context, root);
 
-        return manifest.WithStatus(
-            RuntimePackStatus(manifest, selectedPckSha256, selectedSourceAssemblySha256, selectedPckPath)
-        );
+        return manifest.WithStatus(RuntimePackStatus(manifest));
     }
 
     private static RuntimePackManifest ReadManifest(
@@ -40,11 +35,13 @@ internal sealed partial class RuntimePackManifest
         return new RuntimePackManifest(
             context.ManifestPath,
             context.ExpectedBranch,
+            context.ExpectedGameIdentity,
             ReadString(root, "packId", "pack_id", "id"),
-            ReadString(root, "sourceRuntimeSlotId", "source_runtime_slot_id", "runtimeSlotId", "runtime_slot_id"),
             ReadString(root, "sourceBranch", "source_branch", "branch"),
+            ReadString(root, "installGeneration", "install_generation"),
             ReadString(root, "sourcePckSha256", "source_pck_sha256", "pckSha256", "pck_sha256"),
             ReadString(root, "sourceAssemblySha256", "source_assembly_sha256", "desktopAssemblySha256", "desktop_assembly_sha256"),
+            ReadString(root, "gameIdentityId", "game_identity_id"),
             declaredAndroidAssemblySha256,
             ReadString(root, "patchSetVersion", "patch_set_version", "patchVersion", "patch_version"),
             ReadString(root, "patchValidationStatus", "patch_validation_status", "patchStatus", "patch_status"),

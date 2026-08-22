@@ -18,13 +18,10 @@ internal sealed partial class GameRuntimeSlot
         string activeAndroidAssemblyPath,
         string runtimePackManifestPath,
         RuntimeSlotMetadata metadata,
+        GameIdentity gameIdentity,
+        string gameIdentityProblem,
         RuntimePackManifest runtimePack,
         PatchCompatibilityEvidence patchCompatibility,
-        bool runtimePackSlotIdMatches,
-        string runtimeSlotId,
-        string runtimeSlotIdentity,
-        string pckSha256,
-        string sourceAssemblySha256,
         string activeAndroidAssemblySha256,
         bool sourceAssemblyExists,
         bool activeAndroidAssemblyExists,
@@ -42,13 +39,10 @@ internal sealed partial class GameRuntimeSlot
         ActiveAndroidAssemblyPath = activeAndroidAssemblyPath;
         RuntimePackManifestPath = runtimePackManifestPath;
         Metadata = metadata;
+        GameIdentity = gameIdentity;
+        GameIdentityProblem = gameIdentityProblem ?? string.Empty;
         RuntimePack = runtimePack;
         PatchCompatibility = patchCompatibility;
-        RuntimePackSlotIdMatches = runtimePackSlotIdMatches;
-        RuntimeSlotId = runtimeSlotId;
-        RuntimeSlotIdentity = runtimeSlotIdentity;
-        PckSha256 = pckSha256;
-        SourceAssemblySha256 = sourceAssemblySha256;
         ActiveAndroidAssemblySha256 = activeAndroidAssemblySha256;
         SourceAssemblyExists = sourceAssemblyExists;
         ActiveAndroidAssemblyExists = activeAndroidAssemblyExists;
@@ -66,13 +60,14 @@ internal sealed partial class GameRuntimeSlot
     internal string ActiveAndroidAssemblyPath { get; }
     internal string RuntimePackManifestPath { get; }
     internal RuntimeSlotMetadata Metadata { get; }
+    internal GameIdentity GameIdentity { get; }
+    internal string GameIdentityProblem { get; }
     internal RuntimePackManifest RuntimePack { get; }
     internal PatchCompatibilityEvidence PatchCompatibility { get; }
-    internal bool RuntimePackSlotIdMatches { get; }
-    internal string RuntimeSlotId { get; }
-    internal string RuntimeSlotIdentity { get; }
-    internal string PckSha256 { get; }
-    internal string SourceAssemblySha256 { get; }
+    internal string GameIdentityId => GameIdentity?.Id ?? "<missing>";
+    internal string InstallGeneration => GameIdentity?.InstallGeneration ?? "<missing>";
+    internal string PckSha256 => GameIdentity?.PckSha256 ?? "<missing>";
+    internal string SourceAssemblySha256 => GameIdentity?.SourceAssemblySha256 ?? "<missing>";
     internal string ActiveAndroidAssemblySha256 { get; }
     internal bool SourceAssemblyExists { get; }
     internal bool ActiveAndroidAssemblyExists { get; }

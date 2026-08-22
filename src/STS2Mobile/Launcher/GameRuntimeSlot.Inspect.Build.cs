@@ -6,7 +6,7 @@ internal sealed partial class GameRuntimeSlot
 {
     private static GameRuntimeSlot BuildIncompleteRuntimeSlot(
         GameRuntimeSlotInspectionContext context,
-        string pckSha256
+        string gameIdentityProblem
     )
     {
         var metadata = RuntimeSlotMetadata.Inspect(
@@ -16,29 +16,16 @@ internal sealed partial class GameRuntimeSlot
         var runtimePack = RuntimePackManifest.NotInstalled(context.RuntimePackManifestPath, context.Branch);
         var patchCompatibility = PatchCompatibilityEvidence.Missing(
             context.Branch,
-            Path.Combine(context.GameDirectory, PatchCompatibilityEvidence.GameDirectoryMarkerFileName),
-            "selected game directory validation marker"
+            context.RuntimePackManifestPath,
+            "runtime pack compatibility evidence"
         );
-        var runtimeSlotIdentity = BuildRuntimeSlotIdentity(
-            context.Branch,
-            metadata,
-            runtimePack,
-            false,
-            patchCompatibility,
-            pckSha256,
-            "<missing>"
-        );
-        var runtimeSlotId = BuildRuntimeSlotId(context.Branch, runtimeSlotIdentity);
         return BuildRuntimeSlot(
             context,
             metadata,
             runtimePack,
             patchCompatibility,
-            runtimePackSlotIdMatches: false,
-            runtimeSlotId,
-            runtimeSlotIdentity,
-            pckSha256,
-            "<missing>",
+            null,
+            gameIdentityProblem,
             "<missing>"
         );
     }
@@ -48,11 +35,8 @@ internal sealed partial class GameRuntimeSlot
         RuntimeSlotMetadata metadata,
         RuntimePackManifest runtimePack,
         PatchCompatibilityEvidence patchCompatibility,
-        bool runtimePackSlotIdMatches,
-        string runtimeSlotId,
-        string runtimeSlotIdentity,
-        string pckSha256,
-        string sourceAssemblySha256,
+        GameIdentity gameIdentity,
+        string gameIdentityProblem,
         string activeAndroidAssemblySha256
     )
         => new GameRuntimeSlot(
@@ -67,13 +51,10 @@ internal sealed partial class GameRuntimeSlot
             context.ActiveAndroidAssemblyPath,
             context.RuntimePackManifestPath,
             metadata,
+            gameIdentity,
+            gameIdentityProblem,
             runtimePack,
             patchCompatibility,
-            runtimePackSlotIdMatches,
-            runtimeSlotId,
-            runtimeSlotIdentity,
-            pckSha256,
-            sourceAssemblySha256,
             activeAndroidAssemblySha256,
             File.Exists(context.SourceAssemblyPath),
             File.Exists(context.ActiveAndroidAssemblyPath),

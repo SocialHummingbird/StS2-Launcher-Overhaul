@@ -8,17 +8,19 @@ internal static partial class RuntimePackWriter
     private static object BuildCompatibilityManifestPayload(RuntimePackWriteContext context)
         => new
         {
+            schemaVersion = 3,
             packId = context.PackId,
-            sourceRuntimeSlotId = context.RuntimeSlotId,
-            sourceRuntimeSlotIdentity = context.RuntimeSlotIdentity,
-            sourceBranch = context.Slot.Branch,
-            releaseVersion = context.Slot.Metadata.ReleaseVersion,
-            releaseCommit = context.Slot.Metadata.ReleaseCommit,
-            releaseBuildId = context.Slot.Metadata.ReleaseBuildId,
-            depotManifestCount = context.Slot.Metadata.DepotManifestCount,
-            depotManifestFingerprint = context.Slot.Metadata.DepotManifestFingerprint,
-            sourcePckSha256 = context.Slot.PckSha256,
-            sourceAssemblySha256 = context.Slot.SourceAssemblySha256,
+            gameIdentity = GameIdentityPayload(context.GameIdentity),
+            gameIdentityId = context.GameIdentity.Id,
+            sourceBranch = context.GameIdentity.Branch,
+            releaseVersion = context.Metadata.ReleaseVersion,
+            releaseCommit = context.Metadata.ReleaseCommit,
+            releaseBuildId = context.Metadata.ReleaseBuildId,
+            depotManifestCount = context.Metadata.DepotManifestCount,
+            depotManifestFingerprint = context.Metadata.DepotManifestFingerprint,
+            installGeneration = context.GameIdentity.InstallGeneration,
+            sourcePckSha256 = context.GameIdentity.PckSha256,
+            sourceAssemblySha256 = context.GameIdentity.SourceAssemblySha256,
             androidAssemblySha256 = context.AndroidAssemblySha256,
             androidAssemblyFile = RuntimeAssemblyFileName,
             androidAssemblyCompatibility = AndroidAssemblyCompatibilityPayload(context.PublicizerResult),
@@ -28,7 +30,7 @@ internal static partial class RuntimePackWriter
             patchValidationStatus = "passed",
             patchValidationReport = PatchValidationReportFileName,
             validationMode = context.ValidationMode,
-            validationSurfaceVersion = ValidationSurfaceVersion,
+            validationSurfaceVersion = PatchCompatibilityValidator.ValidationSurfaceVersion,
             checkedSymbolCount = context.CheckedSymbolCount,
             presentSymbolCount = context.PresentSymbolCount,
             missingSymbolCount = context.MissingSymbols.Length,
@@ -42,27 +44,29 @@ internal static partial class RuntimePackWriter
     )
         => new
         {
+            schemaVersion = 3,
             status = "passed",
             detail = validationDetail,
             validationMode = context.ValidationMode,
-            branch = context.Slot.Branch,
-            sourceRuntimeSlotId = context.RuntimeSlotId,
-            sourceRuntimeSlotIdentity = context.RuntimeSlotIdentity,
-            selectedVersion = context.Slot.DisplayName,
-            releaseVersion = context.Slot.Metadata.ReleaseVersion,
-            releaseCommit = context.Slot.Metadata.ReleaseCommit,
-            releaseBuildId = context.Slot.Metadata.ReleaseBuildId,
-            depotManifestCount = context.Slot.Metadata.DepotManifestCount,
-            depotManifestFingerprint = context.Slot.Metadata.DepotManifestFingerprint,
-            pckSha256 = context.Slot.PckSha256,
-            sourceAssemblySha256 = context.Slot.SourceAssemblySha256,
+            branch = context.GameIdentity.Branch,
+            gameIdentity = GameIdentityPayload(context.GameIdentity),
+            gameIdentityId = context.GameIdentity.Id,
+            selectedVersion = context.DisplayName,
+            releaseVersion = context.Metadata.ReleaseVersion,
+            releaseCommit = context.Metadata.ReleaseCommit,
+            releaseBuildId = context.Metadata.ReleaseBuildId,
+            depotManifestCount = context.Metadata.DepotManifestCount,
+            depotManifestFingerprint = context.Metadata.DepotManifestFingerprint,
+            installGeneration = context.GameIdentity.InstallGeneration,
+            pckSha256 = context.GameIdentity.PckSha256,
+            sourceAssemblySha256 = context.GameIdentity.SourceAssemblySha256,
             androidAssemblySha256 = context.AndroidAssemblySha256,
             androidAssemblyCompatibility = AndroidAssemblyCompatibilityPayload(context.PublicizerResult),
             supportAssemblies = context.SupportAssemblies,
             supportAssemblySha256 = context.SupportAssemblySha256,
             patchSetVersion = context.PatchSetVersion,
             runtimePackId = context.PackId,
-            validationSurfaceVersion = ValidationSurfaceVersion,
+            validationSurfaceVersion = PatchCompatibilityValidator.ValidationSurfaceVersion,
             checkedSymbolCount = context.CheckedSymbolCount,
             presentSymbolCount = context.PresentSymbolCount,
             missingSymbolCount = context.MissingSymbols.Length,
@@ -77,6 +81,16 @@ internal static partial class RuntimePackWriter
             }).ToArray(),
             categorySummaries = context.CategorySummaries,
             generatedUtc = DateTime.UtcNow.ToString("O")
+        };
+
+    private static object GameIdentityPayload(GameIdentity identity)
+        => new
+        {
+            schemaVersion = GameIdentity.SchemaVersion,
+            branch = identity.Branch,
+            installGeneration = identity.InstallGeneration,
+            pckSha256 = identity.PckSha256,
+            sourceAssemblySha256 = identity.SourceAssemblySha256,
         };
 
     private static object AndroidAssemblyCompatibilityPayload(AndroidAssemblyPublicizer.Result result)
