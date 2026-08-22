@@ -25,4 +25,7 @@ internal sealed partial class LauncherUI : Control
     internal void SetGameMode(bool inGameMode) => _inGameMode = inGameMode;
 
     internal Task WaitForLaunch() => _model.WaitForLaunch();
+
+    internal void RestoreAfterFailedHandoff(string attemptId)
+        => _controller?.RestoreAfterFailedHandoff(attemptId);
 }

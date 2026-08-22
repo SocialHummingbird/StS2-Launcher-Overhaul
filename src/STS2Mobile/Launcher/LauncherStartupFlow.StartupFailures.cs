@@ -10,10 +10,16 @@ internal static partial class LauncherStartupFlow
             => LauncherGameStartupRecovery.HandleSettingsAndSavesFailure(
                 GameNode,
                 Status,
+                AttemptId,
                 ex
             );
 
         internal void HandleFailure(Exception ex)
-            => LauncherGameStartupRecovery.HandleFailure(GameNode, Status, ex);
+            => LauncherGameStartupRecovery.HandleFailure(
+                GameNode,
+                Status,
+                AttemptId,
+                ex
+            );
     }
 }

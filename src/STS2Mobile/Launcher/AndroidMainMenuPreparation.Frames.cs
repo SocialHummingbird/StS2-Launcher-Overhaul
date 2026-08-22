@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Threading.Tasks;
 using Godot;
 
@@ -14,7 +13,6 @@ internal static partial class AndroidMainMenuPreparation
             LauncherOperationLifecycle lifecycle
         )
     {
-        var timer = Stopwatch.StartNew();
         var frameDeadline = overallDeadline.CreateChild(
             System.TimeSpan.FromMilliseconds(MaximumFrameObservationMs)
         );
@@ -22,11 +20,10 @@ internal static partial class AndroidMainMenuPreparation
             tracker,
             LauncherAsyncYield.CreateWaiter(gameNode.GetTree(), lifecycle),
             () => IsPreparationTargetAlive(gameNode),
-            () => timer.ElapsedMilliseconds,
+            () => frameDeadline.ElapsedMilliseconds,
             frameDeadline,
             MaximumFrameObservationMs
         );
-        timer.Stop();
-        return result;
+        return (result.Result, frameDeadline.ElapsedMilliseconds);
     }
 }

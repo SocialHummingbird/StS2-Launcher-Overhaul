@@ -9,7 +9,7 @@ internal static partial class LauncherStartupStatus
     private const string NodeName = "STS2MobileStartupStatus";
     private const int ZIndex = StartupPresentationLayerPolicy.StartupStatusZIndex;
 
-    internal static Label CreateLabel(Node parent)
+    internal static Label CreateOwned(Node parent)
     {
         try
         {
@@ -43,7 +43,7 @@ internal static partial class LauncherStartupStatus
         }
     }
 
-    internal static bool QueueFree(Label label)
+    internal static bool DismissOwned(Label label)
     {
         var target = FindStatusRoot(label);
         if (target == null)
@@ -51,6 +51,7 @@ internal static partial class LauncherStartupStatus
 
         try
         {
+            DisableOwnedNode(target);
             target.QueueFree();
             return true;
         }
@@ -66,7 +67,28 @@ internal static partial class LauncherStartupStatus
         }
     }
 
-    internal static Node FindStatusRoot(Label label)
+    internal static bool IsOwnedVisible(Label label)
+    {
+        try
+        {
+            var target = FindStatusRoot(label);
+            if (target == null || !GodotObject.IsInstanceValid(target))
+                return false;
+
+            return target switch
+            {
+                CanvasItem canvasItem => canvasItem.Visible,
+                CanvasLayer canvasLayer => canvasLayer.Visible,
+                _ => target.IsInsideTree(),
+            };
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static Node FindStatusRoot(Label label)
     {
         if (label == null)
             return null;
@@ -78,6 +100,26 @@ internal static partial class LauncherStartupStatus
         }
 
         return label;
+    }
+
+    private static void DisableOwnedNode(Node node)
+    {
+        if (node is Control control)
+        {
+            control.MouseFilter = Control.MouseFilterEnum.Ignore;
+            control.FocusMode = Control.FocusModeEnum.None;
+            if (control.HasFocus())
+                control.ReleaseFocus();
+        }
+
+        node.ProcessMode = Node.ProcessModeEnum.Disabled;
+        if (node is CanvasItem canvasItem)
+            canvasItem.Visible = false;
+        else if (node is CanvasLayer canvasLayer)
+            canvasLayer.Visible = false;
+
+        foreach (var child in node.GetChildren())
+            DisableOwnedNode(child);
     }
 
     private static float CalculateSafeMargin(Vector2 viewportSize)

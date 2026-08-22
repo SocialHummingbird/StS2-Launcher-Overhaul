@@ -25,10 +25,18 @@ internal sealed partial class LauncherLaunchCoordinator
         }
 
         SetLaunchInProgress(true);
-        var attemptId = LaunchAttemptContext.CreateAttemptId();
+        string attemptId = null;
         var attemptTimer = Stopwatch.StartNew();
         try
         {
+            var restoringPendingAttempt = string.Equals(
+                plan.Source,
+                LauncherLaunchSource.AutoLaunch,
+                StringComparison.Ordinal
+            );
+            attemptId = restoringPendingAttempt
+                ? ReadRestoredAttemptId()
+                : LaunchAttemptContext.CreateAttemptId();
             var branch = SteamGameBranch.Normalize(LauncherPreferences.ReadGameBranch());
             LauncherLaunchMarkers.RecordPhase(
                 plan.ButtonPressedPhase,
@@ -52,6 +60,13 @@ internal sealed partial class LauncherLaunchCoordinator
                 LauncherLaunchAttemptTiming.NotMeasured(),
                 "Checking selected-version readiness before launch handoff."
             );
+            var ownerAccepted = restoringPendingAttempt
+                ? LauncherHandoffStateOwner.Shared.RestorePending(attempt.AttemptId)
+                : LauncherHandoffStateOwner.Shared.Begin(attempt.AttemptId);
+            if (!ownerAccepted)
+                throw new InvalidOperationException(
+                    "The authoritative handoff owner rejected the new launch attempt."
+                );
             _activeLaunchAttempt = attempt;
             return true;
         }
@@ -82,6 +97,17 @@ internal sealed partial class LauncherLaunchCoordinator
         }
     }
 
+    private static string ReadRestoredAttemptId()
+    {
+        var attemptId = LauncherLaunchMarkers.ReadLastLaunchAttempt().AttemptId;
+        if (string.IsNullOrWhiteSpace(attemptId))
+            throw new InvalidOperationException(
+                "An Android auto-launch request has no persisted launch-attempt ID."
+            );
+
+        return attemptId;
+    }
+
     private void FinishFailedLaunchAttempt(
         LauncherStartGamePlan plan,
         string recordPhase,
@@ -108,6 +134,7 @@ internal sealed partial class LauncherLaunchCoordinator
             timing,
             problem
         );
+        LauncherHandoffStateOwner.Shared.Fail(attemptId);
         _view.SetStatus(problem, LauncherStatusSeverity.Error);
         _view.ShowHomeHelpAction();
         _view.AppendLog(problem);
@@ -151,6 +178,27 @@ internal sealed partial class LauncherLaunchCoordinator
         if (!inProgress)
             _activeLaunchAttempt = null;
         _view.SetLaunchControlsDisabled(inProgress);
+    }
+
+    internal void RestoreAfterFailedHandoff(string attemptId)
+    {
+        if (
+            !_launchInProgress
+            || _activeLaunchAttempt == null
+            || !string.Equals(
+                _activeLaunchAttempt.AttemptId,
+                attemptId,
+                StringComparison.Ordinal
+            )
+        )
+            return;
+
+        SetLaunchInProgress(false);
+        _view.SetStatus(
+            "Game handoff ended. The launcher is ready for another launch.",
+            LauncherStatusSeverity.Warning
+        );
+        _view.ShowHomeHelpAction();
     }
 
 }

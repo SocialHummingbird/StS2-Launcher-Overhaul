@@ -8,6 +8,7 @@ namespace STS2Mobile.Launcher;
 internal static partial class LauncherGameStartupRecovery
 {
     private const int MainMenuForceTimeoutMs = 15_000;
+    private const int GameVisibilityConfirmationTimeoutMs = 15_000;
     internal static void MarkGameStartupCompleted(object game, Node gameNode)
         => WriteSuccessfulPostStartupEvidence(
             game,
@@ -18,10 +19,11 @@ internal static partial class LauncherGameStartupRecovery
     internal static async Task<bool> EnsureMainMenuReadyAsync(
         object game,
         Node gameNode,
-        Label startupStatus
+        Label startupStatus,
+        string attemptId
     )
     {
-        var ui = RecoveryUi.For(gameNode, startupStatus);
+        var ui = RecoveryUi.For(gameNode, startupStatus, attemptId);
         var mainMenuReady = await EnsureMainMenuAfterStartupAsync(
             game,
             gameNode,
@@ -31,6 +33,21 @@ internal static partial class LauncherGameStartupRecovery
         if (!mainMenuReady)
             return HandleMainMenuGuardFailure(ui);
 
+        return await CompleteReadyMainMenuHandoffAsync(
+            ui,
+            gameNode,
+            startupStatus,
+            attemptId
+        );
+    }
+
+    private static async Task<bool> CompleteReadyMainMenuHandoffAsync(
+        RecoveryUi ui,
+        Node gameNode,
+        Label startupStatus,
+        string attemptId
+    )
+    {
         var preparation = await AndroidMainMenuPreparation.RunAsync(
             gameNode,
             startupStatus
@@ -41,6 +58,17 @@ internal static partial class LauncherGameStartupRecovery
         PatchHelper.Log(
             $"Main-menu handoff admitted by rendered-frame gate: {preparation.Detail}"
         );
+        if (!LauncherHandoffStateOwner.Shared.MarkMainMenuReady(attemptId))
+            return false;
+
+        if (!await LauncherHandoffVisibilityConfirmation.WaitForGameVisibleAsync(
+            LauncherHandoffStateOwner.Shared,
+            attemptId,
+            gameNode,
+            GameVisibilityConfirmationTimeoutMs
+        ))
+            return HandleGameVisibilityFailure(ui);
+
         return true;
     }
 
@@ -48,13 +76,16 @@ internal static partial class LauncherGameStartupRecovery
         object game,
         CanvasLayer recoveryControls,
         Label startupStatus,
-        Node gameNode
+        Node gameNode,
+        string attemptId
     )
     {
-        RecoveryUi.For(gameNode, startupStatus).MarkRecoveredStartup(
+        if (!RecoveryUi.For(gameNode, startupStatus, attemptId).MarkRecoveredStartup(
             recoveryControls,
             RecoveryStateUpdate.StartupObserved()
-        );
+        ))
+            return;
+
         SchedulePostStartupDiagnostics(game, gameNode);
     }
 

@@ -49,7 +49,10 @@ internal static partial class AndroidMainMenuPreparation
             TimeSpan.FromMilliseconds(OverallPreparationDeadlineMs)
         );
         var lifecycle = new LauncherOperationLifecycle();
-        var lifecycleMonitor = new LauncherOperationLifecycleMonitor(lifecycle);
+        var lifecycleMonitor = new LauncherOperationLifecycleMonitor(
+            lifecycle,
+            deadline
+        );
         var state = new PreparationState();
         var stability = new MainMenuFrameStabilityTracker(
             RequiredStableFrames,
@@ -65,6 +68,22 @@ internal static partial class AndroidMainMenuPreparation
         try
         {
             gameNode.AddChild(lifecycleMonitor);
+            if (OperatingSystem.IsAndroid())
+            {
+                try
+                {
+                    var visibility = LauncherHandoffVisibility.Capture();
+                    lifecycleMonitor.ObserveApplicationActive(
+                        !visibility.SuspendsHandoffTimeout
+                    );
+                }
+                catch (Exception ex)
+                {
+                    PatchHelper.Log(
+                        $"[MainMenuPreparation] Android lifecycle state unavailable: {ex.Message}"
+                    );
+                }
+            }
             state.Identity = ObserveCurrentMountedResourceSetIdentity();
             if (!IsPreparationTargetAlive(gameNode))
             {

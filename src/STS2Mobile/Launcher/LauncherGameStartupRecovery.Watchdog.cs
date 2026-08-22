@@ -11,10 +11,11 @@ internal static partial class LauncherGameStartupRecovery
         Node gameNode,
         Label startupStatus,
         CanvasLayer recoveryControls,
-        int watchdogMs
+        int watchdogMs,
+        string attemptId
     )
     {
-        var ui = RecoveryUi.For(gameNode, startupStatus);
+        var ui = RecoveryUi.For(gameNode, startupStatus, attemptId);
         ui.Apply(RecoveryStateUpdate.WatchdogStalled());
         WritePostStartupTrace(
             game,
@@ -34,17 +35,13 @@ internal static partial class LauncherGameStartupRecovery
         );
         if (recovered)
         {
-            var preparation = await AndroidMainMenuPreparation.RunAsync(
+            if (!await CompleteReadyMainMenuHandoffAsync(
+                ui,
                 gameNode,
-                startupStatus
-            );
-            if (!preparation.CanExposeMainMenu)
-            {
-                ui.ShowFailure(
-                    RecoveryStateUpdate.MainMenuRenderingUnstable(preparation)
-                );
+                startupStatus,
+                attemptId
+            ))
                 return;
-            }
 
             ui.MarkRecoveredStartup(
                 recoveryControls,

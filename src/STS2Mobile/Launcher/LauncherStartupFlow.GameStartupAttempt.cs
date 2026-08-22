@@ -46,6 +46,7 @@ internal static partial class LauncherStartupFlow
             var game = Game;
             var gameNode = GameNode;
             var status = Status;
+            var attemptId = AttemptId;
 
             return LauncherTimeout.RecoverIfTimedOutAsync(
                 startupTask,
@@ -55,7 +56,8 @@ internal static partial class LauncherStartupFlow
                     gameNode,
                     status,
                     recoveryControls,
-                    StartupWatchdogMs
+                    StartupWatchdogMs,
+                    attemptId
                 )
             );
         }
@@ -64,7 +66,8 @@ internal static partial class LauncherStartupFlow
             => LauncherGameStartupRecovery.EnsureMainMenuReadyAsync(
                 Game,
                 GameNode,
-                Status
+                Status,
+                AttemptId
             );
 
         private void MarkStartupObserved(CanvasLayer recoveryControls)
@@ -72,7 +75,8 @@ internal static partial class LauncherStartupFlow
                 Game,
                 recoveryControls,
                 Status,
-                GameNode
+                GameNode,
+                AttemptId
             );
     }
 }

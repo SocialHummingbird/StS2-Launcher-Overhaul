@@ -31,11 +31,13 @@ public class LauncherActivity extends Activity {
 	private final Runnable startupRouting = this::routeStartup;
 	private View routingPlaceholder;
 	private ViewTreeObserver.OnPreDrawListener startupRoutingPreDrawListener;
+	private String handoffActivityLifecycle = "initializing";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		SplashScreen.installSplashScreen(this);
 		super.onCreate(savedInstanceState);
+		handoffActivityLifecycle = "created";
 		routingPlaceholder = createRoutingPlaceholder();
 		setContentView(routingPlaceholder);
 		scheduleStartupRoutingAfterFirstFrame();
@@ -43,12 +45,56 @@ public class LauncherActivity extends Activity {
 
 	@Override
 	protected void onDestroy() {
+		handoffActivityLifecycle = "destroyed";
 		removeStartupRoutingPreDrawListener();
 		if (routingPlaceholder != null) {
 			routingPlaceholder.removeCallbacks(startupRouting);
 			routingPlaceholder = null;
 		}
 		super.onDestroy();
+	}
+
+	@Override
+	protected void onStart() {
+		super.onStart();
+		handoffActivityLifecycle = "started";
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+		handoffActivityLifecycle = "resumed";
+	}
+
+	@Override
+	protected void onPause() {
+		handoffActivityLifecycle = "paused";
+		super.onPause();
+	}
+
+	@Override
+	protected void onStop() {
+		handoffActivityLifecycle = "stopped";
+		super.onStop();
+	}
+
+	@Override
+	public void onWindowFocusChanged(boolean hasFocus) {
+		super.onWindowFocusChanged(hasFocus);
+		if (!hasPendingGameLaunchRequest()) {
+			return;
+		}
+		AndroidHandoffDiagnostics.record(
+			getFilesDir(),
+			hasFocus
+				? AndroidHandoffEvent.WINDOW_FOCUS_GAINED
+				: AndroidHandoffEvent.WINDOW_FOCUS_LOST,
+			"",
+			handoffActivityLifecycle,
+			Boolean.toString(hasFocus),
+			"true",
+			"native_routing"
+		);
 	}
 
 	private void scheduleStartupRoutingAfterFirstFrame() {
@@ -98,6 +144,17 @@ public class LauncherActivity extends Activity {
 		logSelectedBranchBeforeRouting(false);
 
 		if (shouldUseNativeX86Fallback()) {
+			if (pendingGameLaunch) {
+				AndroidHandoffDiagnostics.record(
+					getFilesDir(),
+					AndroidHandoffEvent.HANDOFF_FAILED,
+					"",
+					handoffActivityLifecycle,
+					Boolean.toString(hasWindowFocus()),
+					"true",
+					"native_fallback"
+				);
+			}
 			routeOnce(NativeFallbackActivity.class, null);
 			return;
 		}
@@ -116,8 +173,30 @@ public class LauncherActivity extends Activity {
 		AndroidAssemblyBootstrapper.Result assemblyResult =
 			assemblyBootstrapper.prepare();
 		if (!assemblyResult.isSuccess()) {
+			if (pendingGameLaunch) {
+				AndroidHandoffDiagnostics.record(
+					getFilesDir(),
+					AndroidHandoffEvent.HANDOFF_FAILED,
+					"",
+					handoffActivityLifecycle,
+					Boolean.toString(hasWindowFocus()),
+					"true",
+					"bootstrap_failed"
+				);
+			}
 			routeOnce(NativeFallbackActivity.class, assemblyResult);
 			return;
+		}
+		if (pendingGameLaunch) {
+			AndroidHandoffDiagnostics.record(
+				getFilesDir(),
+				AndroidHandoffEvent.NATIVE_BOOTSTRAP_ACCEPTED,
+				"",
+				handoffActivityLifecycle,
+				Boolean.toString(hasWindowFocus()),
+				"true",
+				"bootstrap_accepted"
+			);
 		}
 
 		routeOnce(GodotApp.class, null);

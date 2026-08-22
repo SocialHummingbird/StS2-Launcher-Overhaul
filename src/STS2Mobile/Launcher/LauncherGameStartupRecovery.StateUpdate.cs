@@ -10,6 +10,8 @@ internal static partial class LauncherGameStartupRecovery
         "main menu recovery failed after watchdog";
     private const string MainMenuRenderingUnstableReason =
         "main menu rendered-frame stability failed";
+    private const string GameVisibilityUnconfirmedReason =
+        "game foreground visibility confirmation failed";
     private const string StartupObservationReason = "post-startup observation";
     private const string WatchdogStalledReason = "game startup watchdog";
     private const string WatchdogRecoveredReason = "main menu recovered after watchdog";
@@ -68,6 +70,12 @@ internal static partial class LauncherGameStartupRecovery
                 MainMenuRenderingUnstableReason,
                 "Home screen rendering is still unstable. Use recovery controls below.",
                 $"rendered-frame handoff blocked: {preparation.Outcome}; {preparation.Detail}"
+            );
+
+        internal static RecoveryStateUpdate GameVisibilityUnconfirmed()
+            => new(
+                GameVisibilityUnconfirmedReason,
+                "Home screen is ready but Android did not confirm a foreground focused game window. Use recovery controls below."
             );
 
         internal static RecoveryStateUpdate WatchdogStalled()

@@ -51,6 +51,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
     private static void RestartWithSafeLaunch()
     {
+        string attemptId = null;
         try
         {
             var dataDir = AppPaths.AppPrivateDataDir;
@@ -70,11 +71,33 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
                 return;
             }
 
+            attemptId = LaunchAttemptContext.CreateAttemptId();
+            LauncherLaunchMarkers.WriteLaunchAttempt(
+                LauncherLaunchAttemptPhases.SafeAndroidRestartRequested,
+                "safe",
+                "startup-recovery-panel",
+                attemptId,
+                readiness,
+                modReadiness: null,
+                preparedReadinessUsed: true,
+                LauncherLaunchAttemptTiming.NotMeasured(),
+                "Startup recovery panel requested an authoritative safe restart"
+            );
+            if (!LauncherHandoffStateOwner.Shared.Begin(attemptId))
+            {
+                PatchHelper.Log(
+                    "Startup recovery safe launch blocked by the authoritative handoff owner"
+                );
+                return;
+            }
+
             LauncherLaunchMarkers.SaveManualSafeLaunchMarker();
             AndroidGodotAppBridge.LaunchGameSafelyOnRestart();
         }
         catch (Exception ex)
         {
+            if (!string.IsNullOrWhiteSpace(attemptId))
+                LauncherHandoffStateOwner.Shared.Fail(attemptId);
             PatchHelper.Log(
                 $"Startup recovery safe launch authorization failed: {ex.GetBaseException().Message}"
             );

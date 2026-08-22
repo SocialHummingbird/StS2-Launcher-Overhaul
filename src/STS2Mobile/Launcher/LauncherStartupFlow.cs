@@ -10,7 +10,7 @@ internal static partial class LauncherStartupFlow
 {
     private const string PhaseGameStartup = "game startup";
     private const string PhaseLaunchRequested = "launch requested";
-    private const string PhaseLauncherClosed = "launcher closed";
+    private const string PhaseLauncherCovered = "launcher covered";
     private const string PhaseManualSafeLaunch = "manual safe launch";
     private const string PhaseSettingsAndSaves = "settings and saves";
     private const string PhaseShaderWarmup = "shader warmup";
@@ -53,8 +53,8 @@ internal static partial class LauncherStartupFlow
         internal async Task RunAsync()
         {
             BeginLaunch();
-            CloseLauncher();
-            await Startup.WaitForVisibleStartupFrameAsync("launcher closed");
+            CoverLauncher();
+            await Startup.WaitForVisibleStartupFrameAsync("launcher covered");
             await RunStartupAsync();
         }
 
@@ -64,12 +64,11 @@ internal static partial class LauncherStartupFlow
             PatchHelper.Log("User launched game, proceeding to startup...");
         }
 
-        private void CloseLauncher()
+        private void CoverLauncher()
         {
-            Launcher.QueueFree();
             Startup.SetPhase(
-                PhaseLauncherClosed,
-                "Launcher closed. Preparing game startup..."
+                PhaseLauncherCovered,
+                "Preparing game startup..."
             );
         }
 
@@ -85,9 +84,10 @@ internal static partial class LauncherStartupFlow
 
     private static async Task<LauncherUI> ShowLauncherAndWaitForLaunchAsync(Node gameNode)
     {
-        var launcher = new LauncherUI();
-        launcher.SetGameMode(true);
-        gameNode.AddChild(launcher);
+        var launcher = LauncherHandoffStateOwner.Shared.ShowLauncher(
+            gameNode,
+            inGameMode: true
+        );
         var launcherInitialized = launcher.Initialize();
         PatchHelper.Log("Launcher UI displayed");
         if (launcherInitialized)
@@ -99,9 +99,27 @@ internal static partial class LauncherStartupFlow
 
     private static StartupContext CreateStartupContext(object game, Node gameNode)
     {
-        var startupStatus = LauncherStartupStatus.CreateLabel(gameNode);
+        var handoff = LauncherHandoffStateOwner.Shared.Capture();
+        if (
+            handoff.State != LauncherHandoffState.HandoffPending
+            || string.IsNullOrWhiteSpace(handoff.AttemptId)
+        )
+            throw new InvalidOperationException(
+                "Game startup requires an active authoritative handoff attempt."
+            );
+
+        var startupStatus = LauncherHandoffStateOwner.Shared.ShowStartupStatus(
+            handoff.AttemptId,
+            gameNode
+        );
         var startupMode = StartupMode.CreateFromMarkers();
         AndroidMainMenuPreparation.ObserveCurrentMountedResourceSetIdentity();
-        return new StartupContext(game, gameNode, startupStatus, startupMode);
+        return new StartupContext(
+            game,
+            gameNode,
+            startupStatus,
+            startupMode,
+            handoff.AttemptId
+        );
     }
 }

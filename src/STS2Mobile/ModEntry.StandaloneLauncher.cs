@@ -26,9 +26,11 @@ public static partial class ModEntry
             return;
         }
 
-        var launcher = new LauncherUI();
         AddStartupFallbackShield(tree);
-        tree.Root.AddChild(launcher);
+        var launcher = LauncherHandoffStateOwner.Shared.ShowLauncher(
+            tree.Root,
+            inGameMode: false
+        );
         var launcherInitialized = launcher.Initialize();
         if (launcherInitialized)
             _ = launcher.NotifyBootTransitionWhenVisibleAsync();

@@ -12,19 +12,22 @@ internal static partial class LauncherStartupFlow
             object game,
             Node gameNode,
             Label status,
-            StartupMode mode
+            StartupMode mode,
+            string attemptId
         )
         {
             Game = game;
             GameNode = gameNode;
             Status = status;
             Mode = mode;
+            AttemptId = attemptId;
         }
 
         private object Game { get; }
         private Node GameNode { get; }
         private Label Status { get; }
         private StartupMode Mode { get; }
+        private string AttemptId { get; }
 
         internal bool ShouldSkipShaderWarmup()
             => Mode.ShouldSkipShaderWarmup();

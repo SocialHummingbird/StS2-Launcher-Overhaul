@@ -141,6 +141,7 @@ public class GodotApp extends GodotActivity {
 	private boolean steamLoginCredentialShortHeightLayout;
 	private boolean fmodAndroidInitialized;
 	private boolean deferredPreloadExperimentEnabled;
+	private volatile String handoffActivityLifecycle = "initializing";
 	private static final String STEAM_CREDENTIAL_WEB_DOMAIN_STORE = "store.steampowered.com";
 	private static final long STEAM_LOGIN_CREDENTIAL_RESULT_TTL_MS = 60L * 1000L;
 	private static final String RUNTIME_PACK_ANDROID_ASSEMBLY = "sts2.dll";
@@ -156,6 +157,7 @@ public class GodotApp extends GodotActivity {
 		gameDir = resolveGameDir().getAbsolutePath();
 		String selectedBranch = readSelectedBranch();
 		boolean pendingGameLaunch = hasPendingGameLaunchRequest();
+		handoffActivityLifecycle = "creating";
 		boolean pendingSafeLaunch = hasPendingSafeGameLaunchRequest();
 		boolean explicitBootTransitionSkip = consumeBootTransitionSkipExtra();
 		launcherImeController = new AndroidLauncherImeController(
@@ -202,7 +204,16 @@ public class GodotApp extends GodotActivity {
 		initializeFmodAndroid();
 		recordStartupPhase("native godot super onCreate", "Starting Godot runtime");
 		super.onCreate(savedInstanceState);
+		handoffActivityLifecycle = "created";
 		recordStartupPhase("native godot super onCreate complete", "Godot runtime returned from onCreate");
+		if (pendingGameLaunch) {
+			recordHandoffEvent(
+				AndroidHandoffEvent.GODOT_SURFACE_CREATED,
+				"",
+				"unknown",
+				"surface_created"
+			);
+		}
 
 		// Android WiFi power saving drops broadcast packets without a MulticastLock.
 		try {
@@ -340,6 +351,30 @@ public class GodotApp extends GodotActivity {
 			utcMillis + "\telapsedRealtimeMs=" + elapsedMs + "\tnativeLifecycle=" + safeEvent + "\n"
 		);
 		Log.i(TAG, "Native lifecycle event: elapsedRealtimeMs=" + elapsedMs + " event=" + safeEvent);
+	}
+
+	public boolean recordHandoffEvent(
+		String eventName,
+		String attemptId,
+		String overlayVisible,
+		String godotReadiness
+	) {
+		AndroidHandoffDiagnostics.record(
+			getFilesDir(),
+			eventName,
+			attemptId,
+			handoffActivityLifecycle,
+			Boolean.toString(hasWindowFocus()),
+			overlayVisible,
+			godotReadiness
+		);
+		return true;
+	}
+
+	public String getHandoffVisibilityConfirmation() {
+		return handoffActivityLifecycle
+			+ "\n"
+			+ Boolean.toString(hasWindowFocus());
 	}
 
 	private void captureHistoricalProcessExitInfo() {
@@ -1513,12 +1548,14 @@ public class GodotApp extends GodotActivity {
 	@Override
 	protected void onStart() {
 		super.onStart();
+		handoffActivityLifecycle = "started";
 		recordAppLifecycleEvent("activity onStart");
 	}
 
 	@Override
 	protected void onResume() {
 		super.onResume();
+		handoffActivityLifecycle = "resumed";
 		if (launcherImeController != null) {
 			launcherImeController.onResume();
 		}
@@ -1530,6 +1567,7 @@ public class GodotApp extends GodotActivity {
 
 	@Override
 	protected void onPause() {
+		handoffActivityLifecycle = "paused";
 		recordAppLifecycleEvent("activity onPause");
 		if (launcherImeController != null) {
 			launcherImeController.onPause();
@@ -1542,6 +1580,7 @@ public class GodotApp extends GodotActivity {
 
 	@Override
 	protected void onStop() {
+		handoffActivityLifecycle = "stopped";
 		recordAppLifecycleEvent("activity onStop");
 		super.onStop();
 	}
@@ -1557,6 +1596,7 @@ public class GodotApp extends GodotActivity {
 
 	@Override
 	protected void onDestroy() {
+		handoffActivityLifecycle = "destroyed";
 		recordAppLifecycleEvent("activity onDestroy");
 		if (bootTransitionController != null) {
 			bootTransitionController.destroy();

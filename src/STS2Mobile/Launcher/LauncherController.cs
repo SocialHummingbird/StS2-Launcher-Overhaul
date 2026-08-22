@@ -90,4 +90,7 @@ internal sealed partial class LauncherController
         STS2Mobile.PatchHelper.Log("Launcher controller phase complete: start session flow");
     }
 
+    internal void RestoreAfterFailedHandoff(string attemptId)
+        => _launch.RestoreAfterFailedHandoff(attemptId);
+
 }

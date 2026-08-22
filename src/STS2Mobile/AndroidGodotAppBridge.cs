@@ -26,6 +26,35 @@ internal static class AndroidGodotAppBridge
 
     internal static void LaunchGameOnRestart() => CallVoid("launchGameOnRestart");
 
+    internal static bool RecordHandoffEvent(
+        string eventName,
+        string attemptId,
+        string overlayVisible,
+        string godotReadiness
+    ) => AndroidBridgeDispatcher.Run(
+        () => (bool)(GetInstanceOnCurrentThread()?.Call(
+            "recordHandoffEvent",
+            eventName ?? "unknown",
+            attemptId ?? "unknown",
+            overlayVisible ?? "unknown",
+            godotReadiness ?? "unknown"
+        ) ?? false)
+    );
+
+    internal static string GetHandoffVisibilityConfirmation()
+        => AndroidBridgeDispatcher.Run(
+            () =>
+            {
+                var instance = GetInstanceOnCurrentThread()
+                    ?? throw new InvalidOperationException(
+                        "Android handoff visibility bridge is unavailable."
+                    );
+                return (string)instance.Call(
+                    "getHandoffVisibilityConfirmation"
+                );
+            }
+        );
+
     internal static void LaunchGameSafelyOnRestart()
         => CallVoid("launchGameSafelyOnRestart");
 

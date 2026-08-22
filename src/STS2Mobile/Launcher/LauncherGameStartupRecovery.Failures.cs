@@ -6,9 +6,14 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherGameStartupRecovery
 {
-    internal static void HandleFailure(Node gameNode, Label startupStatus, Exception ex)
+    internal static void HandleFailure(
+        Node gameNode,
+        Label startupStatus,
+        string attemptId,
+        Exception ex
+    )
         => LogAndShowFailure(
-            RecoveryUi.For(gameNode, startupStatus),
+            RecoveryUi.For(gameNode, startupStatus, attemptId),
             "Game startup failed",
             ex,
             RecoveryStateUpdate.GameStartupFailed
@@ -17,10 +22,11 @@ internal static partial class LauncherGameStartupRecovery
     internal static void HandleSettingsAndSavesFailure(
         Node gameNode,
         Label startupStatus,
+        string attemptId,
         Exception ex
     )
         => LogAndShowFailure(
-            RecoveryUi.For(gameNode, startupStatus),
+            RecoveryUi.For(gameNode, startupStatus, attemptId),
             "Settings/save init failed",
             ex,
             RecoveryStateUpdate.SettingsAndSavesFailed
@@ -44,6 +50,12 @@ internal static partial class LauncherGameStartupRecovery
         ui.ShowFailure(
             RecoveryStateUpdate.MainMenuRenderingUnstable(preparation)
         );
+        return false;
+    }
+
+    private static bool HandleGameVisibilityFailure(RecoveryUi ui)
+    {
+        ui.ShowFailure(RecoveryStateUpdate.GameVisibilityUnconfirmed());
         return false;
     }
 

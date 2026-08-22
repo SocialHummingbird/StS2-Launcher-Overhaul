@@ -8,17 +8,23 @@ internal static partial class LauncherGameStartupRecovery
 {
     private readonly struct RecoveryUi
     {
-        private RecoveryUi(Node gameNode, Label startupStatus)
+        private RecoveryUi(Node gameNode, Label startupStatus, string attemptId)
         {
             GameNode = gameNode;
             StartupStatus = startupStatus;
+            AttemptId = attemptId;
         }
 
         private Node GameNode { get; }
         private Label StartupStatus { get; }
+        private string AttemptId { get; }
 
-        internal static RecoveryUi For(Node gameNode, Label startupStatus)
-            => new(gameNode, startupStatus);
+        internal static RecoveryUi For(
+            Node gameNode,
+            Label startupStatus,
+            string attemptId
+        )
+            => new(gameNode, startupStatus, attemptId);
 
         internal void Apply(RecoveryStateUpdate update)
             => update.Apply(GameNode, StartupStatus);
@@ -27,44 +33,61 @@ internal static partial class LauncherGameStartupRecovery
             => LauncherStartupRecoveryControlPanel.Show(GameNode);
 
         internal void Cleanup(CanvasLayer recoveryControls)
-            => RecoveryCleanupTarget.For(recoveryControls, StartupStatus)
-                .Run();
+            => RecoveryCleanupTarget.For(recoveryControls).Run();
 
-        internal void ShowFailure(RecoveryStateUpdate update)
+        internal bool ShowFailure(RecoveryStateUpdate update)
         {
+            if (!LauncherHandoffStateOwner.Shared.Fail(AttemptId))
+            {
+                PatchHelper.Log(
+                    $"Ignoring stale startup-failure callback for attempt {AttemptId}"
+                );
+                return false;
+            }
+
             Apply(update);
             ShowControls();
+            return true;
         }
 
-        internal void MarkRecoveredStartup(
+        internal bool MarkRecoveredStartup(
             CanvasLayer recoveryControls,
             RecoveryStateUpdate update
         )
         {
+            var handoff = LauncherHandoffStateOwner.Shared.Capture();
+            if (
+                handoff.State != LauncherHandoffState.GameVisible
+                || !string.Equals(
+                    handoff.AttemptId,
+                    AttemptId,
+                    StringComparison.Ordinal
+                )
+            )
+            {
+                PatchHelper.Log(
+                    $"Ignoring stale startup-observed callback for attempt {AttemptId}"
+                );
+                return false;
+            }
+
             Apply(update);
             Cleanup(recoveryControls);
+            return true;
         }
     }
 
     private readonly struct RecoveryCleanupTarget
     {
-        private RecoveryCleanupTarget(
-            CanvasLayer recoveryControls,
-            Label startupStatus
-        )
+        private RecoveryCleanupTarget(CanvasLayer recoveryControls)
         {
             RecoveryControls = recoveryControls;
-            StartupStatus = startupStatus;
         }
 
         private CanvasLayer RecoveryControls { get; }
-        private Label StartupStatus { get; }
 
-        internal static RecoveryCleanupTarget For(
-            CanvasLayer recoveryControls,
-            Label startupStatus
-        )
-            => new(recoveryControls, startupStatus);
+        internal static RecoveryCleanupTarget For(CanvasLayer recoveryControls)
+            => new(recoveryControls);
 
         internal void Run()
         {
@@ -72,22 +95,16 @@ internal static partial class LauncherGameStartupRecovery
                 "Post-startup recovery UI cleanup started after main-menu handoff"
             );
             var controlsHidden = HideIfAlive(RecoveryControls, "recovery controls");
-            var statusHidden = HideIfAlive(
-                LauncherStartupStatus.FindStatusRoot(StartupStatus),
-                "startup status"
-            );
             PatchHelper.Log(
                 "Post-startup recovery UI hidden after game startup was observed; " +
-                $"controlsHidden={controlsHidden}, statusHidden={statusHidden}"
+                $"controlsHidden={controlsHidden}"
             );
             LauncherLaunchMarkers.ClearStartupMarker();
 
             var controlsCleared = QueueFreeIfAlive(RecoveryControls, "recovery controls");
-            var statusCleared = LauncherStartupStatus.QueueFree(StartupStatus);
-
             PatchHelper.Log(
                 "Post-startup recovery UI cleanup finished after game startup was observed; " +
-                $"controlsCleared={controlsCleared}, statusCleared={statusCleared}, scene snapshot retained"
+                $"controlsCleared={controlsCleared}, scene snapshot retained"
             );
         }
 

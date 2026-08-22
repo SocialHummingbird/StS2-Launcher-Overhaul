@@ -129,6 +129,12 @@ internal sealed class LauncherAsyncSignalWaiter
             if (lifecycle.State == LauncherOperationLifecycleState.Active)
                 return LauncherAsyncWaitOutcome.Signaled;
 
+            if (deadline.IsPaused)
+            {
+                await lifecycle.Changed;
+                continue;
+            }
+
             var remaining = deadline.RemainingDelayMilliseconds;
             using var timeoutCancellation = new CancellationTokenSource();
             var timeout = _signals.WaitForDelayAsync(

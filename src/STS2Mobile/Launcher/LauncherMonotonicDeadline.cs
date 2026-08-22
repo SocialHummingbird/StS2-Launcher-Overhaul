@@ -4,18 +4,18 @@ namespace STS2Mobile.Launcher;
 
 internal sealed class LauncherMonotonicDeadline
 {
-    private readonly Func<long> _clock;
+    private readonly PausableMonotonicClock _clock;
     private readonly long _deadlineAtMilliseconds;
     private readonly long _startedAtMilliseconds;
 
     private LauncherMonotonicDeadline(
         TimeSpan budget,
-        Func<long> clock,
+        PausableMonotonicClock clock,
         long latestDeadlineAtMilliseconds
     )
     {
         _clock = clock;
-        _startedAtMilliseconds = clock();
+        _startedAtMilliseconds = clock.Now;
         var budgetMilliseconds = Math.Max(
             1L,
             (long)Math.Ceiling(budget.TotalMilliseconds)
@@ -30,15 +30,17 @@ internal sealed class LauncherMonotonicDeadline
     }
 
     internal long ElapsedMilliseconds
-        => Math.Max(0L, _clock() - _startedAtMilliseconds);
+        => Math.Max(0L, _clock.Now - _startedAtMilliseconds);
 
-    internal bool IsExpired => _clock() >= _deadlineAtMilliseconds;
+    internal bool IsExpired => _clock.Now >= _deadlineAtMilliseconds;
+
+    internal bool IsPaused => _clock.IsPaused;
 
     internal int RemainingDelayMilliseconds
     {
         get
         {
-            var remaining = Math.Max(0L, _deadlineAtMilliseconds - _clock());
+            var remaining = Math.Max(0L, _deadlineAtMilliseconds - _clock.Now);
             return (int)Math.Min(int.MaxValue, remaining);
         }
     }
@@ -46,6 +48,84 @@ internal sealed class LauncherMonotonicDeadline
     internal LauncherMonotonicDeadline CreateChild(TimeSpan budget)
         => new(budget, _clock, _deadlineAtMilliseconds);
 
+    internal bool Pause() => _clock.Pause();
+
+    internal bool Resume() => _clock.Resume();
+
     internal static LauncherMonotonicDeadline Start(TimeSpan budget)
-        => new(budget, () => Environment.TickCount64, long.MaxValue);
+        => Start(budget, () => Environment.TickCount64);
+
+    internal static LauncherMonotonicDeadline Start(
+        TimeSpan budget,
+        Func<long> clock
+    )
+        => new(
+            budget,
+            new PausableMonotonicClock(
+                clock ?? throw new ArgumentNullException(nameof(clock))
+            ),
+            long.MaxValue
+        );
+
+    private sealed class PausableMonotonicClock
+    {
+        private readonly object _lock = new();
+        private readonly Func<long> _source;
+        private bool _paused;
+        private long _pausedAt;
+        private long _pausedDuration;
+
+        internal PausableMonotonicClock(Func<long> source)
+        {
+            _source = source;
+        }
+
+        internal long Now
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    var raw = _paused ? _pausedAt : _source();
+                    return raw - _pausedDuration;
+                }
+            }
+        }
+
+        internal bool IsPaused
+        {
+            get
+            {
+                lock (_lock)
+                    return _paused;
+            }
+        }
+
+        internal bool Pause()
+        {
+            lock (_lock)
+            {
+                if (_paused)
+                    return false;
+
+                _pausedAt = _source();
+                _paused = true;
+                return true;
+            }
+        }
+
+        internal bool Resume()
+        {
+            lock (_lock)
+            {
+                if (!_paused)
+                    return false;
+
+                var resumedAt = _source();
+                _pausedDuration += Math.Max(0L, resumedAt - _pausedAt);
+                _paused = false;
+                return true;
+            }
+        }
+    }
 }
