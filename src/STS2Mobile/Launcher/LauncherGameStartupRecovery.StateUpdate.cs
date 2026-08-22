@@ -8,8 +8,6 @@ internal static partial class LauncherGameStartupRecovery
     private const string MainMenuGuardFailureReason = "main menu guard failed";
     private const string MainMenuRecoveryFailureReason =
         "main menu recovery failed after watchdog";
-    private const string MainMenuRenderingUnstableReason =
-        "main menu rendered-frame stability failed";
     private const string GameVisibilityUnconfirmedReason =
         "game foreground visibility confirmation failed";
     private const string StartupObservationReason = "post-startup observation";
@@ -61,15 +59,6 @@ internal static partial class LauncherGameStartupRecovery
                 StartupObservationReason,
                 "Home screen ready.",
                 "after NGame.GameStartup returned"
-            );
-
-        internal static RecoveryStateUpdate MainMenuRenderingUnstable(
-            AndroidMainMenuPreparationResult preparation
-        )
-            => new(
-                MainMenuRenderingUnstableReason,
-                "Home screen rendering is still unstable. Use recovery controls below.",
-                $"rendered-frame handoff blocked: {preparation.Outcome}; {preparation.Detail}"
             );
 
         internal static RecoveryStateUpdate GameVisibilityUnconfirmed()

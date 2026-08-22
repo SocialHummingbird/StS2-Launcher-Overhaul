@@ -60,6 +60,15 @@ internal sealed class LauncherAsyncSignalWaiter
         );
     }
 
+    internal Task<LauncherAsyncWaitOutcome> WaitForSignalAsync(
+        Task signal,
+        LauncherMonotonicDeadline deadline
+    )
+    {
+        ArgumentNullException.ThrowIfNull(signal);
+        return WaitForSignalAsync(() => signal, deadline);
+    }
+
     private async Task<LauncherAsyncWaitOutcome> WaitForSignalAsync(
         Func<Task> createSignal,
         LauncherMonotonicDeadline deadline

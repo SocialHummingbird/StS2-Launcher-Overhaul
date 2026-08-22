@@ -6,6 +6,22 @@ namespace STS2Mobile.GameIdentityTests;
 
 internal static partial class Program
 {
+    private static void HandoffActiveMainMenuProducerIsIdempotent()
+    {
+        var owner = new LauncherHandoffStateOwner();
+        var overlay = new FakeHandoffOverlay();
+
+        True(owner.AttachOverlay(overlay), "The launcher overlay must attach.");
+        True(!owner.MarkActiveMainMenuReady(), "No readiness may be produced without an active attempt.");
+        True(owner.Begin(HandoffAttemptA), "The launch attempt must begin.");
+        True(owner.MarkActiveMainMenuReady(), "The real transition must ready the active attempt.");
+        True(!owner.MarkActiveMainMenuReady(), "A repeated main-menu callback must be harmless.");
+
+        var pending = owner.Capture();
+        Equal(HandoffAttemptA, pending.AttemptId, "The producer must use the active attempt ID.");
+        True(pending.MainMenuReady, "The active attempt must retain authoritative readiness.");
+    }
+
     private const string HandoffAttemptA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     private const string HandoffAttemptB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     private const string HandoffAttemptC = "cccccccccccccccccccccccccccccccc";
@@ -283,9 +299,14 @@ internal static partial class Program
 
         overlay.IsAvailable = false;
         var recreatedOverlay = new FakeHandoffOverlay();
+        var beforeReattach = owner.CaptureObservation();
         True(
             owner.AttachOverlay(recreatedOverlay),
             "Activity recreation must replace an unavailable overlay through the same owner."
+        );
+        True(
+            beforeReattach.Changed.IsCompleted,
+            "Reattaching the handoff consumer must wake state reconciliation."
         );
 
         True(owner.RestorePending(HandoffAttemptA), "Activity recreation must reaccept the active persisted attempt.");

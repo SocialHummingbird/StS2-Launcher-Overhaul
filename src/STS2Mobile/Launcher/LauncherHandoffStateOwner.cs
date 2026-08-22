@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using Godot;
 
 namespace STS2Mobile.Launcher;
@@ -34,6 +35,21 @@ internal readonly struct LauncherHandoffStateSnapshot
     internal bool WindowFocused { get; }
 }
 
+internal readonly struct LauncherHandoffStateObservation
+{
+    internal LauncherHandoffStateObservation(
+        LauncherHandoffStateSnapshot state,
+        Task changed
+    )
+    {
+        State = state;
+        Changed = changed;
+    }
+
+    internal LauncherHandoffStateSnapshot State { get; }
+    internal Task Changed { get; }
+}
+
 internal interface ILauncherHandoffOverlay
 {
     bool IsAvailable { get; }
@@ -46,9 +62,9 @@ internal sealed class LauncherHandoffStateOwner
 {
     private readonly object _lock = new();
     private readonly bool _recordDiagnostics;
+    private readonly LauncherMainMenuReadinessOwner _mainMenuReadiness = new();
+    private TaskCompletionSource<bool> _changed = CreateChangeSignal();
     private LauncherHandoffState _state = LauncherHandoffState.LauncherVisible;
-    private string _attemptId;
-    private bool _mainMenuReady;
     private bool _activityForeground;
     private bool _windowFocused;
     private ILauncherHandoffOverlay _overlay;
@@ -73,6 +89,15 @@ internal sealed class LauncherHandoffStateOwner
             return CaptureLocked();
     }
 
+    internal LauncherHandoffStateObservation CaptureObservation()
+    {
+        lock (_lock)
+            return new LauncherHandoffStateObservation(
+                CaptureLocked(),
+                _changed.Task
+            );
+    }
+
     internal LauncherUI ShowLauncher(Node parent, bool inGameMode)
     {
         ArgumentNullException.ThrowIfNull(parent);
@@ -92,6 +117,7 @@ internal sealed class LauncherHandoffStateOwner
 
             var overlay = LauncherHandoffOverlay.Show(parent, inGameMode);
             _overlay = overlay;
+            SignalChangedLocked();
             return overlay.Launcher;
         }
     }
@@ -131,6 +157,7 @@ internal sealed class LauncherHandoffStateOwner
                 return false;
 
             _overlay = overlay;
+            SignalChangedLocked();
             return true;
         }
     }
@@ -140,13 +167,11 @@ internal sealed class LauncherHandoffStateOwner
 
     internal bool RestorePending(string attemptId)
     {
-        ValidateAttemptId(attemptId);
-
         lock (_lock)
         {
             if (
                 _state == LauncherHandoffState.HandoffPending
-                && string.Equals(_attemptId, attemptId, StringComparison.Ordinal)
+                && _mainMenuReadiness.IsActive(attemptId)
             )
                 return true;
         }
@@ -159,32 +184,24 @@ internal sealed class LauncherHandoffStateOwner
         bool recordLaunchRequested = true
     )
     {
-        ValidateAttemptId(attemptId);
+        LauncherMainMenuReadinessOwner.ValidateAttemptId(attemptId);
 
         lock (_lock)
         {
             if (_state != LauncherHandoffState.LauncherVisible)
                 return false;
+            if (!_mainMenuReadiness.Begin(attemptId))
+                return false;
 
             _state = LauncherHandoffState.HandoffPending;
-            _attemptId = attemptId;
-            _mainMenuReady = false;
             _activityForeground = false;
             _windowFocused = false;
+            SignalChangedLocked();
         }
 
         if (recordLaunchRequested)
             Record(LauncherHandoffEvent.LaunchRequested, attemptId, true, "launcher_ready");
         return true;
-    }
-
-    private static void ValidateAttemptId(string attemptId)
-    {
-        if (string.IsNullOrWhiteSpace(attemptId))
-            throw new ArgumentException(
-                "A launch-attempt ID is required.",
-                nameof(attemptId)
-            );
     }
 
     internal bool MarkMainMenuReady(string attemptId)
@@ -193,17 +210,27 @@ internal sealed class LauncherHandoffStateOwner
         PromotionResult promotion;
         lock (_lock)
         {
-            if (!IsCurrentPending(attemptId) || _mainMenuReady)
+            if (
+                !IsCurrentPending(attemptId)
+                || !_mainMenuReadiness.MarkReady(attemptId)
+            )
                 return false;
 
-            _mainMenuReady = true;
             overlayVisible = _overlay?.IsVisible == true;
             promotion = PromoteWhenVisibleLocked();
+            SignalChangedLocked();
         }
 
         Record(LauncherHandoffEvent.MainMenuReady, attemptId, overlayVisible, "main_menu_ready");
         RecordPromotion(attemptId, promotion);
         return true;
+    }
+
+    internal bool MarkActiveMainMenuReady()
+    {
+        var readiness = _mainMenuReadiness.Capture();
+        return !string.IsNullOrWhiteSpace(readiness.AttemptId)
+            && MarkMainMenuReady(readiness.AttemptId);
     }
 
     internal bool ObserveVisibility(
@@ -227,9 +254,11 @@ internal sealed class LauncherHandoffStateOwner
                 || focusChanged;
             _activityForeground = activityForeground;
             _windowFocused = windowFocused;
-            mainMenuReady = _mainMenuReady;
+            mainMenuReady = _mainMenuReadiness.IsReady(attemptId);
             overlayVisible = _overlay?.IsVisible == true;
             promotion = PromoteWhenVisibleLocked();
+            if (stateChanged || promotion != PromotionResult.None)
+                SignalChangedLocked();
         }
 
         if (focusChanged)
@@ -267,6 +296,7 @@ internal sealed class LauncherHandoffStateOwner
                 _overlay = null;
             ResetToLauncherLocked();
             overlayVisible = _overlay?.IsVisible == true;
+            SignalChangedLocked();
         }
 
         if (recordFailure)
@@ -283,12 +313,12 @@ internal sealed class LauncherHandoffStateOwner
 
     private bool IsCurrentPending(string attemptId)
         => _state == LauncherHandoffState.HandoffPending
-            && !string.IsNullOrWhiteSpace(attemptId)
-            && string.Equals(_attemptId, attemptId, StringComparison.Ordinal);
+            && _mainMenuReadiness.IsActive(attemptId);
 
     private PromotionResult PromoteWhenVisibleLocked()
     {
-        if (!_mainMenuReady || !_activityForeground || !_windowFocused)
+        var readiness = _mainMenuReadiness.Capture();
+        if (!readiness.IsReady || !_activityForeground || !_windowFocused)
             return PromotionResult.None;
 
         if (_overlay != null && !_overlay.Dismiss())
@@ -304,9 +334,11 @@ internal sealed class LauncherHandoffStateOwner
 
     private void ResetToLauncherLocked()
     {
+        var readiness = _mainMenuReadiness.Capture();
+        if (!string.IsNullOrWhiteSpace(readiness.AttemptId))
+            _mainMenuReadiness.Reset(readiness.AttemptId);
+
         _state = LauncherHandoffState.LauncherVisible;
-        _attemptId = null;
-        _mainMenuReady = false;
         _activityForeground = false;
         _windowFocused = false;
     }
@@ -343,13 +375,26 @@ internal sealed class LauncherHandoffStateOwner
     }
 
     private LauncherHandoffStateSnapshot CaptureLocked()
-        => new(
+    {
+        var readiness = _mainMenuReadiness.Capture();
+        return new LauncherHandoffStateSnapshot(
             _state,
-            _attemptId,
-            _mainMenuReady,
+            readiness.AttemptId,
+            readiness.IsReady,
             _activityForeground,
             _windowFocused
         );
+    }
+
+    private void SignalChangedLocked()
+    {
+        var changed = _changed;
+        _changed = CreateChangeSignal();
+        changed.TrySetResult(true);
+    }
+
+    private static TaskCompletionSource<bool> CreateChangeSignal()
+        => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private enum PromotionResult
     {

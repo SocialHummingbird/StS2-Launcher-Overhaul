@@ -38,7 +38,6 @@ internal static partial class LauncherGameStartupRecovery
             if (!await CompleteReadyMainMenuHandoffAsync(
                 ui,
                 gameNode,
-                startupStatus,
                 attemptId
             ))
                 return;

@@ -3,6 +3,7 @@ using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Settings;
+using STS2Mobile.Launcher;
 
 namespace STS2Mobile.Patches;
 
@@ -33,6 +34,8 @@ internal static class MobileLayoutPatches
 
     private static void MainMenuReadyPostfix(object __instance)
     {
+        LauncherHandoffStateOwner.Shared.MarkActiveMainMenuReady();
+
         try
         {
             var menu = (Node)__instance;

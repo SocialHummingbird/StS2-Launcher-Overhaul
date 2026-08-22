@@ -85,49 +85,57 @@ internal static class LauncherHandoffVisibilityConfirmation
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(gameNode);
 
-        var tree = gameNode.GetTree();
-        if (tree == null)
+        if (gameNode.GetTree() == null)
             return false;
 
         var deadline = LauncherMonotonicDeadline.Start(
             TimeSpan.FromMilliseconds(Math.Max(1, timeoutMs))
         );
         var lifecycle = new LauncherOperationLifecycle();
-        var lifecycleMonitor = new LauncherOperationLifecycleMonitor(
-            lifecycle,
-            deadline
-        );
         var bridgeFailureLogged = false;
+        LauncherOperationLifecycleMonitor lifecycleMonitor = null;
+
+        void ObserveCurrentVisibility()
+        {
+            try
+            {
+                var visibility = LauncherHandoffVisibility.Capture();
+                lifecycleMonitor?.ObserveApplicationActive(
+                    !visibility.SuspendsHandoffTimeout
+                );
+                owner.ObserveVisibility(
+                    attemptId,
+                    visibility.ActivityForeground,
+                    visibility.WindowFocused
+                );
+            }
+            catch (Exception ex)
+            {
+                if (bridgeFailureLogged)
+                    return;
+
+                PatchHelper.Log(
+                    $"Waiting for Android activity recreation during handoff: {ex.Message}"
+                );
+                bridgeFailureLogged = true;
+            }
+        }
+
+        lifecycleMonitor = new LauncherOperationLifecycleMonitor(
+            lifecycle,
+            deadline,
+            ObserveCurrentVisibility
+        );
+        var waiter = LauncherAsyncYield.CreateWaiter(null, lifecycle);
+
         try
         {
             gameNode.AddChild(lifecycleMonitor);
+            ObserveCurrentVisibility();
             while (!deadline.IsExpired)
             {
-                LauncherHandoffVisibility visibility;
-                try
-                {
-                    visibility = LauncherHandoffVisibility.Capture();
-                    lifecycleMonitor.ObserveApplicationActive(
-                        !visibility.SuspendsHandoffTimeout
-                    );
-                    owner.ObserveVisibility(
-                        attemptId,
-                        visibility.ActivityForeground,
-                        visibility.WindowFocused
-                    );
-                }
-                catch (Exception ex)
-                {
-                    if (!bridgeFailureLogged)
-                    {
-                        PatchHelper.Log(
-                            $"Waiting for Android activity recreation during handoff: {ex.Message}"
-                        );
-                        bridgeFailureLogged = true;
-                    }
-                }
-
-                var state = owner.Capture();
+                var observation = owner.CaptureObservation();
+                var state = observation.State;
                 if (
                     state.State == LauncherHandoffState.GameVisible
                     && string.Equals(state.AttemptId, attemptId, StringComparison.Ordinal)
@@ -139,11 +147,11 @@ internal static class LauncherHandoffVisibilityConfirmation
                 )
                     return false;
 
-                if (!await LauncherAsyncYield.ProcessFrameAsync(
-                    tree,
-                    deadline,
-                    lifecycle
-                ))
+                var wake = await waiter.WaitForSignalAsync(
+                    observation.Changed,
+                    deadline
+                );
+                if (wake != LauncherAsyncWaitOutcome.Signaled)
                     break;
             }
         }

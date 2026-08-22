@@ -24,19 +24,18 @@ internal static partial class LauncherGameStartupRecovery
     )
     {
         var ui = RecoveryUi.For(gameNode, startupStatus, attemptId);
-        var mainMenuReady = await EnsureMainMenuAfterStartupAsync(
+        var mainMenuPresent = await EnsureMainMenuAfterStartupAsync(
             game,
             gameNode,
             startupStatus,
             MainMenuForceTimeoutMs
         );
-        if (!mainMenuReady)
+        if (!mainMenuPresent)
             return HandleMainMenuGuardFailure(ui);
 
         return await CompleteReadyMainMenuHandoffAsync(
             ui,
             gameNode,
-            startupStatus,
             attemptId
         );
     }
@@ -44,23 +43,9 @@ internal static partial class LauncherGameStartupRecovery
     private static async Task<bool> CompleteReadyMainMenuHandoffAsync(
         RecoveryUi ui,
         Node gameNode,
-        Label startupStatus,
         string attemptId
     )
     {
-        var preparation = await AndroidMainMenuPreparation.RunAsync(
-            gameNode,
-            startupStatus
-        );
-        if (!preparation.CanExposeMainMenu)
-            return HandleMainMenuPreparationFailure(ui, preparation);
-
-        PatchHelper.Log(
-            $"Main-menu handoff admitted by rendered-frame gate: {preparation.Detail}"
-        );
-        if (!LauncherHandoffStateOwner.Shared.MarkMainMenuReady(attemptId))
-            return false;
-
         if (!await LauncherHandoffVisibilityConfirmation.WaitForGameVisibleAsync(
             LauncherHandoffStateOwner.Shared,
             attemptId,

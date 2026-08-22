@@ -38,21 +38,6 @@ internal static partial class LauncherGameStartupRecovery
         return false;
     }
 
-    private static bool HandleMainMenuPreparationFailure(
-        RecoveryUi ui,
-        AndroidMainMenuPreparationResult preparation
-    )
-    {
-        PatchHelper.Log(
-            $"Main-menu handoff blocked by rendered-frame gate: "
-            + $"outcome={preparation.Outcome}; detail={preparation.Detail}"
-        );
-        ui.ShowFailure(
-            RecoveryStateUpdate.MainMenuRenderingUnstable(preparation)
-        );
-        return false;
-    }
-
     private static bool HandleGameVisibilityFailure(RecoveryUi ui)
     {
         ui.ShowFailure(RecoveryStateUpdate.GameVisibilityUnconfirmed());
