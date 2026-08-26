@@ -256,6 +256,10 @@ public final class AndroidAssemblyBootstrapperRuntimePackValidationTest {
 			state.put("branch", branch);
 			state.put("status", "ready");
 			state.put("transactionId", UUID.randomUUID().toString());
+			state.put(
+				"pckPreparationVersion",
+				BranchInstallationState.REQUIRED_PCK_PREPARATION_VERSION
+			);
 			state.put("gameIdentity", identity);
 			writeText(
 				LauncherArtifactLayout.installationStateFile(root, branch),

@@ -50,7 +50,7 @@ internal static partial class Program
             transactionId,
             identity,
             depots,
-            "android-pck-v1",
+            DepotDownloader.AndroidPckPreparationVersion,
             StateRuntimePack(identity)
         );
         Equal(BranchInstallStatus.Ready, ready.Status, "CommitReady must persist the only ready representation.");
@@ -101,7 +101,7 @@ internal static partial class Program
             transactionId,
             identity,
             StateDepots(),
-            "android-pck-v1",
+            DepotDownloader.AndroidPckPreparationVersion,
             StateRuntimePack(identity)
         ));
 
@@ -132,7 +132,7 @@ internal static partial class Program
             readyTransaction,
             identity,
             StateDepots(),
-            "android-pck-v1"
+            DepotDownloader.AndroidPckPreparationVersion
         );
         var statePath = BranchInstallStateStore.PathFor(
             fixture.DataDir,
@@ -267,7 +267,7 @@ internal static partial class Program
             transactionId,
             generationN,
             StateDepots(),
-            "android-pck-v1",
+            DepotDownloader.AndroidPckPreparationVersion,
             StateRuntimePack(generationN)
         );
 
@@ -290,9 +290,9 @@ internal static partial class Program
         var betaTransaction = Guid.NewGuid();
 
         store.BeginUpdating(fixture.DataDir, "PUBLIC", publicTransaction, "downloading", StateDepots(100));
-        store.CommitReady(fixture.DataDir, "public", publicTransaction, publicIdentity, StateDepots(100), "android-pck-v1", StateRuntimePack(publicIdentity));
+        store.CommitReady(fixture.DataDir, "public", publicTransaction, publicIdentity, StateDepots(100), DepotDownloader.AndroidPckPreparationVersion, StateRuntimePack(publicIdentity));
         store.BeginUpdating(fixture.DataDir, " Public-Beta ", betaTransaction, "downloading", StateDepots(200));
-        store.CommitReady(fixture.DataDir, "public-beta", betaTransaction, betaIdentity, StateDepots(200), "android-pck-v1", StateRuntimePack(betaIdentity));
+        store.CommitReady(fixture.DataDir, "public-beta", betaTransaction, betaIdentity, StateDepots(200), DepotDownloader.AndroidPckPreparationVersion, StateRuntimePack(betaIdentity));
 
         var publicPath = BranchInstallStateStore.PathFor(fixture.DataDir, "public");
         var betaPath = BranchInstallStateStore.PathFor(fixture.DataDir, "public-beta");
@@ -341,8 +341,8 @@ internal static partial class Program
         Equal(BranchInstallStateFailureKind.InvalidTransition, conflict.Kind, "A concurrent different transaction must not replace the active transaction.");
 
         var identity = StateIdentity(fixture.Branch, "N");
-        var ready = store.CommitReady(fixture.DataDir, fixture.Branch, transactionId, identity, StateDepots(), "android-pck-v1", StateRuntimePack(identity));
-        var repeatedReady = store.CommitReady(fixture.DataDir, fixture.Branch, transactionId, identity, StateDepots(), "android-pck-v1", StateRuntimePack(identity));
+        var ready = store.CommitReady(fixture.DataDir, fixture.Branch, transactionId, identity, StateDepots(), DepotDownloader.AndroidPckPreparationVersion, StateRuntimePack(identity));
+        var repeatedReady = store.CommitReady(fixture.DataDir, fixture.Branch, transactionId, identity, StateDepots(), DepotDownloader.AndroidPckPreparationVersion, StateRuntimePack(identity));
         Equal(ready.TransitionUtc, repeatedReady.TransitionUtc, "Repeated identical ready commit must be idempotent.");
         Equal(BranchInstallStatus.Ready, store.Read(fixture.DataDir, fixture.Branch).Status, "Concurrent/repeated transitions must leave one valid state.");
     }

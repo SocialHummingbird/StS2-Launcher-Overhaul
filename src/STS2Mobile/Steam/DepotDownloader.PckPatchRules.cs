@@ -12,7 +12,16 @@ internal sealed partial class DepotDownloader
     private static readonly string[] ProjectGodotSettingsToComment =
     {
         "SentryInit=\"*res://addons/sentry/SentryInit.gd\"",
+    };
+
+    private static readonly string[] X86FmodProjectGodotSettingsToComment =
+    {
         FmodProjectGodotSetting,
+    };
+
+    private static readonly (string Search, string Replacement)[] Arm64FmodProjectGodotRestorations =
+    {
+        (";" + FmodProjectGodotSetting.Substring(1), FmodProjectGodotSetting),
     };
 
     private static readonly string[] ExtensionListEntriesToOverwrite =
@@ -23,7 +32,16 @@ internal sealed partial class DepotDownloader
     private static readonly (string Search, string Replacement)[] ProjectBinaryReplacements =
     {
         ("autoload/SentryInit", "disabled/SentryInit"),
+    };
+
+    private static readonly (string Search, string Replacement)[] X86FmodProjectBinaryReplacements =
+    {
         ("autoload/FmodManager", "disabled/FmodManager"),
+    };
+
+    private static readonly (string Search, string Replacement)[] Arm64FmodProjectBinaryRestorations =
+    {
+        ("disabled/FmodManager", "autoload/FmodManager"),
     };
 
     private static readonly (string Search, string Replacement)[] FmodExtensionListRestorations =
@@ -68,6 +86,9 @@ internal sealed partial class DepotDownloader
             "project.godot",
             content =>
                 ApplyProjectSettingComments(content, ProjectGodotSettingsToComment)
+                | (RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                    ? ApplyReplacementPatches(content, Arm64FmodProjectGodotRestorations)
+                    : ApplyProjectSettingComments(content, X86FmodProjectGodotSettingsToComment))
         );
 
     private static bool PatchExtensionList(FileStream fs, long offset, long size)
@@ -89,6 +110,9 @@ internal sealed partial class DepotDownloader
             "project.binary",
             content =>
                 ApplyReplacementPatches(content, ProjectBinaryReplacements)
+                | (RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                    ? ApplyReplacementPatches(content, Arm64FmodProjectBinaryRestorations)
+                    : ApplyReplacementPatches(content, X86FmodProjectBinaryReplacements))
         );
 
     private static bool PatchGameScene(FileStream fs, long offset, long size)

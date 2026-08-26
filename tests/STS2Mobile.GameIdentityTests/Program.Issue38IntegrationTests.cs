@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using STS2Mobile.Launcher;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.GameIdentityTests;
 
@@ -149,7 +150,7 @@ internal static partial class Program
                     "An updating branch must be non-launchable even with stale N authorization."
                 );
 
-                completion = update.CompleteInstalledFiles("android-pck-v1");
+                completion = update.CompleteInstalledFiles(DepotDownloader.AndroidPckPreparationVersion);
             }
 
             var identityNPlusOne = completion.GameIdentity;

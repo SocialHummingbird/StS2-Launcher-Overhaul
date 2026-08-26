@@ -237,7 +237,7 @@ public final class SelectedBranchRecoveryTest {
 		String hash = "a".repeat(64);
 		return "{\"schemaVersion\":1,\"branch\":\"" + branch
 			+ "\",\"status\":\"ready\",\"transactionId\":\"11111111-1111-1111-1111-111111111111\""
-			+ ",\"completedUtc\":\"2026-01-01T00:00:00.0000000Z\",\"depots\":[],\"pckPreparationVersion\":\"1\""
+			+ ",\"completedUtc\":\"2026-01-01T00:00:00.0000000Z\",\"depots\":[],\"pckPreparationVersion\":\"android-pck-v2\""
 			+ ",\"gameIdentity\":{\"schemaVersion\":1,\"branch\":\"" + branch
 			+ "\",\"installGeneration\":\"" + hash + "\",\"pckSha256\":\"" + hash
 			+ "\",\"sourceAssemblySha256\":\"" + hash + "\"},\"runtimePack\":null}";
