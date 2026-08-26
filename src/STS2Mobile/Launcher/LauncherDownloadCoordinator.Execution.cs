@@ -7,23 +7,145 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherDownloadCoordinator
 {
-    private async Task DownloadAsync()
+    internal bool TryStartAutomaticRepair(Action afterSuccess = null)
+        => TryStartAutomaticRepair(
+            LauncherPreferences.ReadGameBranch(),
+            afterSuccess
+        );
+
+    internal bool TryStartAutomaticRepair(
+        string branch,
+        Action afterSuccess = null
+    )
     {
-        var branch = LauncherPreferences.ReadGameBranch();
+        var started = false;
+        RouteInstalledVersionReadiness(
+            LocalPckRepairOperation.ClassifyForLauncherRouting(
+                _model.DataDir,
+                branch
+            ),
+            ready: () => { },
+            automaticRepair: () =>
+            {
+                started = true;
+                DownloadViewUpdate.AutomaticRepairStarted().Apply(_view, _launch);
+                if (_automaticRepairContinuation != null
+                    && _model.SelectedVersionOperationIsRunning)
+                {
+                    if (afterSuccess != null)
+                        _automaticRepairContinuation = afterSuccess;
+                    return;
+                }
+
+                _automaticRepairContinuation = afterSuccess ?? (() => { });
+                _ = RunSelectedVersionOperationAsync(
+                    SteamGameBranch.Normalize(branch),
+                    automaticRepairOnly: true
+                );
+            },
+            redownloadRequired: () => { }
+        );
+        return started;
+    }
+
+    internal bool TryShowRedownloadRequired()
+        => TryShowRedownloadRequired(LauncherPreferences.ReadGameBranch());
+
+    internal bool TryShowRedownloadRequired(string branch)
+    {
+        if (!LauncherGameFiles.HasBranchMetadataProblem(_model.DataDir, branch))
+            return false;
+
+        _view.HideActions();
+        _view.SetStatus(
+            RedownloadRequiredStatus,
+            LauncherStatusSeverity.Warning
+        );
+        ShowRedownloadSelectedVersionAction();
+        return true;
+    }
+
+    internal static void RouteInstalledVersionReadiness(
+        InstalledGameVersionReadiness readiness,
+        Action ready,
+        Action automaticRepair,
+        Action redownloadRequired
+    )
+    {
+        if (ready == null)
+            throw new ArgumentNullException(nameof(ready));
+        if (automaticRepair == null)
+            throw new ArgumentNullException(nameof(automaticRepair));
+        if (redownloadRequired == null)
+            throw new ArgumentNullException(nameof(redownloadRequired));
+
+        switch (readiness)
+        {
+            case InstalledGameVersionReadiness.Ready:
+                ready();
+                return;
+            case InstalledGameVersionReadiness.AutomaticRepair:
+                automaticRepair();
+                return;
+            case InstalledGameVersionReadiness.RedownloadRequired:
+                redownloadRequired();
+                return;
+            default:
+                throw new ArgumentOutOfRangeException(
+                    nameof(readiness),
+                    readiness,
+                    "Unknown installed-version readiness."
+                );
+        }
+    }
+
+    private async Task DownloadAsync()
+        => await RunSelectedVersionOperationAsync(
+            LauncherPreferences.ReadGameBranch(),
+            automaticRepairOnly: false
+        );
+
+    private async Task RunSelectedVersionOperationAsync(
+        string branch,
+        bool automaticRepairOnly
+    )
+    {
         try
         {
             LauncherLaunchMarkers.RecordPhase(
-                "game download requested",
-                $"branch={branch}"
+                automaticRepairOnly
+                    ? "automatic PCK repair requested"
+                    : "game download requested",
+                $"branch={branch}; localRepairOnly={automaticRepairOnly}"
             );
-            LauncherLaunchReadinessCache.Clear("game download requested");
-            _view.ShowDownloadProgress("Connecting to Steam...");
-            await _model.StartDownloadAsync(branch);
+            LauncherLaunchReadinessCache.Clear(
+                automaticRepairOnly
+                    ? "automatic PCK repair requested"
+                    : "game download requested"
+            );
+            if (automaticRepairOnly)
+            {
+                await _model.StartAutomaticRepairAsync(branch);
+            }
+            else
+            {
+                _view.ShowDownloadProgress("Connecting to Steam...");
+                await _model.StartDownloadAsync(branch);
+            }
         }
         catch (Exception ex)
         {
-            LauncherLaunchMarkers.RecordPhase("game download handler failed", ex.GetBaseException().Message);
-            PatchHelper.Log($"[Launcher] Download handler failed: {ex}");
+            LauncherLaunchMarkers.RecordPhase(
+                automaticRepairOnly
+                    ? "automatic PCK repair handler failed"
+                    : "game download handler failed",
+                ex.GetBaseException().Message
+            );
+            PatchHelper.Log(
+                automaticRepairOnly
+                    ? $"[Launcher] Automatic PCK repair handler failed: {ex}"
+                    : $"[Launcher] Download handler failed: {ex}"
+            );
             FailDownload(new LauncherBranchOperationFailure(branch, ex.GetBaseException().Message));
         }
     }
@@ -35,6 +157,8 @@ internal sealed partial class LauncherDownloadCoordinator
     {
         if (completion == null)
             throw new ArgumentNullException(nameof(completion));
+        var automaticRepairContinuation = _automaticRepairContinuation;
+        _automaticRepairContinuation = null;
         var branch = completion.Branch;
         LauncherLaunchMarkers.RecordPhase(
             "game download completed",
@@ -67,6 +191,8 @@ internal sealed partial class LauncherDownloadCoordinator
         var integritySummary = LauncherGameFiles.BranchIntegritySummary(_model.DataDir, branch);
         if (!string.IsNullOrWhiteSpace(integritySummary))
             _view.AppendLog(integritySummary);
+        if (readiness.Ready)
+            automaticRepairContinuation?.Invoke();
     }
 
     private static string RuntimeValidationFailureMessage(string branch, Exception exception)
@@ -80,6 +206,7 @@ internal sealed partial class LauncherDownloadCoordinator
 
     internal void FailDownload(LauncherBranchOperationFailure failure)
     {
+        _automaticRepairContinuation = null;
         var branch = failure.Branch;
         var message = failure.Message;
         LauncherLaunchMarkers.RecordPhase("game download failed", message);
@@ -92,6 +219,7 @@ internal sealed partial class LauncherDownloadCoordinator
 
     internal void CancelDownload(string branch)
     {
+        _automaticRepairContinuation = null;
         LauncherLaunchMarkers.RecordPhase("game download cancelled", $"branch={branch}");
         DownloadViewUpdate.Cancelled().Apply(_view, _launch);
     }

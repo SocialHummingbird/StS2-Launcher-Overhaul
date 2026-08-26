@@ -14,6 +14,14 @@ internal partial class LauncherModel
         {
             var completion = await _downloader.DownloadAsync(_downloadCts.Token)
                 .ConfigureAwait(false);
+            if (LocalPckRepairOperation.ClassifyForLauncherRouting(
+                    _dataDir,
+                    branch
+                ) == InstalledGameVersionReadiness.AutomaticRepair)
+            {
+                completion = await RunAutomaticPckRepairCoreAsync(branch)
+                    .ConfigureAwait(false);
+            }
             RaiseDownloadCompleted(completion);
         }
         catch (OperationCanceledException)
@@ -29,6 +37,37 @@ internal partial class LauncherModel
         {
             ResetDownload();
         }
+    }
+
+    private async Task RunAutomaticPckRepairAsync(string branch)
+    {
+        try
+        {
+            var completion = await RunAutomaticPckRepairCoreAsync(branch)
+                .ConfigureAwait(false);
+            RaiseDownloadCompleted(completion);
+        }
+        catch (Exception ex)
+        {
+            RaiseDownloadFailed(branch, ex.Message);
+            PatchHelper.Log($"[Launcher] Automatic PCK repair error: {ex}");
+        }
+    }
+
+    private async Task<BranchInstallCompletion> RunAutomaticPckRepairCoreAsync(
+        string branch
+    )
+    {
+        RaiseDownloadProgressChanged(
+            DepotDownloader.DownloadProgress.Status(
+                LocalPckRepairOperation.ProgressMessage
+            )
+        );
+        RaiseDownloadLogReceived(LocalPckRepairOperation.ProgressMessage);
+        return await Task.Run(() =>
+                LocalPckRepairOperation.RepairAutomatic(_dataDir, branch)
+            )
+            .ConfigureAwait(false);
     }
 
     private void BeginDownload(SteamConnection connection, string branch)

@@ -65,7 +65,7 @@ internal sealed partial class ActionSection
             LauncherViewLayoutMetrics.ScaleInt(6, _scale)
         );
         var title = new StyledLabel(
-            "Selected version repair",
+            "Selected version redownload",
             _scale,
             fontSize: _compact
                 ? LauncherSectionMetrics.CompactVersionSummaryFontSize
@@ -78,6 +78,22 @@ internal sealed partial class ActionSection
             LauncherComponentTheme.TextSecondary
         );
         group.AddChild(title);
+
+        var guidance = new StyledLabel(
+            "Redownload removes only the selected version's downloaded files. Saves and other versions stay in place.",
+            _scale,
+            fontSize: _compact ? 14 : 15,
+            align: HorizontalAlignment.Left
+        )
+        {
+            Name = "SelectedVersionRepairGuidance",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        guidance.AddThemeColorOverride(
+            LauncherViewLayoutMetrics.ThemeFontColor,
+            LauncherComponentTheme.TextSecondary
+        );
+        group.AddChild(guidance);
 
         var actions = new GridContainer
         {

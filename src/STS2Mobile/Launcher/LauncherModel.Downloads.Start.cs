@@ -4,31 +4,76 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
-    internal async Task StartDownloadAsync(string branch)
+    internal Task StartDownloadAsync(string branch)
+        => StartSelectedVersionOperationAsync(
+            branch,
+            automaticRepairOnly: false
+        );
+
+    internal Task StartAutomaticRepairAsync(string branch)
+        => StartSelectedVersionOperationAsync(
+            branch,
+            automaticRepairOnly: true
+        );
+
+    private async Task StartSelectedVersionOperationAsync(
+        string branch,
+        bool automaticRepairOnly
+    )
     {
         branch = STS2Mobile.Steam.SteamGameBranch.Normalize(branch);
         LauncherLaunchMarkers.RecordPhase(
-            "download model start",
-            $"branch={branch}"
+            automaticRepairOnly
+                ? "automatic PCK repair model start"
+                : "download model start",
+            $"branch={branch}; localRepairOnly={automaticRepairOnly}"
         );
         var run = DownloadRunGuard.TryAcquire(this);
         if (!run.Acquired)
         {
-            LauncherLaunchMarkers.RecordPhase("download model blocked", "Download already running");
-            RaiseDownloadFailed(branch, "Download already running");
+            LauncherLaunchMarkers.RecordPhase(
+                automaticRepairOnly
+                    ? "automatic PCK repair model blocked"
+                    : "download model blocked",
+                "Selected-version operation already running"
+            );
+            RaiseDownloadFailed(branch, "Selected-version operation already running");
             return;
         }
 
         try
         {
-            LauncherLaunchReadinessCache.Clear("download model started");
+            LauncherLaunchReadinessCache.Clear(
+                automaticRepairOnly
+                    ? "automatic PCK repair model started"
+                    : "download model started"
+            );
+            if (automaticRepairOnly)
+            {
+                await RunAutomaticPckRepairAsync(branch);
+                return;
+            }
+
+            if (LocalPckRepairOperation.ClassifyForLauncherRouting(
+                    _dataDir,
+                    branch
+                ) == InstalledGameVersionReadiness.AutomaticRepair)
+            {
+                await RunAutomaticPckRepairAsync(branch);
+                return;
+            }
+
             await RunWithDepotConnectionAsync(
                 DepotConnectionAction.Download(this, branch)
             );
         }
         finally
         {
-            LauncherLaunchMarkers.RecordPhase("download model finished");
+            LauncherLaunchMarkers.RecordPhase(
+                automaticRepairOnly
+                    ? "automatic PCK repair model finished"
+                    : "download model finished"
+            );
             run.Release();
         }
     }

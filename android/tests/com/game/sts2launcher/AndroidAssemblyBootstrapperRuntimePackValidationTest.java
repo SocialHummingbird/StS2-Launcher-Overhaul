@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 
 public final class AndroidAssemblyBootstrapperRuntimePackValidationTest {
@@ -70,6 +71,26 @@ public final class AndroidAssemblyBootstrapperRuntimePackValidationTest {
 				fixture.bootstrapper.isRuntimePackManifestUsableForTesting(
 					fixture.runtimePackDirectory
 				)
+			);
+		}
+	}
+
+	@Test
+	public void runtimePackValidationIsReadOnlyForSelectedPck()
+		throws Exception {
+		try (Fixture fixture = Fixture.create()) {
+			File pck = new File(fixture.gameDirectory, "SlayTheSpire2.pck");
+			byte[] before = Files.readAllBytes(pck.toPath());
+
+			assertTrue(
+				fixture.bootstrapper.isRuntimePackManifestUsableForTesting(
+					fixture.runtimePackDirectory
+				)
+			);
+			assertArrayEquals(
+				"Native runtime-pack validation must not mutate the selected PCK.",
+				before,
+				Files.readAllBytes(pck.toPath())
 			);
 		}
 	}

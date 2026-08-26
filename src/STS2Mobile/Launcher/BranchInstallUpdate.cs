@@ -20,16 +20,19 @@ internal sealed class BranchInstallUpdate : IDisposable
         string dataDir,
         string branch,
         IReadOnlyList<BranchInstallDepot> targetDepots,
-        string phase = "downloading"
+        string phase = "downloading",
+        Func<BranchInstallState, bool> shouldBeginUpdate = null
     )
-        => new(
-            BranchInstallStateStore.Current.BeginOrResumeUpdate(
-                dataDir,
-                branch,
-                phase,
-                targetDepots
-            )
+    {
+        var session = BranchInstallStateStore.Current.BeginOrResumeUpdate(
+            dataDir,
+            branch,
+            phase,
+            targetDepots,
+            shouldBeginUpdate
         );
+        return session == null ? null : new BranchInstallUpdate(session);
+    }
 
     internal void RequireUpdatingBeforeInstalledMutation()
         => Session.RequireUpdating();
@@ -39,13 +42,16 @@ internal sealed class BranchInstallUpdate : IDisposable
 
     internal BranchInstallCompletion CompleteInstalledFiles(
         string pckPreparationVersion,
-        Action<GameIdentity> beforeReadyPublication = null
+        Action<GameIdentity> beforeReadyPublication = null,
+        string phasePrefix = null
     )
     {
-        Session.UpdateProgress("calculating-game-identity");
+        Session.UpdateProgress(CompletionPhase(phasePrefix, "calculating-game-identity"));
         var identity = GameIdentityReader.ReadInstalled(Session.DataDir, Branch);
 
-        Session.UpdateProgress("invalidating-previous-derived-artifacts");
+        Session.UpdateProgress(
+            CompletionPhase(phasePrefix, "invalidating-previous-derived-artifacts")
+        );
         BranchInstallDerivedArtifacts.InvalidatePreviousIdentity(
             Session.DataDir,
             identity
@@ -55,6 +61,9 @@ internal sealed class BranchInstallUpdate : IDisposable
         Session.CommitReady(identity, pckPreparationVersion);
         return new BranchInstallCompletion(Branch, TransactionId, identity);
     }
+
+    private static string CompletionPhase(string prefix, string phase)
+        => string.IsNullOrWhiteSpace(prefix) ? phase : $"{prefix}-{phase}";
 
     internal void RecordFailure(string phase, Exception exception)
         => Session.RecordFailure(phase, exception);

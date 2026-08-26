@@ -12,6 +12,9 @@ internal sealed partial class LauncherDownloadCoordinator
     internal void DownloadPressed()
     {
         var selectedBranch = LauncherPreferences.ReadGameBranch();
+        if (TryStartAutomaticRepair(selectedBranch))
+            return;
+
         var downloadProblem = LauncherBranchCatalog.SelectedOptionDownloadProblem(
             selectedBranch,
             LauncherBranchCatalog.ReadVisibleBranches(_model.DataDir)
@@ -53,8 +56,8 @@ internal sealed partial class LauncherDownloadCoordinator
         => _view.ShowConfirmation(
             RedownloadConfirmationMessage,
             ApplyRedownload,
-            "Repair current version",
-            "Keep Files"
+            "Redownload Version",
+            "Keep Version"
         );
 
     private void ApplyRedownload()

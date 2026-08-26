@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
+using STS2Mobile.Launcher;
 
 namespace STS2Mobile.Steam;
 
@@ -8,9 +10,38 @@ internal sealed partial class DepotDownloader
 {
     private void PatchGamePck(string pckPath)
     {
+        RequireUpdatingBeforeInstalledMutation();
+        PatchGamePck(
+            pckPath,
+            targetArm64: RuntimeInformation.ProcessArchitecture == Architecture.Arm64,
+            enableArm64V2FmodManagers: false
+        );
+    }
+
+    internal static void RepairGamePckForArm64V2(
+        BranchInstallUpdate update,
+        string pckPath
+    )
+    {
+        if (update == null)
+            throw new ArgumentNullException(nameof(update));
+
+        update.RequireUpdatingBeforeInstalledMutation();
+        PatchGamePck(
+            pckPath,
+            targetArm64: true,
+            enableArm64V2FmodManagers: true
+        );
+    }
+
+    private static void PatchGamePck(
+        string pckPath,
+        bool targetArm64,
+        bool enableArm64V2FmodManagers
+    )
+    {
         const uint maxPckPathBytes = 4096;
 
-        RequireUpdatingBeforeInstalledMutation();
         if (!File.Exists(pckPath))
             throw new FileNotFoundException("Cannot prepare the Android PCK because the downloaded PCK is missing.", pckPath);
 
@@ -57,9 +88,17 @@ internal sealed partial class DepotDownloader
 
                 long absOffset = relativeOffsets ? fileBase + offset : offset;
 
-                patched |= PatchPckEntry(path, fs, absOffset, size);
+                patched |= PatchPckEntry(
+                    path,
+                    fs,
+                    absOffset,
+                    size,
+                    targetArm64,
+                    enableArm64V2FmodManagers
+                );
             }
 
+            fs.Flush(flushToDisk: true);
             if (patched)
                 PatchHelper.Log("Patched game PCK: removed Android-incompatible plugin references");
         }
@@ -78,16 +117,37 @@ internal sealed partial class DepotDownloader
         return path == expected || path == $"res://{expected}";
     }
 
-    private static bool PatchPckEntry(string path, FileStream fs, long offset, long size)
+    private static bool PatchPckEntry(
+        string path,
+        FileStream fs,
+        long offset,
+        long size,
+        bool targetArm64,
+        bool enableArm64V2FmodManagers
+    )
     {
         if (IsPckPath(path, "project.binary"))
-            return PatchProjectBinary(fs, offset, size);
+        {
+            return PatchProjectBinary(
+                fs,
+                offset,
+                size,
+                enableArm64V2FmodManagers
+            );
+        }
         if (IsPckPath(path, "project.godot"))
-            return PatchProjectGodot(fs, offset, size);
+        {
+            return PatchProjectGodot(
+                fs,
+                offset,
+                size,
+                enableArm64V2FmodManagers
+            );
+        }
         if (IsPckPath(path, ".godot/extension_list.cfg"))
             return PatchExtensionList(fs, offset, size);
         if (IsPckPath(path, "scenes/game.tscn"))
-            return PatchGameScene(fs, offset, size);
+            return PatchGameScene(fs, offset, size, targetArm64);
 
         return false;
     }

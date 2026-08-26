@@ -12,7 +12,8 @@ internal sealed partial class BranchInstallStateStore
         string dataDir,
         string branch,
         string phase,
-        IReadOnlyList<BranchInstallDepot> targetDepots
+        IReadOnlyList<BranchInstallDepot> targetDepots,
+        Func<BranchInstallState, bool> shouldBeginUpdate = null
     )
     {
         var normalizedBranch = SteamGameBranch.StorageIdentity(branch);
@@ -61,6 +62,14 @@ internal sealed partial class BranchInstallStateStore
             }
 
             var current = ReadForRecovery(statePath, normalizedBranch);
+            if (shouldBeginUpdate != null && !shouldBeginUpdate(current))
+            {
+                fileLock.Dispose();
+                fileLock = null;
+                processLock.Release();
+                return null;
+            }
+
             var transactionId = current?.Status == BranchInstallStatus.Updating
                 ? current.TransactionId
                 : Guid.NewGuid();

@@ -9,17 +9,20 @@ internal sealed partial class DepotDownloader
         private DownloadProgress(
             long totalBytes,
             long downloadedBytes,
-            string currentFile
+            string currentFile,
+            bool statusOnly = false
         )
         {
             TotalBytes = totalBytes;
             DownloadedBytes = downloadedBytes;
             CurrentFile = currentFile;
+            StatusOnly = statusOnly;
         }
 
         private long TotalBytes { get; }
         private long DownloadedBytes { get; }
         private string CurrentFile { get; }
+        private bool StatusOnly { get; }
 
         private double Percentage
             => TotalBytes > 0 ? (double)DownloadedBytes / TotalBytes * 100.0 : 0;
@@ -28,14 +31,23 @@ internal sealed partial class DepotDownloader
             long totalBytes,
             long downloadedBytes,
             string currentFile
-        )
+            )
             => new(totalBytes, downloadedBytes, currentFile);
+
+        internal static DownloadProgress Status(string message)
+            => new(0, 0, message, statusOnly: true);
 
         internal void ApplyTo(
             Action<double, string> setProgress,
             Action<string> appendLog
         )
         {
+            if (StatusOnly)
+            {
+                setProgress(0, CurrentFile);
+                return;
+            }
+
             setProgress(
                 Percentage,
                 $"{FormatSize(DownloadedBytes)} / {FormatSize(TotalBytes)} ({Percentage:F1}%)"

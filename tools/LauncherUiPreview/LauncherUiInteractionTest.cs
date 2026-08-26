@@ -163,6 +163,31 @@ internal static class LauncherUiInteractionTest
         Expect(events.ShowLastError == 1, "View last error did not route exactly once.");
         Expect(events.CopyRawLog == 1, "Copy launcher log did not route exactly once.");
         Expect(events.ModsSelectionChanged == 5, "Mode selectors or the importer toggle did not persist each change.");
+
+        DownloadViewUpdate.AutomaticRepairStarted().Apply(view, launch);
+        AssertVisibleLabelText(
+            root,
+            "GlobalStatusMessage",
+            LocalPckRepairOperation.ProgressMessage
+        );
+        Expect(
+            VisibleUiStrings(root).Any(text => string.Equals(
+                text,
+                LocalPckRepairOperation.ProgressMessage,
+                StringComparison.Ordinal
+            )),
+            "Automatic repair did not show its exact preparation status."
+        );
+        Expect(
+            FindUniqueVisibleNamed<Button>(root, "DownloadGameFilesAction").Disabled
+                && Descendants<ProgressBar>(root).Any(IsLiveAndVisible),
+            "Automatic repair reset the download UI instead of keeping the shared operation progress active."
+        );
+        Expect(
+            events.Redownload == 0
+                && VisibleNamedCount<Control>(root, "ConfirmationActions") == 0,
+            "Automatic repair invoked or displayed the destructive redownload route."
+        );
     }
 
     private static void AssertHelpJourney(
@@ -243,7 +268,7 @@ internal static class LauncherUiInteractionTest
         {
             "Check for updates",
             "Refresh list",
-            "Repair current version",
+            "Redownload selected version",
             "Remove old versions",
         })
         {
@@ -377,14 +402,27 @@ internal static class LauncherUiInteractionTest
 
         AssertPrimaryHierarchy(root, LauncherDestination.Versions);
         _ = FindVisibleButton(root, "Refresh list");
-        _ = FindVisibleButton(root, "Repair current version");
-        _ = FindVisibleButton(root, "Remove old versions...");
-        AssertVisibleLabelText(root, "RepairAndStorageLabel", "Repair and storage");
+        _ = FindVisibleButton(root, "Redownload selected version");
         Expect(
-            Descendants<Button>(FindUniqueVisibleNamed<Control>(root, "RepairAndStorageActions"))
+            Descendants<Button>(root).All(button =>
+                !AccessibleButtonText(button).StartsWith(
+                    "Remove old versions",
+                    StringComparison.OrdinalIgnoreCase
+                )
+            ),
+            "The removed bulk version cleanup action returned."
+        );
+        AssertVisibleLabelText(root, "SelectedVersionRepairLabel", "Selected version redownload");
+        AssertVisibleLabelText(
+            root,
+            "SelectedVersionRepairGuidance",
+            "Redownload removes only the selected version's downloaded files. Saves and other versions stay in place."
+        );
+        Expect(
+            Descendants<Button>(FindUniqueVisibleNamed<Control>(root, "SelectedVersionRepairActions"))
                 .Where(IsLiveAndVisible)
                 .All(button => button.CustomMinimumSize.Y < FindVisibleButton(root, "Check for updates").CustomMinimumSize.Y),
-            "Repair and storage actions competed with the update action."
+            "Selected version redownload competed with the update action."
         );
         foreach (var repeated in new[]
         {
@@ -471,11 +509,11 @@ internal static class LauncherUiInteractionTest
                 IsLiveAndVisible(button)
                     && string.Equals(
                         AccessibleButtonText(button),
-                        "Repair current version",
+                        "Redownload selected version",
                         StringComparison.Ordinal
                     )
             ) == 0,
-            "Repair was offered for a version that is not installed."
+            "Redownload was offered for a version that is not installed."
         );
         selector = Descendants<OptionButton>(
                 FindUniqueVisibleNamed<Control>(root, "GameVersionSelection")
@@ -1472,8 +1510,7 @@ internal static class LauncherUiInteractionTest
             checkForUpdatesPressed: () => events.CheckForUpdates++,
             updateSelectedVersionPressed: () => events.UpdateSelectedVersion++,
             refreshGameVersionsPressed: () => events.RefreshVersions++,
-            redownloadPressed: () => { },
-            clearCachedVersionsPressed: () => { },
+            redownloadPressed: () => events.Redownload++,
             diagnosticsPressed: () => events.Diagnostics++,
             showLastErrorPressed: () => events.ShowLastError++,
             copyRawLogPressed: () => events.CopyRawLog++,
@@ -1501,6 +1538,7 @@ internal static class LauncherUiInteractionTest
         internal int CheckForUpdates;
         internal int RefreshVersions;
         internal int UpdateSelectedVersion;
+        internal int Redownload;
         internal int SafeLaunch;
         internal int Diagnostics;
         internal int ShowLastError;

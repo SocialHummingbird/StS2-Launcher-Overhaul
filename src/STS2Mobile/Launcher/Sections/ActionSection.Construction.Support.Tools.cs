@@ -44,13 +44,13 @@ internal sealed partial class ActionSection
         => compact
             ? AddCompactSupportToolButton(
                 supportToolsParent,
-                "Repair current version",
+                "Redownload selected version",
                 scale,
                 () => RedownloadPressed?.Invoke()
             )
             : AddSecondaryHiddenButton(
                 supportToolsParent,
-                "Repair current version",
+                "Redownload selected version",
                 scale,
                 () => RedownloadPressed?.Invoke()
             );

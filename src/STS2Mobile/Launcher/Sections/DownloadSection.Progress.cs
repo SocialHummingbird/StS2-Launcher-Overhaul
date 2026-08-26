@@ -47,7 +47,12 @@ internal sealed partial class DownloadSection
         _progressLabel.Visible = true;
         _progressLabel.Text = _compact ? CompactDownloadProgressText(text) : text;
         if (_compact)
-            SetCompactDownloadButtonText(_downloadButton, CompactDownloadProgressButtonText());
+        {
+            SetCompactDownloadButtonText(
+                _downloadButton,
+                CompactDownloadProgressButtonText(text)
+            );
+        }
         _branchDropdown.Disabled = true;
         _refreshBranchesButton.Disabled = true;
     }

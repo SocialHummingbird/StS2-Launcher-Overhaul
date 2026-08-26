@@ -1,18 +1,28 @@
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private const string FmodProjectGodotSetting = "FmodManager=\"*res://addons/fmod/FmodManager.gd\"";
-    private const string FmodExtensionListEntry = "res://addons/fmod/fmod.gdextension";
-
     private static readonly string[] ProjectGodotSettingsToComment =
     {
         "SentryInit=\"*res://addons/sentry/SentryInit.gd\"",
-        FmodProjectGodotSetting,
+    };
+
+    private static readonly string[] X86FmodProjectGodotSettingsToComment =
+    {
+        ManagedFmodPckForms.ProjectGodotSetting,
+    };
+
+    private static readonly (string Search, string Replacement)[] Arm64FmodProjectGodotRestorations =
+    {
+        (
+            ManagedFmodPckForms.DisabledTextEntry(
+                ManagedFmodPckForms.ProjectGodotSetting
+            ),
+            ManagedFmodPckForms.ProjectGodotSetting
+        ),
     };
 
     private static readonly string[] ExtensionListEntriesToOverwrite =
@@ -23,44 +33,67 @@ internal sealed partial class DepotDownloader
     private static readonly (string Search, string Replacement)[] ProjectBinaryReplacements =
     {
         ("autoload/SentryInit", "disabled/SentryInit"),
-        ("autoload/FmodManager", "disabled/FmodManager"),
+    };
+
+    private static readonly (string Search, string Replacement)[] X86FmodProjectBinaryReplacements =
+    {
+        (
+            ManagedFmodPckForms.ProjectBinaryAutoload,
+            ManagedFmodPckForms.DisabledProjectBinaryAutoload
+        ),
+    };
+
+    private static readonly (string Search, string Replacement)[] Arm64FmodProjectBinaryRestorations =
+    {
+        (
+            ManagedFmodPckForms.DisabledProjectBinaryAutoload,
+            ManagedFmodPckForms.ProjectBinaryAutoload
+        ),
     };
 
     private static readonly (string Search, string Replacement)[] FmodExtensionListRestorations =
     {
-        (SpacesFor(FmodExtensionListEntry), FmodExtensionListEntry),
+        (
+            SpacesFor(ManagedFmodPckForms.ExtensionListEntry),
+            ManagedFmodPckForms.ExtensionListEntry
+        ),
     };
 
     private static readonly string[] GameSceneSettingsToPatch =
-    {
-        "[ext_resource type=\"Script\" uid=\"uid://c6blhu0io0iwp\" path=\"res://src/gdscript/audio_manager_proxy.gd\" id=\"3_xfu11\"]",
-        "[node name=\"FmodBankLoader\" type=\"FmodBankLoader\" parent=\".\"]",
-        FmodDesktopBankPaths,
-        "script = ExtResource(\"3_xfu11\")",
-        "[node name=\"FmodListener2D\" type=\"FmodListener2D\" parent=\"AudioManager\"]",
-    };
-
-    private const string FmodDesktopBankPaths =
-        "bank_paths = [\"res://banks/desktop/Master.strings.bank\", \"res://banks/desktop/Master.bank\", \"res://banks/desktop/sfx.bank\", \"res://banks/desktop/temp_sfx.bank\", \"res://banks/desktop/ambience.bank\"]";
-
-    private const string FmodAndroidExternalBankPaths =
-        "bank_paths = [\"/sdcard/sts2b/Master.strings.bank\", \"/sdcard/sts2b/Master.bank\", \"/sdcard/sts2b/sfx.bank\", \"/sdcard/sts2b/temp_sfx.bank\", \"/sdcard/sts2b/ambience.bank\"]";
-
-    private const string FmodAndroidUserBankPaths =
-        "bank_paths = [\"user://fmod_banks/Master.strings.bank\", \"user://fmod_banks/Master.bank\", \"user://fmod_banks/sfx.bank\", \"user://fmod_banks/temp_sfx.bank\", \"user://fmod_banks/ambience.bank\"]";
+        ManagedFmodPckForms.GameSceneEntries;
 
     private static readonly (string Search, string Replacement)[] GameSceneSettingRestorations =
-        GameSceneSettingsToPatch.Select(setting => (";" + setting.Substring(1), setting)).ToArray();
+        GameSceneSettingsToPatch.Select(setting => (
+            ManagedFmodPckForms.DisabledTextEntry(setting),
+            setting
+        )).ToArray();
 
     private static readonly (string Search, string Replacement)[] Arm64FmodBankPathReplacements =
     {
-        (PadReplacement(FmodDesktopBankPaths, FmodAndroidExternalBankPaths), FmodDesktopBankPaths),
-        (PadReplacement(FmodDesktopBankPaths, FmodAndroidUserBankPaths), FmodDesktopBankPaths),
+        (
+            PadReplacement(
+                ManagedFmodPckForms.DesktopBankPaths,
+                ManagedFmodPckForms.AndroidExternalBankPaths
+            ),
+            ManagedFmodPckForms.DesktopBankPaths
+        ),
+        (
+            PadReplacement(
+                ManagedFmodPckForms.DesktopBankPaths,
+                ManagedFmodPckForms.AndroidUserBankPaths
+            ),
+            ManagedFmodPckForms.DesktopBankPaths
+        ),
     };
 
     private static string SpacesFor(string value) => new(' ', value.Length);
 
-    private static bool PatchProjectGodot(FileStream fs, long offset, long size)
+    private static bool PatchProjectGodot(
+        FileStream fs,
+        long offset,
+        long size,
+        bool enableArm64V2FmodManagers
+    )
         => ApplyPckEntryPatch(
             fs,
             offset,
@@ -68,6 +101,15 @@ internal sealed partial class DepotDownloader
             "project.godot",
             content =>
                 ApplyProjectSettingComments(content, ProjectGodotSettingsToComment)
+                | (enableArm64V2FmodManagers
+                    ? ApplyReplacementPatches(
+                        content,
+                        Arm64FmodProjectGodotRestorations
+                    )
+                    : ApplyProjectSettingComments(
+                        content,
+                        X86FmodProjectGodotSettingsToComment
+                    ))
         );
 
     private static bool PatchExtensionList(FileStream fs, long offset, long size)
@@ -81,7 +123,12 @@ internal sealed partial class DepotDownloader
                 | ApplyEntryOverwrites(content, ExtensionListEntriesToOverwrite)
         );
 
-    private static bool PatchProjectBinary(FileStream fs, long offset, long size)
+    private static bool PatchProjectBinary(
+        FileStream fs,
+        long offset,
+        long size,
+        bool enableArm64V2FmodManagers
+    )
         => ApplyPckEntryPatch(
             fs,
             offset,
@@ -89,15 +136,29 @@ internal sealed partial class DepotDownloader
             "project.binary",
             content =>
                 ApplyReplacementPatches(content, ProjectBinaryReplacements)
+                | (enableArm64V2FmodManagers
+                    ? ApplyReplacementPatches(
+                        content,
+                        Arm64FmodProjectBinaryRestorations
+                    )
+                    : ApplyReplacementPatches(
+                        content,
+                        X86FmodProjectBinaryReplacements
+                    ))
         );
 
-    private static bool PatchGameScene(FileStream fs, long offset, long size)
+    private static bool PatchGameScene(
+        FileStream fs,
+        long offset,
+        long size,
+        bool targetArm64
+    )
         => ApplyPckEntryPatch(
             fs,
             offset,
             size,
             "scenes/game.tscn",
-            content => RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+            content => targetArm64
                 ? ApplyReplacementPatches(content, GameSceneSettingRestorations)
                   | ApplyReplacementPatches(content, Arm64FmodBankPathReplacements)
                 : ApplyProjectSettingComments(content, GameSceneSettingsToPatch)
