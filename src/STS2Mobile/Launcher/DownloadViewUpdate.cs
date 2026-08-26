@@ -7,6 +7,7 @@ internal readonly struct DownloadViewUpdate
         LauncherStatusSeverity? statusSeverity = null,
         string logMessage = null,
         string downloadAction = null,
+        string downloadProgress = null,
         string resetDownloadButton = null,
         LaunchUpdateAction? launchAction = null,
         bool? downloadButtonDisabled = null,
@@ -20,6 +21,7 @@ internal readonly struct DownloadViewUpdate
         StatusSeverity = statusSeverity;
         LogMessage = logMessage;
         DownloadAction = downloadAction;
+        DownloadProgress = downloadProgress;
         ResetDownloadButton = resetDownloadButton;
         LaunchAction = launchAction;
         DownloadButtonDisabled = downloadButtonDisabled;
@@ -33,6 +35,7 @@ internal readonly struct DownloadViewUpdate
     private LauncherStatusSeverity? StatusSeverity { get; }
     private string LogMessage { get; }
     private string DownloadAction { get; }
+    private string DownloadProgress { get; }
     private string ResetDownloadButton { get; }
     private LaunchUpdateAction? LaunchAction { get; }
     private bool? DownloadButtonDisabled { get; }
@@ -56,6 +59,16 @@ internal readonly struct DownloadViewUpdate
             logMessage: LauncherDownloadCoordinator.RedownloadLogMessage,
             downloadAction: LauncherDownloadCoordinator.DownloadGameFilesButtonText,
             downloadButtonDisabled: false,
+            hideActions: true
+        );
+
+    internal static DownloadViewUpdate AutomaticRepairStarted()
+        => new(
+            status: LocalPckRepairOperation.ProgressMessage,
+            statusSeverity: LauncherStatusSeverity.Working,
+            logMessage: LocalPckRepairOperation.ProgressMessage,
+            downloadAction: LocalPckRepairOperation.ProgressMessage,
+            downloadProgress: LocalPckRepairOperation.ProgressMessage,
             hideActions: true
         );
 
@@ -101,6 +114,9 @@ internal readonly struct DownloadViewUpdate
 
         if (DownloadAction != null)
             view.ShowDownloadAction(DownloadAction);
+
+        if (DownloadProgress != null)
+            view.ShowDownloadProgress(DownloadProgress);
 
         if (DownloadButtonDisabled.HasValue)
             view.SetDownloadButtonDisabled(DownloadButtonDisabled.Value);

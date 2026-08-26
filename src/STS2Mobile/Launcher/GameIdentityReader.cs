@@ -114,7 +114,17 @@ internal sealed class GameIdentityReader
     internal static GameIdentity ReadInstalled(string dataDir, string branch)
         => new GameIdentityReader(GameIdentityFileHasher.Instance).Read(dataDir, branch);
 
+    internal static GameIdentity ReadInstalledReadOnly(string dataDir, string branch)
+        => new GameIdentityReader(GameIdentityFileHasher.Instance).Read(
+            dataDir,
+            branch,
+            usePckCache: false
+        );
+
     internal GameIdentity Read(string dataDir, string branch)
+        => Read(dataDir, branch, usePckCache: true);
+
+    private GameIdentity Read(string dataDir, string branch, bool usePckCache)
     {
         if (string.IsNullOrWhiteSpace(dataDir))
             throw new ArgumentException("A launcher data directory is required.", nameof(dataDir));
@@ -131,13 +141,18 @@ internal sealed class GameIdentityReader
         RequireCompletedInstall(generationBefore.Snapshot, pckBefore, sourceBefore, markerPath);
         ValidatePckStructure(pckPath);
 
-        var pckCacheHit = GameIdentityPckCache.TryRead(
-            dataDir,
-            normalizedBranch,
-            generationBefore.Generation,
-            pckBefore,
-            out var pckSha256
-        );
+        var pckCacheHit = false;
+        var pckSha256 = string.Empty;
+        if (usePckCache)
+        {
+            pckCacheHit = GameIdentityPckCache.TryRead(
+                dataDir,
+                normalizedBranch,
+                generationBefore.Generation,
+                pckBefore,
+                out pckSha256
+            );
+        }
         if (!pckCacheHit)
             pckSha256 = HashCurrentFile(pckPath, "selected PCK");
         RequireUnchanged(pckBefore, pckPath, "selected PCK");
@@ -169,7 +184,7 @@ internal sealed class GameIdentityReader
             pckSha256,
             sourceAssemblySha256
         );
-        if (!pckCacheHit)
+        if (usePckCache && !pckCacheHit)
             GameIdentityPckCache.TryWrite(dataDir, identity, pckBefore);
 
         return identity;

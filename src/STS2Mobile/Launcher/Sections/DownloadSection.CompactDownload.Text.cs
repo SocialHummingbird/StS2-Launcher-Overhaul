@@ -13,11 +13,26 @@ internal sealed partial class DownloadSection
         return $"{title}\n{detail}";
     }
 
-    private static string CompactDownloadProgressButtonText()
-        => "Downloading...\nSteam files";
+    private static string CompactDownloadProgressButtonText(string text)
+        => string.Equals(
+            text,
+            LocalPckRepairOperation.ProgressMessage,
+            StringComparison.Ordinal
+        )
+            ? "Updating...\nLocal game files"
+            : "Downloading...\nSteam files";
 
     private static string CompactDownloadProgressText(string text)
     {
+        if (string.Equals(
+                text,
+                LocalPckRepairOperation.ProgressMessage,
+                StringComparison.Ordinal
+            ))
+        {
+            return text;
+        }
+
         var detail = CompactDownloadProgressDetail(text);
         return detail.Length == 0
             ? "Downloading selected version"

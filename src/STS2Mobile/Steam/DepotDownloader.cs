@@ -21,7 +21,7 @@ internal sealed partial class DepotDownloader : IDisposable
     private const long AndroidMinimumFreeSpaceBytes = 256L * 1024L * 1024L;
     private const long MaxDepotChunkBytes = 64L * 1024L * 1024L;
     private const long MaxDepotFileBytes = 32L * 1024L * 1024L * 1024L;
-    internal const string AndroidPckPreparationVersion = "android-pck-v2";
+    internal const string AndroidPckPreparationVersion = AndroidPckPreparationVersions.V1;
 
     private readonly SteamConnection _connection;
     private readonly string _dataDir;

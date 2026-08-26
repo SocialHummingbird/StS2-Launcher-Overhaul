@@ -93,19 +93,6 @@ internal sealed partial class BranchInstallStateStore
             problem = $"Branch '{state.Branch}' is updating in phase '{state.Phase}' and is not ready to launch.";
             return false;
         }
-        if (!string.Equals(
-                state.PckPreparationVersion,
-                DepotDownloader.AndroidPckPreparationVersion,
-                StringComparison.Ordinal
-            ))
-        {
-            problem =
-                $"Branch '{state.Branch}' requires Android PCK preparation "
-                + $"'{DepotDownloader.AndroidPckPreparationVersion}' before launch; "
-                + $"installed version is '{state.PckPreparationVersion}'. Update the selected version to repair it.";
-            state = null;
-            return false;
-        }
         if (state.GameIdentity == currentIdentity)
             return true;
 

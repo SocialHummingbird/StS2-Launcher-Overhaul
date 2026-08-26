@@ -10,7 +10,10 @@ internal static partial class LauncherGameFiles
     {
         branch = SteamGameBranch.Normalize(branch);
         return IsValidPck(PckPath(dataDir, branch))
-            && !TryReadReadyIdentity(dataDir, branch, out _, out _);
+            && LocalPckRepairOperation.ClassifyForLauncherRouting(
+                dataDir,
+                branch
+            ) == InstalledGameVersionReadiness.RedownloadRequired;
     }
 
     internal static bool BranchMarkerReady(string dataDir, string branch)

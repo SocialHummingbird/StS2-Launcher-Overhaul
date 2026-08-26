@@ -10,6 +10,11 @@ internal sealed partial class LauncherSessionCoordinator
         switch (result.Outcome)
         {
             case LauncherModel.FastPathOutcome.ReadyToLaunch:
+                if (_downloads.TryStartAutomaticRepair()
+                    || _downloads.TryShowRedownloadRequired())
+                {
+                    break;
+                }
                 _launch.ShowReadyToLaunch(
                     "Ready to play",
                     LaunchUpdateAction.Visible,

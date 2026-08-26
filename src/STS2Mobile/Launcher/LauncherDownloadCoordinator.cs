@@ -7,7 +7,9 @@ internal sealed partial class LauncherDownloadCoordinator
     private const string RedownloadConfirmationMessage =
         "Redownload selected game version?\nThis keeps your Steam login and other cached versions, but deletes the selected version's downloaded files.";
     internal const string DownloadGameFilesButtonText = "Download Selected Version";
-    internal const string RedownloadSelectedVersionButtonText = "Redownload Selected Version";
+    internal const string RedownloadSelectedVersionButtonText = "Redownload selected version";
+    internal const string RedownloadRequiredStatus =
+        "The selected version must be redownloaded before it can launch.";
     internal const string DownloadCancelledStatus = "Download cancelled";
     internal const string RetryDownloadButtonText = "Retry Download";
     internal const string RedownloadStatusMessage =
@@ -21,6 +23,7 @@ internal sealed partial class LauncherDownloadCoordinator
     private readonly LauncherView _view;
     private readonly LauncherLaunchCoordinator _launch;
     private readonly Action _refreshGameBranchOptions;
+    private Action _automaticRepairContinuation;
 
     internal LauncherDownloadCoordinator(
         LauncherModel model,

@@ -18,10 +18,21 @@ internal sealed partial class LauncherController
     private bool _saveSyncPresentationInitialized;
 
     private void LaunchPressed()
-        => LaunchAfterSaveSync(_launch.LaunchPressed);
+        => LaunchAfterSaveSync(() => LaunchOrRepair(_launch.LaunchPressed));
 
     private void SafeLaunchPressed()
-        => LaunchAfterSaveSync(_launch.SafeLaunchPressed);
+        => LaunchAfterSaveSync(() => LaunchOrRepair(_launch.SafeLaunchPressed));
+
+    private void LaunchOrRepair(Action launch)
+    {
+        if (_downloads.TryStartAutomaticRepair(launch)
+            || _downloads.TryShowRedownloadRequired())
+        {
+            return;
+        }
+
+        launch();
+    }
 
     private void SessionRetryPressed()
     {

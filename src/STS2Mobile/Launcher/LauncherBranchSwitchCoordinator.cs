@@ -76,6 +76,12 @@ internal sealed class LauncherBranchSwitchCoordinator
         _view.AppendLog($"Game version set to {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}.");
         _view.AppendLog(STS2Mobile.Steam.SteamGameBranch.SelectorInstallSlotHelpText(branch));
 
+        if (_downloads.TryStartAutomaticRepair(branch)
+            || _downloads.TryShowRedownloadRequired(branch))
+        {
+            return;
+        }
+
         var readiness = _launch.RefreshSelectedDownloadedStateEvidence(
             branch,
             "branch switch downloaded-state readiness"
@@ -97,9 +103,6 @@ internal sealed class LauncherBranchSwitchCoordinator
             LauncherStatusSeverity.Warning
         );
         _view.HideActions();
-        if (LauncherGameFiles.HasBranchMetadataProblem(_model.DataDir, branch))
-            _downloads.ShowRedownloadSelectedVersionAction();
-        else
-            _downloads.ShowDownloadReadyAction();
+        _downloads.ShowDownloadReadyAction();
     }
 }

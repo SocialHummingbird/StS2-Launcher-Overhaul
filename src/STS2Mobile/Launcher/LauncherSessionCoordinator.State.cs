@@ -47,6 +47,12 @@ internal sealed partial class LauncherSessionCoordinator
 
     private void ShowLoggedIn()
     {
+        _model.MarkConnectionResolved();
+        if (_downloads.TryStartAutomaticRepair()
+            || _downloads.TryShowRedownloadRequired())
+        {
+            return;
+        }
         _launch.ShowLoggedIn(_downloads.ShowDownloadReadyAction);
     }
 

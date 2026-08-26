@@ -41,6 +41,11 @@ internal sealed partial class LauncherSessionCoordinator
     internal bool StartSessionFlow()
     {
         var result = _model.StartSession();
+        if (_downloads.TryStartAutomaticRepair()
+            || _downloads.TryShowRedownloadRequired())
+        {
+            return false;
+        }
         HandleSessionFlow(result);
         return result.ReadyToLaunch;
     }
@@ -48,6 +53,11 @@ internal sealed partial class LauncherSessionCoordinator
     internal bool RetryPressed()
     {
         var result = _model.Retry();
+        if (_downloads.TryStartAutomaticRepair()
+            || _downloads.TryShowRedownloadRequired())
+        {
+            return false;
+        }
         HandleSessionFlow(result);
         return result.ReadyToLaunch;
     }

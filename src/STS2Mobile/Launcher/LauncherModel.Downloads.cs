@@ -26,4 +26,5 @@ internal partial class LauncherModel
     internal event Action<string> WorkshopClearFailed;
 
     private bool DownloadIsRunning => Interlocked.CompareExchange(ref _downloadRunning, 0, 0) == 1;
+    internal bool SelectedVersionOperationIsRunning => DownloadIsRunning;
 }
