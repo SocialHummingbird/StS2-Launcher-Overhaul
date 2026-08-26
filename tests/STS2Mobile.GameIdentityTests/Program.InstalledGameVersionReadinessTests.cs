@@ -14,7 +14,7 @@ internal static partial class Program
     {
         using var fixture = CreateReadinessFixture(
             "android-pck-v2",
-            ManagedReadinessEntries()
+            ManagedReadinessEntries(includeProjectGodot: false)
         );
 
         Equal(
@@ -22,13 +22,20 @@ internal static partial class Program
             LauncherGameFiles.ClassifyInstalledVersion(fixture.DataDir, fixture.Branch),
             "A current, identity-bound, provenance-matched installation must be ready."
         );
+        True(
+            LauncherGameFiles.HasArm64V2PckPostconditions(fixture.DataDir, fixture.Branch),
+            "ARM64 v2 postconditions must not require optional project.godot."
+        );
     }
 
     private static void InstalledVersionReadinessPermitsSafeAutomaticRepair()
     {
         using var fixture = CreateReadinessFixture(
             "android-pck-v1",
-            ManagedReadinessEntries(mixedRecognizedForms: true)
+            ManagedReadinessEntries(
+                mixedRecognizedForms: true,
+                includeProjectGodot: false
+            )
         );
 
         Equal(
@@ -167,7 +174,7 @@ internal static partial class Program
 
     private static void InstalledVersionReadinessRejectsUnrecognizedFmodForm()
     {
-        var entries = ManagedReadinessEntries().ToArray();
+        var entries = ManagedReadinessEntries(includeProjectGodot: true).ToArray();
         entries[1] = (
             ManagedFmodPckForms.ProjectGodotPath,
             "FmodManager=\"*res://addons/fmod/unknown.gd\""
@@ -181,18 +188,58 @@ internal static partial class Program
         );
     }
 
+    private static void InstalledVersionReadinessAcceptsRecognizedOptionalProjectGodot()
+    {
+        foreach (var projectGodotContent in new[]
+        {
+            ManagedFmodPckForms.ProjectGodotSetting,
+            ManagedFmodPckForms.DisabledTextEntry(
+                ManagedFmodPckForms.ProjectGodotSetting
+            ),
+        })
+        {
+            var entries = ManagedReadinessEntries(includeProjectGodot: true)
+                .ToArray();
+            entries[1] = (
+                ManagedFmodPckForms.ProjectGodotPath,
+                projectGodotContent
+            );
+            using var fixture = CreateReadinessFixture(
+                AndroidPckPreparationVersions.V1,
+                entries
+            );
+
+            Equal(
+                InstalledGameVersionReadiness.AutomaticRepair,
+                LauncherGameFiles.ClassifyInstalledVersion(
+                    fixture.DataDir,
+                    fixture.Branch
+                ),
+                "A present project.godot in either recognized managed FMOD form must remain repairable."
+            );
+        }
+    }
+
     private static void InstalledVersionReadinessRejectsMissingManagedEntry()
     {
-        var entries = ManagedReadinessEntries()
-            .Where(entry => entry.Path != ManagedFmodPckForms.ExtensionListPath)
-            .ToArray();
-        using var fixture = CreateReadinessFixture("android-pck-v1", entries);
+        foreach (var requiredPath in new[]
+        {
+            ManagedFmodPckForms.ProjectBinaryPath,
+            ManagedFmodPckForms.ExtensionListPath,
+            ManagedFmodPckForms.GameScenePath,
+        })
+        {
+            var entries = ManagedReadinessEntries(includeProjectGodot: false)
+                .Where(entry => entry.Path != requiredPath)
+                .ToArray();
+            using var fixture = CreateReadinessFixture("android-pck-v1", entries);
 
-        Equal(
-            InstalledGameVersionReadiness.RedownloadRequired,
-            LauncherGameFiles.ClassifyInstalledVersion(fixture.DataDir, fixture.Branch),
-            "A missing managed PCK entry must require redownload."
-        );
+            Equal(
+                InstalledGameVersionReadiness.RedownloadRequired,
+                LauncherGameFiles.ClassifyInstalledVersion(fixture.DataDir, fixture.Branch),
+                $"Missing required managed PCK entry '{requiredPath}' must require redownload."
+            );
+        }
     }
 
     private static void InstalledVersionReadinessInspectionIsReadOnly()
@@ -274,24 +321,21 @@ internal static partial class Program
     }
 
     private static IReadOnlyList<(string Path, string Content)> ManagedReadinessEntries(
-        bool mixedRecognizedForms = false
+        bool mixedRecognizedForms = false,
+        bool includeProjectGodot = false
     )
     {
         var sceneEntries = ManagedFmodPckForms.GameSceneEntries
             .Select((entry, index) => mixedRecognizedForms && index % 2 == 0
                 ? ManagedFmodPckForms.DisabledTextEntry(entry)
                 : entry);
-        return new[]
+        var entries = new List<(string Path, string Content)>
         {
             (
                 ManagedFmodPckForms.ProjectBinaryPath,
                 mixedRecognizedForms
                     ? ManagedFmodPckForms.DisabledProjectBinaryAutoload
                     : ManagedFmodPckForms.ProjectBinaryAutoload
-            ),
-            (
-                ManagedFmodPckForms.ProjectGodotPath,
-                ManagedFmodPckForms.ProjectGodotSetting
             ),
             (
                 ManagedFmodPckForms.ExtensionListPath,
@@ -302,6 +346,22 @@ internal static partial class Program
                 string.Join("\n", sceneEntries)
             ),
         };
+        if (includeProjectGodot)
+        {
+            entries.Insert(
+                1,
+                (
+                    ManagedFmodPckForms.ProjectGodotPath,
+                    mixedRecognizedForms
+                        ? ManagedFmodPckForms.DisabledTextEntry(
+                            ManagedFmodPckForms.ProjectGodotSetting
+                        )
+                        : ManagedFmodPckForms.ProjectGodotSetting
+                )
+            );
+        }
+
+        return entries;
     }
 
     private static void WriteReadinessBranchMarker(

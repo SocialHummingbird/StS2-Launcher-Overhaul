@@ -505,7 +505,9 @@ internal static partial class Program
 
     private static void LocalPckRepairRejectsUnknownAndTornEntries()
     {
-        var unknownEntries = ManagedReadinessEntries().ToArray();
+        var unknownEntries = ManagedReadinessEntries(
+            includeProjectGodot: true
+        ).ToArray();
         unknownEntries[1] = (
             ManagedFmodPckForms.ProjectGodotPath,
             "FmodManager=\"*res://addons/fmod/unknown.gd\""

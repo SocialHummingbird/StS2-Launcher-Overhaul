@@ -91,6 +91,59 @@ public final class ManagedPckPreparationValidatorTest {
 	}
 
 	@Test
+	public void recognizedPresentProjectGodotIsAccepted() throws Exception {
+		Map<String, byte[]> arm64 = arm64Entries();
+		arm64.put("project.godot", bytes(FMOD_PROJECT_SETTING));
+		ManagedPckPreparationValidator.Result arm64Result =
+			ManagedPckPreparationValidator.inspect(writePck(arm64), false);
+		assertTrue(arm64Result.problem(), arm64Result.isValid());
+
+		Map<String, byte[]> x86 = x86Entries();
+		x86.put("project.godot", bytes(DISABLED_FMOD_PROJECT_SETTING));
+		ManagedPckPreparationValidator.Result x86Result =
+			ManagedPckPreparationValidator.inspect(writePck(x86), true);
+		assertTrue(x86Result.problem(), x86Result.isValid());
+	}
+
+	@Test
+	public void missingProductionEntryIsRejected() throws Exception {
+		for (String required : new String[] {
+			"project.binary",
+			".godot/extension_list.cfg",
+			"scenes/game.tscn",
+		}) {
+			Map<String, byte[]> entries = arm64Entries();
+			entries.remove(required);
+			File pck = writePck(entries);
+
+			ManagedPckPreparationValidator.Result result =
+				ManagedPckPreparationValidator.inspect(pck, false);
+
+			assertFalse(result.isValid());
+			assertTrue(result.problem(), result.problem().contains(required));
+		}
+	}
+
+	@Test
+	public void unrecognizedPresentProjectGodotIsRejected() throws Exception {
+		Map<String, byte[]> entries = arm64Entries();
+		entries.put(
+			"project.godot",
+			bytes("FmodManager=\"*res://addons/fmod/unknown.gd\"")
+		);
+		File pck = writePck(entries);
+
+		ManagedPckPreparationValidator.Result result =
+			ManagedPckPreparationValidator.inspect(pck, false);
+
+		assertFalse(result.isValid());
+		assertTrue(
+			result.problem(),
+			result.problem().contains("project.godot")
+		);
+	}
+
+	@Test
 	public void validationNeverMutatesThePck() throws Exception {
 		File validPck = writePck(arm64Entries());
 		File stalePck = writePck(x86Entries());
@@ -119,7 +172,6 @@ public final class ManagedPckPreparationValidatorTest {
 	private static Map<String, byte[]> arm64Entries() {
 		Map<String, byte[]> entries = new LinkedHashMap<>();
 		entries.put("project.binary", bytes(FMOD_BINARY_AUTOLOAD));
-		entries.put("project.godot", bytes(FMOD_PROJECT_SETTING));
 		entries.put(".godot/extension_list.cfg", bytes(FMOD_EXTENSION));
 		entries.put("scenes/game.tscn", bytes(String.join("\n", FMOD_SCENE_SETTINGS)));
 		return entries;
@@ -128,7 +180,6 @@ public final class ManagedPckPreparationValidatorTest {
 	private static Map<String, byte[]> x86Entries() {
 		Map<String, byte[]> entries = new LinkedHashMap<>();
 		entries.put("project.binary", bytes(DISABLED_FMOD_BINARY_AUTOLOAD));
-		entries.put("project.godot", bytes(DISABLED_FMOD_PROJECT_SETTING));
 		entries.put(".godot/extension_list.cfg", bytes(FMOD_EXTENSION));
 		String[] disabledSceneSettings = new String[FMOD_SCENE_SETTINGS.length];
 		for (int index = 0; index < FMOD_SCENE_SETTINGS.length; index++) {

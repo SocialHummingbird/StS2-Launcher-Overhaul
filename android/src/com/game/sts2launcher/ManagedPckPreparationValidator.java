@@ -55,15 +55,18 @@ final class ManagedPckPreparationValidator {
 				return extensionResult;
 			}
 
-			Result projectGodotResult = requireExclusiveState(
-				entries.get(PROJECT_GODOT),
-				PROJECT_GODOT,
-				FMOD_PROJECT_SETTING,
-				DISABLED_FMOD_PROJECT_SETTING,
-				!x86
-			);
-			if (!projectGodotResult.isValid()) {
-				return projectGodotResult;
+			byte[] projectGodot = entries.get(PROJECT_GODOT);
+			if (projectGodot != null) {
+				Result projectGodotResult = requireExclusiveState(
+					projectGodot,
+					PROJECT_GODOT,
+					FMOD_PROJECT_SETTING,
+					DISABLED_FMOD_PROJECT_SETTING,
+					!x86
+				);
+				if (!projectGodotResult.isValid()) {
+					return projectGodotResult;
+				}
 			}
 
 			Result projectBinaryResult = requireExclusiveState(
@@ -175,7 +178,6 @@ final class ManagedPckPreparationValidator {
 
 		for (String required : new String[] {
 			PROJECT_BINARY,
-			PROJECT_GODOT,
 			EXTENSION_LIST,
 			GAME_SCENE,
 		}) {

@@ -378,29 +378,42 @@ internal static partial class LauncherGameFiles
             }
         }
 
-        if (managedEntries.Count != 4)
-            return false;
-
-        var projectGodot = ReadPckEntry(
-            stream,
-            managedEntries[ManagedFmodPckForms.ProjectGodotPath]
-        );
-        if (!HasExpectedPair(
-                projectGodot,
-                ManagedFmodPckForms.ProjectGodotSetting,
-                ManagedFmodPckForms.DisabledTextEntry(
-                    ManagedFmodPckForms.ProjectGodotSetting
-                ),
-                requireArm64V2
+        if (!managedEntries.TryGetValue(
+                ManagedFmodPckForms.ProjectBinaryPath,
+                out var projectBinaryLocation
+            )
+            || !managedEntries.TryGetValue(
+                ManagedFmodPckForms.ExtensionListPath,
+                out var extensionListLocation
+            )
+            || !managedEntries.TryGetValue(
+                ManagedFmodPckForms.GameScenePath,
+                out var gameSceneLocation
             ))
         {
             return false;
         }
 
-        var projectBinary = ReadPckEntry(
-            stream,
-            managedEntries[ManagedFmodPckForms.ProjectBinaryPath]
-        );
+        if (managedEntries.TryGetValue(
+                ManagedFmodPckForms.ProjectGodotPath,
+                out var projectGodotLocation
+            ))
+        {
+            var projectGodot = ReadPckEntry(stream, projectGodotLocation);
+            if (!HasExpectedPair(
+                    projectGodot,
+                    ManagedFmodPckForms.ProjectGodotSetting,
+                    ManagedFmodPckForms.DisabledTextEntry(
+                        ManagedFmodPckForms.ProjectGodotSetting
+                    ),
+                    requireArm64V2
+                ))
+            {
+                return false;
+            }
+        }
+
+        var projectBinary = ReadPckEntry(stream, projectBinaryLocation);
         if (!HasExpectedPair(
                 projectBinary,
                 ManagedFmodPckForms.ProjectBinaryAutoload,
@@ -411,17 +424,11 @@ internal static partial class LauncherGameFiles
             return false;
         }
 
-        var extensionList = ReadPckEntry(
-            stream,
-            managedEntries[ManagedFmodPckForms.ExtensionListPath]
-        );
+        var extensionList = ReadPckEntry(stream, extensionListLocation);
         if (!Contains(extensionList, ManagedFmodPckForms.ExtensionListEntry))
             return false;
 
-        var gameScene = ReadPckEntry(
-            stream,
-            managedEntries[ManagedFmodPckForms.GameScenePath]
-        );
+        var gameScene = ReadPckEntry(stream, gameSceneLocation);
         return ManagedFmodPckForms.GameSceneEntries.All(entry =>
             HasExpectedPair(
                 gameScene,
