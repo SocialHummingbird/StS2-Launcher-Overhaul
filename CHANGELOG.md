@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-09-06 - v0.2.431 launcher and startup improvements
+
+- Improved launcher layout and navigation with no horizontal scrolling.
+- Added GitHub diagnostic bug reports and verified in-app APK updates.
+- Unified startup task ownership, scene readiness, Android restart requests, and safe timeout handling.
+- Preserved the previous v0.2.430 release FMOD/PCK preparation fixes by merging their source into main.
+- See [release notes](docs/release-notes/v0.2.431.md) for validation and device-test limits.
+
 ## 2026-08-22 - Issue #38 runtime identity and ARM64 RC4
 
 - Made the final installed PCK and source `sts2.dll` authoritative, removing stale marker/manifest fallbacks from selected-game identity.

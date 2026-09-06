@@ -12,26 +12,23 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 ## Current Status
 
-The latest ARM64 tester release is **[v0.2.429 — Issue #38 ARM64 RC4](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.429-issue38-arm64-rc4)**.
+The latest ARM64 tester release is **[v0.2.431 — Launcher improvements and reliable startup](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.431)**.
 
-- Package name: `com.sts2launcher.overhaul.fork.local`
-- Version name: `0.2.429-issue38-arm64-rc4`
-- Version code: `429041`
-- ABI: `arm64-v8a` only
-- APK SHA-256: `b2d0e8154afc69e11eac4159483e837559e398844444a5d015d18f3fda458181`
-- Android emulator and x86_64 paths are diagnostic only.
-- Branch selection, Workshop mods, renderer compatibility, and device coverage remain experimental.
+- Package: `com.sts2launcher.overhaul.fork.local`, existing local/tester signing channel.
+- Version: `0.2.431` / version code `431000`.
+- ABI: `arm64-v8a` only.
+- SHA-256: `7a460e1a5f01b3c69eacc48526d1ac53d8a4f18a91fbf34c0fa9685fc8be236e`.
 
-RC4 passed **10/10 physical-device launches** on Samsung `SM-F971B`, Android 17 / API 37: four cold, four warm, one background/resume, and one lock/unlock launch. Every attempt reached the game with the launcher overlay removed exactly once; no stale completion was accepted. The validation also confirmed that local saves, Steam Cloud inventory, and unrelated branch/runtime data stayed unchanged. This is strong evidence for that exact device and APK, not a broad compatibility claim.
+This release improves launcher layout, adds diagnostic bug reporting and in-app updates, refactors startup ownership and Android restart handling, and includes the previous release's FMOD/PCK validation fixes. Merged-source validation passed 133 managed tests, 45 Android tests, 12 save-safety scenarios, and phone/desktop UI checks. The APK built, verified, and installed on Samsung SM-F971B / Android 17; launcher startup completed. Full game loading remains unverified on this APK because the selected branch is in an incomplete download state.
 
-See [Current Android status](docs/current-android-status.md) for the validation boundary and [v0.2.429 release notes](docs/release-notes/v0.2.429-issue38-arm64-rc4.md) for the change summary.
+See [v0.2.431 release notes](docs/release-notes/v0.2.431.md) for details. Broader device, renderer, and Workshop mod compatibility remains experimental.
 
 ## Install or Update
 
 1. Confirm the device supports `arm64-v8a`.
-2. Download [`StS2Launcher-v0.2.429-issue38-arm64-rc4-arm64-v8a.apk`](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.429-issue38-arm64-rc4/StS2Launcher-v0.2.429-issue38-arm64-rc4-arm64-v8a.apk).
+2. Download [`StS2Launcher-v0.2.431-arm64-v8a.apk`](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.431/StS2Launcher-v0.2.431-arm64-v8a.apk).
 3. Open the APK and choose **Update** or **Install** over the existing `com.sts2launcher.overhaul.fork.local` application. With ADB, use `adb install -r <apk-path>`.
-4. Confirm the installed version is `0.2.429-issue38-arm64-rc4` (`429041`).
+4. Confirm the installed version is `0.2.431` (`431000`).
 
 Do **not** uninstall the existing application or clear its data as a routine update or recovery step. Either action removes application-private local saves. If Android reports `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, stop and report the installed and downloaded package/signing identities; do not work around it by uninstalling.
 
@@ -51,7 +48,7 @@ The launcher retains:
 
 - Steam authentication and encrypted credential storage.
 - Steam game download and version selection.
-- Game launch is not blocked by save synchronization after its bounded attempt; selected-runtime identity and readiness are still required.
+- Save synchronization has a bounded pre-launch attempt; if cleanup is still writing saves, launch stops until it finishes. Selected-runtime identity and readiness are always required.
 - One application-local gameplay save store with atomic local writes.
 - One Steam Cloud transport and one synchronization service shared by automatic and manual operations.
 - Automatic Pull before the game loads saves and queued Push after committed gameplay saves.

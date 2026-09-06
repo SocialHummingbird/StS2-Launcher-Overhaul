@@ -1,12 +1,20 @@
 # Current Android status
 
-Updated: 2026-08-22
+Updated: 2026-09-06
 
 StS2 Launcher is an unofficial Android launcher for Steam owners of Slay the Spire 2. It retains Steam authentication, owned-game and Workshop download, ARM64 launch, application-local saves, Steam save synchronization, version selection, renderer recovery, and the validated mod-loading path described in [Android Workshop mods](android-workshop-mods.md).
 
-## Current release
+## Current release: v0.2.431
 
-The latest ARM64 tester release is **[v0.2.429 — Issue #38 ARM64 RC4](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.429-issue38-arm64-rc4)**.
+[Release and APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.431). Package `com.sts2launcher.overhaul.fork.local`, version code `431000`, ARM64, matching local/tester signing identity. Install over the existing matching app.
+
+133 managed tests, 45 Android tests, 12 save-safety scenarios, both UI profiles, and APK validation passed. The exact APK installed on Samsung SM-F971B / Android 17 and launcher initialization completed. Full game launch is not verified: the selected public-beta branch is currently in an incomplete downloading state. Earlier test results below apply to their named APK, not this release.
+
+See [release notes](release-notes/v0.2.431.md) and [launch refactor](reliable-launch-implementation-2026-09-06.md).
+
+## Previous release validation (v0.2.429)
+
+The previously validated ARM64 tester release was **[v0.2.429 — Issue #38 ARM64 RC4](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.429-issue38-arm64-rc4)**.
 
 ```text
 Asset: StS2Launcher-v0.2.429-issue38-arm64-rc4-arm64-v8a.apk
