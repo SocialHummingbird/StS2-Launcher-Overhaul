@@ -1,107 +1,62 @@
-# Android troubleshooting
+# Troubleshooting
 
-StS2 Launcher is unofficial ARM64 Android tester software. It downloads a Steam owner's copy of Slay the Spire 2; it does not include the game. Check [current Android status](current-android-status.md) before assuming a symptom is supported or resolved.
+Start by checking that you have the [latest launcher release](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest). Update over the existing app; **uninstalling or clearing app data removes local saves**.
 
-## Identify the APK first
+## Android won't install the APK
 
-The latest ARM64 release is [v0.2.429 — Issue #38 ARM64 RC4](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.429-issue38-arm64-rc4).
+- **Not compatible with your phone:** the published APK requires ARM64 (`arm64-v8a`).
+- **Update incompatible:** the APK and installed app have different package names or signing keys. Report the error rather than uninstalling to get around it.
+- **No certificates / invalid package:** download the APK again. The release includes a SHA-256 checksum if you want to check the file.
+- **Older SDK / Android version too old:** your Android version is below the APK's minimum.
+- **Install permission needed:** allow installations from the browser, file manager, or launcher that opened the APK, then return to the installer.
 
-```text
-Asset: StS2Launcher-v0.2.429-issue38-arm64-rc4-arm64-v8a.apk
-Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.429-issue38-arm64-rc4
-VersionCode: 429041
-SHA-256: b2d0e8154afc69e11eac4159483e837559e398844444a5d015d18f3fda458181
-ABI: arm64-v8a
-```
+See [Getting started](getting-started.md) for the normal update steps.
 
-Always report the exact release tag, APK filename, version code, device model, Android version, and selected Steam branch.
+## The game download or update is stuck
 
-## Installation problems
+Check your connection and the message on **Versions**. The game cannot launch until its selected download and Android preparation have finished.
 
-- Install RC4 over the existing application. Open the APK and choose **Update**, or use `adb install -r <apk-path>`.
-- `INSTALL_PARSE_FAILED_NO_CERTIFICATES`: re-download the APK and verify its SHA-256.
-- `INSTALL_FAILED_UPDATE_INCOMPATIBLE`: stop. The APK package or signer differs from the installed application. Record both identities and open an issue; do not uninstall or clear data to bypass the check.
-- `INSTALL_FAILED_OLDER_SDK`: the Android version is below the APK minimum.
-- `App isn't compatible with your phone`: confirm the device supports `arm64-v8a`. The release APK is ARM64-only.
+If the launcher offers automatic preparation, let it finish. If it requires **Redownload selected version**, that replaces only the chosen branch's game files; saves, login details, mods, and other branches stay in place.
 
-An in-place update is the normal path. Reinstalling from scratch or clearing application data is not routine recovery and removes application-private local saves.
+If the same error repeats, create a bug report before trying another redownload. Include the branch and whether this was a first download or an update.
 
-## Native diagnostics screen
+## Black screen, loading hang, or launcher covering the game
 
-On x86_64, native fallback is intentional because the emulator cannot run the production GodotSharp/Mono game path. On ARM64, the screen means startup could not validate or prepare the selected runtime. Create and share the diagnostics report before restarting or repairing the selected version. Do not delete the game, saves, credentials, or assembly cache before collecting evidence.
+Try launching Vanilla to rule out selected mods. If normal startup stalls, try **Safe Start**, which skips shader warmup. Auto, Vulkan, and OpenGL graphics options are also available, although a device-specific compatibility rule may restrict them.
 
-## Branch update or runtime-pack failure
+If preparation says it is waiting for file operations to finish, let it settle before another attempt. It keeps launch controls blocked so two preparation jobs cannot change the same files at once.
 
-The final installed `SlayTheSpire2.pck` and source `sts2.dll` are authoritative. The launcher should reject stale manifests or runtime packs instead of launching mixed files.
+For a bug report, describe the last screen you saw and whether the app closed, stopped responding, or kept running behind the launcher. Mention if you switched apps, rotated, or locked the screen while it loaded. A screenshot or short recording helps.
 
-If a selected branch is stuck in `updating`, reports an identity/runtime-pack mismatch, or repeatedly routes to native fallback:
+## A native diagnostics screen appears
 
-1. Open **Help** and create a support report before deleting anything.
-2. Record the selected branch, installation-state status/transaction, `GameIdentity` ID, PCK hash, source DLL hash, runtime-pack ID, patched DLL hash, and first readiness failure shown in the report.
-3. Open **Versions** and use **Redownload Selected Version** once.
-4. If the repair fails again, attach the new support report and the exact error.
+On ARM64, this means the app could not prepare or start the game runtime. Save its support report and include it in your issue. On x86_64 emulators, this fallback is expected; they are not the supported game target.
 
-Selected-version recovery targets only that branch's downloaded game, download state, runtime pack, and matching derived cache. It preserves local saves, Steam credentials, Workshop content, and other installed branches. There is no current bulk **Remove old versions** action. Do not clear every branch or all application data.
+## Music or sound effects don't work
 
-## Keyboard appears without text entry
+The fix for missing music and delayed effects is included in v0.2.430 and later. The original reporter confirmed it worked in [issue #37](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/issues/37#issuecomment-5461909959).
 
-The launcher suppresses unintended keyboard requests from Godot's hidden editor during startup and non-editor resume. If the keyboard appears without selecting a field, record the exact APK/device, whether the app had just resumed, rotated, or unlocked, and a screenshot. Username, password, Steam Guard, and other deliberately selected text fields should still open the keyboard.
+If it still happens on your device, report your app version, device, game branch, and whether you use mods. Mention whether sounds never play or arrive late.
 
-## Launcher remains visible over the game
+## Saves are missing or out of date
 
-RC4 binds launcher handoff to one launch-attempt ID. The active attempt must report main-menu readiness while the game activity is foregrounded and focused before its overlay can be dismissed; duplicate and late events are ignored.
+Check the **Saves** page and whether you are playing Vanilla or Modded. Those modes use different save sets. Check the sync result before assuming Steam has your latest Android save.
 
-RC4 passed 10/10 counted device launches, including background/resume and lock/unlock, with one overlay dismissal and one completion per attempt. If the launcher still covers a visible game, include:
+If both Android and Steam changed, choose carefully when asked which copy to keep. Don't overwrite either copy just to see whether it fixes the problem. Include the sync message in your report.
 
-- The launch-attempt ID and ordered handoff events.
-- Whether `main_menu_ready`, `overlay_hidden`, and `handoff_completed` occurred for that same attempt.
-- Whether Android backgrounded, locked, rotated, or changed focus during handoff.
-- A screenshot or short recording showing the foreground surface.
-- Focused logcat around `LauncherHandoff`, `NMainMenu`, `AndroidRuntime`, and `Native lifecycle event`.
+## The keyboard opens by itself
 
-## Black screen, hang, or process exit
+Report whether this happened after starting, resuming, rotating, or unlocking the app. Include a screenshot if possible. Selecting a login or Steam Guard field should still open the keyboard normally.
 
-Record the last visible surface and whether the launcher overlay was present. For shader stalls include `last_shader_warmup_status.txt`; for startup/process failures include the support report plus these files when available:
+## Send a useful bug report
 
-- `last_launch_attempt.txt`
-- `last_startup_timeline.txt`
-- `last_post_startup_trace.txt`
-- `last_post_startup_heartbeat.txt`
-- `last_app_lifecycle_event.txt`
-- `last_renderer_attempt.txt`
-- `last_process_exit_info.txt`
+Open **Help → Report a bug on GitHub**. The launcher fills in redacted diagnostic information. Add:
 
-Focused logcat terms include `FATAL EXCEPTION`, `AndroidRuntime`, `Fatal signal`, `SIGSEGV`, `SIGABRT`, `ANR`, `lmkd`, `has died`, `PowerVR`, `OpenGL`, and `Vulkan`. Do not label a hang as a crash without process-exit evidence.
+- What you were trying to do and the steps that caused the problem.
+- What happened instead, including the exact error message.
+- Your device and Android version, if the report does not already include them.
+- The selected game version and any enabled mods.
 
-## Collect diagnostics safely
+Review the text before submitting. Never include passwords, Steam Guard codes, or login tokens. If the prefilled report is too short, use **Create support report** in Help to save a fuller report. Review raw logs before attaching them.
 
-In the launcher, open **Help → Diagnostics → Create support report**. Android saves the report and opens the share sheet. If startup is already in progress, use **Create Startup Help Report** on the recovery controls. **Copy Launcher Log** is a rawer fallback and must be reviewed before public posting.
-
-Before sharing any report or log:
-
-- Remove Steam usernames/account identifiers, email addresses, filesystem details you consider private, and private save contents.
-- Never include a Steam password, Steam Guard code, refresh token, session token, QR/login payload, or full unsanitized log.
-- Prefer the generated support report and a focused logcat window over an entire device log.
-- Do not clear credentials, uninstall, or erase game data merely to produce diagnostics.
-
-## What to include in a bug report
-
-- Exact release tag, APK filename, package, version name/code, and whether installation was an in-place update.
-- Device model, Android/API version, ABI, GPU/renderer, and relevant lifecycle event such as background, rotation, or lock.
-- Selected Steam branch and whether this was a download, update, redownload, or launch.
-- Reproduction steps, expected result, actual result, and the last visible screen.
-- `GameIdentity`/runtime-pack evidence for branch or startup failures.
-- Launch-attempt/handoff evidence for overlay or main-menu readiness failures.
-- Generated support report, focused logs, and screenshots after credential/privacy review.
-- Whether local saves and other downloaded branches remained present.
-
-Use the focused GitHub issue template that matches the failure.
-
-## Local saves
-
-If a profile is missing, stop destructive recovery. Record whether it is vanilla or modded, the selected branch, sync status, package/signing identity, and whether Android restored or cleared the application. Do not uninstall or clear the affected app while investigating.
-
-## Evidence boundary
-
-RC4's 10/10 Samsung ARM64 result validates the exact artifact and tested launch matrix. It does not prove every device, branch, GPU, mod, or live Steam transfer. Desktop and fake-backed tests remain local-policy evidence only. See the [Android validation runbook](runbook-android-validation.md).
+The [testing status page](current-android-status.md) explains which builds and devices have been checked. Developers can find deeper diagnostic steps in the [validation runbook](runbook-android-validation.md).

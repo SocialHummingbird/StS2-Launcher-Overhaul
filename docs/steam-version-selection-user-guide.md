@@ -1,60 +1,34 @@
-# Steam version selection user guide
+# Game versions
 
-Steam version selection lets an authenticated owner download and launch an account-visible Slay the Spire 2 branch from a separate local runtime slot.
+The Versions page lets you keep separate copies of the Steam branches available to your account, such as the regular public release and a public beta.
 
-## Basic use
+## Download or switch a version
 
-1. Sign in with a Steam account that owns Slay the Spire 2.
-2. Open **Versions** and refresh the branch list.
-3. Select an available public or beta branch.
-4. Choose **Download Selected Version** or update the installed selection.
-5. Return to **Home** and start the game.
+1. Sign in to Steam.
+2. Open **Versions** and refresh the list.
+3. Select a branch, then download or update it.
+4. Return to **Home** and press Play.
 
-Unavailable and private/password branches are blocked when Steam metadata says they cannot be downloaded. Beta password entry is not implemented.
+Password-protected branches are not supported. A branch listed by Steam may still be unavailable to your account.
 
-## What an update changes
+## Update a game version
 
-Each branch has its own launcher-managed installation slot. An update changes only the selected slot; public/default and other downloaded branches are not overwritten.
+Only the selected branch is updated. Other downloaded branches stay installed.
 
-Updates are transactional. Before any installed file is replaced, the selected branch is marked `updating` and cannot launch. The launcher commits Steam files, prepares the final PCK, hashes the actual PCK and source `sts2.dll`, validates and promotes the matching runtime pack, and returns the branch to `ready`. An interrupted update remains blocked for resume or repair rather than mixing old and new files.
+The launcher blocks Play while files are being replaced or prepared for Android. If a download is interrupted, finish or repair it before trying to launch that version. This avoids starting with a mix of old and new files.
 
-Changing or repairing a downloaded runtime does not move gameplay saves.
+This updates the game, not the launcher APK. For app updates, use **Help → Check for app updates**.
 
-## Repair one branch
+## Repair a version
 
-Use **Redownload Selected Version** only when the selected branch is incomplete or repeatedly fails identity/runtime validation. It deletes and rebuilds that branch's downloaded game/runtime state while preserving:
+Let the launcher complete any automatic Android preparation it offers. If it asks for a redownload, **Redownload selected version** replaces that branch's downloaded game files.
 
-- Vanilla and modded gameplay saves.
-- Steam login/session credentials.
-- Workshop content.
-- Every other downloaded branch.
+It keeps your saves, Steam login, Workshop content, and other game branches. It still needs to download the selected game again, so use it when the launcher requests it or a normal update fails.
 
-The former **Remove old versions** bulk action has been removed. Do not uninstall the app, clear application data, or clear every downloaded branch as routine recovery.
+If the same error returns, use **Help → Report a bug on GitHub** and mention which branch you chose and whether you had just updated or repaired it.
 
-## Runtime identity
+## Saves and mods
 
-The authority is the final installed `SlayTheSpire2.pck` and source `data_sts2_windows_x86_64/sts2.dll`, plus the normalized branch and completed install generation. Runtime-pack metadata and active-cache markers are derived evidence; they cannot replace hashes of the current files.
+Switching game versions does not move or merge saves. A save or mod made for one game version may not work with another. Vanilla and modded saves remain separate.
 
-See [Steam version selection architecture](steam-version-selection-architecture.md) for the concise technical contract.
-
-## Mods and saves
-
-Modded launch uses the selected runtime and selected Workshop/manual mod files. SavesMerger and UnifiedSavePath are deprecated; current source uses the game's native vanilla and modded save namespaces. Branch changes do not merge, move, or reinterpret those saves.
-
-## Diagnostics
-
-For a branch problem, create a support report from **Help → Diagnostics** and record:
-
-- Exact APK release tag, version code, and selected branch.
-- Installation-state status, phase, and transaction ID.
-- Selected slot directory and completed install generation.
-- `GameIdentity` ID, PCK path/hash, and source `sts2.dll` path/hash.
-- Runtime-pack path/ID, patched `sts2.dll` hash, and validation result.
-- The first readiness or update error.
-- Whether a redownload was attempted and whether other branches/saves remained present.
-
-Review the report before sharing. Remove account identifiers and private paths or save data, and never post a Steam password, Steam Guard code, refresh/session token, or full unsanitized log.
-
-## Evidence boundary
-
-RC4 passed 10/10 counted launches on one Samsung ARM64 device, including `public-beta` runtime identity and handoff checks. That validates the exact release and device matrix, not every branch or device. Report only the artifact, branch, and path actually tested.
+For the file checks behind version selection, see the [technical guide](steam-version-selection-architecture.md).

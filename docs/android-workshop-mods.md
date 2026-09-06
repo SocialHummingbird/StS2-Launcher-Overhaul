@@ -1,41 +1,39 @@
-# Android Steam Workshop mods
+# Workshop mods on Android
 
-Workshop support downloads subscribed mod files into app-private Android storage and lets the user select them for a modded launch. Selection and staging do not establish that a mod loaded or activated.
+The launcher can download your subscribed Steam Workshop mods and let you choose which ones to use. Downloading a mod does not guarantee it will work on Android: some depend on desktop code or a different game version.
 
-Missing, unreadable, or unrecognized selection state defaults to Vanilla. Modded mode is used only after the player explicitly selects it and enables at least one mod. Workshop and manual roots are validated into the same immutable launch plan and enter the same runtime loader.
+## Use mods
 
-## Supported paths
+1. Subscribe to the mods you want on Steam.
+2. Open **Mods** in the launcher and sync your Workshop content.
+3. Choose **Modded**, enable the mods you want, and check any dependency warnings.
+4. Return to Home and start the game.
 
-- Steam Workshop subscription download.
-- Manual import into the existing launcher mod directory.
-- Mod selection and dependency warnings.
-- Vanilla launch with no selected mods.
-- A modded launch attempt with the selected, validated mod set.
+Choose **Vanilla** to play without mods. If the launcher cannot read your saved selection, it defaults to Vanilla. Manual mod files placed in the launcher's mod directory use the same checks as Workshop files.
 
-SavesMerger and UnifiedSavePath are deprecated. Current source uses the game's native vanilla and modded application-local save namespaces.
+## Read the mod status
 
-Each launch atomically replaces `last_mod_launch.json`. It records only the launch mode, exact selection fingerprint, timestamp, discovered/loaded/active/partial/failed counts, and one short result per selected mod. During a live load, a missing runtime state is Failed, never Active. If the marker itself is missing, the later launcher UI says `Not run with this setup`. The launcher does not merge, copy, or reinterpret vanilla and modded saves.
+| Status | What it means |
+| --- | --- |
+| Active last launch | The mod reported activation on the last launch with this setup. |
+| Partly loaded | Some loading steps worked, but the mod was not fully active. |
+| Failed last launch | The mod failed to load or activate. |
+| Not run with this setup | There is no matching result for your current selection. |
 
-The Mods page reads the persisted selection and discovered files as soon as it opens, even when sign-in, download, or mod loading is unavailable. `Vanilla` and `Modded` are selectors. One summary identifies the next save namespace and enabled-mod count. Each mod row contains its name, source, `Enabled` toggle, and one runtime result: `Active last launch`, `Partly loaded`, `Failed last launch`, or `Not run with this setup`. A missing, corrupt, contradictory, or different-fingerprint result is never presented as active. Home shows `Play Vanilla` or `Play Modded · N mods`. The Saves page states that vanilla and modded save sets sync separately and are not merged. Removing downloaded Workshop mods requires confirmation.
+An Enabled switch selects a mod for the next launch. It does not mean the mod is already active or that every feature works.
 
-## Current limitations
+## Saves
 
-- The offline-confirmed journey is the exact BaseLib plus `ImportVanillaSaves` chain: both validated payloads load and install exact-owner Harmony targets in one fresh desktop Godot process; BaseLib remains `Partial` and the importer is `Active`.
-- That desktop result does not prove Android loading or the visible in-game effect on a device.
-- The exact offline BaseLib path installs concrete exact-owner Harmony targets but remains `Partial`, because full PatchAll and custom-save extensions are deliberately unavailable. It remains unverified on Android and is not a dependency of `ImportVanillaSaves`.
-- Mod compatibility varies by mod, branch, and game build.
-- Native-code or desktop-only dependencies may not work.
-- A successful Workshop download does not prove that a mod can initialize or run.
-- Current-source Android mod activation and the visible importer effect remain unverified on a device.
+Vanilla and modded games use separate save sets. Switching modes does not copy or merge them. The old SavesMerger and UnifiedSavePath approach is deprecated.
 
-## Useful evidence
+If a profile seems to disappear after changing modes, check whether you are looking at the other save set before changing anything else.
 
-- Exact APK/source identity and selected game branch.
-- Workshop item IDs and selected mod order.
-- Files present for each mod.
-- Dependency or unsupported-item warnings.
-- Selected `GameIdentity` ID, PCK hash, source `sts2.dll` hash, runtime-pack ID, and patched `sts2.dll` hash.
-- Focused logs around mod discovery and initialization.
-- Whether the game reached the main menu and whether the expected local profile was visible.
+## If a mod causes trouble
 
-Do not attach Steam credentials, tokens, private account data, or private save contents.
+Try Vanilla first. If that works, re-enable mods one at a time and check their game-version requirements. For a report, include mod names or Workshop links, the selected game branch, and what failed. Use **Help → Report a bug on GitHub** to include the launcher diagnostics.
+
+## What has been tested
+
+Desktop tests cover mod selection and a BaseLib/ImportVanillaSaves setup. In that setup, BaseLib reports partial loading and the importer reports active. These results do not establish Android compatibility or prove the importer's in-game effect on a phone.
+
+See [current Android testing status](current-android-status.md) for device results.

@@ -21,7 +21,9 @@ Use the smallest relevant checks:
 ```powershell
 dotnet build src\STS2Mobile\STS2Mobile.csproj -c Release
 .\scripts\test-local-gameplay-save-safety.ps1
-.\scripts\test-launcher-ui-preview.ps1
+dotnet run --project tests\STS2Mobile.GameIdentityTests\STS2Mobile.GameIdentityTests.csproj -c Release
 ```
 
 The save tests use a small fake remote and do not prove Steam or Android transport. Desktop launcher interaction does not prove Android rendering or input. Report device and live-service results separately and only for the exact build tested.
+
+For the UI/mod fixture arguments and APK build requirements, see [Building and testing](docs/development.md).
