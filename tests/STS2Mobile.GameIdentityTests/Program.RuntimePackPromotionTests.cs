@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using STS2Mobile.Launcher;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile.GameIdentityTests;
 
@@ -183,7 +184,7 @@ internal static partial class Program
         using (var update = BranchInstallUpdate.StartOrResume(fixture.DataDir, fixture.Branch, LifecycleDepots(1002)))
         {
             ReplaceWithGeneration(fixture, 1002, 0x73, "source-generation-two");
-            currentIdentity = update.CompleteInstalledFiles("android-pck-v1").GameIdentity;
+            currentIdentity = update.CompleteInstalledFiles(DepotDownloader.AndroidPckPreparationVersion).GameIdentity;
         }
         Directory.Move(stalePackFixture, GameRuntimeSlot.RuntimePackDirectoryPath(fixture.DataDir, fixture.Branch));
 
@@ -236,7 +237,7 @@ internal static partial class Program
                     {
                         using var update = BranchInstallUpdate.StartOrResume(fixture.DataDir, fixture.Branch, LifecycleDepots(1002));
                         ReplaceWithGeneration(fixture, 1002, 0x74, "source-generation-two");
-                        update.CompleteInstalledFiles("android-pck-v1");
+                        update.CompleteInstalledFiles(DepotDownloader.AndroidPckPreparationVersion);
                     },
                 },
             }

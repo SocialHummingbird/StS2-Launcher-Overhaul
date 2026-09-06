@@ -99,6 +99,7 @@ internal static partial class Program
             ("installed version readiness rejects branch mismatch", InstalledVersionReadinessRejectsBranchMismatch),
             ("installed version readiness rejects provenance mismatch", InstalledVersionReadinessRejectsProvenanceMismatch),
             ("installed version readiness rejects corrupt PCK", InstalledVersionReadinessRejectsCorruptPck),
+            ("installed version readiness accepts recognized optional project.godot", InstalledVersionReadinessAcceptsRecognizedOptionalProjectGodot),
             ("installed version readiness rejects unrecognized FMOD form", InstalledVersionReadinessRejectsUnrecognizedFmodForm),
             ("installed version readiness rejects missing managed entry", InstalledVersionReadinessRejectsMissingManagedEntry),
             ("installed version readiness inspection is read only", InstalledVersionReadinessInspectionIsReadOnly),

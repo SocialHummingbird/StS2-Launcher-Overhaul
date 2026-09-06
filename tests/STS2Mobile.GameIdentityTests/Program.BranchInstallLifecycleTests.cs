@@ -51,7 +51,7 @@ internal static partial class Program
             );
 
             ReplaceWithGeneration(fixture, 1002, 0x42, "source-generation-two");
-            completion = update.CompleteInstalledFiles("android-pck-v1");
+            completion = update.CompleteInstalledFiles(DepotDownloader.AndroidPckPreparationVersion);
         }
 
         NotEqual(generationN, completion.GameIdentity, "N to N+1 must publish a new authoritative identity.");
@@ -105,7 +105,7 @@ internal static partial class Program
         {
             Equal(interruptedTransaction, recovered.TransactionId, "Restart must resume the interrupted transaction.");
             ReplaceWithGeneration(fixture, 1002, 0x43, "source-generation-two");
-            recovered.CompleteInstalledFiles("android-pck-v1");
+            recovered.CompleteInstalledFiles(DepotDownloader.AndroidPckPreparationVersion);
         }
 
         AssertReadyFromCurrentFiles(fixture);
@@ -144,7 +144,7 @@ internal static partial class Program
             Equal(interruptedTransaction, recovered.TransactionId, "Restart after one replacement must resume the transaction.");
             fixture.WriteSourceAssembly("source-generation-two");
             fixture.CompleteGeneration(1002);
-            recovered.CompleteInstalledFiles("android-pck-v1");
+            recovered.CompleteInstalledFiles(DepotDownloader.AndroidPckPreparationVersion);
         }
 
         AssertReadyFromCurrentFiles(fixture);
@@ -170,7 +170,7 @@ internal static partial class Program
             ReplaceWithGeneration(fixture, 1002, 0x45, "source-generation-two");
             Throws<SimulatedLifecycleInterruptionException>(() =>
                 interrupted.CompleteInstalledFiles(
-                    "android-pck-v1",
+                    DepotDownloader.AndroidPckPreparationVersion,
                     _ => throw new SimulatedLifecycleInterruptionException()
                 )
             );
@@ -190,7 +190,7 @@ internal static partial class Program
         ))
         {
             Equal(interruptedTransaction, recovered.TransactionId, "Restart before ready publication must resume the transaction.");
-            recovered.CompleteInstalledFiles("android-pck-v1");
+            recovered.CompleteInstalledFiles(DepotDownloader.AndroidPckPreparationVersion);
         }
 
         AssertReadyFromCurrentFiles(fixture);
@@ -232,7 +232,7 @@ internal static partial class Program
         ))
         {
             Equal(transactionId, recovered.TransactionId, "Restart after all file replacements must resume the same transaction.");
-            recovered.CompleteInstalledFiles("android-pck-v1");
+            recovered.CompleteInstalledFiles(DepotDownloader.AndroidPckPreparationVersion);
         }
 
         AssertReadyFromCurrentFiles(fixture);
@@ -274,7 +274,7 @@ internal static partial class Program
             fixture.WritePck(0x48);
             fixture.CompleteGeneration(1002);
             identityNPlusOne = update.CompleteInstalledFiles(
-                "android-pck-v1"
+                DepotDownloader.AndroidPckPreparationVersion
             ).GameIdentity;
         }
 
@@ -348,7 +348,7 @@ internal static partial class Program
         ))
         {
             ReplaceWithGeneration(beta, 1002, 0x46, "beta-source-generation-two");
-            update.CompleteInstalledFiles("android-pck-v1");
+            update.CompleteInstalledFiles(DepotDownloader.AndroidPckPreparationVersion);
         }
 
         True(publicPck.SequenceEqual(File.ReadAllBytes(publicInstall.PckPath)), "Updating beta must not change public PCK.");
@@ -381,7 +381,7 @@ internal static partial class Program
             transactionId,
             identity,
             depots,
-            "android-pck-v1"
+            DepotDownloader.AndroidPckPreparationVersion
         );
     }
 

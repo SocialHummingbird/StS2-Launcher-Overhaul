@@ -21,7 +21,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.RandomAccessFile;
 import java.io.ByteArrayOutputStream;
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -118,10 +117,8 @@ public class GodotApp extends GodotActivity {
 	private static final int MAX_PROCESS_EXIT_TRACE_BYTES = 64 * 1024;
 	private static final long STREAM_HTTP_RESPONSE_THRESHOLD_BYTES = 256L * 1024L;
 	private static final int MAX_BUFFERED_HTTP_RESPONSE_BYTES = 1024 * 1024;
-	private static final String FMOD_ANDROID_BANK_DIR = "/sdcard/sts2b";
-	private static final String FMOD_DESKTOP_BANK_PATHS = "bank_paths = [\"res://banks/desktop/Master.strings.bank\", \"res://banks/desktop/Master.bank\", \"res://banks/desktop/sfx.bank\", \"res://banks/desktop/temp_sfx.bank\", \"res://banks/desktop/ambience.bank\"]";
-	private static final String FMOD_USER_BANK_PATHS = "bank_paths = [\"user://fmod_banks/Master.strings.bank\", \"user://fmod_banks/Master.bank\", \"user://fmod_banks/sfx.bank\", \"user://fmod_banks/temp_sfx.bank\", \"user://fmod_banks/ambience.bank\"]";
-	private static final String FMOD_SDCARD_BANK_PATHS = "bank_paths = [\"/sdcard/sts2b/Master.strings.bank\", \"/sdcard/sts2b/Master.bank\", \"/sdcard/sts2b/sfx.bank\", \"/sdcard/sts2b/temp_sfx.bank\", \"/sdcard/sts2b/ambience.bank\"]";
+	private static final String MANAGED_PCK_RECOVERY_MESSAGE =
+		"Returning to the launcher. Use Update selected version to rerun managed Android PCK preparation.";
 	private static boolean exceptionHandlerInstalled;
 	private long lastHttpResponseCleanupAt;
 	private final Object steamLoginCredentialLock = new Object();
@@ -697,36 +694,27 @@ public class GodotApp extends GodotActivity {
 			return false;
 		}
 
-		try (RandomAccessFile raf = new RandomAccessFile(pck, "r")) {
-			long magic = readUInt32LE(raf);
-			if (magic != 0x43504447L) {
-				return false;
-			}
-
-			readUInt32LE(raf); // format version
-			readUInt32LE(raf); // major
-			readUInt32LE(raf); // minor
-			readUInt32LE(raf); // patch
-			readUInt32LE(raf); // flags
-			readLongLE(raf); // file base
-			long dirBase = readLongLE(raf);
-			if (dirBase <= 0 || dirBase + 4 > raf.length()) {
-				Log.w(TAG, "Game PCK is not structurally ready: dirBase=" + dirBase + " fileSize=" + raf.length());
-				return false;
-			}
-
-			raf.seek(dirBase);
-			long fileCount = readUInt32LE(raf);
-			if (fileCount <= 0) {
-				Log.w(TAG, "Game PCK is not structurally ready: fileCount=" + fileCount);
-				return false;
-			}
-
-			return true;
-		} catch (IOException e) {
-			Log.w(TAG, "Failed to inspect game PCK", e);
+		String actualPckSha256 = sha256Hex(pck);
+		if (!installationState.matchesPckSha256(actualPckSha256)) {
+			Log.w(
+				TAG,
+				"Selected game PCK no longer matches its authoritative managed preparation evidence. "
+					+ MANAGED_PCK_RECOVERY_MESSAGE
+			);
 			return false;
 		}
+
+		ManagedPckPreparationValidator.Result preparation =
+			ManagedPckPreparationValidator.inspect(pck, isX86Runtime());
+		if (!preparation.isValid()) {
+			Log.w(
+				TAG,
+				"Selected game PCK failed read-only managed preparation validation: "
+					+ preparation.problem() + ". " + MANAGED_PCK_RECOVERY_MESSAGE
+			);
+			return false;
+		}
+		return true;
 	}
 
 	private boolean isRuntimeSlotEvidenceReadyForLaunch(String selectedBranch) {
@@ -1177,383 +1165,6 @@ public class GodotApp extends GodotActivity {
     }
 
     public String consumeLaunchRestartRequest() { return restartStore().consume(); }
-
-	private void extractFmodBankForAndroid(String path, RandomAccessFile raf, long offset, long size, JSONObject bankEntry) {
-		long saved = -1;
-		long fileLength;
-		try {
-			saved = raf.getFilePointer();
-			fileLength = raf.length();
-		} catch (Exception e) {
-			try {
-				bankEntry.put("extracted", false);
-				bankEntry.put("extractError", e.getClass().getSimpleName());
-			} catch (Exception ignored) {
-			}
-			Log.w(TAG, "PCK FMOD bank extraction skipped for " + path + ": failed to inspect PCK file", e);
-			return;
-		}
-
-		if (offset < 0 || size < 0 || offset + size > fileLength) {
-			try {
-				bankEntry.put("extracted", false);
-				bankEntry.put("extractError", "invalid-offset-or-size");
-			} catch (Exception ignored) {
-			}
-			Log.w(TAG, "PCK FMOD bank extraction skipped for " + path + ": offset=" + offset + " size=" + size);
-			return;
-		}
-
-		File dir = new File(FMOD_ANDROID_BANK_DIR);
-		if (!dir.exists() && !dir.mkdirs()) {
-			try {
-				bankEntry.put("extracted", false);
-				bankEntry.put("extractError", "mkdir-failed");
-			} catch (Exception ignored) {
-			}
-			Log.w(TAG, "PCK FMOD bank extraction skipped: failed to create " + dir.getAbsolutePath());
-			return;
-		}
-
-		String fileName = path;
-		int slash = Math.max(fileName.lastIndexOf('/'), fileName.lastIndexOf('\\'));
-		if (slash >= 0) {
-			fileName = fileName.substring(slash + 1);
-		}
-		File out = new File(dir, fileName);
-
-		try {
-			raf.seek(offset);
-			try (OutputStream stream = new FileOutputStream(out, false)) {
-				byte[] buffer = new byte[1024 * 1024];
-				long remaining = size;
-				while (remaining > 0) {
-					int read = raf.read(buffer, 0, (int)Math.min(buffer.length, remaining));
-					if (read <= 0) {
-						throw new IOException("unexpected EOF");
-					}
-					stream.write(buffer, 0, read);
-					remaining -= read;
-				}
-			}
-			bankEntry.put("extracted", true);
-			bankEntry.put("extractedPath", out.getAbsolutePath());
-			bankEntry.put("extractedBytes", out.length());
-			Log.i(TAG, "PCK FMOD bank extracted for Android: " + path + " -> " + out.getAbsolutePath() + " bytes=" + out.length());
-		} catch (Exception e) {
-			try {
-				bankEntry.put("extracted", false);
-				bankEntry.put("extractError", e.getClass().getSimpleName());
-			} catch (Exception ignored) {
-			}
-			Log.w(TAG, "PCK FMOD bank extraction failed for " + path, e);
-		} finally {
-			try {
-				if (saved >= 0) {
-					raf.seek(saved);
-				}
-			} catch (Exception e) {
-				Log.w(TAG, "PCK FMOD bank extraction failed to restore directory cursor for " + path, e);
-			}
-		}
-	}
-
-	private void dumpPckEntryForDiagnostics(String path, RandomAccessFile raf, long offset, long size) {
-		if (!isPckDiagnosticsDumpEnabled() || !isPckDiagnosticsPath(path)) {
-			return;
-		}
-		if (offset < 0 || size < 0 || size > 4L * 1024L * 1024L) {
-			Log.w(TAG, "PCK diagnostic dump skipped for " + path + ": size=" + size);
-			return;
-		}
-
-		try {
-			File dir = getExternalFilesDir("pck-diagnostics");
-			if (dir == null) {
-				Log.w(TAG, "PCK diagnostic dump skipped: external files dir unavailable");
-				return;
-			}
-			if (!dir.exists() && !dir.mkdirs()) {
-				Log.w(TAG, "PCK diagnostic dump skipped: failed to create " + dir);
-				return;
-			}
-
-			long saved = raf.getFilePointer();
-			raf.seek(offset);
-			byte[] content = new byte[(int)size];
-			raf.readFully(content);
-			raf.seek(saved);
-
-			String fileName = path.replace("res://", "").replace("/", "__").replace("\\", "__");
-			File out = new File(dir, fileName);
-			try (java.io.FileOutputStream stream = new java.io.FileOutputStream(out)) {
-				stream.write(content);
-			}
-			Log.i(TAG, "PCK diagnostic entry dumped: " + path + " -> " + out.getAbsolutePath() + " bytes=" + size);
-		} catch (Exception e) {
-			Log.w(TAG, "PCK diagnostic dump failed for " + path, e);
-		}
-	}
-
-	private boolean isPckDiagnosticsDumpEnabled() {
-		try {
-			return android.provider.Settings.Global.getInt(getContentResolver(), "sts2_dump_pck_diagnostics", 0) == 1;
-		} catch (Exception e) {
-			return false;
-		}
-	}
-
-	private boolean isPckDiagnosticsPath(String path) {
-		return isPckPath(path, ".godot/extension_list.cfg")
-			|| isPckPath(path, "addons/fmod/fmod.gdextension")
-			|| isPckPath(path, "addons/fmod/FmodManager.gd")
-			|| isPckPath(path, "addons/fmod/FmodManager.gdc")
-			|| isPckPath(path, "src/gdscript/music_controller_proxy.gd")
-			|| isPckPath(path, "src/gdscript/music_controller_proxy.gdc")
-			|| isPckPath(path, "src/gdscript/audio_manager_proxy.gd")
-			|| isPckPath(path, "src/gdscript/audio_manager_proxy.gdc")
-			|| isPckPath(path, "scenes/game.tscn")
-			|| isPckPath(path, "project.godot");
-	}
-
-	private boolean isFmodBankPath(String path) {
-		return isPckPath(path, "banks/desktop/Master.strings.bank")
-			|| isPckPath(path, "banks/desktop/Master.bank")
-			|| isPckPath(path, "banks/desktop/sfx.bank")
-			|| isPckPath(path, "banks/desktop/temp_sfx.bank")
-			|| isPckPath(path, "banks/desktop/ambience.bank");
-	}
-
-	private boolean isPckPath(String path, String expected) {
-		return expected.equals(path) || ("res://" + expected).equals(path);
-	}
-
-	private boolean patchPckBinaryProjectEntry(RandomAccessFile raf, long offset, long size) throws IOException {
-		if (offset < 0 || size < 0 || size > 8L * 1024L * 1024L || offset + size > raf.length()) {
-			return false;
-		}
-
-		long saved = raf.getFilePointer();
-		raf.seek(offset);
-		byte[] content = new byte[(int)size];
-		raf.readFully(content);
-
-		boolean patched = false;
-		patched |= replacePckEntryBytes(content, "autoload/SentryInit", "disabled/SentryInit");
-		patched |= replacePckEntryBytes(content, "autoload/FmodManager", "disabled/FmodManager");
-
-		if (patched) {
-			raf.seek(offset);
-			raf.write(content);
-		}
-
-		raf.seek(saved);
-		return patched;
-	}
-
-	private void patchRawPckReferences(File pckFile, String[] references) {
-		try (RandomAccessFile raf = new RandomAccessFile(pckFile, "rw")) {
-			boolean patched = false;
-			for (String reference : references) {
-				patched |= overwriteRawBytes(raf, reference.getBytes("UTF-8"));
-				raf.seek(0);
-			}
-
-			if (patched) {
-				Log.i(TAG, "Raw-patched Android-incompatible PCK plugin references");
-			}
-		} catch (Exception e) {
-			Log.w(TAG, "Raw PCK reference patch failed", e);
-		}
-	}
-
-	private boolean overwriteRawBytes(RandomAccessFile raf, byte[] needle) throws IOException {
-		if (needle.length == 0) {
-			return false;
-		}
-
-		final int chunkSize = 1024 * 1024;
-		final int overlap = needle.length - 1;
-		byte[] buffer = new byte[chunkSize + overlap];
-		long position = 0;
-		int carried = 0;
-		boolean patched = false;
-
-		while (position < raf.length()) {
-			raf.seek(position);
-			int read = raf.read(buffer, carried, chunkSize);
-			if (read <= 0) {
-				break;
-			}
-
-			int limit = carried + read;
-			for (int i = 0; i <= limit - needle.length; i++) {
-				boolean match = true;
-				for (int j = 0; j < needle.length; j++) {
-					if (buffer[i + j] != needle[j]) {
-						match = false;
-						break;
-					}
-				}
-				if (match) {
-					long absolute = position - carried + i;
-					raf.seek(absolute);
-					for (int j = 0; j < needle.length; j++) {
-						raf.writeByte(' ');
-					}
-					patched = true;
-				}
-			}
-
-			carried = Math.min(overlap, limit);
-			if (carried > 0) {
-				System.arraycopy(buffer, limit - carried, buffer, 0, carried);
-			}
-			position += read;
-		}
-
-		return patched;
-	}
-
-	private boolean patchPckTextEntryReplacements(RandomAccessFile raf, long offset, long size, String[][] replacements) throws IOException {
-		if (offset < 0 || size < 0 || size > 8L * 1024L * 1024L || offset + size > raf.length()) {
-			return false;
-		}
-
-		long saved = raf.getFilePointer();
-		raf.seek(offset);
-		byte[] content = new byte[(int)size];
-		raf.readFully(content);
-		boolean patched = false;
-
-		for (String[] replacement : replacements) {
-			patched |= replacePckEntryBytes(content, replacement[0], replacement[1]);
-		}
-
-		if (patched) {
-			raf.seek(offset);
-			raf.write(content);
-		}
-
-		raf.seek(saved);
-		return patched;
-	}
-
-	private boolean patchPckTextEntryRestorations(RandomAccessFile raf, long offset, long size, String[] entries) throws IOException {
-		String[][] replacements = new String[entries.length][2];
-		for (int i = 0; i < entries.length; i++) {
-			String entry = entries[i];
-			replacements[i][0] = ";" + entry.substring(1);
-			replacements[i][1] = entry;
-		}
-		return patchPckTextEntryReplacements(raf, offset, size, replacements);
-	}
-
-	private String padPckReplacement(String search, String replacement) throws IOException {
-		int searchBytes = search.getBytes("UTF-8").length;
-		int replacementBytes = replacement.getBytes("UTF-8").length;
-		if (replacementBytes > searchBytes) {
-			throw new IOException("PCK replacement too long for " + replacement);
-		}
-		StringBuilder padded = new StringBuilder(replacement);
-		for (int i = replacementBytes; i < searchBytes; i++) {
-			padded.append(' ');
-		}
-		return padded.toString();
-	}
-
-	private String spacesFor(String value) {
-		char[] chars = new char[value.length()];
-		java.util.Arrays.fill(chars, ' ');
-		return new String(chars);
-	}
-
-	private boolean patchPckTextEntry(RandomAccessFile raf, long offset, long size, String[] needles) throws IOException {
-		if (offset < 0 || size < 0 || size > 8L * 1024L * 1024L || offset + size > raf.length()) {
-			return false;
-		}
-
-		long saved = raf.getFilePointer();
-		raf.seek(offset);
-		byte[] content = new byte[(int)size];
-		raf.readFully(content);
-		boolean patched = false;
-
-		for (String needle : needles) {
-			byte[] search = needle.getBytes("UTF-8");
-			int idx = indexOf(content, search);
-			if (idx < 0) {
-				continue;
-			}
-
-			if (needle.indexOf("://") >= 0 && !needle.endsWith(".gd\"")) {
-				for (int i = 0; i < search.length; i++) {
-					content[idx + i] = (byte)' ';
-				}
-			} else {
-				content[idx] = (byte)';';
-			}
-			patched = true;
-		}
-
-		if (patched) {
-			raf.seek(offset);
-			raf.write(content);
-		}
-
-		raf.seek(saved);
-		return patched;
-	}
-
-	private boolean replacePckEntryBytes(byte[] content, String searchText, String replacementText) throws IOException {
-		byte[] search = searchText.getBytes("UTF-8");
-		byte[] replacement = replacementText.getBytes("UTF-8");
-		if (search.length != replacement.length) {
-			throw new IOException("PCK replacement length mismatch for " + searchText);
-		}
-
-		boolean patched = false;
-		int idx = indexOf(content, search);
-		while (idx >= 0) {
-			System.arraycopy(replacement, 0, content, idx, replacement.length);
-			patched = true;
-			idx = indexOf(content, search);
-		}
-
-		return patched;
-	}
-
-	private int indexOf(byte[] haystack, byte[] needle) {
-		for (int i = 0; i <= haystack.length - needle.length; i++) {
-			boolean match = true;
-			for (int j = 0; j < needle.length; j++) {
-				if (haystack[i + j] != needle[j]) {
-					match = false;
-					break;
-				}
-			}
-			if (match) {
-				return i;
-			}
-		}
-		return -1;
-	}
-
-	private long readUInt32LE(RandomAccessFile raf) throws IOException {
-		long b0 = raf.readUnsignedByte();
-		long b1 = raf.readUnsignedByte();
-		long b2 = raf.readUnsignedByte();
-		long b3 = raf.readUnsignedByte();
-		return b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
-	}
-
-	private long readLongLE(RandomAccessFile raf) throws IOException {
-		long value = 0;
-		for (int i = 0; i < 8; i++) {
-			value |= ((long)raf.readUnsignedByte()) << (8 * i);
-		}
-		return value;
-	}
 
 	private String extractBootstrapPck() {
 		File dest = new File(getFilesDir(), "bootstrap.pck");

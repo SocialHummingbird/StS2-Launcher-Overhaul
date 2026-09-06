@@ -10,6 +10,7 @@ import java.io.IOException;
 final class BranchInstallationState {
 	private static final int SCHEMA_VERSION = 1;
 	private static final int MAX_BYTES = 256 * 1024;
+	static final String REQUIRED_PCK_PREPARATION_VERSION = "android-pck-v2";
 
 	private BranchInstallationState() {
 	}
@@ -36,6 +37,20 @@ final class BranchInstallationState {
 				return Result.blocked(
 					stateFile,
 					"installation state is " + state.optString("status", "unknown")
+				);
+			}
+			Object preparationEvidence = state.opt("pckPreparationVersion");
+			if (
+				!(preparationEvidence instanceof String)
+					|| !REQUIRED_PCK_PREPARATION_VERSION.equals(
+						(String)preparationEvidence
+					)
+			) {
+				return Result.blocked(
+					stateFile,
+					"managed Android PCK preparation evidence is missing, corrupt, or stale; "
+						+ "expected " + REQUIRED_PCK_PREPARATION_VERSION
+						+ ". Use Update selected version to repair the selected game"
 				);
 			}
 
@@ -179,6 +194,12 @@ final class BranchInstallationState {
 				&& sourceAssemblySha256.equalsIgnoreCase(
 					expectedSourceAssemblySha256
 				);
+		}
+
+		boolean matchesPckSha256(String actualPckSha256) {
+			return ready
+				&& actualPckSha256 != null
+				&& pckSha256.equalsIgnoreCase(actualPckSha256);
 		}
 
 		String summary() {

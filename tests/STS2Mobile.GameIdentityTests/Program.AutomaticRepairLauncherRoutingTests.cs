@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using STS2Mobile.Launcher;
 using STS2Mobile.Steam;
 
@@ -10,13 +11,20 @@ internal static partial class Program
 {
     private static void AutomaticRepairRoutingSelectsOnlyLocalRepair()
     {
+        using var repairable = CreateReadinessFixture(
+            AndroidPckPreparationVersions.V1,
+            ManagedReadinessEntries()
+        );
         var ready = 0;
         var automaticRepair = 0;
         var redownloadConfirmation = 0;
         var destructiveReset = 0;
 
         LauncherDownloadCoordinator.RouteInstalledVersionReadiness(
-            InstalledGameVersionReadiness.AutomaticRepair,
+            LocalPckRepairOperation.ClassifyForLauncherRouting(
+                repairable.DataDir,
+                repairable.Branch
+            ),
             ready: () => ready++,
             automaticRepair: () => automaticRepair++,
             redownloadRequired: () =>
@@ -32,8 +40,17 @@ internal static partial class Program
         Equal(0, destructiveReset, "AutomaticRepair must never invoke destructive reset.");
 
         automaticRepair = 0;
+        using var unrecoverable = CreateReadinessFixture(
+            AndroidPckPreparationVersions.V1,
+            ManagedReadinessEntries()
+                .Where(entry => entry.Path != ManagedFmodPckForms.GameScenePath)
+                .ToArray()
+        );
         LauncherDownloadCoordinator.RouteInstalledVersionReadiness(
-            InstalledGameVersionReadiness.RedownloadRequired,
+            LocalPckRepairOperation.ClassifyForLauncherRouting(
+                unrecoverable.DataDir,
+                unrecoverable.Branch
+            ),
             ready: () => ready++,
             automaticRepair: () => automaticRepair++,
             redownloadRequired: () => redownloadConfirmation++
@@ -62,20 +79,36 @@ internal static partial class Program
         using var model = new LauncherModel(fixture.DataDir);
         BranchInstallCompletion? completion = null;
         LauncherBranchOperationFailure? failure = null;
+        var steamSessionTransitions = 0;
         var progressMessages = new List<string>();
         model.DownloadCompleted += value => completion = value;
         model.DownloadFailed += value => failure = value;
+        model.SessionStateChanged += _ => steamSessionTransitions++;
         model.DownloadProgressChanged += value => value.ApplyTo(
             (_, text) => progressMessages.Add(text),
             _ => { }
         );
 
-        model.StartAutomaticRepairAsync(fixture.Branch)
+        Equal(
+            InstalledGameVersionReadiness.AutomaticRepair,
+            LocalPckRepairOperation.ClassifyForLauncherRouting(
+                fixture.DataDir,
+                fixture.Branch
+            ),
+            "The production-shaped v1 fixture must enter the real automatic-repair route."
+        );
+
+        model.StartDownloadAsync(fixture.Branch)
             .GetAwaiter()
             .GetResult();
 
         True(failure == null, $"Local repair unexpectedly failed: {failure?.Message}");
         True(completion != null, "Local repair must use the existing DownloadCompleted event.");
+        Equal(
+            0,
+            steamSessionTransitions,
+            "Normal launcher classification must start local repair without beginning a Steam session."
+        );
         Equal(
             AndroidPckPreparationVersions.V2,
             BranchInstallStateStore.Current.Read(

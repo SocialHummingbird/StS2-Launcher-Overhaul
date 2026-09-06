@@ -332,7 +332,7 @@ internal static partial class Program
             File.Copy(typeof(Program).Assembly.Location, fixture.SourceAssemblyPath, overwrite: true);
             File.SetLastWriteTimeUtc(fixture.SourceAssemblyPath, DateTime.UtcNow.AddMinutes(-2));
             fixture.CompleteGeneration(1002);
-            completion = update.CompleteInstalledFiles("android-pck-v1");
+            completion = update.CompleteInstalledFiles(DepotDownloader.AndroidPckPreparationVersion);
         }
 
         var candidateNPlusOne = GenerateRuntimePackCandidate(
