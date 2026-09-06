@@ -59,11 +59,14 @@ internal sealed partial class LauncherView
         body.AddChild(headline);
 
         var detailButton = BuildCompactStatusDetailButton(scale);
-        var detailRow = BuildCompactStatusDetailRow(statusLabel, scale);
+        // Container-managed text contributes its wrapped height to the status panel.
+        // A label anchored inside a Button can collapse to zero width on phones.
+        statusLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        statusLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        body.AddChild(statusLabel);
         var detailCue = BuildCompactStatusDetailCue(scale);
-        detailRow.AddChild(detailCue);
-
-        detailButton.AddChild(detailRow);
+        detailCue.Visible = false;
+        body.AddChild(detailCue);
         body.AddChild(detailButton);
 
         return (panel, detailButton, detailCue);

@@ -157,11 +157,12 @@ final class AndroidAssemblyBootstrapper {
 		static Result failure(String diagnostics) {
 			return new Result(
 				false,
-				"StS2 Launcher diagnostics",
-				"The launcher could not prepare the Android .NET assemblies "
-					+ "required by native Godot.\n\nNative Godot was not started, "
-					+ "because continuing would only trigger the generic "
-					+ "'.NET assemblies not found' failure.",
+				"Game preparation failed",
+				"The selected Steam branch could not be prepared for launch. "
+					+ "Choose Repair selected branch, then download it again. "
+					+ "Saves and other branches stay in place.\n\n"
+					+ "If preparation fails again, copy the new diagnostics. "
+					+ "Do not uninstall the app or clear app data.",
 				diagnostics
 			);
 		}

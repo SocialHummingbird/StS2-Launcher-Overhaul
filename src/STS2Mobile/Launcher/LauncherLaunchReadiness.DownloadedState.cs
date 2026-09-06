@@ -52,9 +52,10 @@ internal sealed partial class LauncherLaunchReadiness
         }
         catch (Exception ex)
         {
-            var problem = DownloadedStateExceptionProblem(ex);
-            LauncherLaunchMarkers.RecordPhase($"{phase}: selected downloaded files check failed", problem);
-            PatchHelper.Log($"[Launcher] {problem}");
+            var diagnostic = DownloadedStateExceptionProblem(ex);
+            var problem = "The selected branch could not be checked. Try again. If it happens again, create a new support report.";
+            LauncherLaunchMarkers.RecordPhase($"{phase}: selected downloaded files check failed", diagnostic);
+            PatchHelper.Log($"[Launcher] {diagnostic}");
             return new LauncherLaunchReadiness(
                 dataDir,
                 branch,

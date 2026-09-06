@@ -5,14 +5,9 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherGameStartupRecovery
 {
-    private const string MainMenuGuardFailureReason = "main menu guard failed";
-    private const string MainMenuRecoveryFailureReason =
-        "main menu recovery failed after watchdog";
     private const string GameVisibilityUnconfirmedReason =
         "game foreground visibility confirmation failed";
     private const string StartupObservationReason = "post-startup observation";
-    private const string WatchdogStalledReason = "game startup watchdog";
-    private const string WatchdogRecoveredReason = "main menu recovered after watchdog";
 
     private readonly struct RecoveryStateUpdate
     {
@@ -48,12 +43,6 @@ internal static partial class LauncherGameStartupRecovery
                 $"Settings/save init failed: {ex.GetBaseException().Message}"
             );
 
-        internal static RecoveryStateUpdate MainMenuGuardFailed()
-            => new(
-                MainMenuGuardFailureReason,
-                "Main menu did not load. Use recovery controls below."
-            );
-
         internal static RecoveryStateUpdate StartupObserved()
             => new(
                 StartupObservationReason,
@@ -65,24 +54,6 @@ internal static partial class LauncherGameStartupRecovery
             => new(
                 GameVisibilityUnconfirmedReason,
                 "Home screen is ready but Android did not confirm a foreground focused game window. Use recovery controls below."
-            );
-
-        internal static RecoveryStateUpdate WatchdogStalled()
-            => new(
-                WatchdogStalledReason,
-                "Game startup stalled. Attempting main menu recovery..."
-            );
-
-        internal static RecoveryStateUpdate WatchdogRecovered()
-            => new(
-                WatchdogRecoveredReason,
-                "Home screen recovered and ready."
-            );
-
-        internal static RecoveryStateUpdate MainMenuRecoveryFailed()
-            => new(
-                MainMenuRecoveryFailureReason,
-                "Game startup stalled and main menu recovery failed. Use recovery controls below."
             );
 
         internal void Apply(Node gameNode, Label startupStatus)
@@ -99,8 +70,7 @@ internal static partial class LauncherGameStartupRecovery
         }
 
         private bool ShouldWriteSceneSnapshot()
-            => (Reason != StartupObservationReason
-                && Reason != WatchdogRecoveredReason)
+            => (Reason != StartupObservationReason)
                 || PostStartupDiagnosticsSettings.DetailedTraceEnabled();
     }
 }

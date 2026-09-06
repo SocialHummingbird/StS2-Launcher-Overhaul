@@ -173,9 +173,10 @@ internal sealed partial class LauncherDownloadCoordinator
         }
         catch (Exception ex)
         {
-            var problem = RuntimeValidationFailureMessage(branch, ex);
-            LauncherLaunchMarkers.RecordPhase("game download runtime validation failed", problem);
-            PatchHelper.Log($"[Launcher] {problem}");
+            var problem = RuntimeValidationFailureMessage(branch);
+            var diagnostic = RuntimeValidationFailureDiagnostic(branch, ex);
+            LauncherLaunchMarkers.RecordPhase("game download runtime validation failed", diagnostic);
+            PatchHelper.Log($"[Launcher] {diagnostic}");
             DownloadViewUpdate.Completed(
                 filesReady: false,
                 problem,
@@ -183,11 +184,16 @@ internal sealed partial class LauncherDownloadCoordinator
             ).Apply(_view, _launch);
             return;
         }
+        var readinessProblem = readiness.Ready
+            ? readiness.ReadinessProblem
+            : "Download finished, but game preparation failed. Redownload the selected version. If it happens again, create a new support report.";
         DownloadViewUpdate.Completed(
             readiness.Ready,
-            readiness.ReadinessProblem,
+            readinessProblem,
             STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)
         ).Apply(_view, _launch);
+        if (!readiness.Ready && !string.IsNullOrWhiteSpace(readiness.ReadinessProblem))
+            _view.AppendLog($"Preparation diagnostics: {readiness.ReadinessProblem}");
         var integritySummary = LauncherGameFiles.BranchIntegritySummary(_model.DataDir, branch);
         if (!string.IsNullOrWhiteSpace(integritySummary))
             _view.AppendLog(integritySummary);
@@ -195,13 +201,16 @@ internal sealed partial class LauncherDownloadCoordinator
             automaticRepairContinuation?.Invoke();
     }
 
-    private static string RuntimeValidationFailureMessage(string branch, Exception exception)
+    private static string RuntimeValidationFailureMessage(string branch)
+        => $"Download finished for {STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}, but game preparation failed. Redownload the selected version. If it happens again, create a new support report.";
+
+    private static string RuntimeValidationFailureDiagnostic(string branch, Exception exception)
     {
         var exceptionName = exception?.GetType().Name ?? "Exception";
         var message = string.IsNullOrWhiteSpace(exception?.Message)
             ? "No exception message was provided."
             : exception.Message.Replace('\r', ' ').Replace('\n', ' ').Trim();
-        return $"Selected game version downloaded ({STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}), but runtime validation failed. Redownload selected version and attach a support report if it repeats. ({exceptionName}: {message})";
+        return $"Selected branch download completed ({STS2Mobile.Steam.SteamGameBranch.DisplayName(branch)}), but runtime validation failed ({exceptionName}: {message})";
     }
 
     internal void FailDownload(LauncherBranchOperationFailure failure)

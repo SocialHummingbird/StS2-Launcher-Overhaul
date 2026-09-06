@@ -79,7 +79,7 @@ internal sealed partial class LauncherDiagnosticsCoordinator
         {
             LogDiagnosticsFailure(Context, Detail);
             if (ShowStatus)
-                view.SetStatus($"{Context}: {Exception.Message}", LauncherStatusSeverity.Error);
+                view.SetStatus($"{Context}. Try again. Technical details were added to the launcher log.", LauncherStatusSeverity.Error);
         }
     }
 

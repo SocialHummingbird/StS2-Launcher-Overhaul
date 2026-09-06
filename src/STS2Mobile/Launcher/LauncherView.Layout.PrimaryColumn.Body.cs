@@ -12,7 +12,8 @@ internal sealed partial class LauncherView
         var scale = profile.Scale;
         var leftScroll = new ScrollContainer
         {
-            HorizontalScrollMode = ScrollContainer.ScrollMode.ShowNever,
+            Name = "LauncherPrimaryScroll",
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
         };
         leftScroll.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         leftScroll.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
@@ -25,14 +26,8 @@ internal sealed partial class LauncherView
         leftScroll.AddChild(leftFrame);
 
         var left = new VBoxContainer();
-        left.SizeFlagsHorizontal = profile.Compact
-            ? Control.SizeFlags.ExpandFill
-            : Control.SizeFlags.ShrinkCenter;
+        left.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         left.SizeFlagsVertical = Control.SizeFlags.ShrinkBegin;
-        left.CustomMinimumSize = new Vector2(
-            profile.Compact ? 0 : profile.ContentMaxWidth,
-            0
-        );
         left.AddThemeConstantOverride(
             LauncherViewLayoutMetrics.ThemeSeparation,
             LauncherViewLayoutMetrics.ScaleInt(

@@ -122,7 +122,9 @@ The normal and Safe Start probes stopped after their native skip markers; this p
 
 That hardware pass validated the original transition policy and lifecycle safeguards. A later exact non-debuggable `v0.2.416` pass on the same Samsung ARM64 device validated the larger four-second choreography, `StS2 LAUNCHER` wordmark, launcher handoff with `mInputShown=false`, public Start Game through real `NMainMenu`, and heartbeats through 60 seconds. See [v0.2.416 release notes](release-notes/v0.2.416-startup-recovery-ime.md).
 
-Current source also contains post-release native first-frame, splash, task-routing, and fallback-recovery changes. The API 36 x86_64 emulator validates those native paths only; production x86_64 cannot run the managed launcher or game. The exact current-source candidate therefore still requires ARM64 visual and startup validation before release.
+The later `v0.2.429-issue38-arm64-rc4` release adds an attempt-bound launcher-to-game handoff. This is separate from the cold-start brand transition: each Start Game operation owns one attempt ID, and the game-launch overlay can be removed only when main-menu readiness, resumed/foreground activity state, and window focus all belong to that active attempt. Duplicate or late events cannot dismiss another attempt's overlay.
+
+The exact RC4 APK was installed in place on Samsung `SM-F971B`, Android 17 / API 37, and passed 10/10 counted launches: four cold, four warm, one background/resume, and one lock/unlock. Each attempt recorded exactly one readiness, overlay-hidden, and handoff-completed event; the game was visible, the launcher overlay was absent, and no stale completion was observed. This resolves the observed handoff/overlay race for that exact artifact and device matrix, not every Android device or graphics path. See [v0.2.429 release notes](release-notes/v0.2.429-issue38-arm64-rc4.md).
 
 ## Future work
 

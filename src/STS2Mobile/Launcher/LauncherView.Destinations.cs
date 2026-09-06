@@ -86,16 +86,27 @@ internal sealed partial class LauncherView
     private void ApplyDestinationButtonStyle(Button button, bool selected)
     {
         LauncherButtonStyles.ApplySupportAction(button, _scale);
+        var navigationStyle = LauncherStyleBoxes.MakeFilled(
+            selected ? LauncherComponentTheme.ButtonHover : LauncherComponentTheme.PanelBackground,
+            LauncherComponentTheme.ScaleInt(_scale, 10)
+        );
+        navigationStyle.BorderColor = selected ? LauncherComponentTheme.OrangeAccent : LauncherComponentTheme.PanelBackground;
+        navigationStyle.BorderWidthBottom = selected ? LauncherComponentTheme.ScaleInt(_scale, 3) : 0;
+        button.AddThemeStyleboxOverride("normal", navigationStyle);
+        button.AddThemeStyleboxOverride("pressed", navigationStyle);
+        button.AddThemeStyleboxOverride("hover_pressed", navigationStyle);
+        button.AddThemeColorOverride("icon_normal_color", selected ? LauncherComponentTheme.OrangeAccent : LauncherComponentTheme.TextSecondary);
+        button.AddThemeColorOverride("icon_pressed_color", LauncherComponentTheme.OrangeAccent);
         if (selected)
         {
             button.AddThemeStyleboxOverride(
                 "normal",
-                LauncherStyleBoxes.MakeFilled(LauncherComponentTheme.ButtonHover, LauncherComponentTheme.ScaleInt(_scale, 6))
+                navigationStyle
             );
         }
         button.AddThemeColorOverride(
             "font_color",
-            selected ? LauncherComponentTheme.CyanAccent : LauncherComponentTheme.TextSecondary
+            selected ? LauncherComponentTheme.OrangeAccent : LauncherComponentTheme.TextSecondary
         );
         button.AddThemeColorOverride(
             "font_hover_color",
@@ -103,7 +114,7 @@ internal sealed partial class LauncherView
         );
         button.AddThemeColorOverride(
             "font_pressed_color",
-            LauncherComponentTheme.CyanAccent
+            LauncherComponentTheme.OrangeAccent
         );
     }
 }

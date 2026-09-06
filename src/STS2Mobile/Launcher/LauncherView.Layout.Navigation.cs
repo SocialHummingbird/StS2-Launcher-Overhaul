@@ -34,11 +34,16 @@ internal sealed partial class LauncherView
                 labels[i],
                 profile.Scale,
                 fontSize: profile.Compact ? 12 : 14,
-                height: profile.Compact ? 52 : 44
+                height: 66
             )
             {
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                 FocusMode = Control.FocusModeEnum.All,
+                ToggleMode = true,
+                Icon = LauncherIcons.Create(i, profile.Scale * (profile.Compact ? 0.83f : 0.75f)),
+                IconAlignment = HorizontalAlignment.Center,
+                VerticalIconAlignment = VerticalAlignment.Top,
+                TooltipText = labels[i],
             };
             LauncherButtonStyles.ApplySupportAction(button, profile.Scale);
             navigation.AddChild(button);

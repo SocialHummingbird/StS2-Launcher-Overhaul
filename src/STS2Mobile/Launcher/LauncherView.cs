@@ -21,6 +21,7 @@ internal sealed partial class LauncherView
 
     private readonly Control _parent;
     private readonly StyledPanel _panel;
+    internal Node LaunchLifetimeHost => _panel;
     private readonly ColorRect _androidCompositionRefresh;
     private float _panelBaseY;
     private float _keyboardOffset;
@@ -92,6 +93,7 @@ internal sealed partial class LauncherView
         Download = primary.Download;
         Actions = primary.Actions;
         Actions.HomeHelpPressed += () => SelectDestination(LauncherDestination.Help);
+        Actions.HomeDestinationPressed += SelectDestination;
         var diagnostics = BuildLogColumn(profile, Actions.HelpDiagnosticsHost, dismissKeyboard);
         Log = diagnostics.Log;
         DiagnosticsDrawer = diagnostics.Drawer;

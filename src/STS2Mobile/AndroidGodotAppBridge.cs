@@ -24,7 +24,20 @@ internal static class AndroidGodotAppBridge
     internal static void NotifyLauncherTextEditingRequested(bool requested)
         => CallVoid("notifyLauncherTextEditingRequested", requested);
 
-    internal static void LaunchGameOnRestart() => CallVoid("launchGameOnRestart");
+    internal static Launcher.LauncherRestartAcceptance RequestLaunchRestart(Launcher.LauncherRestartRequest request)
+        => Launcher.LauncherRestartAcceptance.Parse(AndroidBridgeDispatcher.Run(
+            () => (string)(GetInstanceOnCurrentThread()?.Call("requestLaunchRestart", request.Serialize()) ?? "")), request.AttemptId);
+
+    internal static void FinishLaunchRestart(string attemptId)
+    {
+        var problem = AndroidBridgeDispatcher.Run(() => (string)(GetInstanceOnCurrentThread()?.Call(
+            "finishLaunchRestart", attemptId) ?? "Android restart completion bridge is unavailable."));
+        if (!string.IsNullOrWhiteSpace(problem))
+            throw new InvalidOperationException(problem);
+    }
+
+    internal static string ConsumeLaunchRestartRequest()
+        => AndroidBridgeDispatcher.Run(() => (string)(GetInstanceOnCurrentThread()?.Call("consumeLaunchRestartRequest") ?? ""));
 
     internal static bool RecordHandoffEvent(
         string eventName,
@@ -55,8 +68,6 @@ internal static class AndroidGodotAppBridge
             }
         );
 
-    internal static void LaunchGameSafelyOnRestart()
-        => CallVoid("launchGameSafelyOnRestart");
 
     internal static string PrepareRuntimePackForLaunch(
         string branch,
@@ -95,6 +106,9 @@ internal static class AndroidGodotAppBridge
         => AndroidBridgeDispatcher.Run(
             () => (string)GetInstanceOnCurrentThread()?.Call("getVersionName")
         );
+
+    internal static void CheckLauncherAppUpdates(bool manual)
+        => CallVoid("checkLauncherAppUpdates", manual);
 
     internal static bool IsDeferredPreloadExperimentEnabled()
         => AndroidBridgeDispatcher.Run(

@@ -89,6 +89,20 @@ public partial class PreviewRoot : Control
         if (ReadBool("interaction-test", false))
         {
             LauncherUiInteractionTest.Run(_previewView, _previewRoot);
+            foreach (var fixture in new[] { "ready", "error", "signed-out", "guard", "download" })
+            {
+                ApplyFixture(_previewView, fixture);
+                _previewView.SetStatus("The selected version must be redownloaded before it can launch. " + new string('x', 180), LauncherStatusSeverity.Warning);
+                _previewView.AppendLog("Long diagnostic identity: " + new string('a', 256));
+                foreach (var destination in Enum.GetValues<LauncherDestination>())
+                {
+                    _previewView.SelectDestination(destination);
+                    if (destination == LauncherDestination.Help)
+                        _previewView.ShowDiagnosticsConsole();
+                    await NextFrames(8);
+                    AssertHorizontalFit((ScrollContainer)_previewRoot.FindChild("LauncherPrimaryScroll", true, false));
+                }
+            }
             GD.Print("PREVIEW_INTERACTION=passed");
         }
 
@@ -109,6 +123,29 @@ public partial class PreviewRoot : Control
         previewViewport.QueueFree();
         await NextFrames(2);
         GetTree().Quit();
+    }
+
+    private static void AssertHorizontalFit(ScrollContainer scroll)
+    {
+        var bounds = scroll.GetGlobalRect();
+        AssertChildrenFit(scroll, bounds);
+        scroll.ScrollHorizontal = 100;
+        if (scroll.ScrollHorizontal != 0)
+            throw new InvalidOperationException("Launcher still permits horizontal scrolling.");
+    }
+
+    private static void AssertChildrenFit(Node parent, Rect2 bounds)
+    {
+        foreach (var child in parent.GetChildren())
+        {
+            if (child is Control control && control.IsVisibleInTree())
+            {
+                var rect = control.GetGlobalRect();
+                if (rect.Position.X < bounds.Position.X - 2 || rect.End.X > bounds.End.X + 2)
+                    throw new InvalidOperationException($"Horizontal overflow: {control.GetPath()} {rect} outside {bounds}");
+                AssertChildrenFit(control, bounds);
+            }
+        }
     }
 
     private SubViewport BuildFixture(Vector2I viewportSize)

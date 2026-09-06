@@ -266,7 +266,7 @@ public class NativeFallbackActivity extends Activity {
 		addActionButton(firstActionTarget, restartButton, landscape, 8);
 
 		Button clearButton = new Button(this);
-		clearButton.setText(landscape ? "Clear files" : "Clear downloaded files");
+		clearButton.setText("Repair selected branch");
 		styleActionButton(clearButton, Color.rgb(82, 48, 28), Color.rgb(245, 150, 70), Color.rgb(255, 236, 220));
 		clearButton.setOnClickListener(v -> startSelectedBranchRecovery(clearButton));
 		addActionButton(secondActionTarget, clearButton, landscape, compactActionRows ? 0 : 8);
@@ -932,7 +932,7 @@ public class NativeFallbackActivity extends Activity {
 		if (!result.succeeded() || !cacheEvidenceCleared) {
 			clearButton.setEnabled(true);
 			String failure =
-				"Selected-branch cleanup failed closed. No other branch or save data was removed.\n\n"
+				"Selected branch repair failed. No other branch or save data was removed.\n\n"
 					+ result.summary()
 					+ (cacheEvidenceCleared ? "" : " | selected active-cache metadata could not be cleared");
 			diagnosticsText += "\n\nRecovery failure:\n" + failure;
@@ -940,12 +940,12 @@ public class NativeFallbackActivity extends Activity {
 				diagnosticsView.setText(diagnosticsText);
 				diagnosticsView.setVisibility(View.VISIBLE);
 			}
-			Toast.makeText(this, "Could not clear selected branch", Toast.LENGTH_LONG).show();
+			Toast.makeText(this, "Repair failed. Open diagnostics.", Toast.LENGTH_LONG).show();
 			return;
 		}
 		Toast.makeText(
 			this,
-			"Cleared downloaded files for " + result.branch(),
+			"Selected branch files removed. Saves and other branches kept.",
 			Toast.LENGTH_SHORT
 		).show();
 		restartApp();

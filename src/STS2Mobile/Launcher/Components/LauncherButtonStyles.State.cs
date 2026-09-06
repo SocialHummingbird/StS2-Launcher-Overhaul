@@ -41,8 +41,8 @@ internal static partial class LauncherButtonStyles
             filled
         );
         var disabled = BuildButtonStateStyle(
-            filled ? body.Darkened(0.25f) : border.Darkened(0.28f),
-            border.Darkened(0.3f),
+            LauncherComponentTheme.ButtonDisabled,
+            LauncherComponentTheme.ButtonHover,
             radius,
             width,
             filled

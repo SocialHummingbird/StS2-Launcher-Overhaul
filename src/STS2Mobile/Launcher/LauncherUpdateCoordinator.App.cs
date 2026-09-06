@@ -56,6 +56,11 @@ internal sealed partial class LauncherUpdateCoordinator
     {
         try
         {
+            if (OperatingSystem.IsAndroid())
+            {
+                AndroidGodotAppBridge.CheckLauncherAppUpdates(manual: false);
+                return;
+            }
             var updateCheck = await CheckLatestLauncherVersionAsync();
             _runOnMainThread(() => updateCheck.Show(_view));
         }
@@ -63,5 +68,13 @@ internal sealed partial class LauncherUpdateCoordinator
         {
             PatchHelper.Log($"[Launcher] App update check failed: {ex.Message}");
         }
+    }
+
+    internal void RunAppUpdateCheck()
+    {
+        if (OperatingSystem.IsAndroid())
+            AndroidGodotAppBridge.CheckLauncherAppUpdates(manual: true);
+        else
+            _view.SetStatus("In-app launcher updates are available in the Android app.", LauncherStatusSeverity.Warning);
     }
 }

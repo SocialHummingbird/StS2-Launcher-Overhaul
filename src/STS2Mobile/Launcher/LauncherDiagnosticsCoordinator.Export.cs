@@ -15,7 +15,7 @@ internal sealed partial class LauncherDiagnosticsCoordinator
 
     private void ShowDiagnosticsExportResult(string path)
     {
-        _view.SetStatus("Support report ready.", LauncherStatusSeverity.Information);
+        _view.SetStatus("Support report ready. Review it before sharing.", LauncherStatusSeverity.Information);
         _view.AppendLog($"Support report saved: {path}");
         _view.ShowDiagnosticsConsole();
         ShareDiagnosticsIfAndroid(path);

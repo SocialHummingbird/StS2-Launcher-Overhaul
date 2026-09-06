@@ -14,6 +14,7 @@ internal static class LauncherPatches
     internal static void Apply(Harmony harmony)
     {
         ApplyGamePatches(harmony);
+        GameSceneReadinessPatches.Apply(harmony);
         ApplySaveManagerPatches(harmony);
     }
 

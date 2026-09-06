@@ -89,9 +89,6 @@ internal partial class LauncherModel
         if (TrySignalInProcessLaunch(readiness, modReadiness, safe, launchSource, attemptId, timingSnapshot))
             return LauncherLaunchHandoffResult.Success(LauncherLaunchAttemptPhases.InProcessSignalled);
 
-        if (safe && TrySafeAndroidRestart(readiness, modReadiness, launchSource, attemptId, timingSnapshot))
-            return LauncherLaunchHandoffResult.Success(LauncherLaunchAttemptPhases.SafeAndroidRestartRequested);
-
         LauncherLaunchMarkers.RecordPhase("launch restart requested", action);
         return RestartForLaunch(safe, readiness, modReadiness, launchSource, attemptId, timingSnapshot);
     }

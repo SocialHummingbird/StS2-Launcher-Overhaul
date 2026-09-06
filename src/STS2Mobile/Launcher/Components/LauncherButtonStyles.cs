@@ -41,7 +41,7 @@ internal static partial class LauncherButtonStyles
             button,
             scale,
             LauncherComponentTheme.ButtonNormal,
-            LauncherComponentTheme.CyanDim,
+            LauncherComponentTheme.ButtonHover,
             LauncherComponentTheme.TextPrimary,
             borderWidth: 1
         );

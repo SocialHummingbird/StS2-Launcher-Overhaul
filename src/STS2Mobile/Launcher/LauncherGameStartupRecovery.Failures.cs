@@ -32,12 +32,6 @@ internal static partial class LauncherGameStartupRecovery
             RecoveryStateUpdate.SettingsAndSavesFailed
         );
 
-    private static bool HandleMainMenuGuardFailure(RecoveryUi ui)
-    {
-        ui.ShowFailure(RecoveryStateUpdate.MainMenuGuardFailed());
-        return false;
-    }
-
     private static bool HandleGameVisibilityFailure(RecoveryUi ui)
     {
         ui.ShowFailure(RecoveryStateUpdate.GameVisibilityUnconfirmed());

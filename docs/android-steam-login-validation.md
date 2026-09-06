@@ -1,6 +1,6 @@
 # Android Steam login validation
 
-Updated: 2026-08-13
+Updated: 2026-08-22
 
 ## Implementation boundary
 
@@ -30,6 +30,6 @@ The focused save tests do not validate authentication. Their fake remote proves 
 - Real authentication, ownership, and download.
 - Process death and resume behavior.
 
-No device is currently connected. The recent limited mod-loading run did not exercise or validate authentication, ownership, or download, so those results remain unclaimed.
+RC4's 10/10 device-launch matrix reused the installed Steam session and selected `public-beta` runtime. It did not exercise a fresh password handoff, Steam Guard, ownership discovery, a live N → N+1 depot update, or real save transfer. Those results therefore remain unclaimed even though runtime identity and launcher handoff passed on the exact RC4 device.
 
-Never publish passwords, Steam Guard codes, refresh tokens, account identifiers, private save data, or unreviewed full logs.
+For diagnostics, prefer **Help → Diagnostics → Create support report** and a focused logcat window. Review both before sharing. Never publish passwords, Steam Guard codes, refresh/session tokens, QR/login payloads, account identifiers, private save data, or unreviewed full logs.

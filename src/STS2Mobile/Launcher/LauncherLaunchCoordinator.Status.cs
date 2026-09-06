@@ -50,14 +50,14 @@ internal sealed partial class LauncherLaunchCoordinator
     }
 
     internal string SelectedVersionReadyStatus(LauncherLaunchReadiness readiness)
-        => "Ready to play.";
+        => "Ready to play. Runtime preparation is checked before launch.";
 
     internal string SelectedVersionReadyStatus(string baseStatus, LauncherLaunchReadiness readiness)
     {
         var prefix = baseStatus?.Trim().TrimEnd('.');
         return string.IsNullOrWhiteSpace(prefix)
-            ? "Ready to play."
-            : $"{prefix}. Ready to play.";
+            ? "Ready to play. Runtime preparation is checked before launch."
+            : $"{prefix}. Ready to play. Runtime preparation is checked before launch.";
     }
 
     internal LauncherLaunchReadiness RefreshSelectedRuntimeSlotEvidence()

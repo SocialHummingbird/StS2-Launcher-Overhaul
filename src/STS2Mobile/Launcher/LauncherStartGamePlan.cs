@@ -56,8 +56,8 @@ internal sealed class LauncherStartGamePlan
             readinessPassedPhase: "launch readiness passed",
             blockedPhase: "launch blocked",
             modReadinessPhase: "launch mod readiness",
-            checkingStatus: "Checking selected game version before launch...",
-            startingStatus: "Starting selected game version...",
+            checkingStatus: "Preparing selected branch for launch...",
+            startingStatus: "Preparation passed. Starting the game...",
             readyDetail: "Start Game readiness passed",
             preLaunchLog: ""
         );
@@ -72,8 +72,8 @@ internal sealed class LauncherStartGamePlan
             readinessPassedPhase: "safe launch readiness passed",
             blockedPhase: "safe launch blocked",
             modReadinessPhase: "safe launch mod readiness",
-            checkingStatus: "Checking selected game version before safe launch...",
-            startingStatus: "Starting selected game version in safe mode...",
+            checkingStatus: "Preparing selected branch for Safe Start...",
+            startingStatus: "Preparation passed. Starting in safe mode...",
             readyDetail: "Safe launch readiness passed",
             preLaunchLog: "Safe Start requested: OpenGL compatibility on PowerVR, project renderer otherwise, no shader warmup, and local saves only for one run."
         );
@@ -88,8 +88,8 @@ internal sealed class LauncherStartGamePlan
             readinessPassedPhase: "auto launch readiness passed",
             blockedPhase: "auto launch blocked",
             modReadinessPhase: "auto launch mod readiness",
-            checkingStatus: "Checking selected game version before auto-launch...",
-            startingStatus: "Starting selected game version...",
+            checkingStatus: "Preparing selected branch for launch...",
+            startingStatus: "Preparation passed. Starting the game...",
             readyDetail: "Auto-launch readiness passed",
             preLaunchLog: ""
         );
@@ -104,8 +104,8 @@ internal sealed class LauncherStartGamePlan
             readinessPassedPhase: "auto safe launch readiness passed",
             blockedPhase: "auto safe launch blocked",
             modReadinessPhase: "auto safe launch mod readiness",
-            checkingStatus: "Checking selected game version before safe auto-launch...",
-            startingStatus: "Starting selected game version in safe mode...",
+            checkingStatus: "Preparing selected branch for Safe Start...",
+            startingStatus: "Preparation passed. Starting in safe mode...",
             readyDetail: "Auto-safe-launch readiness passed",
             preLaunchLog: "Safe Start requested: OpenGL compatibility on PowerVR, project renderer otherwise, no shader warmup, and local saves only for one run."
         );

@@ -5,7 +5,7 @@ internal sealed partial class LauncherDownloadCoordinator
     internal void UpdateSelectedVersionPressed()
     {
         _view.HideActions();
-        _view.ShowDownloadAction("Update selected version");
+        _view.ShowDownloadAction("Update selected Steam branch");
         DownloadPressed();
     }
 
@@ -26,8 +26,8 @@ internal sealed partial class LauncherDownloadCoordinator
                 _view.ShowConfirmation(
                     BlockedRedownloadConfirmationMessage + "\n\n" + downloadProblem,
                     () => ApplyRedownloadBlockedByBranchProblem(downloadProblem),
-                    "Delete Cache",
-                    "Keep Cache"
+                    "Redownload Version",
+                    "Keep Version"
                 );
                 return;
             }
@@ -36,7 +36,7 @@ internal sealed partial class LauncherDownloadCoordinator
                 RedownloadConfirmationMessage,
                 ApplyRedownloadAndDownload,
                 "Redownload Version",
-                "Keep Files"
+                "Keep Version"
             );
             return;
         }
@@ -72,10 +72,10 @@ internal sealed partial class LauncherDownloadCoordinator
         _model.ResetGameFilesForRedownload();
         _refreshGameBranchOptions();
         _view.SetStatus(
-            "Selected game version metadata cache cleared. Rebuilding selected version from Steam...",
+            "Selected branch files removed. Downloading a fresh copy from Steam...",
             LauncherStatusSeverity.Working
         );
-        _view.AppendLog("Selected game version metadata cache cleared before replacement download.");
+        _view.AppendLog("Selected branch files removed before replacement download. Saves and other branches were left in place.");
         _ = DownloadAsync();
     }
 
@@ -84,7 +84,7 @@ internal sealed partial class LauncherDownloadCoordinator
         _model.ResetGameFilesForRedownload();
         _refreshGameBranchOptions();
         _view.SetStatus(downloadProblem, LauncherStatusSeverity.Warning);
-        _view.AppendLog("Selected game version cache cleared, but replacement download remains blocked by Steam branch availability evidence.");
+        _view.AppendLog("Selected branch files removed, but Steam still blocks the replacement download. Saves and other branches were left in place.");
         _view.AppendLog(downloadProblem);
         ShowDownloadReadyAction();
     }

@@ -21,6 +21,8 @@ internal sealed partial class ActionSection : VBoxContainer
     internal event Action DiagnosticsPressed;
     internal event Action ShowLastErrorPressed;
     internal event Action CopyRawLogPressed;
+    internal event Action ReportBugPressed;
+    internal event Action CheckAppUpdatesPressed;
     internal event Action SafeLaunchPressed;
     internal event Action SaveSyncNowPressed;
     internal event Action SavePullPressed;
@@ -107,12 +109,12 @@ internal sealed partial class ActionSection : VBoxContainer
         SetCompactActionButtonText(
             _updateButton,
             action == LauncherVersionPrimaryAction.UpdateSelectedVersion
-                ? "Update selected version"
+                ? "Update selected Steam branch"
                 : "Check for updates"
         );
         _updateButton.AccessibilityName =
             action == LauncherVersionPrimaryAction.UpdateSelectedVersion
-                ? "Update selected version"
+                ? "Update selected Steam branch"
                 : "Check for updates";
     }
 

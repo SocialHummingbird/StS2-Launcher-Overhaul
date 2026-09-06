@@ -1,14 +1,16 @@
 # Issue 38: runtime identity and update transaction design
 
-Status: authoritative design. The `GameIdentity`, current-file reader, identity-selection replacement, per-branch installation state, Steam downloader transaction wiring, and self-validating runtime-pack candidate generation are implemented. Runtime-pack promotion remains staged for a later prompt.
+Status: implemented and released. The runtime identity/update lifecycle landed in `6180d361e13807aecdb6b7ec828756f236e9119b`; launcher-handoff hardening landed in `809cdf827c69680df34177566433bd691aaff5ae` and `559251309f68659102bcabbf12e669f9512e7776`. The exact release is [v0.2.429 — Issue #38 ARM64 RC4](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.429-issue38-arm64-rc4).
+
+This document is the detailed implementation contract. Normative words such as “will” and “must” describe the shipped invariants and failure behavior; they are not a future roadmap. For user instructions, use [Steam version selection user guide](steam-version-selection-user-guide.md). For the concise current architecture, use [Steam version selection architecture](steam-version-selection-architecture.md).
 
 ## Decision
 
-The launcher will have one current-game identity, one per-branch installation state, and one runtime-pack generation and promotion path.
+The launcher has one current-game identity, one per-branch installation state, and one runtime-pack generation and promotion path.
 
 The content hashes in the current identity of a branch are computed only from the final installed `SlayTheSpire2.pck` and final installed source `sts2.dll`. The completed install-generation fingerprint comes only from the selected branch's completed Steam install marker. A compatibility manifest, validation report, runtime pack, runtime-cache marker, or release metadata may describe or validate an identity, but none may supply current file hashes.
 
-Every downloaded branch, including `public`, will use the same runtime-pack path for game startup. The public-branch raw-assembly/legacy baseline exception is removed. Launcher-only bootstrap remains separate because it does not load game code.
+Every downloaded branch, including `public`, uses the same runtime-pack path for game startup. The public-branch raw-assembly/legacy baseline exception is removed. Launcher-only bootstrap remains separate because it does not load game code.
 
 The existing final runtime-pack layout is retained:
 
@@ -543,11 +545,11 @@ The authoritative native active-cache key is stored in the existing native cache
 
 ### Test structure
 
-Add a focused managed test project, for example `tests/STS2Mobile.Tests`, with real temporary files and injected small test hash streams. Restore native JVM coverage under `android/src/test` or restore the historical `AndroidAssemblyBootstrapperTest.java` runner. Static audit scripts are not sufficient for lifecycle behavior.
+The focused managed project is `tests/STS2Mobile.GameIdentityTests`. It uses real temporary files and injected small test hash streams for identity, branch state, N → N+1 updates, runtime-pack validation/promotion, selected-branch recovery, and attempt-bound handoff. Native JVM coverage under `android/tests` includes runtime-pack validation and handoff-event tests. Static audit scripts are not treated as lifecycle proof.
 
-The current reduced checkout has launcher preview/save-safety tests but no focused managed runtime-pack update test and no current `AndroidAssemblyBootstrapperTest.java`. Historical commit `2253d04` added the Java bootstrap suite, including stale-game-version and stale-PCK rejection cases. Those tests prove native fail-closed behavior, not the missing managed N -> N+1 regeneration path; their relevant assertions should be retained and extended rather than treated as complete coverage.
+The managed suite includes the direct Issue #38 N → N+1 regression, interruption points, stale marker/manifest rejection, rollback, branch isolation, save/credential preservation, and reordered handoff events. Native tests independently retain fail-closed runtime-pack checks. Neither suite replaces physical-device validation.
 
-The managed and native suites share JSON fixtures for `GameIdentity`, `installation_state.json`, `compatibility.json`, and `patch_validation.json` so field names and equality rules cannot drift.
+The managed and native implementations validate the same schema contracts for `GameIdentity`, `installation_state.json`, `compatibility.json`, and `patch_validation.json`. Schema changes must update both focused suites so field and equality rules do not drift.
 
 ### Managed lifecycle matrix
 
@@ -639,9 +641,9 @@ Use sentinel files with hashes before and after every update, recovery, migratio
 
 At least one instrumented ARM64 device test must perform a real `public-beta` N -> N+1 update, kill the process at several transaction phases, and confirm that the first completed post-update Start Game succeeds. Pixel-class Android SDK 37 and Xiaomi Android 16 coverage remains required because those devices supplied issue 38 evidence, even though the state bug is architecture-independent.
 
-## Implementation sequence
+## Landed implementation sequence
 
-The production work should land in dependency order so no intermediate release has two authorities:
+The production work landed in dependency order so no intermediate state had two authorities:
 
 1. Add `GameIdentity`, shared schemas, atomic writer, and tests.
 2. Add per-branch installation state and gate both managed and native launch on it.
@@ -668,11 +670,13 @@ Architectural decisions are resolved:
 - native validation remains fail-closed;
 - saves and unrelated branch installations are outside every mutation set.
 
-Implementation still requires measurement and platform verification, not further architecture choices:
+RC4 was installed in place on Samsung `SM-F971B`, Android 17 / API 37, and passed 10/10 counted launches: four cold, four warm, one background/resume, and one lock/unlock. Every attempt validated identity/runtime-pack/patch compatibility, reached a visible game, removed the launcher overlay exactly once, and rejected no stale completion. The preservation audit found saves, Steam Cloud inventory, credentials, and unrelated branch/runtime data unchanged.
 
-- measure two sequential PCK hashes on affected ARM64 devices and report managed/native durations;
-- verify same-directory rename and durable-flush behavior on every supported Android API level;
-- inventory the non-mutating FMOD extraction behavior currently coupled to `GodotApp.patchGamePckForAndroid` so it is preserved in the single preparation operation;
-- capture raw legacy artifact variants from a real v0.2.428 device to test migration diagnostics.
+Remaining verification is platform coverage, not an unresolved identity model:
+
+- the original Pixel 9 and Xiaomi 17 Ultra reporters have not yet confirmed RC4;
+- same-directory rename/durable-flush behavior and PCK hash cost are not measured across every supported Android/API/filesystem combination;
+- RC4's launch matrix does not certify every Steam branch, GPU, Workshop mod, or live Steam save-transfer path; and
+- a real device interruption campaign across every N → N+1 transaction checkpoint remains broader than the published RC4 smoke test.
 
 None of those checks permits reintroducing a manifest, marker, runtime pack, or active cache as a source of current `GameIdentity`.

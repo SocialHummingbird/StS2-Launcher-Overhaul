@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        This template is for Steam branch/version issues, including wrong branch, missing/mixed assets, NativeFallback, runtime-pack mismatch, and blocked private/password branches.
+        This template is for Steam branch/version issues, including interrupted updates, wrong branch, missing/mixed assets, NativeFallback, GameIdentity/runtime-pack mismatch, and blocked private/password branches.
 
         This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
@@ -77,24 +77,27 @@ body:
     id: branch-evidence
     attributes:
       label: Branch, PCK, and runtime evidence
-      description: Paste from diagnostics/logs. Do not remove unknown fields; write "not captured".
+      description: Create a support report from Help → Diagnostics and paste these fields after reviewing/redacting it. Do not remove unknown fields; write "not captured".
       value: |
         Selected game branch:
         Selected game version display name:
         Selected game slot kind:
         Selected game slot directory:
+        Installation state / phase / transaction ID:
+        Completed install generation:
+        GameIdentity ID:
         Selected game PCK path:
         Selected game PCK SHA-256:
+        Selected source sts2.dll path:
+        Selected source sts2.dll SHA-256:
         Runtime pack path:
-        Runtime pack SHA-256:
-        Active sts2.dll path:
-        Active sts2.dll SHA-256:
-        Runtime cache marker:
-        Patch validation marker:
-        Branch marker path/value:
+        Runtime pack ID:
+        Runtime-pack sts2.dll SHA-256:
+        Patch validation result:
+        Active-cache validation result:
+        First readiness/update failure:
         Visible Steam branches:
         Windows depot manifests for selected branch:
-        Public-vs-selected depot integrity summary:
     validations:
       required: true
   - type: textarea
@@ -122,7 +125,7 @@ body:
     attributes:
       label: Logs and screenshots
       description: |
-        Attach focused logs/screenshots. Useful terms: Steam branch, Visible Steam branches, Branch marker, NativeFallback, PatchHelper, Runtime pack, PCK, AndroidRuntime.
+        Attach the generated support report plus focused logs/screenshots. Useful terms: Steam branch, installation_state, GameIdentity, NativeFallback, Runtime pack, PCK, sts2.dll, AndroidRuntime.
     validations:
       required: true
   - type: checkboxes
@@ -130,5 +133,5 @@ body:
     attributes:
       label: Safety checks
       options:
-        - label: I removed Steam credentials, Steam Guard codes, refresh tokens, private account details, private save contents, and full unsanitized logs.
+        - label: I reviewed the support report/logs and removed Steam credentials, Steam Guard codes, refresh/session tokens, private account details, private save contents, and full unsanitized logs.
           required: true

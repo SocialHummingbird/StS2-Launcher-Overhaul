@@ -2,8 +2,6 @@ namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherDiagnosticsCoordinator
 {
-    private const string PreviousLaunchWarningStatus =
-        "Game startup failed last time.";
     private bool _previousLaunchWarningChecked;
 
     internal void ShowPreviousLaunchWarningIfNeeded()
@@ -39,16 +37,16 @@ internal sealed partial class LauncherDiagnosticsCoordinator
             "[Launcher] Previous launch warning shown; automatic diagnostics deferred to avoid blocking launcher display."
         );
         _view.AppendLog(
-            "A support report was not collected automatically to keep the launcher responsive. Use Create support report after the launcher is visible."
+            "No report was collected automatically. Use Create support report after the launcher is visible so it includes this attempt."
         );
     }
 
     private readonly struct PreviousLaunchWarning
     {
         private const string LauncherAvailableMessage =
-            "The launcher stayed open so you are not stuck on a black screen.";
+            "The launcher stayed open so you can recover or collect diagnostics.";
         private const string DiagnosticsActionMessage =
-            "Open Help to view the last error or create a support report.";
+            "Open Help to create a new support report for this attempt.";
 
         internal PreviousLaunchWarning(
             string previousLaunchPhase,
@@ -64,7 +62,7 @@ internal sealed partial class LauncherDiagnosticsCoordinator
 
         internal void Show(LauncherView view)
         {
-            view.SetStatus(PreviousLaunchWarningStatus, LauncherStatusSeverity.Warning);
+            view.SetStatus(StatusMessage(), LauncherStatusSeverity.Warning);
             view.ShowHomeHelpAction();
 
             foreach (var line in LogLines())
@@ -75,7 +73,7 @@ internal sealed partial class LauncherDiagnosticsCoordinator
         {
             var lines = new System.Collections.Generic.List<string>
             {
-                PreviousLaunchWarningStatus + PreviousLaunchPhaseSuffix(),
+                StatusMessage() + PreviousLaunchPhaseSuffix(),
                 LauncherAvailableMessage,
                 DiagnosticsActionMessage
             };
@@ -93,6 +91,21 @@ internal sealed partial class LauncherDiagnosticsCoordinator
             }
 
             return lines.ToArray();
+        }
+
+        private string StatusMessage()
+        {
+            var phase = (LaunchAttempt.Phase ?? string.Empty) + " " + (PreviousLaunchPhase ?? string.Empty);
+            if (phase.IndexOf("setup", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Launch setup failed last time. Try again, then create a new support report if it repeats.";
+
+            if (string.Equals(LaunchAttempt.FilesReady, "false", System.StringComparison.OrdinalIgnoreCase)
+                || phase.IndexOf("readiness", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || phase.IndexOf("blocked", System.StringComparison.OrdinalIgnoreCase) >= 0
+                || phase.IndexOf("checking", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                return "Game preparation failed last time. Repair selected branch, then try again.";
+
+            return "The game did not appear last time. Try Safe Start.";
         }
 
         private static void AddIfPresent(

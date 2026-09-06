@@ -1,73 +1,67 @@
 # Current Android status
 
-Updated: 2026-08-13
+Updated: 2026-08-22
 
-StS2 Launcher is an unofficial Android launcher for Steam owners of Slay the Spire 2. The current source retains Steam authentication, owned-game and Workshop download, ARM64 launch, save synchronization, and one validated mod-loading path. The current candidate has not completed its Android acceptance journey.
+StS2 Launcher is an unofficial Android launcher for Steam owners of Slay the Spire 2. It retains Steam authentication, owned-game and Workshop download, ARM64 launch, application-local saves, Steam save synchronization, version selection, renderer recovery, and the validated mod-loading path described in [Android Workshop mods](android-workshop-mods.md).
 
-## Current source
+## Current release
 
-The current reduction keeps six product responsibilities:
+The latest ARM64 tester release is **[v0.2.429 — Issue #38 ARM64 RC4](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.429-issue38-arm64-rc4)**.
 
-- Steam authentication and ownership checking.
-- Game and Workshop download.
-- Game launch, including existing renderer recovery choices.
-- Atomic application-local gameplay saving.
-- One Steam save-synchronization path shared by automatic and manual actions.
-- One validated Workshop/manual mod launch plan and loader with truthful last-launch results.
+```text
+Asset: StS2Launcher-v0.2.429-issue38-arm64-rc4-arm64-v8a.apk
+Package: com.sts2launcher.overhaul.fork.local
+VersionName: 0.2.429-issue38-arm64-rc4
+VersionCode: 429041
+ABI: arm64-v8a
+SHA-256: b2d0e8154afc69e11eac4159483e837559e398844444a5d015d18f3fda458181
+```
+
+[Download the ARM64-v8a APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.429-issue38-arm64-rc4/StS2Launcher-v0.2.429-issue38-arm64-rc4-arm64-v8a.apk) and install it over the existing application. Android should present an **Update** or **Install** action; ADB users can run `adb install -r <apk-path>`. Do not uninstall or clear application data first.
+
+## Issue #38 runtime and update behavior
+
+Issue #38 was caused by an updated Steam branch being paired with identity data from its previous files. The native bootstrap correctly rejected that mismatched runtime pack.
+
+Current behavior has one authority and one transaction:
+
+1. The final installed, Android-ready `SlayTheSpire2.pck` and source `data_sts2_windows_x86_64/sts2.dll` are hashed from the actual files. Together with the normalized branch and completed install generation, they form `GameIdentity`.
+2. A Steam update writes the selected branch's `installation_state.json` as `updating` before replacing installed files. Missing, malformed, mismatched, or `updating` state cannot authorize launch.
+3. After Steam files and PCK preparation complete, the launcher calculates a fresh identity. Old runtime-pack manifests, validation reports, branch markers, and active-cache metadata cannot override those bytes.
+4. The runtime pack is generated in a unique staging directory, validated against the exact identity and every declared assembly hash, promoted atomically, and validated again at its final path.
+5. Android independently hashes the installed PCK and source DLL, validates the final runtime pack, then stages and promotes the active assembly cache.
+
+If recovery is required, **Versions → Redownload Selected Version** removes only the selected branch's downloaded game/runtime state. It preserves saves, Steam credentials, Workshop content, and other downloaded branches. The former bulk **Remove old versions** action has been removed. Uninstalling or clearing all application data is not a routine recovery path.
+
+See [Steam version selection architecture](steam-version-selection-architecture.md) for the concise model and [Issue #38 runtime identity design](issue-38-runtime-identity-design.md) for the full contract.
+
+## Launcher handoff
+
+The launcher overlay now has one owner and each Start Game operation has a unique attempt ID. Main-menu readiness is accepted only for the active attempt, and the overlay is dismissed only after that same attempt is ready while the game activity is foregrounded and focused. Duplicate or late readiness events cannot complete a newer launch.
+
+## RC4 device validation
+
+The exact release APK was installed in place on Samsung `SM-F971B`, Android 17 / API 37, `arm64-v8a`. It passed 10/10 counted launches:
+
+- Four cold launches.
+- Four warm launches.
+- One background/resume during handoff.
+- One lock/unlock during handoff.
+
+Every launch recorded one readiness event, one overlay-hidden event, and one handoff-completed event for its own attempt ID. All ten validated the selected identity, runtime pack, and patch compatibility; displayed the game; left no launcher overlay visible; and recorded no stale completion. The before/after preservation audit also found the local save inventories, Steam Cloud inventory, credentials, selected `public-beta` branch, and unrelated public runtime data unchanged.
+
+This result validates the exact RC4 APK on that device. It does not establish every device, Android version, GPU/driver, Steam branch, Workshop mod, or live Steam save-transfer path. The original Pixel 9 and Xiaomi 17 Ultra reporters have not yet confirmed the fix on their devices.
 
 ## Save data
 
-Android gameplay writes land first in Godot's `user://` directory inside the private application data for package `com.sts2launcher.overhaul.fork.local`. Current source includes automatic pre-load reconciliation, automatic verified Push during gameplay, and the three manual Saves actions, all through one synchronization service. No real Android Steam transfer has validated this implementation yet. Clearing the app's data or uninstalling the app removes the local copy; do not assume Steam contains a verified copy.
+Gameplay saves live in Godot's application-private `user://` storage for package `com.sts2launcher.overhaul.fork.local`. Vanilla and modded namespaces remain separate. Normal in-place updates preserve that data; uninstalling or clearing application data removes the local copy. Do not assume Steam contains a current verified copy unless synchronization has been confirmed.
 
-Startup-crash recovery and Help diagnostics remain. They recover launcher startup or collect troubleshooting information; they do not manage gameplay saves.
-
-## Current prerelease artifact
-
-The current public test candidate is the prerelease `v0.2.428-launcher-simplification-unverified`. It is not a stable or phone-ready release, and no Android device was available to validate this build.
-
-- Package: `com.sts2launcher.overhaul.fork.local`
-- Version code: `428000`
-- APK SHA-256: `CC79353BE2B22641BC76424BBAB9AB36F7AB4A57F8C900379D20E91862005C4C`
-
-The asset is `StS2Launcher-v0.2.428-launcher-simplification-unverified-arm64-v8a.apk`. Its package and signer match the prior local-test lineage and its archive contains only `arm64-v8a`.
-
-Preserving that package identity and signing continuity is required for an in-place update to retain existing app-private data.
-
-## Offline diagnostic artifact
-
-**DIAGNOSTIC MAIN-MENU HANDOFF APK — ANDROID STABILITY UNVERIFIED**
-
-`StS2Launcher-v0.2.426-main-menu-handoff-diagnostic-arm64-v8a.apk` was built and inspected offline with version code `426000`, package `com.sts2launcher.overhaul.fork.local`, ARM64-only contents, and APK SHA-256 `5FFE86369B05C78CCF528C2186A46CD2E901A186CFB91F490F5C63B44490F294`.
-
-This diagnostic APK restores the existing menu-preparation/startup-task lifetime guard, but it has not been run on Android and does not establish that the intermittent main-menu freeze—or any crash, mod, save, or Steam behaviour—is fixed. It is not the current public prerelease.
-
-## Deferred-preload experiment artifact
-
-`StS2Launcher-v0.2.427-deferred-preload-experiment-arm64-v8a.apk` is a second
-offline diagnostic artifact. It has version code `427000`, package
-`com.sts2launcher.overhaul.fork.local`, ARM64-only contents, signer continuity
-with the local-test lineage, and APK SHA-256
-`78889980818C16E311B42BCAA87E28EDF00377C2C7C61CD9328F209E04DABAFF`.
-
-The same APK supports both experiment arms. Normal loading is the default; an
-ADB-controlled setting sampled at process creation arms a one-shot suppression
-of only the first deferred `LoadCommonAndMainMenuAssets()` call after
-`ExecuteDeferred()` completes. Later calls remain normal. No device is attached,
-so neither arm has run and no stability or causality conclusion exists yet.
-
-## Evidence boundary
-
-No Android device is currently connected. In the retained one-device run, both exact selected mods were discovered, payload-loaded, initialized, and activated; BaseLib remained honestly `Partial`, a real `modded/` save path was used, and the game reached the main menu. The user reported marked improvement and that mods appeared to work.
-
-The single authoritative failure timeline in `artifacts/android/stage9-one-device-filtered.log` is: **mod activation completed → `NMainMenu` appeared → the 1-second heartbeat ran → the 3-second heartbeat ran → the expected 10-second heartbeat was the first missing milestone**. The same process emitted focus lifecycle events minutes later, and the retained log contains no fatal exception, native signal, ANR, low-memory kill, or process-death evidence. Classify this event as an **intermittent live-process main-loop freeze after the main menu appeared**, not a proven process crash. Any future event with genuine process-exit evidence must be recorded as a separate incident rather than used to reclassify this one.
-
-The run did not directly capture the importer control or a matching relaunch result. It therefore does not complete Stage 9 or prove broad Android mod compatibility. Real Android Steam transfer also remains unproven.
-
-Historical device evidence applies only to the exact historical artifact and path recorded with it.
+Selected-branch download, update, validation, promotion, and recovery code does not enumerate or mutate the save root. Startup recovery and support-report creation diagnose launcher state; they are not save-repair tools.
 
 ## Known limitations
 
-- ARM64 Android remains the intended game target; x86_64 emulator results are diagnostic only.
-- Device, Android-version, and graphics-driver compatibility varies.
-- Steam branches and Workshop mods remain experimental.
-- The exact one-device BaseLib plus ImportVanillaSaves journey remains mandatory before any Android mod-loading success claim.
+- ARM64 Android is the intended game target; x86_64 emulator results are native-fallback diagnostics only.
+- Device, Android-version, graphics-driver, branch, and mod compatibility varies.
+- Private/password Steam branch entry is not implemented.
+- RC4's 10/10 result is a focused launcher/runtime validation, not broad gameplay or live-service certification.
+- Current-source Android mod activation and the importer effect retain the evidence limits in [Android Workshop mods](android-workshop-mods.md).

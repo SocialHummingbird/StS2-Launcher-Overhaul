@@ -12,15 +12,38 @@ This project is not made, approved, sponsored, or supported by Mega Crit Games, 
 
 ## Current Status
 
-The current source is an **unverified Android candidate**. It builds and its focused desktop tests pass, but no Android device was available to validate this build. A limited historical run of `0.2.425` showed both selected mods loading and activating, the modded save namespace being used, and the game reaching the main menu. That retained event is an intermittent live-process freeze after the main menu appeared, not a proven process crash. It does not validate the current APK, which is published only as an unverified prerelease and must not be called phone-ready or release-ready.
+The latest ARM64 tester release is **[v0.2.429 — Issue #38 ARM64 RC4](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.429-issue38-arm64-rc4)**.
 
 - Package name: `com.sts2launcher.overhaul.fork.local`
-- Target hardware: ARM64 Android
+- Version name: `0.2.429-issue38-arm64-rc4`
+- Version code: `429041`
+- ABI: `arm64-v8a` only
+- APK SHA-256: `b2d0e8154afc69e11eac4159483e837559e398844444a5d015d18f3fda458181`
 - Android emulator and x86_64 paths are diagnostic only.
 - Branch selection, Workshop mods, renderer compatibility, and device coverage remain experimental.
-- The current ARM64 prerelease candidate is `0.2.428-launcher-simplification-unverified`; it uses the existing local-test package and signer lineage.
 
-Android gameplay saves live in application-private storage. Clearing application data or uninstalling the app removes those local files. See [Current Android status](docs/current-android-status.md#save-data) before using a build with saves that matter.
+RC4 passed **10/10 physical-device launches** on Samsung `SM-F971B`, Android 17 / API 37: four cold, four warm, one background/resume, and one lock/unlock launch. Every attempt reached the game with the launcher overlay removed exactly once; no stale completion was accepted. The validation also confirmed that local saves, Steam Cloud inventory, and unrelated branch/runtime data stayed unchanged. This is strong evidence for that exact device and APK, not a broad compatibility claim.
+
+See [Current Android status](docs/current-android-status.md) for the validation boundary and [v0.2.429 release notes](docs/release-notes/v0.2.429-issue38-arm64-rc4.md) for the change summary.
+
+## Install or Update
+
+1. Confirm the device supports `arm64-v8a`.
+2. Download [`StS2Launcher-v0.2.429-issue38-arm64-rc4-arm64-v8a.apk`](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.429-issue38-arm64-rc4/StS2Launcher-v0.2.429-issue38-arm64-rc4-arm64-v8a.apk).
+3. Open the APK and choose **Update** or **Install** over the existing `com.sts2launcher.overhaul.fork.local` application. With ADB, use `adb install -r <apk-path>`.
+4. Confirm the installed version is `0.2.429-issue38-arm64-rc4` (`429041`).
+
+Do **not** uninstall the existing application or clear its data as a routine update or recovery step. Either action removes application-private local saves. If Android reports `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, stop and report the installed and downloaded package/signing identities; do not work around it by uninstalling.
+
+## Issue #38 Reliability Fix
+
+- The final installed `SlayTheSpire2.pck` and source `data_sts2_windows_x86_64/sts2.dll` bytes are authoritative. Runtime-pack manifests, cache markers, and old validation reports cannot define the current game identity.
+- Steam branch updates are transactional. The selected branch becomes `updating` before installed files change and becomes `ready` only after the completed files have a fresh identity.
+- Runtime packs are generated in a unique staging directory, validated against that identity, promoted atomically, and independently revalidated by Android before launch.
+- **Redownload Selected Version** repairs only the selected branch. It preserves gameplay saves, Steam credentials, Workshop content, and every other downloaded branch. The former bulk **Remove old versions** action is not part of the current launcher.
+- Launcher-to-game handoff readiness is bound to one launch-attempt ID. Main-menu readiness, foreground/focus state, and overlay dismissal must all belong to the active attempt, so late callbacks cannot complete a later launch.
+
+The detailed contracts are in [Steam version selection architecture](docs/steam-version-selection-architecture.md) and the [Issue #38 runtime identity design](docs/issue-38-runtime-identity-design.md).
 
 ## Current Product Boundary
 
@@ -28,7 +51,7 @@ The launcher retains:
 
 - Steam authentication and encrypted credential storage.
 - Steam game download and version selection.
-- Unconditional game launch after a bounded synchronization attempt.
+- Game launch is not blocked by save synchronization after its bounded attempt; selected-runtime identity and readiness are still required.
 - One application-local gameplay save store with atomic local writes.
 - One Steam Cloud transport and one synchronization service shared by automatic and manual operations.
 - Automatic Pull before the game loads saves and queued Push after committed gameplay saves.
@@ -51,22 +74,13 @@ Run the focused save and launch probe:
 .\scripts\test-local-gameplay-save-safety.ps1
 ```
 
-It runs twelve focused desktop behaviors:
+It covers twelve focused save, synchronization, mod-selection, version-selection, and startup behaviors. The synchronization tests use one in-memory `FakeSaveRemote`; that proves deterministic policy only, not Steam Cloud or Android transport.
 
-- Local path containment.
-- Atomic local writes.
-- The four deterministic synchronization decisions.
-- Truthful presentation of success, first-use, failure, and offline save states.
-- Interrupted Pull preserving local saves.
-- Failed Push staying dirty and retryable.
-- Pull completing before save loading.
-- A gameplay save queuing Push without returning to the launcher.
-- Manual Push and Pull using the same synchronization service.
-- Persisted mod selection and validated manifest discovery surviving a simulated restart.
-- Persisted game-version selection reaching the matching launch-readiness path.
-- The restored Android startup handoff staying alive through main-menu preparation.
+Run the Issue #38 identity, update, recovery, runtime-pack, and handoff suite:
 
-The synchronization tests use one in-memory `FakeSaveRemote`. That fake proves deterministic policy behavior only; it does not prove Steam Cloud or Android transport.
+```powershell
+dotnet run --project tests\STS2Mobile.GameIdentityTests\STS2Mobile.GameIdentityTests.csproj -c Release
+```
 
 Run the focused launcher/mod test against the already-downloaded representative
 fixture (adjust the three local paths if Steam is installed elsewhere):
@@ -106,7 +120,7 @@ Required local inputs include:
 Use the existing build wrapper so the managed assemblies, Android runtime libraries, and ABI selection stay aligned:
 
 ```powershell
-.\scripts\build-android-local.ps1 -VersionName "0.2.428-launcher-simplification-unverified" -VersionCode 428000 -Abi arm64-v8a
+.\scripts\build-android-local.ps1 -VersionName "<unique-version>" -VersionCode <higher-version-code> -Abi arm64-v8a
 ```
 
 The wrapper archives the APK and checksum under `artifacts/android/`. For a later build, choose a unique version name and a version code higher than the installed APK. A successful build or structural APK inspection does not establish phone compatibility, gameplay success, or working Steam save transfer.
@@ -140,6 +154,7 @@ For LAN multiplayer, both devices must be on the same local network. Add `--fast
 ## Documentation
 
 - [Current Android status](docs/current-android-status.md)
+- [v0.2.429 release notes](docs/release-notes/v0.2.429-issue38-arm64-rc4.md)
 - [Android troubleshooting](docs/android-troubleshooting.md)
 - [Android Workshop mods](docs/android-workshop-mods.md)
 - [Steam version selection user guide](docs/steam-version-selection-user-guide.md)

@@ -12,12 +12,24 @@ namespace STS2Mobile.GameIdentityTests;
 
 internal static partial class Program
 {
-    private static int Main()
+    private static int Main(string[] args)
     {
         using var markerFiles = TestMarkerFiles.PreserveCurrentDirectory();
 
         var tests = new (string Name, Action Run)[]
         {
+            ("preparation timeout drains late success", PreparationTimeoutDrainsLateSuccess),
+            ("preparation timeout observes late failure", PreparationTimeoutObservesLateFailure),
+            ("preparation success does not drain", PreparationSuccessDoesNotDrain),
+            ("restart request validates durable identity and age", RestartRequestValidation),
+            ("launch operation owns startup and ignores late success", LaunchOperationLateSuccess),
+            ("launch operation observes late faults", LaunchOperationLateFault),
+            ("launch operation rejects overlapping startup", LaunchOperationRejectsOverlap),
+            ("launch operation timeout requires restart", LaunchOperationTimeout),
+            ("launch save cleanup timeout blocks game", LaunchSaveCleanupTimeout),
+            ("launch scene readiness preserves origin", SceneReadinessPreservesOrigin),
+            ("launch scene readiness requires source and instance", SceneReadinessRequiresSourceAndInstance),
+            ("GitHub issue redaction, encoding, and URL bounds", GitHubIssueDraft),
             ("stable identity and safe PCK cache hit", StableIdentityAndPckCacheHit),
             ("changed PCK at same path", ChangedPckAtSamePath),
             ("changed DLL at same path", ChangedDllAtSamePath),
@@ -140,6 +152,10 @@ internal static partial class Program
             ("handoff simulates 256 reordered event sequences", HandoffSimulatesReorderedEventSequences),
         };
 
+        if (args.Length > 0)
+            tests = tests.Where(test => test.Name.Contains(args[0], StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (tests.Length == 0)
+            throw new ArgumentException("No tests match the requested filter.");
         var failures = 0;
         foreach (var test in tests)
         {

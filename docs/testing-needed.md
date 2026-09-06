@@ -1,40 +1,42 @@
 # Testing needed
 
-Updated: 2026-08-10
+Updated: 2026-08-22
 
-This focused gate is deliberately limited to evidence that can run locally and deterministically.
+Use the smallest test that exercises the affected behavior. Do not turn desktop, fake-service, source inspection, or one-device evidence into a broader claim.
 
-## Required now
+## Required local checks
 
-- Build `src/STS2Mobile/STS2Mobile.csproj` in Release configuration.
-- Run `scripts/test-local-gameplay-save-safety.ps1`.
-- Run `scripts/test-launcher-ui-preview.ps1` with the explicit local importer,
-  base-game PCK, and managed-runtime paths shown in
-  [Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-activation).
+```powershell
+dotnet build src\STS2Mobile\STS2Mobile.csproj -c Release
+.\scripts\test-local-gameplay-save-safety.ps1
+dotnet run --project tests\STS2Mobile.GameIdentityTests\STS2Mobile.GameIdentityTests.csproj -c Release
+.\android\gradlew.bat testReleaseUnitTest
+```
 
-The save suite is deliberately limited to:
+Run `scripts/test-launcher-ui-preview.ps1` with the explicit importer, base-game PCK, and managed-runtime paths in [Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-activation) when launcher or mod behavior changes.
 
-- Local path containment and atomic writes.
-- No change, Pull, Push, and conflict decisions.
-- An interrupted Pull leaving local saves intact.
-- A failed Push remaining dirty and retryable.
-- Pull completing before saves are loaded.
-- A local gameplay save queuing Push without reopening the launcher.
-- Manual Push and Pull using the same synchronization service.
+The local suites cover:
 
-The launcher check uses one representative importer fixture and one interaction
-test. It proves persisted selection, honest result mapping, action wiring, and
-desktop-host activation; it does not prove Android mod activation or an in-game
-effect.
+- Local path containment, atomic saves, deterministic synchronization decisions, Pull/Push interruption behavior, and shared automatic/manual synchronization.
+- Persisted mod/version selection and focused launcher interaction.
+- Authoritative PCK/DLL identity and generation-bound PCK caching.
+- Transactional branch N → N+1 updates, interruptions, stale-evidence rejection, and branch isolation.
+- Runtime-pack candidate validation, atomic promotion/rollback, and active-cache gating.
+- Selected-branch recovery preserving saves, credentials, and sibling branches.
+- Attempt-bound launcher handoff under reordered, duplicated, background/resume, lock/unlock, timeout, and late-callback events.
 
-## Not provable now
+The save suite uses one deterministic `FakeSaveRemote`; it does not prove Steam transport. Desktop mod fixtures do not prove Android activation or an in-game effect.
 
-- Steam Cloud RPC or HTTP transport.
-- Android filesystem or lifecycle behavior.
-- Android launcher rendering and input.
-- Real Steam authentication and depot download.
-- Game startup or gameplay.
+## Published RC4 device evidence
 
-These are limitations, not reasons to rebuild the removed feature machinery.
+The exact [v0.2.429 RC4](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.429-issue38-arm64-rc4) APK passed 10/10 launches on Samsung `SM-F971B`, Android 17 / API 37: four cold, four warm, one background/resume, and one lock/unlock. Each attempt validated identity/runtime-pack/patch compatibility and completed the active handoff once with no launcher overlay left visible. Saves, credentials, Steam Cloud inventory, and unrelated branch/runtime data were unchanged.
 
-The synchronization suite uses one small fake remote so policy and failure behavior stay deterministic. That fake does not prove Steam transport or Android transport. Do not report desktop or fake-backed results as device or live-service proof.
+That result does not prove:
+
+- The original Pixel 9 or Xiaomi 17 Ultra reporter flows; confirmation is still pending.
+- Every Android version, device, GPU/driver, orientation, or accessibility configuration.
+- Every Steam branch or interruption point on physical storage.
+- Real Steam authentication or save enumerate/download/upload/commit/read-back on RC4.
+- Android mod activation or a visible importer effect on RC4.
+
+Record exact APK, commit, package/version/signer/hash, device, Android/API, ABI, selected branch, renderer, test actions, and failures for every future device result.

@@ -95,29 +95,23 @@ internal sealed partial class GameRuntimeSlot
     private string RuntimeReadinessProblem()
     {
         if (GameIdentity == null)
-            return string.IsNullOrWhiteSpace(GameIdentityProblem)
-                ? "Selected game identity could not be calculated from the current installed files. Redownload selected version."
-                : GameIdentityProblem;
+            return PreparationFailedMessage();
 
         if (!HasUsableHash(PckSha256))
-            return "Selected game version is not downloaded or the downloaded PCK is invalid. Download selected version to continue.";
+            return "Download the selected branch to continue.";
 
         if (!SourceAssemblyExists)
-        {
-            if (RuntimePackManifestExists && !RuntimePackUsable)
-                return $"Selected game version is missing its source game-code assembly and its runtime pack is not usable ({RuntimePackUsabilityStatus}). Redownload selected version or install a matching runtime pack.";
-
-            return "Selected game version is missing its source game-code assembly. Redownload selected version.";
-        }
+            return PreparationFailedMessage();
 
         if (!RuntimePackUsable)
-            return RuntimePackManifestExists
-                ? $"Selected game version requires a usable runtime pack, but its runtime pack is not usable ({RuntimePackUsabilityStatus}). Redownload selected version."
-                : "Selected game version requires a usable runtime pack. Redownload selected version to regenerate runtime-pack evidence.";
+            return PreparationFailedMessage();
 
         if (!ActiveAndroidAssemblyExists && !RuntimePackUsable)
-            return "Android game-code runtime cache is missing and no usable runtime pack exists. Redownload selected version to rebuild runtime evidence.";
+            return PreparationFailedMessage();
 
-        return "Selected game version is downloaded, but its Android game-code runtime does not match the selected Steam branch. Install a matching runtime pack or select a compatible version.";
+        return PreparationFailedMessage();
     }
+
+    private static string PreparationFailedMessage()
+        => "Game preparation failed for the selected branch. Repair selected branch, then try again. If it happens again, create a new support report.";
 }

@@ -276,14 +276,16 @@ internal sealed partial class LauncherController
             return;
         }
 
+        _view.SetStatus("Finishing save synchronization before launch...", LauncherStatusSeverity.Working);
         _ = CompleteLaunchAfterSaveSyncAsync(syncTask, launch);
     }
 
     private async Task CompleteLaunchAfterSaveSyncAsync(Task syncTask, Action launch)
     {
+        var cleanupFinished = true;
         try
         {
-            await syncTask.ConfigureAwait(false);
+            cleanupFinished = await LauncherSaveCleanup.WaitAsync(syncTask, TimeSpan.FromSeconds(15)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -294,7 +296,10 @@ internal sealed partial class LauncherController
         {
             Interlocked.Exchange(ref _launchAfterSaveSyncPending, 0);
             if (Volatile.Read(ref _saveSyncUiAvailable) != 0)
-                launch();
+            {
+                if (cleanupFinished) launch();
+                else _view.SetStatus("Save synchronization is still finishing. Launch was stopped to protect your saves. Wait, then press Play again.", LauncherStatusSeverity.Warning);
+            }
         });
     }
 

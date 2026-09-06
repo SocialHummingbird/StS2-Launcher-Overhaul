@@ -5,7 +5,7 @@ namespace STS2Mobile.Launcher;
 internal sealed partial class LauncherDownloadCoordinator
 {
     private const string RedownloadConfirmationMessage =
-        "Redownload selected game version?\nThis keeps your Steam login and other cached versions, but deletes the selected version's downloaded files.";
+        "Redownload selected version?\nOnly this version's downloaded files will be removed. Saves, your Steam login, and other versions stay in place. Download the version again when prompted. Do not uninstall the app or clear app data.";
     internal const string DownloadGameFilesButtonText = "Download Selected Version";
     internal const string RedownloadSelectedVersionButtonText = "Redownload selected version";
     internal const string RedownloadRequiredStatus =
@@ -13,11 +13,11 @@ internal sealed partial class LauncherDownloadCoordinator
     internal const string DownloadCancelledStatus = "Download cancelled";
     internal const string RetryDownloadButtonText = "Retry Download";
     internal const string RedownloadStatusMessage =
-        "Selected game version deleted. Download again to rebuild it.";
+        "Selected branch files removed. Download the branch again. Saves and other branches stay in place.";
     internal const string RedownloadLogMessage =
-        "Selected game version files were deleted for a clean redownload.";
+        "Selected branch files were removed for repair. Saves and other branches were left in place.";
     private const string BlockedRedownloadConfirmationMessage =
-        "Delete selected game version cache?\nThis branch is currently blocked by Steam app-info availability evidence, so the launcher will delete the selected local cache but will not start a replacement download.";
+        "Redownload selected version?\nOnly this version's downloaded files will be removed. Saves, your Steam login, and other versions stay in place. Steam does not currently allow a replacement download for this version.";
 
     private readonly LauncherModel _model;
     private readonly LauncherView _view;

@@ -34,10 +34,11 @@ internal sealed partial class LauncherLaunchCoordinator
                 LauncherLaunchSource.AutoLaunch,
                 StringComparison.Ordinal
             );
-            attemptId = restoringPendingAttempt
-                ? ReadRestoredAttemptId()
-                : LaunchAttemptContext.CreateAttemptId();
+            var restartRequest = restoringPendingAttempt ? LauncherRestartRequest.ConsumeRestored() : null;
+            attemptId = restartRequest?.AttemptId ?? LaunchAttemptContext.CreateAttemptId();
             var branch = SteamGameBranch.Normalize(LauncherPreferences.ReadGameBranch());
+            if (restartRequest != null && (restartRequest.Branch != branch || restartRequest.Safe != plan.IsSafe))
+                throw new InvalidOperationException("The restored launch request no longer matches the selected version or launch mode. Press Play again.");
             LauncherLaunchMarkers.RecordPhase(
                 plan.ButtonPressedPhase,
                 $"branch={branch}"
@@ -49,6 +50,7 @@ internal sealed partial class LauncherLaunchCoordinator
                 "Start Game request accepted; selected-version readiness has not completed."
             );
             attempt = new LaunchAttemptContext(attemptId, attemptTimer, branch, pendingReadiness);
+            attempt.RestartRequest = restartRequest;
             LauncherLaunchMarkers.WriteLaunchAttempt(
                 LauncherLaunchAttemptPhases.Checking,
                 plan.Action,
@@ -97,17 +99,6 @@ internal sealed partial class LauncherLaunchCoordinator
         }
     }
 
-    private static string ReadRestoredAttemptId()
-    {
-        var attemptId = LauncherLaunchMarkers.ReadLastLaunchAttempt().AttemptId;
-        if (string.IsNullOrWhiteSpace(attemptId))
-            throw new InvalidOperationException(
-                "An Android auto-launch request has no persisted launch-attempt ID."
-            );
-
-        return attemptId;
-    }
-
     private void FinishFailedLaunchAttempt(
         LauncherStartGamePlan plan,
         string recordPhase,
@@ -135,7 +126,7 @@ internal sealed partial class LauncherLaunchCoordinator
             problem
         );
         LauncherHandoffStateOwner.Shared.Fail(attemptId);
-        _view.SetStatus(problem, LauncherStatusSeverity.Error);
+        _view.SetStatus(UserFacingLaunchProblem(markerPhase, problem), LauncherStatusSeverity.Error);
         _view.ShowHomeHelpAction();
         _view.AppendLog(problem);
         if (writePatchLog)
@@ -148,6 +139,28 @@ internal sealed partial class LauncherLaunchCoordinator
         var exceptionName = exception?.GetType().Name ?? "Exception";
         var message = CleanExceptionMessage(exception?.Message);
         return $"Launch blocked: {phase} ({exceptionName}: {message})";
+    }
+
+    private static string UserFacingLaunchProblem(string markerPhase, string fallback)
+    {
+        if (string.Equals(markerPhase, LauncherLaunchAttemptPhases.ModReadinessFailed, StringComparison.Ordinal))
+            return "Mods could not be prepared. Try Play Vanilla. If that works, re-enable mods one at a time.";
+
+        if (string.Equals(markerPhase, LauncherLaunchAttemptPhases.LaunchHandoffNotRequested, StringComparison.Ordinal)
+            || string.Equals(markerPhase, LauncherLaunchAttemptPhases.LaunchHandoffFailed, StringComparison.Ordinal)
+            || string.Equals(markerPhase, LauncherLaunchAttemptPhases.InProcessSignalFailed, StringComparison.Ordinal))
+            return "Game files are ready, but the game did not appear. Return to the launcher and try Safe Start. If it happens again, create a support report.";
+
+        if (string.Equals(markerPhase, LauncherLaunchAttemptPhases.ReadinessFailed, StringComparison.Ordinal)
+            || string.Equals(markerPhase, LauncherLaunchAttemptPhases.Blocked, StringComparison.Ordinal)
+            || string.Equals(markerPhase, LauncherLaunchAttemptPhases.BlockedInModel, StringComparison.Ordinal)
+            || string.Equals(markerPhase, LauncherLaunchAttemptPhases.RestartRequestedWithoutReadyFiles, StringComparison.Ordinal))
+            return "Game preparation failed. Repair selected branch, then try again. If it happens again, create a new support report.";
+
+        if (string.Equals(markerPhase, LauncherLaunchAttemptPhases.SetupFailed, StringComparison.Ordinal))
+            return "Launch setup failed. Try again. If it happens again, create a new support report.";
+
+        return fallback;
     }
 
     private static string CleanExceptionMessage(string message)
@@ -195,7 +208,7 @@ internal sealed partial class LauncherLaunchCoordinator
 
         SetLaunchInProgress(false);
         _view.SetStatus(
-            "Game handoff ended. The launcher is ready for another launch.",
+            "The game did not appear. Try Safe Start. If it happens again, create a support report.",
             LauncherStatusSeverity.Warning
         );
         _view.ShowHomeHelpAction();

@@ -10,7 +10,7 @@ body:
 
         This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
-        Do not post Steam passwords, Steam Guard codes, refresh tokens, private save files, or full unsanitized logs.
+        Create a support report from Help → Diagnostics when possible, then review it before sharing. Do not post Steam passwords, Steam Guard codes, refresh/session tokens, private save files, or full unsanitized logs.
   - type: textarea
     id: summary
     attributes:
@@ -83,7 +83,7 @@ body:
     id: evidence
     attributes:
       label: Logs, screenshots, or diagnostics
-      description: Attach focused evidence. For crashes, include 200-300 lines around the primary exception.
+      description: Attach the generated support report and focused evidence. For crashes, include 200-300 lines around the primary exception. Review/redact account identifiers and private paths first.
       value: |
         Attached:
         Sync action, automatic / Sync now / Pull / Push:
@@ -91,6 +91,8 @@ body:
         Relevant logcat markers:
         Screenshot/screen recording:
         Launcher diagnostics/report file:
+        Selected installation state / GameIdentity ID, if shown:
+        Launch-attempt ID / handoff events, if shown:
     validations:
       required: true
   - type: checkboxes
@@ -100,5 +102,5 @@ body:
       options:
         - label: I checked whether a more focused issue template fits this report.
           required: true
-        - label: I removed Steam credentials, Steam Guard codes, refresh tokens, private account details, and full unsanitized logs.
+        - label: I reviewed the support report/logs and removed Steam credentials, Steam Guard codes, refresh/session tokens, private account details, private save contents, and full unsanitized logs.
           required: true

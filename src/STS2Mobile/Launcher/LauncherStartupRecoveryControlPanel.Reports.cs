@@ -51,8 +51,8 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 
         private string Message()
             => File.Shared
-                ? $"Help report ready and share sheet opened.\n\nSaved at:\n{File.Path}"
-                : $"Help report ready, but the share sheet did not open.\n\nSaved at:\n{File.Path}";
+                ? "Support report ready. The share sheet is open. Review the report before sending it."
+                : "Support report ready, but the share sheet did not open. Return to the launcher and use Create support report.";
 
         internal static string MessageFor(LauncherSharedTextFile file)
             => new DiagnosticsExportResult(file).Message();

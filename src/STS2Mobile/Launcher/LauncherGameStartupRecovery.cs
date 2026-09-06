@@ -7,7 +7,6 @@ namespace STS2Mobile.Launcher;
 
 internal static partial class LauncherGameStartupRecovery
 {
-    private const int MainMenuForceTimeoutMs = 15_000;
     private const int GameVisibilityConfirmationTimeoutMs = 15_000;
     internal static void MarkGameStartupCompleted(object game, Node gameNode)
         => WriteSuccessfulPostStartupEvidence(
@@ -24,14 +23,21 @@ internal static partial class LauncherGameStartupRecovery
     )
     {
         var ui = RecoveryUi.For(gameNode, startupStatus, attemptId);
-        var mainMenuPresent = await EnsureMainMenuAfterStartupAsync(
-            game,
-            gameNode,
-            startupStatus,
-            MainMenuForceTimeoutMs
-        );
-        if (!mainMenuPresent)
-            return HandleMainMenuGuardFailure(ui);
+        var operation = LauncherHandoffStateOwner.Shared.GetOperation(attemptId);
+        using (var stage = new LauncherStartupStageScope(gameNode, operation, TimeSpan.FromMilliseconds(GameVisibilityConfirmationTimeoutMs)))
+        {
+            while (true)
+            {
+                var scene = LauncherGameSceneReadiness.GetCurrentReadyScene(game, attemptId);
+                if (scene != null)
+                {
+                    operation.SetStage(LauncherStartupStage.WaitingForVisibleFrame);
+                    await stage.PostDrawAsync();
+                    if (LauncherGameSceneReadiness.TryConfirmRendered(game, attemptId, scene)) break;
+                }
+                await stage.ProcessFrameAsync();
+            }
+        }
 
         return await CompleteReadyMainMenuHandoffAsync(
             ui,
@@ -75,18 +81,12 @@ internal static partial class LauncherGameStartupRecovery
     }
 
     internal static async Task CompleteMainMenuHandoffAsync(
-        Func<Task<bool>> prepareAsync,
-        Action markObserved,
-        Func<Task> holdLifetimeAsync
-    )
+        Func<Task<bool>> prepareAsync, Action markObserved, Func<Task> holdLifetimeAsync)
     {
         ArgumentNullException.ThrowIfNull(prepareAsync);
         ArgumentNullException.ThrowIfNull(markObserved);
         ArgumentNullException.ThrowIfNull(holdLifetimeAsync);
-
-        if (!await prepareAsync())
-            return;
-
+        if (!await prepareAsync()) return;
         markObserved();
         await holdLifetimeAsync();
     }

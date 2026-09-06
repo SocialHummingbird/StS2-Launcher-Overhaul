@@ -24,6 +24,9 @@ internal static partial class LauncherButtonStyles
     )
     {
         ApplySupportAction(button, scale);
+        button.FitToLongestItem = false;
+        button.ClipText = true;
+        button.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
         var scaledFontSize = LauncherComponentTheme.ScaleInt(scale, fontSize);
         button.AddThemeFontSizeOverride(LauncherComponentTheme.FontSize, scaledFontSize);
 

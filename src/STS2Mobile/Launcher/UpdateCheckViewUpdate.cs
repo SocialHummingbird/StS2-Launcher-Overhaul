@@ -27,28 +27,28 @@ internal readonly struct UpdateCheckViewUpdate
     internal static UpdateCheckViewUpdate Completed(bool hasUpdate, string selectedVersion)
         => hasUpdate
             ? new(
-                logMessage: $"Update available for selected game version ({selectedVersion}).",
-                status: $"Update available for selected game version ({selectedVersion}).",
+                logMessage: $"Update available for the selected Steam branch ({selectedVersion}).",
+                status: $"Update available for the selected Steam branch ({selectedVersion}). The new files will be checked before replacement.",
                 statusSeverity: LauncherStatusSeverity.Warning,
                 primaryAction: LauncherVersionPrimaryAction.UpdateSelectedVersion,
                 outcome: LauncherVersionCheckOutcome.UpdateAvailable
             )
             : new(
-                logMessage: $"Selected game version is up to date ({selectedVersion}).",
+                logMessage: $"Selected Steam branch is up to date ({selectedVersion}).",
                 outcome: LauncherVersionCheckOutcome.UpToDate
             );
 
     internal static UpdateCheckViewUpdate Failed(string message, string selectedVersion)
         => new(
-            logMessage: $"Update check failed for selected game version ({selectedVersion}): {message}",
-            status: $"Update check failed for selected game version ({selectedVersion}): {message}",
+            logMessage: $"Update check failed for the selected Steam branch ({selectedVersion}): {message}",
+            status: $"Update check failed for the selected Steam branch ({selectedVersion}). Try again.",
             statusSeverity: LauncherStatusSeverity.Error
         );
 
     internal static UpdateCheckViewUpdate Blocked(string message, string selectedVersion)
         => new(
-            logMessage: $"Update check blocked for selected game version ({selectedVersion}): {message}",
-            status: $"Update check blocked for selected game version ({selectedVersion}): {message}",
+            logMessage: $"Update check blocked for the selected Steam branch ({selectedVersion}): {message}",
+            status: $"Update check blocked for the selected Steam branch ({selectedVersion}): {message}",
             statusSeverity: LauncherStatusSeverity.Warning
         );
 

@@ -27,6 +27,7 @@ internal sealed class LaunchAttemptContext
     internal Stopwatch ModReadinessTimer { get; private set; }
     internal string Branch { get; }
     internal LauncherLaunchReadiness PendingReadiness { get; }
+    internal LauncherRestartRequest RestartRequest { get; set; }
 
     internal void StartReadinessTiming()
         => ReadinessTimer = Stopwatch.StartNew();

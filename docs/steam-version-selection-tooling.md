@@ -18,6 +18,15 @@ This runs twelve focused desktop behaviors: local path containment; atomic local
 
 The policy tests use one in-memory `FakeSaveRemote`. It does not prove Steam Cloud or Android transport.
 
+## Runtime identity, branch update, and launcher handoff
+
+```powershell
+dotnet run --project tests\STS2Mobile.GameIdentityTests\STS2Mobile.GameIdentityTests.csproj -c Release
+.\android\gradlew.bat testReleaseUnitTest
+```
+
+The managed suite covers actual-file `GameIdentity`, generation-bound PCK caching, transactional N → N+1 branch updates, interruption recovery, stale-evidence rejection, runtime-pack validation/promotion/rollback, selected-branch cleanup, save/credential/branch isolation, and attempt-bound handoff permutations. The Android unit tests independently exercise native runtime-pack and handoff-event contracts. These tests do not replace physical-device validation.
+
 ## Launcher navigation and mod activation
 
 ```powershell

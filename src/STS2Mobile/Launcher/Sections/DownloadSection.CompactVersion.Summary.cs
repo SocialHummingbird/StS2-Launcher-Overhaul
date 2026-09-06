@@ -23,7 +23,8 @@ internal sealed partial class DownloadSection
             : CompactVersionHelpBranchLimit;
 
         return $"Files for: {SteamGameBranch.CompactDisplayName(_gameBranch, branchLimit)} | {CompactInstallFileScope(_gameBranch)}\n"
-            + LauncherBranchCatalog.SelectedOptionCompactStatus(_gameBranch, _availableBranches);
+            + LauncherBranchCatalog.SelectedOptionCompactStatus(_gameBranch, _availableBranches)
+            + "\nChecked before replacement; saves and other branches stay in place";
     }
 
     private static string CompactInstallFileScope(string branch)

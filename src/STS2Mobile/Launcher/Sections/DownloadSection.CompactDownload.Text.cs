@@ -66,8 +66,9 @@ internal sealed partial class DownloadSection
             return ("Download Version", "Local files only");
 
         if (string.Equals(normalized, "REDOWNLOAD SELECTED VERSION", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(normalized, "REDOWNLOAD VERSION", StringComparison.OrdinalIgnoreCase))
-            return ("Redownload Version", "Rebuild local files");
+            || string.Equals(normalized, "REDOWNLOAD VERSION", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalized, "REPAIR SELECTED BRANCH", StringComparison.OrdinalIgnoreCase))
+            return ("Redownload Version", "Selected files only");
 
         if (string.Equals(normalized, "RETRY DOWNLOAD", StringComparison.OrdinalIgnoreCase))
             return ("Retry Download", "Local files only");

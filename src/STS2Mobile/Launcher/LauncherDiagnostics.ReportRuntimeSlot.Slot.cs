@@ -38,6 +38,7 @@ internal static partial class LauncherDiagnostics
         sb.AppendLine($"Selected runtime depot manifest fingerprint: {slot.Metadata.DepotManifestFingerprint}");
         sb.AppendLine($"Selected runtime identity summary: {slot.Metadata.IdentitySummary}");
         sb.AppendLine($"Selected game identity ID: {slot.GameIdentityId}");
+        sb.AppendLine($"Selected game identity problem: {ValueOrMissing(slot.GameIdentityProblem)}");
         sb.AppendLine($"Selected runtime source sts2.dll path: {slot.SourceAssemblyPath}");
         sb.AppendLine($"Selected runtime source sts2.dll exists: {BoolText(slot.SourceAssemblyExists)}");
         sb.AppendLine($"Selected runtime source sts2.dll SHA256: {slot.SourceAssemblySha256}");

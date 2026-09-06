@@ -19,10 +19,10 @@ internal static partial class LauncherBranchCatalog
             && string.Equals(option.Source, "saved selection", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(selectedBranch, SteamGameBranch.Public, StringComparison.OrdinalIgnoreCase)
         )
-            return "Selected saved branch was not listed in the latest Steam app-info catalog for this account. It may be stale, private, inaccessible, password-protected, or unavailable; Refresh Game Versions again or choose an account-visible branch before downloading.";
+            return "Steam did not list this branch for the signed-in account. Refresh versions or choose a listed branch.";
 
         return string.IsNullOrWhiteSpace(option.Branch)
-            ? "Steam app-info metadata is unavailable for the selected game version."
+            ? "Steam details are unavailable for the selected branch. Refresh versions."
             : option.StatusText;
     }
 
@@ -107,14 +107,14 @@ internal static partial class LauncherBranchCatalog
 
         if (string.IsNullOrWhiteSpace(option.Branch))
             return hasRefreshedCatalog
-                ? "Download blocked: selected saved branch was not listed in the latest Steam app-info catalog for this account. Refresh Game Versions again or choose an account-visible branch."
+                ? "Download blocked: Steam did not list the selected branch for this account. Refresh versions or choose a listed branch."
                 : "";
 
         if (option.PasswordRequired.Equals("true", StringComparison.OrdinalIgnoreCase))
-            return "Download blocked: selected branch is password-protected, and Steam beta password entry is not implemented yet.";
+            return "Download blocked: Steam requires a branch password, which this launcher cannot enter.";
 
         if (option.WindowsManifestDepotCount <= 0)
-            return "Download blocked: selected branch has no Windows depot manifest visible to this Steam account.";
+            return "Download blocked: Steam did not provide downloadable Windows files for this branch.";
 
         return "";
     }

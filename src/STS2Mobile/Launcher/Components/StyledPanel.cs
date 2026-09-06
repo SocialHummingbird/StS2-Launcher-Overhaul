@@ -5,8 +5,8 @@ namespace STS2Mobile.Launcher.Components;
 
 internal sealed class StyledPanel : CenterContainer
 {
-    private const int CompactPanelHorizontalMargin = 10;
-    private const int CompactPanelTopMargin = 10;
+    private const int CompactPanelHorizontalMargin = 20;
+    private const int CompactPanelTopMargin = 20;
     private const int CompactPanelBottomMargin = 12;
     private const float MaxWidth = 1400f;
     private const float MaxHeight = 2200f;
@@ -15,6 +15,7 @@ internal sealed class StyledPanel : CenterContainer
 
     internal StyledPanel(float scale, float widthRatio = 0.7f, bool compact = false)
     {
+        _scale = scale;
         SetAnchorsPreset(LayoutPreset.FullRect);
 
         var vpSize = new Vector2(1920, 1080); // fallback, overridden after AddChild
@@ -43,6 +44,7 @@ internal sealed class StyledPanel : CenterContainer
     private readonly StyleBoxFlat _panelStyle;
     private readonly float _widthRatio;
     private readonly bool _compact;
+    private readonly float _scale;
     private readonly float _baseContentMarginLeft;
     private readonly float _baseContentMarginRight;
     private readonly float _baseContentMarginTop;
@@ -81,7 +83,7 @@ internal sealed class StyledPanel : CenterContainer
     private float ConstrainWidth(Vector2 vpSize)
         => _compact
             ? vpSize.X * _widthRatio
-            : Math.Min(vpSize.X * _widthRatio, MaxWidth);
+            : Math.Min(vpSize.X * _widthRatio, MaxWidth * _scale);
 
     private float ConstrainHeight(Vector2 vpSize, float heightRatio)
         => _compact
@@ -97,8 +99,9 @@ internal sealed class StyledPanel : CenterContainer
             LauncherComponentTheme.PanelBackground,
             LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.PanelRadius)
         );
-        style.BorderColor = new Color(0.05f, 0.5f, 0.58f, 0.55f);
-        style.SetBorderWidthAll(Math.Max(1, LauncherComponentTheme.ScaleInt(scale, 1)));
+        style.BorderColor = LauncherComponentTheme.ButtonHover;
+        style.SetBorderWidthAll(compact ? 0 : 1);
+        if (compact) style.SetCornerRadiusAll(0);
         var horizontalMargin = compact ? CompactPanelHorizontalMargin : LauncherComponentTheme.PanelHorizontalMargin;
         var topMargin = compact ? CompactPanelTopMargin : LauncherComponentTheme.PanelTopMargin;
         var bottomMargin = compact ? CompactPanelBottomMargin : LauncherComponentTheme.PanelBottomMargin;

@@ -25,7 +25,9 @@ internal sealed partial class LauncherView
         Action savePushPressed,
         Action workshopSyncPressed,
         Action workshopClearPressed,
-        Action modsSelectionChanged = null
+        Action modsSelectionChanged = null,
+        Action reportBugPressed = null,
+        Action checkAppUpdatesPressed = null
     )
     {
         Login.LoginRequested += loginRequested;
@@ -45,6 +47,10 @@ internal sealed partial class LauncherView
         Actions.DiagnosticsPressed += diagnosticsPressed;
         Actions.ShowLastErrorPressed += showLastErrorPressed;
         Actions.CopyRawLogPressed += copyRawLogPressed;
+        if (reportBugPressed != null)
+            Actions.ReportBugPressed += reportBugPressed;
+        if (checkAppUpdatesPressed != null)
+            Actions.CheckAppUpdatesPressed += checkAppUpdatesPressed;
         Actions.SafeLaunchPressed += safeLaunchPressed;
         Actions.SaveSyncNowPressed += saveSyncNowPressed;
         Actions.SavePullPressed += savePullPressed;

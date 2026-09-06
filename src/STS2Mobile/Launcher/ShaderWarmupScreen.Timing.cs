@@ -10,8 +10,4 @@ internal sealed partial class ShaderWarmupScreen
         await LauncherAsyncYield.FramePostDrawAsync(deadline);
     }
 
-    private async Task WaitFinishDelayAsync(LauncherMonotonicDeadline deadline)
-    {
-        await LauncherAsyncYield.DelayAsync(TimeSpan.FromSeconds(0.5), deadline);
-    }
 }

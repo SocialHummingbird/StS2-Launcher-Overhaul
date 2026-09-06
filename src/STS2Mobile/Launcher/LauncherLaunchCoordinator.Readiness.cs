@@ -1,22 +1,39 @@
 using System;
+using System.Threading.Tasks;
+using STS2Mobile.Steam;
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherLaunchCoordinator
 {
-    private bool TryEvaluateSelectedLaunchReadiness(
+    private async Task<LauncherLaunchReadiness> EvaluateLaunchReadinessAsync(
         LauncherStartGamePlan plan,
         LaunchAttemptContext attempt,
-        out LauncherLaunchReadiness readiness
+        LauncherPreparationOverlay interactionLock
     )
     {
-        readiness = null;
+        LauncherLaunchReadiness readiness = null;
         attempt.StartReadinessTiming();
         try
         {
-            readiness = EvaluateSelectedLaunchReadiness(attempt.Branch, plan);
+            using var stage = new LauncherStartupStageScope(_view.LaunchLifetimeHost,
+                LauncherHandoffStateOwner.Shared.GetOperation(attempt.AttemptId), TimeSpan.FromSeconds(60));
+            await stage.ProcessFrameAsync();
+            await stage.PostDrawAsync();
+            var preparation = Task.Run(() =>
+            {
+                var prepared = EvaluateSelectedLaunchReadiness(attempt.Branch, plan);
+                if (prepared.Ready) attempt.RestartRequest?.ValidateReadiness(prepared);
+                return prepared;
+            });
+            readiness = await LauncherPreparationLifetime.RunAsync(preparation, stage.WaitAsync,
+                () => ShowPreparationDraining(interactionLock), ObservePreparationFailure);
+            if (!IsCurrentAttempt(attempt)) return null;
+            if (SteamGameBranch.Normalize(LauncherPreferences.ReadGameBranch()) != attempt.Branch)
+                throw new InvalidOperationException("The selected game version changed while preparing launch. Press Play again.");
         }
         catch (Exception ex)
         {
+            if (!IsCurrentAttempt(attempt)) return null;
             attempt.StopReadinessTiming();
             attempt.StopAttemptTiming();
             var problem = LaunchExceptionProblem("selected-version readiness check failed", ex);
@@ -33,7 +50,7 @@ internal sealed partial class LauncherLaunchCoordinator
                 attempt.AttemptId,
                 writePatchLog: true
             );
-            return false;
+            return null;
         }
         attempt.StopReadinessTiming();
         if (!readiness.Ready)
@@ -53,12 +70,17 @@ internal sealed partial class LauncherLaunchCoordinator
                 attempt.AttemptId,
                 writePatchLog: false
             );
-            return false;
+            return null;
         }
 
         LauncherLaunchMarkers.RecordPhase(plan.ReadinessPassedPhase, $"branch={attempt.Branch}");
-        return true;
+        return readiness;
     }
+
+    private bool IsCurrentAttempt(LaunchAttemptContext attempt)
+        => ReferenceEquals(_activeLaunchAttempt, attempt)
+            && LauncherHandoffStateOwner.Shared.Capture().AttemptId == attempt.AttemptId
+            && LauncherHandoffStateOwner.Shared.Capture().State == LauncherHandoffState.HandoffPending;
 
     private LauncherLaunchReadiness EvaluateSelectedLaunchReadiness(
         string branch,

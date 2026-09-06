@@ -28,6 +28,8 @@ internal static partial class LauncherStartupFlow
         private Label Status { get; }
         private StartupMode Mode { get; }
         private string AttemptId { get; }
+        private LauncherStartupOperation Operation => LauncherHandoffStateOwner.Shared.GetOperation(AttemptId)
+            ?? throw new System.OperationCanceledException("The launch attempt has been replaced.");
 
         internal bool ShouldSkipShaderWarmup()
             => Mode.ShouldSkipShaderWarmup();
@@ -40,6 +42,12 @@ internal static partial class LauncherStartupFlow
 
         internal void SetPhase(string phase, string status)
         {
+            Operation.SetStage(phase switch
+            {
+                PhaseGameStartup => LauncherStartupStage.Starting,
+                PhaseSettingsAndSaves => LauncherStartupStage.SynchronizingSaves,
+                _ => LauncherStartupStage.Preparing,
+            });
             LauncherLaunchMarkers.WriteStartupPhase(phase);
             LauncherStartupStatus.Set(Status, status);
         }
@@ -60,22 +68,10 @@ internal static partial class LauncherStartupFlow
 
         internal async Task WaitForVisibleStartupFrameAsync(string reason)
         {
-            try
-            {
-                var tree = GameNode.GetTree();
-                if (tree == null)
-                    return;
-
-                PatchHelper.Log($"Waiting for rendered startup frame: {reason}");
-                await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
-                await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
-                await tree.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-                PatchHelper.Log($"Rendered startup frame completed: {reason}");
-            }
-            catch (System.Exception ex)
-            {
-                PatchHelper.Log($"Startup frame wait skipped for {reason}: {ex.Message}");
-            }
+            using var stage = new LauncherStartupStageScope(GameNode, Operation, System.TimeSpan.FromSeconds(15));
+            PatchHelper.Log($"Waiting for rendered startup frame: {reason}");
+            await stage.ProcessFrameAsync();
+            await stage.PostDrawAsync();
         }
     }
 }

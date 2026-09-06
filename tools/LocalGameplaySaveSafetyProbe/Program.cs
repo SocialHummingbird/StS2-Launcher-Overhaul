@@ -109,13 +109,17 @@ internal static class Program
                 Directory.CreateDirectory(Path.GetDirectoryName(sourceAssemblyPath)!);
                 WriteValidFixturePck(pckPath);
                 File.WriteAllBytes(sourceAssemblyPath, new byte[] { 1 });
+                // File publication precedes the completion marker, as in an
+                // installed generation. Identity rejects files newer than it.
+                File.SetLastWriteTimeUtc(pckPath, DateTime.UtcNow.AddMinutes(-2));
+                File.SetLastWriteTimeUtc(sourceAssemblyPath, DateTime.UtcNow.AddMinutes(-2));
                 File.WriteAllLines(
                     SteamGameInstallPaths.BranchMarkerPath(root, selectedBranch),
                     new[]
                     {
                         $"{LauncherBranchMarkerFields.Branch} {selectedBranch}",
                         $"{LauncherBranchMarkerFields.DepotManifestCount} 1",
-                        $"{LauncherBranchMarkerFields.DepotManifestRow} 2868840:123",
+                        $"{LauncherBranchMarkerFields.DepotManifestRow} depot=2868840 manifest=123 branch={selectedBranch} manifestSource=selected",
                         $"{LauncherBranchMarkerFields.DepotsMatchingPublic} 0",
                         $"{LauncherBranchMarkerFields.DepotsDifferingFromPublic} 1",
                         $"{LauncherBranchMarkerFields.DepotsWithoutPublicComparison} 0",
@@ -124,6 +128,17 @@ internal static class Program
                         $"{LauncherBranchMarkerFields.InstallSlotKind} {SteamGameInstallPaths.VersionSlotKind(selectedBranch)}",
                         $"{LauncherBranchMarkerFields.InstallSlotDirectory} {slotDirectory}",
                     }
+                );
+
+                var identity = GameIdentityReader.ReadInstalled(root, selectedBranch);
+                var depots = new[] { new BranchInstallDepot(2868840, 123, "selected") };
+                var transactionId = Guid.NewGuid();
+                BranchInstallStateStore.Current.BeginUpdating(
+                    root, selectedBranch, transactionId, "selected-version-probe", depots
+                );
+                BranchInstallStateStore.Current.CommitReady(
+                    root, selectedBranch, transactionId, identity, depots,
+                    AndroidPckPreparationVersions.V2
                 );
 
                 var readiness = LauncherLaunchReadiness.EvaluateDownloadedState(

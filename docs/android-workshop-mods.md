@@ -34,7 +34,7 @@ The Mods page reads the persisted selection and discovered files as soon as it o
 - Workshop item IDs and selected mod order.
 - Files present for each mod.
 - Dependency or unsupported-item warnings.
-- Selected PCK and runtime-pack hashes.
+- Selected `GameIdentity` ID, PCK hash, source `sts2.dll` hash, runtime-pack ID, and patched `sts2.dll` hash.
 - Focused logs around mod discovery and initialization.
 - Whether the game reached the main menu and whether the expected local profile was visible.
 

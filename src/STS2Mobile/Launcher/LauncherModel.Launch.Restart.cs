@@ -6,32 +6,6 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
-    private bool TrySafeAndroidRestart(
-        LauncherLaunchReadiness readiness,
-        LauncherModLaunchReadiness modReadiness,
-        string launchSource,
-        string attemptId,
-        Func<LauncherLaunchAttemptTiming> timingSnapshot
-    )
-    {
-        if (!OperatingSystem.IsAndroid() || readiness?.Ready != true)
-            return false;
-
-        PatchHelper.Log(RestartMessage(safe: true));
-        WriteBridgeLaunchAttempt(
-            LauncherLaunchAttemptPhases.SafeAndroidRestartRequested,
-            "safe",
-            launchSource,
-            attemptId,
-            readiness,
-            modReadiness,
-            timingSnapshot(),
-            "Android bridge safe restart requested from prepared readiness"
-        );
-        AndroidGodotAppBridge.LaunchGameSafelyOnRestart();
-        return true;
-    }
-
     private LauncherLaunchHandoffResult RestartForLaunch(
         bool safe,
         LauncherLaunchReadiness readiness,
@@ -52,33 +26,19 @@ internal partial class LauncherModel
             );
         }
 
-        if (safe)
-        {
-            WriteBridgeLaunchAttempt(
-                LauncherLaunchAttemptPhases.RestartRequested,
-                "safe",
-                launchSource,
-                attemptId,
-                readiness,
-                modReadiness,
-                timingSnapshot(),
-                "Restarting app for safe game launch"
-            );
-            AndroidGodotAppBridge.LaunchGameSafelyOnRestart();
-            return LauncherLaunchHandoffResult.Success(LauncherLaunchAttemptPhases.RestartRequested);
-        }
+        var acceptance = AndroidGodotAppBridge.RequestLaunchRestart(
+            LauncherRestartRequest.Create(attemptId, safe, readiness));
+        if (!acceptance.Accepted)
+            return LauncherLaunchHandoffResult.Failed(
+                LauncherLaunchAttemptPhases.LaunchHandoffFailed,
+                string.IsNullOrWhiteSpace(acceptance.Error) ? "Android rejected the restart request." : acceptance.Error,
+                writePatchLog: true);
 
         WriteBridgeLaunchAttempt(
             LauncherLaunchAttemptPhases.RestartRequested,
-            "normal",
-            launchSource,
-            attemptId,
-            readiness,
-            modReadiness,
-            timingSnapshot(),
-            "Restarting app to launch selected game version"
-        );
-        AndroidGodotAppBridge.LaunchGameOnRestart();
+            safe ? "safe" : "normal", launchSource, attemptId, readiness, modReadiness,
+            timingSnapshot(), "Android accepted the durable restart request");
+        AndroidGodotAppBridge.FinishLaunchRestart(attemptId);
         return LauncherLaunchHandoffResult.Success(LauncherLaunchAttemptPhases.RestartRequested);
     }
 

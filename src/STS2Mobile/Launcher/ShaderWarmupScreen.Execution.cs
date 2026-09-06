@@ -85,7 +85,6 @@ internal sealed partial class ShaderWarmupScreen
                     scan.Diagnostics.ToEvidenceLines()
                 )
             );
-            await WaitFinishDelayAsync(warmup.Deadline);
             return;
         }
 
@@ -104,7 +103,6 @@ internal sealed partial class ShaderWarmupScreen
                 scan.Diagnostics.ToEvidenceLines()
             )
         );
-        await WaitFinishDelayAsync(warmup.Deadline);
     }
 
     private async Task<ShaderWarmupMaterialScanner.ShaderWarmupMaterialScanResult> CollectWarmupMaterialsAsync(

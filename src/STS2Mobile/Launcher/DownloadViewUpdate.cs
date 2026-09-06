@@ -79,7 +79,7 @@ internal readonly struct DownloadViewUpdate
     )
         => new(
             status: filesReady
-                ? $"Selected game version downloaded ({selectedVersion}). Start game when ready."
+                ? $"Selected version prepared and checked ({selectedVersion}). Runtime preparation is checked again before launch."
                 : readinessProblem,
             statusSeverity: filesReady
                 ? LauncherStatusSeverity.Ready
@@ -95,7 +95,7 @@ internal readonly struct DownloadViewUpdate
         => string.IsNullOrEmpty(message)
             ? new(resetDownload: true)
             : new(
-                status: $"Download failed for selected game version ({selectedVersion}): {message}",
+                status: $"Download failed for the selected branch ({selectedVersion}). Try again. If it repeats, create a new support report.",
                 statusSeverity: LauncherStatusSeverity.Error,
                 resetDownloadButton: LauncherDownloadCoordinator.RetryDownloadButtonText
             );

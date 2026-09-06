@@ -7,7 +7,7 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
 {
     private static Label CreateTitle(float scale)
         => CreateLabel(
-            "Game is starting...",
+            "Waiting for the game...",
             LauncherComponentTheme.ScaleInt(scale, TitleFontSize),
             TitleColor
         );
@@ -16,8 +16,8 @@ internal sealed partial class LauncherStartupRecoveryControlPanel
     {
         var detail = CreateLabel(
             compact
-                ? "If startup stalls, restart the app, try Safe Start, or create a help report. Review logs before sharing."
-                : "If this screen does not change, create a help report, copy the launcher log for local review, or restart with safe launch. Logs can contain identifying data; review/redact before sharing. These controls hide automatically after a successful startup.",
+                ? "If the game does not appear, return to the launcher and try Safe Start. Create a support report if it repeats."
+                : "If the game does not appear, return to the launcher and try Safe Start. Create a support report if it repeats. Repair files only when the launcher reports a preparation failure. Review diagnostics before sharing.",
             LauncherComponentTheme.ScaleInt(scale, DetailFontSize),
             DetailColor
         );

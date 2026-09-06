@@ -26,7 +26,7 @@ internal static partial class LauncherGameFiles
         if (!total.HasValue)
             return "Selected branch integrity evidence is incomplete; depot manifest count is missing.";
         if (!provenance.IsComplete)
-            return "Selected branch integrity evidence is incomplete; public-vs-selected depot comparison fields are missing. Redownload selected version to rebuild beta integrity evidence.";
+            return "Selected branch integrity evidence is incomplete; public-vs-selected depot comparison fields are missing. Repair the selected branch to rebuild beta integrity evidence.";
 
         if (inheritedPublic.GetValueOrDefault() > 0 && differingPublic.GetValueOrDefault() > 0)
         {

@@ -11,7 +11,7 @@ internal sealed partial class ActionSection
     {
         _scale = scale;
         _compact = compact;
-        _compactStackedActionRows = compact && compactStackedActionRows;
+        _compactStackedActionRows = compactStackedActionRows;
         LauncherSectionSetup.ConfigureHiddenSection(
             this,
             scale,
@@ -22,18 +22,21 @@ internal sealed partial class ActionSection
             "Play safely"
         );
 
-        var toggleRadius = (int)(4 * scale);
+        var toggleRadius = (int)(10 * scale);
         var toggleBorderWidth = Math.Max(1, (int)(2 * scale));
         _toggleOffStyle = LauncherStyleBoxes.MakeOutline(
-            new Color(0.7f, 0.25f, 0.25f),
+            LauncherComponentTheme.ButtonHover,
             toggleRadius,
             toggleBorderWidth
         );
         _toggleOnStyle = LauncherStyleBoxes.MakeOutline(
-            new Color(0.25f, 0.65f, 0.3f),
+            LauncherComponentTheme.OrangeAccent,
             toggleRadius,
             toggleBorderWidth
         );
+
+        _toggleOffStyle.BgColor = LauncherComponentTheme.ButtonNormal;
+        _toggleOnStyle.BgColor = LauncherComponentTheme.ButtonHover;
 
         var supportToolsParent = BuildActionGroup(scale);
         supportToolsParent.Visible = false;

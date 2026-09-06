@@ -37,7 +37,7 @@ internal static partial class LauncherGameFiles
         if (!IsValidPck(pckPath))
         {
             PatchHelper.Log("[Launcher] Game files ready phase complete: validate PCK -> false");
-            problem = "Selected game version is not downloaded or the downloaded PCK is invalid. Download selected version to continue.";
+            problem = "Download the selected branch to continue.";
             return false;
         }
 
@@ -49,8 +49,8 @@ internal static partial class LauncherGameFiles
         }
         catch (GameIdentityException ex)
         {
-            problem = ex.Message;
-            PatchHelper.Log($"[Launcher] Game files ready phase complete: authoritative installed identity -> {ex.Kind}: {problem}");
+            problem = "The selected branch is incomplete. Repair selected branch, then download it again.";
+            PatchHelper.Log($"[Launcher] Game files ready phase complete: authoritative installed identity -> {ex.Kind}: {ex.Message}");
             return false;
         }
 
@@ -61,10 +61,11 @@ internal static partial class LauncherGameFiles
                 branch,
                 identity,
                 out _,
-                out problem
+                out var stateProblem
             ))
         {
-            PatchHelper.Log($"[Launcher] Game files ready phase complete: installation state -> blocked: {problem}");
+            PatchHelper.Log($"[Launcher] Game files ready phase complete: installation state -> blocked: {stateProblem}");
+            problem = "The selected branch is incomplete. Repair selected branch, then download it again.";
             identity = null;
             return false;
         }

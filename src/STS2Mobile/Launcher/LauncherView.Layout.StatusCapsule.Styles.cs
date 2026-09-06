@@ -12,7 +12,7 @@ internal sealed partial class LauncherView
             LauncherComponentTheme.StateNormal,
             BuildCompactStatusDetailButtonStyle(
                 scale,
-                new Color(0.025f, 0.045f, 0.06f, 0.76f),
+                LauncherComponentTheme.ButtonNormal,
                 new Color(0.05f, 0.34f, 0.42f, 0.4f)
             )
         );
@@ -20,7 +20,7 @@ internal sealed partial class LauncherView
             LauncherComponentTheme.StateHover,
             BuildCompactStatusDetailButtonStyle(
                 scale,
-                new Color(0.035f, 0.075f, 0.095f, 0.86f),
+                LauncherComponentTheme.ButtonNormal,
                 new Color(0.06f, 0.54f, 0.62f, 0.58f)
             )
         );
@@ -28,7 +28,7 @@ internal sealed partial class LauncherView
             LauncherComponentTheme.StatePressed,
             BuildCompactStatusDetailButtonStyle(
                 scale,
-                new Color(0.02f, 0.035f, 0.05f, 0.94f),
+                LauncherComponentTheme.ButtonNormal,
                 new Color(0.95f, 0.42f, 0.08f, 0.68f)
             )
         );
@@ -36,7 +36,7 @@ internal sealed partial class LauncherView
             LauncherComponentTheme.StateDisabled,
             BuildCompactStatusDetailButtonStyle(
                 scale,
-                new Color(0.025f, 0.035f, 0.045f, 0.48f),
+                LauncherComponentTheme.ButtonNormal,
                 new Color(0.05f, 0.16f, 0.2f, 0.24f)
             )
         );
@@ -60,10 +60,10 @@ internal sealed partial class LauncherView
     private static StyleBoxFlat BuildStatusStyle(float scale, bool compact)
     {
         var style = LauncherStyleBoxes.MakeFilled(
-            new Color(0.02f, 0.04f, 0.06f, 0.92f),
+            LauncherComponentTheme.ButtonNormal,
             LauncherViewLayoutMetrics.ScaleInt(8, scale)
         );
-        style.BorderColor = new Color(0.05f, 0.5f, 0.58f, 0.7f);
+        style.BorderColor = LauncherComponentTheme.ButtonHover;
         style.SetBorderWidthAll(Math.Max(1, LauncherViewLayoutMetrics.ScaleInt(1, scale)));
         style.ContentMarginLeft = LauncherViewLayoutMetrics.ScaleInt(compact ? 8 : 10, scale);
         style.ContentMarginRight = LauncherViewLayoutMetrics.ScaleInt(compact ? 8 : 10, scale);
@@ -75,10 +75,10 @@ internal sealed partial class LauncherView
     private static StyleBoxFlat BuildStatusPhaseStyle(float scale, bool compact)
     {
         var style = LauncherStyleBoxes.MakeFilled(
-            new Color(0.045f, 0.075f, 0.095f, 0.95f),
+            LauncherComponentTheme.ButtonNormal,
             LauncherViewLayoutMetrics.ScaleInt(7, scale)
         );
-        style.BorderColor = new Color(0.08f, 0.36f, 0.42f, 0.65f);
+        style.BorderColor = LauncherComponentTheme.ButtonHover;
         style.SetBorderWidthAll(Math.Max(1, LauncherViewLayoutMetrics.ScaleInt(1, scale)));
         style.ContentMarginLeft = LauncherViewLayoutMetrics.ScaleInt(compact ? CompactStatusPhaseHorizontalMargin : 8, scale);
         style.ContentMarginRight = LauncherViewLayoutMetrics.ScaleInt(compact ? CompactStatusPhaseHorizontalMargin : 8, scale);

@@ -18,7 +18,7 @@ internal sealed partial class ActionSection
         var stateLine = new StyledLabel(
             "Public · Vanilla saves · Not synced yet",
             scale,
-            fontSize: compact ? 15 : 16,
+            fontSize: compact ? 13 : 14,
             align: HorizontalAlignment.Left
         )
         {
@@ -28,7 +28,7 @@ internal sealed partial class ActionSection
         };
         stateLine.AddThemeColorOverride(
             LauncherViewLayoutMetrics.ThemeFontColor,
-            LauncherComponentTheme.TextPrimary
+            LauncherComponentTheme.TextSecondary
         );
         group.AddChild(stateLine);
 

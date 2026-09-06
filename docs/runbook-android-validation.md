@@ -1,23 +1,45 @@
 # Android validation runbook
 
-Updated: 2026-08-13
+Updated: 2026-08-22
 
-No device is currently connected. A limited `0.2.425` one-device run is recorded below; do not extend its result beyond the exact observed evidence or treat desktop results as physical-device proof.
+The exact `v0.2.429-issue38-arm64-rc4` device result is recorded below. Older deferred-preload and mod journeys remain specialized historical/incomplete procedures; they do not replace the current runtime/handoff validation or inherit RC4's result.
 
 ## Current procedure
 
 1. Record the source commit and working-tree state.
 2. Build `src/STS2Mobile/STS2Mobile.csproj` in Release configuration.
 3. Run `scripts/test-local-gameplay-save-safety.ps1`.
-4. Run `scripts/test-launcher-ui-preview.ps1` with the explicit local fixture
+4. Run `tests/STS2Mobile.GameIdentityTests` in Release configuration.
+5. Run `android/gradlew.bat testReleaseUnitTest`.
+6. Run `scripts/test-launcher-ui-preview.ps1` with the explicit local fixture
    paths shown in
    [Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-activation).
-5. If an APK is required, build it with `scripts/build-android-local.ps1` and inspect it with `scripts/verify-android-apk.ps1`.
-6. Record exact commands, exit codes, and failures.
+7. If an APK is required, build it with `scripts/build-android-local.ps1` and inspect it with `scripts/verify-android-apk.ps1`.
+8. Record exact commands, exit codes, and failures.
 
-The save suite covers local path containment, atomic writes, the four synchronization decisions, transactional Pull failure, retryable Push failure, pre-load ordering, gameplay Push queuing, and shared manual synchronization. Its fake remote is deterministic test infrastructure; it proves neither Steam nor Android transport. The launcher/mod test uses one desktop fixture and one interaction test; it does not prove Android mod activation or an in-game effect.
+The save suite covers local path containment, atomic writes, the four synchronization decisions, transactional Pull failure, retryable Push failure, pre-load ordering, gameplay Push queuing, and shared manual synchronization. The Issue #38 suite covers authoritative identity, transactional N → N+1 updates, interruption recovery, atomic runtime-pack promotion, selected-branch isolation, save/credential preservation, and attempt-bound handoff ordering. Fake remotes and desktop fixtures prove neither live Steam transport nor physical Android behavior.
 
-## Stage 3: deferred-preload A/B (waiting for one device)
+## v0.2.429 RC4 runtime and handoff result
+
+Exact artifact:
+
+```text
+Release: v0.2.429-issue38-arm64-rc4
+Asset: StS2Launcher-v0.2.429-issue38-arm64-rc4-arm64-v8a.apk
+Commit: 559251309f68659102bcabbf12e669f9512e7776
+Package: com.sts2launcher.overhaul.fork.local
+VersionCode: 429041
+SHA-256: b2d0e8154afc69e11eac4159483e837559e398844444a5d015d18f3fda458181
+Device: Samsung SM-F971B
+Android: 17 / API 37
+ABI: arm64-v8a
+```
+
+The APK installed over the existing application with `adb install -r`. Ten counted attempts passed: cold ×4, warm ×4, background/resume ×1, and lock/unlock ×1. Every attempt had a unique ID; exactly one `main_menu_ready`, `overlay_hidden`, and `handoff_completed`; current identity/runtime-pack/patch validation; a visible foreground game; no remaining launcher overlay; and no stale completion.
+
+The before/after preservation audit found local save inventories, Steam Cloud inventory, credentials, selected `public-beta` branch identity, and unrelated public branch/runtime data unchanged. This is the authoritative RC4 result. It does not prove the original Pixel 9/Xiaomi 17 Ultra flows, every branch/GPU/mod, live Steam transfer, or every update-interruption checkpoint.
+
+## Historical Stage 3: deferred-preload A/B (not run by RC4)
 
 Use only
 `artifacts/android/StS2Launcher-v0.2.427-deferred-preload-experiment-arm64-v8a.apk`
@@ -89,7 +111,7 @@ adb -s <serial> shell settings delete global sts2_deferred_preload_experiment
 Record a genuine process exit separately from a live-process freeze. Do not add
 another collector, mod, device, branch, or renderer to this comparison.
 
-## Stage 9: one-device mod acceptance (incomplete)
+## Historical Stage 9: one-device mod acceptance (incomplete)
 
 This is the only authorized mod-loading device journey. Do not begin a renderer,
 branch, mod, or device matrix until it passes.

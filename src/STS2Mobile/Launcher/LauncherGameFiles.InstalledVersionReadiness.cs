@@ -29,12 +29,17 @@ internal static partial class LauncherGameFiles
         string branch
     )
     {
+        InstalledGameVersionReadiness Blocked(string reason)
+        {
+            PatchHelper.Log($"[Launcher] Installed preparation blocked: branch={branch}; {reason}");
+            return InstalledGameVersionReadiness.RedownloadRequired;
+        }
         try
         {
             var normalizedBranch = SteamGameBranch.StorageIdentity(branch);
             var state = BranchInstallStateStore.Current.Read(dataDir, normalizedBranch);
             if (!state.IsReady)
-                return InstalledGameVersionReadiness.RedownloadRequired;
+                return Blocked($"install state={state.Status}; phase={state.Phase}");
 
             var classification = state.PckPreparationVersion switch
             {
@@ -43,16 +48,16 @@ internal static partial class LauncherGameFiles
                 _ => InstalledGameVersionReadiness.RedownloadRequired,
             };
             if (classification == InstalledGameVersionReadiness.RedownloadRequired)
-                return classification;
+                return Blocked($"unrecognized PCK preparation version={state.PckPreparationVersion}");
 
             if (!HasMatchingSteamProvenance(dataDir, normalizedBranch, state))
-                return InstalledGameVersionReadiness.RedownloadRequired;
+                return Blocked("Steam depot provenance does not match the completed install state");
 
             if (!HasRecognizedManagedFmodEntries(
                     SteamGameInstallPaths.GameDirectory(dataDir, normalizedBranch)
                 ))
             {
-                return InstalledGameVersionReadiness.RedownloadRequired;
+                return Blocked("PCK managed FMOD entries do not match the supported Android preparation");
             }
 
             var installedIdentity = GameIdentityReader.ReadInstalledReadOnly(
@@ -60,13 +65,13 @@ internal static partial class LauncherGameFiles
                 normalizedBranch
             );
             if (!state.MatchesReadyIdentity(installedIdentity))
-                return InstalledGameVersionReadiness.RedownloadRequired;
+                return Blocked("installed identity differs from the completed install state");
 
             return classification;
         }
-        catch
+        catch (Exception ex)
         {
-            return InstalledGameVersionReadiness.RedownloadRequired;
+            return Blocked($"{ex.GetType().Name}: {ex.Message}");
         }
     }
 

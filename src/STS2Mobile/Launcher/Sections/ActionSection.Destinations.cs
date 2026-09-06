@@ -33,6 +33,7 @@ internal sealed partial class ActionSection
         MoveTo(_homeDestination, _homeJourney);
         MoveTo(_homeDestination, _launchButton);
         MoveTo(_homeDestination, _retryButton);
+        _homeDestination.AddChild(BuildHomeShortcuts());
 
         MoveTo(_savesDestination, _saveSyncGroup);
 
@@ -47,6 +48,17 @@ internal sealed partial class ActionSection
         _helpDestination.AddChild(BuildHelpRecoveryGuidance());
         MoveTo(_helpDestination, _safeLaunchButton);
         MoveTo(_helpDestination, _rendererGroup);
+        var appUpdateLabel = new StyledLabel("App updates", _scale, fontSize: 14, align: HorizontalAlignment.Left);
+        appUpdateLabel.AddThemeColorOverride("font_color", LauncherComponentTheme.TextSecondary);
+        _helpDestination.AddChild(appUpdateLabel);
+        var appUpdate = new StyledButton("Check for app updates", _scale, height: LauncherSectionMetrics.SecondaryButtonHeight)
+        {
+            Name = "CheckAppUpdates",
+            TooltipText = "Check for a newer launcher APK. Download and install without opening GitHub.",
+        };
+        LauncherButtonStyles.ApplySupportAction(appUpdate, _scale);
+        appUpdate.Pressed += () => CheckAppUpdatesPressed?.Invoke();
+        _helpDestination.AddChild(appUpdate);
         _helpDestination.AddChild(BuildHelpDiagnosticsGroup());
 
         Visible = true;
@@ -113,7 +125,7 @@ internal sealed partial class ActionSection
     private Label BuildHelpRecoveryGuidance()
     {
         var guidance = new StyledLabel(
-            "If the game freezes or shows a black screen, try Safe Start.",
+            "If preparation requires a redownload, use Redownload selected version; do not uninstall or clear app data. If the game starts but does not appear, try Safe Start. Create a support report if either problem repeats.",
             _scale,
             fontSize: _compact ? 15 : 16,
             align: HorizontalAlignment.Left
@@ -162,7 +174,7 @@ internal sealed partial class ActionSection
         var actions = new GridContainer
         {
             Name = "HelpDiagnosticsActions",
-            Columns = _compactStackedActionRows ? 1 : 3,
+            Columns = _compactStackedActionRows ? 1 : 2,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         actions.AddThemeConstantOverride(
@@ -170,6 +182,16 @@ internal sealed partial class ActionSection
             LauncherViewLayoutMetrics.ScaleInt(6, _scale)
         );
         MoveTo(actions, _diagnosticsButton);
+        var reportBug = new StyledButton("Report a bug on GitHub", _scale, height: LauncherSectionMetrics.SecondaryButtonHeight)
+        {
+            Name = "ReportBugOnGitHub",
+            TooltipText = "Opens a new issue with a redacted log excerpt and copies the full redacted log. Review and submit on GitHub.",
+            AccessibilityDescription = "Opens GitHub in your browser with launcher diagnostics prefilled. Nothing is submitted automatically.",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        LauncherButtonStyles.ApplySupportAction(reportBug, _scale);
+        reportBug.Pressed += () => ReportBugPressed?.Invoke();
+        actions.AddChild(reportBug);
         MoveTo(actions, _showLastErrorButton);
         MoveTo(actions, _copyRawLogButton);
         group.AddChild(actions);
@@ -206,21 +228,32 @@ internal sealed partial class ActionSection
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         heading.AddThemeConstantOverride("separation", LauncherViewLayoutMetrics.ScaleInt(4, _scale));
-        heading.AddChild(new ColorRect
-        {
-            Color = accent,
-            CustomMinimumSize = new Vector2(0, LauncherViewLayoutMetrics.ScaleInt(3, _scale)),
-        });
+
 
         var titleLabel = new StyledLabel(
-            title,
+            title == "Home" ? "Slay the Spire 2" : title,
             _scale,
-            fontSize: _compact ? 18 : 20,
+            fontSize: _compact ? 28 : 34,
             align: HorizontalAlignment.Left
         );
         titleLabel.Name = $"{title}DestinationTitle";
         titleLabel.AddThemeColorOverride("font_color", LauncherComponentTheme.TextPrimary);
         heading.AddChild(titleLabel);
+        var description = title switch
+        {
+            "Home" => "Your next climb starts here.",
+            "Saves" => "Keep your progress within reach.",
+            "Versions" => "Choose the build you want to play.",
+            "Mods" => "Make the next run your own.",
+            _ => "Get back to your game.",
+        };
+        var subtitle = new StyledLabel(description, _scale, fontSize: 14, align: HorizontalAlignment.Left)
+        {
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        subtitle.AddThemeColorOverride("font_color", LauncherComponentTheme.TextSecondary);
+        heading.AddChild(subtitle);
+        heading.AddChild(new Control { CustomMinimumSize = new Vector2(0, 8 * _scale), MouseFilter = Control.MouseFilterEnum.Ignore });
         destination.AddChild(heading);
         AddChild(destination);
         return destination;
@@ -240,7 +273,8 @@ internal sealed partial class ActionSection
 
     private void ApplyDestinationVisibility()
     {
-        _homeDestination.Visible = _destination == LauncherDestination.Home;
+        _homeDestination.Visible = _destination == LauncherDestination.Home
+            && (_launchButton.Visible || _retryButton.Visible);
         _savesDestination.Visible = _destination == LauncherDestination.Saves;
         _versionsDestination.Visible = _destination == LauncherDestination.Versions;
         _modsDestination.Visible = _destination == LauncherDestination.Mods;

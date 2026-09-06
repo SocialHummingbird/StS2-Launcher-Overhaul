@@ -125,9 +125,11 @@ body:
         Focused logcat attached:
         Screenshots attached:
         Selected game branch:
+        GameIdentity ID:
         Selected PCK SHA-256:
-        Runtime pack SHA-256:
-        Active sts2.dll SHA-256:
+        Selected source sts2.dll SHA-256:
+        Runtime pack ID:
+        Runtime-pack sts2.dll SHA-256:
     validations:
       required: true
   - type: checkboxes
@@ -135,5 +137,5 @@ body:
     attributes:
       label: Safety checks
       options:
-        - label: I removed Steam credentials, refresh tokens, private account details, private save contents, and full unsanitized logs.
+        - label: I reviewed the report/logs and removed Steam credentials, Steam Guard codes, refresh/session tokens, private account details, private save contents, and full unsanitized logs.
           required: true

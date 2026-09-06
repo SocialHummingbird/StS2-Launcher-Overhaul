@@ -33,10 +33,25 @@ internal static class LauncherUiInteractionTest
         WireEvents(view, events, branchSwitch.GameBranchChanged);
 
         AssertNavigationAndStatusShell(view, root);
+        foreach (var destination in new[] { LauncherDestination.Saves, LauncherDestination.Versions, LauncherDestination.Mods })
+        {
+            view.SelectDestination(LauncherDestination.Home);
+            var shortcut = FindUniqueVisibleNamed<Button>(root, $"HomeShortcut{destination}");
+            shortcut.EmitSignal(Button.SignalName.Pressed);
+            _ = FindUniqueVisibleNamed<Control>(root, $"{destination}Destination");
+            Expect(VisibleNamedCount<Control>(root, "HomeDestination") == 0,
+                "Home shortcut did not leave Home.");
+        }
+        view.SelectDestination(LauncherDestination.Home);
         AssertVersionsJourney(view, root, events);
         AssertHomeInterventionJourney(view, root, events);
         AssertSavesJourney(view, root, events);
         AssertHelpJourney(view, root, events);
+        view.SelectDestination(LauncherDestination.Help);
+        Press(root, "Report a bug on GitHub");
+        Expect(events.ReportBug == 1, "GitHub bug report did not route exactly once.");
+        Press(root, "Check for app updates");
+        Expect(events.AppUpdate == 1, "App update check did not route exactly once.");
         view.HideActions();
         Press(root, "Mods");
         view.SetModsPresentation(VanillaDisabledPresentation());
@@ -200,7 +215,7 @@ internal static class LauncherUiInteractionTest
         var help = FindUniqueVisibleNamed<Control>(root, "HelpDestination");
         var guidance = FindUniqueVisibleNamed<Label>(root, "HelpRecoveryGuidance");
         Expect(
-            guidance.Text == "If the game freezes or shows a black screen, try Safe Start.",
+            guidance.Text == "If preparation requires a redownload, use Redownload selected version; do not uninstall or clear app data. If the game starts but does not appear, try Safe Start. Create a support report if either problem repeats.",
             "Help did not show the exact recovery guidance."
         );
 
@@ -445,11 +460,11 @@ internal static class LauncherUiInteractionTest
         AssertPrimaryHierarchy(
             root,
             LauncherDestination.Versions,
-            "Update selected version"
+            "Update selected Steam branch"
         );
-        _ = FindVisibleButton(root, "Update selected version");
+        _ = FindVisibleButton(root, "Update selected Steam branch");
         _ = FindUniqueVisibleNamed<Control>(root, "VersionsDestination");
-        Press(root, "Update selected version");
+        Press(root, "Update selected Steam branch");
         UpdateCheckViewUpdate.Completed(hasUpdate: false, "Public").Apply(view);
         _ = FindVisibleButton(root, "Check for updates");
         AssertVisibleLabelText(
@@ -475,7 +490,7 @@ internal static class LauncherUiInteractionTest
             LauncherPreferences.ReadActionPreferences().GameBranch == "beta",
             "The confirmed version did not survive a fresh preference load."
         );
-        _ = FindUniqueVisibleNamed<Control>(root, "HomeDestination");
+        Expect(VisibleNamedCount<Control>(root, "HomeDestination") == 0, "Ready-game content distracted from the required download.");
         var download = FindUniqueVisibleNamed<Button>(root, "DownloadGameFilesAction");
         Expect(
             download.HasMeta("launcher_primary_action")
@@ -593,8 +608,8 @@ internal static class LauncherUiInteractionTest
                 Descendants<Label>(header)
                     .Where(IsLiveAndVisible)
                     .Select(label => label.Text)
-                    .SequenceEqual(new[] { destination.ToString() }),
-                $"{destination} header still contains generic subtitle copy."
+                    .First() == (destination == LauncherDestination.Home ? "Slay the Spire 2" : destination.ToString()),
+                $"{destination} header did not identify the current page."
             );
             Expect(
                 Enum.GetValues<LauncherDestination>().Count(candidate =>
@@ -931,7 +946,7 @@ internal static class LauncherUiInteractionTest
         var buttons = Descendants<Button>(home)
             .Where(button => IsLiveAndVisible(button) && button is not OptionButton)
             .ToArray();
-        Expect(buttons.Length == 1, "Home intervention exposed more than one action.");
+        Expect(buttons.Length == 4, "Home intervention lost its retry or management shortcuts.");
         Expect(RenderedButtonText(buttons[0]) == "Try Again", "Home retry was not concise.");
         Expect(!buttons[0].Disabled, "Home retry was disabled.");
         Expect(
@@ -948,7 +963,7 @@ internal static class LauncherUiInteractionTest
         buttons = Descendants<Button>(home)
             .Where(button => IsLiveAndVisible(button) && button is not OptionButton)
             .ToArray();
-        Expect(buttons.Length == 2, "Launch failure did not expose Play and one direct help action.");
+        Expect(buttons.Length == 5, "Launch failure did not expose Play, help, and management shortcuts.");
         Expect(
             buttons.Count(button => button.HasMeta("launcher_primary_action")
                 && button.GetMeta("launcher_primary_action").AsBool()) == 1,
@@ -1001,7 +1016,9 @@ internal static class LauncherUiInteractionTest
         var buttons = Descendants<Button>(home)
             .Where(button => IsLiveAndVisible(button) && button is not OptionButton)
             .ToArray();
-        Expect(buttons.Length == 1, "Ready Home exposed more than one action.");
+        Expect(buttons.Length == 4, "Ready Home must expose Play and three management shortcuts.");
+        Expect(buttons.Count(button => button.HasMeta("launcher_primary_action")) == 1,
+            "Home shortcuts competed with the primary Play action.");
         Expect(RenderedButtonText(buttons[0]) == expectedPlay, $"Ready Home action was '{RenderedButtonText(buttons[0])}'.");
         Expect(!buttons[0].Disabled, "Ready Home Play was disabled.");
         Expect(
@@ -1524,12 +1541,16 @@ internal static class LauncherUiInteractionTest
                     view,
                     () => events.WorkshopRemove++
                 ),
-            modsSelectionChanged: () => events.ModsSelectionChanged++
+            modsSelectionChanged: () => events.ModsSelectionChanged++,
+            reportBugPressed: () => events.ReportBug++,
+            checkAppUpdatesPressed: () => events.AppUpdate++
         );
     }
 
     private sealed class EventCounts
     {
+        internal int ReportBug;
+        internal int AppUpdate;
         internal int Launch;
         internal int Retry;
         internal int SaveSyncNow;

@@ -17,6 +17,9 @@ internal partial class LauncherModel
     internal string BuildRawErrorLogForClipboard()
         => CreateDiagnosticsSnapshot(DiagnosticsReadinessScope.DownloadedState).BuildRawErrorLog();
 
+    internal string BuildRedactedIssueLog()
+        => LauncherGitHubIssue.Redact(BuildRawErrorLogForClipboard(), _credentialStore.AccountNameOrEmpty(), _dataDir);
+
     private LauncherDiagnostics.Snapshot CreateDiagnosticsSnapshot(DiagnosticsReadinessScope readinessScope)
     {
         var branch = LauncherPreferences.ReadGameBranch();

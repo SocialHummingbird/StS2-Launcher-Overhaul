@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-22 - Issue #38 runtime identity and ARM64 RC4
+
+- Made the final installed PCK and source `sts2.dll` authoritative, removing stale marker/manifest fallbacks from selected-game identity.
+- Made Steam branch updates transactional and fail-closed with per-branch `updating`/`ready` state.
+- Added unique staging, complete validation, atomic promotion/rollback, and final-path revalidation for runtime packs and the Android active assembly cache.
+- Limited redownload/native recovery to the selected branch so saves, credentials, Workshop content, and unrelated downloaded branches are preserved.
+- Removed the bulk **Remove old versions** behavior from the current launcher.
+- Bound main-menu readiness and launcher-overlay dismissal to one launch-attempt ID, foreground activity, and window focus so late callbacks cannot complete a later launch.
+- Published [`v0.2.429-issue38-arm64-rc4`](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.429-issue38-arm64-rc4) for `arm64-v8a`. The exact APK passed 10/10 Samsung `SM-F971B` / Android 17 launches: four cold, four warm, one background/resume, and one lock/unlock, with preservation checks passing.
+
 ## 2026-08-13 - Launcher simplification candidate prerelease
 
 - Reduced the shared launcher shell to one useful status on Home and exceptional-state banners on secondary pages.

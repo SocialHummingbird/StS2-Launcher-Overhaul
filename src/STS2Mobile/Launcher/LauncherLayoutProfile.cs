@@ -70,14 +70,12 @@ internal readonly struct LauncherLayoutProfile
             : viewportScale;
         var panelWidth = compact ? 1.0f : touchOptimized ? 0.96f : 0.78f;
         var panelHeight = compact ? 1.0f : touchOptimized ? 0.96f : 0.88f;
-        var availablePanelWidth = safeViewport.X * panelWidth * 0.92f;
-        var contentMaxWidth = compact
-            ? Math.Max(1, (int)Math.Min(safeViewport.X * 0.96f, 1600f))
-            : touchOptimized
-                ? Math.Max(860, (int)Math.Min(availablePanelWidth, 1280f))
-                : Math.Max(720, (int)Math.Min(availablePanelWidth, 1120f));
-        var compactStackedActionRows = compact
-            && contentMaxWidth < MathF.Round(CompactStackedActionRowsWidth * scale);
+        var availablePanelWidth = compact
+            ? safeViewport.X * panelWidth
+            : Math.Min(safeViewport.X * panelWidth, 1400f * scale);
+        // Base wrapping decisions on usable space, including scaled padding and scrollbar.
+        var contentMaxWidth = Math.Max(1, (int)(availablePanelWidth - (compact ? 56f : 72f) * scale));
+        var compactStackedActionRows = contentMaxWidth < MathF.Round(CompactStackedActionRowsWidth * scale);
 
         return new LauncherLayoutProfile(
             safeViewport,

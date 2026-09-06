@@ -78,15 +78,16 @@ internal sealed partial class LauncherView
             StringComparison.Ordinal
         );
         var expanded = _compactStatusExpanded;
-        _statusLabel.AutowrapMode = expanded
-            ? TextServer.AutowrapMode.WordSmart
-            : TextServer.AutowrapMode.Off;
-        _statusLabel.ClipText = !expanded;
+        _statusLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _statusLabel.ClipText = false;
+        _compactStatusDetailsButton.Visible = hasFullDetails;
+        _compactStatusDetailsButton.Text = expanded ? "Hide details" : "Show details";
+        _compactStatusDetailsButton.AccessibilityName = _compactStatusDetailsButton.Text;
         _compactStatusDetailsButton.Disabled = !hasFullDetails;
         _compactStatusDetailsButton.MouseDefaultCursorShape = hasFullDetails
             ? Control.CursorShape.PointingHand
             : Control.CursorShape.Arrow;
-        _compactStatusDetailsCueLabel.Visible = hasFullDetails;
+        _compactStatusDetailsCueLabel.Visible = false;
         _compactStatusDetailsCueLabel.Text = expanded ? "Hide" : "Details";
     }
 

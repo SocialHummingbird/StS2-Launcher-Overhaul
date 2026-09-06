@@ -68,6 +68,13 @@ internal sealed class LauncherHandoffStateOwner
     private bool _activityForeground;
     private bool _windowFocused;
     private ILauncherHandoffOverlay _overlay;
+    private LauncherStartupOperation _operation;
+
+    internal LauncherStartupOperation GetOperation(string attemptId)
+    {
+        lock (_lock)
+            return _operation?.AttemptId == attemptId ? _operation : null;
+    }
 
     internal static LauncherHandoffStateOwner Shared { get; } = new(
         recordDiagnostics: true
@@ -194,6 +201,11 @@ internal sealed class LauncherHandoffStateOwner
                 return false;
 
             _state = LauncherHandoffState.HandoffPending;
+            _operation = new LauncherStartupOperation(attemptId, ex =>
+            {
+                if (_recordDiagnostics)
+                    PatchHelper.Log($"[Launch] Owned startup task fault attempt={attemptId}: {ex}");
+            });
             _activityForeground = false;
             _windowFocused = false;
             SignalChangedLocked();
@@ -334,6 +346,7 @@ internal sealed class LauncherHandoffStateOwner
 
     private void ResetToLauncherLocked()
     {
+        _operation?.Fail();
         var readiness = _mainMenuReadiness.Capture();
         if (!string.IsNullOrWhiteSpace(readiness.AttemptId))
             _mainMenuReadiness.Reset(readiness.AttemptId);

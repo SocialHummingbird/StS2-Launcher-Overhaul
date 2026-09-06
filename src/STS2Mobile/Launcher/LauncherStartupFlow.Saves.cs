@@ -53,6 +53,7 @@ internal static partial class LauncherStartupFlow
         StartupContext startup
     )
     {
+        startup.SetPhase(PhaseSettingsAndSaves, "Synchronizing saves before loading...");
         ConfigureSaveSyncForGameProcess();
         var hasService = SaveSyncService.TryGetActive(out var service);
         if (startup.ShouldSkipShaderWarmup())

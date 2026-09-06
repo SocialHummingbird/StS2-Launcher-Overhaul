@@ -1,16 +1,17 @@
 using System;
+using System.Threading.Tasks;
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherLaunchCoordinator
 {
-    private bool TryEvaluateModLaunchReadiness(
+    private async Task<LauncherModLaunchReadiness> EvaluateModReadinessAsync(
         LauncherStartGamePlan plan,
         LaunchAttemptContext attempt,
         LauncherLaunchReadiness readiness,
-        out LauncherModLaunchReadiness modReadiness
+        LauncherPreparationOverlay interactionLock
     )
     {
-        modReadiness = null;
+        LauncherModLaunchReadiness modReadiness = null;
         LauncherLaunchMarkers.RecordPhase(
             $"{plan.ModReadinessPhase}: entered",
             $"branch={attempt.Branch}"
@@ -29,6 +30,10 @@ internal sealed partial class LauncherLaunchCoordinator
         attempt.StartModReadinessTiming();
         try
         {
+            using var stage = new LauncherStartupStageScope(_view.LaunchLifetimeHost,
+                LauncherHandoffStateOwner.Shared.GetOperation(attempt.AttemptId), TimeSpan.FromSeconds(60));
+            var preparation = Task.Run(() =>
+            {
             LauncherLaunchMarkers.RecordPhase(
                 $"{plan.ModReadinessPhase}: loading selection",
                 $"path={AppPaths.AppPrivateModSelectionPath}"
@@ -41,7 +46,7 @@ internal sealed partial class LauncherLaunchCoordinator
                     $"{plan.ModReadinessPhase}: vanilla fast path",
                     "mod source scan skipped"
                 );
-                modReadiness = LauncherModLaunchReadiness.Vanilla(plan.ModReadinessPhase);
+                return LauncherModLaunchReadiness.Vanilla(plan.ModReadinessPhase);
             }
             else
             {
@@ -49,11 +54,16 @@ internal sealed partial class LauncherLaunchCoordinator
                     $"{plan.ModReadinessPhase}: modded scan path",
                     "checking selected Workshop/manual mods"
                 );
-                modReadiness = LauncherModLaunchReadiness.Evaluate(plan.ModReadinessPhase, selection);
+                return LauncherModLaunchReadiness.Evaluate(plan.ModReadinessPhase, selection);
             }
+            });
+            modReadiness = await LauncherPreparationLifetime.RunAsync(preparation, stage.WaitAsync,
+                () => ShowPreparationDraining(interactionLock), ObservePreparationFailure);
+            if (!IsCurrentAttempt(attempt)) return null;
         }
         catch (Exception ex)
         {
+            if (!IsCurrentAttempt(attempt)) return null;
             attempt.StopModReadinessTiming();
             attempt.StopAttemptTiming();
             var problem = LaunchExceptionProblem("mod readiness check failed", ex);
@@ -70,13 +80,13 @@ internal sealed partial class LauncherLaunchCoordinator
                 attempt.AttemptId,
                 writePatchLog: true
             );
-            return false;
+            return null;
         }
         attempt.StopModReadinessTiming();
         LauncherLaunchMarkers.RecordPhase(
             $"{plan.ModReadinessPhase}: passed",
             modReadiness.Summary
         );
-        return true;
+        return modReadiness;
     }
 }

@@ -87,6 +87,7 @@ import java.net.URL;
 public class GodotApp extends GodotActivity {
 	private static final String TAG = "STS2Mobile";
 	private static GodotApp instance;
+	private AndroidLauncherUpdater launcherUpdater;
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 	private WifiManager.MulticastLock multicastLock;
 	private AndroidBootTransitionController bootTransitionController;
@@ -1082,45 +1083,82 @@ public class GodotApp extends GodotActivity {
 		writeInternalTextFile(LAST_RENDERER_ATTEMPT_FILE, text);
 	}
 
-	private boolean consumeGameLaunchRequest() {
-		Intent intent = getIntent();
-		if (intent != null && intent.getBooleanExtra(EXTRA_LAUNCH_GAME_ON_START, false)) {
-			intent.removeExtra(EXTRA_LAUNCH_GAME_ON_START);
-			Log.i(TAG, "Consuming intent game launch request");
-			return true;
-		}
+    private static AndroidLaunchRestartStore launchRestartStore;
+    private String bootRestartRequest = "";
 
-		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-		boolean requested = prefs.getBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, false);
-		if (!requested) {
-			Log.i(TAG, "Downloaded game is ready; starting launcher first. Press PLAY to boot the game.");
-			return false;
-		}
+    private synchronized AndroidLaunchRestartStore restartStore() {
+        if (launchRestartStore == null) {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+            launchRestartStore = new AndroidLaunchRestartStore(new AndroidLaunchRestartStore.Storage() {
+                public String read() { return prefs.getString(AndroidLaunchRestartStore.KEY, ""); }
+                public boolean write(String value) {
+                    return prefs.edit().putString(AndroidLaunchRestartStore.KEY, value)
+                        .remove(KEY_LAUNCH_GAME_ON_NEXT_START).remove(KEY_SAFE_LAUNCH_ON_NEXT_START).commit();
+                }
+            });
+        }
+        return launchRestartStore;
+    }
 
-		prefs.edit().remove(KEY_LAUNCH_GAME_ON_NEXT_START).apply();
-		Log.i(TAG, "Consuming one-shot game launch request");
-		return true;
-	}
+    private boolean consumeGameLaunchRequest() {
+        migrateLegacyRestartRequest();
+        bootRestartRequest = restartStore().claim(readSelectedBranch(), System.currentTimeMillis());
+        if (bootRestartRequest.isEmpty()) return false;
+        try {
+            JSONObject request = new JSONObject(bootRestartRequest);
+            if (request.optBoolean("legacy", false)) return true;
+            JSONObject evidence = new JSONObject(readSmallTextFile(new File(getFilesDir(),
+                LauncherArtifactLayout.CURRENT_RUNTIME_SLOT_EVIDENCE), 64 * 1024));
+            return request.getString("gameIdentityId").equals(evidence.optString("gameIdentityId"))
+                && request.getString("generation").equals(evidence.optString("installGeneration"))
+                && runtimePackIdentityProblem(LauncherArtifactLayout.runtimePackDirectory(getFilesDir(), readSelectedBranch()),
+                    request.getString("gameIdentityId"), request.getString("runtimePackId")).isEmpty();
+        } catch (Exception error) { return false; }
+    }
 
-	private boolean hasPendingGameLaunchRequest() {
-		Intent intent = getIntent();
-		if (intent != null && intent.getBooleanExtra(EXTRA_LAUNCH_GAME_ON_START, false)) {
-			return true;
-		}
+    private void migrateLegacyRestartRequest() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        if (!prefs.getString(AndroidLaunchRestartStore.KEY, "").isEmpty()) return;
+        Intent intent = getIntent();
+        boolean game = prefs.getBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, false)
+            || (intent != null && intent.getBooleanExtra(EXTRA_LAUNCH_GAME_ON_START, false));
+        if (!game) return;
+        try {
+            boolean safe = hasPendingSafeGameLaunchRequest();
+            JSONObject request = new JSONObject().put("version", 1).put("legacy", true)
+                .put("attemptId", java.util.UUID.randomUUID().toString()).put("branch", readSelectedBranch())
+                .put("safe", safe).put("createdAtUnixMs", System.currentTimeMillis()).put("state", "pending");
+            String problem = restartStore().accept(request.toString(), true, System.currentTimeMillis());
+            if (problem.isEmpty() && intent != null) {
+                intent.removeExtra(EXTRA_LAUNCH_GAME_ON_START);
+                intent.removeExtra(EXTRA_SAFE_LAUNCH_ON_START);
+            }
+        } catch (Exception error) { Log.w(TAG, "Legacy restart migration failed", error); }
+    }
 
-		return getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-			.getBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, false);
-	}
+    private boolean hasPendingGameLaunchRequest() {
+        String request = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(AndroidLaunchRestartStore.KEY, "");
+        if (!request.isEmpty()) {
+            try { return "pending".equals(AndroidLaunchRestartStore.validate(request, System.currentTimeMillis()).getString("state")); }
+            catch (Exception error) { return false; }
+        }
+        Intent intent = getIntent();
+        return (intent != null && intent.getBooleanExtra(EXTRA_LAUNCH_GAME_ON_START, false))
+            || getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, false);
+    }
 
-	private boolean hasPendingSafeGameLaunchRequest() {
-		Intent intent = getIntent();
-		if (intent != null && intent.getBooleanExtra(EXTRA_SAFE_LAUNCH_ON_START, false)) {
-			return true;
-		}
-
-		return getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-			.getBoolean(KEY_SAFE_LAUNCH_ON_NEXT_START, false);
-	}
+    private boolean hasPendingSafeGameLaunchRequest() {
+        String durable = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(AndroidLaunchRestartStore.KEY, "");
+        if (!durable.isEmpty()) {
+            try {
+                JSONObject request = AndroidLaunchRestartStore.validate(durable, System.currentTimeMillis());
+                return "pending".equals(request.getString("state")) && request.getBoolean("safe");
+            } catch (Exception error) { return false; }
+        }
+        Intent intent = getIntent();
+        return (intent != null && intent.getBooleanExtra(EXTRA_SAFE_LAUNCH_ON_START, false))
+            || getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(KEY_SAFE_LAUNCH_ON_NEXT_START, false);
+    }
 
 	private boolean consumeBootTransitionSkipExtra() {
 		Intent intent = getIntent();
@@ -1133,24 +1171,12 @@ public class GodotApp extends GodotActivity {
 		return true;
 	}
 
-	private boolean consumeSafeGameLaunchRequest() {
-		Intent intent = getIntent();
-		if (intent != null && intent.getBooleanExtra(EXTRA_SAFE_LAUNCH_ON_START, false)) {
-			intent.removeExtra(EXTRA_SAFE_LAUNCH_ON_START);
-			Log.i(TAG, "Consuming intent safe launch request");
-			return true;
-		}
+    private boolean consumeSafeGameLaunchRequest() {
+        try { return new JSONObject(bootRestartRequest).getBoolean("safe"); }
+        catch (Exception error) { return false; }
+    }
 
-		SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-		boolean requested = prefs.getBoolean(KEY_SAFE_LAUNCH_ON_NEXT_START, false);
-		if (!requested) {
-			return false;
-		}
-
-		prefs.edit().remove(KEY_SAFE_LAUNCH_ON_NEXT_START).apply();
-		Log.i(TAG, "Consuming one-shot safe launch request");
-		return true;
-	}
+    public String consumeLaunchRestartRequest() { return restartStore().consume(); }
 
 	private void extractFmodBankForAndroid(String path, RandomAccessFile raf, long offset, long size, JSONObject bankEntry) {
 		long saved = -1;
@@ -1555,6 +1581,7 @@ public class GodotApp extends GodotActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
+		if (launcherUpdater != null) launcherUpdater.resume();
 		handoffActivityLifecycle = "resumed";
 		if (launcherImeController != null) {
 			launcherImeController.onResume();
@@ -1567,6 +1594,7 @@ public class GodotApp extends GodotActivity {
 
 	@Override
 	protected void onPause() {
+		if (launcherUpdater != null) launcherUpdater.pause();
 		handoffActivityLifecycle = "paused";
 		recordAppLifecycleEvent("activity onPause");
 		if (launcherImeController != null) {
@@ -1596,6 +1624,7 @@ public class GodotApp extends GodotActivity {
 
 	@Override
 	protected void onDestroy() {
+		if (launcherUpdater != null) launcherUpdater.destroy();
 		handoffActivityLifecycle = "destroyed";
 		recordAppLifecycleEvent("activity onDestroy");
 		if (bootTransitionController != null) {
@@ -1620,6 +1649,9 @@ public class GodotApp extends GodotActivity {
 	}
 
 	public void notifyLauncherFirstFrameReady() {
+		runOnUiThread(() -> {
+			if (launcherUpdater != null) launcherUpdater.check(false);
+		});
 		if (bootTransitionController != null) {
 			bootTransitionController.notifyLauncherReady();
 		} else {
@@ -1628,6 +1660,10 @@ public class GodotApp extends GodotActivity {
 	}
 
 	public void notifyLauncherUiActive(boolean active) {
+		runOnUiThread(() -> {
+			if (launcherUpdater == null) launcherUpdater = new AndroidLauncherUpdater(this);
+			launcherUpdater.setLauncherActive(active);
+		});
 		if (launcherImeController != null) {
 			launcherImeController.setLauncherUiActive(active, "managed-launcher-ui");
 		}
@@ -1651,6 +1687,13 @@ public class GodotApp extends GodotActivity {
 	public String getGameDir() {
 		return gameDir;
 	}
+
+    public void checkLauncherAppUpdates(boolean manual) {
+        runOnUiThread(() -> {
+            if (launcherUpdater == null) launcherUpdater = new AndroidLauncherUpdater(this);
+            launcherUpdater.check(manual);
+        });
+    }
 
 	public String getVersionName() {
 		return BuildConfig.VERSION_NAME;
@@ -1726,34 +1769,31 @@ public class GodotApp extends GodotActivity {
 		return value.replace('\r', ' ').replace('\n', ' ').trim();
 	}
 
-    public void launchGameOnRestart() {
-        Log.i(TAG, "Scheduling one-shot game launch on restart");
-        boolean saved = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .edit()
-            .remove(KEY_SAFE_LAUNCH_ON_NEXT_START)
-            .putBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, true)
-            .commit();
-        Log.i(TAG, "One-shot game launch request saved: " + saved);
-        if (!saved) {
-            Log.e(TAG, "Failed to persist one-shot game launch request; not restarting");
-            return;
+    public String requestLaunchRestart(String requestJson) {
+        String attemptId = "";
+        try {
+            JSONObject request = AndroidLaunchRestartStore.validate(requestJson, System.currentTimeMillis());
+            attemptId = request.getString("attemptId");
+            if (request.optBoolean("legacy", false)) return restartAcknowledgement(false, attemptId, "Legacy requests may only be migrated at boot.");
+            if (!readSelectedBranch().equals(request.getString("branch")))
+                return restartAcknowledgement(false, attemptId, "Selected branch changed before restart.");
+            Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
+            String problem = restartStore().acceptAndStart(requestJson, intent != null,
+                System.currentTimeMillis(), () -> startRestartTarget(intent));
+            return restartAcknowledgement(problem.isEmpty(), attemptId, problem);
+        } catch (Exception error) {
+            return restartAcknowledgement(false, attemptId, "Android restart request failed: " + error.getMessage());
         }
-        restartApp();
     }
 
-    public void launchGameSafelyOnRestart() {
-        Log.i(TAG, "Scheduling one-shot safe game launch on restart");
-        boolean saved = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_LAUNCH_GAME_ON_NEXT_START, true)
-            .putBoolean(KEY_SAFE_LAUNCH_ON_NEXT_START, true)
-            .commit();
-        Log.i(TAG, "One-shot safe game launch request saved: " + saved);
-        if (!saved) {
-            Log.e(TAG, "Failed to persist one-shot safe game launch request; not restarting");
-            return;
-        }
-        restartApp();
+    public String finishLaunchRestart(String attemptId) {
+        // Managed code has received acceptance and recorded it before this second JNI call.
+        return restartStore().finish(attemptId, () -> Runtime.getRuntime().exit(0));
+    }
+
+    private String restartAcknowledgement(boolean accepted, String attemptId, String error) {
+        try { return new JSONObject().put("accepted", accepted).put("attemptId", attemptId).put("error", error).toString(); }
+        catch (Exception ignored) { return ""; }
     }
 
 	public String prepareRuntimePackForLaunch(
@@ -1850,16 +1890,25 @@ public class GodotApp extends GodotActivity {
 		}
 	}
 
-	public void restartApp() {
-		Log.i(TAG, "Restarting app...");
-		Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
-		if (intent != null) {
-			intent.putExtra(AndroidBootTransitionPolicy.SKIP_INTENT_EXTRA, true);
-			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-			startActivity(intent);
-		}
-		Runtime.getRuntime().exit(0);
-	}
+    public void restartApp() {
+        Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
+        if (intent == null) {
+            Log.e(TAG, "Restart target unavailable; keeping launcher alive");
+            return;
+        }
+        restartWithIntent(intent);
+    }
+
+    private void restartWithIntent(Intent intent) {
+        startRestartTarget(intent);
+        Runtime.getRuntime().exit(0);
+    }
+
+    private void startRestartTarget(Intent intent) {
+        intent.putExtra(AndroidBootTransitionPolicy.SKIP_INTENT_EXTRA, true);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+    }
 
 	// AES-256-GCM encryption via Android Keystore (hardware-backed TEE).
 	private SecretKey getOrCreateKeystoreKey() throws Exception {

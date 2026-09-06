@@ -1,6 +1,7 @@
-using System.Threading.Tasks;
 using System;
+using System.Threading.Tasks;
 using Godot;
+using STS2Mobile.Patches;
 
 namespace STS2Mobile.Launcher;
 
@@ -8,75 +9,40 @@ internal static partial class LauncherStartupFlow
 {
     private readonly partial struct StartupContext
     {
-        internal Task RunGameStartupWithRecoveryAsync()
-            => new GameStartupAttempt(this).RunAsync();
-
-        private CanvasLayer ShowRecoveryControls()
-            => OperatingSystem.IsAndroid()
-                ? null
-                : LauncherStartupRecoveryControlPanel.Show(GameNode);
-
-        private void WriteStartupEntryEvidence(string phase)
+        internal async Task RunGameStartupWithRecoveryAsync()
         {
-            var writeFullDiagnostics =
-                PostStartupDiagnosticsPolicy.ShouldWriteFullDiagnostics(
-                    PostStartupDiagnosticsSettings.DetailedTraceEnabled(),
-                    failureOrRecovery: false
-                );
-            if (writeFullDiagnostics)
+            SetPhase(PhaseGameStartup, "Starting game scene...");
+            var recoveryControls = OperatingSystem.IsAndroid() ? null : LauncherStartupRecoveryControlPanel.Show(GameNode);
+            await WaitForVisibleStartupFrameAsync("starting game");
+            LauncherGameSceneReadiness.BeginStartup(Game, AttemptId);
+            try
             {
-                LauncherDiagnostics.WriteStartupSceneSnapshot(GameNode, phase);
-                return;
+                // No fallback starts a competing task. The operation continues observing
+                // uncancellable game work even when the foreground deadline expires.
+                using (var stage = new LauncherStartupStageScope(GameNode, Operation, TimeSpan.FromMilliseconds(StartupWatchdogMs)))
+                {
+                    var game = Game;
+                    var task = Operation.StartGame(() => LauncherStartupFlow.StartGameStartupAsync(game));
+                    await stage.WaitAsync(task);
+                }
+                LauncherGameStartupRecovery.MarkGameStartupCompleted(Game, GameNode);
+                Operation.SetStage(LauncherStartupStage.WaitingForMenu);
+                SetStatus("Waiting for the game menu...");
+                var startup = this;
+                await LauncherGameStartupRecovery.CompleteMainMenuHandoffAsync(
+                    async () => await LauncherGameStartupRecovery.EnsureMainMenuReadyAsync(startup.Game, startup.GameNode, startup.Status, startup.AttemptId)
+                        && startup.Operation.Complete(),
+                    () => LauncherGameStartupRecovery.MarkStartupObserved(startup.Game, recoveryControls, startup.Status, startup.GameNode, startup.AttemptId),
+                    () =>
+                    {
+                        LauncherGameSceneReadiness.EndStartup(startup.AttemptId);
+                        return LauncherGameStartupRecovery.HoldAndroidStartupTaskAfterObservedAsync();
+                    });
             }
-
-            LauncherDiagnostics.WritePostStartupHeartbeat(
-                phase,
-                "Scene-tree traversal skipped on ordinary startup path"
-            );
+            finally
+            {
+                LauncherGameSceneReadiness.EndStartup(AttemptId);
+            }
         }
-
-        private Task StartGameStartupAsync()
-            => LauncherStartupFlow.StartGameStartupAsync(Game);
-
-        private Task<bool> RecoverIfWatchdogTimedOutAsync(
-            Task startupTask,
-            CanvasLayer recoveryControls
-        )
-        {
-            var game = Game;
-            var gameNode = GameNode;
-            var status = Status;
-            var attemptId = AttemptId;
-
-            return LauncherTimeout.RecoverIfTimedOutAsync(
-                startupTask,
-                StartupWatchdogMs,
-                () => LauncherGameStartupRecovery.HandleWatchdogAsync(
-                    game,
-                    gameNode,
-                    status,
-                    recoveryControls,
-                    StartupWatchdogMs,
-                    attemptId
-                )
-            );
-        }
-
-        private Task<bool> EnsureMainMenuReadyAsync()
-            => LauncherGameStartupRecovery.EnsureMainMenuReadyAsync(
-                Game,
-                GameNode,
-                Status,
-                AttemptId
-            );
-
-        private void MarkStartupObserved(CanvasLayer recoveryControls)
-            => LauncherGameStartupRecovery.MarkStartupObserved(
-                Game,
-                recoveryControls,
-                Status,
-                GameNode,
-                AttemptId
-            );
     }
 }

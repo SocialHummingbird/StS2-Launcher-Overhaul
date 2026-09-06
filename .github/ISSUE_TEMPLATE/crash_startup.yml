@@ -10,7 +10,7 @@ body:
 
         This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
 
-        Do not post Steam credentials, Steam Guard codes, tokens, private save files, or full unsanitized logs.
+        Use Help → Diagnostics → Create support report, or Create Startup Help Report if the startup controls are visible. Review it before sharing. Do not post Steam credentials, Steam Guard codes, refresh/session tokens, private save files, or full unsanitized logs.
   - type: dropdown
     id: failure-point
     attributes:
@@ -83,19 +83,25 @@ body:
     id: startup-evidence
     attributes:
       label: Startup and runtime evidence
-      description: Paste these from diagnostics or logcat when available. Use "not captured" rather than deleting unknown fields.
+      description: Paste these from the generated support report or focused logcat when available. Use "not captured" rather than deleting unknown fields.
       value: |
         Selected game branch:
+        Installation state / phase / transaction ID:
+        GameIdentity ID:
         PCK path:
         PCK SHA-256:
+        Source sts2.dll path:
+        Source sts2.dll SHA-256:
         Runtime pack path:
-        Runtime pack SHA-256:
-        Active sts2.dll path:
-        Active sts2.dll SHA-256:
-        Runtime cache marker path/value:
-        Patch validation marker path/value:
+        Runtime pack ID:
+        Runtime-pack sts2.dll SHA-256:
+        Patch validation result:
+        First readiness failure:
         Shader warmup marker/status:
         NMainMenu reached:
+        Launch-attempt ID:
+        Ordered handoff events:
+        main_menu_ready / overlay_hidden / handoff_completed counts:
         Post-startup trace marker/latest probe:
         Post-startup heartbeat marker/latest heartbeat:
         Last Android lifecycle marker:
@@ -119,5 +125,5 @@ body:
     attributes:
       label: Safety checks
       options:
-        - label: I removed Steam credentials, Steam Guard codes, refresh tokens, private account details, private save contents, and full unsanitized logs.
+        - label: I reviewed the support report/logs and removed Steam credentials, Steam Guard codes, refresh/session tokens, private account details, private save contents, and full unsanitized logs.
           required: true

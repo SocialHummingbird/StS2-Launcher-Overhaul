@@ -10,8 +10,6 @@ internal static partial class LauncherStartupFlow
 {
     private const string PhaseGameStartup = "game startup";
     private const string PhaseLaunchRequested = "launch requested";
-    private const string PhaseLauncherCovered = "launcher covered";
-    private const string PhaseManualSafeLaunch = "manual safe launch";
     private const string PhaseSettingsAndSaves = "settings and saves";
     private const string PhaseShaderWarmup = "shader warmup";
     private const int StartupWatchdogMs = 60_000;
@@ -28,57 +26,19 @@ internal static partial class LauncherStartupFlow
         var gameNode = (Node)game;
         AndroidBridgePump.EnsureInstalled(gameNode);
 
-        var launcher = await ShowLauncherAndWaitForLaunchAsync(gameNode);
+        await ShowLauncherAndWaitForLaunchAsync(gameNode);
         var startup = CreateStartupContext(game, gameNode);
-        await StartGameAfterLauncherAsync(launcher, startup);
-    }
-
-    private static async Task StartGameAfterLauncherAsync(
-        LauncherUI launcher,
-        StartupContext startup
-    )
-        => await new StartupLaunchSequence(launcher, startup).RunAsync();
-
-    private readonly struct StartupLaunchSequence
-    {
-        internal StartupLaunchSequence(LauncherUI launcher, StartupContext startup)
+        try
         {
-            Launcher = launcher;
-            Startup = startup;
+            startup.SetPhase(PhaseLaunchRequested, "Preparing game startup...");
+            await startup.WaitForVisibleStartupFrameAsync("startup status shown");
+            await RunShaderWarmupIfNeededAsync(startup);
+            if (await InitializeSettingsAndSavesAsync(startup))
+                await RunGameStartupAsync(startup);
         }
-
-        private LauncherUI Launcher { get; }
-        private StartupContext Startup { get; }
-
-        internal async Task RunAsync()
+        catch (Exception ex)
         {
-            BeginLaunch();
-            CoverLauncher();
-            await Startup.WaitForVisibleStartupFrameAsync("launcher covered");
-            await RunStartupAsync();
-        }
-
-        private void BeginLaunch()
-        {
-            Startup.SetPhase(PhaseLaunchRequested, "Starting game...");
-            PatchHelper.Log("User launched game, proceeding to startup...");
-        }
-
-        private void CoverLauncher()
-        {
-            Startup.SetPhase(
-                PhaseLauncherCovered,
-                "Preparing game startup..."
-            );
-        }
-
-        private async Task RunStartupAsync()
-        {
-            await RunShaderWarmupIfNeededAsync(Startup);
-            if (!await InitializeSettingsAndSavesAsync(Startup))
-                return;
-
-            await RunGameStartupAsync(Startup);
+            startup.HandleFailure(ex);
         }
     }
 

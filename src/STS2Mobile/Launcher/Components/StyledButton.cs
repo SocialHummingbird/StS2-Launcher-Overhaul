@@ -12,6 +12,8 @@ internal sealed class StyledButton : Button
     )
     {
         Text = text;
+        MouseDefaultCursorShape = CursorShape.PointingHand;
+        FocusMode = FocusModeEnum.All;
         AccessibilityName = text;
         ClipText = true;
         TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
@@ -26,6 +28,8 @@ internal sealed class StyledButton : Button
     private void ApplyTheme(float scale)
     {
         var radius = LauncherComponentTheme.ScaleInt(scale, LauncherComponentTheme.ButtonRadius);
+        var focus = LauncherStyleBoxes.MakeOutline(LauncherComponentTheme.OrangeHot, radius, 2);
+        AddThemeStyleboxOverride("focus", focus);
         AddThemeStyleboxOverride(
             LauncherComponentTheme.StateNormal,
             LauncherStyleBoxes.MakeFilled(LauncherComponentTheme.ButtonNormal, radius)

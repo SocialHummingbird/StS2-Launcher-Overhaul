@@ -52,7 +52,7 @@ final class AndroidPendingLaunchStateAdapter {
 		return new AndroidPendingLaunchState.Preferences() {
 			@Override
 			public boolean gameLaunchPreferencePending() {
-				return preferences.getBoolean(
+				return durableRequestPending(preferences) || preferences.getBoolean(
 					AndroidPendingLaunchState.GAME_PREFERENCE,
 					false
 				);
@@ -68,13 +68,34 @@ final class AndroidPendingLaunchStateAdapter {
 
 			@Override
 			public boolean clearPendingPreferences() {
-				return preferences.edit()
-					.remove(AndroidPendingLaunchState.GAME_PREFERENCE)
+				String request = preferences.getString(AndroidLaunchRestartStore.KEY, "");
+                android.content.SharedPreferences.Editor editor = preferences.edit();
+                if (!request.isEmpty()) {
+                    try {
+                        editor.putString(AndroidLaunchRestartStore.KEY,
+                            new org.json.JSONObject(request).put("state", "cancelled").toString());
+                    } catch (Exception error) {
+                        // Keep malformed payload as failure evidence, outside the live request key.
+                        editor.putString(AndroidLaunchRestartStore.KEY + "_invalid", request)
+                            .remove(AndroidLaunchRestartStore.KEY);
+                    }
+                }
+                return editor
+                    .remove(AndroidPendingLaunchState.GAME_PREFERENCE)
 					.remove(AndroidPendingLaunchState.SAFE_PREFERENCE)
 					.commit();
 			}
 		};
 	}
+
+    private static boolean durableRequestPending(SharedPreferences preferences) {
+        try {
+            org.json.JSONObject request = AndroidLaunchRestartStore.validate(
+                preferences.getString(AndroidLaunchRestartStore.KEY, ""), System.currentTimeMillis());
+            String state = request.getString("state");
+            return "pending".equals(state) || "claimed".equals(state);
+        } catch (Exception error) { return false; }
+    }
 
 	private static AndroidPendingLaunchState.Payload payload(Intent intent) {
 		return new AndroidPendingLaunchState.Payload() {

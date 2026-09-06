@@ -1,52 +1,68 @@
-# Android Troubleshooting
+# Android troubleshooting
 
-StS2 Launcher is unofficial ARM64 Android tester software. It downloads a Steam owner's copy of Slay the Spire 2; it does not include the game. See [current Android status](current-android-status.md) before assuming a symptom is supported or resolved.
+StS2 Launcher is unofficial ARM64 Android tester software. It downloads a Steam owner's copy of Slay the Spire 2; it does not include the game. Check [current Android status](current-android-status.md) before assuming a symptom is supported or resolved.
 
-## Identify the APK First
+## Identify the APK first
 
-The current public test APK is the unverified prerelease:
+The latest ARM64 release is [v0.2.429 — Issue #38 ARM64 RC4](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/tag/v0.2.429-issue38-arm64-rc4).
 
 ```text
-Release: v0.2.428-launcher-simplification-unverified
-Asset: StS2Launcher-v0.2.428-launcher-simplification-unverified-arm64-v8a.apk
+Asset: StS2Launcher-v0.2.429-issue38-arm64-rc4-arm64-v8a.apk
 Package: com.sts2launcher.overhaul.fork.local
-VersionName: 0.2.428-launcher-simplification-unverified
-VersionCode: 428000
-SHA-256: CC79353BE2B22641BC76424BBAB9AB36F7AB4A57F8C900379D20E91862005C4C
+VersionName: 0.2.429-issue38-arm64-rc4
+VersionCode: 429041
+SHA-256: b2d0e8154afc69e11eac4159483e837559e398844444a5d015d18f3fda458181
 ABI: arm64-v8a
 ```
 
-Always report the exact tag and filename. This prerelease is experimental and has not been run on Android. A historical `0.2.425` device run showed substantial mod-loading progress but then entered an intermittent live-process freeze after the main menu appeared. That retained event does not prove a process crash or validate this APK, and the importer journey remains incomplete.
+Always report the exact release tag, APK filename, version code, device model, Android version, and selected Steam branch.
 
-## Installation Problems
+## Installation problems
 
+- Install RC4 over the existing application. Open the APK and choose **Update**, or use `adb install -r <apk-path>`.
 - `INSTALL_PARSE_FAILED_NO_CERTIFICATES`: re-download the APK and verify its SHA-256.
-- `INSTALL_FAILED_UPDATE_INCOMPATIBLE`: stop. The candidate package or signer does not match the installed `.local` lineage. Verify both APK identities; do not uninstall or clear the affected install.
-- `INSTALL_FAILED_OLDER_SDK`: the Android version is below the APK's minimum.
-- `App isn't compatible with your phone`: confirm the device supports `arm64-v8a`. Public test APKs are ARM64-only.
-- Immediate crash or `INSTALL_FAILED_DEXOPT`: capture focused logcat and open an issue.
+- `INSTALL_FAILED_UPDATE_INCOMPATIBLE`: stop. The APK package or signer differs from the installed application. Record both identities and open an issue; do not uninstall or clear data to bypass the check.
+- `INSTALL_FAILED_OLDER_SDK`: the Android version is below the APK minimum.
+- `App isn't compatible with your phone`: confirm the device supports `arm64-v8a`. The release APK is ARM64-only.
 
-## Native Diagnostics Screen
+An in-place update is the normal path. Reinstalling from scratch or clearing application data is not routine recovery and removes application-private local saves.
 
-On x86_64 this screen is intentional: the emulator cannot safely run the production GodotSharp/Mono path.
+## Native diagnostics screen
 
-On ARM64 it means startup could not prepare or validate the runtime. Select **Show diagnostics**, copy the full report, and attach it before selecting **Restart launcher**. `v0.2.416` clears pending normal and Safe Start state during recovery so Restart should return to the launcher rather than repeat the failed launch.
+On x86_64, native fallback is intentional because the emulator cannot run the production GodotSharp/Mono game path. On ARM64, the screen means startup could not validate or prepare the selected runtime. Create and share the diagnostics report before restarting or repairing the selected version. Do not delete the game, saves, credentials, or assembly cache before collecting evidence.
 
-Do not delete the game, saves, credentials, or assembly cache before collecting the report. The diagnostics should identify the original file operation, storage state, branch, runtime-pack evidence, cache state, and retry result.
+## Branch update or runtime-pack failure
 
-## Keyboard Appears Without Text Entry
+The final installed `SlayTheSpire2.pck` and source `sts2.dll` are authoritative. The launcher should reject stale manifests or runtime packs instead of launching mixed files.
 
-`v0.2.416` suppresses the hidden Godot editor's unintended IME request during launcher startup and non-editor resume. If the keyboard still appears while no text field was selected, record the device model, OEM skin, exact APK, and whether the app had just resumed, rotated, or unlocked. Deliberate username, password, Steam Guard, and other editable-field focus must still open the keyboard.
+If a selected branch is stuck in `updating`, reports an identity/runtime-pack mismatch, or repeatedly routes to native fallback:
 
-## Black Screen or Long Loading
+1. Open **Help** and create a support report before deleting anything.
+2. Record the selected branch, installation-state status/transaction, `GameIdentity` ID, PCK hash, source DLL hash, runtime-pack ID, patched DLL hash, and first readiness failure shown in the report.
+3. Open **Versions** and use **Redownload Selected Version** once.
+4. If the repair fails again, attach the new support report and the exact error.
 
-Cold launch first shows the Godot-to-StS2 Launcher transition. Start Game can later show real shader-warmup progress for 45-90 seconds on a first run; the boot identity must not hide that progress.
+Selected-version recovery targets only that branch's downloaded game, download state, runtime pack, and matching derived cache. It preserves local saves, Steam credentials, Workshop content, and other installed branches. There is no current bulk **Remove old versions** action. Do not clear every branch or all application data.
 
-Record which surface was last visible. For shader stalls include `last_shader_warmup_status.txt`. For a blank frame include a screenshot or recording, display orientation, reduced-motion state, and whether it happened on cold start, cached start, Home/resume, rotation, or lock-screen return.
+## Keyboard appears without text entry
 
-## Game Freezes or Exits at the Main Menu
+The launcher suppresses unintended keyboard requests from Godot's hidden editor during startup and non-editor resume. If the keyboard appears without selecting a field, record the exact APK/device, whether the app had just resumed, rotated, or unlocked, and a screenshot. Username, password, Steam Guard, and other deliberately selected text fields should still open the keyboard.
 
-Reaching `NMainMenu` proves startup completed, not that the process remained healthy. Include:
+## Launcher remains visible over the game
+
+RC4 binds launcher handoff to one launch-attempt ID. The active attempt must report main-menu readiness while the game activity is foregrounded and focused before its overlay can be dismissed; duplicate and late events are ignored.
+
+RC4 passed 10/10 counted device launches, including background/resume and lock/unlock, with one overlay dismissal and one completion per attempt. If the launcher still covers a visible game, include:
+
+- The launch-attempt ID and ordered handoff events.
+- Whether `main_menu_ready`, `overlay_hidden`, and `handoff_completed` occurred for that same attempt.
+- Whether Android backgrounded, locked, rotated, or changed focus during handoff.
+- A screenshot or short recording showing the foreground surface.
+- Focused logcat around `LauncherHandoff`, `NMainMenu`, `AndroidRuntime`, and `Native lifecycle event`.
+
+## Black screen, hang, or process exit
+
+Record the last visible surface and whether the launcher overlay was present. For shader stalls include `last_shader_warmup_status.txt`; for startup/process failures include the support report plus these files when available:
 
 - `last_launch_attempt.txt`
 - `last_startup_timeline.txt`
@@ -56,18 +72,36 @@ Reaching `NMainMenu` proves startup completed, not that the process remained hea
 - `last_renderer_attempt.txt`
 - `last_process_exit_info.txt`
 
-Search focused logcat for `FATAL EXCEPTION`, `AndroidRuntime`, `Fatal signal`, `SIGSEGV`, `SIGABRT`, `ANR`, `lmkd`, `has died`, `PowerVR`, `OpenGL`, and `Vulkan`.
+Focused logcat terms include `FATAL EXCEPTION`, `AndroidRuntime`, `Fatal signal`, `SIGSEGV`, `SIGABRT`, `ANR`, `lmkd`, `has died`, `PowerVR`, `OpenGL`, and `Vulkan`. Do not label a hang as a crash without process-exit evidence.
 
-## Local Saves
+## Collect diagnostics safely
 
-If a profile is missing, record whether it is vanilla or modded, the selected branch, whether the app was cleared, uninstalled, or restored by Android, and whether the APK package or signer changed. Do not clear or uninstall the affected app while investigating it.
+In the launcher, open **Help → Diagnostics → Create support report**. Android saves the report and opens the share sheet. If startup is already in progress, use **Create Startup Help Report** on the recovery controls. **Copy Launcher Log** is a rawer fallback and must be reviewed before public posting.
 
-## Evidence Boundaries
+Before sharing any report or log:
 
-| Evidence source | Valid conclusions | Invalid conclusions |
-| --- | --- | --- |
-| Focused local tests | Local paths, atomic writes, synchronization policy, failure handling, startup order, and launcher wiring | Physical rendering, OEM behavior, real Steam services, gameplay |
-| API 36 x86_64 emulator | Native routing, fallback/recovery, rotation, Home/resume, native IME state | Godot/.NET launcher, Steam workflows, ARM64, `NMainMenu`, gameplay |
-| Exact `v0.2.416` on Samsung ARM64 | Published artifact, cold transition, launcher, public runtime pack, `NMainMenu`, 60-second heartbeat | Reporter devices, broad compatibility, or every branch/mod/GPU |
+- Remove Steam usernames/account identifiers, email addresses, filesystem details you consider private, and private save contents.
+- Never include a Steam password, Steam Guard code, refresh token, session token, QR/login payload, or full unsanitized log.
+- Prefer the generated support report and a focused logcat window over an entire device log.
+- Do not clear credentials, uninstall, or erase game data merely to produce diagnostics.
 
-Use the [Android validation runbook](runbook-android-validation.md) for the current validation boundary.
+## What to include in a bug report
+
+- Exact release tag, APK filename, package, version name/code, and whether installation was an in-place update.
+- Device model, Android/API version, ABI, GPU/renderer, and relevant lifecycle event such as background, rotation, or lock.
+- Selected Steam branch and whether this was a download, update, redownload, or launch.
+- Reproduction steps, expected result, actual result, and the last visible screen.
+- `GameIdentity`/runtime-pack evidence for branch or startup failures.
+- Launch-attempt/handoff evidence for overlay or main-menu readiness failures.
+- Generated support report, focused logs, and screenshots after credential/privacy review.
+- Whether local saves and other downloaded branches remained present.
+
+Use the focused GitHub issue template that matches the failure.
+
+## Local saves
+
+If a profile is missing, stop destructive recovery. Record whether it is vanilla or modded, the selected branch, sync status, package/signing identity, and whether Android restored or cleared the application. Do not uninstall or clear the affected app while investigating.
+
+## Evidence boundary
+
+RC4's 10/10 Samsung ARM64 result validates the exact artifact and tested launch matrix. It does not prove every device, branch, GPU, mod, or live Steam transfer. Desktop and fake-backed tests remain local-policy evidence only. See the [Android validation runbook](runbook-android-validation.md).

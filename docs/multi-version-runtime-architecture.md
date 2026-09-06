@@ -9,23 +9,25 @@ Keep downloaded Steam branches in separate local runtime slots and start the sel
 A slot contains:
 
 - Downloaded game files.
-- Selected PCK identity.
+- `installation_state.json` with transactional `updating`/`ready` state.
+- Authoritative `GameIdentity`: normalized branch, completed install generation, and hashes of the actual final PCK and source `sts2.dll`.
 - Runtime-pack metadata and patched managed assemblies.
-- Branch/build provenance.
 - Patch-validation result.
+
+Runtime-pack metadata and active-cache markers are derived from `GameIdentity`; they cannot define the current installed-file identity.
 
 The slot identifier is stable, filesystem-safe, and derived from the selected branch. Public/default keeps the existing primary slot for compatibility.
 
 ## Activation
 
-Before launch, the launcher verifies that the selected slot is complete and that its PCK, runtime pack, active assembly cache, and branch marker agree. It either activates that slot or reports one actionable readiness failure.
+Before launch, the launcher requires the selected installation state to be `ready`, rehashes the actual PCK and source DLL, and requires the promoted runtime pack to declare and validate that exact identity. Android then validates and atomically promotes the active assembly cache. It either activates that slot or reports one actionable readiness failure.
 
 Activation must not move gameplay saves or block launch on save state.
 
 ## Cleanup
 
-Cleanup targets one explicit inactive slot. It must not remove the active slot, application package data, credentials, mods, or gameplay saves.
+Recovery targets only the explicitly selected slot. **Redownload Selected Version** may delete that branch's game/runtime/download evidence and its matching derived cache; it must not remove sibling branches, application package data, credentials, Workshop content, or gameplay saves. The former bulk **Remove old versions** behavior is not present.
 
 ## Validation boundary
 
-Compilation, fixture checks, and metadata inspection can validate slot isolation and readiness rules. Android launch compatibility still requires an appropriate runtime test when hardware is available.
+Focused suites validate slot isolation, interruption recovery, stale-evidence rejection, and promotion rules. The RC4 APK also passed 10/10 counted launches on one ARM64 Samsung device. That does not establish every device, branch, or GPU.

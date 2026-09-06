@@ -13,7 +13,7 @@ internal sealed partial class DownloadSection
                 + "\n"
                 + LauncherBranchCatalog.SelectedOptionStatus(_gameBranch, _availableBranches)
                 + "\n"
-                + "Download and update affect only the selected game version's local files.";
+                + "Updates replace the selected Steam branch only after the new files pass checks. Recovery removes only that branch's downloaded files. Saves and other branches stay in place.";
         ApplyBranchControlVisibility();
         if (_branchDetailsToggle != null)
         {

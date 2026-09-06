@@ -20,33 +20,6 @@ internal static partial class LauncherGameStartupRecovery
         internal string SceneName { get; }
     }
 
-    private static Task LoadMainMenuAsync(object game)
-    {
-        var loadMainMenu = game.GetType()
-            .GetMethod(
-                "LoadMainMenu",
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
-            )
-            ?? throw new MissingMethodException("NGame.LoadMainMenu not found");
-        if (loadMainMenu.Invoke(game, new object[] { false }) is not Task task)
-            throw new InvalidOperationException("NGame.LoadMainMenu did not return Task");
-
-        return task;
-    }
-
-    private static Task StartLoadMainMenu(object game)
-    {
-        try
-        {
-            return LoadMainMenuAsync(game);
-        }
-        catch (Exception ex) when (ex is MissingMethodException or InvalidOperationException)
-        {
-            PatchHelper.Log($"Cannot force main menu: {ex.Message}");
-            return null;
-        }
-    }
-
     private static CurrentSceneInspection InspectCurrentScene(object game)
     {
         try
@@ -78,19 +51,4 @@ internal static partial class LauncherGameStartupRecovery
         }
     }
 
-    private static string MainMenuPresentMessage(CurrentSceneInspection scene)
-        => $"Main menu present after startup: {scene.SceneName}";
-
-    private static string MainMenuMissingMessage(CurrentSceneInspection scene)
-        => $"Main menu missing after startup; current scene={scene.SceneName ?? "<none>"}. Forcing LoadMainMenu.";
-
-    private static string ForcedLoadResultMessage(CurrentSceneInspection scene)
-        => scene.IsMainMenu
-            ? $"Forced main menu load succeeded: {scene.SceneName}"
-            : $"Forced main menu load returned but current scene is {scene.SceneName ?? "<none>"}";
-
-    private static string ForcedLoadStatus(CurrentSceneInspection scene)
-        => scene.IsMainMenu
-            ? "Main menu loaded."
-            : "Main menu force returned, but scene is still not main menu.";
 }

@@ -25,7 +25,9 @@ internal sealed partial class LauncherController
             SavePushPressed,
             _workshop.SyncPressed,
             _workshop.ClearPressed,
-            RefreshModsPresentation
+            RefreshModsPresentation,
+            _diagnostics.ReportBugPressed,
+            _updates.RunAppUpdateCheck
         );
         _view.DestinationSelected += OnDestinationSelected;
     }

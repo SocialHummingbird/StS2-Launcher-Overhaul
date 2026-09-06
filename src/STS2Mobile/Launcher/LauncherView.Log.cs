@@ -28,6 +28,7 @@ internal sealed partial class LauncherView
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             ScrollFollowing = true,
             BbcodeEnabled = true,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
 
         log.AddThemeFontSizeOverride(
