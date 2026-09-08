@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="StS2 startup test harness" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:allowBackup="false">
+        <activity android:name=".StartupHarnessActivity" android:exported="true" />
+    </application>
+    <instrumentation android:name="com.game.sts2launcher.StartupHarnessInstrumentation" android:targetPackage="com.sts2launcher.startup.harness" android:label="StS2 startup responsiveness tests" />
+</manifest>

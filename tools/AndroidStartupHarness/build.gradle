@@ -1,0 +1,31 @@
+plugins {
+    id 'com.android.application' version '8.6.1'
+}
+
+android {
+    namespace 'com.game.sts2launcher'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.sts2launcher.startup.harness'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            // Compile the production helper directly; never copy or fork it.
+            java.srcDirs = ['src', '../../android/src']
+            java.includes = [
+                'com/game/sts2launcher/AndroidStartupPreparation.java',
+                'com/game/sts2launcher/StartupHarnessActivity.java',
+                'com/game/sts2launcher/StartupHarnessInstrumentation.java'
+            ]
+        }
+    }
+}

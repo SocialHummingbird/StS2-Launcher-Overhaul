@@ -34,7 +34,7 @@ Already installed? Update over your existing app. **Do not uninstall or clear ap
 
 Android support is still experimental. Performance, audio, graphics, and mod compatibility depend on your device and game version.
 
-The current release is **v0.2.431**. Its automated checks pass, and it installs and opens on the tested Samsung device. A full game-loading test of this exact APK is still outstanding. See [release notes](docs/release-notes/v0.2.431.md) for the details; older device results apply to those older builds.
+The current release is **v0.2.432**. It moves startup work off the UI thread, avoids repeated archive hashing, and limits title-screen resource-loading bursts. Automated regression checks and emulator startup checks passed; full Android gameplay remains unverified for this release. See [release notes](docs/release-notes/v0.2.432.md) for the exact validation scope.
 
 ## Help and documentation
 

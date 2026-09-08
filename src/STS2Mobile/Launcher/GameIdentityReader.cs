@@ -115,16 +115,15 @@ internal sealed class GameIdentityReader
         => new GameIdentityReader(GameIdentityFileHasher.Instance).Read(dataDir, branch);
 
     internal static GameIdentity ReadInstalledReadOnly(string dataDir, string branch)
-        => new GameIdentityReader(GameIdentityFileHasher.Instance).Read(
-            dataDir,
-            branch,
-            usePckCache: false
-        );
+        => new GameIdentityReader(GameIdentityFileHasher.Instance).ReadReadOnly(dataDir, branch);
+
+    internal GameIdentity ReadReadOnly(string dataDir, string branch)
+        => Read(dataDir, branch, persistPckCache: false);
 
     internal GameIdentity Read(string dataDir, string branch)
-        => Read(dataDir, branch, usePckCache: true);
+        => Read(dataDir, branch, persistPckCache: true);
 
-    private GameIdentity Read(string dataDir, string branch, bool usePckCache)
+    private GameIdentity Read(string dataDir, string branch, bool persistPckCache)
     {
         if (string.IsNullOrWhiteSpace(dataDir))
             throw new ArgumentException("A launcher data directory is required.", nameof(dataDir));
@@ -141,18 +140,16 @@ internal sealed class GameIdentityReader
         RequireCompletedInstall(generationBefore.Snapshot, pckBefore, sourceBefore, markerPath);
         ValidatePckStructure(pckPath);
 
-        var pckCacheHit = false;
-        var pckSha256 = string.Empty;
-        if (usePckCache)
-        {
-            pckCacheHit = GameIdentityPckCache.TryRead(
-                dataDir,
-                normalizedBranch,
-                generationBefore.Generation,
-                pckBefore,
-                out pckSha256
-            );
-        }
+        // Read-only callers still reuse a digest bound to the exact install
+        // generation and current file snapshot. Disabling cache writes must not
+        // force launcher routing to synchronously reread the whole game archive.
+        var pckCacheHit = GameIdentityPckCache.TryRead(
+            dataDir,
+            normalizedBranch,
+            generationBefore.Generation,
+            pckBefore,
+            out var pckSha256
+        );
         if (!pckCacheHit)
             pckSha256 = HashCurrentFile(pckPath, "selected PCK");
         RequireUnchanged(pckBefore, pckPath, "selected PCK");
@@ -184,7 +181,7 @@ internal sealed class GameIdentityReader
             pckSha256,
             sourceAssemblySha256
         );
-        if (usePckCache && !pckCacheHit)
+        if (persistPckCache && !pckCacheHit)
             GameIdentityPckCache.TryWrite(dataDir, identity, pckBefore);
 
         return identity;

@@ -169,7 +169,7 @@ public final class ManagedPckPreparationValidatorTest {
 		);
 	}
 
-	private static Map<String, byte[]> arm64Entries() {
+	static Map<String, byte[]> arm64Entries() {
 		Map<String, byte[]> entries = new LinkedHashMap<>();
 		entries.put("project.binary", bytes(FMOD_BINARY_AUTOLOAD));
 		entries.put(".godot/extension_list.cfg", bytes(FMOD_EXTENSION));
@@ -189,7 +189,7 @@ public final class ManagedPckPreparationValidatorTest {
 		return entries;
 	}
 
-	private static File writePck(Map<String, byte[]> entries) throws Exception {
+	static File writePck(Map<String, byte[]> entries) throws Exception {
 		int directoryBytes = 4;
 		for (Map.Entry<String, byte[]> entry : entries.entrySet()) {
 			directoryBytes += 4

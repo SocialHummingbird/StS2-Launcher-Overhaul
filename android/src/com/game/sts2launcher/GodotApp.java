@@ -92,6 +92,7 @@ public class GodotApp extends GodotActivity {
 	private AndroidBootTransitionController bootTransitionController;
 	private AndroidLauncherImeController launcherImeController;
 	private String gameDir;
+	private AndroidPreparedGameFiles preparedGameFiles;
 	private static final String KEYSTORE_ALIAS = "sts2mobile_credentials";
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
 	private static final String PREFS_NAME = "sts2mobile";
@@ -147,6 +148,7 @@ public class GodotApp extends GodotActivity {
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		instance = this;
+		preparedGameFiles = LauncherActivity.takePreparedGameFiles();
 		deferredPreloadExperimentEnabled = readDeferredPreloadExperimentSetting();
 		Log.i(TAG, "Deferred preload experiment arm: " + (deferredPreloadExperimentEnabled ? "suppress-first" : "normal"));
 		installAndroidExceptionHandler();
@@ -676,6 +678,10 @@ public class GodotApp extends GodotActivity {
 
 	private boolean isGamePckReady() {
 		String branch = readSelectedBranch();
+		if (preparedGameFiles == null || !preparedGameFiles.matches(new File(gameDir), branch)) {
+			Log.w(TAG, "Selected game launch has no matching worker preparation; returning to launcher");
+			return false;
+		}
 		BranchInstallationState.Result installationState =
 			BranchInstallationState.inspect(getFilesDir(), branch);
 		if (!installationState.isReady()) {
@@ -694,7 +700,7 @@ public class GodotApp extends GodotActivity {
 			return false;
 		}
 
-		String actualPckSha256 = sha256Hex(pck);
+		String actualPckSha256 = preparedGameFiles.sha256(pck);
 		if (!installationState.matchesPckSha256(actualPckSha256)) {
 			Log.w(
 				TAG,
@@ -705,7 +711,7 @@ public class GodotApp extends GodotActivity {
 		}
 
 		ManagedPckPreparationValidator.Result preparation =
-			ManagedPckPreparationValidator.inspect(pck, isX86Runtime());
+			preparedGameFiles.pckPreparation();
 		if (!preparation.isValid()) {
 			Log.w(
 				TAG,
@@ -741,16 +747,16 @@ public class GodotApp extends GodotActivity {
 			String markerGameIdentityId = json.optString("gameIdentityId", "");
 			File installMarker = new File(gameDir, LauncherArtifactLayout.BRANCH_MARKER_FILE);
 			String currentInstallGeneration = installMarker.isFile()
-				? sha256Hex(installMarker)
+				? preparedGameFiles.sha256(installMarker)
 				: "";
 			File selectedPck = new File(gameDir, PCK_FILE);
 			String selectedPckSha256 = selectedPck.isFile()
-				? sha256Hex(selectedPck)
+				? preparedGameFiles.sha256(selectedPck)
 				: "";
 			File srcDir = findAssembliesDir();
 			File selectedSourceAssembly = srcDir == null ? null : new File(srcDir, RUNTIME_PACK_ANDROID_ASSEMBLY);
 			String selectedSourceAssemblySha256 = selectedSourceAssembly != null && selectedSourceAssembly.exists() && selectedSourceAssembly.isFile()
-				? sha256Hex(selectedSourceAssembly)
+				? preparedGameFiles.sha256(selectedSourceAssembly)
 				: "";
 			boolean pckMatches = !markerPckSha256.trim().isEmpty()
 				&& markerPckSha256.equalsIgnoreCase(selectedPckSha256);
@@ -941,7 +947,7 @@ public class GodotApp extends GodotActivity {
 		Log.i(TAG, "Steam branch marker has branch integrity provenance for startup: " + hasBranchIntegrityProvenance(branchMarker));
 		Log.i(TAG, "Steam branch marker depot manifest entries for startup: " + depotManifestCount(branchMarker));
 		boolean branchMarkerReady = isBranchMarkerReady(selectedBranch);
-		boolean gamePckReady = isGamePckReady();
+		boolean gamePckReady = pendingGameLaunch && isGamePckReady();
 		Log.i(TAG, "Steam branch marker ready for startup: " + branchMarkerReady);
 		boolean gameLaunchRequested = branchMarkerReady && gamePckReady && consumeGameLaunchRequest();
 		boolean runtimeSlotReady = gameLaunchRequested && isRuntimeSlotEvidenceReadyForLaunch(selectedBranch);

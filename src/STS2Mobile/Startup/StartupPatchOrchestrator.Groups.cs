@@ -36,6 +36,7 @@ internal static partial class StartupPatchOrchestrator
                 new("Mobile layout", MobileLayoutPatches.Apply),
                 new("Run history asset fallback", RunHistoryAssetPatches.Apply),
                 new("Android atlas compatibility", AndroidAtlasCompatibilityPatches.Apply),
+                new("Android asset preload frame budget", AndroidAssetPreloadPatches.Apply),
                 new("Deferred main-menu preload experiment", DeferredPreloadExperimentPatches.Apply),
                 new("Dev console Android fallback", DevConsolePatches.Apply),
                 new("Event layout", EventLayoutPatches.Apply),

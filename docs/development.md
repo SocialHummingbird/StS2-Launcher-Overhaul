@@ -24,6 +24,17 @@ Run the managed regression suite:
 dotnet run --project tests\STS2Mobile.GameIdentityTests\STS2Mobile.GameIdentityTests.csproj -c Release
 ```
 
+Check the Android asset-preload patch against the actual game loading class and
+synthetic threaded resources in desktop Godot:
+
+```powershell
+.\scripts\test-asset-preload.ps1 -VerifyBaseline
+```
+
+For emulator startup/input checks, see
+[the responsiveness investigation](startup-responsiveness-2026-09-07.md) and
+[the isolated Android harness](../tools/AndroidStartupHarness/README.md).
+
 Run the focused launcher/mod test against the already-downloaded representative
 fixture (adjust the three local paths if Steam is installed elsewhere):
 

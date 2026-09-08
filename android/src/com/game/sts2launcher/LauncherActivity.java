@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.Gravity;
@@ -18,6 +20,8 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.security.MessageDigest;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import androidx.core.splashscreen.SplashScreen;
 
@@ -26,6 +30,16 @@ public class LauncherActivity extends Activity {
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
 	private static final String LAST_STARTUP_CONTEXT_FILE = "last_startup_context.txt";
 	private static final String LAST_STARTUP_TIMELINE_FILE = "last_startup_timeline.txt";
+	private static AndroidPreparedGameFiles preparedGameFiles;
+	// Serialize cache promotion even if a routing activity is recreated during preparation.
+	private static final Executor PREPARATION_WORKER = Executors.newSingleThreadExecutor(action -> {
+		Thread thread = new Thread(action, "STS2-startup-preparation");
+		thread.setDaemon(true);
+		return thread;
+	});
+	private final Handler mainHandler = new Handler(Looper.getMainLooper());
+	private final AndroidStartupPreparation<PreparedRoute> startupPreparation =
+		new AndroidStartupPreparation<>(PREPARATION_WORKER, mainHandler::post, this::completeStartupRouting);
 	private final AndroidStartupRouteGate routeGate =
 		new AndroidStartupRouteGate();
 	private final Runnable startupRouting = this::routeStartup;
@@ -46,6 +60,7 @@ public class LauncherActivity extends Activity {
 	@Override
 	protected void onDestroy() {
 		handoffActivityLifecycle = "destroyed";
+		startupPreparation.onDestroy();
 		removeStartupRoutingPreDrawListener();
 		if (routingPlaceholder != null) {
 			routingPlaceholder.removeCallbacks(startupRouting);
@@ -64,11 +79,13 @@ public class LauncherActivity extends Activity {
 	protected void onResume() {
 		super.onResume();
 		handoffActivityLifecycle = "resumed";
+		startupPreparation.onResume();
 	}
 
 	@Override
 	protected void onPause() {
 		handoffActivityLifecycle = "paused";
+		startupPreparation.onPause();
 		super.onPause();
 	}
 
@@ -110,7 +127,7 @@ public class LauncherActivity extends Activity {
 					removeStartupRoutingPreDrawListener();
 					View currentPlaceholder = routingPlaceholder;
 					if (currentPlaceholder != null) {
-						// Preserve a submitted mark frame while bootstrap work blocks the UI thread.
+						// Submit the mark before dispatching preparation to the worker.
 						currentPlaceholder.postOnAnimation(startupRouting);
 					}
 					return true;
@@ -140,23 +157,24 @@ public class LauncherActivity extends Activity {
 		boolean nativeRecoveryRequest = consumeNativeRecoveryRequest();
 		boolean pendingGameLaunch =
 			!nativeRecoveryRequest && hasPendingGameLaunchRequest();
+		startupPreparation.start(() -> {
+			try {
+				return prepareStartupRouting(pendingGameLaunch);
+			} catch (RuntimeException error) {
+				Log.e(TAG, "Native startup preparation failed", error);
+				return new PreparedRoute(NativeFallbackActivity.class,
+					AndroidAssemblyBootstrapper.Result.failure(Log.getStackTraceString(error)),
+					pendingGameLaunch, "bootstrap_failed", null);
+			}
+		});
+	}
+
+	private PreparedRoute prepareStartupRouting(boolean pendingGameLaunch) {
 		recordStartupPhase("native launcher activity onCreate", "pendingGameLaunch=" + pendingGameLaunch);
 		logSelectedBranchBeforeRouting(false);
 
 		if (shouldUseNativeX86Fallback()) {
-			if (pendingGameLaunch) {
-				AndroidHandoffDiagnostics.record(
-					getFilesDir(),
-					AndroidHandoffEvent.HANDOFF_FAILED,
-					"",
-					handoffActivityLifecycle,
-					Boolean.toString(hasWindowFocus()),
-					"true",
-					"native_fallback"
-				);
-			}
-			routeOnce(NativeFallbackActivity.class, null);
-			return;
+			return new PreparedRoute(NativeFallbackActivity.class, null, pendingGameLaunch, "native_fallback", null);
 		}
 
 		String selectedBranch = readSelectedBranch();
@@ -172,34 +190,60 @@ public class LauncherActivity extends Activity {
 		assemblyBootstrapper.logStartupFreshnessProbe();
 		AndroidAssemblyBootstrapper.Result assemblyResult =
 			assemblyBootstrapper.prepare();
-		if (!assemblyResult.isSuccess()) {
-			if (pendingGameLaunch) {
-				AndroidHandoffDiagnostics.record(
-					getFilesDir(),
-					AndroidHandoffEvent.HANDOFF_FAILED,
-					"",
-					handoffActivityLifecycle,
-					Boolean.toString(hasWindowFocus()),
-					"true",
-					"bootstrap_failed"
-				);
-			}
-			routeOnce(NativeFallbackActivity.class, assemblyResult);
+		AndroidPreparedGameFiles gameFiles = null;
+		if (assemblyResult.isSuccess() && pendingGameLaunch) {
+			recordStartupPhase("native game file validation", "Hashing selected game files off the UI thread");
+			gameFiles = AndroidPreparedGameFiles.prepare(gameDirectory, selectedBranch, isX86Runtime());
+			recordStartupPhase("native game file validation complete", "Selected game file snapshot prepared");
+		}
+		return assemblyResult.isSuccess()
+			? new PreparedRoute(GodotApp.class, null, pendingGameLaunch, "bootstrap_accepted", gameFiles)
+			: new PreparedRoute(NativeFallbackActivity.class, assemblyResult, pendingGameLaunch, "bootstrap_failed", null);
+	}
+
+	private void completeStartupRouting(PreparedRoute prepared) {
+		if (isFinishing() || isDestroyed()) {
 			return;
 		}
-		if (pendingGameLaunch) {
+		if (prepared.pendingGameLaunch) {
 			AndroidHandoffDiagnostics.record(
 				getFilesDir(),
-				AndroidHandoffEvent.NATIVE_BOOTSTRAP_ACCEPTED,
+				prepared.target == GodotApp.class
+					? AndroidHandoffEvent.NATIVE_BOOTSTRAP_ACCEPTED
+					: AndroidHandoffEvent.HANDOFF_FAILED,
 				"",
 				handoffActivityLifecycle,
 				Boolean.toString(hasWindowFocus()),
 				"true",
-				"bootstrap_accepted"
+				prepared.readiness
 			);
 		}
 
-		routeOnce(GodotApp.class, null);
+		preparedGameFiles = prepared.gameFiles;
+		routeOnce(prepared.target, prepared.failure);
+	}
+
+	static AndroidPreparedGameFiles takePreparedGameFiles() {
+		AndroidPreparedGameFiles result = preparedGameFiles;
+		preparedGameFiles = null;
+		return result;
+	}
+
+	private static final class PreparedRoute {
+		final Class<?> target;
+		final AndroidAssemblyBootstrapper.Result failure;
+		final boolean pendingGameLaunch;
+		final String readiness;
+		final AndroidPreparedGameFiles gameFiles;
+
+		PreparedRoute(Class<?> target, AndroidAssemblyBootstrapper.Result failure,
+			boolean pendingGameLaunch, String readiness, AndroidPreparedGameFiles gameFiles) {
+			this.target = target;
+			this.failure = failure;
+			this.pendingGameLaunch = pendingGameLaunch;
+			this.readiness = readiness;
+			this.gameFiles = gameFiles;
+		}
 	}
 
 	private View createRoutingPlaceholder() {

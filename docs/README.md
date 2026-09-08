@@ -12,6 +12,7 @@
 
 - [Latest release](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest)
 - [Current Android testing status](current-android-status.md)
+- [v0.2.432 release notes](release-notes/v0.2.432.md)
 - [v0.2.431 release notes](release-notes/v0.2.431.md)
 - [Changelog](../CHANGELOG.md)
 

@@ -18,6 +18,8 @@ internal static partial class Program
 
         var tests = new (string Name, Action Run)[]
         {
+            ("asset preload budget preserves queued work", AssetPreloadBudgetPreservesQueuedWork),
+            ("asset preload budget yields after expensive resource", AssetPreloadBudgetYieldsAfterExpensiveItem),
             ("preparation timeout drains late success", PreparationTimeoutDrainsLateSuccess),
             ("preparation timeout observes late failure", PreparationTimeoutObservesLateFailure),
             ("preparation success does not drain", PreparationSuccessDoesNotDrain),
@@ -31,6 +33,11 @@ internal static partial class Program
             ("launch scene readiness requires source and instance", SceneReadinessRequiresSourceAndInstance),
             ("GitHub issue redaction, encoding, and URL bounds", GitHubIssueDraft),
             ("stable identity and safe PCK cache hit", StableIdentityAndPckCacheHit),
+            ("read-only identity reuses current PCK cache", ReadOnlyIdentityReusesCurrentPckCache),
+            ("pre-load save synchronization keeps caller responsive", PreloadSaveSyncKeepsCallerResponsive),
+            ("read-only identity cache miss does not write", ReadOnlyIdentityCacheMissDoesNotWrite),
+            ("read-only identity rejects stale PCK cache", ReadOnlyIdentityRejectsStalePckCache),
+            ("read-only identity detects source change on PCK cache hit", ReadOnlyIdentityDetectsSourceChangeOnPckCacheHit),
             ("changed PCK at same path", ChangedPckAtSamePath),
             ("changed DLL at same path", ChangedDllAtSamePath),
             ("changed DLL with same size and timestamp", ChangedDllWithSameSizeAndTimestamp),

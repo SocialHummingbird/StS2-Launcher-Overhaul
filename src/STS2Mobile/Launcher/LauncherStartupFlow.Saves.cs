@@ -15,9 +15,14 @@ internal static partial class LauncherStartupFlow
         StartupContext startup
     )
     {
+        startup.SetPhase(PhaseSettingsAndSaves, "Synchronizing saves before loading...");
+        ConfigureSaveSyncForGameProcess();
+        if (!SaveSyncService.TryGetActive(out var service))
+            service = null;
+        var skipSync = startup.ShouldSkipShaderWarmup();
         var loaded = false;
         await RunPreloadSaveBoundaryAsync(
-            () => SynchronizeSavesBeforeLoadAsync(startup),
+            () => SynchronizeSavesBeforeLoadAsync(service, skipSync),
             () =>
             {
                 startup.SetSettingsAndSavesPhase();
@@ -45,28 +50,28 @@ internal static partial class LauncherStartupFlow
     {
         ArgumentNullException.ThrowIfNull(synchronize);
         ArgumentNullException.ThrowIfNull(loadSaves);
-        await synchronize();
+        // Steam connection setup can block synchronously before SyncAsync's
+        // first incomplete await. Keep it off the Godot thread, then resume on
+        // the captured context only after every save transfer has settled.
+        await Task.Run(synchronize);
         loadSaves();
     }
 
     private static async Task SynchronizeSavesBeforeLoadAsync(
-        StartupContext startup
+        SaveSyncService service,
+        bool skipSync
     )
     {
-        startup.SetPhase(PhaseSettingsAndSaves, "Synchronizing saves before loading...");
-        ConfigureSaveSyncForGameProcess();
-        var hasService = SaveSyncService.TryGetActive(out var service);
-        if (startup.ShouldSkipShaderWarmup())
+        if (skipSync)
         {
-            if (hasService)
-                service.PauseAutomaticPush();
+            service?.PauseAutomaticPush();
             PatchHelper.Log(
                 "[Cloud] Pre-load synchronization skipped for Safe Start; automatic Push paused"
             );
             return;
         }
 
-        if (!hasService)
+        if (service == null)
         {
             PatchHelper.Log(
                 "[Cloud] Pre-load synchronization unavailable; launching local with automatic Push paused"

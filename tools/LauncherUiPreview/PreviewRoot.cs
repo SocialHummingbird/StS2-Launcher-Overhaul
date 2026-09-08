@@ -37,6 +37,20 @@ public partial class PreviewRoot : Control
         System.Environment.SetEnvironmentVariable("STS2_LAUNCHER_PREVIEW", "1");
         ParseArguments(OS.GetCmdlineUserArgs());
 
+        if (ReadBool("asset-preload-test", false))
+        {
+            var context = AssemblyLoadContext.GetLoadContext(typeof(PreviewRoot).Assembly)
+                ?? AssemblyLoadContext.Default;
+            var directory = ReadRequiredDirectory("managed-runtime-directory");
+            Assembly? Resolve(AssemblyLoadContext loadContext, AssemblyName requestedName)
+                => ResolveManagedRuntimeDependency(loadContext, requestedName, directory);
+            context.Resolving += Resolve;
+            try { await AssetPreloadRuntimeTest.RunAsync(this, !ReadBool("unpatched", false)); }
+            finally { context.Resolving -= Resolve; }
+            GetTree().Quit();
+            return;
+        }
+
         if (ReadBool("mod-runtime-test", false))
         {
             var context = AssemblyLoadContext.GetLoadContext(typeof(PreviewRoot).Assembly)
