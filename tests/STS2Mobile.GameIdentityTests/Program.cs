@@ -20,6 +20,7 @@ internal static partial class Program
         {
             ("asset preload budget preserves queued work", AssetPreloadBudgetPreservesQueuedWork),
             ("asset preload budget yields after expensive resource", AssetPreloadBudgetYieldsAfterExpensiveItem),
+            ("asset preload patch targets survive Android publicizer", AssetPreloadPatchTargetsSurvivePublicizer),
             ("preparation timeout drains late success", PreparationTimeoutDrainsLateSuccess),
             ("preparation timeout observes late failure", PreparationTimeoutObservesLateFailure),
             ("preparation success does not drain", PreparationSuccessDoesNotDrain),

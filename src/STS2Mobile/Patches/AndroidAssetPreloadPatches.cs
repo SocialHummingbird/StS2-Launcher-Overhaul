@@ -20,6 +20,11 @@ internal static class AndroidAssetPreloadPatches
     private const int MaximumRequestCandidatesPerFrame = 64;
     private const double WorkBudgetMilliseconds = 4;
 
+    // Android runs a copy of sts2.dll rewritten by AndroidAssemblyPublicizer, so
+    // these members are private on desktop but public on device. Match either.
+    private const BindingFlags TargetMemberFlags =
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
     internal static void Apply(Harmony harmony)
     {
         if (OperatingSystem.IsAndroid()) ApplyForRuntime(harmony);
@@ -28,14 +33,7 @@ internal static class AndroidAssetPreloadPatches
     // Also exercised with real threaded resources by the desktop Godot probe.
     internal static void ApplyForRuntime(Harmony harmony)
     {
-        var type = typeof(AssetLoadingSession);
-        RequireField(type, "_loading", typeof(Queue<string>));
-        RequireField(type, "_toLoad", typeof(Queue<string>));
-        RequireField(type, "_finalizing", typeof(Queue<string>));
-        RequireField(type, "_cache", typeof(ConcurrentDictionary<string, Resource>));
-        RequireField(type, "_totalLoaded", typeof(int));
-        var request = RequireMethod(type, "ProcessLoadingQueue");
-        var finalize = RequireMethod(type, "FinalizeLoading");
+        var (request, finalize) = RequireSupportedSession(typeof(AssetLoadingSession));
         harmony.Patch(request, prefix: new HarmonyMethod(
             PatchHelper.Method(typeof(AndroidAssetPreloadPatches), nameof(ProcessLoadingQueuePrefix))));
         harmony.Patch(finalize, prefix: new HarmonyMethod(
@@ -82,15 +80,25 @@ internal static class AndroidAssetPreloadPatches
         return false;
     }
 
+    internal static (MethodInfo Request, MethodInfo Finalize) RequireSupportedSession(Type type)
+    {
+        RequireField(type, "_loading", typeof(Queue<string>));
+        RequireField(type, "_toLoad", typeof(Queue<string>));
+        RequireField(type, "_finalizing", typeof(Queue<string>));
+        RequireField(type, "_cache", typeof(ConcurrentDictionary<string, Resource>));
+        RequireField(type, "_totalLoaded", typeof(int));
+        return (RequireMethod(type, "ProcessLoadingQueue"), RequireMethod(type, "FinalizeLoading"));
+    }
+
     private static void RequireField(Type type, string name, Type expected)
     {
-        if (type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)?.FieldType != expected)
+        if (type.GetField(name, TargetMemberFlags)?.FieldType != expected)
             throw new InvalidOperationException($"Asset preload budget unsupported: {type.Name}.{name} changed.");
     }
 
     private static MethodInfo RequireMethod(Type type, string name)
     {
-        var method = type.GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic,
+        var method = type.GetMethod(name, TargetMemberFlags,
             binder: null, types: Type.EmptyTypes, modifiers: null);
         if (method?.ReturnType != typeof(void))
             throw new InvalidOperationException($"Asset preload budget unsupported: {type.Name}.{name} changed.");
