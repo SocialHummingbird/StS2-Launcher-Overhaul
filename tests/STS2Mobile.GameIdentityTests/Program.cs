@@ -31,6 +31,7 @@ internal static partial class Program
             ("launch save cleanup timeout blocks game", LaunchSaveCleanupTimeout),
             ("launch scene readiness preserves origin", SceneReadinessPreservesOrigin),
             ("launch scene readiness requires source and instance", SceneReadinessRequiresSourceAndInstance),
+            ("keyboard map targets match game input manager", KeyboardMapTargetsMatchGameInputManager),
             ("GitHub issue redaction, encoding, and URL bounds", GitHubIssueDraft),
             ("stable identity and safe PCK cache hit", StableIdentityAndPckCacheHit),
             ("read-only identity reuses current PCK cache", ReadOnlyIdentityReusesCurrentPckCache),
