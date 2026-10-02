@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-02 - v0.2.435-preload-repair-local-r2 Android preload and Mono repairs
+
+- Repaired the existing preload lookup to accept publicized Android members while preserving all field and method shape checks and loading budgets.
+- Repaired the existing Mono bootstrap to leave its native engine host GC-safe after first delegate creation; subsequent callbacks retain their existing transitions.
+- Consolidated the older fix PR's test scaffolding into the existing preload test file and extended the existing probe with an actual Android Mono GC regression.
+- Published at the user's request after local checks and two full Modded/two Vanilla phone passes. Full device acceptance and intermittent freeze resolution remain pending; see [release notes](docs/release-notes/v0.2.435-preload-repair-local-r2.md).
+
 ## 2026-10-02 - v0.2.434-cleanup-local launch repairs and code cleanup
 
 - Repaired startup task ownership, late-completion handling, preload fallback ordering and diagnostic sampling in the existing launch flow.

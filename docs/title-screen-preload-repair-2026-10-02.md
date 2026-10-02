@@ -84,15 +84,16 @@ excluded from acceptance. No r2 freeze was observed during these tests.
 The phone is unavailable at the user's direction. Remaining acceptance is three
 alternating comparisons and 18 Modded successes on this same APK: eight cold,
 six warm, two background/resume and two lock/unlock. The early passes do not
-establish that the intermittent freeze is resolved. PR #48 remains unmerged and
-r2 remains unpublished. No existing run was abandoned; both save namespaces
+establish that the intermittent freeze is resolved. PR #48 is merged and r2 is
+published at the user's subsequent explicit request, before full device acceptance.
+No existing run was abandoned; both save namespaces
 remain available through Continue, credential loading remains successful and
 the original three-mod selection remains activated. Exact mod semantic versions
 were not exposed by the retained release logs; payloads were kept unchanged.
 
 Raw original evidence is retained locally in `artifacts/investigations/title-freeze-20261002-122146/`; candidate test logs, screenshots and per-attempt records are in `artifacts/preload-repair-20261002/phone/`. Continuous logcat is retained. Operator force-stops and secure-lock pauses are distinguished from failures. Raw device captures are not published.
 
-## Unpublished candidate
+## Published r2 APK
 
 | Item | Value |
 | --- | --- |
@@ -105,4 +106,4 @@ Raw original evidence is retained locally in `artifacts/investigations/title-fre
 The failed code `435001` APK is also retained, SHA-256
 `49da67f99619247ed564be1e72a1b5b0a0ae149c13c0c3b22dc8b4370cc9101f`.
 
-Released v434 and its original freeze captures are preserved. The candidate remains unpublished until physical acceptance is complete. Android Steam transport, broader device/driver compatibility and individual mod features require separate validation.
+Released v434 and its original freeze captures are preserved. The exact tested r2 APK is published as the latest release at the user's request; publication does not establish completed physical acceptance. Android Steam transport, broader device/driver compatibility and individual mod features require separate validation. See [release notes](release-notes/v0.2.435-preload-repair-local-r2.md).

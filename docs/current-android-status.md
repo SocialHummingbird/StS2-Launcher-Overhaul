@@ -2,7 +2,9 @@
 
 Updated October 2, 2026. This page separates local validation from physical-device and live-service results.
 
-## Current candidate: v0.2.435-preload-repair-local-r2 (unpublished)
+## Current release: v0.2.435-preload-repair-local-r2
+
+[Release notes](release-notes/v0.2.435-preload-repair-local-r2.md), [ARM64 APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.435-preload-repair-local-r2/StS2Launcher-v0.2.435-preload-repair-local-r2-arm64-v8a.apk), [checksum](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.435-preload-repair-local-r2/StS2Launcher-v0.2.435-preload-repair-local-r2-arm64-v8a.apk.sha256).
 
 The connected phone reproduced the v434 title-screen freeze. Android preparation publicizes game members, but the existing preload patch searched only nonpublic members and failed installation. Both lookup helpers are repaired in place, with all six field and three method shape checks retained. See the [repair and validation report](title-screen-preload-repair-2026-10-02.md) and existing [PR #48](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/pull/48).
 
@@ -21,10 +23,10 @@ A third Modded launch completes Common but is excluded after the user removes
 the phone during title observation. No r2 freeze was observed. The phone is now
 unavailable; the remaining comparison and 18 Modded successes, including warm
 and lifecycle cases, are pending. The original failure captures and first APK
-are retained. PR #48 remains unmerged and r2 remains unpublished until physical
-acceptance is complete; freeze resolution is not yet established.
+are retained. PR #48 is merged and r2 is published at the user's explicit request
+before completing physical acceptance; freeze resolution is not yet established.
 
-## Current release: v0.2.434-cleanup-local
+## Previous release: v0.2.434-cleanup-local
 
 [Release notes](release-notes/v0.2.434-cleanup-local.md), [cleanup and validation report](system-cleanup-2026-10-02.md), [ownership inventory](../REDUCTION_INVENTORY.md), [ARM64 APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.434-cleanup-local/StS2Launcher-v0.2.434-cleanup-local-arm64-v8a.apk), [checksum](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.434-cleanup-local/StS2Launcher-v0.2.434-cleanup-local-arm64-v8a.apk.sha256).
 
