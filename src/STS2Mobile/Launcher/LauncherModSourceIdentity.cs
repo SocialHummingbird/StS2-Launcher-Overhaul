@@ -63,18 +63,8 @@ internal sealed class LauncherModSourceIdentity
             if (info.Length > MaxMetadataIdentityBytes)
                 return $"oversized-metadata:{path};bytes={info.Length};mtime={mtime}";
 
-            byte[] hash;
-            if (OperatingSystem.IsAndroid())
-            {
-                hash = AndroidJavaCrypto.Sha256FileHashData(path);
-            }
-            else
-            {
-                using var stream = File.OpenRead(path);
-                hash = SHA256.HashData(stream);
-            }
+            var hashText = GameIdentityFileHasher.Instance.Sha256(path);
 
-            var hashText = Convert.ToHexString(hash).ToLowerInvariant();
             return $"metadata:{path};bytes={info.Length};mtime={mtime};sha256={hashText}";
         }
         catch (Exception ex)

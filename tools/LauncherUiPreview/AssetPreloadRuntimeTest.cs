@@ -19,6 +19,16 @@ internal static class AssetPreloadRuntimeTest
     {
         var harmony = new Harmony("sts2launcher.tests.asset-preload");
         if (applyPatch) AndroidAssetPreloadPatches.ApplyForRuntime(harmony);
+        if (applyPatch)
+        {
+            VerifyOwnershipInspection(harmony);
+            foreach (var ownership in AndroidAssetPreloadPatches.DescribeRuntimePatchOwnership())
+            {
+                GD.Print(ownership);
+                if (!ownership.Contains("ownedPrefix=True") || !ownership.Contains(harmony.Id))
+                    throw new InvalidOperationException("The real game target lost its preload prefix: " + ownership);
+            }
+        }
         var directory = Path.Combine(OS.GetUserDataDir(), "asset-preload-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         var paths = new List<string>();
@@ -75,6 +85,7 @@ internal static class AssetPreloadRuntimeTest
             }
             if (!cachedSession.IsCompleted || cache.Count != paths.Count)
                 throw new InvalidOperationException("A fully cached second session did not complete.");
+            await VerifySynchronousFallbacksAsync(host, directory);
             GD.Print($"ASSET_PRELOAD_PASS resources={cache.Count} frames={frames} maxFinalized={maxFinalized} "
                 + $"maxOutstanding={maxOutstanding} cachedFrames={cachedFrames} elapsedMs={watch.ElapsedMilliseconds}");
             foreach (var resource in cache.Values) resource.Dispose();
@@ -90,4 +101,97 @@ internal static class AssetPreloadRuntimeTest
     private static Queue<string> Queue(AssetLoadingSession session, string name)
         => (Queue<string>)typeof(AssetLoadingSession).GetField(name,
             BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(session)!;
+
+    private static int _prefixFactoryCalls;
+
+    private static MethodInfo OwnershipProbePrefixFactory(MethodBase target)
+    {
+        _prefixFactoryCalls++;
+        return typeof(AssetPreloadRuntimeTest).GetMethod(nameof(OwnershipProbePrefix),
+            BindingFlags.Static | BindingFlags.NonPublic)!;
+    }
+
+    private static void OwnershipProbePrefix() { }
+
+    private static void VerifyOwnershipInspection(Harmony preloadHarmony)
+    {
+        var factoryHarmony = new Harmony("sts2launcher.tests.asset-owner-factory");
+        var target = typeof(AssetLoadingSession).GetMethod("CheckLoadingStatus",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        try
+        {
+            factoryHarmony.Patch(target, prefix: new HarmonyMethod(
+                typeof(AssetPreloadRuntimeTest).GetMethod(nameof(OwnershipProbePrefixFactory),
+                    BindingFlags.Static | BindingFlags.NonPublic)!)
+                { priority = Priority.First, before = new[] { preloadHarmony.Id } });
+            var callsAfterPatching = _prefixFactoryCalls;
+            if (callsAfterPatching == 0)
+                throw new InvalidOperationException("The factory fixture did not execute while applying its real Harmony patch.");
+            var report = AndroidAssetPreloadPatches.DescribeRuntimePatchOwnership();
+            if (_prefixFactoryCalls != callsAfterPatching)
+                throw new InvalidOperationException("Ownership inspection re-executed a mod patch factory.");
+            var status = report.Single(line => line.Contains("target=CheckLoadingStatus"));
+            if (!status.Contains(factoryHarmony.Id) || !status.Contains("priority=800")
+                || !status.Contains("before=[" + preloadHarmony.Id + "]"))
+                throw new InvalidOperationException("Ownership inspection lost the factory's owner or ordering metadata.");
+            GD.Print("ASSET_OWNERSHIP_PASS factoryCallsUnchanged=true ownerAndConstraintsRetained=true");
+        }
+        finally { factoryHarmony.UnpatchAll(factoryHarmony.Id); }
+    }
+
+    private static async Task VerifySynchronousFallbacksAsync(Node host, string directory)
+    {
+        var assetCache = new AssetCache();
+        var cache = (ConcurrentDictionary<string, Resource>)typeof(AssetCache)
+            .GetField("_cache", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(assetCache)!;
+        var session = assetCache.CreateSession("FailedThreadedRequests", Array.Empty<string>());
+        var loading = Queue(session, "_loading");
+        for (var i = 0; i < 8; i++)
+        {
+            var nestedScene = i % 2 == 1;
+            var path = Path.Combine(directory, $"fallback-{i}." + (nestedScene ? "tscn" : "tres")).Replace('\\', '/');
+            File.WriteAllText(path, nestedScene
+                ? "[gd_scene load_steps=3 format=3]\n[sub_resource type=\"StandardMaterial3D\" id=\"Material\"]\n"
+                    + "[sub_resource type=\"BoxMesh\" id=\"Mesh\"]\nmaterial = SubResource(\"Material\")\n"
+                    + "[node name=\"MeshProbe\" type=\"MeshInstance3D\"]\nmesh = SubResource(\"Mesh\")\n"
+                : "[gd_resource type=\"Gradient\" format=3]\n[resource]\n");
+            // A valid resource without a threaded request yields InvalidResource,
+            // exercising the real game's synchronous fallback rather than a mock.
+            loading.Enqueue(path);
+        }
+        var missing = Path.Combine(directory, "missing-fallback.tres").Replace('\\', '/');
+        loading.Enqueue(missing);
+        var frames = 0;
+        try
+        {
+            while (!session.IsCompleted && frames++ < 30)
+            {
+                var before = cache.Count;
+                session.Process();
+                if (cache.Count - before > 1)
+                    throw new InvalidOperationException($"Synchronous fallback burst exceeded one resource per pass: {cache.Count - before}");
+                await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+            if (!session.IsCompleted || cache.Count != 8)
+                throw new InvalidOperationException($"Synchronous fallback lost resources: {cache.Count}/8 completed={session.IsCompleted}");
+            await session.WaitForCompletion();
+            var failed = (HashSet<string>)typeof(AssetCache)
+                .GetField("_failedAssets", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(assetCache)!;
+            var totalLoaded = (int)typeof(AssetLoadingSession)
+                .GetField("_totalLoaded", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(session)!;
+            if (!failed.SetEquals(new[] { missing }) || totalLoaded != 8)
+                throw new InvalidOperationException($"Fallback accounting changed: failed={failed.Count}, loaded={totalLoaded}");
+            try
+            {
+                assetCache.GetAsset<Resource>(missing);
+                throw new InvalidOperationException("A failed asset was silently accepted by the game cache.");
+            }
+            catch (Exception ex) when (ex.GetType().Name == "AssetLoadException") { }
+            GD.Print($"ASSET_FALLBACK_PASS resources={cache.Count} failed={failed.Count} nestedScenes=4 frames={frames}");
+        }
+        finally
+        {
+            foreach (var resource in cache.Values) resource.Dispose();
+        }
+    }
 }

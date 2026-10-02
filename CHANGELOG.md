@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-10-02 - v0.2.434-cleanup-local launch repairs and code cleanup
+
+- Repaired startup task ownership, late-completion handling, preload fallback ordering and diagnostic sampling in the existing launch flow.
+- Consolidated menu readiness, diagnostic marker reads, file hashing, authentication retries, mod-result validation and Android restart decisions into their existing owners.
+- Removed superseded wrappers and the silent native sound subsystem; consolidated 301 source fragments into 63 responsibility files.
+- Preserved launch contracts, stored formats, saves, credentials, mod selection and the existing package/signing channel.
+- See [release notes](docs/release-notes/v0.2.434-cleanup-local.md) for local validation and pending physical-device acceptance.
+
 ## 2026-09-06 - v0.2.431 launcher and startup improvements
 
 - Improved launcher layout and navigation with no horizontal scrolling.

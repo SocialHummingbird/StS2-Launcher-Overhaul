@@ -62,7 +62,8 @@ internal sealed class LauncherHandoffStateOwner
 {
     private readonly object _lock = new();
     private readonly bool _recordDiagnostics;
-    private readonly LauncherMainMenuReadinessOwner _mainMenuReadiness = new();
+    private string _attemptId;
+    private bool _mainMenuReady;
     private TaskCompletionSource<bool> _changed = CreateChangeSignal();
     private LauncherHandoffState _state = LauncherHandoffState.LauncherVisible;
     private bool _activityForeground;
@@ -178,7 +179,7 @@ internal sealed class LauncherHandoffStateOwner
         {
             if (
                 _state == LauncherHandoffState.HandoffPending
-                && _mainMenuReadiness.IsActive(attemptId)
+                && !string.IsNullOrWhiteSpace(attemptId) && string.Equals(_attemptId, attemptId, StringComparison.Ordinal)
             )
                 return true;
         }
@@ -191,14 +192,14 @@ internal sealed class LauncherHandoffStateOwner
         bool recordLaunchRequested = true
     )
     {
-        LauncherMainMenuReadinessOwner.ValidateAttemptId(attemptId);
+        ValidateAttemptId(attemptId);
 
         lock (_lock)
         {
             if (_state != LauncherHandoffState.LauncherVisible)
                 return false;
-            if (!_mainMenuReadiness.Begin(attemptId))
-                return false;
+            _attemptId = attemptId;
+            _mainMenuReady = false;
 
             _state = LauncherHandoffState.HandoffPending;
             _operation = new LauncherStartupOperation(attemptId, ex =>
@@ -224,10 +225,11 @@ internal sealed class LauncherHandoffStateOwner
         {
             if (
                 !IsCurrentPending(attemptId)
-                || !_mainMenuReadiness.MarkReady(attemptId)
+                || _mainMenuReady
             )
                 return false;
 
+            _mainMenuReady = true;
             overlayVisible = _overlay?.IsVisible == true;
             promotion = PromoteWhenVisibleLocked();
             SignalChangedLocked();
@@ -236,13 +238,6 @@ internal sealed class LauncherHandoffStateOwner
         Record(LauncherHandoffEvent.MainMenuReady, attemptId, overlayVisible, "main_menu_ready");
         RecordPromotion(attemptId, promotion);
         return true;
-    }
-
-    internal bool MarkActiveMainMenuReady()
-    {
-        var readiness = _mainMenuReadiness.Capture();
-        return !string.IsNullOrWhiteSpace(readiness.AttemptId)
-            && MarkMainMenuReady(readiness.AttemptId);
     }
 
     internal bool ObserveVisibility(
@@ -266,7 +261,7 @@ internal sealed class LauncherHandoffStateOwner
                 || focusChanged;
             _activityForeground = activityForeground;
             _windowFocused = windowFocused;
-            mainMenuReady = _mainMenuReadiness.IsReady(attemptId);
+            mainMenuReady = _mainMenuReady;
             overlayVisible = _overlay?.IsVisible == true;
             promotion = PromoteWhenVisibleLocked();
             if (stateChanged || promotion != PromotionResult.None)
@@ -323,14 +318,19 @@ internal sealed class LauncherHandoffStateOwner
         return true;
     }
 
+    internal static void ValidateAttemptId(string attemptId)
+    {
+        if (string.IsNullOrWhiteSpace(attemptId))
+            throw new ArgumentException("A launch-attempt ID is required.", nameof(attemptId));
+    }
+
     private bool IsCurrentPending(string attemptId)
         => _state == LauncherHandoffState.HandoffPending
-            && _mainMenuReadiness.IsActive(attemptId);
+            && !string.IsNullOrWhiteSpace(attemptId) && string.Equals(_attemptId, attemptId, StringComparison.Ordinal);
 
     private PromotionResult PromoteWhenVisibleLocked()
     {
-        var readiness = _mainMenuReadiness.Capture();
-        if (!readiness.IsReady || !_activityForeground || !_windowFocused)
+        if (!_mainMenuReady || !_activityForeground || !_windowFocused)
             return PromotionResult.None;
 
         if (_overlay != null && !_overlay.Dismiss())
@@ -347,9 +347,8 @@ internal sealed class LauncherHandoffStateOwner
     private void ResetToLauncherLocked()
     {
         _operation?.Fail();
-        var readiness = _mainMenuReadiness.Capture();
-        if (!string.IsNullOrWhiteSpace(readiness.AttemptId))
-            _mainMenuReadiness.Reset(readiness.AttemptId);
+        _attemptId = null;
+        _mainMenuReady = false;
 
         _state = LauncherHandoffState.LauncherVisible;
         _activityForeground = false;
@@ -389,11 +388,10 @@ internal sealed class LauncherHandoffStateOwner
 
     private LauncherHandoffStateSnapshot CaptureLocked()
     {
-        var readiness = _mainMenuReadiness.Capture();
         return new LauncherHandoffStateSnapshot(
             _state,
-            readiness.AttemptId,
-            readiness.IsReady,
+            _attemptId,
+            _mainMenuReady,
             _activityForeground,
             _windowFocused
         );

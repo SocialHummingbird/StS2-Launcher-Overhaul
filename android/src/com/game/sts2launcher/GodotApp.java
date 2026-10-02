@@ -1133,8 +1133,7 @@ public class GodotApp extends GodotActivity {
     private boolean hasPendingGameLaunchRequest() {
         String request = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(AndroidLaunchRestartStore.KEY, "");
         if (!request.isEmpty()) {
-            try { return "pending".equals(AndroidLaunchRestartStore.validate(request, System.currentTimeMillis()).getString("state")); }
-            catch (Exception error) { return false; }
+            return AndroidLaunchRestartStore.isPending(request, System.currentTimeMillis());
         }
         Intent intent = getIntent();
         return (intent != null && intent.getBooleanExtra(EXTRA_LAUNCH_GAME_ON_START, false))
@@ -1144,10 +1143,7 @@ public class GodotApp extends GodotActivity {
     private boolean hasPendingSafeGameLaunchRequest() {
         String durable = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(AndroidLaunchRestartStore.KEY, "");
         if (!durable.isEmpty()) {
-            try {
-                JSONObject request = AndroidLaunchRestartStore.validate(durable, System.currentTimeMillis());
-                return "pending".equals(request.getString("state")) && request.getBoolean("safe");
-            } catch (Exception error) { return false; }
+            return AndroidLaunchRestartStore.isPendingSafe(durable, System.currentTimeMillis());
         }
         Intent intent = getIntent();
         return (intent != null && intent.getBooleanExtra(EXTRA_SAFE_LAUNCH_ON_START, false))
@@ -1203,9 +1199,6 @@ public class GodotApp extends GodotActivity {
 		if (launcherImeController != null) {
 			launcherImeController.onResume();
 		}
-		if (bootTransitionController != null) {
-			bootTransitionController.resumeSound();
-		}
 		recordAppLifecycleEvent("activity onResume");
 	}
 
@@ -1216,9 +1209,6 @@ public class GodotApp extends GodotActivity {
 		recordAppLifecycleEvent("activity onPause");
 		if (launcherImeController != null) {
 			launcherImeController.onPause();
-		}
-		if (bootTransitionController != null) {
-			bootTransitionController.pauseSound();
 		}
 		super.onPause();
 	}

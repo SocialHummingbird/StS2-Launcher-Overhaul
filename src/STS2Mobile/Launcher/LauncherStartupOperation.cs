@@ -69,11 +69,18 @@ internal sealed class LauncherStartupOperation
             if (_started || !IsActive) throw new InvalidOperationException("Game startup is already owned by this attempt.");
             _started = true;
             _stage = LauncherStartupStage.Starting;
-            try { _work = start() ?? throw new InvalidOperationException("Game startup returned no task."); }
-            catch (Exception ex) { _work = Task.FromException(ex); }
-            Observation = ObserveAsync(_work);
-            return _work;
         }
+
+        // Reserve ownership atomically, then invoke game/mod code without holding
+        // the state lock. Synchronous initialization can wait for a thread that
+        // needs to inspect or fail this operation.
+        Task work;
+        try { work = start() ?? throw new InvalidOperationException("Game startup returned no task."); }
+        catch (Exception ex) { work = Task.FromException(ex); }
+        lock (_gate) _work = work;
+        // Observe the original task even if Fail ran while its factory was active.
+        Observation = ObserveAsync(work);
+        return work;
     }
 
     private async Task ObserveAsync(Task work)

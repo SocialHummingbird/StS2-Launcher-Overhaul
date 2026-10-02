@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace STS2Mobile.Launcher;
 
@@ -19,6 +20,93 @@ internal static class LauncherModLaunchResultStore
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
     };
+
+    private const long MaxMarkerBytes = 256 * 1024;
+    private const int MaxMarkerMods = 128;
+
+    private static readonly JsonSerializerOptions MarkerJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = false,
+    };
+
+    internal static LauncherModLaunchResultDocument Read(string markerPath)
+    {
+        if (string.IsNullOrWhiteSpace(markerPath))
+            return null;
+
+        try
+        {
+            var info = new FileInfo(markerPath);
+            if (!info.Exists || info.Length <= 0 || info.Length > MaxMarkerBytes)
+                return null;
+
+            var marker = JsonSerializer.Deserialize<LauncherModLaunchResultDocument>(
+                File.ReadAllText(markerPath),
+                MarkerJsonOptions
+            );
+            return IsValid(marker) ? marker : null;
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Mods] Last launch result is unavailable: {ex.Message}");
+            return null;
+        }
+    }
+
+    internal static bool IsValid(LauncherModLaunchResultDocument marker)
+    {
+        if (marker == null
+            || string.IsNullOrWhiteSpace(marker.SelectionFingerprint)
+            || marker.Mods == null
+            || marker.Mods.Length > MaxMarkerMods
+            || marker.Discovered < 0
+            || marker.Loaded < 0
+            || marker.Active < 0
+            || marker.Partial < 0
+            || marker.Failed < 0
+            || !DateTimeOffset.TryParse(marker.TimestampUtc, out _)
+            || (!string.Equals(marker.LaunchMode, LauncherModSelectionState.VanillaModeName, StringComparison.Ordinal)
+                && !string.Equals(marker.LaunchMode, LauncherModSelectionState.ModdedModeName, StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        if (!marker.Mods.All(item => item != null
+            && !string.IsNullOrWhiteSpace(item.Id)
+            && (string.Equals(item.Result, "Active", StringComparison.Ordinal)
+                || string.Equals(item.Result, "Partial", StringComparison.Ordinal)
+                || string.Equals(item.Result, "Failed", StringComparison.Ordinal))))
+        {
+            return false;
+        }
+
+        var uniqueIds = marker.Mods
+            .Select(item => item.Id)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        var active = marker.Mods.Count(item =>
+            string.Equals(item.Result, "Active", StringComparison.Ordinal));
+        var partial = marker.Mods.Count(item =>
+            string.Equals(item.Result, "Partial", StringComparison.Ordinal));
+        var failed = marker.Mods.Count(item =>
+            string.Equals(item.Result, "Failed", StringComparison.Ordinal));
+        var vanilla = string.Equals(
+            marker.LaunchMode,
+            LauncherModSelectionState.VanillaModeName,
+            StringComparison.Ordinal
+        );
+
+        return uniqueIds == marker.Mods.Length
+            && marker.Active == active
+            && marker.Partial == partial
+            && marker.Failed == failed
+            && marker.Loaded <= marker.Discovered
+            && marker.Active + marker.Partial <= marker.Loaded
+            && (!vanilla
+                || (marker.Discovered == 0
+                    && marker.Loaded == 0
+                    && marker.Mods.Length == 0));
+    }
 
     internal static void WriteVanilla(LauncherModSelectionDocument selection)
         => Write(
@@ -146,4 +234,46 @@ internal static class LauncherModLaunchResultStore
             value = value.Replace("  ", " ", StringComparison.Ordinal);
         return value.Length <= maxLength ? value : value[..maxLength];
     }
+}
+
+internal sealed class LauncherModLaunchResultDocument
+{
+    [JsonPropertyName("timestampUtc")]
+    public string TimestampUtc { get; set; } = string.Empty;
+
+    [JsonPropertyName("launchMode")]
+    public string LaunchMode { get; set; } = string.Empty;
+
+    [JsonPropertyName("selectionFingerprint")]
+    public string SelectionFingerprint { get; set; } = string.Empty;
+
+    [JsonPropertyName("discovered")]
+    public int Discovered { get; set; }
+
+    [JsonPropertyName("loaded")]
+    public int Loaded { get; set; }
+
+    [JsonPropertyName("active")]
+    public int Active { get; set; }
+
+    [JsonPropertyName("partial")]
+    public int Partial { get; set; }
+
+    [JsonPropertyName("failed")]
+    public int Failed { get; set; }
+
+    [JsonPropertyName("mods")]
+    public LauncherModLaunchResultDocumentItem[] Mods { get; set; } = Array.Empty<LauncherModLaunchResultDocumentItem>();
+}
+
+internal sealed class LauncherModLaunchResultDocumentItem
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("result")]
+    public string Result { get; set; } = string.Empty;
+
+    [JsonPropertyName("detail")]
+    public string Detail { get; set; } = string.Empty;
 }

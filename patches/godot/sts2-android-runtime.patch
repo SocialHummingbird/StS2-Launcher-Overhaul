@@ -14,10 +14,10 @@ index aed7eff..b100eb3 100644
  		if (DirAccess::exists(packed_path)) {
  			// The dotnet publish data is packed in the pck/zip.
 diff --git a/modules/mono/mono_gd/gd_mono.cpp b/modules/mono/mono_gd/gd_mono.cpp
-index 14dd433..add3143 100644
+index 14dd433..01faddd 100644
 --- a/modules/mono/mono_gd/gd_mono.cpp
 +++ b/modules/mono/mono_gd/gd_mono.cpp
-@@ -71,9 +71,19 @@ hostfxr_close_fn hostfxr_close = nullptr;
+@@ -71,11 +71,23 @@ hostfxr_close_fn hostfxr_close = nullptr;
  #ifndef TOOLS_ENABLED
  typedef int(CORECLR_DELEGATE_CALLTYPE *coreclr_create_delegate_fn)(void *hostHandle, unsigned int domainId, const char *entryPointAssemblyName, const char *entryPointTypeName, const char *entryPointMethodName, void **delegate);
  typedef int(CORECLR_DELEGATE_CALLTYPE *coreclr_initialize_fn)(const char *exePath, const char *appDomainFriendlyName, int propertyCount, const char **propertyKeys, const char **propertyValues, void **hostHandle, unsigned int *domainId);
@@ -36,12 +36,35 @@ index 14dd433..add3143 100644
 +sts2mobile_show_launcher_fn sts2mobile_show_launcher = nullptr;
  
  #ifdef ANDROID_ENABLED
++typedef void *(*mono_enter_gc_safe_region_fn)(void **);
++mono_enter_gc_safe_region_fn mono_enter_gc_safe_region = nullptr;
  mono_install_assembly_preload_hook_fn mono_install_assembly_preload_hook = nullptr;
-@@ -601,6 +611,64 @@ godot_plugins_initialize_fn initialize_coreclr_and_godot_plugins(bool &r_runtime
+ mono_assembly_name_get_name_fn mono_assembly_name_get_name = nullptr;
+ mono_assembly_name_get_culture_fn mono_assembly_name_get_culture = nullptr;
+@@ -332,6 +344,10 @@ bool load_coreclr(void *&r_coreclr_dll_handle) {
+ 	coreclr_create_delegate = (coreclr_create_delegate_fn)symbol;
+ 
+ #ifdef ANDROID_ENABLED
++	err = OS::get_singleton()->get_dynamic_library_symbol_handle(lib, "mono_threads_enter_gc_safe_region_unbalanced", symbol);
++	ERR_FAIL_COND_V(err != OK, false);
++	mono_enter_gc_safe_region = (mono_enter_gc_safe_region_fn)symbol;
++
+ 	err = OS::get_singleton()->get_dynamic_library_symbol_handle(lib, "mono_install_assembly_preload_hook", symbol);
+ 	ERR_FAIL_COND_V(err != OK, false);
+ 	mono_install_assembly_preload_hook = (mono_install_assembly_preload_hook_fn)symbol;
+@@ -601,6 +617,72 @@ godot_plugins_initialize_fn initialize_coreclr_and_godot_plugins(bool &r_runtime
  			(void **)&godot_plugins_initialize);
  	ERR_FAIL_NULL_V_MSG(godot_plugins_initialize, nullptr, ".NET: Failed to get GodotPlugins initialization function pointer");
  
 +#ifdef ANDROID_ENABLED
++	// Creating the first delegate attaches this native engine thread in Mono's
++	// GC-unsafe state. Native rendering can then block on a shader mutex while a
++	// loader worker waits for this thread to suspend for GC. Managed callbacks
++	// already enter/restore their own GC state; leave the host in native mode.
++	void *native_stack_marker = nullptr;
++	mono_enter_gc_safe_region(&native_stack_marker);
++	print_verbose(".NET: Android Mono host entered GC-safe native execution");
++
 +	int sts2mobile_init_rc = coreclr_create_delegate(coreclr_handle, domain_id,
 +			"STS2Mobile",
 +			"STS2Mobile.ModEntry",
@@ -102,7 +125,7 @@ index 14dd433..add3143 100644
  	return godot_plugins_initialize;
  }
  #endif
-@@ -705,8 +773,35 @@ void GDMono::initialize() {
+@@ -705,8 +787,35 @@ void GDMono::initialize() {
  
  	print_verbose(".NET: GodotPlugins initialized");
  

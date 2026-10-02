@@ -46,7 +46,7 @@ internal static partial class Program
     {
         var owner = new LauncherHandoffStateOwner();
         var overlay = new FakeHandoffOverlay();
-        var producer = new CharacterizedMainMenuProducer(owner);
+        var producer = new CharacterizedMainMenuProducer(owner, Rc3FailedAttempt);
 
         True(owner.AttachOverlay(overlay), "The RC3 launcher overlay must attach to the handoff owner.");
         True(owner.Begin(Rc3FailedAttempt), "Launch 2 must enter HandoffPending with its captured attempt ID.");
@@ -76,6 +76,7 @@ internal static partial class Program
     private static void StaleMainMenuTrueCannotCompleteActiveHandoff()
     {
         var owner = new LauncherHandoffStateOwner();
+        var staleProducer = new CharacterizedMainMenuProducer(owner, Rc3FailedAttempt);
         var overlay = new FakeHandoffOverlay();
         owner.AttachOverlay(overlay);
         owner.Begin(Rc3FailedAttempt);
@@ -84,7 +85,7 @@ internal static partial class Program
         owner.ObserveVisibility(HandoffAttemptB, true, true);
 
         True(
-            !owner.MarkMainMenuReady(Rc3FailedAttempt),
+            !staleProducer.SetMainMenuReady(),
             "mainMenu=True from RC3 launch 2 must be rejected after a new attempt begins."
         );
         var pending = owner.Capture();
@@ -102,7 +103,7 @@ internal static partial class Program
     {
         var owner = new LauncherHandoffStateOwner();
         var overlay = new FakeHandoffOverlay();
-        var producer = new CharacterizedMainMenuProducer(owner);
+        var producer = new CharacterizedMainMenuProducer(owner, HandoffAttemptA);
         var consumer = new CharacterizedHandoffConsumer(owner, HandoffAttemptA);
 
         owner.AttachOverlay(overlay);
@@ -121,14 +122,16 @@ internal static partial class Program
     private sealed class CharacterizedMainMenuProducer
     {
         private readonly LauncherHandoffStateOwner _owner;
+        private readonly string _attemptId;
 
-        internal CharacterizedMainMenuProducer(LauncherHandoffStateOwner owner)
+        internal CharacterizedMainMenuProducer(LauncherHandoffStateOwner owner, string attemptId)
         {
             _owner = owner;
+            _attemptId = attemptId;
         }
 
         internal bool SetMainMenuReady()
-            => _owner.MarkActiveMainMenuReady();
+            => _owner.MarkMainMenuReady(_attemptId);
     }
 
     private sealed class CharacterizedHandoffConsumer

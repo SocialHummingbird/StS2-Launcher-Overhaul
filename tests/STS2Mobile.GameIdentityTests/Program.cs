@@ -14,13 +14,27 @@ internal static partial class Program
 {
     private static int Main(string[] args)
     {
+        if (args.Length == 2 && args[0] == "--write-android-mono-fixture")
+        {
+            WriteAndroidMonoFixture(args[1]);
+            return 0;
+        }
         using var markerFiles = TestMarkerFiles.PreserveCurrentDirectory();
 
         var tests = new (string Name, Action Run)[]
         {
+            ("branch storage preserves bootstrap compatibility", BranchStorageNamesPreserveBootstrapCompatibility),
+            ("diagnostic cache snapshot survives replacement", DiagnosticCacheSnapshotSurvivesReplacement),
+            ("diagnostic JSON snapshot survives replacement", DiagnosticJsonSnapshotSurvivesReplacement),
+            ("diagnostic snapshots preserve formatting", DiagnosticSnapshotPreservesFormatting),
+            ("diagnostic snapshots cannot authorize stale launch", DiagnosticSnapshotCannotAuthorizeStaleLaunch),
+            ("authentication retry accepts first connection", AuthRetryAcceptsFirstConnection),
+            ("authentication retry bounds start failures", AuthRetryBoundsStartFailures),
+            ("session completion rejects stale attempts", SessionCompletionRejectsStaleAttempt),
             ("asset preload budget preserves queued work", AssetPreloadBudgetPreservesQueuedWork),
             ("asset preload budget yields after expensive resource", AssetPreloadBudgetYieldsAfterExpensiveItem),
             ("asset preload patch targets survive Android publicizer", AssetPreloadPatchTargetsSurvivePublicizer),
+            ("asset preload patch rejects changed target shapes", AssetPreloadPatchTargetsRejectChangedShape),
             ("preparation timeout drains late success", PreparationTimeoutDrainsLateSuccess),
             ("preparation timeout observes late failure", PreparationTimeoutObservesLateFailure),
             ("preparation success does not drain", PreparationSuccessDoesNotDrain),
@@ -28,6 +42,11 @@ internal static partial class Program
             ("launch operation owns startup and ignores late success", LaunchOperationLateSuccess),
             ("launch operation observes late faults", LaunchOperationLateFault),
             ("launch operation rejects overlapping startup", LaunchOperationRejectsOverlap),
+            ("launch factory releases state lock", LaunchOperationFactoryDoesNotHoldStateLock),
+            ("launch can fail during synchronous factory", LaunchOperationCanFailDuringFactory),
+            ("post-startup heartbeat survives blocked caller", PostStartupHeartbeatSurvivesBlockedCaller),
+            ("post-startup heartbeat stops at teardown", PostStartupHeartbeatStopsAtTeardown),
+            ("post-startup heartbeat uses captured launch", PostStartupHeartbeatUsesCapturedLaunch),
             ("launch operation timeout requires restart", LaunchOperationTimeout),
             ("launch save cleanup timeout blocks game", LaunchSaveCleanupTimeout),
             ("launch scene readiness preserves origin", SceneReadinessPreservesOrigin),
@@ -127,7 +146,8 @@ internal static partial class Program
             ("main-menu readiness resets for new attempt", MainMenuReadinessResetsForNewAttempt),
             ("main-menu readiness producer before consumer", MainMenuReadinessProducerBeforeConsumer),
             ("main-menu readiness consumer before producer", MainMenuReadinessConsumerBeforeProducer),
-            ("handoff active main-menu producer is idempotent", HandoffActiveMainMenuProducerIsIdempotent),
+            ("handoff restoration preserves readiness and failed operation", HandoffRestorePreservesReadinessAndFailedOperation),
+            ("handoff origin main-menu producer is idempotent", HandoffOriginMainMenuProducerIsIdempotent),
             ("handoff integration readiness before focus", HandoffIntegrationReadinessBeforeFocus),
             ("handoff integration focus before readiness", HandoffIntegrationFocusBeforeReadiness),
             ("handoff integration ignores stale events", HandoffIntegrationIgnoresStaleEvents),

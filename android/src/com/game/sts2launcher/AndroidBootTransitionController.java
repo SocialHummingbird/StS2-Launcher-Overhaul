@@ -35,7 +35,6 @@ final class AndroidBootTransitionController {
 	private final AndroidBootTransitionPolicy.ReadinessGate readinessGate =
 		new AndroidBootTransitionPolicy.ReadinessGate();
 	private final boolean reducedMotion;
-	private final AndroidBootTransitionSoundSession soundSession;
 	private final Runnable presentationCleanup;
 	private final Runnable watchdog = this::handleWatchdog;
 
@@ -74,7 +73,6 @@ final class AndroidBootTransitionController {
 			activity,
 			decision,
 			logger,
-			new SilentBootTransitionSound(),
 			presentationCleanup
 		);
 		controller.installSplashExitListener(splashScreen);
@@ -85,7 +83,6 @@ final class AndroidBootTransitionController {
 		Activity activity,
 		AndroidBootTransitionPolicy.Decision decision,
 		TimelineLogger logger,
-		AndroidBootTransitionSound sound,
 		Runnable presentationCleanup
 	) {
 		this.activity = activity;
@@ -93,15 +90,10 @@ final class AndroidBootTransitionController {
 		this.logger = logger;
 		this.presentationCleanup = presentationCleanup;
 		this.reducedMotion = detectReducedMotion(activity);
-		this.soundSession = new AndroidBootTransitionSoundSession(
-			sound,
-			decision.shouldPlay() && !reducedMotion
-		);
 	}
 
 	private void installSplashExitListener(SplashScreen splashScreen) {
 		if (!decision.shouldPlay()) {
-			soundSession.close();
 			logger.record("boot transition skipped", decision.reason());
 			return;
 		}
@@ -137,7 +129,6 @@ final class AndroidBootTransitionController {
 				attachOverlay(splashContainerSize);
 			} catch (Throwable error) {
 				mainHandler.removeCallbacks(watchdog);
-				soundSession.close();
 				removeOverlay();
 				notifyPresentationCleanup();
 				Log.e(TAG, "Boot transition overlay installation failed", error);
@@ -167,14 +158,6 @@ final class AndroidBootTransitionController {
 				startAnimation();
 			}
 		});
-	}
-
-	void pauseSound() {
-		soundSession.pause();
-	}
-
-	void resumeSound() {
-		soundSession.resume();
 	}
 
 	void destroy() {
@@ -241,11 +224,6 @@ final class AndroidBootTransitionController {
 		animation = reducedMotion ? createReducedMotionAnimation() : createFullAnimation();
 		animation.addListener(new AnimatorListenerAdapter() {
 			@Override
-			public void onAnimationCancel(Animator animator) {
-				soundSession.close();
-			}
-
-			@Override
 			public void onAnimationEnd(Animator animator) {
 				completeAnimation();
 			}
@@ -292,7 +270,6 @@ final class AndroidBootTransitionController {
 		}
 		if (activeSequencePhase != frame.phase()) {
 			activeSequencePhase = frame.phase();
-			soundSession.enterPhase(frame.phase());
 			logger.record(
 				"boot transition phase",
 				frame.phase().timelineName() + "; timelineMs=" + frame.phase().startMs()
@@ -321,7 +298,6 @@ final class AndroidBootTransitionController {
 			return;
 		}
 		mainHandler.removeCallbacks(watchdog);
-		soundSession.close();
 		removeOverlay();
 		notifyPresentationCleanup();
 		animation = null;
@@ -346,7 +322,6 @@ final class AndroidBootTransitionController {
 	}
 
 	private void cancelAnimation() {
-		soundSession.close();
 		if (animation == null) {
 			return;
 		}

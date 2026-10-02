@@ -4,14 +4,10 @@ using System.IO;
 using Godot;
 
 namespace STS2Mobile.Launcher;
-
 internal sealed partial class ShaderWarmupScreen
 {
-    private static string MarkerPath =>
-        Path.Combine(OS.GetUserDataDir(), LauncherStorageNames.ShaderWarmupVersion);
-
-    private static string StatusMarkerPath =>
-        Path.Combine(OS.GetUserDataDir(), LauncherStorageNames.ShaderWarmupStatus);
+    private static string MarkerPath => Path.Combine(OS.GetUserDataDir(), LauncherStorageNames.ShaderWarmupVersion);
+    private static string StatusMarkerPath => Path.Combine(OS.GetUserDataDir(), LauncherStorageNames.ShaderWarmupStatus);
 
     internal static bool NeedsWarmup()
     {
@@ -31,6 +27,7 @@ internal sealed partial class ShaderWarmupScreen
                     PatchHelper.Log(Message.MarkerMatches(content));
                     return false;
                 }
+
                 PatchHelper.Log(Message.MarkerMismatch(content, WarmupVersion));
             }
             else
@@ -65,11 +62,8 @@ internal sealed partial class ShaderWarmupScreen
         {
             if (!File.Exists(StatusMarkerPath))
                 return false;
-
             var status = File.ReadAllText(StatusMarkerPath);
-            return ContainsStatus(status, "Status: rendering")
-                || ContainsStatus(status, "Status: rendering-batch")
-                || ContainsStatus(status, "Status: watchdog-warning");
+            return ContainsStatus(status, "Status: rendering") || ContainsStatus(status, "Status: rendering-batch") || ContainsStatus(status, "Status: watchdog-warning");
         }
         catch (Exception ex)
         {
@@ -91,12 +85,9 @@ internal sealed partial class ShaderWarmupScreen
                 $"Warmup version: {WarmupVersion}",
                 $"Warmup time budget seconds: {WarmupTimeBudgetSeconds}",
             };
-
             AppendDeviceDiagnostics(lines);
-
             foreach (var item in evidence)
                 lines.Add(SanitizeStatus(item));
-
             File.WriteAllText(StatusMarkerPath, lines.ToArray().JoinLines());
         }
         catch (Exception ex)
@@ -113,25 +104,17 @@ internal sealed partial class ShaderWarmupScreen
         return lines.ToArray();
     }
 
-    private static string SanitizeStatus(string value)
-        => string.IsNullOrWhiteSpace(value)
-            ? "<none>"
-            : value.Replace('\r', ' ').Replace('\n', ' ').Trim();
-
-    private static bool ContainsStatus(string status, string value)
-        => status?.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
-
+    private static string SanitizeStatus(string value) => string.IsNullOrWhiteSpace(value) ? "<none>" : value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+    private static bool ContainsStatus(string status, string value) => status?.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
     private static void AppendDeviceDiagnostics(List<string> lines)
     {
         if (!OperatingSystem.IsAndroid())
             return;
-
         try
         {
             var diagnostics = AndroidGodotAppBridge.GetDeviceDiagnostics();
             if (string.IsNullOrWhiteSpace(diagnostics))
                 return;
-
             foreach (var line in diagnostics.Split('\n'))
             {
                 var clean = SanitizeStatus(line);
@@ -143,5 +126,14 @@ internal sealed partial class ShaderWarmupScreen
         {
             lines.Add($"Device diagnostics: <unavailable:{ex.GetType().Name}>");
         }
+    }
+
+    private static partial class Message
+    {
+        internal static string MarkerCheckFailed(Exception ex) => $"[ShaderWarmup] NeedsWarmup check failed: {ex.Message}";
+        internal static string MarkerMissing() => "[ShaderWarmup] NeedsWarmup=true (no marker file)";
+        internal static string MarkerMatches(string content) => $"[ShaderWarmup] NeedsWarmup=false (marker v{content} matches)";
+        internal static string MarkerMismatch(string content, int expectedVersion) => $"[ShaderWarmup] NeedsWarmup=true (marker v{content} != v{expectedVersion})";
+        internal static string MarkerWriteFailed(Exception ex) => $"[ShaderWarmup] Failed to write version marker: {ex.Message}";
     }
 }

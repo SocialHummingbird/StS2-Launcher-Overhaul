@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using Godot;
 using HarmonyLib;
@@ -17,11 +19,11 @@ internal static class AndroidAssetPreloadPatches
 {
     internal const int MaximumInFlight = 8;
     internal const int MaximumFinalizationsPerFrame = 4;
+    internal const int MaximumSynchronousFallbacksPerPass = 1;
     private const int MaximumRequestCandidatesPerFrame = 64;
     private const double WorkBudgetMilliseconds = 4;
-
-    // Android runs a copy of sts2.dll rewritten by AndroidAssemblyPublicizer, so
-    // these members are private on desktop but public on device. Match either.
+    // Runtime preparation publicizes these members; the desktop reference
+    // retains private visibility. Both paths use the same shape validation.
     private const BindingFlags TargetMemberFlags =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
@@ -33,13 +35,50 @@ internal static class AndroidAssetPreloadPatches
     // Also exercised with real threaded resources by the desktop Godot probe.
     internal static void ApplyForRuntime(Harmony harmony)
     {
-        var (request, finalize) = RequireSupportedSession(typeof(AssetLoadingSession));
+        var type = typeof(AssetLoadingSession);
+        RequireField(type, "_loading", typeof(Queue<string>));
+        RequireField(type, "_toLoad", typeof(Queue<string>));
+        RequireField(type, "_finalizing", typeof(Queue<string>));
+        RequireField(type, "_cache", typeof(ConcurrentDictionary<string, Resource>));
+        RequireField(type, "_totalLoaded", typeof(int));
+        RequireField(type, "_assetCache", typeof(AssetCache));
+        var request = RequireMethod(type, "ProcessLoadingQueue");
+        var finalize = RequireMethod(type, "FinalizeLoading");
+        var status = RequireMethod(type, "CheckLoadingStatus");
         harmony.Patch(request, prefix: new HarmonyMethod(
             PatchHelper.Method(typeof(AndroidAssetPreloadPatches), nameof(ProcessLoadingQueuePrefix))));
         harmony.Patch(finalize, prefix: new HarmonyMethod(
             PatchHelper.Method(typeof(AndroidAssetPreloadPatches), nameof(FinalizeLoadingPrefix))));
+        harmony.Patch(status, prefix: new HarmonyMethod(
+            PatchHelper.Method(typeof(AndroidAssetPreloadPatches), nameof(CheckLoadingStatusPrefix))));
         PatchHelper.Log($"[AssetPreload] Frame budgets installed: inFlight={MaximumInFlight} "
-            + $"finalize={MaximumFinalizationsPerFrame} budgetMs={WorkBudgetMilliseconds}");
+            + $"finalize={MaximumFinalizationsPerFrame} syncFallback={MaximumSynchronousFallbacksPerPass} budgetMs={WorkBudgetMilliseconds}");
+    }
+
+    // Mods can change Harmony ownership after the startup patch report. Inspect
+    // declarations and ordering constraints only: resolving sorted executable
+    // methods can invoke third-party patch factories again.
+    internal static string[] DescribeRuntimePatchOwnership()
+    {
+        return new[] { "ProcessLoadingQueue", "FinalizeLoading", "CheckLoadingStatus" }
+            .Select(name =>
+            {
+                var target = RequireMethod(typeof(AssetLoadingSession), name);
+                var info = Harmony.GetPatchInfo(target);
+                if (info == null)
+                    return $"[AssetPreload] target={name} ownedPrefix=False patches=<none>";
+                var ownedPrefix = info.Prefixes.Any(patch =>
+                    patch.PatchMethod == PatchHelper.Method(typeof(AndroidAssetPreloadPatches), name + "Prefix"));
+                string Declared(string kind, IEnumerable<Patch> patches)
+                {
+                    return kind + "=[" + string.Join(", ", patches.OrderBy(patch => patch.index).Select(patch =>
+                        $"owner={patch.owner} method={patch.PatchMethod.DeclaringType?.FullName}.{patch.PatchMethod.Name} "
+                        + $"index={patch.index} priority={patch.priority} before=[{string.Join("/", patch.before)}] after=[{string.Join("/", patch.after)}]")) + "]";
+                }
+                return $"[AssetPreload] target={name} ownedPrefix={ownedPrefix} order=declarations-only factoriesNotEvaluated=True "
+                    + Declared("prefixes", info.Prefixes) + " " + Declared("postfixes", info.Postfixes)
+                    + " " + Declared("transpilers", info.Transpilers) + " " + Declared("finalizers", info.Finalizers);
+            }).ToArray();
     }
 
     private static bool ProcessLoadingQueuePrefix(Queue<string> ____loading,
@@ -80,14 +119,57 @@ internal static class AndroidAssetPreloadPatches
         return false;
     }
 
-    internal static (MethodInfo Request, MethodInfo Finalize) RequireSupportedSession(Type type)
+    private static bool CheckLoadingStatusPrefix(Queue<string> ____loading,
+        Queue<string> ____finalizing, ConcurrentDictionary<string, Resource> ____cache,
+        AssetCache ____assetCache, ref int ____totalLoaded)
     {
-        RequireField(type, "_loading", typeof(Queue<string>));
-        RequireField(type, "_toLoad", typeof(Queue<string>));
-        RequireField(type, "_finalizing", typeof(Queue<string>));
-        RequireField(type, "_cache", typeof(ConcurrentDictionary<string, Resource>));
-        RequireField(type, "_totalLoaded", typeof(int));
-        return (RequireMethod(type, "ProcessLoadingQueue"), RequireMethod(type, "FinalizeLoading"));
+        var count = ____loading.Count;
+        if (count == 0) return false;
+        var budget = new AssetPreloadFrameBudget(count, WorkBudgetMilliseconds);
+        var fallbacks = 0;
+        for (var i = 0; i < count && budget.TryBeginItem() && ____loading.TryDequeue(out var path); i++)
+        {
+            var status = ResourceLoader.LoadThreadedGetStatus(path);
+            switch (status)
+            {
+                case ResourceLoader.ThreadLoadStatus.Loaded:
+                    ____finalizing.Enqueue(path);
+                    break;
+                case ResourceLoader.ThreadLoadStatus.InProgress:
+                    ____loading.Enqueue(path);
+                    break;
+                case ResourceLoader.ThreadLoadStatus.InvalidResource:
+                case ResourceLoader.ThreadLoadStatus.Failed:
+                    // Preserve the game's fallback and failure accounting, but do
+                    // not synchronously drain every failed request in one frame.
+                    PatchHelper.Log($"[AssetPreload] Synchronous fallback begin path={path} status={status} thread={System.Environment.CurrentManagedThreadId}");
+                    var watch = Stopwatch.StartNew();
+                    try
+                    {
+                        var resource = ResourceLoader.Load<Resource>(path, null, ResourceLoader.CacheMode.Reuse);
+                        if (resource != null)
+                        {
+                            ____totalLoaded++;
+                            ____cache[path] = resource;
+                        }
+                        else
+                        {
+                            ____assetCache?.MarkAssetFailed(path);
+                            PatchHelper.Log($"[AssetPreload] Failed to load resource synchronously: {path}");
+                        }
+                    }
+                    finally
+                    {
+                        PatchHelper.Log($"[AssetPreload] Synchronous fallback end path={path} elapsedMs={watch.Elapsed.TotalMilliseconds:F1}");
+                    }
+                    if (++fallbacks >= MaximumSynchronousFallbacksPerPass) return false;
+                    break;
+                default:
+                    PatchHelper.Log($"[AssetPreload] Unexpected threaded load status for {path}: {status}");
+                    break;
+            }
+        }
+        return false;
     }
 
     private static void RequireField(Type type, string name, Type expected)

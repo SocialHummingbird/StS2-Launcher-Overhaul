@@ -1,7 +1,7 @@
 using System;
 using System.IO;
-using System.Text;
 using Godot;
+using STS2Mobile.Steam;
 
 namespace STS2Mobile;
 
@@ -23,7 +23,7 @@ public static partial class ModEntry
             var branch = ReadSelectedBranch();
             return string.Equals(branch, "public", StringComparison.OrdinalIgnoreCase)
                 ? Path.Combine(RuntimeDataDirectory, GameDirectoryName)
-                : Path.Combine(RuntimeDataDirectory, GameVersionsDirectoryName, StateDirectoryName(branch), GameDirectoryName);
+                : Path.Combine(RuntimeDataDirectory, GameVersionsDirectoryName, SteamGameBranch.StateDirectoryName(branch), GameDirectoryName);
         }
     }
 
@@ -44,56 +44,6 @@ public static partial class ModEntry
         catch
         {
             return "public";
-        }
-    }
-
-    private static string StateDirectoryName(string branch)
-    {
-        branch = StorageIdentity(branch);
-
-        if (string.Equals(branch, "public", StringComparison.OrdinalIgnoreCase))
-            return "public";
-
-        if (string.Equals(branch, "beta", StringComparison.OrdinalIgnoreCase))
-            return "beta";
-
-        var sb = new StringBuilder(branch.Length);
-        foreach (var ch in branch)
-        {
-            if (char.IsLetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.')
-                sb.Append(ch);
-            else
-                sb.Append('_');
-        }
-
-        var safePrefix = sb.Length == 0 ? "branch" : sb.ToString();
-        if (safePrefix.Length > 48)
-            safePrefix = safePrefix[..48].TrimEnd('.', '-', '_');
-
-        if (safePrefix.Length == 0)
-            safePrefix = "branch";
-
-        return $"{safePrefix}-{StableBranchHash(branch)}";
-    }
-
-    private static string StorageIdentity(string branch)
-        => string.IsNullOrWhiteSpace(branch) ? "public" : branch.Trim().ToLowerInvariant();
-
-    private static string StableBranchHash(string branch)
-    {
-        unchecked
-        {
-            const uint offsetBasis = 2166136261;
-            const uint prime = 16777619;
-
-            var hash = offsetBasis;
-            foreach (var ch in branch)
-            {
-                hash ^= ch;
-                hash *= prime;
-            }
-
-            return hash.ToString("x8");
         }
     }
 
