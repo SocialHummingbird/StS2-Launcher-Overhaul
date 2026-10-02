@@ -14,6 +14,11 @@ internal static partial class Program
 {
     private static int Main(string[] args)
     {
+        if (args.Length == 2 && args[0] == "--write-android-mono-fixture")
+        {
+            WriteAndroidMonoFixture(args[1]);
+            return 0;
+        }
         using var markerFiles = TestMarkerFiles.PreserveCurrentDirectory();
 
         var tests = new (string Name, Action Run)[]
@@ -28,6 +33,8 @@ internal static partial class Program
             ("session completion rejects stale attempts", SessionCompletionRejectsStaleAttempt),
             ("asset preload budget preserves queued work", AssetPreloadBudgetPreservesQueuedWork),
             ("asset preload budget yields after expensive resource", AssetPreloadBudgetYieldsAfterExpensiveItem),
+            ("asset preload patch targets survive Android publicizer", AssetPreloadPatchTargetsSurvivePublicizer),
+            ("asset preload patch rejects changed target shapes", AssetPreloadPatchTargetsRejectChangedShape),
             ("preparation timeout drains late success", PreparationTimeoutDrainsLateSuccess),
             ("preparation timeout observes late failure", PreparationTimeoutObservesLateFailure),
             ("preparation success does not drain", PreparationSuccessDoesNotDrain),

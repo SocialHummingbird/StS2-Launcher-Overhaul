@@ -22,6 +22,10 @@ internal static class AndroidAssetPreloadPatches
     internal const int MaximumSynchronousFallbacksPerPass = 1;
     private const int MaximumRequestCandidatesPerFrame = 64;
     private const double WorkBudgetMilliseconds = 4;
+    // Runtime preparation publicizes these members; the desktop reference
+    // retains private visibility. Both paths use the same shape validation.
+    private const BindingFlags TargetMemberFlags =
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     internal static void Apply(Harmony harmony)
     {
@@ -170,13 +174,13 @@ internal static class AndroidAssetPreloadPatches
 
     private static void RequireField(Type type, string name, Type expected)
     {
-        if (type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)?.FieldType != expected)
+        if (type.GetField(name, TargetMemberFlags)?.FieldType != expected)
             throw new InvalidOperationException($"Asset preload budget unsupported: {type.Name}.{name} changed.");
     }
 
     private static MethodInfo RequireMethod(Type type, string name)
     {
-        var method = type.GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic,
+        var method = type.GetMethod(name, TargetMemberFlags,
             binder: null, types: Type.EmptyTypes, modifiers: null);
         if (method?.ReturnType != typeof(void))
             throw new InvalidOperationException($"Asset preload budget unsupported: {type.Name}.{name} changed.");

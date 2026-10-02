@@ -106,3 +106,16 @@ The phone model, Android version, affected APK, game identity, renderer/settings
 When the affected ARM64 phone is available, update the matching local channel in place and retain its saves, credentials and selection. Record the missing configuration before changing settings. Alternate five cold launches of the original Modded selection and Vanilla, keeping settings fixed, leaving the title screen for 60 seconds and testing interaction; expand to ten per mode if needed. If only Modded reproduces, isolate dependency-valid groups and verify a suspect against the original selection. Capture continuous logcat, existing timeline/activation/lifecycle reports, an Android bugreport and Perfetto during the stall. Correlate fallback begin/end markers and post-mod Harmony chains with the blocked thread; heartbeat gaps or stale snapshots alone are insufficient proof.
 
 Acceptance still requires 20 successful Modded launches on that phone: ten cold, six warm, two background/resume and two lock/unlock, plus menu interaction, gameplay entry/return, Vanilla startup and preservation of saves, credentials and mod selection. Renderer comparisons and version-specific mod repairs remain conditional on that evidence.
+
+## Later connected-phone follow-up — October 2
+
+The phone became available after this audit and the v434 title-screen freeze was captured before restarting. It exposed a missed preparation/patch interaction: the Android publicizer changes member visibility, while the existing preload patch searched only nonpublic members. Desktop resource validation alone had not exercised that installation boundary. The existing lookup helpers are now repaired through PR #48; the new real-publicizer regression fails before the repair and passes afterward without weakening shape validation. The [preload repair report](title-screen-preload-repair-2026-10-02.md) records the original native wait, candidate APK, current physical acceptance and remaining limits. The earlier unavailable-phone results above retain their original scope.
+
+The first v435 candidate still froze with all three preload prefixes installed.
+Matching Mono symbols identify a worker waiting in GC suspension; the engine
+render thread waits on the existing canvas shader mutex. An isolated test on
+the same Android runtime reproduces the native host remaining GC-unsafe after
+first delegate creation. The existing Godot Mono bootstrap now enters native
+GC-safe execution at that boundary. Later delegate creation, reverse callbacks
+and 64 worker collections pass the same regression. Candidate code `435002`
+contains both repairs; its physical acceptance is recorded in the linked report.

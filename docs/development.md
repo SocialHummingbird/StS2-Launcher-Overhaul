@@ -31,6 +31,21 @@ synthetic threaded resources in desktop Godot:
 .\scripts\test-asset-preload.ps1 -VerifyBaseline
 ```
 
+The same probe can reproduce the Android Mono native-host GC wait and verify
+the corrected transition using the staged runtime on a connected ARM64 phone:
+
+```powershell
+.\scripts\test-asset-preload.ps1 -AndroidMonoTransition `
+  -AdbPath "$env:ANDROID_HOME\platform-tools\adb.exe" `
+  -ClangPath "$env:ANDROID_NDK_ROOT\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe" `
+  -DeviceSerial "<adb-serial>"
+```
+
+This writes a temporary fixture under `/data/local/tmp`, without changing app
+data. It requires the original case to time out and the repaired case to finish
+64 collections with callbacks preserved. APK integration still requires the
+physical launch procedure in [Android status](current-android-status.md).
+
 Run the Android/JVM suite with the configured JDK 17 and Android SDK:
 
 ```powershell
