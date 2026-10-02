@@ -89,4 +89,35 @@ public class AndroidLaunchRestartStoreTest {
         assertTrue(exited[0]);
         assertFalse(new AndroidLaunchRestartStore(memory).claim("public", NOW).isEmpty());
     }
+
+    @Test public void launchAndRecoveryQueriesRespectConsumptionBoundary() throws Exception {
+        for (String state : new String[] { "pending", "claimed", "consumed", "cancelled", "failed" }) {
+            String json = new JSONObject(request()).put("state", state).toString();
+            assertEquals("pending".equals(state), AndroidLaunchRestartStore.isPending(json, NOW));
+            assertEquals("pending".equals(state) || "claimed".equals(state), AndroidLaunchRestartStore.isUnconsumed(json, NOW));
+            assertEquals("pending".equals(state), AndroidLaunchRestartStore.isPendingSafe(json, NOW));
+        }
+        assertFalse(AndroidLaunchRestartStore.isPendingSafe(new JSONObject(request()).put("safe", false).toString(), NOW));
+    }
+
+    @Test public void queriesRejectMalformedAndStaleRequests() throws Exception {
+        for (String json : new String[] { "", "{", "{}", new JSONObject(request()).put("safe", "true").toString() }) {
+            assertFalse(AndroidLaunchRestartStore.isPending(json, NOW));
+            assertFalse(AndroidLaunchRestartStore.isUnconsumed(json, NOW));
+            assertFalse(AndroidLaunchRestartStore.isPendingSafe(json, NOW));
+        }
+        assertFalse(AndroidLaunchRestartStore.isPending(request(), NOW + 86400001));
+        assertFalse(AndroidLaunchRestartStore.isUnconsumed(request(), NOW + 86400001));
+        assertFalse(AndroidLaunchRestartStore.isPendingSafe(request(), NOW + 86400001));
+    }
+
+    @Test public void recoveryCancellationPreservesRequestEvidence() throws Exception {
+        String json = new JSONObject(request()).put("state", "claimed").put("extraEvidence", "keep").toString();
+        JSONObject cancelled = new JSONObject(AndroidLaunchRestartStore.cancelForRecovery(json));
+        assertEquals("cancelled", cancelled.getString("state"));
+        assertEquals("attempt-1", cancelled.getString("attemptId"));
+        assertEquals("keep", cancelled.getString("extraEvidence"));
+        assertEquals("claimed", new JSONObject(json).getString("state"));
+    }
+
 }

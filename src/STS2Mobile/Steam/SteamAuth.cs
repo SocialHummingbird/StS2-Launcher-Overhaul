@@ -5,7 +5,6 @@ using SteamKit2;
 using SteamKit2.Authentication;
 
 namespace STS2Mobile.Steam;
-
 // Handles one-time interactive Steam login (password + 2FA). Creates a temporary
 // SteamClient for the auth flow, returns credentials, then disposes. Does NOT
 // call SteamUser.LogOn - callers use the returned refresh token with SteamConnection.
@@ -24,11 +23,8 @@ internal sealed partial class SteamAuth : IDisposable, IAuthenticator
         private string RefreshToken { get; }
         private string GuardData { get; }
 
-        internal SteamConnection CreateConnection()
-            => new(AccountName, RefreshToken);
-
-        internal bool SaveTo(SteamCredentialStore credentialStore)
-            => credentialStore.Save(AccountName, RefreshToken, GuardData);
+        internal SteamConnection CreateConnection() => new(AccountName, RefreshToken);
+        internal bool SaveTo(SteamCredentialStore credentialStore) => credentialStore.Save(AccountName, RefreshToken, GuardData);
     }
 
     private readonly SteamClient _client;
@@ -41,12 +37,9 @@ internal sealed partial class SteamAuth : IDisposable, IAuthenticator
     private volatile bool _waitingForAuthCode;
     private volatile bool _androidAuthConnectionLossLogged;
     private readonly Func<bool, Task<string>> _codeProvider;
-
     private readonly ManualResetEventSlim _connectedGate = new(false);
     private bool _disposed;
-
     internal event Action<string> LogMessage;
-
     // The bool indicates whether the previous code was incorrect.
     internal SteamAuth(Func<bool, Task<string>> codeProvider)
     {
@@ -64,6 +57,77 @@ internal sealed partial class SteamAuth : IDisposable, IAuthenticator
         LogMessage?.Invoke(msg);
     }
 
-    private static bool RequiresPersistentAuthConnection
-        => !OperatingSystem.IsAndroid();
+    private static bool RequiresPersistentAuthConnection => !OperatingSystem.IsAndroid();
+
+    private void RegisterConnectionCallbacks()
+    {
+        _callbackManager.Subscribe<SteamClient.ConnectedCallback>(_ =>
+        {
+            if (_disposed)
+                return;
+            Log("Connected to Steam");
+            MarkAuthConnected();
+        });
+        _callbackManager.Subscribe<SteamClient.DisconnectedCallback>(cb =>
+        {
+            if (_disposed)
+                return;
+            MarkAuthDisconnected();
+            if (cb.UserInitiated)
+                return;
+            if (_credentialAuthStarted)
+            {
+                MarkAuthConnectionLostDuringCredentials();
+                return;
+            }
+
+            Log("Connection lost before authentication completed - retrying");
+        });
+    }
+
+    private void MarkAuthConnected()
+    {
+        _needsReconnectForAuth = false;
+        _connectedGate.Set();
+    }
+
+    private void MarkAuthDisconnected()
+    {
+        _connectStarted = false;
+        _connectedGate.Reset();
+    }
+
+    private void MarkAuthConnectionLostDuringCredentials()
+    {
+        _needsReconnectForAuth = true;
+        if (!RequiresPersistentAuthConnection)
+        {
+            ContinueWebApiAuthWithoutPersistentConnection("Steam CM connection lost during Android WebAPI authentication; will reconnect before guarded auth continues");
+            return;
+        }
+
+        Log("Connection lost during authentication - reconnecting to keep auth session alive");
+    }
+
+    void IDisposable.Dispose() => Dispose();
+    internal void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+        _connectStarted = false;
+        try
+        {
+            _client?.Disconnect();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Auth] Disconnect failed during dispose: {ex.Message}");
+        }
+
+        if (_callbackPump.Stop(2000))
+            _connectedGate.Dispose();
+        else
+            PatchHelper.Log("[Auth] Callback pump did not stop before dispose; leaving gate undisposed");
+    }
 }

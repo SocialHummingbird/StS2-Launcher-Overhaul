@@ -16,7 +16,6 @@ internal sealed partial class LauncherController
     private readonly LauncherBranchSwitchCoordinator _branchSwitch;
     private readonly LauncherUpdateCoordinator _updates;
     private readonly LauncherSessionCoordinator _session;
-    private readonly LauncherStartupCoordinator _startup;
     private readonly Action<Action> _runOnMainThread;
 
     internal LauncherController(
@@ -62,7 +61,6 @@ internal sealed partial class LauncherController
             runOnMainThread,
             () => _updates.IsRunning
         );
-        _startup = new LauncherStartupCoordinator(view, _versions);
         _runOnMainThread = runOnMainThread;
     }
 
@@ -78,7 +76,7 @@ internal sealed partial class LauncherController
         STS2Mobile.PatchHelper.Log("Launcher controller phase complete: wire view events");
         LauncherLaunchMarkers.RecordPhase("launcher preferences initialize");
         STS2Mobile.PatchHelper.Log("Launcher controller phase: initialize action preferences");
-        _startup.InitializeActionPreferences();
+        _view.SetActionPreferences(LauncherPreferences.ReadActionPreferences(), _versions.ReadGameBranchOptions());
         STS2Mobile.PatchHelper.Log("Launcher controller phase complete: initialize action preferences");
         LauncherLaunchMarkers.RecordPhase("launcher session flow start");
         STS2Mobile.PatchHelper.Log("Launcher controller phase: start session flow");

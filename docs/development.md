@@ -31,6 +31,14 @@ synthetic threaded resources in desktop Godot:
 .\scripts\test-asset-preload.ps1 -VerifyBaseline
 ```
 
+Run the Android/JVM suite with the configured JDK 17 and Android SDK:
+
+```powershell
+.\android\gradlew.bat -p android testMonoReleaseUnitTest --rerun-tasks
+```
+
+If generated outputs contain unavailable OneDrive placeholders, a task-local Gradle init script can direct outputs to a local cache. Keep it outside production build dependencies; source, inputs and signing stay unchanged.
+
 For emulator startup/input checks, see
 [the responsiveness investigation](startup-responsiveness-2026-09-07.md) and
 [the isolated Android harness](../tools/AndroidStartupHarness/README.md).
@@ -46,6 +54,16 @@ fixture (adjust the three local paths if Steam is installed elsewhere):
 ```
 
 These checks use local game and mod files in a fresh desktop Godot process. They test whether the importer stays off in Vanilla/disabled mode and activates when enabled. Android loading and the in-game effect need separate device checks.
+
+Run the existing dependency-chain fixture separately:
+
+```powershell
+.\scripts\run-launcher-ui-preview.ps1 -ModRuntimeTest -ModRuntimeScenario stage9-chain `
+  -BaseLibRoot "C:\Program Files (x86)\Steam\steamapps\workshop\content\2868840\3737335127" `
+  -ImportVanillaSavesRoot "C:\Program Files (x86)\Steam\steamapps\workshop\content\2868840\3747503308" `
+  -BaseGamePckPath "C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\SlayTheSpire2.pck" `
+  -SteamworksNetPath "C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\data_sts2_windows_x86_64\Steamworks.NET.dll"
+```
 
 ## Preview the launcher
 
@@ -75,6 +93,14 @@ Use the existing build wrapper so the managed assemblies, Android runtime librar
 The wrapper archives the APK and checksum under `artifacts/android/`. For a later build, choose a unique version name and a version code higher than the installed APK. A successful build or structural APK inspection does not establish phone compatibility, gameplay success, or working Steam save transfer.
 
 Never uninstall, downgrade, clear application data, or change package/signing identity when existing application-private saves must be preserved.
+
+Check in-place update compatibility against the retained previous APK:
+
+```powershell
+.\scripts\verify-android-update-compat.ps1 -ApkPath "<candidate.apk>" -PreviousApkPath "<retained.apk>"
+```
+
+Current ownership is in [the reduction inventory](../REDUCTION_INVENTORY.md). Build-specific results belong in [Android testing status](current-android-status.md).
 
 ## Source layout
 

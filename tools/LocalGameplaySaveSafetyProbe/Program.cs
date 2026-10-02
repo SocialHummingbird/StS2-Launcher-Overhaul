@@ -774,6 +774,7 @@ internal static class Program
 
     private static async Task ManualPushAndPullUseOneServiceAsync()
     {
+        await AccountBaselinesStayIsolatedAsync();
         var root = NewTempDirectory();
         try
         {
@@ -856,6 +857,60 @@ internal static class Program
                     && remote.DownloadCount == 1,
                 "Manual Pull did not use the same synchronization service."
             );
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static async Task AccountBaselinesStayIsolatedAsync()
+    {
+        var root = NewTempDirectory();
+        try
+        {
+            const string path = "profile1/saves/progress.save";
+            var original = Bytes("account-original");
+            var changed = Bytes("account-local-change");
+            WriteSave(root, path, original);
+            var remoteA = new FakeSaveRemote();
+            var remoteB = new FakeSaveRemote((path, original));
+            var local = new AndroidLocalSaveStore(root);
+
+            // Use the existing credential constructor with offline transports; don't
+            // expose a new production interface just for an account-scoping fixture.
+            var constructor = typeof(SaveSyncService).GetConstructor(
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                null,
+                new[] { typeof(AndroidLocalSaveStore), typeof(string), typeof(string), typeof(Func<ISaveRemote>) },
+                null
+            )!;
+            SaveSyncService ForAccount(string account, ISaveRemote remote)
+                => (SaveSyncService)constructor.Invoke(new object[]
+                {
+                    local, account, "fixture-token", new Func<ISaveRemote>(() => remote),
+                });
+
+            Expect((await ReconcileAsync(ForAccount("fixture-account-a", remoteA))).Success,
+                "Account A must establish its own synchronization baseline.");
+            var stateA = Directory.GetFiles(root, SaveSyncService.StateFileName, SearchOption.AllDirectories).Single();
+            var stateBytes = File.ReadAllBytes(stateA);
+            WriteSave(root, path, changed);
+
+            var accountB = await ReconcileAsync(ForAccount("fixture-account-b", remoteB));
+            Expect(!accountB.Success && accountB.Prompt == SaveSyncService.SyncPrompt.ChooseSource
+                && remoteB.UploadCount == 0 && remoteB.ReadFile(path).SequenceEqual(original),
+                "Account B must not borrow A's baseline and silently overwrite its remote saves.");
+            Expect(File.ReadAllBytes(stateA).SequenceEqual(stateBytes),
+                "A different account must preserve the first account's baseline.");
+            Expect(File.ReadAllBytes(SavePath(root, path)).SequenceEqual(changed),
+                "An account conflict must preserve the local save.");
+
+            var accountA = await ReconcileAsync(ForAccount("fixture-account-a", remoteA));
+            Expect(accountA.Success && accountA.Outcome == SaveSyncService.SyncOutcome.Push
+                && remoteA.ReadFile(path).SequenceEqual(changed)
+                && remoteB.ReadFile(path).SequenceEqual(original),
+                "Returning to account A must use its own persisted baseline and remote.");
         }
         finally
         {
@@ -1201,7 +1256,7 @@ internal static class Program
             File.WriteAllText(markerPath, "{\"staleActiveResult\":true}");
 
             LauncherModLaunchResultStore.WritePlanFailure(selection, error);
-            var marker = LauncherModsPresentationState.ReadMarker(markerPath);
+            var marker = LauncherModLaunchResultStore.Read(markerPath);
             Expect(
                 marker != null
                     && marker.LaunchMode == LauncherModSelectionState.ModdedModeName

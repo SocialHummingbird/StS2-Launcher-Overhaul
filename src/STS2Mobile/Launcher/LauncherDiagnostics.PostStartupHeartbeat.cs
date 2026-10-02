@@ -8,11 +8,21 @@ internal static partial class LauncherDiagnostics
         string phase,
         params string[] details
     )
+        => WritePostStartupHeartbeatForLaunch(
+            Godot.OS.GetDataDir(), SafePostStartupBranch(), phase, details);
+
+    // Safe for the existing diagnostic timer: every engine/preference value
+    // was captured by its caller before leaving the Godot thread.
+    internal static void WritePostStartupHeartbeatForLaunch(
+        string dataDir,
+        string branch,
+        string phase,
+        params string[] details
+    )
     {
-        var heartbeat = PostStartupHeartbeat(Godot.OS.GetDataDir());
         try
         {
-            heartbeat.WriteAllText(BuildPostStartupHeartbeat(phase, details));
+            PostStartupHeartbeat(dataDir).WriteAllText(BuildPostStartupHeartbeat(branch, phase, details));
         }
         catch (Exception ex)
         {
@@ -21,6 +31,7 @@ internal static partial class LauncherDiagnostics
     }
 
     private static string BuildPostStartupHeartbeat(
+        string branch,
         string phase,
         string[] details
     )
@@ -31,7 +42,7 @@ internal static partial class LauncherDiagnostics
             {
                 sb.AppendLine($"Phase: {CleanPostStartupValue(phase)}");
                 sb.AppendLine($"Elapsed ms: {LauncherLaunchMarkers.ElapsedMilliseconds}");
-                sb.AppendLine($"Selected branch: {SafePostStartupBranch()}");
+                sb.AppendLine($"Selected branch: {CleanPostStartupValue(branch)}");
 
                 if (details == null)
                     return;

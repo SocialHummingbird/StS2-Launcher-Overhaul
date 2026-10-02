@@ -21,6 +21,10 @@ internal static partial class LauncherGameStartupRecovery
 
     private static readonly int[] PostStartupHeartbeatTargetsMs =
     {
+        1_000,
+        3_000,
+        10_000,
+        30_000,
         60_000,
         120_000,
         180_000,
@@ -170,14 +174,25 @@ internal static partial class LauncherGameStartupRecovery
         {
             gameNode.TreeExiting += CancelForTreeExit;
             subscribed = true;
+            // Capture engine/storage state on the Godot thread. The existing
+            // timer persists only immutable evidence, even if this thread stalls.
+            var dataDir = OS.GetDataDir();
+            var branch = LauncherPreferences.ReadGameBranch();
+            var attemptId = LauncherHandoffStateOwner.Shared.Capture().AttemptId;
+            var sceneDetails = CapturePostStartupSceneDetails(game, attemptId);
             await Task.WhenAll(
                 RunPostStartupProbeAsync(
                     game,
                     gameNode,
                     detailedTraceEnabled,
+                    attemptId,
+                    details => Volatile.Write(ref sceneDetails, details),
                     cancellation.Token
                 ),
-                RunPostStartupHeartbeatAsync(game, cancellation.Token)
+                RunPostStartupHeartbeatAsync(
+                    phase => LauncherDiagnostics.WritePostStartupHeartbeatForLaunch(
+                        dataDir, branch, phase, Volatile.Read(ref sceneDetails)),
+                    cancellation.Token)
             );
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
@@ -213,6 +228,8 @@ internal static partial class LauncherGameStartupRecovery
         object game,
         Node gameNode,
         bool detailedTraceEnabled,
+        string attemptId,
+        Action<string[]> recordScene,
         CancellationToken cancellationToken
     )
     {
@@ -224,55 +241,56 @@ internal static partial class LauncherGameStartupRecovery
                 cancellationToken
             );
             elapsed = target;
+            cancellationToken.ThrowIfCancellationRequested();
+            var details = CapturePostStartupSceneDetails(game, attemptId);
+            recordScene(details);
             var phase = $"post-startup alive at {target}ms";
             if (detailedTraceEnabled)
-                WritePostStartupTrace(game, gameNode, phase);
-            else
-                WritePostStartupHeartbeat(game, phase);
+                LauncherDiagnostics.WritePostStartupTrace(gameNode, phase, details);
         }
     }
 
-    private static async Task RunPostStartupHeartbeatAsync(
-        object game,
-        CancellationToken cancellationToken
+    internal static async Task RunPostStartupHeartbeatAsync(
+        Action<string> writeHeartbeat,
+        CancellationToken cancellationToken,
+        int[] targetsMs = null
     )
     {
+        ArgumentNullException.ThrowIfNull(writeHeartbeat);
         var elapsed = 0;
-        foreach (var target in PostStartupHeartbeatTargetsMs)
+        foreach (var target in targetsMs ?? PostStartupHeartbeatTargetsMs)
         {
             await Task.Delay(
                 Math.Max(0, target - elapsed),
                 cancellationToken
-            );
+            ).ConfigureAwait(false);
             elapsed = target;
-            WritePostStartupHeartbeat(game, $"post-startup heartbeat at {target}ms");
+            cancellationToken.ThrowIfCancellationRequested();
+            writeHeartbeat($"post-startup heartbeat at {target}ms");
         }
     }
 
-    private static void WritePostStartupHeartbeat(
+    private static string[] CapturePostStartupSceneDetails(
         object game,
-        string phase,
-        params string[] details
+        string attemptId
     )
     {
+        var sampledAt = LauncherLaunchMarkers.ElapsedMilliseconds;
+        var provenance = new[]
+        {
+            $"Attempt: {attemptId ?? "<none>"}",
+            $"Scene sampled at elapsed ms: {sampledAt}",
+            "Worker timer activity does not confirm rendering or input responsiveness.",
+        };
         try
         {
             var scene = InspectCurrentScene(game);
-            LauncherDiagnostics.WritePostStartupHeartbeat(
-                phase,
-                MergePostStartupTraceDetails(scene, details)
-            );
-            PatchHelper.Log(
-                $"[PostStartupHeartbeat] phase={phase} mainMenu={scene.IsMainMenu} scene={scene.SceneName ?? "<none>"}"
-            );
+            return MergePostStartupTraceDetails(scene, provenance);
         }
         catch (Exception ex)
         {
-            LauncherDiagnostics.WritePostStartupHeartbeat(
-                phase,
-                $"Heartbeat failure: {ex.GetType().Name}: {ex.Message}"
-            );
-            PatchHelper.Log($"[PostStartupHeartbeat] failed: {ex}");
+            return new[] { provenance[0], provenance[1], provenance[2],
+                $"Scene sample failure: {ex.GetType().Name}: {ex.Message}" };
         }
     }
 }

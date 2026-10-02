@@ -1,32 +1,13 @@
-namespace STS2Mobile.Launcher;
+using System.IO;
+using STS2Mobile.Steam;
 
+namespace STS2Mobile.Launcher;
 internal sealed partial class GameRuntimeSlot
 {
     private const string GameAssemblyFileName = "sts2.dll";
     private const string RuntimePacksDirectory = "runtime_packs";
     private const string CompatibilityManifestFileName = "compatibility.json";
-
-    private GameRuntimeSlot(
-        string branch,
-        string displayName,
-        string slotKind,
-        string slotDirectory,
-        string gameDirectory,
-        string pckPath,
-        string releaseInfoPath,
-        string sourceAssemblyPath,
-        string activeAndroidAssemblyPath,
-        string runtimePackManifestPath,
-        RuntimeSlotMetadata metadata,
-        GameIdentity gameIdentity,
-        string gameIdentityProblem,
-        RuntimePackManifest runtimePack,
-        PatchCompatibilityEvidence patchCompatibility,
-        string activeAndroidAssemblySha256,
-        bool sourceAssemblyExists,
-        bool activeAndroidAssemblyExists,
-        bool runtimePackManifestExists
-    )
+    private GameRuntimeSlot(string branch, string displayName, string slotKind, string slotDirectory, string gameDirectory, string pckPath, string releaseInfoPath, string sourceAssemblyPath, string activeAndroidAssemblyPath, string runtimePackManifestPath, RuntimeSlotMetadata metadata, GameIdentity gameIdentity, string gameIdentityProblem, RuntimePackManifest runtimePack, PatchCompatibilityEvidence patchCompatibility, string activeAndroidAssemblySha256, bool sourceAssemblyExists, bool activeAndroidAssemblyExists, bool runtimePackManifestExists)
     {
         Branch = branch;
         DisplayName = displayName;
@@ -72,4 +53,40 @@ internal sealed partial class GameRuntimeSlot
     internal bool SourceAssemblyExists { get; }
     internal bool ActiveAndroidAssemblyExists { get; }
     internal bool RuntimePackManifestExists { get; }
+
+    private static string BuildRuntimePackManifestPath(string dataDir, string branch) => Path.Combine(RuntimePackDirectoryPath(dataDir, branch), CompatibilityManifestFileName);
+    internal static string RuntimePackDirectoryPath(string dataDir, string branch) => Path.Combine(dataDir, RuntimePacksDirectory, SteamGameBranch.StateDirectoryName(branch));
+    internal static string FindSourceAssemblyPath(string gameDirectory)
+    {
+        var expectedPath = Path.Combine(gameDirectory ?? string.Empty, "data_sts2_windows_x86_64", GameAssemblyFileName);
+        if (File.Exists(expectedPath) || string.IsNullOrWhiteSpace(gameDirectory) || !Directory.Exists(gameDirectory))
+            return expectedPath;
+        foreach (var directory in Directory.EnumerateDirectories(gameDirectory, "data_*", SearchOption.TopDirectoryOnly))
+        {
+            var candidate = Path.Combine(directory, GameAssemblyFileName);
+            if (File.Exists(candidate))
+                return candidate;
+        }
+
+        return expectedPath;
+    }
+
+    internal static string FindActiveAndroidAssemblyPath(string dataDir)
+    {
+        var publishRoot = Path.Combine(dataDir, ".godot", "mono", "publish");
+        var expectedPath = Path.Combine(publishRoot, "arm64", GameAssemblyFileName);
+        if (File.Exists(expectedPath) || !Directory.Exists(publishRoot))
+            return expectedPath;
+        if (Directory.Exists(publishRoot))
+        {
+            foreach (var directory in Directory.EnumerateDirectories(publishRoot, "*", SearchOption.TopDirectoryOnly))
+            {
+                var candidate = Path.Combine(directory, GameAssemblyFileName);
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+        }
+
+        return expectedPath;
+    }
 }

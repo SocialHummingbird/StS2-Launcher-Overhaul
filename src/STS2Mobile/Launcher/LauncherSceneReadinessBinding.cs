@@ -24,7 +24,7 @@ internal sealed class LauncherSceneReadinessBinding
     internal void Begin(object game, string attemptId)
     {
         ArgumentNullException.ThrowIfNull(game);
-        LauncherMainMenuReadinessOwner.ValidateAttemptId(attemptId);
+        LauncherHandoffStateOwner.ValidateAttemptId(attemptId);
         lock (_lock)
         {
             if (_operation != null)

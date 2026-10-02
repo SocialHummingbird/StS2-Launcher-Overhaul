@@ -13,105 +13,6 @@ internal sealed partial class SteamAuth
     private const int AndroidConnectTimeoutMs = 30_000;
     private const int ConnectPollDelayMs = 100;
 
-    private readonly struct ConnectRetryAttempt
-    {
-        internal ConnectRetryAttempt(
-            Action begin,
-            string startFailureMessage,
-            string retryMessage
-        )
-        {
-            Begin = begin;
-            StartFailureMessage = startFailureMessage;
-            RetryMessage = retryMessage;
-        }
-
-        private Action Begin { get; }
-        private string StartFailureMessage { get; }
-        private string RetryMessage { get; }
-
-        internal void BeginOrResetAfterFailure(SteamAuth owner)
-        {
-            try
-            {
-                Begin();
-            }
-            catch (Exception ex)
-            {
-                owner.Log($"{StartFailureMessage}: {ex.Message}");
-                owner.ResetConnectAttemptAfterFailure();
-            }
-        }
-
-        internal async Task DelayBeforeRetryAsync(SteamAuth owner, int retryDelayMs)
-        {
-            owner.ResetConnectAttemptAfterFailure();
-            owner.Log(RetryMessage);
-            await Task.Delay(retryDelayMs);
-        }
-    }
-
-    private readonly struct ConnectRetryPolicy
-    {
-        private ConnectRetryPolicy(int retryCount, int retryDelayMs, int timeoutMs)
-        {
-            RetryCount = retryCount;
-            RetryDelayMs = retryDelayMs;
-            TimeoutMs = timeoutMs;
-        }
-
-        internal int RetryCount { get; }
-        internal int RetryDelayMs { get; }
-        internal int TimeoutMs { get; }
-        internal int MaxPolls => TimeoutMs / ConnectPollDelayMs;
-
-        internal static ConnectRetryPolicy Current()
-            => OperatingSystem.IsAndroid()
-                ? new(
-                    AndroidConnectRetryCount,
-                    AndroidConnectRetryDelayMs,
-                    AndroidConnectTimeoutMs
-                )
-                : new(
-                    ConnectRetryCount,
-                    ConnectRetryDelayMs,
-                    ConnectTimeoutMs
-                );
-    }
-
-    private readonly struct ConnectRetryRunner
-    {
-        private ConnectRetryRunner(SteamAuth owner, ConnectRetryAttempt retry)
-        {
-            Owner = owner;
-            Retry = retry;
-            Policy = ConnectRetryPolicy.Current();
-        }
-
-        private SteamAuth Owner { get; }
-        private ConnectRetryAttempt Retry { get; }
-        private ConnectRetryPolicy Policy { get; }
-
-        internal static Task<bool> RunAsync(SteamAuth owner, ConnectRetryAttempt retry)
-            => new ConnectRetryRunner(owner, retry).RunAsync();
-
-        private async Task<bool> RunAsync()
-        {
-            for (int attempt = 1; attempt <= Policy.RetryCount; attempt++)
-            {
-                Retry.BeginOrResetAfterFailure(Owner);
-
-                if (await Owner.WaitForConnectAsync(Policy))
-                    return true;
-
-                if (attempt < Policy.RetryCount)
-                    await Retry.DelayBeforeRetryAsync(Owner, Policy.RetryDelayMs);
-            }
-
-            return false;
-        }
-    }
-
     internal void Connect()
     {
         if (_disposed || _connectedGate.IsSet || _connectStarted)
@@ -120,9 +21,9 @@ internal sealed partial class SteamAuth
         BeginConnect("Connecting to Steam...");
     }
 
-    private async Task<bool> WaitForConnectAsync(ConnectRetryPolicy policy)
+    private async Task<bool> WaitForConnectAsync(int timeoutMs)
     {
-        for (int i = 0; i < policy.MaxPolls; i++)
+        for (int i = 0; i < timeoutMs / ConnectPollDelayMs; i++)
         {
             if (_connectedGate.IsSet)
                 return true;
@@ -136,11 +37,9 @@ internal sealed partial class SteamAuth
 
     private Task<bool> ConnectWithRetriesAsync()
         => TryConnectWithRetriesAsync(
-            new ConnectRetryAttempt(
                 Connect,
                 "Steam connection failed to start before auth",
                 "Steam connection did not complete before auth; retrying..."
-            )
         );
 
     private async Task ForceReconnectForLoginRetryAsync(string message)
@@ -166,18 +65,39 @@ internal sealed partial class SteamAuth
         _needsReconnectForAuth = false;
 
         var connected = await TryConnectWithRetriesAsync(
-            new ConnectRetryAttempt(
                 () => BeginConnect("Reconnecting for auth code submission..."),
                 "Steam auth reconnect failed to start",
                 "Steam auth reconnect did not complete; retrying..."
-            )
         );
         _needsReconnectForAuth = !connected;
         return connected;
     }
 
-    private async Task<bool> TryConnectWithRetriesAsync(ConnectRetryAttempt retry)
-        => await ConnectRetryRunner.RunAsync(this, retry);
+    private async Task<bool> TryConnectWithRetriesAsync(Action begin, string startFailureMessage, string retryMessage)
+    {
+        var android = OperatingSystem.IsAndroid();
+        var retryCount = android ? AndroidConnectRetryCount : ConnectRetryCount;
+        var retryDelayMs = android ? AndroidConnectRetryDelayMs : ConnectRetryDelayMs;
+        var timeoutMs = android ? AndroidConnectTimeoutMs : ConnectTimeoutMs;
+        for (var attempt = 1; attempt <= retryCount; attempt++)
+        {
+            try { begin(); }
+            catch (Exception ex)
+            {
+                Log($"{startFailureMessage}: {ex.Message}");
+                ResetConnectAttemptAfterFailure();
+            }
+            if (await WaitForConnectAsync(timeoutMs))
+                return true;
+            if (attempt < retryCount)
+            {
+                ResetConnectAttemptAfterFailure();
+                Log(retryMessage);
+                await Task.Delay(retryDelayMs);
+            }
+        }
+        return false;
+    }
 
     private void BeginConnect(string message)
     {

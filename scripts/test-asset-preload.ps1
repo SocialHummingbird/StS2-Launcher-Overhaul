@@ -26,8 +26,8 @@ if ($VerifyBaseline) {
 
 $patched = Join-Path $evidence 'asset-preload-godot-patched.log'
 & $godot @arguments *> $patched
-if ($LASTEXITCODE -ne 0 -or (Get-Content -Raw $patched) -notmatch 'ASSET_PRELOAD_PASS') {
+if ($LASTEXITCODE -ne 0 -or (Get-Content -Raw $patched) -notmatch 'ASSET_PRELOAD_PASS' -or (Get-Content -Raw $patched) -notmatch 'ASSET_FALLBACK_PASS' -or (Get-Content -Raw $patched) -notmatch 'ASSET_OWNERSHIP_PASS') {
     throw "Patched resource loading failed. Inspect $patched"
 }
-Get-Content $patched | Select-String 'ASSET_PRELOAD_PASS'
+Get-Content $patched | Select-String 'ASSET_PRELOAD_PASS|ASSET_FALLBACK_PASS|ASSET_OWNERSHIP_PASS'
 Write-Host 'Scope: actual game AssetLoadingSession and Godot threaded resources on desktop; not Android gameplay.'

@@ -3,14 +3,12 @@ using System.IO;
 using SteamKit2;
 
 namespace STS2Mobile.Steam;
-
 internal sealed partial class DepotDownloader
 {
     private sealed partial class DownloadStateStore
     {
         private readonly DepotDownloader _owner;
         private readonly string _stateDir;
-
         internal DownloadStateStore(DepotDownloader owner, string stateDir)
         {
             _owner = owner;
@@ -22,13 +20,11 @@ internal sealed partial class DepotDownloader
             var path = Path.Combine(_stateDir, $"{depotId}.id");
             if (!File.Exists(path))
                 return 0;
-
             try
             {
                 var raw = File.ReadAllText(path).Trim();
                 if (ulong.TryParse(raw, out var id))
                     return id;
-
                 Log($"Ignoring malformed cached manifest id for depot {depotId}: {raw}");
                 MoveBadStateFile(path);
                 return 0;
@@ -40,15 +36,12 @@ internal sealed partial class DepotDownloader
             }
         }
 
-        internal bool ManifestChanged(DepotManifestReference depot)
-            => LoadManifestId(depot.DepotId) != depot.ManifestId;
-
+        internal bool ManifestChanged(DepotManifestReference depot) => LoadManifestId(depot.DepotId) != depot.ManifestId;
         internal DepotManifest? LoadManifest(uint depotId)
         {
             var path = Path.Combine(_stateDir, $"{depotId}.manifest");
             if (!File.Exists(path))
                 return null;
-
             try
             {
                 using var fs = File.OpenRead(path);
@@ -71,13 +64,12 @@ internal sealed partial class DepotDownloader
             {
                 manifest.Serialize(fs);
             }
-            CommitStateFile(manifestTempPath, manifestPath);
 
+            CommitStateFile(manifestTempPath, manifestPath);
             var idPath = Path.Combine(_stateDir, $"{depotId}.id");
             var idTempPath = idPath + ".tmp";
             File.WriteAllText(idTempPath, depot.ManifestId.ToString());
             CommitStateFile(idTempPath, idPath);
-
             DeleteQuietly(manifestPath + ".bad");
             DeleteQuietly(idPath + ".bad");
         }
@@ -88,7 +80,48 @@ internal sealed partial class DepotDownloader
             CleanupTempFiles();
         }
 
-        private void Log(string message)
-            => _owner.Log(message);
+        private void Log(string message) => _owner.Log(message);
+        private void CleanupTempFiles()
+        {
+            try
+            {
+                foreach (var path in Directory.GetFiles(_stateDir, "*.tmp"))
+                    DeleteQuietly(path);
+            }
+            catch (Exception ex)
+            {
+                Log($"Could not clean download state temp files: {ex.Message}");
+            }
+        }
+
+        private void MoveBadStateFile(string path)
+        {
+            try
+            {
+                if (!File.Exists(path))
+                    return;
+                var badPath = path + ".bad";
+                if (File.Exists(badPath))
+                    File.Delete(badPath);
+                File.Move(path, badPath);
+            }
+            catch (Exception ex)
+            {
+                Log($"Could not quarantine bad state file {Path.GetFileName(path)}: {ex.Message}");
+            }
+        }
+
+        private static void CommitStateFile(string tempPath, string targetPath)
+        {
+            try
+            {
+                File.Move(tempPath, targetPath, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                DeleteQuietly(tempPath);
+                throw new IOException($"Failed to commit downloader state file {Path.GetFileName(targetPath)}: {ex.Message}", ex);
+            }
+        }
     }
 }
