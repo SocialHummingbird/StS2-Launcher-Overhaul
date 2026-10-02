@@ -2,44 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using STS2Mobile.Steam;
+using System.Linq;
+using System.Text.Json;
 
 namespace STS2Mobile.Launcher;
-
 internal sealed partial class RuntimePackManifest
 {
     internal const string AndroidAssemblyFileName = "sts2.dll";
-    private RuntimePackManifest(
-        string path,
-        string expectedBranch,
-        GameIdentity expectedGameIdentity,
-        string packId,
-        string sourceBranch,
-        string installGeneration,
-        string sourcePckSha256,
-        string sourceAssemblySha256,
-        string gameIdentityId,
-        string androidAssemblySha256,
-        string patchSetVersion,
-        string patchValidationStatus,
-        string patchValidationReport,
-        string validationMode,
-        string validationSurfaceVersion,
-        string[] supportAssemblies,
-        IReadOnlyDictionary<string, string> supportAssemblySha256,
-        bool supportAssembliesDeclared,
-        bool supportAssemblySha256Declared,
-        int checkedSymbolCount,
-        int presentSymbolCount,
-        int missingSymbolCount,
-        string minimumLauncherVersion,
-        bool generatedFromCleanDirectory,
-        string status,
-        bool exists,
-        bool readable,
-        bool androidAssemblyExists,
-        string androidAssemblyPath,
-        string actualAndroidAssemblySha256
-    )
+    private RuntimePackManifest(string path, string expectedBranch, GameIdentity expectedGameIdentity, string packId, string sourceBranch, string installGeneration, string sourcePckSha256, string sourceAssemblySha256, string gameIdentityId, string androidAssemblySha256, string patchSetVersion, string patchValidationStatus, string patchValidationReport, string validationMode, string validationSurfaceVersion, string[] supportAssemblies, IReadOnlyDictionary<string, string> supportAssemblySha256, bool supportAssembliesDeclared, bool supportAssemblySha256Declared, int checkedSymbolCount, int presentSymbolCount, int missingSymbolCount, string minimumLauncherVersion, bool generatedFromCleanDirectory, string status, bool exists, bool readable, bool androidAssemblyExists, string androidAssemblyPath, string actualAndroidAssemblySha256)
     {
         Path = path;
         DirectoryPath = System.IO.Path.GetDirectoryName(path) ?? string.Empty;
@@ -51,13 +21,7 @@ internal sealed partial class RuntimePackManifest
         SourcePckSha256 = sourcePckSha256;
         SourceAssemblySha256 = sourceAssemblySha256;
         GameIdentityId = gameIdentityId;
-        GameIdentity.TryCreate(
-            sourceBranch,
-            installGeneration,
-            sourcePckSha256,
-            sourceAssemblySha256,
-            out var sourceGameIdentity
-        );
+        GameIdentity.TryCreate(sourceBranch, installGeneration, sourcePckSha256, sourceAssemblySha256, out var sourceGameIdentity);
         SourceGameIdentity = sourceGameIdentity;
         AndroidAssemblySha256 = androidAssemblySha256;
         PatchSetVersion = patchSetVersion;
@@ -114,25 +78,91 @@ internal sealed partial class RuntimePackManifest
     internal bool AndroidAssemblyExists { get; }
     internal string AndroidAssemblyPath { get; }
     internal string ActualAndroidAssemblySha256 { get; }
+    internal bool BranchMatches => !string.IsNullOrWhiteSpace(SourceBranch) && string.Equals(SteamGameBranch.Normalize(SourceBranch), SteamGameBranch.Normalize(ExpectedBranch), StringComparison.OrdinalIgnoreCase);
+    internal bool AndroidAssemblyHashMatches => !string.IsNullOrWhiteSpace(AndroidAssemblySha256) && !string.IsNullOrWhiteSpace(ActualAndroidAssemblySha256) && !ActualAndroidAssemblySha256.StartsWith("<", StringComparison.Ordinal) && string.Equals(AndroidAssemblySha256, ActualAndroidAssemblySha256, StringComparison.OrdinalIgnoreCase);
+    internal bool Usable => string.Equals(Status, "usable", StringComparison.OrdinalIgnoreCase);
+    internal bool PatchValidationPassed => string.Equals(PatchValidationStatus, "passed", StringComparison.OrdinalIgnoreCase);
 
-    internal bool BranchMatches =>
-        !string.IsNullOrWhiteSpace(SourceBranch)
-        && string.Equals(
-            SteamGameBranch.Normalize(SourceBranch),
-            SteamGameBranch.Normalize(ExpectedBranch),
-            StringComparison.OrdinalIgnoreCase
-        );
+    private static string ReadString(JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
+                return value.GetString() ?? string.Empty;
+        }
 
-    internal bool AndroidAssemblyHashMatches =>
-        !string.IsNullOrWhiteSpace(AndroidAssemblySha256)
-        && !string.IsNullOrWhiteSpace(ActualAndroidAssemblySha256)
-        && !ActualAndroidAssemblySha256.StartsWith("<", StringComparison.Ordinal)
-        && string.Equals(AndroidAssemblySha256, ActualAndroidAssemblySha256, StringComparison.OrdinalIgnoreCase);
+        return string.Empty;
+    }
 
-    internal bool Usable =>
-        string.Equals(Status, "usable", StringComparison.OrdinalIgnoreCase);
+    private static int ReadInt(JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!root.TryGetProperty(name, out var value))
+                continue;
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var intValue))
+                return intValue;
+            if (value.ValueKind == JsonValueKind.String && int.TryParse(value.GetString(), out intValue))
+                return intValue;
+        }
 
-    internal bool PatchValidationPassed =>
-        string.Equals(PatchValidationStatus, "passed", StringComparison.OrdinalIgnoreCase);
+        return 0;
+    }
 
+    private static string[] ReadStringArray(JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array)
+                return value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString() ?? string.Empty).ToArray();
+        }
+
+        return Array.Empty<string>();
+    }
+
+    private static bool HasProperty(JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (root.TryGetProperty(name, out _))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static IReadOnlyDictionary<string, string> ReadStringDictionary(JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (!root.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.Object)
+                continue;
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in value.EnumerateObject())
+            {
+                if (item.Value.ValueKind == JsonValueKind.String)
+                    result[item.Name] = item.Value.GetString() ?? string.Empty;
+            }
+
+            return result;
+        }
+
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool ReadBool(JsonElement root, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (root.TryGetProperty(name, out var value))
+            {
+                if (value.ValueKind == JsonValueKind.True)
+                    return true;
+                if (value.ValueKind == JsonValueKind.False)
+                    return false;
+            }
+        }
+
+        return false;
+    }
 }

@@ -66,7 +66,7 @@ internal static class LauncherModSelectionState
     private const int MaxManualMods = 32;
     private const int MaxManualManifestCandidates = MaxManualMods * 4;
     private static readonly object KnownModsGate = new();
-    private static KnownModsCacheEntry _knownModsCache;
+    private static LauncherKnownModsSnapshot _knownModsCache;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -175,7 +175,7 @@ internal static class LauncherModSelectionState
         lock (KnownModsGate)
         {
             if (_knownModsCache != null && _knownModsCache.Identity.Matches(identity))
-                return _knownModsCache.Snapshot;
+                return _knownModsCache;
         }
 
         document ??= DefaultDocument();
@@ -188,9 +188,9 @@ internal static class LauncherModSelectionState
         lock (KnownModsGate)
         {
             if (_knownModsCache == null || !_knownModsCache.Identity.Matches(identity))
-                _knownModsCache = new KnownModsCacheEntry(identity, knownMods);
+                _knownModsCache = new LauncherKnownModsSnapshot(identity, knownMods);
 
-            return _knownModsCache.Snapshot;
+            return _knownModsCache;
         }
     }
 
@@ -236,20 +236,6 @@ internal static class LauncherModSelectionState
         }
 
         LauncherModLaunchReadinessCache.Clear(reason);
-    }
-
-    private sealed class KnownModsCacheEntry
-    {
-        internal KnownModsCacheEntry(
-            LauncherModSourceIdentity identity,
-            IReadOnlyList<LauncherKnownMod> mods
-        )
-        {
-            Snapshot = new LauncherKnownModsSnapshot(identity, mods);
-        }
-
-        internal LauncherModSourceIdentity Identity => Snapshot.Identity;
-        internal LauncherKnownModsSnapshot Snapshot { get; }
     }
 
     internal static bool IsModEnabled(string key)

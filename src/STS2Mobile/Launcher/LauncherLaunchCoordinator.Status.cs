@@ -44,7 +44,7 @@ internal sealed partial class LauncherLaunchCoordinator
     internal void ShowLaunchActions(LaunchUpdateAction updateAction)
     {
         _view.ShowLaunchActions(
-            _model.LaunchButtonText(),
+            "Play",
             updateAction == LaunchUpdateAction.Visible
         );
     }

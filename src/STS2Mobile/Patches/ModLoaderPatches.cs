@@ -331,6 +331,21 @@ internal static partial class ModLoaderPatches
                 launchPlan
             );
         }
+        finally
+        {
+            if (OperatingSystem.IsAndroid())
+            {
+                try
+                {
+                    foreach (var ownership in AndroidAssetPreloadPatches.DescribeRuntimePatchOwnership())
+                        PatchHelper.Log($"[Mods] After initialization: {ownership}");
+                }
+                catch (Exception ex)
+                {
+                    PatchHelper.Log($"[Mods] Asset preload ownership inspection failed: {ex.Message}");
+                }
+            }
+        }
     }
 
     private static void TryWriteUnavailableActivationMarker(

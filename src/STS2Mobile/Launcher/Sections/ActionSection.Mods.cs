@@ -3,20 +3,14 @@ using System.Linq;
 using STS2Mobile;
 using STS2Mobile.Launcher;
 using STS2Mobile.Launcher.Components;
+using System;
 
 namespace STS2Mobile.Launcher.Sections;
-
 internal sealed partial class ActionSection
 {
     private sealed class ModRowControls
     {
-        internal ModRowControls(
-            PanelContainer container,
-            Label title,
-            Label source,
-            Label runtimeResult,
-            CheckButton enabledToggle
-        )
+        internal ModRowControls(PanelContainer container, Label title, Label source, Label runtimeResult, CheckButton enabledToggle)
         {
             Container = container;
             Title = title;
@@ -44,9 +38,7 @@ internal sealed partial class ActionSection
         ShowModsStartupSummary();
     }
 
-    private void ShowModsStartupSummary()
-        => RefreshModsStatus();
-
+    private void ShowModsStartupSummary() => RefreshModsStatus();
     private void RefreshModsStatus()
     {
         try
@@ -57,13 +49,7 @@ internal sealed partial class ActionSection
         {
             PatchHelper.Log($"[Mods] Failed to refresh Mods page: {ex.Message}");
             var selection = LauncherModSelectionState.Load();
-            SetModsPresentation(
-                LauncherModsPresentationState.Build(
-                    selection,
-                    System.Array.Empty<LauncherKnownMod>(),
-                    marker: null
-                )
-            );
+            SetModsPresentation(LauncherModsPresentationState.Build(selection, System.Array.Empty<LauncherKnownMod>(), marker: null));
         }
     }
 
@@ -71,39 +57,21 @@ internal sealed partial class ActionSection
     {
         if (presentation == null)
             return;
-
         var moddedMode = presentation.Mode == LauncherModPlayMode.Modded;
-        var enabledModCount = presentation.EnabledCount == 1
-            ? "1 mod"
-            : $"{presentation.EnabledCount} mods";
-        _modsLaunchSummaryLabel.Text = moddedMode
-            ? $"Uses Modded saves \u00B7 {enabledModCount} enabled"
-            : "Uses Vanilla saves";
+        var enabledModCount = presentation.EnabledCount == 1 ? "1 mod" : $"{presentation.EnabledCount} mods";
+        _modsLaunchSummaryLabel.Text = moddedMode ? $"Uses Modded saves \u00B7 {enabledModCount} enabled" : "Uses Vanilla saves";
         RefreshModModeButtons(moddedMode, presentation.EnabledCount);
-        ApplyModJourneyPresentation(
-            moddedMode,
-            presentation.EnabledCount,
-            presentation.SaveNamespaceLabel
-        );
+        ApplyModJourneyPresentation(moddedMode, presentation.EnabledCount, presentation.SaveNamespaceLabel);
         RefreshModList(presentation.Mods);
         UpdateBranchHelpText();
     }
 
-    private void ApplyModJourneyPresentation(
-        bool moddedMode,
-        int enabledCount,
-        string saveNamespace
-    )
+    private void ApplyModJourneyPresentation(bool moddedMode, int enabledCount, string saveNamespace)
     {
-        saveNamespace = PresentationText(
-            saveNamespace,
-            moddedMode ? "Modded saves" : "Vanilla saves"
-        );
+        saveNamespace = PresentationText(saveNamespace, moddedMode ? "Modded saves" : "Vanilla saves");
         _homeSaveNamespace = saveNamespace;
         UpdateHomeStateLine();
-        _contextualPlayLabel = moddedMode
-            ? ModdedPlayLabel(enabledCount)
-            : "Play Vanilla";
+        _contextualPlayLabel = moddedMode ? ModdedPlayLabel(enabledCount) : "Play Vanilla";
         ApplyContextualPlayLabel();
     }
 
@@ -112,30 +80,21 @@ internal sealed partial class ActionSection
         SetCompactActionButtonText(_launchButton, _contextualPlayLabel);
     }
 
-    private static string ModdedPlayLabel(int enabledCount)
-        => $"Play Modded \u00B7 {enabledCount} {(enabledCount == 1 ? "mod" : "mods")}";
-
+    private static string ModdedPlayLabel(int enabledCount) => $"Play Modded \u00B7 {enabledCount} {(enabledCount == 1 ? "mod" : "mods")}";
     private void RefreshModModeButtons(bool moddedMode, int enabledCount)
     {
-        ApplyToggle(_playVanillaButton, !moddedMode, _compact
-            ? "Vanilla"
-            : !moddedMode ? "Vanilla \u00B7 Selected" : "Vanilla");
-        ApplyToggle(_playModdedButton, moddedMode, _compact
-            ? "Modded"
-            : moddedMode ? "Modded \u00B7 Selected" : "Modded");
+        ApplyToggle(_playVanillaButton, !moddedMode, _compact ? "Vanilla" : !moddedMode ? "Vanilla \u00B7 Selected" : "Vanilla");
+        ApplyToggle(_playModdedButton, moddedMode, _compact ? "Modded" : moddedMode ? "Modded \u00B7 Selected" : "Modded");
         _playVanillaButton.AccessibilityName = "Vanilla";
         _playVanillaButton.AccessibilityDescription = !moddedMode ? "Selected mode" : "";
         _playModdedButton.AccessibilityName = "Modded";
         _playModdedButton.AccessibilityDescription = moddedMode ? "Selected mode" : "";
     }
 
-    private void RefreshModList(
-        System.Collections.Generic.IReadOnlyList<LauncherModPresentationItem> mods
-    )
+    private void RefreshModList(System.Collections.Generic.IReadOnlyList<LauncherModPresentationItem> mods)
     {
         PatchHelper.Log("[Launcher] Mods refresh phase: update truthful mod rows");
-        var visibleMods = (mods ?? System.Array.Empty<LauncherModPresentationItem>())
-            .ToArray();
+        var visibleMods = (mods ?? System.Array.Empty<LauncherModPresentationItem>()).ToArray();
         EnsureModToggleSlots(visibleMods.Length);
         for (var i = 0; i < _modRows.Count; i++)
         {
@@ -152,14 +111,12 @@ internal sealed partial class ActionSection
         {
             if (index >= _modRows.Count)
                 break;
-
             var row = _modRows[index];
             var title = string.IsNullOrWhiteSpace(mod.Title) ? mod.Id : mod.Title;
             var source = string.IsNullOrWhiteSpace(mod.Source) ? "Unknown source" : mod.Source;
             if (!mod.Installed)
                 source += " \u00B7 files missing";
             var result = RuntimeResultText(mod);
-
             row.Key = mod.Key;
             row.CanChange = mod.CanChange;
             row.Container.Visible = true;
@@ -169,9 +126,7 @@ internal sealed partial class ActionSection
             row.EnabledToggle.ButtonPressed = mod.Enabled;
             row.EnabledToggle.AccessibilityName = title;
             var detail = PresentationText(mod.Detail, result);
-            row.EnabledToggle.AccessibilityDescription =
-                $"{(mod.Enabled ? "Enabled" : "Disabled")} for Modded mode. "
-                + $"{source}. {result}. {detail}";
+            row.EnabledToggle.AccessibilityDescription = $"{(mod.Enabled ? "Enabled" : "Disabled")} for Modded mode. " + $"{source}. {result}. {detail}";
             row.Container.TooltipText = detail;
             index++;
         }
@@ -191,15 +146,7 @@ internal sealed partial class ActionSection
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                 Visible = false,
             };
-            panel.AddThemeStyleboxOverride(
-                LauncherComponentTheme.Panel,
-                LauncherStyleBoxes.MakeOutline(
-                    LauncherComponentTheme.CyanDim,
-                    LauncherViewLayoutMetrics.ScaleInt(6, _scale),
-                    1
-                )
-            );
-
+            panel.AddThemeStyleboxOverride(LauncherComponentTheme.Panel, LauncherStyleBoxes.MakeOutline(LauncherComponentTheme.CyanDim, LauncherViewLayoutMetrics.ScaleInt(6, _scale), 1));
             var margin = new MarginContainer
             {
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -211,44 +158,26 @@ internal sealed partial class ActionSection
             margin.AddThemeConstantOverride("margin_top", verticalMargin);
             margin.AddThemeConstantOverride("margin_bottom", verticalMargin);
             panel.AddChild(margin);
-
             var content = new VBoxContainer
             {
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             };
-            content.AddThemeConstantOverride(
-                "separation",
-                LauncherViewLayoutMetrics.ScaleInt(3, _scale)
-            );
+            content.AddThemeConstantOverride("separation", LauncherViewLayoutMetrics.ScaleInt(3, _scale));
             margin.AddChild(content);
-
             var header = new HBoxContainer
             {
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             };
-            header.AddThemeConstantOverride(
-                "separation",
-                LauncherViewLayoutMetrics.ScaleInt(8, _scale)
-            );
+            header.AddThemeConstantOverride("separation", LauncherViewLayoutMetrics.ScaleInt(8, _scale));
             content.AddChild(header);
-
-            var title = new StyledLabel(
-                "",
-                _scale,
-                fontSize: _compact ? 14 : 15,
-                align: HorizontalAlignment.Left
-            )
+            var title = new StyledLabel("", _scale, fontSize: _compact ? 14 : 15, align: HorizontalAlignment.Left)
             {
                 Name = "ModName",
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
             };
-            title.AddThemeColorOverride(
-                LauncherViewLayoutMetrics.ThemeFontColor,
-                LauncherComponentTheme.TextPrimary
-            );
+            title.AddThemeColorOverride(LauncherViewLayoutMetrics.ThemeFontColor, LauncherComponentTheme.TextPrimary);
             header.AddChild(title);
-
             var enabledToggle = new CheckButton
             {
                 Name = "ModEnabledToggle",
@@ -256,61 +185,35 @@ internal sealed partial class ActionSection
                 ToggleMode = true,
                 FocusMode = Control.FocusModeEnum.All,
             };
-            enabledToggle.AddThemeFontSizeOverride(
-                LauncherComponentTheme.FontSize,
-                LauncherViewLayoutMetrics.ScaleInt(_compact ? 13 : 14, _scale)
-            );
+            enabledToggle.AddThemeFontSizeOverride(LauncherComponentTheme.FontSize, LauncherViewLayoutMetrics.ScaleInt(_compact ? 13 : 14, _scale));
             enabledToggle.Pressed += () => ToggleModAtIndex(slot);
             header.AddChild(enabledToggle);
-
-            var source = new StyledLabel(
-                "",
-                _scale,
-                fontSize: _compact ? 11 : 12,
-                align: HorizontalAlignment.Left
-            )
+            var source = new StyledLabel("", _scale, fontSize: _compact ? 11 : 12, align: HorizontalAlignment.Left)
             {
                 Name = "ModSource",
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
             };
-            source.AddThemeColorOverride(
-                LauncherViewLayoutMetrics.ThemeFontColor,
-                LauncherComponentTheme.TextMuted
-            );
+            source.AddThemeColorOverride(LauncherViewLayoutMetrics.ThemeFontColor, LauncherComponentTheme.TextMuted);
             content.AddChild(source);
-
-            var runtimeResult = new StyledLabel(
-                "",
-                _scale,
-                fontSize: _compact ? 12 : 13,
-                align: HorizontalAlignment.Left
-            )
+            var runtimeResult = new StyledLabel("", _scale, fontSize: _compact ? 12 : 13, align: HorizontalAlignment.Left)
             {
                 Name = "ModRuntimeResult",
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
             };
-            runtimeResult.AddThemeColorOverride(
-                LauncherViewLayoutMetrics.ThemeFontColor,
-                LauncherComponentTheme.TextSecondary
-            );
+            runtimeResult.AddThemeColorOverride(LauncherViewLayoutMetrics.ThemeFontColor, LauncherComponentTheme.TextSecondary);
             content.AddChild(runtimeResult);
-
             _modsList.AddChild(panel);
             _modRows.Add(new ModRowControls(panel, title, source, runtimeResult, enabledToggle));
         }
     }
 
-    private static string RuntimeResultText(LauncherModPresentationItem mod)
-        => mod.IsLastLaunchStale
-            ? "Not run with this setup"
-            : mod.LastLaunchState switch
-            {
-                LauncherModLastLaunchState.LoadedLastLaunch => "Active last launch",
-                LauncherModLastLaunchState.Partial => "Partly loaded",
-                LauncherModLastLaunchState.Failed => "Failed last launch",
-                _ => "Not run with this setup",
-            };
-
+    private static string RuntimeResultText(LauncherModPresentationItem mod) => mod.IsLastLaunchStale ? "Not run with this setup" : mod.LastLaunchState switch
+    {
+        LauncherModLastLaunchState.LoadedLastLaunch => "Active last launch",
+        LauncherModLastLaunchState.Partial => "Partly loaded",
+        LauncherModLastLaunchState.Failed => "Failed last launch",
+        _ => "Not run with this setup",
+    };
     private void SetModPlayMode(LauncherModPlayMode mode)
     {
         LauncherModSelectionState.SetPlayMode(mode);
@@ -329,14 +232,73 @@ internal sealed partial class ActionSection
     {
         if (index < 0 || index >= _modRows.Count)
             return;
-
         var row = _modRows[index];
         var key = row.Key;
         if (string.IsNullOrWhiteSpace(key) || !row.CanChange)
             return;
-
         var selection = LauncherModSelectionState.Load();
         var selected = selection.EnabledMods.TryGetValue(key, out var enabled) && enabled;
         ToggleMod(key, !selected);
+    }
+
+    private readonly struct ModsControls
+    {
+        internal ModsControls(VBoxContainer group, Button playVanillaButton, Button playModdedButton, Label launchSummaryLabel, VBoxContainer modsList, Button workshopSyncButton, Button workshopClearButton)
+        {
+            Group = group;
+            PlayVanillaButton = playVanillaButton;
+            PlayModdedButton = playModdedButton;
+            LaunchSummaryLabel = launchSummaryLabel;
+            ModsList = modsList;
+            WorkshopSyncButton = workshopSyncButton;
+            WorkshopClearButton = workshopClearButton;
+        }
+
+        internal VBoxContainer Group { get; }
+        internal Button PlayVanillaButton { get; }
+        internal Button PlayModdedButton { get; }
+        internal Label LaunchSummaryLabel { get; }
+        internal VBoxContainer ModsList { get; }
+        internal Button WorkshopSyncButton { get; }
+        internal Button WorkshopClearButton { get; }
+    }
+
+    private ModsControls BuildModsControls(float scale, bool compact)
+    {
+        var group = BuildActionGroup(scale);
+        group.Name = "ModsControls";
+        group.Visible = false;
+        Container modeParent = compact && !_compactStackedActionRows ? BuildCompactActionRow(group, scale, compactStackedActionRows: false) : group;
+        var playVanillaButton = AddActionButton(modeParent, "Vanilla", scale, () => SetModPlayMode(LauncherModPlayMode.Vanilla));
+        LauncherButtonStyles.ApplySupportAction(playVanillaButton, scale);
+        var playModdedButton = AddActionButton(modeParent, "Modded", scale, () => SetModPlayMode(LauncherModPlayMode.Modded));
+        LauncherButtonStyles.ApplySupportAction(playModdedButton, scale);
+        var launchSummaryLabel = new StyledLabel("Uses Vanilla saves", scale, fontSize: compact ? 14 : 15, align: HorizontalAlignment.Left)
+        {
+            Name = "ModsLaunchSummary",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        launchSummaryLabel.AddThemeColorOverride(LauncherViewLayoutMetrics.ThemeFontColor, LauncherComponentTheme.TextPrimary);
+        group.AddChild(launchSummaryLabel);
+        var modsList = new VBoxContainer
+        {
+            Name = "ModsList",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        modsList.AddThemeConstantOverride("separation", Math.Max(3, (int)(4 * scale)));
+        group.AddChild(modsList);
+        Container actionsParent = compact && !_compactStackedActionRows ? BuildCompactActionRow(group, scale, compactStackedActionRows: false) : group;
+        var workshopSyncButton = AddActionButton(actionsParent, "Update Workshop mods", scale, () => WorkshopSyncPressed?.Invoke());
+        workshopSyncButton.AccessibilityName = "Update Workshop mods";
+        LauncherButtonStyles.ApplyPrimaryAction(workshopSyncButton, scale);
+        SetCompactActionButtonText(workshopSyncButton, workshopSyncButton.Text);
+        var workshopClearButton = AddActionButton(actionsParent, "Remove downloaded Workshop mods\u2026", scale, () => WorkshopClearPressed?.Invoke());
+        LauncherButtonStyles.ApplySupportAction(workshopClearButton, scale);
+        workshopClearButton.AccessibilityName = "Remove downloaded Workshop mods\u2026";
+        workshopClearButton.TooltipText = "Review before removing downloaded Workshop mods.";
+        workshopClearButton.AccessibilityDescription = workshopClearButton.TooltipText;
+        SetCompactActionButtonText(workshopClearButton, workshopClearButton.Text);
+        AddChild(group);
+        return new ModsControls(group, playVanillaButton, playModdedButton, launchSummaryLabel, modsList, workshopSyncButton, workshopClearButton);
     }
 }

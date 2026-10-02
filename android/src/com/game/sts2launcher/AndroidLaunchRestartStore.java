@@ -86,6 +86,34 @@ final class AndroidLaunchRestartStore {
         } catch (Exception error) { return ""; }
     }
 
+    static boolean isPending(String json, long now) {
+        return pendingRequest(json, now) != null;
+    }
+
+    static boolean isPendingSafe(String json, long now) {
+        JSONObject request = pendingRequest(json, now);
+        return request != null && request.optBoolean("safe", false);
+    }
+
+    private static JSONObject pendingRequest(String json, long now) {
+        try {
+            JSONObject request = validate(json, now);
+            return "pending".equals(request.getString("state")) ? request : null;
+        } catch (Exception error) { return null; }
+    }
+
+    // Recovery must still be able to clear a request already claimed by this process.
+    static boolean isUnconsumed(String json, long now) {
+        try {
+            String state = validate(json, now).getString("state");
+            return "pending".equals(state) || "claimed".equals(state);
+        } catch (Exception error) { return false; }
+    }
+
+    static String cancelForRecovery(String json) throws Exception {
+        return new JSONObject(json).put("state", "cancelled").toString();
+    }
+
     static JSONObject validate(String json, long now) throws Exception {
         JSONObject request = new JSONObject(json);
         if (request.getInt("version") != 1) throw new IllegalArgumentException("Unsupported request version.");

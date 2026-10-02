@@ -175,7 +175,7 @@ internal static class ModRuntimeActivationTest
                 "The representative initializer did not install its required Harmony patch."
             );
 
-            var marker = LauncherModsPresentationState.ReadMarker(
+            var marker = LauncherModLaunchResultStore.Read(
                 AppPaths.AppPrivateLastModLaunchPath
             );
             Require(
@@ -387,7 +387,7 @@ internal static class ModRuntimeActivationTest
             $"{scenario} selection ran the {ManifestId} initializer."
         );
 
-        var marker = LauncherModsPresentationState.ReadMarker(
+        var marker = LauncherModLaunchResultStore.Read(
             AppPaths.AppPrivateLastModLaunchPath
         );
         var expectedMode = string.Equals(scenario, "vanilla", StringComparison.Ordinal)
@@ -503,7 +503,7 @@ internal static class ModRuntimeActivationTest
             "Production did not emit the exact two-mod Stage 9 activation summary."
         );
 
-        var marker = LauncherModsPresentationState.ReadMarker(
+        var marker = LauncherModLaunchResultStore.Read(
             AppPaths.AppPrivateLastModLaunchPath
         );
         Require(

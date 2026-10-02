@@ -34,7 +34,7 @@ Already installed? Update over your existing app. **Do not uninstall or clear ap
 
 Android support is still experimental. Performance, audio, graphics, and mod compatibility depend on your device and game version.
 
-The current release is **v0.2.432**. It moves startup work off the UI thread, avoids repeated archive hashing, and limits title-screen resource-loading bursts. Automated regression checks and emulator startup checks passed; full Android gameplay remains unverified for this release. See [release notes](docs/release-notes/v0.2.432.md) for the exact validation scope.
+The current release is **v0.2.434-cleanup-local**. It repairs launch ownership and diagnostics, removes duplicate implementations, and consolidates fragmented source files. Managed, Android/JVM and save-safety checks passed; physical-device stability and the reported Modded title-screen freeze remain unverified. See [release notes](docs/release-notes/v0.2.434-cleanup-local.md) for the exact validation scope.
 
 ## Help and documentation
 

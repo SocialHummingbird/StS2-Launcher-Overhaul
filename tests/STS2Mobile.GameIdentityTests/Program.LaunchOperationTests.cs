@@ -83,4 +83,46 @@ internal static partial class Program
         operation.Fail();
         Equal(LauncherStartupStage.Running, operation.Stage, "Successful completion is terminal.");
     }
+
+    private static void LaunchOperationFactoryDoesNotHoldStateLock()
+    {
+        var operation = new LauncherStartupOperation("factory-lock");
+        Task<LauncherStartupStage>? inspection = null;
+        var work = operation.StartGame(() =>
+        {
+            inspection = Task.Factory.StartNew(() => operation.Stage,
+                System.Threading.CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            True(inspection.Wait(TimeSpan.FromSeconds(2)),
+                "Game code must not hold the operation lock while waiting for another thread to inspect launch state.");
+            Equal(LauncherStartupStage.Starting, inspection.Result, "Ownership must be reserved before invoking game code.");
+            return Task.CompletedTask;
+        });
+        try { work.GetAwaiter().GetResult(); }
+        finally { inspection?.GetAwaiter().GetResult(); }
+        True(operation.Complete(), "Moving invocation outside the lock must preserve normal completion.");
+    }
+
+    private static void LaunchOperationCanFailDuringFactory()
+    {
+        var operation = new LauncherStartupOperation("factory-failure");
+        Task? failure = null;
+        var source = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var work = operation.StartGame(() =>
+        {
+            failure = Task.Factory.StartNew(operation.Fail,
+                System.Threading.CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            True(failure.Wait(TimeSpan.FromSeconds(2)),
+                "A failure notification must not wait for synchronous game initialization to return.");
+            return source.Task;
+        });
+        try
+        {
+            if (work.IsFaulted) work.GetAwaiter().GetResult();
+            True(ReferenceEquals(source.Task, work), "Keep observing the original game task after a concurrent failure.");
+            source.SetResult(true);
+            operation.Observation.GetAwaiter().GetResult();
+            True(operation.RequiresRestart && !operation.Complete(), "Late success cannot revive a failed launch.");
+        }
+        finally { failure?.GetAwaiter().GetResult(); }
+    }
 }
