@@ -1,7 +1,11 @@
+using System.Threading.Tasks;
+using Godot;
+
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherController
 {
+    private int _modsPresentationRequest;
     private void OnDestinationSelected(LauncherDestination destination)
     {
         if (destination == LauncherDestination.Mods)
@@ -10,22 +14,19 @@ internal sealed partial class LauncherController
 
     private void RefreshModsPresentation()
     {
-        try
+        var request = ++_modsPresentationRequest;
+        _view.SetModsPresentationChecking();
+        _ = RefreshModsPresentationAsync(request);
+    }
+
+    private async Task RefreshModsPresentationAsync(int request)
+    {
+        var presentation = await _model.ReadModsPresentationAsync().ConfigureAwait(false);
+        _runOnMainThread(() =>
         {
-            _view.SetModsPresentation(LauncherModsPresentationState.ReadCurrent());
-        }
-        catch (System.Exception ex)
-        {
-            // Mod presentation is advisory. A discovery/read failure must not remove Play.
-            PatchHelper.Log($"[Mods] Failed to refresh launcher mod presentation: {ex.Message}");
-            var selection = LauncherModSelectionState.Load();
-            _view.SetModsPresentation(
-                LauncherModsPresentationState.Build(
-                    selection,
-                    System.Array.Empty<LauncherKnownMod>(),
-                    marker: null
-                )
-            );
-        }
+            var host = _view.LaunchLifetimeHost;
+            if (request == _modsPresentationRequest && GodotObject.IsInstanceValid(host) && host.IsInsideTree())
+                _view.SetModsPresentation(presentation);
+        });
     }
 }

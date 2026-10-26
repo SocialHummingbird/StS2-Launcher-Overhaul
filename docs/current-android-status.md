@@ -1,6 +1,36 @@
 # Android testing status
 
-Updated October 2, 2026. This page separates local validation from physical-device and live-service results.
+Updated October 26, 2026. This page separates local validation from physical-device and live-service results.
+
+## Unreleased: original mod framework restoration
+
+The working branch replaces launcher-owned mod parsing/loading and activation
+guesses with the selected game's original framework. It removes the restricted
+BaseLib initializer, named patch exclusions, assembly publicizing and replacement
+model construction. Android Mono and Harmony now have pinned source recipes.
+
+| Check | Observed result |
+| --- | --- |
+| Managed / Android JVM | 220 / 56 passed. This includes committed-package recovery, writable package state, fresh result identity, cold reopening, read-only background migration and rejected stale UI completions. |
+| Pre-merge lint | Managed analyzers and source whitespace/syntax checks pass. Android lint reports the same 15 errors and 39 warnings on this change and `main`; comparison finds no new diagnostics. The existing Gradle configuration does not fail on lint errors. |
+| Original loader contracts | Both supported game initialization shapes pass in separate desktop processes, including original discovery, dependency ordering, multiple manifests, exact manual selection, early secondary scripts and original failure propagation. |
+| Desktop representative packages | Five unmodified packages initialize; original model construction, serialization-cache initialization and repeated act/encounter access pass. |
+| In-place phone update | Candidate `436008` installed over the existing package with the same signing certificate; no uninstall or application-data clearing. |
+| Steam preparation on phone | Authenticated `mysubscriptions` query returns all four subscriptions. All four committed packages prepare successfully; their 17 payload files match the desktop packages. |
+| Android host | Ordinary MD5, SHA-1, SHA-256 and background-stream SHA-256 pass on the Java-hosted phone process. Importer profile controls and BaseLib configuration render and respond through the unmodified packages' Godot scripts. |
+| Runtime gate | The original ARM64 method-pointer preparation and protected-member access failures are reproduced. The corrected source pair passes the integrated ARM64 contract, including 92 named-assembly access checks, cached code, exception regions, assembly context, first invocation and required initialization; 64 worker collections/callbacks also pass. Candidate `436008` has no cached `UnlockState` failure or protected-field exception in the observed combat. x86_64 is built but not executed. |
+| Android functional flow | Unmodified ARAM runs through actual combat, card awards and shared BaseLib hooks. QuickRestart restores the original enemy HP, energy and hand. Save and Quit followed by process termination and cold Continue preserves the modded card, rune and custom run configuration; their combat effects still execute after reload. |
+| Post-design package | Unmodified CookieCursor adds working settings controls, writes its sibling configuration and reloads the saved setting after process termination. Physical-mouse cursor appearance and multiplayer behaviour were not observed. |
+| Isolation and status | Candidate `436008` Vanilla completion has zero sources, zero mods and native `IsRunningModded=false`. Disabled manual sources are absent from Modded discovery. Cold reopening shows matching Workshop/manual results; changing a companion config invalidates them, and a new launch establishes a matching result. |
+| State preservation | All 403 game/save/settings files match the October 26 pre-test snapshot byte for byte. Newer user progress is preserved. Temporary packages, helper application and device backup directory are removed; profile 1 and connectivity are restored. All four Workshop choices remain enabled because the user's newer active run contains ARAM data. |
+
+These results establish the shared loader/runtime path and observed Android
+functionality, rather than compatibility inferred from patch counts or menu arrival.
+The original Whirlwind failure was traced to the shared protected-access contract;
+the subsequent run offered Battle Trance, exercising the same card-award path.
+The ARM64 candidate is installed locally and has not been published. These checks
+do not certify every Workshop package or replace the separate stability procedure
+recorded below. Evidence is retained under `artifacts/mod-framework-device/`.
 
 ## Current release: v0.2.435-preload-repair-local-r2
 

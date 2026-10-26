@@ -85,6 +85,12 @@ import java.net.URL;
 // LAN multicast, and Android Keystore encryption for credentials.
 public class GodotApp extends GodotActivity {
 	private static final String TAG = "STS2Mobile";
+	static {
+		if (BuildConfig.FLAVOR.equals("mono")) {
+			// Java loading runs JNI_OnLoad. Native dlopen alone leaves .NET crypto's JVM unset.
+			System.loadLibrary("System.Security.Cryptography.Native.Android");
+		}
+	}
 	private static GodotApp instance;
 	private AndroidLauncherUpdater launcherUpdater;
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();

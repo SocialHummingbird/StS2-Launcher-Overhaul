@@ -280,6 +280,10 @@ function Test-AndroidApkContents {
         "assets/dotnet_bcl/System.Net.WebSockets.Client.dll",
         "assets/dotnet_bcl/System.Private.CoreLib.dll"
     )
+    $harmonyRecipe = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../patches/harmony/runtime.json') -Raw | ConvertFrom-Json
+    $harmonyProvenanceAsset = 'assets/dotnet_bcl/harmony-runtime-build.json'
+    $requiredAssets += $harmonyProvenanceAsset
+    $requiredAssets += @($harmonyRecipe.assemblies | ForEach-Object { "assets/dotnet_bcl/$_" })
     $requiredNativeRuntimeLibs = @(
         "libSystem.Native.so",
         "libSystem.Security.Cryptography.Native.Android.so",
@@ -297,6 +301,23 @@ function Test-AndroidApkContents {
         foreach ($asset in $requiredAssets) {
             if (-not (Test-ZipEntryExists -Zip $zip -Name $asset)) {
                 throw "APK verification failed. Missing required asset: $asset"
+            }
+        }
+
+        $provenanceStream = $zip.GetEntry($harmonyProvenanceAsset).Open()
+        $provenanceReader = [IO.StreamReader]::new($provenanceStream)
+        try { $harmonyProvenance = $provenanceReader.ReadToEnd() | ConvertFrom-Json }
+        finally { $provenanceReader.Dispose() }
+        if ($harmonyProvenance.commit -ne $harmonyRecipe.commit -or
+            $harmonyProvenance.patchedSourceTree -ne $harmonyRecipe.patchedSourceTree) {
+            throw 'APK verification failed. Harmony source provenance does not match the pinned recipe.'
+        }
+        foreach ($assembly in $harmonyRecipe.assemblies) {
+            $assemblyStream = $zip.GetEntry("assets/dotnet_bcl/$assembly").Open()
+            try { $actualHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($assemblyStream)) }
+            finally { $assemblyStream.Dispose() }
+            if ($actualHash -ne $harmonyProvenance.assemblies.$assembly) {
+                throw "APK verification failed. Harmony assembly hash does not match its build provenance: $assembly"
             }
         }
 
@@ -328,7 +349,12 @@ function Test-AndroidApkContents {
             $zip.Dispose()
         }
         if (Test-Path -LiteralPath $tempDir) {
-            Remove-Item -LiteralPath $tempDir -Recurse -Force
+            $resolvedTempDir = (Resolve-Path -LiteralPath $tempDir).Path
+            $tempRootPrefix = [IO.Path]::GetFullPath($TempRoot).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+            if (-not $resolvedTempDir.StartsWith($tempRootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+                throw "Refusing to remove an APK verification directory outside its temporary root: $resolvedTempDir"
+            }
+            Remove-Item -LiteralPath $resolvedTempDir -Recurse -Force
         }
     }
 }

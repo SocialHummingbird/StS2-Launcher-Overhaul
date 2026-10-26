@@ -76,7 +76,7 @@ Field rules:
 | `Branch` | `SteamGameBranch.StorageIdentity` result. It must be non-empty. |
 | `InstallGeneration` | Lowercase SHA-256 fingerprint of the exact completed selected-branch Steam marker, which must declare the normalized branch and at least one depot-manifest row. It prevents reuse across completed installs even when paths and metadata happen to collide. |
 | `PckSha256` | Lowercase 64-character SHA-256 of the final installed, Android-prepared `SlayTheSpire2.pck`. |
-| `SourceAssemblySha256` | Lowercase 64-character SHA-256 of the final installed source `sts2.dll`. This is not the publicized/patched runtime-pack assembly. |
+| `SourceAssemblySha256` | Lowercase 64-character SHA-256 of the final installed source `sts2.dll`. Runtime-pack generation preserves these bytes and the original member visibility. |
 
 Paths, file sizes, modification times, release strings, individual depot manifest IDs, the PCK preparation version, patch-set version, runtime-pack ID, Android assembly hash, and active-cache hash are deliberately not `GameIdentity` fields. Path, size, and time may only qualify a PCK cache entry together with `InstallGeneration`; they never enter equality.
 
@@ -284,7 +284,7 @@ Only `RuntimePackPromoter` may rename a staging directory to the final path. `Ru
 1. Require branch state `ready` with the exact immutable `GameIdentity` supplied by completed-download finalization.
 2. Receive the immutable `GameIdentity` object created from installed files. The writer cannot inspect prior pack identity to create it.
 3. Create an empty, transaction-specific staging directory. Never reuse a staging directory.
-4. Copy the actual source `sts2.dll` into staging and apply the Android publicizer/patches there.
+4. Copy the actual source `sts2.dll` into staging without rewriting it; apply runtime patches through the shared Android Harmony runtime.
 5. Copy required support assemblies and hash every staged assembly.
 6. Run symbol/compatibility checks against the actual source assembly and record their results.
 7. Write `patch_validation.json` into staging.

@@ -45,16 +45,19 @@ internal sealed partial class LauncherController
     private void OnDownloadCompleted(BranchInstallCompletion completion)
     {
         _downloads.CompleteDownload(completion);
+        RefreshModsPresentation();
     }
 
     private void OnDownloadFailed(LauncherBranchOperationFailure failure)
     {
         _downloads.FailDownload(failure);
+        RefreshModsPresentation();
     }
 
     private void OnDownloadCancelled(string branch)
     {
         _downloads.CancelDownload(branch);
+        RefreshModsPresentation();
     }
 
     private Action OnMainThread(Action action)

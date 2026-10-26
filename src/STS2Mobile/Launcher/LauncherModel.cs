@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using STS2Mobile.Patches;
 using STS2Mobile.Steam;
 
@@ -50,6 +51,19 @@ internal partial class LauncherModel : IDisposable
     private SessionState _sessionState = SessionState.Disconnected;
 
     internal string DataDir => _dataDir;
+
+    internal Task<LauncherModsPresentation> ReadModsPresentationAsync()
+        => Task.Run(() =>
+        {
+            try { return LauncherModsPresentationState.ReadCurrent(); }
+            catch (Exception error)
+            {
+                PatchHelper.Log($"[Mods] Failed to acquire launcher mod presentation: {error.Message}");
+                return LauncherModsPresentationState.Build(
+                    LauncherModSelectionState.Load(AppPaths.AppPrivateModSelectionPath, persistMigration: false),
+                    Array.Empty<LauncherKnownMod>(), marker: null);
+            }
+        });
 
     internal LauncherModel(string dataDir)
     {

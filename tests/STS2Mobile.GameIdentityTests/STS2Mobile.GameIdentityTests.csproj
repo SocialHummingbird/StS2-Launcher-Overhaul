@@ -8,6 +8,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Fixtures/WorkshopSubscriptions.NativePage*.bin" />
     <ProjectReference Include="../../src/STS2Mobile/STS2Mobile.csproj" />
+    <Reference Include="0Harmony">
+      <HintPath>../../upstream/godot-export/.godot/mono/publish/arm64/0Harmony.dll</HintPath>
+    </Reference>
+    <Reference Include="GodotSharp">
+      <HintPath>../../upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
   </ItemGroup>
 </Project>

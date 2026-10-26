@@ -35,22 +35,15 @@ internal sealed partial class ActionSection
         _modsGroup.Visible = true;
         _workshopSyncButton.Visible = true;
         _workshopClearButton.Visible = true;
-        ShowModsStartupSummary();
     }
 
-    private void ShowModsStartupSummary() => RefreshModsStatus();
-    private void RefreshModsStatus()
+    internal void SetModsPresentationChecking()
     {
-        try
-        {
-            SetModsPresentation(LauncherModsPresentationState.ReadCurrent());
-        }
-        catch (System.Exception ex)
-        {
-            PatchHelper.Log($"[Mods] Failed to refresh Mods page: {ex.Message}");
-            var selection = LauncherModSelectionState.Load();
-            SetModsPresentation(LauncherModsPresentationState.Build(selection, System.Array.Empty<LauncherKnownMod>(), marker: null));
-        }
+        _modsLaunchSummaryLabel.Text = "Checking mod files...";
+        _homeSaveNamespace = LauncherModsPresentationState.PendingSaveNamespaceLabel;
+        UpdateHomeStateLine();
+        foreach (var row in _modRows)
+            row.RuntimeResult.Text = "Checking last launch result...";
     }
 
     internal void SetModsPresentation(LauncherModsPresentation presentation)
@@ -59,7 +52,9 @@ internal sealed partial class ActionSection
             return;
         var moddedMode = presentation.Mode == LauncherModPlayMode.Modded;
         var enabledModCount = presentation.EnabledCount == 1 ? "1 mod" : $"{presentation.EnabledCount} mods";
-        _modsLaunchSummaryLabel.Text = moddedMode ? $"Uses Modded saves \u00B7 {enabledModCount} enabled" : "Uses Vanilla saves";
+        var saveSummary = presentation.SaveNamespaceLabel is "Modded saves" or "Vanilla saves"
+            ? "Uses " + presentation.SaveNamespaceLabel : presentation.SaveNamespaceLabel;
+        _modsLaunchSummaryLabel.Text = moddedMode ? $"{saveSummary} \u00B7 {enabledModCount} enabled" : saveSummary;
         RefreshModModeButtons(moddedMode, presentation.EnabledCount);
         ApplyModJourneyPresentation(moddedMode, presentation.EnabledCount, presentation.SaveNamespaceLabel);
         RefreshModList(presentation.Mods);
@@ -68,7 +63,8 @@ internal sealed partial class ActionSection
 
     private void ApplyModJourneyPresentation(bool moddedMode, int enabledCount, string saveNamespace)
     {
-        saveNamespace = PresentationText(saveNamespace, moddedMode ? "Modded saves" : "Vanilla saves");
+        saveNamespace = PresentationText(saveNamespace, moddedMode && enabledCount > 0
+            ? LauncherModsPresentationState.PendingSaveNamespaceLabel : "Vanilla saves");
         _homeSaveNamespace = saveNamespace;
         UpdateHomeStateLine();
         _contextualPlayLabel = moddedMode ? ModdedPlayLabel(enabledCount) : "Play Vanilla";
@@ -209,22 +205,22 @@ internal sealed partial class ActionSection
 
     private static string RuntimeResultText(LauncherModPresentationItem mod) => mod.IsLastLaunchStale ? "Not run with this setup" : mod.LastLaunchState switch
     {
-        LauncherModLastLaunchState.LoadedLastLaunch => "Active last launch",
-        LauncherModLastLaunchState.Partial => "Partly loaded",
+        LauncherModLastLaunchState.LoadedLastLaunch => "Loaded last launch",
+        LauncherModLastLaunchState.LoadedWithErrors => "Loaded with errors last launch",
         LauncherModLastLaunchState.Failed => "Failed last launch",
+        LauncherModLastLaunchState.Skipped => "Skipped last launch",
+        LauncherModLastLaunchState.NotRun => "Not run last launch",
         _ => "Not run with this setup",
     };
     private void SetModPlayMode(LauncherModPlayMode mode)
     {
         LauncherModSelectionState.SetPlayMode(mode);
-        RefreshModsStatus();
         ModsSelectionChanged?.Invoke();
     }
 
     private void ToggleMod(string key, bool enabled)
     {
         LauncherModSelectionState.SetModEnabled(key, enabled);
-        RefreshModsStatus();
         ModsSelectionChanged?.Invoke();
     }
 

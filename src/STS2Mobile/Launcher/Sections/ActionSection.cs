@@ -126,8 +126,6 @@ internal sealed partial class ActionSection : VBoxContainer
     {
         _workshopButtonsDisabled = disabled;
         ApplyContextControlsDisabled();
-        if (!ContextControlsDisabled && !disabled && _modsGroup.Visible)
-            RefreshModsStatus();
     }
 
     internal void SetLaunchControlsDisabled(bool disabled)

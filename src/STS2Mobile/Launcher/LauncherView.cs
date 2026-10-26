@@ -216,7 +216,18 @@ internal sealed partial class LauncherView
     internal void SetLaunchControlsDisabled(bool disabled) => Actions.SetLaunchControlsDisabled(disabled);
     internal void SetSaveSyncControlsDisabled(bool disabled) => Actions.SetSaveSyncControlsDisabled(disabled);
     internal void SetSaveSyncPresentation(LauncherSaveSyncPresentation presentation) => Actions.SetSaveSyncPresentation(presentation);
-    internal void SetModsPresentation(LauncherModsPresentation presentation) => Actions.SetModsPresentation(presentation);
+    internal void SetModsPresentationChecking()
+    {
+        Actions.SetModsPresentationChecking();
+        PrimaryScroll.UpdateMinimumSize();
+        PrimaryScroll.QueueSort();
+    }
+    internal void SetModsPresentation(LauncherModsPresentation presentation)
+    {
+        Actions.SetModsPresentation(presentation);
+        PrimaryScroll.UpdateMinimumSize();
+        PrimaryScroll.QueueSort();
+    }
     internal void SetPowerVrCompatibility(bool required) => Actions.SetPowerVrCompatibility(required);
     internal void SetRendererMode(string mode) => Actions.SetRendererMode(mode);
     internal void SetUpdateCheckBusy(bool busy)

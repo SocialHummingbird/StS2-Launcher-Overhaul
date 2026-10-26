@@ -1,0 +1,36 @@
+{
+  "source": "https://github.com/dotnet/runtime",
+  "commit": "3c298d9f00936d651cc47d221762474e25277672",
+  "version": "9.0.7",
+  "sourceArchiveUrl": "https://codeload.github.com/dotnet/runtime/tar.gz/3c298d9f00936d651cc47d221762474e25277672",
+  "sourceArchiveSha256": "0CB23372846E56CA57341BDA30D9E0C9D18FC63810B7362A6998ED0365B9D49C",
+  "patchedSourceTree": "0b502f35da383f1355db950aa9ccce9f8958f20a",
+  "coreLibSha256": "294891AABF9FB28435B3AF2BF371660B3BFAD166CFD6EF0095FCAA0369FE48FF",
+  "ndk": "28.1.13356709",
+  "python": "3.12.10",
+  "cmake": {
+    "version": "3.31.6",
+    "url": "https://files.pythonhosted.org/packages/18/58/909d6d99acb4e0886d0f660cf4e0fb26f586590e370b2e4ce7a10d06b145/cmake-3.31.6-py3-none-win_amd64.whl",
+    "sha256": "BBAED969CEF3C427F4F17591FEB28DB4AE595E3A4BBD45CB35522CEE14DF6A32"
+  },
+  "ninja": {
+    "version": "1.11.1.3",
+    "url": "https://files.pythonhosted.org/packages/03/93/09a9f7672b4f97438aca6217ac54212a63273f1cd3b46b731d0bb22c53e7/ninja-1.11.1.3-py3-none-win_amd64.whl",
+    "sha256": "04D48D14EA7BA11951C156599AB526BDDA575450797FF57C6FDF99B2554D09C7"
+  },
+  "cmakeArguments": [
+    "-DANDROID_PLATFORM=android-24",
+    "-DANDROID_STL=none",
+    "-DANDROID_CPP_FEATURES=no-rtti no-exceptions",
+    "-DCMAKE_BUILD_TYPE=Release",
+    "-DGC_SUSPEND=hybrid",
+    "-DENABLE_MINIMAL=ssa,logging",
+    "-DFEATURE_PERFTRACING_PAL_TCP=1",
+    "-DFEATURE_PERFTRACING_DISABLE_DEFAULT_LISTEN_PORT=1",
+    "-DCLR_CMAKE_KEEP_NATIVE_SYMBOLS=true",
+    "-DCMAKE_INSTALL_LIBDIR=lib"
+  ],
+  "cFlags": "-fPIC -fstack-protector -DL_cuserid=9 -D__POSIX_VISIBLE=201002 -DSK_RELEASE -DNDEBUG -UDEBUG",
+  "arm64Flags": "-DANDROID64",
+  "export": "mono_arch_flush_icache"
+}

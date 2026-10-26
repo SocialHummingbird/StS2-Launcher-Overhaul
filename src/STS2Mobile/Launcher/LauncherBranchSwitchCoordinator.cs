@@ -2,6 +2,7 @@ namespace STS2Mobile.Launcher;
 
 internal sealed class LauncherBranchSwitchCoordinator
 {
+    internal event System.Action GameBranchApplied;
     private readonly LauncherModel _model;
     private readonly LauncherView _view;
     private readonly LauncherVersionCoordinator _versions;
@@ -69,6 +70,7 @@ internal sealed class LauncherBranchSwitchCoordinator
     private void ApplyGameBranchChanged(string previousBranch, string branch)
     {
         LauncherPreferences.SaveGameBranch(branch);
+        GameBranchApplied?.Invoke();
         LauncherLaunchReadinessCache.Clear($"branch changed from {previousBranch} to {branch}");
         LauncherBranchAvailabilityStatus.Clear(_model.DataDir);
         var branches = _versions.ReadGameBranchOptions();

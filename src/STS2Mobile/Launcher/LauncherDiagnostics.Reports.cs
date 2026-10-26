@@ -285,9 +285,15 @@ internal static partial class LauncherDiagnostics
         var stagedDirectory = AppPaths.WorkshopStagedModsDir(dataDir);
         var manifestPath = AppPaths.WorkshopManifestPath(dataDir);
         var clearMarkerPath = AppPaths.WorkshopClearMarkerPath(dataDir);
-        var manifest = new SteamWorkshopStager(downloadsDirectory, stagedDirectory, manifestPath).LoadManifest();
         sb.AppendLine($"Workshop sync manifest path: {manifestPath}");
         sb.AppendLine($"Workshop sync manifest present: {BoolText(File.Exists(manifestPath))}");
+        SteamWorkshopSyncManifest manifest;
+        try { manifest = new SteamWorkshopStager(downloadsDirectory, stagedDirectory, manifestPath).LoadManifest(); }
+        catch (SteamWorkshopInventoryException error)
+        {
+            sb.AppendLine($"Workshop inventory unavailable; files preserved: {error.Message}");
+            return;
+        }
         sb.AppendLine($"Workshop sync manifest generated UTC: {ValueOrMissing(manifest.GeneratedAtUtc)}");
         sb.AppendLine($"Workshop clear marker path: {clearMarkerPath}");
         sb.AppendLine($"Workshop clear marker present: {BoolText(File.Exists(clearMarkerPath))}");

@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Platform;
+using STS2Mobile.Launcher;
 
 namespace STS2Mobile.Patches;
 
@@ -54,7 +55,7 @@ internal static partial class PlatformPatches
 
     private static void PatchPlatformUtilMethods(Harmony harmony)
     {
-        PatchPlatformUtilMethod(harmony, GetPlatformBranch, nameof(ReturnEmptyStringPrefix));
+        PatchPlatformBranch(harmony);
         PatchPlatformUtilMethod(
             harmony,
             GetThreeLetterLanguageCode,
@@ -83,6 +84,46 @@ internal static partial class PlatformPatches
         );
     }
 
+    internal static void PatchPlatformBranch(Harmony harmony)
+    {
+        var method = typeof(PlatformUtil).GetMethod(GetPlatformBranch,
+            BindingFlags.Public | BindingFlags.Static, null, Type.EmptyTypes, null)
+            ?? throw new MissingMethodException(typeof(PlatformUtil).FullName, GetPlatformBranch);
+        if (method.ReturnType != typeof(string)) RequirePlatformBranchConverter(method.ReturnType);
+        var prefix = Prefix(nameof(GetPlatformBranchPrefix)).MakeGenericMethod(method.ReturnType);
+        harmony.Patch(method, prefix: new HarmonyMethod(prefix));
+        PatchHelper.Log($"Patched PlatformUtil.{GetPlatformBranch} ({method.ReturnType.FullName})");
+    }
+
+    private static bool GetPlatformBranchPrefix<T>(ref T __result)
+    {
+        var branch = ModLoaderPatches.PreparedGameBranch ?? LauncherPreferences.ReadGameBranch();
+        __result = (T)PlatformBranchValue(typeof(T), branch);
+        return false;
+    }
+
+    internal static object PlatformBranchValue(Type returnType, string branch)
+    {
+        if (returnType == typeof(string)) return branch;
+        var value = RequirePlatformBranchConverter(returnType).Invoke(null, new object[] { branch });
+        if (value != null) return value;
+        // Match SteamPlatformUtilStrategy for names that this game cannot map.
+        PatchHelper.Log($"Selected game branch '{branch}' could not be mapped to {returnType.Name}; using None.");
+        return Enum.Parse(returnType, "None");
+    }
+
+    private static MethodInfo RequirePlatformBranchConverter(Type returnType)
+    {
+        if (returnType.IsEnum && returnType.FullName == "MegaCrit.Sts2.Core.Platform.PlatformBranch"
+            && returnType.GetField("None", BindingFlags.Public | BindingFlags.Static)?.IsLiteral == true)
+        {
+            var converter = returnType.Assembly.GetType("MegaCrit.Sts2.Core.Platform.PlatformBranchExtensions")
+                ?.GetMethod("FromName", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(string) }, null);
+            if (converter?.ReturnType == typeof(Nullable<>).MakeGenericType(returnType)) return converter;
+        }
+        throw new NotSupportedException($"Unsupported PlatformUtil.{GetPlatformBranch} return/conversion shape: {returnType.FullName}.");
+    }
+
     private static void PatchPlatformUtilMethod(Harmony harmony, string methodName, string prefixName)
     {
         var method = typeof(PlatformUtil).GetMethod(
@@ -93,13 +134,6 @@ internal static partial class PlatformPatches
         if (method == null || prefix == null)
         {
             PatchHelper.Log($"PlatformUtil.{methodName} patch skipped");
-            return;
-        }
-
-        if (string.Equals(methodName, GetPlatformBranch, StringComparison.Ordinal)
-            && method.ReturnType != typeof(string))
-        {
-            PatchHelper.Log($"PlatformUtil.{methodName} patch skipped; return type is {method.ReturnType.FullName}");
             return;
         }
 

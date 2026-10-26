@@ -3,6 +3,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <AssemblyName>LauncherUiPreview</AssemblyName>
     <RootNamespace>LauncherUiPreview</RootNamespace>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/STS2Mobile/STS2Mobile.csproj" />

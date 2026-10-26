@@ -22,8 +22,7 @@ internal static class AndroidAssetPreloadPatches
     internal const int MaximumSynchronousFallbacksPerPass = 1;
     private const int MaximumRequestCandidatesPerFrame = 64;
     private const double WorkBudgetMilliseconds = 4;
-    // Runtime preparation publicizes these members; the desktop reference
-    // retains private visibility. Both paths use the same shape validation.
+    // Check the actual member shape while retaining the game's visibility.
     private const BindingFlags TargetMemberFlags =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 

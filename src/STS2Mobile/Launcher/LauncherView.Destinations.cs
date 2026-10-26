@@ -40,6 +40,7 @@ internal sealed partial class LauncherView
 
         PrimaryScroll.ScrollHorizontal = 0;
         PrimaryScroll.ScrollVertical = 0;
+        PrimaryScroll.UpdateMinimumSize();
         PrimaryScroll.QueueSort();
         Callable.From(ResetDestinationScroll).CallDeferred();
         RequestAndroidCompositionRefresh();
@@ -50,6 +51,9 @@ internal sealed partial class LauncherView
     {
         PrimaryScroll.ScrollHorizontal = 0;
         PrimaryScroll.ScrollVertical = 0;
+        // ScrollContainer caches content extents in its minimum-size calculation.
+        // A sort alone can retain the previous destination's scrollbar range.
+        PrimaryScroll.UpdateMinimumSize();
         PrimaryScroll.QueueSort();
         PrimaryScroll.QueueRedraw();
     }

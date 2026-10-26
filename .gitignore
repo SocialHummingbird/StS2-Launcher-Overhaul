@@ -50,6 +50,7 @@ artifacts/
 # Hidden directories
 .*
 !.gitignore
+!.gitattributes
 !.github/
 !.github/**
 

@@ -41,8 +41,10 @@ internal sealed class SteamWorkshopDownloader : IDisposable
         IReadOnlyDictionary<ulong, CPublishedFile_GetItemInfo_Response.WorkshopItemInfo> itemInfo,
         IReadOnlyCollection<ulong> subscribedItemIds,
         IReadOnlyDictionary<ulong, IReadOnlyCollection<ulong>> dependencyParents,
+        string gameBranch,
         IReadOnlyDictionary<ulong, SteamWorkshopSyncManifestItem> previousItems = null,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        SteamWorkshopBranchOrder gameBranchOrder = null
     )
     {
         Directory.CreateDirectory(_downloadsDirectory);
@@ -58,6 +60,8 @@ internal sealed class SteamWorkshopDownloader : IDisposable
                 subscribedItemIds,
                 dependencyParents,
                 previousItems,
+                gameBranch,
+                gameBranchOrder,
                 ct
             ).ConfigureAwait(false);
             items.Add(item);
@@ -72,14 +76,15 @@ internal sealed class SteamWorkshopDownloader : IDisposable
         IReadOnlyCollection<ulong> subscribedItemIds,
         IReadOnlyDictionary<ulong, IReadOnlyCollection<ulong>> dependencyParents,
         IReadOnlyDictionary<ulong, SteamWorkshopSyncManifestItem> previousItems,
+        string gameBranch,
+        SteamWorkshopBranchOrder gameBranchOrder,
         CancellationToken ct
     )
     {
         var id = detail.publishedfileid;
         var title = DetailTitle(detail);
-        var manifestId = itemInfo != null && itemInfo.TryGetValue(id, out var info)
-            ? info.manifest_id
-            : 0;
+        var info = itemInfo != null && itemInfo.TryGetValue(id, out var value) ? value : null;
+        var manifestId = info?.manifest_id ?? 0;
         var itemDirectory = Path.Combine(_downloadsDirectory, id.ToString());
         var isDependency = subscribedItemIds == null || !subscribedItemIds.Contains(id);
         var requiredByPublishedFileIds = dependencyParents != null && dependencyParents.TryGetValue(id, out var parents)
@@ -87,9 +92,12 @@ internal sealed class SteamWorkshopDownloader : IDisposable
             : Array.Empty<ulong>();
 
         var source = DownloadSource.Unknown;
+        SteamWorkshopPreparedRevision revision = null;
         try
         {
-            source = await ResolveDownloadSourceAsync(detail, manifestId).ConfigureAwait(false);
+            revision = SteamWorkshopRevisionResolver.Resolve(detail, info, gameBranch, gameBranchOrder);
+            manifestId = revision.ManifestId;
+            source = await ResolveDownloadSourceAsync(detail, revision).ConfigureAwait(false);
             if (source.UnsupportedReason != null)
                 return Skipped(
                     detail,
@@ -101,10 +109,8 @@ internal sealed class SteamWorkshopDownloader : IDisposable
                 );
 
             if (CanReuseCachedDownload(
-                    itemDirectory,
-                    detail,
-                    manifestId,
-                    source,
+                    revision,
+                    id,
                     previousItems
                 ))
             {
@@ -115,6 +121,7 @@ internal sealed class SteamWorkshopDownloader : IDisposable
                     itemDirectory,
                     manifestId,
                     source,
+                    revision,
                     isDependency,
                     requiredByPublishedFileIds,
                     reusedCachedDownload: true
@@ -136,6 +143,7 @@ internal sealed class SteamWorkshopDownloader : IDisposable
                     itemDirectory,
                     manifestId,
                     source,
+                    revision,
                     isDependency,
                     requiredByPublishedFileIds,
                     reusedCachedDownload: false
@@ -159,10 +167,15 @@ internal sealed class SteamWorkshopDownloader : IDisposable
                 itemDirectory,
                 manifestId,
                 source,
+                revision,
                 isDependency,
                 requiredByPublishedFileIds,
                 reusedCachedDownload: false
             );
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -171,9 +184,9 @@ internal sealed class SteamWorkshopDownloader : IDisposable
                 id,
                 title,
                 itemDirectory,
-                detail.time_updated,
+                revision?.TimeUpdated ?? detail.time_updated,
                 manifestId,
-                "download-failed",
+                revision == null ? "preparation-failed" : "download-failed",
                 ex.Message,
                 "",
                 source.Kind,
@@ -187,9 +200,12 @@ internal sealed class SteamWorkshopDownloader : IDisposable
 
     private async Task<DownloadSource> ResolveDownloadSourceAsync(
         PublishedFileDetails detail,
-        ulong manifestId
+        SteamWorkshopPreparedRevision revision
     )
     {
+        if (revision.ManifestId != 0)
+            return new DownloadSource("", "", 0, "depot-manifest", revision.HContentFile, null);
+
         if (!string.IsNullOrWhiteSpace(detail.file_url))
         {
             return new DownloadSource(
@@ -197,37 +213,23 @@ internal sealed class SteamWorkshopDownloader : IDisposable
                 FileNameFromDetail(detail),
                 DeclaredDownloadSize(detail.file_size),
                 "direct-url",
-                detail.hcontent_file,
+                revision.HContentFile,
                 null
             );
         }
 
-        if (detail.hcontent_file != 0)
+        if (revision.HContentFile != 0)
         {
             try
             {
-                var ugc = await _connection.GetWorkshopUgcDetailsAsync(detail.hcontent_file)
+                var ugc = await _connection.GetWorkshopUgcDetailsAsync(revision.HContentFile)
                     .ConfigureAwait(false);
                 return new DownloadSource(
                     ugc.URL,
                     FileNameFromUgcOrDetail(ugc.FileName, detail),
                     ugc.FileSize,
                     "ugc-hcontent",
-                    detail.hcontent_file,
-                    null
-                );
-            }
-            catch (Exception ex) when (manifestId != 0)
-            {
-                PatchHelper.Log(
-                    $"[Workshop] UGC details unavailable for {detail.publishedfileid}; using depot-manifest classification: {ex.Message}"
-                );
-                return new DownloadSource(
-                    "",
-                    "",
-                    0,
-                    "depot-manifest",
-                    detail.hcontent_file,
+                    revision.HContentFile,
                     null
                 );
             }
@@ -241,22 +243,10 @@ internal sealed class SteamWorkshopDownloader : IDisposable
                     "",
                     DeclaredDownloadSize(detail.file_size),
                     "no-download-source",
-                    detail.hcontent_file,
+                    revision.HContentFile,
                     "Steam exposed a legacy Workshop UGC handle but RequestUGCDetails did not resolve a download URL"
                 );
             }
-        }
-
-        if (manifestId != 0)
-        {
-            return new DownloadSource(
-                "",
-                "",
-                0,
-                "depot-manifest",
-                detail.hcontent_file,
-                null
-            );
         }
 
         return new DownloadSource(
@@ -264,7 +254,7 @@ internal sealed class SteamWorkshopDownloader : IDisposable
             "",
             DeclaredDownloadSize(detail.file_size),
             "no-download-source",
-            detail.hcontent_file,
+            revision.HContentFile,
             "Steam did not expose a Workshop download URL or UGC handle"
         );
     }
@@ -298,6 +288,7 @@ internal sealed class SteamWorkshopDownloader : IDisposable
         string itemDirectory,
         ulong manifestId,
         DownloadSource source,
+        SteamWorkshopPreparedRevision revision,
         bool isDependency,
         IReadOnlyCollection<ulong> requiredByPublishedFileIds,
         bool reusedCachedDownload
@@ -306,7 +297,7 @@ internal sealed class SteamWorkshopDownloader : IDisposable
             detail.publishedfileid,
             title,
             itemDirectory,
-            detail.time_updated,
+            revision.TimeUpdated,
             manifestId,
             "downloaded",
             "",
@@ -316,66 +307,29 @@ internal sealed class SteamWorkshopDownloader : IDisposable
             source.HContentFile,
             isDependency,
             requiredByPublishedFileIds,
-            reusedCachedDownload
+            reusedCachedDownload,
+            revision.RequiredPublishedFileIds,
+            revision.SelectedGameBranch,
+            revision.Provenance,
+            revision.BranchSupport
         );
 
     private static bool CanReuseCachedDownload(
-        string itemDirectory,
-        PublishedFileDetails detail,
-        ulong manifestId,
-        DownloadSource source,
+        SteamWorkshopPreparedRevision revision,
+        ulong publishedFileId,
         IReadOnlyDictionary<ulong, SteamWorkshopSyncManifestItem> previousItems
     )
     {
         if (previousItems == null
-            || detail.publishedfileid == 0
-            || !previousItems.TryGetValue(detail.publishedfileid, out var previousItem))
+            || publishedFileId == 0
+            || !previousItems.TryGetValue(publishedFileId, out var previousItem))
         {
             return false;
         }
 
-        return IsReusablePreviousStatus(previousItem.Status)
-            && previousItem.TimeUpdated == detail.time_updated
-            && previousItem.ManifestId == manifestId
-            && string.Equals(previousItem.DownloadSourceKind, source.Kind, StringComparison.OrdinalIgnoreCase)
-            && previousItem.HContentFile == source.HContentFile
-            && previousItem.ExpectedDownloadBytes == source.ExpectedSize
-            && CachedDownloadStillPresent(itemDirectory, previousItem.Status);
-    }
-
-    private static bool IsReusablePreviousStatus(string status)
-        => string.Equals(status, "staged", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(status, "staged-no-pck", StringComparison.OrdinalIgnoreCase);
-
-    private static bool CachedDownloadStillPresent(string itemDirectory, string previousStatus)
-        => string.Equals(previousStatus, "staged-no-pck", StringComparison.OrdinalIgnoreCase)
-            ? CachedDownloadHasEntries(itemDirectory)
-            : CachedDownloadHasFiles(itemDirectory);
-
-    private static bool CachedDownloadHasEntries(string itemDirectory)
-    {
-        try
-        {
-            return Directory.EnumerateFileSystemEntries(itemDirectory, "*", SearchOption.AllDirectories).Any();
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Workshop] Failed to inspect cached Workshop download {itemDirectory}: {ex.Message}");
-            return false;
-        }
-    }
-
-    private static bool CachedDownloadHasFiles(string itemDirectory)
-    {
-        try
-        {
-            return Directory.EnumerateFiles(itemDirectory, "*", SearchOption.AllDirectories).Any();
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Workshop] Failed to inspect cached Workshop download {itemDirectory}: {ex.Message}");
-            return false;
-        }
+        return SteamWorkshopRevisionResolver.MatchesInstallation(previousItem.Installed, revision)
+            && !string.IsNullOrWhiteSpace(previousItem.Installed.Generation)
+            && Directory.Exists(previousItem.Installed.Directory);
     }
 
     private void CleanupStaleDownloadArtifacts()

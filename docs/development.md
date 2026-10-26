@@ -4,6 +4,18 @@ These instructions are for working on the launcher source. For installation, see
 
 ## Tests
 
+Stage the paired native and managed runtimes before the first managed build:
+
+```powershell
+.\scripts\build-android-mono.ps1 -Stage
+.\scripts\build-android-harmony.ps1 -Stage
+```
+
+The managed assembly embeds both build manifests, including the native library
+hash, so changing the launcher or shared runtime invalidates historical mod
+results automatically. The APK wrapper builds and stages the native runtime
+before Harmony and publishes only after their pairing has been verified.
+
 Build the managed project:
 
 ```powershell
@@ -45,6 +57,62 @@ This writes a temporary fixture under `/data/local/tmp`, without changing app
 data. It requires the original case to time out and the repaired case to finish
 64 collections with callbacks preserved. APK integration still requires the
 physical launch procedure in [Android status](current-android-status.md).
+
+Build native Mono and Harmony from their pinned sources and stage the same
+seven managed assemblies for compilation and the APK:
+
+```powershell
+.\scripts\build-android-mono.ps1 -Stage
+.\scripts\build-android-harmony.ps1 -Stage
+```
+
+[The runtime recipe](../patches/harmony/runtime.json) pins SDK 10.0.100,
+Harmony's source commit and patched source tree. The helper downloads and checks
+the SDK archive when needed, restores locked packages from NuGet, rejects
+edited cached source, and rebuilds outputs whose recorded hashes change.
+Harmony targets .NET 9; its vendored MonoMod projects target .NET 8. The Android build wrapper runs this
+step before publishing the launcher and packages the build provenance alongside
+the assemblies. It preserves the source game DLL's bytes and member visibility.
+
+[The native recipe](../patches/mono/runtime.json) pins .NET 9.0.7 source, its
+matching CoreLib bytes, NDK 28.1.13356709, Python 3.12.10, and checked CMake/Ninja
+archives. The Windows helper builds only native Mono with the existing BCL.
+Its constructor guards defer optional `beforefieldinit` initialization.
+Obtaining a method pointer compiles a guarded JIT body without running managed
+initializers. Required type and module initialization runs at invocation;
+field initialization remains inside the body's exception regions, including
+thread static fields. Harmony wrappers retain declared owner initialization
+before prefixes, and dynamic methods retain their assembly context for
+unqualified type lookup. Android executable writes use Mono's
+architecture-specific instruction-cache maintenance. Both
+supported APK ABIs use this source build; the helper rejects edited cached
+source and records the compiler flags and each library's SHA-256.
+Ordinary assemblies' `IgnoresAccessChecksTo` attributes also cover protected
+and private protected members/types in the named assembly. This changes access
+checks without changing member visibility or granting friend assemblies new rights.
+
+Run the shared patching contract on the staged Android Mono runtime:
+
+```powershell
+.\scripts\test-asset-preload.ps1 -AndroidModRuntime `
+  -AdbPath "$env:ANDROID_HOME\platform-tools\adb.exe" `
+  -ClangPath "$env:ANDROID_NDK_ROOT\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe" `
+  -DeviceSerial "<adb-serial>"
+```
+
+The isolated ARM64 fixture checks private access and visibility, local-variable
+IL, branches, exceptions and fault/finally handlers, Harmony patch forms,
+original assembly context across ordinary and reverse patches, deferred
+constructor and method preparation, required field/type/module initialization,
+constructor arguments/failures, cached failures, shared generic code, and
+reverse calls before and after GC from cached/fresh callers, reflection,
+delegates and managed function pointers. It also checks that detours preserve
+initialization before prefixes and unpatching restores the original body.
+Ordinary cross-assembly fixtures compare matching/mixed-case attributes,
+unrelated targets, absent attributes, inherited access and `InternalsVisibleTo`
+while checking that reflection visibility remains unchanged.
+Its result is written to `artifacts/android-mod-runtime-contract.log`. These
+runtime checks do not establish game startup or any mod's in-game effect.
 
 Run the Android/JVM suite with the configured JDK 17 and Android SDK:
 
@@ -95,6 +163,10 @@ The image is written under `artifacts/ui-preview/`. The preview requires Godot 4
 Required local inputs include:
 
 - .NET 9 SDK.
+- Git and PowerShell 7 for the pinned Harmony source build (the helper obtains
+  its separate .NET 10.0.100 SDK).
+- Python 3.12.10 and Android NDK 28.1.13356709 for the pinned native Mono build;
+  the helper obtains checked CMake and Ninja archives.
 - Android SDK and NDK versions expected by `android/config.gradle`.
 - Original game publish files under `upstream/godot-export/`.
 - The matching custom Godot engine and licensed third-party runtime inputs.

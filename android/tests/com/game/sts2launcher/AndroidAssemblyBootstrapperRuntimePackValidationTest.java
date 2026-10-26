@@ -206,7 +206,7 @@ public final class AndroidAssemblyBootstrapperRuntimePackValidationTest {
 			);
 			String packId = "public-beta-native-contract-N+1";
 			String patchSetVersion =
-				"startup-orchestrator-v2-android-harmony-publicizer";
+				"startup-orchestrator-v3-android-native-visibility-r1";
 			String validationSurface =
 				"critical-startup-save-platform-model-v1";
 

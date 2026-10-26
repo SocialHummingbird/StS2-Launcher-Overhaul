@@ -1,0 +1,26 @@
+{
+  "source": "https://github.com/Ekyso/Harmony.git",
+  "commit": "8f4bc82514c3c0a4c6651c00d9083cd939cad96f",
+  "patchedSourceTree": "3e220377f41db745ee5226c9cbdce5b4031b2727",
+  "sdk": "10.0.100",
+  "sdkWindowsX64Url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.100/dotnet-sdk-10.0.100-win-x64.zip",
+  "sdkWindowsX64Sha512": "24b033418a3969effd49b4651ef7ebbffeb284773b99545d78dce61a82e57f38db7facdb013c609ba15573c072f0e093363ae470824a6847f3c6111078c1fb64",
+  "harmonyFramework": "net9.0",
+  "monoModFramework": "net8.0",
+  "lockFiles": [
+    "Lib.Harmony.Thin/packages.lock.json",
+    "LocalMonoMod/external/packages.lock.json",
+    "LocalMonoMod/src/MonoMod.Core/packages.lock.json",
+    "LocalMonoMod/src/MonoMod.SourceGen.Internal/packages.lock.json",
+    "LocalMonoMod/src/MonoMod.Utils/packages.lock.json"
+  ],
+  "assemblies": [
+    "0Harmony.dll",
+    "MonoMod.Core.dll",
+    "MonoMod.Utils.dll",
+    "MonoMod.Backports.dll",
+    "MonoMod.ILHelpers.dll",
+    "MonoMod.Iced.dll",
+    "Mono.Cecil.dll"
+  ]
+}

@@ -103,11 +103,12 @@ internal sealed partial class DepotDownloader
                 return reference.Value;
         }
 
-        Log(
-            $"Steam app metadata did not expose Workshop manifest {manifestId}; using SteamPipe Workshop depot {SteamGameApp.AppId}"
-        );
+        var workshopDepotId = ReadKeyValueUInt32(depots["workshopdepot"]);
+        if (!workshopDepotId.HasValue || workshopDepotId.Value == 0)
+            throw new InvalidOperationException($"Steam app metadata did not expose an authoritative Workshop depot for manifest {manifestId}");
+        Log($"Steam app metadata maps Workshop content to depot {workshopDepotId.Value}; requesting exact manifest {manifestId}");
         return new WorkshopDepotManifestReference(
-            SteamGameApp.AppId,
+            workshopDepotId.Value,
             manifestId,
             SteamGameBranch.Public
         );

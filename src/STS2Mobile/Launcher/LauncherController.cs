@@ -47,6 +47,7 @@ internal sealed partial class LauncherController
             _launch,
             _downloads
         );
+        _branchSwitch.GameBranchApplied += RefreshModsPresentation;
         _updates = new LauncherUpdateCoordinator(
             model,
             view,
@@ -89,6 +90,9 @@ internal sealed partial class LauncherController
     }
 
     internal void RestoreAfterFailedHandoff(string attemptId)
-        => _launch.RestoreAfterFailedHandoff(attemptId);
+    {
+        _launch.RestoreAfterFailedHandoff(attemptId);
+        RefreshModsPresentation();
+    }
 
 }

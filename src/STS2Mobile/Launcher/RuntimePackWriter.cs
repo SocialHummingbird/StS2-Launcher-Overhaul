@@ -4,7 +4,6 @@ using System.IO;
 using System.Text.Json;
 using STS2Mobile.Patches;
 using STS2Mobile.Steam;
-using System.Security.Cryptography;
 using System.Linq;
 using System.Text;
 
@@ -26,11 +25,11 @@ internal static partial class RuntimePackWriter
             var paths = new RuntimePackGenerationPaths(dataDir, gameIdentity);
             var attemptId = Guid.NewGuid();
             stagingDirectory = CreateStagingDirectory(paths.FinalPackDirectory, readyState.TransactionId, attemptId);
-            var runtimeAssembly = CopyRuntimeAssembly(paths.SourceAssemblyPath, paths.ActiveAndroidAssemblyPath, stagingDirectory, gameIdentity, hooks);
+            var runtimeAssemblySha256 = CopyRuntimeAssembly(paths.SourceAssemblyPath, stagingDirectory, gameIdentity, hooks);
             var supportAssemblySha256 = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var copiedSupportAssemblies = CopyRuntimeSupportAssemblies(paths.SourceAssemblyPath, stagingDirectory, supportAssemblySha256);
             var metadata = RuntimeSlotMetadata.Inspect(paths.ReleaseInfoPath, paths.BranchMarkerPath);
-            var context = BuildRuntimePackWriteContext(gameIdentity, SteamGameBranch.DisplayName(gameIdentity.Branch), metadata, patchSetVersion, validationMode, symbolChecks, runtimeAssembly.Sha256, runtimeAssembly.PublicizerResult, copiedSupportAssemblies, supportAssemblySha256);
+            var context = BuildRuntimePackWriteContext(gameIdentity, SteamGameBranch.DisplayName(gameIdentity.Branch), metadata, patchSetVersion, validationMode, symbolChecks, runtimeAssemblySha256, copiedSupportAssemblies, supportAssemblySha256);
             WriteJson(Path.Combine(stagingDirectory, PatchValidationReportFileName), BuildPatchValidationReportPayload(context, validationDetail));
             hooks?.AfterReportWritten?.Invoke(stagingDirectory);
             WriteJson(Path.Combine(stagingDirectory, CompatibilityManifestFileName), BuildCompatibilityManifestPayload(context));
@@ -113,7 +112,7 @@ internal static partial class RuntimePackWriter
         return stagingDirectory;
     }
 
-    private static RuntimeAssemblyCopyResult CopyRuntimeAssembly(string sourceAssemblyPath, string activeAndroidAssemblyPath, string stagingDirectory, GameIdentity gameIdentity, RuntimePackGenerationHooks hooks)
+    private static string CopyRuntimeAssembly(string sourceAssemblyPath, string stagingDirectory, GameIdentity gameIdentity, RuntimePackGenerationHooks hooks)
     {
         var destinationPath = Path.Combine(stagingDirectory, RuntimeAssemblyFileName);
         File.Copy(sourceAssemblyPath, destinationPath, overwrite: false);
@@ -124,8 +123,7 @@ internal static partial class RuntimePackWriter
         }
 
         hooks?.AfterSourceCopied?.Invoke(stagingDirectory);
-        var publicizerResult = AndroidAssemblyPublicizer.Publicize(destinationPath, sourceAssemblyPath, activeAndroidAssemblyPath);
-        return new RuntimeAssemblyCopyResult(destinationPath, GameIdentityFileHasher.Instance.Sha256(destinationPath), publicizerResult);
+        return copiedSourceSha256;
     }
 
     private static string[] CopyRuntimeSupportAssemblies(string sourceAssemblyPath, string stagingDirectory, IDictionary<string, string> supportAssemblySha256)
@@ -148,35 +146,32 @@ internal static partial class RuntimePackWriter
         return copied.ToArray();
     }
 
-    private readonly record struct RuntimeAssemblyCopyResult(string Path, string Sha256, AndroidAssemblyPublicizer.Result PublicizerResult);
     private readonly struct RuntimePackGenerationPaths
     {
         internal RuntimePackGenerationPaths(string dataDir, GameIdentity gameIdentity)
         {
             var gameDirectory = Steam.SteamGameInstallPaths.GameDirectory(dataDir, gameIdentity.Branch);
             SourceAssemblyPath = GameIdentityReader.ResolveInstalledSourceAssemblyPath(gameDirectory);
-            ActiveAndroidAssemblyPath = GameRuntimeSlot.FindActiveAndroidAssemblyPath(dataDir);
             ReleaseInfoPath = Path.Combine(gameDirectory, "release_info.json");
             BranchMarkerPath = Steam.SteamGameInstallPaths.BranchMarkerPath(dataDir, gameIdentity.Branch);
             FinalPackDirectory = GameRuntimeSlot.RuntimePackDirectoryPath(dataDir, gameIdentity.Branch);
         }
 
         internal string SourceAssemblyPath { get; }
-        internal string ActiveAndroidAssemblyPath { get; }
         internal string ReleaseInfoPath { get; }
         internal string BranchMarkerPath { get; }
         internal string FinalPackDirectory { get; }
     }
 
-    private readonly record struct RuntimePackWriteContext(GameIdentity GameIdentity, string DisplayName, RuntimeSlotMetadata Metadata, string PatchSetVersion, string ValidationMode, string PackId, IReadOnlyList<PatchCompatibilityValidator.SymbolCheck> SymbolChecks, PatchCompatibilityValidator.SymbolCheck[] MissingSymbols, object[] CategorySummaries, int CheckedSymbolCount, int PresentSymbolCount, string AndroidAssemblySha256, AndroidAssemblyPublicizer.Result PublicizerResult, string[] SupportAssemblies, IReadOnlyDictionary<string, string> SupportAssemblySha256);
-    private static RuntimePackWriteContext BuildRuntimePackWriteContext(GameIdentity gameIdentity, string displayName, RuntimeSlotMetadata metadata, string patchSetVersion, string validationMode, IReadOnlyList<PatchCompatibilityValidator.SymbolCheck> symbolChecks, string androidAssemblySha256, AndroidAssemblyPublicizer.Result publicizerResult, string[] supportAssemblies, IReadOnlyDictionary<string, string> supportAssemblySha256)
+    private readonly record struct RuntimePackWriteContext(GameIdentity GameIdentity, string DisplayName, RuntimeSlotMetadata Metadata, string PatchSetVersion, string ValidationMode, string PackId, IReadOnlyList<PatchCompatibilityValidator.SymbolCheck> SymbolChecks, PatchCompatibilityValidator.SymbolCheck[] MissingSymbols, object[] CategorySummaries, int CheckedSymbolCount, int PresentSymbolCount, string AndroidAssemblySha256, string[] SupportAssemblies, IReadOnlyDictionary<string, string> SupportAssemblySha256);
+    private static RuntimePackWriteContext BuildRuntimePackWriteContext(GameIdentity gameIdentity, string displayName, RuntimeSlotMetadata metadata, string patchSetVersion, string validationMode, IReadOnlyList<PatchCompatibilityValidator.SymbolCheck> symbolChecks, string androidAssemblySha256, string[] supportAssemblies, IReadOnlyDictionary<string, string> supportAssemblySha256)
     {
         symbolChecks ??= Array.Empty<PatchCompatibilityValidator.SymbolCheck>();
         var missingSymbols = symbolChecks.Where(symbol => !symbol.Present).ToArray();
         var checkedSymbolCount = symbolChecks.Count;
         var presentSymbolCount = symbolChecks.Count(symbol => symbol.Present);
         var packId = RuntimePackId(gameIdentity, patchSetVersion, PatchCompatibilityValidator.ValidationSurfaceVersion, androidAssemblySha256, supportAssemblySha256);
-        return new RuntimePackWriteContext(gameIdentity, displayName, metadata, patchSetVersion, validationMode, packId, symbolChecks, missingSymbols, BuildCategorySummaries(symbolChecks), checkedSymbolCount, presentSymbolCount, androidAssemblySha256, publicizerResult, supportAssemblies, supportAssemblySha256);
+        return new RuntimePackWriteContext(gameIdentity, displayName, metadata, patchSetVersion, validationMode, packId, symbolChecks, missingSymbols, BuildCategorySummaries(symbolChecks), checkedSymbolCount, presentSymbolCount, androidAssemblySha256, supportAssemblies, supportAssemblySha256);
     }
 
     private static object[] BuildCategorySummaries(IReadOnlyList<PatchCompatibilityValidator.SymbolCheck> symbolChecks) => symbolChecks.GroupBy(symbol => symbol.Category).Select(group => new { category = group.Key, checkedCount = group.Count(), presentCount = group.Count(symbol => symbol.Present), missingCount = group.Count(symbol => !symbol.Present) }).OrderBy(group => group.category).Cast<object>().ToArray();
@@ -208,7 +203,6 @@ internal static partial class RuntimePackWriter
         sourceAssemblySha256 = context.GameIdentity.SourceAssemblySha256,
         androidAssemblySha256 = context.AndroidAssemblySha256,
         androidAssemblyFile = RuntimeAssemblyFileName,
-        androidAssemblyCompatibility = AndroidAssemblyCompatibilityPayload(context.PublicizerResult),
         supportAssemblies = context.SupportAssemblies,
         supportAssemblySha256 = context.SupportAssemblySha256,
         patchSetVersion = context.PatchSetVersion,
@@ -241,7 +235,6 @@ internal static partial class RuntimePackWriter
         pckSha256 = context.GameIdentity.PckSha256,
         sourceAssemblySha256 = context.GameIdentity.SourceAssemblySha256,
         androidAssemblySha256 = context.AndroidAssemblySha256,
-        androidAssemblyCompatibility = AndroidAssemblyCompatibilityPayload(context.PublicizerResult),
         supportAssemblies = context.SupportAssemblies,
         supportAssemblySha256 = context.SupportAssemblySha256,
         patchSetVersion = context.PatchSetVersion,
@@ -263,13 +256,5 @@ internal static partial class RuntimePackWriter
         installGeneration = identity.InstallGeneration,
         pckSha256 = identity.PckSha256,
         sourceAssemblySha256 = identity.SourceAssemblySha256,
-    };
-    private static object AndroidAssemblyCompatibilityPayload(AndroidAssemblyPublicizer.Result result) => new
-    {
-        visibilityPublicizer = result.Changed || string.Equals(result.Status, "already public", StringComparison.OrdinalIgnoreCase),
-        status = result.Status,
-        publicizedTypes = result.TypeCount,
-        publicizedMethods = result.MethodCount,
-        publicizedFields = result.FieldCount,
     };
 }

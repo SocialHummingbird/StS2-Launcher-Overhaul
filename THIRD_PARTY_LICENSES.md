@@ -11,6 +11,25 @@ This project uses the following third-party libraries and tools:
 - **License**: MIT
 - **Copyright**: (c) Andreas Pardeike
 - **Source**: https://github.com/pardeike/Harmony
+- **Android build**: https://github.com/Ekyso/Harmony at `8f4bc82514c3c0a4c6651c00d9083cd939cad96f`, with the source changes and package locks in [patches/harmony](patches/harmony). The recipe records the complete patched source tree.
+
+## MonoMod
+- **License**: MIT
+- **Copyright**: (c) 2015–2020 0x0ade and contributors
+- **Source**: https://github.com/MonoMod/MonoMod
+- **Android build**: The pinned Harmony source includes its MonoMod.Core, MonoMod.Utils and MonoMod.Iced source. MonoMod.Backports 1.1.2 and MonoMod.ILHelpers 1.1.0 are restored from locked NuGet packages.
+
+## Mono.Cecil
+- **License**: MIT
+- **Copyright**: (c) Jb Evain and contributors
+- **Source**: https://github.com/jbevain/cecil
+- **Version**: 0.11.6
+
+## Iced
+- **License**: MIT
+- **Copyright**: (c) 2018–present iced project and contributors
+- **Source**: https://github.com/icedland/iced
+- **Android build**: Included in the pinned MonoMod vendored source and built as MonoMod.Iced.
 
 ## SteamKit2
 - **License**: LGPL v2.1
@@ -22,6 +41,7 @@ This project uses the following third-party libraries and tools:
 - **License**: MIT
 - **Copyright**: (c) .NET Foundation and Contributors
 - **Source**: https://github.com/dotnet/runtime
+- **Android build**: .NET 9.0.7 at `3c298d9f00936d651cc47d221762474e25277672`, with the constructor initialization guards and cache-maintenance export in [patches/mono](patches/mono). The pinned recipe retains the matching original BCL and records native output hashes in the launcher's embedded build manifest.
 
 ## FMOD
 - **License**: Proprietary (FMOD EULA)

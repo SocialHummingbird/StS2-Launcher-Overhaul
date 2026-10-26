@@ -19,7 +19,7 @@ internal static partial class StartupPatchOrchestrator
             {
                 new("Platform compatibility", PlatformPatches.Apply),
                 new("Controller input compatibility", ControllerInputPatches.Apply),
-                new("Model DB bootstrap", ModelDbInitPatch.Apply),
+                new("Original mod framework integration", ModLoaderPatches.Apply),
                 new("Launcher startup gate", LauncherPatches.Apply),
             }
         );
@@ -56,7 +56,6 @@ internal static partial class StartupPatchOrchestrator
             new PatchStep[]
             {
                 new("LAN multiplayer", LanMultiplayerPatcher.Apply),
-                new("Mod loader integration", ModLoaderPatches.Apply),
             }
         );
 }

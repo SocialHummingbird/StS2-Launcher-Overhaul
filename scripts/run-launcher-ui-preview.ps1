@@ -17,12 +17,16 @@ param(
     [switch]$SkipBuild,
     [switch]$InteractionTest,
     [switch]$ModRuntimeTest,
-    [ValidateSet("active", "vanilla", "disabled", "stage9-chain")]
+    [ValidateSet("active", "vanilla", "disabled", "stage9-chain", "representative", "contracts", "fault", "native-lifecycle")]
     [string]$ModRuntimeScenario = "active",
     [string]$BaseLibRoot = "",
+    [string]$AramRoot = "",
+    [string]$QuickRestartRoot = "",
+    [string]$AdditionalModRoot = "",
     [string]$ImportVanillaSavesRoot = "",
     [string]$BaseGamePckPath = "",
-    [string]$SteamworksNetPath = ""
+    [string]$SteamworksNetPath = "",
+    [string]$GameAssemblyPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -67,7 +71,7 @@ $resolvedSteamworksNetPath = ""
 $resolvedManagedRuntimeDirectory = ""
 $runtimeDataDir = ""
 if ($ModRuntimeTest) {
-    if ([string]::IsNullOrWhiteSpace($ImportVanillaSavesRoot)) {
+    if ($ModRuntimeScenario -notin @("contracts", "fault", "native-lifecycle") -and [string]::IsNullOrWhiteSpace($ImportVanillaSavesRoot)) {
         throw "ModRuntimeTest requires an explicit ImportVanillaSavesRoot path."
     }
     if ([string]::IsNullOrWhiteSpace($SteamworksNetPath) -or
@@ -79,10 +83,10 @@ if ($ModRuntimeTest) {
         throw "ModRuntimeTest requires an explicit BaseGamePckPath file."
     }
 
-    if (-not (Test-Path -LiteralPath $ImportVanillaSavesRoot -PathType Container)) {
+    if ($ImportVanillaSavesRoot -and -not (Test-Path -LiteralPath $ImportVanillaSavesRoot -PathType Container)) {
         throw "Explicit ImportVanillaSaves root was not found: $ImportVanillaSavesRoot"
     }
-    if ($ModRuntimeScenario -eq "stage9-chain") {
+    if ($ModRuntimeScenario -in @("stage9-chain", "representative")) {
         if ([string]::IsNullOrWhiteSpace($BaseLibRoot) -or
             -not (Test-Path -LiteralPath $BaseLibRoot -PathType Container)) {
             throw "The stage9-chain runtime test requires an explicit BaseLibRoot directory."
@@ -93,7 +97,7 @@ if ($ModRuntimeTest) {
         throw "BaseLibRoot is only used by the stage9-chain runtime scenario."
     }
 
-    $resolvedImportVanillaSavesRoot = (Resolve-Path -LiteralPath $ImportVanillaSavesRoot).Path
+    $resolvedImportVanillaSavesRoot = if ($ImportVanillaSavesRoot) { (Resolve-Path -LiteralPath $ImportVanillaSavesRoot).Path } else { "" }
     $resolvedBaseGamePckPath = (Resolve-Path -LiteralPath $BaseGamePckPath).Path
     $resolvedSteamworksNetPath = (Resolve-Path -LiteralPath $SteamworksNetPath).Path
     $managedRuntimeDirectory = Split-Path -Parent $resolvedSteamworksNetPath
@@ -125,11 +129,25 @@ if (-not $InteractionTest -and -not $ModRuntimeTest) {
 }
 
 if (-not $SkipBuild) {
+    if ($ModRuntimeTest -and $ModRuntimeScenario -in @("contracts", "fault", "native-lifecycle")) {
+        dotnet build (Join-Path $root 'tools/ModFrameworkFixtures/Entry/Entry.csproj') -c Release
+        if ($LASTEXITCODE) { throw 'Entry mod fixture build failed.' }
+        dotnet build (Join-Path $root 'tools/ModFrameworkFixtures/Secondary/Secondary.csproj') -c Release
+        if ($LASTEXITCODE) { throw 'Secondary Godot script fixture build failed.' }
+    }
     dotnet build (Join-Path $project "LauncherUiPreview.csproj") -c Debug
     if ($LASTEXITCODE -ne 0) {
         throw "Launcher UI preview build failed"
     }
 }
+
+if (-not $GameAssemblyPath) {
+    $GameAssemblyPath = Join-Path $root 'upstream/godot-export/.godot/mono/publish/arm64/sts2.dll'
+}
+$GameAssemblyPath = (Resolve-Path -LiteralPath $GameAssemblyPath).Path
+$previewGameAssembly = Join-Path $project '.godot/mono/temp/bin/Debug/sts2.dll'
+if (-not (Test-Path -LiteralPath $previewGameAssembly)) { throw 'Build the preview before selecting its game assembly.' }
+Copy-Item -LiteralPath $GameAssemblyPath -Destination $previewGameAssembly -Force
 
 $touch = if ($TouchOptimized) { "true" } else { "false" }
 $interaction = if ($InteractionTest) { "true" } else { "false" }
@@ -152,10 +170,14 @@ $godotArguments += @(
     "--mod-runtime-scenario=$ModRuntimeScenario",
     "--runtime-data-dir=$runtimeDataDir",
     "--base-lib-root=$resolvedBaseLibRoot",
+    "--aram-root=$AramRoot",
+    "--quick-restart-root=$QuickRestartRoot",
+    "--additional-mod-root=$AdditionalModRoot",
     "--import-vanilla-saves-root=$resolvedImportVanillaSavesRoot",
     "--base-game-pck-path=$resolvedBaseGamePckPath",
     "--managed-runtime-directory=$resolvedManagedRuntimeDirectory",
     "--steamworks-net-path=$resolvedSteamworksNetPath",
+    "--game-assembly-path=$GameAssemblyPath",
     "--output=$resolvedOutput"
 )
 
@@ -192,6 +214,15 @@ try {
     & $GodotPath @godotArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Launcher UI preview process failed"
+    }
+    if ($ModRuntimeTest) {
+        $resultPath = Join-Path $runtimeDataDir 'framework-result.json'
+        if (-not (Test-Path -LiteralPath $resultPath)) { throw 'The process exited before completing its native framework assertions.' }
+        $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+        if ($result.passed -ne $true -or $result.gameAssemblySha256 -ne (Get-FileHash -LiteralPath $GameAssemblyPath -Algorithm SHA256).Hash) {
+            throw 'Native framework evidence does not match the selected game assembly.'
+        }
+        Write-Host "Native framework assertions passed: scenario=$($result.scenario), shape=$($result.shape), manifests=$($result.nativeManifestReads), mods=$($result.discovered)"
     }
 }
 finally {

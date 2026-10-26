@@ -1,0 +1,284 @@
+diff --git a/Directory.Build.props b/Directory.Build.props
+index 4fd1656..d964607 100644
+--- a/Directory.Build.props
++++ b/Directory.Build.props
+@@ -4,7 +4,7 @@
+ 		<HarmonyPrerelease></HarmonyPrerelease>
+ 
+ 		<!-- set empty to build from local LocalMonoMod submodule -->
+-		<MonoModCoreVersion>1.3.3</MonoModCoreVersion>
++		<MonoModCoreVersion></MonoModCoreVersion>
+ 	</PropertyGroup>
+ 
+ 	<PropertyGroup Label="Lib.Harmony Properties" Condition="$(MSBuildProjectName.StartsWith('Lib.Harmony'))">
+@@ -22,7 +22,7 @@
+ 	</PropertyGroup>
+ 
+ 	<PropertyGroup Label="Build Configuration">
+-		<TargetFrameworks>net35;net452;net472;net48;netcoreapp3.0;netcoreapp3.1;net5.0;net6.0;net7.0;net8.0;net9.0;net10.0</TargetFrameworks>
++		<TargetFrameworks>net9.0</TargetFrameworks>
+ 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+ 		<LangVersion>preview</LangVersion>
+ 		<CheckEolTargetFramework>false</CheckEolTargetFramework>
+diff --git a/Harmony/Internal/FaultBlockRewriter.cs b/Harmony/Internal/FaultBlockRewriter.cs
+deleted file mode 100644
+index 027ff91..0000000
+--- a/Harmony/Internal/FaultBlockRewriter.cs
++++ /dev/null
+@@ -1,96 +0,0 @@
+-using System;
+-using System.Collections.Generic;
+-using System.Reflection.Emit;
+-
+-using static HarmonyLib.Code;
+-
+-namespace HarmonyLib
+-{
+-	internal class FaultBlockRewriter
+-	{
+-		static int FindMatchingBeginException(List<CodeInstruction> rewritten)
+-		{
+-			for (int j = rewritten.Count - 1, depth = 0; j >= 0; --j)
+-			{
+-				if (rewritten[j].HasBlock(ExceptionBlockType.EndExceptionBlock)) ++depth;
+-				if (rewritten[j].HasBlock(ExceptionBlockType.BeginExceptionBlock))
+-				{
+-					if (depth == 0) return j;
+-					--depth;
+-				}
+-			}
+-			return -1;
+-		}
+-
+-		static int FindMatchingEndException(List<CodeInstruction> source, int start)
+-		{
+-			for (int j = start, depth = 0; j < source.Count; ++j)
+-			{
+-				if (source[j].HasBlock(ExceptionBlockType.BeginExceptionBlock)) ++depth;
+-				if (source[j].HasBlock(ExceptionBlockType.EndExceptionBlock))
+-				{
+-					if (depth == 0) return j;
+-					--depth;
+-				}
+-			}
+-			return -1;
+-		}
+-
+-		static CodeInstruction CloneWithoutFaultMarker(CodeInstruction original)
+-		{
+-			var copy = new CodeInstruction(original);
+-			_ = copy.blocks.RemoveAll(b => b.blockType == ExceptionBlockType.BeginFaultBlock);
+-			return copy;
+-		}
+-
+-		internal static List<CodeInstruction> Rewrite(List<CodeInstruction> instructions, ILGenerator generator)
+-		{
+-			if (instructions is null) throw new ArgumentNullException(nameof(instructions));
+-			if (generator is null) throw new ArgumentNullException(nameof(generator));
+-
+-			var i = 0;
+-			var rewritten = new List<CodeInstruction>(instructions.Count * 2);
+-			while (i < instructions.Count)
+-			{
+-				var cur = instructions[i];
+-
+-				if (cur.HasBlock(ExceptionBlockType.BeginFaultBlock) == false)
+-				{
+-					rewritten.Add(new CodeInstruction(cur));
+-					++i;
+-					continue;
+-				}
+-
+-				var beginExceptionIdx = FindMatchingBeginException(rewritten);
+-				var endExceptionIdx = FindMatchingEndException(instructions, i + 1);
+-
+-				if (beginExceptionIdx < 0 || endExceptionIdx < 0)
+-					throw new InvalidOperationException("Unbalanced exception markers – cannot rewrite.");
+-
+-				var faultBody = new List<CodeInstruction>();
+-				for (var k = i; k < endExceptionIdx; ++k)
+-					faultBody.Add(CloneWithoutFaultMarker(instructions[k]));
+-
+-				i = endExceptionIdx + 1;
+-
+-				var failedLocal = generator.DeclareLocal(typeof(bool));
+-				var skipFault = generator.DefineLabel();
+-
+-				rewritten.AddRange([
+-					Nop.WithBlocks(new ExceptionBlock(ExceptionBlockType.BeginCatchBlock, typeof(object))),
+-					Pop,
+-					Ldc_I4_1,
+-					Stloc[failedLocal.LocalIndex],
+-					Rethrow,
+-					Nop.WithBlocks(new ExceptionBlock(ExceptionBlockType.BeginFinallyBlock)),
+-					Ldloc[failedLocal.LocalIndex],
+-					Brfalse_S[skipFault],
+-					Nop.WithLabels(skipFault),
+-					Nop.WithBlocks(new ExceptionBlock(ExceptionBlockType.EndExceptionBlock))
+-				]);
+-			}
+-
+-			return rewritten;
+-		}
+-	}
+-}
+diff --git a/Harmony/Internal/MethodCreator.cs b/Harmony/Internal/MethodCreator.cs
+index 824debd..633517b 100644
+--- a/Harmony/Internal/MethodCreator.cs
++++ b/Harmony/Internal/MethodCreator.cs
+@@ -3,6 +3,7 @@ using System.Collections.Generic;
+ using System.Linq;
+ using System.Reflection;
+ using System.Reflection.Emit;
++using System.Runtime.CompilerServices;
+ 
+ using static HarmonyLib.Code;
+ 
+@@ -26,8 +27,25 @@ namespace HarmonyLib
+ 				throw new Exception("Could not create replacement method");
+ 		}
+ 
++		private void AddOwnerInitialization(MethodBase method)
++		{
++			var owner = method.DeclaringType;
++			if (owner is null || method is DynamicMethod || (method.IsConstructor && method.IsStatic)
++				|| (owner.Attributes & TypeAttributes.BeforeFieldInit) != 0)
++				return;
++			// The detour replaces the native entry check too. Preserve the declared
++			// method's initialization before prefixes and its exception handlers.
++			config.AddCodes([
++				Ldtoken[owner],
++				Call[AccessTools.Method(typeof(RuntimeHelpers), nameof(RuntimeHelpers.RunClassConstructor), [typeof(RuntimeTypeHandle)])]
++			]);
++		}
++
+ 		internal (MethodInfo, Dictionary<int, CodeInstruction>) CreateReplacement()
+ 		{
++			AddOwnerInitialization(config.original);
++			if (config.source is not null && config.source.DeclaringType != config.original.DeclaringType)
++				AddOwnerInitialization(config.source);
+ 			config.originalVariables = this.DeclareOriginalLocalVariables(config.MethodBase);
+ 			config.localVariables = new VariableState();
+ 
+@@ -194,7 +212,7 @@ namespace HarmonyLib
+ 			if (methodEndsInDeadCode == false || config.skipOriginalLabel is not null || config.finalizers.Count > 0 || config.postfixes.Count > 0)
+ 				config.AddCode(Ret);
+ 
+-			config.instructions = FaultBlockRewriter.Rewrite(config.instructions, config.il);
++			// Cecil and Mono preserve native fault regions; keep their original handler bodies.
+ 
+ 			if (config.debug)
+ 			{
+@@ -204,7 +222,7 @@ namespace HarmonyLib
+ 
+ 			var codeEmitter = new Emitter(config.il);
+ 			this.EmitCodes(codeEmitter, config.instructions);
+-			var replacementMethod = config.patch.Generate();
++			var replacementMethod = config.patch.Generate(config.MethodBase.DeclaringType);
+ 
+ 			if (config.debug)
+ 			{
+diff --git a/Harmony/Internal/MethodCreatorTools.cs b/Harmony/Internal/MethodCreatorTools.cs
+index ce1e4f3..f555ad9 100644
+--- a/Harmony/Internal/MethodCreatorTools.cs
++++ b/Harmony/Internal/MethodCreatorTools.cs
+@@ -223,7 +223,13 @@ namespace HarmonyLib
+ 				if (injectionType == InjectionType.Instance)
+ 				{
+ 					if (originalIsStatic)
+-						codes.Add(Ldnull);
++					{
++						// A by-reference argument needs an address, including for a null instance.
++						if (paramType.IsByRef)
++							codes.Add(Ldloca[config.DeclareLocal(paramType.GetElementType())]);
++						else
++							codes.Add(Ldnull);
++					}
+ 					else
+ 					{
+ 						var parameterIsRef = paramType.IsByRef;
+diff --git a/Harmony/Internal/MethodPatcherTools.cs b/Harmony/Internal/MethodPatcherTools.cs
+index 43b8e53..3d84829 100644
+--- a/Harmony/Internal/MethodPatcherTools.cs
++++ b/Harmony/Internal/MethodPatcherTools.cs
+@@ -56,6 +56,8 @@ namespace HarmonyLib
+ 			{
+ 				var param = method.Definition.Parameters[i + offset];
+ 				param.Attributes = (Mono.Cecil.ParameterAttributes)parameters[i].Attributes;
++				// Wrapper parameters have no Constant row; retaining HasDefault breaks Mono metadata.
++				param.Attributes &= ~Mono.Cecil.ParameterAttributes.HasDefault;
+ 				param.Name = parameters[i].Name;
+ 			}
+ 
+diff --git a/Lib.Harmony.Thin/Lib.Harmony.Thin.csproj b/Lib.Harmony.Thin/Lib.Harmony.Thin.csproj
+index e307bd5..fec77ae 100644
+--- a/Lib.Harmony.Thin/Lib.Harmony.Thin.csproj
++++ b/Lib.Harmony.Thin/Lib.Harmony.Thin.csproj
+@@ -1,7 +1,7 @@
+ <Project Sdk="Microsoft.NET.Sdk">
+   <PropertyGroup>
+     <PackageId>Lib.Harmony.Thin</PackageId>
+-    <TargetFrameworks>$(TargetFrameworks);netstandard2.0</TargetFrameworks>
++    <TargetFrameworks>net9.0</TargetFrameworks>
+   </PropertyGroup>
+ 
+   <PropertyGroup Condition="$(Configuration.StartsWith('Release'))">
+diff --git a/LocalMonoMod/src/MonoMod.Core/Directory.Build.props b/LocalMonoMod/src/MonoMod.Core/Directory.Build.props
+index 8657dee..4a2d1f1 100644
+--- a/LocalMonoMod/src/MonoMod.Core/Directory.Build.props
++++ b/LocalMonoMod/src/MonoMod.Core/Directory.Build.props
+@@ -2,6 +2,6 @@
+   
+   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+ 
+-  <Import Project="$(MSBuildThisFileDirectory)/Platforms/Architectures/NativeHelpers.props" />
++  <!-- AndroidSystem does not use the Linux/macOS native exception helpers. -->
+ 
+ </Project>
+diff --git a/LocalMonoMod/src/MonoMod.Core/Directory.Build.targets b/LocalMonoMod/src/MonoMod.Core/Directory.Build.targets
+index e3fe8b5..c773a34 100644
+--- a/LocalMonoMod/src/MonoMod.Core/Directory.Build.targets
++++ b/LocalMonoMod/src/MonoMod.Core/Directory.Build.targets
+@@ -2,6 +2,6 @@
+   
+   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.targets', '$(MSBuildThisFileDirectory)../'))" />
+   
+-  <Import Project="$(MSBuildThisFileDirectory)/Platforms/Architectures/NativeHelpers.targets" />
++  <!-- AndroidSystem does not use the Linux/macOS native exception helpers. -->
+ 
+ </Project>
+diff --git a/LocalMonoMod/src/MonoMod.Core/Platforms/Systems/AndroidSystem.cs b/LocalMonoMod/src/MonoMod.Core/Platforms/Systems/AndroidSystem.cs
+index 4e88c67..d3d7d76 100644
+--- a/LocalMonoMod/src/MonoMod.Core/Platforms/Systems/AndroidSystem.cs
++++ b/LocalMonoMod/src/MonoMod.Core/Platforms/Systems/AndroidSystem.cs
+@@ -106,8 +106,15 @@ namespace MonoMod.Core.Platforms.Systems
+             var target = new Span<byte>((void*)patchTarget, data.Length);
+             _ = target.TryCopyTo(backup);
+             data.CopyTo(target);
++            if (patchKind == PatchTargetKind.Executable && data.Length != 0)
++                FlushInstructionCache(patchTarget, data.Length);
+         }
+ 
++        // The paired Mono runtime exports its existing architecture-specific
++        // cache maintenance, including the ARM64 big.LITTLE-safe barriers.
++        [DllImport("libmonosgen-2.0.so", EntryPoint = "mono_arch_flush_icache", ExactSpelling = true)]
++        private static extern void FlushInstructionCache(IntPtr start, int length);
++
+         private sealed class MmapPagedMemoryAllocator : PagedMemoryAllocator
+         {
+             public MmapPagedMemoryAllocator(nint pageSize)
+diff --git a/LocalMonoMod/tools/Common.props b/LocalMonoMod/tools/Common.props
+index 1ab6785..f2b2499 100644
+--- a/LocalMonoMod/tools/Common.props
++++ b/LocalMonoMod/tools/Common.props
+@@ -22,8 +22,8 @@
+ 
+     <!-- All MonoMod projects (by default) target these frameworks -->
+     <!-- Put .NET 6.0 as the first framework so that OmniSharp uses it for VS Code Intelisense -->
+-    <TargetFrameworks>net10.0</TargetFrameworks>
+-    <BackportsTargetFrameworks>net10.0</BackportsTargetFrameworks>
++    <TargetFrameworks>net8.0</TargetFrameworks>
++    <BackportsTargetFrameworks>net8.0</BackportsTargetFrameworks>
+     <!-- If a project wants to target some subset or other set, then they can just reassign TargetFrameworks in their project file -->
+ 
+     <!-- Conditional compilation constants are used *everywhere*, make sure common ones are set -->

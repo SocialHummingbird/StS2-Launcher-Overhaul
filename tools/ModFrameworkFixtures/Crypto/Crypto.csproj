@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <AssemblyName>FixtureCrypto</AssemblyName>
+    <RootNamespace>Sts2Launcher.ModFrameworkFixtures</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="GodotSharp">
+      <HintPath>../../../upstream/godot-export/.godot/mono/publish/arm64/GodotSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="sts2">
+      <HintPath>../../../upstream/godot-export/.godot/mono/publish/arm64/sts2.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <None Update="FixtureCrypto.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

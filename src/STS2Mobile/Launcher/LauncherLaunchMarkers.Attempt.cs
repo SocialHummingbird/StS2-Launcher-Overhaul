@@ -24,6 +24,8 @@ internal static partial class LauncherLaunchMarkers
     private const string ReadinessProblemPrefix = "Readiness problem:";
     private const string RuntimeSlotInspectedPrefix = "Runtime slot inspected:";
     private const string GameIdentityIdPrefix = "Game identity ID:";
+    private const string RuntimePackIdPrefix = "Runtime pack ID:";
+    private const string ModConfigurationIdPrefix = "Mod configuration ID:";
     private const string RuntimePairingStatusPrefix = "Runtime pairing status:";
     private const string PatchCompatibilityStatusPrefix = "Patch compatibility status:";
     private const string GameDirectoryPrefix = "Game directory:";
@@ -67,6 +69,10 @@ internal static partial class LauncherLaunchMarkers
     {
         timing ??= LauncherLaunchAttemptTiming.NotMeasured();
         var branch = readiness?.Branch ?? SafeAttemptBranch();
+        var runtimePackId = readiness?.RuntimeSlot?.RuntimePack?.PackId;
+        var modConfigurationId = modReadiness != null && runtimePackId != null
+            ? LauncherModLaunchResultStore.ConfigurationId(modReadiness.Plan, readiness.GameIdentityId, runtimePackId)
+            : null;
         TryWriteMarker(
             LaunchAttemptPath,
             new[]
@@ -90,6 +96,8 @@ internal static partial class LauncherLaunchMarkers
                 MarkerLine(ReadinessProblemPrefix, readiness?.ReadinessProblem),
                 MarkerLine(RuntimeSlotInspectedPrefix, readiness?.HasRuntimeSlot == true),
                 MarkerLine(GameIdentityIdPrefix, readiness?.GameIdentityId),
+                MarkerLine(RuntimePackIdPrefix, runtimePackId),
+                MarkerLine(ModConfigurationIdPrefix, modConfigurationId),
                 MarkerLine(RuntimePairingStatusPrefix, readiness?.RuntimePairingStatus),
                 MarkerLine(PatchCompatibilityStatusPrefix, readiness?.PatchCompatibilityStatus),
                 MarkerLine(GameDirectoryPrefix, readiness?.GameDirectory),

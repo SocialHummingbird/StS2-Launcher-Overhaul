@@ -75,12 +75,27 @@ public partial class PreviewRoot : Control
                     ReadRequiredPath("steamworks-net-path"),
                     "Steamworks.NET"
                 );
-                await ModRuntimeActivationTest.RunAsync(
+                var scenario = Read("mod-runtime-scenario", "active");
+                if (scenario is "contracts" or "fault" or "native-lifecycle")
+                {
+                    var data = ReadRequiredPath("runtime-data-dir");
+                    var assembly = ReadRequiredPath("game-assembly-path");
+                    await ModFrameworkContractTest.RunAsync(data, ReadRequiredPath("base-game-pck-path"), assembly, scenario);
+                    File.WriteAllText(Path.Combine(data, "framework-result.json"), System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        passed = true, scenario, gameAssemblySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(assembly))),
+                    }));
+                }
+                else await ModRuntimeActivationTest.RunAsync(
                     ReadRequiredPath("runtime-data-dir"),
                     ReadRequiredPath("base-game-pck-path"),
                     ReadRequiredPath("import-vanilla-saves-root"),
                     Read("base-lib-root", ""),
-                    Read("mod-runtime-scenario", "active")
+                    Read("mod-runtime-scenario", "active"),
+                    ReadRequiredPath("game-assembly-path"),
+                    Read("aram-root", ""),
+                    Read("quick-restart-root", ""),
+                    Read("additional-mod-root", "")
                 );
             }
             finally
@@ -103,6 +118,9 @@ public partial class PreviewRoot : Control
         if (ReadBool("interaction-test", false))
         {
             LauncherUiInteractionTest.Run(_previewView, _previewRoot);
+            await LauncherUiInteractionTest.AssertModsRefreshRejectsStaleCompletionAsync(_previewView, _previewRoot);
+            await LauncherUiInteractionTest.AssertModsScrollAfterListGrowthAsync(_previewView, _previewRoot);
+            await LauncherUiInteractionTest.AssertTabletModsScrollingAsync(this);
             foreach (var fixture in new[] { "ready", "error", "signed-out", "guard", "download" })
             {
                 ApplyFixture(_previewView, fixture);

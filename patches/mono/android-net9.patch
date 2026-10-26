@@ -1,0 +1,449 @@
+diff --git a/src/mono/mono/metadata/icall.c b/src/mono/mono/metadata/icall.c
+index e326e7a..c4f4276 100644
+--- a/src/mono/mono/metadata/icall.c
++++ b/src/mono/mono/metadata/icall.c
+@@ -1554,7 +1554,7 @@ get_caller_no_system_or_reflection (MonoMethod *m, gint32 no, gint32 ilo, gboole
+ 	if (!managed)
+ 		return FALSE;
+ 
+-	if (m->wrapper_type != MONO_WRAPPER_NONE)
++	if (m->wrapper_type != MONO_WRAPPER_NONE && m->wrapper_type != MONO_WRAPPER_DYNAMIC_METHOD)
+ 		return FALSE;
+ 
+ 	if (m == *dest) {
+diff --git a/src/mono/mono/mini/method-to-ir.c b/src/mono/mono/mini/method-to-ir.c
+index 97985da..b58fcb2 100644
+--- a/src/mono/mono/mini/method-to-ir.c
++++ b/src/mono/mono/mini/method-to-ir.c
+@@ -4103,6 +4103,17 @@ mono_method_check_inlining (MonoCompile *cfg, MonoMethod *method)
+ 		return FALSE;
+ 
+ 	{
++		if (cfg->defer_cctors && m_class_has_cctor (method->klass)) {
++			ERROR_DECL (error);
++			vtable = mono_class_vtable_checked (method->klass, error);
++			if (!is_ok (error)) {
++				mono_error_cleanup (error);
++				return FALSE;
++			}
++			/* Inlining must not execute a callee's initializer during preparation. */
++			if (!vtable->initialized)
++				return FALSE;
++		}
+ 		/* The AggressiveInlining hint is a good excuse to force that cctor to run. */
+ 		if ((cfg->opt & MONO_OPT_AGGRESSIVE_INLINING) || method->iflags & METHOD_IMPL_ATTRIBUTE_AGGRESSIVE_INLINING) {
+ 			if (m_class_has_cctor (method->klass)) {
+@@ -4206,6 +4217,8 @@ mini_field_access_needs_cctor_run (MonoCompile *cfg, MonoMethod *method, MonoCla
+ 	}
+ 
+ 	if (mono_class_is_before_field_init (klass)) {
++		if (cfg->defer_cctors)
++			return mono_class_needs_cctor_run (klass, method);
+ 		if (cfg->method == method)
+ 			return FALSE;
+ 	}
+@@ -6937,6 +6950,25 @@ mono_method_to_ir (MonoCompile *cfg, MonoMethod *method, MonoBasicBlock *start_b
+ 			emit_llvmonly_interp_entry (cfg, header);
+ 	}
+ 
++	if (cfg->method == method && !cfg->compile_aot && method->wrapper_type != MONO_WRAPPER_NATIVE_TO_MANAGED) {
++		/* Entry initialization is outside the method's IL exception regions.
++		 * Keep it in all JIT bodies so cached/shared code remains callable after
++		 * preparation without relying on an earlier compilation's side effects. */
++		MonoImage *image = m_class_get_image (method->klass);
++		if (!image_is_dynamic (image) && (!image->checked_module_cctor || image->has_module_cctor)) {
++			MonoClass *module_class = mono_class_get_checked (image, MONO_TOKEN_TYPE_DEF | 1, cfg->error);
++			CHECK_CFG_ERROR;
++			if (mono_class_needs_cctor_run (module_class, method))
++				emit_class_init (cfg, module_class, FALSE);
++		}
++		/* DynamicMethod owners supply access/assembly context, not membership. */
++		if (!method->dynamic && !mono_class_is_before_field_init (method->klass) &&
++		    mono_class_needs_cctor_run (method->klass, method))
++			emit_class_init (cfg, method->klass, FALSE);
++		init_localsbb = cfg->cbb;
++		init_localsbb2 = cfg->cbb;
++	}
++
+ 	/* FIRST CODE BLOCK */
+ 	NEW_BBLOCK (cfg, tblock);
+ 	tblock->cil_code = ip;
+@@ -10332,6 +10364,11 @@ calli_end:
+ 
+ 			/* STATIC CASE */
+ 			context_used = mini_class_check_context_used (cfg, klass);
++			/* Include TLS/special statics, which bypass the ordinary address path. */
++			if (!cfg->compile_aot && mono_class_needs_cctor_run (klass, method) && !g_slist_find (class_inits, klass)) {
++				emit_class_init (cfg, klass, TRUE);
++				class_inits = g_slist_prepend (class_inits, klass);
++			}
+ 
+ 			if (ftype->attrs & FIELD_ATTRIBUTE_LITERAL) {
+ 				mono_error_set_field_missing (cfg->error, m_field_get_parent (field), field->name, NULL, "Using static instructions with literal field");
+@@ -10477,7 +10514,7 @@ calli_end:
+ 							class_inits = g_slist_prepend (class_inits, klass);
+ 						}
+ 					} else {
+-						if (cfg->run_cctors) {
++						if (cfg->run_cctors && !cfg->defer_cctors) {
+ 							/* This makes so that inline cannot trigger */
+ 							/* .cctors: too many apps depend on them */
+ 							/* running with a specific order... */
+diff --git a/src/mono/mono/mini/mini-runtime.c b/src/mono/mono/mini/mini-runtime.c
+index bcd7754..ce60f52 100644
+--- a/src/mono/mono/mini/mini-runtime.c
++++ b/src/mono/mono/mini/mini-runtime.c
+@@ -2506,8 +2506,10 @@ create_jit_info_for_trampoline (MonoMethod *wrapper, MonoTrampInfo *info)
+ 	return jinfo;
+ }
+ 
++static gpointer jit_compile_method_with_policy (MonoMethod *method, gboolean jit_only, gboolean defer_cctors, MonoError *error);
++
+ static gpointer
+-compile_special (MonoMethod *method, MonoError *error)
++compile_special (MonoMethod *method, gboolean defer_cctors, MonoError *error)
+ {
+ 	MonoJitInfo *jinfo;
+ 	gpointer code;
+@@ -2561,13 +2563,13 @@ compile_special (MonoMethod *method, MonoError *error)
+ 			compiled_method = piinfo->addr;
+ 		} else {
+ 			MonoMethod *nm = mono_marshal_get_native_wrapper (method, TRUE, mono_aot_only);
+-			compiled_method = mono_jit_compile_method_jit_only (nm, error);
++			compiled_method = jit_compile_method_with_policy (nm, TRUE, defer_cctors, error);
+ 			if (!compiled_method && mono_aot_only && mono_use_interpreter) {
+ 				// We failed to find wrapper in aot images, try interpreting it instead
+ 				mono_error_cleanup (error);
+ 				error_init_reuse (error);
+ 				nm = mono_marshal_get_native_wrapper (method, TRUE, FALSE);
+-				compiled_method = mono_jit_compile_method (nm, error);
++				compiled_method = jit_compile_method_with_policy (nm, FALSE, defer_cctors, error);
+ 				return_val_if_nok (error, NULL);
+ 				code = mono_get_addr_from_ftnptr (compiled_method);
+ 				return code;
+@@ -2603,7 +2605,7 @@ compile_special (MonoMethod *method, MonoError *error)
+ 			} else if (*name == 'I' && (strcmp (name, "Invoke") == 0)) {
+ 				if (mono_llvm_only) {
+ 					nm = mono_marshal_get_delegate_invoke (method, NULL);
+-					gpointer compiled_ptr = mono_jit_compile_method_jit_only (nm, error);
++					gpointer compiled_ptr = jit_compile_method_with_policy (nm, TRUE, defer_cctors, error);
+ 					return_val_if_nok (error, NULL);
+ 					return mono_get_addr_from_ftnptr (compiled_ptr);
+ 				}
+@@ -2615,12 +2617,12 @@ compile_special (MonoMethod *method, MonoError *error)
+ 				return mono_create_delegate_trampoline (method->klass);
+ 			} else if (*name == 'B' && (strcmp (name, "BeginInvoke") == 0)) {
+ 				nm = mono_marshal_get_delegate_begin_invoke (method);
+-				gpointer compiled_ptr = mono_jit_compile_method_jit_only (nm, error);
++				gpointer compiled_ptr = jit_compile_method_with_policy (nm, TRUE, defer_cctors, error);
+ 				return_val_if_nok (error, NULL);
+ 				return mono_get_addr_from_ftnptr (compiled_ptr);
+ 			} else if (*name == 'E' && (strcmp (name, "EndInvoke") == 0)) {
+ 				nm = mono_marshal_get_delegate_end_invoke (method);
+-				gpointer compiled_ptr = mono_jit_compile_method_jit_only (nm, error);
++				gpointer compiled_ptr = jit_compile_method_with_policy (nm, TRUE, defer_cctors, error);
+ 				return_val_if_nok (error, NULL);
+ 				return mono_get_addr_from_ftnptr (compiled_ptr);
+ 			}
+@@ -2670,7 +2672,7 @@ compile_special (MonoMethod *method, MonoError *error)
+ 		int accessor_kind = -1;
+ 		if (mono_method_get_unsafe_accessor_attr_data (method, &accessor_kind, &member_name, error)) {
+ 			MonoMethod *wrapper = mono_marshal_get_unsafe_accessor_wrapper (method, (MonoUnsafeAccessorKind)accessor_kind, member_name);
+-			gpointer compiled_wrapper = mono_jit_compile_method_jit_only (wrapper, error);
++			gpointer compiled_wrapper = jit_compile_method_with_policy (wrapper, TRUE, defer_cctors, error);
+ 			return_val_if_nok (error, NULL);
+ 			code = mono_get_addr_from_ftnptr (compiled_wrapper);
+ 			jinfo = mini_jit_info_table_find (code);
+@@ -2684,7 +2686,7 @@ compile_special (MonoMethod *method, MonoError *error)
+ }
+ 
+ static gpointer
+-mono_jit_compile_method_with_opt (MonoMethod *method, guint32 opt, gboolean jit_only, MonoError *error)
++mono_jit_compile_method_with_opt (MonoMethod *method, guint32 opt, gboolean jit_only, gboolean defer_cctors, MonoError *error)
+ {
+ 	MonoJitInfo *info;
+ 	gpointer code = NULL, p;
+@@ -2740,6 +2742,8 @@ mono_jit_compile_method_with_opt (MonoMethod *method, guint32 opt, gboolean jit_
+ 
+ lookup_start:
+ 	info = lookup_method (method);
++	if (defer_cctors && info && info->from_aot)
++		info = NULL;
+ 	if (info) {
+ 		MonoVTable *vtable;
+ 
+@@ -2748,7 +2752,8 @@ lookup_start:
+ 		if (!is_ok (error))
+ 			return NULL;
+ 		g_assert (vtable);
+-		if (!mono_runtime_class_init_full (vtable, error))
++		if (!defer_cctors && !method->dynamic && (!mono_class_is_before_field_init (method->klass) || !mono_method_is_constructor (method)) &&
++		    !mono_runtime_class_init_full (vtable, error))
+ 			return NULL;
+ 
+ 		code = MINI_ADDR_TO_FTNPTR (info->code_start);
+@@ -2756,7 +2761,7 @@ lookup_start:
+ 	}
+ 
+ #ifdef MONO_USE_AOT_COMPILER
+-	if (opt & MONO_OPT_AOT) {
++	if ((opt & MONO_OPT_AOT) && !defer_cctors) {
+ 		mono_class_init_internal (method->klass);
+ 
+ 		code = mono_aot_get_method (method, error);
+@@ -2780,7 +2785,8 @@ lookup_start:
+ 			if (!mono_llvm_only && !mono_class_is_open_constructed_type (m_class_get_byval_arg (method->klass))) {
+ 				vtable = mono_class_vtable_checked (method->klass, error);
+ 				mono_error_assert_ok (error);
+-				if (!mono_runtime_class_init_full (vtable, error))
++			if (!defer_cctors && !method->dynamic && (!mono_class_is_before_field_init (method->klass) || !mono_method_is_constructor (method)) &&
++				    !mono_runtime_class_init_full (vtable, error))
+ 					return NULL;
+ 			}
+ 		}
+@@ -2790,7 +2796,7 @@ lookup_start:
+ #endif
+ 
+ 	if (!code) {
+-		code = compile_special (method, error);
++		code = compile_special (method, defer_cctors, error);
+ 
+ 		if (!is_ok (error))
+ 			return NULL;
+@@ -2826,7 +2832,7 @@ lookup_start:
+ 
+ 		if (wait_or_register_method_to_compile (method))
+ 			goto lookup_start;
+-		code = mono_jit_compile_method_inner (method, opt, error);
++		code = mono_jit_compile_method_inner (method, opt, defer_cctors, error);
+ 		unregister_method_for_compile (method);
+ 	}
+ 	if (!is_ok (error))
+@@ -2865,6 +2871,7 @@ typedef struct {
+ 	MonoMethod *method;
+ 	guint32 opt;
+ 	gboolean jit_only;
++	gboolean defer_cctors;
+ 	MonoError *error;
+ 	gpointer code;
+ } JitCompileMethodWithOptCallbackData;
+@@ -2873,7 +2880,7 @@ static void
+ jit_compile_method_with_opt_cb (gpointer arg)
+ {
+ 	JitCompileMethodWithOptCallbackData *params = (JitCompileMethodWithOptCallbackData *)arg;
+-	params->code = mono_jit_compile_method_with_opt (params->method, params->opt, params->jit_only, params->error);
++	params->code = mono_jit_compile_method_with_opt (params->method, params->opt, params->jit_only, params->defer_cctors, params->error);
+ }
+ 
+ static gpointer
+@@ -2897,20 +2904,27 @@ jit_compile_method_with_opt (JitCompileMethodWithOptCallbackData *params)
+ 	return !thrown ? params->code : NULL;
+ }
+ 
+-gpointer
+-mono_jit_compile_method (MonoMethod *method, MonoError *error)
++static gpointer
++jit_compile_method_with_policy (MonoMethod *method, gboolean jit_only, gboolean defer_cctors, MonoError *error)
+ {
+ 	JitCompileMethodWithOptCallbackData params;
+ 
+ 	params.method = method;
+ 	params.opt = mono_get_optimizations_for_method (method, default_opt);
+-	params.jit_only = FALSE;
++	params.jit_only = jit_only;
++	params.defer_cctors = defer_cctors;
+ 	params.error = error;
+ 	params.code = NULL;
+ 
+ 	return jit_compile_method_with_opt (&params);
+ }
+ 
++gpointer
++mono_jit_compile_method (MonoMethod *method, MonoError *error)
++{
++	return jit_compile_method_with_policy (method, FALSE, FALSE, error);
++}
++
+ /*
+  * mono_jit_compile_method_jit_only:
+  *
+@@ -2919,15 +2933,7 @@ mono_jit_compile_method (MonoMethod *method, MonoError *error)
+ gpointer
+ mono_jit_compile_method_jit_only (MonoMethod *method, MonoError *error)
+ {
+-	JitCompileMethodWithOptCallbackData params;
+-
+-	params.method = method;
+-	params.opt = mono_get_optimizations_for_method (method, default_opt);
+-	params.jit_only = TRUE;
+-	params.error = error;
+-	params.code = NULL;
+-
+-	return jit_compile_method_with_opt (&params);
++	return jit_compile_method_with_policy (method, TRUE, FALSE, error);
+ }
+ 
+ /*
+@@ -2945,7 +2951,9 @@ get_ftnptr_for_method (MonoMethod *method, gboolean need_unbox, MonoError *error
+ 	}
+ 
+ 	if (!mono_llvm_only) {
+-		gpointer res = mono_jit_compile_method (method, error);
++		/* Obtaining an entry point is preparation, not a managed invocation.
++		 * The compiled body retains invocation/field initialization guards. */
++		gpointer res = jit_compile_method_with_policy (method, TRUE, TRUE, error);
+ 		res = mini_add_method_trampoline (method, res, mono_method_needs_static_rgctx_invoke (method, TRUE), need_unbox);
+ 		return res;
+ 	} else {
+@@ -3564,7 +3572,8 @@ mono_jit_runtime_invoke (MonoMethod *method, void *obj, void **params, MonoObjec
+ 	 * We need this here because mono_marshal_get_runtime_invoke can place
+ 	 * the helper method in System.Object and not the target class.
+ 	 */
+-	if (!mono_runtime_class_init_full (info->vtable, error)) {
++	if (!method->dynamic && (!mono_class_is_before_field_init (method->klass) || !mono_method_is_constructor (method)) &&
++	    !mono_runtime_class_init_full (info->vtable, error)) {
+ 		if (exc)
+ 			*exc = (MonoObject*) mono_error_convert_to_exception (error);
+ 		return NULL;
+diff --git a/src/mono/mono/mini/mini.c b/src/mono/mono/mini/mini.c
+index 395a869..2111d05 100644
+--- a/src/mono/mono/mini/mini.c
++++ b/src/mono/mono/mini/mini.c
+@@ -2201,7 +2201,8 @@ mono_codegen (MonoCompile *cfg)
+ 			if (ji->type == MONO_PATCH_INFO_NONE)
+ 				continue;
+ 
+-			target = mono_resolve_patch_target (cfg->method, cfg->native_code, ji, cfg->run_cctors, cfg->error);
++			target = mono_resolve_patch_target (cfg->method, cfg->native_code, ji,
++				cfg->run_cctors && !(cfg->defer_cctors && ji->type == MONO_PATCH_INFO_SFLDA), cfg->error);
+ 			if (!is_ok (cfg->error)) {
+ 				mono_cfg_set_exception (cfg, MONO_EXCEPTION_MONO_ERROR);
+ 				return;
+@@ -3180,6 +3181,7 @@ mini_method_compile (MonoMethod *method, guint32 opts, JitFlags flags, int parts
+ 	cfg->mempool = mono_mempool_new ();
+ 	cfg->opt = opts;
+ 	cfg->run_cctors = run_cctors;
++	cfg->defer_cctors = (flags & JIT_FLAG_DEFER_CCTORS) != 0;
+ 	cfg->verbose_level = mini_verbose;
+ 	cfg->compile_aot = compile_aot;
+ 	cfg->full_aot = full_aot;
+@@ -4137,7 +4139,7 @@ mono_update_jit_stats (MonoCompile *cfg)
+  *   Main entry point for the JIT.
+  */
+ gpointer
+-mono_jit_compile_method_inner (MonoMethod *method, int opt, MonoError *error)
++mono_jit_compile_method_inner (MonoMethod *method, int opt, gboolean defer_cctors, MonoError *error)
+ {
+ 	MonoCompile *cfg;
+ 	gpointer code = NULL;
+@@ -4150,7 +4152,8 @@ mono_jit_compile_method_inner (MonoMethod *method, int opt, MonoError *error)
+ 	error_init (error);
+ 
+ 	start = mono_time_track_start ();
+-	cfg = mini_method_compile (method, opt, JIT_FLAG_RUN_CCTORS, 0, -1);
++	cfg = mini_method_compile (method, opt,
++		(JitFlags)(JIT_FLAG_RUN_CCTORS | (defer_cctors ? JIT_FLAG_DEFER_CCTORS : 0)), 0, -1);
+ 	gint64 jit_time = 0;
+ 	mono_time_track_end (&jit_time, start);
+ 	UnlockedAdd64 (&mono_jit_stats.jit_time, jit_time);
+@@ -4227,6 +4230,8 @@ mono_jit_compile_method_inner (MonoMethod *method, int opt, MonoError *error)
+        discard the code this thread generated. */
+ 
+ 	info = mini_lookup_method (method, shared);
++	if (defer_cctors && info && info->from_aot)
++		info = NULL;
+ 	if (info) {
+ 		code = info->code_start;
+ 		discarded_code ++;
+@@ -4282,7 +4287,10 @@ mono_jit_compile_method_inner (MonoMethod *method, int opt, MonoError *error)
+ 	if (prof_method != method && !jinfo->has_generic_jit_info)
+ 		MONO_PROFILER_RAISE (jit_done, (prof_method, jinfo));
+ 
+-	if (!mono_runtime_class_init_full (vtable, error))
++	/* BeforeFieldInit constructors may run before their optional static initializer.
++	 * Field accesses retain their existing initialization checks. */
++	if (!defer_cctors && !method->dynamic && (!mono_class_is_before_field_init (method->klass) || !mono_method_is_constructor (method)) &&
++	    !mono_runtime_class_init_full (vtable, error))
+ 		return NULL;
+ 	return MINI_ADDR_TO_FTNPTR (code);
+ }
+diff --git a/src/mono/mono/mini/mini.h b/src/mono/mono/mini/mini.h
+index 97196e7..fd7989a 100644
+--- a/src/mono/mono/mini/mini.h
++++ b/src/mono/mono/mini/mini.h
+@@ -1285,6 +1285,8 @@ typedef enum {
+ 	JIT_FLAG_SELF_INIT = (1 << 11),
+ 	/* Assume code memory is exec only */
+ 	JIT_FLAG_CODE_EXEC_ONLY = (1 << 12),
++	/* Compile a callable entry without executing managed initializers. */
++	JIT_FLAG_DEFER_CCTORS = (1 << 13),
+ } JitFlags;
+ 
+ /* Bit-fields in the MonoBasicBlock.region */
+@@ -1442,6 +1444,7 @@ typedef struct {
+ 	guint            disable_llvm : 1;
+ 	guint            enable_extended_bblocks : 1;
+ 	guint            run_cctors : 1;
++	guint            defer_cctors : 1;
+ 	guint            need_lmf_area : 1;
+ 	guint            compile_aot : 1;
+ 	guint            full_aot : 1;
+@@ -2215,7 +2218,7 @@ void      mono_call_add_patch_info          (MonoCompile *cfg, MonoCallInst *cal
+ void mono_add_patch_info (MonoCompile *cfg, int ip, MonoJumpInfoType type, gconstpointer target);
+ void mono_add_patch_info_rel (MonoCompile *cfg, int ip, MonoJumpInfoType type, gconstpointer target, int relocation);
+ void      mono_remove_patch_info            (MonoCompile *cfg, int ip);
+-gpointer  mono_jit_compile_method_inner     (MonoMethod *method, int opt, MonoError *error);
++gpointer  mono_jit_compile_method_inner     (MonoMethod *method, int opt, gboolean defer_cctors, MonoError *error);
+ GList    *mono_varlist_insert_sorted        (MonoCompile *cfg, GList *list, MonoMethodVar *mv, int sort_type);
+ GList    *mono_varlist_sort                 (MonoCompile *cfg, GList *list, int sort_type);
+ void      mono_analyze_liveness             (MonoCompile *cfg);
+@@ -2435,7 +2438,8 @@ GList    *mono_arch_get_allocatable_int_vars    (MonoCompile *cfg);
+ GList    *mono_arch_get_global_int_regs         (MonoCompile *cfg);
+ guint32   mono_arch_regalloc_cost               (MonoCompile *cfg, MonoMethodVar *vmv);
+ void      mono_arch_patch_code_new              (MonoCompile *cfg, guint8 *code, MonoJumpInfo *ji, gpointer target);
+-void      mono_arch_flush_icache                (guint8 *code, gint size);
++/* Shared Android patch writers use the same cache maintenance as the JIT. */
++MONO_API void mono_arch_flush_icache             (guint8 *code, gint size);
+ guint8   *mono_arch_emit_prolog                 (MonoCompile *cfg);
+ void      mono_arch_emit_epilog                 (MonoCompile *cfg);
+ void      mono_arch_emit_exceptions             (MonoCompile *cfg);
+diff --git a/src/mono/mono/metadata/class.c b/src/mono/mono/metadata/class.c
+index c74c5c1..596e1b0 100644
+--- a/src/mono/mono/metadata/class.c
++++ b/src/mono/mono/metadata/class.c
+@@ -6399,14 +6399,16 @@ can_access_type (MonoClass *access_klass, MonoClass *member_klass)
+ 		return ignores_access_checks_to (access_klass_assembly, member_klass_assembly);
+ 
+ 	case TYPE_ATTRIBUTE_NESTED_FAMILY:
+-		return mono_class_has_parent_and_ignore_generics (access_klass, m_class_get_nested_in (member_klass));
++		return mono_class_has_parent_and_ignore_generics (access_klass, m_class_get_nested_in (member_klass)) ||
++			ignores_access_checks_to (access_klass_assembly, member_klass_assembly);
+ 
+ 	case TYPE_ATTRIBUTE_NESTED_ASSEMBLY:
+ 		return can_access_internals (access_klass_assembly, member_klass_assembly) && member_klass_nested_in && can_access_type (access_klass, member_klass_nested_in);
+ 
+ 	case TYPE_ATTRIBUTE_NESTED_FAM_AND_ASSEM:
+-		return can_access_internals (access_klass_assembly, m_class_get_image (member_klass_nested_in)->assembly) &&
+-			mono_class_has_parent_and_ignore_generics (access_klass, member_klass_nested_in);
++		return (can_access_internals (access_klass_assembly, m_class_get_image (member_klass_nested_in)->assembly) &&
++			mono_class_has_parent_and_ignore_generics (access_klass, member_klass_nested_in)) ||
++			ignores_access_checks_to (access_klass_assembly, member_klass_assembly);
+ 
+ 	case TYPE_ATTRIBUTE_NESTED_FAM_OR_ASSEM:
+ 		return can_access_internals (access_klass_assembly, m_class_get_image (member_klass_nested_in)->assembly) ||
+@@ -6450,13 +6452,13 @@ can_access_member (MonoClass *access_klass, MonoClass *member_klass, MonoClass*
+ 		if (is_valid_family_access (access_klass, member_klass, context_klass) &&
+ 		    can_access_internals (access_klass_assembly, member_klass_image->assembly))
+ 			return TRUE;
+-		return FALSE;
++		return ignores_access_checks_to (access_klass_assembly, member_klass_image->assembly);
+ 	case FIELD_ATTRIBUTE_ASSEMBLY:
+ 		return can_access_internals (access_klass_assembly, member_klass_image->assembly);
+ 	case FIELD_ATTRIBUTE_FAMILY:
+ 		if (is_valid_family_access (access_klass, member_klass, context_klass))
+ 			return TRUE;
+-		return FALSE;
++		return ignores_access_checks_to (access_klass_assembly, member_klass_image->assembly);
+ 	case FIELD_ATTRIBUTE_FAM_OR_ASSEM:
+ 		if (is_valid_family_access (access_klass, member_klass, context_klass))
+ 			return TRUE;

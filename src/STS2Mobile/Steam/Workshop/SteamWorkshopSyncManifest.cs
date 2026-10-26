@@ -6,7 +6,7 @@ namespace STS2Mobile.Steam.Workshop;
 
 internal sealed class SteamWorkshopSyncManifest
 {
-    internal const int CurrentVersion = 1;
+    internal const int CurrentVersion = 2;
 
     public int Version { get; set; } = CurrentVersion;
     public string GeneratedAtUtc { get; set; } = DateTime.UtcNow.ToString("O");
@@ -23,6 +23,8 @@ internal sealed class SteamWorkshopSyncManifest
     public int MissingDependencyItemCount { get; set; }
     public int TotalItemCount { get; set; }
     public List<ulong> MissingDependencyIds { get; set; } = new();
+    public List<string> GameBranchOrder { get; set; } = new();
+    public string GameBranchOrderProvenance { get; set; } = "";
     public List<SteamWorkshopSyncManifestItem> Items { get; set; } = new();
 
     internal static SteamWorkshopSyncManifest Empty(string downloadsDirectory, string stagedDirectory)
@@ -55,6 +57,11 @@ internal sealed class SteamWorkshopSyncManifest
             .Distinct()
             .OrderBy(id => id)
             .ToList() ?? new List<ulong>();
+        if (metadata.GameBranchOrder != null)
+        {
+            GameBranchOrder = metadata.GameBranchOrder.ToList();
+            GameBranchOrderProvenance = metadata.GameBranchOrderProvenance ?? "";
+        }
     }
 }
 
@@ -71,10 +78,13 @@ internal sealed class SteamWorkshopSyncMetadata
     internal int MissingDependencyItemCount { get; init; }
     internal int TotalItemCount { get; init; }
     internal IReadOnlyCollection<ulong> MissingDependencyIds { get; init; } = Array.Empty<ulong>();
+    internal IReadOnlyList<string> GameBranchOrder { get; init; }
+    internal string GameBranchOrderProvenance { get; init; } = "";
 }
 
 internal sealed class SteamWorkshopSyncManifestItem
 {
+    public SteamWorkshopInstallation Installed { get; set; }
     public ulong PublishedFileId { get; set; }
     public string Title { get; set; } = "";
     public long TimeUpdated { get; set; }
@@ -94,4 +104,41 @@ internal sealed class SteamWorkshopSyncManifestItem
     public List<ulong> RequiredByPublishedFileIds { get; set; } = new();
     public string Status { get; set; } = "";
     public string Error { get; set; } = "";
+}
+
+internal sealed class SteamWorkshopInstallation
+{
+    public string Generation { get; set; } = "";
+    public string Directory { get; set; } = "";
+    public ulong ManifestId { get; set; }
+    public ulong HContentFile { get; set; }
+    public long TimeUpdated { get; set; }
+    // These hashes describe the downloaded publisher revision; Directory remains writable by mods.
+    public string ContentSha256 { get; set; } = "";
+    public bool LegacyUnverified { get; set; }
+    public string SelectedGameBranch { get; set; } = "";
+    public string RevisionProvenance { get; set; } = "";
+    public SteamWorkshopBranchSupport BranchSupport { get; set; }
+    public List<SteamWorkshopInstalledFile> Files { get; set; } = new();
+    public List<ulong> RequiredPublishedFileIds { get; set; } = new();
+}
+
+internal sealed class SteamWorkshopBranchSupport
+{
+    public string Provenance { get; set; } = "";
+    public List<string> BranchOrder { get; set; } = new();
+    public List<SteamWorkshopGameVersionRange> Ranges { get; set; } = new();
+}
+
+internal sealed class SteamWorkshopGameVersionRange
+{
+    public string MinimumBranch { get; set; } = "";
+    public string MaximumBranch { get; set; } = "";
+}
+
+internal sealed class SteamWorkshopInstalledFile
+{
+    public string Path { get; set; } = "";
+    public long Length { get; set; }
+    public string Sha256 { get; set; } = "";
 }

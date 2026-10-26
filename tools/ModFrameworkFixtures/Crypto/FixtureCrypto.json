@@ -1,0 +1,11 @@
+{
+  "id": "FixtureCrypto",
+  "name": "Runtime Crypto Contract",
+  "author": "StS2 Launcher fixtures",
+  "description": "Verifies the Android-hosted .NET digest contract.",
+  "version": "1.0.0",
+  "has_dll": true,
+  "has_pck": false,
+  "dependencies": [],
+  "affects_gameplay": false
+}

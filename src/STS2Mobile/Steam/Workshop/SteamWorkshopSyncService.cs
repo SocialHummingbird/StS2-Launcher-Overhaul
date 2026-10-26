@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2.Internal;
+using SteamKit2;
 
 namespace STS2Mobile.Steam.Workshop;
 
@@ -40,7 +41,7 @@ internal sealed class SteamWorkshopSyncService
 
     internal event Action<string> LogMessage;
 
-    internal async Task<SteamWorkshopSyncManifest> SyncAsync(CancellationToken ct = default)
+    internal async Task<SteamWorkshopSyncManifest> SyncAsync(string gameBranch, CancellationToken ct = default)
     {
         Directory.CreateDirectory(_downloadsDirectory);
         Directory.CreateDirectory(_stagedDirectory);
@@ -65,17 +66,48 @@ internal sealed class SteamWorkshopSyncService
             throw;
         }
 
-        var resolved = await ExpandDependenciesAsync(subscriptions, ct).ConfigureAwait(false);
+        ResolvedWorkshopItems resolved;
+        IReadOnlyDictionary<ulong, CPublishedFile_GetItemInfo_Response.WorkshopItemInfo> itemInfo;
+        try
+        {
+            resolved = await ExpandDependenciesAsync(subscriptions, ct).ConfigureAwait(false);
+            itemInfo = await _connection.GetWorkshopItemInfoAsync(resolved.Details).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            stager.SaveFailure(new SteamWorkshopSyncMetadata
+            {
+                SubscriptionQueryType = _connection.LastWorkshopSubscriptionQueryType,
+                SubscriptionQueryAttempts = _connection.LastWorkshopSubscriptionQueryAttempts,
+                SyncStatus = "metadata-failed",
+                SyncError = ex.Message,
+            });
+            throw;
+        }
         Log(
             $"Discovered {subscriptions.Count} subscribed item(s), {resolved.DiscoveredDependencyItemCount} dependency item(s), {resolved.MissingDependencyIds.Count} missing dependency item(s)"
         );
 
-        var previousItems = stager.LoadManifest().Items
-            .Where(item => item.PublishedFileId != 0)
-            .GroupBy(item => item.PublishedFileId)
-            .ToDictionary(group => group.Key, group => group.First());
+        Dictionary<ulong, SteamWorkshopSyncManifestItem> previousItems = null;
+        try
+        {
+            previousItems = stager.LoadManifest().Items.ToDictionary(item => item.PublishedFileId);
+        }
+        catch (SteamWorkshopInventoryException ex)
+        {
+            Log($"Existing Workshop inventory cannot be reused: {ex.Message} Preparing a complete replacement from Steam.");
+        }
 
-        var itemInfo = await _connection.GetWorkshopItemInfoAsync(resolved.Details).ConfigureAwait(false);
+        SteamWorkshopBranchOrder branchOrder = null;
+        try
+        {
+            branchOrder = await _connection.GetWorkshopGameBranchOrderAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Log($"Game branch ordering advisory is unknown: {ex.Message}");
+        }
+
         using var downloader = new SteamWorkshopDownloader(_connection, _downloadsDirectory);
         downloader.LogMessage += Log;
         var downloadedItems = await downloader.DownloadAsync(
@@ -83,19 +115,25 @@ internal sealed class SteamWorkshopSyncService
             itemInfo,
             resolved.SubscribedItemIds,
             resolved.DependencyParents,
+            gameBranch,
             previousItems,
-            ct
+            ct,
+            branchOrder
         ).ConfigureAwait(false);
 
         var manifest = stager.Stage(downloadedItems, new SteamWorkshopSyncMetadata
         {
             SubscriptionQueryType = _connection.LastWorkshopSubscriptionQueryType,
             SubscriptionQueryAttempts = _connection.LastWorkshopSubscriptionQueryAttempts,
+            SyncStatus = resolved.MissingDependencyIds.Count != 0 ? "dependencies-incomplete"
+                : _connection.LastWorkshopSubscriptionQueryType == "community-web" ? "discovery-unverified" : "complete",
             SubscribedItemCount = resolved.SubscribedItemIds.Count,
             DependencyItemCount = resolved.DiscoveredDependencyItemCount,
             TotalItemCount = resolved.Details.Count,
             MissingDependencyItemCount = resolved.MissingDependencyIds.Count,
             MissingDependencyIds = resolved.MissingDependencyIds,
+            GameBranchOrder = branchOrder?.Branches,
+            GameBranchOrderProvenance = SteamWorkshopRevisionResolver.BranchOrderProvenance(branchOrder),
         });
         Log(FormatSummary(manifest));
         return manifest;
@@ -112,10 +150,17 @@ internal sealed class SteamWorkshopSyncService
         var pending = new Queue<ulong>();
         var pendingIds = new HashSet<ulong>();
 
-        foreach (var detail in subscriptions ?? Array.Empty<PublishedFileDetails>())
+        var subscribedDetails = subscriptions ?? Array.Empty<PublishedFileDetails>();
+        var hydrated = await _connection.GetWorkshopDetailsAsync(subscribedDetails.Select(item => item.publishedfileid)).ConfigureAwait(false);
+        var hydratedById = hydrated.ToDictionary(item => item.publishedfileid);
+        foreach (var subscription in subscribedDetails)
         {
-            if (detail.publishedfileid == 0)
+            if (subscription.publishedfileid == 0)
                 continue;
+            if (!hydratedById.TryGetValue(subscription.publishedfileid, out var detail))
+                throw new InvalidOperationException($"Steam did not return complete metadata for subscribed Workshop item {subscription.publishedfileid}");
+            if (detail.result != (uint)EResult.OK || detail.num_children > detail.children.Count)
+                throw new InvalidOperationException($"Steam returned incomplete metadata for subscribed Workshop item {subscription.publishedfileid}");
 
             subscribedIds.Add(detail.publishedfileid);
             details[detail.publishedfileid] = detail;
@@ -131,6 +176,9 @@ internal sealed class SteamWorkshopSyncService
             foreach (var detail in dependencyDetails)
             {
                 if (detail.publishedfileid == 0 || details.ContainsKey(detail.publishedfileid))
+                    continue;
+                if (detail.result != (uint)EResult.OK || detail.num_children > detail.children.Count
+                    || (detail.consumer_appid != 0 && detail.consumer_appid != SteamGameApp.AppId))
                     continue;
 
                 details[detail.publishedfileid] = detail;
@@ -203,13 +251,12 @@ internal sealed class SteamWorkshopSyncService
     private static string FormatSummary(SteamWorkshopSyncManifest manifest)
     {
         var staged = manifest.Items.Count(item => item.Status == "staged");
-        var noPck = manifest.Items.Count(item => item.Status == "staged-no-pck");
         var unsupported = manifest.Items.Count(item => item.Status == "unsupported");
         var failed = manifest.Items.Count(item =>
             !string.IsNullOrWhiteSpace(item.Status)
             && item.Status.EndsWith("failed", StringComparison.OrdinalIgnoreCase)
         );
-        return $"Workshop sync complete: staged={staged}, stagedNoPck={noPck}, unsupported={unsupported}, failed={failed}";
+        return $"Workshop preparation finished: discovery={manifest.SyncStatus}, staged={staged}, unsupported={unsupported}, failed={failed}";
     }
 
     private void Log(string message)

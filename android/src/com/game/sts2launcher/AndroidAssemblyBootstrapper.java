@@ -35,7 +35,7 @@ final class AndroidAssemblyBootstrapper {
 	private static final String KEY_ASSEMBLY_CACHE_SCHEMA = "assembly_cache_schema";
 	private static final String KEY_ASSEMBLY_CACHE_BRANCH = "assembly_cache_branch";
 	private static final String KEY_ASSEMBLY_CACHE_RUNTIME_ID = "assembly_cache_runtime_id";
-	private static final int ASSEMBLY_CACHE_SCHEMA = 26;
+	private static final int ASSEMBLY_CACHE_SCHEMA = 27;
 	private static final String PCK_FILE = "SlayTheSpire2.pck";
 	private static final String RUNTIME_PACK_ANDROID_ASSEMBLY = "sts2.dll";
 	private static final String CACHE_STAGING_SUFFIX = ".staging";
@@ -45,6 +45,12 @@ final class AndroidAssemblyBootstrapper {
 		"STS2Mobile.dll",
 		"SteamKit2.dll",
 		"0Harmony.dll",
+		"MonoMod.Core.dll",
+		"MonoMod.Utils.dll",
+		"MonoMod.Backports.dll",
+		"MonoMod.ILHelpers.dll",
+		"MonoMod.Iced.dll",
+		"Mono.Cecil.dll",
 		"protobuf-net.dll",
 		"protobuf-net.Core.dll",
 		"System.IO.Hashing.dll",

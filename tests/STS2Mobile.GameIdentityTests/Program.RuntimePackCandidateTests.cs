@@ -34,6 +34,8 @@ internal static partial class Program
             "Candidate generation must not create or promote the final runtime-pack directory."
         );
         Equal(identity, candidate.GameIdentity, "The candidate must carry the exact authoritative identity object.");
+        Equal(identity.SourceAssemblySha256, HashFileForCandidateTest(candidate.AndroidAssemblyPath),
+            "Runtime generation must preserve the source game DLL byte for byte.");
         Equal(
             HashFileForCandidateTest(candidate.AndroidAssemblyPath),
             candidate.Manifest.AndroidAssemblySha256,

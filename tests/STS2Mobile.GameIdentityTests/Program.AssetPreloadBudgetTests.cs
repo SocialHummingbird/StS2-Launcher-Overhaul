@@ -29,8 +29,14 @@ internal static partial class Program
     private static void WriteAndroidMonoFixture(string directory)
     {
         Directory.CreateDirectory(directory);
-        File.Copy(typeof(Program).Assembly.Location,
-            Path.Combine(directory, "STS2Mobile.GameIdentityTests.dll"), overwrite: true);
+        using (var module = ModuleDefinition.ReadModule(typeof(Program).Assembly.Location))
+        {
+            AndroidModRuntimeContract.WriteFixtureBodies(module);
+            module.Write(Path.Combine(directory, "STS2Mobile.GameIdentityTests.dll"));
+        }
+        AndroidModRuntimeContract.WriteOwnerFixture(directory);
+        MethodPreparationTimingContract.WriteModuleFixture(directory);
+        CrossAssemblyAccessContract.WriteFixtures(directory);
         File.WriteAllText(Path.Combine(directory, "native-transition.cpp"), """
             #include <dlfcn.h>
             #include <cstdio>
@@ -62,6 +68,19 @@ internal static partial class Program
                 int (*collect)() = nullptr;
                 const char *assembly = "STS2Mobile.GameIdentityTests";
                 const char *type = "STS2Mobile.GameIdentityTests.Program";
+                if (argc > 3 && std::string(argv[3]) == "mods") {
+                    std::puts("ANDROID_MOD_RUNTIME_DELEGATE_BEGIN");
+                    std::fflush(stdout);
+                    if (create(handle, domain, assembly, "STS2Mobile.GameIdentityTests.AndroidModRuntimeContract", "AndroidModRuntimeProbe", (void **)&probe) || !probe) return 9;
+                    void *marker = nullptr;
+                    native(&marker);
+                    std::puts("ANDROID_MOD_RUNTIME_DELEGATE_READY");
+                    std::fflush(stdout);
+                    int passed = 0;
+                    std::thread worker([&] { passed = probe(); });
+                    worker.join();
+                    return passed == 1 ? 0 : 10;
+                }
                 if (create(handle, domain, assembly, type, "AndroidMonoNativeProbe", (void **)&probe) || !probe) return 5;
                 void *stack_marker = nullptr;
                 if (argc > 2) native(&stack_marker);
@@ -112,15 +131,10 @@ internal static partial class Program
         True(!nextFrame.TryBeginItem(), "The time bound must be relative to each frame.");
     }
 
-    // The production change caught here is excluding public members after the
-    // Android publicizer has rewritten the actual game assembly.
-    private static void AssetPreloadPatchTargetsSurvivePublicizer()
+    private static void AssetPreloadPatchTargetsPreserveVisibility()
     {
-        foreach (var publicize in new[] { false, true })
-        {
-            using var fixture = new PreloadAssemblyFixture(publicize);
-            fixture.CheckTargets();
-        }
+        using var fixture = new PreloadAssemblyFixture();
+        fixture.CheckTargets();
     }
 
     private static void AssetPreloadPatchTargetsRejectChangedShape()
@@ -133,10 +147,9 @@ internal static partial class Program
             ("ProcessLoadingQueue", (type, module) => type.Methods.Single(method => method.Name == "ProcessLoadingQueue").Parameters.Add(new ParameterDefinition(module.TypeSystem.Int32))),
             ("FinalizeLoading", (type, module) => type.Methods.Single(method => method.Name == "FinalizeLoading").ReturnType = module.TypeSystem.Int32),
         };
-        foreach (var publicize in new[] { false, true })
         foreach (var change in changes)
         {
-            using var fixture = new PreloadAssemblyFixture(publicize, change.Mutate);
+            using var fixture = new PreloadAssemblyFixture(change.Mutate);
             try
             {
                 fixture.CheckTargets();
@@ -161,9 +174,8 @@ internal static partial class Program
         private readonly string _sourceHash;
         private readonly string _assemblyPath;
         private readonly string[] _probeDirectories;
-        private readonly bool _publicized;
 
-        internal PreloadAssemblyFixture(bool publicize, Action<TypeDefinition, ModuleDefinition>? mutate = null)
+        internal PreloadAssemblyFixture(Action<TypeDefinition, ModuleDefinition>? mutate = null)
         {
             var referenceDirectory = FindPreloadReferenceDirectory();
             var steamDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
@@ -173,17 +185,10 @@ internal static partial class Program
             _source = Path.Combine(referenceDirectory, "sts2.dll");
             _sourceHash = GameIdentityFileHasher.Instance.Sha256(_source);
             _assemblyPath = Path.Combine(_directory, "sts2.dll");
-            _publicized = publicize;
             Directory.CreateDirectory(_directory);
             try
             {
                 File.Copy(_source, _assemblyPath);
-                if (publicize)
-                {
-                    var result = AndroidAssemblyPublicizer.Publicize(_assemblyPath, _probeDirectories);
-                    True(result.Changed && result.FieldCount > 0 && result.MethodCount > 0,
-                        "The fixture must run the actual Android publicizer.");
-                }
                 if (mutate != null)
                 {
                     using var resolver = new DefaultAssemblyResolver();
@@ -228,7 +233,7 @@ internal static partial class Program
                     Invoke(patch, "RequireField", session, field.Name, field.Expected);
                     var actual = session.GetField(field.Name,
                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)!;
-                    Equal(_publicized, actual.IsPublic, "Exercise both original and Android member visibility.");
+                    True(actual.IsPrivate, "Preload fields must keep their original private visibility.");
                 }
                 foreach (var name in new[] { "ProcessLoadingQueue", "FinalizeLoading", "CheckLoadingStatus" })
                 {
@@ -236,7 +241,7 @@ internal static partial class Program
                     Equal(name, method.Name, "Resolve the requested production target.");
                     Equal(typeof(void), method.ReturnType, "Keep the required return type.");
                     Equal(0, method.GetParameters().Length, "Keep the required parameterless signature.");
-                    Equal(_publicized, method.IsPublic, "Exercise Android method visibility as well as desktop.");
+                    True(method.IsPrivate, "Preload methods must keep their original private visibility.");
                 }
             }
             finally { context.Unload(); }
@@ -259,7 +264,7 @@ internal static partial class Program
         {
             Directory.Delete(_directory, recursive: true);
             Equal(_sourceHash, GameIdentityFileHasher.Instance.Sha256(_source),
-                "Publicizer and malformed-shape fixtures must leave the original game assembly unchanged.");
+                "Preload shape fixtures must leave the original game assembly unchanged.");
         }
 
         private static string FindPreloadReferenceDirectory()

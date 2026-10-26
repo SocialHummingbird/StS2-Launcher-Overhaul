@@ -24,6 +24,8 @@ internal static partial class LauncherLaunchMarkers
         ReadinessProblemPrefix,
         RuntimeSlotInspectedPrefix,
         GameIdentityIdPrefix,
+        RuntimePackIdPrefix,
+        ModConfigurationIdPrefix,
         RuntimePairingStatusPrefix,
         PatchCompatibilityStatusPrefix,
         GameDirectoryPrefix,
@@ -104,7 +106,9 @@ internal static partial class LauncherLaunchMarkers
             ReadAttemptValue(values, ModInstalledCountPrefix),
             ReadAttemptValue(values, ModEnabledCountPrefix),
             ReadAttemptValue(values, ModUnsupportedCountPrefix),
-            ReadAttemptValue(values, SelectedModsPrefix)
+            ReadAttemptValue(values, SelectedModsPrefix),
+            ReadAttemptValue(values, RuntimePackIdPrefix),
+            ReadAttemptValue(values, ModConfigurationIdPrefix)
         );
     }
 

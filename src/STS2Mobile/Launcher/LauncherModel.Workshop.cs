@@ -42,9 +42,8 @@ internal partial class LauncherModel
             WorkshopModConsent.Clear();
             var stager = new SteamWorkshopStager();
             var removed = stager.ClearStagedMods();
-            LauncherModSelectionState.ClearKnownModsCache("workshop staged mods cleared");
             RaiseWorkshopSyncLogReceived(
-                $"Workshop mods cleared: removed {removed} staged mod entries."
+                $"Workshop mods cleared: retired {removed} installations; file cleanup will run after restart."
             );
             RaiseWorkshopClearCompleted(removed);
         }
@@ -62,8 +61,7 @@ internal partial class LauncherModel
     {
         var service = new SteamWorkshopSyncService(connection);
         service.LogMessage += RaiseWorkshopSyncLogReceived;
-        var manifest = await service.SyncAsync().ConfigureAwait(false);
-        LauncherModSelectionState.ClearKnownModsCache("workshop sync completed");
+        var manifest = await service.SyncAsync(LauncherPreferences.ReadGameBranch()).ConfigureAwait(false);
         var summary = WorkshopSyncSummary(manifest);
         RaiseWorkshopSyncLogReceived(summary);
         RaiseWorkshopSyncCompleted(summary);
@@ -72,19 +70,19 @@ internal partial class LauncherModel
     private static string WorkshopSyncSummary(SteamWorkshopSyncManifest manifest)
     {
         var staged = manifest.Items.Count(item => item.Status == "staged");
-        var noPck = manifest.Items.Count(item => item.Status == "staged-no-pck");
         var unsupported = manifest.Items.Count(item => item.Status == "unsupported");
         var failed = manifest.Items.Count(item =>
             !string.IsNullOrWhiteSpace(item.Status)
             && item.Status.EndsWith("failed", System.StringComparison.OrdinalIgnoreCase)
         );
         var missingDependencies = manifest.MissingDependencyIds?.Count ?? manifest.MissingDependencyItemCount;
-        var hasIssues = noPck > 0 || unsupported > 0 || failed > 0 || missingDependencies > 0;
+        var hasIssues = unsupported > 0 || failed > 0 || missingDependencies > 0
+            || !string.Equals(manifest.SyncStatus, "complete", System.StringComparison.Ordinal);
         var prefix = hasIssues ? "Workshop mods need attention" : "Workshop mods updated";
         var detail = WorkshopIssueSummary(manifest);
         return string.IsNullOrWhiteSpace(detail)
-            ? $"{prefix}: staged={staged}, noPck={noPck}, unsupported={unsupported}, failed={failed}, missingDeps={missingDependencies}"
-            : $"{prefix}: staged={staged}, noPck={noPck}, unsupported={unsupported}, failed={failed}, missingDeps={missingDependencies}; {detail}";
+            ? $"{prefix}: discovery={manifest.SyncStatus}, staged={staged}, unsupported={unsupported}, failed={failed}, missingDeps={missingDependencies}"
+            : $"{prefix}: discovery={manifest.SyncStatus}, staged={staged}, unsupported={unsupported}, failed={failed}, missingDeps={missingDependencies}; {detail}";
     }
 
     private static string WorkshopIssueSummary(SteamWorkshopSyncManifest manifest)

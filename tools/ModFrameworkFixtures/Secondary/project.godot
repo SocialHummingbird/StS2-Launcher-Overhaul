@@ -1,0 +1,13 @@
+config_version=5
+
+[application]
+
+config/name="Native Mod Framework Secondary Fixture"
+
+[dotnet]
+
+project/assembly_name="FixtureSecondary"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"

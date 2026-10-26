@@ -19,6 +19,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="../../android/assets/dotnet_bcl/harmony-runtime-build.json" LogicalName="STS2Mobile.HarmonyRuntimeBuild" />
+    <EmbeddedResource Include="../../android/assets/dotnet_bcl/mono-runtime-build.json" LogicalName="STS2Mobile.MonoRuntimeBuild" />
     <PackageReference Include="Mono.Cecil" Version="0.11.6" />
     <PackageReference Include="SteamKit2" Version="3.4.0" />
   </ItemGroup>

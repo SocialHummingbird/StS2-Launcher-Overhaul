@@ -20,7 +20,11 @@ internal sealed class SteamWorkshopItem
         ulong hContentFile = 0,
         bool isDependency = false,
         IReadOnlyCollection<ulong> requiredByPublishedFileIds = null,
-        bool reusedCachedDownload = false
+        bool reusedCachedDownload = false,
+        IReadOnlyCollection<ulong> requiredPublishedFileIds = null,
+        string selectedGameBranch = "",
+        string revisionProvenance = "",
+        SteamWorkshopBranchSupport branchSupport = null
     )
     {
         PublishedFileId = publishedFileId;
@@ -36,6 +40,12 @@ internal sealed class SteamWorkshopItem
         HContentFile = hContentFile;
         IsDependency = isDependency;
         ReusedCachedDownload = reusedCachedDownload;
+        SelectedGameBranch = selectedGameBranch ?? "";
+        RevisionProvenance = revisionProvenance ?? "";
+        BranchSupport = branchSupport;
+        RequiredPublishedFileIds = requiredPublishedFileIds?
+            .Where(id => id != 0 && id != publishedFileId)
+            .Distinct().OrderBy(id => id).ToArray() ?? Array.Empty<ulong>();
         RequiredByPublishedFileIds = requiredByPublishedFileIds?
             .Where(id => id != 0)
             .Distinct()
@@ -57,6 +67,10 @@ internal sealed class SteamWorkshopItem
     internal bool IsDependency { get; }
     internal bool ReusedCachedDownload { get; }
     internal IReadOnlyCollection<ulong> RequiredByPublishedFileIds { get; }
+    internal IReadOnlyCollection<ulong> RequiredPublishedFileIds { get; }
+    internal string SelectedGameBranch { get; }
+    internal string RevisionProvenance { get; }
+    internal SteamWorkshopBranchSupport BranchSupport { get; }
 
     internal string DirectoryName => PublishedFileId.ToString();
 }

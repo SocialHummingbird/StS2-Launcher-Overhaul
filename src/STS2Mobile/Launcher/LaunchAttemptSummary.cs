@@ -47,7 +47,9 @@ internal readonly struct LaunchAttemptSummary
         string modInstalledCount,
         string modEnabledCount,
         string modUnsupportedCount,
-        string selectedMods
+        string selectedMods,
+        string runtimePackId = null,
+        string modConfigurationId = null
     )
     {
         Present = true;
@@ -69,6 +71,8 @@ internal readonly struct LaunchAttemptSummary
         ReadinessProblem = Clean(readinessProblem);
         RuntimeSlotInspected = Clean(runtimeSlotInspected);
         GameIdentityId = Clean(gameIdentityId);
+        RuntimePackId = Clean(runtimePackId);
+        ModConfigurationId = Clean(modConfigurationId);
         RuntimePairingStatus = Clean(runtimePairingStatus);
         PatchCompatibilityStatus = Clean(patchCompatibilityStatus);
         GameDirectory = Clean(gameDirectory);
@@ -115,6 +119,8 @@ internal readonly struct LaunchAttemptSummary
     internal string ReadinessProblem { get; }
     internal string RuntimeSlotInspected { get; }
     internal string GameIdentityId { get; }
+    internal string RuntimePackId { get; }
+    internal string ModConfigurationId { get; }
     internal string RuntimePairingStatus { get; }
     internal string PatchCompatibilityStatus { get; }
     internal string GameDirectory { get; }
@@ -176,7 +182,7 @@ internal readonly struct LaunchAttemptSummary
         if (!Present)
             return string.Empty;
 
-        return $"Runtime evidence: game identity {Value(GameIdentityId)}, pairing {Value(RuntimePairingStatus)}, patch {Value(PatchCompatibilityStatus)}, runtime pack usable: {Value(RuntimePackUsable)}.";
+        return $"Runtime evidence: game identity {Value(GameIdentityId)}, runtime pack {Value(RuntimePackId)}, mod configuration {Value(ModConfigurationId)}, pairing {Value(RuntimePairingStatus)}, patch {Value(PatchCompatibilityStatus)}, runtime pack usable: {Value(RuntimePackUsable)}.";
     }
 
     internal string PathLine()

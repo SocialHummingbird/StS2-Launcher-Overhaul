@@ -33,7 +33,7 @@ internal sealed class LauncherModLaunchReadiness
             : modSetFingerprint.Trim().ToLowerInvariant();
         Phase = string.IsNullOrWhiteSpace(phase) ? string.Empty : phase;
         CacheStatus = string.IsNullOrWhiteSpace(cacheStatus)
-            ? LauncherModLaunchReadinessCacheStatus.Fresh
+            ? "fresh"
             : cacheStatus;
         Plan = plan ?? LauncherModLaunchPlan.VanillaPlan();
     }
@@ -65,49 +65,22 @@ internal sealed class LauncherModLaunchReadiness
     internal static LauncherModLaunchReadiness Evaluate(string phase, LauncherModSelectionDocument document)
     {
         if (!LauncherModSelectionState.IsModdedModeFor(document))
-        {
-            LauncherModLaunchResultStore.WriteVanilla(document);
             return Vanilla(phase);
-        }
 
-        var identity = LauncherModSourceIdentity.Create();
-        if (LauncherModLaunchReadinessCache.TryGet(identity, phase, out var cached))
-        {
-            LauncherModLaunchResultStore.WritePlannedNotStarted(document, cached.Plan);
-            return cached;
-        }
-
-        var snapshot = LauncherModSelectionState.KnownModsSnapshot(document, identity);
-        var resolution = LauncherModLaunchPlan.Resolve(document, snapshot.Mods);
+        var knownMods = LauncherModSelectionState.KnownMods(document);
+        var resolution = LauncherModLaunchPlan.Resolve(document, knownMods);
         if (!resolution.Success)
         {
-            LauncherModLaunchResultStore.WritePlanFailure(document, resolution.Error);
             throw new InvalidDataException(
                 $"Mod discovery {resolution.Error.Code}: {resolution.Error.Message}"
             );
         }
 
-        LauncherModLaunchResultStore.WritePlannedNotStarted(document, resolution.Plan);
-        var readiness = EvaluateFresh(phase, snapshot.Mods, resolution.Plan);
-        LauncherModLaunchReadinessCache.Store(snapshot.Identity, readiness);
-        return readiness;
+        return EvaluateFresh(phase, knownMods, resolution.Plan);
     }
 
     internal static LauncherModLaunchReadiness Vanilla(string phase)
         => EvaluateVanilla(phase);
-
-    internal LauncherModLaunchReadiness WithCacheStatus(string phase, string cacheStatus)
-        => new(
-            PlayMode,
-            InstalledMods,
-            EnabledMods,
-            UnsupportedMods,
-            SelectedMods,
-            ModSetFingerprint,
-            phase,
-            cacheStatus,
-            Plan
-        );
 
     private static LauncherModLaunchReadiness EvaluateFresh(
         string phase,
@@ -121,23 +94,23 @@ internal sealed class LauncherModLaunchReadiness
         );
 
         knownMods ??= Array.Empty<LauncherKnownMod>();
-        var selectedMods = plan.EnabledMods
-            .Select(mod => string.IsNullOrWhiteSpace(mod.Name) ? mod.ManifestId : mod.Name)
+        var selectedMods = plan.Sources
+            .Select(mod => string.IsNullOrWhiteSpace(mod.DisplayTitle) ? mod.SelectionKey : mod.DisplayTitle)
             .Take(16)
             .ToArray();
         var selectedModSummary = string.Join(", ", selectedMods);
-        if (plan.EnabledMods.Length > selectedMods.Length)
-            selectedModSummary = $"{selectedModSummary}, +{plan.EnabledMods.Length - selectedMods.Length} more";
+        if (plan.Sources.Length > selectedMods.Length)
+            selectedModSummary = $"{selectedModSummary}, +{plan.Sources.Length - selectedMods.Length} more";
 
         return new LauncherModLaunchReadiness(
             LauncherModSelectionState.ModdedModeName,
             knownMods.Count(mod => !mod.IsUnsupported),
-            plan.EnabledMods.Length,
+            plan.Sources.Length,
             knownMods.Count(mod => mod.IsUnsupported),
             selectedModSummary,
             plan.Fingerprint,
             phase,
-            LauncherModLaunchReadinessCacheStatus.Fresh,
+            "fresh",
             plan
         );
     }
@@ -156,7 +129,7 @@ internal sealed class LauncherModLaunchReadiness
             selectedMods: "<none>",
             modSetFingerprint: string.Empty,
             phase,
-            LauncherModLaunchReadinessCacheStatus.NotNeededVanilla,
+            "not-needed-vanilla",
             LauncherModLaunchPlan.VanillaPlan()
         );
     }

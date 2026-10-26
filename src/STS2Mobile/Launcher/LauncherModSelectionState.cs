@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -21,12 +22,13 @@ internal sealed class LauncherModSelectionDocument
     public string PlayMode { get; set; } = LauncherModSelectionState.VanillaModeName;
     public Dictionary<string, bool> EnabledMods { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public string UpdatedAtUtc { get; set; } = "";
+    // Only normal loads carry write provenance; background observations migrate in memory.
+    internal string StoragePath { get; set; }
 }
 
 internal sealed class LauncherKnownMod
 {
     internal string Key { get; init; } = "";
-    internal string PortableIdentity { get; init; } = "";
     internal string Id { get; init; } = "";
     internal string Title { get; init; } = "";
     internal string Source { get; init; } = "";
@@ -34,40 +36,23 @@ internal sealed class LauncherKnownMod
     internal string ManifestPath { get; init; } = "";
     internal string ManifestIdentity { get; init; } = "";
     internal string DiscoveryError { get; init; } = "";
-    internal LauncherModDiscoveryErrorCode DiscoveryErrorCode { get; init; }
+    internal LauncherModDiscoveryError SelectionError { get; init; }
     internal bool HasPck { get; init; }
     internal bool IsDependency { get; init; }
     internal bool IsRequiredDependency { get; init; }
     internal bool IsUnsupported { get; init; }
-    internal bool IsDeprecated { get; init; }
+    internal ulong? WorkshopId { get; init; }
+    internal SteamWorkshopInstallation Installed { get; init; }
+    internal ImmutableArray<ulong> RequiredWorkshopIds { get; init; } = ImmutableArray<ulong>.Empty;
     internal bool Enabled { get; init; }
-}
-
-internal sealed class LauncherKnownModsSnapshot
-{
-    internal LauncherKnownModsSnapshot(
-        LauncherModSourceIdentity identity,
-        IReadOnlyList<LauncherKnownMod> mods
-    )
-    {
-        Identity = identity;
-        Mods = mods ?? Array.Empty<LauncherKnownMod>();
-    }
-
-    internal LauncherModSourceIdentity Identity { get; }
-    internal IReadOnlyList<LauncherKnownMod> Mods { get; }
 }
 
 internal static class LauncherModSelectionState
 {
-    internal const int CurrentVersion = 1;
+    internal const int CurrentVersion = 2;
     internal const string VanillaModeName = "vanilla";
     internal const string ModdedModeName = "modded";
-    private const int MaxManualMods = 32;
-    private const int MaxManualManifestCandidates = MaxManualMods * 4;
-    private static readonly object KnownModsGate = new();
-    private static LauncherKnownModsSnapshot _knownModsCache;
-
+    private const string LegacyManualPrefix = "legacy-manual:";
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -97,9 +82,6 @@ internal static class LauncherModSelectionState
     internal static int EnabledModCount(IReadOnlyList<LauncherKnownMod> knownMods)
         => knownMods?.Count(mod => mod.Enabled && !mod.IsUnsupported) ?? 0;
 
-    internal static string EnabledModSetFingerprint()
-        => EnabledModSetFingerprint(Load());
-
     internal static string SelectionFingerprint(LauncherModSelectionDocument document)
     {
         document ??= DefaultDocument();
@@ -125,73 +107,28 @@ internal static class LauncherModSelectionState
         ).ToLowerInvariant();
     }
 
-    internal static string EnabledModSetFingerprint(
-        LauncherModSelectionDocument document
-    )
-    {
-        if (!IsModdedModeFor(document))
-            return null;
-
-        return EnabledModSetFingerprint(KnownMods(document));
-    }
-
-    internal static string EnabledModSetFingerprint(
-        IReadOnlyList<LauncherKnownMod> knownMods
-    )
-    {
-        var identities = (knownMods ?? Array.Empty<LauncherKnownMod>())
-            .Where(mod => mod.Enabled && !mod.IsUnsupported)
-            .Select(mod => mod.PortableIdentity)
-            .Where(identity => !string.IsNullOrWhiteSpace(identity))
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(identity => identity, StringComparer.Ordinal);
-        var canonical = string.Join("\n", identities);
-        return Convert.ToHexString(
-            AndroidJavaCrypto.Sha256HashData(Encoding.UTF8.GetBytes(canonical))
-        ).ToLowerInvariant();
-    }
-
     internal static int InstalledModCount()
         => KnownMods().Count(mod => !mod.IsUnsupported);
 
     internal static IReadOnlyList<LauncherKnownMod> KnownMods()
-        => KnownModsSnapshot().Mods;
+        => KnownMods(Load());
 
     internal static IReadOnlyList<LauncherKnownMod> KnownMods(LauncherModSelectionDocument document)
-        => KnownModsSnapshot(document).Mods;
+        => KnownMods(document, AppPaths.ExternalModsDir);
 
-    internal static LauncherKnownModsSnapshot KnownModsSnapshot()
-        => KnownModsSnapshot(Load());
-
-    internal static LauncherKnownModsSnapshot KnownModsSnapshot(LauncherModSelectionDocument document)
-        => KnownModsSnapshot(document, LauncherModSourceIdentity.Create());
-
-    internal static LauncherKnownModsSnapshot KnownModsSnapshot(
-        LauncherModSelectionDocument document,
-        LauncherModSourceIdentity identity
-    )
+    internal static IReadOnlyList<LauncherKnownMod> KnownMods(LauncherModSelectionDocument document, string manualModsRoot)
     {
-        identity ??= LauncherModSourceIdentity.Create();
-        lock (KnownModsGate)
+        SteamWorkshopSyncManifest manifest;
+        try
         {
-            if (_knownModsCache != null && _knownModsCache.Identity.Matches(identity))
-                return _knownModsCache;
+            manifest = new SteamWorkshopStager().LoadManifest();
         }
-
-        document ??= DefaultDocument();
-        document.EnabledMods ??= new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-        var mods = new List<LauncherKnownMod>();
-        mods.AddRange(WorkshopMods(document));
-        mods.AddRange(ManualMods(document));
-        var knownMods = NormalizeKnownMods(mods);
-
-        lock (KnownModsGate)
+        catch (Exception ex)
         {
-            if (_knownModsCache == null || !_knownModsCache.Identity.Matches(identity))
-                _knownModsCache = new LauncherKnownModsSnapshot(identity, knownMods);
-
-            return _knownModsCache;
+            PatchHelper.Log($"[Mods] Failed to read Workshop sources for selector: {ex.Message}");
+            manifest = null;
         }
+        return DiscoverKnownMods(document, manifest, manualModsRoot);
     }
 
     internal static IReadOnlyList<LauncherKnownMod> DiscoverKnownMods(
@@ -205,9 +142,11 @@ internal static class LauncherModSelectionState
             document.EnabledMods ?? new Dictionary<string, bool>(),
             StringComparer.OrdinalIgnoreCase
         );
+        var manualSources = ReadManualMods(manualModsRoot);
+        MigrateManualSelections(document, manualSources, persist: true);
         var mods = new List<LauncherKnownMod>();
         mods.AddRange(WorkshopMods(document, workshopManifest));
-        mods.AddRange(ManualMods(document, manualModsRoot));
+        mods.AddRange(ManualMods(document, manualSources));
         return NormalizeKnownMods(mods);
     }
 
@@ -227,54 +166,6 @@ internal static class LauncherModSelectionState
         => string.Equals(document?.PlayMode, ModdedModeName, StringComparison.OrdinalIgnoreCase)
             ? LauncherModPlayMode.Modded
             : LauncherModPlayMode.Vanilla;
-
-    internal static void ClearKnownModsCache(string reason)
-    {
-        lock (KnownModsGate)
-        {
-            _knownModsCache = null;
-        }
-
-        LauncherModLaunchReadinessCache.Clear(reason);
-    }
-
-    internal static bool IsModEnabled(string key)
-    {
-        if (string.IsNullOrWhiteSpace(key))
-            return false;
-
-        var document = Load();
-        return document.EnabledMods.TryGetValue(key, out var enabled) && enabled;
-    }
-
-    internal static bool IsPathEnabled(string path)
-        => IsPathEnabled(path, Load());
-
-    internal static bool IsPathEnabled(string path, LauncherModSelectionDocument document)
-        => IsModdedModeFor(document) && IsPathEnabled(path, KnownMods(document));
-
-    internal static bool IsPathEnabled(string path, IReadOnlyList<LauncherKnownMod> knownMods)
-    {
-        var normalized = NormalizePath(path);
-        if (string.IsNullOrWhiteSpace(normalized))
-            return false;
-
-        foreach (var mod in knownMods ?? Array.Empty<LauncherKnownMod>())
-        {
-            var modPath = NormalizePath(mod.Path);
-            if (string.IsNullOrWhiteSpace(modPath))
-                continue;
-
-            if (normalized.Equals(modPath, StringComparison.OrdinalIgnoreCase)
-                || normalized.StartsWith(modPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                || normalized.StartsWith(modPath + '/', StringComparison.OrdinalIgnoreCase))
-            {
-                return mod.Enabled && !mod.IsUnsupported;
-            }
-        }
-
-        return false;
-    }
 
     internal static void SetPlayMode(LauncherModPlayMode mode)
     {
@@ -298,7 +189,7 @@ internal static class LauncherModSelectionState
     internal static LauncherModSelectionDocument Load()
         => Load(AppPaths.AppPrivateModSelectionPath);
 
-    internal static LauncherModSelectionDocument Load(string selectionPath)
+    internal static LauncherModSelectionDocument Load(string selectionPath, bool persistMigration = true)
     {
         try
         {
@@ -308,7 +199,7 @@ internal static class LauncherModSelectionState
             var document = JsonSerializer.Deserialize<LauncherModSelectionDocument>(
                 File.ReadAllText(selectionPath)
             );
-            if (document == null || document.Version != CurrentVersion)
+            if (document == null || document.Version is not (1 or CurrentVersion))
                 return DefaultDocument();
 
             if (!string.Equals(document.PlayMode, VanillaModeName, StringComparison.OrdinalIgnoreCase)
@@ -328,6 +219,9 @@ internal static class LauncherModSelectionState
                 document.EnabledMods ?? new Dictionary<string, bool>(),
                 StringComparer.OrdinalIgnoreCase
             );
+            document.StoragePath = persistMigration ? Path.GetFullPath(selectionPath) : null;
+            if (NeedsManualMigration(document))
+                MigrateManualSelections(document, ReadManualMods(AppPaths.ExternalModsDir), persist: persistMigration);
             return document;
         }
         catch (Exception ex)
@@ -350,7 +244,6 @@ internal static class LauncherModSelectionState
         try
         {
             Save(AppPaths.AppPrivateModSelectionPath, document);
-            ClearKnownModsCache("mod selection changed");
         }
         catch (Exception ex)
         {
@@ -363,6 +256,8 @@ internal static class LauncherModSelectionState
         ArgumentException.ThrowIfNullOrWhiteSpace(selectionPath);
         ArgumentNullException.ThrowIfNull(document);
 
+        if (NeedsManualMigration(document))
+            MigrateManualSelections(document, ReadManualMods(AppPaths.ExternalModsDir), persist: false);
         document.Version = CurrentVersion;
         document.PlayMode = IsModdedModeFor(document)
             ? ModdedModeName
@@ -379,23 +274,7 @@ internal static class LauncherModSelectionState
         var tempPath = selectionPath + ".tmp";
         File.WriteAllText(tempPath, JsonSerializer.Serialize(document, JsonOptions));
         File.Move(tempPath, selectionPath, overwrite: true);
-    }
-
-    private static IEnumerable<LauncherKnownMod> WorkshopMods(LauncherModSelectionDocument document)
-    {
-        SteamWorkshopSyncManifest manifest;
-        try
-        {
-            manifest = new SteamWorkshopStager().LoadManifest();
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Mods] Failed to read Workshop mods for selector: {ex.Message}");
-            yield break;
-        }
-
-        foreach (var mod in WorkshopMods(document, manifest))
-            yield return mod;
+        document.StoragePath = Path.GetFullPath(selectionPath);
     }
 
     private static IEnumerable<LauncherKnownMod> WorkshopMods(
@@ -406,178 +285,227 @@ internal static class LauncherModSelectionState
         if (manifest?.Items == null)
             yield break;
 
-        var enabledWorkshopIds = ResolveEnabledWorkshopIds(manifest, document);
-        foreach (var item in manifest.Items)
+        var items = manifest.Items.Where(item => item != null && item.PublishedFileId != 0)
+            .GroupBy(item => item.PublishedFileId).Select(group => group.First()).ToArray();
+        var requiredByParent = items.ToDictionary(item => item.PublishedFileId, item =>
         {
-            var key = WorkshopKey(item.PublishedFileId);
-            var status = item.Status ?? "";
-            var deprecated = IsDeprecatedSavePathMod(item.PublishedFileId.ToString(), item.Title);
-            var unsupported = deprecated
-                || string.Equals(status, "unsupported", StringComparison.OrdinalIgnoreCase);
-            var requiredDependency = item.IsDependency
-                && item.RequiredByPublishedFileIds.Any(parent => enabledWorkshopIds.Contains(parent));
-            yield return new LauncherKnownMod
-            {
-                Key = key,
-                PortableIdentity = key,
-                Id = item.PublishedFileId.ToString(),
-                Title = string.IsNullOrWhiteSpace(item.Title) ? item.PublishedFileId.ToString() : item.Title.Trim(),
-                Source = item.IsDependency ? "Workshop dependency" : "Workshop",
-                Path = item.StagedDirectory ?? "",
-                HasPck = item.HasPck,
-                IsDependency = item.IsDependency,
-                IsRequiredDependency = requiredDependency,
-                IsUnsupported = unsupported,
-                IsDeprecated = deprecated,
-                Enabled = !unsupported && enabledWorkshopIds.Contains(item.PublishedFileId),
-            };
-        }
-    }
+            var installed = item.Installed;
+            if (installed != null && (!installed.LegacyUnverified || installed.RequiredPublishedFileIds?.Count > 0))
+                return (installed.RequiredPublishedFileIds ?? new List<ulong>())
+                    .Where(id => id != 0).Distinct().OrderBy(id => id).ToImmutableArray();
 
-    private static HashSet<ulong> ResolveEnabledWorkshopIds(
-        SteamWorkshopSyncManifest manifest,
-        LauncherModSelectionDocument document
-    )
-    {
-        var enabled = manifest.Items
-            .Where(item => item.PublishedFileId != 0)
-            .Where(item => !IsUnsupported(item))
-            .Where(item =>
-            {
-                var key = WorkshopKey(item.PublishedFileId);
-                return item.IsDependency
-                    ? IsExplicitlyEnabled(document, key)
-                    : IsEnabled(document, key);
-            })
-            .Select(item => item.PublishedFileId)
-            .ToHashSet();
-
-        var changed = true;
-        while (changed)
+            // Only legacy inventory lacks a committed forward dependency list.
+            return manifest.Version == 1 || installed?.LegacyUnverified == true
+                ? items.Where(dependency => dependency.RequiredByPublishedFileIds?.Contains(item.PublishedFileId) == true)
+                    .Select(dependency => dependency.PublishedFileId).OrderBy(id => id).ToImmutableArray()
+                : ImmutableArray<ulong>.Empty;
+        });
+        var enabled = items.Where(item => IsEnabled(document, WorkshopKey(item.PublishedFileId)))
+            .Select(item => item.PublishedFileId).ToHashSet();
+        var pending = new Queue<ulong>(enabled);
+        while (pending.TryDequeue(out var id))
         {
-            changed = false;
-            foreach (var dependency in manifest.Items)
+            if (!requiredByParent.TryGetValue(id, out var required))
+                continue;
+            foreach (var dependency in required)
             {
-                if (dependency.PublishedFileId == 0
-                    || !dependency.IsDependency
-                    || IsUnsupported(dependency)
-                    || enabled.Contains(dependency.PublishedFileId))
-                {
-                    continue;
-                }
-
-                if (!dependency.RequiredByPublishedFileIds.Any(parent => enabled.Contains(parent)))
-                    continue;
-
-                enabled.Add(dependency.PublishedFileId);
-                changed = true;
+                if (enabled.Add(dependency))
+                    pending.Enqueue(dependency);
             }
         }
 
-        return enabled;
-    }
-
-    private static bool IsUnsupported(SteamWorkshopSyncManifestItem item)
-        => string.Equals(item.Status, "unsupported", StringComparison.OrdinalIgnoreCase)
-            || IsDeprecatedSavePathMod(item.PublishedFileId.ToString(), item.Title);
-
-    private static IEnumerable<LauncherKnownMod> ManualMods(LauncherModSelectionDocument document)
-        => ManualMods(document, AppPaths.ExternalModsDir);
-
-    private static IEnumerable<LauncherKnownMod> ManualMods(
-        LauncherModSelectionDocument document,
-        string manualModsRoot
-    )
-    {
-        if (string.IsNullOrWhiteSpace(manualModsRoot) || !Directory.Exists(manualModsRoot))
-            yield break;
-
-        IEnumerable<string> manifests;
-        try
+        foreach (var item in items)
         {
-            manifests = Directory.EnumerateFiles(
-                    manualModsRoot,
-                    "*.json",
-                    SearchOption.AllDirectories
-                )
-                .Take(MaxManualManifestCandidates)
-                .ToArray();
-        }
-        catch (Exception ex)
-        {
-            PatchHelper.Log($"[Mods] Failed to read manual mods for selector: {ex.Message}");
-            yield break;
-        }
-
-        var discovered = 0;
-        foreach (var manifestPath in manifests)
-        {
-            if (discovered >= MaxManualMods)
-                yield break;
-
-            var directory = Path.GetDirectoryName(manifestPath) ?? "";
-            var probe = LauncherModLaunchPlan.InspectManifest(manifestPath);
-            if (probe.Kind == LauncherModManifestProbeKind.NotManifest)
-                continue;
-
-            discovered++;
-            var manifestId = probe.Manifest?.Id
-                ?? Path.GetFileNameWithoutExtension(manifestPath);
-            var title = probe.Manifest?.Name ?? manifestId;
-            var key = ManualKey(directory, manifestId);
-            var deprecated = IsDeprecatedSavePathMod(manifestId, title);
+            var key = WorkshopKey(item.PublishedFileId);
+            var installed = item.Installed;
+            if (installed == null && manifest.Version == 1 && !string.IsNullOrWhiteSpace(item.StagedDirectory))
+            {
+                installed = new SteamWorkshopInstallation
+                {
+                    Generation = "legacy",
+                    Directory = item.StagedDirectory,
+                    LegacyUnverified = true,
+                };
+            }
+            var path = installed?.Directory ?? string.Empty;
+            var available = !string.IsNullOrWhiteSpace(path) && Directory.Exists(path);
             yield return new LauncherKnownMod
             {
                 Key = key,
-                PortableIdentity = ManualPortableIdentity(manifestId),
-                Id = manifestId,
-                Title = title,
-                Source = "Manual",
-                Path = directory,
-                ManifestPath = manifestPath,
-                ManifestIdentity = probe.Manifest?.Id ?? string.Empty,
-                DiscoveryError = probe.Kind == LauncherModManifestProbeKind.Invalid
-                    ? probe.ErrorMessage
-                    : string.Empty,
-                DiscoveryErrorCode = probe.ErrorCode,
-                HasPck = probe.Manifest?.HasPck == true,
-                IsUnsupported = deprecated,
-                IsDeprecated = deprecated,
-                Enabled = !deprecated && IsEnabled(document, key),
+                Id = item.PublishedFileId.ToString(),
+                Title = string.IsNullOrWhiteSpace(item.Title) ? item.PublishedFileId.ToString() : item.Title.Trim(),
+                Source = item.IsDependency ? "Workshop dependency" : "Workshop",
+                Path = path,
+                WorkshopId = item.PublishedFileId,
+                Installed = installed,
+                RequiredWorkshopIds = requiredByParent[item.PublishedFileId],
+                HasPck = installed?.Files?.Any(file =>
+                    string.Equals(Path.GetExtension(file.Path), ".pck", StringComparison.OrdinalIgnoreCase)) == true
+                    || (installed?.LegacyUnverified == true && item.HasPck),
+                IsDependency = item.IsDependency,
+                IsRequiredDependency = enabled.Contains(item.PublishedFileId) && !IsEnabled(document, key),
+                IsUnsupported = !available,
+                DiscoveryError = available ? string.Empty : "Workshop source has no available committed installation.",
+                Enabled = enabled.Contains(item.PublishedFileId),
             };
         }
     }
 
-    private static bool IsDeprecatedSavePathMod(string id, string title)
-        => DeprecatedSavePathMod.IsMatch(id, title);
+    private sealed record ManualModCandidate(string RootPath, string ManifestPath, string Stem, string Id, string Name)
+    {
+        internal string Key => ManualKey(RootPath, Stem);
+        internal string LegacyKey => string.IsNullOrWhiteSpace(Id) ? null : ManualKey(RootPath, Id);
+    }
+
+    private static IReadOnlyList<ManualModCandidate> ReadManualMods(string manualModsRoot)
+    {
+        if (string.IsNullOrWhiteSpace(manualModsRoot) || !Directory.Exists(manualModsRoot))
+            return Array.Empty<ManualModCandidate>();
+        try
+        {
+            return Directory.EnumerateFiles(manualModsRoot, "*", SearchOption.AllDirectories)
+                .Where(path => string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .Select(path =>
+                {
+                    var (id, name) = ReadDisplayHints(path);
+                    return new ManualModCandidate(Path.GetDirectoryName(path) ?? string.Empty,
+                        Path.GetFullPath(path), Path.GetFileNameWithoutExtension(path), id, name);
+                }).ToArray();
+        }
+        catch (Exception ex)
+        {
+            PatchHelper.Log($"[Mods] Failed to read manual sources for selector: {ex.Message}");
+            return Array.Empty<ManualModCandidate>();
+        }
+    }
+
+    private static bool NeedsManualMigration(LauncherModSelectionDocument document)
+        => document.Version == 1 || document.EnabledMods?.Keys.Any(IsLegacyManualKey) == true;
+
+    private static bool IsLegacyManualKey(string key)
+        => key.StartsWith(LegacyManualPrefix, StringComparison.OrdinalIgnoreCase);
+
+    private static ManualModCandidate[] LegacyMatches(string legacyKey, IReadOnlyList<ManualModCandidate> sources)
+        => sources.Where(source => string.Equals(source.LegacyKey, legacyKey["legacy-".Length..],
+            StringComparison.OrdinalIgnoreCase)).ToArray();
+
+    private static void MigrateManualSelections(LauncherModSelectionDocument document,
+        IReadOnlyList<ManualModCandidate> sources, bool persist)
+    {
+        document.EnabledMods ??= new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var changed = document.Version == 1;
+        if (changed)
+        {
+            // Version 1 keys name declared IDs; version 2 keys name physical JSON
+            // files. Tag unresolved IDs so they can never turn into filename choices.
+            document.EnabledMods = document.EnabledMods.ToDictionary(
+                entry => entry.Key.StartsWith("manual:", StringComparison.OrdinalIgnoreCase)
+                    ? "legacy-" + entry.Key : entry.Key,
+                entry => entry.Value, StringComparer.OrdinalIgnoreCase);
+            document.Version = CurrentVersion;
+        }
+        foreach (var legacy in document.EnabledMods.Where(entry => IsLegacyManualKey(entry.Key)).ToArray())
+        {
+            var matches = LegacyMatches(legacy.Key, sources);
+            if (matches.Length != 1)
+                continue;
+            var target = matches[0].Key;
+            if (document.EnabledMods.TryGetValue(target, out var physicalChoice) && physicalChoice != legacy.Value)
+                continue;
+            document.EnabledMods[target] = legacy.Value;
+            document.EnabledMods.Remove(legacy.Key);
+            changed = true;
+        }
+        if (changed && persist && !string.IsNullOrWhiteSpace(document.StoragePath))
+        {
+            try { Save(document.StoragePath, document); }
+            catch (Exception ex) { PatchHelper.Log($"[Mods] Could not persist manual selection migration: {ex.Message}"); }
+        }
+    }
+
+    private static IEnumerable<LauncherKnownMod> ManualMods(LauncherModSelectionDocument document,
+        IReadOnlyList<ManualModCandidate> sources)
+    {
+        foreach (var source in sources)
+        {
+            yield return new LauncherKnownMod
+            {
+                Key = source.Key,
+                Id = string.IsNullOrWhiteSpace(source.Id) ? source.Stem : source.Id,
+                Title = string.IsNullOrWhiteSpace(source.Name) ? source.Stem : source.Name,
+                Source = "Manual",
+                Path = source.RootPath,
+                ManifestPath = source.ManifestPath,
+                ManifestIdentity = source.Id,
+                HasPck = File.Exists(Path.ChangeExtension(source.ManifestPath, ".pck")),
+                Enabled = IsEnabled(document, source.Key),
+            };
+        }
+        foreach (var legacy in document.EnabledMods.Where(entry => IsLegacyManualKey(entry.Key)))
+        {
+            var matches = LegacyMatches(legacy.Key, sources);
+            var error = new LauncherModDiscoveryError(
+                matches.Length == 0 ? LauncherModDiscoveryErrorCode.SourceUnavailable : LauncherModDiscoveryErrorCode.SelectionAmbiguous,
+                legacy.Key,
+                matches.Length == 0
+                    ? $"Saved manual identity '{legacy.Key["legacy-".Length..]}' has no available matching manifest. Its selection is retained."
+                    : matches.Length > 1
+                        ? $"Saved manual identity '{legacy.Key["legacy-".Length..]}' matches multiple manifests: {string.Join(", ", matches.Select(source => Path.GetFileName(source.ManifestPath)))}. Its selection is retained; no source was chosen."
+                        : $"Saved manual identity '{legacy.Key["legacy-".Length..]}' conflicts with the physical choice for '{matches[0].ManifestPath}'. Both choices are retained.");
+            yield return new LauncherKnownMod
+            {
+                Key = legacy.Key,
+                Id = legacy.Key[LegacyManualPrefix.Length..],
+                Title = "Unresolved manual selection: " + legacy.Key[(legacy.Key.LastIndexOf(':') + 1)..],
+                Source = "Manual",
+                DiscoveryError = error.Message,
+                SelectionError = error,
+                Enabled = legacy.Value,
+            };
+        }
+    }
+
+    private static (string Id, string Name) ReadDisplayHints(string path)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            var root = document.RootElement;
+            if (root.ValueKind == JsonValueKind.Object)
+            {
+                return (Hint("id"), Hint("name"));
+                string Hint(string property)
+                    => root.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+                        ? value.GetString()?.Trim() ?? string.Empty
+                        : string.Empty;
+            }
+        }
+        catch (JsonException)
+        {
+            // Invalid JSON still has a selectable source; native discovery reports its error.
+        }
+        catch (IOException)
+        {
+            // The UI can list an unavailable source; launch preparation checks its files.
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+        return (string.Empty, string.Empty);
+    }
 
     private static bool IsEnabled(LauncherModSelectionDocument document, string key)
-        => document.EnabledMods.TryGetValue(key, out var enabled) && enabled;
-
-    private static bool IsExplicitlyEnabled(LauncherModSelectionDocument document, string key)
         => document.EnabledMods.TryGetValue(key, out var enabled) && enabled;
 
     private static string WorkshopKey(ulong publishedFileId)
         => $"workshop:{publishedFileId}";
 
-    private static string ManualKey(string directory, string id)
-        => $"manual:{NormalizePath(directory)}:{id}";
-
-    private static string ManualPortableIdentity(string manifestId)
-        => $"manual:{(manifestId ?? string.Empty).Trim().ToLowerInvariant()}";
+    private static string ManualKey(string directory, string stem)
+        => $"manual:{NormalizePath(directory)}:{stem}";
 
     private static string NormalizePath(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return "";
-
-        try
-        {
-            return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, '/', '\\');
-        }
-        catch
-        {
-            return path.TrimEnd(Path.DirectorySeparatorChar, '/', '\\');
-        }
-    }
+        => string.IsNullOrWhiteSpace(path)
+            ? string.Empty
+            : Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, '/', '\\');
 }

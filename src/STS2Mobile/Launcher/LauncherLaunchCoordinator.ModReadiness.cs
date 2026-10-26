@@ -41,7 +41,6 @@ internal sealed partial class LauncherLaunchCoordinator
             var selection = LauncherModSelectionState.Load();
             if (!LauncherModSelectionState.IsModdedModeFor(selection))
             {
-                LauncherModLaunchResultStore.WriteVanilla(selection);
                 LauncherLaunchMarkers.RecordPhase(
                     $"{plan.ModReadinessPhase}: vanilla fast path",
                     "mod source scan skipped"

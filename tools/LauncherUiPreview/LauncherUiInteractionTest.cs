@@ -1,6 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 using Godot;
 using STS2Mobile;
 using STS2Mobile.Launcher;
@@ -9,6 +13,177 @@ namespace LauncherUiPreview;
 
 internal static class LauncherUiInteractionTest
 {
+    internal static async Task AssertModsRefreshRejectsStaleCompletionAsync(LauncherView view, Control root)
+    {
+        var selectionPath = AppPaths.AppPrivateModSelectionPath;
+        var previous = File.Exists(selectionPath) ? File.ReadAllBytes(selectionPath) : null;
+        var completions = new ConcurrentQueue<Action>();
+        using var model = new LauncherModel(AppPaths.AppPrivateDataDir);
+        var controller = new LauncherController(model, view, completions.Enqueue);
+        var refresh = typeof(LauncherController).GetMethod("RefreshModsPresentation", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        try
+        {
+            view.SelectDestination(LauncherDestination.Mods);
+            LauncherModSelectionState.SetPlayMode(LauncherModPlayMode.Vanilla);
+            refresh.Invoke(controller, null);
+            await WaitForCompletions(1);
+            LauncherModSelectionState.SetPlayMode(LauncherModPlayMode.Modded);
+            refresh.Invoke(controller, null);
+            await WaitForCompletions(2);
+            AssertVisibleLabelText(root, "ModsLaunchSummary", "Checking mod files...");
+            var hasOlder = completions.TryDequeue(out var older);
+            var hasNewer = completions.TryDequeue(out var newer);
+            Expect(hasOlder && hasNewer,
+                "Both observed-configuration requests must dispatch an actual UI completion.");
+            newer();
+            older();
+            Expect(FindVisibleButton(root, "Modded").AccessibilityDescription == "Selected mode"
+                && FindVisibleButton(root, "Vanilla").AccessibilityDescription == "",
+                "An older background completion must not overwrite a newer mod selection's presentation.");
+        }
+        finally
+        {
+            if (previous == null) File.Delete(selectionPath);
+            else File.WriteAllBytes(selectionPath, previous);
+            view.SetModsPresentation(CurrentModdedPresentation());
+        }
+
+        async Task WaitForCompletions(int count)
+        {
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
+            while (completions.Count < count && elapsed.Elapsed < TimeSpan.FromSeconds(4))
+                await root.ToSignal(root.GetTree(), SceneTree.SignalName.ProcessFrame);
+            Expect(completions.Count >= count,
+                "Mod configuration acquisition must complete through the background model and main-thread dispatcher.");
+        }
+    }
+
+    internal static async Task AssertTabletModsScrollingAsync(Node host)
+    {
+        foreach (var scale in new[] { 2f, 3f })
+        {
+            var size = new Vector2I(2448, 1848);
+            var viewport = new SubViewport { Size = size, Disable3D = true };
+            host.AddChild(viewport);
+            try
+            {
+                var root = new Control { Size = size, CustomMinimumSize = size };
+                viewport.AddChild(root);
+                root.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+                var profile = LauncherLayoutProfile.ForViewport(size, touchOptimized: true);
+                // Desktop DisplayServer has no Android DPI. Exercise the actual
+                // view with the same supported DPI-derived scale instead.
+                var constructor = typeof(LauncherLayoutProfile).GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance).Single();
+                profile = (LauncherLayoutProfile)constructor.Invoke(new object[]
+                {
+                    profile.ViewportSize, scale, profile.PanelWidthRatio, profile.PanelHeightRatio,
+                    profile.ContentMaxWidth, profile.Mode, profile.TouchOptimized, profile.Compact, profile.CompactStackedActionRows,
+                });
+                var view = new LauncherView(root, profile);
+                view.ShowLaunchActions("Play", showUpdate: true);
+                GD.Print($"MODS_SCROLL_TABLET_SCALE={scale}");
+                await AssertModsScrollAfterListGrowthAsync(view, root);
+            }
+            finally
+            {
+                viewport.QueueFree();
+                await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+        }
+    }
+
+    internal static async Task AssertModsScrollAfterListGrowthAsync(LauncherView view, Control root)
+    {
+        view.SelectDestination(LauncherDestination.Mods);
+        view.SetModsPresentation(OverflowPresentation(4));
+        await Frames(6);
+        var scroll = FindUniqueVisibleNamed<ScrollContainer>(root, "LauncherPrimaryScroll");
+        GD.Print("MODS_SCROLL_BEFORE_GROWTH=" + Geometry());
+
+        view.SetModsPresentation(OverflowPresentation(6));
+        await Frames(6);
+        root.GetViewport().GuiReleaseFocus();
+        scroll.ScrollVertical = 0;
+        var bar = scroll.GetVScrollBar();
+        var lastToggle = Descendants<CheckButton>(FindUniqueVisibleNamed<Control>(root, "ModsList"))
+            .Where(toggle => IsLiveAndVisible(toggle) && toggle.Name == "ModEnabledToggle").Last();
+        GD.Print("MODS_SCROLL_AFTER_GROWTH=" + Geometry());
+        Expect(bar.MaxValue > bar.Page, "The overflow fixture must create an actual vertical scroll range: " + Geometry());
+
+        bar.Value = bar.MaxValue - bar.Page;
+        await Frames(4);
+        Expect(scroll.ScrollVertical > 0 && scroll.GetGlobalRect().Intersects(lastToggle.GetGlobalRect()),
+            "A newly appended mod must become visible through the existing scrollbar: " + Geometry());
+
+        scroll.ScrollVertical = 0;
+        await Frames(3);
+        root.GetViewport().GuiReleaseFocus();
+        var point = scroll.GetGlobalRect().Position + new Vector2(25, 25);
+        root.GetViewport().PushInput(new InputEventMouseButton
+        {
+            Position = point, GlobalPosition = point, ButtonIndex = MouseButton.WheelDown, Pressed = true, Factor = 1,
+        }, true);
+        await Frames(4);
+        Expect(scroll.ScrollVertical > 0, "Wheel input must scroll the grown mod list: " + Geometry());
+
+        scroll.ScrollVertical = 0;
+        await Frames(3);
+        lastToggle.GrabFocus();
+        await Frames(4);
+        Expect(scroll.ScrollVertical > 0 && scroll.GetGlobalRect().Intersects(lastToggle.GetGlobalRect()),
+            "Focusing an offscreen appended mod must reveal it: " + Geometry());
+        GD.Print("MODS_SCROLL_FOCUS=" + Geometry());
+
+        view.SetModsPresentation(OverflowPresentation(6));
+        await Frames(6);
+        Expect(scroll.ScrollVertical > 0, "Refreshing the same mod rows must not pin the viewport back to zero: " + Geometry());
+        root.GetViewport().GuiReleaseFocus();
+
+        // Production discovers and refreshes rows before the Mods destination is shown.
+        // Check that this lifecycle also updates the native range, not just child size.
+        view.SelectDestination(LauncherDestination.Home);
+        view.SetModsPresentation(OverflowPresentation(4));
+        await Frames(3);
+        view.SetModsPresentation(OverflowPresentation(6));
+        await Frames(3);
+        view.SelectDestination(LauncherDestination.Mods);
+        await Frames(6);
+        GD.Print("MODS_SCROLL_AFTER_HIDDEN_GROWTH=" + Geometry());
+        Expect(bar.MaxValue > bar.Page && bar.IsVisibleInTree(),
+            "Showing a mod list that grew while hidden must refresh its native scrollbar range: " + Geometry());
+        var hiddenGeometryBeforeScroll = Geometry();
+        bar.Value = bar.MaxValue - bar.Page;
+        await Frames(4);
+        Expect(scroll.ScrollVertical > 0 && scroll.GetGlobalRect().Intersects(lastToggle.GetGlobalRect()),
+            "The last mod discovered while hidden must be reachable through the native scrollbar: before=" + hiddenGeometryBeforeScroll
+            + "; after=" + Geometry() + "; lastToggle=" + lastToggle.GetGlobalRect());
+        root.GetViewport().GuiReleaseFocus();
+        view.SetModsPresentation(CurrentModdedPresentation());
+
+        async Task Frames(int count)
+        {
+            for (var frame = 0; frame < count; frame++)
+                await root.ToSignal(root.GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+        string Geometry()
+        {
+            var range = scroll.GetVScrollBar();
+            var child = scroll.GetChildren().OfType<Control>().First(control => control is not ScrollBar);
+            var focus = root.GetViewport().GuiGetFocusOwner();
+            return $"offset={scroll.ScrollVertical}; value={range.Value}; max={range.MaxValue}; page={range.Page}; viewport={scroll.GetGlobalRect()}; child={child.Size}; minimum={child.GetCombinedMinimumSize()}; focus={focus?.Name}; focusRect={focus?.GetGlobalRect()}";
+        }
+        static LauncherModsPresentation OverflowPresentation(int count)
+        {
+            var names = new[] { "ARAM: Mayhem", "BaseLib", "Import Vanilla Saves", "Quick Restart 2", "CookieCursor", "FixtureCrypto" };
+            var mods = names.Take(count).Select((name, index) => new LauncherModPresentationItem(
+                "scroll-fixture:" + index, "scroll-fixture-" + index, name,
+                index < 4 ? "Workshop" : "Manual", true, index < 4, true,
+                LauncherModLastLaunchState.NotTestedYet, false, "Scroll geometry fixture.")).ToArray();
+            return new LauncherModsPresentation(LauncherModPlayMode.Modded, "scroll-fixture", LauncherModsPresentationState.PendingSaveNamespaceLabel,
+                mods, mods.Length, mods.Count(mod => mod.Enabled), false);
+        }
+    }
+
     internal static void Run(LauncherView view, Control root)
     {
         var events = new EventCounts();
@@ -67,7 +242,7 @@ internal static class LauncherUiInteractionTest
         view.SetModsPresentation(DisabledModdedPresentation());
         AssertModsPresentation(
             root,
-            "Uses Modded saves \u00B7 0 mods enabled",
+            "Uses Vanilla saves \u00B7 0 mods enabled",
             LauncherModPlayMode.Modded,
             enabled: false,
             "Not run with this setup"
@@ -80,10 +255,12 @@ internal static class LauncherUiInteractionTest
             "Uses Modded saves \u00B7 1 mod enabled",
             LauncherModPlayMode.Modded,
             enabled: true,
-            "Active last launch"
+            "Loaded last launch"
         );
         view.ShowLaunchActions("Play", showUpdate: true);
         Press(root, "Home");
+        // Visibility changes retain the observed presentation until the
+        // controller supplies a fresh background result.
         AssertReadyHome(
             root,
             "Public \u00B7 Modded saves \u00B7 Synced",
@@ -96,13 +273,13 @@ internal static class LauncherUiInteractionTest
         PressImporterToggle(root);
         AssertPersistedSelection(LauncherModPlayMode.Modded, importerEnabled: true);
 
-        view.SetModsPresentation(PartialModdedPresentation());
+        view.SetModsPresentation(LoadedWithErrorsModdedPresentation());
         AssertModsPresentation(
             root,
             "Uses Modded saves \u00B7 1 mod enabled",
             LauncherModPlayMode.Modded,
             enabled: true,
-            "Partly loaded"
+            "Loaded with errors last launch"
         );
         view.SetModsPresentation(FailedModdedPresentation());
         AssertModsPresentation(
@@ -112,10 +289,18 @@ internal static class LauncherUiInteractionTest
             enabled: true,
             "Failed last launch"
         );
+        view.SetModsPresentation(ImporterPresentation("preview-skipped", enabled: true,
+            LauncherModLastLaunchState.Skipped, stale: false, nativeIsRunningModded: false));
+        AssertModsPresentation(root, "Uses Vanilla saves \u00B7 1 mod enabled",
+            LauncherModPlayMode.Modded, enabled: true, "Skipped last launch");
+        view.SetModsPresentation(ImporterPresentation("preview-not-run", enabled: true,
+            LauncherModLastLaunchState.NotRun, stale: false, nativeIsRunningModded: false));
+        AssertModsPresentation(root, "Uses Vanilla saves \u00B7 1 mod enabled",
+            LauncherModPlayMode.Modded, enabled: true, "Not run last launch");
         view.SetModsPresentation(StaleModdedPresentation());
         AssertModsPresentation(
             root,
-            "Uses Modded saves \u00B7 1 mod enabled",
+            "Saves determined at launch \u00B7 1 mod enabled",
             LauncherModPlayMode.Modded,
             enabled: true,
             "Not run with this setup"
@@ -123,7 +308,7 @@ internal static class LauncherUiInteractionTest
         view.SetModsPresentation(MissingResultModdedPresentation());
         AssertModsPresentation(
             root,
-            "Uses Modded saves \u00B7 1 mod enabled",
+            "Saves determined at launch \u00B7 1 mod enabled",
             LauncherModPlayMode.Modded,
             enabled: true,
             "Not run with this setup"
@@ -1242,7 +1427,6 @@ internal static class LauncherUiInteractionTest
         {
             "Installed",
             "Enabled for Modded",
-            "Loaded last launch",
             "Not tested yet",
         })
         {
@@ -1285,6 +1469,7 @@ internal static class LauncherUiInteractionTest
     private static LauncherModsPresentation CurrentModdedPresentation()
         => ModsPresentation(
             "preview-current",
+            "Modded saves",
             new LauncherModPresentationItem(
                 "workshop:3747503308",
                 "ImportVanillaSaves",
@@ -1295,7 +1480,7 @@ internal static class LauncherUiInteractionTest
                 CanChange: true,
                 LastLaunchState: LauncherModLastLaunchState.LoadedLastLaunch,
                 IsLastLaunchStale: false,
-                Detail: "Initialization and activation verified."
+                Detail: "Game framework state: Loaded."
             )
         );
 
@@ -1307,12 +1492,13 @@ internal static class LauncherUiInteractionTest
             stale: false
         );
 
-    private static LauncherModsPresentation PartialModdedPresentation()
+    private static LauncherModsPresentation LoadedWithErrorsModdedPresentation()
         => ImporterPresentation(
-            "preview-partial",
+            "preview-loaded-with-errors",
             enabled: true,
-            LauncherModLastLaunchState.Partial,
-            stale: false
+            LauncherModLastLaunchState.LoadedWithErrors,
+            stale: false,
+            nativeIsRunningModded: true
         );
 
     private static LauncherModsPresentation FailedModdedPresentation()
@@ -1320,7 +1506,8 @@ internal static class LauncherUiInteractionTest
             "preview-failed",
             enabled: true,
             LauncherModLastLaunchState.Failed,
-            stale: false
+            stale: false,
+            nativeIsRunningModded: true
         );
 
     private static LauncherModsPresentation StaleModdedPresentation()
@@ -1371,10 +1558,15 @@ internal static class LauncherUiInteractionTest
         string fingerprint,
         bool enabled,
         LauncherModLastLaunchState state,
-        bool stale
+        bool stale,
+        bool? nativeIsRunningModded = null
     )
         => ModsPresentation(
             fingerprint,
+            !enabled ? "Vanilla saves"
+                : !stale && nativeIsRunningModded.HasValue
+                    ? nativeIsRunningModded.Value ? "Modded saves" : "Vanilla saves"
+                    : LauncherModsPresentationState.PendingSaveNamespaceLabel,
             new LauncherModPresentationItem(
                 "workshop:3747503308",
                 "ImportVanillaSaves",
@@ -1389,9 +1581,11 @@ internal static class LauncherUiInteractionTest
                     ? "Last launch used a different mod selection."
                     : state switch
                     {
-                        LauncherModLastLaunchState.Partial => "Activation was only partially verified.",
-                        LauncherModLastLaunchState.Failed => "Activation failed.",
-                        LauncherModLastLaunchState.LoadedLastLaunch => "Initialization and activation verified.",
+                        LauncherModLastLaunchState.LoadedWithErrors => "Game framework state: Loaded; fixture mod error.",
+                        LauncherModLastLaunchState.Failed => "Game framework state: Failed.",
+                        LauncherModLastLaunchState.Skipped => "Game framework state: Skipped.",
+                        LauncherModLastLaunchState.NotRun => "Game framework state: None.",
+                        LauncherModLastLaunchState.LoadedLastLaunch => "Game framework state: Loaded.",
                         _ => "No matching result from the last launch.",
                     }
             )
@@ -1399,6 +1593,7 @@ internal static class LauncherUiInteractionTest
 
     private static LauncherModsPresentation ModsPresentation(
         string fingerprint,
+        string saveNamespace,
         params LauncherModPresentationItem[] mods
     )
     {
@@ -1406,7 +1601,7 @@ internal static class LauncherUiInteractionTest
         return new LauncherModsPresentation(
             LauncherModPlayMode.Modded,
             fingerprint,
-            "Modded saves",
+            saveNamespace,
             mods,
             mods.Count(mod => mod.Installed),
             enabledCount,

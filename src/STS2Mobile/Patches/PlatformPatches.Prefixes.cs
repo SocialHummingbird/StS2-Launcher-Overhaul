@@ -33,12 +33,6 @@ internal static partial class PlatformPatches
         return true;
     }
 
-    private static bool ReturnEmptyStringPrefix(ref string __result)
-    {
-        __result = string.Empty;
-        return false;
-    }
-
     private static bool GetRawLanguagePrefix(ref string __result)
     {
         __result = Godot.OS.GetLocale();

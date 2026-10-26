@@ -1,0 +1,4 @@
+# Preserve patch bytes and the significant whitespace of unified-diff context.
+patches/harmony/android-net9.patch -text whitespace=-blank-at-eol,-space-before-tab
+patches/mono/android-net9.patch -text whitespace=-blank-at-eol,-space-before-tab
+tests/STS2Mobile.GameIdentityTests/Fixtures/WorkshopSubscriptions.NativePage*.bin binary

@@ -1,5 +1,6 @@
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Platform;
 using MegaCrit.Sts2.Core.Saves;
 using STS2Mobile.Launcher;
 using STS2Mobile.Steam;
@@ -41,7 +42,7 @@ internal static class LauncherPatches
         );
     }
 
-    private static void ApplySaveManagerPatches(Harmony harmony)
+    internal static void ApplySaveManagerPatches(Harmony harmony)
     {
         PatchHelper.PatchCritical(
             harmony,
@@ -52,6 +53,9 @@ internal static class LauncherPatches
                 nameof(ConstructDefault)
             )
         );
+        foreach (var method in new[] { "GetAccountScopedBasePath", "GetProfileScopedBasePath", "GetProfileScopedPath" })
+            PatchHelper.PatchCritical(harmony, typeof(UserDataPathProvider), method,
+                postfix: PatchHelper.Method(typeof(LauncherPatches), nameof(NormalizeUserDataPath)));
     }
 
     private static bool GameStartupWrapper(object __instance, ref Task __result)
@@ -81,5 +85,16 @@ internal static class LauncherPatches
             )
         );
         return false;
+    }
+
+    private static void NormalizeUserDataPath(ref string __result, PlatformType? platformOverride, ulong? userIdOverride)
+    {
+        if (!OperatingSystem.IsAndroid()) return;
+        var platform = PlatformUtil.PrimaryPlatform;
+        var userId = PlatformUtil.GetLocalPlayerId(platform);
+        var otherAccount = (platformOverride.HasValue && platformOverride.Value != platform)
+            || (userIdOverride.HasValue && userIdOverride.Value != userId);
+        var account = $"user://{UserDataPathProvider.GetPlatformDirectoryName(platform)}/{userId}";
+        __result = AndroidSavePathNormalizer.Normalize(__result, account, otherAccount);
     }
 }

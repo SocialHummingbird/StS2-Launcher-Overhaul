@@ -59,6 +59,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Launcher bootstrap PCK generation failed"
 }
 
+Write-Host "Building and staging pinned Android Mono runtime..."
+& (Join-Path $PSScriptRoot "build-android-mono.ps1") -Abi $Abi -AndroidHome $AndroidHome -Stage | Out-Host
+
+Write-Host "Building and staging pinned Android Harmony runtime..."
+& (Join-Path $PSScriptRoot "build-android-harmony.ps1") -Stage | Out-Host
+
 Write-Host "Publishing STS2Mobile..."
 dotnet publish $projectPath -c Release
 if ($LASTEXITCODE -ne 0) {
@@ -91,8 +97,6 @@ $managedDependencies = @(
     "protobuf-net.Core.dll",
     "System.IO.Hashing.dll",
     "ZstdSharp.dll",
-    "Mono.Cecil.dll",
-    "0Harmony.dll",
     "GodotSharp.dll"
 )
 
@@ -202,8 +206,7 @@ $nativeRuntimeLibraries = @(
     "libmono-component-debugger.so",
     "libmono-component-diagnostics_tracing.so",
     "libmono-component-hot_reload.so",
-    "libmono-component-marshal-ilgen.so",
-    "libmonosgen-2.0.so"
+    "libmono-component-marshal-ilgen.so"
 )
 
 foreach ($targetAbi in (Resolve-AndroidApkTargetAbis -Abi $Abi)) {

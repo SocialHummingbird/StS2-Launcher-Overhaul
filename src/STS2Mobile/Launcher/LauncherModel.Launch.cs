@@ -38,6 +38,9 @@ internal partial class LauncherModel
         LauncherLaunchMarkers.RecordPhase("launch model entered", action);
         if (!SelectedGameVersionReadyForLaunch(readiness, out var readinessProblem))
             return LauncherLaunchHandoffResult.Failed(LauncherLaunchAttemptPhases.BlockedInModel, readinessProblem, writePatchLog: true);
+        if (modReadiness == null) throw new InvalidOperationException("Mod source preparation is missing.");
+        STS2Mobile.Patches.ModLoaderPatches.Prepare(modReadiness.Plan, attemptId, readiness.GameIdentityId,
+            readiness.RuntimeSlot.RuntimePack.PackId, readiness.RuntimeSlot.ReleaseInfoPath, readiness.Branch);
         SetSafeLaunchMarker(safe);
         timingSnapshot ??= LauncherLaunchAttemptTiming.NotMeasured;
         if (TrySignalInProcessLaunch(readiness, modReadiness, safe, launchSource, attemptId, timingSnapshot))
