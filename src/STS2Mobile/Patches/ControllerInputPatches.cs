@@ -20,13 +20,29 @@ internal static class ControllerInputPatches
     private const BindingFlags AllFlags =
         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
     private const string FallbackStrategyFieldName = "_fallbackStrategy";
-    private const string KeyboardInputMapFieldName = "_keyboardInputMap";
     private const string ControllerInputMapFieldName = "_controllerInputMap";
-    private const string DefaultKeyboardInputMapPropertyName = "DefaultKeyboardInputMap";
-    private const string SaveKeyboardInputMappingMethodName = "SaveKeyboardInputMapping";
     private const string SaveControllerInputMappingMethodName = "SaveControllerInputMapping";
     private static bool _loggedFallbackInit;
     private static bool _loggedInputManagerInit;
+
+    // Current game builds keep separate mouse-and-keyboard and keyboard-only
+    // hotkey maps. Older builds used a single keyboard map.
+    private static readonly KeyboardMapTarget[] SplitKeyboardMapTargets =
+    {
+        new("_mKbInputMap", "KeyboardMapping", "DefaultHotkeyInputMap", "SaveMKbInputMapping"),
+        new("_fKbInputMap", "KbOnlyMapping", "DefaultKbOnlyInputMap", "SaveFKbInputMapping"),
+    };
+    private static readonly KeyboardMapTarget[] LegacyKeyboardMapTargets =
+    {
+        new("_keyboardInputMap", "KeyboardMapping", "DefaultKeyboardInputMap", "SaveKeyboardInputMapping"),
+    };
+
+    internal sealed record KeyboardMapTarget(
+        string FieldName,
+        string SettingsPropertyName,
+        string DefaultPropertyName,
+        string SaveMethodName
+    );
 
     internal static void Apply(Harmony harmony)
     {
@@ -150,28 +166,69 @@ internal static class ControllerInputPatches
 
     private static void ApplyKeyboardMapping(NInputManager inputManager, SettingsSave settings)
     {
-        var saveMapping = false;
-        var map = new Dictionary<StringName, Key>();
-
-        if (settings.KeyboardMapping != null && settings.KeyboardMapping.Count > 0)
+        var targets = ResolveKeyboardMapTargets(typeof(NInputManager), typeof(SettingsSave));
+        if (targets.Count == 0)
         {
-            foreach (var item in settings.KeyboardMapping)
+            PatchHelper.Log("Controller input patch: no supported keyboard map layout found");
+            return;
+        }
+
+        foreach (var target in targets)
+            ApplyKeyboardMap(inputManager, settings, target);
+    }
+
+    // Mirrors NInputManager.Init: saved bindings overlay the defaults, and an
+    // empty saved mapping is replaced by the defaults and written back.
+    private static void ApplyKeyboardMap(
+        NInputManager inputManager,
+        SettingsSave settings,
+        KeyboardMapTarget target
+    )
+    {
+        var saved = typeof(SettingsSave).GetProperty(target.SettingsPropertyName, AllFlags)
+            ?.GetValue(settings) as Dictionary<string, string>;
+        var defaults = typeof(NInputManager).GetProperty(target.DefaultPropertyName, AllFlags)
+            ?.GetValue(null) as Dictionary<StringName, Key>;
+        var map = defaults != null
+            ? new Dictionary<StringName, Key>(defaults)
+            : new Dictionary<StringName, Key>();
+
+        var hasSavedMapping = saved != null && saved.Count > 0;
+        if (hasSavedMapping)
+        {
+            foreach (var item in saved)
             {
                 if (Enum.TryParse<Key>(item.Value, out var key))
                     map[item.Key] = key;
             }
         }
 
-        if (map.Count == 0)
+        SetField(inputManager, target.FieldName, map);
+        if (!hasSavedMapping)
+            Invoke(inputManager, target.SaveMethodName);
+    }
+
+    // Returns the first layout whose map field, saved setting, default map and
+    // save method all exist on this game build.
+    internal static IReadOnlyList<KeyboardMapTarget> ResolveKeyboardMapTargets(
+        Type inputManagerType,
+        Type settingsType
+    )
+    {
+        foreach (var layout in new[] { SplitKeyboardMapTargets, LegacyKeyboardMapTargets })
         {
-            map = GetDefaultKeyboardInputMap();
-            saveMapping = true;
+            if (Array.TrueForAll(layout, target => IsSupported(target, inputManagerType, settingsType)))
+                return layout;
         }
 
-        SetField(inputManager, KeyboardInputMapFieldName, map);
-        if (saveMapping)
-            Invoke(inputManager, SaveKeyboardInputMappingMethodName);
+        return Array.Empty<KeyboardMapTarget>();
     }
+
+    private static bool IsSupported(KeyboardMapTarget target, Type inputManagerType, Type settingsType)
+        => inputManagerType.GetField(target.FieldName, AllFlags) != null
+            && settingsType.GetProperty(target.SettingsPropertyName, AllFlags) != null
+            && inputManagerType.GetProperty(target.DefaultPropertyName, AllFlags) != null
+            && inputManagerType.GetMethod(target.SaveMethodName, AllFlags, null, Type.EmptyTypes, null) != null;
 
     private static void ApplyControllerMapping(
         NInputManager inputManager,
@@ -203,16 +260,6 @@ internal static class ControllerInputPatches
         SetField(inputManager, ControllerInputMapFieldName, map);
         if (saveMapping)
             Invoke(inputManager, SaveControllerInputMappingMethodName);
-    }
-
-    private static Dictionary<StringName, Key> GetDefaultKeyboardInputMap()
-    {
-        var property = typeof(NInputManager).GetProperty(
-            DefaultKeyboardInputMapPropertyName,
-            AllFlags
-        );
-        var value = property?.GetValue(null) as Dictionary<StringName, Key>;
-        return value != null ? new Dictionary<StringName, Key>(value) : new Dictionary<StringName, Key>();
     }
 
     private static void SetField(object instance, string name, object value)
