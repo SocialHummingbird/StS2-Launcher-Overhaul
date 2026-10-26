@@ -1,5 +1,7 @@
 # PowerVR Input Compatibility Evidence - 2026-07-16
 
+This report records the investigation and tests from 2026-07-16. A later reporter confirmation is linked at the end; the device results below remain specific to the named APKs.
+
 ## Reporter Evidence
 
 GitHub issue #34 reporter testing used `v0.2.399-powervr-renderer-mod-runtime` on Pixel 10 Pro, Android 17, and PowerVR D-Series DXT-48-1536.
@@ -11,7 +13,7 @@ GitHub issue #34 reporter testing used `v0.2.399-powervr-renderer-mod-runtime` o
 | OpenGL | Yes | Yes | First menu use is slow; gameplay and later menu use are normal |
 | Safe Start | Yes | No | Same effective Vulkan behavior as Auto on `v0.2.399` |
 
-The original startup/process-teardown failure is no longer reproduced. The remaining defect is specific to touch delivery on the PowerVR Vulkan path. The OpenGL timing pattern is consistent with first-use graphics compilation or cache creation, not sustained device underperformance. The reporter evidence contains no new `NativeFallback`, Java fatal, native signal, ANR, or low-memory kill proving a new process crash.
+In these tests, the original startup/process-teardown failure was no longer reproduced. The remaining problem was touch input on the PowerVR Vulkan path. The slower first OpenGL menu load suggested graphics compilation or cache creation, but the report did not establish its cause. The reporter evidence contained no new `NativeFallback`, Java fatal, native signal, ANR, or low-memory kill proving a new process crash.
 
 ## v0.2.400 Policy
 
@@ -53,4 +55,8 @@ The APK installed as an update with app data preserved and passed APK content/AB
 
 The first integrated run exposed and fixed a parser regression where the text `PowerVR compatibility required: False` could match a naive PowerVR substring search. The native parser now honors the explicit boolean before vendor-name fallback, and the exact Adreno evidence file is a regression test.
 
-The exact installed APK SHA-256 matches the release artifact: `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3`. The synthetic marker proves the native handoff and renderer command-line policy. It does not reproduce or certify the reporter's PowerVR driver. Actual Pixel/PowerVR testing is still required before issue #34 can be closed. OpenGL cold-menu performance remains a measured compatibility tradeoff; no speculative game-content or shader redesign was made.
+The exact installed APK SHA-256 matched the release artifact: `623830caad7a684e3358fbb22564210a1236588e03e7161dfcf30cc5aa76cdc3`. The synthetic marker checked the native handoff and renderer command-line policy on the Adreno device. It did not reproduce the reporter's PowerVR driver. At this point, confirmation on the Pixel/PowerVR device was still needed before closing issue #34. Slow first-menu loading remained a compatibility tradeoff; this change did not redesign game content or shaders.
+
+## Later reporter confirmation
+
+After updating to `v0.2.401-native-modded-save-pull`, the reporter confirmed that **Auto loaded the game with working touch controls**. [Read the confirmation](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/issues/34#issuecomment-4998325130). Issue #34 was subsequently closed. This confirms that later build on the reporting device; it is not a new device test of the current APK.

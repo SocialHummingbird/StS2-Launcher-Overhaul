@@ -1,5 +1,7 @@
 # Reliable launch implementation plan
 
+Historical September 6 plan. The [implementation report](../../reliable-launch-implementation-2026-09-06.md) records its completed work and device limitation; use [Android testing status](../../current-android-status.md) for current validation.
+
 **Goal:** smooth, single-owner startup with explicit failure recovery and no overlapping game initialization.
 **Architecture:** preserve the identity authorization and visibility owner; add an attempt-scoped operation for owned tasks, lifecycle-aware stage deadlines, and scene provenance. Replace restart booleans as the managed source of truth with a versioned durable request and acknowledged native acceptance.
 **Tech stack:** Godot C#/.NET 9, Harmony, Android Java, existing console/JUnit tests.

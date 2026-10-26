@@ -1,5 +1,7 @@
 # Branch audit — 2026-09-08
 
+Historical audit of the September 8 branch state. The archive tags preserve that review; [the reduction inventory](../REDUCTION_INVENTORY.md) describes current ownership, and [Android testing status](current-android-status.md) records current validation.
+
 All non-main local and origin branches were reviewed before release v0.2.432. No missing product fix required a cherry-pick. Each original tip is preserved by the archive tag below before its branch is pruned. Upstream refs are untouched. The two clean external worktree directories are retained at detached original commits.
 
 Rationale for branches with unique history:

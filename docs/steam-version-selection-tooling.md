@@ -1,6 +1,6 @@
 # Focused development commands
 
-Use the smallest command that answers the current question.
+Run these commands from the repository root after completing the [development setup](development.md). The examples assume the default Steam installation path; adjust it for your machine and use game files that match the prepared runtime.
 
 ## Build
 
@@ -14,7 +14,12 @@ dotnet build src/STS2Mobile/STS2Mobile.csproj -c Release
 .\scripts\test-local-gameplay-save-safety.ps1
 ```
 
-This runs twelve focused desktop behaviors: local path containment; atomic local writes; the four deterministic synchronization decisions; truthful save-status presentation; interrupted Pull preserving local saves; failed Push staying dirty and retryable; Pull-before-save-load ordering; a gameplay save queuing Push without returning to the launcher; manual Push/Pull through the same synchronization service; persisted mod selection with validated manifest discovery; persisted game-version selection reaching the matching launch-readiness path; and the restored Android startup handoff staying alive through main-menu preparation.
+The probe runs twelve desktop scenarios covering:
+
+- Local path containment and atomic save writes.
+- Synchronization decisions and status, interrupted save downloads, failed uploads, and manual transfers.
+- Save checks before loading and uploads queued by gameplay saves.
+- Persisted mod and game-version selection, launch readiness, and the startup guard staying alive through main-menu preparation.
 
 The policy tests use one in-memory `FakeSaveRemote`. It does not prove Steam Cloud or Android transport.
 
@@ -22,12 +27,12 @@ The policy tests use one in-memory `FakeSaveRemote`. It does not prove Steam Clo
 
 ```powershell
 dotnet run --project tests\STS2Mobile.GameIdentityTests\STS2Mobile.GameIdentityTests.csproj -c Release
-.\android\gradlew.bat testReleaseUnitTest
+gradle -p android testMonoReleaseUnitTest --rerun-tasks
 ```
 
-The managed suite covers actual-file `GameIdentity`, generation-bound PCK caching, transactional N → N+1 branch updates, interruption recovery, stale-evidence rejection, runtime-pack validation/promotion/rollback, selected-branch cleanup, save/credential/branch isolation, and attempt-bound handoff permutations. The Android unit tests independently exercise native runtime-pack and handoff-event contracts. These tests do not replace physical-device validation.
+The managed suite checks game-file identity, PCK cache reuse, replacing a branch with a newer build, interruption recovery, stale results, runtime-pack validation and rollback, selected-branch cleanup, and isolation of saves, credentials, and other branches. It also checks that handoff events belong to the current launch attempt. Android unit tests cover the native runtime-pack and handoff contracts. These checks do not replace physical-device validation.
 
-## Launcher navigation and mod activation
+## Launcher navigation and mod loading
 
 ```powershell
 .\scripts\test-launcher-ui-preview.ps1 `
@@ -36,15 +41,11 @@ The managed suite covers actual-file `GameIdentity`, generation-bound PCK cachin
   -SteamworksNetPath "C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\data_sts2_windows_x86_64\Steamworks.NET.dll"
 ```
 
-This reads one already-downloaded `ImportVanillaSaves` fixture without opening
-Steam. It runs one screenshot-free interaction test plus fresh desktop processes
-for Vanilla, disabled, and enabled selection. Desktop fixtures do not prove
-Android mod activation or an in-game effect.
+This uses an already-downloaded `ImportVanillaSaves` fixture without opening Steam. It tests navigation in phone and desktop layouts, then starts separate Godot processes for Vanilla, disabled, and enabled selection. The enabled scenario checks original discovery and loading, mounted resources, the importer's C# scene, its save-path patch, and saved results for the selected game and mod files. These desktop checks do not prove Android compatibility or an in-game effect on a phone.
 
-## Deferred two-mod device-acceptance preflight
+## BaseLib and ImportVanillaSaves desktop check
 
-Before the one-device journey, the exact BaseLib plus importer chain can be
-checked once in a fresh desktop Godot process:
+Check the two-mod setup in a fresh desktop Godot process:
 
 ```powershell
 .\scripts\run-launcher-ui-preview.ps1 `
@@ -56,11 +57,7 @@ checked once in a fresh desktop Godot process:
   -SteamworksNetPath "C:\Program Files (x86)\Steam\steamapps\common\Slay the Spire 2\data_sts2_windows_x86_64\Steamworks.NET.dll"
 ```
 
-This opt-in check requires exactly those two selected mods, concrete Harmony
-activation for both, and a durable result of BaseLib `Partial` plus
-ImportVanillaSaves `Active`. It does not prove Android activation, the importer
-control, the modded save namespace, or an in-game effect; those remain the
-mandatory one-device acceptance.
+This check requires original game discovery of both mods, Loaded results with no errors, mounted resources, a working importer C# scene and patch, and a saved result tied to the selected game assembly. It does not establish Android loading, the import button's effect, or save behavior on a phone. See the [validation runbook](runbook-android-validation.md) and [current testing status](current-android-status.md) for device requirements and results.
 
 When one desktop screenshot is useful for UI work, render only that state and destination:
 

@@ -1,5 +1,7 @@
 # Startup responsiveness implementation plan
 
+Historical September 7 plan. Its results and evidence limits are recorded in [the investigation report](../../startup-responsiveness-2026-09-07.md); use [Android testing status](../../current-android-status.md) for current validation.
+
 **Goal:** reduce title-screen render stalls, remove blocking Android startup work, and avoid redundant game-archive reads on Play.
 
 **Architecture:** preserve game asset queues and completion semantics while limiting their per-frame work; prepare Android files on a serial worker and route only a live foreground activity; reuse only the existing validated installation-generation PCK digest.

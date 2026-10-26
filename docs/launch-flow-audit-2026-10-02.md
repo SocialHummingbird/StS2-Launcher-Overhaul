@@ -1,12 +1,14 @@
 # Launch-flow audit and repair — October 2, 2026
 
+Historical investigation, including its later connected-phone follow-up. Ownership and compatibility details below describe those candidates; see [the reduction inventory](../REDUCTION_INVENTORY.md) for current code ownership and [Android testing status](current-android-status.md) for v0.2.436 results.
+
 ## Purpose and evidence boundary
 
 Investigate the complete visual/input freeze reported after the title screen appears during Modded play. Vanilla has not been tried. The user confirmed the affected phone is unavailable for this run. Local regressions can prove individual defects and repairs; they cannot identify the phone's blocked thread or establish that its intermittent freeze is resolved.
 
 This source directory has no Git metadata. Baselines and command output are retained in `tmp/launch-audit-20261002/`. The implementation repairs existing owners and patches rather than adding a launch controller, watchdog or recovery system.
 
-## Current launch flow
+## Launch flow audited on October 2
 
 ```mermaid
 flowchart TD
@@ -29,7 +31,7 @@ flowchart TD
 
 ## Ownership inventory
 
-| Stage | Current authority and execution | Lifetime, persistence and completion | Disposition |
+| Stage | Authority and execution at the audit | Lifetime, persistence and completion | Disposition |
 | --- | --- | --- | --- |
 | Play, Safe Start, automatic launch | Controller → `LauncherLaunchCoordinator`; Godot thread | One active request; preparation interaction lock; restored request is consumed once | Retain |
 | Save cleanup | Existing shared save service and `LauncherSaveCleanup`; worker cleanup returns to controller | 15-second wait; launch stops if writers have not settled; no overlapping save mutation | Retain |

@@ -1,5 +1,7 @@
 # Reliable launch implementation
 
+Historical September 6 implementation and build `430042` verification record. See [Android testing status](current-android-status.md) for the latest release's results and remaining checks.
+
 Implements the approved [launch cycle review](launch-cycle-review-2026-09-06.md). Existing game identity, install-generation, runtime-pack authorization, save ordering, and foreground/focus checks remain authoritative.
 
 ## Behavior

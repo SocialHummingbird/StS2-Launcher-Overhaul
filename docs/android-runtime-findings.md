@@ -1,6 +1,6 @@
 # Android runtime findings
 
-Updated: 2026-08-22
+Updated: 2026-10-26
 
 ## Runtime boundary
 
@@ -13,30 +13,28 @@ Updated: 2026-08-22
 
 The current selected-game identity is derived from the normalized Steam branch, completed install generation, final installed `SlayTheSpire2.pck` hash, and final installed source `sts2.dll` hash. Both content hashes come from the actual files. A runtime pack, compatibility manifest, validation report, branch marker, or active-cache marker cannot substitute for them.
 
-The selected branch becomes non-launchable before an update mutates installed files. Runtime-pack generation uses unique staging, complete manifest/report and assembly-hash validation, atomic promotion with rollback, and final-path validation. Android then independently validates the actual files and atomically promotes the active assembly cache.
+The selected branch becomes non-launchable before an update mutates installed files. Completed installed files are published as `ready` before runtime-pack preparation begins. Launch still requires a matching validated pack and cache, followed by exact-identity authorization in `current_runtime_slot.json`.
+
+Runtime-pack generation uses unique staging, manifest/report and assembly-hash validation, promotion with backup recovery, and final-path validation. Android independently validates the actual files and prepares the active assembly cache. The source `sts2.dll` is copied unchanged; Harmony applies runtime patches when the game loads.
 
 See [Steam version selection architecture](steam-version-selection-architecture.md).
 
 ## Local checks
 
+Supply the [development prerequisites and staged runtimes](development.md#prerequisites) first. Then run:
+
 ```powershell
 dotnet build src\STS2Mobile\STS2Mobile.csproj -c Release
 .\scripts\test-local-gameplay-save-safety.ps1
 dotnet run --project tests\STS2Mobile.GameIdentityTests\STS2Mobile.GameIdentityTests.csproj -c Release
-.\android\gradlew.bat testReleaseUnitTest
+gradle -p android testMonoReleaseUnitTest --rerun-tasks
 ```
 
-Run the launcher/mod test with the explicit fixture paths in [Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-activation).
+Run the launcher/mod test with the explicit fixture paths in [Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-loading).
 
-For an offline APK candidate:
+For a local APK candidate, follow [Build an APK](development.md#build-an-apk) with your tool paths and existing signing key. Uncached builds require network access. Inspect the result with:
 
 ```powershell
-.\scripts\build-android-local.ps1 `
-  -VersionName "<candidate-version>" `
-  -VersionCode <candidate-code> `
-  -PackageName "com.sts2launcher.overhaul.fork.local" `
-  -Abi arm64-v8a
-
 .\scripts\verify-android-apk.ps1 `
   -ApkPath "<candidate.apk>" `
   -Abi arm64-v8a

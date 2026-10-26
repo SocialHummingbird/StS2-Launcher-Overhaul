@@ -1,5 +1,7 @@
 # Title-screen preload repair — October 2, 2026
 
+Historical v0.2.435 repair and device record. The later removal of assembly publicizing and mod-specific compatibility paths is recorded in [the reduction inventory](../REDUCTION_INVENTORY.md); see [Android testing status](current-android-status.md) for current release validation.
+
 The existing Android preload budget did not install on the prepared game assembly. `AndroidAssemblyPublicizer` makes game members public, while `AndroidAssetPreloadPatches.RequireField` and `RequireMethod` searched only nonpublic instance members. The released v434 phone log fails on `_loading changed`; the real-publicizer regression reproduces that failure. PR [#48](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/pull/48) is continued and brought up to current main, preserving the subsequent preload repairs.
 
 ## Repair and retained ownership
@@ -106,4 +108,4 @@ Raw original evidence is retained locally in `artifacts/investigations/title-fre
 The failed code `435001` APK is also retained, SHA-256
 `49da67f99619247ed564be1e72a1b5b0a0ae149c13c0c3b22dc8b4370cc9101f`.
 
-Released v434 and its original freeze captures are preserved. The exact tested r2 APK is published as the latest release at the user's request; publication does not establish completed physical acceptance. Android Steam transport, broader device/driver compatibility and individual mod features require separate validation. See [release notes](release-notes/v0.2.435-preload-repair-local-r2.md).
+Released v434 and its original freeze captures are preserved. The exact tested r2 APK was published as the latest release at that time, at the user's request; publication did not establish completed physical acceptance. Android Steam transport, broader device/driver compatibility and individual mod features required separate validation. See [release notes](release-notes/v0.2.435-preload-repair-local-r2.md).

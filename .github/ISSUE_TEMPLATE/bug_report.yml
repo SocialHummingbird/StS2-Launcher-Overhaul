@@ -1,106 +1,57 @@
 name: General bug report
-description: Report a reproducible problem that does not fit a more focused StS2 Launcher template.
+description: Report a problem with the launcher, Steam login, or save synchronization.
 title: "[BUG] "
 labels: ["bug", "needs-triage", "category: reliability"]
 body:
   - type: markdown
     attributes:
       value: |
-        Use a focused template instead when possible: crash/startup, download/branch, or mods/save compatibility. Use this form for Steam login and save-synchronization problems.
+        Describe what went wrong and what you did just before it happened. You can report a problem even if you cannot collect logs.
 
-        This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
-
-        Create a support report from Help → Diagnostics when possible, then review it before sharing. Do not post Steam passwords, Steam Guard codes, refresh/session tokens, private save files, or full unsanitized logs.
+        In the app, **Help → Report a bug on GitHub** fills in a log excerpt. You can also use **Help → Diagnostics → Create support report** and attach the report below. Review anything you share; remove passwords, Steam Guard codes, tokens, account details, and private saves.
   - type: textarea
     id: summary
     attributes:
       label: What happened?
-      description: State the user-visible failure and the last screen or action before it happened.
-      placeholder: The launcher...
+      description: Include any error message shown on screen.
     validations:
       required: true
   - type: textarea
     id: repro
     attributes:
-      label: Reproduction steps
-      description: Give exact steps from install/open through the failure.
-      value: |
-        1.
-        2.
-        3.
+      label: How can we reproduce it?
+      description: List the steps. If it happens only sometimes, say so.
+      placeholder: |
+        1. Open the launcher.
+        2. ...
     validations:
       required: true
   - type: textarea
     id: expected-actual
     attributes:
-      label: Expected vs actual behavior
-      value: |
-        Expected:
-
-        Actual:
-    validations:
-      required: true
-  - type: dropdown
-    id: area
-    attributes:
-      label: Main area
-      multiple: true
-      options:
-        - Startup or launcher UI
-        - Steam login or ownership check
-        - Game download or update
-        - Steam branch selection
-        - Game launch/runtime
-        - Save synchronization (automatic or manual)
-        - Workshop/mod loading
-        - Save compatibility
-        - Android x86 fallback/diagnostics
-    validations:
-      required: true
+      label: What did you expect to happen?
   - type: textarea
     id: environment
     attributes:
-      label: Device and app version
-      description: If you installed from GitHub, use the exact release tag and APK filename, not "latest".
-      value: |
+      label: Device and launcher version
+      description: Give what you know. The version in the app or the release tag is enough; you do not need to find internal IDs.
+      placeholder: |
         Device model:
         Android version:
-        Vendor skin/version, for example One UI:
-        Device ABI:
-        Display size/font size settings:
-        APK release tag:
-        APK filename:
-        Package name:
-        App version/versionCode:
-        Clean install or update install:
-        Selected game branch:
-        Mods enabled:
-        Steam session reused or fresh sign-in:
-        Save status before the failure:
+        Launcher version:
+        Game version or branch, if relevant:
+        Mods enabled, if relevant:
     validations:
       required: true
   - type: textarea
     id: evidence
     attributes:
-      label: Logs, screenshots, or diagnostics
-      description: Attach the generated support report and focused evidence. For crashes, include 200-300 lines around the primary exception. Review/redact account identifiers and private paths first.
-      value: |
-        Attached:
-        Sync action, automatic / Sync now / Pull / Push:
-        Sync result shown in the launcher:
-        Relevant logcat markers:
-        Screenshot/screen recording:
-        Launcher diagnostics/report file:
-        Selected installation state / GameIdentity ID, if shown:
-        Launch-attempt ID / handoff events, if shown:
-    validations:
-      required: true
+      label: Logs or screenshots, if available
+      description: Keep any diagnostics prefilled by the app. You can paste a reviewed log or attach a support report, screenshot, or recording. For a save-sync problem, include the action you chose and the result shown.
   - type: checkboxes
     id: safety
     attributes:
-      label: Safety and scope checks
+      label: Before submitting
       options:
-        - label: I checked whether a more focused issue template fits this report.
-          required: true
-        - label: I reviewed the support report/logs and removed Steam credentials, Steam Guard codes, refresh/session tokens, private account details, private save contents, and full unsanitized logs.
+        - label: I have removed credentials, tokens, private account details, and private saves from anything I am sharing.
           required: true

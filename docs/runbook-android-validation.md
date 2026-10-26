@@ -1,20 +1,20 @@
 # Android validation runbook
 
-Updated: 2026-08-22
+Updated: 2026-10-26
 
 The exact `v0.2.429-issue38-arm64-rc4` device result is recorded below. Older deferred-preload and mod journeys remain specialized historical/incomplete procedures; they do not replace the current runtime/handoff validation or inherit RC4's result.
 
 ## Current procedure
 
-1. Record the source commit and working-tree state.
+1. Supply the [development prerequisites and staged runtimes](development.md#prerequisites), then record the source commit and working-tree state.
 2. Build `src/STS2Mobile/STS2Mobile.csproj` in Release configuration.
 3. Run `scripts/test-local-gameplay-save-safety.ps1`.
 4. Run `tests/STS2Mobile.GameIdentityTests` in Release configuration.
-5. Run `android/gradlew.bat testReleaseUnitTest`.
+5. Run `gradle -p android testMonoReleaseUnitTest --rerun-tasks` with Gradle 8.14.3 on `PATH`.
 6. Run `scripts/test-launcher-ui-preview.ps1` with the explicit local fixture
    paths shown in
-   [Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-activation).
-7. If an APK is required, build it with `scripts/build-android-local.ps1` and inspect it with `scripts/verify-android-apk.ps1`.
+   [Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-loading).
+7. If an APK is required, follow [Build an APK](development.md#build-an-apk) with explicit local tool and signing inputs, then inspect it with `scripts/verify-android-apk.ps1`.
 8. Record exact commands, exit codes, and failures.
 
 The save suite covers local path containment, atomic writes, the four synchronization decisions, transactional Pull failure, retryable Push failure, pre-load ordering, gameplay Push queuing, and shared manual synchronization. The Issue #38 suite covers authoritative identity, transactional N → N+1 updates, interruption recovery, atomic runtime-pack promotion, selected-branch isolation, save/credential preservation, and attempt-bound handoff ordering. Fake remotes and desktop fixtures prove neither live Steam transport nor physical Android behavior.
@@ -113,8 +113,10 @@ another collector, mod, device, branch, or renderer to this comparison.
 
 ## Historical Stage 9: one-device mod acceptance (incomplete)
 
-This is the only authorized mod-loading device journey. Do not begin a renderer,
-branch, mod, or device matrix until it passes.
+This procedure records the former custom loader's incomplete acceptance journey.
+Its old APK and loader-specific milestones do not apply to the current mod framework;
+use [current Android status](current-android-status.md) for the current validation scope.
+The commands and inputs below are retained to explain the historical result.
 
 ### Pin the inputs
 

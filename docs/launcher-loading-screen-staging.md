@@ -1,5 +1,7 @@
 # Launcher loading screen staging
 
+Current presentation ownership is described first. The later staging and hardware sections retain their original build-specific scope; see [Android testing status](current-android-status.md) for the latest validation.
+
 ## Current cold-start path
 
 The launch/loading path is split across two deliberately separate surfaces:
@@ -23,7 +25,7 @@ The cold-start transition is silent and uses vector assets. It borrows the struc
 
 ## Visual sequence
 
-`AndroidBootSequence` owns one contiguous 4,000 ms clock. Every visual channel and future sound cue is derived from these phase boundaries:
+`AndroidBootSequence` owns one contiguous 4,000 ms clock. Every visual channel is derived from these phase boundaries:
 
 | Phase | Timeline | Presentation |
 | --- | ---: | --- |
@@ -37,15 +39,9 @@ The cold-start transition is silent and uses vector assets. It borrows the struc
 
 This timing starts only after native overlay attachment and the managed first-frame readiness signal are both present. Runtime initialization before readiness is not forced into a fixed duration.
 
-## Silent sound extension point
+## Presentation ownership
 
-- `AndroidBootTransitionSound` defines `play(cue)`, `pause()`, `resume()`, and `close()` without selecting an Android playback API.
-- `AndroidBootTransitionCue` maps one cue to the start of each of the seven visual phases. The animation clock remains authoritative; sound cannot delay, pause, or retime it.
-- `AndroidBootTransitionSoundSession` emits each cue at most once, suppresses all staged cues for skipped and reduced-motion paths, discards phases reached while paused instead of replaying stale sound, and closes on completion, cancellation, timeout, activity destruction, or overlay-install failure.
-- `SilentBootTransitionSound` is the active implementation. It contains no audio asset, playback call, audio-focus request, permission, service, dependency, or preference.
-- Android hardware inspection still sees Godot's existing OpenSL/FMOD runtime stream. That stream is part of normal Godot initialization and is not a boot-transition cue or an implementation of this extension point.
-
-A future sound implementation must fit the existing cue lifecycle. It must not move phase boundaries, make launcher readiness wait for audio, replay missed cues after resume, or make sound failure block overlay cleanup.
+`AndroidBootTransitionController` owns readiness, animation, watchdog and lifecycle cleanup. `AndroidBootSequence` samples visual state, and `AndroidBootIdentityView` renders it. The transition is silent. The unused sound interface, cues, session and silent implementation were removed during the [October 2 cleanup](system-cleanup-2026-10-02.md).
 
 ## Branding restrictions
 
@@ -88,10 +84,7 @@ Implemented in this stage:
 - The boot identity scales from 52% of the viewport short edge within a 144-232 dp clamp, with `StS2 LAUNCHER` rendered as responsive live Android text rather than image content.
 - `AndroidBootIdentityView` owns the full native presentation surface: official Godot mark, independent cyan/orange registration layers, resolved mark, reveal clipping, pulse overlay, and wordmark.
 - Its pure visual-state model exposes independently testable opacity, scale, X/Y registration offsets, reveal progress, and pulse strength while the controller retains startup policy and lifecycle ownership.
-- `AndroidBootSequence` defines the seven named, contiguous timeline phases and samples every visual channel from one authoritative 4,000 ms clock. The controller logs phase entry, which provides a synchronization point for later sound work without loading or playing audio now.
-- `AndroidBootTransitionSound` and the phase-aligned cue definitions provide a replaceable sound boundary. `SilentBootTransitionSound` is the active implementation; staged cues are suppressed for skipped and reduced-motion transitions, and the session closes on completion, cancellation, timeout, activity destruction, or overlay-install failure.
-- Activity pause/resume is forwarded only to the sound boundary. Calls are idempotent, phases reached while paused are discarded instead of replayed out of sync, and the visual sequence is never paused or retimed.
-- The sound boundary contains no audio assets, playback API, audio-focus request, permission, service, dependency, or user-facing setting. A future audible implementation can replace the silent implementation without changing animation timing or sequencing.
+- `AndroidBootSequence` defines the seven named, contiguous timeline phases and samples every visual channel from one authoritative 4,000 ms clock. The controller logs visual phase entry.
 - The staged reveal brings offset cyan and orange layers into registration, resolves them into the full-colour mark, reveals the live wordmark during the settle, holds the confirmed identity, emits one restrained pulse, and then fades the overlay into the ready launcher.
 - Managed `NotifyLauncherFirstFrameReady()` bridge after two process frames and `FramePostDraw`.
 - Cold-start, pending-game, Safe Start, explicit-restart, and process-consumption policy.
@@ -99,7 +92,7 @@ Implemented in this stage:
 - Pure Java policy/state tests and Android release resource/Java compilation coverage.
 - Godot Engine logo attribution and explicit non-PlayStation branding guidance.
 
-## Connected hardware validation
+## Historical hardware validation
 
 The corrected local ARM64 build `0.2.407-boot-hardware-resume-local` (`407001`) was installed on a Samsung `SM-F966B` running Android 16 / API 36. The installed `base.apk` exactly matched the tested artifact SHA-256 `f4ed4266a2019669383d16b5a4108601f4fe41a9a5107969f85532f74387434a`.
 
@@ -126,19 +119,19 @@ The later `v0.2.429-issue38-arm64-rc4` release adds an attempt-bound launcher-to
 
 The exact RC4 APK was installed in place on Samsung `SM-F971B`, Android 17 / API 37, and passed 10/10 counted launches: four cold, four warm, one background/resume, and one lock/unlock. Each attempt recorded exactly one readiness, overlay-hidden, and handoff-completed event; the game was visible, the launcher overlay was absent, and no stale completion was observed. This resolves the observed handoff/overlay race for that exact artifact and device matrix, not every Android device or graphics path. See [v0.2.429 release notes](release-notes/v0.2.429-issue38-arm64-rc4.md).
 
-## Future work
+## Historical follow-up ideas
 
-Stage 4 should add richer launch progress copy:
+The original staging plan proposed richer launch progress copy:
 
 - current phase such as `Checking files`, `Preparing Steam session`, `Starting game`, or `Recovering startup`;
 - last meaningful launcher log line;
 - a visible diagnostics shortcut if startup stalls.
 
-Longer-running warmup and loading work should not hide real progress:
+It also proposed the following presentation principles for longer-running warmup and loading work:
 
 - scalable icon/logo treatment using the orange/cyan launcher identity;
 - real Godot controls for all text and actions;
 - responsive composition for phones, foldables, tablets, notches, and navigation bars;
 - no text baked into images.
 
-The historical Samsung foldable result applies only to its recorded build. Current-source layout checks use the deterministic desktop preview until hardware testing is separately authorized.
+These Samsung foldable results apply only to their recorded builds. See [Android testing status](current-android-status.md) for current release results and remaining device checks.

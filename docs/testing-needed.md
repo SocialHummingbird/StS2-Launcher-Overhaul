@@ -1,19 +1,21 @@
 # Testing needed
 
-Updated: 2026-08-22
+Updated: 2026-10-26
 
 Use the smallest test that exercises the affected behavior. Do not turn desktop, fake-service, source inspection, or one-device evidence into a broader claim.
 
 ## Required local checks
 
+Supply the [development prerequisites and staged runtimes](development.md#prerequisites) first. The JVM command uses Gradle 8.14.3 on `PATH`.
+
 ```powershell
 dotnet build src\STS2Mobile\STS2Mobile.csproj -c Release
 .\scripts\test-local-gameplay-save-safety.ps1
 dotnet run --project tests\STS2Mobile.GameIdentityTests\STS2Mobile.GameIdentityTests.csproj -c Release
-.\android\gradlew.bat testReleaseUnitTest
+gradle -p android testMonoReleaseUnitTest --rerun-tasks
 ```
 
-Run `scripts/test-launcher-ui-preview.ps1` with the explicit importer, base-game PCK, and managed-runtime paths in [Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-activation) when launcher or mod behavior changes.
+Run `scripts/test-launcher-ui-preview.ps1` with the explicit importer, base-game PCK, and managed-runtime paths in [Focused development commands](steam-version-selection-tooling.md#launcher-navigation-and-mod-loading) when launcher or mod behavior changes.
 
 The local suites cover:
 

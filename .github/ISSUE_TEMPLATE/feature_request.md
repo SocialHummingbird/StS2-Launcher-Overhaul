@@ -1,39 +1,23 @@
 ---
 name: Feature request
-about: Propose a focused architecture or reliability improvement
+about: Suggest an improvement to the launcher
 title: "[FEATURE] "
 labels: ["enhancement", "needs-triage", "category: overhaul", "priority: p2"]
 assignees: []
 ---
 
-This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+## What would you like to do?
 
-## Summary
+Describe the task or problem in your own words.
 
-Briefly describe the feature or cleanup.
+## How would this help?
 
-## Why this matters
+Explain what is difficult today and what a better result would look like.
 
-State the reliability, maintainability, or user-facing benefit.
+## Suggested approach (optional)
 
-## Proposed changes
+If you have an idea, describe it here. You do not need to identify source files or design the implementation.
 
-- Area:
-- Scope:
-- Files touched (expected):
+## Examples or context (optional)
 
-## Acceptance criteria
-
-- [ ] Behavior change is isolated
-- [ ] Risk and rollback are documented
-- [ ] Testing plan is defined
-- [ ] No unrelated behavior changes
-
-## Labels
-
-- [ ] severity: low/high/critical
-- [ ] priority: p1/p2/p3
-
-## Notes
-
-Add any constraints, related issues, or dependencies.
+Add screenshots, related issues, or examples from another app if they help explain the request.

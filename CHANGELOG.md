@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-26 - Documentation corrections
+
+- Correct mod loading results, first-time save copying, Safe Start synchronization and offline-launch requirements.
+- Align build instructions and runtime/update documentation with the current implementation; separate dated investigations from current guidance.
+- Simplify bug-report forms and repair release links. These are documentation changes; no APK or device-test results are added.
+
 ## 2026-10-26 - v0.2.436 original mod framework on Android
 
 - Restore the game's discovery, initialization and model construction; remove named-mod workarounds, publicizing and activation guesses.

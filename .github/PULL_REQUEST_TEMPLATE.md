@@ -1,19 +1,15 @@
-This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
+## Change
 
-## Summary
-
-- What changed:
-- Why:
-- Related issue/PR:
+Explain the problem and what this PR changes. Link any related issue.
 
 ## Validation
 
-- Commands and results:
-- Device or real-Steam checks, if any:
-- Not tested:
+List the checks you ran and their results. For device or Steam testing, name the build and environment. State what remains untested.
+
+For documentation changes, check instructions, examples and links against the current code.
 
 ## Scope
 
-- [ ] The change has one clear purpose.
-- [ ] Focused behavior tests cover the affected path.
-- [ ] The PR does not claim Android or Steam proof from fakes, desktop previews, or source inspection.
+- [ ] The change has one clear purpose, including any necessary cleanup.
+- [ ] The validation fits the change; unperformed checks are identified.
+- [ ] Android and Steam claims are supported by observations in those environments, with desktop or simulated checks described separately.

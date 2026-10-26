@@ -1,6 +1,8 @@
 # Startup responsiveness investigation — September 7, 2026
 
-Implemented changes for slow Play, Android “wait or close” prompts, and large resource-loading bursts after the title screen appears. This is a local candidate, not a published release.
+Historical local-candidate investigation. The published v0.2.432 build is recorded in [its release notes](release-notes/v0.2.432.md); see [Android testing status](current-android-status.md) for current results.
+
+Implemented changes for slow Play, Android “wait or close” prompts, and large resource-loading bursts after the title screen appears. The candidate tested in this report was local and unpublished.
 
 ## Findings and changes
 

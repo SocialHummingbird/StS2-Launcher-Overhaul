@@ -11,7 +11,7 @@ The launcher checks GitHub for a new release after it opens. If one is available
 
 The updater does not uninstall the app or change saves, login details, mods, or downloaded game versions. Game updates are separate and live on the **Versions** page.
 
-You need to install the first APK normally before you can use this feature. GitHub login is not required to download an app update.
+For the first installation, follow [Getting started](getting-started.md). Later updates can be installed from inside the launcher. You do not need a GitHub account to download them.
 
 ## If the update is unavailable
 
@@ -21,7 +21,7 @@ The updater rejects APKs with a missing checksum, the wrong architecture or pack
 
 ## For release maintainers
 
-Publish a non-draft, non-prerelease GitHub release and mark it latest. Keep the package name and signing certificate, increase the Android version code, and use a comparable version tag. A higher numeric version such as `v0.2.432` avoids ambiguity between differently named release candidates.
+Publish a non-draft, non-prerelease GitHub release and mark it latest. Keep the package name and signing certificate, increase the Android version code, and use a comparable version tag. Increasing the numeric release version avoids ambiguity between differently named release candidates.
 
 Name APK assets with their ABI suffix, such as `-arm64-v8a.apk`. The updater uses GitHub's `sha256:` asset digest and checks file size, package, signature, minimum Android version, and native architecture before handing the APK to Android. Signing-key rotation is not supported by this implementation.
 

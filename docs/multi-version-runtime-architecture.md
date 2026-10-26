@@ -11,7 +11,7 @@ A slot contains:
 - Downloaded game files.
 - `installation_state.json` with transactional `updating`/`ready` state.
 - Authoritative `GameIdentity`: normalized branch, completed install generation, and hashes of the actual final PCK and source `sts2.dll`.
-- Runtime-pack metadata and patched managed assemblies.
+- Runtime-pack metadata and an unchanged copy of the source game assembly. Harmony applies runtime patches when the game loads.
 - Patch-validation result.
 
 Runtime-pack metadata and active-cache markers are derived from `GameIdentity`; they cannot define the current installed-file identity.
@@ -20,13 +20,15 @@ The slot identifier is stable, filesystem-safe, and derived from the selected br
 
 ## Activation
 
-Before launch, the launcher requires the selected installation state to be `ready`, rehashes the actual PCK and source DLL, and requires the promoted runtime pack to declare and validate that exact identity. Android then validates and atomically promotes the active assembly cache. It either activates that slot or reports one actionable readiness failure.
+`ready` means the installed files have completed preparation; it is published before runtime-pack work. Before launch, the launcher reads their `GameIdentity` and validates the matching runtime pack. Managed reads may reuse a PCK digest bound to the completed generation and exact file snapshot; the source DLL is always hashed.
+
+Android independently hashes the installed PCK and source DLL and validates the pack before preparing the active assembly cache. After pack/cache checks succeed, the launcher writes `current_runtime_slot.json` as authorization for that exact identity and pack. It rechecks authorization before launch. Markers cannot replace current-file hashing.
 
 Activation must not move gameplay saves or block launch on save state.
 
 ## Cleanup
 
-Recovery targets only the explicitly selected slot. **Redownload Selected Version** may delete that branch's game/runtime/download evidence and its matching derived cache; it must not remove sibling branches, application package data, credentials, Workshop content, or gameplay saves. The former bulk **Remove old versions** behavior is not present.
+Recovery targets only the selected slot. **Redownload Selected Version** removes that branch's game files, download state, runtime pack and owned temporary paths, plus derived evidence owned by that branch or too invalid to identify an owner. It retains the active assembly cache, which must be validated or replaced during a later launch. Sibling branches, application package data, credentials, Workshop content, and gameplay saves are preserved. The former bulk **Remove old versions** behavior is not present.
 
 ## Validation boundary
 

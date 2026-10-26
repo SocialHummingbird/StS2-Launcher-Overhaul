@@ -1,141 +1,64 @@
-name: Mods, Workshop, or save compatibility
-description: Report Workshop discovery, mod selection, mod loading, or native vanilla/modded save behavior.
+name: Workshop mods or modded saves
+description: Report mod downloads, loading, gameplay, or vanilla/modded save problems.
 title: "[MODS] "
 labels: ["bug", "needs-triage", "category: reliability"]
 body:
   - type: markdown
     attributes:
       value: |
-        This is the preferred template for Workshop/mod reports. SavesMerger is deprecated in current source builds; report whether the game's native modded profile is visible without it.
+        Tell us which mods you enabled, what the launcher reported, and what happened in the game. A successful loading result does not prove that every mod feature works.
 
-        This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, Steam, or Valve, and it bundles no Slay the Spire 2 game files, assets, or Workshop content. Steam ownership is required.
-
-  - type: dropdown
-    id: test-type
-    attributes:
-      label: Test type
-      multiple: true
-      options:
-        - Workshop sync/discovery
-        - Manual import
-        - Mod selector UI
-        - Vanilla launch with mods disabled
-        - Modded launch with selected mods
-        - Deprecated SavesMerger was selected or loaded
-        - Save compatibility
-        - Mod crash or hang
-    validations:
-      required: true
+        Use **Help → Diagnostics → Create support report** if available. Review attachments before sharing; remove passwords, Steam Guard codes, tokens, account details, and private saves.
   - type: textarea
     id: summary
     attributes:
-      label: Summary
-      description: Describe the mod loading or native save-compatibility result.
+      label: What happened?
+      description: Describe the missing feature, loading error, crash, or save problem.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Reproduction steps
-      description: Include Workshop sync/manual import, mod selection, launch mode, save check, and whether mods were disabled afterward.
-      value: |
-        1.
-        2.
-        3.
+      label: How can we reproduce it?
+      description: Include the action that should show the mod's effect. If you already tried Vanilla, say what happened; you do not need to change a valuable save just to report a bug.
+      placeholder: |
+        1. Enable ...
+        2. Press Play.
+        3. ...
     validations:
       required: true
   - type: textarea
     id: environment
     attributes:
-      label: Device, app, and branch context
-      value: |
+      label: Device, launcher, and game version
+      placeholder: |
         Device model:
         Android version:
-        Device ABI:
-        APK release tag:
-        APK filename:
-        Package name:
-        App version/versionCode:
-        Selected game branch:
-        Clean install or update install:
-        Steam account owns Slay the Spire 2:
+        Launcher version:
+        Game version or Steam branch:
     validations:
       required: true
   - type: textarea
     id: mods
     attributes:
-      label: Mods selected
-      description: List every selected mod in launch order if known.
-      value: |
-        Mod name:
-        Workshop item ID:
-        Source, Workshop sync or manual import:
-        Files present, for example .dll/.json/.pck:
-        Enabled or disabled:
-        Launcher showed unsupported/attention warning:
-
-        Repeat for each mod:
-    validations:
-      required: true
-  - type: textarea
-    id: launcher-state
-    attributes:
-      label: Launcher mod state
-      description: Paste visible status and diagnostics when available.
-      value: |
-        Mods section appeared on launcher screen:
-        Workshop sync completed:
-        Manual import used:
-        Selected mod count:
-        Active mod status text:
-        Unsupported item warning text:
+      label: Enabled mods
+      description: List names or Workshop links. Mention any manually installed packages and the status shown for each affected mod.
     validations:
       required: true
   - type: textarea
     id: save-behavior
     attributes:
-      label: Save behavior
-      description: Report whether native local modded saves were visible and loadable. Do not attach private save files publicly.
-      value: |
-        Existing vanilla save present before test:
-        Existing modded save present before test:
-        Save/profile became visible in-game:
-        Save/profile loaded successfully:
-        SavesMerger was absent from selected/activation evidence:
-    validations:
-      required: true
-  - type: checkboxes
-    id: result
-    attributes:
-      label: Result
-      options:
-        - label: Game reached main menu.
-        - label: Game loaded selected mods.
-        - label: Game launched vanilla with zero mods.
-        - label: The native modded save was usable.
-        - label: The native modded save was not usable.
-        - label: App crashed or hung.
+      label: Save details, if relevant
+      description: Say which save set the launcher displayed, whether the profile appeared, and whether it loaded. Do not attach private save files publicly.
   - type: textarea
     id: evidence
     attributes:
-      label: Logs, screenshots, and runtime evidence
-      description: |
-        Useful terms: Workshop, Mods, SavesMerger, BaseLib, Quick Restart, Loaded, PatchHelper, AndroidRuntime, FATAL EXCEPTION.
-      value: |
-        Focused logcat attached:
-        Screenshots attached:
-        Selected game branch:
-        GameIdentity ID:
-        Selected PCK SHA-256:
-        Selected source sts2.dll SHA-256:
-        Runtime pack ID:
-        Runtime-pack sts2.dll SHA-256:
-    validations:
-      required: true
+      label: Support report, logs, or screenshots, if available
+      description: Attach a reviewed report and any screenshot or recording that shows the missing feature or error. Internal hashes and runtime IDs do not need to be copied into this form.
   - type: checkboxes
     id: safety
     attributes:
-      label: Safety checks
+      label: Before submitting
       options:
-        - label: I reviewed the report/logs and removed Steam credentials, Steam Guard codes, refresh/session tokens, private account details, private save contents, and full unsanitized logs.
+        - label: I have removed credentials, tokens, private account details, and private saves from anything I am sharing.
           required: true

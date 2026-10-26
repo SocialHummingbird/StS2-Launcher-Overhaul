@@ -8,15 +8,15 @@ Play your Steam copy of **Slay the Spire 2 on Android**. StS2 Launcher handles t
 
 **[Download the latest APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest)** · **[Getting started](docs/getting-started.md)** · **[Report a problem](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/issues)**
 
-You need a Steam account that owns the game and an ARM64 Android device. The launcher does not include game files. This is an unofficial project, unaffiliated with Mega Crit, Valve, or Steam.
+You need a Steam account that owns the game and an ARM64 device running Android 7 or later. The launcher does not include game files. This is an unofficial project, unaffiliated with Mega Crit, Valve, or Steam.
 
 ## What you can do
 
 - **Download and launch the game.** Sign in to Steam, download your copy, and play from the Home page.
 - **Keep different game versions installed.** Switch between available Steam branches, including public betas, without replacing every other version.
 - **Sync saves with Steam.** The app checks for saves before loading and queues uploads after saving. The Saves page also lets you sync, download, or upload manually. Conflicting changes ask you which copy to keep.
-- **Choose Vanilla or Modded play.** Download subscribed Workshop mods, enable the ones you want, and see how they loaded on the last launch. Mod compatibility varies; vanilla and modded saves stay separate.
-- **Try graphics and startup options.** Choose Auto, Vulkan, or OpenGL. Safe Start skips shader warmup if normal startup gets stuck.
+- **Choose Vanilla or Modded play.** Sync your Workshop subscriptions, enable the mods you want, and see their loading results. The game manages mod loading and normally keeps vanilla and modded saves separate. See the [mod guide](docs/android-workshop-mods.md) for first-time save copying and loading errors.
+- **Try graphics and startup options.** Choose Auto, Vulkan, or OpenGL. Safe Start skips shader warmup and automatic save synchronization for that run, using local saves. Check the Saves page before continuing on another device.
 - **Connect over LAN.** Local-network multiplayer supports discovery and manual address entry. On PC, add `--fastmp` to the game's Steam launch options. This feature is experimental.
 - **Update the launcher in the app.** It checks for new releases and offers an update. You can also check from Help; Android asks you to confirm installation.
 - **Report bugs with useful logs.** Help opens a GitHub issue with redacted diagnostics already filled in. Review the report, add what happened, and submit it yourself.
@@ -28,13 +28,13 @@ You need a Steam account that owns the game and an ARM64 Android device. The lau
 3. Choose a game version and download it. For your first install, use the regular public branch.
 4. Start with Vanilla mode and press Play.
 
-Already installed? Update over your existing app. **Do not uninstall or clear app data to update** — that removes local saves. See [installation and updates](docs/getting-started.md) if Android refuses the APK.
+Already installed? Update over your existing app. **Do not uninstall or clear app data to update:** that removes local saves. See [installation and updates](docs/getting-started.md) if Android refuses the APK.
 
 ## Before you play
 
 Android support is still experimental. Performance, audio, graphics, and mod compatibility depend on your device and game version.
 
-The current release is **v0.2.436**. It restores the game's original mod framework, replaces individual-mod workarounds with shared Android runtime repairs, and preserves complete Workshop packages. ARM64 candidate testing covers gameplay, restart, cold save/reload and Vanilla isolation. The final release APK passes build, signing and update checks but has not been installed on a phone. See [release notes](docs/release-notes/v0.2.436.md) for the exact validation scope.
+The current release is **v0.2.436**. It uses the game's original mod framework with shared Android runtime fixes and unmodified Workshop packages. Testing of an ARM64 candidate covered gameplay, room restart, saving and reloading after closing the game, and Vanilla isolation. The final release APK passes build, signing and update checks but has not been installed on a phone. See the [release notes](docs/release-notes/v0.2.436.md) for the tested builds and remaining checks.
 
 ## Help and documentation
 

@@ -2,6 +2,8 @@
 
 Updated: 2026-08-13
 
+Historical snapshot of the August 13 release line. The goals and results below belong to that snapshot; use [current Android testing status](../current-android-status.md) for the latest build.
+
 ## Current focus
 
 Keep the launcher on the smallest useful Android path:

@@ -1,13 +1,13 @@
 # Getting started
 
-You need an ARM64 Android device, internet access for setup, and a Steam account that owns Slay the Spire 2. The game is downloaded from Steam after you sign in; it is not included in the APK.
+You need an ARM64 device running Android 7.0 or later (API 24), internet access for setup, and a Steam account that owns Slay the Spire 2. The game is downloaded from Steam after you sign in; it is not included in the APK.
 
 ## Install and download the game
 
 1. Open the [latest release](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest) and download the APK ending in `-arm64-v8a.apk`.
 2. Open the APK. If Android asks, allow the browser or file manager to install apps from this source, then return to the installer.
 3. Launch the app and sign in to Steam. Complete Steam Guard if asked.
-4. Select the regular public game branch and download it. Other available branches are listed under **Versions**.
+4. Select **Default / public** and download it. Other available game branches are listed under **Versions**.
 5. Start in **Vanilla** mode and press **Play**. Add mods after the base game works.
 
 The first download needs space for the game and its Android preparation files. Each additional game branch uses more storage.
@@ -34,7 +34,7 @@ Launcher updates and game updates are separate. Use **Versions** to update the g
 
 ## Use Steam saves
 
-The launcher checks Steam saves before the game loads and queues uploads after gameplay saves. Check the Saves page before switching devices, especially after playing offline.
+During normal startup, the launcher checks Steam saves before the game loads and queues uploads after gameplay saves. Safe Start uses local saves and pauses automatic uploads for that run. Check the **Saves** page before switching devices, especially after playing offline or using Safe Start.
 
 - **Sync now** checks both copies.
 - **Get saves from Steam** downloads the Steam copy.
@@ -42,7 +42,9 @@ The launcher checks Steam saves before the game loads and queues uploads after g
 
 If both copies changed, the app asks which one to keep. Read that choice carefully. A network failure does not mean your local save was lost, and it does not mean Steam has received it.
 
-Vanilla and modded saves are separate. Changing modes or game versions does not merge them.
+The game normally keeps vanilla and modded saves separate. It can make an initial copy of vanilla progress when you first use mods, while protecting existing modded saves. Later progress is not kept merged.
+
+Check the save set shown on Home or Mods after launching; selecting Modded alone does not guarantee that mods loaded. See [Workshop mods](android-workshop-mods.md#saves) for details.
 
 ## If something goes wrong
 

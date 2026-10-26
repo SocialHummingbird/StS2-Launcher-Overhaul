@@ -1,6 +1,8 @@
 # System cleanup and local validation — 2026-10-02
 
-Implemented the requested removal/consolidation across launcher-owned managed code, native startup, tooling callers, tests and active guidance. The current [disposition inventory](../REDUCTION_INVENTORY.md) identifies authority, callers, state boundaries and retained candidates. The affected phone remains unavailable; this work does not establish resolution of the title-screen freeze.
+Historical v0.2.434 cleanup record. Later device and framework results are in [Android testing status](current-android-status.md); the current [disposition inventory](../REDUCTION_INVENTORY.md) identifies code ownership.
+
+Implemented the requested removal/consolidation across launcher-owned managed code, native startup, tooling callers, tests and active guidance. The affected phone was unavailable during this cleanup validation; the work did not establish resolution of the title-screen freeze.
 
 ## Changes and retained boundaries
 

@@ -5,7 +5,9 @@ It checks real touch input while preparation is blocked, main-Looper route deliv
 pause/resume deferral, stale completion after destruction, and failure-result/duplicate
 handling. It does not load Godot, bypass the x86 guard, or access launcher data.
 
-Build with the repository Android SDK/JDK environment and Gradle 8.14.3:
+From the repository root, use JDK 17, Android SDK 35, and Gradle 8.14.3 on `PATH`,
+as described in [development prerequisites](../../docs/development.md#prerequisites).
+This Java-only harness does not need the game or staged .NET runtime inputs.
 
 ```powershell
 gradle -p tools/AndroidStartupHarness assembleDebug

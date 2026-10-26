@@ -1,129 +1,57 @@
 name: Crash, hang, or startup problem
-description: Report an immediate crash, black screen, NativeFallback route, slow startup, or launch hang.
+description: Report a crash, black screen, loading hang, or Android diagnostics screen.
 title: "[CRASH] "
 labels: ["bug", "needs-triage", "category: reliability"]
 body:
   - type: markdown
     attributes:
       value: |
-        NativeFallback, a blocked launch, or a crash is not a successful game launch. Include the branch, APK, runtime, and log evidence that proves where startup routed.
+        Tell us the last screen you saw and whether the app closed or stopped responding. A diagnostics screen is useful evidence, even if the game never opened.
 
-        This is an unofficial community launcher. It is not affiliated with or endorsed by Mega Crit Games, and it bundles no Slay the Spire 2 game files or assets. Steam ownership is required.
-
-        Use Help → Diagnostics → Create support report, or Create Startup Help Report if the startup controls are visible. Review it before sharing. Do not post Steam credentials, Steam Guard codes, refresh/session tokens, private save files, or full unsanitized logs.
-  - type: dropdown
-    id: failure-point
-    attributes:
-      label: When did it fail?
-      multiple: true
-      options:
-        - Immediately after opening the app
-        - Before the launcher UI appeared
-        - During Steam login
-        - During game download/update
-        - After pressing Start Game
-        - After the real game main menu appeared
-        - After selecting or switching Steam branch
-        - After enabling mods
-        - After returning from the game to the launcher
-        - NativeFallbackActivity appeared
-        - Black screen or long hang
-    validations:
-      required: true
+        If Help is available, use **Diagnostics → Create support report**. Startup controls may offer **Create Startup Help Report** instead. Attach a reviewed report below; you do not need to copy its internal fields. Do not share passwords, Steam Guard codes, tokens, account details, or private saves.
   - type: textarea
     id: summary
     attributes:
       label: What happened?
-      description: Include the last visible screen and whether Android showed a crash dialog.
+      description: Include the last visible screen, any error message, and whether Android showed a crash or wait/close dialog.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Reproduction steps
-      description: Give exact steps from opening the app through the crash, hang, fallback, or slow startup.
-      value: |
-        1.
-        2.
-        3.
-    validations:
-      required: true
-  - type: textarea
-    id: timing
-    attributes:
-      label: Timing
-      value: |
-        App icon tap to launcher visible:
-        Start Game tap to game main menu or failure:
-        Last visible screen before failure:
-        Was this first launch after install/update:
+      label: How can we reproduce it?
+      description: Include anything relevant, such as pressing Play, enabling mods, switching apps, rotating, or locking the phone.
+      placeholder: |
+        1. Open the launcher.
+        2. ...
     validations:
       required: true
   - type: textarea
     id: environment
     attributes:
-      label: Device and app version
-      value: |
+      label: Device and launcher version
+      placeholder: |
         Device model:
         Android version:
-        Vendor skin/version, for example One UI:
-        Device ABI:
-        GPU model:
-        Godot renderer/backend:
-        APK release tag:
-        APK filename:
-        Package name:
-        App version/versionCode:
-        Clean install or update install:
-        Selected game branch:
-        Mods enabled:
+        Launcher version:
+        Game version or branch:
+        Vanilla or Modded, and selected mods:
     validations:
       required: true
   - type: textarea
-    id: startup-evidence
+    id: timing
     attributes:
-      label: Startup and runtime evidence
-      description: Paste these from the generated support report or focused logcat when available. Use "not captured" rather than deleting unknown fields.
-      value: |
-        Selected game branch:
-        Installation state / phase / transaction ID:
-        GameIdentity ID:
-        PCK path:
-        PCK SHA-256:
-        Source sts2.dll path:
-        Source sts2.dll SHA-256:
-        Runtime pack path:
-        Runtime pack ID:
-        Runtime-pack sts2.dll SHA-256:
-        Patch validation result:
-        First readiness failure:
-        Shader warmup marker/status:
-        NMainMenu reached:
-        Launch-attempt ID:
-        Ordered handoff events:
-        main_menu_ready / overlay_hidden / handoff_completed counts:
-        Post-startup trace marker/latest probe:
-        Post-startup heartbeat marker/latest heartbeat:
-        Last Android lifecycle marker:
-        NativeFallback route shown:
-    validations:
-      required: true
+      label: When does it happen?
+      description: Approximate times are fine. Mention whether this was the first launch after installing or updating, and whether Safe Start or Vanilla behaves differently if you already tried them.
   - type: textarea
     id: logs
     attributes:
-      label: Focused logs and screenshots
-      description: |
-        Attach focused logcat around the failure, including the dying process when possible. Also include last_renderer_attempt.txt and last_process_exit_info.txt when available. Useful terms: AndroidRuntime, FATAL EXCEPTION, Fatal signal, SIGSEGV, SIGABRT, Godot, NMainMenu, PostStartupTrace, PostStartupHeartbeat, Native lifecycle event, has died, lmkd, PowerVR, OpenGL, Vulkan, STS2Mobile, PatchHelper, NativeFallback, SteamKit, Workshop, Mods.
-      value: |
-        Focused logcat attached:
-        Screenshot or screen recording attached:
-        Generated diagnostics/report attached:
-    validations:
-      required: true
+      label: Support report, logs, or screenshots, if available
+      description: Attach a reviewed support report or a short recording. If you cannot collect evidence, submit the report with the details above.
   - type: checkboxes
     id: safety
     attributes:
-      label: Safety checks
+      label: Before submitting
       options:
-        - label: I reviewed the support report/logs and removed Steam credentials, Steam Guard codes, refresh/session tokens, private account details, private save contents, and full unsanitized logs.
+        - label: I have removed credentials, tokens, private account details, and private saves from anything I am sharing.
           required: true

@@ -2,12 +2,29 @@
 
 These instructions are for working on the launcher source. For installation, see [Getting started](getting-started.md). Run commands from the repository root.
 
+## Prerequisites
+
+The Windows build uses PowerShell 7, Git for Windows (including `sh.exe`), the .NET 9 SDK, and Python 3.12.10. The Harmony helper obtains its separate .NET 10.0.100 SDK when needed.
+
+For Android checks and APK builds, install JDK 17, Gradle 8.14.3, and the SDK components in [android/config.gradle](../android/config.gradle): Android SDK 35, build-tools 35.0.0, and NDK 28.1.13356709. Set `JAVA_HOME` and `ANDROID_HOME`, and put Gradle on `PATH`. The commands below use installed Gradle because `android/gradlew.bat` is not tracked in this repository.
+
+Several required inputs are excluded from Git and must be supplied separately:
+
+- Original game publish files under `upstream/godot-export/.godot/mono/publish/arm64/`, including `sts2.dll` and the matching `GodotSharp.dll`.
+- The matching Android .NET 9.0.7 BCL already staged under `android/assets/dotnet_bcl/`. In particular, `System.Private.CoreLib.dll` must have the exact version and SHA-256 pinned in [patches/mono/runtime.json](../patches/mono/runtime.json). The Mono helper checks that file before building; it does not populate the BCL directory.
+- For APKs, the matching custom Godot 4.5.1 Mono Android AAR/native libraries and licensed FMOD inputs. [setup-godot-source.ps1](../scripts/setup-godot-source.ps1) and [build-godot.ps1](../scripts/build-godot.ps1) prepare and build the patched engine; they do not provision the whole game/BCL/third-party bundle. Godot setup installs hash-pinned SCons from [requirements-godot-build.txt](../scripts/requirements-godot-build.txt).
+- For APKs, an existing signing keystore, alias, and password. The wrapper defaults to `tmp/localtest.keystore`; it does not create that file. An in-place update requires the installed app's package and signing identity.
+
+The build helpers need network access for uncached source, SDK/tool archives, NuGet packages, and native runtime packages. A fresh clone is not a self-contained offline build.
+
+`build-android-mono.ps1` accepts `-AndroidHome` and `-PythonPath`. `build-android-harmony.ps1` accepts `-DotNetPath` for an already installed pinned SDK. The APK wrapper accepts `-AndroidHome`, `-JavaHome`, `-GradlePath`, and the keystore parameters shown below; its default tool locations are specific to the original local build environment.
+
 ## Tests
 
 Stage the paired native and managed runtimes before the first managed build:
 
 ```powershell
-.\scripts\build-android-mono.ps1 -Stage
+.\scripts\build-android-mono.ps1 -AndroidHome $env:ANDROID_HOME -Stage
 .\scripts\build-android-harmony.ps1 -Stage
 ```
 
@@ -58,14 +75,6 @@ data. It requires the original case to time out and the repaired case to finish
 64 collections with callbacks preserved. APK integration still requires the
 physical launch procedure in [Android status](current-android-status.md).
 
-Build native Mono and Harmony from their pinned sources and stage the same
-seven managed assemblies for compilation and the APK:
-
-```powershell
-.\scripts\build-android-mono.ps1 -Stage
-.\scripts\build-android-harmony.ps1 -Stage
-```
-
 [The runtime recipe](../patches/harmony/runtime.json) pins SDK 10.0.100,
 Harmony's source commit and patched source tree. The helper downloads and checks
 the SDK archive when needed, restores locked packages from NuGet, rejects
@@ -74,22 +83,7 @@ Harmony targets .NET 9; its vendored MonoMod projects target .NET 8. The Android
 step before publishing the launcher and packages the build provenance alongside
 the assemblies. It preserves the source game DLL's bytes and member visibility.
 
-[The native recipe](../patches/mono/runtime.json) pins .NET 9.0.7 source, its
-matching CoreLib bytes, NDK 28.1.13356709, Python 3.12.10, and checked CMake/Ninja
-archives. The Windows helper builds only native Mono with the existing BCL.
-Its constructor guards defer optional `beforefieldinit` initialization.
-Obtaining a method pointer compiles a guarded JIT body without running managed
-initializers. Required type and module initialization runs at invocation;
-field initialization remains inside the body's exception regions, including
-thread static fields. Harmony wrappers retain declared owner initialization
-before prefixes, and dynamic methods retain their assembly context for
-unqualified type lookup. Android executable writes use Mono's
-architecture-specific instruction-cache maintenance. Both
-supported APK ABIs use this source build; the helper rejects edited cached
-source and records the compiler flags and each library's SHA-256.
-Ordinary assemblies' `IgnoresAccessChecksTo` attributes also cover protected
-and private protected members/types in the named assembly. This changes access
-checks without changing member visibility or granting friend assemblies new rights.
+[The native recipe](../patches/mono/runtime.json) pins .NET 9.0.7 source, the matching CoreLib bytes, NDK 28.1.13356709, Python 3.12.10, and checked CMake/Ninja archives. The helper builds native Mono against the existing BCL for ARM64 and/or x86_64. It rejects edited cached source and records compiler flags and library hashes. The patches address method preparation, required initialization, assembly access/context, and instruction-cache maintenance; the isolated contract below checks these behaviors on the staged ARM64 runtime.
 
 Run the shared patching contract on the staged Android Mono runtime:
 
@@ -117,7 +111,7 @@ runtime checks do not establish game startup or any mod's in-game effect.
 Run the Android/JVM suite with the configured JDK 17 and Android SDK:
 
 ```powershell
-.\android\gradlew.bat -p android testMonoReleaseUnitTest --rerun-tasks
+gradle -p android testMonoReleaseUnitTest --rerun-tasks
 ```
 
 If generated outputs contain unavailable OneDrive placeholders, a task-local Gradle init script can direct outputs to a local cache. Keep it outside production build dependencies; source, inputs and signing stay unchanged.
@@ -138,7 +132,7 @@ fixture (adjust the three local paths if Steam is installed elsewhere):
 
 These checks use local game and mod files in a fresh desktop Godot process. They test whether the importer stays off in Vanilla/disabled mode and activates when enabled. Android loading and the in-game effect need separate device checks.
 
-Run the existing dependency-chain fixture separately:
+Run the existing two-mod fixture separately:
 
 ```powershell
 .\scripts\run-launcher-ui-preview.ps1 -ModRuntimeTest -ModRuntimeScenario stage9-chain `
@@ -160,21 +154,14 @@ The image is written under `artifacts/ui-preview/`. The preview requires Godot 4
 
 ## Build an APK
 
-Required local inputs include:
-
-- .NET 9 SDK.
-- Git and PowerShell 7 for the pinned Harmony source build (the helper obtains
-  its separate .NET 10.0.100 SDK).
-- Python 3.12.10 and Android NDK 28.1.13356709 for the pinned native Mono build;
-  the helper obtains checked CMake and Ninja archives.
-- Android SDK and NDK versions expected by `android/config.gradle`.
-- Original game publish files under `upstream/godot-export/`.
-- The matching custom Godot engine and licensed third-party runtime inputs.
-
-Use the existing build wrapper so the managed assemblies, Android runtime libraries, and ABI selection stay aligned:
+After supplying the [prerequisites](#prerequisites), use the build wrapper so the managed assemblies, Android runtime libraries, and ABI selection stay aligned. Pass your local tool and signing inputs explicitly:
 
 ```powershell
-.\scripts\build-android-local.ps1 -VersionName "<unique-version>" -VersionCode <higher-version-code> -Abi arm64-v8a
+.\scripts\build-android-local.ps1 `
+  -VersionName "<unique-version>" -VersionCode <higher-version-code> -Abi arm64-v8a `
+  -AndroidHome $env:ANDROID_HOME -JavaHome $env:JAVA_HOME `
+  -GradlePath (Get-Command gradle.bat).Source `
+  -KeystorePath "<existing-keystore>" -KeystoreAlias "<alias>" -KeystorePassword "<password>"
 ```
 
 The wrapper archives the APK and checksum under `artifacts/android/`. For a later build, choose a unique version name and a version code higher than the installed APK. A successful build or structural APK inspection does not establish phone compatibility, gameplay success, or working Steam save transfer.

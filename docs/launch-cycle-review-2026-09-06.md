@@ -1,6 +1,8 @@
 # Launch cycle review — 6 September 2026
 
-Scope: current working tree, including existing uncommitted changes. This is a source review and refactoring proposal; no launch behavior was changed. Findings describe reachable code paths, not device-reproduced incidents.
+Historical source review of the September 6 working tree, including its then-uncommitted changes. The resulting implementation is recorded in [the launch refactor report](reliable-launch-implementation-2026-09-06.md); see [Android testing status](current-android-status.md) for current validation.
+
+The review itself changed no launch behavior. Its findings describe the source paths reachable at that time, not device-reproduced incidents.
 
 ## Assessment
 

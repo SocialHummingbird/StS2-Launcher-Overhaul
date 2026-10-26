@@ -12,7 +12,7 @@ Include:
 - Any device or real-Steam validation performed.
 - Important limitations that remain untested.
 
-Do not substitute source-shape checks, broad matrices, or generated evidence bundles for a direct behavior test. If a required check cannot run, state the concrete blocker.
+Test the behavior you changed. A successful build, a patch count, or a source inspection does not show that a feature works. If a check cannot run, explain what prevented it. For documentation changes, check the instructions against the code and verify links and examples.
 
 ## Focused validation
 
@@ -20,4 +20,4 @@ Use the smallest relevant behavior checks. Operational commands, fixture argumen
 
 The save tests use a small fake remote and do not prove Steam or Android transport. Desktop launcher interaction does not prove Android rendering or input. Report device and live-service results separately and only for the exact build tested.
 
-Keep one existing authority per decision; remove superseded callers and code together. Revalidation at a later process or mutation boundary remains intentional. Preserve unique behavior coverage when consolidating tests. Record unproven deletion candidates and their retention reason in the existing reduction inventory.
+Use the existing component responsible for a behavior where it fits. When replacing an implementation, remove the old code and its unused callers, dependencies, tests and documentation together. Keep checks that serve a separate process or file-change boundary, and preserve distinct behavior coverage when consolidating tests. If a proposed deletion still needs evidence, record the missing evidence in the existing reduction inventory.

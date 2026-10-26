@@ -23,12 +23,12 @@ model construction. Android Mono and Harmony now have pinned source recipes.
 | Android host | Ordinary MD5, SHA-1, SHA-256 and background-stream SHA-256 pass on the Java-hosted phone process. Importer profile controls and BaseLib configuration render and respond through the unmodified packages' Godot scripts. |
 | Runtime gate | The original ARM64 method-pointer preparation and protected-member access failures are reproduced. The corrected source pair passes the integrated ARM64 contract, including 92 named-assembly access checks, cached code, exception regions, assembly context, first invocation and required initialization; 64 worker collections/callbacks also pass. Candidate `436008` has no cached `UnlockState` failure or protected-field exception in the observed combat. x86_64 is built but not executed. |
 | Android functional flow | Unmodified ARAM runs through actual combat, card awards and shared BaseLib hooks. QuickRestart restores the original enemy HP, energy and hand. Save and Quit followed by process termination and cold Continue preserves the modded card, rune and custom run configuration; their combat effects still execute after reload. |
-| Post-design package | Unmodified CookieCursor adds working settings controls, writes its sibling configuration and reloads the saved setting after process termination. Physical-mouse cursor appearance and multiplayer behaviour were not observed. |
+| CookieCursor settings | Unmodified CookieCursor adds working settings controls, writes its sibling configuration and reloads the saved setting after process termination. Physical-mouse cursor appearance and multiplayer behaviour were not observed. |
 | Isolation and status | Candidate `436008` Vanilla completion has zero sources, zero mods and native `IsRunningModded=false`. Disabled manual sources are absent from Modded discovery. Cold reopening shows matching Workshop/manual results; changing a companion config invalidates them, and a new launch establishes a matching result. |
 | State preservation | All 403 game/save/settings files match the October 26 pre-test snapshot byte for byte. Newer user progress is preserved. Temporary packages, helper application and device backup directory are removed; profile 1 and connectivity are restored. All four Workshop choices remain enabled because the user's newer active run contains ARAM data. |
 
-These results establish the shared loader/runtime path and observed Android
-functionality, rather than compatibility inferred from patch counts or menu arrival.
+These results cover the shared loader/runtime path and the observed Android
+functionality.
 The original Whirlwind failure was traced to the shared protected-access contract;
 the subsequent run offered Battle Trance, exercising the same card-award path.
 The final ARM64 APK is published as the latest GitHub release. These checks
@@ -108,10 +108,12 @@ Those results apply to those builds and devices; they are not a completed game t
 
 ## Still needs testing
 
-- Original freeze reproduction and the current candidate's 20-launch physical acceptance, including returning from background and lock screen.
+- Install and test the published v0.2.436 APK (`436009`) on an ARM64 phone. The functional device evidence above comes from candidate `436008`.
+- Complete the [20-launch stability procedure](launch-flow-audit-2026-10-02.md#physical-device-acceptance--pending-at-the-users-direction) on the same APK, including warm launches, background/resume and lock/unlock. The earlier freeze was captured; its resolution still needs this acceptance testing.
 - Audio and graphics on more devices and drivers.
 - Real Steam Cloud transfers and switching play between PC and Android.
-- Android mod loading and each mod's actual in-game behavior.
+- Additional Workshop packages, game versions and untested mod features, including physical-mouse cursor behaviour and multiplayer interactions.
+- The in-app updater's full download-to-install cycle with a newer compatible APK.
 - LAN multiplayer across devices.
 
 Password-protected Steam branches are not supported. x86_64 emulator builds are for diagnostics, not the supported game target.

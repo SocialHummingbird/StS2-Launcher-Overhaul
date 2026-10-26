@@ -7,7 +7,7 @@ Start by checking that you have the [latest launcher release](https://github.com
 - **Not compatible with your phone:** the published APK requires ARM64 (`arm64-v8a`).
 - **Update incompatible:** the APK and installed app have different package names or signing keys. Report the error rather than uninstalling to get around it.
 - **No certificates / invalid package:** download the APK again. The release includes a SHA-256 checksum if you want to check the file.
-- **Older SDK / Android version too old:** your Android version is below the APK's minimum.
+- **Older SDK / Android version too old:** the APK requires Android 7.0 or later (API 24).
 - **Install permission needed:** allow installations from the browser, file manager, or launcher that opened the APK, then return to the installer.
 
 See [Getting started](getting-started.md) for the normal update steps.
@@ -22,7 +22,9 @@ If the same error repeats, create a bug report before trying another redownload.
 
 ## Black screen, loading hang, or launcher covering the game
 
-Try launching Vanilla to rule out selected mods. If normal startup stalls, try **Safe Start**, which skips shader warmup. Auto, Vulkan, and OpenGL graphics options are also available, although a device-specific compatibility rule may restrict them.
+Try launching Vanilla to rule out selected mods. If normal startup stalls, try **Help → Safe Start**. It skips shader warmup and the Steam save check during game startup, then uses local saves with automatic uploads paused for that run. Return to **Saves** and sync before switching devices.
+
+Auto, Vulkan, and OpenGL graphics options are also in Help. On PowerVR devices, the current compatibility rule forces OpenGL to work around a known touch-input problem.
 
 If preparation says it is waiting for file operations to finish, let it settle before another attempt. It keeps launch controls blocked so two preparation jobs cannot change the same files at once.
 
@@ -40,7 +42,7 @@ If it still happens on your device, report your app version, device, game branch
 
 ## Saves are missing or out of date
 
-Check the **Saves** page and whether you are playing Vanilla or Modded. Those modes use different save sets. Check the sync result before assuming Steam has your latest Android save.
+Check the save set shown on **Home** or **Mods**, then check the sync result on **Saves**. Vanilla and modded progress normally use separate folders, but selecting Modded alone does not guarantee that the game loaded mods. See [how modded saves work](android-workshop-mods.md#saves). If you used Safe Start, automatic uploads were paused for that run.
 
 If both Android and Steam changed, choose carefully when asked which copy to keep. Don't overwrite either copy just to see whether it fixes the problem. Include the sync message in your report.
 

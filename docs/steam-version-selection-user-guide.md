@@ -29,6 +29,8 @@ If the same error returns, use **Help → Report a bug on GitHub** and mention w
 
 ## Saves and mods
 
-Switching game versions does not move or merge saves. A save or mod made for one game version may not work with another. Vanilla and modded saves remain separate.
+Downloaded game branches use the same save folders. Switching versions does not create a separate copy of your progress, and a save or mod made for one game version may not work with another.
+
+Vanilla and modded progress normally use separate folders. The game can make an initial copy of vanilla progress for a new modded save set while protecting existing modded saves; it does not keep the sets merged afterward. See [Workshop mods and saves](android-workshop-mods.md#saves).
 
 For the file checks behind version selection, see the [technical guide](steam-version-selection-architecture.md).
