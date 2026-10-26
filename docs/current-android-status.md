@@ -2,9 +2,11 @@
 
 Updated October 26, 2026. This page separates local validation from physical-device and live-service results.
 
-## Unreleased: original mod framework restoration
+## Current release: v0.2.436
 
-The working branch replaces launcher-owned mod parsing/loading and activation
+[Release notes](release-notes/v0.2.436.md), [ARM64 APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.436/StS2Launcher-v0.2.436-arm64-v8a.apk), [checksum](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.436/StS2Launcher-v0.2.436-arm64-v8a.apk.sha256).
+
+This release replaces launcher-owned mod parsing/loading and activation
 guesses with the selected game's original framework. It removes the restricted
 BaseLib initializer, named patch exclusions, assembly publicizing and replacement
 model construction. Android Mono and Harmony now have pinned source recipes.
@@ -16,6 +18,7 @@ model construction. Android Mono and Harmony now have pinned source recipes.
 | Original loader contracts | Both supported game initialization shapes pass in separate desktop processes, including original discovery, dependency ordering, multiple manifests, exact manual selection, early secondary scripts and original failure propagation. |
 | Desktop representative packages | Five unmodified packages initialize; original model construction, serialization-cache initialization and repeated act/encounter access pass. |
 | In-place phone update | Candidate `436008` installed over the existing package with the same signing certificate; no uninstall or application-data clearing. |
+| Published APK | `0.2.436` / `436009`, built from `33abc177097fe55bd2c630756f55ecd5e7a60ef8`. Contents, crypto, signing, checksum and update compatibility pass. The final APK has not been installed on a phone; device evidence in this table concerns candidate `436008`. |
 | Steam preparation on phone | Authenticated `mysubscriptions` query returns all four subscriptions. All four committed packages prepare successfully; their 17 payload files match the desktop packages. |
 | Android host | Ordinary MD5, SHA-1, SHA-256 and background-stream SHA-256 pass on the Java-hosted phone process. Importer profile controls and BaseLib configuration render and respond through the unmodified packages' Godot scripts. |
 | Runtime gate | The original ARM64 method-pointer preparation and protected-member access failures are reproduced. The corrected source pair passes the integrated ARM64 contract, including 92 named-assembly access checks, cached code, exception regions, assembly context, first invocation and required initialization; 64 worker collections/callbacks also pass. Candidate `436008` has no cached `UnlockState` failure or protected-field exception in the observed combat. x86_64 is built but not executed. |
@@ -28,11 +31,11 @@ These results establish the shared loader/runtime path and observed Android
 functionality, rather than compatibility inferred from patch counts or menu arrival.
 The original Whirlwind failure was traced to the shared protected-access contract;
 the subsequent run offered Battle Trance, exercising the same card-award path.
-The ARM64 candidate is installed locally and has not been published. These checks
+The final ARM64 APK is published as the latest GitHub release. These checks
 do not certify every Workshop package or replace the separate stability procedure
 recorded below. Evidence is retained under `artifacts/mod-framework-device/`.
 
-## Current release: v0.2.435-preload-repair-local-r2
+## Previous release: v0.2.435-preload-repair-local-r2
 
 [Release notes](release-notes/v0.2.435-preload-repair-local-r2.md), [ARM64 APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.435-preload-repair-local-r2/StS2Launcher-v0.2.435-preload-repair-local-r2-arm64-v8a.apk), [checksum](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.435-preload-repair-local-r2/StS2Launcher-v0.2.435-preload-repair-local-r2-arm64-v8a.apk.sha256).
 

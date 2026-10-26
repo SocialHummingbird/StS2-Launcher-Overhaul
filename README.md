@@ -34,7 +34,7 @@ Already installed? Update over your existing app. **Do not uninstall or clear ap
 
 Android support is still experimental. Performance, audio, graphics, and mod compatibility depend on your device and game version.
 
-The current release is **v0.2.435-preload-repair-local-r2**. It repairs the existing Android preload lookup and native Mono startup path. Local checks and two full Modded/two Vanilla phone launches passed. The remaining phone acceptance is incomplete, so resolution of the intermittent title-screen freeze is not yet established. See [release notes](docs/release-notes/v0.2.435-preload-repair-local-r2.md) for the exact validation scope.
+The current release is **v0.2.436**. It restores the game's original mod framework, replaces individual-mod workarounds with shared Android runtime repairs, and preserves complete Workshop packages. ARM64 candidate testing covers gameplay, restart, cold save/reload and Vanilla isolation. The final release APK passes build, signing and update checks but has not been installed on a phone. See [release notes](docs/release-notes/v0.2.436.md) for the exact validation scope.
 
 ## Help and documentation
 

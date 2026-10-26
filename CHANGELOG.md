@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-26 - v0.2.436 original mod framework on Android
+
+- Restore the game's discovery, initialization and model construction; remove named-mod workarounds, publicizing and activation guesses.
+- Build the shared patching runtime from pinned sources and preserve complete Workshop generations with rollback on failed preparation.
+- Bind displayed results to the actual game, runtime, package contents and selection.
+- Publish the signed ARM64 APK with update compatibility against v0.2.435 and candidate 436008. See [release notes](docs/release-notes/v0.2.436.md) for candidate gameplay evidence and final-APK verification limits.
+
 ## 2026-10-02 - v0.2.435-preload-repair-local-r2 Android preload and Mono repairs
 
 - Repaired the existing preload lookup to accept publicized Android members while preserving all field and method shape checks and loading budgets.
