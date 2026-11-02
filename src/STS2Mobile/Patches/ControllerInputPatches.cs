@@ -1,11 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
-using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.ControllerInput;
-using MegaCrit.Sts2.Core.ControllerInput.ControllerConfigs;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Saves;
 
@@ -20,13 +17,7 @@ internal static class ControllerInputPatches
     private const BindingFlags AllFlags =
         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
     private const string FallbackStrategyFieldName = "_fallbackStrategy";
-    private const string KeyboardInputMapFieldName = "_keyboardInputMap";
-    private const string ControllerInputMapFieldName = "_controllerInputMap";
-    private const string DefaultKeyboardInputMapPropertyName = "DefaultKeyboardInputMap";
-    private const string SaveKeyboardInputMappingMethodName = "SaveKeyboardInputMapping";
-    private const string SaveControllerInputMappingMethodName = "SaveControllerInputMapping";
     private static bool _loggedFallbackInit;
-    private static bool _loggedInputManagerInit;
 
     internal static void Apply(Harmony harmony)
     {
@@ -70,7 +61,7 @@ internal static class ControllerInputPatches
         }
 
         harmony.Patch(target, prefix: new HarmonyMethod(prefix));
-        PatchHelper.Log("Patched NInputManager.Init Android fallback");
+        PatchHelper.Log("Patched NInputManager.Init Android settings readiness");
     }
 
     private static bool SteamControllerInputInitPrefix(
@@ -108,134 +99,25 @@ internal static class ControllerInputPatches
         PatchHelper.Log("Controller input patch initialized Godot fallback strategy on Android");
     }
 
-    private static bool NInputManagerInitPrefix(NInputManager __instance, ref Task __result)
+    private static bool NInputManagerInitPrefix(ref Task __result)
     {
-        __result = InitNInputManagerAndroid(__instance);
-        return false;
-    }
-
-    private static async Task InitNInputManagerAndroid(NInputManager inputManager)
-    {
-        var controllerManager = inputManager.ControllerManager;
-        if (controllerManager == null)
+        try
         {
-            PatchHelper.Log("Controller input patch: NInputManager.ControllerManager was null");
-        }
-        else
-        {
-            await controllerManager.Init();
-        }
-
-        var settings = GetSettingsSave();
-        ApplyKeyboardMapping(inputManager, settings);
-        ApplyControllerMapping(inputManager, controllerManager, settings);
-
-        if (_loggedInputManagerInit)
-            return;
-
-        _loggedInputManagerInit = true;
-        PatchHelper.Log("Controller input patch initialized NInputManager mappings on Android");
-    }
-
-    private static SettingsSave GetSettingsSave()
-    {
-        var settings = SaveManager.Instance.SettingsSave;
-        if (settings != null)
-            return settings;
-
-        PatchHelper.Log("Controller input patch: SettingsSave was null; reinitializing settings data");
-        SaveManager.Instance.InitSettingsData();
-        return SaveManager.Instance.SettingsSave ?? new SettingsSave();
-    }
-
-    private static void ApplyKeyboardMapping(NInputManager inputManager, SettingsSave settings)
-    {
-        var saveMapping = false;
-        var map = new Dictionary<StringName, Key>();
-
-        if (settings.KeyboardMapping != null && settings.KeyboardMapping.Count > 0)
-        {
-            foreach (var item in settings.KeyboardMapping)
+            // Input nodes can become ready before the launcher's normal settings stage.
+            // Prepare the real settings, then leave bindings to this game build's Init.
+            var saves = SaveManager.Instance;
+            if (saves.SettingsSave == null)
             {
-                if (Enum.TryParse<Key>(item.Value, out var key))
-                    map[item.Key] = key;
+                PatchHelper.Log("Controller input patch: SettingsSave was null; initializing settings data");
+                saves.InitSettingsData();
             }
-        }
 
-        if (map.Count == 0)
+            return true;
+        }
+        catch (Exception ex)
         {
-            map = GetDefaultKeyboardInputMap();
-            saveMapping = true;
+            __result = Task.FromException(ex);
+            return false;
         }
-
-        SetField(inputManager, KeyboardInputMapFieldName, map);
-        if (saveMapping)
-            Invoke(inputManager, SaveKeyboardInputMappingMethodName);
-    }
-
-    private static void ApplyControllerMapping(
-        NInputManager inputManager,
-        NControllerManager controllerManager,
-        SettingsSave settings
-    )
-    {
-        var saveMapping = false;
-        var map = new Dictionary<StringName, StringName>();
-
-        if (
-            controllerManager != null
-            && settings.ControllerMapping != null
-            && settings.ControllerMapping.Count > 0
-            && settings.ControllerMappingType == controllerManager.ControllerMappingType
-        )
-        {
-            foreach (var item in settings.ControllerMapping)
-                map[item.Key] = item.Value;
-        }
-
-        if (map.Count == 0)
-        {
-            map = controllerManager?.GetDefaultControllerInputMap
-                ?? new SteamControllerConfig().DefaultControllerInputMap;
-            saveMapping = true;
-        }
-
-        SetField(inputManager, ControllerInputMapFieldName, map);
-        if (saveMapping)
-            Invoke(inputManager, SaveControllerInputMappingMethodName);
-    }
-
-    private static Dictionary<StringName, Key> GetDefaultKeyboardInputMap()
-    {
-        var property = typeof(NInputManager).GetProperty(
-            DefaultKeyboardInputMapPropertyName,
-            AllFlags
-        );
-        var value = property?.GetValue(null) as Dictionary<StringName, Key>;
-        return value != null ? new Dictionary<StringName, Key>(value) : new Dictionary<StringName, Key>();
-    }
-
-    private static void SetField(object instance, string name, object value)
-    {
-        var field = instance.GetType().GetField(name, AllFlags);
-        if (field == null)
-        {
-            PatchHelper.Log($"Controller input patch: field {name} not found");
-            return;
-        }
-
-        field.SetValue(instance, value);
-    }
-
-    private static void Invoke(object instance, string name)
-    {
-        var method = instance.GetType().GetMethod(name, AllFlags);
-        if (method == null)
-        {
-            PatchHelper.Log($"Controller input patch: method {name} not found");
-            return;
-        }
-
-        method.Invoke(instance, null);
     }
 }

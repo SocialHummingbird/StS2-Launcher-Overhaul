@@ -1,6 +1,52 @@
 # Android testing status
 
-Updated October 26, 2026. This page separates local validation from physical-device and live-service results.
+Updated November 2, 2026. This page separates local validation from physical-device and live-service results.
+
+## Local candidate: game-owned input initialization
+
+`0.2.437-input-init-local` / `437001` is built locally and installed in place on
+the SM-F971B test phone; it is **not released**. The existing Android input hook
+now loads real settings only when needed, then allows the selected game's original `NInputManager.Init`
+to initialize its keyboard and controller bindings. Settings-load exceptions
+return a faulted task to the existing game error handler. The Android Steam-input
+fallback remains in place.
+
+The change removes the copied mapping initialization, its reflection helpers and
+the premature mappings-initialized message: 131 production lines removed and 13
+added. The publicizer/input-layout tests from PR #49 were not present on `main`
+and were not imported; the existing original-visibility and preload tests remain.
+
+| Check | Observed result |
+| --- | --- |
+| Source | Base `c64b52ae5f6d65089e8f7159fef40f33426dcd89` plus the local input-patch change. `ControllerInputPatches.cs` SHA-256: `57e0dcda47e2f12f57a3270e295c97819568457766fe1cc1fed9d2483f6496ef`. |
+| Managed build | Passed with 92 warnings and zero errors. |
+| Managed regression suite | 220 passed, zero failed. These existing tests do not establish working Android keyboard bindings. |
+| Release preparation | Fresh managed build/analyzers and scoped `dotnet format --verify-no-changes` passed; 220 managed and 56 Android/JVM tests passed. Android lint reports 15 errors and 39 warnings, matching the retained pre-merge baseline with no new diagnostic identities. Gradle's existing configuration does not fail on lint errors. |
+| Packaged launcher assembly | The prefix has the planned `bool(ref Task)` signature, retains the Steam fallback, and contains none of the removed initialization/mapping methods. |
+| ARM64 APK | Contents and Android crypto-patch checks passed. SHA-256: `dacf19b5a9ccc62c97f822bc05941ecbf677ea7cba9605056d9f154400982a52`. |
+| Update compatibility | Passed against published v0.2.436 (`436009`): same package `com.sts2launcher.overhaul.fork.local`, same certificate `FD0E3D5ACF435C1D23BFC5C426E99AA9EB5808619FF1FC214FFCA99CFAC7E57A`, higher version code. |
+| Device baseline | SM-F971B, Android 17, installed `0.2.436` / `436009`. Its pulled APK matches the retained release byte for byte (SHA-256 `485bee90205da1fa7981a244911da27732ce1515efa7e4ab8b82c2adf0e56200`). On a cold launch the keyboard columns were empty and E did not end combat turn 1, while touch worked. |
+| Game identity | Selected `public-beta`, v0.111.0. Source and active `sts2.dll` SHA-256 both `0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9`; installed game identity `9eb628025c148dd818cb80ca514892303bd2f8aeb7d2602aac2a92efac850b57`. |
+| Candidate installation | `adb install -r` succeeded without uninstalling or clearing data; Android reports `0.2.437-input-init-local` / `437001`. |
+| Default keyboard bindings | Reset through the game UI, then force-stopped and restarted. In Mouse + Keyboard, one E advanced turn 1 to turn 2 (80 to 68 HP). After switching with an arrow key, Keyboard-Only Mode showed its own prompts: Enter did not end turn 2, and one E advanced it to turn 3 (68 to 62 HP). |
+| Saved keyboard bindings | Rebound through the game UI, then force-stopped and restarted again. Mouse + Keyboard: E left turn 1 unchanged; one Q advanced it to turn 2. Keyboard-Only: E left turn 2 unchanged; one R advanced it to turn 3, with the R prompt displayed. The UI paired mouse/keyboard confirm and end turn on Q while keyboard-only confirm stayed on Enter. |
+| Startup and touch | Three candidate cold game launches reached the title screen, loaded real settings through the prefix and initialized the Godot fallback. Captured process logs contain no input-initialization exceptions or old missing-map warnings. Touch navigated settings and played Bash and Strike in the temporary run. Offline save synchronization logged TimeoutException and continued locally with automatic Push paused. |
+| Restoration | Original bindings restored (mouse/keyboard E confirm/end turn; keyboard-only Enter confirm, E end turn), Keyboard-Only preference off, profile 1 selected, and Modded with the original four enabled mods selected again. Only the initially empty Vanilla profile 3 was used and then deleted through the game UI; it shows Empty again. Profile 1 retained its displayed playtime/update date and Continue option. Wi-Fi and mobile data restored to their original enabled states; app stopped. Private save files were not directly inspected or overwritten, so no byte-for-byte preservation claim is made. |
+| Coverage limits | Keyboard checks used ADB application-level key events. Physical keyboard and controller were not exercised; none was attached in the input-device inventory. Actual confirm-shortcut activation in a supported confirmation context remains unverified; the character-selection button overrides its hotkey to Select, so its response to E is not confirm evidence. The settings-load failure contract was reviewed in source, without injecting a device failure. |
+
+The observed default and saved end-turn behavior verifies the initialization
+repair on this split-map beta build. It does not establish every keyboard action
+or physical-device input path. Resetting or rebinding during a session alone was
+not counted as initialization evidence; the functional checks above followed
+process termination and a fresh game launch.
+
+The APK, checksum and metadata are under `artifacts/android/` with the name
+`StS2Launcher-v0.2.437-input-init-local-arm64-v8a.apk`. Local build, regression and
+update-check logs are under `artifacts/input-initialization/`; phone screenshots
+and process logs are in its `android/` directory. A device/Steam save conflict was
+left unresolved without choosing either source. Acceptance ran offline to
+preserve both copies; the conflict still needs the user's source choice. GitHub
+has not been updated.
 
 ## Current release: v0.2.436
 
