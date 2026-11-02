@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-02 - v0.2.437 game-owned input initialization
+
+- Let the game initialize keyboard and controller bindings from its own defaults and saved settings; remove the launcher's copied mapping initializer and unused reflection helpers.
+- Keep settings readiness and the Android Steam-to-Godot controller fallback in the existing input hook.
+- Publish the signed ARM64 APK with update compatibility against v0.2.436 and candidate 437001. See [release notes](docs/release-notes/v0.2.437.md) for cold-start keyboard evidence, automated checks and remaining verification limits.
+
 ## 2026-10-26 - Documentation corrections
 
 - Correct mod loading results, first-time save copying, Safe Start synchronization and offline-launch requirements.

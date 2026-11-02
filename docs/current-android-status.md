@@ -2,10 +2,33 @@
 
 Updated November 2, 2026. This page separates local validation from physical-device and live-service results.
 
-## Local candidate: game-owned input initialization
+## Current release: v0.2.437
 
-`0.2.437-input-init-local` / `437001` is built locally and installed in place on
-the SM-F971B test phone; it is **not released**. The existing Android input hook
+[Release notes](release-notes/v0.2.437.md), [ARM64 APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.437/StS2Launcher-v0.2.437-arm64-v8a.apk), [checksum](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.437/StS2Launcher-v0.2.437-arm64-v8a.apk.sha256).
+
+The release restores game-owned input initialization using the change tested in
+candidate `437001`, recorded below. The final APK has not been installed on a
+phone; its checks establish packaging and update compatibility, while the
+functional observations concern the candidate.
+
+| Check | Observed result |
+| --- | --- |
+| Build source | `9066e566dca7b131cfc9cddbeada4a97f935e607`; the production file has the same SHA-256 recorded for the phone-tested candidate below. |
+| Managed checks | Release build with analyzers passed, zero errors and zero warnings on this incremental run. Scoped `dotnet format --verify-no-changes` passed. 220 managed regressions passed before merge and again on merged `main`. |
+| Android checks | 56 JVM tests passed, none failed or skipped. Android lint reports 15 errors and 39 warnings, matching the retained pre-merge baseline with no new diagnostic identities; the existing Gradle configuration does not fail on lint errors. |
+| Final APK | `0.2.437` / `437002`, `arm64-v8a`. Build, contents and Android crypto checks passed. SHA-256: `b3ca14be47d7b3e5a8e465d33b809877e9c38b1840db1e818cda715496c67169`. |
+| Update compatibility | Passed against v0.2.436 (`436009`) and the installed candidate (`437001`): same package `com.sts2launcher.overhaul.fork.local`, certificate `FD0E3D5ACF435C1D23BFC5C426E99AA9EB5808619FF1FC214FFCA99CFAC7E57A`, and higher version code. |
+| Remaining device checks | Install the final APK; actual confirm-shortcut activation, physical keyboard/controller input and the separate stability procedure remain unverified. |
+
+The final APK, checksum and metadata are under `artifacts/android/` as
+`StS2Launcher-v0.2.437-arm64-v8a.apk` and its `.sha256` and `.json` sidecars.
+Release build, lint, regression and update-check logs are retained under
+`artifacts/input-initialization/`.
+
+## Phone-tested candidate: game-owned input initialization
+
+`0.2.437-input-init-local` / `437001` was built locally and installed in place on
+the SM-F971B test phone; this candidate artifact was not published. The existing Android input hook
 now loads real settings only when needed, then allows the selected game's original `NInputManager.Init`
 to initialize its keyboard and controller bindings. Settings-load exceptions
 return a faulted task to the existing game error handler. The Android Steam-input
@@ -18,7 +41,7 @@ and were not imported; the existing original-visibility and preload tests remain
 
 | Check | Observed result |
 | --- | --- |
-| Source | Base `c64b52ae5f6d65089e8f7159fef40f33426dcd89` plus the local input-patch change. `ControllerInputPatches.cs` SHA-256: `57e0dcda47e2f12f57a3270e295c97819568457766fe1cc1fed9d2483f6496ef`. |
+| Source | Change from base `c64b52ae5f6d65089e8f7159fef40f33426dcd89`, now committed as `9066e566dca7b131cfc9cddbeada4a97f935e607`. `ControllerInputPatches.cs` SHA-256: `57e0dcda47e2f12f57a3270e295c97819568457766fe1cc1fed9d2483f6496ef`. |
 | Managed build | Passed with 92 warnings and zero errors. |
 | Managed regression suite | 220 passed, zero failed. These existing tests do not establish working Android keyboard bindings. |
 | Release preparation | Fresh managed build/analyzers and scoped `dotnet format --verify-no-changes` passed; 220 managed and 56 Android/JVM tests passed. Android lint reports 15 errors and 39 warnings, matching the retained pre-merge baseline with no new diagnostic identities. Gradle's existing configuration does not fail on lint errors. |
@@ -45,10 +68,9 @@ The APK, checksum and metadata are under `artifacts/android/` with the name
 update-check logs are under `artifacts/input-initialization/`; phone screenshots
 and process logs are in its `android/` directory. A device/Steam save conflict was
 left unresolved without choosing either source. Acceptance ran offline to
-preserve both copies; the conflict still needs the user's source choice. GitHub
-has not been updated.
+preserve both copies; the conflict still needs the user's source choice.
 
-## Current release: v0.2.436
+## Previous release: v0.2.436
 
 [Release notes](release-notes/v0.2.436.md), [ARM64 APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.436/StS2Launcher-v0.2.436-arm64-v8a.apk), [checksum](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.436/StS2Launcher-v0.2.436-arm64-v8a.apk.sha256).
 
@@ -64,7 +86,7 @@ model construction. Android Mono and Harmony now have pinned source recipes.
 | Original loader contracts | Both supported game initialization shapes pass in separate desktop processes, including original discovery, dependency ordering, multiple manifests, exact manual selection, early secondary scripts and original failure propagation. |
 | Desktop representative packages | Five unmodified packages initialize; original model construction, serialization-cache initialization and repeated act/encounter access pass. |
 | In-place phone update | Candidate `436008` installed over the existing package with the same signing certificate; no uninstall or application-data clearing. |
-| Published APK | `0.2.436` / `436009`, built from `33abc177097fe55bd2c630756f55ecd5e7a60ef8`. Contents, crypto, signing, checksum and update compatibility pass. The final APK has not been installed on a phone; device evidence in this table concerns candidate `436008`. |
+| Published APK | `0.2.436` / `436009`, built from `33abc177097fe55bd2c630756f55ecd5e7a60ef8`. Contents, crypto, signing, checksum and update compatibility pass. It was not phone-tested at publication; device evidence in this table concerns candidate `436008`. The November 2 keyboard baseline above subsequently used the installed final APK. |
 | Steam preparation on phone | Authenticated `mysubscriptions` query returns all four subscriptions. All four committed packages prepare successfully; their 17 payload files match the desktop packages. |
 | Android host | Ordinary MD5, SHA-1, SHA-256 and background-stream SHA-256 pass on the Java-hosted phone process. Importer profile controls and BaseLib configuration render and respond through the unmodified packages' Godot scripts. |
 | Runtime gate | The original ARM64 method-pointer preparation and protected-member access failures are reproduced. The corrected source pair passes the integrated ARM64 contract, including 92 named-assembly access checks, cached code, exception regions, assembly context, first invocation and required initialization; 64 worker collections/callbacks also pass. Candidate `436008` has no cached `UnlockState` failure or protected-field exception in the observed combat. x86_64 is built but not executed. |
@@ -77,7 +99,7 @@ These results cover the shared loader/runtime path and the observed Android
 functionality.
 The original Whirlwind failure was traced to the shared protected-access contract;
 the subsequent run offered Battle Trance, exercising the same card-award path.
-The final ARM64 APK is published as the latest GitHub release. These checks
+The final ARM64 APK was published as the latest GitHub release at that time. These checks
 do not certify every Workshop package or replace the separate stability procedure
 recorded below. Evidence is retained under `artifacts/mod-framework-device/`.
 
@@ -154,7 +176,7 @@ Those results apply to those builds and devices; they are not a completed game t
 
 ## Still needs testing
 
-- Install and test the published v0.2.436 APK (`436009`) on an ARM64 phone. The functional device evidence above comes from candidate `436008`.
+- Install and test the published v0.2.437 APK (`437002`) on an ARM64 phone. The keyboard evidence above comes from candidate `437001`; actual confirm-shortcut activation and physical keyboard/controller input remain unverified. The installed v0.2.436 APK was used as the keyboard baseline above.
 - Complete the [20-launch stability procedure](launch-flow-audit-2026-10-02.md#physical-device-acceptance--pending-at-the-users-direction) on the same APK, including warm launches, background/resume and lock/unlock. The earlier freeze was captured; its resolution still needs this acceptance testing.
 - Audio and graphics on more devices and drivers.
 - Real Steam Cloud transfers and switching play between PC and Android.

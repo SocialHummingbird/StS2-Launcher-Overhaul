@@ -12,7 +12,7 @@
 
 - [Latest release](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest)
 - [Current Android testing status](current-android-status.md)
-- [v0.2.436 release notes](release-notes/v0.2.436.md): original mod framework on Android.
+- [v0.2.437 release notes](release-notes/v0.2.437.md): game-owned input initialization.
 - [Changelog](../CHANGELOG.md)
 - [Android validation runbook](runbook-android-validation.md): how to test a specific build.
 
@@ -29,6 +29,7 @@
 
 These records describe their named builds and dates. They are useful background, but do not establish how the current release performs.
 
+- [v0.2.436 original mod framework on Android](release-notes/v0.2.436.md)
 - [v0.2.435 preload and Mono repairs](release-notes/v0.2.435-preload-repair-local-r2.md)
 - [v0.2.434 cleanup](release-notes/v0.2.434-cleanup-local.md)
 - [v0.2.432 startup responsiveness](release-notes/v0.2.432.md)

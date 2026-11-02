@@ -34,7 +34,7 @@ Already installed? Update over your existing app. **Do not uninstall or clear ap
 
 Android support is still experimental. Performance, audio, graphics, and mod compatibility depend on your device and game version.
 
-The current release is **v0.2.436**. It uses the game's original mod framework with shared Android runtime fixes and unmodified Workshop packages. Testing of an ARM64 candidate covered gameplay, room restart, saving and reloading after closing the game, and Vanilla isolation. The final release APK passes build, signing and update checks but has not been installed on a phone. See the [release notes](docs/release-notes/v0.2.436.md) for the tested builds and remaining checks.
+The current release is **v0.2.437**. It restores the game's own keyboard and controller binding initialization while retaining the Android controller fallback. An ARM64 candidate passed default and saved end-turn key checks after cold restarts on the public beta. The final release APK passes build, signing and update checks but has not been installed on a phone. See the [release notes](docs/release-notes/v0.2.437.md) for the tested builds and remaining checks.
 
 ## Help and documentation
 
