@@ -15,7 +15,7 @@ function Read-Engine([string]$path) {
     try {
         $types = @($assembly.MainModule.GetTypes())
         $il = @(
-            foreach ($type in ($types | Where-Object { $_.FullName -like 'STS2Mobile.Steam.DepotChunkTransfer*' -or $_.FullName -like 'STS2Mobile.Steam.DepotDownloadStaging*' -or $_.FullName -eq 'STS2Mobile.Steam.DepotChunkDonor' } | Sort-Object FullName)) {
+            foreach ($type in ($types | Where-Object { $_.FullName -like 'STS2Mobile.Steam.DepotChunkTransfer*' -or $_.FullName -like 'STS2Mobile.Steam.DepotDownloadStaging*' -or $_.FullName -eq 'STS2Mobile.Steam.DepotChunkDonor' -or $_.FullName -like 'STS2Mobile.Steam.SteamCloudTransport*' -or $_.FullName -eq 'STS2Mobile.Steam.ISaveRemote' -or $_.FullName -eq 'STS2Mobile.Steam.ICloudMessageClient' } | Sort-Object FullName)) {
                 $type.FullName
                 foreach ($method in ($type.Methods | Sort-Object FullName)) {
                     $method.FullName
@@ -29,7 +29,7 @@ function Read-Engine([string]$path) {
         [pscustomobject]@{
             assemblySha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes.ToArray()))
             engineIlSha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($il)))
-            hasValidationHarness = @($types | Where-Object FullName -Like '*DownloadValidation*').Count -gt 0
+            hasValidationHarness = @($types | Where-Object { $_.FullName -like '*DownloadValidation*' -or $_.FullName -like '*CloudUploadValidation*' }).Count -gt 0
             hasStagingInspector = @($types | Where-Object FullName -Like 'STS2Mobile.Launcher.ValidationStag*').Count -gt 0
             hasValidationPathOverride = @($types | ForEach-Object Fields | Where-Object Name -eq 'ValidationDataRoot').Count -gt 0
         }

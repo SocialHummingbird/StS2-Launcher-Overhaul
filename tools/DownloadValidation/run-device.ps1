@@ -1,10 +1,10 @@
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('Start','Launch','Status','Pull','ForceStop','Snapshot','Compare','Cleanup')]
+    [ValidateSet('Start','Launch','Status','Pull','CloudBackup','ForceStop','Snapshot','Compare','Cleanup')]
     [string]$Action,
     [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9-]{0,79}$')]
     [string]$RunId = 'fresh',
-    [ValidateSet('download','copied-update','fixture','local-fixture','cdn-diagnostics','sandbox-ui','hold')]
+    [ValidateSet('download','copied-update','fixture','local-fixture','cdn-diagnostics','sandbox-ui','hold','cloud-upload','cloud-upload-cleanup')]
     [string]$Operation = 'download',
     [ValidateSet('default','akamai')]
     [string]$Provider = 'default',
@@ -138,6 +138,13 @@ switch ($Action) {
     'Pull' {
         New-Item -ItemType Directory -Force "$local/results/$Name" | Out-Null
         Device @('pull',"$remote/runs/$RunId","$local/results/$Name/$RunId")
+    }
+    'CloudBackup' {
+        $null = Device @('shell','am','force-stop',$package)
+        $export = Device @('shell','am','instrument','-w','-r','-e','action','cloud-backup','-e','runId',$RunId,$component)
+        if ($export -notmatch 'INSTRUMENTATION_CODE: 0') { throw 'Private Cloud backup export failed.' }
+        New-Item -ItemType Directory -Force "$local/private" | Out-Null
+        Device @('pull',"$remote/cloud-private/$RunId.zip","$local/private/cloud-$RunId.zip")
     }
     'ForceStop' { Device @('shell','am','force-stop',$package) }
     'Cleanup' {

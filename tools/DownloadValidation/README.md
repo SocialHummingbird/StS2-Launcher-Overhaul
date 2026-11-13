@@ -536,3 +536,135 @@ pulled back and matched the verified artifact:
 The normal launcher is installed and stopped. The filename fix, transfer/resume and CDN
 reuse checks passed; full sandbox runtime readiness remains explicitly incomplete for
 the native-directory reason above.
+
+## Save-upload batch implementation and Fold campaign — 13 November 2026
+
+The unreleased APK was built from the `codex/save-upload-batch` working tree, based on
+`0a32b88789aec0bd5f1fce458696709c76def5bd`. It replaces per-file service uploads
+with one exclusive batch containing three fixed thread-pool workers. Cloud RPCs
+remain serialized; the normal HTTP transfers can overlap. Each active file retains
+its three-minute budget, including best-effort failed-upload notification.
+
+Verification now requires a successful commit and matching Steam-reported SHA-1
+and explicitly present raw size. Unusable metadata falls back to the same response's
+body URL and verified decompression. Contradictions fail. Missing fields cannot be
+interpreted as an empty file, and late completion cannot bypass the file deadline.
+On failure, the original error is captured and siblings cancelled before awaiting
+failed-upload notification; all managed workers drain before transport teardown.
+
+### Local verification
+
+- **281 managed tests passed**, including 15 transport cases using the production
+  transport with fake RPC/HTTP boundaries. These establish request sequencing,
+  verification, bounded workers and failure handling, not Steam server behaviour.
+- **15/15 save-safety scenarios passed**, including partial batch retry/conflict,
+  deferred deletion, gameplay changes and deferred credential refresh.
+- **56 Android/JVM tests passed**, no failures/errors/skips. Android lint retains
+  **15 errors and 39 warnings**; production Android Java was not changed.
+- Scoped formatting, helper compilation, validation generator checks and the
+  managed analyzer build passed. Final review found no remaining actionable issues.
+- Observed failing regressions before their fixes: unnecessary read-back; raw ZIP
+  prefix mishandling; late metadata completion; invented empty contents; and new
+  files starting while failed-upload notification was delayed (expected 3 starts,
+  observed 5). All subsequently passed.
+
+Reproduce the managed checks from the repository root:
+
+```powershell
+dotnet run --project tests/STS2Mobile.GameIdentityTests/STS2Mobile.GameIdentityTests.csproj -c Release -- 'cloud upload'
+dotnet run --project tests/STS2Mobile.GameIdentityTests/STS2Mobile.GameIdentityTests.csproj -c Release
+./scripts/test-local-gameplay-save-safety.ps1
+./tools/DownloadValidation/test-campaign-tooling.ps1
+```
+
+### Live Fold observations
+
+Only SM-F971B `R3GL70DKNKB` was used. The SM-F711B and emulator were excluded.
+The fresh baseline was normal build **438014**; preservation captured 731 backup
+files and hashes for 1,178 protected files. Candidate **438016** passed signing and
+update checks before installation. Normal startup, automatic sync and gameplay
+were bypassed throughout the validation campaign.
+
+The campaign enumerated and backed up **617 existing Cloud files** before permitting
+any writes. Every mutation was restricted to nine exact names under a new
+`sts2-launcher-validation/<guid>/` ledger. Six files contained 1 MiB of incompressible
+content, two contained 1 MiB of compressible content, and one was empty.
+
+The fresh batch encountered **HTTP 403 on the empty file's PUT**. All eight nonempty
+files received successful commit acknowledgements; six metadata checks completed,
+while two pending checks were cancelled after the failure. There were **zero
+verification-body GETs** in that attempted batch. The primary HTTP error was retained
+when the failed-upload notice also failed with `AsyncJobFailedException`.
+
+This does not establish the cause of the 403, nor that it is caused by concurrency.
+The batch did not report success. Unchanged/duplicate, replacement, requested
+cancellation/retry, gated parallelism and independent owned-file audit scenarios
+were **blocked** after this failure. Their fixture results do not replace live results.
+
+The process subsequently aborted during the post-test comparison. Android exit
+information records PID `9897`, `SIGNALED`, status `6`, at 15:55:39 UTC. The retained
+stack shows an unhandled `AndroidBridgeDispatcher` timeout from SteamKit's scheduled
+CM heartbeat through `AndroidJavaCrypto.AesEncryptEcb`. This is a second observed
+blocker; its cause and lifecycle conditions were not resolved by this upload change.
+
+Before restarting, private recovery export succeeded: **621 archive entries**, including
+all **617 original Cloud file backups**, the baseline inventory and exact owned-file
+ledger. Shareable run results and raw private data are stored separately. The interrupted
+Java trace contains 669 worker starts and exits, observed peak **two** Java workers,
+and zero active workers/zero lost events at the saved pre-cleanup checkpoint. Three-worker
+capacity passed fixtures; three simultaneous live HTTP transfers were not established.
+
+A **cleanup-only** run started at 16:03:23 UTC using the original ledger and baseline.
+It was still checking existing files when the user needed to remove the Fold. The device
+was already disconnected when the stop/normal-APK restoration command was attempted;
+its initial availability check failed, so **no restoration command executed**. The cleanup
+may continue on-device, but its final outcome has not been observed. Do not report
+existing Cloud preservation or test-file deletion as passed, and do not remove the
+recovery ledger or helper until they are confirmed.
+
+| Remaining live scenario | Disposition / prerequisite |
+| --- | --- |
+| Complete fresh nine-file batch | **Failed**: empty PUT returned HTTP 403. Need a sanitized error-body/request-length observation before attributing the cause. |
+| Unchanged/duplicate, replacement, requested cancellation/retry, gated parallelism, final owned-file byte audits | **Blocked** by the failed fresh batch; fixtures are separate evidence. |
+| Existing Cloud preservation comparison and nine owned-file tombstones | **Incomplete**: observation stopped when the device was removed; the run may continue on-device. Inspect its result or resume from the retained ledger. |
+| Final local preservation comparison, offline normal startup and helper/test-data removal | **Unavailable** after device removal. Never substitute the SM-F711B or another device. |
+
+### Normal APK and handoff state
+
+Normal **0.2.438-save-upload-local / 438017** was built from clean Gradle output without
+validation inputs. Contents, crypto, signing and update compatibility checks passed.
+Its packaged Cloud/chunk engine IL and transfer dependencies match candidate 438016;
+managed and Java validation hooks are absent. Engine IL SHA-256:
+`91828d7dc13035a9a902674a8253b4bf16b99bf93964bb0cf76e97dfd4997f40`.
+
+The normal APK is `artifacts/android/StS2Launcher-v0.2.438-save-upload-local-arm64-v8a.apk`,
+SHA-256 `8ce05b31b2fd573803cb582e7552eaec22902a11d36e1a8adc4b18d36dfcc026`.
+It **was not installed**. The phone's last verified build remains **validation 438016**,
+which deliberately disables normal launcher actions. Install normal 438017 in place,
+without uninstalling or clearing data, when the authorised Fold is available again.
+Normal startup and final preservation are not established by APK packaging checks.
+
+Source baseline, dirty feature-branch state and production source hashes accompany the
+normal APK metadata. The campaign did not push to GitHub or publish a release. Raw logcat,
+existing Cloud bytes and remote filenames remain in ignored private evidence.
+
+### Recovery and evidence commands
+
+The new helper cleanup gate refuses to remove recovery data after Cloud writes
+until both `ownedCleanupVerified` and `existingCloudUnchanged` are true. Private
+Cloud backup export is separate from ordinary shareable run results and includes
+known atomic-write temporary files for interruption recovery.
+
+```powershell
+$evidence = "$PWD/tmp/save-upload-batch-20261113/device"
+./tools/DownloadValidation/run-device.ps1 -Action Status -RunId cloud-batch-live -EvidenceDirectory $evidence
+./tools/DownloadValidation/run-device.ps1 -Action Pull -RunId cloud-batch-live -Name final -EvidenceDirectory $evidence
+# After the campaign finishes; this stops the validation process and exports private backups.
+./tools/DownloadValidation/run-device.ps1 -Action CloudBackup -RunId cloud-batch-live -EvidenceDirectory $evidence
+# Only if owned Cloud cleanup is incomplete; retains the original ledger and baseline.
+./tools/DownloadValidation/run-device.ps1 -Action Start -RunId cloud-batch-live -Operation cloud-upload-cleanup -EvidenceDirectory $evidence
+```
+
+Host evidence is under `tmp/save-upload-batch-20261113/`. Existing game downloads,
+Pull/conflict policy, local scan/hash caching, Android bridge cancellation and public
+release publishing remain outside this change. No percentage speed claim is made.

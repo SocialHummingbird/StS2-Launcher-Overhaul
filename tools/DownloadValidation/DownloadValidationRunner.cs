@@ -161,6 +161,13 @@ internal partial class LauncherModel
             validationModel._credentialStore.Load();
             if (!validationModel._credentialStore.HasUsableCredentials()) throw new InvalidOperationException("No usable saved credentials.");
             status("Connecting the validation Steam session…");
+            if (request.Operation is "cloud-upload" or "cloud-upload-cleanup")
+            {
+                result["steamCloudOperations"] = "isolated-ledger-only";
+                await CloudUploadValidation.RunAsync(validationModel._credentialStore, run, output, status, request.Operation == "cloud-upload-cleanup").ConfigureAwait(false);
+                result["status"] = "passed";
+                return;
+            }
             var connection = await validationModel.GetDepotConnectionAsync().ConfigureAwait(false);
             if (connection == null) throw new InvalidOperationException("Saved Steam session unavailable.");
             using var downloader = new DepotDownloader(connection, sandbox, branch);

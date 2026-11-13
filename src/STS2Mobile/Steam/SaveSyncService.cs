@@ -1244,28 +1244,19 @@ internal sealed class SaveSyncService
         CancellationToken cancellationToken
     )
     {
-        var changed = 0;
+        var uploads = new List<SteamCloudTransport.UploadFile>();
         foreach (var file in local.Files.Values)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (
-                remote.Files.TryGetValue(file.Entry.Path, out var existing)
-                && EntriesEqual(existing.Entry, file.Entry)
-            )
+            if (remote.Files.TryGetValue(file.Entry.Path, out var existing)
+                && EntriesEqual(existing.Entry, file.Entry))
                 continue;
-
-            if (
-                await transport.UploadAsync(
-                    new SteamCloudTransport.UploadFile(
-                        file.Entry.Path,
-                        file.Bytes,
-                        DateTimeOffset.UtcNow
-                    ),
-                    cancellationToken
-                ).ConfigureAwait(false)
-            )
-                changed++;
+            uploads.Add(new SteamCloudTransport.UploadFile(
+                file.Entry.Path, file.Bytes, DateTimeOffset.UtcNow));
         }
+
+        var changed = uploads.Count == 0 ? 0 : await transport.UploadBatchAsync(uploads, cancellationToken)
+            .ConfigureAwait(false);
 
         foreach (var remotePath in remote.Files.Keys)
         {

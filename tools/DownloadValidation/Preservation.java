@@ -141,7 +141,7 @@ public final class Preservation extends Instrumentation {
     private void request(Bundle result) throws Exception {
         String runId = identifier(arguments.getString("runId"));
         String operation = arguments.getString("operation", "download");
-        if (!Arrays.asList("download", "copied-update", "fixture", "local-fixture", "cdn-diagnostics", "sandbox-ui", "hold").contains(operation))
+        if (!Arrays.asList("download", "copied-update", "fixture", "local-fixture", "cdn-diagnostics", "sandbox-ui", "hold", "cloud-upload", "cloud-upload-cleanup").contains(operation))
             throw new IllegalArgumentException("Unsupported validation operation");
         String branch = arguments.getString("branch", "public");
         if (!branch.matches("[a-zA-Z0-9_-]+")) throw new IllegalArgumentException("Invalid branch");
@@ -168,6 +168,29 @@ public final class Preservation extends Instrumentation {
         Files.delete(target.toPath());
     }
 
+    private void cloudBackup(Bundle result) throws Exception {
+        String runId = identifier(arguments.getString("runId"));
+        File source = new File(new File(validationRoot(), runId), "cloud-private");
+        if (!source.isDirectory() || Files.isSymbolicLink(source.toPath()))
+            throw new IOException("Cloud private backup is unavailable");
+        File[] files = source.listFiles();
+        if (files == null) throw new IOException("Cannot enumerate Cloud backup");
+        // Keep raw Cloud backups outside the ordinary, shareable runs/<runId> output.
+        File output = new File(evidenceRoot("cloud-private"), runId + ".zip");
+        try (ZipOutputStream archive = new ZipOutputStream(new FileOutputStream(output))) {
+            for (File file : files) {
+                if (!file.isFile() || Files.isSymbolicLink(file.toPath())
+                    || !file.getCanonicalFile().getParentFile().equals(source.getCanonicalFile())
+                    || !file.getName().matches("(owned-files|before|after)\\.json(\\.tmp)?|backup-complete|writes-started|[A-F0-9]{64}\\.bin"))
+                    throw new IOException("Unexpected Cloud private backup entry");
+                archive.putNextEntry(new ZipEntry(file.getName()));
+                Files.copy(file.toPath(), archive);
+                archive.closeEntry();
+            }
+        }
+        result.putString("cloudBackup", "Private Cloud recovery archive prepared");
+    }
+
     private void cleanup(Bundle result) throws Exception {
         File privateRoot = new File(getTargetContext().getFilesDir(), "download-validation");
         File externalRoot = new File(getTargetContext().getExternalFilesDir(null), "download-validation-evidence");
@@ -177,6 +200,15 @@ public final class Preservation extends Instrumentation {
             throw new IOException("Validation cleanup roots are not their explicitly named directories");
         int responseFiles = 0;
         File[] runs = privateRoot.listFiles();
+        if (runs != null) for (File run : runs) {
+            File cloud = new File(run, "cloud-private");
+            if (!new File(cloud, "writes-started").isFile()) continue;
+            File reportFile = new File(new File(externalRoot, "runs"), identifier(run.getName()) + "/cloud-report.json");
+            if (!reportFile.isFile()) throw new IOException("Cloud cleanup has not been verified");
+            JSONObject report = new JSONObject(new String(Files.readAllBytes(reportFile.toPath()), "UTF-8"));
+            if (!report.optBoolean("ownedCleanupVerified", false) || !report.optBoolean("existingCloudUnchanged", false))
+                throw new IOException("Preserve the owned Cloud ledger and backups until Cloud cleanup completes");
+        }
         if (runs != null) for (File run : runs) {
             File list = new File(run, "tracked-http-files.txt");
             if (!list.isFile()) continue;
@@ -302,6 +334,7 @@ public final class Preservation extends Instrumentation {
             if (action.equals("snapshot")) snapshot(result, identifier(arguments.getString("name", "before")));
             else if (action.equals("request")) request(result);
             else if (action.equals("cleanup")) cleanup(result);
+            else if (action.equals("cloud-backup")) cloudBackup(result);
             else if (action.equals("network-probe")) networkProbe(result, identifier(arguments.getString("name", "network-probe")));
             else if (action.equals("chunk-probe")) chunkProbe(result, identifier(arguments.getString("name", "chunk-probe")));
             else throw new IllegalArgumentException("Unsupported helper action");

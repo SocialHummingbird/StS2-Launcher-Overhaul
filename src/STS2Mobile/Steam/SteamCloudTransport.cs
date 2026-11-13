@@ -4,7 +4,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
@@ -41,8 +40,8 @@ internal interface ISaveRemote : IDisposable
         CancellationToken cancellationToken
     );
 
-    Task<bool> UploadAsync(
-        SteamCloudTransport.UploadFile file,
+    Task<int> UploadBatchAsync(
+        IReadOnlyList<SteamCloudTransport.UploadFile> files,
         CancellationToken cancellationToken
     );
 
@@ -51,7 +50,7 @@ internal interface ISaveRemote : IDisposable
 
 // The sole Steam Cloud protocol boundary. It contains transport only: no sync
 // policy, save-store implementation, cache, recovery, or launcher state.
-internal sealed class SteamCloudTransport : ISaveRemote
+internal sealed partial class SteamCloudTransport : ISaveRemote
 {
     private const int PageSize = 500;
     private const int ConnectionIdleTimeoutMs = 90_000;
@@ -224,7 +223,14 @@ internal sealed class SteamCloudTransport : ISaveRemote
     {
         var path = CanonicalizePath(remotePath);
 
-        var result = await _connection.SendCloudAsync<
+        var result = await GetDownloadMetadataAsync(path, cancellationToken).ConfigureAwait(false);
+        return await ReadDownloadBodyAsync(path, result, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<CCloud_ClientFileDownload_Response> GetDownloadMetadataAsync(string path, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return await _connection.SendCloudAsync<
             CCloud_ClientFileDownload_Request,
             CCloud_ClientFileDownload_Response
         >(
@@ -236,7 +242,11 @@ internal sealed class SteamCloudTransport : ISaveRemote
             },
             cancellationToken
         ).ConfigureAwait(false);
+    }
 
+    private async Task<byte[]> ReadDownloadBodyAsync(string path, CCloud_ClientFileDownload_Response result, CancellationToken cancellationToken, long? expectedRawSize = null)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         if (result.appid != SteamGameApp.AppId)
             throw new InvalidOperationException($"Cloud download failed for {path}");
         if (string.IsNullOrWhiteSpace(result.url_host))
@@ -258,52 +268,11 @@ internal sealed class SteamCloudTransport : ISaveRemote
         var bytes = await ReadHttpBytesAsync(request, cancellationToken)
             .ConfigureAwait(false);
 
-        if (ShouldDecompress(result, bytes))
+        if (ShouldDecompress(result, bytes, expectedRawSize))
             bytes = Decompress(bytes);
 
         PatchHelper.Log($"[Cloud] Downloaded {path} ({bytes.Length} bytes)");
         return bytes;
-    }
-
-    public Task<bool> UploadAsync(
-        UploadFile file,
-        CancellationToken cancellationToken
-    )
-        => RunOperationAsync(
-            token => UploadCoreAsync(file, token),
-            cancellationToken
-        );
-
-    private async Task<bool> UploadCoreAsync(
-        UploadFile file,
-        CancellationToken cancellationToken
-    )
-    {
-        ArgumentNullException.ThrowIfNull(file.Bytes);
-        var canonicalFile = file with
-        {
-            Path = CanonicalizePath(file.Path),
-        };
-        var outcome = await UploadFileAsync(canonicalFile, cancellationToken)
-            .ConfigureAwait(false);
-        var readBack = await DownloadBytesCoreAsync(
-            canonicalFile.Path,
-            cancellationToken
-        ).ConfigureAwait(false);
-        if (
-            !CryptographicOperations.FixedTimeEquals(
-                ManagedSha1.Hash(canonicalFile.Bytes),
-                ManagedSha1.Hash(readBack)
-            )
-        )
-            throw new InvalidDataException(
-                $"Steam read-back hash mismatch for {canonicalFile.Path}"
-            );
-
-        PatchHelper.Log(
-            $"[Cloud] Verified Steam read-back for {canonicalFile.Path}"
-        );
-        return outcome == UploadOutcome.Uploaded;
     }
 
     public Task DeleteAsync(
@@ -354,11 +323,13 @@ internal sealed class SteamCloudTransport : ISaveRemote
     }
 
     private async Task<UploadOutcome> UploadFileAsync(
-        UploadFile file,
-        CancellationToken cancellationToken
+        PreparedUpload upload,
+        CancellationToken cancellationToken,
+        Action<Exception> transferFailed,
+        CancellationToken failureNoticeToken
     )
     {
-        var upload = PreparedUpload.Create(file);
+        cancellationToken.ThrowIfCancellationRequested();
         CCloud_ClientBeginFileUpload_Response begin;
         try
         {
@@ -374,7 +345,7 @@ internal sealed class SteamCloudTransport : ISaveRemote
         catch (InvalidOperationException ex)
             when (ex.Message.Contains("DuplicateRequest", StringComparison.Ordinal))
         {
-            PatchHelper.Log($"[Cloud] Already current: {file.Path}");
+            PatchHelper.Log($"[Cloud] Already current: {upload.Path}");
             return UploadOutcome.AlreadyCurrent;
         }
 
@@ -383,6 +354,7 @@ internal sealed class SteamCloudTransport : ISaveRemote
             await SendUploadBlocksAsync(begin, upload.WireBytes, cancellationToken)
                 .ConfigureAwait(false);
 
+            cancellationToken.ThrowIfCancellationRequested();
             var commit = await _connection.SendCloudAsync<
                 CCloud_ClientCommitFileUpload_Request,
                 CCloud_ClientCommitFileUpload_Response
@@ -393,18 +365,19 @@ internal sealed class SteamCloudTransport : ISaveRemote
             ).ConfigureAwait(false);
             if (!commit.file_committed)
                 throw new InvalidOperationException(
-                    $"Steam did not commit uploaded file {file.Path}"
+                    $"Steam did not commit uploaded file {upload.Path}"
                 );
         }
         catch (Exception ex)
             when (ex is not TimeoutException and not OperationCanceledException)
         {
-            await TryCommitFailedFileAsync(upload, cancellationToken)
+            transferFailed(ex);
+            await TryCommitFailedFileAsync(upload, failureNoticeToken)
                 .ConfigureAwait(false);
             throw;
         }
 
-        PatchHelper.Log($"[Cloud] Uploaded {file.Path} ({file.Bytes.Length} bytes)");
+        PatchHelper.Log($"[Cloud] Uploaded {upload.Path} ({upload.RawBytes.Length} raw bytes)");
         return UploadOutcome.Uploaded;
     }
 
@@ -438,6 +411,7 @@ internal sealed class SteamCloudTransport : ISaveRemote
     {
         foreach (var block in begin.block_requests)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var body = block.explicit_body_data is { Length: > 0 }
                 ? block.explicit_body_data
                 : Slice(
@@ -574,10 +548,11 @@ internal sealed class SteamCloudTransport : ISaveRemote
 
     private static bool ShouldDecompress(
         CCloud_ClientFileDownload_Response response,
-        byte[] bytes
+        byte[] bytes,
+        long? expectedRawSize = null
     )
-        => response.raw_file_size > 0
-            && response.raw_file_size != response.file_size
+        => (expectedRawSize ?? response.raw_file_size) > 0
+            && (expectedRawSize ?? response.raw_file_size) != (expectedRawSize.HasValue ? bytes.LongLength : response.file_size)
             && bytes.Length >= 4
             && bytes[0] == 0x50
             && bytes[1] == 0x4B
@@ -641,7 +616,8 @@ internal sealed class SteamCloudTransport : ISaveRemote
 
     private async Task<TResult> RunOperationAsync<TResult>(
         Func<CancellationToken, Task<TResult>> operation,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        bool applyOperationTimeout = true
     )
     {
         ArgumentNullException.ThrowIfNull(operation);
@@ -655,7 +631,7 @@ internal sealed class SteamCloudTransport : ISaveRemote
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken
             );
-            timeout.CancelAfter(_operationTimeout);
+            if (applyOperationTimeout) timeout.CancelAfter(_operationTimeout);
             _connection.BeginOperation();
             operationStarted = true;
             try

@@ -67,7 +67,10 @@ internal static class Program
             AndroidStartupGuardStaysAliveAfterMainMenuPreparationAsync
         );
 
-        Console.WriteLine($"Focused local-save, synchronization, mod, version, and startup probe passed {_passed}/12 scenarios.");
+        await RunAsync("partial upload batch preserves baseline and gates deletions", PartialUploadBatchPreservesRecoveryAsync);
+        await RunAsync("gameplay changes during upload batch stay pending", GameplayChangesDuringBatchAsync);
+        await RunAsync("credential refresh waits for upload batch", CredentialsWaitForBatchAsync);
+        Console.WriteLine($"Focused local-save, synchronization, mod, version, and startup probe passed {_passed}/15 scenarios.");
         Console.WriteLine(
             "Scope: FakeSaveRemote validates deterministic synchronization behavior only; it does not prove Steam Cloud or Android transport."
         );
@@ -633,6 +636,96 @@ internal static class Program
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    private static async Task PartialUploadBatchPreservesRecoveryAsync()
+    {
+        foreach (var unrelatedChange in new[] { false, true })
+        {
+            var root = NewTempDirectory();
+            try
+            {
+                var old = Bytes("old");
+                var updated = Bytes("updated");
+                foreach (var path in new[] { "a.save", "b.save", "obsolete.save" }) WriteSave(root, path, old);
+                var remote = new FakeSaveRemote(("a.save", old), ("b.save", old), ("obsolete.save", old));
+                var service = new SaveSyncService(new AndroidLocalSaveStore(root), remote);
+                Expect((await ReconcileAsync(service)).Success, "Batch baseline must establish.");
+                var baseline = JsonSerializer.Serialize(ReadSyncState(root).LastRemoteManifest);
+                WriteSave(root, "a.save", updated);
+                WriteSave(root, "b.save", updated);
+                File.Delete(SavePath(root, "obsolete.save"));
+                service.MarkLocalChangesPending();
+                remote.FailUploadAt = 2;
+                var failed = await ReconcileAsync(service);
+                Expect(!failed.Success && remote.UploadCount == 2 && remote.DeleteCount == 0, "Partial upload must stop before deletion.");
+                var state = ReadSyncState(root);
+                Expect(state.InterruptedTransferMustBeRetried && state.LocalChangesWaitingToUpload
+                    && JsonSerializer.Serialize(state.LastRemoteManifest) == baseline, "Partial success must preserve the completed baseline and dirty state.");
+                Expect(remote.ReadFile("a.save").SequenceEqual(updated) && remote.ReadFile("b.save").SequenceEqual(old), "Fixture must contain a real partial remote blend.");
+                if (unrelatedChange) remote.SetFile("a.save", Bytes("another-client"));
+                var retry = await ReconcileAsync(new SaveSyncService(new AndroidLocalSaveStore(root), remote));
+                if (unrelatedChange)
+                    Expect(retry.Outcome == SaveSyncService.SyncOutcome.Conflict && remote.DeleteCount == 0, "Unrelated remote edits must remain conflicts.");
+                else
+                    Expect(retry.Success && remote.ReadFile("b.save").SequenceEqual(updated)
+                        && remote.DeleteCount == 1 && remote.LastBatchCount == 1, "Retry must upload only the missing file before deletion.");
+            }
+            finally { Directory.Delete(root, recursive: true); }
+        }
+    }
+
+    private static async Task GameplayChangesDuringBatchAsync()
+    {
+        var root = NewTempDirectory();
+        try
+        {
+            WriteSave(root, "settings.save", "old");
+            var remote = new FakeSaveRemote(("settings.save", Bytes("old")));
+            var service = new SaveSyncService(new AndroidLocalSaveStore(root), remote);
+            Expect((await ReconcileAsync(service)).Success, "Gameplay batch baseline must establish.");
+            remote.HoldNextUpload();
+            ISaveStore gameplay = new AndroidLocalSaveStore(root, service.NotifyLocalMutationCommitted);
+            try
+            {
+                gameplay.WriteFile("settings.save", Bytes("first"));
+                await remote.UploadEntered.WaitAsync(TimeSpan.FromSeconds(3));
+                gameplay.WriteFile("settings.save", Bytes("second"));
+                Expect(service.HasPendingLocalChanges(), "A gameplay write during upload must stay dirty.");
+            }
+            finally { remote.ReleaseUpload(); }
+            Expect(service.FlushAutomaticPush(TimeSpan.FromSeconds(5)), "Follow-up gameplay batch must drain.");
+            Expect(remote.ReadFile("settings.save").SequenceEqual(Bytes("second")) && !service.HasPendingLocalChanges(), "The follow-up batch must publish the latest gameplay save.");
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    private static async Task CredentialsWaitForBatchAsync()
+    {
+        var root = NewTempDirectory();
+        try
+        {
+            WriteSave(root, "settings.save", "old");
+            var remote = new FakeSaveRemote(("settings.save", Bytes("old")));
+            var service = new SaveSyncService(new AndroidLocalSaveStore(root), remote);
+            Expect((await ReconcileAsync(service)).Success, "Credential batch baseline must establish.");
+            WriteSave(root, "settings.save", "new");
+            service.MarkLocalChangesPending();
+            remote.HoldNextUpload();
+            var batch = ReconcileAsync(service);
+            try
+            {
+                await remote.UploadEntered.WaitAsync(TimeSpan.FromSeconds(3));
+                typeof(SaveSyncService).GetMethod("TryUpdateCredentials", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .Invoke(service, new object[] { "contract-account", "refreshed-token" });
+                Expect(!remote.WasDisposed, "Credential refresh must not dispose an active transport.");
+            }
+            finally { remote.ReleaseUpload(); }
+            Expect((await batch).Success, "The original batch must finish safely.");
+            await ReconcileAsync(service);
+            Expect(remote.WasDisposed, "Deferred credentials must apply at the next reconciliation boundary.");
+        }
+        finally { Directory.Delete(root, recursive: true); }
     }
 
     private static async Task FailedPushStaysDirtyAndRetryableAsync()
@@ -1439,6 +1532,8 @@ internal static class Program
         private bool _holdNextUpload;
         private int _downloadCount;
         private int _uploadCount;
+        internal int FailUploadAt = -1, DeleteCount, LastBatchCount;
+        internal bool WasDisposed;
         private TaskCompletionSource<bool> _uploadEntered = NewSignal();
         private TaskCompletionSource<bool> _releaseUpload = NewSignal();
 
@@ -1582,7 +1677,16 @@ internal static class Program
             }
         }
 
-        public async Task<bool> UploadAsync(
+        public async Task<int> UploadBatchAsync(IReadOnlyList<SteamCloudTransport.UploadFile> files, CancellationToken cancellationToken)
+        {
+            LastBatchCount = files.Count;
+            var changed = 0;
+            foreach (var file in files)
+                if (await UploadFixtureFileAsync(file, cancellationToken)) changed++;
+            return changed;
+        }
+
+        private async Task<bool> UploadFixtureFileAsync(
             SteamCloudTransport.UploadFile file,
             CancellationToken cancellationToken
         )
@@ -1604,7 +1708,7 @@ internal static class Program
 
             lock (_gate)
             {
-                if (_failNextUpload)
+                if (_failNextUpload || _uploadCount == FailUploadAt)
                 {
                     _failNextUpload = false;
                     throw new IOException("Fake upload failure");
@@ -1622,12 +1726,16 @@ internal static class Program
         {
             cancellationToken.ThrowIfCancellationRequested();
             lock (_gate)
+            {
+                DeleteCount++;
                 _files.Remove(Canonical(path));
+            }
             return Task.CompletedTask;
         }
 
         public void Dispose()
         {
+            WasDisposed = true;
         }
 
         private static string Canonical(string path)

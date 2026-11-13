@@ -45,7 +45,7 @@ Run the focused save and launch probe:
 .\scripts\test-local-gameplay-save-safety.ps1
 ```
 
-The twelve scenarios cover saves, sync ordering, mod and version selection, and startup. They use a simulated remote service; test real Steam Cloud transfers separately.
+The fifteen scenarios cover saves, sync ordering, partial upload-batch recovery, gameplay writes and credential refresh during a batch, mod and version selection, and startup. They use a simulated remote service; test real Steam Cloud transfers separately.
 
 Run the managed regression suite:
 
@@ -55,7 +55,7 @@ dotnet run --project tests\STS2Mobile.GameIdentityTests\STS2Mobile.GameIdentityT
 
 The suite includes chunk reuse, shared worker limits, interrupted transfer and promotion recovery, prepared-PCK authority, and launcher Pause/Resume ownership. To run the engine cases alone, append `-- "chunk transfer"`; use `-- "pending download"` or `-- "download model"` for routing and lifetime cases. These fixtures verify content and operation ownership, not live Steam speed.
 
-For controlled Fold downloads without Steam Cloud synchronization, see [Download validation tooling](../tools/DownloadValidation/README.md). That build explicitly injects test-only source files, uses a separate download directory, and is followed by a normal APK. Normal builds do not include the harness.
+For controlled Fold downloads and the separately selected, isolated Cloud-upload campaign, see [Download validation tooling](../tools/DownloadValidation/README.md). That build explicitly injects test-only source files and bypasses normal synchronization and gameplay. Download scenarios use a separate directory; the Cloud scenario restricts mutations to its owned-file ledger after backing up existing files. Follow validation with a normal APK. Normal builds do not include the harness.
 
 Check the Android asset-preload patch against the actual game loading class and
 synthetic threaded resources in desktop Godot:

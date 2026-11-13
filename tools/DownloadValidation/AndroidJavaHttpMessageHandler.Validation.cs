@@ -7,6 +7,11 @@ internal readonly record struct DownloadValidationHttpEvent(string RequestId, st
 
 internal sealed partial class AndroidJavaHttpMessageHandler
 {
+    internal static System.Net.Http.HttpClient CreateCloudValidationClient(System.Net.Http.DelegatingHandler observer)
+    {
+        observer.InnerHandler = new AndroidJavaHttpMessageHandler(120_000);
+        return new System.Net.Http.HttpClient(observer) { Timeout = TimeSpan.FromMinutes(2) };
+    }
     internal static event Action<DownloadValidationHttpEvent> ValidationHttpChanged;
     private sealed record ValidationHttpRequest(Uri Uri, long StartedAt)
     {

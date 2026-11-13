@@ -24,6 +24,21 @@ internal static partial class Program
 
         var tests = new (string Name, Action Run)[]
         {
+            ("cloud upload metadata avoids read-back", CloudUploadMetadataAvoidsReadBack),
+            ("cloud upload metadata fallback", CloudUploadFallsBackForMissingMetadata),
+            ("cloud upload metadata contradictions", CloudUploadRejectsContradictions),
+            ("cloud upload verified duplicates", CloudUploadDuplicatesAreVerified),
+            ("cloud upload failure does not verify", CloudUploadFailuresDoNotVerify),
+            ("cloud upload validates batch paths", CloudUploadNormalizesBeforeAnyWrite),
+            ("cloud upload three blocking workers", CloudUploadUsesThreeBlockingWorkers),
+            ("cloud upload cancellation drains before discard", CloudUploadCancellationDrainsBeforeDiscard),
+            ("cloud upload per-file timeout and batch ownership", CloudUploadPerFileTimeoutAndExclusiveBatch),
+            ("cloud upload block order and headers", CloudUploadBlocksPreserveOrderAndHeaders),
+            ("cloud upload fallback preserves raw ZIP prefix", CloudUploadFallbackKeepsRawZipPrefix),
+            ("cloud upload preserves root failure and drains", CloudUploadFailureKeepsRootAndDrains),
+            ("cloud upload late metadata cannot complete", CloudUploadLateMetadataCannotComplete),
+            ("cloud upload cannot invent empty read-back", CloudUploadCannotInventEmptyReadBack),
+            ("cloud upload stops before slow failure notice", CloudUploadStopsBeforeSlowFailureNotice),
             ("chunk transfer normalizes Steam filenames", ChunkTransferNormalizesSteamFilenames),
             ("chunk transfer NUL names pause and resume", ChunkTransferNulNamesPauseAndResume),
             ("chunk transfer NUL names reuse installed donors", ChunkTransferNulNamesReuseInstalledDonors),
