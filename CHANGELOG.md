@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-13 - v0.2.438 chunk downloads and resumable updates
+
+- Reuse verified Steam chunks from installations and partial downloads, including content moved within changed files; deduplicate missing content within each depot.
+- Fetch chunks through one bounded pool: three workers on Android and eight on desktop, including when one large archive remains.
+- Keep verified staging across Pause, failure and process death; offer Resume before destructive redownload recovery. Verify complete replacements before promotion and keep installation readiness checks.
+- Handle NUL-terminated Steam filenames consistently for installed, staged and donor paths, retaining `.downloading` suffixes and path-containment checks.
+- Separate reused/resumed content from completed compressed payload in progress. Keep authoritative prepared-PCK retention and reconstruct changed content before Android preparation.
+- Remove obsolete files after replacement verification and before promotion so an old file does not block a new implicit directory.
+- Record 266 managed and 56 Android/JVM checks, Fold transfer/restart evidence and the remaining native sandbox-readiness limitation in the [release notes](docs/release-notes/v0.2.438.md). No percentage speed improvement is claimed.
+
 ## 2026-11-02 - v0.2.437 game-owned input initialization
 
 - Let the game initialize keyboard and controller bindings from its own defaults and saved settings; remove the launcher's copied mapping initializer and unused reflection helpers.

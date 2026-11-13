@@ -10,8 +10,8 @@ using SteamKit2.CDN;
 
 namespace STS2Mobile.Steam;
 
-// Downloads game files from Steam CDN using SteamKit2. Supports delta updates
-// by comparing manifests, concurrent chunk downloads, and server rotation with
+// Downloads game files from Steam CDN using SteamKit2. Supports verified chunk
+// reuse, persistent partial files, bounded chunk downloads, and server rotation with
 // retry logic. Also patches the PCK to disable Android-incompatible plugin startup.
 internal sealed partial class DepotDownloader : IDisposable
 {
@@ -30,6 +30,9 @@ internal sealed partial class DepotDownloader : IDisposable
     private readonly DownloadStateStore _stateStore;
     private readonly Client _cdnClient;
     private BranchInstallUpdate _installUpdate;
+    private BranchInstallState _previousReady;
+    private GameIdentity _previousIdentity;
+    private bool _retainedPreparedPck;
 
     internal DepotDownloader(SteamConnection connection, string dataDir, string branch = SteamGameBranch.Public)
     {
@@ -42,10 +45,11 @@ internal sealed partial class DepotDownloader : IDisposable
     }
 
     internal Task<BranchInstallCompletion> DownloadAsync(CancellationToken ct = default)
-        => RunWithSuspendedIdleTimeoutAsync(() => DownloadCoreAsync(ct));
+        => Task.Run(() => RunWithSuspendedIdleTimeoutAsync(() => DownloadCoreAsync(ct)), CancellationToken.None);
 
     private async Task<BranchInstallCompletion> DownloadCoreAsync(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         Log(
             $"Downloader mode: android={OperatingSystem.IsAndroid()}, "
                 + $"maxConcurrency={MaxConcurrentDownloads}, "
@@ -54,6 +58,8 @@ internal sealed partial class DepotDownloader : IDisposable
         Log("Fetching app info...");
 
         var depots = await PrepareAndGetMainAppDepotsAsync(requireAny: true);
+        ct.ThrowIfCancellationRequested();
+        CapturePreparedPckAuthority();
         using var installUpdate = BranchInstallUpdate.StartOrResume(
             _dataDir,
             _branch,
@@ -83,16 +89,21 @@ internal sealed partial class DepotDownloader : IDisposable
 
             Log("All game files downloaded!");
 
+            ct.ThrowIfCancellationRequested();
             installUpdate.UpdatePhase("preparing-android-pck");
+            InvokeProgressChanged(DownloadProgress.Status("Preparing game files…"));
             // Remove Android-incompatible startup references while keeping the FMOD extension registered for script types.
-            PatchGamePck(Path.Combine(_gameDir, "SlayTheSpire2.pck"));
+            if (!_retainedPreparedPck)
+                PatchGamePck(Path.Combine(_gameDir, "SlayTheSpire2.pck"));
 
+            ct.ThrowIfCancellationRequested();
             installUpdate.UpdatePhase("publishing-completed-steam-generation");
             WriteBranchMarker(depots);
 
             var completion = installUpdate.CompleteInstalledFiles(
-                AndroidPckPreparationVersion
+                _retainedPreparedPck ? _previousReady.PckPreparationVersion : AndroidPckPreparationVersion
             );
+            CleanupCompletedDownloadStaging();
             Log(
                 $"Published ready installation state for '{_branch}' identity={completion.GameIdentity.Id} transaction={completion.TransactionId:D}"
             );
@@ -101,7 +112,7 @@ internal sealed partial class DepotDownloader : IDisposable
         catch (Exception ex)
         {
             installUpdate.RecordFailure(
-                ex is OperationCanceledException ? "cancelled" : "failed",
+                ex is OperationCanceledException && ct.IsCancellationRequested ? "cancelled" : "failed",
                 ex
             );
             throw;

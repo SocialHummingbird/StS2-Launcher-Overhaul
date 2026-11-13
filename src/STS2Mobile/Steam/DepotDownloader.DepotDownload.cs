@@ -1,195 +1,69 @@
-using System.Collections.Generic;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using STS2Mobile.Launcher;
 using SteamKit2;
 
 namespace STS2Mobile.Steam;
 
 internal sealed partial class DepotDownloader
 {
-    private readonly struct DepotDownloadPlan
-    {
-        private DepotDownloadPlan(
-            DepotDownloader owner,
-            DepotManifestReference depot,
-            DepotManifest manifest,
-            DepotFileChanges changes
-        )
-        {
-            Owner = owner;
-            Depot = depot;
-            Manifest = manifest;
-            Changes = changes;
-        }
-
-        private DepotDownloader Owner { get; }
-        private DepotManifestReference Depot { get; }
-        private DepotManifest Manifest { get; }
-        private DepotFileChanges Changes { get; }
-
-        internal static DepotDownloadPlan Create(
-            DepotDownloader owner,
-            DepotManifestReference depot,
-            DepotManifest manifest,
-            DepotFileChanges changes
-        )
-            => new(owner, depot, manifest, changes);
-
-        internal async Task ExecuteAsync()
-        {
-            await Changes.ExecuteAsync();
-            Owner._stateStore.SaveManifest(Depot, Manifest);
-            Owner.Log($"Depot {Depot.DepotId} complete");
-        }
-    }
-
-    private readonly struct DepotFileChanges
-    {
-        private DepotFileChanges(
-            DepotDownloader owner,
-            IReadOnlyList<DepotManifest.FileData> downloads,
-            IReadOnlyList<string> deletes,
-            uint depotId,
-            byte[] depotKey,
-            CancellationToken ct
-        )
-        {
-            Owner = owner;
-            Downloads = downloads;
-            Deletes = deletes;
-            DepotId = depotId;
-            DepotKey = depotKey;
-            Cancellation = ct;
-        }
-
-        private DepotDownloader Owner { get; }
-        private IReadOnlyList<DepotManifest.FileData> Downloads { get; }
-        private IReadOnlyList<string> Deletes { get; }
-        private uint DepotId { get; }
-        private byte[] DepotKey { get; }
-        private CancellationToken Cancellation { get; }
-
-        internal static DepotFileChanges Create(
-            DepotDownloader owner,
-            IReadOnlyList<DepotManifest.FileData> downloads,
-            IReadOnlyList<string> deletes,
-            uint depotId,
-            byte[] depotKey,
-            CancellationToken ct
-        )
-            => new(owner, downloads, deletes, depotId, depotKey, ct);
-
-        internal async Task ExecuteAsync()
-        {
-            Owner.DeleteObsoleteFiles(Deletes);
-            Owner.ResetDepotProgress(Downloads);
-            await DownloadOrLogCurrentAsync();
-        }
-
-        private async Task DownloadOrLogCurrentAsync()
-        {
-            if (Downloads.Count == 0)
-            {
-                Owner.Log($"Depot {DepotId}: already up to date");
-                return;
-            }
-
-            var totalBytes = DepotDownloader.FormatBytes(Owner._totalDownloadBytes);
-            var threadCount = DepotDownloader.MaxConcurrentDownloads;
-            Owner.Log(
-                $"Downloading {Downloads.Count} files ({totalBytes}) with {threadCount} threads..."
-            );
-
-            await Owner.DownloadDepotFilesAsync(
-                Downloads,
-                DepotId,
-                DepotKey,
-                Cancellation
-            );
-        }
-    }
-
-    private readonly struct LoadedDepotManifest
-    {
-        private LoadedDepotManifest(
-            DepotManifest manifest,
-            byte[] depotKey
-        )
-        {
-            Manifest = manifest;
-            DepotKey = depotKey;
-        }
-
-        internal DepotManifest Manifest { get; }
-        internal byte[] DepotKey { get; }
-
-        internal static LoadedDepotManifest Create(
-            DepotManifest manifest,
-            byte[] depotKey
-        )
-            => new(manifest, depotKey);
-    }
-
     private async Task DownloadDepotAsync(DepotManifestReference depot, CancellationToken ct)
     {
-        var plan = await CreateDepotDownloadPlanAsync(depot, ct);
-        await plan.ExecuteAsync();
+        Log($"Processing depot {depot.DepotId} for '{depot.Branch}' manifest={depot.ManifestId}");
+        var loaded = await LoadDepotManifestAsync(depot, ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        var old = _stateStore.LoadManifest(depot.DepotId);
+        ValidateDownloadFileSizes(loaded.Manifest.Files);
+        RequireUpdatingBeforeInstalledMutation();
+        var commit = CreateDepotCommit(RequireUpdatingBeforeInstalledMutation,
+            () => DeleteObsoleteFiles(GetFilesToDelete(old, loaded.Manifest)));
+        DepotChunkTransferProgress last = default;
+        var transfer = new DepotChunkTransfer(
+            _gameDir, SteamGameInstallPaths.DownloadStateDirectoryPath(_dataDir, _branch),
+            depot.DepotId, depot.ManifestId, loaded.Manifest,
+            ReadInstalledDonors(depot.DepotId, old), MaxConcurrentDownloads,
+            (chunk, buffer, token) => DownloadChunkWithRetriesAsync(depot.DepotId, chunk, buffer, loaded.DepotKey, "game content", token),
+            progress => { last = progress; ReportChunkProgress(progress); },
+            file =>
+            {
+                var keep = CanKeepPreparedPck(_previousReady, old, file, _previousIdentity);
+                if (string.Equals(NormalizeManifestPath(file.FileName), "SlayTheSpire2.pck", StringComparison.Ordinal))
+                    _retainedPreparedPck = keep;
+                return keep;
+            },
+            needed => EnsureEnoughFreeSpaceForFile(_gameDir, needed, "staged game files"),
+            beforePromote: commit);
+        await transfer.RunAsync(ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        commit();
+        _stateStore.SaveManifest(depot, loaded.Manifest);
+        Log($"Depot {depot.DepotId} complete: reused={last.ReusedBytes} resumed={last.ResumedBytes} downloadedPayload={last.DownloadedBytes} plannedPayload={last.PlannedDownloadBytes}");
     }
 
-    private async Task<DepotDownloadPlan> CreateDepotDownloadPlanAsync(
-        DepotManifestReference depot,
-        CancellationToken ct
-    )
+    // The engine invokes this only after the whole staged batch verifies. The final
+    // invocation also handles deletion-only updates with no files to promote.
+    internal static Action CreateDepotCommit(Action requireUpdating, Action deleteObsolete)
     {
-        var depotId = depot.DepotId;
-
-        Log($"Processing depot {depotId} for branch '{depot.Branch}' source={depot.ManifestSource} requestBranch='{depot.ManifestRequestBranch}'...");
-
-        bool isUpdate = _stateStore.ManifestChanged(depot);
-
-        var loaded = await LoadDepotManifestAsync(depot);
-
-        var oldManifest = _stateStore.LoadManifest(depotId);
-
-        CleanupStaleDownloadTemps();
-
-        var downloads = BuildDepotDownloads(oldManifest, loaded.Manifest, isUpdate);
-        var deletes = GetFilesToDelete(oldManifest, loaded.Manifest);
-
-        return DepotDownloadPlan.Create(
-            this,
-            depot,
-            loaded.Manifest,
-            DepotFileChanges.Create(
-                this,
-                downloads,
-                deletes,
-                depotId,
-                loaded.DepotKey,
-                ct
-            )
-        );
+        var cleaned = false;
+        return () =>
+        {
+            requireUpdating();
+            if (cleaned) return;
+            deleteObsolete();
+            cleaned = true;
+        };
     }
 
-    private async Task<LoadedDepotManifest> LoadDepotManifestAsync(
-        DepotManifestReference depot
-    )
-    {
-        var depotKey = await _connection.GetDepotDecryptionKeyAsync(depot.DepotId);
-        var manifestRequestCode = await GetManifestRequestCodeAsync(
-            depot.DepotId,
-            depot.ManifestId,
-            depot.ManifestRequestBranch
-        );
-        var manifest = await DownloadManifestWithRetriesAsync(
-            new ManifestDownloadRequest(
-                depot.DepotId,
-                depot.ManifestId,
-                manifestRequestCode,
-                depotKey
-            )
-        );
+    private readonly record struct LoadedDepotManifest(DepotManifest Manifest, byte[] DepotKey);
 
-        return LoadedDepotManifest.Create(manifest, depotKey);
+    private async Task<LoadedDepotManifest> LoadDepotManifestAsync(DepotManifestReference depot, CancellationToken ct)
+    {
+        var key = await _connection.GetDepotDecryptionKeyAsync(depot.DepotId).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        var request = await GetManifestRequestCodeAsync(depot.DepotId, depot.ManifestId, depot.ManifestRequestBranch).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        var manifest = await DownloadManifestWithRetriesAsync(new ManifestDownloadRequest(depot.DepotId, depot.ManifestId, request, key), ct).ConfigureAwait(false);
+        return new LoadedDepotManifest(manifest, key);
     }
 }

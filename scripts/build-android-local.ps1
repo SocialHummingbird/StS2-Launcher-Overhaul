@@ -11,10 +11,16 @@ param(
     [ValidateSet("arm64-v8a", "x86_64", "universal")]
     [string]$Abi = "arm64-v8a",
     [switch]$Install,
-    [string]$DeviceSerial = ""
+    [string]$DeviceSerial = "",
+    [string]$ManagedPublishTargets = "",
+    [string]$ValidationGradleInitScript = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($ValidationGradleInitScript -and -not $ManagedPublishTargets) {
+    throw 'Validation Java input requires explicit validation managed targets.'
+}
 
 . (Join-Path $PSScriptRoot "android-apk-utils.ps1")
 
@@ -66,7 +72,11 @@ Write-Host "Building and staging pinned Android Harmony runtime..."
 & (Join-Path $PSScriptRoot "build-android-harmony.ps1") -Stage | Out-Host
 
 Write-Host "Publishing STS2Mobile..."
-dotnet publish $projectPath -c Release
+$managedPublishArgs = @("publish", $projectPath, "-c", "Release")
+if ($ManagedPublishTargets) {
+    $managedPublishArgs += "-p:CustomAfterMicrosoftCommonTargets=$((Resolve-Path -LiteralPath $ManagedPublishTargets).Path)"
+}
+dotnet @managedPublishArgs
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet publish failed"
 }
@@ -291,6 +301,10 @@ $gradleArgs = @(
     "-Prelease_keystore_password=$KeystorePassword",
     "-Prelease_keystore_alias=$KeystoreAlias"
 )
+
+if ($ValidationGradleInitScript) {
+    $gradleArgs += @('--init-script', (Resolve-Path -LiteralPath $ValidationGradleInitScript).Path)
+}
 
 & $GradlePath @gradleArgs
 

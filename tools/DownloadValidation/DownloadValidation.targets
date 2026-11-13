@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'STS2Mobile'">
+    <DownloadValidationGeneratedDir>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\tmp\chunk-download-work\device\managed'))</DownloadValidationGeneratedDir>
+  </PropertyGroup>
+  <Target Name="PrepareDownloadValidationSources" BeforeTargets="CoreCompile" Condition="'$(MSBuildProjectName)' == 'STS2Mobile'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)prepare-sources.ps1&quot; -SourceDirectory &quot;$(MSBuildProjectDirectory)&quot; -OutputDirectory &quot;$(DownloadValidationGeneratedDir)&quot;" />
+    <ItemGroup>
+      <Compile Remove="Launcher\LauncherController.cs;$(MSBuildProjectDirectory)\Launcher\LauncherController.cs;Launcher\LauncherUI.Lifecycle.cs;$(MSBuildProjectDirectory)\Launcher\LauncherUI.Lifecycle.cs;Steam\DepotDownloader.DepotDownload.cs;$(MSBuildProjectDirectory)\Steam\DepotDownloader.DepotDownload.cs;Steam\AndroidJavaHttpMessageHandler.Request.cs;$(MSBuildProjectDirectory)\Steam\AndroidJavaHttpMessageHandler.Request.cs;Steam\DepotDownloader.cs;$(MSBuildProjectDirectory)\Steam\DepotDownloader.cs" />
+      <Compile Include="$(DownloadValidationGeneratedDir)\LauncherController.cs;$(DownloadValidationGeneratedDir)\LauncherUI.Lifecycle.cs;$(DownloadValidationGeneratedDir)\DepotDownloader.DepotDownload.cs;$(DownloadValidationGeneratedDir)\AndroidJavaHttpMessageHandler.Request.cs;$(DownloadValidationGeneratedDir)\DepotDownloader.cs" />
+      <Compile Include="$(MSBuildThisFileDirectory)*.cs" />
+      <Compile Remove="Steam\DepotDownloader.CdnDownloadOperation.cs;$(MSBuildProjectDirectory)\Steam\DepotDownloader.CdnDownloadOperation.cs" />
+      <Compile Include="$(DownloadValidationGeneratedDir)\DepotDownloader.CdnDownloadOperation.cs" />
+      <Compile Remove="AppPaths.cs;$(MSBuildProjectDirectory)\AppPaths.cs;Launcher\LauncherModel.Downloads.cs;$(MSBuildProjectDirectory)\Launcher\LauncherModel.Downloads.cs" />
+      <Compile Include="$(DownloadValidationGeneratedDir)\AppPaths.cs;$(DownloadValidationGeneratedDir)\LauncherModel.Downloads.cs" />
+    </ItemGroup>
+  </Target>
+</Project>

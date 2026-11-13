@@ -10,6 +10,7 @@ internal sealed partial class DownloadSection
             return;
         MoveChild(_progressLabel, _downloadButton.GetIndex() + 1);
         MoveChild(_progressBar, _progressLabel.GetIndex() + 1);
+        MoveChild(_pauseButton, _progressBar.GetIndex() + 1);
     }
 
     private static readonly CompactButtonDetailLabelSpec CompactDownloadActionLabels = new(CompactDownloadActionBodyName, CompactDownloadActionTitleName, CompactDownloadActionDetailName, CompactDownloadActionTitleFontSize, CompactDownloadActionDetailFontSize, CompactDownloadActionHorizontalMargin, CompactDownloadActionVerticalMargin);
@@ -18,7 +19,7 @@ internal sealed partial class DownloadSection
     {
         if (!compact)
             return text;
-        var(title, detail) = CompactDownloadButtonTitleDetail(text);
+        var (title, detail) = CompactDownloadButtonTitleDetail(text);
         return $"{title}\n{detail}";
     }
 
@@ -30,8 +31,31 @@ internal sealed partial class DownloadSection
             return text;
         }
 
+        var payload = CompactPayloadProgressText(NormalizeCompactProgressText(text));
+        if (payload != null)
+            return payload;
+
         var detail = CompactDownloadProgressDetail(text);
         return detail.Length == 0 ? "Downloading selected version" : $"Downloading selected version\n{detail}";
+    }
+
+    private static string CompactPayloadProgressText(string text)
+    {
+        const string reusedMarker = " · Reused ";
+        const string resumedMarker = ", resumed ";
+        var reused = text.IndexOf(reusedMarker, StringComparison.Ordinal);
+        var resumed = text.IndexOf(resumedMarker, StringComparison.Ordinal);
+        if (!text.StartsWith("Download ", StringComparison.Ordinal) || reused < 0 || resumed <= reused)
+            return null;
+
+        var payload = text[..reused];
+        var percentage = payload.LastIndexOf(" (", StringComparison.Ordinal);
+        if (percentage >= 0)
+            payload = payload[..percentage];
+        var reusedSize = text[(reused + reusedMarker.Length)..resumed];
+        var resumedSize = text[(resumed + resumedMarker.Length)..];
+        // The progress bar carries the percentage; these two lines retain every byte metric.
+        return $"{payload}\nReused {reusedSize} · Resumed {resumedSize}";
     }
 
     private static string CompactDownloadProgressDetail(string text)
@@ -54,6 +78,8 @@ internal sealed partial class DownloadSection
             return ("Redownload Version", "Selected files only");
         if (string.Equals(normalized, "RETRY DOWNLOAD", StringComparison.OrdinalIgnoreCase))
             return ("Retry Download", "Local files only");
+        if (string.Equals(normalized, "RESUME DOWNLOAD", StringComparison.OrdinalIgnoreCase))
+            return ("Resume Download", "Keep downloaded progress");
         if (string.Equals(normalized, "DOWNLOADING...", StringComparison.OrdinalIgnoreCase))
             return ("Downloading...", "Steam files");
         return (normalized, "Local files only");

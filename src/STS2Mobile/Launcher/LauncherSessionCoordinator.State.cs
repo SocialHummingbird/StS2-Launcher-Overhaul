@@ -7,7 +7,8 @@ internal sealed partial class LauncherSessionCoordinator
     // Updates visible sections and status text based on session state transitions.
     internal void UpdateUI(SessionState state)
     {
-        if (_model.ShouldSuppressSessionUpdate(state, _isUpdateCheckRunning()))
+        if (_model.SelectedVersionOperationIsRunning
+            || _model.ShouldSuppressSessionUpdate(state, _isUpdateCheckRunning()))
             return;
 
         ShowSessionState(state);
@@ -49,7 +50,7 @@ internal sealed partial class LauncherSessionCoordinator
     {
         _model.MarkConnectionResolved();
         if (_downloads.TryStartAutomaticRepair()
-            || _downloads.TryShowRedownloadRequired())
+            || _downloads.TryShowDownloadRecovery())
         {
             return;
         }

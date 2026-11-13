@@ -11,7 +11,7 @@ internal sealed partial class LauncherSessionCoordinator
         {
             case LauncherModel.FastPathOutcome.ReadyToLaunch:
                 if (_downloads.TryStartAutomaticRepair()
-                    || _downloads.TryShowRedownloadRequired())
+                    || _downloads.TryShowDownloadRecovery())
                 {
                     break;
                 }

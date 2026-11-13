@@ -29,6 +29,7 @@ internal sealed partial class LauncherController
             _diagnostics.ReportBugPressed,
             _updates.RunAppUpdateCheck
         );
+        _view.PauseDownloadRequested += _downloads.PausePressed;
         _view.DestinationSelected += OnDestinationSelected;
     }
 }

@@ -26,7 +26,7 @@ internal sealed partial class LauncherController
     private void LaunchOrRepair(Action launch)
     {
         if (_downloads.TryStartAutomaticRepair(launch)
-            || _downloads.TryShowRedownloadRequired())
+            || _downloads.TryShowDownloadRecovery())
         {
             return;
         }
@@ -34,12 +34,24 @@ internal sealed partial class LauncherController
         launch();
     }
 
-    private void SessionRetryPressed()
+    private async void SessionRetryPressed()
     {
-        var fastPathReady = _session.RetryPressed();
-        RefreshSaveSyncPresentation();
-        if (fastPathReady)
-            StartAutomaticSaveSync();
+        try
+        {
+            var fastPathReady = await _session.RetryPressedAsync();
+            if (!fastPathReady.HasValue)
+                return;
+            RefreshSaveSyncPresentation();
+            if (fastPathReady.Value)
+                StartAutomaticSaveSync();
+        }
+        catch (Exception error)
+        {
+            STS2Mobile.PatchHelper.Log($"[Launcher] Session retry failed: {error}");
+            _view.SetStatus("Steam retry failed. Try again or create a support report.", LauncherStatusSeverity.Error);
+            _view.AppendLog(error.GetBaseException().Message);
+            _view.ShowRetry();
+        }
     }
 
     internal void CancelSaveSyncForLauncherExit()

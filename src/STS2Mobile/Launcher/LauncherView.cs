@@ -11,6 +11,11 @@ internal sealed partial class LauncherView
     private LoginSection Login { get; }
     private CodeSection Code { get; }
     private DownloadSection Download { get; }
+    internal event Action PauseDownloadRequested
+    {
+        add => Download.PauseRequested += value;
+        remove => Download.PauseRequested -= value;
+    }
     private ActionSection Actions { get; }
     private VBoxContainer HomeSections { get; }
     private ScrollContainer PrimaryScroll { get; }
@@ -338,6 +343,8 @@ internal sealed partial class LauncherView
     internal void ResetDownload() => Download.Reset();
     internal void ResetDownload(string buttonText) => Download.Reset(buttonText);
     internal void SetDownloadButtonDisabled(bool disabled) => Download.SetButtonDisabled(disabled);
+    internal void SetDownloadPauseAvailable(bool available) => Download.SetPauseAvailable(available);
+    internal void ShowDownloadPausePending() => Download.ShowPausePending();
     internal void SetRefreshGameVersionsBusy(bool busy)
     {
         Download.SetRefreshVersionsButtonDisabled(busy);

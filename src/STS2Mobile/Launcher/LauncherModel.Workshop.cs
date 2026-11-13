@@ -7,54 +7,42 @@ namespace STS2Mobile.Launcher;
 
 internal partial class LauncherModel
 {
-    internal async Task StartWorkshopSyncAsync()
+    internal Task StartWorkshopSyncAsync()
     {
-        var run = DownloadRunGuard.TryAcquire(this);
-        if (!run.Acquired)
+        var operation = _downloadLifetime.TryRunAsync(
+            _ => RunWithDepotConnectionAsync(DepotConnectionAction.WorkshopSync(this)),
+            pausable: false
+        );
+        if (operation == null)
         {
             RaiseWorkshopSyncFailed("Another Steam file operation is already running");
-            return;
+            return Task.CompletedTask;
         }
-
-        try
-        {
-            await RunWithDepotConnectionAsync(
-                DepotConnectionAction.WorkshopSync(this)
-            ).ConfigureAwait(false);
-        }
-        finally
-        {
-            run.Release();
-        }
+        return operation;
     }
 
     internal void ClearWorkshopMods()
     {
-        var run = DownloadRunGuard.TryAcquire(this);
-        if (!run.Acquired)
+        var operation = _downloadLifetime.TryRunAsync(_ =>
         {
+            try
+            {
+                WorkshopModConsent.Clear();
+                var stager = new SteamWorkshopStager();
+                var removed = stager.ClearStagedMods();
+                RaiseWorkshopSyncLogReceived(
+                    $"Workshop mods cleared: retired {removed} installations; file cleanup will run after restart."
+                );
+                RaiseWorkshopClearCompleted(removed);
+            }
+            catch (System.Exception ex)
+            {
+                RaiseWorkshopClearFailed(ex.GetBaseException().Message);
+            }
+            return Task.CompletedTask;
+        }, pausable: false);
+        if (operation == null)
             RaiseWorkshopClearFailed("Another Steam file operation is already running");
-            return;
-        }
-
-        try
-        {
-            WorkshopModConsent.Clear();
-            var stager = new SteamWorkshopStager();
-            var removed = stager.ClearStagedMods();
-            RaiseWorkshopSyncLogReceived(
-                $"Workshop mods cleared: retired {removed} installations; file cleanup will run after restart."
-            );
-            RaiseWorkshopClearCompleted(removed);
-        }
-        catch (System.Exception ex)
-        {
-            RaiseWorkshopClearFailed(ex.GetBaseException().Message);
-        }
-        finally
-        {
-            run.Release();
-        }
     }
 
     private async Task SyncWorkshopWithConnectionAsync(SteamConnection connection)

@@ -10,7 +10,8 @@ internal sealed partial class LauncherDownloadCoordinator
     internal const string RedownloadSelectedVersionButtonText = "Redownload selected version";
     internal const string RedownloadRequiredStatus =
         "The selected version must be redownloaded before it can launch.";
-    internal const string DownloadCancelledStatus = "Download cancelled";
+    internal const string DownloadCancelledStatus = "Download paused. Resume to keep downloaded progress.";
+    internal const string ResumeDownloadButtonText = "Resume Download";
     internal const string RetryDownloadButtonText = "Retry Download";
     internal const string RedownloadStatusMessage =
         "Selected branch files removed. Download the branch again. Saves and other branches stay in place.";
@@ -24,6 +25,7 @@ internal sealed partial class LauncherDownloadCoordinator
     private readonly LauncherLaunchCoordinator _launch;
     private readonly Action _refreshGameBranchOptions;
     private Action _automaticRepairContinuation;
+    private bool _pauseRequested;
 
     internal LauncherDownloadCoordinator(
         LauncherModel model,

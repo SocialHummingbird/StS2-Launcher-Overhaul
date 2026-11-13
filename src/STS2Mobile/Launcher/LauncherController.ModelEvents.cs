@@ -10,13 +10,13 @@ internal sealed partial class LauncherController
         _model.SessionStateChanged += OnMainThread<LauncherModel.SessionState>(OnSessionStateChanged);
         _model.LogReceived += OnMainThread<string>(_view.AppendLog);
         _model.CodeNeeded += OnMainThread<bool>(_session.ShowCodePrompt);
-        _model.DownloadProgressChanged += OnMainThread<DepotDownloader.DownloadProgress>(
+        _model.DownloadProgressChanged += OnCurrentDownloadMainThread<DepotDownloader.DownloadProgress>(
             _downloads.UpdateDownloadProgress
         );
         _model.DownloadLogReceived += OnMainThread<string>(_view.AppendLog);
-        _model.DownloadCompleted += OnMainThread<BranchInstallCompletion>(OnDownloadCompleted);
-        _model.DownloadFailed += OnMainThread<LauncherBranchOperationFailure>(OnDownloadFailed);
-        _model.DownloadCancelled += OnMainThread<string>(OnDownloadCancelled);
+        _model.DownloadCompleted += OnCurrentDownloadMainThread<BranchInstallCompletion>(OnDownloadCompleted);
+        _model.DownloadFailed += OnCurrentDownloadMainThread<LauncherBranchOperationFailure>(OnDownloadFailed);
+        _model.DownloadCancelled += OnCurrentDownloadMainThread<string>(OnDownloadCancelled);
         _model.UpdateCheckCompleted += OnMainThread<LauncherUpdateCheckResult>(_versions.CompleteUpdateCheck);
         _model.UpdateCheckFailed += OnMainThread<LauncherBranchOperationFailure>(_versions.FailUpdateCheck);
         _model.BranchCatalogRefreshCompleted += OnMainThread(_versions.CompleteBranchCatalogRefresh);
@@ -65,5 +65,8 @@ internal sealed partial class LauncherController
 
     private Action<T> OnMainThread<T>(Action<T> action)
         => value => _runOnMainThread(() => action(value));
+
+    private Action<T> OnCurrentDownloadMainThread<T>(Action<T> action)
+        => value => _runOnMainThread(_model.BindCurrentDownloadCallback(() => action(value)));
 
 }

@@ -48,11 +48,22 @@ internal sealed partial class LauncherDownloadCoordinator
         return started;
     }
 
-    internal bool TryShowRedownloadRequired()
-        => TryShowRedownloadRequired(LauncherPreferences.ReadGameBranch());
+    internal bool TryShowDownloadRecovery()
+        => TryShowDownloadRecovery(LauncherPreferences.ReadGameBranch());
 
-    internal bool TryShowRedownloadRequired(string branch)
+    internal bool TryShowDownloadRecovery(string branch)
     {
+        if (LauncherPendingDownload.Inspect(_model.DataDir, branch).CanResume)
+        {
+            _view.HideActions();
+            _view.SetStatus(
+                "The selected version has an unfinished download. Resume to keep downloaded progress.",
+                LauncherStatusSeverity.Information
+            );
+            ShowDownloadReadyAction();
+            return true;
+        }
+
         if (!LauncherGameFiles.HasBranchMetadataProblem(_model.DataDir, branch))
             return false;
 
@@ -130,7 +141,9 @@ internal sealed partial class LauncherDownloadCoordinator
             else
             {
                 _view.ShowDownloadProgress("Connecting to Steam...");
-                await _model.StartDownloadAsync(branch);
+                var operation = _model.StartDownloadAsync(branch);
+                _view.SetDownloadPauseAvailable(_model.CanPauseDownload);
+                await operation;
             }
         }
         catch (Exception ex)
@@ -151,7 +164,34 @@ internal sealed partial class LauncherDownloadCoordinator
     }
 
     internal void UpdateDownloadProgress(DepotDownloader.DownloadProgress progress)
-        => progress.ApplyTo(_view.SetDownloadProgress, _view.AppendLog);
+    {
+        progress.ApplyTo(_view.SetDownloadProgress);
+        _view.SetDownloadPauseAvailable(_model.CanPauseDownload);
+    }
+
+    internal void PausePressed() => _ = PauseAsync();
+
+    private async Task PauseAsync()
+    {
+        if (_pauseRequested || !_model.CanPauseDownload)
+            return;
+        _pauseRequested = true;
+        _view.ShowDownloadPausePending();
+        _view.SetStatus("Pausing download. Finishing active requests…", LauncherStatusSeverity.Working);
+        try
+        {
+            await _model.PauseDownloadAsync();
+        }
+        catch (Exception error)
+        {
+            PatchHelper.Log($"[Launcher] Pausing download failed: {error}");
+            FailDownload(new LauncherBranchOperationFailure(LauncherPreferences.ReadGameBranch(), error.Message));
+        }
+        finally
+        {
+            _pauseRequested = false;
+        }
+    }
 
     internal void CompleteDownload(BranchInstallCompletion completion)
     {
@@ -234,7 +274,11 @@ internal sealed partial class LauncherDownloadCoordinator
     }
 
     internal void ShowDownloadReadyAction()
-        => DownloadViewUpdate.Ready().Apply(_view, _launch);
+        => DownloadViewUpdate.Ready(
+            LauncherPendingDownload.Inspect(_model.DataDir, LauncherPreferences.ReadGameBranch()).CanResume
+                ? ResumeDownloadButtonText
+                : DownloadGameFilesButtonText
+        ).Apply(_view, _launch);
 
     internal void ShowRedownloadSelectedVersionAction()
         => DownloadViewUpdate.Ready(RedownloadSelectedVersionButtonText).Apply(_view, _launch);

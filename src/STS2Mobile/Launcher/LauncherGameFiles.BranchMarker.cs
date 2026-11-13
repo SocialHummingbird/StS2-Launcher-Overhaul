@@ -9,7 +9,8 @@ internal static partial class LauncherGameFiles
     internal static bool HasBranchMetadataProblem(string dataDir, string branch)
     {
         branch = SteamGameBranch.Normalize(branch);
-        return IsValidPck(PckPath(dataDir, branch))
+        return !LauncherPendingDownload.Inspect(dataDir, branch).CanResume
+            && IsValidPck(PckPath(dataDir, branch))
             && LocalPckRepairOperation.ClassifyForLauncherRouting(
                 dataDir,
                 branch

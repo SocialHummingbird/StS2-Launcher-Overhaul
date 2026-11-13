@@ -104,6 +104,7 @@ internal readonly struct DownloadViewUpdate
         => new(
             status: LauncherDownloadCoordinator.DownloadCancelledStatus,
             statusSeverity: LauncherStatusSeverity.Information,
+            downloadAction: LauncherDownloadCoordinator.ResumeDownloadButtonText,
             downloadButtonDisabled: false
         );
 

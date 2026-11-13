@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using STS2Mobile.Patches;
 using STS2Mobile.Steam;
@@ -74,29 +75,65 @@ internal partial class LauncherModel : IDisposable
         _steamSession = new LauncherSteamSession(dataDir, _credentialStore);
     }
 
-    internal FastPathResult Retry()
+    internal async Task<FastPathResult?> RetryAsync()
     {
-        var downloadActive = DownloadIsRunning;
-        CancelDownloadForRetry();
-        _steamSession.Retry(downloadActive);
-        return StartSession();
+        Task drain;
+        int generation;
+        lock (_downloadSync)
+        {
+            generation = Interlocked.Increment(ref _downloadGeneration);
+            drain = _downloadLifetime.DrainThenAsync(
+                () => Task.Run(() => _steamSession.Retry(downloadActive: false))
+            );
+        }
+        await drain.ConfigureAwait(false);
+        lock (_downloadSync)
+        {
+            if (generation != _downloadGeneration || _disposeTask != null)
+                return null;
+            return StartSession();
+        }
     }
 
-    internal void ResetGameFilesForRedownload()
+    internal Task ResetGameFilesForRedownloadAsync(string branch)
     {
-        CancelDownloadForRetry();
-        ResetDownload();
-        LauncherGameFiles.DeleteDownloadedState(_dataDir);
+        lock (_downloadSync)
+        {
+            branch = SteamGameBranch.Normalize(branch);
+            Interlocked.Increment(ref _downloadGeneration);
+            return _downloadLifetime.DrainThenAsync(
+                () => Task.Run(() => LauncherGameFiles.DeleteDownloadedState(_dataDir, branch))
+            );
+        }
     }
 
     void IDisposable.Dispose()
         => Dispose();
 
-    internal void Dispose()
+    private Task _disposeTask;
+    private readonly object _downloadSync = new();
+
+    internal Task DisposeAsync()
     {
-        CancelDownload();
-        ResetDownload();
-        _steamSession.Dispose();
+        lock (_downloadSync)
+        {
+            if (_disposeTask != null)
+                return _disposeTask;
+            Interlocked.Increment(ref _downloadGeneration);
+            _disposeTask = _downloadLifetime.DrainThenAsync(
+                () => Task.Run(_steamSession.Dispose),
+                close: true
+            );
+            return _disposeTask;
+        }
+    }
+
+    internal void Dispose() => _ = ObserveDisposeAsync();
+
+    private async Task ObserveDisposeAsync()
+    {
+        try { await DisposeAsync().ConfigureAwait(false); }
+        catch (Exception error) { PatchHelper.Log($"[Launcher] Model disposal failed: {error}"); }
     }
 
     private static void Raise(Action callback, string name)

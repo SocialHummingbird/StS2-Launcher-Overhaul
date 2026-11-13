@@ -1,3 +1,7 @@
+using System;
+using System.Threading.Tasks;
+using STS2Mobile.Patches;
+
 namespace STS2Mobile.Launcher;
 
 internal sealed partial class LauncherDownloadCoordinator
@@ -11,6 +15,8 @@ internal sealed partial class LauncherDownloadCoordinator
 
     internal void DownloadPressed()
     {
+        if (_model.SelectedVersionOperationIsRunning)
+            return;
         var selectedBranch = LauncherPreferences.ReadGameBranch();
         if (TryStartAutomaticRepair(selectedBranch))
             return;
@@ -61,31 +67,47 @@ internal sealed partial class LauncherDownloadCoordinator
         );
 
     private void ApplyRedownload()
-    {
-        _model.ResetGameFilesForRedownload();
-        _refreshGameBranchOptions();
-        DownloadViewUpdate.RedownloadApplied().Apply(_view, _launch);
-    }
+        => _ = ApplyRedownloadAsync(downloadAfterReset: false);
 
     private void ApplyRedownloadAndDownload()
-    {
-        _model.ResetGameFilesForRedownload();
-        _refreshGameBranchOptions();
-        _view.SetStatus(
-            "Selected branch files removed. Downloading a fresh copy from Steam...",
-            LauncherStatusSeverity.Working
-        );
-        _view.AppendLog("Selected branch files removed before replacement download. Saves and other branches were left in place.");
-        _ = DownloadAsync();
-    }
+        => _ = ApplyRedownloadAsync(downloadAfterReset: true);
 
     private void ApplyRedownloadBlockedByBranchProblem(string downloadProblem)
+        => _ = ApplyRedownloadAsync(downloadAfterReset: false, downloadProblem);
+
+    private async Task ApplyRedownloadAsync(bool downloadAfterReset, string downloadProblem = null)
     {
-        _model.ResetGameFilesForRedownload();
-        _refreshGameBranchOptions();
-        _view.SetStatus(downloadProblem, LauncherStatusSeverity.Warning);
-        _view.AppendLog("Selected branch files removed, but Steam still blocks the replacement download. Saves and other branches were left in place.");
-        _view.AppendLog(downloadProblem);
-        ShowDownloadReadyAction();
+        var branch = LauncherPreferences.ReadGameBranch();
+        _automaticRepairContinuation = null;
+        _view.HideActions();
+        _view.ShowDownloadProgress("Stopping file operations and removing the selected version…");
+        _view.SetDownloadPauseAvailable(false);
+        try
+        {
+            await _model.ResetGameFilesForRedownloadAsync(branch);
+            _refreshGameBranchOptions();
+            if (!string.IsNullOrWhiteSpace(downloadProblem))
+            {
+                _view.SetStatus(downloadProblem, LauncherStatusSeverity.Warning);
+                _view.AppendLog("Selected branch files removed, but Steam still blocks the replacement download. Saves and other branches were left in place.");
+                _view.AppendLog(downloadProblem);
+                ShowDownloadReadyAction();
+            }
+            else if (downloadAfterReset)
+            {
+                _view.SetStatus("Selected branch files removed. Downloading a fresh copy from Steam...", LauncherStatusSeverity.Working);
+                _view.AppendLog("Selected branch files removed before replacement download. Saves and other branches were left in place.");
+                await RunSelectedVersionOperationAsync(branch, automaticRepairOnly: false);
+            }
+            else
+            {
+                DownloadViewUpdate.RedownloadApplied().Apply(_view, _launch);
+            }
+        }
+        catch (Exception error)
+        {
+            PatchHelper.Log($"[Launcher] Redownload reset failed: {error}");
+            FailDownload(new LauncherBranchOperationFailure(branch, error.GetBaseException().Message));
+        }
     }
 }

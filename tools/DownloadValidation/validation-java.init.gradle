@@ -1,0 +1,13 @@
+// Opt-in compile input substitution; never rewrites the production source tree.
+gradle.projectsEvaluated {
+    def app = gradle.rootProject
+    def sourceRoot = System.getenv('STS2_DOWNLOAD_VALIDATION_JAVA_ROOT') ?: new File(app.rootDir, '../tmp/cdn-validation-20261113/java').path
+    def generated = new File(sourceRoot, 'com/game/sts2launcher')
+    def original = new File(app.rootDir, 'src/com/game/sts2launcher/GodotApp.java').canonicalFile
+    if (!new File(generated, 'GodotApp.java').isFile()) throw new GradleException('Generated validation Java input missing')
+    app.tasks.withType(JavaCompile).configureEach {
+        if (name == 'compileMonoReleaseJavaWithJavac') {
+            setSource(source.filter { it.canonicalFile != original } + app.files(new File(generated, 'GodotApp.java'), new File(generated, 'DownloadValidationHttpDiagnostics.java')))
+        }
+    }
+}

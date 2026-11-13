@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.sts2launcher.downloadvalidation" android:versionCode="1" android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="35" />
+    <application android:label="StS2 download validation" android:allowBackup="false" />
+    <instrumentation android:name="com.sts2launcher.downloadvalidation.Preservation"
+        android:targetPackage="com.sts2launcher.overhaul.fork.local"
+        android:label="Private preservation snapshots and validation requests" />
+</manifest>

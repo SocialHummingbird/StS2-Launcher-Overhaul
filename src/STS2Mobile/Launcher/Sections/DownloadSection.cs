@@ -29,6 +29,7 @@ internal sealed partial class DownloadSection : VBoxContainer
     private const int CompactDownloadProgressLabelHeight = 50;
     private const int CompactDownloadProgressDetailLimit = 54;
     internal event Action DownloadRequested;
+    internal event Action PauseRequested;
     internal event Action<string> GameBranchChanged;
     internal event Action RefreshGameVersionsRequested;
     private readonly OptionButton _branchDropdown;
@@ -39,6 +40,7 @@ internal sealed partial class DownloadSection : VBoxContainer
     private readonly Button _compactSelectedVersionPanel;
     private readonly Label _compactSelectedVersionLabel;
     private readonly Button _downloadButton;
+    private readonly Button _pauseButton;
     private readonly ProgressBar _progressBar;
     private readonly Label _progressLabel;
     private readonly List<LauncherBranchCatalog.BranchOption> _branchOptions = new();
@@ -47,6 +49,7 @@ internal sealed partial class DownloadSection : VBoxContainer
     private readonly bool _compact;
     private readonly bool _compactStackedActionRows;
     private bool _branchDetailsExpanded;
+    private bool _pausePending;
     private string _gameBranch = SteamGameBranch.Public;
     internal DownloadSection(float scale, bool compact = false, bool compactStackedActionRows = false)
     {
@@ -75,10 +78,30 @@ internal sealed partial class DownloadSection : VBoxContainer
         AddChild(_progressBar);
         _progressLabel = BuildProgressLabel(scale, compact);
         AddChild(_progressLabel);
+        _pauseButton = new StyledButton("Pause download", scale,
+            fontSize: LauncherSectionMetrics.SecondaryButtonFontSize,
+            height: LauncherSectionMetrics.SecondaryButtonHeight);
+        _pauseButton.Name = "PauseDownloadAction";
+        LauncherButtonStyles.ApplySupportAction(_pauseButton, scale);
+        _pauseButton.Visible = false;
+        _pauseButton.Pressed += () => PauseRequested?.Invoke();
+        AddChild(_pauseButton);
         MoveCompactProgressControlsNearPrimaryAction();
     }
 
     internal void SetButtonDisabled(bool disabled) => _downloadButton.Disabled = disabled;
+    internal void SetPauseAvailable(bool available)
+    {
+        _pauseButton.Visible = available;
+        _pauseButton.Disabled = _pausePending;
+    }
+
+    internal void ShowPausePending()
+    {
+        _pausePending = true;
+        _pauseButton.Disabled = true;
+        ShowProgress(_progressBar.Value, "Pausing download. Finishing active requests…");
+    }
     internal void SetRefreshVersionsButtonDisabled(bool disabled) => _refreshBranchesButton.Disabled = disabled;
     private Button BuildDownloadButton(float scale, bool compact)
     {
@@ -129,10 +152,12 @@ internal sealed partial class DownloadSection : VBoxContainer
     {
         _progressBar.Visible = false;
         _progressLabel.Visible = false;
+        _pauseButton.Visible = false;
     }
 
     internal void Reset(string buttonText = DefaultDownloadButtonText)
     {
+        _pausePending = false;
         _downloadButton.Disabled = false;
         _branchDropdown.Disabled = false;
         _refreshBranchesButton.Disabled = false;
@@ -146,6 +171,8 @@ internal sealed partial class DownloadSection : VBoxContainer
 
     private void ShowProgress(double pct, string text)
     {
+        if (_pausePending)
+            text = "Pausing download. Finishing active requests…";
         if (_compact)
         {
             _branchDetailsExpanded = false;
@@ -160,7 +187,9 @@ internal sealed partial class DownloadSection : VBoxContainer
         _progressLabel.Text = _compact ? CompactDownloadProgressText(text) : text;
         if (_compact)
         {
-            SetCompactDownloadButtonText(_downloadButton, CompactDownloadProgressButtonText(text));
+            SetCompactDownloadButtonText(_downloadButton, _pausePending
+                ? "Pausing…\nFinishing active requests"
+                : CompactDownloadProgressButtonText(text));
         }
 
         _branchDropdown.Disabled = true;

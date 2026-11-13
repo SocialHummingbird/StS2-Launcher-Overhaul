@@ -15,7 +15,11 @@ Password-protected branches are not supported. A branch listed by Steam may stil
 
 Only the selected branch is updated. Other downloaded branches stay installed.
 
-The launcher blocks Play while files are being replaced or prepared for Android. If a download is interrupted, finish or repair it before trying to launch that version. This avoids starting with a mix of old and new files.
+Updates reuse verified content from installed versions and unfinished downloads, then download the missing chunks. Replacement files need temporary storage alongside the installed files.
+
+During a transfer, **Pause download** stops new requests and waits for active requests to finish. **Resume Download** keeps the verified progress, including after restarting the app. Retry after a connection failure also keeps it. The progress display separates reused and resumed content from downloaded compressed payload.
+
+The launcher blocks Play while files are being replaced or prepared for Android. Resume an interrupted download before trying to launch that version. This avoids starting with a mix of old and new files.
 
 This updates the game, not the launcher APK. For app updates, use **Help → Check for app updates**.
 
@@ -23,7 +27,7 @@ This updates the game, not the launcher APK. For app updates, use **Help → Che
 
 Let the launcher complete any automatic Android preparation it offers. If it asks for a redownload, **Redownload selected version** replaces that branch's downloaded game files.
 
-It keeps your saves, Steam login, Workshop content, and other game branches. It still needs to download the selected game again, so use it when the launcher requests it or a normal update fails.
+It keeps your saves, Steam login, Workshop content, and other game branches. This explicit reset also removes the selected branch's unfinished download, so try Resume or Retry first. Content in another installed version can still be reused after the reset.
 
 If the same error returns, use **Help → Report a bug on GitHub** and mention which branch you chose and whether you had just updated or repaired it.
 

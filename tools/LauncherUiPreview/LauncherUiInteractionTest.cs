@@ -8,11 +8,49 @@ using System.Threading.Tasks;
 using Godot;
 using STS2Mobile;
 using STS2Mobile.Launcher;
+using STS2Mobile.Steam;
 
 namespace LauncherUiPreview;
 
 internal static class LauncherUiInteractionTest
 {
+    internal static async Task AssertDownloadProgressMetricsFitAsync(LauncherView view, Control root)
+    {
+        view.HideActions();
+        view.ShowDownloadAction(LauncherDownloadCoordinator.DownloadGameFilesButtonText);
+        view.ShowDownloadProgress("Downloading selected version…");
+        DepotDownloader.DownloadProgress.Chunks(new DepotChunkTransferProgress(
+            TotalContentBytes: 9L * 1024 * 1024 * 1024,
+            ReusedBytes: 6L * 1024 * 1024 * 1024,
+            ResumedBytes: 1L * 1024 * 1024 * 1024,
+            PlannedDownloadBytes: 2L * 1024 * 1024 * 1024,
+            DownloadedBytes: 860L * 1024 * 1024,
+            Phase: "Downloading"
+        )).ApplyTo(view.SetDownloadProgress);
+        view.SetDownloadPauseAvailable(true);
+        for (var frame = 0; frame < 4; frame++)
+            await root.ToSignal(root.GetTree(), SceneTree.SignalName.ProcessFrame);
+
+        var progress = Descendants<Label>(root).Single(label => IsLiveAndVisible(label)
+            && (label.Text.StartsWith("Download ", StringComparison.Ordinal)
+                || label.Text.StartsWith("Downloading selected version\n", StringComparison.Ordinal)));
+        Expect(progress.Text.Contains("860.0 MB", StringComparison.Ordinal)
+            && progress.Text.Contains("2.0 GB", StringComparison.Ordinal)
+            && progress.Text.Contains("Reused 6.0 GB", StringComparison.Ordinal)
+            && progress.Text.Contains("resumed 1.0 GB", StringComparison.OrdinalIgnoreCase),
+            $"Rendered progress must retain downloaded payload, planned payload, reused and resumed metrics: '{progress.Text}'.");
+        var lines = progress.Text.Split('\n');
+        Expect(lines.Length == (progress.ClipText ? 2 : 1), "Payload progress must use two compact lines or one desktop line.");
+        var font = progress.GetThemeFont("font");
+        var fontSize = progress.GetThemeFontSize("font_size");
+        foreach (var line in lines)
+            Expect(font.GetStringSize(line, fontSize: fontSize).X <= progress.Size.X + 1,
+                $"Progress text exceeds its rendered width {progress.Size.X}: '{line}'.");
+        Expect(font.GetHeight(fontSize) * lines.Length <= progress.Size.Y + 1,
+            "Payload metrics exceed the existing progress label height.");
+        GD.Print("PREVIEW_DOWNLOAD_METRICS_FIT=passed");
+    }
+
     internal static async Task AssertModsRefreshRejectsStaleCompletionAsync(LauncherView view, Control root)
     {
         var selectionPath = AppPaths.AppPrivateModSelectionPath;
@@ -121,7 +159,11 @@ internal static class LauncherUiInteractionTest
         var point = scroll.GetGlobalRect().Position + new Vector2(25, 25);
         root.GetViewport().PushInput(new InputEventMouseButton
         {
-            Position = point, GlobalPosition = point, ButtonIndex = MouseButton.WheelDown, Pressed = true, Factor = 1,
+            Position = point,
+            GlobalPosition = point,
+            ButtonIndex = MouseButton.WheelDown,
+            Pressed = true,
+            Factor = 1,
         }, true);
         await Frames(4);
         Expect(scroll.ScrollVertical > 0, "Wheel input must scroll the grown mod list: " + Geometry());
@@ -364,6 +406,7 @@ internal static class LauncherUiInteractionTest
         Expect(events.CopyRawLog == 1, "Copy launcher log did not route exactly once.");
         Expect(events.ModsSelectionChanged == 5, "Mode selectors or the importer toggle did not persist each change.");
 
+        AssertDownloadPauseResume(view, root, events);
         DownloadViewUpdate.AutomaticRepairStarted().Apply(view, launch);
         AssertVisibleLabelText(
             root,
@@ -388,6 +431,39 @@ internal static class LauncherUiInteractionTest
                 && VisibleNamedCount<Control>(root, "ConfirmationActions") == 0,
             "Automatic repair invoked or displayed the destructive redownload route."
         );
+        Expect(VisibleNamedCount<Button>(root, "PauseDownloadAction") == 0,
+            "Noncancellable automatic preparation must not offer Pause download.");
+    }
+
+    private static void AssertDownloadPauseResume(LauncherView view, Control root, EventCounts events)
+    {
+        var redownloads = events.Redownload;
+        view.HideActions();
+        view.ShowDownloadAction(LauncherDownloadCoordinator.DownloadGameFilesButtonText);
+        view.ShowDownloadProgress("Downloading selected version…");
+        view.SetDownloadPauseAvailable(true);
+        var pause = FindUniqueVisibleNamed<Button>(root, "PauseDownloadAction");
+        Expect(!pause.Disabled, "An active transfer must offer an enabled Pause download button.");
+        pause.EmitSignal(Button.SignalName.Pressed);
+        Expect(events.PauseDownload == 1, "Pause download must invoke the view event exactly once.");
+        Expect(pause.Disabled, "Pausing must disable Pause until active requests have drained.");
+        Expect(FindUniqueVisibleNamed<Button>(root, "DownloadGameFilesAction").Disabled,
+            "Pausing must retain the disabled primary download action while requests drain.");
+        Expect(Descendants<ProgressBar>(root).Any(IsLiveAndVisible),
+            "Pausing must retain transfer progress until drain completes.");
+
+        view.ResetDownload(LauncherDownloadCoordinator.ResumeDownloadButtonText);
+        Expect(VisibleNamedCount<Button>(root, "PauseDownloadAction") == 0,
+            "A paused download must hide Pause after the operation has drained.");
+        var resume = FindUniqueVisibleNamed<Button>(root, "DownloadGameFilesAction");
+        Expect(!resume.Disabled && AccessibleButtonText(resume).StartsWith(
+                LauncherDownloadCoordinator.ResumeDownloadButtonText, StringComparison.Ordinal),
+            "Resetting a drained download must offer an enabled Resume Download action.");
+        Expect(!Descendants<ProgressBar>(root).Any(IsLiveAndVisible),
+            "A paused download must not continue to display active transfer progress.");
+        Expect(events.Redownload == redownloads && VisibleNamedCount<Control>(root, "ConfirmationActions") == 0,
+            "Pause and Resume must not invoke or display destructive redownload confirmation.");
+        GD.Print("PREVIEW_DOWNLOAD_PAUSE_RESUME=passed");
     }
 
     private static void AssertHelpJourney(
@@ -1740,6 +1816,11 @@ internal static class LauncherUiInteractionTest
             reportBugPressed: () => events.ReportBug++,
             checkAppUpdatesPressed: () => events.AppUpdate++
         );
+        view.PauseDownloadRequested += () =>
+        {
+            events.PauseDownload++;
+            view.ShowDownloadPausePending();
+        };
     }
 
     private sealed class EventCounts
@@ -1755,6 +1836,7 @@ internal static class LauncherUiInteractionTest
         internal int RefreshVersions;
         internal int UpdateSelectedVersion;
         internal int Redownload;
+        internal int PauseDownload;
         internal int SafeLaunch;
         internal int Diagnostics;
         internal int ShowLastError;

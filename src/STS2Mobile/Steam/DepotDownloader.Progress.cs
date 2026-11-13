@@ -6,32 +6,35 @@ internal sealed partial class DepotDownloader
 {
     internal readonly struct DownloadProgress
     {
-        private DownloadProgress(long totalBytes, long downloadedBytes, string currentFile, bool statusOnly = false)
+        private DownloadProgress(long totalBytes, long downloadedBytes, string message, bool statusOnly = false)
         {
             TotalBytes = totalBytes;
             DownloadedBytes = downloadedBytes;
-            CurrentFile = currentFile;
+            Message = message;
             StatusOnly = statusOnly;
         }
 
         private long TotalBytes { get; }
         private long DownloadedBytes { get; }
-        private string CurrentFile { get; }
+        private string Message { get; }
         private bool StatusOnly { get; }
         private double Percentage => TotalBytes > 0 ? (double)DownloadedBytes / TotalBytes * 100.0 : 0;
 
-        internal static DownloadProgress Create(long totalBytes, long downloadedBytes, string currentFile) => new(totalBytes, downloadedBytes, currentFile);
         internal static DownloadProgress Status(string message) => new(0, 0, message, statusOnly: true);
-        internal void ApplyTo(Action<double, string> setProgress, Action<string> appendLog)
+        internal static DownloadProgress Chunks(DepotChunkTransferProgress progress)
+            => progress.Phase == "Downloading"
+                ? new(progress.PlannedDownloadBytes, progress.DownloadedBytes,
+                    $"Reused {FormatSize(progress.ReusedBytes)}, resumed {FormatSize(progress.ResumedBytes)}")
+                : Status(progress.Phase + "…");
+        internal void ApplyTo(Action<double, string> setProgress)
         {
             if (StatusOnly)
             {
-                setProgress(0, CurrentFile);
+                setProgress(0, Message);
                 return;
             }
 
-            setProgress(Percentage, $"{FormatSize(DownloadedBytes)} / {FormatSize(TotalBytes)} ({Percentage:F1}%)");
-            appendLog(CurrentFile);
+            setProgress(Percentage, $"Download {FormatSize(DownloadedBytes)} / {FormatSize(TotalBytes)} ({Percentage:F1}%) · {Message}");
         }
 
         private static string FormatSize(long bytes)
@@ -44,9 +47,6 @@ internal sealed partial class DepotDownloader
         }
     }
 
-    private long _totalDownloadBytes;
-    private long _downloadedBytes;
-    private string _currentDownloadFile;
     internal event Action<DownloadProgress> ProgressChanged;
     internal event Action<string> LogMessage;
     private static string FormatBytes(long bytes)
@@ -77,19 +77,14 @@ internal sealed partial class DepotDownloader
     }
 
     private long _lastProgressReportTicks;
-    private void ReportProgress()
+    private string _chunkProgressPhase;
+    private void ReportChunkProgress(DepotChunkTransferProgress progress)
     {
-        if (OperatingSystem.IsAndroid() && !CanReportAndroidProgress())
-            return;
-        InvokeProgressChanged(SnapshotProgress());
+        var phaseChanged = !string.Equals(_chunkProgressPhase, progress.Phase, StringComparison.Ordinal);
+        _chunkProgressPhase = progress.Phase;
+        if (OperatingSystem.IsAndroid() && !phaseChanged && !CanReportAndroidProgress()) return;
+        InvokeProgressChanged(DownloadProgress.Chunks(progress));
     }
-
-    private void ForceReportProgress()
-    {
-        Interlocked.Exchange(ref _lastProgressReportTicks, DateTime.UtcNow.Ticks);
-        InvokeProgressChanged(SnapshotProgress());
-    }
-
     private bool CanReportAndroidProgress()
     {
         var now = DateTime.UtcNow.Ticks;
@@ -111,8 +106,4 @@ internal sealed partial class DepotDownloader
         }
     }
 
-    private DownloadProgress SnapshotProgress()
-    {
-        return DownloadProgress.Create(Interlocked.Read(ref _totalDownloadBytes), Interlocked.Read(ref _downloadedBytes), _currentDownloadFile);
-    }
 }

@@ -7,6 +7,7 @@ using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Godot;
 using STS2Mobile.Launcher;
+using STS2Mobile.Steam;
 
 namespace LauncherUiPreview;
 
@@ -83,7 +84,9 @@ public partial class PreviewRoot : Control
                     await ModFrameworkContractTest.RunAsync(data, ReadRequiredPath("base-game-pck-path"), assembly, scenario);
                     File.WriteAllText(Path.Combine(data, "framework-result.json"), System.Text.Json.JsonSerializer.Serialize(new
                     {
-                        passed = true, scenario, gameAssemblySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(assembly))),
+                        passed = true,
+                        scenario,
+                        gameAssemblySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(assembly))),
                     }));
                 }
                 else await ModRuntimeActivationTest.RunAsync(
@@ -118,6 +121,7 @@ public partial class PreviewRoot : Control
         if (ReadBool("interaction-test", false))
         {
             LauncherUiInteractionTest.Run(_previewView, _previewRoot);
+            await LauncherUiInteractionTest.AssertDownloadProgressMetricsFitAsync(_previewView, _previewRoot);
             await LauncherUiInteractionTest.AssertModsRefreshRejectsStaleCompletionAsync(_previewView, _previewRoot);
             await LauncherUiInteractionTest.AssertModsScrollAfterListGrowthAsync(_previewView, _previewRoot);
             await LauncherUiInteractionTest.AssertTabletModsScrollingAsync(this);
@@ -229,7 +233,15 @@ public partial class PreviewRoot : Control
                 view.SetStatus("Downloading...", LauncherStatusSeverity.Working);
                 view.ShowDownloadAction("Download Game");
                 view.ShowDownloadProgress("Downloading public game files...");
-                view.SetDownloadProgress(42, "42% | 3.8 GB of 9.1 GB");
+                DepotDownloader.DownloadProgress.Chunks(new DepotChunkTransferProgress(
+                    TotalContentBytes: 9L * 1024 * 1024 * 1024,
+                    ReusedBytes: 6L * 1024 * 1024 * 1024,
+                    ResumedBytes: 1L * 1024 * 1024 * 1024,
+                    PlannedDownloadBytes: 2L * 1024 * 1024 * 1024,
+                    DownloadedBytes: 860L * 1024 * 1024,
+                    Phase: "Downloading"
+                )).ApplyTo(view.SetDownloadProgress);
+                view.SetDownloadPauseAvailable(true);
                 break;
             case "error":
                 view.SetStatus("Download required.", LauncherStatusSeverity.Warning);

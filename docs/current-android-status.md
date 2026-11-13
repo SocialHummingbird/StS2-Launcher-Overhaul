@@ -1,8 +1,33 @@
 # Android testing status
 
-Updated November 2, 2026. This page separates local validation from physical-device and live-service results.
+Updated November 13, 2026. This page separates local validation from physical-device and live-service results.
 
-## Current release: v0.2.437
+## Current release: v0.2.438
+
+[Release notes](release-notes/v0.2.438.md), [ARM64 APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.438/StS2Launcher-v0.2.438-arm64-v8a.apk), [checksum](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.438/StS2Launcher-v0.2.438-arm64-v8a.apk.sha256).
+
+This release replaces whole-file game transfers with verified chunk reuse, bounded
+parallel fetching and persistent staging, and adds Pause/Resume routing. It also fixes
+NUL-terminated Steam manifest filenames before staging suffixes are appended.
+
+| Check | Observed result |
+| --- | --- |
+| Managed checks | 266 regression tests passed, including reuse, shared worker limits, interruption recovery, prepared-PCK authority, filename/path validation and obsolete-file cleanup before promotion. |
+| Android/JVM | 56 tests passed with no failures or skips. Android lint still reports 15 errors and 39 warnings; every error location's source is unchanged from v0.2.437. Lint is not a clean pass. |
+| Live Fold transfer | Candidate `438013`, SM-F971B, public-beta manifest `5756684179086186957`: 3,160,619,181 logical bytes transferred and verified. Raw Steam PCK verification passed before Android preparation reached v2. |
+| Pause and process death | Actual UI Pause after 36,436,880 compressed bytes, then Resume and force-stop after another 34,646,944. Relaunch offered Resume; none of the 212 pause-verified or 387 restart-verified distinct staging identities was fetched again. |
+| Concurrency | Three logical workers, including one large PCK; Java workers also peaked at three. |
+| CDN reuse fixture | Synthetic moved-range layout over real Steam CDN: 14,215,464 logical bytes reused, exactly one missing 281,184-byte compressed chunk requested, expected final SHA-1. This is not a real same-branch update or a performance baseline. |
+| Runtime limitation | Full sandbox runtime readiness rejected an identity mismatch because Java reads the normal app directory while C# uses the sandbox. The native guard was not bypassed. This does not establish a production runtime defect; full fresh-install readiness remains incomplete. |
+| Preservation | Normal `438014` passed offline startup and remained installed/stopped. All 1,178 protected entries compared with zero semantic user-data differences; only documented runtime metadata changed. Saves, credentials, installed versions and four typed user preferences matched. |
+| Release packaging | Final release APK verification is recorded in the release notes before publication; candidate results above must not be attributed to an untested release install. |
+
+Detailed commands, identities, interruption observations and evidence gaps are in the
+[download validation record](../tools/DownloadValidation/README.md#manifest-filename-fix-and-focused-fold-verification-13-november-2026).
+Separate PCK corruption/retention acceptance, accessible same-branch update cases,
+paired speed comparisons and gameplay after a fresh download remain unverified.
+
+## Previous release: v0.2.437
 
 [Release notes](release-notes/v0.2.437.md), [ARM64 APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.437/StS2Launcher-v0.2.437-arm64-v8a.apk), [checksum](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.437/StS2Launcher-v0.2.437-arm64-v8a.apk.sha256).
 

@@ -79,7 +79,7 @@ internal sealed class LauncherBranchSwitchCoordinator
         _view.AppendLog(STS2Mobile.Steam.SteamGameBranch.SelectorInstallSlotHelpText(branch));
 
         if (_downloads.TryStartAutomaticRepair(branch)
-            || _downloads.TryShowRedownloadRequired(branch))
+            || _downloads.TryShowDownloadRecovery(branch))
         {
             return;
         }

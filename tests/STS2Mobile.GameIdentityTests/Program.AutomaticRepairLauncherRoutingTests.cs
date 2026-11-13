@@ -85,8 +85,7 @@ internal static partial class Program
         model.DownloadFailed += value => failure = value;
         model.SessionStateChanged += _ => steamSessionTransitions++;
         model.DownloadProgressChanged += value => value.ApplyTo(
-            (_, text) => progressMessages.Add(text),
-            _ => { }
+            (_, text) => progressMessages.Add(text)
         );
 
         Equal(

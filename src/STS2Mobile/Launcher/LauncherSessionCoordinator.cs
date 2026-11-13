@@ -42,7 +42,7 @@ internal sealed partial class LauncherSessionCoordinator
     {
         var result = _model.StartSession();
         if (_downloads.TryStartAutomaticRepair()
-            || _downloads.TryShowRedownloadRequired())
+            || (result.ReadyToLaunch && _downloads.TryShowDownloadRecovery()))
         {
             return false;
         }
@@ -50,16 +50,22 @@ internal sealed partial class LauncherSessionCoordinator
         return result.ReadyToLaunch;
     }
 
-    internal bool RetryPressed()
+    internal async Task<bool?> RetryPressedAsync()
     {
-        var result = _model.Retry();
+        _view.HideActions();
+        _view.SetDownloadButtonDisabled(true);
+        _view.SetDownloadPauseAvailable(false);
+        _view.SetStatus("Stopping active file operations and retrying Steam…", LauncherStatusSeverity.Working);
+        var result = await _model.RetryAsync();
+        if (!result.HasValue)
+            return null;
         if (_downloads.TryStartAutomaticRepair()
-            || _downloads.TryShowRedownloadRequired())
+            || (result.Value.ReadyToLaunch && _downloads.TryShowDownloadRecovery()))
         {
             return false;
         }
-        HandleSessionFlow(result);
-        return result.ReadyToLaunch;
+        HandleSessionFlow(result.Value);
+        return result.Value.ReadyToLaunch;
     }
 
     private void HandleSessionFlow(LauncherModel.FastPathResult result)

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
 
@@ -25,13 +26,13 @@ internal sealed partial class DepotDownloader
         internal Task<DepotManifest> DownloadAsync(DepotDownloader owner, CdnServerAttempt attempt, string? cdnAuthToken = null) => attempt.DownloadManifestAsync(owner, DepotId, ManifestId, RequestCode, DepotKey, cdnAuthToken);
     }
 
-    private Task<DepotManifest> DownloadManifestWithRetriesAsync(ManifestDownloadRequest request)
+    private Task<DepotManifest> DownloadManifestWithRetriesAsync(ManifestDownloadRequest request, CancellationToken ct = default)
     {
         Log(request.DownloadLogMessage());
-        return RunCdnDownloadWithRetriesAsync(CreateManifestDownloadOperation(request));
+        return RunCdnDownloadWithRetriesAsync(CreateManifestDownloadOperation(request, ct), ct);
     }
 
-    private CdnDownloadOperation<DepotManifest> CreateManifestDownloadOperation(ManifestDownloadRequest request) => CdnDownloadOperation<DepotManifest>.AcrossServersWithAuthRetry(CdnManifestDownloadOperation, attempt => CdnDownloadResult<DepotManifest>.FromAsync(() => request.DownloadAsync(this, attempt)), attempt => RunCdnAuthRetryAsync(new CdnAuthRetry<DepotManifest>(request.DepotId, attempt, CdnManifestAuthRetryOperation, token => CdnDownloadResult<DepotManifest>.FromAsync(() => request.DownloadAsync(this, attempt, token)))), () => new Exception(request.FailureMessage()));
+    private CdnDownloadOperation<DepotManifest> CreateManifestDownloadOperation(ManifestDownloadRequest request, CancellationToken ct) => CdnDownloadOperation<DepotManifest>.AcrossServersWithAuthRetry(CdnManifestDownloadOperation, attempt => CdnDownloadResult<DepotManifest>.FromAsync(() => request.DownloadAsync(this, attempt)), attempt => RunCdnAuthRetryAsync(new CdnAuthRetry<DepotManifest>(request.DepotId, attempt, CdnManifestAuthRetryOperation, token => CdnDownloadResult<DepotManifest>.FromAsync(() => request.DownloadAsync(this, attempt, token)), ct)), () => new Exception(request.FailureMessage()));
     private static readonly TimeSpan ManifestRequestCodeTtl = TimeSpan.FromMinutes(5);
     private readonly ExpiringCache<ManifestRequestKey, ulong> _manifestRequestCodes = new();
     private async Task<ulong> GetManifestRequestCodeAsync(uint depotId, ulong manifestId, string branch)

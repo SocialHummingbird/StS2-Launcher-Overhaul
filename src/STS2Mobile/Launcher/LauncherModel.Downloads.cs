@@ -7,9 +7,8 @@ using STS2Mobile.Patches;
 namespace STS2Mobile.Launcher;
 internal partial class LauncherModel
 {
-    private CancellationTokenSource _downloadCts;
-    private DepotDownloader _downloader;
-    private int _downloadRunning;
+    private readonly LauncherDownloadLifetime _downloadLifetime = new();
+    private int _downloadGeneration;
     internal event Action<DepotDownloader.DownloadProgress> DownloadProgressChanged;
     internal event Action<string> DownloadLogReceived;
     internal event Action<BranchInstallCompletion> DownloadCompleted;
@@ -24,8 +23,31 @@ internal partial class LauncherModel
     internal event Action<string> WorkshopSyncFailed;
     internal event Action<int> WorkshopClearCompleted;
     internal event Action<string> WorkshopClearFailed;
-    private bool DownloadIsRunning => Interlocked.CompareExchange(ref _downloadRunning, 0, 0) == 1;
+    private bool DownloadIsRunning => _downloadLifetime.IsRunning;
     internal bool SelectedVersionOperationIsRunning => DownloadIsRunning;
+    internal bool CanPauseDownload => _downloadLifetime.CanPause;
+    internal Task PauseDownloadAsync()
+    {
+        lock (_downloadSync) return _downloadLifetime.PauseAsync();
+    }
+
+    internal Action BindCurrentDownloadCallback(Action callback)
+    {
+        lock (_downloadSync)
+        {
+            var generation = _downloadGeneration;
+            return () => RaiseCurrentDownload(generation, callback);
+        }
+    }
+
+    private void RaiseCurrentDownload(int generation, Action callback)
+    {
+        lock (_downloadSync)
+        {
+            if (generation == _downloadGeneration && _disposeTask == null)
+                callback();
+        }
+    }
 
     private const string NotConnectedMessage = "Not connected";
     private readonly struct DepotConnectionAction
@@ -39,11 +61,6 @@ internal partial class LauncherModel
         private Action<string> RaiseFailure { get; }
         private Func<SteamConnection, Task> Run { get; }
 
-        internal static DepotConnectionAction Download(LauncherModel model, string branch) => new(message => model.RaiseDownloadFailed(branch, message), connection =>
-        {
-            model.BeginDownload(connection, branch);
-            return model.RunDownloadAsync(branch);
-        });
         internal static DepotConnectionAction UpdateCheck(LauncherModel model, string branch) => new(message => model.RaiseUpdateCheckFailed(branch, message), connection => model.CheckForUpdatesWithConnectionAsync(connection, branch));
         internal static DepotConnectionAction BranchCatalogRefresh(LauncherModel model) => new(model.RaiseBranchCatalogRefreshFailed, model.RefreshBranchCatalogWithConnectionAsync);
         internal static DepotConnectionAction WorkshopSync(LauncherModel model) => new(model.RaiseWorkshopSyncFailed, model.SyncWorkshopWithConnectionAsync);
@@ -115,79 +132,28 @@ internal partial class LauncherModel
     private void RaiseWorkshopSyncFailed(string message) => Raise(WorkshopSyncFailed, message, nameof(WorkshopSyncFailed));
     private void RaiseWorkshopClearCompleted(int removedCount) => Raise(WorkshopClearCompleted, removedCount, nameof(WorkshopClearCompleted));
     private void RaiseWorkshopClearFailed(string message) => Raise(WorkshopClearFailed, message, nameof(WorkshopClearFailed));
-    private readonly struct DownloadRunGuard
+    private async Task<BranchInstallCompletion> RunDownloadAsync(SteamConnection connection, string branch, CancellationToken token, int generation)
     {
-        private DownloadRunGuard(LauncherModel model, bool acquired)
+        using var downloader = CreateDownloader(connection, branch);
+        downloader.ProgressChanged += progress => RaiseCurrentDownload(generation, () => RaiseDownloadProgressChanged(progress));
+        var completion = await downloader.DownloadAsync(token).ConfigureAwait(false);
+        if (LocalPckRepairOperation.ClassifyForLauncherRouting(_dataDir, branch) == InstalledGameVersionReadiness.AutomaticRepair)
         {
-            Model = model;
-            Acquired = acquired;
+            _downloadLifetime.EnterLocalRepair();
+            completion = await RunAutomaticPckRepairCoreAsync(branch, generation).ConfigureAwait(false);
         }
 
-        private LauncherModel Model { get; }
-        internal bool Acquired { get; }
-
-        internal static DownloadRunGuard TryAcquire(LauncherModel model) => new(model, Interlocked.Exchange(ref model._downloadRunning, 1) == 0);
-        internal void Release()
-        {
-            if (Acquired)
-                Interlocked.Exchange(ref Model._downloadRunning, 0);
-        }
+        return completion;
     }
 
-    private async Task RunDownloadAsync(string branch)
+    private async Task<BranchInstallCompletion> RunAutomaticPckRepairCoreAsync(string branch, int generation)
     {
-        try
+        RaiseCurrentDownload(generation, () =>
         {
-            var completion = await _downloader.DownloadAsync(_downloadCts.Token).ConfigureAwait(false);
-            if (LocalPckRepairOperation.ClassifyForLauncherRouting(_dataDir, branch) == InstalledGameVersionReadiness.AutomaticRepair)
-            {
-                completion = await RunAutomaticPckRepairCoreAsync(branch).ConfigureAwait(false);
-            }
-
-            RaiseDownloadCompleted(completion);
-        }
-        catch (OperationCanceledException)
-        {
-            RaiseDownloadCancelled(branch);
-        }
-        catch (Exception ex)
-        {
-            RaiseDownloadFailed(branch, ex.Message);
-            PatchHelper.Log($"[Launcher] Download error: {ex}");
-        }
-        finally
-        {
-            ResetDownload();
-        }
-    }
-
-    private async Task RunAutomaticPckRepairAsync(string branch)
-    {
-        try
-        {
-            var completion = await RunAutomaticPckRepairCoreAsync(branch).ConfigureAwait(false);
-            RaiseDownloadCompleted(completion);
-        }
-        catch (Exception ex)
-        {
-            RaiseDownloadFailed(branch, ex.Message);
-            PatchHelper.Log($"[Launcher] Automatic PCK repair error: {ex}");
-        }
-    }
-
-    private async Task<BranchInstallCompletion> RunAutomaticPckRepairCoreAsync(string branch)
-    {
-        RaiseDownloadProgressChanged(DepotDownloader.DownloadProgress.Status(LocalPckRepairOperation.ProgressMessage));
-        RaiseDownloadLogReceived(LocalPckRepairOperation.ProgressMessage);
+            RaiseDownloadProgressChanged(DepotDownloader.DownloadProgress.Status(LocalPckRepairOperation.ProgressMessage));
+            RaiseDownloadLogReceived(LocalPckRepairOperation.ProgressMessage);
+        });
         return await Task.Run(() => LocalPckRepairOperation.RepairAutomatic(_dataDir, branch)).ConfigureAwait(false);
-    }
-
-    private void BeginDownload(SteamConnection connection, string branch)
-    {
-        ResetDownload();
-        _downloader = CreateDownloader(connection, branch);
-        _downloader.ProgressChanged += RaiseDownloadProgressChanged;
-        _downloadCts = new CancellationTokenSource();
     }
 
     private DepotDownloader CreateDownloader(SteamConnection connection) => CreateDownloader(connection, LauncherPreferences.ReadGameBranch());
@@ -198,69 +164,66 @@ internal partial class LauncherModel
         return downloader;
     }
 
-    private void CancelDownloadForRetry()
-    {
-        CancelDownload();
-        if (DownloadIsRunning)
-            PatchHelper.Log("[Launcher] Retry requested while download is active; cancellation requested");
-        else
-            ResetDownload();
-    }
-
-    private void CancelDownload()
-    {
-        try
-        {
-            _downloadCts?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-    }
-
-    private void ResetDownload()
-    {
-        _downloader?.Dispose();
-        _downloadCts?.Dispose();
-        _downloader = null;
-        _downloadCts = null;
-    }
-
     internal Task StartDownloadAsync(string branch) => StartSelectedVersionOperationAsync(branch, automaticRepairOnly: false);
     internal Task StartAutomaticRepairAsync(string branch) => StartSelectedVersionOperationAsync(branch, automaticRepairOnly: true);
-    private async Task StartSelectedVersionOperationAsync(string branch, bool automaticRepairOnly)
+    private Task StartSelectedVersionOperationAsync(string branch, bool automaticRepairOnly)
     {
-        branch = STS2Mobile.Steam.SteamGameBranch.Normalize(branch);
-        LauncherLaunchMarkers.RecordPhase(automaticRepairOnly ? "automatic PCK repair model start" : "download model start", $"branch={branch}; localRepairOnly={automaticRepairOnly}");
-        var run = DownloadRunGuard.TryAcquire(this);
-        if (!run.Acquired)
+        lock (_downloadSync)
         {
-            LauncherLaunchMarkers.RecordPhase(automaticRepairOnly ? "automatic PCK repair model blocked" : "download model blocked", "Selected-version operation already running");
-            RaiseDownloadFailed(branch, "Selected-version operation already running");
-            return;
-        }
+            branch = STS2Mobile.Steam.SteamGameBranch.Normalize(branch);
+            automaticRepairOnly |= LocalPckRepairOperation.ClassifyForLauncherRouting(_dataDir, branch) == InstalledGameVersionReadiness.AutomaticRepair;
+            LauncherLaunchMarkers.RecordPhase(automaticRepairOnly ? "automatic PCK repair model start" : "download model start", $"branch={branch}; localRepairOnly={automaticRepairOnly}");
+            BranchInstallCompletion completion = null;
+            var generation = 0;
+            var operationToken = CancellationToken.None;
+            var operation = _downloadLifetime.TryRunAsync(async token =>
+            {
+                operationToken = token;
+                generation = Interlocked.Increment(ref _downloadGeneration);
+                LauncherLaunchReadinessCache.Clear(automaticRepairOnly ? "automatic PCK repair model started" : "download model started");
+                if (automaticRepairOnly)
+                {
+                    completion = await RunAutomaticPckRepairCoreAsync(branch, generation).ConfigureAwait(false);
+                    return;
+                }
 
+                token.ThrowIfCancellationRequested();
+                var connection = await GetDepotConnectionAsync().ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                if (connection == null)
+                    throw new InvalidOperationException(NotConnectedMessage);
+                completion = await RunDownloadAsync(connection, branch, token, generation).ConfigureAwait(false);
+            }, pausable: !automaticRepairOnly);
+            if (operation == null)
+            {
+                LauncherLaunchMarkers.RecordPhase(automaticRepairOnly ? "automatic PCK repair model blocked" : "download model blocked", "Selected-version operation already running");
+                RaiseDownloadLogReceived("Selected-version operation already running");
+                return Task.CompletedTask;
+            }
+
+            return CompleteSelectedVersionOperationAsync(operation, branch, generation, operationToken, () => completion);
+        }
+    }
+
+    private async Task CompleteSelectedVersionOperationAsync(Task operation, string branch, int generation, CancellationToken token, Func<BranchInstallCompletion> completion)
+    {
         try
         {
-            LauncherLaunchReadinessCache.Clear(automaticRepairOnly ? "automatic PCK repair model started" : "download model started");
-            if (automaticRepairOnly)
-            {
-                await RunAutomaticPckRepairAsync(branch);
-                return;
-            }
-
-            if (LocalPckRepairOperation.ClassifyForLauncherRouting(_dataDir, branch) == InstalledGameVersionReadiness.AutomaticRepair)
-            {
-                await RunAutomaticPckRepairAsync(branch);
-                return;
-            }
-
-            await RunWithDepotConnectionAsync(DepotConnectionAction.Download(this, branch));
+            await operation.ConfigureAwait(false);
+            RaiseCurrentDownload(generation, () => RaiseDownloadCompleted(completion()));
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            RaiseCurrentDownload(generation, () => RaiseDownloadCancelled(branch));
+        }
+        catch (Exception error)
+        {
+            RaiseCurrentDownload(generation, () => RaiseDownloadFailed(branch, error.Message));
+            PatchHelper.Log($"[Launcher] Selected-version operation failed: {error}");
         }
         finally
         {
-            LauncherLaunchMarkers.RecordPhase(automaticRepairOnly ? "automatic PCK repair model finished" : "download model finished");
-            run.Release();
+            LauncherLaunchMarkers.RecordPhase("selected-version operation model finished");
         }
     }
 

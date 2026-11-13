@@ -28,11 +28,12 @@ internal sealed partial class DepotDownloader
         private string Name { get; }
 
         internal static CdnDownloadOperation<T> AcrossServersWithAuthRetry(string name, Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadAsync, Func<CdnServerAttempt, Task<CdnDownloadResult<T>>> downloadWithAuthAsync, Func<Exception> createFailure) => new(name, downloadAsync, downloadWithAuthAsync, createFailure);
-        internal async Task<T> RunAsync(DepotDownloader owner, IEnumerable<CdnServerAttempt> attempts)
+        internal async Task<T> RunAsync(DepotDownloader owner, IEnumerable<CdnServerAttempt> attempts, CancellationToken ct = default)
         {
             foreach (var attempt in attempts)
             {
-                var result = await TryAsync(owner, attempt);
+                ct.ThrowIfCancellationRequested();
+                var result = await TryAsync(owner, attempt, ct);
                 if (result.TryGetValue(out var value))
                     return value;
             }
@@ -40,17 +41,18 @@ internal sealed partial class DepotDownloader
             throw CreateFailure();
         }
 
-        private async Task<CdnDownloadResult<T>> TryAsync(DepotDownloader owner, CdnServerAttempt attempt)
+        private async Task<CdnDownloadResult<T>> TryAsync(DepotDownloader owner, CdnServerAttempt attempt, CancellationToken ct)
         {
             try
             {
                 return await DownloadAsync(attempt);
             }
-            catch (SteamKitWebRequestException ex)when (ex.StatusCode == HttpStatusCode.Forbidden)
+            catch (SteamKitWebRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
             {
+                ct.ThrowIfCancellationRequested();
                 return await DownloadWithAuthAsync(attempt);
             }
-            catch (Exception ex)when (attempt.CanRetry())
+            catch (Exception ex) when (attempt.CanRetry())
             {
                 return RetryAfterFailure(owner, attempt, ex);
             }
@@ -85,7 +87,7 @@ internal sealed partial class DepotDownloader
         }
 
         internal static CdnDownloadResult<T> Success(T value) => new(true, value);
-        internal static CdnDownloadResult<T> Retry() => new(false, default !);
+        internal static CdnDownloadResult<T> Retry() => new(false, default!);
         internal static async Task<CdnDownloadResult<T>> FromAsync(Func<Task<T>> downloadAsync) => Success(await downloadAsync());
         internal static async Task<CdnDownloadResult<T>> FromValidatedAsync(Func<Task<T>> downloadAsync, Func<T, bool> isValid)
         {
@@ -172,7 +174,7 @@ internal sealed partial class DepotDownloader
             Interlocked.Increment(ref _serverIndex);
     }
 
-    private Task<CdnDownloadResult<int>> TryDownloadChunkWithAuthAsync(uint depotId, DepotManifest.ChunkData chunk, byte[] buffer, byte[] depotKey, string fileName, CdnServerAttempt attempt) => RunCdnAuthRetryAsync(new CdnAuthRetry<int>(depotId, attempt, CdnChunkAuthRetryOperation, token => CdnDownloadResult<int>.FromValidatedAsync(() => attempt.DownloadChunkAsync(this, depotId, chunk, buffer, depotKey, token), written => ChunkHashVerifiedOrRetry(fileName, chunk, buffer, written, attempt))));
+    private Task<CdnDownloadResult<int>> TryDownloadChunkWithAuthAsync(uint depotId, DepotManifest.ChunkData chunk, byte[] buffer, byte[] depotKey, string fileName, CdnServerAttempt attempt, CancellationToken ct) => RunCdnAuthRetryAsync(new CdnAuthRetry<int>(depotId, attempt, CdnChunkAuthRetryOperation, token => CdnDownloadResult<int>.FromValidatedAsync(() => attempt.DownloadChunkAsync(this, depotId, chunk, buffer, depotKey, token), written => ChunkHashVerifiedOrRetry(fileName, chunk, buffer, written, attempt)), ct));
     private readonly struct ChunkWriteRequest
     {
         private ChunkWriteRequest(FileStream stream, uint depotId, DepotManifest.ChunkData chunk, byte[] depotKey, string fileName)
@@ -199,7 +201,6 @@ internal sealed partial class DepotDownloader
             {
                 var written = await owner.DownloadChunkWithRetriesAsync(DepotId, Chunk, buffer, DepotKey, FileName);
                 Write(buffer, written);
-                owner.RecordChunkWritten(written);
             }
             finally
             {
@@ -215,12 +216,6 @@ internal sealed partial class DepotDownloader
     }
 
     private async Task DownloadAndWriteChunkAsync(FileStream fs, uint depotId, DepotManifest.ChunkData chunk, byte[] depotKey, string fileName) => await ChunkWriteRequest.Create(fs, depotId, chunk, depotKey, fileName).RunAsync(this);
-    private void RecordChunkWritten(int written)
-    {
-        Interlocked.Add(ref _downloadedBytes, written);
-        ReportProgress();
-    }
-
     private static void ValidateChunkSize(string fileName, DepotManifest.ChunkData chunk)
     {
         if (chunk.UncompressedLength <= (ulong)MaxDepotChunkBytes)
@@ -228,8 +223,8 @@ internal sealed partial class DepotDownloader
         throw new IOException($"Depot chunk is unexpectedly large for {fileName}: " + $"{chunk.UncompressedLength} bytes");
     }
 
-    private Task<int> DownloadChunkWithRetriesAsync(uint depotId, DepotManifest.ChunkData chunk, byte[] buffer, byte[] depotKey, string fileName) => RunCdnDownloadWithRetriesAsync(CreateChunkDownloadOperation(depotId, chunk, buffer, depotKey, fileName));
-    private CdnDownloadOperation<int> CreateChunkDownloadOperation(uint depotId, DepotManifest.ChunkData chunk, byte[] buffer, byte[] depotKey, string fileName) => CdnDownloadOperation<int>.AcrossServersWithAuthRetry(CdnChunkDownloadOperation, attempt => TryDownloadChunkAsync(depotId, chunk, buffer, depotKey, fileName, attempt), attempt => TryDownloadChunkWithAuthAsync(depotId, chunk, buffer, depotKey, fileName, attempt), () => new Exception($"Failed to download chunk for {fileName} after {MaxRetries} attempts"));
+    private Task<int> DownloadChunkWithRetriesAsync(uint depotId, DepotManifest.ChunkData chunk, byte[] buffer, byte[] depotKey, string fileName, CancellationToken ct = default) => RunCdnDownloadWithRetriesAsync(CreateChunkDownloadOperation(depotId, chunk, buffer, depotKey, fileName, ct), ct);
+    private CdnDownloadOperation<int> CreateChunkDownloadOperation(uint depotId, DepotManifest.ChunkData chunk, byte[] buffer, byte[] depotKey, string fileName, CancellationToken ct) => CdnDownloadOperation<int>.AcrossServersWithAuthRetry(CdnChunkDownloadOperation, attempt => TryDownloadChunkAsync(depotId, chunk, buffer, depotKey, fileName, attempt), attempt => TryDownloadChunkWithAuthAsync(depotId, chunk, buffer, depotKey, fileName, attempt, ct), () => new Exception($"Failed to download chunk for {fileName} after {MaxRetries} attempts"));
     private Task<CdnDownloadResult<int>> TryDownloadChunkAsync(uint depotId, DepotManifest.ChunkData chunk, byte[] buffer, byte[] depotKey, string fileName, CdnServerAttempt attempt) => CdnDownloadResult<int>.FromValidatedAsync(() => attempt.DownloadChunkAsync(this, depotId, chunk, buffer, depotKey), written => ChunkHashVerifiedOrRetry(fileName, chunk, buffer, written, attempt));
     private bool ChunkHashVerifiedOrRetry(string fileName, DepotManifest.ChunkData chunk, byte[] buffer, int written, CdnServerAttempt attempt)
     {
