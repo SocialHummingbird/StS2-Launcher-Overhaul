@@ -20,7 +20,7 @@ NUL-terminated Steam manifest filenames before staging suffixes are appended.
 | CDN reuse fixture | Synthetic moved-range layout over real Steam CDN: 14,215,464 logical bytes reused, exactly one missing 281,184-byte compressed chunk requested, expected final SHA-1. This is not a real same-branch update or a performance baseline. |
 | Runtime limitation | Full sandbox runtime readiness rejected an identity mismatch because Java reads the normal app directory while C# uses the sandbox. The native guard was not bypassed. This does not establish a production runtime defect; full fresh-install readiness remains incomplete. |
 | Preservation | Normal `438014` passed offline startup and remained installed/stopped. All 1,178 protected entries compared with zero semantic user-data differences; only documented runtime metadata changed. Saves, credentials, installed versions and four typed user preferences matched. |
-| Release packaging | Final release APK verification is recorded in the release notes before publication; candidate results above must not be attributed to an untested release install. |
+| Release packaging | `438015`, built from clean commit `719ea3973637871bed5fabfd492a84674378d825`. Contents, Android crypto and update compatibility passed against `437002` and `438014`. Chunk-transfer/staging IL and transport dependencies match tested `438013`; managed/Java test hooks are absent. APK SHA-256: `a4aaa599583521f5dea83750450800f7fa35206f205b3f226cd6766fbdafc986`. This final APK was not installed on the phone. |
 
 Detailed commands, identities, interruption observations and evidence gaps are in the
 [download validation record](../tools/DownloadValidation/README.md#manifest-filename-fix-and-focused-fold-verification-13-november-2026).
