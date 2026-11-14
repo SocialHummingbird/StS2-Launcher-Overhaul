@@ -1,8 +1,30 @@
 # Android testing status
 
-Updated November 13, 2026. This page separates local validation from physical-device and live-service results.
+Updated November 14, 2026. This page separates local validation from physical-device and live-service results.
 
-## Current release: v0.2.438
+## Current release: v0.2.439
+
+[Release notes](release-notes/v0.2.439.md), [ARM64 APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.439/StS2Launcher-v0.2.439-arm64-v8a.apk), [checksum](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.439/StS2Launcher-v0.2.439-arm64-v8a.apk.sha256).
+
+The release exposes Workshop update controls before installed mods, compares verified
+Android build numbers before offering launcher updates, and includes three-worker
+save-upload batches with metadata verification and conditional read-back.
+
+| Check | Observed result |
+| --- | --- |
+| Automated checks | 283 managed tests, 62 Android/JVM tests, 15 fake save-safety scenarios and both desktop UI profiles passed. Fold-sized UI scales were exercised in desktop Godot. Scoped formatting and generator guards passed. |
+| Lint | 15 existing errors and 39 warnings; zero new diagnostic identities. Not a clean lint result. |
+| Earlier Fold preservation | All 617 original Cloud files preserved and all nine owned test paths absent. Normal `438025` rendered Home offline; 1,178 protected local entries had zero semantic user-data differences. |
+| Live Cloud limits | The empty-file PUT 403 remains unresolved. A later preservation GET timed out, blocking a repeat before writes. Full upload, cancellation/retry and metadata acceptance are incomplete. |
+| Crypto lifecycle | The stopped-frame crypto timeout mechanism was reproduced in an offline Fold timer fixture; OS freezing delayed the fatal exception until resume. Production bridge behaviour is unchanged. |
+| Deletion verification | Production expects a tombstone, but Steam returned `FileNotFound` after deletion. Test-owned cleanup verified absence separately; this does not fix production deletion. |
+| Final release packaging | `439001`, built from clean commit `bb661b94b769647a13c942e4d1aa7ab946eea145`. Signing/update compatibility passed against `438015` and `438027`. Engine/dependencies match the tested candidate and test hooks are absent. SHA-256: `f44aa0ba23ba314188449cbdb5c96244d28177aaea6035079d1eaafcdd2862ff`. This final APK was not installed on the Fold. |
+
+Actual Workshop version replacement and the final APK's complete update/install cycle
+remain unverified on device. The [validation record](../tools/DownloadValidation/README.md#follow-up-empty-cloud-put-and-stopped-frame-crypto-timeout)
+separates historical live results, deterministic fixtures and remaining evidence gaps.
+
+## Previous release: v0.2.438
 
 [Release notes](release-notes/v0.2.438.md), [ARM64 APK](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.438/StS2Launcher-v0.2.438-arm64-v8a.apk), [checksum](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/download/v0.2.438/StS2Launcher-v0.2.438-arm64-v8a.apk.sha256).
 

@@ -34,7 +34,7 @@ Already installed? Update over your existing app. **Do not uninstall or clear ap
 
 Android support is still experimental. Performance, audio, graphics, and mod compatibility depend on your device and game version.
 
-The current release is **v0.2.438**. Game downloads reuse verified chunks, fetch chunks in parallel, and retain progress for Pause/Resume and restart recovery. Fold testing covered a full content transfer, interruption recovery and a real-CDN reuse fixture. Full fresh-install runtime readiness remains unverified because the test sandbox does not isolate the native assembly-cache directory. See the [release notes](docs/release-notes/v0.2.438.md) for exact results and limitations.
+The current release is **v0.2.439**. Workshop update controls appear before the mod list, launcher update prompts compare Android build numbers, and changed saves upload through a bounded batch. Live Cloud acceptance remains incomplete, with confirmed transport/lifecycle issues documented in the [release notes](docs/release-notes/v0.2.439.md). Game chunk reuse and Pause/Resume remain as introduced in v0.2.438.
 
 ## Help and documentation
 

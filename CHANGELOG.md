@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-14 - v0.2.439 mod controls and launcher update checks
+
+- Move Workshop update controls above the installed-mod list and verify first-screen visibility and click routing.
+- Compare verified APK build metadata with the installed Android build number before showing update prompts. Keep checksum, package, certificate, architecture and installation checks.
+- Upload changed saves through three bounded workers, verify commits with usable SHA-1/size metadata, and use read-back only when needed. Preserve cancellation draining, interrupted state and deletion ordering.
+- Record controlled Cloud preservation/cleanup and the reproduced stopped-frame crypto failure; keep diagnostic helpers out of normal packaging.
+- Verify 283 managed, 62 Android/JVM and 15 save-safety cases plus desktop UI regressions. Existing Android lint findings remain; live Cloud and final-APK device acceptance are incomplete. See [release notes](docs/release-notes/v0.2.439.md).
+
 ## 2026-11-13 - v0.2.438 chunk downloads and resumable updates
 
 - Reuse verified Steam chunks from installations and partial downloads, including content moved within changed files; deduplicate missing content within each depot.

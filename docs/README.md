@@ -12,6 +12,7 @@
 
 - [Latest release](https://github.com/SocialHummingbird/StS2-Launcher-Overhaul/releases/latest)
 - [Current Android testing status](current-android-status.md)
+- [v0.2.439 release notes](release-notes/v0.2.439.md): visible Workshop updates, build-number update checks and save-upload batches, with remaining live-test issues.
 - [v0.2.438 release notes](release-notes/v0.2.438.md): chunk reuse, parallel fetching and persistent Pause/Resume.
 - [v0.2.437 release notes](release-notes/v0.2.437.md): game-owned input initialization.
 - [Changelog](../CHANGELOG.md)
