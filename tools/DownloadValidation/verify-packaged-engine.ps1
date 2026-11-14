@@ -29,7 +29,7 @@ function Read-Engine([string]$path) {
         [pscustomobject]@{
             assemblySha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes.ToArray()))
             engineIlSha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($il)))
-            hasValidationHarness = @($types | Where-Object { $_.FullName -like '*DownloadValidation*' -or $_.FullName -like '*CloudUploadValidation*' }).Count -gt 0
+            hasValidationHarness = @($types | Where-Object { $_.FullName -like '*DownloadValidation*' -or $_.FullName -like '*CloudUploadValidation*' -or $_.FullName -like '*CloudOwnedCleanup*' -or $_.FullName -like '*CloudPreservedFile*' -or $_.FullName -like '*BridgeCryptoValidation*' }).Count -gt 0
             hasStagingInspector = @($types | Where-Object FullName -Like 'STS2Mobile.Launcher.ValidationStag*').Count -gt 0
             hasValidationPathOverride = @($types | ForEach-Object Fields | Where-Object Name -eq 'ValidationDataRoot').Count -gt 0
         }

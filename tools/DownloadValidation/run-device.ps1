@@ -4,7 +4,7 @@ param(
     [string]$Action,
     [ValidatePattern('^[a-zA-Z0-9][a-zA-Z0-9-]{0,79}$')]
     [string]$RunId = 'fresh',
-    [ValidateSet('download','copied-update','fixture','local-fixture','cdn-diagnostics','sandbox-ui','hold','cloud-upload','cloud-upload-cleanup')]
+    [ValidateSet('download','copied-update','fixture','local-fixture','cdn-diagnostics','sandbox-ui','hold','cloud-upload','cloud-upload-cleanup','cloud-empty-investigation','bridge-lifecycle','bridge-crypto')]
     [string]$Operation = 'download',
     [ValidateSet('default','akamai')]
     [string]$Provider = 'default',

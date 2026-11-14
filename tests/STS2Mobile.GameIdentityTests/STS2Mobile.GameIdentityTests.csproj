@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../tools/DownloadValidation/ValidationStagingInspection.cs" Link="ValidationStagingInspection.cs" />
+    <Compile Include="../../tools/DownloadValidation/CloudOwnedCleanup.cs" Link="CloudOwnedCleanup.cs" />
     <EmbeddedResource Include="Fixtures/WorkshopSubscriptions.NativePage*.bin" />
     <ProjectReference Include="../../src/STS2Mobile/STS2Mobile.csproj" />
     <Reference Include="0Harmony">

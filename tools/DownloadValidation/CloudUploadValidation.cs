@@ -18,7 +18,6 @@ namespace STS2Mobile.Launcher;
 // Compiled only by DownloadValidation.targets. Normal startup never reaches this harness.
 internal static class CloudUploadValidation
 {
-    private sealed record PreservedFile(string Path, long Size, string Sha256, string MetadataHash, long ModifiedAt);
     private sealed class Phase
     {
         public string Name { get; set; }
@@ -27,7 +26,42 @@ internal static class CloudUploadValidation
         public int? Uploaded;
     }
 
-    internal static async Task RunAsync(SteamCredentialStore credentials, string run, string output, Action<string> status, bool cleanupOnly)
+    internal static async Task ObserveReadOnlyBridgeAsync(SteamCredentialStore credentials, string output, Action<string> status)
+    {
+        string account = null, token = null;
+        if (!credentials.TryUseCredentials((name, refresh) => { account = name; token = refresh; }))
+            throw new IOException("Usable credentials unavailable.");
+        var events = Path.Combine(output, "bridge-events.jsonl");
+        var logGate = new object();
+        void Event(object entry) { lock (logGate) File.AppendAllText(events, JsonSerializer.Serialize(entry) + "\n"); }
+        using var session = new Session(account, token, new HashSet<string>(StringComparer.Ordinal), () => false, Event);
+        session.SetPhase("read-only-bridge", new List<Phase>());
+        // Keep a read-only connection active long enough to observe its real heartbeat.
+        // No upload/delete requests are permitted, and no lifecycle/crypto code is replaced.
+        session.Messages.BeginOperation();
+        try
+        {
+            var files = await session.Transport.EnumerateAsync(default).ConfigureAwait(false);
+            status("Read-only bridge observation ready; normal synchronization and gameplay remain disabled.");
+            var watch = Stopwatch.StartNew();
+            while (watch.Elapsed < TimeSpan.FromMinutes(8))
+            {
+                DownloadValidationRunner.Write(Path.Combine(output, "bridge-state.json"), new
+                {
+                    status = "observing",
+                    existingFiles = files.Count,
+                    cloudMutations = 0,
+                    processId = Environment.ProcessId,
+                    elapsedMs = watch.ElapsedMilliseconds,
+                    utc = DateTimeOffset.UtcNow,
+                });
+                await Task.Delay(1000).ConfigureAwait(false);
+            }
+        }
+        finally { session.Messages.EndOperation(); }
+    }
+
+    internal static async Task RunAsync(SteamCredentialStore credentials, string run, string output, Action<string> status, bool cleanupOnly, bool investigateEmpty = false)
     {
         var privateDir = Path.Combine(run, "cloud-private");
         Directory.CreateDirectory(privateDir);
@@ -59,6 +93,7 @@ internal static class CloudUploadValidation
         ValidationJava.Call("configureDownloadValidationHttp", Path.GetFileName(run));
         Session Open() => new(account, token, allowed, () => writesAllowed, Event);
         using var initial = Open();
+        if (investigateEmpty) initial.Http.PrivateErrorDirectory = privateDir;
         report["phases"] = phases;
         Save();
         Exception failure = null;
@@ -77,33 +112,42 @@ internal static class CloudUploadValidation
                 File.WriteAllText(Path.Combine(privateDir, "writes-started"), DateTimeOffset.UtcNow.ToString("O"));
 
                 status("Testing isolated Cloud upload batch…");
-                await UploadAndAuditAsync(initial, "fresh", files, phases).ConfigureAwait(false);
-                await UploadAndAuditAsync(initial, "unchanged", files, phases).ConfigureAwait(false);
-                var replacements = files.Take(3).Select(file => file with { Bytes = Changed(file.Bytes) }).ToArray();
-                await UploadAndAuditAsync(initial, "replacement", replacements, phases).ConfigureAwait(false);
-
-                if (phases.Where(phase => phase.Name is "fresh" or "replacement").Max(phase => phase.PeakHttp) < 3)
+                if (investigateEmpty)
                 {
-                    initial.Http.GateFirstThree = true;
-                    await UploadAndAuditAsync(initial, "gated-parallelism", replacements.Select(file => file with { Bytes = Changed(file.Bytes) }).ToArray(), phases).ConfigureAwait(false);
-                    initial.Http.GateFirstThree = false;
-                    if (initial.LastUploadPeak != 3) throw new IOException("Three gated upload workers did not overlap.");
+                    report["investigation"] = "sequential one-byte control followed by empty-file production upload; no transport changes";
+                    await UploadAndAuditAsync(initial, "one-byte-control", new[] { files[0] with { Bytes = new byte[] { 42 } } }, phases).ConfigureAwait(false);
+                    await UploadAndAuditAsync(initial, "empty-file-alone", new[] { files[8] }, phases).ConfigureAwait(false);
                 }
-
-                initial.SetPhase("cancel-after-commit", phases);
-                using var cancel = new CancellationTokenSource();
-                initial.Messages.CancelAfterCommit = cancel;
-                var retryFiles = files.Select(file => file with { Bytes = Changed(file.Bytes) }).ToArray();
-                try
+                else
                 {
-                    await initial.Transport.UploadBatchAsync(retryFiles, cancel.Token).ConfigureAwait(false);
-                    throw new IOException("Requested upload cancellation incorrectly reported success.");
+                    await UploadAndAuditAsync(initial, "fresh", files, phases).ConfigureAwait(false);
+                    await UploadAndAuditAsync(initial, "unchanged", files, phases).ConfigureAwait(false);
+                    var replacements = files.Take(3).Select(file => file with { Bytes = Changed(file.Bytes) }).ToArray();
+                    await UploadAndAuditAsync(initial, "replacement", replacements, phases).ConfigureAwait(false);
+
+                    if (phases.Where(phase => phase.Name is "fresh" or "replacement").Max(phase => phase.PeakHttp) < 3)
+                    {
+                        initial.Http.GateFirstThree = true;
+                        await UploadAndAuditAsync(initial, "gated-parallelism", replacements.Select(file => file with { Bytes = Changed(file.Bytes) }).ToArray(), phases).ConfigureAwait(false);
+                        initial.Http.GateFirstThree = false;
+                        if (initial.LastUploadPeak != 3) throw new IOException("Three gated upload workers did not overlap.");
+                    }
+
+                    initial.SetPhase("cancel-after-commit", phases);
+                    using var cancel = new CancellationTokenSource();
+                    initial.Messages.CancelAfterCommit = cancel;
+                    var retryFiles = files.Select(file => file with { Bytes = Changed(file.Bytes) }).ToArray();
+                    try
+                    {
+                        await initial.Transport.UploadBatchAsync(retryFiles, cancel.Token).ConfigureAwait(false);
+                        throw new IOException("Requested upload cancellation incorrectly reported success.");
+                    }
+                    catch (OperationCanceledException) when (cancel.IsCancellationRequested) { report["cancellationObserved"] = true; }
+                    initial.Messages.CancelAfterCommit = null;
+                    await WaitForJavaDrainAsync(output, "after-cancel").ConfigureAwait(false);
+                    using var retry = Open();
+                    await UploadAndAuditAsync(retry, "retry", retryFiles, phases).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) when (cancel.IsCancellationRequested) { report["cancellationObserved"] = true; }
-                initial.Messages.CancelAfterCommit = null;
-                await WaitForJavaDrainAsync(output, "after-cancel").ConfigureAwait(false);
-                using var retry = Open();
-                await UploadAndAuditAsync(retry, "retry", retryFiles, phases).ConfigureAwait(false);
             }
             report["status"] = "passed";
         }
@@ -122,14 +166,34 @@ internal static class CloudUploadValidation
                 {
                     using var cleanup = Open();
                     cleanup.SetPhase("existing-after", phases);
-                    var after = await SnapshotAsync(cleanup.Transport, allowed, privateDir, false).ConfigureAwait(false);
+                    var before = JsonSerializer.Deserialize<CloudPreservedFile[]>(File.ReadAllText(baselinePath));
+                    var afterPath = Path.Combine(privateDir, "after.json");
+                    CloudPreservedFile[] after = null;
+                    if (cleanupOnly && File.Exists(afterPath))
+                    {
+                        var cached = JsonSerializer.Deserialize<CloudPreservedFile[]>(File.ReadAllText(afterPath));
+                        var liveMetadata = await cleanup.Transport.EnumerateAsync(default).ConfigureAwait(false);
+                        if (CloudOwnedCleanup.CanReuseSnapshot(before, cached, liveMetadata, allowed))
+                        {
+                            after = cached;
+                            report["preservationMode"] = "previous-full-byte-comparison-plus-current-metadata";
+                        }
+                    }
+                    if (after == null)
+                    {
+                        after = await SnapshotAsync(cleanup.Transport, allowed, privateDir, false).ConfigureAwait(false);
+                        report["preservationMode"] = "full-byte-comparison";
+                    }
                     DownloadValidationRunner.Write(Path.Combine(privateDir, "after.json"), after);
-                    var before = JsonSerializer.Deserialize<PreservedFile[]>(File.ReadAllText(baselinePath));
                     var unchanged = before.SequenceEqual(after);
                     report["existingCloudFiles"] = before.Length;
                     report["existingCloudUnchanged"] = unchanged;
                     cleanup.SetPhase("owned-cleanup", phases);
-                    foreach (var path in ledger) await cleanup.Transport.DeleteAsync(path, CancellationToken.None).ConfigureAwait(false);
+                    var tombstones = 0;
+                    foreach (var path in ledger)
+                        if (await CloudOwnedCleanup.DeleteAsync(cleanup.Messages, allowed, path, CancellationToken.None).ConfigureAwait(false)) tombstones++;
+                    report["ownedCleanupTombstones"] = tombstones;
+                    report["ownedCleanupNotFound"] = ledger.Length - tombstones;
                     report["ownedCleanupVerified"] = true;
                     if (!unchanged) throw new IOException("Existing Cloud data changed; no restoration or overwrite was attempted.");
                 }
@@ -179,11 +243,11 @@ internal static class CloudUploadValidation
         return result;
     }
 
-    private static async Task<PreservedFile[]> SnapshotAsync(SteamCloudTransport transport, HashSet<string> owned, string privateDir, bool backup)
+    private static async Task<CloudPreservedFile[]> SnapshotAsync(SteamCloudTransport transport, HashSet<string> owned, string privateDir, bool backup)
     {
         var files = await transport.EnumerateAsync(default).ConfigureAwait(false);
         if (backup && files.Any(file => owned.Contains(file.Path))) throw new IOException("Owned namespace already exists; refusing to overwrite it.");
-        var records = new List<PreservedFile>();
+        var records = new List<CloudPreservedFile>();
         foreach (var file in files.Where(file => !owned.Contains(file.Path)).OrderBy(file => file.Path, StringComparer.Ordinal))
         {
             var bytes = await transport.DownloadBytesAsync(file, default).ConfigureAwait(false);
@@ -274,6 +338,7 @@ internal static class CloudUploadValidation
     private sealed class TrackingHttp(Action<object> log) : DelegatingHandler
     {
         internal Phase Phase;
+        internal string PrivateErrorDirectory;
         internal bool GateFirstThree;
         private int _gated;
         private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -293,6 +358,27 @@ internal static class CloudUploadValidation
             try
             {
                 var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode && PrivateErrorDirectory != null)
+                {
+                    var errorBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+                    File.WriteAllBytes(Path.Combine(PrivateErrorDirectory, "http-error-" + phase.Name + ".xml"), errorBytes);
+                    // Error bodies can contain a signature or canonical private path. Keep them
+                    // with the private backup; export only the service error code and field names.
+                    string code = null;
+                    try { code = System.Xml.Linq.XDocument.Parse(Encoding.UTF8.GetString(errorBytes)).Root?.Element("Code")?.Value; }
+                    catch (System.Xml.XmlException) { }
+                    log(new
+                    {
+                        phase = phase.Name,
+                        kind = "http-error-detail",
+                        status = (int)response.StatusCode,
+                        bodyBytes = errorBytes.Length,
+                        errorCode = code,
+                        requestBytes = request.Content?.Headers.ContentLength,
+                        contentType = request.Content?.Headers.ContentType?.ToString(),
+                        headerNames = request.Headers.Select(header => header.Key).Concat(request.Content?.Headers.Select(header => header.Key) ?? Enumerable.Empty<string>()).OrderBy(name => name).ToArray()
+                    });
+                }
                 if (isGet) Interlocked.Add(ref phase.DownloadPayloadBytes, response.Content.Headers.ContentLength ?? 0);
                 else if (response.IsSuccessStatusCode) Interlocked.Add(ref phase.UploadPayloadBytes, request.Content?.Headers.ContentLength ?? 0);
                 log(new { phase = phase.Name, kind = "http", method = request.Method.Method, status = (int)response.StatusCode, elapsedMs = watch.ElapsedMilliseconds });

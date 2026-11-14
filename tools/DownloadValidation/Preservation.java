@@ -141,7 +141,7 @@ public final class Preservation extends Instrumentation {
     private void request(Bundle result) throws Exception {
         String runId = identifier(arguments.getString("runId"));
         String operation = arguments.getString("operation", "download");
-        if (!Arrays.asList("download", "copied-update", "fixture", "local-fixture", "cdn-diagnostics", "sandbox-ui", "hold", "cloud-upload", "cloud-upload-cleanup").contains(operation))
+        if (!Arrays.asList("download", "copied-update", "fixture", "local-fixture", "cdn-diagnostics", "sandbox-ui", "hold", "cloud-upload", "cloud-upload-cleanup", "cloud-empty-investigation", "bridge-lifecycle", "bridge-crypto").contains(operation))
             throw new IllegalArgumentException("Unsupported validation operation");
         String branch = arguments.getString("branch", "public");
         if (!branch.matches("[a-zA-Z0-9_-]+")) throw new IllegalArgumentException("Invalid branch");
@@ -181,7 +181,7 @@ public final class Preservation extends Instrumentation {
             for (File file : files) {
                 if (!file.isFile() || Files.isSymbolicLink(file.toPath())
                     || !file.getCanonicalFile().getParentFile().equals(source.getCanonicalFile())
-                    || !file.getName().matches("(owned-files|before|after)\\.json(\\.tmp)?|backup-complete|writes-started|[A-F0-9]{64}\\.bin"))
+                    || !file.getName().matches("(owned-files|before|after)\\.json(\\.tmp)?|backup-complete|writes-started|[A-F0-9]{64}\\.bin|http-error-(existing-backup|one-byte-control(-audit)?|empty-file-alone(-audit)?)\\.xml"))
                     throw new IOException("Unexpected Cloud private backup entry");
                 archive.putNextEntry(new ZipEntry(file.getName()));
                 Files.copy(file.toPath(), archive);

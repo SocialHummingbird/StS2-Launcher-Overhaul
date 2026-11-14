@@ -626,8 +626,8 @@ recovery ledger or helper until they are confirmed.
 | --- | --- |
 | Complete fresh nine-file batch | **Failed**: empty PUT returned HTTP 403. Need a sanitized error-body/request-length observation before attributing the cause. |
 | Unchanged/duplicate, replacement, requested cancellation/retry, gated parallelism, final owned-file byte audits | **Blocked** by the failed fresh batch; fixtures are separate evidence. |
-| Existing Cloud preservation comparison and nine owned-file tombstones | **Incomplete**: observation stopped when the device was removed; the run may continue on-device. Inspect its result or resume from the retained ledger. |
-| Final local preservation comparison, offline normal startup and helper/test-data removal | **Unavailable** after device removal. Never substitute the SM-F711B or another device. |
+| Existing Cloud preservation and owned-file removal | **Passed on reconnection**: full byte comparison of 617 original files, then fresh matching metadata; all nine owned paths independently returned `FileNotFound`. No explicit tombstones were returned. See closeout below. |
+| Final local preservation, offline normal startup and helper/test-data removal | **Passed on reconnection** on the authorised Fold only. Normal 438021 is installed/stopped, test data/helper removed, and five network settings restored. |
 
 ### Normal APK and handoff state
 
@@ -639,10 +639,10 @@ managed and Java validation hooks are absent. Engine IL SHA-256:
 
 The normal APK is `artifacts/android/StS2Launcher-v0.2.438-save-upload-local-arm64-v8a.apk`,
 SHA-256 `8ce05b31b2fd573803cb582e7552eaec22902a11d36e1a8adc4b18d36dfcc026`.
-It **was not installed**. The phone's last verified build remains **validation 438016**,
-which deliberately disables normal launcher actions. Install normal 438017 in place,
-without uninstalling or clearing data, when the authorised Fold is available again.
-Normal startup and final preservation are not established by APK packaging checks.
+At the interrupted handoff, that APK **was not installed**, and the last verified
+phone build was validation 438016. Reconnected closeout below supersedes that state:
+normal **438021** is now installed and stopped. Normal startup and preservation were
+checked separately from packaging; no uninstall or data clearing was performed.
 
 Source baseline, dirty feature-branch state and production source hashes accompany the
 normal APK metadata. The campaign did not push to GitHub or publish a release. Raw logcat,
@@ -668,3 +668,239 @@ $evidence = "$PWD/tmp/save-upload-batch-20261113/device"
 Host evidence is under `tmp/save-upload-batch-20261113/`. Existing game downloads,
 Pull/conflict policy, local scan/hash caching, Android bridge cancellation and public
 release publishing remain outside this change. No percentage speed claim is made.
+
+
+### Reconnected Cloud cleanup and normal-APK closeout
+
+On reconnection, no completed cleanup result was available. A resumed full read/hash
+comparison finished with **all 617 existing Cloud files unchanged**. The initial
+production delete verifier then failed because an acknowledged `ClientDeleteFile`
+was followed by `ClientFileDownload: FileNotFound`, rather than an explicit tombstone.
+A repeated delete of that already removed test path returned `DuplicateRequest`.
+These are additional observed protocol responses; production deletion behaviour was
+not changed or declared passing.
+
+The validation-only cleanup now inspects exact ledger-owned paths first. Already
+absent paths require no delete; present paths are deleted and independently checked.
+Only same-app explicit tombstones or the metadata RPC's exact `FileNotFound` response
+establish absence. A repeated-delete response is accepted only after that independent
+check. Unowned paths, wrong-app/present metadata, failed deletes and access errors
+cannot be reported as clean.
+
+A completed full-byte comparison can be reused for interrupted cleanup only when its
+saved before/after records agree and a new complete remote listing matches every
+original path, usable hash, raw size and timestamp. New/missing/unrelated files or
+unusable hashes force a new full byte comparison. The report labels this mode
+`previous-full-byte-comparison-plus-current-metadata`; it does not claim another full
+content download. Exact owned test paths are the only exclusions.
+
+Two focused regressions were observed failing and then passing for absence checking
+and checkpoint reuse; idempotent cleanup cases were also exercised. The complete
+managed suite now passes **283 tests**. Original production fingerprints are unchanged,
+so the earlier **15 save-safety scenarios**, **56 JVM tests**, and unchanged **15-error /
+39-warning** lint record remain applicable. Review found no remaining mutation-safety
+issue in the validation changes. Fixtures remain separate from the live observations.
+
+Final cleanup-only run `c671423f6ce546028784b6163bee1901` ran from **18:12:14.543 to
+18:12:38.940 UTC** (24.397 seconds). It confirmed the completed preservation comparison
+against fresh metadata, sent seven deletes for the remaining present test files,
+and verified **all nine test paths absent**. The other two paths were already absent.
+All nine final absence results were `FileNotFound`; zero explicit tombstones were
+reported. The zero-byte PUT 403 and the production delete-verifier limitation therefore
+remain failed live cases, rather than being hidden by test-tool cleanup.
+
+Final normal APK **0.2.438-save-upload-closeout2 / 438021** was built from clean Gradle
+output without validation inputs, passed contents/crypto/signing and update checks
+against validation **438020**, and was installed in place. Its packaged production
+Cloud/chunk engine IL and SteamKit/WebSocket/Zstd dependencies match the candidate;
+all managed/Java validation hooks and closeout helper types are absent. SHA-256:
+`af373019db225774667701730c85b7d20012b9ad748f09ec8d817ae725a16eec`.
+The engine IL SHA-256 remains
+`91828d7dc13035a9a902674a8253b4bf16b99bf93964bb0cf76e97dfd4997f40`.
+
+With **Active default network: none**, the normal APK rendered Home and its Play Modded
+control, preserved public-beta selection and four enabled mods, and logged controller
+startup completion at 477 ms. No game was launched. The app was stopped before connectivity returned.
+
+Final local comparison covered **1,178 protected entries** with **zero semantic user-data
+differences**. Saves, encrypted credentials, installed versions and four typed user
+preferences matched. The two retained raw differences were `sts2mobile.xml` runtime
+metadata and `profileInstalled`; no other framework preference keys changed.
+Guarded cleanup then removed only the test-owned directories and helper. All five
+captured network settings match their reconnected baseline. Final package inspection
+confirmed **normal 438021 installed, stopped=true**. Existing Cloud backups, private
+before/after snapshots and raw differences remain on the host under ignored private
+evidence. No public release was published.
+
+Reproduction/evidence for this closeout is in `cleanup-red.log`,
+`cleanup-idempotent-red.log`, `cleanup-green.log`, `closeout-managed.log`,
+`closeout-package-audit.json`, `device/results/final-cloud/`,
+`device/private/cloud-preserved-final.zip`, `final-local-compare.log`,
+`final-helper-cleanup.log` and `final-device-closeout.json` under
+`tmp/save-upload-batch-20261113/`.
+
+## Follow-up: empty Cloud PUT and stopped-frame crypto timeout
+
+Evidence is under ignored `tmp/cloud-failure-investigation-20261113/`. Source HEAD was
+`ce46ced8c629cf7e52121e4e41deea0b5178ed76` on `codex/save-upload-closeout`, with the
+previous closeout tooling/documentation still uncommitted. This investigation changes
+test tooling only. Production upload, HTTP, crypto, dispatcher and connection code are
+unchanged. Only `SM-F971B / R3GL70DKNKB` was used; the other Samsung was excluded.
+Installed baseline was normal **438021**. Fresh local preservation captured 731 backup
+files and 1,178 protected hashes before installing diagnostics.
+
+### Empty-file HTTP 403: cause still inconclusive
+
+The original failed request was Java request **627**, to the Azure Cloud upload host.
+It received HTTP 403 after 185 ms, read **876 error-body bytes**, and exited at 187 ms.
+The managed call reported failure at 249 ms. Requests 619 and 622 had already received
+201 from the same Azure host; the other six nonempty uploads used AWS/Google hosts and
+succeeded. These observations do not establish a general account or Azure outage, nor
+whether the empty-file failure depends on concurrency. The old evidence retained the
+error-body length, but not its content or service error code.
+
+One plausible source-level explanation was tested and rejected for the tested wire
+path: `performHttpRequest` skips supplied `Content-Length` and only opens an output
+stream for nonempty data. A standalone dex probe on the Fold extracted that exact
+production method, used an Android loopback HTTP server to inspect requests, and
+compared empty/one-byte PUTs with a diagnostic variant that also opens an empty output
+stream. **All four requests had the correct Content-Length and body bytes**: 0 or 1.
+Android supplied the zero length automatically. Both empty variants were identical
+for those fields. This is an Android HTTP/1.1 loopback test under shell UID, not a
+successful authenticated Azure/TLS upload; it does not prove every signed header is
+correct on the live path. Production code was not altered to adopt the variant.
+
+The new `cloud-empty-investigation` operation attempts a one-byte control, then an
+empty file **sequentially through the production batch implementation**. An observer
+retains any error XML privately and exports only the service error code, field names
+and sizes. The existing full-backup and exact owned-ledger gates still precede writes.
+
+Live attempt `71000b6e6fe94e92aecbe0d7dc0ce327` on validation **438022** ran
+19:03:58.758–19:08:16.920 UTC. Enumeration returned 617 files, but the first backup GET
+to `steamcloud-london.storage.googleapis.com` returned no headers/body before managed
+cancellation at 120,034 ms. Its Java worker remained active after the additional
+130-second drain allowance; zero telemetry events were lost. The process was stopped
+only after the failed report and raw evidence were retained. **No begin-upload,
+commit, PUT or delete occurred.** The one-byte and empty-file probes are therefore
+**blocked**, not failed upload attempts. The new error-body capture path was compiled
+but not exercised. The incomplete backup/ledger was exported privately.
+
+Smallest remaining evidence: a completed read-only preservation backup, followed by
+that sequential control/empty test's sanitized service error code and canonical
+request/header comparison. Until that exists, neither an empty-file handling fix nor
+a concurrency/signature diagnosis is justified. The new cancellation/drain failure
+is separate evidence; it does not explain the earlier 403.
+
+### Bridge timeout: stopped-frame crypto failure reproduced
+
+The original process 9897 logged activity pause at **15:52:39.181**, stop at
+**15:52:39.790**, then an unhandled bridge timeout at **15:55:39.865**: **180.075 s after
+stop**. Its stack is specifically SteamKit's CM heartbeat → encrypted TCP send →
+`AndroidJavaCrypto.AesEncryptEcb` → `AndroidBridgeDispatcher.Run/Wait`.
+
+The source and packaged dependencies establish the mechanism:
+
+- Android Steam connections use TCP. The patched encryption helper dispatches Java
+  crypto through `AndroidBridgeDispatcher`, waits synchronously, and has a fixed
+  180,000 ms deadline.
+- That queue is serviced by Godot process-frame callbacks on the registered engine
+  thread. The packaged Godot 4.5.1 library's `GodotVulkanRenderView.onActivityStopped`
+  calls `pauseRenderThread`; restart resumes it. `GodotApp.onPause/onStop` does not
+  cancel queued bridge work or establish an exception boundary around heartbeats.
+- The packaged SteamKit `ScheduledFunction.Tick` directly invokes its action, with
+  **zero exception handlers**. Its CM heartbeat callback also has no exception handler.
+  A dispatcher timeout escaping that callback can terminate the process.
+
+A managed fixture links the **unchanged dispatcher source** and supplies only an
+Android-platform seam. A serviced request completed; an unserviced timer request
+threw an unhandled timeout at **180,021 ms** without executing its queued action. This
+establishes queue/callback behaviour, not Android crypto speed.
+
+Two read-only Fold observations enumerated Cloud metadata without permitting writes.
+The short background/resume control kept the same PID but dropped its Steam connection
+after about five seconds. A fresh uninterrupted background observation also dropped
+the connection and did not reproduce the heartbeat fatal timeout in the observed
+window. Thus backgrounding alone is not a sufficient reproduction: an in-flight
+callback depending on the stopped engine thread matters. These are not successful
+upload/cancellation acceptance tests.
+
+An offline `bridge-crypto` fixture isolated that boundary on the Fold. It first checked
+a known AES block on a worker, then armed a diagnostic timer using the same production
+crypto/dispatcher calls and the same unhandled-callback behaviour. It used no Steam
+session, saved credentials, Cloud operations or production lifecycle changes.
+
+On validation **438024**, process **29129** verified the foreground worker's AES output
+at **19:24:41.224 UTC**. It armed the timer at 19:24:41.249, the activity stopped at
+19:24:41.791, and the timer entered encryption at **19:24:51.253**. No crypto-completed
+event followed. Android subsequently froze the background process; `dumpsys activity
+processes` recorded **isFrozen=true** before resume. At **19:28:25.373** the activity
+resumed; at **19:28:25.400** the worker logged the same unhandled dispatcher timeout,
+**27 ms after resume**. The stack includes the production
+`AndroidJavaCrypto.AesEncryptEcb` and dispatcher, then the diagnostic timer callback.
+Android exit information records **SIGNALED / status 6** at 19:28:25.467.
+
+**Verdict: confirmed lifecycle/bridge failure mechanism, high confidence.** A crypto
+call can depend on a stopped Godot frame thread, outlive its 180-second deadline and
+escape an unhandled timer callback. OS process freezing can defer when the fatal
+exception surfaces; this device fixture is not a measurement of a 180-second AES
+operation. The real SteamKit heartbeat crash remains the original separate observation;
+the offline timer fixture establishes the shared failure mechanism, not the frequency
+or every live connection condition. No production fix was implemented.
+
+### Final device closeout
+
+Normal **438025 / 0.2.438-cloud-investigation-closeout2** was built from clean Gradle
+output, verified for signing/update compatibility, and installed without uninstalling
+or clearing launcher data. Its SHA-256 is
+`a6d0ee10a4766fa524a807100253e82a11a659604ff541b2c543f7bec03c5dfe`.
+The packaged Cloud/chunk engine IL matches validation 438024 and the earlier tested
+engine (`91828d7dc13035a9a902674a8253b4bf16b99bf93964bb0cf76e97dfd4997f40`);
+SteamKit/WebSocket/Zstd dependencies match. Managed/Java test hooks, including the
+offline timer fixture, are absent from normal packaging.
+
+With **Active default network: none**, normal startup rendered Home, retained
+public-beta and four enabled mods, and logged controller-ready at 480 ms. No gameplay
+was launched. The normal UI was stopped before connectivity returned. Final comparison
+again covered **1,178 protected entries with zero semantic user-data differences**:
+saves, credentials, installed versions and four typed user preferences matched. The
+two raw runtime-metadata differences are retained privately. Guarded helper cleanup
+removed only its owned directories; the helper, loopback dex and device screenshot
+were removed. Instrumentation had cleared Android's stopped flag even though no normal
+process remained; a final explicit force-stop restored it. Final inspection confirms
+**438025, stopped=true, no launcher process**, with all five network settings restored.
+
+This campaign sent **zero Cloud mutation requests**. Its failed backup cannot establish
+a fresh full Cloud byte comparison, so the earlier successful 617-file preservation
+comparison remains separate historical evidence. Empty-file upload acceptance is still
+blocked. No GitHub release was published.
+
+### Reproducible checks and retained evidence
+
+```powershell
+python tmp/cloud-failure-investigation-20261113/probe-empty-http.py
+# javac/d8 compile the generated EmptyHttpProbe.java; push only its dex to
+# /data/local/tmp/sts2-empty-http-probe.dex on R3GL70DKNKB, then:
+adb -s R3GL70DKNKB shell 'CLASSPATH=/data/local/tmp/sts2-empty-http-probe.dex app_process /system/bin EmptyHttpProbe'
+dotnet run --project tmp/cloud-failure-investigation-20261113/bridge-fixture/BridgeFixture.csproj -c Release -- pumped
+dotnet run --project tmp/cloud-failure-investigation-20261113/bridge-fixture/BridgeFixture.csproj -c Release -- unserviced-timer
+python tmp/cloud-failure-investigation-20261113/analyse.py
+dotnet run --project tests/STS2Mobile.GameIdentityTests/STS2Mobile.GameIdentityTests.csproj -c Release
+./tools/DownloadValidation/test-campaign-tooling.ps1
+```
+
+The device operations use the normal signed validation-build procedure above with
+strictly increasing version codes. Explicit harness operations are
+`-Operation cloud-empty-investigation`, `-Operation bridge-lifecycle` and
+`-Operation bridge-crypto`. The crypto fixture is deliberately fatal when its queued
+call cannot complete: capture its raw events/logcat and Android exit information,
+rather than changing the interrupted outer `result.json` to a successful result.
+
+The managed suite passed **283/283**. Generator guards passed; validation and normal APK
+builds passed. The later harness compile passed with 85 warnings/zero errors. Raw
+fixture, Java-worker, lifecycle, backup failure and package-audit records are retained
+alongside `analysis.json`, `source.json`, `android-loopback-results.json`,
+`steamkit-heartbeat-il.txt` and the packaged Godot `javap` output. Private snapshots,
+APK copies and Cloud ledger exports remain separate from shareable run results.
+`device/results/crypto-reproduced/`, `device/private/crypto-exit-info.txt`,
+`final-package-audit.json`, `local-compare.log`, `final-device-closeout.json` and
+`device/installed-final-stopped.txt` establish the final reproduction and closeout.

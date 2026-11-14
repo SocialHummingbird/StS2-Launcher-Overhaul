@@ -131,6 +131,13 @@ internal partial class LauncherModel
         {
             if (request.Operation == "cdn-diagnostics")
                 ValidationJava.Call("configureDownloadValidationHttp", request.RunId);
+            if (request.Operation == "bridge-crypto")
+            {
+                result["fixture"] = "Offline known AES block through unchanged production Java crypto and dispatcher; diagnostic timer models SteamKit callback exception handling.";
+                await BridgeCryptoValidation.RunAsync(output, status).ConfigureAwait(false);
+                result["status"] = "passed";
+                return;
+            }
             if (request.Operation == "local-fixture")
             {
                 result["fixture"] = "Local verified installed Steam content; three delayed local fetch workers, no Steam session or network calls. Raw-file promotion only, not full game readiness.";
@@ -161,10 +168,17 @@ internal partial class LauncherModel
             validationModel._credentialStore.Load();
             if (!validationModel._credentialStore.HasUsableCredentials()) throw new InvalidOperationException("No usable saved credentials.");
             status("Connecting the validation Steam session…");
-            if (request.Operation is "cloud-upload" or "cloud-upload-cleanup")
+            if (request.Operation == "bridge-lifecycle")
+            {
+                result["steamCloudOperations"] = "read-only enumeration; zero mutations";
+                await CloudUploadValidation.ObserveReadOnlyBridgeAsync(validationModel._credentialStore, output, status).ConfigureAwait(false);
+                result["status"] = "passed";
+                return;
+            }
+            if (request.Operation is "cloud-upload" or "cloud-upload-cleanup" or "cloud-empty-investigation")
             {
                 result["steamCloudOperations"] = "isolated-ledger-only";
-                await CloudUploadValidation.RunAsync(validationModel._credentialStore, run, output, status, request.Operation == "cloud-upload-cleanup").ConfigureAwait(false);
+                await CloudUploadValidation.RunAsync(validationModel._credentialStore, run, output, status, request.Operation == "cloud-upload-cleanup", request.Operation == "cloud-empty-investigation").ConfigureAwait(false);
                 result["status"] = "passed";
                 return;
             }

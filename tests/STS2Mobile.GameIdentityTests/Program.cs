@@ -24,6 +24,8 @@ internal static partial class Program
 
         var tests = new (string Name, Action Run)[]
         {
+            ("cloud cleanup acknowledges deletion before absence", CloudOwnedCleanupVerifiesAbsenceAfterAcknowledgement),
+            ("cloud cleanup checkpoint requires live metadata", CloudPreservationCheckpointRequiresMatchingLiveMetadata),
             ("cloud upload metadata avoids read-back", CloudUploadMetadataAvoidsReadBack),
             ("cloud upload metadata fallback", CloudUploadFallsBackForMissingMetadata),
             ("cloud upload metadata contradictions", CloudUploadRejectsContradictions),
