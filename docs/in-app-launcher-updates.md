@@ -2,6 +2,10 @@
 
 The launcher checks GitHub for a new release after it opens. If one is available, it offers **Update** or **Later**. You can check yourself with **Help → Check for app updates**.
 
+An update is offered only when the release APK's Android build number (`versionCode`)
+is higher than the installed build. Display-name suffixes such as local test labels
+do not make an equal or older build an update.
+
 ## Install an update
 
 1. Choose Update to download the APK. You can cancel the download.
@@ -21,8 +25,17 @@ The updater rejects APKs with a missing checksum, the wrong architecture or pack
 
 ## For release maintainers
 
-Publish a non-draft, non-prerelease GitHub release and mark it latest. Keep the package name and signing certificate, increase the Android version code, and use a comparable version tag. Increasing the numeric release version avoids ambiguity between differently named release candidates.
+Publish a non-draft, non-prerelease GitHub release and mark it latest. Keep the package name and signing certificate and increase the Android version code. The tag and displayed version name do not determine Android update ordering.
 
 Name APK assets with their ABI suffix, such as `-arm64-v8a.apk`. The updater uses GitHub's `sha256:` asset digest and checks file size, package, signature, minimum Android version, and native architecture before handing the APK to Android. Signing-key rotation is not supported by this implementation.
+
+Upload the build wrapper's matching `.apk.json` alongside each APK. It must contain
+`versionCode`, `versionName`, `packageName`, `apk` (the APK asset filename), and
+`sha256` (the APK hash). GitHub must expose SHA-256 digests for both assets. Before
+showing a prompt, the updater verifies the small metadata asset and its binding to
+the selected APK and installed package. Missing or invalid metadata makes a manual
+check unavailable; an automatic failure remains quiet. It never falls back to
+display-name comparison. After download it also checks that the actual APK build
+number matches the verified metadata.
 
 Unit tests cover release selection and rejection cases. The full download, permission, installation, and relaunch cycle still needs a device test with a newer compatible APK.

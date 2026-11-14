@@ -51,18 +51,11 @@ final class AndroidLauncherUpdater {
         if (manual) showProgress("Checking for app updates", false);
         worker.execute(() -> {
             try {
-                HttpURLConnection connection = open(API);
-                String json;
-                try (InputStream in = connection.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-                    byte[] buffer = new byte[8192]; int read;
-                    while ((read = in.read(buffer)) != -1) {
-                        if (out.size() + read > 2 * 1024 * 1024) throw new IOException("Release response was too large.");
-                        out.write(buffer, 0, read);
-                    }
-                    json = new String(out.toByteArray(), StandardCharsets.UTF_8);
-                } finally { connection.disconnect(); }
-                String installed = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionName;
-                LauncherAppRelease release = LauncherAppRelease.parse(json, installed, Build.SUPPORTED_ABIS);
+                String json = new String(read(API, 2 * 1024 * 1024), StandardCharsets.UTF_8);
+                PackageInfo installedInfo = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0);
+                String installed = installedInfo.versionName;
+                LauncherAppRelease release = LauncherAppRelease.parse(json, activity.getPackageName(), versionCode(installedInfo),
+                    Build.SUPPORTED_ABIS, url -> read(url, LauncherAppRelease.MAX_METADATA_BYTES));
                 deliver(() -> {
                     dismiss();
                     if (cancelled) { busy = false; return; }
@@ -126,7 +119,8 @@ final class AndroidLauncherUpdater {
                 if (cancelled) throw new InterruptedIOException("Update cancelled.");
                 if (total != release.size || !hex(hash.digest()).equalsIgnoreCase(release.sha256))
                     throw new IOException("Update verification failed. Please download it again.");
-                validateApk(partial);
+                if (validateApk(partial) != release.versionCode)
+                    throw new IOException("The APK build number does not match the verified release metadata.");
                 if (cancelled) throw new InterruptedIOException("Update cancelled.");
                 if (apkFile().exists() && !apkFile().delete()) throw new IOException("Could not replace the cached update.");
                 if (!partial.renameTo(apkFile())) throw new IOException("Could not save the verified update.");
@@ -144,7 +138,7 @@ final class AndroidLauncherUpdater {
         });
     }
 
-    private void validateApk(File apk) throws Exception {
+    private long validateApk(File apk) throws Exception {
         PackageManager pm = activity.getPackageManager();
         int flags = Build.VERSION.SDK_INT >= 28 ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
         PackageInfo current = pm.getPackageInfo(activity.getPackageName(), flags);
@@ -162,6 +156,7 @@ final class AndroidLauncherUpdater {
                 .anyMatch(abi -> entry.getName().startsWith("lib/" + abi + "/") && entry.getName().endsWith(".so")));
             if (!compatible) throw new IOException("This APK does not support your device's architecture.");
         }
+        return versionCode(target);
     }
 
     private void install() {
@@ -249,6 +244,17 @@ final class AndroidLauncherUpdater {
         StringBuilder result = new StringBuilder();
         for (byte value : bytes) result.append(String.format(java.util.Locale.ROOT, "%02x", value & 255));
         return result.toString();
+    }
+    private static byte[] read(String address, int limit) throws Exception {
+        HttpURLConnection connection = open(address);
+        try (InputStream in = connection.getInputStream(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192]; int count;
+            while ((count = in.read(buffer)) != -1) {
+                if (out.size() + count > limit) throw new IOException("Release response was too large.");
+                out.write(buffer, 0, count);
+            }
+            return out.toByteArray();
+        } finally { connection.disconnect(); }
     }
     private static HttpURLConnection open(String address) throws Exception {
         for (int redirects = 0; redirects < 6; redirects++) {

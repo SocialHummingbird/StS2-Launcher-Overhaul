@@ -282,7 +282,6 @@ internal sealed partial class ActionSection
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         modsList.AddThemeConstantOverride("separation", Math.Max(3, (int)(4 * scale)));
-        group.AddChild(modsList);
         Container actionsParent = compact && !_compactStackedActionRows ? BuildCompactActionRow(group, scale, compactStackedActionRows: false) : group;
         var workshopSyncButton = AddActionButton(actionsParent, "Update Workshop mods", scale, () => WorkshopSyncPressed?.Invoke());
         workshopSyncButton.AccessibilityName = "Update Workshop mods";
@@ -294,6 +293,7 @@ internal sealed partial class ActionSection
         workshopClearButton.TooltipText = "Review before removing downloaded Workshop mods.";
         workshopClearButton.AccessibilityDescription = workshopClearButton.TooltipText;
         SetCompactActionButtonText(workshopClearButton, workshopClearButton.Text);
+        group.AddChild(modsList);
         AddChild(group);
         return new ModsControls(group, playVanillaButton, playModdedButton, launchSummaryLabel, modsList, workshopSyncButton, workshopClearButton);
     }

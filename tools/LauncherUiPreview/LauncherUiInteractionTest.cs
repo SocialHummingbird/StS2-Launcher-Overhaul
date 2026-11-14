@@ -136,12 +136,14 @@ internal static class LauncherUiInteractionTest
         view.SetModsPresentation(OverflowPresentation(4));
         await Frames(6);
         var scroll = FindUniqueVisibleNamed<ScrollContainer>(root, "LauncherPrimaryScroll");
+        await AssertUpdateVisibleWithoutScrollingAsync(4);
         GD.Print("MODS_SCROLL_BEFORE_GROWTH=" + Geometry());
 
         view.SetModsPresentation(OverflowPresentation(6));
         await Frames(6);
         root.GetViewport().GuiReleaseFocus();
         scroll.ScrollVertical = 0;
+        await AssertUpdateVisibleWithoutScrollingAsync(6);
         var bar = scroll.GetVScrollBar();
         var lastToggle = Descendants<CheckButton>(FindUniqueVisibleNamed<Control>(root, "ModsList"))
             .Where(toggle => IsLiveAndVisible(toggle) && toggle.Name == "ModEnabledToggle").Last();
@@ -201,6 +203,34 @@ internal static class LauncherUiInteractionTest
             + "; after=" + Geometry() + "; lastToggle=" + lastToggle.GetGlobalRect());
         root.GetViewport().GuiReleaseFocus();
         view.SetModsPresentation(CurrentModdedPresentation());
+
+        async Task AssertUpdateVisibleWithoutScrollingAsync(int installedCount)
+        {
+            root.GetViewport().GuiReleaseFocus();
+            scroll.ScrollVertical = 0;
+            await Frames(3);
+            var update = FindVisibleButton(root, "Update Workshop mods");
+            Expect(scroll.GetGlobalRect().Encloses(update.GetGlobalRect()),
+                $"Workshop update must be fully visible when Mods opens with {installedCount} installed mods: "
+                + Geometry() + "; update=" + update.GetGlobalRect());
+            Expect(!update.Disabled, "Installed mods must retain an enabled update action in the ready state.");
+            var pressed = 0;
+            void OnPressed() => pressed++;
+            update.Pressed += OnPressed;
+            try
+            {
+                var point = update.GetGlobalRect().GetCenter();
+                root.GetViewport().PushInput(new InputEventMouseMotion { Position = point, GlobalPosition = point }, true);
+                foreach (var down in new[] { true, false })
+                    root.GetViewport().PushInput(new InputEventMouseButton
+                    {
+                        Position = point, GlobalPosition = point, ButtonIndex = MouseButton.Left, Pressed = down,
+                    }, true);
+                await Frames(2);
+                Expect(pressed == 1, "The visible Workshop update action must accept one pointer click.");
+            }
+            finally { update.Pressed -= OnPressed; }
+        }
 
         async Task Frames(int count)
         {
@@ -357,6 +387,8 @@ internal static class LauncherUiInteractionTest
         );
 
         AssertPrimaryHierarchy(root, LauncherDestination.Mods);
+        Press(root, "Update Workshop mods");
+        Expect(events.WorkshopUpdate == 1, "Updating installed Workshop mods did not route once.");
         Press(root, "Remove downloaded Workshop mods\u2026");
         AssertConfirmation(
             root,
@@ -1806,7 +1838,7 @@ internal static class LauncherUiInteractionTest
             saveSyncNowPressed: () => events.SaveSyncNow++,
             savePullPressed: () => events.SaveGet++,
             savePushPressed: () => events.SaveSend++,
-            workshopSyncPressed: () => { },
+            workshopSyncPressed: () => events.WorkshopUpdate++,
             workshopClearPressed: () =>
                 LauncherWorkshopCoordinator.ShowRemoveDownloadedModsConfirmation(
                     view,
@@ -1843,6 +1875,7 @@ internal static class LauncherUiInteractionTest
         internal int CopyRawLog;
         internal readonly List<string> RendererModes = new();
         internal int WorkshopRemove;
+        internal int WorkshopUpdate;
         internal int ModsSelectionChanged;
     }
 }
